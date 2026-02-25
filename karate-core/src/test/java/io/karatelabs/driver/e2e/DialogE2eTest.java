@@ -23,6 +23,7 @@
  */
 package io.karatelabs.driver.e2e;
 
+import io.karatelabs.driver.Dialog;
 import io.karatelabs.driver.cdp.*;
 
 import io.karatelabs.driver.e2e.support.DriverTestBase;
@@ -234,6 +235,30 @@ class DialogE2eTest extends DriverTestBase {
         driver.waitForText("#result", "Confirm result: true");
 
         assertEquals(2, dialogCount.get());
+    }
+
+    @Test
+    @Order(11)
+    void testScriptFailsFastWhenDialogBlocking() throws Exception {
+        // No dialog handler — dialog will stay open and block Runtime.evaluate
+        // Use setTimeout so script() returns before the dialog opens
+        driver.script("setTimeout(() => document.getElementById('confirm-btn').click(), 100)");
+        Thread.sleep(500); // Wait for dialog to open
+
+        long start = System.currentTimeMillis();
+        try {
+            driver.script("document.title");
+            fail("Should have thrown due to dialog blocking");
+        } catch (DialogOpenedException e) {
+            // Expected — dialog cancelled the pending evaluation
+        }
+        long elapsed = System.currentTimeMillis() - start;
+        assertTrue(elapsed < 2000, "Should fail fast, not wait for timeout. Took: " + elapsed + "ms");
+
+        // Clean up — dismiss dialog
+        Dialog dialog = driver.getDialog();
+        assertNotNull(dialog);
+        dialog.dismiss();
     }
 
 }

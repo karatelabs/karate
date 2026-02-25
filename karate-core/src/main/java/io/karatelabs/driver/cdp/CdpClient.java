@@ -50,11 +50,21 @@ public class CdpClient {
 
     private final WsClient ws;
     private final AtomicInteger idGenerator = new AtomicInteger();
-    private final ConcurrentHashMap<Integer, CompletableFuture<CdpResponse>> pending = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, PendingRequest> pending = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, List<Consumer<CdpEvent>>> eventHandlers = new ConcurrentHashMap<>();
     private final List<CdpEventListener> externalListeners = new CopyOnWriteArrayList<>();
     private final Duration defaultTimeout;
     private volatile String sessionId;
+
+    static class PendingRequest {
+        final CompletableFuture<CdpResponse> future;
+        final String method;
+
+        PendingRequest(CompletableFuture<CdpResponse> future, String method) {
+            this.future = future;
+            this.method = method;
+        }
+    }
 
     // Factory methods
 
@@ -109,8 +119,8 @@ public class CdpClient {
         });
         ws.onClose(() -> {
             // Complete all pending futures exceptionally
-            for (CompletableFuture<CdpResponse> future : pending.values()) {
-                future.completeExceptionally(
+            for (PendingRequest pr : pending.values()) {
+                pr.future.completeExceptionally(
                         new WsException(WsException.Type.CONNECTION_CLOSED, "websocket closed"));
             }
             pending.clear();
@@ -133,10 +143,10 @@ public class CdpClient {
         if (map.containsKey("id")) {
             // Response to a request
             int id = ((Number) map.get("id")).intValue();
-            CompletableFuture<CdpResponse> future = pending.remove(id);
-            if (future != null) {
+            PendingRequest pr = pending.remove(id);
+            if (pr != null) {
                 CdpResponse response = new CdpResponse(map);
-                future.complete(response);
+                pr.future.complete(response);
             } else {
                 // Expected for fire-and-forget messages (sendWithoutWaiting)
                 logger.trace("received response for fire-and-forget request id: {}", id);
@@ -246,7 +256,7 @@ public class CdpClient {
 
         CompletableFuture<CdpResponse> future = new CompletableFuture<>();
         int messageId = message.getId();
-        pending.put(messageId, future);
+        pending.put(messageId, new PendingRequest(future, message.getMethod()));
 
         String json = message.toJson();
         logger.trace(">>> {}", json);
@@ -276,6 +286,24 @@ public class CdpClient {
         String json = message.toJson();
         logger.trace(">>> {}", json);
         ws.send(json);
+    }
+
+    /**
+     * Cancel all pending Runtime.evaluate requests because a dialog opened.
+     * Called when Page.javascriptDialogOpening event is received.
+     */
+    void cancelPendingEvaluations() {
+        var iterator = pending.entrySet().iterator();
+        while (iterator.hasNext()) {
+            var entry = iterator.next();
+            PendingRequest pr = entry.getValue();
+            if ("Runtime.evaluate".equals(pr.method)) {
+                logger.debug("cancelling pending Runtime.evaluate (id: {}) due to dialog", entry.getKey());
+                pr.future.completeExceptionally(
+                        new DialogOpenedException("dialog opened while Runtime.evaluate was pending"));
+                iterator.remove();
+            }
+        }
     }
 
     // Event subscription

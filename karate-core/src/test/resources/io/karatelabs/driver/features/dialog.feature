@@ -1,3 +1,4 @@
+@lock=*
 Feature: Dialog Tests
   Dialog handling (alert, confirm, prompt)
 

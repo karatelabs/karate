@@ -415,7 +415,11 @@ public class CdpDriver implements Driver {
                 currentDialog = null;
                 currentDialogText = null;
             }
-            // If no handler registered, dialog will block - user must call dialog() methods
+            // If no handler registered, cancel pending Runtime.evaluate calls so they
+            // fail fast instead of waiting for the 30-second CDP timeout
+            if (dialogHandler == null) {
+                cdp.cancelPendingEvaluations();
+            }
         });
 
         // Track execution contexts for frames
@@ -782,6 +786,10 @@ public class CdpDriver implements Driver {
      * - Multiple retries may indicate a real problem worth investigating
      */
     private CdpResponse cdpEval(String expression) {
+        // Fail fast if a dialog is blocking and no handler will dismiss it
+        if (dialogHandler == null && currentDialog != null && !currentDialog.isHandled()) {
+            throw new DialogOpenedException("dialog is blocking Runtime.evaluate");
+        }
         int maxRetries = options.getRetryCount();
         int retryInterval = options.getRetryInterval();
 
