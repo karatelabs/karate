@@ -26,6 +26,7 @@ package io.karatelabs.markup;
 import io.karatelabs.common.Json;
 import io.karatelabs.markup.MarkupTemplateContext;
 import org.thymeleaf.context.ITemplateContext;
+import org.thymeleaf.model.AttributeValueQuotes;
 import org.thymeleaf.model.IModel;
 import org.thymeleaf.model.IModelFactory;
 import org.thymeleaf.model.IOpenElementTag;
@@ -48,33 +49,15 @@ import java.util.Map;
  * &lt;/form&gt;
  * </pre>
  *
- * <p>Into:</p>
+ * <p>Into (single-quoted attribute to safely embed JSON):</p>
  * <pre>
- * &lt;form x-data="{ form: {\"email\":\"\"} }"&gt;
+ * &lt;form x-data='{ form: {"email":""} }'&gt;
  *   &lt;input type="hidden" name="form" x-bind:value="JSON.stringify(form)"&gt;
  *   &lt;input x-model="form.email"/&gt;
  * &lt;/form&gt;
  * </pre>
  *
- * <p>On any other element, adds x-data for read-only binding:</p>
- * <pre>
- * &lt;div ka:data="data:_.serverData"&gt;
- *   &lt;span x-text="data.name"&gt;&lt;/span&gt;
- * &lt;/div&gt;
- * </pre>
- *
- * <p>Into:</p>
- * <pre>
- * &lt;div x-data="{ data: {\"name\":\"value\"} }"&gt;
- *   &lt;span x-text="data.name"&gt;&lt;/span&gt;
- * &lt;/div&gt;
- * </pre>
- *
  * <p>Syntax: <code>ka:data="varName:serverExpression"</code></p>
- * <ul>
- *   <li><code>varName</code> - The Alpine.js variable name (e.g., "form", "data")</li>
- *   <li><code>serverExpression</code> - Server-side JS expression for initial data</li>
- * </ul>
  */
 class KaDataProcessor extends AbstractElementModelProcessor {
 
@@ -114,9 +97,6 @@ class KaDataProcessor extends AbstractElementModelProcessor {
         Object initialData = kec.evalLocal(expression);
         String jsonData = initialData != null ? Json.stringifyStrict(initialData) : "{}";
 
-        // Escape for HTML attribute (double quotes to &quot;)
-        String escapedJson = jsonData.replace("\"", "&quot;");
-
         IModelFactory modelFactory = ctx.getModelFactory();
 
         // Build new attributes map (common for all elements)
@@ -128,13 +108,14 @@ class KaDataProcessor extends AbstractElementModelProcessor {
             }
         }
 
-        // Add x-data attribute with initial JSON data
-        String xDataValue = "{ " + varName + ": " + escapedJson.replace("&quot;", "\"") + " }";
+        // Add x-data with raw JSON — use SINGLE quotes on the attribute
+        // to safely embed JSON double quotes (same pattern as ka:vals / hx-vals)
+        String xDataValue = "{ " + varName + ": " + jsonData + " }";
         newAttrs.put("x-data", xDataValue);
 
-        // Create new opening tag
+        // Create new opening tag with SINGLE-quoted attributes
         IOpenElementTag newOpenTag = modelFactory.createOpenElementTag(
-                openTag.getElementCompleteName(), newAttrs, null, false);
+                openTag.getElementCompleteName(), newAttrs, AttributeValueQuotes.SINGLE, false);
         model.replace(0, newOpenTag);
 
         // On <form>: Also inject hidden input for form submission

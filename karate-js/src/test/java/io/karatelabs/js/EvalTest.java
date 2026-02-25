@@ -349,7 +349,14 @@ class EvalTest extends EvalBase {
         assertEquals(3, eval("parseInt('3.14')"));
         assertEquals(255, eval("parseInt('0xFF')"));
         assertEquals(Double.NaN, eval("parseInt('abc')"));
-        // assertEquals(5, eval("parseInt('101', 2)")); TODO
+        // radix support
+        assertEquals(5, eval("parseInt('101', 2)"));
+        assertEquals(42, eval("parseInt('42', 10)"));
+        assertEquals(255, eval("parseInt('ff', 16)"));
+        assertEquals(255, eval("parseInt('FF', 16)"));
+        assertEquals(8, eval("parseInt('10', 8)"));
+        assertEquals(Double.NaN, eval("parseInt('', 10)"));
+        assertEquals(1, eval("parseInt('1z', 10)"));
     }
 
     @Test

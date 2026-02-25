@@ -57,6 +57,63 @@ public class Terms {
         rhs = objectToNumber(rhsObject);
     }
 
+    static Number parseInt(String str, int radix) {
+        if (str == null) {
+            return Double.NaN;
+        }
+        str = str.trim();
+        if (str.isEmpty()) {
+            return Double.NaN;
+        }
+        boolean negative = false;
+        int index = 0;
+        if (str.charAt(0) == '-') {
+            negative = true;
+            index++;
+        } else if (str.charAt(0) == '+') {
+            index++;
+        }
+        // auto-detect radix from prefix if not specified
+        if (radix == 0) {
+            if (index + 1 < str.length() && str.charAt(index) == '0'
+                    && (str.charAt(index + 1) == 'x' || str.charAt(index + 1) == 'X')) {
+                radix = 16;
+                index += 2;
+            } else {
+                radix = 10;
+            }
+        }
+        if (radix < 2 || radix > 36) {
+            return Double.NaN;
+        }
+        long result = 0;
+        boolean foundDigit = false;
+        while (index < str.length()) {
+            char ch = str.charAt(index);
+            int digit;
+            if (ch >= '0' && ch <= '9') {
+                digit = ch - '0';
+            } else if (ch >= 'a' && ch <= 'z') {
+                digit = ch - 'a' + 10;
+            } else if (ch >= 'A' && ch <= 'Z') {
+                digit = ch - 'A' + 10;
+            } else {
+                break; // stop at first invalid char
+            }
+            if (digit >= radix) {
+                break;
+            }
+            result = result * radix + digit;
+            foundDigit = true;
+            index++;
+        }
+        if (!foundDigit) {
+            return Double.NaN;
+        }
+        double value = negative ? -result : result;
+        return narrow(value);
+    }
+
     static Number parseFloat(String str, boolean asInt) {
         if (str == null) {
             return Double.NaN;

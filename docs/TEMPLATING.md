@@ -847,6 +847,18 @@ Send additional data with requests.
 </button>
 ```
 
+> **Important:** `ka:vals` on a submit button inside a form does NOT work. HTMX only includes
+> `hx-vals` (which `ka:vals` compiles to) when the attribute is on the **same element** that triggers
+> the request. For forms with `ka:post` / `hx-post`, the form element triggers the request — not the
+> button. Use a hidden input instead:
+> ```html
+> <form ka:post="manage-team" hx-target="#main-content">
+>   <input type="hidden" name="action" value="addUser"/>
+>   <button type="submit">Add User</button>
+> </form>
+> ```
+> `ka:vals` works correctly on standalone elements (links, buttons) that have their own `ka:post` / `ka:get`.
+
 ### Target and Swap
 
 ```html
@@ -1043,7 +1055,8 @@ On **`<form>` elements** (additional):
     Send notification
   </label>
 
-  <button type="submit" ka:vals="action:'addUser'">Add User</button>
+  <input type="hidden" name="action" value="addUser"/>
+  <button type="submit">Add User</button>
 </form>
 ```
 
