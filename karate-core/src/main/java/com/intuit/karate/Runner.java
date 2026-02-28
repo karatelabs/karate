@@ -29,6 +29,7 @@ import com.intuit.karate.core.FeatureResult;
 import com.intuit.karate.core.FeatureRuntime;
 import com.intuit.karate.core.RuntimeHookFactory;
 import com.intuit.karate.core.ScenarioCall;
+import com.intuit.karate.core.ScenarioEngine;
 import com.intuit.karate.driver.DriverOptions;
 import com.intuit.karate.driver.DriverRunner;
 import com.intuit.karate.http.HttpClientFactory;
@@ -49,10 +50,14 @@ public class Runner {
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(Runner.class);
 
     public static Map<String, Object> runFeature(FeatureCall feature, Map<String, Object> vars, boolean evalKarateConfig) {
+        ScenarioEngine callerEngine = ScenarioEngine.get();   
         Suite suite = new Suite();
         FeatureRuntime featureRuntime = FeatureRuntime.of(suite, feature, vars);
         featureRuntime.caller.setKarateConfigDisabled(!evalKarateConfig);
         featureRuntime.run();
+        if (callerEngine != null) {
+            ScenarioEngine.set(callerEngine);
+        }
         FeatureResult result = featureRuntime.result;
         if (result.isFailed()) {
             throw result.getErrorMessagesCombined();
