@@ -64,7 +64,6 @@ public class ScenarioRuntime implements Runnable {
 
     private boolean skipBackground;
     private boolean ignoringFailureSteps;
-    private ScenarioEngine previousEngine;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         logger = new Logger();
@@ -363,7 +362,6 @@ public class ScenarioRuntime implements Runnable {
             return;
         }
         steps = skipBackground ? scenario.getSteps() : scenario.getStepsIncludingBackground();
-        previousEngine = ScenarioEngine.get();
         ScenarioEngine.set(engine);
         engine.init();
         result.setExecutorName(Thread.currentThread().getName());
@@ -525,10 +523,6 @@ public class ScenarioRuntime implements Runnable {
             error = e;
             logError("scenario [cleanup] failed\n" + e.getMessage());
             currentStepResult = result.addFakeStepResult("scenario [cleanup] failed", e);
-        } finally {
-            if (previousEngine != null) {
-                ScenarioEngine.set(previousEngine);
-            }
         }
     }
 
