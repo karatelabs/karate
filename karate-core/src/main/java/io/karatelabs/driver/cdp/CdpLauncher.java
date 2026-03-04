@@ -154,7 +154,8 @@ public class CdpLauncher {
         }
 
         throw new RuntimeException("chrome executable not found. " +
-                "Set 'executable' option or install Chrome at: " + defaultPath);
+                "Set 'executable' option, KARATE_CHROME_EXECUTABLE env var, " +
+                "or install Chrome at: " + defaultPath);
     }
 
     private static String getDefaultPath() {
@@ -193,7 +194,7 @@ public class CdpLauncher {
             args.add("--user-agent=" + options.getUserAgent());
         }
 
-        // Add any extra options
+        // Add any extra options (includes KARATE_CHROME_ARGS env var via CdpDriverOptions)
         if (options.getAddOptions() != null) {
             args.addAll(options.getAddOptions());
         }

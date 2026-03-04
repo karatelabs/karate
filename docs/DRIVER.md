@@ -685,6 +685,28 @@ public byte[] pdf() {
 }
 ```
 
+### Chrome Executable Resolution
+
+`CdpLauncher` resolves the browser executable in this order:
+
+1. **`executable` option** — `configure driver = { executable: '/path/to/chrome' }`
+2. **`KARATE_CHROME_EXECUTABLE` env var** — useful for Docker/CI where Chromium is at a non-standard path
+3. **Platform default** — `/Applications/Google Chrome.app/...` (macOS), `/usr/bin/google-chrome` (Linux), `C:\Program Files\Google\Chrome\...` (Windows)
+
+| Env Var | Purpose |
+|---------|---------|
+| `KARATE_CHROME_EXECUTABLE` | Override Chrome/Chromium executable path |
+| `KARATE_CHROME_ARGS` | Extra args (space-separated), appended to every launch |
+
+```bash
+# Docker: Debian Chromium at /usr/bin/chromium
+export KARATE_CHROME_EXECUTABLE=/usr/bin/chromium
+export KARATE_CHROME_ARGS="--no-sandbox --disable-gpu --disable-dev-shm-usage"
+
+# CI: custom Chrome install
+export KARATE_CHROME_EXECUTABLE=/opt/chrome/chrome
+```
+
 ### CDP Backend (Current)
 
 - Custom `CdpClient` WebSocket implementation

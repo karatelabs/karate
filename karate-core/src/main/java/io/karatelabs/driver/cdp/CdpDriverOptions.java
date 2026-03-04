@@ -184,8 +184,14 @@ public class CdpDriverOptions implements DriverOptions {
         return port;
     }
 
+    /**
+     * Get executable path. Falls back to KARATE_CHROME_EXECUTABLE env var if not set explicitly.
+     */
     public String getExecutable() {
-        return executable;
+        if (executable != null && !executable.isEmpty()) {
+            return executable;
+        }
+        return System.getenv("KARATE_CHROME_EXECUTABLE");
     }
 
     public String getUserDataDir() {
@@ -212,8 +218,21 @@ public class CdpDriverOptions implements DriverOptions {
         return pageLoadStrategy;
     }
 
+    /**
+     * Get additional Chrome args. Merges explicit addOptions with KARATE_CHROME_ARGS env var.
+     */
     public List<String> getAddOptions() {
-        return addOptions;
+        String envArgs = System.getenv("KARATE_CHROME_ARGS");
+        if (envArgs == null || envArgs.isEmpty()) {
+            return addOptions;
+        }
+        List<String> merged = new java.util.ArrayList<>(addOptions);
+        for (String arg : envArgs.split("\\s+")) {
+            if (!arg.isEmpty()) {
+                merged.add(arg);
+            }
+        }
+        return merged;
     }
 
     public String getWebSocketUrl() {
