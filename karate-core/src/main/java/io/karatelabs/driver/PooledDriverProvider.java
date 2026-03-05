@@ -259,6 +259,16 @@ public class PooledDriverProvider implements DriverProvider {
      */
     protected void resetDriver(Driver driver) {
         try {
+            // Dismiss any open dialog first — dialogs block all CDP Runtime.evaluate calls
+            Dialog dialog = driver.getDialog();
+            if (dialog != null) {
+                logger.debug("Dismissing stale dialog before reset");
+                try {
+                    dialog.dismiss();
+                } catch (Exception e) {
+                    logger.debug("Dialog dismiss during reset (may already be handled): {}", e.getMessage());
+                }
+            }
             driver.setUrl("about:blank");
             driver.clearCookies();
         } catch (Exception e) {

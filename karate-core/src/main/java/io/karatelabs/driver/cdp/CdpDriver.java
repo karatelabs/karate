@@ -1391,14 +1391,20 @@ public class CdpDriver implements Driver {
 
     /**
      * Input text into an element using CDP keypresses.
-     * Uses keyboard typing for React/Vue compatibility.
+     * For time/date inputs that don't respond to CDP keystrokes, uses JS value assignment.
      */
     public Element input(String locator, String value) {
         logger.debug("input: {} <- {}", locator, value);
         retryIfNeeded(locator);
         focus(locator);
-        clear(locator);
-        keys().type(value);
+        Boolean isDateTimeInput = (Boolean) script(locator,
+            "_ && ['time','date','datetime-local','month','week'].indexOf(_.type) >= 0");
+        if (Boolean.TRUE.equals(isDateTimeInput)) {
+            script(Locators.inputJs(locator, value));
+        } else {
+            clear(locator);
+            keys().type(value);
+        }
         return Element.of(this, locator);
     }
 

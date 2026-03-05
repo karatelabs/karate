@@ -23,6 +23,8 @@
         input[type="text"],
         input[type="email"],
         input[type="password"],
+        input[type="time"],
+        input[type="date"],
         textarea,
         select {
             width: 100%;
@@ -85,6 +87,16 @@
         </div>
 
         <div class="form-group">
+            <label for="meeting-time">Meeting Time</label>
+            <input type="time" id="meeting-time" name="meeting-time">
+        </div>
+
+        <div class="form-group">
+            <label for="birthday">Birthday</label>
+            <input type="date" id="birthday" name="birthday">
+        </div>
+
+        <div class="form-group">
             <label for="bio">Bio</label>
             <textarea id="bio" name="bio" placeholder="Tell us about yourself"></textarea>
         </div>
@@ -112,6 +124,8 @@
                 email: form.email.value,
                 password: form.password.value,
                 country: form.country.value,
+                'meeting-time': form['meeting-time'].value,
+                birthday: form.birthday.value,
                 bio: form.bio.value,
                 agree: form.agree.checked
             };

@@ -514,11 +514,18 @@ public interface Driver extends CoreDriver, SimpleObject {
 
     /**
      * Input text into an element (focus, clear, type).
+     * For time/date inputs that don't respond to CDP keystrokes, uses JS value assignment.
      */
     default Element input(String locator, String value) {
         focus(locator);
-        clear(locator);
-        keys().type(value);
+        Boolean isDateTimeInput = (Boolean) script(locator,
+            "_ && ['time','date','datetime-local','month','week'].indexOf(_.type) >= 0");
+        if (Boolean.TRUE.equals(isDateTimeInput)) {
+            script(Locators.inputJs(locator, value));
+        } else {
+            clear(locator);
+            keys().type(value);
+        }
         return Element.of(this, locator);
     }
 

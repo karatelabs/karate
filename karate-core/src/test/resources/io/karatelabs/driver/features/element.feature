@@ -65,6 +65,14 @@ Feature: Element Tests
     * match value('#email') == 'john@example.com'
     * match value('#password') == 'secret123'
 
+  Scenario: Input time field
+    * input('#meeting-time', '14:30')
+    * match value('#meeting-time') == '14:30'
+
+  Scenario: Input date field
+    * input('#birthday', '2026-03-05')
+    * match value('#birthday') == '2026-03-05'
+
   Scenario: Input textarea
     * input('#bio', 'This is my biography.')
     * def value = value('#bio')
