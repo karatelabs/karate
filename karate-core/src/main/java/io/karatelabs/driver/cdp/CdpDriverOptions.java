@@ -172,8 +172,14 @@ public class CdpDriverOptions implements DriverOptions {
         return retryInterval;
     }
 
+    /**
+     * Check headless mode. Falls back to KARATE_DRIVER_HEADLESS env var if not set explicitly.
+     */
     public boolean isHeadless() {
-        return headless;
+        if (headless) {
+            return true;
+        }
+        return "true".equalsIgnoreCase(System.getenv("KARATE_DRIVER_HEADLESS"));
     }
 
     public String getHost() {

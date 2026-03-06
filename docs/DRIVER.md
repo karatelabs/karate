@@ -697,6 +697,7 @@ public byte[] pdf() {
 |---------|---------|
 | `KARATE_CHROME_EXECUTABLE` | Override Chrome/Chromium executable path |
 | `KARATE_CHROME_ARGS` | Extra args (space-separated), appended to every launch |
+| `KARATE_DRIVER_HEADLESS` | Run browser headless when set to `true` |
 
 ```bash
 # Docker: Debian Chromium at /usr/bin/chromium
