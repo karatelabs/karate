@@ -1,9 +1,0 @@
-{
-    "rawPath": "/api/demo",
-    "isBase64Encoded": false,
-    "requestContext": {
-        "http": {
-            "method": "GET"
-        }
-    }
-}

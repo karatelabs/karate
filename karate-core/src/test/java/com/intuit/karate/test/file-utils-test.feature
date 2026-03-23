@@ -1,4 +1,0 @@
-Feature:
-
-Scenario:
-* print 'test'

@@ -1,6 +1,0 @@
-{
-  hero(name: "Luke Skywalker") {
-    height
-    mass
-  }
-}

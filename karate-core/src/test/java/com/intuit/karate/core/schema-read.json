@@ -1,4 +1,0 @@
-{
-    "foo": "#string",
-    "items": "#[] #(read('schema-read-inner.json'))"
-}

@@ -1,4 +1,0 @@
-@ignore
-Feature:
-
-Scenario:
