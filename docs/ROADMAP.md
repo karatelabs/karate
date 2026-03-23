@@ -247,11 +247,20 @@ Integration with [Karate CLI](https://github.com/karatelabs/karate-cli):
 - [ ] Document release process
 
 ### Repository Hygiene
-- [ ] Archive [karatelabs/karate-js](https://github.com/karatelabs/karate-js) repository
-- [ ] Add redirect notice to archived repo pointing to karate
+- [x] Merge karate-v2 into karatelabs/karate (preserve stars and history)
+- [x] Tag v1 state as `v1-final`, create `v1` branch
+- [ ] Archive [karatelabs/karate-v2](https://github.com/karatelabs/karate-v2) with redirect notice
+- [ ] Archive [karatelabs/karate-js](https://github.com/karatelabs/karate-js) with redirect notice
 - [ ] Configure GitHub repository settings (branch protection, etc.)
 - [ ] Set up issue templates
 - [ ] Set up PR templates
+
+### Post-Migration
+- [ ] Update [karatelabs/karate-docs](https://github.com/karatelabs/karate-docs) (Docusaurus site) with v2 documentation
+- [ ] Update karate-docs links from master to main/v1 as appropriate
+- [ ] Update [karatelabs/karate-cli](https://github.com/karatelabs/karate-cli) references to point to karatelabs/karate
+- [ ] Merge karate-demo + karate-e2e-tests into [karatelabs/karate-examples](https://github.com/karatelabs/karate-examples)
+- [ ] Set up CI/CD in karate-examples against karate v2
 
 ---
 
