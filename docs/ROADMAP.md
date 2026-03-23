@@ -158,12 +158,12 @@ Integration with [Karate CLI](https://github.com/karatelabs/karate-cli):
 
 ### Mock Server Core
 - [x] HTTP mock server (Netty-based)
-- [ ] Feature-based mock definitions
+- [x] Feature-based mock definitions (`MockServer.feature(path)`)
 - [x] Dynamic request/response handling
 - [x] Request matching and routing
 - [x] Header and body customization
 - [x] Status code control
-- [ ] Delay/latency simulation
+- [x] Delay/latency simulation (`responseDelay` + Netty non-blocking scheduler)
 - [x] Stateful mocks (session support)
 
 ### CLI Mock Options
