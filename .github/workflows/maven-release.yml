@@ -58,8 +58,8 @@ jobs:
       - name: Set release version
         run: mvn versions:set versions:commit -B -ntp -DnewVersion=${{ github.event.inputs.version }}
 
-      - name: Build and verify
-        run: mvn -B -ntp clean verify -Pcicd
+      - name: Build and install
+        run: mvn -B -ntp clean install -Pcicd
 
       - name: Deploy to Maven Central
         if: github.event.inputs.maven == 'enabled'
