@@ -72,10 +72,16 @@ jobs:
       - name: Build fatjar
         run: mvn -B -ntp package -DskipTests -P fatjar -f karate-core/pom.xml
 
-      - name: Upload release artifacts
+      - name: Package release ZIP
+        run: |
+          VERSION=${{ github.event.inputs.version }}
+          mkdir -p target/karate-${VERSION}
+          cp karate-core/target/karate-core-${VERSION}.jar target/karate-${VERSION}/karate-${VERSION}.jar
+          cd target && zip -r karate-${VERSION}.zip karate-${VERSION}/
+
+      - name: Upload release ZIP
         uses: actions/upload-artifact@v5
         with:
           name: karate-release-${{ github.event.inputs.version }}
           retention-days: 30
-          path: |
-            karate-core/target/*.jar
+          path: target/karate-${{ github.event.inputs.version }}.zip
