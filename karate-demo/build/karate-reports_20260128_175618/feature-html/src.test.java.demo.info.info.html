@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="stylesheet" href="../res/bootstrap.min.css"/>
+    <link rel="stylesheet" href="../res/karate-report.css"/>
+    <link rel="icon" href="../res/favicon.ico"/>
+    <script src="../res/alpine.min.js" defer></script>
+    <title>Feature Report</title>
+    <style>
+        .sidebar {
+            position: fixed;
+            top: 56px;
+            bottom: 0;
+            left: 0;
+            width: 220px;
+            overflow-y: auto;
+            border-right: 1px solid var(--bs-border-color);
+        }
+        .main-content {
+            margin-left: 220px;
+            padding: 1rem;
+        }
+        .step-row {
+            border-bottom: 1px solid var(--bs-border-color);
+            padding: 0.25rem 0;
+            font-family: var(--bs-font-monospace);
+            font-size: 0.875rem;
+        }
+        .step-row:hover {
+            background-color: var(--bs-tertiary-bg);
+        }
+        .step-row.clickable {
+            cursor: pointer;
+        }
+        .step-logs {
+            background-color: var(--bs-dark-bg-subtle);
+            border-radius: 0.25rem;
+            margin: 0.25rem 0 0.25rem 50px;
+            padding: 0.5rem;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .nav-scenario {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+            border-left: 3px solid transparent;
+        }
+        .nav-scenario:hover {
+            background-color: var(--bs-tertiary-bg);
+        }
+        .nav-scenario.active {
+            border-left-color: var(--bs-primary);
+            background-color: var(--bs-tertiary-bg);
+        }
+        .log-indicator {
+            font-size: 0.6rem;
+            vertical-align: middle;
+        }
+        .nested-call {
+            border-left: 3px solid var(--bs-info);
+            margin: 0.5rem 0 0.5rem 50px;
+            padding-left: 0.5rem;
+            background-color: var(--bs-tertiary-bg);
+        }
+        .nested-scenario {
+            border-radius: 0.25rem;
+            margin: 0.25rem 0;
+            padding: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .nested-scenario .nested-step {
+            font-family: var(--bs-font-monospace);
+            font-size: 0.8rem;
+            padding: 0.125rem 0;
+        }
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main-content { margin-left: 0; }
+        }
+    </style>
+</head>
+<body x-data="KarateReport.featureData()">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="../karate-summary.html">
+                <img src="../res/karate-logo.svg" alt="Karate" height="32" class="d-inline-block align-middle me-2"/>
+                Karate
+            </a>
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="../karate-summary.html">Summary</a>
+                </li>
+            </ul>
+            <button class="btn btn-sm btn-outline-light ms-2" @click="toggleTheme()" title="Toggle theme">
+                <span x-show="theme === 'light'">&#9790;</span>
+                <span x-show="theme === 'dark'">&#9788;</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Left Sidebar -->
+    <nav class="sidebar bg-body-tertiary pt-3">
+        <div class="px-3 mb-2">
+            <small class="text-muted">Scenarios</small>
+        </div>
+        <template x-for="scenario in data.scenarios" :key="scenario.refId">
+            <a class="nav-scenario d-block text-decoration-none"
+               :class="scenario.passed ? 'text-success' : 'text-danger'"
+               :href="'#' + scenario.refId"
+               :title="scenario.name">
+                <span class="fw-bold" x-text="scenario.refId"></span>
+                <span x-text="scenario.name ? ' ' + truncate(scenario.name, 20) : ''"></span>
+            </a>
+        </template>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content" style="margin-top: 56px;">
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="../karate-summary.html">Summary</a></li>
+                <li class="breadcrumb-item active" aria-current="page" x-text="data.name || data.path">Feature</li>
+            </ol>
+        </nav>
+
+        <h4 x-text="data.name || 'Feature'">Feature Name</h4>
+        <p class="text-muted small" x-text="data.path">path/to/feature</p>
+
+        <!-- Scenarios -->
+        <template x-for="scenario in data.scenarios" :key="scenario.refId">
+            <div class="card mb-3" :id="scenario.refId">
+                <div class="card-header d-flex justify-content-between align-items-center py-2"
+                     :class="scenario.passed ? 'bg-success-subtle' : 'bg-danger-subtle'">
+                    <span>
+                        <span class="fw-bold" x-text="scenario.refId"></span>
+                        <span x-text="scenario.name"></span>
+                        <template x-if="scenario.isOutlineExample">
+                            <span class="badge bg-info ms-1">Outline</span>
+                        </template>
+                        <template x-for="tag in scenario.tags || []" :key="tag">
+                            <span class="badge bg-secondary ms-1" x-text="tag"></span>
+                        </template>
+                    </span>
+                    <span>
+                        <small class="text-muted me-2" x-text="scenario.durationMillis + ' ms'"></small>
+                        <span x-show="scenario.passed" class="badge bg-success">PASS</span>
+                        <span x-show="!scenario.passed" class="badge bg-danger">FAIL</span>
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    <!-- Steps -->
+                    <template x-for="(step, idx) in scenario.steps" :key="idx">
+                        <div>
+                            <!-- Step Comments -->
+                            <template x-if="step.comments && step.comments.length > 0">
+                                <div class="step-comments px-2 py-1 text-muted fst-italic small"
+                                     style="background-color: var(--bs-tertiary-bg);">
+                                    <template x-for="(comment, cidx) in step.comments" :key="cidx">
+                                        <div x-text="comment"></div>
+                                    </template>
+                                </div>
+                            </template>
+                            <div class="step-row d-flex align-items-start px-2"
+                                 :class="{'clickable': step.hasLogs || step.hasEmbeds || step.hasCallResults}"
+                                 @click="(step.hasLogs || step.hasEmbeds || step.hasCallResults) && (step.expanded = !step.expanded)">
+                                <div class="text-muted me-2" style="width: 40px; text-align: right;">
+                                    <small x-text="'[' + step.line + ']'"></small>
+                                </div>
+                                <div class="flex-grow-1"
+                                     :class="{
+                                         'text-success': step.status === 'passed',
+                                         'text-danger': step.status === 'failed',
+                                         'text-warning': step.status === 'skipped'
+                                     }">
+                                    <span class="text-muted" x-text="step.prefix"></span>
+                                    <span class="fw-bold" x-text="step.keyword"></span>
+                                    <span x-text="step.text"></span>
+                                    <!-- Collapsed indicators -->
+                                    <span x-show="step.hasLogs && !step.expanded"
+                                          class="badge bg-secondary ms-1"
+                                          title="Has logs - click to expand">log</span>
+                                    <span x-show="step.hasEmbeds && !step.expanded"
+                                          class="badge bg-info ms-1"
+                                          :title="(step.embeds?.length || 0) + ' embed(s) - click to expand'"
+                                          x-text="(step.embeds?.length || 0) + ' embed' + ((step.embeds?.length || 0) > 1 ? 's' : '')"></span>
+                                    <span x-show="step.hasCallResults && !step.expanded && (step.callResults?.length || 0) === 1"
+                                          class="badge bg-info ms-1"
+                                          title="Called feature - click to expand">call</span>
+                                    <span x-show="step.hasCallResults && !step.expanded && (step.callResults?.length || 0) > 1"
+                                          class="badge bg-info ms-1"
+                                          :title="(step.callResults?.length || 0) + ' call iterations - click to expand'"
+                                          x-text="(step.callResults?.length || 0) + ' calls'"></span>
+                                </div>
+                                <div class="text-muted ms-2" style="width: 70px; text-align: right;">
+                                    <small x-text="step.durationMillis + ' ms'"></small>
+                                </div>
+                            </div>
+                            <!-- Expandable Logs -->
+                            <div x-show="step.expanded && step.logs"
+                                 x-transition
+                                 class="step-logs">
+                                <pre class="mb-0 text-body" x-text="step.logs"></pre>
+                            </div>
+                            <!-- Expandable Embeds -->
+                            <div x-show="step.expanded && step.embeds && step.embeds.length > 0"
+                                 x-transition
+                                 class="step-embeds mx-2 my-2">
+                                <template x-for="(embed, embedIdx) in (step.embeds || [])" :key="embedIdx">
+                                    <div class="embed-item border rounded p-2 mb-2 bg-body-secondary">
+                                        <template x-if="embed.name">
+                                            <div class="small text-muted mb-1" x-text="embed.name"></div>
+                                        </template>
+                                        <!-- Image -->
+                                        <template x-if="embed.mime_type && embed.mime_type.startsWith('image/')">
+                                            <img :src="'../embeds/' + embed.file" class="img-fluid" style="max-height: 400px;" :alt="embed.name || 'embedded image'">
+                                        </template>
+                                        <!-- HTML (iframe) -->
+                                        <template x-if="embed.mime_type === 'text/html'">
+                                            <iframe :src="'../embeds/' + embed.file" class="w-100 border-0" style="height: 300px;"></iframe>
+                                        </template>
+                                        <!-- Video -->
+                                        <template x-if="embed.mime_type && embed.mime_type.startsWith('video/')">
+                                            <video controls class="w-100" style="max-height: 400px;">
+                                                <source :src="'../embeds/' + embed.file" :type="embed.mime_type">
+                                            </video>
+                                        </template>
+                                        <!-- PDF -->
+                                        <template x-if="embed.mime_type === 'application/pdf'">
+                                            <embed :src="'../embeds/' + embed.file" type="application/pdf" class="w-100" style="height: 400px;">
+                                        </template>
+                                        <!-- Text/JSON/XML (preformatted) -->
+                                        <template x-if="embed.mime_type === 'text/plain' || embed.mime_type === 'application/json' || embed.mime_type === 'application/xml'">
+                                            <div>
+                                                <template x-if="embed.file">
+                                                    <a :href="'../embeds/' + embed.file" class="small" target="_blank">Open file</a>
+                                                </template>
+                                                <template x-if="embed.data">
+                                                    <pre class="bg-dark text-light p-2 rounded mb-0 small" style="max-height: 300px; overflow: auto;" x-text="atob(embed.data)"></pre>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <!-- Binary/Other (download link) -->
+                                        <template x-if="embed.file && !embed.mime_type?.startsWith('image/') && !embed.mime_type?.startsWith('video/') && embed.mime_type !== 'text/html' && embed.mime_type !== 'application/pdf' && embed.mime_type !== 'text/plain' && embed.mime_type !== 'application/json' && embed.mime_type !== 'application/xml'">
+                                            <a :href="'../embeds/' + embed.file" class="btn btn-sm btn-outline-secondary" download>
+                                                Download (<span x-text="embed.mime_type"></span>)
+                                            </a>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                            <!-- Step Error -->
+                            <template x-if="step.error">
+                                <div class="alert alert-danger py-1 mx-2 my-1 small">
+                                    <pre class="mb-0" x-text="step.error"></pre>
+                                </div>
+                            </template>
+                            <!-- Called Features (from call steps) -->
+                            <template x-if="step.hasCallResults">
+                                <div class="nested-call" x-show="step.expanded" x-transition>
+                                    <template x-for="(calledFeature, fidx) in (step.callResults || [])" :key="fidx">
+                                        <div class="mb-3 pb-2" :class="{'border-bottom': fidx < (step.callResults?.length || 0) - 1}">
+                                            <!-- Iteration header (only show if multiple calls) -->
+                                            <template x-if="(step.callResults?.length || 0) > 1">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <span class="badge bg-secondary me-2" x-text="'#' + (fidx + 1)"></span>
+                                                    <small class="text-muted" x-text="calledFeature.path || calledFeature.name"></small>
+                                                    <small class="text-muted ms-2" x-text="calledFeature.durationMillis + ' ms'"></small>
+                                                    <span x-show="calledFeature.passed" class="badge bg-success ms-2">PASS</span>
+                                                    <span x-show="!calledFeature.passed" class="badge bg-danger ms-2">FAIL</span>
+                                                </div>
+                                            </template>
+                                            <!-- Single call header (no iteration number) -->
+                                            <template x-if="(step.callResults?.length || 0) === 1">
+                                                <div class="small text-muted mb-1">
+                                                    <span x-text="calledFeature.path || calledFeature.name"></span>
+                                                    <span class="ms-2" x-text="calledFeature.durationMillis + ' ms'"></span>
+                                                </div>
+                                            </template>
+                                            <!-- Scenarios in called feature -->
+                                            <template x-for="(nested, nidx) in (calledFeature.scenarios || [])" :key="nidx">
+                                                <div class="nested-scenario border"
+                                                     :class="nested.passed ? 'border-success' : 'border-danger'">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span>
+                                                            <span class="fw-bold" x-text="nested.refId || ('S' + (nidx+1))"></span>
+                                                            <span x-text="nested.name"></span>
+                                                        </span>
+                                                        <span>
+                                                            <small class="text-muted me-2" x-text="nested.durationMillis + ' ms'"></small>
+                                                            <span x-show="nested.passed" class="badge bg-success">PASS</span>
+                                                            <span x-show="!nested.passed" class="badge bg-danger">FAIL</span>
+                                                        </span>
+                                                    </div>
+                                                    <template x-for="(ns, nsidx) in nested.steps" :key="nsidx">
+                                                        <div>
+                                                            <!-- Nested Step Comments -->
+                                                            <template x-if="ns.comments && ns.comments.length > 0">
+                                                                <div class="text-muted fst-italic small ps-2"
+                                                                     style="font-size: 0.75rem;">
+                                                                    <template x-for="(nc, ncidx) in ns.comments" :key="ncidx">
+                                                                        <div x-text="nc"></div>
+                                                                    </template>
+                                                                </div>
+                                                            </template>
+                                                            <div class="nested-step"
+                                                                 :class="{
+                                                                     'text-success': ns.status === 'passed',
+                                                                     'text-danger': ns.status === 'failed',
+                                                                     'text-warning': ns.status === 'skipped'
+                                                                 }">
+                                                                <span class="text-muted" x-text="ns.prefix"></span>
+                                                                <span class="fw-bold" x-text="ns.keyword"></span>
+                                                                <span x-text="ns.text"></span>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="nested.error">
+                                                        <div class="alert alert-danger py-1 my-1 small">
+                                                            <pre class="mb-0" x-text="nested.error"></pre>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+                <!-- Scenario Error -->
+                <template x-if="scenario.error && !scenario.steps?.some(s => s.error)">
+                    <div class="card-footer bg-danger-subtle">
+                        <pre class="mb-0 small text-danger" x-text="scenario.error"></pre>
+                    </div>
+                </template>
+            </div>
+        </template>
+    </main>
+
+    <script src="../res/bootstrap.bundle.min.js"></script>
+    <script src="../res/karate-report.js"></script>
+    <script id="karate-data" type="application/json">{
+  "path": "src/test/java/demo/info/info.feature",
+  "name": "runtime metadata",
+  "relativePath": "src/test/java/demo/info/info.feature",
+  "passed": true,
+  "durationMillis": 211,
+  "scenarios": [
+    {
+      "name": "first scenario",
+      "line": 4,
+      "passed": true,
+      "durationMillis": 16,
+      "startTime": 1769603143994,
+      "endTime": 1769603144010,
+      "refId": "[1:4]",
+      "sectionIndex": 1,
+      "exampleIndex": -1,
+      "isOutlineExample": false,
+      "thread": "thread-1",
+      "steps": [
+        {
+          "prefix": "*",
+          "keyword": "def",
+          "text": "info = karate.info",
+          "line": 5,
+          "status": "passed",
+          "durationMillis": 0,
+          "hasLogs": false,
+          "hasEmbeds": false,
+          "hasCallResults": false
+        },
+        {
+          "prefix": "*",
+          "keyword": "print",
+          "text": "'info:', info",
+          "line": 6,
+          "status": "passed",
+          "durationMillis": 5,
+          "hasLogs": true,
+          "logs": "info: {\"featureDir\":\"/Users/peter/dev/zcode/karate/karate-demo/src/test/java/demo/info\",\"featureFileName\":\"info.feature\",\"scenarioName\":\"first scenario\",\"scenarioDescription\":null,\"errorMessage\":null}\n",
+          "hasEmbeds": false,
+          "hasCallResults": false
+        },
+        {
+          "prefix": "*",
+          "keyword": "match",
+          "text": "info contains { scenarioName: 'first scenario', featureFileName: 'info.feature' }",
+          "line": 7,
+          "status": "passed",
+          "durationMillis": 10,
+          "hasLogs": false,
+          "hasEmbeds": false,
+          "hasCallResults": false
+        }
+      ]
+    }
+  ]
+}</script>
+</body>
+</html>

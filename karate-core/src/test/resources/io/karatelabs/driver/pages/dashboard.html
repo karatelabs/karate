@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 { color: #333; }
+        .welcome {
+            background: #e8f5e9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .content {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #cc0000;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #990000; }
+    </style>
+</head>
+<body>
+    <h1>Dashboard</h1>
+
+    <div class="welcome">
+        <p>Welcome, <strong id="username-display">User</strong>!</p>
+        <p>You have successfully logged in.</p>
+    </div>
+
+    <div class="content">
+        <h2>Your Dashboard</h2>
+        <p id="content">This is the protected dashboard content.</p>
+        <button id="logout-btn" onclick="logout()">Log Out</button>
+    </div>
+
+    <script>
+        console.log('Dashboard page loaded');
+
+        // Check if user is logged in
+        var user = sessionStorage.getItem('loggedInUser');
+        if (!user) {
+            window.location.href = 'login.html';
+        } else {
+            document.getElementById('username-display').textContent = user;
+        }
+
+        function logout() {
+            sessionStorage.removeItem('loggedInUser');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

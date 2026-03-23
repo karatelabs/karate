@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Locators Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 { color: #333; }
+        section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        section h2 {
+            margin-top: 0;
+            font-size: 16px;
+            color: #666;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #0052a3; }
+        .form-group {
+            margin: 10px 0;
+        }
+        input[type="text"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 200px;
+        }
+        #click-result, #input-result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Locators Test Page</h1>
+
+    <!-- Basic buttons for exact/contains matching -->
+    <section>
+        <h2>Basic Buttons</h2>
+        <button onclick="showClickResult('Clicked!')">Click Me</button>
+        <button>Submit</button>
+        <div id="click-result"></div>
+    </section>
+
+    <!-- Duplicate text for index testing -->
+    <section>
+        <h2>Duplicate Text (Index Testing)</h2>
+        <button onclick="showClickResult('Add 1 clicked')">Add</button>
+        <button onclick="showClickResult('Add 2 clicked')">Add</button>
+        <button onclick="showClickResult('Add 3 clicked')">Add</button>
+    </section>
+
+    <!-- Special characters in text -->
+    <section>
+        <h2>Special Characters</h2>
+        <span>It's working</span><br>
+        <span>Say "Hello"</span><br>
+        <span>It's "complex"</span><br>
+        <a href="#">[Edit]</a><br>
+        <span>$100.00</span><br>
+        <span>Price (USD)</span><br>
+        <span>Time: 10:30</span>
+    </section>
+
+    <!-- Whitespace handling -->
+    <section>
+        <h2>Whitespace</h2>
+        <p>   Spaced    text   </p>
+        <pre>Line 1
+Line 2</pre>
+    </section>
+
+    <!-- Unicode content -->
+    <section>
+        <h2>Unicode</h2>
+        <button>Japanese</button>
+        <span>Emoji: party</span>
+    </section>
+
+    <!-- Empty elements -->
+    <section>
+        <h2>Empty Elements</h2>
+        <div id="empty-div"></div>
+        <span id="empty-span"></span>
+    </section>
+
+    <!-- Unique text element -->
+    <section>
+        <h2>Unique Element</h2>
+        <span>Truly Unique Text</span>
+    </section>
+
+    <!-- Case sensitivity test -->
+    <section>
+        <h2>Case Sensitivity</h2>
+        <span>special chars here</span>
+    </section>
+
+    <!-- List items for index testing -->
+    <section>
+        <h2>List Items</h2>
+        <ul id="options-list">
+            <li data-index="1">Item</li>
+            <li data-index="2">Item</li>
+            <li data-index="3">Item</li>
+        </ul>
+    </section>
+
+    <!-- Container for relative path testing -->
+    <section id="container">
+        <h2>Container (Relative Path)</h2>
+        <button onclick="showClickResult('Container Submit clicked')">Submit</button>
+        <span>Container Text</span>
+    </section>
+
+    <!-- Input with aria-label for wildcard testing -->
+    <section>
+        <h2>Input Fields</h2>
+        <div class="form-group">
+            <input type="text" id="username-input" aria-label="Username" placeholder="Enter username">
+        </div>
+        <div class="form-group">
+            <input type="text" id="email-input" aria-label="Email" placeholder="Enter email">
+        </div>
+        <div id="input-result"></div>
+    </section>
+
+    <!-- Elements with data-testid attributes -->
+    <section>
+        <h2>Data Attributes</h2>
+        <button data-testid="primary-btn" onclick="showClickResult('Primary clicked')">Primary Action</button>
+        <button data-testid="secondary-btn" onclick="showClickResult('Secondary clicked')">Secondary Action</button>
+    </section>
+
+    <!-- Elements with various roles for role-based matching -->
+    <section>
+        <h2>ARIA Roles</h2>
+        <button role="button" aria-label="Save Document">Save</button>
+        <input type="checkbox" id="agree-checkbox" aria-label="I agree">
+        <label for="agree-checkbox">I agree to terms</label>
+    </section>
+
+    <script>
+        console.log('Locators test page loaded');
+
+        function showClickResult(text) {
+            document.getElementById('click-result').textContent = text;
+        }
+
+        // Track input events
+        document.querySelectorAll('input').forEach(function(el) {
+            el.addEventListener('input', function(e) {
+                document.getElementById('input-result').textContent =
+                    'Input: ' + e.target.getAttribute('aria-label') + ' = ' + e.target.value;
+            });
+        });
+    </script>
+</body>
+</html>

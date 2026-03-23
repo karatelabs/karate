@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 20px;
+        }
+        h1 { color: #333; text-align: center; }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #0052a3; }
+        .error {
+            color: #cc0000;
+            background: #ffe0e0;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+        .error.visible { display: block; }
+    </style>
+</head>
+<body>
+    <h1>Login</h1>
+
+    <form id="login-form">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" placeholder="Enter username" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter password" required>
+        </div>
+
+        <button type="submit" id="login-btn">Log In</button>
+
+        <div id="error" class="error">Invalid username or password</div>
+    </form>
+
+    <script>
+        console.log('Login page loaded');
+
+        // Valid credentials for testing
+        var validUsers = {
+            'admin': 'admin123',
+            'user': 'password',
+            'test': 'test'
+        };
+
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            var username = document.getElementById('username').value;
+            var password = document.getElementById('password').value;
+            var errorEl = document.getElementById('error');
+
+            // Check credentials
+            if (validUsers[username] && validUsers[username] === password) {
+                // Success - store user and redirect
+                sessionStorage.setItem('loggedInUser', username);
+                window.location.href = 'dashboard.html';
+            } else {
+                // Show error
+                errorEl.classList.add('visible');
+                setTimeout(function() {
+                    errorEl.classList.remove('visible');
+                }, 3000);
+            }
+        });
+    </script>
+</body>
+</html>

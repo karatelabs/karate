@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- Suppress logback's internal status messages -->
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+
+    <!-- Console appender that writes to stderr (not stdout) for CLI compatibility -->
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="io.karatelabs" level="INFO"/>
+    <logger name="karate.runtime" level="INFO"/>
+    <logger name="karate.http" level="DEBUG"/>
+    <logger name="karate.scenario" level="INFO"/>
+
+    <!-- Suppress noisy logs -->
+    <logger name="io.netty" level="WARN"/>
+    <logger name="ch.qos.logback" level="WARN"/>
+
+    <root level="WARN">
+        <appender-ref ref="STDERR" />
+    </root>
+
+</configuration>

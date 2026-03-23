@@ -1,15 +1,15 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.karatelabs</groupId>
     <artifactId>karate-parent</artifactId>
-    <version>1.5.2</version>
+    <version>2.0.0.RC2</version>
     <packaging>pom</packaging>
-    
+
     <name>${project.artifactId}</name>
     <description>Test Automation Made Simple</description>
-    <url>https://github.com/karatelabs/karate</url>
+    <url>https://github.com/karatelabs/karate-v2</url>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -18,9 +18,9 @@
         </license>
     </licenses>
     <scm>
-        <url>https://github.com/karatelabs/karate</url>
-        <connection>scm:git:git://github.com/karatelabs/karate.git</connection>
-        <developerConnection>scm:git:git@github.com:karatelabs/karate.git</developerConnection>
+        <url>https://github.com/karatelabs/karate-v2</url>
+        <connection>scm:git:git://github.com/karatelabs/karate-v2.git</connection>
+        <developerConnection>scm:git:git@github.com:karatelabs/karate-v2.git</developerConnection>
     </scm>
     <developers>
         <developer>
@@ -29,34 +29,56 @@
             <organization>Karate Labs Inc.</organization>
             <organizationUrl>https://karatelabs.io</organizationUrl>
         </developer>
-    </developers>       
-
+    </developers>
+    
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.version>17</java.version>
-        <maven.compiler.version>3.13.0</maven.compiler.version>
-        <maven.surefire.version>3.5.2</maven.surefire.version>
-        <maven.shade.version>3.6.0</maven.shade.version>
-        <maven.javadoc.version>3.6.3</maven.javadoc.version>
-        <junit5.version>5.11.4</junit5.version>
-        <central.publishing.maven.plugin.version>0.8.0</central.publishing.maven.plugin.version>
-        <spring.version>5.3.19</spring.version>
-        <spring.boot.version>2.6.6</spring.boot.version>
-        <jacoco.plugin.version>0.8.12</jacoco.plugin.version>
+        <java.compiler.version>24</java.compiler.version>
+        <java.release.version>21</java.release.version>
+        <maven.compiler.version>3.15.0</maven.compiler.version>
+        <netty.version>4.2.9.Final</netty.version>
+        <junit.version>6.0.2</junit.version>
+        <slf4j.version>2.0.17</slf4j.version>
+        <logback.version>1.5.27</logback.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
+        <maven.javadoc.version>3.12.0</maven.javadoc.version>
+        <central.publishing.maven.plugin.version>0.10.0</central.publishing.maven.plugin.version>
     </properties>
+    
+	<modules>
+        <module>karate-js</module>
+		<module>karate-core</module>
+		<module>karate-junit6</module>
+		<module>karate-gatling</module>
+	</modules>
 
-    <modules>
-        <module>karate-core</module>        
-        <module>karate-junit5</module>
-        <module>karate-demo</module>        
-        <module>karate-gatling</module>
-        <module>karate-playwright</module>
-        <module>karate-robot</module>        
-        <module>karate-e2e-tests</module>
-        <module>karate-archetype</module>
-    </modules>
+    <dependencies>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
-    <build>       
+    <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -64,24 +86,38 @@
                 <version>${maven.compiler.version}</version>
                 <configuration>
                     <encoding>UTF-8</encoding>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                    <!-- <parameters>true</parameters> -->
-                    <!-- <compilerArgument>-Werror</compilerArgument> -->
+                    <source>${java.compiler.version}</source>
+                    <target>${java.compiler.version}</target>
+                    <release>${java.release.version}</release>
+                    <compilerArgs>
+                        <arg>-Werror</arg>
+                        <arg>-Xlint:deprecation</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>${maven.surefire.version}</version>
+                <version>3.5.4</version>
                 <configuration>
-                    <argLine>-Dfile.encoding=UTF-8</argLine>
+                    <!-- Exclude testcontainers E2E tests by default (require Docker) -->
+                    <excludes>
+                        <exclude>**/e2e/**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.4.0</version>
+                <configuration>
+                    <propertiesEncoding>UTF-8</propertiesEncoding>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.2.1</version>
+                <version>3.4.0</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -90,38 +126,29 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>                                                          
+            </plugin>
         </plugins>
     </build>
-    
+
     <profiles>
-        <profile> 
-            <id>depcheck</id>
+        <!-- CI/CD profile - runs testcontainers E2E tests and Gatling tests -->
+        <profile>
+            <id>cicd</id>
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>org.owasp</groupId>
-                        <artifactId>dependency-check-maven</artifactId>
-                        <version>12.1.0</version>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>3.5.4</version>
                         <configuration>
-                            <skipProvidedScope>true</skipProvidedScope>
-                            <nvdApiDelay>3000</nvdApiDelay>
-                        </configuration>                        
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>aggregate</goal>
-                                </goals>
-                                <configuration>
-                                    <failBuildOnCVSS>0</failBuildOnCVSS>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin> 
+                            <!-- Include all tests including e2e -->
+                            <excludes combine.self="override"/>
+                        </configuration>
+                    </plugin>
                 </plugins>
             </build>
-        </profile>        
-        <profile> 
+        </profile>
+        <profile>
             <id>release</id>
             <build>
                 <plugins>
@@ -144,7 +171,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.2.2</version>
+                        <version>3.2.8</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -157,9 +184,9 @@
                                         <arg>--pinentry-mode</arg>
                                         <arg>loopback</arg>
                                     </gpgArguments>
-                                </configuration>                                                           
-                            </execution>                            
-                        </executions>                                                                                         
+                                </configuration>
+                            </execution>
+                        </executions>
                     </plugin>
                     <plugin>
                         <groupId>org.sonatype.central</groupId>

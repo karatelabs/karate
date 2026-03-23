@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karate Driver Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 { color: #333; }
+        .links { margin-top: 20px; }
+        .links a {
+            display: block;
+            margin: 10px 0;
+            color: #0066cc;
+        }
+        #message { margin-top: 20px; color: #666; }
+    </style>
+</head>
+<body>
+    <h1>Karate Driver Test Pages</h1>
+    <p id="description">Welcome to the Karate driver E2E test pages.</p>
+
+    <div class="links">
+        <a href="/navigation">Navigation Tests</a>
+        <a href="/wait">Wait Tests</a>
+        <a href="/input">Input Tests</a>
+        <a href="/iframe">IFrame Tests</a>
+    </div>
+
+    <div id="message">Page loaded successfully.</div>
+
+    <script>
+        console.log('Index page loaded');
+        window.testValue = 42;
+    </script>
+</body>
+</html>

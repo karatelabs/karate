@@ -1,7 +1,10 @@
 version: 2
 updates:
-  # Dependencies listed in .github/workflows/*.yml
   - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "maven"
     directory: "/"
     schedule:
       interval: "weekly"

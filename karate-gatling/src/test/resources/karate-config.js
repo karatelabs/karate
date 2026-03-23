@@ -1,5 +1,7 @@
 function fn() {
-    var port = karate.properties['mock.port'];
-    if (!port) port = 8080;
-    return { baseUrl: 'http://localhost:' + port + '/cats' };
+  var port = karate.properties['mock.port'] || '8080';
+  var config = {
+    baseUrl: 'http://localhost:' + port
+  };
+  return config;
 }

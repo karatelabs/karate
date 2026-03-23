@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dialog Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 { color: #333; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover { background: #1976D2; }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dialog Test Page</h1>
+    <p id="description">Test JavaScript dialogs: alert, confirm, and prompt.</p>
+
+    <div id="buttons">
+        <button id="alert-btn" onclick="testAlert()">Show Alert</button>
+        <button id="confirm-btn" onclick="testConfirm()">Show Confirm</button>
+        <button id="prompt-btn" onclick="testPrompt()">Show Prompt</button>
+        <button id="prompt-default-btn" onclick="testPromptWithDefault()">Prompt with Default</button>
+    </div>
+
+    <div id="result">Result will appear here</div>
+
+    <script>
+        console.log('Dialog page loaded');
+
+        function testAlert() {
+            alert('Hello from alert!');
+            document.getElementById('result').textContent = 'Alert was shown';
+        }
+
+        function testConfirm() {
+            var result = confirm('Do you confirm?');
+            document.getElementById('result').textContent = 'Confirm result: ' + result;
+        }
+
+        function testPrompt() {
+            var result = prompt('Enter your name:');
+            document.getElementById('result').textContent = 'Prompt result: ' + (result || 'null');
+        }
+
+        function testPromptWithDefault() {
+            var result = prompt('Enter value:', 'default value');
+            document.getElementById('result').textContent = 'Prompt result: ' + (result || 'null');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1443 @@
+# Karate v2 Capability Map
+#
+# ============================================================================
+# IMPORTANT: This YAML file is the SOURCE OF TRUTH for capabilities.
+# CAPABILITIES.md is auto-generated - DO NOT edit it directly.
+# Run `./etc/generate-capabilities.sh` to regenerate CAPABILITIES.md
+# ============================================================================
+#
+# Schema:
+#   v1: true|false     - Whether this capability existed in Karate v1
+#   v2: <status>       - Current v2 implementation status
+#
+# v2 status values:
+#   implemented - Working in Karate v2
+#   in_progress - Actively being built for v2
+#   planned     - Committed for a milestone
+#   future      - Wish list, no commitment yet
+#
+# License values:
+#   oss        - Open source (default)
+#   commercial - Commercial/enterprise offering
+#
+# Aligned with Karate Labs Test Automation Capability Map
+
+categories:
+
+  # ===========================================================================
+  # CORE TEST AUTOMATION
+  # ===========================================================================
+  - name: Core Test Automation
+    description: Foundation capabilities that power all test types
+    items:
+      - name: Embedded JavaScript Engine
+        description: Custom high-performance JS engine (karate-js)
+        v1: false
+        v2: implemented
+        license: oss
+        tags: [core, milestone-1]
+        items:
+          - name: ES6+ syntax support
+            v1: false
+            v2: implemented
+          - name: Java interop from JS
+            v1: false
+            v2: implemented
+          - name: Pluggable engine architecture
+            v1: false
+            v2: planned
+          - name: async/await support
+            v1: false
+            v2: future
+          - name: ES Modules (import/export)
+            v1: false
+            v2: future
+          - name: setTimeout and timers
+            v1: false
+            v2: future
+
+      - name: Assertions (Match)
+        description: Powerful matching and assertion engine
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [core, milestone-1]
+        items:
+          - name: Core operators (equals, not equals, contains)
+            v1: true
+            v2: implemented
+          - name: contains only, contains any, contains deep
+            v1: true
+            v2: implemented
+          - name: each variants for arrays
+            v1: true
+            v2: implemented
+          - name: Schema validation
+            v1: true
+            v2: implemented
+          - name: Regex matching
+            v1: true
+            v2: implemented
+          - name: JSONPath expressions
+            v1: true
+            v2: implemented
+          - name: XPath expressions
+            v1: true
+            v2: implemented
+          - name: Fuzzy markers (#string, #number, #array, etc.)
+            v1: true
+            v2: implemented
+          - name: match within (range assertions)
+            v1: false
+            v2: implemented
+          - name: Numeric tolerance assertions
+            v1: false
+            v2: future
+          - name: Date and time assertions
+            v1: false
+            v2: future
+          - name: Soft assertions (continueOnStepFailure)
+            v1: false
+            v2: implemented
+          - name: User-defined assertion failure messages
+            v1: false
+            v2: future
+          - name: Similarity assertions (for AI)
+            v1: false
+            v2: future
+            license: commercial
+
+      - name: Data Formats
+        description: Parsing and serialization of data formats
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [core, milestone-1]
+        items:
+          - name: JSON (parsing, serialization, pretty print)
+            v1: true
+            v2: implemented
+          - name: XML (parsing, XPath, namespaces)
+            v1: true
+            v2: implemented
+          - name: YAML
+            v1: true
+            v2: implemented
+          - name: CSV
+            v1: true
+            v2: implemented
+          - name: Binary/bytes handling
+            v1: true
+            v2: implemented
+          - name: Protobuf support
+            v1: false
+            v2: future
+            license: commercial
+          - name: Avro support
+            v1: false
+            v2: future
+            license: commercial
+
+      - name: Gherkin Parser
+        description: Feature file parsing and scenario execution
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [core, milestone-1]
+        items:
+          - name: Feature and Scenario parsing
+            v1: true
+            v2: implemented
+          - name: Background
+            v1: true
+            v2: implemented
+          - name: Scenario Outline with Examples
+            v1: true
+            v2: implemented
+          - name: Doc strings
+            v1: true
+            v2: implemented
+          - name: Data tables
+            v1: true
+            v2: implemented
+          - name: Tags parsing
+            v1: true
+            v2: implemented
+          - name: Tag expressions filtering
+            v1: true
+            v2: implemented
+          - name: call and callonce keywords
+            v1: true
+            v2: implemented
+          - name: callSingle for shared setup
+            v1: true
+            v2: implemented
+          - name: retry until keyword
+            v1: true
+            v2: implemented
+
+      - name: Built-in Test Utilities
+        description: Built-in helpers for test data and assertions
+        v1: false
+        v2: implemented
+        license: oss
+        tags: [core, milestone-1]
+        items:
+          - name: karate.faker.* (test data generation)
+            v1: false
+            v2: implemented
+          - name: karate.expect() (Chai-style BDD assertions)
+            v1: false
+            v2: implemented
+          - name: karate.uuid() (UUID generation)
+            v1: false
+            v2: implemented
+
+      - name: Parallel Safety
+        description: Concurrency control for parallel test execution
+        v1: false
+        v2: implemented
+        license: oss
+        tags: [core, milestone-1]
+        items:
+          - name: "@lock=name (named mutual exclusion)"
+            v1: false
+            v2: implemented
+          - name: "@lock=* (exclusive execution)"
+            v1: false
+            v2: implemented
+
+      - name: Environment & Configuration
+        description: Test environment and configuration management
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [core, milestone-1]
+        items:
+          - name: karate-config.js
+            v1: true
+            v2: implemented
+          - name: Environment-based config (karate.env)
+            v1: true
+            v2: implemented
+          - name: API to read current config settings
+            v1: false
+            v2: future
+          - name: Multiple environments in parallel
+            v1: false
+            v2: future
+
+      - name: Grouping & Tags
+        description: Test organization and filtering
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [core, milestone-1]
+        items:
+          - name: Tag-based filtering
+            v1: true
+            v2: implemented
+          - name: Tag expressions (and, or, not)
+            v1: true
+            v2: implemented
+          - name: Tags run on same thread
+            v1: false
+            v2: future
+          - name: Tag ordering (run after other tags)
+            v1: false
+            v2: future
+
+      - name: Data Driven Testing
+        description: Parameterized and data-driven test execution
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [core]
+        items:
+          - name: Scenario Outline with Examples
+            v1: true
+            v2: implemented
+          - name: Dynamic scenario generation
+            v1: true
+            v2: implemented
+          - name: External data sources (CSV, JSON)
+            v1: true
+            v2: implemented
+
+      - name: Extensibility & Hooks
+        description: Extension points and lifecycle hooks
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [core, milestone-1]
+        items:
+          - name: RunListener interface (unified event system)
+            v1: false
+            v2: implemented
+          - name: RunListenerFactory (per-thread listeners)
+            v1: false
+            v2: implemented
+          - name: Before/After scenario hooks
+            v1: true
+            v2: implemented
+            notes: "via SCENARIO_ENTER/EXIT events"
+          - name: Before/After feature hooks
+            v1: true
+            v2: implemented
+            notes: "via FEATURE_ENTER/EXIT events"
+          - name: JavaScript hooks
+            v1: false
+            v2: future
+          - name: onError hook
+            v1: false
+            v2: future
+          - name: Plugin system
+            v1: false
+            v2: planned
+
+      - name: Artifact & Code Re-use
+        description: Sharing and reusing test artifacts
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [core]
+        items:
+          - name: call keyword for feature composition
+            v1: true
+            v2: implemented
+          - name: callonce for shared setup
+            v1: true
+            v2: implemented
+          - name: callSingle for one-time global setup
+            v1: true
+            v2: implemented
+          - name: Shared feature libraries
+            v1: true
+            v2: implemented
+          - name: Java interop
+            v1: true
+            v2: implemented
+          - name: Template substitution
+            v1: true
+            v2: implemented
+
+  # ===========================================================================
+  # API TESTING
+  # ===========================================================================
+  - name: API Testing
+    description: HTTP and protocol-level API testing
+    items:
+      - name: HTTP API Testing
+        description: Core HTTP client capabilities
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [api, milestone-1]
+        items:
+          - name: All HTTP methods (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
+            v1: true
+            v2: implemented
+          - name: Request/response cycle management
+            v1: true
+            v2: implemented
+          - name: Headers and cookies
+            v1: true
+            v2: implemented
+          - name: Query and path parameters
+            v1: true
+            v2: implemented
+          - name: Form-encoded data
+            v1: true
+            v2: implemented
+          - name: Multipart and file uploads
+            v1: true
+            v2: implemented
+          - name: SSL/TLS (custom certs, trust-all)
+            v1: true
+            v2: implemented
+          - name: Proxy support with authentication
+            v1: true
+            v2: implemented
+          - name: Timeout configuration
+            v1: true
+            v2: implemented
+          - name: Follow redirects option
+            v1: true
+            v2: implemented
+          - name: HTTP/2 support
+            v1: false
+            v2: planned
+          - name: Declarative auth (Basic, Bearer, OAuth2)
+            v1: false
+            v2: implemented
+          - name: NTLM authentication
+            v1: true
+            v2: implemented
+            notes: "via configure auth = { type: 'ntlm' }"
+          - name: HttpLogModifier for sensitive data masking
+            v1: true
+            v2: implemented
+          - name: cURL export
+            v1: false
+            v2: implemented
+          - name: Large file streaming (memory-efficient)
+            v1: false
+            v2: future
+          - name: Operations on huge data (match, sort)
+            v1: false
+            v2: future
+
+      - name: SOAP
+        description: SOAP/XML web service testing
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [api, milestone-1]
+        items:
+          - name: SOAP action support
+            v1: true
+            v2: implemented
+          - name: XML namespace handling
+            v1: true
+            v2: implemented
+
+      - name: Async Protocols
+        description: Asynchronous API protocol support
+        v1: false
+        v2: implemented
+        license: commercial
+        tags: [api, async]
+        items:
+          - name: WebSocket
+            v1: false
+            v2: implemented
+            license: commercial
+          - name: Server-Sent Events (SSE)
+            status: future
+            license: commercial
+          - name: gRPC
+            status: future
+            license: commercial
+          - name: Kafka
+            status: future
+            license: commercial
+          - name: STOMP
+            status: future
+            license: commercial
+          - name: Webhook testing
+            status: future
+            license: commercial
+          - name: STDIO (for MCP)
+            status: future
+            license: commercial
+          - name: JSON streaming
+            status: future
+            license: commercial
+
+      - name: API Test Doubles (Mocks)
+        description: HTTP mock server capabilities
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [api, milestone-2]
+        items:
+          - name: HTTP mock server (Netty-based)
+            v1: false
+            v2: implemented
+          - name: Feature-based mock definitions
+            v1: true
+            v2: implemented
+          - name: Dynamic request/response handling
+            v1: true
+            v2: implemented
+          - name: Request matching and routing
+            v1: true
+            v2: implemented
+          - name: Delay/latency simulation
+            v1: true
+            v2: implemented
+            notes: "responseDelay variable + Netty non-blocking scheduler"
+          - name: Stateful mocks (session support)
+            v1: true
+            v2: implemented
+          - name: Mock recording and playback
+            v1: false
+            v2: future
+          - name: CORS support
+            v1: true
+            v2: implemented
+          - name: HTMX integration
+            v1: false
+            v2: in_progress
+          - name: AlpineJS integration
+            v1: false
+            v2: future
+          - name: Async protocol mocks
+            v1: false
+            v2: future
+            license: commercial
+
+      - name: Contract Testing
+        description: API contract validation
+        status: future
+        license: oss
+        tags: [api]
+        items:
+          - name: Consumer-driven contracts
+            status: future
+          - name: OpenAPI/Swagger validation
+            status: future
+            license: commercial
+          - name: JSON Schema validation
+            status: future
+            license: commercial
+
+      - name: API Documentation
+        description: Documentation generated from tests
+        status: future
+        license: commercial
+        tags: [api]
+        items:
+          - name: API docs as side-effect of test execution
+            status: future
+            license: commercial
+          - name: OpenAPI/Swagger import
+            status: future
+            license: commercial
+
+  # ===========================================================================
+  # UI TESTING
+  # ===========================================================================
+  - name: UI Testing
+    description: User interface automation across platforms
+    items:
+      - name: Browser Automation
+        description: Web browser testing via Chrome DevTools Protocol
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [ui, milestone-1]
+        items:
+          - name: Chrome/Chromium support (CDP)
+            v1: true
+            v2: implemented
+          - name: Firefox support
+            v1: true
+            v2: planned
+            notes: "Requires WebDriver protocol or Playwright emulation"
+          - name: Safari/WebKit support
+            v1: true
+            v2: planned
+            notes: "Requires WebDriver protocol or Playwright emulation"
+          - name: Edge support
+            v1: true
+            v2: implemented
+            notes: "Chromium-based Edge works via CDP"
+          - name: Headless mode
+            v1: true
+            v2: implemented
+          - name: Element locators (CSS, XPath, wildcard)
+            v1: true
+            v2: implemented
+          - name: Keyboard and mouse actions
+            v1: true
+            v2: implemented
+          - name: File uploads/downloads
+            v1: true
+            v2: implemented
+          - name: Multiple windows/tabs
+            v1: true
+            v2: implemented
+          - name: iframes support
+            v1: true
+            v2: implemented
+          - name: Shadow DOM support
+            v1: true
+            v2: implemented
+          - name: Auto-wait before element operations
+            v1: false
+            v2: implemented
+          - name: Browser pooling (PooledDriverProvider)
+            v1: false
+            v2: implemented
+          - name: Dialog handling
+            v1: true
+            v2: implemented
+          - name: PDF testing
+            v1: true
+            v2: planned
+          - name: WebDriver protocol
+            v1: true
+            v2: planned
+            notes: "V1 used WebDriver for Firefox/Safari; not yet ported to v2"
+          - name: Playwright emulation
+            v1: false
+            v2: planned
+            notes: "Replaces v1 experimental Playwright support; enables Firefox/WebKit via Playwright CDP"
+          - name: WebDriver BiDi
+            v1: false
+            v2: future
+
+      - name: Mobile Automation
+        description: Mobile app testing
+        v1: false
+        v2: future
+        license: oss
+        tags: [ui, future-milestone]
+        items:
+          - name: Android native apps
+            v1: false
+            v2: future
+          - name: iOS native apps
+            v1: false
+            v2: future
+          - name: Flutter apps
+            v1: false
+            v2: future
+          - name: React Native apps
+            v1: false
+            v2: future
+          - name: Mobile web testing
+            v1: true
+            v2: future
+
+      - name: Desktop Automation
+        description: Desktop application testing
+        v1: true
+        v2: future
+        license: oss
+        tags: [ui, future-milestone]
+        items:
+          - name: Windows desktop apps
+            v1: true
+            v2: future
+          - name: macOS desktop apps
+            v1: false
+            v2: future
+          - name: Linux desktop apps
+            v1: false
+            v2: future
+
+  # ===========================================================================
+  # UI & UX TESTING
+  # ===========================================================================
+  - name: UI & UX Testing
+    description: Visual and user experience validation
+    items:
+      - name: Video Recording & Screenshots
+        description: Visual capture during test execution
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [ui-ux]
+        items:
+          - name: Screenshot capture
+            v1: true
+            v2: implemented
+          - name: Video recording
+            v1: true
+            v2: planned
+          - name: Screenshot on failure
+            v1: true
+            v2: implemented
+
+      - name: Visual Validation
+        description: Visual regression testing
+        v1: false
+        v2: implemented
+        license: commercial
+        tags: [ui-ux]
+        items:
+          - name: Image comparison
+            v1: false
+            v2: implemented
+            license: commercial
+          - name: Visual diff reporting
+            v1: false
+            v2: implemented
+            license: commercial
+          - name: Visual validation UI
+            v1: false
+            v2: future
+            license: commercial
+
+      - name: Accessibility Testing
+        description: WCAG and accessibility validation
+        status: future
+        license: commercial
+        tags: [ui-ux]
+        items:
+          - name: WCAG compliance checks
+            status: future
+          - name: Accessibility audit reports
+            status: future
+
+      - name: Localization Testing
+        description: Multi-language and locale testing
+        status: future
+        license: commercial
+        tags: [ui-ux]
+        items:
+          - name: Multi-locale test execution
+            status: future
+          - name: Translation validation
+            status: future
+
+      - name: Cross Browser & Device
+        description: Multi-browser and device testing
+        v1: true
+        v2: planned
+        license: oss
+        tags: [ui-ux]
+        items:
+          - name: Browser matrix testing
+            v1: true
+            v2: planned
+          - name: Device emulation
+            v1: true
+            v2: planned
+          - name: Real device testing
+            v1: false
+            v2: future
+            license: commercial
+
+  # ===========================================================================
+  # SCALE & PERFORMANCE
+  # ===========================================================================
+  - name: Scale & Performance
+    description: Load testing and distributed execution
+    items:
+      - name: API Performance / Load Testing
+        description: HTTP load and performance testing
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [scale, milestone-3]
+        items:
+          - name: Gatling integration (karate-gatling module)
+            v1: true
+            v2: implemented
+          - name: Performance metrics and reporting
+            v1: true
+            v2: implemented
+            notes: "Gatling generates Highcharts HTML reports"
+          - name: Throttling and rate limiting
+            v1: false
+            v2: planned
+          - name: Resource monitoring
+            status: future
+
+      - name: UI/UX Performance
+        description: Frontend performance testing
+        status: future
+        license: commercial
+        tags: [scale]
+        items:
+          - name: Page load metrics
+            status: future
+          - name: Core Web Vitals
+            status: future
+          - name: Performance budgets
+            status: future
+
+      - name: Distributed / Cloud Testing
+        description: Distributed test execution
+        status: future
+        license: commercial
+        tags: [scale]
+        items:
+          - name: Distributed test orchestration
+            status: future
+          - name: Cloud execution environments
+            status: future
+          - name: Parallel across machines
+            status: future
+
+      - name: Chaos Testing
+        description: Resilience and chaos engineering
+        status: future
+        license: commercial
+        tags: [scale]
+        items:
+          - name: Fault injection
+            status: future
+          - name: Network chaos simulation
+            status: future
+
+  # ===========================================================================
+  # DEVELOPER EXPERIENCE
+  # ===========================================================================
+  - name: Developer Experience
+    description: Tools and workflows for test development
+    items:
+      - name: IDE Support
+        description: Integrated development environment support
+        v1: false
+        v2: implemented
+        license: commercial
+        tags: [devex]
+        items:
+          - name: IntelliJ plugin
+            v1: false
+            v2: implemented
+            license: commercial
+          - name: VS Code extension
+            v1: false
+            v2: implemented
+            license: commercial
+          - name: Visual Studio extension
+            v1: false
+            v2: future
+            license: commercial
+          - name: Language Server Protocol (LSP)
+            v1: false
+            v2: future
+            license: commercial
+
+      - name: Live Debugging
+        description: Interactive debugging capabilities
+        v1: false
+        v2: implemented
+        license: commercial
+        tags: [devex]
+        items:
+          - name: Gherkin step-through debugging
+            v1: false
+            v2: implemented
+            license: commercial
+          - name: JavaScript debugging
+            v1: false
+            v2: future
+            license: commercial
+          - name: Java debugging
+            v1: false
+            v2: implemented
+            license: commercial
+          - name: Breakpoints and watch expressions
+            v1: false
+            v2: implemented
+            license: commercial
+
+      - name: Parallel Execution
+        description: Concurrent test execution
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [devex, milestone-1]
+        items:
+          - name: Parallel scenarios
+            v1: true
+            v2: implemented
+          - name: Parallel features
+            v1: true
+            v2: implemented
+          - name: Thread pool configuration
+            v1: true
+            v2: implemented
+          - name: Virtual threads support
+            v1: false
+            v2: implemented
+
+      - name: Robustness & Predictability
+        description: Reliable test execution
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [devex]
+        items:
+          - name: Retry on failure
+            v1: true
+            v2: implemented
+          - name: retry until keyword
+            v1: true
+            v2: implemented
+          - name: Re-run only failed tests
+            v1: false
+            v2: future
+          - name: Random seed for test order
+            v1: false
+            v2: future
+
+      - name: Docker & Cloud Readiness
+        description: Container and cloud deployment
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [devex]
+        items:
+          - name: Docker image
+            v1: true
+            v2: implemented
+          - name: Testcontainers integration
+            v1: false
+            v2: future
+          - name: Signed Docker container
+            v1: false
+            v2: future
+            license: commercial
+
+      - name: Git & Version Diffs
+        description: Version control integration
+        status: future
+        license: commercial
+        tags: [devex]
+        items:
+          - name: Test diff visualization
+            status: future
+          - name: Impact analysis
+            status: future
+            license: commercial
+
+      - name: Logging & Traceability
+        description: Logging and audit capabilities
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [devex, milestone-1]
+        items:
+          - name: Structured logging (SLF4J)
+            v1: true
+            v2: implemented
+          - name: Request/response logging
+            v1: true
+            v2: implemented
+          - name: Log masking for sensitive data
+            v1: true
+            v2: implemented
+          - name: Selective logging control
+            v1: false
+            v2: future
+          - name: HTML report without console logs
+            v1: false
+            v2: future
+          - name: ANSI colored console output
+            v1: false
+            v2: implemented
+          - name: LLM-friendly output mode
+            v1: false
+            v2: planned
+
+      - name: Test Runner SDK / CLI
+        description: Command-line and programmatic execution
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [devex, milestone-1]
+        items:
+          - name: Feature file execution
+            v1: true
+            v2: implemented
+          - name: Tag filtering
+            v1: true
+            v2: implemented
+          - name: Parallel thread configuration
+            v1: true
+            v2: implemented
+          - name: Environment selection
+            v1: true
+            v2: implemented
+          - name: Output directory configuration
+            v1: true
+            v2: implemented
+          - name: Dry run mode
+            v1: true
+            v2: implemented
+          - name: Debug mode
+            v1: false
+            v2: implemented
+            license: commercial
+            notes: "Runner.debugSupport() API hook in OSS; CLI flag and DAP server are in commercial Xplorer"
+          - name: JUnit integration
+            v1: true
+            v2: implemented
+          - name: Maven/Gradle plugins
+            v1: true
+            v2: implemented
+          - name: Version out-of-date banner
+            v1: false
+            v2: future
+          - name: Interactive mode for LLMs
+            v1: false
+            v2: planned
+
+      - name: Low Code / No Code
+        description: Simplified test creation
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [devex]
+        items:
+          - name: Gherkin syntax (no Java required)
+            v1: true
+            v2: implemented
+          - name: JavaScript test authoring
+            v1: false
+            v2: planned
+          - name: Java test authoring
+            v1: true
+            v2: implemented
+
+      - name: BDD / Natural Language
+        description: Behavior-driven development support
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [devex]
+        items:
+          - name: Gherkin Given/When/Then
+            v1: true
+            v2: implemented
+          - name: Business-readable reports
+            v1: true
+            v2: implemented
+          - name: Specification mapping layer
+            v1: false
+            v2: future
+            license: commercial
+
+      - name: Remote Dev Environments
+        description: Remote and cloud development
+        status: future
+        license: commercial
+        tags: [devex]
+        items:
+          - name: GitHub Codespaces support
+            status: future
+          - name: Gitpod support
+            status: future
+
+  # ===========================================================================
+  # REPORTS & INTEGRATION
+  # ===========================================================================
+  - name: Reports & Integration
+    description: Test results and third-party integrations
+    items:
+      - name: Results Output / Export
+        description: Test result formats
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [reports, milestone-1]
+        items:
+          - name: Karate JSON report
+            v1: true
+            v2: implemented
+          - name: JUnit XML report
+            v1: true
+            v2: implemented
+          - name: Cucumber JSON report
+            v1: true
+            v2: implemented
+          - name: PDF reports
+            v1: false
+            v2: future
+            license: commercial
+
+      - name: HTML Reports
+        description: Interactive HTML reporting
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [reports, milestone-1]
+        items:
+          - name: Interactive dashboard
+            v1: true
+            v2: implemented
+          - name: Timeline view
+            v1: true
+            v2: implemented
+          - name: Step-by-step logs
+            v1: true
+            v2: implemented
+          - name: Embedded screenshots/videos
+            v1: true
+            v2: implemented
+          - name: Dark mode support
+            v1: false
+            v2: implemented
+          - name: Modern Bootstrap 5 styling
+            v1: false
+            v2: implemented
+          - name: Cosmetic improvements (spacing, colors, typography)
+            v1: false
+            v2: planned
+          - name: No-JS simple mode
+            v1: false
+            v2: future
+
+      - name: Run History & Insights
+        description: Historical analysis and trends
+        status: future
+        license: commercial
+        tags: [reports]
+        items:
+          - name: Test run history
+            status: future
+          - name: Trend analysis
+            status: future
+          - name: Flaky test detection
+            status: future
+
+      - name: Coverage Reports
+        description: Test coverage analysis
+        status: future
+        license: commercial
+        tags: [reports]
+        items:
+          - name: API coverage against OpenAPI
+            status: future
+          - name: Requirements coverage
+            status: future
+          - name: Code coverage integration
+            status: future
+
+      - name: 3rd Party Tool Integrations
+        description: External tool connectivity
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [reports]
+        items:
+          - name: CI/CD integration (Jenkins, GitHub Actions, etc.)
+            v1: true
+            v2: implemented
+          - name: Zephyr integration
+            status: future
+            license: commercial
+          - name: Jira integration
+            status: future
+            license: commercial
+          - name: Report server and aggregation
+            status: future
+            license: commercial
+          - name: GitHub Action (official)
+            status: future
+            license: commercial
+
+      - name: Observability
+        description: Monitoring and telemetry
+        status: future
+        license: oss
+        tags: [reports]
+        items:
+          - name: OpenTelemetry hook support
+            status: future
+          - name: Metrics export
+            status: future
+          - name: API monitoring
+            status: future
+            license: commercial
+
+  # ===========================================================================
+  # TEST GENERATION
+  # ===========================================================================
+  - name: Test Generation
+    description: Automated test creation and data generation
+    items:
+      - name: Artifact Import / Conversion
+        description: Import from other formats
+        status: future
+        license: commercial
+        tags: [generation]
+        items:
+          - name: Postman collection import
+            status: future
+          - name: OpenAPI/Swagger import
+            status: future
+          - name: cURL import
+            status: future
+          - name: HAR file import
+            status: future
+          - name: Migration from other tools (ReadyAPI, Parasoft, Tricentis)
+            status: future
+
+      - name: Record & Replay
+        description: Recording-based test creation
+        status: future
+        license: commercial
+        tags: [generation]
+        items:
+          - name: Browser API recording
+            status: future
+          - name: Browser UI recording
+            status: future
+          - name: Proxy-based recording
+            status: future
+          - name: AI-assisted recording cleanup
+            status: future
+
+      - name: AI / ML
+        description: AI-powered test generation
+        status: future
+        license: commercial
+        tags: [generation, ai]
+        items:
+          - name: AI test generation
+            status: future
+          - name: AI test data generation
+            status: future
+          - name: LLM-guided test creation
+            status: future
+          - name: Claude skill for Karate
+            status: future
+          - name: Sample prompts library
+            status: future
+
+      - name: Property Based Testing
+        description: Generative testing approaches
+        status: future
+        license: commercial
+        tags: [generation]
+        items:
+          - name: Property-based assertions
+            status: future
+          - name: Hypothesis testing
+            status: future
+
+      - name: Mutation / Fuzzing
+        description: Mutation testing and fuzzing
+        status: future
+        license: commercial
+        tags: [generation]
+        items:
+          - name: API fuzzing
+            status: future
+          - name: Mutation testing
+            status: future
+
+      - name: Fake Data Generation
+        description: Synthetic test data
+        status: future
+        license: commercial
+        tags: [generation]
+        items:
+          - name: Faker integration
+            status: future
+          - name: AI-based synthetic data
+            status: future
+
+      - name: Security Testing
+        description: Security-focused test generation
+        status: future
+        license: commercial
+        tags: [generation]
+        items:
+          - name: OWASP vulnerability scanning
+            status: future
+          - name: Security fuzzing
+            status: future
+          - name: Prompt injection testing
+            status: future
+
+  # ===========================================================================
+  # AI & LLM INTEGRATION
+  # ===========================================================================
+  - name: AI & LLM Integration
+    description: AI-powered capabilities and LLM testing
+    items:
+      - name: LLM-Friendly Interface
+        description: Optimized for AI agent interaction
+        status: planned
+        license: oss
+        tags: [ai, milestone-1]
+        items:
+          - name: Discoverable CLI commands
+            status: planned
+          - name: Token-efficient output
+            status: planned
+          - name: Interactive REPL for LLMs
+            status: planned
+          - name: JavaScript API for LLM control
+            status: planned
+          - name: Stack traces with context
+            status: planned
+
+      - name: Testing AI Systems
+        description: Testing LLMs and AI applications
+        status: future
+        license: commercial
+        tags: [ai]
+        items:
+          - name: Testing MCP servers
+            status: future
+          - name: Mocking MCP servers
+            status: future
+          - name: Mocking LLM APIs
+            status: future
+          - name: LLM effectiveness testing
+            status: future
+          - name: LLM comparison testing
+            status: future
+          - name: Prompt injection security testing
+            status: future
+
+      - name: Built-in LLM Integration
+        description: LLM capabilities within Karate
+        status: future
+        license: commercial
+        tags: [ai]
+        items:
+          - name: CLI-based LLM integration
+            status: future
+          - name: MCP server (Xplorer)
+            status: future
+          - name: LLM-friendly specifications files
+            status: future
+
+  # ===========================================================================
+  # CROSS-LANGUAGE SUPPORT
+  # ===========================================================================
+  - name: Cross-Language Support
+    description: Polyglot and non-Java platform support
+    items:
+      - name: Karate CLI
+        description: Zero-friction cross-platform installation
+        v1: false
+        v2: implemented
+        license: oss
+        tags: [polyglot]
+        items:
+          - name: npm install support
+            v1: false
+            v2: implemented
+          - name: macOS installer
+            v1: false
+            v2: implemented
+          - name: Windows installer
+            v1: false
+            v2: implemented
+          - name: Linux installer
+            v1: false
+            v2: implemented
+          - name: Signed installers
+            v1: false
+            v2: future
+            license: commercial
+
+      - name: Client Libraries
+        description: Language-specific client libraries
+        status: future
+        license: oss
+        tags: [polyglot]
+        items:
+          - name: Python client
+            status: future
+          - name: .NET client
+            status: future
+          - name: Go client
+            status: future
+          - name: Rust client
+            status: future
+
+      - name: Custom JAR Libraries
+        description: User-provided Java extensions
+        v1: true
+        v2: implemented
+        license: oss
+        tags: [polyglot]
+        items:
+          - name: Custom JAR loading
+            v1: true
+            v2: implemented
+          - name: Extension to non-Java clients
+            v1: false
+            v2: future
+
+  # ===========================================================================
+  # COMMERCIAL TOOLS
+  # ===========================================================================
+  - name: Commercial Tools
+    description: Enterprise and commercial offerings
+    items:
+      - name: Karate Xplorer
+        description: Desktop platform for API testing
+        v1: false
+        v2: implemented
+        license: commercial
+        tags: [commercial]
+        items:
+          - name: Postman emulation
+            v1: false
+            v2: implemented
+            license: commercial
+          - name: Step-through debugging
+            v1: false
+            v2: implemented
+            license: commercial
+          - name: Visual API explorer
+            v1: false
+            v2: implemented
+            license: commercial
+          - name: Hybrid CI/CD suites
+            v1: false
+            v2: future
+            license: commercial
+          - name: Performance test reuse
+            v1: false
+            v2: future
+            license: commercial
+
+      - name: Requirements Management
+        description: Requirements tracking and coverage
+        status: future
+        license: commercial
+        tags: [commercial]
+        items:
+          - name: Local-first requirements management
+            status: future
+          - name: Test coverage against requirements
+            status: future
+          - name: Impact analysis
+            status: future
+
+      - name: API Governance
+        description: API standards and compliance
+        status: future
+        license: commercial
+        tags: [commercial]
+        items:
+          - name: API linting (Spectral-like)
+            status: future
+          - name: API rating
+            status: future
+          - name: Governance checks
+            status: future
+
+      - name: Code Quality Tools
+        description: Static analysis and formatting
+        status: future
+        license: commercial
+        tags: [commercial]
+        items:
+          - name: Karate test linter
+            status: future
+          - name: Karate test formatter
+            status: future
+          - name: Static code analysis
+            status: future
+          - name: Code review tool
+            status: future
+
+      - name: IoT & Embedded Testing
+        description: Testing for IoT and embedded systems
+        status: future
+        license: commercial
+        tags: [commercial]
+        items:
+          - name: Client for embedded platforms
+            status: future
+          - name: IoT protocol testing
+            status: future
+          - name: Device-specific UI testing
+            status: future
+
+      - name: Big Data Testing
+        description: Testing with large datasets
+        status: future
+        license: commercial
+        tags: [commercial]
+        items:
+          - name: Large dataset handling
+            status: future
+          - name: Data pipeline validation
+            status: future

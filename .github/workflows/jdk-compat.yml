@@ -2,25 +2,24 @@ name: jdk-compat
 
 on:
   push:
-    branches: [ develop ]
+    branches: [main]
 
 jobs:
   build:
     timeout-minutes: 10
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java-version: ['23', '24']
     steps:
-    - name: git checkout
-      uses: actions/checkout@v6
-    - name: get latest jdk ga
-      uses: oracle-actions/setup-java@v1
-      with:
-        website: jdk.java.net
-        release: 25
-    - name: cache maven packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-        restore-keys: ${{ runner.os }}-maven-
-    - name: build with maven
-      run: mvn -B clean install -P pre-release -Djavacpp.platform=linux-x86_64
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java-version }}
+          cache: maven
+
+      - name: Build and test
+        run: mvn -B clean verify

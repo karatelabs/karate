@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tab New Page</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 { color: #2d8a2d; }
+        #message { margin-top: 20px; color: #666; }
+    </style>
+</head>
+<body>
+    <h1 id="title">Tab New Page</h1>
+    <p id="description">This page was opened in a new tab.</p>
+
+    <div id="message">New tab page loaded.</div>
+
+    <script>
+        console.log('Tab new page loaded');
+        window.pageType = 'new';
+    </script>
+</body>
+</html>

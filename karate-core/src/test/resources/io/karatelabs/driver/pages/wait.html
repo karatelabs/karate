@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wait Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 { color: #333; }
+        button {
+            padding: 10px 20px;
+            margin: 10px 5px 10px 0;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #0052a3; }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .result.success { background: #d4edda; color: #155724; display: block; }
+        .result.error { background: #f8d7da; color: #721c24; display: block; }
+        #delayed-content { display: none; }
+        #loader { color: #666; }
+    </style>
+</head>
+<body>
+    <h1>Wait Test Page</h1>
+    <p id="description">Test various wait scenarios.</p>
+
+    <div>
+        <button id="btn-delayed" onclick="showDelayedContent()">Show Delayed Content</button>
+        <button id="btn-enable" onclick="enableButton()" disabled>Disabled Button</button>
+        <button id="btn-text-change" onclick="changeText()">Change Text</button>
+    </div>
+
+    <div id="loader">Loading...</div>
+    <div id="delayed-content">
+        <h2>Delayed Content</h2>
+        <p>This content appeared after a delay.</p>
+    </div>
+
+    <div id="result" class="result"></div>
+    <div id="text-target">Original Text</div>
+
+    <script>
+        console.log('Wait page loaded');
+
+        // Hide loader after initial load
+        setTimeout(function() {
+            document.getElementById('loader').style.display = 'none';
+        }, 100);
+
+        function showDelayedContent() {
+            setTimeout(function() {
+                document.getElementById('delayed-content').style.display = 'block';
+                showResult('success', 'Content loaded successfully!');
+            }, 1000);
+        }
+
+        function enableButton() {
+            showResult('success', 'Button was clicked!');
+        }
+
+        // Enable the disabled button after 1.5 seconds
+        setTimeout(function() {
+            document.getElementById('btn-enable').disabled = false;
+        }, 1500);
+
+        function changeText() {
+            document.getElementById('text-target').textContent = 'Changed Text';
+        }
+
+        function showResult(type, message) {
+            var result = document.getElementById('result');
+            result.className = 'result ' + type;
+            result.textContent = message;
+        }
+
+        window.asyncValue = null;
+        setTimeout(function() {
+            window.asyncValue = 'ready';
+        }, 500);
+    </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+/* Karate v2 Report Styles - Minimal overrides for Bootstrap 5.3+ */
+
+/* Alpine.js cloak - hide elements until Alpine initializes */
+[x-cloak] {
+    display: none !important;
+}
+
+/* Monospace font for code/logs */
+.font-mono {
+    font-family: var(--bs-font-monospace);
+}
+
+/* Log output styling */
+.log-output {
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+}

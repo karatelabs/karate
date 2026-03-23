@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2022 Karate Labs Inc.
+ * Copyright 2025 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,200 +23,94 @@
  */
 package com.intuit.karate;
 
-import com.intuit.karate.core.FeatureResult;
-import com.intuit.karate.core.ScenarioResult;
-import com.intuit.karate.core.TagResults;
-import com.intuit.karate.core.TimelineResults;
-import com.intuit.karate.report.ReportUtils;
-import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Stream;
+import io.karatelabs.core.SuiteResult;
 
 /**
+ * V1 compatibility shim for {@link SuiteResult}.
+ * <p>
+ * This class provides backward compatibility for code written against Karate v1.
+ * Migrate to {@link SuiteResult} for new code.
  *
- * @author pthomas3
+ * @deprecated Use {@link io.karatelabs.core.SuiteResult} instead.
+ *             This class will be removed in a future release.
  */
+@Deprecated(since = "2.0", forRemoval = true)
 public class Results {
 
-    private final Suite suite;
-    private final int featuresPassed;
-    private final int featuresFailed;
-    private final int featuresSkipped;
-    private final int scenariosPassed;
-    private final int scenariosFailed;
-    private final double timeTakenMillis;
-    private final long endTime;
-    private final List<String> errors = new ArrayList<>();
-    private final List<Map<String, Object>> featureSummary = new ArrayList<>();
+    private final SuiteResult delegate;
 
-    public static Results of(Suite suite) {
-        return new Results(suite);
+    public Results(SuiteResult delegate) {
+        this.delegate = delegate;
     }
 
-    private Results(Suite suite) {
-        this.suite = suite;
-        // endTime may not be set for junit
-        endTime = suite.endTime == 0 ? System.currentTimeMillis() : suite.endTime;
-        featuresSkipped = suite.skippedCount;
-        AtomicInteger fp = new AtomicInteger();
-        AtomicInteger ff = new AtomicInteger();
-        AtomicInteger sp = new AtomicInteger();
-        AtomicInteger sf = new AtomicInteger();
-        AtomicInteger time = new AtomicInteger();
-        TimelineResults timeline = new TimelineResults();
-        TagResults tags = new TagResults();
-        suite.getFeatureResults().forEach(fr -> {
-            if (!fr.isEmpty()) {
-                timeline.addFeatureResult(fr);
-                tags.addFeatureResult(fr);
-                if (fr.isFailed()) {
-                    ff.incrementAndGet();
-                } else {
-                    fp.incrementAndGet();
-                }
-                Long duration = Math.round(fr.getDurationMillis());
-                time.addAndGet(duration.intValue());
-                featureSummary.add(fr.toSummaryJson());
-            }
-            sp.addAndGet(fr.getPassedCount());
-            sf.addAndGet(fr.getFailedCount());
-            errors.addAll(fr.getErrors());
-        });
-        featuresPassed = fp.get();
-        featuresFailed = ff.get();
-        scenariosPassed = sp.get();
-        scenariosFailed = sf.get();
-        timeTakenMillis = time.get();
-        saveStatsJson();
-        printStats();
-        if (suite.outputHtmlReport) {
-            String displayEnv = StringUtils.isBlank(suite.env) ? "\n" : " | env: " + suite.env + "\n";
-            suite.suiteReports.timelineReport(suite, timeline).render();
-            suite.suiteReports.tagsReport(suite, tags).render();
-            // last so that path can be printed to the console
-            File file = suite.suiteReports.summaryReport(suite, this).render();
-            System.out.println("\nHTML report: (paste into browser to view) | Karate version: "
-                    + FileUtils.KARATE_VERSION + displayEnv
-                    + file.toPath().toUri()
-                    + "\n===================================================================\n");
-        }
-    }
-
-    public Stream<FeatureResult> getFeatureResults() {
-        return suite.getFeatureResults();
-    }
-
-    public Stream<ScenarioResult> getScenarioResults() {
-        return suite.getScenarioResults();
-    }
-
-    private void saveStatsJson() {
-        String json = JsonUtils.toJson(toKarateJson());
-        File file = new File(suite.reportDir + File.separator + "karate-summary-json.txt");
-        FileUtils.writeToFile(file, json);
-    }
-
-    private void printStats() {
-        String displayEnv = StringUtils.isBlank(suite.env) ? "" : " | env: " + suite.env;
-        System.out.println("Karate version: " + FileUtils.KARATE_VERSION + displayEnv);
-        System.out.println("======================================================");
-        System.out.println(String.format("elapsed: %6.2f | threads: %4d | thread time: %.2f ",
-                getElapsedTime() / 1000, suite.threadCount, timeTakenMillis / 1000));
-        System.out.println(String.format("features: %5d | skipped: %4d | efficiency: %.2f", getFeaturesTotal(), featuresSkipped, getEfficiency()));
-        System.out.println(String.format("scenarios: %4d | passed: %5d | failed: %d",
-                getScenariosTotal(), scenariosPassed, scenariosFailed));
-        System.out.println("======================================================");
-        if (!errors.isEmpty()) {
-            System.out.println(">>> failed features:");
-            System.out.println(getErrorMessages());
-            System.out.println("<<<");
-        }
-    }
-
-    public Map<String, Object> toKarateJson() {
-        Map<String, Object> map = new HashMap<>();
-        map.put("version", FileUtils.KARATE_VERSION);
-        map.put("env", suite.env);
-        map.put("threads", suite.threadCount);
-        map.put("featuresPassed", featuresPassed);
-        map.put("featuresFailed", featuresFailed);
-        map.put("featuresSkipped", featuresSkipped);
-        map.put("scenariosPassed", scenariosPassed);
-        map.put("scenariosfailed", errors.size());
-        map.put("elapsedTime", getElapsedTime());
-        map.put("totalTime", getTimeTakenMillis());
-        map.put("efficiency", getEfficiency());
-        map.put("resultDate", ReportUtils.getDateString());
-        map.put("featureSummary", featureSummary);
-        return map;
-    }
-
-    public String getReportDir() {
-        return suite.reportDir;
-    }
-
-    public List<String> getErrors() {
-        return errors;
-    }
-
-    public double getElapsedTime() {
-        return endTime - suite.startTime;
-    }
-
-    public double getEfficiency() {
-        return timeTakenMillis / (getElapsedTime() * suite.threadCount);
-    }
-
-    public int getScenariosPassed() {
-        return scenariosPassed;
-    }
-
-    public int getScenariosFailed() {
-        return scenariosFailed;
-    }
-
-    public int getScenariosTotal() {
-        return scenariosPassed + scenariosFailed;
-    }
-
-    public int getFeaturesTotal() {
-        return featuresPassed + featuresFailed;
-    }
-
-    public int getFeaturesPassed() {
-        return featuresPassed;
-    }
-
-    public int getFeaturesFailed() {
-        return featuresFailed;
-    }
-
+    /**
+     * Get the number of failed scenarios.
+     *
+     * @deprecated Use {@link SuiteResult#getScenarioFailedCount()} instead.
+     */
+    @Deprecated(since = "2.0", forRemoval = true)
     public int getFailCount() {
-        return errors.size();
+        return delegate.getScenarioFailedCount();
     }
 
-    public double getTimeTakenMillis() {
-        return timeTakenMillis;
+    /**
+     * Get the number of passed scenarios.
+     *
+     * @deprecated Use {@link SuiteResult#getScenarioPassedCount()} instead.
+     */
+    @Deprecated(since = "2.0", forRemoval = true)
+    public int getPassCount() {
+        return delegate.getScenarioPassedCount();
     }
 
-    public long getStartTime() {
-        return suite.startTime;
+    /**
+     * Get the total number of scenarios.
+     *
+     * @deprecated Use {@link SuiteResult#getScenarioCount()} instead.
+     */
+    @Deprecated(since = "2.0", forRemoval = true)
+    public int getScenarioCount() {
+        return delegate.getScenarioCount();
     }
 
-    public long getEndTime() {
-        return endTime;
+    /**
+     * Get the total number of features.
+     *
+     * @deprecated Use {@link SuiteResult#getFeatureCount()} instead.
+     */
+    @Deprecated(since = "2.0", forRemoval = true)
+    public int getFeatureCount() {
+        return delegate.getFeatureCount();
     }
 
+    /**
+     * Get all error messages joined by newlines.
+     *
+     * @deprecated Use {@link SuiteResult#getErrors()} instead.
+     */
+    @Deprecated(since = "2.0", forRemoval = true)
     public String getErrorMessages() {
-        return StringUtils.join(errors, "\n");
+        return String.join("\n", delegate.getErrors());
     }
 
-    public Suite getSuite() {
-        return suite;
+    /**
+     * Get the report directory path.
+     * <p>
+     * Note: In v2, the report directory is configured via {@link Runner.Builder#outputDir(String)}
+     * and defaults to "target/karate-reports".
+     *
+     * @deprecated Configure output directory via Runner.Builder.outputDir() instead.
+     */
+    @Deprecated(since = "2.0", forRemoval = true)
+    public String getReportDir() {
+        return "target/karate-reports";
+    }
+
+    /**
+     * Get the underlying v2 SuiteResult for gradual migration.
+     */
+    public SuiteResult toSuiteResult() {
+        return delegate;
     }
 
 }

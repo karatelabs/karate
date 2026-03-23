@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IFrame Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 { color: #333; }
+        .frame-container {
+            margin: 20px 0;
+            border: 2px solid #ccc;
+            border-radius: 4px;
+        }
+        iframe {
+            width: 100%;
+            height: 300px;
+            border: none;
+        }
+        #main-content {
+            padding: 20px;
+            background: #f0f8ff;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>IFrame Test Page</h1>
+    <p id="description">Test frame switching and nested content.</p>
+
+    <div id="main-content">
+        <h2>Main Frame Content</h2>
+        <p id="main-text">This content is in the main frame.</p>
+        <button id="main-btn" onclick="mainAction()">Main Button</button>
+    </div>
+
+    <h3>Embedded Frame</h3>
+    <div class="frame-container">
+        <iframe id="test-frame" name="testFrame" srcdoc="
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {
+                        font-family: sans-serif;
+                        padding: 20px;
+                        background: #fff8e1;
+                    }
+                    button {
+                        padding: 8px 16px;
+                        background: #ff9800;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    }
+                </style>
+            </head>
+            <body>
+                <h2>Frame Content</h2>
+                <p id='frame-text'>This content is inside the iframe.</p>
+                <button id='frame-btn' onclick='frameAction()'>Frame Button</button>
+                <div id='frame-result'></div>
+                <script>
+                    window.frameValue = 'iframe-data';
+                    function frameAction() {
+                        document.getElementById('frame-result').textContent = 'Frame button clicked!';
+                    }
+                </script>
+            </body>
+            </html>
+        "></iframe>
+    </div>
+
+    <div id="result"></div>
+
+    <script>
+        console.log('IFrame page loaded');
+        window.mainValue = 'main-data';
+
+        function mainAction() {
+            document.getElementById('result').textContent = 'Main button clicked!';
+        }
+    </script>
+</body>
+</html>

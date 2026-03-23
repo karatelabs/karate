@@ -1,26 +1,25 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
 
-	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-		<immediateFlush>false</immediateFlush>
-		<encoder>
-			<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
-		</encoder>
-	</appender>
+    <!-- Reduce Gatling noise -->
+    <logger name="io.gatling" level="WARN"/>
+    <logger name="io.netty" level="WARN"/>
 
-	<appender name="FILE" class="ch.qos.logback.core.FileAppender">
-		<immediateFlush>false</immediateFlush>
-		<file>target/karate.log</file>
-		<encoder>
-			<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
-		</encoder>
-	</appender>
+    <!-- Karate Gatling - WARN for perf, DEBUG for troubleshooting -->
+    <logger name="io.karatelabs.gatling" level="WARN"/>
 
-	<logger name="com.intuit.karate" level="INFO"/>
+    <!-- Karate core - WARN for perf, INFO for troubleshooting -->
+    <logger name="io.karatelabs" level="WARN"/>
 
-	<root level="WARN">
-		<appender-ref ref="STDOUT" />
-		<appender-ref ref="FILE" />
-	</root>
+    <!-- HttpServer startup message -->
+    <logger name="io.karatelabs.http.HttpServer" level="INFO"/>
 
+    <root level="WARN">
+        <appender-ref ref="STDOUT"/>
+    </root>
 </configuration>

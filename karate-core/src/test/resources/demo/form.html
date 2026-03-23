@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Form</title>
+</head>
+<body>
+<script ka:scope="global">
+    // Use _.foo for computed values and form processing logic
+    _.formData = null
+    _.message = null
+
+    // Initialize session if needed - session is automatically available after init()
+    if (!session) {
+        context.init()
+    }
+    _.lastSubmission = session.lastSubmission || null
+
+    if (request.post) {
+        // Handle form submission - computed data
+        _.formData = {
+            name: request.param('name'),
+            email: request.param('email'),
+            age: request.paramInt('age')
+        }
+
+        // Log the submission
+        context.log('Form submitted:', context.toJson(_.formData))
+
+        // Store in session - 'session' works directly
+        session.lastSubmission = _.formData
+        _.message = 'Form submitted successfully!'
+
+        // If redirect param is set, redirect
+        if (request.param('redirect') === 'true') {
+            context.redirect('/')
+        }
+    }
+</script>
+
+<div th:replace="header.html"></div>
+
+<main>
+    <h1>Submit Form</h1>
+
+    <!-- Success message -->
+    <div th:if="message" id="success-message" class="alert" th:text="message">Message</div>
+
+    <!-- Show submitted data -->
+    <div th:if="formData" id="submitted-data">
+        <h3>Submitted Data:</h3>
+        <p>Name: <span th:text="formData.name">name</span></p>
+        <p>Email: <span th:text="formData.email">email</span></p>
+        <p>Age: <span th:text="formData.age">age</span></p>
+    </div>
+
+    <!-- Form - use context.template directly -->
+    <form method="post" th:action="context.template" id="main-form">
+        <div>
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" />
+        </div>
+        <div>
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" />
+        </div>
+        <div>
+            <label for="age">Age:</label>
+            <input type="number" id="age" name="age" />
+        </div>
+        <button type="submit">Submit</button>
+    </form>
+
+    <!-- HTMX form with ka:post -->
+    <form id="htmx-form" ka:post="this" ka:target="#htmx-result" ka:swap="innerHTML">
+        <input type="text" name="name" placeholder="Name" />
+        <input type="email" name="email" placeholder="Email" />
+        <input type="number" name="age" placeholder="Age" />
+        <button type="submit" ka:indicator="#spinner">Submit via HTMX</button>
+    </form>
+    <div id="htmx-result"></div>
+    <div id="spinner" style="display:none">Loading...</div>
+
+    <!-- Session data display -->
+    <div th:if="lastSubmission" id="session-data">
+        <h3>Last Submission (from session):</h3>
+        <p th:text="context.toJson(lastSubmission)">JSON</p>
+    </div>
+</main>
+</body>
+</html>

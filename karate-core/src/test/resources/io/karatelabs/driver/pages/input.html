@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Input Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 { color: #333; }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="time"],
+        input[type="date"],
+        textarea,
+        select {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        textarea { height: 100px; }
+        button {
+            padding: 10px 20px;
+            margin: 10px 5px 10px 0;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #0052a3; }
+        #form-output {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Input Test Page</h1>
+    <p id="description">Test form inputs and interactions.</p>
+
+    <form id="test-form" onsubmit="return handleSubmit(event)">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" placeholder="Enter username">
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="Enter email">
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter password">
+        </div>
+
+        <div class="form-group">
+            <label for="country">Country</label>
+            <select id="country" name="country">
+                <option value="">Select a country</option>
+                <option value="us">United States</option>
+                <option value="uk">United Kingdom</option>
+                <option value="ca">Canada</option>
+                <option value="au">Australia</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="meeting-time">Meeting Time</label>
+            <input type="time" id="meeting-time" name="meeting-time">
+        </div>
+
+        <div class="form-group">
+            <label for="birthday">Birthday</label>
+            <input type="date" id="birthday" name="birthday">
+        </div>
+
+        <div class="form-group">
+            <label for="bio">Bio</label>
+            <textarea id="bio" name="bio" placeholder="Tell us about yourself"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="agree" name="agree"> I agree to the terms
+            </label>
+        </div>
+
+        <button type="submit" id="submit-btn">Submit</button>
+        <button type="button" id="clear-btn" onclick="clearForm()">Clear</button>
+    </form>
+
+    <div id="form-output">Form values will appear here after submission.</div>
+
+    <script>
+        console.log('Input page loaded');
+
+        function handleSubmit(event) {
+            event.preventDefault();
+            var form = document.getElementById('test-form');
+            var output = {
+                username: form.username.value,
+                email: form.email.value,
+                password: form.password.value,
+                country: form.country.value,
+                'meeting-time': form['meeting-time'].value,
+                birthday: form.birthday.value,
+                bio: form.bio.value,
+                agree: form.agree.checked
+            };
+            document.getElementById('form-output').textContent = JSON.stringify(output, null, 2);
+            return false;
+        }
+
+        function clearForm() {
+            document.getElementById('test-form').reset();
+            document.getElementById('form-output').textContent = 'Form cleared.';
+        }
+
+        // Track input events for testing
+        window.inputEvents = [];
+        document.querySelectorAll('input, textarea, select').forEach(function(el) {
+            el.addEventListener('input', function(e) {
+                window.inputEvents.push({
+                    type: 'input',
+                    target: e.target.name || e.target.id,
+                    value: e.target.value
+                });
+            });
+            el.addEventListener('change', function(e) {
+                window.inputEvents.push({
+                    type: 'change',
+                    target: e.target.name || e.target.id,
+                    value: e.target.type === 'checkbox' ? e.target.checked : e.target.value
+                });
+            });
+        });
+    </script>
+</body>
+</html>

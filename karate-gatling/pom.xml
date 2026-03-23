@@ -1,163 +1,175 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>io.karatelabs</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>1.5.2</version>
+        <version>2.0.0.RC2</version>
     </parent>
+
     <artifactId>karate-gatling</artifactId>
     <packaging>jar</packaging>
     <name>${project.artifactId}</name>
+    <description>Karate integration with Gatling for performance testing</description>
+
+    <properties>
+        <gatling.version>3.14.9</gatling.version>
+        <scala.version>3.7.4</scala.version>
+    </properties>
 
     <dependencies>
+        <!-- Karate -->
         <dependency>
             <groupId>io.karatelabs</groupId>
             <artifactId>karate-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <!-- Gatling 3.12.x -->
+        <dependency>
+            <groupId>io.gatling</groupId>
+            <artifactId>gatling-core-java</artifactId>
+            <version>${gatling.version}</version>
+        </dependency>
         <dependency>
             <groupId>io.gatling.highcharts</groupId>
             <artifactId>gatling-charts-highcharts</artifactId>
-            <version>3.11.5</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.netty</groupId>
-                    <artifactId>netty-codec-http</artifactId>
-                </exclusion>
-            </exclusions>
+            <version>${gatling.version}</version>
         </dependency>
+
+        <!-- Scala 3 (required by Gatling) -->
         <dependency>
             <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-            <version>2.13.13</version>
+            <artifactId>scala3-library_3</artifactId>
+            <version>${scala.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>${junit5.version}</version>
-			<scope>test</scope>
-        </dependency>
-				
-				
     </dependencies>
 
     <build>
-
-      <testResources>
-            <testResource>
-                <directory>src/test/resources</directory>
-            </testResource>
-            <testResource>
-                <directory>src/test/java</directory>
-                <excludes>
-                    <exclude>**/*.java</exclude>
-                </excludes>
-            </testResource>
-        </testResources>
-
-
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>default-compile</id>
-                        <!-- Disable java compiler since Zinc will compile both scala and java sources -->
-                        <phase>none</phase>
-                    </execution>
-                    <execution>
-                        <id>default-testCompile</id>
-                        <!-- Disable java compiler since Zinc will compile both scala and java sources -->
-                        <phase>none</phase>
-                    </execution>
-                </executions>    
-            </plugin>
+            <!-- Scala 3 compiler (for Gatling compatibility) -->
+            <!-- Scala must compile before Java so Java can reference Scala classes -->
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.8.1</version>
-                    <configuration>
-                        <args>
-                            <arg>-Jbackend:GenBCode</arg>
-                            <arg>-Jdelambdafy:method</arg>
-                            <arg>-release:11</arg>
-                            <arg>-deprecation</arg>
-                            <arg>-feature</arg>
-                            <arg>-unchecked</arg>
-                            <arg>-language:implicitConversions</arg>
-                            <arg>-language:postfixOps</arg>
-                        </args>
-                    </configuration>                    
-                <executions>
-                    <execution>
-						<id>scala-compile</id>
-						<phase>compile</phase>
-						<goals>
-							<goal>add-source</goal>
-							<goal>compile</goal>
-						</goals>
-                    </execution>
-					<execution>
-						<id>scala-test-compile</id>
-						<phase>test-compile</phase>
-						<goals>                        
-							<goal>add-source</goal>
-							<goal>testCompile</goal>
-						</goals>
-					</execution>                    
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>io.gatling</groupId>
-                <artifactId>gatling-maven-plugin</artifactId>
-                <version>4.3.4</version>
+                <version>4.9.9</version>
                 <configuration>
-                    <disableCompiler>true</disableCompiler>
-                    <skip>${skipTests}</skip>
-                    <runMultipleSimulations>true</runMultipleSimulations>
+                    <scalaVersion>${scala.version}</scalaVersion>
                 </configuration>
                 <executions>
                     <execution>
+                        <id>scala-compile-first</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>scala-test-compile</id>
+                        <phase>process-test-resources</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Gatling Maven plugin -->
+            <plugin>
+                <groupId>io.gatling</groupId>
+                <artifactId>gatling-maven-plugin</artifactId>
+                <version>4.21.0</version>
+                <configuration>
+                    <skip>${skipTests}</skip>
+                </configuration>
+                <executions>
+                    <!-- Smoke test runs during test phase -->
+                    <execution>
+                        <id>gatling-smoke-test</id>
                         <phase>test</phase>
                         <goals>
                             <goal>test</goal>
                         </goals>
-                    </execution>
-                </executions>                
-            </plugin>
-            <!-- next 2 are purely for the release profile -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>${maven.javadoc.version}</version>
-                <configuration>
-                    <skip>true</skip>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.3.0</version>
-                <executions>
-                    <execution>
-                        <id>jar-javadoc</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
                         <configuration>
-                            <classifier>javadoc</classifier>
-                            <includes>
-                                <include>dummy.txt</include>
-                            </includes>
+                            <simulationClass>io.karatelabs.gatling.GatlingSmokeSimulation</simulationClass>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- CI/CD profile - comprehensive Gatling tests with reports -->
+        <profile>
+            <id>cicd</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>io.gatling</groupId>
+                        <artifactId>gatling-maven-plugin</artifactId>
+                        <version>4.21.0</version>
+                        <executions>
+                            <execution>
+                                <id>gatling-cicd</id>
+                                <phase>integration-test</phase>
+                                <goals>
+                                    <goal>test</goal>
+                                </goals>
+                                <configuration>
+                                    <simulationClass>io.karatelabs.gatling.GatlingCicdSimulation</simulationClass>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Bundle profile for creating standalone JAR -->
+        <profile>
+            <id>bundle</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>3.6.1</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <finalName>karate-gatling-bundle</finalName>
+                                    <artifactSet>
+                                        <includes>
+                                            <include>io.karatelabs:karate-gatling</include>
+                                            <include>io.gatling:*</include>
+                                            <include>io.gatling.highcharts:*</include>
+                                            <include>org.scala-lang:*</include>
+                                        </includes>
+                                        <excludes>
+                                            <!-- Don't include karate-core - user already has it -->
+                                            <exclude>io.karatelabs:karate-core</exclude>
+                                            <exclude>io.karatelabs:karate-js</exclude>
+                                        </excludes>
+                                    </artifactSet>
+                                    <transformers>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                    </transformers>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>

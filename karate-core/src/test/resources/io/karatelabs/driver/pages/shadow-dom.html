@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Shadow DOM Test Page</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        #click-result { margin-top: 10px; padding: 5px; border: 1px solid #ccc; min-height: 20px; }
+        .section { margin: 20px 0; padding: 10px; border: 1px solid #eee; }
+        h2 { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <h1>Shadow DOM Test Page</h1>
+    <div id="click-result"></div>
+
+    <!-- Section 1: Light DOM (backward compatibility) -->
+    <div class="section">
+        <h2>Light DOM</h2>
+        <button id="light-btn" onclick="showResult('Light clicked')">Light Button</button>
+        <input id="light-input" type="text" placeholder="Light input">
+        <a href="#light" id="light-link" onclick="showResult('Light link clicked'); return false;">Light Link</a>
+    </div>
+
+    <!-- Section 2: Open Shadow Root with button, input, link -->
+    <div class="section">
+        <h2>Open Shadow Root</h2>
+        <div id="shadow-host-1"></div>
+    </div>
+
+    <!-- Section 3: Slotted Content -->
+    <div class="section">
+        <h2>Slotted Content</h2>
+        <div id="shadow-host-2">
+            <span slot="label">Slotted Label</span>
+            <button slot="action" onclick="showResult('Slotted button clicked')">Slotted Action</button>
+        </div>
+    </div>
+
+    <!-- Section 4: Nested Shadow Roots -->
+    <div class="section">
+        <h2>Nested Shadow</h2>
+        <div id="shadow-host-3"></div>
+    </div>
+
+    <!-- Section 5: Mixed light + shadow -->
+    <div class="section">
+        <h2>Mixed</h2>
+        <button onclick="showResult('Mixed light clicked')">Mixed Light</button>
+        <div id="shadow-host-4"></div>
+    </div>
+
+    <script>
+        function showResult(text) {
+            document.getElementById('click-result').textContent = text;
+        }
+
+        // === Shadow Host 1: Basic open shadow root ===
+        (function() {
+            var host = document.getElementById('shadow-host-1');
+            var shadow = host.attachShadow({mode: 'open'});
+            shadow.innerHTML = '<style>button { padding: 8px 16px; } input { padding: 5px; }</style>' +
+                '<button aria-label="Shadow Btn" onclick="document.getElementById(\'click-result\').textContent = \'Shadow clicked\'">Shadow Click</button>' +
+                '<input type="text" placeholder="Shadow input" aria-label="Shadow Input">' +
+                '<a href="#shadow" aria-label="Shadow Link" onclick="document.getElementById(\'click-result\').textContent = \'Shadow link clicked\'; return false;">Shadow Link</a>';
+        })();
+
+        // === Shadow Host 2: Slotted content ===
+        (function() {
+            var host = document.getElementById('shadow-host-2');
+            var shadow = host.attachShadow({mode: 'open'});
+            shadow.innerHTML = '<div><slot name="label"></slot> <slot name="action"></slot></div>';
+        })();
+
+        // === Shadow Host 3: Nested shadow roots ===
+        (function() {
+            var host = document.getElementById('shadow-host-3');
+            var outerShadow = host.attachShadow({mode: 'open'});
+            var inner = document.createElement('div');
+            inner.id = 'inner-host';
+            outerShadow.appendChild(inner);
+            var innerShadow = inner.attachShadow({mode: 'open'});
+            innerShadow.innerHTML = '<button onclick="document.getElementById(\'click-result\').textContent = \'Nested shadow clicked\'">Nested Shadow Btn</button>' +
+                '<input type="text" placeholder="Nested shadow input" aria-label="Nested Shadow Input">';
+        })();
+
+        // === Shadow Host 4: Mixed (shadow element alongside light) ===
+        (function() {
+            var host = document.getElementById('shadow-host-4');
+            var shadow = host.attachShadow({mode: 'open'});
+            shadow.innerHTML = '<button onclick="document.getElementById(\'click-result\').textContent = \'Mixed shadow clicked\'">Mixed Shadow</button>';
+        })();
+    </script>
+</body>
+</html>

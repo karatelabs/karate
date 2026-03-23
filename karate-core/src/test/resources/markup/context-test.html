@@ -1,0 +1,5 @@
+<div>
+<div id="template" th:text="context.template"></div>
+<div id="raw" th:text="context.read('test-data.json')"></div>
+<div id="json" th:text="context.toJson({msg: 'hello'})"></div>
+</div>
