@@ -21,7 +21,7 @@
 
 ---
 
-This document defines the design for WebSocket client and server infrastructure in karate-v2.
+This document defines the design for WebSocket client and server infrastructure in karate.
 The implementation will be in the `io.karatelabs.http` package alongside the existing HTTP classes.
 
 ## Design Decisions Summary

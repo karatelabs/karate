@@ -13,8 +13,8 @@ Thank you for your interest in contributing to Karate v2! This document provides
 ### Building the Project
 
 ```bash
-git clone https://github.com/karatelabs/karate-v2.git
-cd karate-v2
+git clone https://github.com/karatelabs/karate.git
+cd karate
 mvn clean install
 ```
 
@@ -62,7 +62,7 @@ mvn test
 ## Project Structure
 
 ```
-karate-v2/
+karate/
 ├── karate-js/      # JavaScript engine and Gherkin parser
 ├── karate-core/    # Core framework (HTTP, templating, matching)
 ├── PRINCIPLES.md   # Design principles

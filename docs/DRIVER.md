@@ -1,6 +1,6 @@
 # Browser Driver Design
 
-> **Internal implementation document** for browser automation in karate-v2.
+> **Internal implementation document** for browser automation in karate.
 > Prerequisite: [WEBSOCKET.md](./WEBSOCKET.md) (WebSocket infrastructure)
 
 ## Progress Tracking

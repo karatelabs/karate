@@ -565,7 +565,7 @@ void testPaymentsMockCrud() {
 ## File Structure
 
 ```
-karate-v2/
+karate/
 ├── karate-core/src/main/java/io/karatelabs/core/
 │   ├── MockServer.java          # Public API
 │   ├── MockHandler.java         # Request routing

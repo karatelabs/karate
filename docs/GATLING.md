@@ -1,6 +1,6 @@
 # Karate-Gatling v2 Port Plan
 
-This document describes the plan to port karate-gatling from v1 to karate-v2.
+This document describes the plan to port karate-gatling from v1 to karate.
 
 ## Summary of Decisions
 
@@ -35,7 +35,7 @@ This document describes the plan to port karate-gatling from v1 to karate-v2.
 Create new Maven module: `karate-gatling`
 
 ```
-karate-v2/
+karate/
 ├── karate-js/
 ├── karate-core/
 ├── karate-gatling/          # NEW
@@ -1242,7 +1242,7 @@ public io.gatling.core.action.builder.ActionBuilder asScala() {
 ### 15.3 Files Created
 
 ```
-karate-v2/karate-gatling/
+karate/karate-gatling/
 ├── pom.xml                    # Maven module config
 └── src/main/java/io/karatelabs/gatling/
     ├── KarateDsl.java           # Public API entry point

@@ -9,7 +9,7 @@
 
     <name>${project.artifactId}</name>
     <description>Test Automation Made Simple</description>
-    <url>https://github.com/karatelabs/karate-v2</url>
+    <url>https://github.com/karatelabs/karate</url>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -18,9 +18,9 @@
         </license>
     </licenses>
     <scm>
-        <url>https://github.com/karatelabs/karate-v2</url>
-        <connection>scm:git:git://github.com/karatelabs/karate-v2.git</connection>
-        <developerConnection>scm:git:git@github.com:karatelabs/karate-v2.git</developerConnection>
+        <url>https://github.com/karatelabs/karate</url>
+        <connection>scm:git:git://github.com/karatelabs/karate.git</connection>
+        <developerConnection>scm:git:git@github.com:karatelabs/karate.git</developerConnection>
     </scm>
     <developers>
         <developer>
