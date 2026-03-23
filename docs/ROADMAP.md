@@ -216,19 +216,30 @@ Integration with [Karate CLI](https://github.com/karatelabs/karate-cli):
 - [ ] Document SLF4J binding requirement for library users (logback is `provided` scope, users must supply their own binding for Spring Boot, Quarkus, etc.)
 
 ### CI/CD Pipeline
-- [ ] Set up GitHub Actions workflow for CI
-- [ ] Configure automated testing on PR
+- [x] Set up GitHub Actions workflow for CI (`cicd.yml` - `mvn verify -Pcicd`)
+- [x] Configure automated testing on PR (triggers on push to main and PRs)
+- [x] CodeQL security scanning (`codeql.yml`)
+- [x] JDK compatibility testing (`jdk-compat.yml` - latest JDK EA on main)
 - [ ] Add code coverage reporting
 - [ ] Add dependency vulnerability scanning
-- [ ] Java version compatibility matrix (21, 22, 23, EA builds)
 
 ### One-Click Release Workflow
-- [ ] GitHub Actions workflow for unified release process
+- [x] GitHub Actions workflow for unified release process (`maven-release.yml`)
+- [x] Maven Central publish step (with GPG signing, Sonatype Central)
+- [x] Fatjar build and artifact upload
 - [ ] Automated version bumping and changelog generation
-- [ ] Maven Central publish step (with GPG signing)
-- [ ] Docker image build and push to registry
 - [ ] GitHub Release creation with assets
 - [ ] Release validation tests (smoke tests against published artifacts)
+
+> **Note:** Docker image build has been removed from the release workflow.
+> Karate v2 no longer ships an official `karate-chrome` Docker image. Users
+> should use off-the-shelf Chromium images (e.g. `chromedp/headless-shell`)
+> with Testcontainers and the `PooledDriverProvider` pattern.
+> See [DRIVER.md](./DRIVER.md) for details.
+>
+> For AI-powered browser testing, the commercial `karatelabs/karate-agent`
+> Docker container provides Chrome, VNC, and the Karate Agent server for
+> autonomous testing via LLM agents. See https://karatelabs.io.
 
 ### Maven Artifact Publishing
 - [ ] Configure Maven Central publishing (Sonatype OSSRH)

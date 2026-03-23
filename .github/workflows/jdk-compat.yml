@@ -1,0 +1,31 @@
+name: jdk-compat
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up latest JDK GA
+        uses: oracle-actions/setup-java@v1
+        with:
+          website: jdk.java.net
+          release: 25
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Build with Maven
+        run: mvn -B clean install -DskipTests
+
+      - name: Run tests
+        run: mvn -B test

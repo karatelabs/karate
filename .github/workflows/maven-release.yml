@@ -1,0 +1,81 @@
+name: maven-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version (e.g. 2.0.0, 2.0.0.RC1)
+        required: true
+        default: 'X.X.X'
+      maven:
+        description: Publish to Maven Central
+        required: true
+        type: choice
+        options:
+          - 'enabled'
+          - 'disabled'
+
+# Note: Docker image build has been removed from the release workflow.
+#
+# Karate v2 no longer ships an official karate-chrome Docker image.
+# Instead, v2's CDP driver works with any Chromium container via
+# Testcontainers and the PooledDriverProvider pattern:
+#
+#   public class ContainerDriverProvider extends PooledDriverProvider {
+#       protected Driver createDriver(Map<String, Object> config) {
+#           return CdpDriver.connect(container.getCdpUrl(), ...);
+#       }
+#   }
+#
+# Recommended images: chromedp/headless-shell (~200MB, fast),
+# selenium/standalone-chrome, or browserless/chrome.
+# See docs/DRIVER.md "Custom Provider (Testcontainers)" for details.
+#
+# For AI-powered browser testing, the commercial karate-agent Docker
+# container (karatelabs/karate-agent) provides a ready-to-use environment
+# with Chrome, VNC, and the Karate Agent server — enabling autonomous
+# browser and API testing via LLM agents (Claude Code, Cursor, etc.)
+# using a heredoc-over-HTTP API. See https://karatelabs.io for details.
+
+jobs:
+  release:
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          server-id: central
+          server-username: CENTRAL_TOKEN_USERNAME
+          server-password: CENTRAL_TOKEN_PASSWORD
+          gpg-private-key: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - name: Set release version
+        run: mvn versions:set versions:commit -B -ntp -DnewVersion=${{ github.event.inputs.version }}
+
+      - name: Build and verify
+        run: mvn -B -ntp clean verify -Pcicd
+
+      - name: Deploy to Maven Central
+        if: github.event.inputs.maven == 'enabled'
+        env:
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.OSSRH_TOKEN_USER }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
+        run: mvn -B -ntp deploy -DskipTests -P release
+
+      - name: Build fatjar
+        run: mvn -B -ntp package -DskipTests -P fatjar -f karate-core/pom.xml
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: karate-release-${{ github.event.inputs.version }}
+          retention-days: 30
+          path: |
+            karate-core/target/*.jar
