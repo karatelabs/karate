@@ -11,11 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up latest JDK GA
+      - name: Set up latest JDK EA
         uses: oracle-actions/setup-java@v1
         with:
           website: jdk.java.net
-          release: 25
+          release: 24
 
       - name: Cache Maven packages
         uses: actions/cache@v4
