@@ -55,7 +55,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.9.8</version>
+                <version>4.9.9</version>
                 <configuration>
                     <scalaVersion>${scala.version}</scalaVersion>
                 </configuration>
@@ -82,7 +82,7 @@
             <plugin>
                 <groupId>io.gatling</groupId>
                 <artifactId>gatling-maven-plugin</artifactId>
-                <version>4.20.16</version>
+                <version>4.21.0</version>
                 <configuration>
                     <skip>${skipTests}</skip>
                 </configuration>
@@ -112,7 +112,7 @@
                     <plugin>
                         <groupId>io.gatling</groupId>
                         <artifactId>gatling-maven-plugin</artifactId>
-                        <version>4.20.16</version>
+                        <version>4.21.0</version>
                         <executions>
                             <execution>
                                 <id>gatling-cicd</id>
