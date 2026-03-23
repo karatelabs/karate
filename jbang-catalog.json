@@ -1,8 +1,0 @@
-{
-  "catalogs": {},
-  "aliases": {
-    "karate": {
-      "script-ref": "io.karatelabs:karate-core:1.5.0:all"
-    }
-  }
-}
