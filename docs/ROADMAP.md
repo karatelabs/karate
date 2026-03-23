@@ -32,8 +32,9 @@ The Gherkin parser lives in `karate-js` (reuses the JS lexer). The ScenarioEngin
 - [x] ResultListener interface for result streaming
 - [x] JavaScript expression evaluation in steps
 - [x] String interpolation with variable substitution
-- [ ] `retry until` keyword for polling
-- [ ] Tag expressions filtering
+- [x] `retry until` keyword for polling
+- [x] Tag expressions filtering (TagSelector with `anyOf()`, `allOf()`, `not()`, `valuesFor()`)
+- [x] `@lock` tag for mutual exclusion in parallel execution (`@lock=name`, `@lock=*`)
 - [ ] Step definitions with regex pattern matching
 
 ### HTTP Client
@@ -49,11 +50,10 @@ The Gherkin parser lives in `karate-js` (reuses the JS lexer). The ScenarioEngin
 - [x] Follow redirects option
 - [x] Multipart and file uploads
 - [x] Form-encoded data
-- [ ] Request/response filters
+- [x] Declarative auth (`configure auth` for Basic, Bearer, OAuth2 with automatic token refresh)
 - [ ] HTTP/2 support
-- [ ] GraphQL support
-- [ ] SOAP/soapAction support
-- [ ] NTLM authentication
+- [x] SOAP/soapAction support
+- [x] NTLM authentication (`configure auth = { type: 'ntlm' }`, Apache HttpClient 5 NTCredentials)
 - [x] HttpLogModifier for sensitive data masking
 - [ ] gRPC support (if external module exists)
 
@@ -62,29 +62,35 @@ The Gherkin parser lives in `karate-js` (reuses the JS lexer). The ScenarioEngin
 - [x] Core operators: EQUALS, NOT_EQUALS, CONTAINS, NOT_CONTAINS
 - [x] CONTAINS_ONLY, CONTAINS_ANY, CONTAINS_DEEP variants
 - [x] EACH_* variants for array iteration
-- [ ] JSONPath expressions
-- [ ] XPath expressions (namespace-aware)
-- [ ] Regular expression matching
-- [ ] Schema validation
-- [ ] Response status code validation
-- [ ] Response header validation
+- [x] WITHIN and NOT_WITHIN operators (range assertions)
+- [x] Fuzzy markers (`#string`, `#number`, `#array`, `#boolean`, `#null`, `#present`, `#notpresent`, `#uuid`, `#regex`, `#ignore`)
+- [x] Schema validation (via fuzzy markers in match expressions)
+- [x] Regular expression matching (via `#regex` validator)
+- [x] Response status code validation (`responseStatus`)
+- [x] Response header validation (`responseHeaders`)
+- [x] `assert` keyword for JS expression assertions
+- [x] `karate.expect()` Chai-style BDD assertions
+- [x] Soft assertions (`continueOnStepFailure` configuration)
+- [x] JSONPath expressions (Jayway JsonPath 2.10.0, `karate.jsonPath()`, `get` keyword, `$` prefix, deep scan `..`)
+- [x] XPath expressions (namespace-aware, `karate.xmlPath()`, `get`/`set`/`remove` keywords, `count()` etc.)
 - [ ] Response time validation
-- [ ] `assert` keyword for JS expression assertions
 
 ### Data Formats
 
 - [x] JSON (parsing, serialization, pretty print)
 - [x] XML (parsing, serialization)
-- [ ] CSV (FastCSV integration)
-- [ ] YAML (SnakeYAML)
+- [x] CSV (FastCSV integration)
+- [x] YAML (SnakeYAML)
 - [x] Binary/bytes data handling
-- [ ] Template substitution
+- [x] Template substitution (Karate expression embedding)
 
 ### Configuration
 
 - [x] `karate-config.js` support for global configuration
 - [x] Environment-based config (`karate.env`)
 - [x] RunListener/RunListenerFactory for event-driven extensibility
+- [x] `karate.faker.*` built-in test data generation
+- [x] `karate.uuid()` UUID generation
 - [ ] Plugin system support
 - [x] `karate-base.js` (shared config from classpath JAR)
 
@@ -99,6 +105,7 @@ The Gherkin parser lives in `karate-js` (reuses the JS lexer). The ScenarioEngin
 - [x] Result embedding in reports (images, HTML, etc.)
 - [x] Nested feature call display in HTML reports
 - [x] Cucumber JSON report format (`cucumber-json/` subfolder, async per-feature)
+- [ ] HTML report cosmetic improvements (polish styling, spacing, colors, typography)
 - [ ] Tag-based analytics page
 
 ### CLI Compatibility
@@ -116,7 +123,7 @@ Integration with [Karate CLI](https://github.com/karatelabs/karate-cli):
 - [x] `-e, --env` - Environment variable
 - [x] `-g, --configdir` - Config directory for karate-config.js
 - [x] `-C, --clean` - Clean output before run
-- [ ] `-d, --debug` - Debug mode with port
+- [x] Debug support API (`Runner.debugSupport()` hook for commercial Xplorer)
 - [x] ANSI colored console output
 - [ ] `--listener` - RunListener class by name
 - [ ] `--listener-factory` - RunListenerFactory class by name
@@ -179,11 +186,19 @@ Integration with [Karate CLI](https://github.com/karatelabs/karate-cli):
 ## Milestone 3: API Performance Testing
 
 > **Goal:** Scale from functional tests to load tests.
+> **Status:** Core complete (Phases 0-3). See [GATLING.md](./GATLING.md) for details.
 
-- [ ] Gatling-style load testing
+- [x] Gatling integration (`karate-gatling` module with PerfHook, StatsEngine reporting)
+- [x] Java-only DSL (`karateProtocol()`, `karateFeature()`, `karateSet()`)
+- [x] URI pattern matching for request grouping
+- [x] Session variable chaining (`__gatling` / `__karate` maps)
+- [x] Silent mode for warm-up iterations
+- [x] Custom perf event capture (PerfContext for DB, gRPC, etc.)
+- [x] Gatling HTML reports (Highcharts) and JSON format
+- [ ] `Runner.Builder` exposure via `protocol.runner()` (karateEnv, configDir, systemProperty)
+- [ ] Standalone CLI support (`karate perf` command, Phase 5)
+- [ ] Profiling validation (overhead comparison, memory leak testing, Phase 6)
 - [ ] Distributed test execution
-- [ ] Performance metrics and reporting
-- [ ] Resource monitoring
 - [ ] Throttling and rate limiting
 
 ---
@@ -272,7 +287,7 @@ Error-tolerant parsing for IDE features (syntax coloring, code completion, forma
 
 ### Runtime Advanced Features
 
-- [ ] Lock System (`@lock=<name>`) for mutual exclusion in parallel execution
+- [x] Lock System (`@lock=<name>`) for mutual exclusion in parallel execution
 - [ ] Retry System (`@retry`) for flaky test handling with `rerun.txt`
 - [ ] Multiple Suite Execution with environment isolation
 - [ ] Telemetry (anonymous usage stats, once per day, opt-out via `KARATE_TELEMETRY=false`)
@@ -308,10 +323,17 @@ Unified event system for test execution lifecycle:
 - [ ] Python client library
 - [ ] Go client library
 
+### Browser Automation (Post-Milestone 3)
+- [x] Chrome/Chromium/Edge via CDP (complete)
+- [ ] WebDriver protocol support (needed for Firefox, Safari)
+- [ ] Playwright emulation (replaces v1 experimental Playwright; enables Firefox/WebKit via Playwright CDP)
+- [ ] PDF testing
+- [ ] Video recording
+- [ ] Cross-browser matrix testing and device emulation
+
 ### Platform Automation (Post-Milestone 3)
 - [ ] Desktop automation (macOS, Windows, Linux)
 - [ ] Mobile automation (iOS, Android)
-- [ ] Web browser automation
 
 ### Extension Points
 - [ ] Plugin system documentation

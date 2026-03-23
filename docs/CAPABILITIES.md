@@ -2,7 +2,7 @@
 
 Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
-> **Generated:** 2026-01-09 from `CAPABILITIES.yaml`
+> **Generated:** 2026-03-23 from `CAPABILITIES.yaml`
 >
 > See also: [Design Principles](./PRINCIPLES.md) | [Roadmap](./ROADMAP.md)
 
@@ -21,16 +21,16 @@ Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
 ## Summary
 
-**Total capabilities: 353**
+**Total capabilities: 366**
 
 | Category | Count |
 |----------|-------|
-| v1 features ported to v2 | 50 |
-| v1 features pending | 102 |
-| New in v2 (implemented) | 14 |
+| v1 features ported to v2 | 127 |
+| v1 features pending | 11 |
+| New in v2 (implemented) | 45 |
 | New in v2 (in progress) | 1 |
-| Planned | 16 |
-| Future / Wish list | 170 |
+| Planned | 15 |
+| Future / Wish list | 167 |
 
 ## Categories
 
@@ -64,23 +64,23 @@ Foundation capabilities that power all test types
   - `[1.x ✓]` Core operators (equals, not equals, contains)
   - `[1.x ✓]` contains only, contains any, contains deep
   - `[1.x ✓]` each variants for arrays
-  - `[1.x  ]` Schema validation
-  - `[1.x  ]` Regex matching
-  - `[1.x  ]` JSONPath expressions
-  - `[1.x  ]` XPath expressions
-  - `[1.x  ]` Fuzzy markers (#string,
-  - `[-]` match within (nested partial match)
+  - `[1.x ✓]` Schema validation
+  - `[1.x ✓]` Regex matching
+  - `[1.x ✓]` JSONPath expressions
+  - `[1.x ✓]` XPath expressions
+  - `[1.x ✓]` Fuzzy markers (#string,
+  - `[v2]` match within (range assertions)
   - `[-]` Numeric tolerance assertions
   - `[-]` Date and time assertions
-  - `[-]` Soft assertions (aggregate failures)
+  - `[v2]` Soft assertions (continueOnStepFailure)
   - `[-]` User-defined assertion failure messages
   - `[-]` Similarity assertions (for AI) `$`
 
 - `[1.x ✓]` Data Formats
   - `[1.x ✓]` JSON (parsing, serialization, pretty print)
   - `[1.x ✓]` XML (parsing, XPath, namespaces)
-  - `[1.x  ]` YAML
-  - `[1.x  ]` CSV
+  - `[1.x ✓]` YAML
+  - `[1.x ✓]` CSV
   - `[1.x ✓]` Binary/bytes handling
   - `[-]` Protobuf support `$`
   - `[-]` Avro support `$`
@@ -92,9 +92,19 @@ Foundation capabilities that power all test types
   - `[1.x ✓]` Doc strings
   - `[1.x ✓]` Data tables
   - `[1.x ✓]` Tags parsing
-  - `[1.x  ]` Tag expressions filtering
+  - `[1.x ✓]` Tag expressions filtering
   - `[1.x ✓]` call and callonce keywords
-  - `[1.x  ]` retry until keyword
+  - `[1.x ✓]` callSingle for shared setup
+  - `[1.x ✓]` retry until keyword
+
+- `[v2]` Built-in Test Utilities
+  - `[v2]` karate.faker.* (test data generation)
+  - `[v2]` karate.expect() (Chai-style BDD assertions)
+  - `[v2]` karate.uuid() (UUID generation)
+
+- `[v2]` Parallel Safety
+  - `[v2]` @lock=name (named mutual exclusion)
+  - `[v2]` @lock=* (exclusive execution)
 
 - `[1.x ✓]` Environment & Configuration
   - `[1.x ✓]` karate-config.js
@@ -102,16 +112,16 @@ Foundation capabilities that power all test types
   - `[-]` API to read current config settings
   - `[-]` Multiple environments in parallel
 
-- `[1.x  ]` Grouping & Tags
-  - `[1.x  ]` Tag-based filtering
-  - `[1.x  ]` Tag expressions (and, or, not)
+- `[1.x ✓]` Grouping & Tags
+  - `[1.x ✓]` Tag-based filtering
+  - `[1.x ✓]` Tag expressions (and, or, not)
   - `[-]` Tags run on same thread
   - `[-]` Tag ordering (run after other tags)
 
-- `[1.x  ]` Data Driven Testing
-  - `[1.x  ]` Scenario Outline with Examples
-  - `[1.x  ]` Dynamic scenario generation
-  - `[1.x  ]` External data sources (CSV, JSON)
+- `[1.x ✓]` Data Driven Testing
+  - `[1.x ✓]` Scenario Outline with Examples
+  - `[1.x ✓]` Dynamic scenario generation
+  - `[1.x ✓]` External data sources (CSV, JSON)
 
 - `[1.x ✓]` Extensibility & Hooks
   - `[v2]` RunListener interface (unified event system)
@@ -122,12 +132,13 @@ Foundation capabilities that power all test types
   - `[-]` onError hook
   - `[ ]` Plugin system
 
-- `[1.x  ]` Artifact & Code Re-use
-  - `[1.x  ]` call keyword for feature composition
-  - `[1.x  ]` callonce for shared setup
-  - `[1.x  ]` Shared feature libraries
-  - `[1.x  ]` Java interop
-  - `[1.x  ]` Template substitution
+- `[1.x ✓]` Artifact & Code Re-use
+  - `[1.x ✓]` call keyword for feature composition
+  - `[1.x ✓]` callonce for shared setup
+  - `[1.x ✓]` callSingle for one-time global setup
+  - `[1.x ✓]` Shared feature libraries
+  - `[1.x ✓]` Java interop
+  - `[1.x ✓]` Template substitution
 
 ---
 
@@ -146,24 +157,20 @@ HTTP and protocol-level API testing
   - `[1.x ✓]` Proxy support with authentication
   - `[1.x ✓]` Timeout configuration
   - `[1.x ✓]` Follow redirects option
-  - `[1.x  ]` Request/response filters
   - `[ ]` HTTP/2 support
-  - `[1.x  ]` NTLM authentication
+  - `[v2]` Declarative auth (Basic, Bearer, OAuth2)
+  - `[1.x ✓]` NTLM authentication
   - `[1.x ✓]` HttpLogModifier for sensitive data masking
   - `[v2]` cURL export
   - `[-]` Large file streaming (memory-efficient)
   - `[-]` Operations on huge data (match, sort)
 
-- `[1.x  ]` GraphQL
-  - `[1.x  ]` GraphQL queries and mutations
-  - `[1.x  ]` Variables support
+- `[1.x ✓]` SOAP
+  - `[1.x ✓]` SOAP action support
+  - `[1.x ✓]` XML namespace handling
 
-- `[1.x  ]` SOAP
-  - `[1.x  ]` SOAP action support
-  - `[1.x  ]` XML namespace handling
-
-- `[1.x  ]` Async Protocols `$`
-  - `[1.x  ]` WebSocket `$`
+- `[v2]` Async Protocols `$`
+  - `[v2]` WebSocket `$`
   - `[-]` Server-Sent Events (SSE) `$`
   - `[-]` gRPC `$`
   - `[-]` Kafka `$`
@@ -174,10 +181,10 @@ HTTP and protocol-level API testing
 
 - `[1.x ✓]` API Test Doubles (Mocks)
   - `[v2]` HTTP mock server (Netty-based)
-  - `[1.x  ]` Feature-based mock definitions
+  - `[1.x ✓]` Feature-based mock definitions
   - `[1.x ✓]` Dynamic request/response handling
   - `[1.x ✓]` Request matching and routing
-  - `[1.x  ]` Delay/latency simulation
+  - `[1.x ✓]` Delay/latency simulation
   - `[1.x ✓]` Stateful mocks (session support)
   - `[-]` Mock recording and playback
   - `[1.x ✓]` CORS support
@@ -200,29 +207,35 @@ HTTP and protocol-level API testing
 
 User interface automation across platforms
 
-- `[1.x  ]` Browser Automation
-  - `[1.x  ]` Chrome/Chromium support
+- `[1.x ✓]` Browser Automation
+  - `[1.x ✓]` Chrome/Chromium support (CDP)
   - `[1.x  ]` Firefox support
   - `[1.x  ]` Safari/WebKit support
-  - `[1.x  ]` Edge support
-  - `[1.x  ]` Headless mode
-  - `[1.x  ]` Element locators (CSS, XPath)
-  - `[1.x  ]` Keyboard and mouse actions
-  - `[1.x  ]` File uploads/downloads
-  - `[1.x  ]` Multiple windows/tabs
-  - `[1.x  ]` iframes support
-  - `[1.x  ]` Shadow DOM support
+  - `[1.x ✓]` Edge support
+  - `[1.x ✓]` Headless mode
+  - `[1.x ✓]` Element locators (CSS, XPath, wildcard)
+  - `[1.x ✓]` Keyboard and mouse actions
+  - `[1.x ✓]` File uploads/downloads
+  - `[1.x ✓]` Multiple windows/tabs
+  - `[1.x ✓]` iframes support
+  - `[1.x ✓]` Shadow DOM support
+  - `[v2]` Auto-wait before element operations
+  - `[v2]` Browser pooling (PooledDriverProvider)
+  - `[1.x ✓]` Dialog handling
   - `[1.x  ]` PDF testing
+  - `[1.x  ]` WebDriver protocol
+  - `[ ]` Playwright emulation
+  - `[-]` WebDriver BiDi
 
 - `[-]` Mobile Automation
   - `[-]` Android native apps
   - `[-]` iOS native apps
   - `[-]` Flutter apps
   - `[-]` React Native apps
-  - `[1.x  ]` Mobile web testing
+  - `[1.x -]` Mobile web testing
 
-- `[1.x  ]` Desktop Automation
-  - `[1.x  ]` Windows desktop apps
+- `[1.x -]` Desktop Automation
+  - `[1.x -]` Windows desktop apps
   - `[-]` macOS desktop apps
   - `[-]` Linux desktop apps
 
@@ -232,14 +245,14 @@ User interface automation across platforms
 
 Visual and user experience validation
 
-- `[1.x  ]` Video Recording & Screenshots
-  - `[1.x  ]` Screenshot capture
+- `[1.x ✓]` Video Recording & Screenshots
+  - `[1.x ✓]` Screenshot capture
   - `[1.x  ]` Video recording
-  - `[1.x  ]` Screenshot on failure
+  - `[1.x ✓]` Screenshot on failure
 
-- `[1.x  ]` Visual Validation `$`
-  - `[1.x  ]` Image comparison
-  - `[1.x  ]` Visual diff reporting
+- `[v2]` Visual Validation `$`
+  - `[v2]` Image comparison `$`
+  - `[v2]` Visual diff reporting `$`
   - `[-]` Visual validation UI `$`
 
 - `[-]` Accessibility Testing `$`
@@ -261,9 +274,9 @@ Visual and user experience validation
 
 Load testing and distributed execution
 
-- `[ ]` API Performance / Load Testing
-  - `[ ]` Gatling-style load testing
-  - `[ ]` Performance metrics and reporting
+- `[1.x ✓]` API Performance / Load Testing
+  - `[1.x ✓]` Gatling integration (karate-gatling module)
+  - `[1.x ✓]` Performance metrics and reporting
   - `[ ]` Throttling and rate limiting
   - `[-]` Resource monitoring
 
@@ -287,17 +300,17 @@ Load testing and distributed execution
 
 Tools and workflows for test development
 
-- `[1.x  ]` IDE Support `$`
-  - `[1.x  ]` IntelliJ plugin `$`
-  - `[1.x  ]` VS Code extension `$`
+- `[v2]` IDE Support `$`
+  - `[v2]` IntelliJ plugin `$`
+  - `[v2]` VS Code extension `$`
   - `[-]` Visual Studio extension `$`
   - `[-]` Language Server Protocol (LSP) `$`
 
-- `[1.x  ]` Live Debugging `$`
-  - `[1.x  ]` Gherkin step-through debugging `$`
+- `[v2]` Live Debugging `$`
+  - `[v2]` Gherkin step-through debugging `$`
   - `[-]` JavaScript debugging `$`
-  - `[1.x  ]` Java debugging `$`
-  - `[1.x  ]` Breakpoints and watch expressions `$`
+  - `[v2]` Java debugging `$`
+  - `[v2]` Breakpoints and watch expressions `$`
 
 - `[1.x ✓]` Parallel Execution
   - `[1.x ✓]` Parallel scenarios
@@ -305,14 +318,14 @@ Tools and workflows for test development
   - `[1.x ✓]` Thread pool configuration
   - `[v2]` Virtual threads support
 
-- `[1.x  ]` Robustness & Predictability
-  - `[1.x  ]` Retry on failure
-  - `[1.x  ]` retry until keyword
+- `[1.x ✓]` Robustness & Predictability
+  - `[1.x ✓]` Retry on failure
+  - `[1.x ✓]` retry until keyword
   - `[-]` Re-run only failed tests
   - `[-]` Random seed for test order
 
-- `[1.x  ]` Docker & Cloud Readiness
-  - `[1.x  ]` Docker image
+- `[1.x ✓]` Docker & Cloud Readiness
+  - `[1.x ✓]` Docker image
   - `[-]` Testcontainers integration
   - `[-]` Signed Docker container `$`
 
@@ -329,27 +342,27 @@ Tools and workflows for test development
   - `[v2]` ANSI colored console output
   - `[ ]` LLM-friendly output mode
 
-- `[1.x  ]` Test Runner SDK / CLI
-  - `[1.x  ]` Feature file execution
-  - `[1.x  ]` Tag filtering
-  - `[1.x  ]` Parallel thread configuration
-  - `[1.x  ]` Environment selection
-  - `[1.x  ]` Output directory configuration
-  - `[1.x  ]` Dry run mode
-  - `[1.x  ]` Debug mode
-  - `[1.x  ]` JUnit integration
-  - `[1.x  ]` Maven/Gradle plugins
+- `[1.x ✓]` Test Runner SDK / CLI
+  - `[1.x ✓]` Feature file execution
+  - `[1.x ✓]` Tag filtering
+  - `[1.x ✓]` Parallel thread configuration
+  - `[1.x ✓]` Environment selection
+  - `[1.x ✓]` Output directory configuration
+  - `[1.x ✓]` Dry run mode
+  - `[v2]` Debug mode `$`
+  - `[1.x ✓]` JUnit integration
+  - `[1.x ✓]` Maven/Gradle plugins
   - `[-]` Version out-of-date banner
   - `[ ]` Interactive mode for LLMs
 
-- `[1.x  ]` Low Code / No Code
-  - `[1.x  ]` Gherkin syntax (no Java required)
+- `[1.x ✓]` Low Code / No Code
+  - `[1.x ✓]` Gherkin syntax (no Java required)
   - `[ ]` JavaScript test authoring
-  - `[1.x  ]` Java test authoring
+  - `[1.x ✓]` Java test authoring
 
-- `[1.x  ]` BDD / Natural Language
-  - `[1.x  ]` Gherkin Given/When/Then
-  - `[1.x  ]` Business-readable reports
+- `[1.x ✓]` BDD / Natural Language
+  - `[1.x ✓]` Gherkin Given/When/Then
+  - `[1.x ✓]` Business-readable reports
   - `[-]` Specification mapping layer `$`
 
 - `[-]` Remote Dev Environments `$`
@@ -365,17 +378,18 @@ Test results and third-party integrations
 - `[1.x ✓]` Results Output / Export
   - `[1.x ✓]` Karate JSON report
   - `[1.x ✓]` JUnit XML report
-  - `[1.x  ]` Cucumber JSON report
+  - `[1.x ✓]` Cucumber JSON report
   - `[-]` PDF reports `$`
 
-- `[1.x  ]` HTML Reports
-  - `[1.x  ]` Interactive dashboard
-  - `[1.x  ]` Timeline view
-  - `[1.x  ]` Step-by-step logs
-  - `[1.x  ]` Embedded screenshots/videos
-  - `[-]` Dark mode support
+- `[1.x ✓]` HTML Reports
+  - `[1.x ✓]` Interactive dashboard
+  - `[1.x ✓]` Timeline view
+  - `[1.x ✓]` Step-by-step logs
+  - `[1.x ✓]` Embedded screenshots/videos
+  - `[v2]` Dark mode support
+  - `[v2]` Modern Bootstrap 5 styling
+  - `[ ]` Cosmetic improvements (spacing, colors, typography)
   - `[-]` No-JS simple mode
-  - `[-]` Modern Bootstrap styling
 
 - `[-]` Run History & Insights `$`
   - `[-]` Test run history
@@ -387,8 +401,8 @@ Test results and third-party integrations
   - `[-]` Requirements coverage
   - `[-]` Code coverage integration
 
-- `[1.x  ]` 3rd Party Tool Integrations
-  - `[1.x  ]` CI/CD integration (Jenkins, GitHub Actions, etc.)
+- `[1.x ✓]` 3rd Party Tool Integrations
+  - `[1.x ✓]` CI/CD integration (Jenkins, GitHub Actions, etc.)
   - `[-]` Zephyr integration `$`
   - `[-]` Jira integration `$`
   - `[-]` Report server and aggregation `$`
@@ -487,8 +501,8 @@ Polyglot and non-Java platform support
   - `[-]` Go client
   - `[-]` Rust client
 
-- `[1.x  ]` Custom JAR Libraries
-  - `[1.x  ]` Custom JAR loading
+- `[1.x ✓]` Custom JAR Libraries
+  - `[1.x ✓]` Custom JAR loading
   - `[-]` Extension to non-Java clients
 
 ---
@@ -497,12 +511,12 @@ Polyglot and non-Java platform support
 
 Enterprise and commercial offerings
 
-- `[1.x  ]` Karate Xplorer `$`
-  - `[1.x  ]` Postman emulation
-  - `[1.x  ]` Step-through debugging
-  - `[1.x  ]` Visual API explorer
-  - `[-]` Hybrid CI/CD suites
-  - `[-]` Performance test reuse
+- `[v2]` Karate Xplorer `$`
+  - `[v2]` Postman emulation `$`
+  - `[v2]` Step-through debugging `$`
+  - `[v2]` Visual API explorer `$`
+  - `[-]` Hybrid CI/CD suites `$`
+  - `[-]` Performance test reuse `$`
 
 - `[-]` Requirements Management `$`
   - `[-]` Local-first requirements management

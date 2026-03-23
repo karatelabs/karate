@@ -1458,3 +1458,26 @@ mvn verify -Pcicd -pl karate-gatling  # Full CICD test with HTML reports
 ```
 
 HTML reports are generated in `target/gatling/`.
+
+---
+
+## Remaining TODOs
+
+> Consolidated list of outstanding items. Phases 0-3 are complete.
+
+### Phase 4: Polish (minor)
+- [ ] Port README.md with updated examples (Java-only, no Scala DSL)
+- [ ] `Runner.Builder` exposure via `protocol.runner()` for `karateEnv`, `configDir`, `systemProperty`
+- [ ] Leverage `Suite.getCallSingleCache()` / `Suite.getCallOnceCache()` directly
+
+### Phase 5: Standalone CLI Support
+- [ ] `CommandProvider` SPI in karate-core for dynamic subcommand discovery
+- [ ] `PerfCommand` in karate-gatling (`karate perf`)
+- [ ] Dynamic simulation generation from feature files
+- [ ] `karate-gatling-bundle.jar` fatjar (Gatling + Scala + karate-gatling)
+
+### Phase 6: Profiling & Validation
+- [ ] Overhead comparison test (v2 karate-gatling vs plain Gatling)
+- [ ] Port v1's `examples/profiling-test` for memory leak detection
+- [ ] Extended load tests (HTTP client pooling, mock server under sustained load)
+- [ ] Document profiling methodology and results
