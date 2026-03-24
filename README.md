@@ -20,7 +20,7 @@
 
 The previous README monolith is preserved at:
 
-**[github.com/karatelabs/karate/blob/v1.5.2.RC2](https://github.com/karatelabs/karate/blob/v1.5.2.RC2)**
+**[github.com/karatelabs/karate/tree/v1.5.2.RC2](https://github.com/karatelabs/karate/tree/v1.5.2.RC2)**
 
 Anchor links (e.g. `#syntax-guide`, `#configuration`) can be appended to navigate directly to specific sections.
 </details>
