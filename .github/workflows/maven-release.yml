@@ -76,12 +76,12 @@ jobs:
         run: |
           VERSION=${{ github.event.inputs.version }}
           mkdir -p target/karate-${VERSION}
-          cp karate-core/target/karate-core-${VERSION}.jar target/karate-${VERSION}/karate-${VERSION}.jar
+          cp karate-core/target/karate-${VERSION}.jar target/karate-${VERSION}/karate-${VERSION}.jar
           cd target && zip -r karate-${VERSION}.zip karate-${VERSION}/
 
       - name: Upload release ZIP
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: karate-release-${{ github.event.inputs.version }}
-          retention-days: 30
+          retention-days: 10
           path: target/karate-${{ github.event.inputs.version }}.zip
