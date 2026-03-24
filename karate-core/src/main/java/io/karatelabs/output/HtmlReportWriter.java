@@ -584,7 +584,7 @@ public final class HtmlReportWriter {
         data.put("hasLogs", hasLogs);
 
         if (hasLogs) {
-            data.put("logs", step.getLog());
+            data.put("logs", Console.stripAnsi(step.getLog()));
         }
 
         if (step.getError() != null) {
