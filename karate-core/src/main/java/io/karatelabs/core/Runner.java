@@ -30,6 +30,7 @@ import io.karatelabs.output.LogLevel;
 import io.karatelabs.output.ResultListener;
 
 import java.io.File;
+import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,6 +40,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import org.slf4j.Logger;
 
 /**
  * Main entry point for running Karate tests programmatically.
@@ -145,6 +148,8 @@ public final class Runner {
     // ========== Builder ==========
 
     public static class Builder {
+
+        private static final Logger logger = io.karatelabs.output.LogContext.RUNTIME_LOGGER;
 
         private final List<String> paths = new ArrayList<>();
         private final List<Feature> features = new ArrayList<>();
@@ -602,6 +607,14 @@ public final class Runner {
             // Apply log level (this is a global setting)
             io.karatelabs.output.LogContext.setLogLevel(logLevel);
 
+            // Check for IDE debug integration via system property
+            // When -Dkarate.debug.port is set (e.g. by IntelliJ or VS Code),
+            // delegate to io.karatelabs.debug.Main.run() from karate-ide-v2.jar
+            SuiteResult debugResult = startDebugServerIfRequired(threadCount);
+            if (debugResult != null) {
+                return debugResult;
+            }
+
             Suite suite = new Suite(this, Math.max(1, threadCount));
             SuiteResult result = suite.run();
 
@@ -611,6 +624,59 @@ public final class Runner {
             }
 
             return result;
+        }
+
+        private SuiteResult startDebugServerIfRequired(int threadCount) {
+            // Skip if debugSupport() was already called — we're inside the debug server
+            if (debugInterceptor != null) {
+                return null;
+            }
+            String debugPortStr = System.getProperty("karate.debug.port");
+            if (debugPortStr == null || debugPortStr.trim().isEmpty()) {
+                return null;
+            }
+            int debugPort = 0;
+            try {
+                debugPort = Integer.parseInt(debugPortStr.trim());
+            } catch (Exception e) {
+                // ignore, use 0 (auto-assign)
+            }
+            // Apply system properties if configured
+            if (systemProperties != null) {
+                systemProperties.forEach(System::setProperty);
+            }
+            String[] args = buildDebugArgs(debugPort, threadCount);
+            logger.debug("karate.debug.port detected, delegating to debug server: {}", Arrays.toString(args));
+            try {
+                Class<?> mainClass = Class.forName("io.karatelabs.debug.Main");
+                Method runMethod = mainClass.getMethod("run", String[].class);
+                return (SuiteResult) runMethod.invoke(null, (Object) args);
+            } catch (ClassNotFoundException e) {
+                logger.warn("karate.debug.port is set but karate-ide JAR is not on the classpath");
+                return null;
+            } catch (Exception e) {
+                throw new RuntimeException("failed to start debug server", e);
+            }
+        }
+
+        private String[] buildDebugArgs(int debugPort, int threadCount) {
+            List<String> args = new ArrayList<>();
+            args.add("-d");
+            args.add(String.valueOf(debugPort));
+            if (env != null) {
+                args.add("-e");
+                args.add(env);
+            }
+            if (tags != null) {
+                args.add("-t");
+                args.add(tags);
+            }
+            if (threadCount > 1) {
+                args.add("-T");
+                args.add(String.valueOf(threadCount));
+            }
+            args.addAll(paths);
+            return args.toArray(new String[0]);
         }
 
         /**
