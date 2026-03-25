@@ -312,7 +312,15 @@ public class W3cSession {
 
     @SuppressWarnings("unchecked")
     public Map<String, Object> getCookie(String name) {
-        return (Map<String, Object>) getValue(get("cookie/" + name));
+        try {
+            return (Map<String, Object>) getValue(get("cookie/" + name));
+        } catch (DriverException e) {
+            // W3C returns 404 "no such cookie" when cookie doesn't exist
+            if (e.getMessage() != null && e.getMessage().contains("no such cookie")) {
+                return null;
+            }
+            throw e;
+        }
     }
 
     @SuppressWarnings("unchecked")
