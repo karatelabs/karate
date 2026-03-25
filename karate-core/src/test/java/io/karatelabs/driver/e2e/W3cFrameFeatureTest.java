@@ -25,12 +25,11 @@ package io.karatelabs.driver.e2e;
 
 import io.karatelabs.core.Runner;
 import io.karatelabs.core.SuiteResult;
+import io.karatelabs.driver.Driver;
 import io.karatelabs.driver.PooledDriverProvider;
 import io.karatelabs.driver.e2e.support.TestPageServer;
 import io.karatelabs.driver.w3c.W3cDriver;
 import io.karatelabs.driver.w3c.W3cDriverOptions;
-import io.karatelabs.driver.Driver;
-import io.karatelabs.core.ScenarioRuntime;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -46,28 +45,26 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Runs the same Gherkin feature files as DriverFeatureTest but using W3C WebDriver
- * protocol via a Selenium standalone Chrome container.
+ * Runs frame.feature independently against W3C WebDriver.
  *
- * <p>CDP-only features (dialog callbacks, mouse coordinates) are excluded via
- * {@code ~@cdp} tag filter.</p>
+ * <p>Frame tests are isolated because frame switching modifies browser state globally
+ * and is sensitive to parallelism. Running frames in a dedicated container with
+ * a single thread eliminates cross-scenario interference.</p>
  *
- * <p>This test is disabled by default. Enable with {@code -Dkarate.w3c.test=true}
- * to run as part of the cicd profile. This allows incremental stabilization of
- * W3C WebDriver support without blocking the main build.</p>
+ * <p>Disabled by default. Enable with {@code -Dkarate.w3c.test=true}.</p>
  */
 @org.testcontainers.junit.jupiter.Testcontainers
 @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = "karate.w3c.test", matches = "true")
-class W3cDriverFeatureTest {
+class W3cFrameFeatureTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(W3cDriverFeatureTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(W3cFrameFeatureTest.class);
 
-    private static final int TEST_SERVER_PORT = 18082;
+    // Use a different port from W3cDriverFeatureTest to avoid conflicts when run in parallel
+    private static final int TEST_SERVER_PORT = 18083;
 
     static {
         System.setProperty("api.version", "1.44");
         Testcontainers.exposeHostPorts(TEST_SERVER_PORT);
-        logger.info("exposed host port {} to containers for W3C tests", TEST_SERVER_PORT);
     }
 
     @Container
@@ -80,7 +77,7 @@ class W3cDriverFeatureTest {
     @BeforeAll
     static void setup() {
         testServer = TestPageServer.start(TEST_SERVER_PORT);
-        logger.info("test page server started on port: {}", testServer.getPort());
+        logger.info("W3C frame test server started on port: {}", testServer.getPort());
     }
 
     @AfterAll
@@ -89,53 +86,44 @@ class W3cDriverFeatureTest {
             testServer.stopAsync();
             testServer = null;
         }
-        System.clearProperty("karate.driver.serverUrl");
-        System.clearProperty("karate.driver.type");
-        System.clearProperty("karate.driver.webDriverUrl");
     }
 
     @Test
-    void testW3cDriverFeatures() {
+    void testW3cFrameFeatures() {
         String webDriverUrl = "http://" + chrome.getHost() + ":" + chrome.getMappedPort(4444);
         String serverUrl = "http://host.testcontainers.internal:" + TEST_SERVER_PORT;
 
-        logger.info("W3C WebDriver URL: {}", webDriverUrl);
-        logger.info("Test server URL (from container): {}", serverUrl);
+        logger.info("W3C Frame test WebDriver URL: {}", webDriverUrl);
 
-        System.setProperty("karate.driver.serverUrl", serverUrl);
-        System.setProperty("karate.driver.type", "chromedriver");
-        System.setProperty("karate.driver.webDriverUrl", webDriverUrl);
-
-        // Custom driver provider that creates W3cDriver instances
         PooledDriverProvider provider = new PooledDriverProvider() {
             @Override
             protected Driver createDriver(Map<String, Object> config) {
-                // Force W3C driver connecting to the Selenium container
                 W3cDriverOptions opts = W3cDriverOptions.fromMap(config);
                 return W3cDriver.connect(webDriverUrl, opts);
             }
         };
 
-        SuiteResult result = Runner.path("classpath:io/karatelabs/driver/features")
+        SuiteResult result = Runner.path("classpath:io/karatelabs/driver/features/frame.feature")
                 .configDir("classpath:io/karatelabs/driver/features/karate-config.js")
-                .outputDir(Path.of("target", "w3c-driver-feature-reports"))
+                .systemProperty("karate.driver.serverUrl", serverUrl)
+                .systemProperty("karate.driver.type", "chromedriver")
+                .systemProperty("karate.driver.webDriverUrl", webDriverUrl)
+                .outputDir(Path.of("target", "w3c-frame-reports"))
                 .outputHtmlReport(true)
                 .outputConsoleSummary(true)
-                .tags("~@cdp", "~@lock=frames")
                 .driverProvider(provider)
-                .parallel(1);  // Single thread for W3C (shared session)
+                .parallel(1);  // Single thread — frame switching is global browser state
 
-        logger.info("W3C Feature count: {}", result.getFeatureCount());
-        logger.info("W3C Scenarios passed: {}", result.getScenarioPassedCount());
-        logger.info("W3C Scenarios failed: {}", result.getScenarioFailedCount());
+        logger.info("W3C Frame scenarios passed: {}, failed: {}",
+                result.getScenarioPassedCount(), result.getScenarioFailedCount());
 
         if (result.isFailed()) {
             result.getErrors().forEach(error ->
-                logger.error("W3C Test error: {}", error)
+                logger.error("W3C Frame test error: {}", error)
             );
         }
 
-        assertTrue(result.isPassed(), "All W3C driver feature tests should pass");
+        assertTrue(result.isPassed(), "All W3C frame feature tests should pass");
     }
 
 }

@@ -1,3 +1,4 @@
+@lock=frames
 Feature: Frame Tests
   Frame switching operations
 

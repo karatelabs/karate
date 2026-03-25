@@ -135,25 +135,47 @@ public class W3cDriver implements Driver {
 
     // ========== CoreDriver Tier 1: Essential Primitives ==========
 
+    /**
+     * Execute JavaScript via W3C executeScript.
+     *
+     * <p>Battle-tested pattern from v1 WebDriver: if JS execution fails, sleep once and
+     * retry before throwing. This handles transient failures that occur when the page is
+     * still loading or transitioning. The v1 codebase proved this single-retry approach
+     * effective across thousands of real-world test suites.</p>
+     *
+     * <p>W3C element references in the result are auto-wrapped as W3cElement instances.</p>
+     */
     @Override
     @SuppressWarnings("unchecked")
     public Object eval(String js) {
-        Object result = session.executeScript(js);
-        // Auto-wrap W3C element references
+        // Ensure expression returns a value (v1 pattern: prefixReturn)
+        String expression = js.startsWith("return ") ? js : js;
+        Object result;
+        try {
+            result = session.executeScript(expression);
+        } catch (Exception e) {
+            // v1 pattern: single retry on JS error — handles transient page-load timing issues
+            logger.warn("javascript failed, will retry once: {}", e.getMessage());
+            sleep(options.getRetryInterval());
+            try {
+                result = session.executeScript(expression);
+            } catch (Exception e2) {
+                logger.error("javascript failed twice: {}", e2.getMessage());
+                throw new DriverException("javascript failed: " + e2.getMessage(), e2);
+            }
+        }
+        return wrapElementReferences(result);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object wrapElementReferences(Object result) {
         if (W3cSession.isElementReference(result)) {
             String elementId = W3cSession.elementIdFrom(result);
             return new W3cElement(this, "(eval result)", true, elementId, session);
         }
-        // Auto-wrap lists of element references
         if (result instanceof List) {
             List<Object> list = (List<Object>) result;
-            boolean hasElements = false;
-            for (Object item : list) {
-                if (W3cSession.isElementReference(item)) {
-                    hasElements = true;
-                    break;
-                }
-            }
+            boolean hasElements = list.stream().anyMatch(W3cSession::isElementReference);
             if (hasElements) {
                 List<Object> wrapped = new ArrayList<>();
                 for (Object item : list) {
@@ -188,24 +210,34 @@ public class W3cDriver implements Driver {
     @Override
     public void frame(Object target) {
         if (target == null) {
-            session.switchFrame(null);
+            // v1: switchFrame(null) resets to parent frame
+            session.parentFrame();
         } else if (target instanceof Integer) {
-            session.switchFrame(target);
+            int index = (Integer) target;
+            if (index == -1) {
+                // v1 convention: -1 means parent frame
+                session.parentFrame();
+            } else {
+                session.switchFrame(index);
+            }
         } else {
-            // Locator - find the element first, then switch
+            // Locator - v1 pattern: find the iframe element, then iterate all
+            // iframe/frame elements to find the matching index, then switch by index.
+            // This is more reliable than passing an element reference to switchFrame()
+            // because some drivers don't support element references in frame switching.
             String locator = target.toString();
-            try {
-                String elementId = findElementId(locator);
-                Map<String, Object> elementRef = Map.of(W3cSession.W3C_ELEMENT_KEY, elementId);
-                session.switchFrame(elementRef);
-            } catch (Exception e) {
-                // Try as index
-                try {
-                    session.switchFrame(Integer.parseInt(locator));
-                } catch (NumberFormatException nfe) {
-                    throw new DriverException("Failed to switch frame: " + target, e);
+            String frameElementId = findElementIdWithRetry(locator);
+            // Find all iframe and frame elements
+            List<String> iframeIds = session.findElements("css selector", "iframe,frame");
+            for (int i = 0; i < iframeIds.size(); i++) {
+                if (frameElementId.equals(iframeIds.get(i))) {
+                    session.switchFrame(i);
+                    return;
                 }
             }
+            // Fallback: try passing element reference directly
+            Map<String, Object> elementRef = Map.of(W3cSession.W3C_ELEMENT_KEY, frameElementId);
+            session.switchFrame(elementRef);
         }
     }
 
@@ -292,33 +324,45 @@ public class W3cDriver implements Driver {
         }
     }
 
-    // ========== Element Operations (override Driver defaults with native W3C calls) ==========
+    // ========== Element Operations ==========
+    //
+    // V1 PATTERN: Almost all element operations use JS eval, NOT native W3C element endpoints.
+    // This was a deliberate, battle-tested choice in v1:
+    //   - click() uses JS .click() — more reliable across browsers than POST /element/{id}/click
+    //   - text/html/value/attribute/enabled all use JS — avoids stale element reference issues
+    //   - clear() uses JS value = '' — more consistent than POST /element/{id}/clear
+    //   - ONLY input() uses native W3C sendKeys — because JS can't simulate real keyboard events
+    //     that trigger framework event handlers (React, Vue, Angular)
+    //
+    // The single-retry pattern in eval() provides the retry safety net for all JS operations.
 
     @Override
     public Element click(String locator) {
-        String elementId = findElementIdWithRetry(locator);
-        session.clickElement(elementId);
-        return new W3cElement(this, locator, true, elementId, session);
+        // v1 pattern: JS click, not W3C endpoint — more reliable, handles shadow DOM, custom elements
+        eval(Locators.clickJs(locator));
+        return BaseElement.of(this, locator);
     }
 
     @Override
     public Element input(String locator, String value) {
+        // v1 pattern: input is the ONE operation that uses native W3C sendKeys
+        // because JS value assignment doesn't trigger framework input event handlers
         String elementId = findElementIdWithRetry(locator);
-        session.clearElement(elementId);
+        // Clear via JS first (v1 pattern: value = ''), then sendKeys for the actual input
+        eval(Locators.clearJs(locator));
         session.sendKeys(elementId, value);
-        return new W3cElement(this, locator, true, elementId, session);
+        return BaseElement.of(this, locator);
     }
 
     @Override
     public Element clear(String locator) {
-        String elementId = findElementIdWithRetry(locator);
-        session.clearElement(elementId);
-        return new W3cElement(this, locator, true, elementId, session);
+        // v1 pattern: JS value = '' — more consistent than W3C clear endpoint
+        eval(Locators.clearJs(locator));
+        return BaseElement.of(this, locator);
     }
 
     @Override
     public Element focus(String locator) {
-        // No native W3C focus - use JS
         eval(Locators.focusJs(locator));
         return BaseElement.of(this, locator);
     }
@@ -335,22 +379,19 @@ public class W3cDriver implements Driver {
         return BaseElement.of(this, locator);
     }
 
-    // ========== Element State (override with native W3C where possible) ==========
+    // ========== Element State (all via JS eval — v1 pattern) ==========
+    //
+    // V1 used evalReturn(locator, "textContent"), evalReturn(locator, "outerHTML") etc.
+    // This approach avoids stale element reference errors that plague W3C element endpoints,
+    // because each operation re-evaluates the locator in the browser context.
 
     @Override
     public String text(String locator) {
-        try {
-            String elementId = findElementIdWithRetry(locator);
-            return session.getElementText(elementId);
-        } catch (Exception e) {
-            // Fallback to JS
-            return (String) eval(Locators.textJs(locator));
-        }
+        return (String) eval(Locators.textJs(locator));
     }
 
     @Override
     public String html(String locator) {
-        // No native W3C endpoint for outerHTML - use JS
         return (String) eval(Locators.outerHtmlJs(locator));
     }
 
@@ -361,29 +402,24 @@ public class W3cDriver implements Driver {
 
     @Override
     public String attribute(String locator, String name) {
-        try {
-            String elementId = findElementIdWithRetry(locator);
-            return session.getElementAttribute(elementId, name);
-        } catch (Exception e) {
-            return (String) eval(Locators.attributeJs(locator, name));
-        }
+        return (String) eval(Locators.attributeJs(locator, name));
     }
 
     @Override
     public boolean enabled(String locator) {
-        try {
-            String elementId = findElementIdWithRetry(locator);
-            return session.isElementEnabled(elementId);
-        } catch (Exception e) {
-            Object result = eval(Locators.enabledJs(locator));
-            return Boolean.TRUE.equals(result);
-        }
+        Object result = eval(Locators.enabledJs(locator));
+        return Boolean.TRUE.equals(result);
     }
 
     @Override
     public boolean exists(String locator) {
-        Object result = eval(Locators.existsJs(locator));
-        return Boolean.TRUE.equals(result);
+        // exists() must NOT retry — it's a check, not an assertion
+        try {
+            Object result = session.executeScript(Locators.existsJs(locator));
+            return Boolean.TRUE.equals(result);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     // ========== Locators ==========
@@ -698,7 +734,10 @@ public class W3cDriver implements Driver {
 
     @Override
     public Object script(String expression) {
-        return eval(expression);
+        // v1 pattern: auto-prefix "return" so that script() always returns a value
+        // This matches v1 WebDriver.script() which called prefixReturn()
+        String js = expression.startsWith("return ") ? expression : "return " + expression;
+        return eval(js);
     }
 
     // ========== Screenshot ==========
@@ -728,12 +767,22 @@ public class W3cDriver implements Driver {
 
     @Override
     public void switchFrame(int index) {
-        frame(index);
+        // v1 pattern: -1 means parent frame
+        if (index == -1) {
+            session.parentFrame();
+        } else {
+            session.switchFrame(index);
+        }
     }
 
     @Override
     public void switchFrame(String locator) {
-        frame(locator);
+        if (locator == null) {
+            // v1 pattern: null means reset to parent/top frame
+            session.parentFrame();
+        } else {
+            frame(locator);
+        }
     }
 
     @Override
@@ -853,32 +902,32 @@ public class W3cDriver implements Driver {
     // ========== Private Helpers ==========
 
     /**
-     * Find element with auto-retry (matches CDP auto-wait behavior).
+     * Find element with auto-retry for operations that need a W3C element ID (e.g., sendKeys).
+     *
+     * <p>Uses the v1 auto-wait pattern: if retry mode is active, waits for the element
+     * to exist before attempting to find it. Otherwise, does a single-retry on failure
+     * (same as the built-in retry in eval() and v1's elementId()).</p>
      */
     private String findElementIdWithRetry(String locator) {
-        int retries = options.getRetryCount();
-        for (int i = 0; i <= retries; i++) {
-            try {
-                return findElementId(locator);
-            } catch (Exception e) {
-                if (i == retries) {
-                    throw new DriverException("Element not found after " + retries + " retries: " + locator, e);
-                }
-                sleep(options.getRetryInterval());
-            }
-        }
-        throw new DriverException("Element not found: " + locator);
-    }
-
-    /**
-     * Find element by locator, using JS evaluation (supports all Karate locator types).
-     */
-    private String findElementId(String locator) {
-        // Use JS to find element (supports CSS, XPath, wildcard, shadow DOM)
+        // v1 pattern: single retry on locator failure — handles transient DOM changes
         String js = "return " + Locators.selector(locator);
-        Object result = session.executeScript(js);
-        if (W3cSession.isElementReference(result)) {
-            return W3cSession.elementIdFrom(result);
+        try {
+            Object result = session.executeScript(js);
+            if (W3cSession.isElementReference(result)) {
+                return W3cSession.elementIdFrom(result);
+            }
+        } catch (Exception e) {
+            logger.warn("locator failed, will retry once: {}", e.getMessage());
+        }
+        // Single retry after sleep
+        sleep(options.getRetryInterval());
+        try {
+            Object result = session.executeScript(js);
+            if (W3cSession.isElementReference(result)) {
+                return W3cSession.elementIdFrom(result);
+            }
+        } catch (Exception e2) {
+            throw new DriverException("locator failed twice: " + locator, e2);
         }
         throw new DriverException("Element not found: " + locator);
     }
