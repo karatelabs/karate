@@ -12,7 +12,7 @@
 | **9b** | Gherkin E2E Tests | ✅ Complete |
 | **9c** | PooledDriverProvider (browser reuse) | ✅ Complete |
 | **10** | Playwright Backend | ⬜ Not started |
-| **11** | W3C WebDriver Backend (Experimental) | 🔶 In progress |
+| **11** | W3C WebDriver Backend | ✅ Complete (98% pass, 2 edge cases tracked) |
 | **12** | WebDriver BiDi (Future) | ⬜ Not started |
 | **13** | Cloud Provider Integration | ⬜ Not started |
 
@@ -788,47 +788,61 @@ configure driver = { type: 'chromedriver', webDriverUrl: 'http://localhost:9515'
 - `PooledDriverProvider.createDriver()` now dispatches on config `type` (CDP or W3C)
 - `ScenarioRuntime.initDriver()` detects W3C types and creates W3cDriver accordingly
 
-**Current W3C test results: 81/94 pass (86%)**
+**Current W3C test results: 108/110 pass (98%)**
 
-Excluding CDP-only features (mouse, dialog) and frame (separate test class).
-Frame tests: 16/16 pass in dedicated W3cFrameFeatureTest.
+Main suite: 92/94 pass (excluding CDP-only features: mouse, dialog).
+Frame suite: 16/16 pass (dedicated W3cFrameFeatureTest, single-threaded).
 
 **What works:**
 - [x] Session creation and lifecycle (POST /session, DELETE /session)
 - [x] Navigation (url, back, forward, refresh) — 3/3 pass
-- [x] Element operations (click, input, clear, focus, text, html, value, attribute, enabled, exists, scroll, highlight, select) — 42/44 pass
+- [x] Element operations (click, input, clear, focus, text, html, value, attribute, enabled, exists, scroll, highlight, select) — 43/44 pass
 - [x] Element finding via JS eval (supports all Karate locator types: CSS, XPath, wildcard, shadow DOM)
 - [x] `__kjs` (driver.js) runtime injection (wildcard locators, shadow DOM traversal) — same as CDP
-- [x] Frame switching — 16/16 pass (uses W3C element reference, not v1 index-finding)
+- [x] Frame switching — 16/16 pass (uses W3C element reference directly, improvement over v1 index-finding)
 - [x] Screenshots
-- [x] Cookies — 6/6 pass (404 "no such cookie" handled as null)
+- [x] Cookies — 6/6 pass (W3C 404 "no such cookie" handled as null)
 - [x] Window management (maximize, minimize, fullscreen, setDimensions/getWindowRect)
-- [x] Shadow DOM — 14/16 pass
-- [x] Keyboard input (basic typing, special keys) — 13/21 pass
+- [x] Tab/window switching — 1/1 pass (close() uses W3C DELETE /window, auto-switches to remaining handle)
+- [x] Shadow DOM — 16/16 pass (deep traversal, wildcard resolution, input)
+- [x] Keyboard input via W3C Actions API — 20/21 pass (type, special keys, Ctrl/Shift/Alt combos, plus-notation)
 - [x] Feature file calling (call, callonce) — 2/2 pass
 - [x] Scenario Outline — 1/1 pass
-- [x] Process launch for local driver executables (chromedriver, geckodriver, etc.)
+- [x] Process launch for local driver executables (chromedriver, geckodriver, safaridriver, msedgedriver)
 - [x] Remote connection via webDriverUrl (SauceLabs, BrowserStack, Selenium Grid)
-- [x] PooledDriverProvider backend-generic dispatch
-- [x] Tag filtering (JS-style `not('@cdp')` expressions)
-- [x] Smart `return` prefix for W3C executeScript (detects statements vs expressions)
+- [x] PooledDriverProvider backend-generic dispatch (auto-detects CDP vs W3C from config type)
+- [x] Smart `return` prefix for W3C executeScript (detects statement blocks vs value expressions)
 - [x] Built-in single-retry on JS errors and locator errors (v1 battle-tested pattern)
-- [x] V1-compatible click via JS `.click()` (not W3C element endpoint — more reliable)
+- [x] V1-compatible click via JS `.click()` (not W3C element endpoint — more reliable across browsers)
 - [x] V1-compatible element state via JS eval (avoids stale element reference errors)
-- [x] Input (sendKeys) is the sole native W3C operation (for framework event handlers)
+- [x] Input (sendKeys) is the sole native W3C operation (for React/Vue/Angular event handlers)
+- [x] Date/time input detection — auto-uses JS value assignment for date fields (sendKeys doesn't work)
+- [x] Plus-notation for key combos — `keys().press('Control+a')`, `keys().press('Shift+ArrowLeft')` etc.
 
-**Remaining gaps (TODOs):**
-- [ ] Fix keys modifier combos (8 failures — Ctrl+A, Shift+Arrow, plus-notation need W3C Actions API)
-- [ ] Fix shadow-dom edge cases (2 failures — input into shadow element, shadow DOM contains text)
-- [ ] Fix element date input (1 failure — date/time input handling)
-- [ ] Fix tab-switch (1 failure — window handle management, session invalidation on window close)
-- [ ] Fix element wildcard contains (1 failure — edge case in `__kjs.resolve`)
-- [ ] Enable W3cDriverFeatureTest in cicd (currently gated by `-Dkarate.w3c.test=true`)
-- [ ] Add LocalParallelRunner for cross-browser demo (v1 outline pattern with side-by-side windows)
-- [ ] Test with real SauceLabs/BrowserStack endpoint
-- [ ] Update MIGRATION_GUIDE.md with WebDriver migration section
-- [ ] Fix `Runner.Builder.tags()` bug — multiple varargs joined with comma instead of stored as list (v2 regression from v1)
-- [ ] Review and update [karate-docs](https://github.com/karatelabs/karate-docs) Docusaurus site with full UI automation testing documentation for both CDP and W3C backends
+**Design decisions (v1 patterns retained):**
+
+| Operation | V1 WebDriver | V2 W3cDriver | Rationale |
+|-----------|-------------|-------------|-----------|
+| click | JS `.click()` | JS `.click()` | More reliable across browsers, handles shadow DOM |
+| text/html/value/attribute | JS eval | JS eval | Avoids stale element references |
+| input (sendKeys) | W3C endpoint | W3C endpoint | Only way to trigger framework event handlers |
+| clear | JS `value = ''` | JS `value = ''` | More consistent than W3C clear endpoint |
+| eval() retry | Single retry on JS error | Single retry on JS error | Handles transient page-load timing |
+| elementId retry | Single retry on locator error | Single retry on locator error | Handles transient DOM changes |
+| frame switch | Find index by iterating all iframes | W3C element reference directly | Improvement: simpler, no race conditions |
+| key combos | W3C Actions API | W3C Actions API | Proper modifier key support |
+
+**Remaining 2 edge-case failures (TODOs):**
+- [ ] keys "Alt+key does not type character" — Alt key behavior differs between CDP (intercepts) and W3C (browser-dependent). **Approach:** investigate if W3C Actions API `alt` modifier suppresses character input; may need to tag as `@cdp` if behavior is inherently different.
+- [ ] element "Select triggers change event with bubbles" — select option via JS dispatches events but the specific event sequence may differ. **Approach:** debug the actual events received in W3C vs CDP; may need to adjust `Locators.optionSelector()` event dispatch.
+
+**Infrastructure TODOs:**
+- [ ] Enable W3cDriverFeatureTest in cicd (currently gated by `-Dkarate.w3c.test=true`). **Approach:** once the Selenium ARM image issue is resolved (currently runs under emulation on Apple Silicon CI), or when CI runs on x86, remove the gate.
+- [ ] Add LocalParallelRunner for cross-browser demo (v1 outline pattern with side-by-side windows). **Approach:** create `outline-xbrowser.feature` with examples table for chrome/chromedriver/geckodriver/safaridriver, `karate-config-xbrowser.js`, and `LocalParallelRunner.java` in e2e package. Not part of cicd (requires local browsers).
+- [ ] Test with real SauceLabs/BrowserStack endpoint. **Approach:** manual test with `configure driver = { type: 'chromedriver', webDriverUrl: '...', capabilities: { ... } }`. Document working config in MIGRATION_GUIDE.md.
+- [ ] Update MIGRATION_GUIDE.md with WebDriver migration section. **Approach:** add section covering type mapping, capabilities config, webDriverUrl, webDriverSession, CDP-only operations, and driver process management.
+- [x] Fix `Runner.Builder.tags()` bug — multiple varargs now stored as List (fixed, was v2 regression from v1)
+- [ ] Review and update [karate-docs](https://github.com/karatelabs/karate-docs) Docusaurus site with full UI automation testing documentation for both CDP and W3C backends. **Approach:** add a "Browser Automation" section covering driver types, configuration, CDP vs W3C feature matrix, cloud provider setup, pooling, and the LocalParallelRunner demo.
 
 ### WebDriver BiDi (Phase 12)
 
