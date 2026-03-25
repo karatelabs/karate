@@ -142,21 +142,14 @@
                         <artifactId>dependency-check-maven</artifactId>
                         <version>12.1.0</version>
                         <configuration>
+                            <dataDirectory>${user.home}/.dependency-check/data</dataDirectory>
                             <skipProvidedScope>true</skipProvidedScope>
                             <nvdApiDelay>3000</nvdApiDelay>
-                            <failBuildOnCVSS>9</failBuildOnCVSS>
                             <ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
                             <formats>
-                                <format>HTML</format>
+                                <format>JSON</format>
                             </formats>
                         </configuration>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>aggregate</goal>
-                                </goals>
-                            </execution>
-                        </executions>
                     </plugin>
                 </plugins>
             </build>

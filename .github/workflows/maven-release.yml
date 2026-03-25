@@ -90,7 +90,11 @@ jobs:
         if: github.event.inputs.cve_check == 'enabled'
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: mvn -B -ntp dependency-check:aggregate -Pdepcheck -DnvdApiKey=${NVD_API_KEY} -DossindexAnalyzerEnabled=false
+        run: mvn -B -ntp dependency-check:check -Pdepcheck -DnvdApiKey=${NVD_API_KEY} -DossindexAnalyzerEnabled=false
+
+      - name: Generate consolidated CVE report
+        if: always() && github.event.inputs.cve_check == 'enabled'
+        run: python3 etc/generate-cve-report.py --version ${{ github.event.inputs.version }} --output target/cve-report.html
 
       - name: Save NVD database cache
         if: always() && github.event.inputs.cve_check == 'enabled'
@@ -105,7 +109,11 @@ jobs:
         with:
           name: cve-report-${{ github.event.inputs.version }}
           retention-days: 30
-          path: target/dependency-check-report.html
+          path: |
+            target/cve-report.html
+            karate-core/target/dependency-check-report.json
+            karate-junit6/target/dependency-check-report.json
+            karate-gatling/target/dependency-check-report.json
 
       - name: Deploy to Maven Central
         if: github.event.inputs.maven == 'enabled'
