@@ -29,6 +29,8 @@ on:
           - 'enabled'
           - 'disabled'
 
+permissions: read-all
+
 # Note: Docker image build has been removed from the release workflow.
 #
 # Karate v2 no longer ships an official karate-chrome Docker image.
@@ -56,10 +58,10 @@ jobs:
     timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           distribution: temurin
           java-version: 21
@@ -79,10 +81,11 @@ jobs:
 
       - name: Cache NVD database
         if: github.event.inputs.cve_check == 'enabled'
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.dependency-check/data
           key: nvd-db
+          save-always: true
 
       - name: OWASP dependency check
         if: github.event.inputs.cve_check == 'enabled'
@@ -92,7 +95,7 @@ jobs:
 
       - name: Upload CVE report
         if: always() && github.event.inputs.cve_check == 'enabled'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: cve-report-${{ github.event.inputs.version }}
           retention-days: 30
@@ -117,7 +120,7 @@ jobs:
           cd target && zip -r karate-${VERSION}.zip karate-${VERSION}/
 
       - name: Upload release ZIP
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: karate-release-${{ github.event.inputs.version }}
           retention-days: 10
