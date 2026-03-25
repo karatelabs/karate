@@ -221,21 +221,14 @@ public class W3cDriver implements Driver {
                 session.switchFrame(index);
             }
         } else {
-            // Locator - v1 pattern: find the iframe element, then iterate all
-            // iframe/frame elements to find the matching index, then switch by index.
-            // This is more reliable than passing an element reference to switchFrame()
-            // because some drivers don't support element references in frame switching.
+            // Improvement over v1: pass element reference directly to W3C switchFrame.
+            // v1 had to iterate all iframe/frame elements to find the index because older
+            // drivers (pre-W3C) didn't support element references. Since we're W3C-only,
+            // all compliant drivers accept an element reference in POST /session/{id}/frame.
+            // This is simpler (one call vs many), avoids race conditions (iframes added/removed
+            // between find and iterate), and avoids cross-call element ID mismatch issues.
             String locator = target.toString();
             String frameElementId = findElementIdWithRetry(locator);
-            // Find all iframe and frame elements
-            List<String> iframeIds = session.findElements("css selector", "iframe,frame");
-            for (int i = 0; i < iframeIds.size(); i++) {
-                if (frameElementId.equals(iframeIds.get(i))) {
-                    session.switchFrame(i);
-                    return;
-                }
-            }
-            // Fallback: try passing element reference directly
             Map<String, Object> elementRef = Map.of(W3cSession.W3C_ELEMENT_KEY, frameElementId);
             session.switchFrame(elementRef);
         }
