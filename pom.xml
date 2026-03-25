@@ -131,6 +131,35 @@
     </build>
 
     <profiles>
+        <!-- OWASP dependency-check: activate with -Pdepcheck -->
+        <!-- Pass NVD API key via -DnvdApiKey=... for faster scans -->
+        <profile>
+            <id>depcheck</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>12.1.0</version>
+                        <configuration>
+                            <skipProvidedScope>true</skipProvidedScope>
+                            <nvdApiDelay>3000</nvdApiDelay>
+                            <failBuildOnCVSS>9</failBuildOnCVSS>
+                            <formats>
+                                <format>HTML</format>
+                            </formats>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>aggregate</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <!-- CI/CD profile - runs testcontainers E2E tests and Gatling tests -->
         <profile>
             <id>cicd</id>

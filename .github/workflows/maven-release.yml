@@ -14,6 +14,13 @@ on:
         options:
           - 'enabled'
           - 'disabled'
+      cve_check:
+        description: OWASP CVE check (blocks on critical CVEs)
+        required: true
+        type: choice
+        options:
+          - 'enabled'
+          - 'disabled'
 
 # Note: Docker image build has been removed from the release workflow.
 #
@@ -60,6 +67,20 @@ jobs:
 
       - name: Build and install
         run: mvn -B -ntp clean install -Pcicd
+
+      - name: OWASP dependency check
+        if: github.event.inputs.cve_check == 'enabled'
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: mvn -B -ntp dependency-check:aggregate -Pdepcheck -DnvdApiKey=${NVD_API_KEY} -pl karate-core,karate-gatling,karate-junit6
+
+      - name: Upload CVE report
+        if: always() && github.event.inputs.cve_check == 'enabled'
+        uses: actions/upload-artifact@v6
+        with:
+          name: cve-report-${{ github.event.inputs.version }}
+          retention-days: 30
+          path: target/dependency-check-report.html
 
       - name: Deploy to Maven Central
         if: github.event.inputs.maven == 'enabled'
