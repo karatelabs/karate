@@ -145,7 +145,7 @@
                             <skipProvidedScope>true</skipProvidedScope>
                             <nvdApiDelay>3000</nvdApiDelay>
                             <failBuildOnCVSS>9</failBuildOnCVSS>
-                            <ossIndexEnabled>false</ossIndexEnabled>
+                            <ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
                             <formats>
                                 <format>HTML</format>
                             </formats>

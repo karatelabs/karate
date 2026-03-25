@@ -91,7 +91,7 @@ jobs:
         if: github.event.inputs.cve_check == 'enabled'
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: mvn -B -ntp dependency-check:aggregate -Pdepcheck -DnvdApiKey=${NVD_API_KEY} -DossIndexEnabled=false
+        run: mvn -B -ntp dependency-check:aggregate -Pdepcheck -DnvdApiKey=${NVD_API_KEY} -DossindexAnalyzerEnabled=false
 
       - name: Upload CVE report
         if: always() && github.event.inputs.cve_check == 'enabled'
