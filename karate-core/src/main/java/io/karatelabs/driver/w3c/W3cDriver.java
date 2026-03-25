@@ -148,8 +148,12 @@ public class W3cDriver implements Driver {
     @Override
     @SuppressWarnings("unchecked")
     public Object eval(String js) {
-        // Ensure expression returns a value (v1 pattern: prefixReturn)
-        String expression = js.startsWith("return ") ? js : js;
+        // W3C executeScript wraps the script in `function anonymous() { <script> }`.
+        // This means the script must use `return` for the value to come back.
+        // v1 WebDriver.eval() always prepended "return " via prefixReturn().
+        // IIFEs like `(function(){ ... return x })()` also need a top-level return
+        // because the IIFE evaluates to a value but the outer function doesn't return it.
+        String expression = js.startsWith("return ") ? js : "return " + js;
         Object result;
         try {
             result = session.executeScript(expression);
@@ -210,8 +214,10 @@ public class W3cDriver implements Driver {
     @Override
     public void frame(Object target) {
         if (target == null) {
-            // v1: switchFrame(null) resets to parent frame
-            session.parentFrame();
+            // W3C spec: POST /frame with {"id": null} switches to TOP-LEVEL context
+            // This is different from parentFrame() which only goes up one level.
+            // v1 switchFrame(null) meant "go back to main/top frame" which maps to this.
+            session.switchFrame(null);
         } else if (target instanceof Integer) {
             int index = (Integer) target;
             if (index == -1) {
@@ -407,8 +413,11 @@ public class W3cDriver implements Driver {
     @Override
     public boolean exists(String locator) {
         // exists() must NOT retry — it's a check, not an assertion
+        // Must prefix "return" for W3C executeScript (function body context)
         try {
-            Object result = session.executeScript(Locators.existsJs(locator));
+            String js = Locators.existsJs(locator);
+            String expression = js.startsWith("return ") ? js : "return " + js;
+            Object result = session.executeScript(expression);
             return Boolean.TRUE.equals(result);
         } catch (Exception e) {
             return false;
@@ -727,10 +736,9 @@ public class W3cDriver implements Driver {
 
     @Override
     public Object script(String expression) {
-        // v1 pattern: auto-prefix "return" so that script() always returns a value
-        // This matches v1 WebDriver.script() which called prefixReturn()
-        String js = expression.startsWith("return ") ? expression : "return " + expression;
-        return eval(js);
+        // eval() already handles return-prefixing for W3C executeScript,
+        // so script() can just delegate directly
+        return eval(expression);
     }
 
     // ========== Screenshot ==========
@@ -771,8 +779,8 @@ public class W3cDriver implements Driver {
     @Override
     public void switchFrame(String locator) {
         if (locator == null) {
-            // v1 pattern: null means reset to parent/top frame
-            session.parentFrame();
+            // null means reset to top-level frame (W3C: POST /frame {"id": null})
+            session.switchFrame(null);
         } else {
             frame(locator);
         }

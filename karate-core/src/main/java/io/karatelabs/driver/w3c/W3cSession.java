@@ -237,9 +237,13 @@ public class W3cSession {
     // ========== Frames ==========
 
     public void switchFrame(Object id) {
-        java.util.HashMap<String, Object> payload = new java.util.HashMap<>();
-        payload.put("id", id); // null is valid for W3C (switch to top-level)
-        post("frame", payload);
+        if (id == null) {
+            // W3C spec: {"id": null} switches to top-level browsing context
+            // Use raw JSON to ensure null is serialized correctly
+            postRaw("frame", "{\"id\":null}");
+        } else {
+            post("frame", Map.of("id", id));
+        }
     }
 
     public void parentFrame() {
@@ -358,8 +362,12 @@ public class W3cSession {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> post(String path, Map<String, Object> payload) {
+        return postRaw(path, Json.of(payload).toString());
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> postRaw(String path, String json) {
         String url = baseUrl + "/session/" + sessionId + "/" + path;
-        String json = Json.of(payload).toString();
         logger.trace("POST {} : {}", path, json);
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
