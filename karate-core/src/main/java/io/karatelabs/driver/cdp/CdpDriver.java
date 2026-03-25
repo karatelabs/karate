@@ -28,6 +28,7 @@ import io.karatelabs.driver.DialogHandler;
 import io.karatelabs.driver.Driver;
 import io.karatelabs.driver.DriverException;
 import io.karatelabs.driver.DriverOptions;
+import io.karatelabs.driver.BaseElement;
 import io.karatelabs.driver.Element;
 import io.karatelabs.driver.Finder;
 import io.karatelabs.driver.InterceptHandler;
@@ -1366,7 +1367,7 @@ public class CdpDriver implements Driver {
         logger.debug("click: {}", locator);
         retryIfNeeded(locator);
         script(Locators.clickJs(locator));
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -1376,7 +1377,7 @@ public class CdpDriver implements Driver {
         logger.debug("focus: {}", locator);
         retryIfNeeded(locator);
         script(Locators.focusJs(locator));
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -1386,7 +1387,7 @@ public class CdpDriver implements Driver {
         logger.debug("clear: {}", locator);
         retryIfNeeded(locator);
         script(Locators.clearJs(locator));
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -1405,7 +1406,7 @@ public class CdpDriver implements Driver {
             clear(locator);
             keys().type(value);
         }
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -1415,7 +1416,7 @@ public class CdpDriver implements Driver {
         logger.debug("value: {} <- {}", locator, value);
         retryIfNeeded(locator);
         script(Locators.inputJs(locator, value));
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -1425,7 +1426,7 @@ public class CdpDriver implements Driver {
         logger.debug("select: {} <- {}", locator, text);
         retryIfNeeded(locator);
         script(Locators.optionSelector(locator, text));
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -1440,7 +1441,7 @@ public class CdpDriver implements Driver {
                         " e.dispatchEvent(new Event('input', {bubbles: true}));" +
                         " e.dispatchEvent(new Event('change', {bubbles: true}))");
         script(js);
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -1450,7 +1451,7 @@ public class CdpDriver implements Driver {
         logger.debug("scroll: {}", locator);
         retryIfNeeded(locator);
         script(Locators.scrollJs(locator));
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -1460,7 +1461,7 @@ public class CdpDriver implements Driver {
         logger.debug("highlight: {}", locator);
         retryIfNeeded(locator);
         script(Locators.highlight(locator, options.getHighlightDuration()));
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     // ========== Element State ==========
@@ -1553,7 +1554,7 @@ public class CdpDriver implements Driver {
      * Find an element by locator.
      */
     public Element locate(String locator) {
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -1576,7 +1577,7 @@ public class CdpDriver implements Driver {
         for (int i = 0; i < count; i++) {
             // Use JS expression to select nth element from querySelectorAll/evaluate
             String indexedLocator = createIndexedLocator(locator, i);
-            elements.add(new Element(this, indexedLocator, true));
+            elements.add(new BaseElement(this, indexedLocator, true));
         }
         return elements;
     }
@@ -1605,7 +1606,7 @@ public class CdpDriver implements Driver {
      * Find an element that may not exist (optional).
      */
     public Element optional(String locator) {
-        return Element.optional(this, locator);
+        return BaseElement.optional(this, locator);
     }
 
     // ========== Script on Element ==========
@@ -1667,7 +1668,7 @@ public class CdpDriver implements Driver {
 
         while (System.currentTimeMillis() < deadline) {
             if (exists(locator)) {
-                return Element.of(this, locator);
+                return BaseElement.of(this, locator);
             }
             sleep(pollInterval);
         }
@@ -1699,7 +1700,7 @@ public class CdpDriver implements Driver {
         while (System.currentTimeMillis() < deadline) {
             for (String locator : locators) {
                 if (exists(locator)) {
-                    return Element.of(this, locator);
+                    return BaseElement.of(this, locator);
                 }
             }
             sleep(pollInterval);
@@ -1726,7 +1727,7 @@ public class CdpDriver implements Driver {
             if (exists(locator)) {
                 String text = text(locator);
                 if (text != null && text.contains(expected)) {
-                    return Element.of(this, locator);
+                    return BaseElement.of(this, locator);
                 }
             }
             sleep(pollInterval);
@@ -1751,7 +1752,7 @@ public class CdpDriver implements Driver {
 
         while (System.currentTimeMillis() < deadline) {
             if (exists(locator) && enabled(locator)) {
-                return Element.of(this, locator);
+                return BaseElement.of(this, locator);
             }
             sleep(pollInterval);
         }
@@ -1803,7 +1804,7 @@ public class CdpDriver implements Driver {
             if (exists(locator)) {
                 Object result = script(locator, expression);
                 if (Terms.isTruthy(result)) {
-                    return Element.of(this, locator);
+                    return BaseElement.of(this, locator);
                 }
             }
             sleep(pollInterval);

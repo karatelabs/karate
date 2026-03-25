@@ -345,7 +345,7 @@ Unified event system for test execution lifecycle:
 
 ### Browser Automation (Post-Milestone 3)
 - [x] Chrome/Chromium/Edge via CDP (complete)
-- [ ] WebDriver protocol support (needed for Firefox, Safari)
+- [~] WebDriver protocol support (experimental — W3cDriver in `io.karatelabs.driver.w3c`)
 - [ ] Playwright emulation (replaces v1 experimental Playwright; enables Firefox/WebKit via Playwright CDP)
 - [ ] PDF testing
 - [ ] Video recording

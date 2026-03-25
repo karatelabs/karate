@@ -1,4 +1,4 @@
-@lock=*
+@lock=* @cdp
 Feature: Dialog Tests
   Dialog handling (alert, confirm, prompt)
 

@@ -1205,25 +1205,39 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             }
         }
 
-        // Parse options to get scope
-        CdpDriverOptions options = CdpDriverOptions.fromMap(configMap);
-        this.driverScope = options.getScope();
+        // Determine driver type and parse scope
+        String driverType = (String) configMap.getOrDefault("type", "chrome");
+        boolean isW3c = io.karatelabs.driver.w3c.W3cBrowserType.isW3cType(driverType);
+
+        if (isW3c) {
+            io.karatelabs.driver.w3c.W3cDriverOptions w3cOptions = io.karatelabs.driver.w3c.W3cDriverOptions.fromMap(configMap);
+            this.driverScope = w3cOptions.getScope();
+        } else {
+            CdpDriverOptions cdpOptions = CdpDriverOptions.fromMap(configMap);
+            this.driverScope = cdpOptions.getScope();
+        }
 
         Driver driver;
         if (provider != null) {
-            // Use provider to acquire driver
+            // Use provider to acquire driver (provider is now backend-generic)
             driver = provider.acquire(this, configMap);
             driverFromProvider = true;
             logger.info("Acquired driver from provider for scenario: {} (scope: {})", scenario.getName(), driverScope);
         } else {
             // Create driver directly (fallback, shouldn't happen with default pool)
-            String wsUrl = options.getWebSocketUrl();
-            if (wsUrl != null && !wsUrl.isEmpty()) {
-                logger.info("Connecting to existing browser: {}", wsUrl);
-                driver = CdpDriver.connect(wsUrl, options);
+            if (isW3c) {
+                logger.info("Starting W3C WebDriver: type={}", driverType);
+                driver = io.karatelabs.driver.w3c.W3cDriver.start(configMap);
             } else {
-                logger.info("Starting browser with options: headless={}", options.isHeadless());
-                driver = CdpDriver.start(options);
+                CdpDriverOptions cdpOptions = CdpDriverOptions.fromMap(configMap);
+                String wsUrl = cdpOptions.getWebSocketUrl();
+                if (wsUrl != null && !wsUrl.isEmpty()) {
+                    logger.info("Connecting to existing browser: {}", wsUrl);
+                    driver = CdpDriver.connect(wsUrl, cdpOptions);
+                } else {
+                    logger.info("Starting browser with options: headless={}", cdpOptions.isHeadless());
+                    driver = CdpDriver.start(cdpOptions);
+                }
             }
             driverFromProvider = false;
         }

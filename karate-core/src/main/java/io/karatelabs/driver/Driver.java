@@ -493,7 +493,7 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     default Element click(String locator) {
         script(Locators.clickJs(locator));
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -501,7 +501,7 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     default Element focus(String locator) {
         script(Locators.focusJs(locator));
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -509,7 +509,7 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     default Element clear(String locator) {
         script(Locators.clearJs(locator));
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -526,7 +526,7 @@ public interface Driver extends CoreDriver, SimpleObject {
             clear(locator);
             keys().type(value);
         }
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -534,7 +534,7 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     default Element value(String locator, String value) {
         script(Locators.inputJs(locator, value));
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -542,7 +542,7 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     default Element select(String locator, String text) {
         script(Locators.optionSelector(locator, text));
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -555,7 +555,7 @@ public interface Driver extends CoreDriver, SimpleObject {
                         " e.dispatchEvent(new Event('input', {bubbles: true}));" +
                         " e.dispatchEvent(new Event('change', {bubbles: true}))");
         script(js);
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -563,7 +563,7 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     default Element scroll(String locator) {
         script(Locators.scrollJs(locator));
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -571,7 +571,7 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     default Element highlight(String locator) {
         script(Locators.highlight(locator, getOptions().getHighlightDuration()));
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     // ========== Element State (defaults delegate to script + Locators) ==========
@@ -656,7 +656,7 @@ public interface Driver extends CoreDriver, SimpleObject {
      * This is a convenience method that creates an Element wrapper.
      */
     default Element locate(String locator) {
-        return Element.of(this, locator);
+        return BaseElement.of(this, locator);
     }
 
     /**
@@ -670,7 +670,7 @@ public interface Driver extends CoreDriver, SimpleObject {
      * This is a convenience method that creates an optional Element wrapper.
      */
     default Element optional(String locator) {
-        return Element.optional(this, locator);
+        return BaseElement.optional(this, locator);
     }
 
     // ========== Wait Methods ==========

@@ -12,7 +12,7 @@
 | **9b** | Gherkin E2E Tests | ✅ Complete |
 | **9c** | PooledDriverProvider (browser reuse) | ✅ Complete |
 | **10** | Playwright Backend | ⬜ Not started |
-| **11** | WebDriver Backend (Legacy) | ⬜ Not started |
+| **11** | W3C WebDriver Backend (Experimental) | 🔶 In progress |
 | **12** | WebDriver BiDi (Future) | ⬜ Not started |
 | **13** | Cloud Provider Integration | ⬜ Not started |
 
@@ -729,11 +729,93 @@ export KARATE_CHROME_EXECUTABLE=/opt/chrome/chrome
 - All Gherkin E2E tests must pass
 - All JS API E2E tests must pass
 
-### WebDriver Backend (Phase 11)
+### W3C WebDriver Backend (Phase 11) - Experimental
 
-- Legacy support, lower priority
-- Sync REST/HTTP to chromedriver, geckodriver
-- W3C WebDriver spec compliance
+**Status:** Core implementation complete. Infrastructure works (session creation, navigation, element operations). Many edge cases still failing in E2E tests. Marked as experimental until stabilized.
+
+**Architecture:**
+- Single `W3cDriver` class in `io.karatelabs.driver.w3c` package
+- `W3cBrowserType` enum drives all browser-specific differences (port, executable, CLI args, capabilities)
+- `W3cSession` uses `java.net.http.HttpClient` for W3C protocol (clean separation from scenario HTTP)
+- `W3cElement` extends `BaseElement` with native W3C element ID operations
+- `W3cDriverOptions` supports `webDriverUrl`, `webDriverSession`, `capabilities`, `start` (v1-compatible)
+- `W3cKeys` for keyboard input via sendKeys on active element
+
+**Type mapping (v1-compatible):**
+
+| `configure driver` type | Backend | Executable | Default Port |
+|---|---|---|---|
+| `chrome` (default) | CDP | (Chrome) | 9222 |
+| `chromedriver` | W3C | chromedriver | 9515 |
+| `geckodriver` | W3C | geckodriver | 4444 |
+| `safaridriver` | W3C | safaridriver | 5555 |
+| `msedgedriver` | W3C | msedgedriver | 9515 |
+
+**Cloud/Remote configuration:**
+```javascript
+// SauceLabs / BrowserStack - set webDriverUrl to remote hub
+configure driver = {
+  type: 'chromedriver',
+  webDriverUrl: 'https://ondemand.saucelabs.com:443/wd/hub',
+  capabilities: { platformName: 'Windows 10', 'sauce:options': { tunnelId: '...' } }
+}
+
+// Local chromedriver already running
+configure driver = { type: 'chromedriver', webDriverUrl: 'http://localhost:9515' }
+```
+
+**Capabilities configuration (v1-compatible):**
+- Auto-generates minimal `{ capabilities: { alwaysMatch: { browserName: '...' } } }` from type
+- `capabilities` key merges into `alwaysMatch` for convenience
+- `webDriverSession` provides full payload override (v1 backward compat)
+
+**Process management:**
+- By default, launches the driver executable (chromedriver, geckodriver, etc.) as child process
+- If `webDriverUrl` is set, connects to existing server (no process launch)
+- Port auto-allocation from `W3cBrowserType.defaultPort`
+- On quit: DELETE /session, then kill process
+
+**CDP-only operations (throw `UnsupportedOperationException`):**
+- `mouse()` — coordinate-based mouse input
+- `pdf()` — PDF generation
+- `intercept()` — request interception
+- `onDialog()` — dialog callback handler (use `dialog(true/false)` after dialog appears)
+- `stopIntercept()` — request interception
+
+**Refactoring done for multi-backend support:**
+- `Element` extracted to interface (was concrete class)
+- `BaseElement` — locator-based impl that delegates to Driver (works with any backend)
+- `PooledDriverProvider.createDriver()` now dispatches on config `type` (CDP or W3C)
+- `ScenarioRuntime.initDriver()` detects W3C types and creates W3cDriver accordingly
+
+**TODOs for Phase 11 stabilization:**
+- [ ] Fix element.feature failures (44 scenarios, 10 pass, 34 fail — mostly timeout/locator issues)
+- [ ] Fix frame.feature failures (16 scenarios, 8 pass, 8 fail — frame switching differences)
+- [ ] Fix keys.feature failures (21 scenarios, 2 pass, 19 fail — keyboard input via sendKeys)
+- [ ] Fix shadow-dom.feature failures (16 scenarios, 1 pass, 15 fail — __kjs injection needed)
+- [ ] Fix cookie.feature failures (6 scenarios, 4 pass, 2 fail)
+- [ ] Fix navigation.feature failures (3 scenarios, 1 pass, 2 fail)
+- [ ] Fix tab-switch.feature (1 scenario, fails — window handle management)
+- [ ] Enable W3cDriverFeatureTest in cicd (currently gated by `-Dkarate.w3c.test=true`)
+- [ ] Add LocalParallelRunner for cross-browser demo (outline pattern from v1)
+- [ ] Test with real SauceLabs/BrowserStack endpoint
+- [ ] Investigate `__kjs` (driver.js) injection strategy for W3C (needed for wildcard/shadow DOM locators)
+- [ ] Update MIGRATION_GUIDE.md with WebDriver migration section
+
+**What works today:**
+- [x] Session creation and lifecycle (POST /session, DELETE /session)
+- [x] Navigation (url, back, forward, refresh)
+- [x] Element finding via JS eval + executeScript
+- [x] Element click, clear, text, attribute, enabled (native W3C endpoints)
+- [x] Screenshots
+- [x] Cookies (basic CRUD)
+- [x] Window management (maximize, minimize, fullscreen, setDimensions/getWindowRect)
+- [x] Tag filtering (@cdp excludes CDP-only tests)
+- [x] Process launch for local driver executables
+- [x] Remote connection via webDriverUrl
+- [x] PooledDriverProvider backend-generic dispatch
+- [x] call-driver.feature (feature file calling) passes
+- [x] outline-driver.feature (Scenario Outline) passes
 
 ### WebDriver BiDi (Phase 12)
 

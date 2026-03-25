@@ -26,6 +26,8 @@ package io.karatelabs.driver;
 import io.karatelabs.core.ScenarioRuntime;
 import io.karatelabs.driver.cdp.CdpDriver;
 import io.karatelabs.driver.cdp.CdpDriverOptions;
+import io.karatelabs.driver.w3c.W3cBrowserType;
+import io.karatelabs.driver.w3c.W3cDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -281,6 +283,11 @@ public class PooledDriverProvider implements DriverProvider {
      * Subclasses should override for custom driver creation (e.g., Testcontainers).
      */
     protected Driver createDriver(Map<String, Object> config) {
+        String type = (String) config.getOrDefault("type", "chrome");
+        if (W3cBrowserType.isW3cType(type)) {
+            return W3cDriver.start(config);
+        }
+        // CDP (default)
         CdpDriverOptions options = CdpDriverOptions.fromMap(config);
         String wsUrl = options.getWebSocketUrl();
         if (wsUrl != null && !wsUrl.isEmpty()) {
