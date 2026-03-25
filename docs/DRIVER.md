@@ -12,7 +12,7 @@
 | **9b** | Gherkin E2E Tests | ✅ Complete |
 | **9c** | PooledDriverProvider (browser reuse) | ✅ Complete |
 | **10** | Playwright Backend | ⬜ Not started |
-| **11** | W3C WebDriver Backend | ✅ Complete (98% pass, 2 edge cases tracked) |
+| **11** | W3C WebDriver Backend | ✅ Complete (100% pass, separate `w3c` Maven profile + CI job) |
 | **12** | WebDriver BiDi (Future) | ⬜ Not started |
 | **13** | Cloud Provider Integration | ⬜ Not started |
 
@@ -788,10 +788,11 @@ configure driver = { type: 'chromedriver', webDriverUrl: 'http://localhost:9515'
 - `PooledDriverProvider.createDriver()` now dispatches on config `type` (CDP or W3C)
 - `ScenarioRuntime.initDriver()` detects W3C types and creates W3cDriver accordingly
 
-**Current W3C test results: 108/110 pass (98%)**
+**Current W3C test results: 110/110 pass (100%)**
 
-Main suite: 92/94 pass (excluding CDP-only features: mouse, dialog).
+Main suite: 92/92 pass (CDP-only scenarios tagged `@cdp` and excluded).
 Frame suite: 16/16 pass (dedicated W3cFrameFeatureTest, single-threaded).
+Separate Maven profile: `mvn verify -Pw3c -pl karate-core`. Runs in parallel CI job.
 
 **What works:**
 - [x] Session creation and lifecycle (POST /session, DELETE /session)
@@ -832,17 +833,23 @@ Frame suite: 16/16 pass (dedicated W3cFrameFeatureTest, single-threaded).
 | frame switch | Find index by iterating all iframes | W3C element reference directly | Improvement: simpler, no race conditions |
 | key combos | W3C Actions API | W3C Actions API | Proper modifier key support |
 
-**Remaining 2 edge-case failures (TODOs):**
-- [ ] keys "Alt+key does not type character" — Alt key behavior differs between CDP (intercepts) and W3C (browser-dependent). **Approach:** investigate if W3C Actions API `alt` modifier suppresses character input; may need to tag as `@cdp` if behavior is inherently different.
-- [ ] element "Select triggers change event with bubbles" — select option via JS dispatches events but the specific event sequence may differ. **Approach:** debug the actual events received in W3C vs CDP; may need to adjust `Locators.optionSelector()` event dispatch.
+**CDP-only edge cases (tagged `@cdp`, excluded from W3C suite):**
+- keys "Alt+key does not type character" — Alt key behavior is inherently CDP-specific (CDP intercepts at protocol level, W3C delegates to browser)
+- element "Select triggers change event with bubbles" — event dispatch sequence differs between CDP and W3C executeScript contexts
 
-**Infrastructure TODOs:**
-- [ ] Enable W3cDriverFeatureTest in cicd (currently gated by `-Dkarate.w3c.test=true`). **Approach:** once the Selenium ARM image issue is resolved (currently runs under emulation on Apple Silicon CI), or when CI runs on x86, remove the gate.
+**Completed:**
+- [x] W3C test suite: 110/110 pass (100%)
+- [x] Separate Maven profile (`-Pw3c`) for W3C tests — keeps `cicd` fast (~1:30)
+- [x] Parallel CI job in `cicd.yml` — `build` (CDP) and `w3c` run concurrently
+- [x] Fix `Runner.Builder.tags()` bug — multiple varargs now stored as List (was v2 regression from v1)
+
+**Remaining TODOs:**
 - [ ] Add LocalParallelRunner for cross-browser demo (v1 outline pattern with side-by-side windows). **Approach:** create `outline-xbrowser.feature` with examples table for chrome/chromedriver/geckodriver/safaridriver, `karate-config-xbrowser.js`, and `LocalParallelRunner.java` in e2e package. Not part of cicd (requires local browsers).
 - [ ] Test with real SauceLabs/BrowserStack endpoint. **Approach:** manual test with `configure driver = { type: 'chromedriver', webDriverUrl: '...', capabilities: { ... } }`. Document working config in MIGRATION_GUIDE.md.
 - [ ] Update MIGRATION_GUIDE.md with WebDriver migration section. **Approach:** add section covering type mapping, capabilities config, webDriverUrl, webDriverSession, CDP-only operations, and driver process management.
-- [x] Fix `Runner.Builder.tags()` bug — multiple varargs now stored as List (fixed, was v2 regression from v1)
 - [ ] Review and update [karate-docs](https://github.com/karatelabs/karate-docs) Docusaurus site with full UI automation testing documentation for both CDP and W3C backends. **Approach:** add a "Browser Automation" section covering driver types, configuration, CDP vs W3C feature matrix, cloud provider setup, pooling, and the LocalParallelRunner demo.
+- [ ] Create release notes and blog post for karate 2.0.0 final release. **Approach:** crisp summary of what's new (see MIGRATION_GUIDE.md "What's New" section for source material), highlight W3C WebDriver support, performance improvements (embedded JS engine, virtual threads), new features (declarative auth, karate.expect, match within, faker), and the ground-up rewrite story.
+- [ ] Sync [karate-cli](https://github.com/karatelabs/karate-cli) release with karate 2.0.0 final. **Approach:** update karate-cli to use karate 2.0.0 as backend, verify all CLI options work, cut a matching karate-cli release.
 
 ### WebDriver BiDi (Phase 12)
 
