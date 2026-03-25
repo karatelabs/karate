@@ -158,7 +158,7 @@ public final class Runner {
         private final List<ResultListener> resultListeners = new ArrayList<>();
 
         private String env;
-        private String tags;
+        private List<String> tags;
         private String scenarioName;
         private String configDir;
         private Path outputDir; // Default set in getOutputDir() using FileUtils.getBuildDir()
@@ -235,14 +235,29 @@ public final class Runner {
         }
 
         /**
-         * Set tag filter expression.
-         * Examples: "@smoke", "~@slow", "@smoke,@fast"
+         * Set tag filter expressions.
+         * Multiple arguments are AND-ed together (each must match).
+         * Commas within a single argument mean OR (any must match).
+         * <p>
+         * Examples:
+         * <ul>
+         *   <li>{@code tags("@smoke")} — run scenarios tagged @smoke</li>
+         *   <li>{@code tags("~@slow")} — exclude scenarios tagged @slow</li>
+         *   <li>{@code tags("@smoke,@fast")} — run scenarios tagged @smoke OR @fast</li>
+         *   <li>{@code tags("~@slow", "~@ignore")} — exclude @slow AND @ignore</li>
+         *   <li>{@code tags("@smoke", "~@slow")} — must have @smoke AND must not have @slow</li>
+         * </ul>
          */
         public Builder tags(String... tagExpressions) {
-            if (tagExpressions.length == 1) {
-                this.tags = tagExpressions[0];
-            } else if (tagExpressions.length > 1) {
-                this.tags = String.join(",", tagExpressions);
+            if (tagExpressions != null && tagExpressions.length > 0) {
+                if (this.tags == null) {
+                    this.tags = new ArrayList<>();
+                }
+                for (String tag : tagExpressions) {
+                    if (tag != null && !tag.isEmpty()) {
+                        this.tags.add(tag);
+                    }
+                }
             }
             return this;
         }
@@ -574,7 +589,7 @@ public final class Runner {
         }
 
         String getEnv() { return env; }
-        String getTags() { return tags; }
+        List<String> getTags() { return tags; }
         String getConfigDir() { return configDir; }
         Path getOutputDir() { return outputDir; }
         Path getWorkingDir() { return workingDir; }
@@ -668,8 +683,10 @@ public final class Runner {
                 args.add(env);
             }
             if (tags != null) {
-                args.add("-t");
-                args.add(tags);
+                for (String tag : tags) {
+                    args.add("-t");
+                    args.add(tag);
+                }
             }
             if (threadCount > 1) {
                 args.add("-T");

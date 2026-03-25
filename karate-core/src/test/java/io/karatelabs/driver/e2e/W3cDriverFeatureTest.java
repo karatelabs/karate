@@ -121,7 +121,7 @@ class W3cDriverFeatureTest {
                 .outputDir(Path.of("target", "w3c-driver-feature-reports"))
                 .outputHtmlReport(true)
                 .outputConsoleSummary(true)
-                .tags("not('@cdp') && not('@lock=frames')")
+                .tags("~@cdp", "~@lock=frames")
                 .driverProvider(provider)
                 .parallel(1);  // Single thread for W3C (shared session)
 

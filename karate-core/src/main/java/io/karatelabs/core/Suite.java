@@ -135,7 +135,7 @@ public class Suite {
         // Core configuration
         this.features = List.copyOf(builder.getResolvedFeatures());
         this.env = builder.getEnv();
-        this.tagSelector = builder.getTags() != null
+        this.tagSelector = builder.getTags() != null && !builder.getTags().isEmpty()
                 ? TagSelector.fromKarateOptionsTags(builder.getTags())
                 : null;
         this.threadCount = Math.max(1, threadCount);
