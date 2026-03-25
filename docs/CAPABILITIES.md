@@ -2,7 +2,7 @@
 
 Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
-> **Generated:** 2026-03-23 from `CAPABILITIES.yaml`
+> **Generated:** 2026-03-25 from `CAPABILITIES.yaml`
 >
 > See also: [Design Principles](./PRINCIPLES.md) | [Roadmap](./ROADMAP.md)
 
@@ -25,8 +25,8 @@ Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
 | Category | Count |
 |----------|-------|
-| v1 features ported to v2 | 127 |
-| v1 features pending | 11 |
+| v1 features ported to v2 | 130 |
+| v1 features pending | 8 |
 | New in v2 (implemented) | 45 |
 | New in v2 (in progress) | 1 |
 | Planned | 15 |
@@ -209,8 +209,8 @@ User interface automation across platforms
 
 - `[1.x ✓]` Browser Automation
   - `[1.x ✓]` Chrome/Chromium support (CDP)
-  - `[1.x  ]` Firefox support
-  - `[1.x  ]` Safari/WebKit support
+  - `[1.x ✓]` Firefox support
+  - `[1.x ✓]` Safari/WebKit support
   - `[1.x ✓]` Edge support
   - `[1.x ✓]` Headless mode
   - `[1.x ✓]` Element locators (CSS, XPath, wildcard)
@@ -223,7 +223,7 @@ User interface automation across platforms
   - `[v2]` Browser pooling (PooledDriverProvider)
   - `[1.x ✓]` Dialog handling
   - `[1.x  ]` PDF testing
-  - `[1.x  ]` WebDriver protocol
+  - `[1.x ✓]` WebDriver protocol
   - `[ ]` Playwright emulation
   - `[-]` WebDriver BiDi
 

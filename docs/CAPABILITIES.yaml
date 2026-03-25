@@ -523,12 +523,12 @@ categories:
             v2: implemented
           - name: Firefox support
             v1: true
-            v2: planned
-            notes: "Requires WebDriver protocol or Playwright emulation"
+            v2: implemented
+            notes: "Via W3C WebDriver (geckodriver)"
           - name: Safari/WebKit support
             v1: true
-            v2: planned
-            notes: "Requires WebDriver protocol or Playwright emulation"
+            v2: implemented
+            notes: "Via W3C WebDriver (safaridriver)"
           - name: Edge support
             v1: true
             v2: implemented
@@ -568,8 +568,8 @@ categories:
             v2: planned
           - name: WebDriver protocol
             v1: true
-            v2: planned
-            notes: "V1 used WebDriver for Firefox/Safari; not yet ported to v2"
+            v2: implemented
+            notes: "W3C WebDriver via io.karatelabs.driver.w3c package (chromedriver, geckodriver, safaridriver, msedgedriver)"
           - name: Playwright emulation
             v1: false
             v2: planned
