@@ -135,6 +135,7 @@ Feature: Element Tests
     * def selected = value('#country')
     * match selected == 'us'
 
+  @cdp
   Scenario: Select triggers change event with bubbles
     # Register a listener to verify bubbling works
     * script("window.selectChanged = false; document.addEventListener('change', function(e) { if(e.target.id === 'country') window.selectChanged = true; })")

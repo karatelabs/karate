@@ -52,12 +52,10 @@ import static org.junit.jupiter.api.Assertions.*;
  * <p>CDP-only features (dialog callbacks, mouse coordinates) are excluded via
  * {@code ~@cdp} tag filter.</p>
  *
- * <p>This test is disabled by default. Enable with {@code -Dkarate.w3c.test=true}
- * to run as part of the cicd profile. This allows incremental stabilization of
- * W3C WebDriver support without blocking the main build.</p>
+ * <p>Runs as part of the cicd profile ({@code mvn verify -Pcicd}).
+ * Excluded from default builds (lives in e2e package).</p>
  */
 @org.testcontainers.junit.jupiter.Testcontainers
-@org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = "karate.w3c.test", matches = "true")
 class W3cDriverFeatureTest {
 
     private static final Logger logger = LoggerFactory.getLogger(W3cDriverFeatureTest.class);

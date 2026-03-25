@@ -72,6 +72,7 @@ Feature: Keyboard Tests
     * def val = value('#username')
     * match val == 'helXY'
 
+  @cdp
   Scenario: Alt+key does not type character
     * focus('#username')
     * keys().type('hello')
