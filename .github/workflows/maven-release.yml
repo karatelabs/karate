@@ -14,6 +14,13 @@ on:
         options:
           - 'enabled'
           - 'disabled'
+      tests:
+        description: Run tests during build
+        required: true
+        type: choice
+        options:
+          - 'enabled'
+          - 'disabled'
       cve_check:
         description: OWASP CVE check (blocks on critical CVEs)
         required: true
@@ -66,7 +73,16 @@ jobs:
         run: mvn versions:set versions:commit -B -ntp -DnewVersion=${{ github.event.inputs.version }}
 
       - name: Build and install
-        run: mvn -B -ntp clean install -Pcicd
+        run: >
+          mvn -B -ntp clean install -Pcicd
+          ${{ github.event.inputs.tests == 'disabled' && '-DskipTests' || '' }}
+
+      - name: Cache NVD database
+        if: github.event.inputs.cve_check == 'enabled'
+        uses: actions/cache@v4
+        with:
+          path: ~/.dependency-check/data
+          key: nvd-db
 
       - name: OWASP dependency check
         if: github.event.inputs.cve_check == 'enabled'
