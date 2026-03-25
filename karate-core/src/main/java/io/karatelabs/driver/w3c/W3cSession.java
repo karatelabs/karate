@@ -342,6 +342,26 @@ public class W3cSession {
 
     // ========== Session Lifecycle ==========
 
+    // ========== Actions API ==========
+
+    /**
+     * Perform W3C Actions (keyboard, mouse, pointer).
+     * POST /session/{id}/actions
+     */
+    public void performActions(List<Map<String, Object>> actions) {
+        post("actions", Map.of("actions", actions));
+    }
+
+    /**
+     * Release all actions (reset keyboard/mouse state).
+     * DELETE /session/{id}/actions
+     */
+    public void releaseActions() {
+        delete("actions");
+    }
+
+    // ========== Session Lifecycle ==========
+
     public void deleteSession() {
         try {
             delete("");

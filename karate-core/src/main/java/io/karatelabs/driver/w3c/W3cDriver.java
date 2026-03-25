@@ -370,12 +370,18 @@ public class W3cDriver implements Driver {
 
     @Override
     public Element input(String locator, String value) {
-        // v1 pattern: input is the ONE operation that uses native W3C sendKeys
-        // because JS value assignment doesn't trigger framework input event handlers
-        String elementId = findElementIdWithRetry(locator);
-        // Clear via JS first (v1 pattern: value = ''), then sendKeys for the actual input
-        eval(Locators.clearJs(locator));
-        session.sendKeys(elementId, value);
+        // For date/time inputs, use JS value assignment (sendKeys doesn't work for these)
+        Boolean isDateTimeInput = (Boolean) eval(Locators.scriptSelector(locator,
+                "_ && ['time','date','datetime-local','month','week'].indexOf(_.type) >= 0"));
+        if (Boolean.TRUE.equals(isDateTimeInput)) {
+            eval(Locators.inputJs(locator, value));
+        } else {
+            // v1 pattern: input is the ONE operation that uses native W3C sendKeys
+            // because JS value assignment doesn't trigger framework input event handlers
+            String elementId = findElementIdWithRetry(locator);
+            eval(Locators.clearJs(locator));
+            session.sendKeys(elementId, value);
+        }
         return BaseElement.of(this, locator);
     }
 
@@ -899,7 +905,19 @@ public class W3cDriver implements Driver {
 
     @Override
     public void close() {
-        quit();
+        // W3C: close current window (DELETE /window), not the session
+        // v1 also did this — close() != quit()
+        // After closing, switch to first remaining handle to keep session alive
+        session.closeWindow();
+        try {
+            List<String> handles = session.getWindowHandles();
+            if (handles != null && !handles.isEmpty()) {
+                session.switchWindow(handles.get(0));
+            }
+        } catch (Exception e) {
+            // No remaining windows — session may be invalid
+            logger.debug("No windows remaining after close: {}", e.getMessage());
+        }
     }
 
     // ========== Lifecycle (original) ==========
