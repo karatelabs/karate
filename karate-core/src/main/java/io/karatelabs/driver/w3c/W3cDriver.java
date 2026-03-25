@@ -39,8 +39,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.ServerSocket;
+import java.io.InputStream;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,22 @@ import java.util.Map;
 public class W3cDriver implements Driver {
 
     private static final Logger logger = LoggerFactory.getLogger(W3cDriver.class);
+
+    // Karate JS runtime — same driver.js used by CDP for wildcard locators, shadow DOM, etc.
+    private static final String DRIVER_JS = loadResource("driver.js");
+
+    private static String loadResource(String name) {
+        try (InputStream is = W3cDriver.class.getResourceAsStream("/io/karatelabs/driver/" + name)) {
+            if (is == null) {
+                logger.warn("Resource not found: {}", name);
+                return "";
+            }
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            logger.warn("Failed to load resource: {}", name);
+            return "";
+        }
+    }
 
     private final W3cSession session;
     private final W3cDriverOptions options;
@@ -150,10 +167,19 @@ public class W3cDriver implements Driver {
     public Object eval(String js) {
         // W3C executeScript wraps the script in `function anonymous() { <script> }`.
         // This means the script must use `return` for the value to come back.
-        // v1 WebDriver.eval() always prepended "return " via prefixReturn().
-        // IIFEs like `(function(){ ... return x })()` also need a top-level return
-        // because the IIFE evaluates to a value but the outer function doesn't return it.
-        String expression = js.startsWith("return ") ? js : "return " + js;
+        // But we can't blindly prefix "return" — statement blocks like `var e = ...; e.focus()`
+        // would become `return var e = ...` which is a syntax error.
+        //
+        // Strategy (matching v1 prefixReturn + real-world patterns):
+        // - Already has "return" → pass through
+        // - Is an IIFE `(function(){ ... })()` → prefix "return" (IIFE evaluates to value)
+        // - Starts with a bare expression (no var/let/const/if/for) → prefix "return"
+        // - Statement blocks (var/let/const/if/for/try) → execute as-is (no return value)
+        // Inject __kjs runtime if the script references it (wildcard locators, shadow DOM)
+        if (js.contains("__kjs")) {
+            ensureKjsRuntime();
+        }
+        String expression = prefixReturnIfNeeded(js);
         Object result;
         try {
             result = session.executeScript(expression);
@@ -413,10 +439,13 @@ public class W3cDriver implements Driver {
     @Override
     public boolean exists(String locator) {
         // exists() must NOT retry — it's a check, not an assertion
-        // Must prefix "return" for W3C executeScript (function body context)
         try {
             String js = Locators.existsJs(locator);
-            String expression = js.startsWith("return ") ? js : "return " + js;
+            // Inject __kjs if needed (shadow DOM, wildcard locators)
+            if (js.contains("__kjs")) {
+                ensureKjsRuntime();
+            }
+            String expression = prefixReturnIfNeeded(js);
             Object result = session.executeScript(expression);
             return Boolean.TRUE.equals(result);
         } catch (Exception e) {
@@ -931,6 +960,53 @@ public class W3cDriver implements Driver {
             throw new DriverException("locator failed twice: " + locator, e2);
         }
         throw new DriverException("Element not found: " + locator);
+    }
+
+    /**
+     * Inject the Karate JS runtime (__kjs) into the browser if not already present.
+     * Same pattern as CdpDriver — loads driver.js from classpath resources.
+     * Provides wildcard locator resolution, shadow DOM traversal, and shared utilities.
+     */
+    private void ensureKjsRuntime() {
+        try {
+            Object exists = session.executeScript("return typeof window.__kjs !== 'undefined'");
+            if (!Boolean.TRUE.equals(exists)) {
+                session.executeScript(DRIVER_JS);
+                logger.debug("Injected __kjs runtime into browser");
+            }
+        } catch (Exception e) {
+            // May fail during navigation — will retry on next access
+            logger.debug("__kjs injection deferred: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Prefix "return" for W3C executeScript when the expression produces a value.
+     *
+     * <p>W3C executeScript wraps script in a function body, so value-producing expressions
+     * need "return" to get the result back. But statement blocks (var/let/const declarations,
+     * control flow) must NOT be prefixed — "return var x" is a syntax error.</p>
+     *
+     * <p>This matches v1 WebDriver.prefixReturn() logic but is smarter about statement blocks
+     * that v1 never had to deal with (because v1 called prefixReturn only in script(), not eval()).</p>
+     */
+    static String prefixReturnIfNeeded(String js) {
+        if (js == null || js.isEmpty()) return js;
+        String trimmed = js.stripLeading();
+        // Already has return
+        if (trimmed.startsWith("return ") || trimmed.startsWith("return;")) return js;
+        // Statement blocks — cannot prefix with return
+        if (trimmed.startsWith("var ") || trimmed.startsWith("let ") || trimmed.startsWith("const ")
+                || trimmed.startsWith("if ") || trimmed.startsWith("if(")
+                || trimmed.startsWith("for ") || trimmed.startsWith("for(")
+                || trimmed.startsWith("while ") || trimmed.startsWith("while(")
+                || trimmed.startsWith("try ") || trimmed.startsWith("try{")
+                || trimmed.startsWith("switch ") || trimmed.startsWith("switch(")
+                || trimmed.startsWith("throw ")) {
+            return js;
+        }
+        // Everything else (IIFEs, bare expressions, property access, function calls) — prefix return
+        return "return " + js;
     }
 
     private static boolean isTruthy(Object value) {
