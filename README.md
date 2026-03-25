@@ -7,6 +7,7 @@
 [![GitHub release](https://img.shields.io/github/release/karatelabs/karate.svg)](https://github.com/karatelabs/karate/releases)
 [![Twitter Follow](https://img.shields.io/twitter/follow/getkarate?style=social)](https://twitter.com/getkarate)
 [![GitHub Stars](https://img.shields.io/github/stars/karatelabs/karate?style=social)](https://github.com/karatelabs/karate/stargazers)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/karatelabs/karate/badge)](https://scorecard.dev/viewer/?uri=github.com/karatelabs/karate)
 
 <table>
 <tr>
