@@ -95,6 +95,8 @@ public interface Element extends SimpleObject {
 
     Element highlight();
 
+    Element submit();
+
     // ========== Child Elements ==========
 
     Element locate(String childLocator);

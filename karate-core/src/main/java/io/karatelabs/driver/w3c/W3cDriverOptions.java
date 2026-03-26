@@ -175,6 +175,18 @@ public class W3cDriverOptions implements DriverOptions {
         return pageLoadStrategy;
     }
 
+    private volatile String preSubmitHash;
+
+    @Override
+    public String getPreSubmitHash() {
+        return preSubmitHash;
+    }
+
+    @Override
+    public void setPreSubmitHash(String hash) {
+        this.preSubmitHash = hash;
+    }
+
     // ========== W3C-specific getters ==========
 
     public W3cBrowserType getBrowserType() {

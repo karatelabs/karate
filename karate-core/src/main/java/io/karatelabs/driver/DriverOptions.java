@@ -78,4 +78,14 @@ public interface DriverOptions {
      */
     PageLoadStrategy getPageLoadStrategy();
 
+    /**
+     * Get the pre-submit hash (set by submit(), cleared after next action).
+     */
+    String getPreSubmitHash();
+
+    /**
+     * Set the pre-submit hash. Called by submit() to record page state before action.
+     */
+    void setPreSubmitHash(String hash);
+
 }

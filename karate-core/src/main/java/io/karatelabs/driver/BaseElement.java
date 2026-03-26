@@ -203,6 +203,12 @@ public class BaseElement implements Element {
         return this;
     }
 
+    @Override
+    public Element submit() {
+        driver.submit();
+        return this;
+    }
+
     // ========== Child Elements ==========
 
     @Override

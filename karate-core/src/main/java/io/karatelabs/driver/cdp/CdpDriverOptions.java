@@ -224,6 +224,18 @@ public class CdpDriverOptions implements DriverOptions {
         return pageLoadStrategy;
     }
 
+    private volatile String preSubmitHash;
+
+    @Override
+    public String getPreSubmitHash() {
+        return preSubmitHash;
+    }
+
+    @Override
+    public void setPreSubmitHash(String hash) {
+        this.preSubmitHash = hash;
+    }
+
     /**
      * Get additional Chrome args. Merges explicit addOptions with KARATE_CHROME_ARGS env var.
      */

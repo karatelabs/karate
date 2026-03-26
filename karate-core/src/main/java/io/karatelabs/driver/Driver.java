@@ -84,6 +84,7 @@ public interface Driver extends CoreDriver, SimpleObject {
                 }
                 return select(locator, value != null ? String.valueOf(value) : "");
             };
+            case DriverApi.SUBMIT -> (JavaCallable) (ctx, args) -> submit();
 
             // Element state (return primitives)
             case DriverApi.TEXT -> (JavaCallable) (ctx, args) ->
@@ -486,6 +487,45 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     Map<String, Object> getCurrentFrame();
 
+    // ========== Submit (wait for page change after next action) ==========
+
+    /**
+     * Mark the next action as triggering a page navigation.
+     * After the next click/action, the driver will wait for the page to change
+     * (detected by URL or document element hash change).
+     * <p>Works on all backends (CDP, WebDriver, Playwright).</p>
+     * <p>Usage: {@code submit().click('#button')}</p>
+     */
+    default Driver submit() {
+        String hash = getUrl() + script("document.documentElement.id");
+        getOptions().setPreSubmitHash(hash);
+        return this;
+    }
+
+    /**
+     * If submit() was called, wait for the document to change after running the action.
+     */
+    default void waitIfSubmitRequested() {
+        String before = getOptions().getPreSubmitHash();
+        if (before == null) {
+            return;
+        }
+        getOptions().setPreSubmitHash(null);
+        long deadline = System.currentTimeMillis() + getOptions().getTimeout();
+        while (System.currentTimeMillis() < deadline) {
+            String after = getUrl() + script("document.documentElement.id");
+            if (!before.equals(after)) {
+                return;
+            }
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
     // ========== Element Operations (defaults delegate to script + Locators) ==========
 
     /**
@@ -493,6 +533,7 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     default Element click(String locator) {
         script(Locators.clickJs(locator));
+        waitIfSubmitRequested();
         return BaseElement.of(this, locator);
     }
 

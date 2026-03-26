@@ -15,6 +15,7 @@ public class DriverApi {
     public static final String SCROLL = "scroll";
     public static final String HIGHLIGHT = "highlight";
     public static final String SELECT = "select";
+    public static final String SUBMIT = "submit";
 
     // Element state
     public static final String TEXT = "text";
@@ -76,7 +77,7 @@ public class DriverApi {
 
     // Collection of all bindable method names
     public static final List<String> BOUND_METHODS = List.of(
-            CLICK, INPUT, CLEAR, FOCUS, SCROLL, HIGHLIGHT, SELECT,
+            CLICK, INPUT, CLEAR, FOCUS, SCROLL, HIGHLIGHT, SELECT, SUBMIT,
             TEXT, HTML, VALUE, ATTRIBUTE, EXISTS, ENABLED, POSITION,
             LOCATE, LOCATE_ALL, OPTIONAL,
             WAIT_FOR, WAIT_FOR_TEXT, WAIT_FOR_ENABLED, WAIT_FOR_URL, WAIT_UNTIL,
