@@ -39,4 +39,4 @@ jobs:
           cache: maven
 
       - name: W3C WebDriver tests (Selenium containers)
-        run: mvn -B verify -Pw3c -pl karate-core
+        run: mvn -B verify -Pw3c -pl karate-core -am
