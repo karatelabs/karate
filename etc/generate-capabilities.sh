@@ -21,7 +21,8 @@ fi
 # Check for PyYAML
 if ! python3 -c "import yaml" 2>/dev/null; then
     echo "Installing PyYAML..."
-    pip3 install pyyaml
+    pip3 install pyyaml==6.0.2 --require-hashes --no-deps \
+        --hash=sha256:d584d9ec91ad65861cc08d42e834324ef890a082e591037abe114850ff7bbc3e
 fi
 
 # Run the generator
