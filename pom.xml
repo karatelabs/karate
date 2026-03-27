@@ -39,7 +39,7 @@
         <netty.version>4.2.9.Final</netty.version>
         <junit.version>6.0.2</junit.version>
         <slf4j.version>2.0.17</slf4j.version>
-        <logback.version>1.5.27</logback.version>
+        <logback.version>1.5.32</logback.version>
         <testcontainers.version>1.21.4</testcontainers.version>
         <maven.javadoc.version>3.12.0</maven.javadoc.version>
         <central.publishing.maven.plugin.version>0.10.0</central.publishing.maven.plugin.version>
