@@ -130,7 +130,7 @@ Karate v2 includes **backward compatibility shims** that allow most v1 code to w
 <dependency>
     <groupId>io.karatelabs</groupId>
     <artifactId>karate-junit6</artifactId>
-    <version>2.0.0.RC1</version>
+    <version>2.0.0</version>
     <scope>test</scope>
 </dependency>
 <dependency>
@@ -219,7 +219,7 @@ Most feature files work unchanged. The only known difference:
 
 ## Browser Automation (UI Tests)
 
-V2 uses a new CDP-based driver implementation with simplified configuration.
+V2 uses a rewritten driver with CDP (Chrome DevTools Protocol) as the primary backend and full W3C WebDriver support for cross-browser testing.
 
 ### Driver Configuration
 
@@ -233,7 +233,18 @@ function fn() {
 
 **Key differences from v1:**
 - `showDriverLog` has no effect (TODO)
-- Only `chrome` type is supported via CDP (chromedriver, geckodriver, safaridriver not yet available)
+- W3C WebDriver types are fully supported: `chromedriver`, `geckodriver`, `safaridriver`, `msedgedriver`
+- `submit()` has been ported from v1 and works on all backends
+
+### Driver Types
+
+| Type | Backend | Description |
+|------|---------|-------------|
+| `chrome` | CDP | Chrome/Chromium/Edge via DevTools Protocol (recommended for development) |
+| `chromedriver` | W3C | Chrome via chromedriver |
+| `geckodriver` | W3C | Firefox via geckodriver |
+| `safaridriver` | W3C | Safari (macOS only) |
+| `msedgedriver` | W3C | Microsoft Edge |
 
 ### Gherkin Syntax (unchanged)
 
@@ -247,27 +258,144 @@ All v1 driver keywords work the same way:
 * match driver.title == 'Welcome'
 ```
 
-### Driver Inheritance in Called Features
+### ⚠️ Common Migration Issue: Driver Not Available After `call`
 
-V2 preserves v1 behavior for driver inheritance:
-- Config is inherited by called features
-- Driver instance is shared with called features (when caller has driver)
-- Driver is not closed until the top-level scenario exits
+**This is the #1 issue when migrating v1 UI tests to v2.**
 
-### Shared vs Isolated Scope (Unchanged from V1)
+In v1, if a called feature initialized a driver, it automatically propagated back to the caller. In v2, browser instances are **pooled** by default — the driver is released back to the pool when the called feature ends.
 
-Call scope determines what propagates back to the caller:
+**Symptom:** After `call read('some-feature')` returns, driver-specific functions like `click()`, `delay()`, `submit()`, etc. throw errors like `delay is not defined` or `driver is not defined`.
 
-| Call Style | Scope | Variables | Config | Cookies |
-|------------|-------|-----------|--------|---------|
-| `call read('f.feature')` | Shared | ✅ Propagate | ✅ Propagate | ✅ Propagate |
-| `def result = call read('f.feature')` | Isolated | ❌ In `result` | ❌ | ❌ |
+**Example of what breaks:**
 
-This is unchanged from V1.
+```gherkin
+# main.feature — THIS BREAKS IN V2
+Scenario: Full regression
+  * call read('classpath:pages/login.feature')    # ← login.feature starts the driver
+  * delay(5000)                                    # ← FAILS: "delay is not defined"
+  * call read('classpath:pages/dashboard.feature') # ← also fails: no driver
+```
+
+The driver was created inside `login.feature`, but released back to the pool when it returned. The caller never had a driver, so `delay()` (which is a driver-bound function) is not available.
+
+**Fix: Add `scope: 'caller'` to the feature that initializes the driver:**
+
+```gherkin
+# login.feature — add scope: 'caller' so driver propagates back
+@ignore
+Feature: Login
+
+Background:
+  * configure driver = { type: 'chrome', scope: 'caller' }
+
+Scenario: Login
+  * driver serverUrl + '/login'
+  * input('#username', 'admin')
+  * input('#password', 'secret')
+  * click('#submit')
+  * waitFor('#dashboard')
+```
+
+```gherkin
+# main.feature — now works because driver propagated from login.feature
+Scenario: Full regression
+  * call read('classpath:pages/login.feature')
+  * delay(5000)                                    # ✅ works — driver is available
+  * call read('classpath:pages/dashboard.feature') # ✅ works — driver is shared
+```
+
+Alternatively, you can set `scope: 'caller'` in `karate-config.js` to apply it globally:
+
+```javascript
+function fn() {
+  karate.configure('driver', { type: 'chrome', scope: 'caller' });
+  return { serverUrl: 'http://localhost:8080' };
+}
+```
+
+### When Do You Need `scope: 'caller'`?
+
+| Pattern | Needs `scope: 'caller'`? |
+|---------|--------------------------|
+| Caller starts driver, calls feature that uses it | No — driver is inherited automatically |
+| Called feature starts driver, caller uses it after | **Yes** — without this, driver is released |
+| Each scenario starts its own driver (parallel tests) | No — use the default pooling |
+| Single long flow calling many features in sequence | **Yes** — first feature that starts driver needs it |
+
+### Recommended Patterns for UI Test Reuse in V2
+
+**Pattern 1: Driver in config, reusable page features (recommended for new projects)**
+
+Start the driver in the top-level scenario and call features that operate on it:
+
+```gherkin
+# main.feature
+Background:
+  * configure driver = { type: 'chrome' }
+
+Scenario: Full flow
+  * driver serverUrl + '/login'
+  * call read('classpath:pages/login-steps.feature')
+  * call read('classpath:pages/dashboard-steps.feature')
+```
+
+```gherkin
+# login-steps.feature — no driver init, just actions
+@ignore
+Feature: Login steps
+
+Scenario:
+  * input('#username', 'admin')
+  * click('#submit')
+  * waitFor('#dashboard')
+```
+
+This is the cleanest pattern — the caller owns the driver, called features just use it.
+
+**Pattern 2: V1-style delegation with `scope: 'caller'` (migration path)**
+
+If you have existing v1 tests where called features initialize the driver, add `scope: 'caller'` to the feature that first calls `driver 'url'`. See the fix example above.
+
+**Pattern 3: Reusable JavaScript functions**
+
+For common actions, use JS functions instead of feature files:
+
+```javascript
+// karate-config.js
+function fn() {
+  var config = {
+    login: function(user, pass) {
+      karate.driver(serverUrl + '/login');
+      karate.input('#username', user);
+      karate.input('#password', pass);
+      karate.click('#submit');
+      karate.waitFor('#dashboard');
+    }
+  };
+  return config;
+}
+```
+
+```gherkin
+Scenario: Test
+  * configure driver = { type: 'chrome' }
+  * login('admin', 'secret')
+  * match driver.title == 'Dashboard'
+```
+
+### Driver-Bound Functions
+
+These functions are only available **after** `driver 'url'` has been called (i.e., a browser session is active):
+
+`click()`, `input()`, `clear()`, `focus()`, `scroll()`, `select()`, `submit()`, `text()`, `html()`, `value()`, `attribute()`, `exists()`, `enabled()`, `position()`, `locate()`, `locateAll()`, `waitFor()`, `waitForText()`, `waitForUrl()`, `waitUntil()`, `screenshot()`, `highlight()`, `delay()`, `script()`, `scriptAll()`, `mouse()`, `keys()`, `switchFrame()`, `switchPage()`, `refresh()`, `back()`, `forward()`
+
+If you see `<function> is not defined`, check that the driver was initialized before that line.
+
+**For a delay without a driver**, use `karate.pause(millis)` instead of `delay(millis)`.
 
 ### Browser Pooling (Default Behavior)
 
-V2 automatically pools browser instances using `PooledDriverProvider`. This is the default - no configuration needed:
+V2 automatically pools browser instances using `PooledDriverProvider`. This is the default — no configuration needed:
 
 ```java
 Runner.path("features/")
@@ -279,43 +407,14 @@ Benefits:
 - Pool size auto-scales to match parallelism
 - Clean state reset between scenarios
 
-### V1-Style Driver Propagation with `scope: 'caller'`
-
-In V1, if a called feature (shared scope) initialized a driver, it would propagate back to the caller. In V2 with pooling, this doesn't happen by default - the driver is released back to the pool when the called scenario ends.
-
-To restore V1 behavior for specific features, use `scope: 'caller'` in the driver config. This only affects driver propagation - other variables/config still follow the shared vs isolated scope rules above.
-
-```gherkin
-# init-driver.feature - called feature that inits driver
-@ignore
-Feature: Initialize driver with caller scope
-
-Background:
-* def driverWithScope = karate.merge(driverConfig, { scope: 'caller' })
-* configure driver = driverWithScope
-
-Scenario: Init driver
-* driver serverUrl + '/page.html'  # driver propagates to caller
-```
-
-```gherkin
-# main.feature - caller receives the driver
-Scenario:
-* call read('init-driver.feature')
-* match driver.title == 'Page'  # works - driver propagated from callee
-```
-
-**When to use `scope: 'caller'`:**
-- Migrating V1 tests where called features initialize the driver
-- Reusable "driver setup" features that callers depend on
-
 See [DRIVER.md](./DRIVER.md) for detailed DriverProvider documentation.
 
 ### Migration Checklist for Driver Tests
 
+- [ ] Add `scope: 'caller'` to features that initialize the driver and are called by other features
+- [ ] Replace `delay(millis)` with `karate.pause(millis)` if used before the driver starts
 - [ ] `showDriverLog` has no effect (TODO)
-- [ ] Comment out non-Chrome driver types in scenario outlines
-- [ ] Consider migrating to `DriverProvider` for parallel execution
+- [ ] W3C WebDriver types (`chromedriver`, `geckodriver`, `safaridriver`) are now fully supported
 
 ---
 
