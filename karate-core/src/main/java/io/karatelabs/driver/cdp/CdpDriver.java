@@ -676,7 +676,12 @@ public class CdpDriver implements Driver {
             logger.trace("readyState check returned: {}", readyState); // keep trace, this is success path
             return "complete".equals(readyState) || "interactive".equals(readyState);
         } catch (Exception e) {
-            logger.warn("readyState check exception: {}", e.getMessage());
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("websocket not open")) {
+                logger.trace("readyState check skipped: websocket not open");
+            } else {
+                logger.warn("readyState check exception: {}", msg);
+            }
             return false;
         }
     }
@@ -841,13 +846,21 @@ public class CdpDriver implements Driver {
      * - This is more robust than Puppeteer's message-matching approach and handles edge cases
      *   like container/remote Chrome environments that may have different error messages
      */
-    private boolean isTransientContextError(CdpResponse response) {
+    static boolean isTransientContextError(CdpResponse response) {
         if (!response.isError()) {
             return false;
         }
-        // All -32000 errors are execution context related and potentially transient
+        // CDP error code -32000 is a generic "server error" used for execution context issues
+        // BUT also for non-transient errors like serialization failures
         Integer errorCode = response.getErrorCode();
         if (errorCode != null && errorCode == -32000) {
+            String message = response.getErrorMessage();
+            // "Object reference chain is too long" means returnByValue can't serialize
+            // the result (e.g. window.open() returns a Window object) - not transient
+            if (message != null && message.contains("Object reference chain is too long")) {
+                logger.trace("non-transient -32000 error, will not retry: {}", message);
+                return false;
+            }
             logger.trace("transient context error detected: {}", response.getErrorMessage());
             return true;
         }
@@ -875,6 +888,11 @@ public class CdpDriver implements Driver {
 
     private Object extractJsValue(CdpResponse response, String expression) {
         if (response.isError()) {
+            String message = response.getErrorMessage();
+            if (message != null && message.contains("Object reference chain is too long")) {
+                logger.debug("script result not serializable, returning null: {}", truncate(expression, 100));
+                return null;
+            }
             logger.warn("JS error for expression: {}", truncate(expression, 100));
             throw new RuntimeException("JS error: " + response.getError());
         }

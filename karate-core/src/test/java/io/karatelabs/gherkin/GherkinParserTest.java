@@ -714,6 +714,27 @@ class GherkinParserTest {
     // ========== Empty File Handling Tests ==========
 
     @Test
+    void testConfigureDriverSteps() {
+        feature("""
+                Feature:
+
+                  Scenario:
+                    * configure driver = { type: 'chrome' }
+                    * driver 'https://github.com/login'
+                    * karate.pause(10000)
+                """);
+        assertNotNull(scenario, "Scenario should be parsed");
+        assertEquals(3, scenario.getSteps().size(), "Should have 3 steps");
+        Step step1 = scenario.getSteps().get(0);
+        assertEquals("configure", step1.getKeyword());
+        Step step2 = scenario.getSteps().get(1);
+        assertEquals("driver", step2.getKeyword());
+        Step step3 = scenario.getSteps().get(2);
+        // karate.pause() is a JS expression, no keyword
+        logger.info("step3 keyword: {}, text: {}", step3.getKeyword(), step3.getText());
+    }
+
+    @Test
     void testEmptyFile() {
         // Empty file should return an empty feature, not throw an exception
         feature("");
