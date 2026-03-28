@@ -262,7 +262,7 @@ Items remaining before or shortly after v2.0.0 release:
 
 ### Near-Term Enhancements
 
-- [ ] Wire `configure afterScenario` hook in regular scenario execution (currently only works for mocks) ([#2540](https://github.com/karatelabs/karate/issues/2540))
+- [ ] Wire `configure afterScenario` hook in regular scenario execution (currently only works for mocks); also support strict mode where hook failures fail the scenario ([#2540](https://github.com/karatelabs/karate/issues/2540), [#2699](https://github.com/karatelabs/karate/issues/2699))
 - [ ] Expose caller's `karate.scenario` in mock feature files so mocks can vary behavior by calling scenario ([#2618](https://github.com/karatelabs/karate/issues/2618))
 - [ ] HTTP/2 support
 - [ ] Response time validation
