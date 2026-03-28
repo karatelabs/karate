@@ -262,6 +262,7 @@ Items remaining before or shortly after v2.0.0 release:
 
 ### Near-Term Enhancements
 
+- [ ] Wire `configure afterScenario` hook in regular scenario execution (currently only works for mocks) ([#2540](https://github.com/karatelabs/karate/issues/2540))
 - [ ] HTTP/2 support
 - [ ] Response time validation
 - [ ] HTML report cosmetic improvements
