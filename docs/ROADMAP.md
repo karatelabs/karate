@@ -274,6 +274,7 @@ Items remaining before or shortly after v2.0.0 release:
 - [ ] Playwright emulation (Firefox/WebKit via Playwright CDP)
 - [ ] Mock CLI options (`-m`, `-s`, `-W`, etc.)
 - [ ] HTMX integration for mocks
+- [ ] `configure beforeScenario` hook for mocks ([#2239](https://github.com/karatelabs/karate/issues/2239))
 
 ### JavaScript Engine (karate-js)
 
