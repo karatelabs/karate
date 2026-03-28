@@ -16,7 +16,7 @@
     <description>Karate integration with Gatling for performance testing</description>
 
     <properties>
-        <gatling.version>3.14.9</gatling.version>
+        <gatling.version>3.15.0</gatling.version>
         <scala.version>3.7.4</scala.version>
     </properties>
 
@@ -28,7 +28,7 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Gatling 3.12.x -->
+        <!-- Gatling -->
         <dependency>
             <groupId>io.gatling</groupId>
             <artifactId>gatling-core-java</artifactId>
@@ -82,7 +82,7 @@
             <plugin>
                 <groupId>io.gatling</groupId>
                 <artifactId>gatling-maven-plugin</artifactId>
-                <version>4.21.0</version>
+                <version>4.21.5</version>
                 <configuration>
                     <skip>${skipTests}</skip>
                 </configuration>
@@ -112,7 +112,7 @@
                     <plugin>
                         <groupId>io.gatling</groupId>
                         <artifactId>gatling-maven-plugin</artifactId>
-                        <version>4.21.0</version>
+                        <version>4.21.5</version>
                         <executions>
                             <execution>
                                 <id>gatling-cicd</id>
