@@ -488,4 +488,37 @@ class StepMatchTest {
         assertFailedWith(sr, "not equal");
     }
 
+    // ========== Non-JSON field access (#2406) ==========
+
+    @Test
+    void testNonJsonResponseFieldMatchShouldFail() {
+        // Accessing fields on a non-JSON (string) value should fail, not silently pass
+        // https://github.com/karatelabs/karate/issues/2406
+        ScenarioRuntime sr = run("""
+            * def response = ''
+            * match response.id == '#null'
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testNonJsonResponseFuzzyMatchShouldFail() {
+        // #present on a field of a non-JSON value should fail
+        ScenarioRuntime sr = run("""
+            * def response = ''
+            * match response.time == '#present'
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testJsonObjectFieldMatchWorksCorrectly() {
+        // JSON object field access should work normally (control case)
+        ScenarioRuntime sr = run("""
+            * def response = { id: 42 }
+            * match response.id == 42
+            """);
+        assertPassed(sr);
+    }
+
 }
