@@ -134,6 +134,23 @@ Runner.path("features/users.feature:10:25").parallel(1);
 
 **Precedence:** Line number selection **bypasses all tag filters** (`@ignore`, `@env`, tag expressions). This allows running specific scenarios regardless of tags, which is essential for IDE integrations and debugging.
 
+### Mutual Exclusion (`@lock`)
+
+The `@lock` tag provides concurrency control for scenarios that cannot safely run in parallel (e.g., shared database state, limited resources).
+
+- **`@lock=name`** — Named mutual exclusion. Scenarios with the same lock name run sequentially, while scenarios with different lock names (or no lock) run in parallel as normal.
+- **`@lock=*`** — Exclusive execution. The scenario runs with no other scenarios executing concurrently.
+
+```gherkin
+@lock=database
+Scenario: Reset test data
+  # No other @lock=database scenario runs at the same time
+
+@lock=*
+Scenario: Global cleanup
+  # Runs exclusively - no other scenarios run concurrently
+```
+
 ### Caching: callOnce vs callSingle
 
 | Method | Scope | Use Case |
@@ -562,7 +579,6 @@ karate-config-dev.js (env-specific)
 
 | Feature | Description |
 |---------|-------------|
-| `@lock=<name>` | Mutual exclusion - scenarios with same lock run sequentially. `@lock=*` runs exclusively. |
 | `@retry` | Re-run failed scenarios. CLI: `karate --rerun target/karate-reports/rerun.txt` |
 | Multiple Suite Execution | `Runner.suites().add(...).parallel(n).run()` for grouped execution |
 | Telemetry | Anonymous usage ping. Opt-out: `KARATE_TELEMETRY=false` |
