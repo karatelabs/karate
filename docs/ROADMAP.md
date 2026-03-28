@@ -269,6 +269,7 @@ Items remaining before or shortly after v2.0.0 release:
 - [ ] `--listener` / `--listener-factory` CLI flags
 - [ ] PROGRESS events for real-time progress display
 - [ ] `FeatureResult.fromJson()` for offline report generation from JSONL
+- [ ] `SuiteResult.merge()` API to consolidate multiple runner results into a single report ([#2337](https://github.com/karatelabs/karate/issues/2337))
 - [ ] `Runner.Builder` exposure via `protocol.runner()` for Gatling
 - [ ] `@report=false` tag (exclude scenario from reports but still execute)
 - [ ] Playwright emulation (Firefox/WebKit via Playwright CDP)
