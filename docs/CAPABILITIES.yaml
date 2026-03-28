@@ -100,8 +100,9 @@ categories:
             v1: false
             v2: implemented
           - name: User-defined assertion failure messages
+            description: Gherkin comment before a match step is used as a friendly label in the failure message
             v1: false
-            v2: future
+            v2: implemented
           - name: Similarity assertions (for AI)
             v1: false
             v2: future
