@@ -144,6 +144,7 @@
                         <configuration>
                             <dataDirectory>${user.home}/.dependency-check/data</dataDirectory>
                             <skipProvidedScope>true</skipProvidedScope>
+                            <skipTestScope>true</skipTestScope>
                             <nvdApiDelay>3000</nvdApiDelay>
                             <ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
                             <formats>
