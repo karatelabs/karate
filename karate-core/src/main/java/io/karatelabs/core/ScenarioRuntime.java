@@ -78,6 +78,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     private Driver driver;
     private String driverScope = "scenario"; // "scenario" (default) or "caller"
 
+    // Channels (kafka, grpc, etc.) registered during this scenario
+    private List<Channel> channels;
+
     // Performance testing - tracks the previous HTTP request's perf event
     // Events are held until the next HTTP request or scenario end, so that
     // assertion failures can be attributed to the preceding HTTP request
@@ -850,6 +853,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // This must happen before the scenario ends so Gatling receives all HTTP metrics
             logLastPerfEvent(result.getFailureMessageForDisplay());
 
+            // Close channels (kafka, grpc, etc.)
+            closeChannels();
+
             // Close driver if it was initialized
             closeDriver();
 
@@ -1247,6 +1253,31 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         DriverApi.bindJsHelpers(karate.engine, driver);
 
         return driver;
+    }
+
+    /**
+     * Register a channel for lifecycle management. Called by karate.channel().
+     * The channel's afterScenario() will be called when the scenario ends.
+     */
+    public void registerChannel(Channel channel) {
+        if (channels == null) {
+            channels = new ArrayList<>();
+        }
+        channels.add(channel);
+    }
+
+    private void closeChannels() {
+        if (channels == null) {
+            return;
+        }
+        for (Channel channel : channels) {
+            try {
+                channel.afterScenario();
+            } catch (Exception e) {
+                logger.warn("error closing channel: {}", e.getMessage());
+            }
+        }
+        channels = null;
     }
 
     /**

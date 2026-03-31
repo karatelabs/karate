@@ -1088,6 +1088,39 @@ public class KarateJs extends KarateJsBase implements PerfContext {
         };
     }
 
+    // ========== Channel Support ==========
+
+    private JavaInvokable channel() {
+        return args -> {
+            if (args.length == 0) {
+                throw new RuntimeException("channel() needs a type argument, e.g. karate.channel('kafka')");
+            }
+            String type = args[0].toString();
+            String factoryClass = KarateConfig.getChannelFactoryClass(type);
+            if (factoryClass == null) {
+                throw new RuntimeException("unknown channel type: " + type);
+            }
+            ScenarioRuntime rt = getRuntime();
+            if (rt == null) {
+                throw new RuntimeException("channel() can only be called within a scenario");
+            }
+            try {
+                Class<?> clazz = Class.forName(factoryClass);
+                ChannelFactory factory = (ChannelFactory) clazz.getDeclaredConstructor().newInstance();
+                Map<String, Object> options = rt.getConfig().getChannelOptions(type);
+                Channel channel = factory.create(rt, options);
+                rt.registerChannel(channel);
+                return channel.init(rt);
+            } catch (RuntimeException re) {
+                throw re;
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException("cannot find [" + type + "], is 'karate-" + type + "' included as a maven / gradle dependency?");
+            } catch (Exception e) {
+                throw new RuntimeException(e.getMessage(), e);
+            }
+        };
+    }
+
     @Override
     public Object jsGet(String key) {
         return switch (key) {
@@ -1130,6 +1163,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             case "abort" -> abort();
             case "call" -> call();
             case "callonce" -> callonce();
+            case "channel" -> channel();
             case "callSingle" -> callSingle();
             case "config" -> getConfig();
             case "configure" -> configure();

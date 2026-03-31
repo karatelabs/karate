@@ -132,6 +132,20 @@ public class KarateConfig implements SimpleObject {
     // Driver configuration (Map or DriverOptions)
     private Object driverConfig;
 
+    // Channel options (e.g. kafka, grpc) set via 'configure kafka = { ... }'
+    private final Map<String, Map<String, Object>> channelOptions = new HashMap<>();
+
+    // Known channel types and their factory class names
+    static final String KAFKA = "kafka";
+    static final String GRPC = "grpc";
+    static final String WEBSOCKET = "websocket";
+
+    private static final Map<String, String> CHANNEL_FACTORIES = Map.of(
+            KAFKA, "io.karatelabs.kafka.KafkaChannelFactory",
+            GRPC, "io.karatelabs.grpc.GrpcChannelFactory",
+            WEBSOCKET, "io.karatelabs.websocket.WebsocketChannelFactory"
+    );
+
     /**
      * Create a deep copy of this configuration.
      * Used to snapshot config state for callonce/callSingle isolation.
@@ -187,6 +201,9 @@ public class KarateConfig implements SimpleObject {
         this.afterFeature = other.afterFeature;
         // Driver
         this.driverConfig = other.driverConfig;
+        // Channel options
+        this.channelOptions.clear();
+        other.channelOptions.forEach((k, v) -> this.channelOptions.put(k, new HashMap<>(v)));
     }
 
     /**
@@ -321,6 +338,21 @@ public class KarateConfig implements SimpleObject {
             // Driver configuration
             case "driver" -> {
                 this.driverConfig = value;
+                yield false;
+            }
+
+            // Channel options (kafka, grpc, websocket)
+            case KAFKA, GRPC, WEBSOCKET -> {
+                if (value instanceof Map<?, ?> map) {
+                    // Convert to plain HashMap to avoid JS engine wrapper types
+                    Map<String, Object> plain = new HashMap<>();
+                    map.forEach((k, v) -> plain.put(String.valueOf(k), v));
+                    channelOptions.put(key, plain);
+                } else if (value == null) {
+                    channelOptions.remove(key);
+                } else {
+                    throw new RuntimeException("configure '" + key + "' expects a map, got: " + value.getClass().getName());
+                }
                 yield false;
             }
 
@@ -844,6 +876,20 @@ public class KarateConfig implements SimpleObject {
 
     public Object getDriverConfig() {
         return driverConfig;
+    }
+
+    // ===== Channel Getters =====
+
+    public Map<String, Object> getChannelOptions(String type) {
+        return channelOptions.get(type);
+    }
+
+    public static String getChannelFactoryClass(String type) {
+        return CHANNEL_FACTORIES.get(type);
+    }
+
+    public static boolean isChannelType(String type) {
+        return CHANNEL_FACTORIES.containsKey(type);
     }
 
 }

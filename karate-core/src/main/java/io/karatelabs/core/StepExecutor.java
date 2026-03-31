@@ -2759,6 +2759,9 @@ public class StepExecutor {
         }
         String key = text.substring(0, eqIndex).trim();
         String expr = text.substring(eqIndex + 1).trim();
+        if (expr.isEmpty() && step.getDocString() != null) {
+            expr = step.getDocString();
+        }
         Object value = evalKarateExpression(expr);
         runtime.configure(key, value);
     }
