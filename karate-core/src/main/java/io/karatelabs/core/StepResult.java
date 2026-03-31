@@ -25,6 +25,8 @@ package io.karatelabs.core;
 
 import io.karatelabs.gherkin.Step;
 
+import io.karatelabs.output.Console;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -197,7 +199,7 @@ public class StepResult {
 
         // Top-level optional fields
         if (log != null && !log.isEmpty()) {
-            map.put("stepLog", log);
+            map.put("stepLog", Console.stripAnsi(log));
         }
         if (embeds != null && !embeds.isEmpty()) {
             List<Map<String, Object>> embedList = new ArrayList<>();

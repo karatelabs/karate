@@ -46,7 +46,7 @@ public final class Console {
     /**
      * Strip ANSI escape codes from text for logging.
      */
-    static String stripAnsi(String text) {
+    public static String stripAnsi(String text) {
         return ANSI_PATTERN.matcher(text).replaceAll("");
     }
 
