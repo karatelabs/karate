@@ -38,6 +38,7 @@ public class DriverApi {
     public static final String WAIT_FOR_ENABLED = "waitForEnabled";
     public static final String WAIT_FOR_URL = "waitForUrl";
     public static final String WAIT_UNTIL = "waitUntil";
+    public static final String WAIT_FOR_RESULT_COUNT = "waitForResultCount";
 
     // Frame/Page
     public static final String SWITCH_FRAME = "switchFrame";
@@ -80,7 +81,7 @@ public class DriverApi {
             CLICK, INPUT, CLEAR, FOCUS, SCROLL, HIGHLIGHT, SELECT, SUBMIT,
             TEXT, HTML, VALUE, ATTRIBUTE, EXISTS, ENABLED, POSITION,
             LOCATE, LOCATE_ALL, OPTIONAL,
-            WAIT_FOR, WAIT_FOR_TEXT, WAIT_FOR_ENABLED, WAIT_FOR_URL, WAIT_UNTIL,
+            WAIT_FOR, WAIT_FOR_TEXT, WAIT_FOR_ENABLED, WAIT_FOR_URL, WAIT_UNTIL, WAIT_FOR_RESULT_COUNT,
             SWITCH_FRAME, SWITCH_PAGE, GET_PAGES,
             SCRIPT, SCRIPT_ALL,
             REFRESH, BACK, FORWARD,

@@ -233,6 +233,10 @@ Feature: Element Tests
     * def result = waitUntil('window.testFlag === true')
     * match result == true
 
+  Scenario: Wait for result count
+    * def elements = waitForResultCount('.form-group', 8)
+    * match elements.length == 8
+
   # ========== Scroll and Highlight ==========
 
   Scenario: Scroll to element

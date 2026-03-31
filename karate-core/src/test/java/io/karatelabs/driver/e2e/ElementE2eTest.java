@@ -339,6 +339,13 @@ class ElementE2eTest extends DriverTestBase {
         assertTrue(result);
     }
 
+    @Test
+    @Order(95)
+    void testWaitForResultCount() {
+        List<Element> elements = driver.waitForResultCount(".form-group", 8);
+        assertEquals(8, elements.size());
+    }
+
     // ========== Scroll and Highlight ==========
 
     @Test

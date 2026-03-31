@@ -134,6 +134,9 @@ public interface Driver extends CoreDriver, SimpleObject {
                 }
             };
 
+            case DriverApi.WAIT_FOR_RESULT_COUNT -> (JavaCallable) (ctx, args) ->
+                    waitForResultCount(String.valueOf(args[0]), ((Number) args[1]).intValue());
+
             // Frame/Page switching
             case DriverApi.SWITCH_FRAME -> (JavaCallable) (ctx, args) -> {
                 Object arg = args.length > 0 ? args[0] : null;
