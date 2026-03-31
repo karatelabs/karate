@@ -23,6 +23,7 @@
  */
 package io.karatelabs.output;
 
+import io.karatelabs.common.Json;
 import io.karatelabs.core.Globals;
 import io.karatelabs.core.Runner;
 import io.karatelabs.core.Suite;
@@ -446,6 +447,83 @@ class HtmlReportWriterTest {
             "Should contain evaluated name for first example (5 * 2 = 10)");
         assertTrue(jsonl.contains("testing bar = 20"),
             "Should contain evaluated name for second example (10 * 2 = 20)");
+    }
+
+    @Test
+    void testOutlineDollarBracePlaceholderInScenarioName(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("dollar-brace-outline.feature");
+        Files.writeString(feature, """
+            Feature: Dollar Brace Placeholder
+
+            Scenario Outline: using title: ${title}
+            * def result = title
+            * match result == title
+
+            Examples:
+            | title |
+            | One   |
+            | Two   |
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed(), "All scenarios should pass");
+        assertEquals(2, result.getScenarioPassedCount());
+
+        String jsonl = Files.readString(reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl"));
+        assertTrue(jsonl.contains("using title: One"),
+            "Should contain substituted scenario name for first example");
+        assertTrue(jsonl.contains("using title: Two"),
+            "Should contain substituted scenario name for second example");
+        assertFalse(jsonl.contains("${title}"),
+            "Should not contain unresolved placeholder");
+    }
+
+    @Test
+    void testScenarioExitHasPositiveDuration(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("duration-test.feature");
+        Files.writeString(feature, """
+            Feature: Duration Test
+
+            Scenario: check duration
+            * def a = 1
+            * match a == 1
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+
+        String jsonl = Files.readString(reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl"));
+        for (String line : jsonl.split("\n")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> envelope = (Map<String, Object>) Json.of(line).value();
+            String type = (String) envelope.get("type");
+            if ("SCENARIO_EXIT".equals(type) || "FEATURE_EXIT".equals(type)) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> data = (Map<String, Object>) envelope.get("data");
+                if (data.containsKey("durationMillis")) {
+                    long duration = ((Number) data.get("durationMillis")).longValue();
+                    assertTrue(duration >= 0,
+                        type + " durationMillis should be non-negative, was: " + duration);
+                }
+            }
+        }
     }
 
     @Test

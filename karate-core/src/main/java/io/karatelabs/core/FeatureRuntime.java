@@ -154,12 +154,14 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                 invokeAfterFeatureHook(lastExecuted);
             }
 
+            // Set end time BEFORE firing FEATURE_EXIT so the event contains correct duration
+            result.setEndTime(System.currentTimeMillis());
+
             // Fire FEATURE_EXIT event
             if (suite != null) {
                 suite.fireEvent(FeatureRunEvent.exit(this, result));
             }
         } finally {
-            result.setEndTime(System.currentTimeMillis());
 
             // Notify listeners of feature end (only for top-level features, not nested calls)
             if (suite != null && caller == null) {
@@ -496,11 +498,12 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                             );
                             scenario.setExampleData(exampleData);
 
-                            // Substitute placeholders in steps
+                            // Substitute placeholders in steps and name
                             for (String key : exampleData.keySet()) {
                                 Object value = exampleData.get(key);
-                                // Empty cells become null but should be replaced with empty string
-                                scenario.replace("<" + key + ">", value != null ? value.toString() : "");
+                                String resolved = value != null ? value.toString() : "";
+                                scenario.replace("<" + key + ">", resolved);
+                                scenario.replace("${" + key + "}", resolved);
                             }
 
                             // Check if scenario should be selected
@@ -552,11 +555,12 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                     Scenario scenario = dynamicTemplateScenario.copy(rowIndex);
                     scenario.setExampleData(exampleData);
 
-                    // Substitute placeholders in steps
+                    // Substitute placeholders in steps and name
                     for (String key : exampleData.keySet()) {
                         Object value = exampleData.get(key);
-                        // Empty cells become null but should be replaced with empty string
-                        scenario.replace("<" + key + ">", value != null ? value.toString() : "");
+                        String resolved = value != null ? value.toString() : "";
+                        scenario.replace("<" + key + ">", resolved);
+                        scenario.replace("${" + key + "}", resolved);
                     }
 
                     if (shouldSelect(scenario)) {

@@ -838,6 +838,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // Must happen BEFORE SCENARIO_EXIT so the event contains the evaluated name
             evaluateScenarioName();
 
+            // Set end time BEFORE firing SCENARIO_EXIT so the event contains correct duration
+            result.setEndTime(System.currentTimeMillis());
+
             // Fire SCENARIO_EXIT event
             if (suite != null) {
                 suite.fireEvent(ScenarioRunEvent.exit(this, result));
@@ -863,7 +866,10 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             if (scenario.isFail()) {
                 result.applyFailTag();
             }
-            result.setEndTime(System.currentTimeMillis());
+            // endTime is set before SCENARIO_EXIT event above; set here only if not yet set (exception path)
+            if (result.getEndTime() == 0) {
+                result.setEndTime(System.currentTimeMillis());
+            }
             LogContext.clear();
         }
 
