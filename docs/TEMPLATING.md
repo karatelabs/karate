@@ -176,6 +176,32 @@ Conditionally includes or excludes elements.
 <div th:unless="request.ajax">This is a full page request</div>
 ```
 
+**Truthiness rules:** `th:if` uses Thymeleaf's truthiness (not JavaScript's). The key difference is **empty strings**:
+
+| Value | Thymeleaf `th:if` | JavaScript `if` |
+|-------|-------------------|-----------------|
+| `""` (empty string) | **truthy** | falsy |
+| `"false"`, `"off"`, `"no"` | falsy | truthy |
+| `null` / `undefined` | falsy | falsy |
+| `0` | falsy | falsy |
+| `false` | falsy | falsy |
+
+To check for non-empty strings, use explicit length checks:
+
+```html
+<!-- WRONG: th:if treats "" as truthy -->
+<div th:if="model">Has model</div>
+
+<!-- CORRECT: explicit length check -->
+<div th:if="model.length > 0">Has model</div>
+
+<!-- CORRECT: compute boolean in ka:scope -->
+<script ka:scope="global">
+  _.hasModel = model.length > 0;
+</script>
+<div th:if="hasModel">Has model</div>
+```
+
 #### `th:each` - Iteration
 
 Iterates over arrays/lists.

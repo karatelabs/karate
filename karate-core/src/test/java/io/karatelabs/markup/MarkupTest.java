@@ -446,4 +446,119 @@ class MarkupTest {
         assertEquals("<div>footer-content</div>", rendered.trim());
     }
 
+    // ========== Truthiness Tests ==========
+    // Thymeleaf's EvaluationUtils.evaluateAsBoolean() handles th:if truthiness.
+    // IMPORTANT: Thymeleaf truthiness differs from JavaScript:
+    //   - Empty string "" is TRUTHY in Thymeleaf (only "false", "off", "no" are falsy)
+    //   - Empty string "" is FALSY in JavaScript
+    //   - null/undefined is falsy in both
+    //   - 0 is falsy in both
+    //   - false is falsy in both
+    // Use explicit checks like th:if="value.length > 0" for empty string detection.
+
+    @Test
+    void testThIfEmptyStringIsTruthy() {
+        // Thymeleaf treats "" as truthy (only "false", "off", "no" are falsy strings)
+        // This differs from JavaScript where "" is falsy
+        Engine js = new Engine();
+        js.put("value", "");
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+
+        String html = "<div th:if=\"value\">shown</div><div th:unless=\"value\">hidden</div>";
+        String rendered = markup.processString(html, null);
+
+        // Empty string IS truthy in Thymeleaf
+        assertTrue(rendered.contains("shown"), "Empty string is truthy in Thymeleaf th:if: " + rendered);
+        assertFalse(rendered.contains("hidden"), "Empty string is truthy in Thymeleaf th:unless: " + rendered);
+    }
+
+    @Test
+    void testThIfEmptyStringWorkaroundWithLength() {
+        // Use .length > 0 to check for non-empty strings in th:if
+        Engine js = new Engine();
+        js.put("value", "");
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+
+        String html = "<div th:if=\"value.length > 0\">shown</div><div th:unless=\"value.length > 0\">hidden</div>";
+        String rendered = markup.processString(html, null);
+
+        assertFalse(rendered.contains("shown"), "Empty string length check should be falsy: " + rendered);
+        assertTrue(rendered.contains("hidden"), "Empty string length check should work with th:unless: " + rendered);
+    }
+
+    @Test
+    void testThIfFalseStringIsFalsy() {
+        // Thymeleaf treats "false", "off", "no" as falsy strings
+        Engine js = new Engine();
+        js.put("value", "false");
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+
+        String html = "<div th:if=\"value\">shown</div>";
+        String rendered = markup.processString(html, null);
+
+        assertFalse(rendered.contains("shown"), "String 'false' should be falsy: " + rendered);
+    }
+
+    @Test
+    void testThIfNonEmptyStringIsTruthy() {
+        Engine js = new Engine();
+        js.put("value", "hello");
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+
+        String html = "<div th:if=\"value\">shown</div>";
+        String rendered = markup.processString(html, null);
+
+        assertTrue(rendered.contains("shown"), "Non-empty string should be truthy: " + rendered);
+    }
+
+    @Test
+    void testThIfZeroIsFalsy() {
+        Engine js = new Engine();
+        js.put("count", 0);
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+
+        String html = "<div th:if=\"count\">shown</div><div th:unless=\"count\">hidden</div>";
+        String rendered = markup.processString(html, null);
+
+        assertFalse(rendered.contains("shown"), "Zero should be falsy: " + rendered);
+        assertTrue(rendered.contains("hidden"), "Zero should be truthy for th:unless: " + rendered);
+    }
+
+    @Test
+    void testThIfBooleanFalseIsFalsy() {
+        Engine js = new Engine();
+        js.put("flag", false);
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+
+        String html = "<div th:if=\"flag\">shown</div><div th:unless=\"flag\">hidden</div>";
+        String rendered = markup.processString(html, null);
+
+        assertFalse(rendered.contains("shown"), "Boolean false should be falsy: " + rendered);
+        assertTrue(rendered.contains("hidden"), "Boolean false should be truthy for th:unless: " + rendered);
+    }
+
+    @Test
+    void testThIfEmptyStringFromMapIsTruthy() {
+        // Documents the Thymeleaf behavior: empty string from map property is truthy
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+
+        String html = """
+            <script ka:scope="global">
+                _.env = { model: '', provider: 'openrouter', hasApiKey: true };
+                _.hasModel = _.env.model.length > 0;
+            </script>
+            <div th:if="env.model">model-truthy</div>
+            <div th:if="hasModel">has-model</div>
+            <div th:unless="hasModel">no-model</div>
+            """;
+        String rendered = markup.processString(html, null);
+
+        // env.model (empty string) is truthy in Thymeleaf
+        assertTrue(rendered.contains("model-truthy"), "Empty string from map is truthy in Thymeleaf: " + rendered);
+        // But the JS-computed hasModel (using && and .length) is correctly false
+        assertFalse(rendered.contains("has-model"), "JS length check should be falsy: " + rendered);
+        assertTrue(rendered.contains("no-model"), "JS length check should work: " + rendered);
+    }
+
 }
