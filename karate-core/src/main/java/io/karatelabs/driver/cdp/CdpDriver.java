@@ -1187,9 +1187,28 @@ public class CdpDriver implements Driver {
     }
 
     private void ensureFrameContext(String frameId) {
-        // Check if we already have an execution context for this frame
+        // First, wait for the main world context to arrive via Runtime.executionContextCreated.
+        // IMPORTANT: Do NOT immediately fall back to Page.createIsolatedWorld - isolated worlds
+        // are separate JS contexts where variables set by page scripts (e.g., window.frameValue)
+        // are not visible. This caused flaky "Switch back to main frame" tests where
+        // script('window.frameValue') returned null because it ran in an isolated world
+        // instead of the iframe's main world.
         if (!frameContexts.containsKey(frameId)) {
-            // Create an isolated world for this frame
+            int maxWaitMs = 1000;
+            int pollInterval = 50;
+            long deadline = System.currentTimeMillis() + maxWaitMs;
+            while (System.currentTimeMillis() < deadline) {
+                if (frameContexts.containsKey(frameId)) {
+                    logger.debug("frame context arrived via event: frameId={}", frameId);
+                    break;
+                }
+                sleep(pollInterval);
+            }
+        }
+        // Last resort: create an isolated world if the main world context never arrived.
+        // This is less ideal (page-set variables won't be visible) but allows basic DOM access.
+        if (!frameContexts.containsKey(frameId)) {
+            logger.warn("frame context not received via event, falling back to isolated world: {}", frameId);
             try {
                 CdpResponse response = cdp.method("Page.createIsolatedWorld")
                         .param("frameId", frameId)
