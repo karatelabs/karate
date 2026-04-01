@@ -112,6 +112,49 @@ class InteropTest {
     }
 
     @Test
+    void testStaticVarArgs() {
+        // Issue #2761: static method with String... varargs
+        ScenarioRuntime sr = run("""
+            * def Pojo = Java.type('io.karatelabs.core.interop.SimplePojo')
+            * def result = Pojo.staticVarArgs('a', 'b', 'v1')
+            * match result == 'a,b,v1'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testStaticVarArgsMultiple() {
+        ScenarioRuntime sr = run("""
+            * def Pojo = Java.type('io.karatelabs.core.interop.SimplePojo')
+            * def result = Pojo.staticVarArgs('a', 'b', 'v1', 'v2')
+            * match result == 'a,b,v1,v2'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testStaticVarArgsEmpty() {
+        // zero varargs
+        ScenarioRuntime sr = run("""
+            * def Pojo = Java.type('io.karatelabs.core.interop.SimplePojo')
+            * def result = Pojo.staticVarArgs('a', 'b')
+            * match result == 'a,b'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testInstanceVarArgs() {
+        ScenarioRuntime sr = run("""
+            * def Pojo = Java.type('io.karatelabs.core.interop.SimplePojo')
+            * def pojo = new Pojo()
+            * def result = pojo.instanceVarArgs('x', 'y', 'z')
+            * match result == 'x,y,z'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testCatKittensWithToJava() {
         // Test setting kittens list using karate.toJava()
         ScenarioRuntime sr = run("""

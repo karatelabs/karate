@@ -133,6 +133,32 @@ class ExternalBridgeTest extends EvalBase {
     }
 
     @Test
+    void testRealVarArgsInstance() {
+        // Instance method with Java varargs (String... rest)
+        eval("var DemoPojo = Java.type('io.karatelabs.js.DemoPojo'); var b = new DemoPojo(); var c = b.realVarArgs('a', 'b', 'c')");
+        assertEquals("a,b,c", get("c"));
+        // with single vararg
+        eval("var DemoPojo = Java.type('io.karatelabs.js.DemoPojo'); var b = new DemoPojo(); var c = b.realVarArgs('a', 'b')");
+        assertEquals("a,b", get("c"));
+        // with zero varargs
+        eval("var DemoPojo = Java.type('io.karatelabs.js.DemoPojo'); var b = new DemoPojo(); var c = b.realVarArgs('a')");
+        assertEquals("a", get("c"));
+    }
+
+    @Test
+    void testRealVarArgsStatic() {
+        // Static method with Java varargs - this is the issue #2761 scenario
+        eval("var DemoUtils = Java.type('io.karatelabs.js.DemoUtils'); var c = DemoUtils.withVarArgs('a', 'b', 'v1')");
+        assertEquals("a,b,v1", get("c"));
+        // multiple varargs
+        eval("var DemoUtils = Java.type('io.karatelabs.js.DemoUtils'); var c = DemoUtils.withVarArgs('a', 'b', 'v1', 'v2')");
+        assertEquals("a,b,v1,v2", get("c"));
+        // zero varargs
+        eval("var DemoUtils = Java.type('io.karatelabs.js.DemoUtils'); var c = DemoUtils.withVarArgs('a', 'b')");
+        assertEquals("a,b", get("c"));
+    }
+
+    @Test
     void testMethodOverload() {
         DemoPojo dp = new DemoPojo();
         ExternalAccess instance = bridge.forInstance(dp);

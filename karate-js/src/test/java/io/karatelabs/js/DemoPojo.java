@@ -94,6 +94,14 @@ public class DemoPojo {
         return args[args.length - 1];
     }
 
+    public String realVarArgs(String first, String... rest) {
+        StringBuilder sb = new StringBuilder(first);
+        for (String s : rest) {
+            sb.append(",").append(s);
+        }
+        return sb.toString();
+    }
+
     public Integer[] doIntegerArray() {
         return integerArray;
     }

@@ -169,6 +169,29 @@ public class JavaUtils {
     }
 
     private static Object invoke(Object object, Method method, Object[] args) throws InvocationTargetException, IllegalAccessException {
+        if (method.isVarArgs()) {
+            Class<?>[] paramTypes = method.getParameterTypes();
+            int fixedCount = paramTypes.length - 1;
+            Class<?> varArgArrayType = paramTypes[fixedCount];
+            // if caller already passed the correct array type, use standard invocation
+            if (args.length == paramTypes.length && args[fixedCount] != null
+                    && varArgArrayType.isAssignableFrom(args[fixedCount].getClass())) {
+                return method.invoke(object, args);
+            }
+            // pack individual args into varargs array
+            Object[] invokeArgs = new Object[paramTypes.length];
+            for (int i = 0; i < fixedCount; i++) {
+                invokeArgs[i] = args[i];
+            }
+            Class<?> componentType = varArgArrayType.getComponentType();
+            int varArgCount = Math.max(0, args.length - fixedCount);
+            Object varArgArray = Array.newInstance(componentType, varArgCount);
+            for (int i = 0; i < varArgCount; i++) {
+                Array.set(varArgArray, i, args[fixedCount + i]);
+            }
+            invokeArgs[fixedCount] = varArgArray;
+            return method.invoke(object, invokeArgs);
+        }
         Class<?>[] paramTypes = method.getParameterTypes();
         if (paramTypes.length > 0 && paramTypes[paramTypes.length - 1].equals(Object[].class)) {
             List<Object> argsList = new ArrayList<>();
@@ -293,10 +316,27 @@ public class JavaUtils {
         return null;
     }
 
+    private static boolean matchSingle(Class<?> type, Object arg) {
+        if (arg == null) {
+            return true;
+        }
+        if (type.equals(int.class)) return arg instanceof Integer;
+        if (type.equals(double.class)) return arg instanceof Number;
+        if (type.equals(long.class)) return arg instanceof Integer || arg instanceof Long;
+        if (type.equals(boolean.class)) return arg instanceof Boolean;
+        if (type.equals(byte.class)) return arg instanceof Byte;
+        if (type.equals(char.class)) return arg instanceof Character;
+        if (type.equals(float.class)) return arg instanceof Number;
+        if (type.equals(short.class)) return arg instanceof Short;
+        return type.isAssignableFrom(arg.getClass());
+    }
+
     private static boolean match(Class<?>[] types, Object[] args) {
+        boolean lastIsArray = types.length > 0 && types[types.length - 1].isArray();
         for (int i = 0; i < types.length; i++) {
             if (i >= args.length) {
-                return false;
+                // allow zero varargs elements
+                return lastIsArray && i == types.length - 1;
             }
             Object arg = args[i];
             Class<?> argType = types[i];
@@ -310,42 +350,28 @@ public class JavaUtils {
                         Array.set(result, j, list.get(j));
                     }
                     args[i] = result;
-                } else if (arg != null) { // nulls are ok
-                    return false;
+                } else if (arg != null) {
+                    if (argType.isAssignableFrom(arg.getClass())) {
+                        // already the correct array type
+                    } else if (i == types.length - 1 && matchSingle(argType.getComponentType(), arg)) {
+                        // varargs: individual element matching component type
+                    } else {
+                        return false;
+                    }
                 }
                 if (i == (types.length - 1)) { // var args
+                    // validate any extra args match the component type
+                    Class<?> componentType = argType.getComponentType();
+                    for (int k = i + 1; k < args.length; k++) {
+                        if (!matchSingle(componentType, args[k])) {
+                            return false;
+                        }
+                    }
                     return true;
                 }
                 continue;
             }
-            if (arg == null) {
-                continue;
-            }
-            if (argType.equals(int.class) && arg instanceof Integer) {
-                continue;
-            }
-            if (argType.equals(double.class) && arg instanceof Number) {
-                continue;
-            }
-            if (argType.equals(long.class) && (arg instanceof Integer || arg instanceof Long)) {
-                continue;
-            }
-            if (argType.equals(boolean.class) && arg instanceof Boolean) {
-                continue;
-            }
-            if (argType.equals(byte.class) && arg instanceof Byte) {
-                continue;
-            }
-            if (argType.equals(char.class) && arg instanceof Character) {
-                continue;
-            }
-            if (argType.equals(float.class) && arg instanceof Number) {
-                continue;
-            }
-            if (argType.equals(short.class) && arg instanceof Short) {
-                continue;
-            }
-            if (!argType.isAssignableFrom(arg.getClass())) {
+            if (!matchSingle(argType, arg)) {
                 return false;
             }
         }
