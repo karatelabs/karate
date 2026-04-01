@@ -46,6 +46,29 @@ class HttpServerHandlerTest {
     }
 
     @Test
+    void testIsSseRequestWithAcceptHeader() {
+        FullHttpRequest req = new DefaultFullHttpRequest(
+                HttpVersion.HTTP_1_1, HttpMethod.GET, "/events");
+        req.headers().set("Accept", "text/event-stream");
+        assertTrue(HttpServerHandler.isSseRequest(req));
+    }
+
+    @Test
+    void testIsSseRequestWithoutAcceptHeader() {
+        FullHttpRequest req = new DefaultFullHttpRequest(
+                HttpVersion.HTTP_1_1, HttpMethod.GET, "/events");
+        assertFalse(HttpServerHandler.isSseRequest(req));
+    }
+
+    @Test
+    void testIsSseRequestWithJsonAccept() {
+        FullHttpRequest req = new DefaultFullHttpRequest(
+                HttpVersion.HTTP_1_1, HttpMethod.GET, "/api/data");
+        req.headers().set("Accept", "application/json");
+        assertFalse(HttpServerHandler.isSseRequest(req));
+    }
+
+    @Test
     void testToRequestWithBody() {
         byte[] body = "{\"name\":\"test\"}".getBytes();
         FullHttpRequest nettyRequest = new DefaultFullHttpRequest(

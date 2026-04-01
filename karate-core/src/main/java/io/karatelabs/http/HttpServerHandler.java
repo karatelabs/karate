@@ -51,6 +51,17 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req) {
         HttpRequest request = toRequest(req);
+        if (server.sseHandler != null && isSseRequest(req)) {
+            try {
+                SseConnection connection = new SseConnection(ctx);
+                server.sseHandler.accept(request, connection);
+            } catch (Exception e) {
+                String message = e.getMessage();
+                logger.error("sse handler error: {}", message);
+                ctx.writeAndFlush(error(message));
+            }
+            return;
+        }
         try {
             HttpResponse response = server.handler.apply(request);
             FullHttpResponse res = toResponse(response);
@@ -66,6 +77,11 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
             logger.error("http server error: {}", message);
             ctx.writeAndFlush(error(message));
         }
+    }
+
+    static boolean isSseRequest(FullHttpRequest req) {
+        String accept = req.headers().get("Accept");
+        return accept != null && accept.contains("text/event-stream");
     }
 
     static HttpRequest toRequest(FullHttpRequest req) {

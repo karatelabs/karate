@@ -67,13 +67,22 @@ public class HttpServer {
     private final SslContext sslContext;
 
     final Function<HttpRequest, HttpResponse> handler;
+    final SseHandler sseHandler;
 
     public static HttpServer start(int port, Function<HttpRequest, HttpResponse> handler) {
-        return new HttpServer(port, null, handler);
+        return new HttpServer(port, null, handler, null);
+    }
+
+    public static HttpServer start(int port, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler) {
+        return new HttpServer(port, null, handler, sseHandler);
     }
 
     public static HttpServer start(int port, SslContext sslContext, Function<HttpRequest, HttpResponse> handler) {
-        return new HttpServer(port, sslContext, handler);
+        return new HttpServer(port, sslContext, handler, null);
+    }
+
+    public static HttpServer start(int port, SslContext sslContext, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler) {
+        return new HttpServer(port, sslContext, handler, sseHandler);
     }
 
     public boolean isSsl() {
@@ -120,8 +129,9 @@ public class HttpServer {
         };
     }
 
-    private HttpServer(int requestedPort, SslContext sslContext, Function<HttpRequest, HttpResponse> handler) {
+    private HttpServer(int requestedPort, SslContext sslContext, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler) {
         this.handler = handler;
+        this.sseHandler = sseHandler;
         this.sslContext = sslContext;
         bossGroup = new MultiThreadIoEventLoopGroup(1, daemonThreadFactory("http-boss-"), NioIoHandler.newFactory());
         workerGroup = new MultiThreadIoEventLoopGroup(daemonThreadFactory("http-worker-"), NioIoHandler.newFactory());
