@@ -1105,6 +1105,105 @@ Use `ka:data` on any element to initialize Alpine data without form submission:
 
 ---
 
+## Server-Sent Events (SSE)
+
+Karate's HTTP server supports Server-Sent Events for real-time streaming from server to browser. SSE is useful for live updates, progress tracking, and event-driven UIs.
+
+### Server Setup
+
+Pass an `SseHandler` when starting the server:
+
+```java
+SseHandler sseHandler = (request, connection) -> {
+    // Run on a background thread to avoid blocking the Netty worker
+    Thread.ofVirtual().start(() -> {
+        connection.send("status", "{\"progress\": 0}");
+        // ... do work ...
+        connection.send("status", "{\"progress\": 100}");
+        connection.close();
+    });
+};
+
+HttpServer.start(8080, handler, sseHandler);
+```
+
+### SseConnection API
+
+| Method | Description |
+|--------|-------------|
+| `send(event, data)` | Send a named event with data |
+| `send(data)` | Send data without an event name |
+| `sendComment(text)` | Send a comment (keep-alive) |
+| `close()` | Close the connection |
+| `isOpen()` | Check if the connection is still active |
+| `onDisconnect(callback)` | Register a callback for client disconnect |
+
+### Client-Side with HTMX
+
+HTMX has built-in SSE support via the `sse` extension:
+
+```html
+<div hx-ext="sse" sse-connect="/sse/updates" sse-swap="message">
+  <!-- Content will be replaced when 'message' events arrive -->
+</div>
+```
+
+### Client-Side with JavaScript
+
+For more control, use the native `EventSource` API:
+
+```html
+<script>
+var source = new EventSource('/sse/updates');
+
+source.addEventListener('status', function(e) {
+    var data = JSON.parse(e.data);
+    document.getElementById('progress').style.width = data.progress + '%';
+});
+
+source.addEventListener('done', function(e) {
+    source.close();
+});
+
+source.onerror = function() {
+    // EventSource auto-reconnects on error
+};
+</script>
+```
+
+### Multi-line Data
+
+SSE data can span multiple lines. Each line is prefixed with `data:`:
+
+```java
+connection.send("update", "line1\nline2\nline3");
+// Sends:
+// event: update
+// data: line1
+// data: line2
+// data: line3
+```
+
+### Reconnection
+
+`EventSource` auto-reconnects on connection loss. Use a `?since=N` parameter to resume from the last received event:
+
+```javascript
+var eventCount = 0;
+var source = new EventSource('/sse/events?since=' + eventCount);
+source.onmessage = function(e) {
+    eventCount++;
+    // process event
+};
+```
+
+### Limitations
+
+- SSE connections bypass `ServerRequestHandler`, so they do not have access to sessions, CSRF tokens, or template context. Route SSE at the `HttpServer` level, not through templates.
+- SSE is one-directional (server to client). For bidirectional communication, use WebSockets.
+
+---
+
 ## Common Patterns
 
 ### Authentication Flow
