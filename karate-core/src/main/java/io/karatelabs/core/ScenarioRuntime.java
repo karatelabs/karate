@@ -692,6 +692,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 }
                 karate.engine.put(entry.getKey(), value);
             }
+            // Inherit cookie jar from caller so called feature shares session cookies
+            inheritCookieJarFromCaller(callerScenario);
             // Inherit driver and driver helper root bindings from caller
             inheritDriverFromCaller(callerScenario);
             return;
@@ -711,6 +713,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 }
                 karate.engine.put(entry.getKey(), value);
             }
+            inheritCookieJarFromCaller(lastExecuted);
             // Inherit driver from lastExecuted
             inheritDriverFromCaller(lastExecuted);
         }
@@ -729,6 +732,13 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             this.config.copyFrom(callerScenario.config);
         }
         logger.debug("Inherited config from caller");
+    }
+
+    private void inheritCookieJarFromCaller(ScenarioRuntime callerScenario) {
+        Map<String, Map<String, Object>> parentCookies = callerScenario.getCookieJar();
+        if (!parentCookies.isEmpty()) {
+            cookieJar.putAll(parentCookies);
+        }
     }
 
     /**

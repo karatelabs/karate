@@ -1362,6 +1362,85 @@ class MockE2eTest {
         assertTrue(result.isPassed(), "Cookie jar should propagate from called feature: " + getFailureMessage(result));
     }
 
+    @Test
+    void testCookieJarInheritedByCalledFeature() throws Exception {
+        // Issue #2762: cookies set in caller should be available in called feature (shared scope)
+        // The caller sets a cookie via Set-Cookie, then calls a helper feature.
+        // The helper should inherit the caller's cookie jar so its requests include the cookie.
+
+        Path helperFeature = tempDir.resolve("helper.feature");
+        Files.writeString(helperFeature, """
+            @ignore
+            Feature: Helper that makes an HTTP request
+            Scenario:
+            * url 'http://localhost:%d'
+            * path '/echo-cookies'
+            * method get
+            * status 200
+            """.formatted(port));
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller cookies should be inherited by called feature
+
+            Scenario: Shared scope call should inherit cookie jar
+            * url 'http://localhost:%d'
+            * path '/set-cookie'
+            * method get
+            * status 200
+            # cookie jar now has session=abc123
+
+            # Verify cookie works inline first
+            * url 'http://localhost:%d'
+            * path '/echo-cookies'
+            * method get
+            * status 200
+            * match response.receivedCookies contains 'session=abc123'
+
+            # Now call helper - it should inherit the cookie jar
+            * call read('helper.feature')
+            * match response.receivedCookies contains 'session=abc123'
+            """.formatted(port, port));
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(), "Called feature should inherit caller's cookie jar: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCookieJarInheritedByIsolatedCall() throws Exception {
+        // Even in isolated scope (def result = call read(...)), the callee should inherit cookies
+        Path helperFeature = tempDir.resolve("helper-isolated.feature");
+        Files.writeString(helperFeature, """
+            @ignore
+            Feature: Helper that checks cookies
+            Scenario:
+            * url 'http://localhost:%d'
+            * path '/echo-cookies'
+            * method get
+            * status 200
+            * def cookieCheck = response.receivedCookies
+            """.formatted(port));
+
+        Path callerFeature = tempDir.resolve("caller-isolated.feature");
+        Files.writeString(callerFeature, """
+            Feature: Isolated call should also inherit cookie jar
+
+            Scenario: Cookies inherited in isolated scope
+            * url 'http://localhost:%d'
+            * path '/set-cookie'
+            * method get
+            * status 200
+
+            * def result = call read('helper-isolated.feature')
+            * match result.cookieCheck contains 'session=abc123'
+            """.formatted(port));
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(), "Isolated call should also inherit caller's cookie jar: " + getFailureMessage(result));
+    }
+
     private String getFailureMessage(SuiteResult result) {
         if (result.isPassed()) return "none";
         for (var fr : result.getFeatureResults()) {
