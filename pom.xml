@@ -98,7 +98,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.4</version>
+                <version>3.5.5</version>
                 <configuration>
                     <!-- Exclude testcontainers E2E tests by default (require Docker) -->
                     <excludes>
@@ -163,7 +163,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>3.5.4</version>
+                        <version>3.5.5</version>
                         <configuration>
                             <!-- Include e2e tests but exclude W3C (slow Selenium containers) -->
                             <excludes combine.self="override">
@@ -184,7 +184,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>3.5.4</version>
+                        <version>3.5.5</version>
                         <configuration>
                             <excludes combine.self="override"/>
                             <includes>
