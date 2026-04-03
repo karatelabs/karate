@@ -180,24 +180,20 @@ The driver is only closed when the top-level scenario (the entry point) complete
 - Inherited drivers are not closed when the callee scenario exits
 - Only the owner (the scenario that created the driver) closes it
 
-**Driver Upward Propagation with `scope: 'caller'`:**
+**Driver Upward Propagation (Automatic):**
 
-By default, drivers are pooled (PooledDriverProvider is the default). Each scenario acquires a driver from the pool and releases it when done. To get V1-style behavior where a called feature's driver propagates back to the caller, use `scope: 'caller'`.
-
-**Note:** This only applies to shared scope calls (`call read('...')` without a result variable). The `scope` option only affects driver propagation - variables, config, and cookies still follow standard shared/isolated scope rules.
+For shared-scope calls (`call read('...')` without a result variable), drivers automatically propagate back to the caller — matching V1 behavior. No special configuration is needed.
 
 ```gherkin
-# init-driver.feature - called feature with scope: 'caller'
+# init-driver.feature - called feature creates driver
 @ignore
-Feature: Initialize driver with caller scope
+Feature: Initialize driver
 
 Background:
-# Merge scope into existing driver config
-* def driverWithScope = karate.merge(driverConfig, { scope: 'caller' })
-* configure driver = driverWithScope
+* configure driver = driverConfig
 
 Scenario: Init driver
-* driver serverUrl + '/page.html'  # driver will propagate to caller
+* driver serverUrl + '/page.html'  # driver auto-propagates to caller
 ```
 
 ```gherkin
@@ -207,20 +203,11 @@ Scenario:
 * match driver.title == 'Page'  # works - driver propagated from callee
 ```
 
-| Scenario | Default (scope: 'scenario') | scope: 'caller' |
-|----------|----------------------------|-----------------|
-| Caller has driver, callee inherits | ✅ Driver shared | ✅ Driver shared |
-| Callee inits driver, propagates to caller | ❌ Released to pool | ✅ Propagated to caller |
-
-**When to use `scope: 'caller'`:**
-- V1 migration where called features initialize the driver
-- Reusable "driver setup" features that callers depend on
-- Scenario Outlines that call orchestration features
-
-**Default `scope: 'scenario'` is recommended for:**
-- New tests using parallel execution
-- Tests using containerized browsers
-- Any test that doesn't need V1-style propagation
+| Scenario | Behavior |
+|----------|----------|
+| Caller has driver, callee inherits | ✅ Driver shared |
+| Callee inits driver, shared-scope call | ✅ Propagated to caller |
+| Callee inits driver, isolated-scope call (`def result = call ...`) | Released to pool |
 
 **Two Approaches to Driver Management:**
 

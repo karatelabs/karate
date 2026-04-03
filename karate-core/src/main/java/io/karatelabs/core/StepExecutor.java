@@ -557,7 +557,7 @@ public class StepExecutor {
     /**
      * Propagate results from a called feature back to the caller.
      * Handles both isolated scope (resultVar set) and shared scope (resultVar null).
-     * For shared scope, also propagates config, cookies, and driver (if scope: 'caller').
+     * For shared scope, also propagates config, cookies, and driver.
      */
     private void propagateFromCallee(ScenarioRuntime calleeRuntime, String resultVar) {
         if (calleeRuntime == null) {
@@ -576,8 +576,8 @@ public class StepExecutor {
             runtime.getConfig().copyFrom(calleeRuntime.getConfig());
             // V1 compatibility: Also propagate cookie jar back to caller
             runtime.getCookieJar().putAll(calleeRuntime.getCookieJar());
-            // Propagate driver upward when scope is "caller"
-            if (calleeRuntime.isCallerScope() && calleeRuntime.getDriverIfPresent() != null) {
+            // Propagate driver upward for shared-scope calls (V1-compatible behavior)
+            if (calleeRuntime.getDriverIfPresent() != null) {
                 runtime.setDriverFromCallee(calleeRuntime);
             }
         }

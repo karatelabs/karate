@@ -258,35 +258,17 @@ All v1 driver keywords work the same way:
 * match driver.title == 'Welcome'
 ```
 
-### ⚠️ Common Migration Issue: Driver Not Available After `call`
+### Driver in Called Features (V1-Compatible)
 
-**This is the #1 issue when migrating v1 UI tests to v2.**
-
-In v1, if a called feature initialized a driver, it automatically propagated back to the caller. In v2, browser instances are **pooled** by default — the driver is released back to the pool when the called feature ends.
-
-**Symptom:** After `call read('some-feature')` returns, driver-specific functions like `click()`, `delay()`, `submit()`, etc. throw errors like `delay is not defined` or `driver is not defined`.
-
-**Example of what breaks:**
+V2 preserves V1 behavior for shared-scope calls (`* call read('feature')`): if a called feature creates a driver, it automatically propagates back to the caller. No special configuration is needed.
 
 ```gherkin
-# main.feature — THIS BREAKS IN V2
-Scenario: Full regression
-  * call read('classpath:pages/login.feature')    # ← login.feature starts the driver
-  * delay(5000)                                    # ← FAILS: "delay is not defined"
-  * call read('classpath:pages/dashboard.feature') # ← also fails: no driver
-```
-
-The driver was created inside `login.feature`, but released back to the pool when it returned. The caller never had a driver, so `delay()` (which is a driver-bound function) is not available.
-
-**Fix: Add `scope: 'caller'` to the feature that initializes the driver:**
-
-```gherkin
-# login.feature — add scope: 'caller' so driver propagates back
+# login.feature — driver propagates to caller automatically
 @ignore
 Feature: Login
 
 Background:
-  * configure driver = { type: 'chrome', scope: 'caller' }
+  * configure driver = { type: 'chrome' }
 
 Scenario: Login
   * driver serverUrl + '/login'
@@ -297,91 +279,14 @@ Scenario: Login
 ```
 
 ```gherkin
-# main.feature — now works because driver propagated from login.feature
+# main.feature — driver is available after call returns
 Scenario: Full regression
   * call read('classpath:pages/login.feature')
-  * delay(5000)                                    # ✅ works — driver is available
+  * delay(5000)                                    # ✅ works — driver propagated from login
   * call read('classpath:pages/dashboard.feature') # ✅ works — driver is shared
 ```
 
-Alternatively, you can set `scope: 'caller'` in `karate-config.js` to apply it globally:
-
-```javascript
-function fn() {
-  karate.configure('driver', { type: 'chrome', scope: 'caller' });
-  return { serverUrl: 'http://localhost:8080' };
-}
-```
-
-### When Do You Need `scope: 'caller'`?
-
-| Pattern | Needs `scope: 'caller'`? |
-|---------|--------------------------|
-| Caller starts driver, calls feature that uses it | No — driver is inherited automatically |
-| Called feature starts driver, caller uses it after | **Yes** — without this, driver is released |
-| Each scenario starts its own driver (parallel tests) | No — use the default pooling |
-| Single long flow calling many features in sequence | **Yes** — first feature that starts driver needs it |
-
-### Recommended Patterns for UI Test Reuse in V2
-
-**Pattern 1: Driver in config, reusable page features (recommended for new projects)**
-
-Start the driver in the top-level scenario and call features that operate on it:
-
-```gherkin
-# main.feature
-Background:
-  * configure driver = { type: 'chrome' }
-
-Scenario: Full flow
-  * driver serverUrl + '/login'
-  * call read('classpath:pages/login-steps.feature')
-  * call read('classpath:pages/dashboard-steps.feature')
-```
-
-```gherkin
-# login-steps.feature — no driver init, just actions
-@ignore
-Feature: Login steps
-
-Scenario:
-  * input('#username', 'admin')
-  * click('#submit')
-  * waitFor('#dashboard')
-```
-
-This is the cleanest pattern — the caller owns the driver, called features just use it.
-
-**Pattern 2: V1-style delegation with `scope: 'caller'` (migration path)**
-
-If you have existing v1 tests where called features initialize the driver, add `scope: 'caller'` to the feature that first calls `driver 'url'`. See the fix example above.
-
-**Pattern 3: Reusable JavaScript functions**
-
-For common actions, use JS functions instead of feature files:
-
-```javascript
-// karate-config.js
-function fn() {
-  var config = {
-    login: function(user, pass) {
-      karate.driver(serverUrl + '/login');
-      karate.input('#username', user);
-      karate.input('#password', pass);
-      karate.click('#submit');
-      karate.waitFor('#dashboard');
-    }
-  };
-  return config;
-}
-```
-
-```gherkin
-Scenario: Test
-  * configure driver = { type: 'chrome' }
-  * login('admin', 'secret')
-  * match driver.title == 'Dashboard'
-```
+> **Note:** Early v2 releases required `scope: 'caller'` in the driver config. This is no longer needed and can be safely removed.
 
 ### Driver-Bound Functions
 
@@ -411,7 +316,7 @@ See [DRIVER.md](./DRIVER.md) for detailed DriverProvider documentation.
 
 ### Migration Checklist for Driver Tests
 
-- [ ] Add `scope: 'caller'` to features that initialize the driver and are called by other features
+- [ ] Remove `scope: 'caller'` from driver config if present (no longer needed)
 - [ ] Replace `delay(millis)` with `karate.pause(millis)` if used before the driver starts
 - [ ] `showDriverLog` has no effect (TODO)
 - [ ] W3C WebDriver types (`chromedriver`, `geckodriver`, `safaridriver`) are now fully supported

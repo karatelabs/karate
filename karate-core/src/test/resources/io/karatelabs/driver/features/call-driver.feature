@@ -1,7 +1,7 @@
 Feature: Driver inheritance in called features
   Tests V1-compatible driver behavior:
   - Driver instance is inherited by called features
-  - Driver config is inherited by called features
+  - Driver created in called feature propagates to caller
   - Driver is not closed until top-level scenario exits
 
 Background:
@@ -15,9 +15,9 @@ Scenario: driver should work in called feature
 * print 'Back in main feature'
 * match driver.title == 'Karate Driver Test'
 
-Scenario: called feature with scope caller propagates driver up
+Scenario: called feature propagates driver to caller automatically
 # This scenario does NOT init driver - calls a feature that inits driver
-# The called feature uses scope: 'caller' so driver propagates back
+# Driver auto-propagates for shared-scope calls (no scope: 'caller' needed)
 * print 'Main feature - not initializing driver'
 * call read('call-config-inherit.feature')
 * print 'Back in main - driver should be available (propagated from callee)'

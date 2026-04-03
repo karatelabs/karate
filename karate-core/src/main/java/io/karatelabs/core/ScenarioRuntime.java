@@ -1312,10 +1312,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             return;
         }
 
-        // Don't release if scope is "caller" - driver will propagate to caller
-        // The caller will be responsible for releasing it
-        if ("caller".equals(driverScope)) {
-            logger.debug("Keeping driver for caller propagation (scope: caller)");
+        // Don't release if this is a shared-scope called feature
+        // The driver will propagate back to the caller (V1-compatible behavior)
+        if (featureRuntime != null && featureRuntime.isSharedScope()
+                && featureRuntime.getCallerScenario() != null) {
+            logger.debug("Keeping driver for caller propagation (shared scope)");
             return;
         }
 
