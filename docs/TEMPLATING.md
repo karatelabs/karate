@@ -974,6 +974,94 @@ Add CSS:
 }
 ```
 
+### Live Updates — HTMX Polling and SSE
+
+Dashboards and status pages need to update without manual refresh. Two approaches work with Karate's HTTP server:
+
+#### Polling with `hx-trigger="every Ns"`
+
+The simplest approach — HTMX re-fetches an HTML fragment on a timer:
+
+```html
+<!-- Server renders a partial HTML fragment at /api/status-fragment -->
+<div hx-get="/api/status-fragment" hx-trigger="every 3s" hx-swap="innerHTML">
+  Loading...
+</div>
+```
+
+The server endpoint returns an HTML fragment (not a full page):
+
+```java
+// In your request handler
+if ("/api/status-fragment".equals(path)) {
+    HttpResponse resp = new HttpResponse();
+    resp.setBody("<span class='badge bg-success'>3 active</span>");
+    return resp;
+}
+```
+
+Or use a Karate template fragment:
+
+```html
+<!-- status-fragment.html -->
+<script ka:scope="global">
+  _.count = grid.activeCount;
+</script>
+<span class="badge bg-success" th:text="count + ' active'">0 active</span>
+```
+
+```java
+// Route to template
+if ("/api/status-fragment".equals(path)) {
+    return templateHandler.apply(request); // renders status-fragment.html
+}
+```
+
+#### SSE with Karate's `SseHandler`
+
+For real-time push (no polling delay), use Server-Sent Events. Karate's `HttpServer` has built-in SSE support via `SseHandler`:
+
+```java
+SseHandler sseHandler = (request, connection) -> {
+    String path = request.getPath();
+    if (!path.startsWith("/sse/")) {
+        connection.close();
+        return;
+    }
+    // Stream events on a background thread
+    Thread.ofVirtual().start(() -> {
+        while (connection.isOpen()) {
+            connection.send("status", "{\"active\": 3}");
+            try { Thread.sleep(1000); } catch (InterruptedException e) { return; }
+        }
+    });
+};
+
+httpServer = HttpServer.start(port, requestHandler, sseHandler);
+```
+
+HTMX can consume SSE directly with the `sse` extension:
+
+```html
+<script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
+
+<!-- Connect to SSE endpoint, update element on "status" events -->
+<div hx-ext="sse" sse-connect="/sse/dashboard" sse-swap="status">
+  Waiting for updates...
+</div>
+```
+
+Each SSE event named `status` replaces the div's content with the event data. The data can be an HTML fragment rendered server-side.
+
+#### Which to use?
+
+| Approach | Latency | Complexity | Best for |
+|----------|---------|------------|----------|
+| Polling (`every 3s`) | 0–3s delay | Low — just an endpoint returning HTML | Dashboards, status pages |
+| SSE | Real-time | Medium — need `SseHandler` + background thread | Live logs, job progress, notifications |
+
+**Tip:** Start with polling — it's simpler and works with any endpoint. Switch to SSE only when sub-second latency matters (e.g., streaming agent actions in real time).
+
 ### `ka:data` - AlpineJS Data Binding
 
 The `ka:data` attribute provides seamless data binding between server-side data and AlpineJS. It works on any element to initialize `x-data`, with special form handling for bidirectional binding.
@@ -2254,6 +2342,96 @@ Both syntaxes work in Karate. If you include `~{}`, it won't be double-wrapped:
 - Named fragment selectors: `~{template :: fragmentName}`
 - CSS selectors: `~{template :: .css-class}`
 - Same-file fragments: `~{:: fragmentName}`
+
+### HTMX Event Handlers — Avoid `::`
+
+HTMX's shorthand event syntax `hx-on::after-request` uses `::` which Thymeleaf parses as a fragment expression — this causes a `TemplateInputException` with no useful line number. Use the long-form `hx-on-htmx-after-request` or plain `onclick` with `fetch()` instead.
+
+```html
+<!-- BREAKS — Thymeleaf parses :: as fragment expression -->
+<button hx-post="/api/sessions" hx-on::after-request="location.reload()">New</button>
+
+<!-- WORKS — HTMX long-form event syntax -->
+<button hx-post="/api/sessions" hx-on-htmx-after-request="location.reload()">New</button>
+
+<!-- WORKS — plain onclick with fetch (simplest, no HTMX event wiring needed) -->
+<button onclick="fetch('/api/sessions',{method:'POST'}).then(function(){location.reload()})">New</button>
+```
+
+### Colons in String Literals
+
+Colons in `th:text` string concatenation can confuse the parser when they appear near ternary-like patterns. If you get parse errors with `:` in strings, split into `th:if`/`th:unless`:
+
+```html
+<!-- MAY BREAK — parser can misinterpret : as ternary separator -->
+<td th:text="s.host ? s.host + ':' + s.port : '-'"></td>
+
+<!-- WORKS — split into conditional spans -->
+<td>
+  <span th:if="s.host" th:text="s.host"></span>
+  <span th:unless="s.host">-</span>
+</td>
+```
+
+### Dynamic HTMX Attributes with `th:attr`
+
+When you need HTMX attributes whose values come from template expressions, use `th:attr` with **quoted hyphenated names** and **colon separator**:
+
+```html
+<!-- Set hx-delete dynamically from a session ID -->
+<button th:attr="'hx-delete': '/api/sessions/' + session.id"
+        hx-on-htmx-after-request="location.href='/'">
+  Delete
+</button>
+
+<!-- Set hx-get dynamically -->
+<div th:attr="'hx-get': '/api/items/' + item.id, 'hx-target': '#detail-' + item.id"
+     hx-trigger="click" hx-swap="innerHTML">
+  Click for details
+</div>
+```
+
+**Alternative — use `onclick` with `fetch()` for simple cases.** This avoids `th:attr` entirely and is easier to debug:
+
+```html
+<button th:attr="onclick: 'fetch(\'/api/sessions/' + s.id + '\',{method:\'DELETE\'}).then(function(){location.reload()})'"
+        title="Destroy">
+  Delete
+</button>
+```
+
+### Serving REST APIs Alongside Templates
+
+A common pattern: the same server serves both HTML templates and JSON REST endpoints. Route by path prefix in your request handler:
+
+```java
+httpServer = HttpServer.start(port, request -> {
+    String path = request.getPath();
+    if (path.startsWith("/api/")) {
+        return handleApi(request);        // Return JSON responses
+    }
+    return templateHandler.apply(request); // Render HTML templates
+});
+```
+
+REST responses use `HttpResponse.setBody(Map)` or `setBody(List)` which auto-serializes to JSON. Template responses go through `ServerRequestHandler`.
+
+### Template Debugging
+
+**Thymeleaf parse errors are opaque** — the error message says which top-level template failed but not which line, expression, or included sub-template caused it. The only reliable debugging approach:
+
+1. Temporarily replace the template content with a minimal version (`<p>test</p>`)
+2. Confirm it loads
+3. Add sections back one at a time until the error returns
+4. The last section added contains the broken expression
+
+**Common causes of silent parse failures:**
+- `::` anywhere in HTMX attributes
+- Unquoted hyphenated names in `th:attr`
+- `:` in string literals near ternary expressions
+- Mismatched quotes in `th:attr` values
+
+**Dev mode helps** — set `KARATE_DEV_MODE=true` so templates reload from filesystem on every request. No server restart needed for template changes.
 
 ---
 

@@ -68,21 +68,30 @@ public class HttpServer {
 
     final Function<HttpRequest, HttpResponse> handler;
     final SseHandler sseHandler;
+    final WsHandler wsHandler;
 
     public static HttpServer start(int port, Function<HttpRequest, HttpResponse> handler) {
-        return new HttpServer(port, null, handler, null);
+        return new HttpServer(port, null, handler, null, null);
     }
 
     public static HttpServer start(int port, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler) {
-        return new HttpServer(port, null, handler, sseHandler);
+        return new HttpServer(port, null, handler, sseHandler, null);
     }
 
     public static HttpServer start(int port, SslContext sslContext, Function<HttpRequest, HttpResponse> handler) {
-        return new HttpServer(port, sslContext, handler, null);
+        return new HttpServer(port, sslContext, handler, null, null);
     }
 
     public static HttpServer start(int port, SslContext sslContext, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler) {
-        return new HttpServer(port, sslContext, handler, sseHandler);
+        return new HttpServer(port, sslContext, handler, sseHandler, null);
+    }
+
+    public static HttpServer start(int port, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler, WsHandler wsHandler) {
+        return new HttpServer(port, null, handler, sseHandler, wsHandler);
+    }
+
+    public static HttpServer start(int port, SslContext sslContext, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler, WsHandler wsHandler) {
+        return new HttpServer(port, sslContext, handler, sseHandler, wsHandler);
     }
 
     public boolean isSsl() {
@@ -129,9 +138,10 @@ public class HttpServer {
         };
     }
 
-    private HttpServer(int requestedPort, SslContext sslContext, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler) {
+    private HttpServer(int requestedPort, SslContext sslContext, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler, WsHandler wsHandler) {
         this.handler = handler;
         this.sseHandler = sseHandler;
+        this.wsHandler = wsHandler;
         this.sslContext = sslContext;
         bossGroup = new MultiThreadIoEventLoopGroup(1, daemonThreadFactory("http-boss-"), NioIoHandler.newFactory());
         workerGroup = new MultiThreadIoEventLoopGroup(daemonThreadFactory("http-worker-"), NioIoHandler.newFactory());

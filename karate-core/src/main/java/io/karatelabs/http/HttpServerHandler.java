@@ -26,8 +26,11 @@ package io.karatelabs.http;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
+import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +54,16 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req) {
         HttpRequest request = toRequest(req);
+        if (server.wsHandler != null && isWsUpgrade(req)) {
+            try {
+                handleWsUpgrade(ctx, req, request);
+            } catch (Exception e) {
+                String message = e.getMessage();
+                logger.error("ws upgrade error: {}", message);
+                ctx.writeAndFlush(error(message));
+            }
+            return;
+        }
         if (server.sseHandler != null && isSseRequest(req)) {
             try {
                 SseConnection connection = new SseConnection(ctx);
@@ -141,6 +154,32 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         res.headers().set(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
         res.content().writeBytes(content);
         return res;
+    }
+
+    static boolean isWsUpgrade(FullHttpRequest req) {
+        String upgrade = req.headers().get(HttpHeaderNames.UPGRADE);
+        return upgrade != null && "websocket".equalsIgnoreCase(upgrade);
+    }
+
+    private void handleWsUpgrade(ChannelHandlerContext ctx, FullHttpRequest req, HttpRequest request) {
+        String wsUrl = "ws://" + req.headers().get(HttpHeaderNames.HOST) + req.uri();
+        WebSocketServerHandshakerFactory factory = new WebSocketServerHandshakerFactory(wsUrl, null, true);
+        WebSocketServerHandshaker handshaker = factory.newHandshaker(req);
+        if (handshaker == null) {
+            WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
+            return;
+        }
+        WsConnection connection = new WsConnection(ctx);
+        handshaker.handshake(ctx.channel(), req).addListener(future -> {
+            if (future.isSuccess()) {
+                ChannelPipeline p = ctx.pipeline();
+                p.addLast(new WsServerHandler(connection));
+                server.wsHandler.accept(request, connection);
+            } else {
+                logger.error("ws handshake failed: {}", future.cause().getMessage());
+                ctx.close();
+            }
+        });
     }
 
 }
