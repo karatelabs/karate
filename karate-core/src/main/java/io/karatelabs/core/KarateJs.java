@@ -45,6 +45,7 @@ import io.karatelabs.match.Expect;
 import io.karatelabs.match.Match;
 import io.karatelabs.match.Result;
 import io.karatelabs.match.Value;
+import net.minidev.json.JSONValue;
 import io.karatelabs.process.ProcessBuilder;
 import io.karatelabs.process.ProcessHandle;
 import org.w3c.dom.Document;
@@ -226,7 +227,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 resource = root.resolve(path);
             }
             return switch (resource.getExtension()) {
-                case "json" -> Json.of(resource.getText()).value();
+                case "json" -> JSONValue.parseKeepingOrder(resource.getText());
                 case "js" -> engine.eval(resource);
                 case "feature" -> {
                     Feature feature = Feature.read(resource);

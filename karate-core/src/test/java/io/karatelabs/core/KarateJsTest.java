@@ -41,6 +41,27 @@ class KarateJsTest {
     }
 
     @Test
+    void testReadScalarJsonString() {
+        KarateJs context = new KarateJs(Resource.path("src/test/resources"));
+        context.engine.eval("var token = read('json/scalar-string.json');");
+        assertEquals("abc123", context.engine.get("token"));
+    }
+
+    @Test
+    void testReadScalarJsonNumber() {
+        KarateJs context = new KarateJs(Resource.path("src/test/resources"));
+        context.engine.eval("var num = read('json/scalar-number.json');");
+        assertEquals(42, context.engine.get("num"));
+    }
+
+    @Test
+    void testReadScalarJsonBoolean() {
+        KarateJs context = new KarateJs(Resource.path("src/test/resources"));
+        context.engine.eval("var flag = read('json/scalar-boolean.json');");
+        assertEquals(true, context.engine.get("flag"));
+    }
+
+    @Test
     void testMatch() {
         KarateJs context = new KarateJs(Resource.path("src/test/resources"));
         String js = """
