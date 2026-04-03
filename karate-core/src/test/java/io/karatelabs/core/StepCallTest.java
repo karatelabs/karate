@@ -1082,4 +1082,102 @@ class StepCallTest {
         return "unknown";
     }
 
+    // ========== Issue #2763: call read() should fail caller when called feature fails ==========
+
+    @Test
+    void testCallFailedFeatureFailsCaller() throws Exception {
+        Path child = tempDir.resolve("child.feature");
+        Files.writeString(child, """
+            Feature: child
+            Scenario:
+            * karate.fail('child failure')
+            """);
+
+        Path parent = tempDir.resolve("parent.feature");
+        Files.writeString(parent, """
+            Feature: parent
+            Scenario:
+            * call read('child.feature')
+            * def shouldNotRun = true
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, parent.toString());
+
+        assertFalse(result.isPassed(), "Parent should fail when called feature fails");
+        String msg = getFailureMessage(result);
+        assertTrue(msg.contains("child failure"), "Failure message should contain child error: " + msg);
+    }
+
+    @Test
+    void testCallWithResultFailedFeatureFailsCaller() throws Exception {
+        Path child = tempDir.resolve("child.feature");
+        Files.writeString(child, """
+            Feature: child
+            Scenario:
+            * karate.fail('child failure')
+            """);
+
+        Path parent = tempDir.resolve("parent.feature");
+        Files.writeString(parent, """
+            Feature: parent
+            Scenario:
+            * def response = call read('child.feature')
+            * def shouldNotRun = true
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, parent.toString());
+
+        assertFalse(result.isPassed(), "Parent should fail when called feature fails (with result var)");
+    }
+
+    @Test
+    void testCallFailedFeatureStopsExecution() throws Exception {
+        // Verify that steps after the failed call do NOT execute
+        Path child = tempDir.resolve("child.feature");
+        Files.writeString(child, """
+            Feature: child
+            Scenario:
+            * karate.fail('stop here')
+            """);
+
+        Path parent = tempDir.resolve("parent.feature");
+        Files.writeString(parent, """
+            Feature: parent
+            Scenario:
+            * def before = true
+            * call read('child.feature')
+            * def after = true
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, parent.toString());
+
+        assertFalse(result.isPassed(), "Parent should fail");
+        // The scenario should have failed at the call step, so 'after' should not have been set
+        assertEquals(1, result.getScenarioCount());
+    }
+
+    @Test
+    void testCallMatchFailureFailsCaller() throws Exception {
+        // Test that a match failure in child also propagates
+        Path child = tempDir.resolve("child.feature");
+        Files.writeString(child, """
+            Feature: child
+            Scenario:
+            * def actual = 1
+            * match actual == 2
+            """);
+
+        Path parent = tempDir.resolve("parent.feature");
+        Files.writeString(parent, """
+            Feature: parent
+            Scenario:
+            * call read('child.feature')
+            * def shouldNotRun = true
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, parent.toString());
+
+        assertFalse(result.isPassed(), "Parent should fail when called feature has match failure");
+    }
+
 }

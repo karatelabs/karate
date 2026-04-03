@@ -411,6 +411,7 @@ public class StepExecutor {
 
                 FeatureResult featureResult = nestedFr.call();
                 addCallResult(featureResult);
+                checkFeatureResult(featureResult);
 
                 if (nestedFr.getLastExecuted() != null) {
                     results.add(nestedFr.getLastExecuted().getAllVariables());
@@ -437,6 +438,9 @@ public class StepExecutor {
 
         // Capture feature result for HTML report display (V1 style)
         addCallResult(featureResult);
+
+        // Propagate failure from called feature to caller
+        checkFeatureResult(featureResult);
 
         // Capture result variables from the last executed scenario (isolated scope)
         if (nestedFr.getLastExecuted() != null) {
@@ -531,11 +535,23 @@ public class StepExecutor {
         // Capture feature result for HTML report display (V1 style)
         addCallResult(featureResult);
 
+        // Propagate failure from called feature to caller
+        checkFeatureResult(featureResult);
+
         // Capture result variables from the last executed scenario (isolated scope)
         if (nestedFr.getLastExecuted() != null) {
             return nestedFr.getLastExecuted().getAllVariables();
         }
         return new HashMap<>();
+    }
+
+    private void checkFeatureResult(FeatureResult featureResult) {
+        if (featureResult.isFailed()) {
+            String msg = featureResult.getFailureMessage();
+            throw new RuntimeException("called feature failed: "
+                    + featureResult.getDisplayName()
+                    + (msg != null ? " - " + msg : ""));
+        }
     }
 
     /**
@@ -2426,6 +2442,9 @@ public class StepExecutor {
                 // Capture feature result for HTML report display (V1 style)
                 addCallResult(featureResult);
 
+                // Propagate failure from called feature to caller
+                checkFeatureResult(featureResult);
+
                 if (nestedFr.getLastExecuted() != null) {
                     results.add(nestedFr.getLastExecuted().getAllVariables());
                 }
@@ -2457,6 +2476,9 @@ public class StepExecutor {
 
         // Capture feature result for HTML report display (V1 style)
         addCallResult(result);
+
+        // Propagate failure from called feature to caller
+        checkFeatureResult(result);
 
         // Propagate results back to caller
         propagateFromCallee(nestedFr.getLastExecuted(), call.resultVar);
@@ -2526,6 +2548,9 @@ public class StepExecutor {
                 // Capture feature result for HTML report display (V1 style)
                 addCallResult(featureResult);
 
+                // Propagate failure from called feature to caller
+                checkFeatureResult(featureResult);
+
                 if (nestedFr.getLastExecuted() != null) {
                     results.add(nestedFr.getLastExecuted().getAllVariables());
                 }
@@ -2563,6 +2588,9 @@ public class StepExecutor {
 
         // Capture feature result for HTML report display (V1 style)
         addCallResult(featureResult);
+
+        // Propagate failure from called feature to caller
+        checkFeatureResult(featureResult);
 
         // Propagate results back to caller
         propagateFromCallee(nestedFr.getLastExecuted(), resultVar);
