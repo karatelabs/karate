@@ -94,7 +94,7 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-remote-driver</artifactId>
-            <version>4.27.0</version>
+            <version>4.41.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
