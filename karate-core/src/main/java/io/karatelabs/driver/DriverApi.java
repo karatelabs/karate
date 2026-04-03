@@ -70,6 +70,9 @@ public class DriverApi {
     public static final String MOUSE = "mouse";
     public static final String KEYS = "keys";
 
+    // Retry
+    public static final String RETRY = "retry";
+
     // Properties
     public static final String URL = "url";
     public static final String TITLE = "title";
@@ -88,7 +91,8 @@ public class DriverApi {
             SCREENSHOT,
             COOKIE, CLEAR_COOKIES, DELETE_COOKIE,
             DIALOG, ON_DIALOG,
-            MOUSE, KEYS
+            MOUSE, KEYS,
+            RETRY
     );
 
     /**

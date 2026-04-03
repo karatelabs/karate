@@ -246,6 +246,13 @@ public interface Driver extends CoreDriver, SimpleObject {
             };
             case DriverApi.KEYS -> (JavaCallable) (ctx, args) -> keys();
 
+            // Retry - returns a proxy with custom timeout for chaining
+            case DriverApi.RETRY -> (JavaCallable) (ctx, args) -> {
+                Integer count = args.length > 0 ? ((Number) args[0]).intValue() : null;
+                Integer interval = args.length > 1 ? ((Number) args[1]).intValue() : null;
+                return new RetryableDriver(this, count, interval);
+            };
+
             default -> null;
         };
     }
