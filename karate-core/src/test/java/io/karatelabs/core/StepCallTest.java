@@ -1082,6 +1082,91 @@ class StepCallTest {
         return "unknown";
     }
 
+    // ========== Issue #2777: integer 0 passed as call argument arrives as undefined ==========
+
+    @Test
+    void testCallFeatureWithZeroArgument() throws Exception {
+        // https://github.com/karatelabs/karate/issues/2777
+        // Passing integer 0 as a call argument should work - not arrive as undefined
+        Path calledFeature = tempDir.resolve("called.feature");
+        Files.writeString(calledFeature, """
+            Feature: Called
+            Scenario:
+            * match pageNumber == 0
+            * match pageSize == 10
+            * match karate.typeOf(pageNumber) == 'number'
+            * def result = pageNumber
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def response = call read('called.feature') { pageNumber: 0, pageSize: 10 }
+            * match response.result == 0
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(), "Integer 0 should be passed correctly: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallFeatureWithZeroViaEmbeddedExpression() throws Exception {
+        // https://github.com/karatelabs/karate/issues/2777
+        // Passing 0 via embedded expression #(var) should also work
+        Path calledFeature = tempDir.resolve("called.feature");
+        Files.writeString(calledFeature, """
+            Feature: Called
+            Scenario:
+            * match pageNumber == 0
+            * match pageSize == 10
+            * match karate.typeOf(pageNumber) == 'number'
+            * def result = pageNumber
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def myPage = 0
+            * def response = call read('called.feature') { pageNumber: '#(myPage)', pageSize: 10 }
+            * match response.result == 0
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(), "Integer 0 via embedded expression should be passed correctly: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallFeatureWithFalsyArguments() throws Exception {
+        // https://github.com/karatelabs/karate/issues/2777
+        // All falsy values (0, false, null, empty string) should be passed correctly
+        Path calledFeature = tempDir.resolve("called.feature");
+        Files.writeString(calledFeature, """
+            Feature: Called
+            Scenario:
+            * match zero == 0
+            * match flag == false
+            * match empty == ''
+            * match nothing == null
+            * match karate.typeOf(zero) == 'number'
+            * match karate.typeOf(flag) == 'boolean'
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def result = call read('called.feature') { zero: 0, flag: false, empty: '', nothing: null }
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(), "Falsy values should be passed correctly: " + getFailureMessage(result));
+    }
+
     // ========== Issue #2763: call read() should fail caller when called feature fails ==========
 
     @Test
