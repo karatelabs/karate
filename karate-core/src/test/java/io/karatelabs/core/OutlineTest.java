@@ -1153,6 +1153,34 @@ public class OutlineTest {
 
     // ========== Helper Methods ==========
 
+    // ========== Issue #2775: Docstring under Scenario Outline ==========
+
+    @Test
+    void testOutlineWithDocstringBeforeSteps() throws Exception {
+        // https://github.com/karatelabs/karate/issues/2775
+        Path feature = tempDir.resolve("outline-docstring.feature");
+        Files.writeString(feature, """
+            Feature: Docstring bug
+
+            Scenario Outline: My outline
+                \"\"\"
+                This is a doc comment describing the outline.
+                \"\"\"
+                * print "row: <label>"
+
+            Examples:
+                | label |
+                | A     |
+                | B     |
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+
+        assertTrue(result.isPassed(), "Outline with docstring should pass: " + getFailureMessage(result));
+        assertEquals(2, result.getScenarioCount(), "Should generate 2 scenarios from examples");
+        assertEquals(2, result.getScenarioPassedCount());
+    }
+
     private String getFailureMessage(SuiteResult result) {
         if (result.isPassed()) return "none";
         for (FeatureResult fr : result.getFeatureResults()) {
