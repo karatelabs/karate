@@ -246,6 +246,19 @@ class EvalTest extends EvalBase {
         assertEquals(false, eval("a = NaN; b = NaN; a > b"));
         assertEquals(false, eval("a = NaN; b = NaN; a <= b"));
         assertEquals(false, eval("a = NaN; b = NaN; a >= b"));
+        // ES6: null/undefined are only loosely equal to each other, not to other falsy values
+        assertEquals(false, eval("0 == null"));
+        assertEquals(false, eval("null == 0"));
+        assertEquals(false, eval("0 == undefined"));
+        assertEquals(false, eval("undefined == 0"));
+        assertEquals(false, eval("'' == null"));
+        assertEquals(false, eval("null == ''"));
+        assertEquals(false, eval("'' == undefined"));
+        assertEquals(false, eval("undefined == ''"));
+        assertEquals(false, eval("false == null"));
+        assertEquals(false, eval("null == false"));
+        assertEquals(false, eval("false == undefined"));
+        assertEquals(false, eval("undefined == false"));
     }
 
     @Test

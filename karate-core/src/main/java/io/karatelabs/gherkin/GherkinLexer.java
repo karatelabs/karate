@@ -37,6 +37,7 @@ import static io.karatelabs.parser.TokenType.*;
 public class GherkinLexer extends BaseLexer {
 
     private GherkinState gState = GherkinState.GHERKIN;
+    private int matchParenDepth = 0; // tracks () nesting in GS_STEP_MATCH state
 
     private enum GherkinState {
         GHERKIN,        // Initial Gherkin state
@@ -488,19 +489,35 @@ public class GherkinLexer extends BaseLexer {
         char c = peek();
         if (c == '\r' || c == '\n') {
             gState = GherkinState.GHERKIN;
+            matchParenDepth = 0;
             return scanGherkinWhitespaceWithNewline();
         }
 
-        // Check for match type operators first: ==, !=
-        if (c == '=' && peek(1) == '=') {
+        // Track parenthesis depth - operators inside parens are JS, not match operators
+        if (c == '(' || c == '[') {
+            matchParenDepth++;
             advance();
-            advance();
-            return finishMatchType();
+            return G_EXPR;
         }
-        if (c == '!' && peek(1) == '=') {
+        if ((c == ')' || c == ']') && matchParenDepth > 0) {
+            matchParenDepth--;
             advance();
-            advance();
-            return finishMatchType();
+            return G_EXPR;
+        }
+
+        // Check for match type operators first: ==, !=
+        // Only at top level (not inside parenthesized sub-expressions)
+        if (matchParenDepth == 0) {
+            if (c == '=' && peek(1) == '=') {
+                advance();
+                advance();
+                return finishMatchType();
+            }
+            if (c == '!' && peek(1) == '=') {
+                advance();
+                advance();
+                return finishMatchType();
+            }
         }
 
         // Keywords in match context
@@ -517,7 +534,8 @@ public class GherkinLexer extends BaseLexer {
             }
 
             // Match type keywords: contains, !contains, within, !within
-            if (text.equals("contains") || text.equals("within")) {
+            // Only at top level (not inside parenthesized sub-expressions)
+            if (matchParenDepth == 0 && (text.equals("contains") || text.equals("within"))) {
                 return finishMatchType();
             }
 
@@ -533,7 +551,7 @@ public class GherkinLexer extends BaseLexer {
                 advance();
             }
             String text = source.substring(start, pos);
-            if (text.equals("contains") || text.equals("within")) {
+            if (matchParenDepth == 0 && (text.equals("contains") || text.equals("within"))) {
                 return finishMatchType();
             }
             // Not a match type, treat as expression part
@@ -628,7 +646,8 @@ public class GherkinLexer extends BaseLexer {
             break;
         }
 
-        // Transition state
+        // Transition state and reset paren tracking
+        matchParenDepth = 0;
         if (peek() == '\r' || peek() == '\n' || isAtEnd()) {
             gState = GherkinState.GHERKIN;
         } else {

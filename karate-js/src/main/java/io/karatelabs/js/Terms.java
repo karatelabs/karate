@@ -228,6 +228,10 @@ public class Terms {
         if (lhs == UNDEFINED) {
             return rhs == UNDEFINED || !strict && rhs == null;
         }
+        // Per JS spec: null/undefined are only loosely equal to each other, not to anything else
+        if (rhs == null || rhs == UNDEFINED) {
+            return false;
+        }
         if (lhs == rhs) { // instance equality !
             return true;
         }

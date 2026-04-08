@@ -1092,4 +1092,25 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    // ========== Issue #2777: ES6 null/undefined loose equality ==========
+
+    @Test
+    void testNullLooseEqualityWithFalsyValues() {
+        // https://github.com/karatelabs/karate/issues/2777
+        // Per ES6: null/undefined are only loosely equal to each other, not to other falsy values
+        ScenarioRuntime sr = runFeature("""
+            Feature:
+            Scenario:
+            * match (0 == null) == false
+            * match (null == 0) == false
+            * match ('' == null) == false
+            * match (false == null) == false
+            * match (0 == undefined) == false
+            * match (null == undefined) == true
+            * match (undefined == null) == true
+            * match (null === undefined) == false
+            """);
+        assertPassed(sr);
+    }
+
 }

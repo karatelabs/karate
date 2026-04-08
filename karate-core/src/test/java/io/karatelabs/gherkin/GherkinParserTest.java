@@ -823,6 +823,32 @@ class GherkinParserTest {
     }
 
     @Test
+    void testMatchExpressionWithParenthesizedSubExpression() {
+        // The == inside parentheses is JS equality, not a match operator
+        MatchExpression me = GherkinParser.parseMatchExpression("(0 == null) == false");
+        assertEquals("(0 == null)", me.getActualExpr());
+        assertEquals("==", me.getOperator());
+        assertEquals("false", me.getExpectedExpr());
+    }
+
+    @Test
+    void testMatchExpressionWithNestedParens() {
+        MatchExpression me = GherkinParser.parseMatchExpression("(a != b && c == d) == true");
+        assertEquals("(a != b && c == d)", me.getActualExpr());
+        assertEquals("==", me.getOperator());
+        assertEquals("true", me.getExpectedExpr());
+    }
+
+    @Test
+    void testMatchExpressionWithBrackets() {
+        // Brackets should also be tracked
+        MatchExpression me = GherkinParser.parseMatchExpression("arr[0] == 'foo'");
+        assertEquals("arr[0]", me.getActualExpr());
+        assertEquals("==", me.getOperator());
+        assertEquals("'foo'", me.getExpectedExpr());
+    }
+
+    @Test
     void testDocstringWithAtSignTokenization() {
         // Debug: verify @ inside docstring is NOT tokenized as G_TAG
         String text = "Feature: test\nScenario Outline: x\n  \"\"\"\n  @foo\n  \"\"\"\n  * print '<a>'\nExamples:\n  | a |\n  | 1 |\n";
