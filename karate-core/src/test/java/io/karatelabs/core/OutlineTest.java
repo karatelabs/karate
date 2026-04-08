@@ -1181,6 +1181,74 @@ public class OutlineTest {
         assertEquals(2, result.getScenarioPassedCount());
     }
 
+    // ========== Issue #2773: Tag filter on Examples blocks ==========
+
+    @Test
+    void testOutlineTagFilterPerExamplesBlock() throws Exception {
+        // https://github.com/karatelabs/karate/issues/2773
+        // When an outline has multiple Examples blocks with different tags,
+        // the tag filter should be evaluated per generated scenario, not per outline.
+        Path feature = tempDir.resolve("outline-tag-filter.feature");
+        Files.writeString(feature, """
+            Feature: Tag filter debug
+
+            @smoke
+            Scenario: simple, no skip
+            * def a = 1
+
+            @smoke @skip
+            Scenario: simple, has skip
+            * def a = 2
+
+            @smoke
+            Scenario Outline: outline, no-tag examples
+            * def label = '<label>'
+
+            Examples:
+                | label |
+                | A     |
+
+            @smoke
+            Scenario Outline: outline, skip examples
+            * def label = '<label>'
+
+            @skip
+            Examples:
+                | label |
+                | B     |
+
+            @smoke
+            Scenario Outline: outline, mixed blocks
+            * def label = '<label>'
+
+            Examples:
+                | label   |
+                | run_me  |
+
+            @skip
+            Examples:
+                | label    |
+                | skip_me  |
+            """);
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .tags("@smoke", "~@skip")
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        // Case 1: simple @smoke -> runs
+        // Case 2: simple @smoke @skip -> excluded by ~@skip
+        // Case 3: outline with untagged examples -> runs (1 row)
+        // Case 4: outline with @skip examples -> excluded
+        // Case 5: outline with mixed blocks -> run_me runs, skip_me excluded
+        assertEquals(3, result.getScenarioCount(),
+                "Should run 3 scenarios. Got: " + result.getScenarioCount());
+        assertTrue(result.isPassed(), "All selected scenarios should pass: " + getFailureMessage(result));
+    }
+
     private String getFailureMessage(SuiteResult result) {
         if (result.isPassed()) return "none";
         for (FeatureResult fr : result.getFeatureResults()) {

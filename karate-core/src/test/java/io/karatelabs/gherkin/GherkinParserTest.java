@@ -767,6 +767,39 @@ class GherkinParserTest {
     // ========== Issue #2775: Docstring under Scenario Outline ==========
 
     @Test
+    void testExamplesTagsBelongToExamplesNotOutline() {
+        // https://github.com/karatelabs/karate/issues/2773
+        // Tags on Examples blocks should be parsed as children of G_EXAMPLES,
+        // not as children of G_SCENARIO_OUTLINE
+        parseWithAst("""
+                Feature: tag filter
+                @smoke
+                Scenario Outline: mixed
+                  * def x = '<label>'
+                Examples:
+                  | label   |
+                  | run_me  |
+                @skip
+                Examples:
+                  | label    |
+                  | skip_me  |
+                """);
+        assertNotNull(outline, "Outline should be parsed");
+        // Outline tags should only have @smoke, not @skip
+        List<Tag> outlineTags = outline.getTags();
+        assertNotNull(outlineTags);
+        assertEquals(1, outlineTags.size(), "Outline should have 1 tag (@smoke)");
+        assertEquals("smoke", outlineTags.get(0).getName());
+        // Second Examples block should have @skip
+        assertEquals(2, outline.getExamplesTables().size());
+        assertNull(outline.getExamplesTables().get(0).getTags(), "First examples should have no tags");
+        List<Tag> exTags = outline.getExamplesTables().get(1).getTags();
+        assertNotNull(exTags, "Second examples should have @skip tag");
+        assertEquals(1, exTags.size());
+        assertEquals("skip", exTags.get(0).getName());
+    }
+
+    @Test
     void testScenarioOutlineWithDocstringBeforeSteps() {
         // https://github.com/karatelabs/karate/issues/2775
         parseWithAst("""

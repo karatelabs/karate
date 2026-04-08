@@ -167,12 +167,20 @@ public class GherkinParser extends BaseParser {
     }
 
     private boolean examples() {
-        // Check for tags before examples
+        // Tags before Examples belong to the Examples block, not the outline.
+        // We need to look ahead past any tags to check for G_EXAMPLES keyword.
         if (peekIf(G_TAG)) {
+            // Could be tags for Examples - enter node, parse tags, then expect G_EXAMPLES
+            enter(NodeType.G_EXAMPLES);
             tags();
-        }
-        if (!enter(NodeType.G_EXAMPLES, G_EXAMPLES)) {
-            return false;
+            if (!consumeIf(G_EXAMPLES)) {
+                // Not followed by Examples - this shouldn't normally happen in valid Gherkin
+                return exit(false, false);
+            }
+        } else {
+            if (!enter(NodeType.G_EXAMPLES, G_EXAMPLES)) {
+                return false;
+            }
         }
         nameDesc();
         table();
