@@ -764,4 +764,29 @@ class GherkinParserTest {
         assertTrue(feature.getSections().isEmpty());
     }
 
+    // ========== Issue #2775: Docstring under Scenario Outline ==========
+
+    @Test
+    void testScenarioOutlineWithDocstringBeforeSteps() {
+        // https://github.com/karatelabs/karate/issues/2775
+        parseWithAst("""
+                Feature: Docstring bug
+                Scenario Outline: My outline
+                    \"\"\"
+                    This is a doc comment describing the outline.
+                    \"\"\"
+                    * print "row: <label>"
+                Examples:
+                    | label |
+                    | A     |
+                    | B     |
+                """);
+        assertNotNull(outline, "Outline should be parsed");
+        assertEquals("My outline", outline.getName());
+        assertEquals(1, outline.getSteps().size());
+        assertEquals(1, outline.getExamplesTables().size());
+        // header + 2 data rows = 3 rows total
+        assertEquals(3, outline.getExamplesTables().get(0).getTable().getRows().size());
+    }
+
 }
