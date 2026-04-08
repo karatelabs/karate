@@ -47,6 +47,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -383,6 +384,20 @@ public class CdpDriver implements Driver {
             logger.trace("frameStoppedLoading: {}, remaining: {}", frameId, framesStillLoading);
         });
 
+        // CRITICAL: Handle frame detachment to prevent stale entries in framesStillLoading
+        // If a child frame is detached (removed from DOM) before frameStoppedLoading fires,
+        // the frame ID remains in framesStillLoading forever, causing a page load timeout.
+        // This was observed as a flaky failure in CI where framesStillLoading was non-empty
+        // despite domContentEventFired being true.
+        cdp.on("Page.frameDetached", event -> {
+            String frameId = event.get("frameId");
+            if (frameId != null) {
+                framesStillLoading.remove(frameId);
+                frameContexts.remove(frameId);
+            }
+            logger.trace("frameDetached: {}, remaining: {}", frameId, framesStillLoading);
+        });
+
         cdp.on("Page.javascriptDialogOpening", event -> {
             String message = event.get("message");
             String type = event.get("type");
@@ -586,6 +601,7 @@ public class CdpDriver implements Driver {
     public void waitForPageLoad(PageLoadStrategy strategy, Duration timeout) {
         long deadline = System.currentTimeMillis() + timeout.toMillis();
         int pollInterval = 50;
+        long lastStaleCheck = 0;
 
         while (System.currentTimeMillis() < deadline) {
             if (isPageLoadComplete(strategy)) {
@@ -596,6 +612,15 @@ public class CdpDriver implements Driver {
                 }
                 // Context not ready yet, keep waiting
                 logger.warn("page load complete but JS context not ready yet");
+            } else if (domContentEventFired && !framesStillLoading.isEmpty()) {
+                // DOM is ready but frames appear to still be loading
+                // Periodically verify these frames still exist - frameStoppedLoading
+                // event can be lost in CI environments (observed as flaky timeout)
+                long now = System.currentTimeMillis();
+                if (now - lastStaleCheck > 2000) {
+                    lastStaleCheck = now;
+                    pruneStaleFrames();
+                }
             }
             sleep(pollInterval);
         }
@@ -656,6 +681,38 @@ public class CdpDriver implements Driver {
                 yield domReady && framesStillLoading.isEmpty();
             }
         };
+    }
+
+    /**
+     * Remove stale entries from framesStillLoading by checking the actual frame tree.
+     * Handles the case where Page.frameStoppedLoading or Page.frameDetached events were lost.
+     */
+    @SuppressWarnings("unchecked")
+    private void pruneStaleFrames() {
+        if (framesStillLoading.isEmpty()) {
+            return;
+        }
+        try {
+            CdpResponse response = cdp.method("Page.getFrameTree").send();
+            List<Map<String, Object>> childFrames = response.getResult("frameTree.childFrames");
+            Set<String> activeFrameIds = new HashSet<>();
+            if (childFrames != null) {
+                for (Map<String, Object> frameData : childFrames) {
+                    Map<String, Object> frame = (Map<String, Object>) frameData.get("frame");
+                    if (frame != null) {
+                        activeFrameIds.add((String) frame.get("id"));
+                    }
+                }
+            }
+            int before = framesStillLoading.size();
+            framesStillLoading.removeIf(id -> !activeFrameIds.contains(id));
+            int removed = before - framesStillLoading.size();
+            if (removed > 0) {
+                logger.warn("pruned {} stale frame(s) from framesStillLoading, remaining: {}", removed, framesStillLoading);
+            }
+        } catch (Exception e) {
+            logger.trace("stale frame check failed: {}", e.getMessage());
+        }
     }
 
     /**
