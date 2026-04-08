@@ -1662,6 +1662,8 @@ public class StepExecutor {
         }
     }
 
+    private static final LogContext.LogWriter SCENARIO_LOG = LogContext.with(LogContext.SCENARIO_LOGGER);
+
     private void executePrint(Step step) {
         // Wrap in array to handle comma-separated expressions like: print 'foo', 'bar'
         // Without wrapping, JS comma operator would return only the last value
@@ -1674,9 +1676,9 @@ public class StepExecutor {
                 }
                 sb.append(StepUtils.stringify(list.get(i)));
             }
-            LogContext.get().log(sb.toString());
+            SCENARIO_LOG.info(sb.toString());
         } else {
-            LogContext.get().log(StepUtils.stringify(value));
+            SCENARIO_LOG.info(StepUtils.stringify(value));
         }
     }
 

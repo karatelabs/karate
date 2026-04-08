@@ -89,7 +89,7 @@ abstract class KarateJsBase implements SimpleObject {
         this.client = client;
         http = new HttpRequestBuilder(client);
         this.engine = new Engine();
-        engine.setOnConsoleLog(s -> LogContext.get().log(s));
+        engine.setOnConsoleLog(s -> SCENARIO_LOG.info(s));
         // TODO: implement whitelisting for safety - currently allows access to all Java classes
         engine.setExternalBridge(new io.karatelabs.js.ExternalBridge() {
         });
@@ -407,6 +407,8 @@ abstract class KarateJsBase implements SimpleObject {
         return props;
     }
 
+    private static final LogContext.LogWriter SCENARIO_LOG = LogContext.with(LogContext.SCENARIO_LOGGER);
+
     @SuppressWarnings("unchecked")
     JavaInvokable log() {
         return args -> {
@@ -422,7 +424,7 @@ abstract class KarateJsBase implements SimpleObject {
                     sb.append(arg);
                 }
             }
-            LogContext.get().log(sb.toString());
+            SCENARIO_LOG.info(sb.toString());
             return null;
         };
     }

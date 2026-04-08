@@ -53,19 +53,26 @@ const KarateReport = {
     // ========== State Initialization ==========
 
     /**
-     * Initialize expanded state for steps in scenarios.
-     * Sets step.expanded = false for all steps.
+     * Initialize expanded state for steps in scenarios (recursive).
      */
     initStepExpanded(data) {
         if (data.scenarios) {
-            data.scenarios.forEach(s => {
-                if (s.steps) {
-                    s.steps.forEach(step => {
-                        step.expanded = false;
-                    });
-                }
-            });
+            data.scenarios.forEach(s => this._initSteps(s.steps));
         }
+    },
+
+    _initSteps(steps) {
+        if (!steps) return;
+        steps.forEach(step => {
+            step.expanded = false;
+            if (step.callResults) {
+                step.callResults.forEach(cr => {
+                    if (cr.scenarios) {
+                        cr.scenarios.forEach(s => this._initSteps(s.steps));
+                    }
+                });
+            }
+        });
     },
 
     /**
@@ -100,6 +107,186 @@ const KarateReport = {
         return Array.from(tagSet).sort();
     },
 
+    // ========== Step Rendering (recursive) ==========
+
+    _stepId: 0,
+
+    /**
+     * Toggle expand/collapse for a step's detail section.
+     */
+    toggleStep(btn) {
+        const container = btn.closest('.k-step');
+        if (!container) return;
+        const detail = container.querySelector(':scope > .k-step-detail');
+        if (!detail) return;
+        const expanded = detail.style.display !== 'none';
+        detail.style.display = expanded ? 'none' : 'block';
+        // Update badges visibility
+        container.querySelectorAll(':scope > .step-row .k-badge-collapsed').forEach(el => {
+            el.style.display = expanded ? '' : 'none';
+        });
+    },
+
+    /**
+     * Render an array of steps as HTML. Supports infinite nesting via callResults.
+     */
+    renderSteps(steps) {
+        if (!steps || !steps.length) return '';
+        return steps.map(step => this._renderStep(step)).join('');
+    },
+
+    _esc(s) {
+        if (s == null) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    },
+
+    _renderStep(step) {
+        const id = 'ks-' + (this._stepId++);
+        const hasDetail = step.hasLogs || step.hasEmbeds || step.hasCallResults;
+        const clickable = hasDetail ? 'clickable' : '';
+        const onclick = hasDetail ? `onclick="KarateReport.toggleStep(this)"` : '';
+        const statusClass = step.status === 'passed' ? 'text-success' : step.status === 'failed' ? 'text-danger' : step.status === 'skipped' ? 'text-warning' : '';
+
+        let html = `<div class="k-step" id="${id}">`;
+
+        // Comments
+        if (step.comments && step.comments.length) {
+            html += `<div class="step-comments px-2 py-1 text-muted fst-italic small" style="background-color: var(--bs-tertiary-bg);">`;
+            step.comments.forEach(c => { html += `<div>${this._esc(c)}</div>`; });
+            html += `</div>`;
+        }
+
+        // Step row
+        html += `<div class="step-row d-flex align-items-start px-2 ${clickable}" ${onclick}>`;
+        html += `<div class="text-muted me-2" style="width: 40px; text-align: right;"><small>[${step.line}]</small></div>`;
+        html += `<div class="flex-grow-1 ${statusClass}">`;
+        html += `<span class="text-muted">${this._esc(step.prefix)}</span> `;
+        html += `<span class="fw-bold">${this._esc(step.keyword)}</span> `;
+        html += `<span>${this._esc(step.text)}</span>`;
+
+        // Collapsed badges
+        if (step.hasLogs) {
+            html += ` <span class="badge bg-secondary ms-1 k-badge-collapsed" title="Has logs - click to expand">log</span>`;
+        }
+        if (step.hasEmbeds) {
+            const n = step.embeds?.length || 0;
+            html += ` <span class="badge bg-info ms-1 k-badge-collapsed" title="${n} embed(s)">${n} embed${n > 1 ? 's' : ''}</span>`;
+        }
+        if (step.hasCallResults) {
+            const n = step.callResults?.length || 0;
+            if (n === 1) {
+                html += ` <span class="badge bg-info ms-1 k-badge-collapsed" title="Called feature - click to expand">call</span>`;
+            } else if (n > 1) {
+                html += ` <span class="badge bg-info ms-1 k-badge-collapsed" title="${n} call iterations">${n} calls</span>`;
+            }
+        }
+
+        html += `</div>`;
+        html += `<div class="text-muted ms-2" style="width: 70px; text-align: right;"><small>${step.durationMillis} ms</small></div>`;
+        html += `</div>`; // end step-row
+
+        // Detail section (hidden by default)
+        if (hasDetail) {
+            html += `<div class="k-step-detail" style="display: none;">`;
+
+            // Logs
+            if (step.logs) {
+                html += `<div class="step-logs"><pre class="mb-0 text-body">${this._esc(step.logs)}</pre></div>`;
+            }
+
+            // Embeds
+            if (step.embeds && step.embeds.length) {
+                html += `<div class="step-embeds mx-2 my-2">`;
+                step.embeds.forEach(embed => {
+                    html += this._renderEmbed(embed);
+                });
+                html += `</div>`;
+            }
+
+            // Error
+            if (step.error) {
+                html += `<div class="alert alert-danger py-1 mx-2 my-1 small"><pre class="mb-0">${this._esc(step.error)}</pre></div>`;
+            }
+
+            // Call results (recursive)
+            if (step.callResults && step.callResults.length) {
+                html += `<div class="nested-call">`;
+                step.callResults.forEach((cr, fidx) => {
+                    html += `<div class="mb-3 pb-2${fidx < step.callResults.length - 1 ? ' border-bottom' : ''}">`;
+                    // Header
+                    if (step.callResults.length > 1) {
+                        html += `<div class="d-flex align-items-center mb-2">`;
+                        html += `<span class="badge bg-secondary me-2">#${fidx + 1}</span>`;
+                        html += `<small class="text-muted">${this._esc(cr.path || cr.name)}</small>`;
+                        html += `<small class="text-muted ms-2">${cr.durationMillis} ms</small>`;
+                        html += cr.passed ? ' <span class="badge bg-success ms-2">PASS</span>' : ' <span class="badge bg-danger ms-2">FAIL</span>';
+                        html += `</div>`;
+                    } else {
+                        html += `<div class="small text-muted mb-1">`;
+                        html += `<span>${this._esc(cr.path || cr.name)}</span>`;
+                        html += `<span class="ms-2">${cr.durationMillis} ms</span>`;
+                        html += `</div>`;
+                    }
+                    // Nested scenarios
+                    (cr.scenarios || []).forEach(nested => {
+                        const nStatus = nested.passed ? 'border-success' : 'border-danger';
+                        html += `<div class="nested-scenario border ${nStatus}">`;
+                        html += `<div class="d-flex justify-content-between align-items-center mb-1">`;
+                        html += `<span><span class="fw-bold">${this._esc(nested.refId || '')}</span> <span>${this._esc(nested.name)}</span></span>`;
+                        html += `<span><small class="text-muted me-2">${nested.durationMillis} ms</small>`;
+                        html += nested.passed ? '<span class="badge bg-success">PASS</span>' : '<span class="badge bg-danger">FAIL</span>';
+                        html += `</span></div>`;
+                        // Recursive step rendering
+                        html += this.renderSteps(nested.steps);
+                        // Scenario error
+                        if (nested.error) {
+                            html += `<div class="alert alert-danger py-1 my-1 small"><pre class="mb-0">${this._esc(nested.error)}</pre></div>`;
+                        }
+                        html += `</div>`;
+                    });
+                    html += `</div>`;
+                });
+                html += `</div>`;
+            }
+
+            html += `</div>`; // end k-step-detail
+        } else if (step.error) {
+            // Error without other detail (not hidden)
+            html += `<div class="alert alert-danger py-1 mx-2 my-1 small"><pre class="mb-0">${this._esc(step.error)}</pre></div>`;
+        }
+
+        html += `</div>`; // end k-step
+        return html;
+    },
+
+    _renderEmbed(embed) {
+        let html = `<div class="embed-item border rounded p-2 mb-2 bg-body-secondary">`;
+        if (embed.name) {
+            html += `<div class="small text-muted mb-1">${this._esc(embed.name)}</div>`;
+        }
+        const mime = embed.mime_type || '';
+        if (mime.startsWith('image/')) {
+            html += `<img src="../embeds/${this._esc(embed.file)}" class="img-fluid" style="max-height: 400px;" alt="${this._esc(embed.name || 'embedded image')}">`;
+        } else if (mime === 'text/html') {
+            html += `<iframe src="../embeds/${this._esc(embed.file)}" class="w-100 border-0" style="height: 300px;"></iframe>`;
+        } else if (mime.startsWith('video/')) {
+            html += `<video controls class="w-100" style="max-height: 400px;"><source src="../embeds/${this._esc(embed.file)}" type="${this._esc(mime)}"></video>`;
+        } else if (mime === 'application/pdf') {
+            html += `<embed src="../embeds/${this._esc(embed.file)}" type="application/pdf" class="w-100" style="height: 400px;">`;
+        } else if (mime === 'text/plain' || mime === 'application/json' || mime === 'application/xml') {
+            if (embed.file) {
+                html += `<a href="../embeds/${this._esc(embed.file)}" class="small" target="_blank">Open file</a>`;
+            }
+            if (embed.data) {
+                html += `<pre class="bg-dark text-light p-2 rounded mb-0 small" style="max-height: 300px; overflow: auto;">${this._esc(atob(embed.data))}</pre>`;
+            }
+        } else if (embed.file) {
+            html += `<a href="../embeds/${this._esc(embed.file)}" class="btn btn-sm btn-outline-secondary" download>Download (${this._esc(mime)})</a>`;
+        }
+        html += `</div>`;
+        return html;
+    },
+
     // ========== Utilities ==========
 
     /**
@@ -132,6 +319,10 @@ const KarateReport = {
 
             truncate(str, len) {
                 return self.truncate(str, len);
+            },
+
+            renderSteps(steps) {
+                return self.renderSteps(steps);
             }
         };
     },
