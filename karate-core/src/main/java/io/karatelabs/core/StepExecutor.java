@@ -1642,10 +1642,8 @@ public class StepExecutor {
         }
 
         // Default: evaluate as JS
-        // Only process embedded expressions if original expression is a JSON/JS object literal
-        boolean isLiteral = expr.startsWith("{") || expr.startsWith("[");
         Object value = runtime.eval(expr);
-        if (isLiteral && (value instanceof Map || value instanceof List)) {
+        if (value instanceof Map || value instanceof List) {
             value = processEmbeddedExpressions(value);
         }
         return value;

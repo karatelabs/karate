@@ -1,0 +1,6 @@
+{
+  "field": "#(myVar)",
+  "nested": {
+    "value": "#(myVar)"
+  }
+}

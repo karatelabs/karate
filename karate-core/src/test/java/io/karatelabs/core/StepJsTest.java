@@ -1092,6 +1092,21 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    // ========== Issue #2778: embedded expressions in read() JSON ==========
+
+    @Test
+    void testReadJsonEmbeddedExpressions() {
+        // https://github.com/karatelabs/karate/issues/2778
+        // Embedded expressions like #(myVar) in JSON files loaded via read() should be resolved
+        ScenarioRuntime sr = run("""
+            * def myVar = 'hello'
+            * def result = read('json/embedded.json')
+            * match result.field == 'hello'
+            * match result.nested.value == 'hello'
+            """);
+        assertPassed(sr);
+    }
+
     // ========== Issue #2777: ES6 null/undefined loose equality ==========
 
     @Test
