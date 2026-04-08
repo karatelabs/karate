@@ -822,4 +822,47 @@ class GherkinParserTest {
         assertEquals(3, outline.getExamplesTables().get(0).getTable().getRows().size());
     }
 
+    @Test
+    void testDocstringWithAtSignTokenization() {
+        // Debug: verify @ inside docstring is NOT tokenized as G_TAG
+        String text = "Feature: test\nScenario Outline: x\n  \"\"\"\n  @foo\n  \"\"\"\n  * print '<a>'\nExamples:\n  | a |\n  | 1 |\n";
+        Resource resource = Resource.text(text);
+        GherkinLexer lexer = new GherkinLexer(resource);
+        Token token;
+        boolean foundTagInDocstring = false;
+        do {
+            token = lexer.nextToken();
+            if (token.type == TokenType.G_TAG && token.getText().contains("foo")) {
+                foundTagInDocstring = true;
+            }
+        } while (token.type != TokenType.EOF);
+        assertFalse(foundTagInDocstring, "@foo inside docstring should NOT be tokenized as G_TAG");
+    }
+
+    @Test
+    void testDocstringWithAtSignDoesNotBreakParsing() {
+        // https://github.com/karatelabs/karate/issues/2775
+        // An @ inside a docstring should NOT be tokenized as a tag
+        parseWithAst("""
+                Feature: Docstring with @
+                @test
+                Scenario Outline: My outline
+                    \"\"\"
+                    @This is a doc comment describing the outline.
+                    \"\"\"
+                    * print "row: <label>"
+                Examples:
+                    | label |
+                    | A     |
+                    | B     |
+                """);
+        assertNotNull(outline, "Outline should be parsed");
+        assertEquals("My outline", outline.getName());
+        assertEquals(1, outline.getSteps().size());
+        assertEquals(1, outline.getExamplesTables().size());
+        assertEquals(3, outline.getExamplesTables().get(0).getTable().getRows().size());
+        // The bare docstring is consumed as documentation, not attached to any step
+        assertNull(outline.getSteps().get(0).getDocString());
+    }
+
 }

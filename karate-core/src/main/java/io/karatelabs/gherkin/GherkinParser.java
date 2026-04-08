@@ -146,6 +146,7 @@ public class GherkinParser extends BaseParser {
             return false;
         }
         nameDesc();
+        docString(); // Skip bare docstring used as documentation (before any step)
         while (step()) {
             // Collect steps
         }
@@ -157,6 +158,7 @@ public class GherkinParser extends BaseParser {
             return false;
         }
         nameDesc();
+        docString(); // Skip bare docstring used as documentation (before any step)
         while (step()) {
             // Collect steps
         }

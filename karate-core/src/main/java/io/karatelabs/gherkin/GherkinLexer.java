@@ -120,6 +120,7 @@ public class GherkinLexer extends BaseLexer {
             }
         }
         // After newline, return to appropriate state
+        // GS_DOC_STRING must NOT be reset - content continues until closing """
         if (gState == GherkinState.GS_COMMENT || gState == GherkinState.GS_DESC
                 || gState == GherkinState.GS_TAGS || gState == GherkinState.GS_TABLE_ROW
                 || gState == GherkinState.GS_STEP || gState == GherkinState.GS_STEP_MATCH
@@ -283,7 +284,7 @@ public class GherkinLexer extends BaseLexer {
                 || rest.startsWith("And") || rest.startsWith("But") || rest.startsWith("*")
                 || rest.startsWith("Scenario:") || rest.startsWith("Scenario Outline:")
                 || rest.startsWith("Background:") || rest.startsWith("Examples:")
-                || rest.startsWith("@") || rest.startsWith("|");
+                || rest.startsWith("@") || rest.startsWith("|") || rest.startsWith("\"\"\"");
     }
 
     // ========== GS_COMMENT State ==========
