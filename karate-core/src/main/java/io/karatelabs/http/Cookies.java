@@ -104,6 +104,43 @@ public class Cookies {
         return cookie;
     }
 
+    /**
+     * RFC 6265: cookie values containing non-token characters need to be
+     * wrapped in double quotes. Token characters are defined by RFC 2616.
+     */
+    public static boolean needsQuoting(String value) {
+        if (value == null || value.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c <= 0x20 || c >= 0x7F) {
+                return true;
+            }
+            switch (c) {
+                case '(':
+                case ')':
+                case '<':
+                case '>':
+                case '@':
+                case ',':
+                case ';':
+                case ':':
+                case '\\':
+                case '"':
+                case '/':
+                case '[':
+                case ']':
+                case '?':
+                case '=':
+                case '{':
+                case '}':
+                    return true;
+            }
+        }
+        return false;
+    }
+
     @SuppressWarnings("unchecked")
     public static Map<String, Map<String, Object>> normalize(Object mapOrList) {
         Map<String, Map<String, Object>> cookies = new HashMap<>();

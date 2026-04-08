@@ -454,6 +454,9 @@ public class HttpRequestBuilder implements SimpleObject {
         if (cookies != null && !cookies.isEmpty()) {
             List<String> cookieValues = new ArrayList<>(cookies.size());
             for (Cookie c : cookies) {
+                if (c instanceof DefaultCookie dc && Cookies.needsQuoting(c.value())) {
+                    dc.setWrap(true);
+                }
                 String cookieValue = ClientCookieEncoder.LAX.encode(c);
                 cookieValues.add(cookieValue);
             }

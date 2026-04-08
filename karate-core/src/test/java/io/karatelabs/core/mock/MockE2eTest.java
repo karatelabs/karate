@@ -523,6 +523,24 @@ class MockE2eTest {
     }
 
     @Test
+    void testCookieSpecialCharsQuoted() {
+        // Issue #2779: cookie values with special characters should be RFC 6265 quoted
+        ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
+            Feature: Test Cookie Special Chars Quoted
+
+            Scenario: Cookie with special chars should be sent quoted
+            * url 'http://localhost:%d'
+            * cookie my_cookie = 'H4sI+abc/def=='
+            * path '/echo-cookies'
+            * method get
+            * status 200
+            * match response.receivedCookies contains 'my_cookie="H4sI+abc/def=="'
+            """.formatted(port));
+
+        assertPassed(sr);
+    }
+
+    @Test
     void testCookieDuringRedirect() {
         // This tests that cookies set during redirects are captured
         ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
