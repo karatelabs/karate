@@ -2,7 +2,7 @@
 
 This document describes the mock server for Karate V2.
 
-> See also: [RUNTIME.md](./RUNTIME.md) | [CLI.md](./CLI.md)
+> See also: [DESIGN.md](./DESIGN.md) | [CLI.md](./CLI.md)
 
 ---
 

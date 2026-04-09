@@ -2,7 +2,7 @@
 
 A lightweight JavaScript engine implemented in Java from scratch, designed to run on the JVM with full support for concurrent thread execution.
 
-> See also: [Design Principles](../docs/PRINCIPLES.md) | [Roadmap](../docs/ROADMAP.md) | [JS Engine Reference](../docs/JS_ENGINE.md) | [karate-core](../karate-core)
+> See also: [Design Principles](../docs/PRINCIPLES.md) | [Design](../docs/DESIGN.md) | [JS Engine Reference](../docs/JS_ENGINE.md) | [karate-core](../karate-core)
 
 > **Note:** This module was previously maintained as a separate project at [karatelabs/karate-js](https://github.com/karatelabs/karate-js). It has been folded into karate but remains reusable by third-party projects. A lot of improvements and more syntax support has gone in. We have done extensive testing with code typically written by LLMs.
 

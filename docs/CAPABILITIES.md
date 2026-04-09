@@ -4,7 +4,7 @@ Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
 > **Generated:** 2026-03-25 from `CAPABILITIES.yaml`
 >
-> See also: [Design Principles](./PRINCIPLES.md) | [Roadmap](./ROADMAP.md)
+> See also: [Design Principles](./PRINCIPLES.md) | [TODOS.md](./TODOS.md)
 
 ## Legend
 

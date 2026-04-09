@@ -1,7 +1,7 @@
 # Browser Driver Design
 
 > **Internal implementation document** for browser automation in karate.
-> Prerequisite: [WEBSOCKET.md](./WEBSOCKET.md) (WebSocket infrastructure)
+> WebSocket infrastructure: `io.karatelabs.http` package (WsClient, WsFrame, CdpClient)
 
 ## Progress Tracking
 

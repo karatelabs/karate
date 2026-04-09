@@ -53,7 +53,7 @@ Karate v2 is a **complete ground-up rewrite** with significant improvements acro
 
 | Improvement | Description | Commit |
 |-------------|-------------|--------|
-| **Unified Event System** | Single `RunListener` API for observing and controlling test execution - see [EVENTS.md](./EVENTS.md) | [f4240a2](https://github.com/karatelabs/karate/commit/f4240a2) |
+| **Unified Event System** | Single `RunListener` API for observing and controlling test execution - see [DESIGN.md](./DESIGN.md#event-system) | [f4240a2](https://github.com/karatelabs/karate/commit/f4240a2) |
 | **JSONL Streaming** | Memory-efficient `karate-results.jsonl` format with real-time progress | [f4240a2](https://github.com/karatelabs/karate/commit/f4240a2) |
 | **Modern HTML Reports** | Bootstrap 5.3 with dark mode, interactive tag filtering | [3b965b6](https://github.com/karatelabs/karate/commit/3b965b6) |
 | **JUnit 6 Integration** | Streaming dynamic test generation via `@TestFactory` | [a794b02](https://github.com/karatelabs/karate/commit/a794b02) |

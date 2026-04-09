@@ -68,7 +68,7 @@ karate/
 
 ## Areas for Contribution
 
-See [ROADMAP.md](docs/ROADMAP.md) for current priorities and open tasks. Good areas for new contributors:
+See [TODOS.md](docs/TODOS.md) for current priorities and open tasks. Good areas for new contributors:
 
 - Documentation improvements
 - Test coverage expansion

@@ -2,7 +2,7 @@
 
 This document describes the JavaScript engine architecture, type system, and Java interop patterns for karate-js.
 
-> See also: [ROADMAP.md](./ROADMAP.md#javascript-engine-karate-js) for pending work | [karate-js README](../karate-js/README.md)
+> See also: [DESIGN.md](./DESIGN.md) | [TODOS.md](./TODOS.md) | [karate-js README](../karate-js/README.md)
 
 ---
 

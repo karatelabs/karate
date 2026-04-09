@@ -2,7 +2,7 @@
 
 This document describes the CLI architecture for Karate v2, including subcommand design and integration with the Rust launcher.
 
-> See also: [RUNTIME.md](./RUNTIME.md) | [Rust Launcher Spec](../../karate-cli/docs/spec.md)
+> See also: [DESIGN.md](./DESIGN.md) | [Rust Launcher Spec](../../karate-cli/docs/spec.md)
 
 ---
 
@@ -698,5 +698,5 @@ rm -rf home/test-project/target
 ## References
 
 - [Rust Launcher Spec](../../karate-cli/docs/spec.md) - Full architecture for Rust-based CLI launcher
-- [RUNTIME.md](./RUNTIME.md) - Runtime architecture and feature implementation status
+- [DESIGN.md](./DESIGN.md) - Runtime architecture and design reference
 - [PicoCLI Subcommands](https://picocli.info/#_subcommands) - PicoCLI documentation

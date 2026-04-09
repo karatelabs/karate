@@ -124,7 +124,7 @@ karate/
 
 `KarateJs` constructor accepts optional `HttpClientFactory`. The `PooledHttpClientFactory` for Gatling connection pooling will be implemented in the karate-gatling module.
 
-See [RUNTIME.md](./RUNTIME.md) for details.
+See [DESIGN.md](./DESIGN.md) for details.
 
 ---
 
@@ -136,7 +136,7 @@ See [RUNTIME.md](./RUNTIME.md) for details.
 - `callOnce` does **NOT** block scenarios in **other features** running in parallel
 - `karate.callSingle()` remains suite-scoped (once globally per test run)
 
-See [RUNTIME.md](./RUNTIME.md) for details.
+See [DESIGN.md](./DESIGN.md) for details.
 
 ---
 

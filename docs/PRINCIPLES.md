@@ -2,7 +2,7 @@
 
 Lessons learned from real-world usage since 2017, distilled into the principles guiding this rewrite.
 
-> See also: [Roadmap](./ROADMAP.md) | [karate-js](../karate-js) | [karate-core](../karate-core)
+> See also: [DESIGN.md](./DESIGN.md) | [karate-js](../karate-js) | [karate-core](../karate-core)
 
 ---
 
@@ -78,5 +78,5 @@ The core is powerful, customizable, and fully open-source. Examples of commercia
 
 This funds continued innovation, a virtuous cycle where both tracks strengthen each other.
 
-See [ROADMAP.md](./ROADMAP.md) for the full task list.
+See [TODOS.md](./TODOS.md) for the work list and [CAPABILITIES.yaml](./CAPABILITIES.yaml) for the full feature inventory.
 
