@@ -163,6 +163,16 @@ class MockE2eTest {
               * def user = requestCookies['user'] ? requestCookies['user'].value : 'none'
               * def response = { session: session, user: user }
 
+            # Set a quoted cookie (value wrapped in double quotes)
+            Scenario: pathMatches('/set-cookie-quoted')
+              * def responseHeaders = { 'Set-Cookie': 'cognito="H4sI+abc/def=="; Path=/' }
+              * def response = { message: 'quoted cookie set' }
+
+            # Set an unquoted cookie (plain value, no double quotes)
+            Scenario: pathMatches('/set-cookie-unquoted')
+              * def responseHeaders = { 'Set-Cookie': 'MSISAuth=AAEAAo123; Path=/' }
+              * def response = { message: 'unquoted cookie set' }
+
             # ===== Retry scenarios =====
 
             Scenario: pathMatches('/flaky')
@@ -523,18 +533,43 @@ class MockE2eTest {
     }
 
     @Test
-    void testCookieSpecialCharsQuoted() {
-        // Issue #2779: cookie values with special characters should be RFC 6265 quoted
+    void testCookieQuotedPreservedOnReplay() {
+        // Issue #2779: server sends quoted cookie, should be replayed quoted
         ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
-            Feature: Test Cookie Special Chars Quoted
+            Feature: Quoted cookie preserved on replay
 
-            Scenario: Cookie with special chars should be sent quoted
+            Scenario: quoted Set-Cookie value replayed verbatim
             * url 'http://localhost:%d'
-            * cookie my_cookie = 'H4sI+abc/def=='
+            * path '/set-cookie-quoted'
+            * method get
+            * status 200
+            # now the cookie jar has cognito with wrap=true
             * path '/echo-cookies'
             * method get
             * status 200
-            * match response.receivedCookies contains 'my_cookie="H4sI+abc/def=="'
+            * match response.receivedCookies contains 'cognito="H4sI+abc/def=="'
+            """.formatted(port));
+
+        assertPassed(sr);
+    }
+
+    @Test
+    void testCookieUnquotedPreservedOnReplay() {
+        // Issue #2779: server sends unquoted cookie, should be replayed unquoted
+        ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
+            Feature: Unquoted cookie preserved on replay
+
+            Scenario: unquoted Set-Cookie value replayed verbatim
+            * url 'http://localhost:%d'
+            * path '/set-cookie-unquoted'
+            * method get
+            * status 200
+            # now the cookie jar has MSISAuth with wrap=false
+            * path '/echo-cookies'
+            * method get
+            * status 200
+            * match response.receivedCookies contains 'MSISAuth=AAEAAo123'
+            * match response.receivedCookies !contains '"AAEAAo123"'
             """.formatted(port));
 
         assertPassed(sr);

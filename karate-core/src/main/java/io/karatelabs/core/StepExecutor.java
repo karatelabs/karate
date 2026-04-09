@@ -1899,14 +1899,10 @@ public class StepExecutor {
         KarateConfig config = runtime.getConfig();
 
         // Apply cookies from the cookie jar (V1 compatibility: auto-send responseCookies)
+        // Use the full cookie map to preserve the wrap flag from Set-Cookie parsing
         Map<String, Map<String, Object>> cookieJar = runtime.getCookieJar();
         for (Map.Entry<String, Map<String, Object>> entry : cookieJar.entrySet()) {
-            String cookieName = entry.getKey();
-            Map<String, Object> cookieData = entry.getValue();
-            Object value = cookieData.get("value");
-            if (value != null) {
-                http().cookie(cookieName, value.toString());
-            }
+            http().cookie(entry.getValue());
         }
 
         // Apply configured cookies before invoking request - may be a Map or a JsCallable
