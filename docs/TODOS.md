@@ -29,6 +29,7 @@ Scratch pad for tracking work across the project. See also [CAPABILITIES.yaml](.
 - [ ] Set -> `java.util.Set` (deduplication, membership)
 - [ ] Map (proper JS Map) -> `java.util.Map` (ordered keys, non-string keys)
 - [ ] Iterator/for-of -> `java.util.Iterator`
+- [ ] Console log levels — `console.warn()`, `console.error()`, `console.trace()` etc. should map to appropriate log levels (WARN, ERROR, TRACE) when cascading onto core/karate logging
 - [ ] `async`/`await` -> `CompletableFuture` / virtual threads
 - [ ] `setTimeout()` and timer functions
 - [ ] ES Modules (`import`/`export`) for JS reuse across tests
