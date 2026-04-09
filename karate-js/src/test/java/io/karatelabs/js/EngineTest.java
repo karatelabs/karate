@@ -805,4 +805,45 @@ class EngineTest {
         assertTrue(lastStmt.getTextIncludingWhitespace().contains("obj['foo']"));
     }
 
+    @Test
+    void testErrorMessagesUseJsTypeNames() {
+        // JavaUtils.invoke errors should use JS type names, not Java class names
+        // Test: calling non-existent method on a Map (Object in JS terms)
+        try {
+            JavaUtils.invoke(new HashMap<>(), "find", new Object[]{});
+            fail("expected error");
+        } catch (Exception e) {
+            String msg = e.getMessage();
+            assertFalse(msg.contains("java.util."), "Error should not expose Java types: " + msg);
+            assertTrue(msg.contains("Object"), "Error should use JS type name 'Object': " + msg);
+        }
+        // Test: calling non-existent method on a List (Array in JS terms)
+        try {
+            JavaUtils.invoke(new ArrayList<>(), "find", new Object[]{});
+            fail("expected error");
+        } catch (Exception e) {
+            String msg = e.getMessage();
+            assertFalse(msg.contains("java.util."), "Error should not expose Java types: " + msg);
+            assertTrue(msg.contains("Array"), "Error should use JS type name 'Array': " + msg);
+        }
+        // Test: calling non-existent method on a String
+        try {
+            JavaUtils.invoke("hello", "foo", new Object[]{});
+            fail("expected error");
+        } catch (Exception e) {
+            String msg = e.getMessage();
+            assertFalse(msg.contains("java.lang."), "Error should not expose Java types: " + msg);
+            assertTrue(msg.contains("String"), "Error should use JS type name 'String': " + msg);
+        }
+        // Test: calling non-existent method on a Number
+        try {
+            JavaUtils.invoke(42, "foo", new Object[]{});
+            fail("expected error");
+        } catch (Exception e) {
+            String msg = e.getMessage();
+            assertFalse(msg.contains("java.lang."), "Error should not expose Java types: " + msg);
+            assertTrue(msg.contains("Number"), "Error should use JS type name 'Number': " + msg);
+        }
+    }
+
 }

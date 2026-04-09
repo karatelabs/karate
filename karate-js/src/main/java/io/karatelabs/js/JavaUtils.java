@@ -30,12 +30,28 @@ import java.util.*;
 
 public class JavaUtils {
 
+    static String jsTypeName(Class<?> clazz) {
+        if (clazz == null) return "Object";
+        if (Map.class.isAssignableFrom(clazz)) return "Object";
+        if (List.class.isAssignableFrom(clazz)) return "Array";
+        if (clazz.isArray()) return "Array";
+        if (clazz == String.class) return "String";
+        if (Number.class.isAssignableFrom(clazz) || clazz == int.class
+                || clazz == double.class || clazz == long.class
+                || clazz == float.class || clazz == short.class
+                || clazz == byte.class) return "Number";
+        if (clazz == Boolean.class || clazz == boolean.class) return "Boolean";
+        if (clazz == Character.class || clazz == char.class) return "String";
+        if (Set.class.isAssignableFrom(clazz)) return "Set";
+        return clazz.getSimpleName();
+    }
+
     static Object construct(Class<?> clazz, Object[] args) {
         try {
             Constructor<?> constructor = findConstructor(clazz, args);
             return constructor.newInstance(args);
         } catch (Exception e) {
-            throw new RuntimeException("cannot construct [" + clazz + "]: " + e);
+            throw new RuntimeException("TypeError: " + jsTypeName(clazz) + " is not a constructor");
         }
     }
 
@@ -43,11 +59,11 @@ public class JavaUtils {
         try {
             Method method = findMethod(clazz, name, args);
             if (method == null) {
-                throw new RuntimeException("cannot find method [" + name + "] on class: " + clazz);
+                throw new RuntimeException("TypeError: ." + name + " is not a function (called on " + jsTypeName(clazz) + ")");
             }
             return invoke(null, method, args);
         } catch (Exception e) {
-            throw new RuntimeException("cannot invoke static method " + clazz.getName() + "#" + name + ": " + e);
+            throw new RuntimeException("TypeError: ." + name + " is not a function (called on " + jsTypeName(clazz) + ")");
         }
     }
 
@@ -55,11 +71,11 @@ public class JavaUtils {
         try {
             Method method = findMethod(object.getClass(), name, args);
             if (method == null) {
-                throw new RuntimeException("cannot find method [" + name + "] on object: " + object.getClass());
+                throw new RuntimeException("TypeError: ." + name + " is not a function (called on " + jsTypeName(object.getClass()) + ")");
             }
             return invoke(object, method, args);
         } catch (Exception e) {
-            throw new RuntimeException("cannot invoke instance method " + object.getClass().getName() + "#" + name + ": " + e);
+            throw new RuntimeException("TypeError: ." + name + " is not a function (called on " + jsTypeName(object.getClass()) + ")");
         }
     }
 
@@ -75,7 +91,7 @@ public class JavaUtils {
                     try {
                         return getter.invoke(null, EMPTY);
                     } catch (Exception ex) {
-                        throw new RuntimeException("cannot invoke static getter " + clazz.getName() + "#" + getter.getName() + ": " + ex);
+                        throw new RuntimeException("TypeError: ." + name + " is not a function (called on " + jsTypeName(clazz) + ")");
                     }
                 }
                 // Fall back to method reference
@@ -86,7 +102,7 @@ public class JavaUtils {
                     }
                 }
             }
-            throw new RuntimeException("cannot get static field " + clazz.getName() + "#" + name + ": " + e);
+            throw new RuntimeException("TypeError: ." + name + " is not a property (on " + jsTypeName(clazz) + ")");
         }
     }
 
@@ -114,7 +130,7 @@ public class JavaUtils {
             Field field = clazz.getField(name);
             field.set(null, value);
         } catch (Exception e) {
-            throw new RuntimeException("cannot set static field " + clazz.getName() + "#" + name + ": " + e);
+            throw new RuntimeException("TypeError: cannot set ." + name + " (on " + jsTypeName(clazz) + ")");
         }
     }
 
@@ -137,7 +153,7 @@ public class JavaUtils {
         try {
             return method.invoke(object, EMPTY);
         } catch (Exception e) {
-            throw new RuntimeException("cannot get instance field " + object.getClass().getName() + "#" + name + ": " + e);
+            throw new RuntimeException("TypeError: cannot get ." + name + " (on " + jsTypeName(object.getClass()) + ")");
         }
     }
 
@@ -151,7 +167,7 @@ public class JavaUtils {
             }
             method.invoke(object, args);
         } catch (Exception e) {
-            throw new RuntimeException("cannot set instance field " + object.getClass().getName() + "#" + name + ": " + e);
+            throw new RuntimeException("TypeError: cannot set ." + name + " (on " + jsTypeName(object.getClass()) + ")");
         }
     }
 
@@ -229,7 +245,7 @@ public class JavaUtils {
                 }
             }
         }
-        throw new RuntimeException(clazz + " constructor not found, param types: " + Arrays.asList(paramTypes(args)));
+        throw new RuntimeException("TypeError: " + jsTypeName(clazz) + " is not a constructor");
     }
 
     private static Method findMethod(Class<?> clazz, String name, Object[] args) {
