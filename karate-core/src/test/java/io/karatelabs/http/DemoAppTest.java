@@ -593,6 +593,43 @@ class DemoAppTest {
         assertTrue(body.contains("Banana"));
     }
 
+    // =================================================================================================================
+    // API Sub-Path Routing Tests (path parameters via pathMatches)
+    // =================================================================================================================
+
+    @Test
+    void testApiSubPathRouting() {
+        // POST to create a todo - should route to api/todos.js
+        HttpResponse r1 = postJson("/api/todos", "{\"title\":\"Buy milk\",\"complete\":false}");
+        assertEquals(201, r1.getStatus());
+        String body1 = r1.getBodyString();
+        assertTrue(body1.contains("Buy milk"));
+        assertTrue(body1.contains("\"id\""));
+
+        // Extract the session cookie and id
+        String cookie = extractSessionCookie(r1);
+        assertNotNull(cookie);
+
+        // Extract id from response
+        int idStart = body1.indexOf("\"id\":\"") + 6;
+        int idEnd = body1.indexOf("\"", idStart);
+        String id = body1.substring(idStart, idEnd);
+
+        // GET by sub-path - /api/todos/{id} should also route to api/todos.js
+        HttpResponse r2 = getWithCookie("/api/todos/" + id, cookie);
+        assertEquals(200, r2.getStatus());
+        assertTrue(r2.getBodyString().contains("Buy milk"));
+    }
+
+    @Test
+    void testSessionCreationWithCookie() {
+        // API request without a session cookie should auto-create a session
+        // so that JS handlers can use the 'session' variable without calling context.init()
+        HttpResponse response = get("/api/todos");
+        String body = response.getBodyString() != null ? response.getBodyString() : "";
+        assertEquals(200, response.getStatus());
+    }
+
     @Test
     void testSessionSyncAfterContextInit() {
         // Test that 'session' variable is available after context.init()

@@ -85,6 +85,23 @@ public class ServerMarkupContext implements MarkupContext {
         this.config = config;
     }
 
+    /**
+     * Build the standard variables map for template rendering.
+     * Includes global variables, request, response, context, and session.
+     */
+    public Map<String, Object> toVars() {
+        Map<String, Object> vars = new HashMap<>();
+        if (config.getGlobalVariables() != null) {
+            vars.putAll(config.getGlobalVariables());
+        }
+        vars.put("request", request);
+        vars.put("response", response);
+        vars.put("context", this);
+        // can be null, but JS/templates can check for session truthiness
+        vars.put("session", session);
+        return vars;
+    }
+
     // MarkupContext implementation
 
     @Override

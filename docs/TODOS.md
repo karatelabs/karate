@@ -69,6 +69,10 @@ Scratch pad for tracking work across the project. See also [CAPABILITIES.yaml](.
 - [ ] Desktop automation (macOS, Windows, Linux)
 - [ ] Mobile automation (iOS, Android)
 
+## Mocks
+
+- [ ] Expand JS mock documentation in MOCKS.md — more examples of `pathMatches`, session patterns, and comparison with feature-file mocks
+
 ## Docs / Quality
 
 - [ ] Create release notes and blog post for karate 2.0.0

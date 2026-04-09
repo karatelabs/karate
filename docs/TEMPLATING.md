@@ -1654,9 +1654,61 @@ if (request.delete) {
 }
 ```
 
+### Session in API Handlers
+
+Sessions are **not** auto-created for API requests. The `session` variable is `null` until explicitly initialized. Use the `session || context.init()` pattern at the top of your API handler:
+
+```javascript
+// api/todos.js - CRUD with session-backed storage
+session || context.init();
+session.todos = session.todos || [];
+
+if (request.post) {
+  var todo = request.body;
+  todo.id = context.uuid();
+  session.todos.push(todo);
+  response.body = todo;
+  response.status = 201;
+} else {
+  response.body = session.todos;
+}
+```
+
+A session cookie is automatically set in the response after `context.init()`.
+
+### Sub-Path Routing
+
+API requests with sub-paths are routed to the parent handler. For example, `/api/todos/abc` resolves to `api/todos.js`, with the request path set to `/todos/abc`. Use `request.pathMatches()` to extract path parameters:
+
+```javascript
+// api/todos.js - handles /api/todos AND /api/todos/{id}
+session || context.init();
+session.todos = session.todos || [];
+
+if (request.pathMatches('/{resource}/{id}')) {
+  var id = request.pathParams.id;
+  var todo = session.todos.find(function(t) { return t.id === id; });
+  if (todo) {
+    response.body = todo;
+  } else {
+    response.status = 404;
+  }
+} else if (request.post) {
+  var todo = request.body;
+  todo.id = context.uuid();
+  session.todos.push(todo);
+  response.body = todo;
+  response.status = 201;
+} else {
+  response.body = session.todos;
+}
+```
+
 ### Session-Aware API (api/user.js)
 
 ```javascript
+session || context.init();
+
 // Check authentication
 if (!session.user) {
   response.status = 401;

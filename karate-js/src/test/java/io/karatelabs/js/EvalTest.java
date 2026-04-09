@@ -410,6 +410,111 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testBreakInForInsideIf() {
+        // break inside for loop nested in if block should only exit the for loop
+        eval("""
+                var items = [{id: 'a'}, {id: 'b'}, {id: 'c'}]
+                var target = 'b'
+                var found = -1
+                if (true) {
+                    for (var i = 0; i < items.length; i++) {
+                        if (items[i].id === target) {
+                            found = i
+                            break
+                        }
+                    }
+                    var afterLoop = 'reached'
+                }
+                """);
+        assertEquals(1, get("found"));
+        assertEquals("reached", get("afterLoop"));
+    }
+
+    @Test
+    void testBreakInForInInsideIf() {
+        // break in for-in loop nested in if block
+        eval("""
+                var obj = {a: 1, b: 2, c: 3}
+                var found = ''
+                if (true) {
+                    for (var k in obj) {
+                        if (k === 'b') break
+                    }
+                    found = 'reached'
+                }
+                """);
+        assertEquals("reached", get("found"));
+    }
+
+    @Test
+    void testBreakInForOfInsideIf() {
+        // break in for-of loop nested in if block
+        eval("""
+                var arr = [1, 2, 3]
+                var found = ''
+                var x
+                if (true) {
+                    for (x of arr) {
+                        if (x === 2) break
+                    }
+                    found = 'reached'
+                }
+                """);
+        assertEquals("reached", get("found"));
+    }
+
+    @Test
+    void testBreakInWhileInsideIf() {
+        // break in while loop nested in if block
+        eval("""
+                var i = 0
+                if (true) {
+                    while (i < 10) {
+                        if (i === 3) break
+                        i++
+                    }
+                    var afterWhile = 'reached'
+                }
+                """);
+        assertEquals(3, get("i"));
+        assertEquals("reached", get("afterWhile"));
+    }
+
+    @Test
+    void testBreakInDoWhileInsideIf() {
+        // break in do-while loop nested in if block
+        eval("""
+                var i = 0
+                if (true) {
+                    do {
+                        if (i === 3) break
+                        i++
+                    } while (i < 10)
+                    var afterDoWhile = 'reached'
+                }
+                """);
+        assertEquals(3, get("i"));
+        assertEquals("reached", get("afterDoWhile"));
+    }
+
+    @Test
+    void testReturnStillPropagatesFromLoop() {
+        // return inside a loop should still propagate out of the function
+        Object result = eval("""
+                function findIndex(items, target) {
+                    for (var i = 0; i < items.length; i++) {
+                        if (items[i] === target) {
+                            return i
+                        }
+                    }
+                    return -1
+                }
+                findIndex(['a', 'b', 'c'], 'b')
+                """);
+        assertEquals(1, result);
+    }
+
+    @Test
     void testForInLoop() {
         eval("var a = []; for (var x in {a: 1, b: 2, c: 3}) a.push(x)");
         match(get("a"), "['a', 'b', 'c']");

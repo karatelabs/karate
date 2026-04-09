@@ -84,14 +84,13 @@ public class ServerRequestCycle {
         Engine engine = new Engine();
         // Inject global variables (can be overridden by request-specific vars)
         if (config.getGlobalVariables() != null) {
-            config.getGlobalVariables().forEach(engine::put);
+            config.getGlobalVariables().forEach(engine::putRootBinding);
         }
-        engine.put("request", request);
-        engine.put("response", response);
-        engine.put("context", context);
-        if (context.getSession() != null) {
-            engine.put("session", context.getSession());
-        }
+        engine.putRootBinding("request", request);
+        engine.putRootBinding("response", response);
+        engine.putRootBinding("context", context);
+        // can be null, but JS can check for session truthiness
+        engine.putRootBinding("session", context.getSession());
         return engine;
     }
 
@@ -128,11 +127,22 @@ public class ServerRequestCycle {
             return forbidden("Invalid path");
         }
 
-        // Convert API path to JS file path: /api/users -> api/users.js
-        String jsPath = path.substring(1); // Remove leading /
-        if (!jsPath.endsWith(".js")) {
-            jsPath = jsPath + ".js";
+        // Resolve API path to JS file
+        // For sub-paths like /api/todos/abc, resolve to api/todos.js (first segment after prefix)
+        // and set request path to /todos/abc so the JS handler can use pathMatches()
+        String apiPrefix = config.getApiPrefix();
+        String afterPrefix = path.substring(apiPrefix.length()); // e.g. "todos/abc" or "todos"
+        int slashPos = afterPrefix.indexOf('/');
+        String jsPath;
+        if (slashPos != -1) {
+            // Sub-path: /api/todos/abc -> api/todos.js, path becomes /todos/abc
+            jsPath = apiPrefix.substring(1) + afterPrefix.substring(0, slashPos) + ".js";
+        } else {
+            // Direct: /api/todos -> api/todos.js, path becomes /todos
+            jsPath = apiPrefix.substring(1) + afterPrefix + ".js";
         }
+        // Set request path with prefix stripped so JS can use pathMatches
+        request.setPath("/" + afterPrefix);
 
         try {
             Resource resource;
@@ -183,19 +193,8 @@ public class ServerRequestCycle {
             // Set template name in context
             context.setTemplateName(templatePath);
 
-            // Prepare variables for template - these get merged into MarkupTemplateContext
-            Map<String, Object> vars = new HashMap<>();
-            if (config.getGlobalVariables() != null) {
-                vars.putAll(config.getGlobalVariables());
-            }
-            vars.put("request", request);
-            vars.put("response", response);
-            vars.put("context", context);
-            if (context.getSession() != null) {
-                vars.put("session", context.getSession());
-            }
-
             // Render template
+            Map<String, Object> vars = context.toVars();
             String html = markup.processPath(templatePath, vars);
 
             // Check if template switched

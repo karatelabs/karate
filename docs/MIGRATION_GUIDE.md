@@ -130,7 +130,7 @@ Karate v2 includes **backward compatibility shims** that allow most v1 code to w
 <dependency>
     <groupId>io.karatelabs</groupId>
     <artifactId>karate-junit6</artifactId>
-    <version>2.0.0</version>
+    <version>2.0.2</version>
     <scope>test</scope>
 </dependency>
 <dependency>
@@ -195,6 +195,108 @@ MockServer server = MockServer
     .arg("key", "value")
     .http(0).build();
 ```
+
+---
+
+## Native v2 APIs (Recommended)
+
+While the v1 shims work, we recommend migrating to the native v2 APIs to avoid deprecation warnings and take advantage of new features.
+
+### Runner API
+
+```java
+// v1 (deprecated shim)
+import com.intuit.karate.Results;
+import com.intuit.karate.Runner;
+
+Results results = Runner.path("classpath:features")
+    .tags("~@ignore")
+    .parallel(5);
+assertTrue(results.getFailCount() == 0, results.getErrorMessages());
+
+// v2 (native)
+import io.karatelabs.core.Runner;
+import io.karatelabs.core.SuiteResult;
+
+SuiteResult result = Runner.path("classpath:features")
+    .tags("~@ignore")
+    .parallel(5);
+assertEquals(0, result.getScenarioFailedCount(), String.join("\n", result.getErrors()));
+```
+
+**Key differences:**
+- `Results` → `SuiteResult`
+- `getFailCount()` → `getScenarioFailedCount()`
+- `getErrorMessages()` → `getErrors()` (returns `List<String>`)
+
+### MockServer API
+
+```java
+// v1 (deprecated shim)
+import com.intuit.karate.core.MockServer;
+
+MockServer server = MockServer
+    .feature("classpath:mock.feature")
+    .arg("key", "value")
+    .http(0).build();
+int port = server.getPort();
+
+// v2 (native)
+import io.karatelabs.core.MockServer;
+
+MockServer server = MockServer
+    .feature("classpath:mock.feature")
+    .arg(Map.of("key", "value"))
+    .pathPrefix("/api")
+    .start();
+int port = server.getPort();
+server.stopAndWait();  // clean shutdown
+```
+
+**Key differences:**
+- `.http(0).build()` → `.start()` (port 0 is the default for dynamic port)
+- `.arg("key", "value")` → `.arg(Map.of("key", "value"))`
+- `.pathPrefix("/api")` strips path prefix from incoming requests before matching
+- Use `.stopAndWait()` or `.stopAsync()` for cleanup
+
+### JUnit Runner (Karate)
+
+```java
+// v1 (deprecated shim)
+import com.intuit.karate.junit5.Karate;
+
+class SampleTest {
+    @Karate.Test
+    Karate testAll() {
+        return Karate.run("sample").relativeTo(getClass());
+    }
+}
+
+// v2 (native)
+import io.karatelabs.junit6.Karate;
+import org.junit.jupiter.api.DynamicNode;
+
+class SampleTest {
+    @Karate.Test
+    Iterable<DynamicNode> testAll() {
+        return Karate.run("sample").relativeTo(getClass());
+    }
+}
+```
+
+**Key difference:** Return type changes from `Karate` to `Iterable<DynamicNode>` for JUnit 6 dynamic test support.
+
+### Gatling Performance Testing
+
+```java
+// v1
+import static com.intuit.karate.gatling.javaapi.KarateDsl.*;
+
+// v2
+import static io.karatelabs.gatling.KarateDsl.*;
+```
+
+The DSL methods (`karateProtocol`, `karateFeature`, `karateSet`, `uri`) are the same — only the package changes.
 
 ## Deprecated Configure Options
 
@@ -323,13 +425,32 @@ See [DRIVER.md](./DRIVER.md) for detailed DriverProvider documentation.
 
 ---
 
+## Embedded HTTP Server
+
+The v1 embedded HTTP server (`com.intuit.karate.http.HttpServer` with `ServerConfig` and `contextFactory`) has been replaced with a new architecture in v2:
+
+- v2 uses `io.karatelabs.http.ServerRequestHandler` with file-based API routing (`/api/todos` → `api/todos.js`)
+- Sub-path routing is supported: `/api/todos/{id}` resolves to `api/todos.js` with `request.pathMatches()` for path parameters
+- v1's `contextFactory` pattern for manual path routing does not exist in v2
+- v1's `useGlobalSession(true)` is replaced by explicit session init in JS handlers: `session || context.init()`
+
+**If your tests used the embedded HTTP server as a test backend**, consider switching to `MockServer` with a feature file — this is the idiomatic v2 approach for test API backends. See [karate-todo](https://github.com/karatelabs/karate-todo) for a complete example.
+
+For serving full web applications with templates, see [TEMPLATING.md](./TEMPLATING.md).
+
+---
+
 ## Migration Checklist
 
 - [ ] Update `karate-junit5` → `karate-junit6` dependency
+- [ ] Add `junit-jupiter` dependency explicitly (v2 doesn't bundle it)
 - [ ] Update Java version to 21+
+- [ ] Update `maven-surefire-plugin` to 3.2.5+ (for JUnit 6 support)
 - [ ] Replace `JsonUtils` with `Json` class (if used)
 - [ ] Remove code using `HttpLogModifier`, `WebSocketClient`, or Driver Java APIs (if used)
 - [ ] Update cookie domain assertions if needed
+- [ ] If using embedded HTTP server, migrate to `MockServer` or `ServerRequestHandler`
+- [ ] If migrating to native v2 APIs: update imports, return types, and method names (see above)
 
 ---
 
@@ -377,3 +498,14 @@ This involved additional infrastructure changes beyond what typical end-users ne
 **Commit:** [7ffe47509](https://github.com/karatelabs/karate/commit/7ffe47509)
 
 This shows a simpler migration focused on test dependencies and runner changes.
+
+### karate-todo Migration
+
+**Repository:** [karatelabs/karate-todo](https://github.com/karatelabs/karate-todo)
+
+A complete v1 → v2 migration using native v2 APIs (no shims):
+
+- `karate-junit5` → `karate-junit6` with `Iterable<DynamicNode>` return type
+- Embedded HTTP server → `MockServer` for test backend
+- `Results` → `SuiteResult` with updated method names
+- `com.intuit.karate.gatling` → `io.karatelabs.gatling` imports

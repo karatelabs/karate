@@ -403,6 +403,10 @@ class Interpreter {
                 context.exitScope();
             }
         }
+        // break was consumed by this loop — don't propagate to parent block
+        if (context.isBreaking()) {
+            context.reset();
+        }
         context.event(EventType.CONTEXT_EXIT, node);
         // Exit loop init scope
         context.exitScope();
@@ -1030,6 +1034,10 @@ class Interpreter {
                 }
             }
         } finally {
+            // break was consumed by this loop — don't propagate to parent block
+            if (context.isBreaking()) {
+                context.reset();
+            }
             context.event(EventType.CONTEXT_EXIT, node);
             context.exitScope();
         }
@@ -1058,6 +1066,10 @@ class Interpreter {
                 }
             }
         } finally {
+            // break was consumed by this loop — don't propagate to parent block
+            if (context.isBreaking()) {
+                context.reset();
+            }
             context.event(EventType.CONTEXT_EXIT, node);
             context.exitScope();
         }

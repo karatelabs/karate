@@ -428,6 +428,10 @@ class CoreContext implements Context {
         return exitType == ExitType.CONTINUE;
     }
 
+    boolean isBreaking() {
+        return exitType == ExitType.BREAK;
+    }
+
     void reset() {
         exitType = null;
         returnValue = null;
