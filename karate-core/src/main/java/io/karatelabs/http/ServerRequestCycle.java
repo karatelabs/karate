@@ -132,6 +132,10 @@ public class ServerRequestCycle {
         // and set request path to /todos/abc so the JS handler can use pathMatches()
         String apiPrefix = config.getApiPrefix();
         String afterPrefix = path.substring(apiPrefix.length()); // e.g. "todos/abc" or "todos"
+        // Strip .js extension if present — callers may use /api/todos.js or /api/todos
+        if (afterPrefix.endsWith(".js")) {
+            afterPrefix = afterPrefix.substring(0, afterPrefix.length() - 3);
+        }
         int slashPos = afterPrefix.indexOf('/');
         String jsPath;
         if (slashPos != -1) {
