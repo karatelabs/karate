@@ -1,6 +1,12 @@
-# Contributing to Karate v2
+# Contributing to Karate
 
-Thank you for your interest in contributing to Karate v2! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to this project!
+
+## Before You Start
+
+- If a [relevant issue](https://github.com/karatelabs/karate/issues) already exists, discuss your approach within that issue before starting work
+- If no relevant issue exists, [open a new issue](https://github.com/karatelabs/karate/issues/new/choose) to start a discussion
+- Please proceed with a Pull Request only **after** the project maintainers are okay with your approach
 
 ## Getting Started
 
@@ -24,16 +30,7 @@ mvn clean install
 mvn test
 ```
 
-## How to Contribute
-
-### Reporting Issues
-
-- Use GitHub Issues to report bugs or request features
-- Search existing issues before creating a new one
-- Include reproduction steps for bugs
-- Be specific about expected vs actual behavior
-
-### Submitting Pull Requests
+## Submitting Pull Requests
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/your-feature`)
@@ -42,7 +39,7 @@ mvn test
 5. Ensure all tests pass (`mvn test`)
 6. Commit with clear, descriptive messages
 7. Push to your fork
-8. Open a Pull Request against `main`
+8. Open a Pull Request against the `main` branch
 
 ### Pull Request Guidelines
 
@@ -65,29 +62,26 @@ mvn test
 karate/
 ├── karate-js/      # JavaScript engine and Gherkin parser
 ├── karate-core/    # Core framework (HTTP, templating, matching)
-├── PRINCIPLES.md   # Design principles
-├── ROADMAP.md      # Development roadmap
+├── docs/           # Design principles and roadmap
 └── pom.xml         # Parent Maven configuration
 ```
 
 ## Areas for Contribution
 
-See [ROADMAP.md](./ROADMAP.md) for current priorities and open tasks. Good areas for new contributors:
+See [ROADMAP.md](docs/ROADMAP.md) for current priorities and open tasks. Good areas for new contributors:
 
 - Documentation improvements
 - Test coverage expansion
 - Bug fixes
 - Performance optimizations
 
-### Third-Party Integration
-
 If you're using karate-js in your own project and find opportunities to improve decoupling or reusability, those contributions are especially welcome.
 
 ## Communication
 
-- **Issues** - For bugs, features, and technical discussions
-- **Pull Requests** - For code contributions
-- **Discussions** - For general questions and ideas
+- **[Issues](https://github.com/karatelabs/karate/issues)** - For bugs and feature requests
+- **[Pull Requests](https://github.com/karatelabs/karate/pulls)** - For code contributions
+- **[Discussions](https://github.com/karatelabs/karate/discussions)** - For general questions and ideas
 
 ## License
 
@@ -95,8 +89,4 @@ By contributing, you agree that your contributions will be licensed under the MI
 
 ## Code of Conduct
 
-Be respectful and constructive in all interactions. We're building something together.
-
----
-
-Thank you for contributing to Karate v2!
+Please read our [Code of Conduct](.github/CODE_OF_CONDUCT.md). Be respectful and constructive in all interactions.

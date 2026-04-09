@@ -1,12 +1,24 @@
-### Description
+## Description
 
-Thanks for contributing this Pull Request. Make sure that you submit this Pull Request against the `develop` branch of this repository, add a brief description, and tag the relevant issue(s) and PR(s) below.
+<!-- Brief description of what this PR does -->
 
-- Relevant Issues : (compulsory)
-- Relevant PRs : (optional)
-- Type of change :
-  - [ ] New feature
-  - [ ] Bug fix for existing feature
-  - [ ] Code quality improvement
-  - [ ] Addition or Improvement of tests
-  - [ ] Addition or Improvement of documentation
+## Related Issues
+
+<!-- Link related issues using "Fixes #123" or "Relates to #123" -->
+
+- Fixes #
+
+## Type of Change
+
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Code quality improvement
+- [ ] Test improvement
+- [ ] Documentation update
+
+## Checklist
+
+- [ ] I have discussed this change with the project maintainers
+- [ ] Tests pass locally (`mvn test`)
+- [ ] I have added or updated tests as appropriate
+- [ ] I have updated documentation as needed
