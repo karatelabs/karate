@@ -2485,6 +2485,31 @@ REST responses use `HttpResponse.setBody(Map)` or `setBody(List)` which auto-ser
 
 **Dev mode helps** — set `KARATE_DEV_MODE=true` so templates reload from filesystem on every request. No server restart needed for template changes.
 
+### TODO: Document Inline JS Variable Pattern
+
+Document the recipe for passing server data to client-side `<script>` blocks. Two approaches exist but neither has a dedicated recipe:
+
+1. **`ka:scope` + `context.toJson()`** (preferred) — serialize in server JS, embed via `[[${var}]]`:
+   ```html
+   <script ka:scope="global">
+     _.itemsJson = context.toJson(items);
+   </script>
+   <script>
+     var items = JSON.parse('[[${itemsJson}]]');
+   </script>
+   ```
+
+2. **`[[${...}]]` inline expressions** — Thymeleaf inline syntax directly in `<script>` tags for simple strings:
+   ```html
+   <script th:if="session">
+     var sessionId = '[[${session.id}]]';
+   </script>
+   ```
+
+Gotchas:
+- `[[${...}]]` HTML-escapes output (`"` → `&quot;`), breaking JSON. Use **unescaped** `[(${...})]` for JSON strings.
+- JSON with single quotes breaks approach 1. Objects/arrays must go through `context.toJson()` or `Json.of().toString()` — `[[${obj}]]` alone won't serialize correctly.
+
 ---
 
 ## Using Templates from Karate Features
