@@ -1,0 +1,3 @@
+<span th:fragment="badge"
+      th:class="'badge ' + (state == 'ready' ? 'bg-success' : state == 'error' ? 'bg-danger' : 'bg-secondary')"
+      th:text="state">state</span>

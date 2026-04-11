@@ -396,6 +396,212 @@ class MarkupTest {
         assertTrue(rendered.contains("data-id=\"42\""), "Should have data-id: " + rendered);
     }
 
+    // ========== Iteration Variable Tests ==========
+
+    @Test
+    void testImplicitIterationStatus() {
+        // Thymeleaf default: th:each="item: list" creates implicit status var "itemStat"
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<li th:each=\"item: ['a', 'b']\" th:text=\"itemStat.index\">0</li>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<li>0</li>"), "Implicit itemStat.index should work: " + rendered);
+        assertTrue(rendered.contains("<li>1</li>"), "Implicit itemStat.index for second: " + rendered);
+    }
+
+    @Test
+    void testIterationCount() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <ul>
+                <li th:each="item, iter: ['a', 'b', 'c']" th:text="iter.count">0</li>
+            </ul>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<li>1</li>"), "First count should be 1: " + rendered);
+        assertTrue(rendered.contains("<li>2</li>"), "Second count should be 2: " + rendered);
+        assertTrue(rendered.contains("<li>3</li>"), "Third count should be 3: " + rendered);
+    }
+
+    @Test
+    void testIterationFirstLast() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <div th:each="item, iter: ['a', 'b', 'c']">
+                <span th:if="iter.first" th:text="'first:' + item">first</span>
+                <span th:if="iter.last" th:text="'last:' + item">last</span>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("first:a"), "First item marked: " + rendered);
+        assertTrue(rendered.contains("last:c"), "Last item marked: " + rendered);
+        assertFalse(rendered.contains("first:b"), "Middle should not be first: " + rendered);
+        assertFalse(rendered.contains("last:b"), "Middle should not be last: " + rendered);
+    }
+
+    @Test
+    void testIterationEvenOdd() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <tr th:each="item, iter: ['a', 'b', 'c', 'd']"
+                th:class="iter.even ? 'even' : 'odd'">
+                <td th:text="item">x</td>
+            </tr>
+            """;
+        String rendered = markup.processString(html, null);
+        // index 0 = even, 1 = odd, 2 = even, 3 = odd
+        assertTrue(rendered.contains("class=\"even\""), "Should have even rows: " + rendered);
+        assertTrue(rendered.contains("class=\"odd\""), "Should have odd rows: " + rendered);
+    }
+
+    // ========== ka:scope="local" Inside th:each ==========
+
+    @Test
+    void testLocalScopeInsideEach() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <script ka:scope="global">
+                _.items = [{ name: 'Apple', price: 1.50 }, { name: 'Banana', price: 0.75 }];
+                _.taxRate = 0.1;
+            </script>
+            <div th:each="item: items">
+                <script ka:scope="local">
+                    _.total = item.price * (1 + taxRate);
+                    _.totalFormatted = '$' + _.total.toFixed(2);
+                </script>
+                <span th:text="item.name">Name</span>: <span th:text="totalFormatted">$0.00</span>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<span>Apple</span>: <span>$1.65</span>"), "Apple total: " + rendered);
+        assertTrue(rendered.contains("<span>Banana</span>: <span>$0.82</span>") ||
+                   rendered.contains("<span>Banana</span>: <span>$0.83</span>"), "Banana total: " + rendered);
+    }
+
+    // ========== th:with Parameter Passing ==========
+
+    @Test
+    void testWithMultipleParams() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <div th:with="name: 'Alice', age: 30, role: 'admin'">
+                <span th:text="name">n</span>
+                <span th:text="age">0</span>
+                <span th:text="role">r</span>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<span>Alice</span>"), "Name param: " + rendered);
+        assertTrue(rendered.contains("<span>30</span>"), "Age param: " + rendered);
+        assertTrue(rendered.contains("<span>admin</span>"), "Role param: " + rendered);
+    }
+
+    @Test
+    void testWithExpressionParams() {
+        Engine js = new Engine();
+        js.put("session", java.util.Map.of("state", "ready", "id", "abc-123"));
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <div th:with="state: session.state, label: 'Session: ' + session.id">
+                <span th:text="state">s</span>
+                <span th:text="label">l</span>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<span>ready</span>"), "State from session: " + rendered);
+        assertTrue(rendered.contains("<span>Session: abc-123</span>"), "Label computed: " + rendered);
+    }
+
+    @Test
+    void testWithInsideEach() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <script ka:scope="global">
+                _.items = [{ name: 'A', status: 'ready' }, { name: 'B', status: 'error' }];
+            </script>
+            <div th:each="item: items">
+                <span th:with="css: item.status == 'ready' ? 'bg-success' : 'bg-danger'"
+                      th:class="css" th:text="item.name">x</span>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("class=\"bg-success\""), "Ready badge: " + rendered);
+        assertTrue(rendered.contains("class=\"bg-danger\""), "Error badge: " + rendered);
+    }
+
+    // ========== Subdirectory Fragment Resolution ==========
+
+    @Test
+    void testSubdirectoryFragmentInsert() {
+        // Test the components/badge pattern used in real apps
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <span th:insert="~{components/badge :: badge}" th:with="state: 'ready'">placeholder</span>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("bg-success"), "Badge should render with success class: " + rendered);
+        assertTrue(rendered.contains("ready"), "Badge should show state text: " + rendered);
+    }
+
+    @Test
+    void testSubdirectoryFragmentInsertWithParams() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<span th:insert=\"~{components/badge :: badge}\" th:with=\"state: 'error'\">placeholder</span>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("bg-danger"), "Badge should render with danger class: " + rendered);
+        assertTrue(rendered.contains("error"), "Badge should show state text: " + rendered);
+    }
+
+    @Test
+    void testSubdirectoryFragmentReplaceWithParams() {
+        // th:replace + th:with should work (th:with runs first, precedence 50 < 100)
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<span th:replace=\"~{components/badge :: badge}\" th:with=\"state: 'error'\">placeholder</span>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("bg-danger"), "Badge should render with danger class: " + rendered);
+        assertTrue(rendered.contains("error"), "Badge should show state text: " + rendered);
+    }
+
+    @Test
+    void testSubdirectoryFragmentInLoop() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <script ka:scope="global">
+                _.sessions = [{ name: 'S1', state: 'ready' }, { name: 'S2', state: 'error' }, { name: 'S3', state: 'running' }];
+            </script>
+            <table>
+                <tr th:each="s: sessions">
+                    <td th:text="s.name">name</td>
+                    <td><span th:replace="~{components/badge :: badge}" th:with="state: s.state">badge</span></td>
+                </tr>
+            </table>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("bg-success"), "Ready badge: " + rendered);
+        assertTrue(rendered.contains("bg-danger"), "Error badge: " + rendered);
+        assertTrue(rendered.contains("bg-secondary"), "Running badge (default): " + rendered);
+    }
+
+    @Test
+    void testSubdirectoryWholeFileInsert() {
+        // Test including a whole file from a subdirectory (no :: fragment selector)
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<div th:insert=\"components/footer\">placeholder</div>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("Built with Karate"), "Footer content should be inserted: " + rendered);
+    }
+
     // ========== Fragment Syntax Tests ==========
 
     @Test

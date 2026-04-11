@@ -38,7 +38,8 @@ class KaWithProcessor extends AbstractAttributeTagProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(KaWithProcessor.class);
 
-    private static final int PRECEDENCE = 600;
+    // Must run BEFORE insert/replace (100) so th:with variables are available in fragments
+    private static final int PRECEDENCE = 50;
     private static final String ATTR_NAME = "with";
 
     KaWithProcessor(final TemplateMode templateMode, final String dialectPrefix) {

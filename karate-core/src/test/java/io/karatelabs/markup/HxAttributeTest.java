@@ -171,6 +171,61 @@ class HxAttributeTest {
         assertEquals("<video hx-preserve=\"true\">Video</video>", result);
     }
 
+    @Test
+    void testEncoding() {
+        String result = markup.processString("<form ka:encoding=\"multipart/form-data\">Form</form>", Map.of());
+        assertEquals("<form hx-encoding=\"multipart/form-data\">Form</form>", result);
+    }
+
+    @Test
+    void testHistory() {
+        String result = markup.processString("<div ka:history=\"false\">Content</div>", Map.of());
+        assertEquals("<div hx-history=\"false\">Content</div>", result);
+    }
+
+    @Test
+    void testHistoryElt() {
+        String result = markup.processString("<div ka:history-elt=\"true\">Content</div>", Map.of());
+        assertEquals("<div hx-history-elt=\"true\">Content</div>", result);
+    }
+
+    @Test
+    void testRequest() {
+        String result = markup.processString("<div ka:request=\"timeout:5000\">Content</div>", Map.of());
+        assertEquals("<div hx-request=\"timeout:5000\">Content</div>", result);
+    }
+
+    // =============================================================================
+    // ka:vals Edge Cases
+    // =============================================================================
+
+    @Test
+    void testValsWithActionAndId() {
+        // Common studio pattern: action + entity ID
+        String result = markup.processString(
+                "<button ka:vals=\"action:'delete',teamId:team.teamId\">Delete</button>",
+                Map.of("team", Map.of("teamId", "abc-123")));
+        assertTrue(result.contains("\"action\":\"delete\""));
+        assertTrue(result.contains("\"teamId\":\"abc-123\""));
+    }
+
+    @Test
+    void testValsWithNestedObjectAccess() {
+        String result = markup.processString(
+                "<button ka:vals=\"name:user.profile.name\">Click</button>",
+                Map.of("user", Map.of("profile", Map.of("name", "Alice"))));
+        assertTrue(result.contains("\"name\":\"Alice\""));
+    }
+
+    @Test
+    void testValsWithBooleanAndNumber() {
+        String result = markup.processString(
+                "<button ka:vals=\"active:true,count:42,label:'test'\">Click</button>", Map.of());
+        assertTrue(result.contains("\"active\":true"));
+        assertTrue(result.contains("\"count\":42"));
+        assertTrue(result.contains("\"label\":\"test\""));
+    }
+
     // =============================================================================
     // Expression Support in Generic Attributes
     // =============================================================================
