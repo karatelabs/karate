@@ -55,6 +55,7 @@ public class Markup {
 
     private final StandardEngineContextFactory standardFactory;
     private final TemplateEngine wrapped;
+    private HtmlTemplateResolver templateResolver;
 
     Markup(MarkupConfig config, IDialect... dialects) {
         standardFactory = new StandardEngineContextFactory();
@@ -90,6 +91,10 @@ public class Markup {
 
     private void process(boolean isPath, String content, IContext context, Writer writer) {
         try {
+            // Reset resolver state so processString can be called multiple times
+            if (templateResolver != null) {
+                templateResolver.resetStringTemplateState();
+            }
             // the empty map (which becomes null) is used to signal an inline string template for HtmlTemplateResolver to handle
             TemplateSpec templateSpec = new TemplateSpec(content, isPath ? Collections.emptyMap() : IS_STRING);
             TemplateManager templateManager = wrapped.getConfiguration().getTemplateManager();
@@ -197,7 +202,8 @@ public class Markup {
         dialects[0] = new KaDialect(config);
         System.arraycopy(additionalDialects, 0, dialects, 1, additionalDialects.length);
         Markup markup = new Markup(config, dialects);
-        markup.wrapped.setTemplateResolver(new HtmlTemplateResolver(config));
+        markup.templateResolver = new HtmlTemplateResolver(config);
+        markup.wrapped.setTemplateResolver(markup.templateResolver);
         return markup;
     }
 

@@ -50,6 +50,10 @@ class HtmlTemplateResolver implements ITemplateResolver {
         devMode = config.isDevMode();
     }
 
+    void resetStringTemplateState() {
+        doneWithStringTemplate = false;
+    }
+
     @Override
     public String getName() {
         return getClass().getName();
@@ -62,9 +66,9 @@ class HtmlTemplateResolver implements ITemplateResolver {
 
     @Override
     public TemplateResolution resolveTemplate(IEngineConfiguration ec, String ownerTemplate, String content, Map<String, Object> attributes) {
-        if (attributes != null && !doneWithStringTemplate) { // string
+        if (attributes != null && !attributes.isEmpty() && !doneWithStringTemplate) { // inline string template (processString entry point)
             doneWithStringTemplate = true;
-            prevCaller = null;  // Reset caller for string templates
+            prevCaller = null;
             HtmlStringTemplateResource templateResource = new HtmlStringTemplateResource(content, resolver);
             return new TemplateResolution(templateResource, TemplateMode.HTML, NonCacheableCacheEntryValidity.INSTANCE);
         } else { // html file name
