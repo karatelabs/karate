@@ -59,9 +59,11 @@ public class ServerConfig {
     private long hstsMaxAge = 31536000; // 1 year in seconds
     private boolean hstsIncludeSubDomains = true;
 
-    // Error templates
+    // Error and fallback templates
     private String errorTemplate404;
     private String errorTemplate500;
+    private String fallbackTemplate;
+    private java.util.LinkedHashMap<String, String> templateRoutes;
 
     // Callbacks
     private Consumer<HttpRequest> requestInterceptor;
@@ -166,6 +168,14 @@ public class ServerConfig {
 
     public String getErrorTemplate500() {
         return errorTemplate500;
+    }
+
+    public String getFallbackTemplate() {
+        return fallbackTemplate;
+    }
+
+    public java.util.LinkedHashMap<String, String> getTemplateRoutes() {
+        return templateRoutes;
     }
 
     public Consumer<HttpRequest> getRequestInterceptor() {
@@ -292,6 +302,42 @@ public class ServerConfig {
 
     public ServerConfig errorTemplate500(String errorTemplate500) {
         this.errorTemplate500 = errorTemplate500;
+        return this;
+    }
+
+    /**
+     * Set a fallback template for unresolved paths. When a path like /sessions/abc123
+     * doesn't match a template file, render this template instead of returning 404.
+     * The original request path is preserved so the template can use
+     * request.pathMatches('/sessions/{id}') to extract parameters and dispatch.
+     * <p>
+     * For fine-grained routing, use {@link #templateRoute(String, String)} instead.
+     */
+    public ServerConfig fallbackTemplate(String fallbackTemplate) {
+        this.fallbackTemplate = fallbackTemplate;
+        return this;
+    }
+
+    /**
+     * Add a path pattern → template mapping. When a URL doesn't match a template file,
+     * these patterns are checked in order. If a pattern matches, the specified template
+     * is rendered with the original path preserved for request.pathMatches().
+     * <p>
+     * Example:
+     * <pre>
+     * config.templateRoute("/sessions/{id}", "session.html")
+     *       .templateRoute("/sessions/{id}/report", "report.html")
+     *       .templateRoute("/flows/{path}", "flows.html")
+     * </pre>
+     * <p>
+     * More specific patterns should be registered first. If no route matches,
+     * falls back to {@link #fallbackTemplate(String)} if set, otherwise 404.
+     */
+    public ServerConfig templateRoute(String pathPattern, String templateName) {
+        if (templateRoutes == null) {
+            templateRoutes = new java.util.LinkedHashMap<>();
+        }
+        templateRoutes.put(pathPattern, templateName);
         return this;
     }
 

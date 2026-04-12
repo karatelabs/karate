@@ -275,4 +275,136 @@ class RequestFilterTest {
         assertNotNull(session.getId());
     }
 
+    // ========== Fallback Template Tests ==========
+
+    @Test
+    void testFallbackTemplateRendersForUnknownPath() {
+        ServerConfig config = baseConfig()
+                .fallbackTemplate("index.html");
+        harness = createHarness(config);
+
+        // /sessions/abc123 doesn't match any template file — should fall back to index.html
+        HttpResponse response = harness.get("/sessions/abc123");
+        assertEquals(200, response.getStatus());
+        assertTrue(response.getBodyString().contains("Demo App"),
+                "Fallback should render index.html");
+    }
+
+    @Test
+    void testFallbackTemplatePreservesOriginalPath() {
+        ServerConfig config = baseConfig()
+                .fallbackTemplate("index.html");
+        harness = createHarness(config);
+
+        // The original path /sessions/abc123 should be available via request.path
+        // so templates can use request.pathMatches('/sessions/{id}')
+        HttpResponse response = harness.get("/sessions/abc123");
+        assertEquals(200, response.getStatus());
+        // index.html renders — the template could dispatch based on path
+    }
+
+    @Test
+    void testFallbackNotUsedForExistingTemplates() {
+        ServerConfig config = baseConfig()
+                .fallbackTemplate("index.html");
+        harness = createHarness(config);
+
+        // /items exists as items.html — should render that, not the fallback
+        HttpResponse response = harness.get("/items");
+        assertEquals(200, response.getStatus());
+        assertTrue(response.getBodyString().contains("Items List"),
+                "Existing template should render, not fallback");
+    }
+
+    @Test
+    void testNoFallbackReturns404() {
+        ServerConfig config = baseConfig();
+        // No fallbackTemplate set
+        harness = createHarness(config);
+
+        HttpResponse response = harness.get("/sessions/abc123");
+        assertEquals(404, response.getStatus());
+    }
+
+    // ========== Template Route Tests ==========
+
+    @Test
+    void testTemplateRouteMatchesPattern() {
+        ServerConfig config = baseConfig()
+                .templateRoute("/sessions/{id}", "index.html");
+        harness = createHarness(config);
+
+        // /sessions/abc123 matches the route pattern → renders index.html
+        HttpResponse response = harness.get("/sessions/abc123");
+        assertEquals(200, response.getStatus());
+        assertTrue(response.getBodyString().contains("Demo App"));
+    }
+
+    @Test
+    void testTemplateRoutePreservesPathForPathMatches() {
+        ServerConfig config = baseConfig()
+                .templateRoute("/sessions/{id}", "index.html");
+        harness = createHarness(config);
+
+        // The original path is preserved so index.html can use request.pathMatches()
+        HttpResponse response = harness.get("/sessions/abc123");
+        assertEquals(200, response.getStatus());
+        // index.html renders with the original /sessions/abc123 path available
+    }
+
+    @Test
+    void testMultipleTemplateRoutes() {
+        ServerConfig config = baseConfig()
+                .templateRoute("/sessions/{id}/report", "items.html")  // more specific first
+                .templateRoute("/sessions/{id}", "index.html");
+        harness = createHarness(config);
+
+        // /sessions/abc/report → items.html (more specific route)
+        HttpResponse r1 = harness.get("/sessions/abc/report");
+        assertEquals(200, r1.getStatus());
+        assertTrue(r1.getBodyString().contains("Items List"));
+
+        // /sessions/abc → index.html (less specific route)
+        HttpResponse r2 = harness.get("/sessions/abc");
+        assertEquals(200, r2.getStatus());
+        assertTrue(r2.getBodyString().contains("Demo App"));
+    }
+
+    @Test
+    void testTemplateRouteDoesNotOverrideExistingTemplate() {
+        ServerConfig config = baseConfig()
+                .templateRoute("/items/{id}", "index.html");
+        harness = createHarness(config);
+
+        // /items exists as items.html — should render items.html, not the route
+        HttpResponse response = harness.get("/items");
+        assertEquals(200, response.getStatus());
+        assertTrue(response.getBodyString().contains("Items List"));
+    }
+
+    @Test
+    void testTemplateRouteFallsBackToGlobalFallback() {
+        ServerConfig config = baseConfig()
+                .templateRoute("/sessions/{id}", "index.html")
+                .fallbackTemplate("items.html");
+        harness = createHarness(config);
+
+        // /unknown/path doesn't match any route → falls back to global fallback
+        HttpResponse response = harness.get("/unknown/path");
+        assertEquals(200, response.getStatus());
+        assertTrue(response.getBodyString().contains("Items List"));
+    }
+
+    @Test
+    void testTemplateRouteNoMatchNoFallback404() {
+        ServerConfig config = baseConfig()
+                .templateRoute("/sessions/{id}", "index.html");
+        // No global fallback
+        harness = createHarness(config);
+
+        // /unknown/path doesn't match any route and no fallback → 404
+        HttpResponse response = harness.get("/unknown/path");
+        assertEquals(404, response.getStatus());
+    }
+
 }

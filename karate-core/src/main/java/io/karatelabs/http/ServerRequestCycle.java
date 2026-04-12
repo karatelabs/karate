@@ -214,6 +214,29 @@ public class ServerRequestCycle {
             return response;
 
         } catch (ResourceNotFoundException e) {
+            // Try template routes first (pattern → template mapping)
+            String resolvedTemplate = resolveTemplateRoute(path);
+            if (resolvedTemplate == null) {
+                // Then try global fallback
+                resolvedTemplate = config.getFallbackTemplate();
+            }
+            if (resolvedTemplate != null) {
+                try {
+                    context.setTemplateName(resolvedTemplate);
+                    Map<String, Object> vars = context.toVars();
+                    String html = markup.processPath(resolvedTemplate, vars);
+                    if (context.isSwitched()) {
+                        String newTemplate = context.getSwitchTemplate();
+                        context.setTemplateName(newTemplate);
+                        html = markup.processPath(newTemplate, vars);
+                    }
+                    response.setBody(html);
+                    response.setHeader("Content-Type", "text/html; charset=utf-8");
+                    return response;
+                } catch (Exception fallbackError) {
+                    return notFound(path);
+                }
+            }
             return notFound(path);
         } catch (Exception e) {
             return handleError(e);
@@ -241,6 +264,23 @@ public class ServerRequestCycle {
         response.setBody("Internal Server Error: " + e.getMessage());
         response.setHeader("Content-Type", "text/plain");
         return response;
+    }
+
+    /**
+     * Check if the request path matches any configured template routes.
+     * Uses the same pathMatches() logic as HttpRequest for consistency.
+     */
+    private String resolveTemplateRoute(String path) {
+        java.util.LinkedHashMap<String, String> routes = config.getTemplateRoutes();
+        if (routes == null) {
+            return null;
+        }
+        for (var entry : routes.entrySet()) {
+            if (request.pathMatches(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     private HttpResponse notFound(String path) {
