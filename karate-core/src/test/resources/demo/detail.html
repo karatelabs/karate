@@ -1,0 +1,15 @@
+<script ka:scope="global">
+    _.editMode = false;
+    if (request.pathMatches('/items/{id}/edit')) {
+        _.itemId = request.pathParams.id;
+        _.editMode = true;
+    } else if (request.pathMatches('/items/{id}')) {
+        _.itemId = request.pathParams.id;
+    }
+</script>
+<div id="detail-page">
+    <h1 th:text="'Item: ' + (itemId || 'unknown')">Item</h1>
+    <span id="item-id" th:text="itemId">id</span>
+    <span id="edit-mode" th:if="editMode">EDIT</span>
+    <span id="view-mode" th:unless="editMode">VIEW</span>
+</div>
