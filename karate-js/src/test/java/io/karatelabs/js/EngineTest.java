@@ -806,6 +806,29 @@ class EngineTest {
     }
 
     @Test
+    void testEncodeDecodeURIComponent() {
+        Engine engine = new Engine();
+        assertEquals("hello%20world", engine.eval("encodeURIComponent('hello world')"));
+        assertEquals("hello%26world", engine.eval("encodeURIComponent('hello&world')"));
+        assertEquals("hello%3Dworld", engine.eval("encodeURIComponent('hello=world')"));
+        assertEquals("hello%2Fworld", engine.eval("encodeURIComponent('hello/world')"));
+        assertEquals("-_.!~*'()", engine.eval("encodeURIComponent(\"-_.!~*'()\")"));
+        assertEquals("hello world", engine.eval("decodeURIComponent('hello%20world')"));
+        assertEquals("hello&world", engine.eval("decodeURIComponent('hello%26world')"));
+        assertEquals("a=1&b=2", engine.eval("decodeURIComponent(encodeURIComponent('a=1&b=2'))"));
+    }
+
+    @Test
+    void testEncodeDecodeURI() {
+        Engine engine = new Engine();
+        assertEquals("https://example.com/path?q=hello%20world&x=1",
+                engine.eval("encodeURI('https://example.com/path?q=hello world&x=1')"));
+        assertEquals("hello%20world", engine.eval("encodeURI('hello world')"));
+        assertEquals(":/?#@!$&'()*+,;=", engine.eval("encodeURI(\":/?#@!$&'()*+,;=\")"));
+        assertEquals("hello world", engine.eval("decodeURI('hello%20world')"));
+    }
+
+    @Test
     void testErrorMessagesUseJsTypeNames() {
         // JavaUtils.invoke errors should use JS type names, not Java class names
         // Test: calling non-existent method on a Map (Object in JS terms)

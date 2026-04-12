@@ -25,6 +25,9 @@ package io.karatelabs.js;
 
 import io.karatelabs.parser.Node;
 
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -88,7 +91,8 @@ class ContextRoot extends CoreContext {
             return true;
         }
         return switch (key) {
-            case "console", "parseInt", "parseFloat", "undefined", "Array", "Date", "Error", "Infinity", "Java",
+            case "console", "parseInt", "parseFloat", "encodeURIComponent", "decodeURIComponent",
+                 "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Infinity", "Java",
                  "JSON", "Math", "NaN", "Number", "Boolean", "Object", "RegExp", "String", "TypeError",
                  "TextEncoder", "TextDecoder", "Uint8Array" -> true;
             default -> false;
@@ -121,6 +125,26 @@ class ContextRoot extends CoreContext {
                 return Terms.parseInt(args[0] + "", radix);
             };
             case "parseFloat" -> (JsInvokable) args -> Terms.parseFloat(args[0] + "", false);
+            case "encodeURIComponent" -> (JsInvokable) args -> {
+                String encoded = URLEncoder.encode(args[0] + "", StandardCharsets.UTF_8);
+                return encoded.replace("+", "%20")
+                        .replace("%21", "!").replace("%27", "'").replace("%28", "(")
+                        .replace("%29", ")").replace("%7E", "~").replace("%2A", "*");
+            };
+            case "decodeURIComponent" -> (JsInvokable) args ->
+                    URLDecoder.decode(args[0] + "", StandardCharsets.UTF_8);
+            case "encodeURI" -> (JsInvokable) args -> {
+                String encoded = URLEncoder.encode(args[0] + "", StandardCharsets.UTF_8);
+                return encoded.replace("+", "%20")
+                        .replace("%21", "!").replace("%23", "#").replace("%24", "$")
+                        .replace("%26", "&").replace("%27", "'").replace("%28", "(")
+                        .replace("%29", ")").replace("%2A", "*").replace("%2B", "+")
+                        .replace("%2C", ",").replace("%2F", "/").replace("%3A", ":")
+                        .replace("%3B", ";").replace("%3D", "=").replace("%3F", "?")
+                        .replace("%40", "@").replace("%7E", "~");
+            };
+            case "decodeURI" -> (JsInvokable) args ->
+                    URLDecoder.decode(args[0] + "", StandardCharsets.UTF_8);
             case "undefined" -> Terms.UNDEFINED;
             case "Array" -> JsArrayConstructor.INSTANCE;
             case "Date" -> JsDateConstructor.INSTANCE;
