@@ -22,8 +22,7 @@ class TemplateRouteTest {
                 .devMode(true)
                 .csrfEnabled(false)
                 .templateRoute("/items/{id}/edit", "detail.html")
-                .templateRoute("/items/{id}", "detail.html")
-                .fallbackTemplate("index.html");
+                .templateRoute("/items/{id}", "detail.html");
 
         RootResourceResolver resolver = new RootResourceResolver("classpath:demo");
         ServerRequestHandler handler = new ServerRequestHandler(config, resolver);
@@ -78,11 +77,10 @@ class TemplateRouteTest {
     }
 
     @Test
-    void testFallbackForUnmatchedPaths() {
-        // /unknown doesn't match any file or route → fallbackTemplate (index.html)
+    void testUnmatchedPathReturns404() {
+        // /unknown doesn't match any file or route → 404
         HttpResponse response = harness.get("/unknown/page");
-        assertEquals(200, response.getStatus());
-        assertTrue(response.getBodyString().contains("Demo App"));
+        assertEquals(404, response.getStatus());
     }
 
     @Test

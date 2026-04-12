@@ -219,32 +219,9 @@ public class ServerRequestCycle {
             return response;
 
         } catch (ResourceNotFoundException e) {
-            // Template file not found — try global fallback
-            String fallback = config.getFallbackTemplate();
-            if (fallback != null) {
-                return renderFallback(fallback, path);
-            }
             return notFound(path);
         } catch (Exception e) {
             return handleError(e);
-        }
-    }
-
-    private HttpResponse renderFallback(String templatePath, String originalPath) {
-        try {
-            context.setTemplateName(templatePath);
-            Map<String, Object> vars = context.toVars();
-            String html = markup.processPath(templatePath, vars);
-            if (context.isSwitched()) {
-                String newTemplate = context.getSwitchTemplate();
-                context.setTemplateName(newTemplate);
-                html = markup.processPath(newTemplate, vars);
-            }
-            response.setBody(html);
-            response.setHeader("Content-Type", "text/html; charset=utf-8");
-            return response;
-        } catch (Exception e) {
-            return notFound(originalPath);
         }
     }
 
