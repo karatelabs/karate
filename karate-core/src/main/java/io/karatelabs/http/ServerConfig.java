@@ -27,6 +27,7 @@ import io.karatelabs.js.Engine;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -64,6 +65,7 @@ public class ServerConfig {
 
     // Callbacks
     private Consumer<HttpRequest> requestInterceptor;
+    private BiFunction<HttpRequest, ServerMarkupContext, HttpResponse> requestFilter;
     private Consumer<String> logHandler;
 
     // Engine supplier - default gets engine from current RequestCycle (for template processing)
@@ -168,6 +170,10 @@ public class ServerConfig {
 
     public Consumer<HttpRequest> getRequestInterceptor() {
         return requestInterceptor;
+    }
+
+    public BiFunction<HttpRequest, ServerMarkupContext, HttpResponse> getRequestFilter() {
+        return requestFilter;
     }
 
     public Consumer<String> getLogHandler() {
@@ -291,6 +297,23 @@ public class ServerConfig {
 
     public ServerConfig requestInterceptor(Consumer<HttpRequest> requestInterceptor) {
         this.requestInterceptor = requestInterceptor;
+        return this;
+    }
+
+    /**
+     * Set a request filter that runs after session loading but before CSRF validation.
+     * The filter receives the request and fully initialized context (with session loaded).
+     * Return null to continue normal processing, or an HttpResponse to short-circuit.
+     * <p>
+     * Use this to:
+     * <ul>
+     *   <li>Set {@code context.setSession(Session.TEMPORARY)} for public API endpoints (webhooks)</li>
+     *   <li>Return a 401/403 response for unauthorized requests based on session state</li>
+     *   <li>Implement centralized auth validation across all routes</li>
+     * </ul>
+     */
+    public ServerConfig requestFilter(BiFunction<HttpRequest, ServerMarkupContext, HttpResponse> requestFilter) {
+        this.requestFilter = requestFilter;
         return this;
     }
 

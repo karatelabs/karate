@@ -95,6 +95,14 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
             // Load flash messages from previous request (if any)
             context.loadFlashFromSession();
 
+            // Call request filter if configured (runs with session loaded)
+            if (config.getRequestFilter() != null) {
+                HttpResponse filterResponse = config.getRequestFilter().apply(request, context);
+                if (filterResponse != null) {
+                    return filterResponse;
+                }
+            }
+
             // CSRF validation for state-changing requests
             HttpResponse csrfError = validateCsrf(request, context);
             if (csrfError != null) {
@@ -194,10 +202,10 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
             return null;
         }
 
-        // Skip if no session exists - nothing to protect from CSRF
-        // This allows signin/signup pages to work without a session
+        // Skip if no session or temporary session - nothing to protect from CSRF
+        // This allows signin/signup pages and public API endpoints to work
         Session session = context.getSession();
-        if (session == null) {
+        if (session == null || session.isTemporary()) {
             return null;
         }
 
