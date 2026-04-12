@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visibility Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 { color: #333; }
+        section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        section h2 {
+            margin-top: 0;
+            font-size: 16px;
+            color: #666;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #0052a3; }
+        #result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        /* Modal overlay */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        .modal-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            z-index: 1001;
+            display: none;
+            min-width: 300px;
+        }
+        .modal-dialog button {
+            background: #28a745;
+        }
+        /* Pointer-events test */
+        .no-pointer {
+            pointer-events: none;
+            opacity: 0.5;
+        }
+        /* Scrollable content spacer */
+        .spacer {
+            height: 200px;
+            background: linear-gradient(#f0f0f0, #e0e0e0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Visibility Test Page</h1>
+
+    <!-- Section 1: Basic visibility -->
+    <section>
+        <h2>Basic Visibility</h2>
+        <button onclick="showResult('visible clicked')">Visible Button</button>
+        <button style="display: none" onclick="showResult('hidden clicked')">Hidden Button</button>
+        <button style="visibility: hidden" onclick="showResult('invisible clicked')">Invisible Button</button>
+        <div id="result">No click yet</div>
+    </section>
+
+    <!-- Section 2: Overlay / Modal -->
+    <section>
+        <h2>Overlay Test</h2>
+        <button id="open-modal" onclick="openModal()">Open Modal</button>
+        <button id="behind-modal" onclick="showResult('behind-modal clicked')">Save</button>
+    </section>
+
+    <!-- The modal overlay and dialog -->
+    <div class="modal-backdrop" id="backdrop"></div>
+    <div class="modal-dialog" id="modal">
+        <h3>Modal Dialog</h3>
+        <p>The "Save" button behind this modal should not be clickable.</p>
+        <button id="modal-save" onclick="showResult('modal-save clicked'); closeModal()">Save</button>
+        <button onclick="closeModal()">Cancel</button>
+    </div>
+
+    <!-- Section 3: Pointer-events: none -->
+    <section>
+        <h2>Pointer Events</h2>
+        <button class="no-pointer" onclick="showResult('no-pointer clicked')">Disabled Pointer</button>
+        <button onclick="showResult('normal-pointer clicked')">Normal Pointer</button>
+    </section>
+
+    <!-- Section 4: Scrollable content (for scroll tests) -->
+    <section>
+        <h2>Scroll Content</h2>
+        <div class="spacer">Spacer 1</div>
+        <div class="spacer">Spacer 2</div>
+        <div class="spacer">Spacer 3</div>
+        <div class="spacer">Spacer 4</div>
+        <button id="bottom-button" onclick="showResult('bottom clicked')">Bottom Button</button>
+    </section>
+
+    <script>
+        function showResult(text) {
+            document.getElementById('result').textContent = text;
+        }
+
+        function openModal() {
+            document.getElementById('backdrop').style.display = 'block';
+            document.getElementById('modal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('backdrop').style.display = 'none';
+            document.getElementById('modal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

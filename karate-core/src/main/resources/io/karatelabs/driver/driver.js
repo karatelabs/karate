@@ -145,8 +145,21 @@
         var style = window.getComputedStyle(el);
         if (style.display === 'none') return false;
         if (style.visibility === 'hidden') return false;
+        if (style.pointerEvents === 'none') return false;
         var rect = el.getBoundingClientRect();
         if (rect.width === 0 && rect.height === 0) return false;
+        // Check if element is obscured by an overlay (modal backdrop, etc.)
+        // Skip for elements inside shadow DOM — elementFromPoint returns the shadow host
+        if (!el.getRootNode || el.getRootNode() === document) {
+            var cx = rect.left + rect.width / 2;
+            var cy = rect.top + rect.height / 2;
+            if (cx >= 0 && cy >= 0 && cx < window.innerWidth && cy < window.innerHeight) {
+                var topEl = document.elementFromPoint(cx, cy);
+                if (topEl && topEl !== el && !el.contains(topEl) && !topEl.contains(el)) {
+                    return false;
+                }
+            }
+        }
         return true;
     };
 
