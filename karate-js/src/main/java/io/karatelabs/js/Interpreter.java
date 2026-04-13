@@ -872,7 +872,7 @@ class Interpreter {
                 sb.append("  File: ").append(first.getResource()).append("\n");
             }
             if (first.line != 0) {
-                sb.append("  Line: ").append(first.line).append(", Col: ").append(first.col).append("\n");
+                sb.append("  Line: ").append(first.line + 1).append(", Col: ").append(first.col).append("\n");
             }
             sb.append("  Code: ").append(first.getLineText().trim()).append("\n");
             sb.append("  Error: ").append(e.getMessage()).append("\n");
