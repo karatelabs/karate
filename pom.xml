@@ -140,7 +140,7 @@
                     <plugin>
                         <groupId>org.owasp</groupId>
                         <artifactId>dependency-check-maven</artifactId>
-                        <version>12.1.0</version>
+                        <version>12.2.0</version>
                         <configuration>
                             <dataDirectory>${user.home}/.dependency-check/data</dataDirectory>
                             <skipProvidedScope>true</skipProvidedScope>
