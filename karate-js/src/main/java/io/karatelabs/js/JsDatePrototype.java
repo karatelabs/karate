@@ -28,6 +28,9 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * Singleton prototype for Date instances.
@@ -71,6 +74,21 @@ class JsDatePrototype extends Prototype {
             case "setSeconds" -> (JsCallable) this::setSeconds;
             case "setMilliseconds" -> (JsCallable) this::setMilliseconds;
             case "setTime" -> (JsCallable) this::setTime;
+            case "toLocaleDateString" -> (JsCallable) this::toLocaleDateString;
+            case "toLocaleTimeString" -> (JsCallable) this::toLocaleTimeString;
+            case "toLocaleString" -> (JsCallable) this::toLocaleString;
+            case "toDateString" -> (JsCallable) this::toDateString;
+            case "toTimeString" -> (JsCallable) this::toTimeString;
+            case "toJSON" -> (JsCallable) this::toISOString;
+            case "getTimezoneOffset" -> (JsCallable) this::getTimezoneOffset;
+            case "getUTCFullYear" -> (JsCallable) this::getUTCFullYear;
+            case "getUTCMonth" -> (JsCallable) this::getUTCMonth;
+            case "getUTCDate" -> (JsCallable) this::getUTCDate;
+            case "getUTCDay" -> (JsCallable) this::getUTCDay;
+            case "getUTCHours" -> (JsCallable) this::getUTCHours;
+            case "getUTCMinutes" -> (JsCallable) this::getUTCMinutes;
+            case "getUTCSeconds" -> (JsCallable) this::getUTCSeconds;
+            case "getUTCMilliseconds" -> (JsCallable) this::getUTCMilliseconds;
             default -> null;
         };
     }
@@ -279,6 +297,86 @@ class JsDatePrototype extends Prototype {
         JsDate jsDate = asDate(context);
         jsDate.setMillis(timestamp);
         return timestamp;
+    }
+
+    private static Locale parseLocale(Object[] args) {
+        if (args.length > 0 && args[0] instanceof String tag) {
+            return Locale.forLanguageTag(tag);
+        }
+        return Locale.getDefault();
+    }
+
+    private Object toLocaleDateString(Context context, Object[] args) {
+        JsDate jsDate = asDate(context);
+        Locale locale = parseLocale(args);
+        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(locale);
+        return toZonedDateTime(jsDate).format(formatter);
+    }
+
+    private Object toLocaleTimeString(Context context, Object[] args) {
+        JsDate jsDate = asDate(context);
+        Locale locale = parseLocale(args);
+        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM).withLocale(locale);
+        return toZonedDateTime(jsDate).format(formatter);
+    }
+
+    private Object toLocaleString(Context context, Object[] args) {
+        JsDate jsDate = asDate(context);
+        Locale locale = parseLocale(args);
+        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT, FormatStyle.MEDIUM).withLocale(locale);
+        return toZonedDateTime(jsDate).format(formatter);
+    }
+
+    private Object toDateString(Context context, Object[] args) {
+        ZonedDateTime zdt = toZonedDateTime(asDate(context));
+        return DateTimeFormatter.ofPattern("EEE MMM dd yyyy").format(zdt);
+    }
+
+    private Object toTimeString(Context context, Object[] args) {
+        ZonedDateTime zdt = toZonedDateTime(asDate(context));
+        return DateTimeFormatter.ofPattern("HH:mm:ss 'GMT'XXX").format(zdt);
+    }
+
+    private Object getTimezoneOffset(Context context, Object[] args) {
+        ZonedDateTime zdt = toZonedDateTime(asDate(context));
+        // JS returns offset in minutes, negative of UTC offset (UTC+5:30 → -330)
+        return -(zdt.getOffset().getTotalSeconds() / 60);
+    }
+
+    private static ZonedDateTime toUTC(JsDate date) {
+        return ZonedDateTime.ofInstant(Instant.ofEpochMilli(date.getTime()), ZoneOffset.UTC);
+    }
+
+    private Object getUTCFullYear(Context context, Object[] args) {
+        return toUTC(asDate(context)).getYear();
+    }
+
+    private Object getUTCMonth(Context context, Object[] args) {
+        return toUTC(asDate(context)).getMonthValue() - 1; // 0-indexed
+    }
+
+    private Object getUTCDate(Context context, Object[] args) {
+        return toUTC(asDate(context)).getDayOfMonth();
+    }
+
+    private Object getUTCDay(Context context, Object[] args) {
+        return toUTC(asDate(context)).getDayOfWeek().getValue() % 7; // Sun=0
+    }
+
+    private Object getUTCHours(Context context, Object[] args) {
+        return toUTC(asDate(context)).getHour();
+    }
+
+    private Object getUTCMinutes(Context context, Object[] args) {
+        return toUTC(asDate(context)).getMinute();
+    }
+
+    private Object getUTCSeconds(Context context, Object[] args) {
+        return toUTC(asDate(context)).getSecond();
+    }
+
+    private Object getUTCMilliseconds(Context context, Object[] args) {
+        return toUTC(asDate(context)).getNano() / 1_000_000;
     }
 
 }

@@ -240,20 +240,26 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
             // Try wrapping in parentheses first (handles function definitions)
             // We need to wrap the content but preserve the resource path for debugging
+            Object fn = null;
+            boolean parseFailed = false;
             try {
                 // Create a wrapped resource that adds parentheses but preserves the path
                 io.karatelabs.common.Resource wrappedResource = io.karatelabs.common.Resource.embedded("(" + js + ")", resource, 0);
-                Object fn = karate.engine.eval(wrappedResource);
-                if (fn instanceof JavaCallable) {
-                    // It's a function - invoke it
-                    result = ((JavaCallable) fn).call(null);
-                } else {
-                    // Already evaluated to a value (e.g., object literal)
-                    result = fn;
-                }
+                fn = karate.engine.eval(wrappedResource);
             } catch (Exception e) {
-                // If parentheses failed, try evaluating directly (self-invoking pattern)
+                // Parentheses wrapping failed to parse - fall back to direct eval
+                parseFailed = true;
+            }
+
+            if (parseFailed) {
+                // Self-invoking pattern: function fn() { ... } fn();
                 result = karate.engine.eval(resource);
+            } else if (fn instanceof JavaCallable callable) {
+                // It's a function definition - invoke it
+                result = callable.call(null);
+            } else {
+                // Already evaluated to a value (e.g., object literal)
+                result = fn;
             }
 
             // Apply config variables to engine

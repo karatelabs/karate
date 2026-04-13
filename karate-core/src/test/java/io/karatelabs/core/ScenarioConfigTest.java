@@ -560,4 +560,62 @@ class ScenarioConfigTest {
         assertTrue(foundConfigPath, "Debug points should include karate-config.js source path. Points: " + debugPoints);
     }
 
+    // ========== Issue #2780: toLocaleDateString in config ==========
+
+    @Test
+    void testToLocaleDateStringInConfig() throws Exception {
+        // This is the exact pattern from issue #2780 that was failing silently
+        Path configFile = tempDir.resolve("karate-config.js");
+        Files.writeString(configFile, """
+            function fn() {
+              var config = {
+                simpleStuff: 'Hello World'
+              };
+              var t = new Date();
+              var tx = t.toLocaleDateString('en-NZ');
+              config.dateString = tx;
+              return config;
+            }
+            """);
+
+        Path featureFile = tempDir.resolve("test.feature");
+        Files.writeString(featureFile, """
+            Feature: Issue 2780
+            Scenario: Config with toLocaleDateString
+            * match simpleStuff == 'Hello World'
+            * match dateString != null
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, featureFile.toString());
+
+        assertTrue(result.isPassed(), "Config with toLocaleDateString should not fail silently");
+        assertEquals(1, result.getScenarioPassedCount());
+    }
+
+    @Test
+    void testConfigErrorNotSwallowed() throws Exception {
+        // Verify that a genuine JS error in config is reported as a failure, not swallowed
+        Path configFile = tempDir.resolve("karate-config.js");
+        Files.writeString(configFile, """
+            function fn() {
+              var config = {};
+              config.value = nonExistentVariable.someMethod();
+              return config;
+            }
+            """);
+
+        Path featureFile = tempDir.resolve("test.feature");
+        Files.writeString(featureFile, """
+            Feature: Config Error Test
+            Scenario: Should fail due to config error
+            * match value == 'something'
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, featureFile.toString());
+
+        // The scenario should fail (not pass silently with missing config vars)
+        assertFalse(result.isPassed(), "Config with JS errors should cause scenario failure");
+        assertEquals(1, result.getScenarioFailedCount());
+    }
+
 }

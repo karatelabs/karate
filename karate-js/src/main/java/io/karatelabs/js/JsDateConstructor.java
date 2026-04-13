@@ -23,6 +23,8 @@
  */
 package io.karatelabs.js;
 
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Date;
 
 /**
@@ -42,6 +44,7 @@ class JsDateConstructor extends JsFunction {
         return switch (name) {
             case "now" -> (JsInvokable) this::now;
             case "parse" -> (JsInvokable) this::parse;
+            case "UTC" -> (JsInvokable) this::utc;
             case "prototype" -> JsDatePrototype.INSTANCE;
             default -> super.getMember(name);
         };
@@ -112,6 +115,21 @@ class JsDateConstructor extends JsFunction {
         } catch (Exception e) {
             return Double.NaN;
         }
+    }
+
+    private Object utc(Object[] args) {
+        if (args.length < 2) {
+            return Double.NaN;
+        }
+        int year = args[0] instanceof Number ? ((Number) args[0]).intValue() : 0;
+        int month = args[1] instanceof Number ? ((Number) args[1]).intValue() : 0;
+        int day = args.length > 2 && args[2] instanceof Number ? ((Number) args[2]).intValue() : 1;
+        int hours = args.length > 3 && args[3] instanceof Number ? ((Number) args[3]).intValue() : 0;
+        int minutes = args.length > 4 && args[4] instanceof Number ? ((Number) args[4]).intValue() : 0;
+        int seconds = args.length > 5 && args[5] instanceof Number ? ((Number) args[5]).intValue() : 0;
+        int ms = args.length > 6 && args[6] instanceof Number ? ((Number) args[6]).intValue() : 0;
+        ZonedDateTime zdt = ZonedDateTime.of(year, month + 1, day, hours, minutes, seconds, ms * 1_000_000, ZoneOffset.UTC);
+        return zdt.toInstant().toEpochMilli();
     }
 
 }

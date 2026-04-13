@@ -69,6 +69,12 @@ class JsStringPrototype extends Prototype {
             case "match" -> (JsCallable) this::match;
             case "search" -> (JsCallable) this::search;
             case "valueOf" -> (JsCallable) this::valueOf;
+            case "toLocaleLowerCase" -> (JsCallable) this::toLowerCase;
+            case "toLocaleUpperCase" -> (JsCallable) this::toUpperCase;
+            case "at" -> (JsCallable) this::at;
+            case "toString" -> (JsCallable) this::valueOf;
+            case "normalize" -> (JsCallable) this::normalize;
+            case "localeCompare" -> (JsCallable) this::localeCompare;
             default -> null;
         };
     }
@@ -321,6 +327,41 @@ class JsStringPrototype extends Prototype {
 
     private Object valueOf(Context context, Object[] args) {
         return asString(context);
+    }
+
+    private Object at(Context context, Object[] args) {
+        String s = asString(context);
+        if (args.length == 0 || !(args[0] instanceof Number)) {
+            return Terms.UNDEFINED;
+        }
+        int index = ((Number) args[0]).intValue();
+        if (index < 0) {
+            index = s.length() + index;
+        }
+        if (index < 0 || index >= s.length()) {
+            return Terms.UNDEFINED;
+        }
+        return String.valueOf(s.charAt(index));
+    }
+
+    private Object normalize(Context context, Object[] args) {
+        String s = asString(context);
+        String form = args.length > 0 && args[0] instanceof String ? (String) args[0] : "NFC";
+        return switch (form) {
+            case "NFD" -> java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD);
+            case "NFKC" -> java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFKC);
+            case "NFKD" -> java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFKD);
+            default -> java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFC);
+        };
+    }
+
+    private Object localeCompare(Context context, Object[] args) {
+        String s = asString(context);
+        if (args.length == 0) {
+            return 0;
+        }
+        String other = args[0] != null ? args[0].toString() : "";
+        return s.compareToIgnoreCase(other) < 0 ? -1 : s.compareToIgnoreCase(other) > 0 ? 1 : 0;
     }
 
 }

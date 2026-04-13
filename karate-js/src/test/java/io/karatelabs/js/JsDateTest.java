@@ -269,4 +269,115 @@ class JsDateTest extends EvalBase {
         assertEquals(1609459200000L, get("fixedTime"));
     }
 
+    @Test
+    void testToLocaleDateString() {
+        // Basic call without arguments should not throw
+        Object result = eval("new Date(2025, 0, 15).toLocaleDateString()");
+        assertInstanceOf(String.class, result);
+        assertFalse(((String) result).isEmpty());
+    }
+
+    @Test
+    void testToLocaleDateStringWithLocale() {
+        // With locale argument - should produce a locale-formatted date
+        Object result = eval("new Date(2025, 0, 15).toLocaleDateString('en-US')");
+        assertInstanceOf(String.class, result);
+        assertTrue(((String) result).contains("1") && ((String) result).contains("15"));
+    }
+
+    @Test
+    void testToLocaleDateStringSplitPattern() {
+        // This is the exact pattern from issue #2780 that was failing
+        eval("var t = new Date(2025, 0, 15);"
+                + "var tx = t.toLocaleDateString('en-NZ');"
+                + "var parts = tx.split('/');");
+        Object parts = get("parts");
+        assertInstanceOf(java.util.List.class, parts);
+    }
+
+    @Test
+    void testToLocaleTimeString() {
+        Object result = eval("new Date(2025, 0, 15, 13, 45, 30).toLocaleTimeString()");
+        assertInstanceOf(String.class, result);
+        assertTrue(((String) result).contains("13") || ((String) result).contains("1:45"));
+    }
+
+    @Test
+    void testToLocaleString() {
+        Object result = eval("new Date(2025, 0, 15, 13, 45, 30).toLocaleString()");
+        assertInstanceOf(String.class, result);
+        assertFalse(((String) result).isEmpty());
+    }
+
+    @Test
+    void testToDateString() {
+        Object result = eval("new Date(2025, 0, 15).toDateString()");
+        assertInstanceOf(String.class, result);
+        assertTrue(((String) result).contains("2025"));
+        assertTrue(((String) result).contains("Jan"));
+        assertTrue(((String) result).contains("Wed"));
+    }
+
+    @Test
+    void testToTimeString() {
+        // @BeforeAll sets UTC, so we expect 13:45:30 GMT+Z
+        Object result = eval("new Date(2025, 0, 15, 13, 45, 30).toTimeString()");
+        assertInstanceOf(String.class, result);
+        String s = (String) result;
+        assertTrue(s.contains("GMT"), "toTimeString should contain GMT, got: " + s);
+    }
+
+    @Test
+    void testToJSON() {
+        // toJSON() should return same as toISOString()
+        eval("var jsonDate = new Date(Date.UTC(2025, 0, 15));"
+                + "var jsonResult = jsonDate.toJSON();");
+        assertEquals("2025-01-15T00:00:00.000Z", get("jsonResult"));
+        // toJSON and toISOString should be identical
+        eval("var d3 = new Date(1609459200000);"
+                + "var iso = d3.toISOString();"
+                + "var json = d3.toJSON();");
+        assertEquals(get("iso"), get("json"));
+    }
+
+    @Test
+    void testGetTimezoneOffset() {
+        // With UTC timezone set in @BeforeAll, offset should be 0
+        assertEquals(0, eval("new Date().getTimezoneOffset()"));
+    }
+
+    @Test
+    void testGetUTCMethods() {
+        // UTC on Jan 15, 2025 at 13:45:30.123
+        eval("var utcDate = new Date(Date.UTC(2025, 0, 15, 13, 45, 30, 123));"
+                + "var uf = utcDate.getUTCFullYear();"
+                + "var um = utcDate.getUTCMonth();"
+                + "var ud = utcDate.getUTCDate();"
+                + "var uday = utcDate.getUTCDay();"
+                + "var uh = utcDate.getUTCHours();"
+                + "var umin = utcDate.getUTCMinutes();"
+                + "var us = utcDate.getUTCSeconds();"
+                + "var ums = utcDate.getUTCMilliseconds();");
+        assertEquals(2025, get("uf"));
+        assertEquals(0, get("um"));       // January = 0
+        assertEquals(15, get("ud"));
+        assertEquals(3, get("uday"));     // Wednesday = 3
+        assertEquals(13, get("uh"));
+        assertEquals(45, get("umin"));
+        assertEquals(30, get("us"));
+        assertEquals(123, get("ums"));
+    }
+
+    @Test
+    void testGetTimezoneOffsetUsedInDateMath() {
+        // Common pattern: adjusting dates by timezone offset
+        eval("var utcMillis = Date.UTC(2025, 0, 15);"
+                + "var d2 = new Date(utcMillis);"
+                + "var offset = d2.getTimezoneOffset();"
+                + "var local = new Date(d2.getTime() - offset * 60000);"
+                + "var localIso = local.toISOString();");
+        // In UTC (@BeforeAll), offset is 0, so local should equal UTC
+        assertEquals("2025-01-15T00:00:00.000Z", get("localIso"));
+    }
+
 }

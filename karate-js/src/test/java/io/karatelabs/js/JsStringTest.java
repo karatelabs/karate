@@ -206,4 +206,48 @@ class JsStringTest extends EvalBase {
         assertEquals(65, bytes[1]);
     }
 
+    @Test
+    void testToLocaleLowerCase() {
+        assertEquals("hello", eval("'HELLO'.toLocaleLowerCase()"));
+        assertEquals("hello", eval("'Hello'.toLocaleLowerCase('en')"));
+    }
+
+    @Test
+    void testToLocaleUpperCase() {
+        assertEquals("HELLO", eval("'hello'.toLocaleUpperCase()"));
+        assertEquals("HELLO", eval("'Hello'.toLocaleUpperCase('en')"));
+    }
+
+    @Test
+    void testAt() {
+        assertEquals("h", eval("'hello'.at(0)"));
+        assertEquals("o", eval("'hello'.at(-1)"));
+        assertEquals("l", eval("'hello'.at(-2)"));
+        assertEquals("e", eval("'hello'.at(1)"));
+        // Out of bounds returns undefined
+        assertNull(eval("'hello'.at(10)"));
+        assertNull(eval("'hello'.at(-10)"));
+    }
+
+    @Test
+    void testStringToString() {
+        assertEquals("hello", eval("'hello'.toString()"));
+    }
+
+    @Test
+    void testNormalize() {
+        // NFC is default
+        assertEquals("é", eval("'\\u0065\\u0301'.normalize()"));
+        assertEquals("é", eval("'\\u0065\\u0301'.normalize('NFC')"));
+        // NFD decomposes
+        assertEquals("e\u0301", eval("'\\u00e9'.normalize('NFD')"));
+    }
+
+    @Test
+    void testLocaleCompare() {
+        assertEquals(-1, eval("'a'.localeCompare('b')"));
+        assertEquals(1, eval("'b'.localeCompare('a')"));
+        assertEquals(0, eval("'a'.localeCompare('A')"));
+    }
+
 }
