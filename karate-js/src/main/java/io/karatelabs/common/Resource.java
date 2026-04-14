@@ -313,6 +313,19 @@ public interface Resource {
         }
     }
 
+    /**
+     * Normalize redundant slashes in a path (e.g., "foo//bar" becomes "foo/bar").
+     */
+    static String normalizePath(String path) {
+        if (path == null || !path.contains("//")) {
+            return path;
+        }
+        while (path.contains("//")) {
+            path = path.replace("//", "/");
+        }
+        return path;
+    }
+
     static String removePrefix(String text) {
         if (text.startsWith(CLASSPATH_COLON) || text.startsWith(FILE_COLON)) {
             return text.substring(text.indexOf(':') + 1);
@@ -380,6 +393,8 @@ public interface Resource {
         }
         if (path.startsWith(CLASSPATH_COLON)) {
             String relativePath = removePrefix(path);
+            // Normalize redundant slashes (e.g., "commission//posting" -> "commission/posting")
+            relativePath = normalizePath(relativePath);
             // Remove leading slash for classloader compatibility
             if (relativePath.startsWith("/")) {
                 relativePath = relativePath.substring(1);
@@ -420,10 +435,10 @@ public interface Resource {
             }
         } else if (path.startsWith(FILE_COLON)) {
             // Handle file: prefix by stripping it and creating PathResource
-            String filePath = removePrefix(path);
+            String filePath = normalizePath(removePrefix(path));
             return new PathResource(Path.of(filePath));
         } else {
-            return new PathResource(Path.of(path));
+            return new PathResource(Path.of(normalizePath(path)));
         }
     }
 
@@ -467,7 +482,7 @@ public interface Resource {
         java.util.List<Resource> results = new java.util.ArrayList<>();
 
         // Normalize directory path
-        String normalizedDir = classpathDir;
+        String normalizedDir = normalizePath(classpathDir);
         if (normalizedDir.startsWith("/")) {
             normalizedDir = normalizedDir.substring(1);
         }

@@ -910,6 +910,31 @@ class ResourceTest {
         });
     }
 
+    @Test
+    void testNormalizePathRedundantSlashes() {
+        assertEquals("foo/bar", Resource.normalizePath("foo//bar"));
+        assertEquals("foo/bar/baz", Resource.normalizePath("foo///bar//baz"));
+        assertEquals("foo/bar", Resource.normalizePath("foo/bar"));
+        assertEquals("", Resource.normalizePath(""));
+        assertNull(Resource.normalizePath(null));
+    }
+
+    @Test
+    void testResourcePathWithRedundantSlashes() {
+        // Create a file at subdir/test.txt
+        File dir = tempDir.resolve("a").toFile();
+        dir.mkdirs();
+        File file = new File(dir, "test.txt");
+        FileUtils.writeToFile(file, "content");
+
+        // Path with double slash should still resolve
+        String pathWithDoubleSlash = tempDir + "//a//test.txt";
+        Resource resource = Resource.path(pathWithDoubleSlash);
+        assertNotNull(resource);
+        assertTrue(resource.isFile());
+        assertEquals("content", resource.getText());
+    }
+
     // ========== Resource Type Detection Tests ==========
 
     @Test
