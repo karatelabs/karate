@@ -592,6 +592,129 @@ class ScenarioConfigTest {
         assertEquals(1, result.getScenarioPassedCount());
     }
 
+    // ========== abortSuiteOnFailure Tests ==========
+
+    @Test
+    void testAbortSuiteOnFailure() throws Exception {
+        // Feature 1: fails and has abortSuiteOnFailure = true
+        Path feature1 = tempDir.resolve("fail.feature");
+        Files.writeString(feature1, """
+            Feature: Failing Feature
+            Scenario: This will fail
+            * configure abortSuiteOnFailure = true
+            * match 1 == 2
+            """);
+
+        // Feature 2: should be skipped due to abort
+        Path feature2 = tempDir.resolve("pass.feature");
+        Files.writeString(feature2, """
+            Feature: Passing Feature
+            Scenario: This should be skipped
+            * match 1 == 1
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(feature1.toString(), feature2.toString())
+                .workingDir(tempDir)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertFalse(result.isPassed());
+        assertEquals(1, result.getScenarioFailedCount());
+        // The second scenario should have been skipped (not run)
+        assertEquals(1, result.getScenarioCount());
+    }
+
+    @Test
+    void testAbortSuiteOnFailureFromConfig() throws Exception {
+        // Set abortSuiteOnFailure in karate-config.js
+        Path configFile = tempDir.resolve("karate-config.js");
+        Files.writeString(configFile, """
+            function fn() {
+              karate.configure('abortSuiteOnFailure', true);
+              return {};
+            }
+            """);
+
+        // Feature 1: fails
+        Path feature1 = tempDir.resolve("fail.feature");
+        Files.writeString(feature1, """
+            Feature: Failing Feature
+            Scenario: This will fail
+            * match 1 == 2
+            """);
+
+        // Feature 2: should be skipped due to abort
+        Path feature2 = tempDir.resolve("pass.feature");
+        Files.writeString(feature2, """
+            Feature: Passing Feature
+            Scenario: This should be skipped
+            * match 1 == 1
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(feature1.toString(), feature2.toString())
+                .workingDir(tempDir)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertFalse(result.isPassed());
+        assertEquals(1, result.getScenarioFailedCount());
+        assertEquals(1, result.getScenarioCount());
+    }
+
+    @Test
+    void testAbortSuiteOnFailureParallel() throws Exception {
+        // Config sets abortSuiteOnFailure
+        Path configFile = tempDir.resolve("karate-config.js");
+        Files.writeString(configFile, """
+            function fn() {
+              karate.configure('abortSuiteOnFailure', true);
+              return {};
+            }
+            """);
+
+        // Feature that fails immediately
+        Path feature1 = tempDir.resolve("fail-fast.feature");
+        Files.writeString(feature1, """
+            Feature: Fail Fast
+            Scenario: Instant failure
+            * match 1 == 2
+            """);
+
+        // Feature with many steps - should be interrupted between steps
+        Path feature2 = tempDir.resolve("long-running.feature");
+        Files.writeString(feature2, """
+            Feature: Long Running
+            Scenario: Many steps
+            * def a = 1
+            * def b = 2
+            * def c = 3
+            * def d = 4
+            * def e = 5
+            * def f = 6
+            * def g = 7
+            * def h = 8
+            * def i = 9
+            * def j = 10
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(feature1.toString(), feature2.toString())
+                .workingDir(tempDir)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(2);
+
+        assertFalse(result.isPassed());
+        assertEquals(1, result.getScenarioFailedCount());
+    }
+
     @Test
     void testConfigErrorNotSwallowed() throws Exception {
         // Verify that a genuine JS error in config is reported as a failure, not swallowed

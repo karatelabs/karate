@@ -378,6 +378,18 @@ class StepConfigureTest {
     }
 
     @Test
+    void testConfigureAbortSuiteOnFailure() {
+        ScenarioRuntime sr = run("""
+            Feature:
+            Scenario:
+            * configure abortSuiteOnFailure = true
+            * def cfg = karate.config
+            * match cfg.abortSuiteOnFailure == true
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testConfigureProxyWithEmbeddedExpressions() {
         // Test that embedded expressions work with proxy configure
         ScenarioRuntime sr = run("""

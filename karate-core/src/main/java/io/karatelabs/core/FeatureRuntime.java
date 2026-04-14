@@ -138,6 +138,9 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                                 feature.getName(), suite.getScenarioExecutor() != null, suite.getScenarioSemaphore() != null);
                     }
                     for (Scenario scenario : selectedScenarios()) {
+                        if (suite != null && suite.isAborted()) {
+                            break;
+                        }
                         executeScenario(scenario);
                     }
                 }
@@ -187,6 +190,9 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         // Dispatch scenarios to executor as they are produced by the iterator
         // Dynamic scenarios (from @setup) are evaluated lazily during iteration
         for (Scenario scenario : selectedScenarios()) {
+            if (suite.isAborted()) {
+                break;
+            }
             Future<ScenarioResult> future = executor.submit(() -> {
                 String scenarioName = scenario.getName();
                 // Acquire semaphore to limit concurrent scenarios

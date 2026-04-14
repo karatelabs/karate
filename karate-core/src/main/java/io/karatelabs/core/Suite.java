@@ -39,6 +39,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -107,6 +108,9 @@ public class Suite {
 
     // Lock manager for @lock tag support (mutual exclusion across parallel scenarios)
     private final ScenarioLockManager lockManager = new ScenarioLockManager();
+
+    // Abort flag for abortSuiteOnFailure support
+    private final AtomicBoolean aborted = new AtomicBoolean();
 
     // Per-thread listeners
     private final ThreadLocal<List<RunListener>> threadListeners = new ThreadLocal<>();
@@ -354,7 +358,7 @@ public class Suite {
         initThreadListeners();
         try {
             for (Feature feature : features) {
-                if (isFeatureIgnored(feature)) {
+                if (isAborted() || isFeatureIgnored(feature)) {
                     continue;
                 }
                 FeatureResult featureResult = runFeatureSafely(feature);
@@ -394,7 +398,7 @@ public class Suite {
             List<Future<FeatureResult>> futures = new ArrayList<>();
 
             for (Feature feature : features) {
-                if (isFeatureIgnored(feature)) {
+                if (isAborted() || isFeatureIgnored(feature)) {
                     continue;
                 }
                 Future<FeatureResult> future = executor.submit(() -> {
@@ -556,6 +560,14 @@ public class Suite {
     public String getCurrentLaneName() {
         Integer lane = currentLane.get();
         return lane != null ? String.valueOf(lane) : null;
+    }
+
+    public void abort() {
+        aborted.set(true);
+    }
+
+    public boolean isAborted() {
+        return aborted.get();
     }
 
     public SuiteResult getResult() {

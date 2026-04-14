@@ -801,6 +801,14 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         }
         result.setThreadName(threadName);
 
+        // If suite has been aborted (abortSuiteOnFailure), skip this scenario
+        if (suite != null && suite.isAborted() && featureRuntime.getCaller() == null) {
+            stopped = true;
+            result.setEndTime(System.currentTimeMillis());
+            LogContext.clear();
+            return result;
+        }
+
         try {
             // Fire SCENARIO_ENTER event
             if (suite != null) {
@@ -816,7 +824,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             int count = steps.size();
             stepIndex = 0;
             while (stepIndex < count) {
-                if (stopped || aborted) {
+                if (stopped || aborted
+                        || (suite != null && suite.isAborted() && featureRuntime.getCaller() == null)) {
                     // Mark remaining steps as skipped
                     while (stepIndex < count) {
                         StepResult sr = StepResult.skipped(steps.get(stepIndex), System.currentTimeMillis());
@@ -885,6 +894,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // endTime is set before SCENARIO_EXIT event above; set here only if not yet set (exception path)
             if (result.getEndTime() == 0) {
                 result.setEndTime(System.currentTimeMillis());
+            }
+            // If scenario failed and abortSuiteOnFailure is set, signal suite to abort
+            if (result.isFailed() && config.isAbortSuiteOnFailure()
+                    && suite != null && featureRuntime.getCaller() == null) {
+                suite.abort();
             }
             LogContext.clear();
         }
