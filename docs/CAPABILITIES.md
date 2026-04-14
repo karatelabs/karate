@@ -2,9 +2,9 @@
 
 Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
-> **Generated:** 2026-03-25 from `CAPABILITIES.yaml`
+> **Generated:** 2026-04-14 from `CAPABILITIES.yaml`
 >
-> See also: [Design Principles](./PRINCIPLES.md) | [TODOS.md](./TODOS.md)
+> See also: [Design Principles](./PRINCIPLES.md) | [Roadmap](./ROADMAP.md)
 
 ## Legend
 
@@ -21,16 +21,16 @@ Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
 ## Summary
 
-**Total capabilities: 366**
+**Total capabilities: 370**
 
 | Category | Count |
 |----------|-------|
-| v1 features ported to v2 | 130 |
+| v1 features ported to v2 | 131 |
 | v1 features pending | 8 |
-| New in v2 (implemented) | 45 |
+| New in v2 (implemented) | 50 |
 | New in v2 (in progress) | 1 |
 | Planned | 15 |
-| Future / Wish list | 167 |
+| Future / Wish list | 165 |
 
 ## Categories
 
@@ -73,7 +73,7 @@ Foundation capabilities that power all test types
   - `[-]` Numeric tolerance assertions
   - `[-]` Date and time assertions
   - `[v2]` Soft assertions (continueOnStepFailure)
-  - `[-]` User-defined assertion failure messages
+  - `[v2]` User-defined assertion failure messages
   - `[-]` Similarity assertions (for AI) `$`
 
 - `[1.x ✓]` Data Formats
@@ -109,7 +109,9 @@ Foundation capabilities that power all test types
 - `[1.x ✓]` Environment & Configuration
   - `[1.x ✓]` karate-config.js
   - `[1.x ✓]` Environment-based config (karate.env)
-  - `[-]` API to read current config settings
+  - `[v2]` karate-base.js (shared config loaded before karate-config.js)
+  - `[v2]` Config fallback to working directory
+  - `[v2]` API to read current config settings (karate.config)
   - `[-]` Multiple environments in parallel
 
 - `[1.x ✓]` Grouping & Tags
@@ -155,6 +157,7 @@ HTTP and protocol-level API testing
   - `[1.x ✓]` Multipart and file uploads
   - `[1.x ✓]` SSL/TLS (custom certs, trust-all)
   - `[1.x ✓]` Proxy support with authentication
+  - `[v2]` Wildcard non-proxy hosts (e.g. *.example.com)
   - `[1.x ✓]` Timeout configuration
   - `[1.x ✓]` Follow redirects option
   - `[ ]` HTTP/2 support
@@ -317,6 +320,7 @@ Tools and workflows for test development
   - `[1.x ✓]` Parallel features
   - `[1.x ✓]` Thread pool configuration
   - `[v2]` Virtual threads support
+  - `[1.x ✓]` Fail-fast (abortSuiteOnFailure)
 
 - `[1.x ✓]` Robustness & Predictability
   - `[1.x ✓]` Retry on failure

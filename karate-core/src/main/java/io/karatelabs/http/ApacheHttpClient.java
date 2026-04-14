@@ -43,6 +43,7 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.impl.routing.DefaultRoutePlanner;
+import org.apache.hc.client5.http.impl.routing.SystemDefaultRoutePlanner;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
 import org.apache.hc.client5.http.ssl.TrustAllStrategy;
@@ -66,8 +67,7 @@ import javax.net.ssl.SSLContext;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetAddress;
-import java.net.Socket;
+import java.net.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
@@ -349,6 +349,47 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             credsProvider.setCredentials(new AuthScope(null, -1), ntCredentials);
             clientBuilder.setDefaultCredentialsProvider(credsProvider);
         }
+        // Configure proxy
+        if (proxyUri != null) {
+            try {
+                URI proxy = new URI(proxyUri);
+                HttpHost proxyHost = new HttpHost(proxy.getScheme(), proxy.getHost(), proxy.getPort());
+                if (proxyUsername != null && proxyPassword != null) {
+                    BasicCredentialsProvider proxyCredsProvider = new BasicCredentialsProvider();
+                    proxyCredsProvider.setCredentials(
+                            new AuthScope(proxy.getHost(), proxy.getPort()),
+                            new org.apache.hc.client5.http.auth.UsernamePasswordCredentials(
+                                    proxyUsername, proxyPassword.toCharArray()));
+                    clientBuilder.setDefaultCredentialsProvider(proxyCredsProvider);
+                }
+                if (nonProxyHosts != null && !nonProxyHosts.isEmpty()) {
+                    ProxySelector proxySelector = new ProxySelector() {
+                        @Override
+                        public List<Proxy> select(URI uri) {
+                            String host = uri.getHost();
+                            for (String pattern : nonProxyHosts) {
+                                if (matchNonProxyHost(pattern, host)) {
+                                    return Collections.singletonList(Proxy.NO_PROXY);
+                                }
+                            }
+                            return Collections.singletonList(
+                                    new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxy.getHost(), proxy.getPort())));
+                        }
+
+                        @Override
+                        public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+                            LOGGER.info("connect failed to uri: {}", uri, ioe);
+                        }
+                    };
+                    clientBuilder.setRoutePlanner(new SystemDefaultRoutePlanner(DefaultSchemePortResolver.INSTANCE, proxySelector));
+                } else {
+                    clientBuilder.setProxy(proxyHost);
+                }
+            } catch (Exception e) {
+                LOGGER.error("proxy config failed: {}", e.getMessage());
+                throw new RuntimeException(e);
+            }
+        }
         // Configure local address binding via custom RoutePlanner
         if (localAddress != null) {
             final InetAddress addr = localAddress;
@@ -367,6 +408,23 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("http client created");
         }
+    }
+
+    /**
+     * Match a host against a non-proxy pattern that may contain a leading or trailing wildcard.
+     * Supports: "*.example.com", "192.168.*", "localhost" (exact match).
+     */
+    static boolean matchNonProxyHost(String pattern, String host) {
+        if (pattern == null || host == null) {
+            return false;
+        }
+        if (pattern.startsWith("*")) {
+            return host.endsWith(pattern.substring(1));
+        }
+        if (pattern.endsWith("*")) {
+            return host.startsWith(pattern.substring(0, pattern.length() - 1));
+        }
+        return host.equalsIgnoreCase(pattern);
     }
 
     @Override

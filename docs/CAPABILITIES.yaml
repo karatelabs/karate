@@ -221,9 +221,16 @@ categories:
           - name: Environment-based config (karate.env)
             v1: true
             v2: implemented
-          - name: API to read current config settings
+          - name: karate-base.js (shared config loaded before karate-config.js)
             v1: false
-            v2: future
+            v2: implemented
+          - name: Config fallback to working directory
+            description: karate-config.js auto-discovered from working directory when not on classpath
+            v1: false
+            v2: implemented
+          - name: API to read current config settings (karate.config)
+            v1: false
+            v2: implemented
           - name: Multiple environments in parallel
             v1: false
             v2: future
@@ -358,6 +365,9 @@ categories:
             v2: implemented
           - name: Proxy support with authentication
             v1: true
+            v2: implemented
+          - name: Wildcard non-proxy hosts (e.g. *.example.com)
+            v1: false
             v2: implemented
           - name: Timeout configuration
             v1: true
@@ -838,6 +848,11 @@ categories:
           - name: Virtual threads support
             v1: false
             v2: implemented
+          - name: Fail-fast (abortSuiteOnFailure)
+            description: Abort suite on first failure, interrupts in-flight parallel scenarios at next step boundary
+            v1: true
+            v2: implemented
+            notes: "v2 enhancement: also interrupts in-flight scenarios, not just queued ones"
 
       - name: Robustness & Predictability
         description: Reliable test execution
