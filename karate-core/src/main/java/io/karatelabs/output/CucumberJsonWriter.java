@@ -265,13 +265,7 @@ public final class CucumberJsonWriter {
 
         for (List<String> row : data) {
             Map<String, Object> rowMap = new LinkedHashMap<>();
-            List<Map<String, String>> cells = new ArrayList<>();
-            for (String cell : row) {
-                Map<String, String> cellMap = new LinkedHashMap<>();
-                cellMap.put("value", cell);
-                cells.add(cellMap);
-            }
-            rowMap.put("cells", cells);
+            rowMap.put("cells", row);
             rowMap.put("line", line++);
             rows.add(rowMap);
         }

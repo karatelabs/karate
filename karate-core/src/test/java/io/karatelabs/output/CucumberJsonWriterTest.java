@@ -333,6 +333,11 @@ class CucumberJsonWriterTest {
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> rows = (List<Map<String, Object>>) step.get("rows");
                 assertTrue(rows.size() >= 2, "Should have at least 2 rows (header + data)");
+                // verify cells are plain strings (standard Cucumber format)
+                @SuppressWarnings("unchecked")
+                List<Object> cells = (List<Object>) rows.get(0).get("cells");
+                assertNotNull(cells);
+                assertTrue(cells.get(0) instanceof String, "cells should be plain strings, not objects");
                 break;
             }
         }
