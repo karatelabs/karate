@@ -535,6 +535,28 @@ class MarkupTest {
         assertTrue(rendered.contains("class=\"bg-danger\""), "Error badge: " + rendered);
     }
 
+    @Test
+    void testWithOnSameElementAsEach() {
+        // th:with and th:each on the same element — th:with (precedence 50) runs before
+        // th:each (200), so the iteration variable isn't defined on first pass. KaWithProcessor
+        // must gracefully defer; th:each re-processes the element per iteration with the var set.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <script ka:scope="global">
+                _.data = [{ name: 'Alice', role: 'admin' }, { name: 'Bob', role: 'user' }];
+            </script>
+            <div th:each="item: data" th:with="isAdmin: item.role == 'admin'">
+                <span th:if="isAdmin" th:text="item.name + ' (admin)'">x</span>
+                <span th:unless="isAdmin" th:text="item.name">x</span>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("Alice (admin)"), "Admin label: " + rendered);
+        assertTrue(rendered.contains(">Bob<"), "Non-admin label: " + rendered);
+        assertFalse(rendered.contains("Bob (admin)"), "Bob should not be admin: " + rendered);
+    }
+
     // ========== Subdirectory Fragment Resolution ==========
 
     @Test
@@ -562,10 +584,11 @@ class MarkupTest {
 
     @Test
     void testSubdirectoryFragmentReplaceWithParams() {
-        // th:replace + th:with should work (th:with runs first, precedence 50 < 100)
+        // th:replace removes the host element, so th:with variables are lost.
+        // Use th:insert + th:with instead, or wrap in a parent element with th:with.
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
-        String html = "<span th:replace=\"~{components/badge :: badge}\" th:with=\"state: 'error'\">placeholder</span>";
+        String html = "<span th:with=\"state: 'error'\"><span th:replace=\"~{components/badge :: badge}\">placeholder</span></span>";
         String rendered = markup.processString(html, null);
         assertTrue(rendered.contains("bg-danger"), "Badge should render with danger class: " + rendered);
         assertTrue(rendered.contains("error"), "Badge should show state text: " + rendered);
@@ -582,7 +605,7 @@ class MarkupTest {
             <table>
                 <tr th:each="s: sessions">
                     <td th:text="s.name">name</td>
-                    <td><span th:replace="~{components/badge :: badge}" th:with="state: s.state">badge</span></td>
+                    <td th:with="state: s.state"><span th:replace="~{components/badge :: badge}">badge</span></td>
                 </tr>
             </table>
             """;

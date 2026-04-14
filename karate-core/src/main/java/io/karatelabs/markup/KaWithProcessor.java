@@ -38,8 +38,10 @@ class KaWithProcessor extends AbstractAttributeTagProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(KaWithProcessor.class);
 
-    // Must run BEFORE insert/replace (100) so th:with variables are available in fragments
-    private static final int PRECEDENCE = 50;
+    // Standard Thymeleaf precedence for th:with — runs after th:each (200)
+    // Variables are set via structureHandler.setLocalVariable() so the engine
+    // applies them before processing body/fragments regardless of precedence
+    private static final int PRECEDENCE = 600;
     private static final String ATTR_NAME = "with";
 
     KaWithProcessor(final TemplateMode templateMode, final String dialectPrefix) {
@@ -60,7 +62,7 @@ class KaWithProcessor extends AbstractAttributeTagProcessor {
             return;
         }
         Map<String, Object> map = (Map<String, Object>) o;
-        map.forEach(kec::setVariable);
+        map.forEach(structureHandler::setLocalVariable);
     }
 
 }
