@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Intercept Test</title>
+</head>
+<body>
+    <h1>Intercept Test Page</h1>
+    <div id="result">waiting</div>
+    <button id="fetch-btn" onclick="doFetch()">Fetch</button>
+    <script>
+        function doFetch() {
+            fetch('/api/data')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('result').textContent = JSON.stringify(data);
+                })
+                .catch(e => {
+                    document.getElementById('result').textContent = 'error: ' + e.message;
+                });
+        }
+    </script>
+</body>
+</html>

@@ -118,6 +118,7 @@ io.karatelabs.driver/
 | `dialog(accept)` | ✅ Working |
 | `cookie(name)` | ✅ Working |
 | `clearCookies()` | ✅ Working |
+| `driver.intercept(config)` | ✅ Working (CDP only, supports `mock` and `handler`) |
 
 *Mouse/Keys:*
 | V1 Gherkin | V2 Status |

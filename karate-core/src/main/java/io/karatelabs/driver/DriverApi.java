@@ -62,6 +62,9 @@ public class DriverApi {
     public static final String CLEAR_COOKIES = "clearCookies";
     public static final String DELETE_COOKIE = "deleteCookie";
 
+    // Intercept
+    public static final String INTERCEPT = "intercept";
+
     // Dialog
     public static final String DIALOG = "dialog";
     public static final String ON_DIALOG = "onDialog";
@@ -90,6 +93,7 @@ public class DriverApi {
             REFRESH, BACK, FORWARD,
             SCREENSHOT,
             COOKIE, CLEAR_COOKIES, DELETE_COOKIE,
+            INTERCEPT,
             DIALOG, ON_DIALOG,
             MOUSE, KEYS,
             RETRY

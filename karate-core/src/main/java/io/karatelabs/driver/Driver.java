@@ -215,6 +215,89 @@ public interface Driver extends CoreDriver, SimpleObject {
                 return null;
             };
 
+            // Request interception
+            // V1 compat:  driver.intercept({ patterns: [...], mock: 'classpath:mock.feature' })
+            // V2 handler:  driver.intercept({ patterns: [...], handler: function(req){ return { status: 200, body: '...' } } })
+            case DriverApi.INTERCEPT -> (JavaCallable) (ctx, args) -> {
+                Object arg = args[0];
+                if (arg instanceof Map) {
+                    Map<String, Object> configMap = (Map<String, Object>) arg;
+                    List<Object> patterns = (List<Object>) configMap.get("patterns");
+                    if (patterns == null) {
+                        throw new RuntimeException("missing array argument 'patterns': " + configMap);
+                    }
+                    // Extract URL pattern strings from pattern maps or plain strings
+                    List<String> urlPatterns = new java.util.ArrayList<>();
+                    for (Object p : patterns) {
+                        if (p instanceof Map) {
+                            Object urlPattern = ((Map<String, Object>) p).get("urlPattern");
+                            urlPatterns.add(urlPattern != null ? String.valueOf(urlPattern) : "*");
+                        } else {
+                            urlPatterns.add(String.valueOf(p));
+                        }
+                    }
+                    Object handlerObj = configMap.get("handler");
+                    String mock = configMap.get("mock") != null ? String.valueOf(configMap.get("mock")) : null;
+                    if (handlerObj instanceof JavaCallable jsHandler) {
+                        // V2: inline JS handler
+                        intercept(urlPatterns, request -> {
+                            Object result = jsHandler.call(ctx, request);
+                            if (result instanceof InterceptResponse ir) {
+                                return ir;
+                            } else if (result instanceof Map) {
+                                Map<String, Object> resultMap = (Map<String, Object>) result;
+                                int status = resultMap.get("status") instanceof Number n ? n.intValue() : 200;
+                                String body = resultMap.get("body") != null ? String.valueOf(resultMap.get("body")) : "";
+                                Map<String, Object> responseHeaders = new java.util.LinkedHashMap<>();
+                                if (resultMap.get("headers") instanceof Map) {
+                                    responseHeaders.putAll((Map<String, Object>) resultMap.get("headers"));
+                                }
+                                return InterceptResponse.of(status, responseHeaders,
+                                        body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                            }
+                            return null;
+                        });
+                    } else if (mock != null) {
+                        // V1 compat: mock feature file
+                        io.karatelabs.gherkin.Feature feature = io.karatelabs.gherkin.Feature.read(mock);
+                        io.karatelabs.core.MockHandler mockHandler = new io.karatelabs.core.MockHandler(feature);
+                        intercept(urlPatterns, request -> {
+                            io.karatelabs.http.HttpRequest httpRequest = new io.karatelabs.http.HttpRequest();
+                            httpRequest.setUrl(request.getUrl());
+                            httpRequest.setMethod(request.getMethod());
+                            if (request.getHeaders() != null) {
+                                Map<String, List<String>> headers = new java.util.LinkedHashMap<>();
+                                for (Map.Entry<String, Object> entry : request.getHeaders().entrySet()) {
+                                    headers.put(entry.getKey(), List.of(String.valueOf(entry.getValue())));
+                                }
+                                httpRequest.setHeaders(headers);
+                            }
+                            if (request.getPostData() != null) {
+                                httpRequest.setBody(request.getPostData().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                            }
+                            io.karatelabs.http.HttpResponse httpResponse = mockHandler.apply(httpRequest);
+                            if (httpResponse != null) {
+                                Map<String, Object> responseHeaders = new java.util.LinkedHashMap<>();
+                                if (httpResponse.getHeaders() != null) {
+                                    for (Map.Entry<String, List<String>> entry : httpResponse.getHeaders().entrySet()) {
+                                        List<String> values = entry.getValue();
+                                        if (values != null && !values.isEmpty()) {
+                                            responseHeaders.put(entry.getKey(), values.getLast());
+                                        }
+                                    }
+                                }
+                                return InterceptResponse.of(httpResponse.getStatus(), responseHeaders,
+                                        httpResponse.getBodyBytes() != null ? httpResponse.getBodyBytes() : new byte[0]);
+                            }
+                            return null;
+                        });
+                    } else {
+                        throw new RuntimeException("missing 'mock' or 'handler' in intercept config: " + configMap);
+                    }
+                }
+                return null;
+            };
+
             // Dialog handling
             case DriverApi.DIALOG -> (JavaCallable) (ctx, args) -> {
                 boolean accept = args.length > 0 && Boolean.TRUE.equals(args[0]);
