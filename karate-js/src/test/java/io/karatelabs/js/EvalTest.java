@@ -8,7 +8,19 @@ class EvalTest extends EvalBase {
 
     @Test
     void testDev() {
-
+        // single-line if/else with blocks (baseline - already worked)
+        assertEquals(true, eval("if (false) { false } else { true }"));
+        assertEquals(false, eval("if (false) { false } else { false }"));
+        // multi-line if/else - the fix for } else { on separate line
+        assertEquals(true, eval("if (false) {\n  false\n} else {\n  true\n}"));
+        assertEquals(false, eval("if (true) {\n  false\n} else {\n  true\n}"));
+        // multi-line try/catch
+        eval("var a\ntry {\n  throw 'err'\n} catch (e) {\n  a = e\n}");
+        assertEquals("err", get("a"));
+        // multi-line try/catch/finally
+        eval("var a, b\ntry {\n  throw 'err'\n} catch (e) {\n  a = e\n} finally {\n  b = 'done'\n}");
+        assertEquals("err", get("a"));
+        assertEquals("done", get("b"));
     }
 
     @Test
@@ -828,7 +840,7 @@ class EvalTest extends EvalBase {
         eval("[x, y] = [1, 2]");
         assertEquals(1, get("x"));
         assertEquals(2, get("y"));
-        eval("{ a: x } = { a: 2 }");
+        eval("({ a: x } = { a: 2 })");
         assertEquals(2, get("x"));
     }
 

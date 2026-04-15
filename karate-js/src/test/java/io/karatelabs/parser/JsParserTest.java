@@ -192,9 +192,11 @@ class JsParserTest {
 
     @Test
     void testObject() {
-        expr("{}", "['{','}']");
-        expr("{ a: 1 }", "['{',[$a:,1],'}']");
-        expr("{ a: 'b' }", "['{',[$a:,b],'}']");
+        // At statement position, { } is a block per ES6 spec.
+        // Object literals at statement position must be wrapped in parens.
+        expr("({})", "['{','}']");
+        expr("({ a: 1 })", "['{',[$a:,1],'}']");
+        expr("({ a: 'b' })", "['{',[$a:,b],'}']");
     }
 
     @Test

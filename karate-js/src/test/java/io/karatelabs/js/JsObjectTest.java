@@ -369,15 +369,15 @@ class JsObjectTest extends EvalBase {
 
     @Test
     void testObject() {
-        matchEval("{}", "{}");
-        matchEval("{ a: 1 }", "{ a: 1 }");
-        matchEval("{ a: 1, b: 2 }", "{ a: 1, b: 2 }");
-        matchEval("{ 'a': 1 }", "{ a: 1 }");
-        matchEval("{ \"a\": 1 }", "{ a: 1 }");
-        matchEval("{ a: 'b' }", "{ a: 'b' }");
-        matchEval("{ a: true }", "{ a: true }");
-        matchEval("{ a: (1 + 2) }", "{ a: 3 }");
-        matchEval("{ a: b }", "{ a: 5 }", "{ b: 5 }");
+        matchEval("({})", "{}");
+        matchEval("({ a: 1 })", "{ a: 1 }");
+        matchEval("({ a: 1, b: 2 })", "{ a: 1, b: 2 }");
+        matchEval("({ 'a': 1 })", "{ a: 1 }");
+        matchEval("({ \"a\": 1 })", "{ a: 1 }");
+        matchEval("({ a: 'b' })", "{ a: 'b' }");
+        matchEval("({ a: true })", "{ a: true }");
+        matchEval("({ a: (1 + 2) })", "{ a: 3 }");
+        matchEval("({ a: b })", "{ a: 5 }", "{ b: 5 }");
     }
 
     @Test
@@ -470,7 +470,7 @@ class JsObjectTest extends EvalBase {
         assertEquals(true, eval("Object.is(null, null)"));
         assertEquals(true, eval("Object.is(NaN, NaN)"));
         // assertEquals(false, eval("Object.is(0, -0)"));
-        matchEval("{}.valueOf()", "{}");
+        matchEval("({}).valueOf()", "{}");
         matchEval("var obj = { a: 1, b: 2 }; obj.valueOf()", "{ a: 1, b: 2 }");
         matchEval("var x = { a: 0.5 }; Object.entries(x).map(y => [y[0], y[1], typeof y[1]])", "[[a, 0.5, number]]");
     }

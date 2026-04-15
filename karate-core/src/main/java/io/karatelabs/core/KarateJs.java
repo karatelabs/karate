@@ -595,7 +595,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 MatchExpression parsed = GherkinParser.parseMatchExpression(expression);
 
                 Object actual = engine.get(parsed.getActualExpr());
-                Object expected = engine.eval(parsed.getExpectedExpr());
+                Object expected = engine.eval(StepExecutor.wrapJsonLikeExpression(parsed.getExpectedExpr()));
                 Value value = Match.evaluate(actual, null, null);
                 Match.Type matchType = Match.Type.valueOf(parsed.getMatchTypeName());
                 Result result = value.is(matchType, expected);

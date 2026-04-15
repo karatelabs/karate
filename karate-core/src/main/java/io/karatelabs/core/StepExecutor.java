@@ -346,7 +346,7 @@ public class StepExecutor {
                     if (spaceIdx > 0) {
                         String argExpr = callExpr.substring(spaceIdx + 1).trim();
                         if (!argExpr.isEmpty()) {
-                            arg = runtime.eval(argExpr);
+                            arg = runtime.eval(wrapJsonLikeExpression(argExpr));
                             // V1 compatibility: process embedded expressions like #(var) in call arguments
                             if (arg instanceof Map) {
                                 arg = processEmbeddedExpressions((Map<?, ?>) arg);
@@ -636,7 +636,7 @@ public class StepExecutor {
             // XML literal
             return Xml.toXmlDoc(valueExpr);
         }
-        return runtime.eval(valueExpr);
+        return runtime.eval(wrapJsonLikeExpression(valueExpr));
     }
 
     @SuppressWarnings("unchecked")
@@ -698,7 +698,7 @@ public class StepExecutor {
                 if (valueExpr == null || valueExpr.isEmpty()) continue;
                 // V1 behavior: (expr) with parens means "keep this value even if null"
                 boolean keepNull = valueExpr.startsWith("(") && valueExpr.endsWith(")");
-                Object value = runtime.eval(valueExpr);
+                Object value = runtime.eval(wrapJsonLikeExpression(valueExpr));
                 if (value != null || keepNull) {
                     StepUtils.setValueAtPath(target, path, value);
                 }
@@ -756,7 +756,7 @@ public class StepExecutor {
 
                     // V1 behavior: (expr) with parens means "keep this value even if null"
                     boolean keepNull = valueExpr.startsWith("(") && valueExpr.endsWith(")");
-                    Object value = runtime.eval(valueExpr);
+                    Object value = runtime.eval(wrapJsonLikeExpression(valueExpr));
                     if (value != null || keepNull) {
                         Object element = resultList.get(targetIdx);
                         if (element == null) {
@@ -990,7 +990,7 @@ public class StepExecutor {
         int eqIndex = StepUtils.findAssignmentOperator(text);
         String name = text.substring(0, eqIndex).trim();
         String expr = text.substring(eqIndex + 1).trim();
-        Object value = runtime.eval(expr);
+        Object value = runtime.eval(wrapJsonLikeExpression(expr));
         // Convert to XML string representation
         String xmlString;
         if (value instanceof Node) {
@@ -1006,7 +1006,7 @@ public class StepExecutor {
         int eqIndex = StepUtils.findAssignmentOperator(text);
         String name = text.substring(0, eqIndex).trim();
         String expr = text.substring(eqIndex + 1).trim();
-        Object value = runtime.eval(expr);
+        Object value = runtime.eval(wrapJsonLikeExpression(expr));
         // Process embedded expressions like #(foo)
         value = processEmbeddedExpressions(value);
         // Convert to string representation - XML uses Xml.toString(), others use JSON
@@ -1060,7 +1060,7 @@ public class StepExecutor {
         int eqIndex = StepUtils.findAssignmentOperator(text);
         String name = text.substring(0, eqIndex).trim();
         String expr = text.substring(eqIndex + 1).trim();
-        Object value = runtime.eval(expr);
+        Object value = runtime.eval(wrapJsonLikeExpression(expr));
         // Deep copy using JSON round-trip
         Object copy = Json.of(Json.stringifyStrict(value)).value();
         runtime.setVariable(name, copy);
@@ -1086,7 +1086,7 @@ public class StepExecutor {
                 // V1 behavior: (expr) with parens means "keep this value even if null"
                 // Without parens, null values are skipped
                 boolean keepNull = expr.startsWith("(") && expr.endsWith(")");
-                Object value = runtime.eval(expr);
+                Object value = runtime.eval(wrapJsonLikeExpression(expr));
                 if (value != null || keepNull) {
                     row.put(entry.getKey(), value);
                 }
@@ -1356,7 +1356,7 @@ public class StepExecutor {
         }
 
         // Default: evaluate as JS
-        Object result = runtime.eval(expr);
+        Object result = runtime.eval(wrapJsonLikeExpression(expr));
 
         // Check for "not present" case: if result is null and expression is property access
         // We need to distinguish between "property exists and is null" vs "property doesn't exist"
@@ -1642,7 +1642,7 @@ public class StepExecutor {
         }
 
         // Default: evaluate as JS
-        Object value = runtime.eval(expr);
+        Object value = runtime.eval(wrapJsonLikeExpression(expr));
         if (value instanceof Map || value instanceof List) {
             value = processEmbeddedExpressions(value);
         }
@@ -1752,7 +1752,7 @@ public class StepExecutor {
         String text = step.getText();
         int eqIndex = StepUtils.findAssignmentOperator(text);
         String name = text.substring(0, eqIndex).trim();
-        Object value = runtime.eval(text.substring(eqIndex + 1).trim());
+        Object value = runtime.eval(wrapJsonLikeExpression(text.substring(eqIndex + 1).trim()));
         if (value instanceof List<?> list) {
             for (Object item : list) {
                 http().param(name, item.toString());
@@ -1827,7 +1827,7 @@ public class StepExecutor {
         String text = step.getText();
         int eqIndex = StepUtils.findAssignmentOperator(text);
         String name = text.substring(0, eqIndex).trim();
-        Object value = runtime.eval(text.substring(eqIndex + 1).trim());
+        Object value = runtime.eval(wrapJsonLikeExpression(text.substring(eqIndex + 1).trim()));
         if (value instanceof Map) {
             // V1 behavior: cookie foo = { value: 'bar', domain: '.abc.com' }
             Map<String, Object> map = (Map<String, Object>) value;
@@ -1852,7 +1852,7 @@ public class StepExecutor {
         String text = step.getText();
         int eqIndex = StepUtils.findAssignmentOperator(text);
         String name = text.substring(0, eqIndex).trim();
-        Object value = runtime.eval(text.substring(eqIndex + 1).trim());
+        Object value = runtime.eval(wrapJsonLikeExpression(text.substring(eqIndex + 1).trim()));
         http().formField(name, value.toString());
     }
 
@@ -2195,7 +2195,7 @@ public class StepExecutor {
         String name = text.substring(0, eqIndex).trim();
         String expr = text.substring(eqIndex + 1).trim();
 
-        Object value = runtime.eval(expr);
+        Object value = runtime.eval(wrapJsonLikeExpression(expr));
 
         Map<String, Object> multipartMap = new HashMap<>();
         multipartMap.put("name", name);
@@ -2367,7 +2367,7 @@ public class StepExecutor {
                     if (spaceIdx > 0) {
                         String argExpr = text.substring(spaceIdx + 1).trim();
                         if (!argExpr.isEmpty()) {
-                            arg = runtime.eval(argExpr);
+                            arg = runtime.eval(wrapJsonLikeExpression(argExpr));
                         }
                     }
                     Object result = arg != null
@@ -2512,7 +2512,7 @@ public class StepExecutor {
         // Parse argument expression if provided
         Object argObj = null;
         if (argExpr != null && !argExpr.isEmpty()) {
-            argObj = runtime.eval(argExpr);
+            argObj = runtime.eval(wrapJsonLikeExpression(argExpr));
         }
 
         // Check if it's an array loop call
@@ -2690,7 +2690,7 @@ public class StepExecutor {
                 String remainder = text.substring(closeParen + 1).trim();
                 if (!remainder.isEmpty()) {
                     // Evaluate as JS - could be an object literal, array, or variable
-                    Object argObj = runtime.eval(remainder);
+                    Object argObj = runtime.eval(wrapJsonLikeExpression(remainder));
                     if (argObj instanceof List) {
                         // Array argument - for loop calls
                         expr.argList = (List<?>) argObj;
@@ -2756,7 +2756,7 @@ public class StepExecutor {
     @SuppressWarnings("unchecked")
     private void executeDoc(Step step) {
         String text = step.getText();
-        Object value = runtime.eval(text);
+        Object value = runtime.eval(wrapJsonLikeExpression(text));
         // karate.doc() expects either a string path or a map with 'read' key
         // Convert string to the expected format
         String html;
@@ -2962,6 +2962,21 @@ public class StepExecutor {
      * Marker object to indicate a key should be removed (for ##() optional expressions).
      */
     private static final Object REMOVE_MARKER = new Object();
+
+    /**
+     * Wrap a Gherkin RHS expression for JS eval. Per ES6 spec, { or [ at statement
+     * position starts a block or is ambiguous. Wrapping in () ensures JSON-like
+     * expressions are parsed as object/array literals by the JS engine.
+     */
+    static String wrapJsonLikeExpression(String expr) {
+        if (expr != null && !expr.isEmpty()) {
+            char c = expr.charAt(0);
+            if (c == '{' || c == '[') {
+                return "(" + expr + ")";
+            }
+        }
+        return expr;
+    }
 
     /**
      * Process embedded expressions (#() and ##()) in a value.

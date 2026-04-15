@@ -122,8 +122,8 @@ public class JsParser extends BaseParser {
                 || (continue_stmt() && eos())
                 || (delete_stmt() && eos())
                 || fn_expr() // function declarations don't need eos (ASI)
+                || block(false) // block before expr_list: per JS spec, { } at statement position is a block
                 || (expr_list() && eos())
-                || block(false)
                 || consumeIf(SEMI); // empty statement
         // In error recovery mode, accept incomplete statements if we consumed any tokens
         if (!result && errorRecoveryEnabled && !markerNode().isEmpty()) {

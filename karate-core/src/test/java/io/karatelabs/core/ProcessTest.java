@@ -306,7 +306,7 @@ class ProcessTest {
             var proc = karate.fork({ args: ['sleep', '60'] });
             var wasAlive = proc.alive;
             proc.close();
-            { wasAlive: wasAlive };
+            ({ wasAlive: wasAlive });
             """;
         @SuppressWarnings("unchecked")
         Map<String, Object> result = (Map<String, Object>) karate.engine.eval(js);
