@@ -183,6 +183,7 @@ public class MockServer implements SimpleObject {
         private boolean ssl;
         private String certPath;
         private String keyPath;
+        private SslContext customSslContext;
         private boolean watch;
 
         private Builder() {
@@ -261,6 +262,16 @@ public class MockServer implements SimpleObject {
         }
 
         /**
+         * Set a custom Netty SslContext (e.g. for mTLS with client auth).
+         * When set, certPath/keyPath are ignored.
+         */
+        public Builder sslContext(SslContext sslContext) {
+            this.customSslContext = sslContext;
+            this.ssl = true;
+            return this;
+        }
+
+        /**
          * Enable watch mode for hot-reloading feature files when they change.
          * The server will check file modification times before each request
          * and reload features if any have changed.
@@ -296,7 +307,9 @@ public class MockServer implements SimpleObject {
 
             SslContext sslContext = null;
             if (ssl) {
-                if (certPath != null && keyPath != null) {
+                if (customSslContext != null) {
+                    sslContext = customSslContext;
+                } else if (certPath != null && keyPath != null) {
                     sslContext = SslUtils.createNettySslContext(certPath, keyPath);
                 } else {
                     sslContext = SslUtils.generateNettySslContext();
