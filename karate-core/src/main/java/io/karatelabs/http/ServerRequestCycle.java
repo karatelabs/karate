@@ -200,6 +200,14 @@ public class ServerRequestCycle {
             if (!templatePath.endsWith(".html")) {
                 templatePath = templatePath + ".html";
             }
+            // 2a. Directory-index fallback: if foo.html doesn't exist but foo/index.html does, use that.
+            //     Matches standard web-server convention and lets apps group pages under a common prefix.
+            if (!resourceExists(templatePath)) {
+                String indexVariant = templatePath.substring(0, templatePath.length() - ".html".length()) + "/index.html";
+                if (resourceExists(indexVariant)) {
+                    templatePath = indexVariant;
+                }
+            }
         }
 
         try {
@@ -237,6 +245,15 @@ public class ServerRequestCycle {
             return notFound(path);
         } catch (Exception e) {
             return handleError(e);
+        }
+    }
+
+    private boolean resourceExists(String path) {
+        try {
+            Resource r = resolver.resolve(path, null);
+            return r != null && r.exists();
+        } catch (RuntimeException e) {
+            return false;
         }
     }
 
