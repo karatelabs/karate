@@ -56,8 +56,11 @@ class MockProxyTest {
               * def response = { source: 'backend', message: 'hello from backend' }
 
             Scenario: pathMatches('/echo') && methodIs('post')
-              * def response = { received: request }
+              * def response = { received: request, authHeader: requestHeaders['X-Auth'][0] }
               * def responseStatus = 201
+
+            Scenario: pathMatches('/host-echo')
+              * def response = { host: requestHeaders['Host'][0] }
 
             Scenario: methodIs('get')
               * def response = { original: true }
@@ -67,11 +70,13 @@ class MockProxyTest {
 
         // Proxy forwards to backend with different behaviors per path
         String backendUrl = "http://localhost:" + backendServer.getPort();
+        String backendHost = "localhost:" + backendServer.getPort();
         proxyServer = MockServer.featureString("""
             Feature: Proxy
 
             Background:
               * def backendUrl = '%s'
+              * def backendHost = '%s'
 
             Scenario: pathMatches('/api/data')
               * def response = karate.proceed(backendUrl)
@@ -83,7 +88,11 @@ class MockProxyTest {
               * def backendResponse = karate.proceed(backendUrl)
               * def originalBody = backendResponse.body
               * def response = { original: originalBody.original, modified: true, timestamp: 'now' }
-            """.formatted(backendUrl))
+
+            Scenario: pathMatches('/host-echo')
+              * requestHeaders['Host'] = [backendHost]
+              * def response = karate.proceed()
+            """.formatted(backendUrl, backendHost))
             .port(0)
             .start();
 
@@ -127,6 +136,7 @@ class MockProxyTest {
         builder.url("http://localhost:" + proxyServer.getPort())
             .path("/echo")
             .method("POST")
+            .header("X-Auth", "token-abc")
             .body(Map.of("name", "test", "value", 42));
         HttpResponse response = builder.invoke();
 
@@ -134,6 +144,7 @@ class MockProxyTest {
 
         @SuppressWarnings("unchecked")
         Map<String, Object> body = (Map<String, Object>) response.getBodyConverted();
+        assertEquals("token-abc", body.get("authHeader"));
         assertNotNull(body.get("received"));
 
         @SuppressWarnings("unchecked")
@@ -155,6 +166,19 @@ class MockProxyTest {
         assertEquals(true, body.get("original"));
         assertEquals(true, body.get("modified"));
         assertEquals("now", body.get("timestamp"));
+    }
+
+    @Test
+    void testProceedWithHostHeader() {
+        HttpRequestBuilder builder = new HttpRequestBuilder(client);
+        builder.url("http://localhost:" + proxyServer.getPort()).path("/host-echo").method("GET");
+        HttpResponse response = builder.invoke();
+
+        assertEquals(200, response.getStatus());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBodyConverted();
+        assertEquals("localhost:" + backendServer.getPort(), body.get("host"));
     }
 
 }

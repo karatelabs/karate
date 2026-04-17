@@ -333,9 +333,24 @@ Same as feature file mocks:
 
 | Object | Description |
 |--------|-------------|
-| `request` | HTTP request with `get`, `post`, `put`, `delete`, `pathMatches()`, `pathParams`, `body`, `param()` |
+| `request` | HTTP request with `get`, `post`, `put`, `delete`, `pathMatches()`, `pathParams`, `body`, `param()`, `proceed()` |
 | `response` | HTTP response with `status`, `body`, `headers` |
 | `session` | Persistent state across requests |
+
+### Proxy Mode in JS Files
+
+`request.proceed(url)` forwards the current request to a backend and returns the response — the JS-mock equivalent of `karate.proceed()`. Omit the URL to target the request's `Host` header.
+
+```javascript
+// Forward and return backend response as-is
+var r = request.proceed('http://real-backend:8080');
+response.status = r.status;
+response.body = r.body;
+
+// Modify response before returning
+var r = request.proceed('http://real-backend:8080');
+response.body = { original: r.body, modifiedAt: new Date().toISOString() };
+```
 
 ---
 

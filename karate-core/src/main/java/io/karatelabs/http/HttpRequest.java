@@ -64,6 +64,15 @@ public class HttpRequest implements SimpleObject {
     private Map<String, String> pathParams;
     private String pathPattern;
     private Map<String, List<Map<String, Object>>> multiParts;
+    private transient HttpClient httpClient;
+
+    /**
+     * Set the {@link HttpClient} used by {@link #proceed(String)} to forward this request.
+     * When not set, a default client is lazily created via {@link DefaultHttpClientFactory}.
+     */
+    public void setHttpClient(HttpClient httpClient) {
+        this.httpClient = httpClient;
+    }
 
     public void setUrl(String url) {
         urlAndPath = url;
@@ -559,6 +568,47 @@ public class HttpRequest implements SimpleObject {
         };
     }
 
+    /**
+     * Forward this request to a target URL and return the response.
+     * Mirrors {@code karate.proceed()} so JS-file mocks can implement proxy behavior.
+     * If {@code targetUrl} is null, uses the {@code Host} header on this request.
+     */
+    public HttpResponse proceed(String targetUrl) {
+        if (targetUrl == null) {
+            String host = getHeader("Host");
+            if (host == null) {
+                throw new RuntimeException("proceed() needs a target URL or Host header in request");
+            }
+            targetUrl = "http://" + host;
+        }
+        HttpClient client = httpClient != null ? httpClient : new DefaultHttpClientFactory().create();
+        HttpRequestBuilder builder = new HttpRequestBuilder(client);
+        builder.url(targetUrl);
+        builder.path(path);
+        builder.method(method);
+        if (headers != null) {
+            headers.forEach((name, values) -> {
+                String lowerName = name.toLowerCase();
+                if (!lowerName.equals("content-length") && !lowerName.equals("host")
+                        && !lowerName.equals("transfer-encoding")) {
+                    builder.header(name, values);
+                }
+            });
+        }
+        Object converted = getBodyConverted();
+        if (converted != null) {
+            builder.body(converted);
+        }
+        return builder.invoke();
+    }
+
+    private JavaInvokable proceed() {
+        return args -> {
+            String targetUrl = args.length > 0 && args[0] != null ? args[0].toString() : null;
+            return proceed(targetUrl);
+        };
+    }
+
     @Override
     public Object jsGet(String key) {
         switch (key) {
@@ -602,6 +652,8 @@ public class HttpRequest implements SimpleObject {
                 return multiPart();
             case "multiParts":
                 return multiParts;
+            case "proceed":
+                return proceed();
             case "get":
             case "post":
             case "put":
