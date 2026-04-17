@@ -1014,6 +1014,42 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     void switchPage(int index);
 
+    /**
+     * Switch to a page by its backend target ID.
+     *
+     * <p>Useful in conjunction with {@link #drainOpenedTargets()} — the drained
+     * entries carry a {@code targetId} which unambiguously identifies the new tab,
+     * while URL/title can be ambiguous (e.g. blank or duplicated across tabs).</p>
+     *
+     * <p>Default implementation delegates to {@link #switchPage(String)} using the
+     * target ID as a substring match; most drivers should override.</p>
+     */
+    default void switchPageById(String targetId) {
+        switchPage(targetId);
+    }
+
+    /**
+     * Drain and return the list of new page targets (tabs) opened since the last call.
+     *
+     * <p>Event-driven — no CDP round-trip. Each entry is a map with {@code targetId},
+     * {@code url}, and {@code title}. Returns an empty list if nothing new was opened.</p>
+     *
+     * <p>Use case: an automation that clicks a link with {@code target="_blank"} or a
+     * button that calls {@code window.open()} can call this after the click to learn
+     * whether (and where) a new tab appeared, and then call {@link #switchPage(String)}
+     * or {@link #switchPage(int)} to focus it.</p>
+     *
+     * <p>Mirrors the {@link #getDialog()} pattern — the driver pushes events into an
+     * internal queue and the caller drains it, avoiding polling {@code Target.getTargets}
+     * after every action.</p>
+     *
+     * <p>Default implementation returns an empty list for drivers that don't track
+     * target events.</p>
+     */
+    default List<Map<String, Object>> drainOpenedTargets() {
+        return java.util.Collections.emptyList();
+    }
+
     // ========== Positional Locators ==========
 
     /**

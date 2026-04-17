@@ -48,6 +48,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -103,6 +104,15 @@ public class CdpDriver implements Driver {
 
     // Tab/target tracking for close() support
     private String currentTargetId;
+
+    // Tab-opened tracking — pushed by Target.targetCreated events.
+    // knownTargetIds is seeded at init from Target.getTargets so existing tabs are
+    // not reported as "new". openedTargets is the drain queue consumed by
+    // drainOpenedTargets() — mirrors the getDialog() pattern so automation can detect
+    // target="_blank" / window.open() without polling Target.getTargets after each
+    // action.
+    private final Set<String> knownTargetIds = ConcurrentHashMap.newKeySet();
+    private final java.util.Queue<Map<String, Object>> openedTargets = new java.util.concurrent.ConcurrentLinkedQueue<>();
 
     // Keyboard state (reused to maintain modifier state across calls)
     private CdpKeys keysInstance;
@@ -272,6 +282,26 @@ public class CdpDriver implements Driver {
         cdp.method("Page.setLifecycleEventsEnabled")
                 .param("enabled", true)
                 .send();
+
+        // Seed knownTargetIds with existing tabs so the first batch of
+        // Target.targetCreated events (fired for existing targets) don't look "new".
+        try {
+            CdpResponse initialTargets = cdp.browserMethod("Target.getTargets").send();
+            List<Map<String, Object>> targets = initialTargets.getResult("targetInfos");
+            if (targets != null) {
+                for (Map<String, Object> target : targets) {
+                    String targetId = (String) target.get("targetId");
+                    if (targetId != null) {
+                        knownTargetIds.add(targetId);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("initial Target.getTargets seed failed: {}", e.getMessage());
+        }
+        // Browser-level opt-in for Target.targetCreated / targetInfoChanged / targetDestroyed.
+        // Without this, we never learn about new tabs opened by window.open / target="_blank".
+        cdp.browserMethod("Target.setDiscoverTargets").param("discover", true).send();
 
         // Safety check: if page is already loaded (we connected late), set the flag
         // This handles the case where DOMContentLoaded fired before we were listening
@@ -486,6 +516,52 @@ public class CdpDriver implements Driver {
             }
             frameContexts.clear();
             logger.trace("execution contexts cleared");
+        });
+
+        // Tab tracking — Target.targetCreated fires for new tabs opened by
+        // window.open(), target="_blank" clicks, ctrl+click, etc. We push entries
+        // into openedTargets; callers drain via drainOpenedTargets() without any
+        // polling of Target.getTargets.
+        //
+        // Events fire at browser scope (no sessionId) because DiscoverTargets is
+        // a browser-level command. All CdpDriver instances sharing a browser will
+        // see them — filter by knownTargetIds (seeded from the browser-wide target
+        // list at init) so each driver reports only targets new to IT.
+        cdp.on("Target.targetCreated", event -> {
+            Map<String, Object> info = event.get("targetInfo");
+            if (info == null) return;
+            String type = (String) info.get("type");
+            if (!"page".equals(type)) return;
+            String targetId = (String) info.get("targetId");
+            if (targetId == null) return;
+            // knownTargetIds.add returns false if already present (seeded or earlier event)
+            if (!knownTargetIds.add(targetId)) return;
+            if (targetId.equals(currentTargetId)) return;
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("targetId", targetId);
+            entry.put("url", info.get("url"));
+            entry.put("title", info.get("title"));
+            openedTargets.add(entry);
+            logger.debug("new page target opened: {} url={}", targetId, info.get("url"));
+        });
+        cdp.on("Target.targetInfoChanged", event -> {
+            Map<String, Object> info = event.get("targetInfo");
+            if (info == null) return;
+            String targetId = (String) info.get("targetId");
+            if (targetId == null) return;
+            // Refresh queued entries if url/title landed after targetCreated
+            for (Map<String, Object> entry : openedTargets) {
+                if (targetId.equals(entry.get("targetId"))) {
+                    entry.put("url", info.get("url"));
+                    entry.put("title", info.get("title"));
+                }
+            }
+        });
+        cdp.on("Target.targetDestroyed", event -> {
+            String targetId = event.get("targetId");
+            if (targetId == null) return;
+            knownTargetIds.remove(targetId);
+            openedTargets.removeIf(entry -> targetId.equals(entry.get("targetId")));
         });
 
         // Request interception
@@ -2356,6 +2432,41 @@ public class CdpDriver implements Driver {
             }
         }
         throw new DriverException("no page found matching: " + titleOrUrl);
+    }
+
+    /**
+     * Switch to a page by its backend target ID (unambiguous — avoids URL/title
+     * collisions that {@link #switchPage(String)} is vulnerable to).
+     */
+    @Override
+    public void switchPageById(String targetId) {
+        logger.debug("switch page by targetId: {}", targetId);
+        if (targetId == null) {
+            throw new DriverException("targetId is null");
+        }
+        // Verify the target exists as a page target before activating
+        List<String> pages = getPages();
+        if (!pages.contains(targetId)) {
+            throw new DriverException("no page found with targetId: " + targetId);
+        }
+        activateTarget(targetId);
+    }
+
+    /**
+     * Drain the queue of page targets (tabs) opened since the last call.
+     * Event-driven — no CDP round-trip. See {@link Driver#drainOpenedTargets()}.
+     */
+    @Override
+    public List<Map<String, Object>> drainOpenedTargets() {
+        if (openedTargets.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        List<Map<String, Object>> drained = new ArrayList<>();
+        Map<String, Object> entry;
+        while ((entry = openedTargets.poll()) != null) {
+            drained.add(entry);
+        }
+        return drained;
     }
 
     /**
