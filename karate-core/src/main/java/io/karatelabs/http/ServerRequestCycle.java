@@ -30,7 +30,6 @@ import io.karatelabs.js.FlowControlSignal;
 import io.karatelabs.markup.Markup;
 import io.karatelabs.markup.ResourceResolver;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -258,9 +257,8 @@ public class ServerRequestCycle {
         // Try custom error template
         if (config.getErrorTemplate500() != null) {
             try {
-                Map<String, Object> vars = new HashMap<>();
+                Map<String, Object> vars = context.toVars();
                 vars.put("error", e.getMessage());
-                vars.put("request", request);
                 String html = markup.processPath(config.getErrorTemplate500(), vars);
                 response.setBody(html);
                 response.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -299,7 +297,7 @@ public class ServerRequestCycle {
         // Try custom 404 template
         if (config.getErrorTemplate404() != null) {
             try {
-                Map<String, Object> vars = new HashMap<>();
+                Map<String, Object> vars = context.toVars();
                 vars.put("path", path);
                 String html = markup.processPath(config.getErrorTemplate404(), vars);
                 response.setBody(html);
