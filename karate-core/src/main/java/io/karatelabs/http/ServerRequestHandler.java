@@ -229,10 +229,14 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
         // Save to store
         config.getSessionStore().save(session);
 
-        // Set cookie if new session
-        String cookieValue = config.getSessionCookieName() + "=" + session.getId() + "; Path=/; HttpOnly";
+        // Set cookie. SameSite=Lax is the correct default for session cookies:
+        // Strict blocks the cookie on cross-site top-level navigations, which
+        // breaks OAuth callbacks (the provider redirects the user back to our
+        // /signin?code=... and the browser would not attach the cookie under
+        // Strict, losing the pre-redirect session state).
+        String cookieValue = config.getSessionCookieName() + "=" + session.getId() + "; Path=/; HttpOnly; SameSite=Lax";
         if (!config.isDevMode()) {
-            cookieValue += "; Secure; SameSite=Strict";
+            cookieValue += "; Secure";
         }
         response.setHeader("Set-Cookie", cookieValue);
     }
