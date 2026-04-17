@@ -182,6 +182,10 @@ public class Engine {
             context.event(EventType.CONTEXT_EXIT, program);
             return toJava(result);
         } catch (Throwable e) {
+            if (e instanceof FlowControlSignal) {
+                // flow-control signal from a host function — pass through unchanged
+                throw (RuntimeException) e;
+            }
             String message = e.getMessage();
             if (message == null) {
                 message = e + "";

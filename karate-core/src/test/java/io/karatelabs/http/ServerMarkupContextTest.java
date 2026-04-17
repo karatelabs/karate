@@ -117,7 +117,10 @@ class ServerMarkupContextTest {
         assertNull(context.getRedirectPath());
         assertFalse(context.hasRedirect());
 
-        context.redirect("/signin");
+        // redirect() throws a TemplateFlowSignal to short-circuit template/handler evaluation
+        TemplateFlowSignal signal = assertThrows(TemplateFlowSignal.class,
+                () -> context.redirect("/signin"));
+        assertEquals(TemplateFlowSignal.Kind.REDIRECT, signal.getKind());
 
         assertEquals("/signin", context.getRedirectPath());
         assertTrue(context.hasRedirect());
@@ -126,7 +129,9 @@ class ServerMarkupContextTest {
     @Test
     void testRedirectViaJsGet() {
         JavaInvokable redirect = (JavaInvokable) context.jsGet("redirect");
-        redirect.invoke("/dashboard");
+
+        // signal propagates via jsGet-based invocation too
+        assertThrows(TemplateFlowSignal.class, () -> redirect.invoke("/dashboard"));
 
         assertEquals("/dashboard", context.getRedirectPath());
     }
@@ -250,7 +255,10 @@ class ServerMarkupContextTest {
         assertFalse(context.isSwitched());
         assertNull(context.getSwitchTemplate());
 
-        context.switchTemplate("other.html");
+        // switchTemplate() throws a TemplateFlowSignal to short-circuit the original template
+        TemplateFlowSignal signal = assertThrows(TemplateFlowSignal.class,
+                () -> context.switchTemplate("other.html"));
+        assertEquals(TemplateFlowSignal.Kind.SWITCH, signal.getKind());
 
         assertTrue(context.isSwitched());
         assertEquals("other.html", context.getSwitchTemplate());
@@ -259,7 +267,8 @@ class ServerMarkupContextTest {
     @Test
     void testSwitchViaJsGet() {
         JavaInvokable switchFn = (JavaInvokable) context.jsGet("switch");
-        switchFn.invoke("new-template.html");
+
+        assertThrows(TemplateFlowSignal.class, () -> switchFn.invoke("new-template.html"));
 
         assertTrue(context.isSwitched());
         assertEquals("new-template.html", context.getSwitchTemplate());
@@ -268,6 +277,7 @@ class ServerMarkupContextTest {
     @Test
     void testSwitchViaJsGetNoArgs() {
         JavaInvokable switchFn = (JavaInvokable) context.jsGet("switch");
+        // missing-arg error is raised before the flow-control signal
         assertThrows(RuntimeException.class, () -> switchFn.invoke());
     }
 
@@ -318,7 +328,7 @@ class ServerMarkupContextTest {
     void testSwitchedProperty() {
         assertFalse((Boolean) context.jsGet("switched"));
 
-        context.switchTemplate("other.html");
+        assertThrows(TemplateFlowSignal.class, () -> context.switchTemplate("other.html"));
 
         assertTrue((Boolean) context.jsGet("switched"));
     }

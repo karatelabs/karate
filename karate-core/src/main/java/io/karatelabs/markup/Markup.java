@@ -26,6 +26,7 @@ package io.karatelabs.markup;
 import io.karatelabs.common.ResourceNotFoundException;
 import io.karatelabs.common.StringUtils;
 import io.karatelabs.js.Engine;
+import io.karatelabs.js.FlowControlSignal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.IEngineConfiguration;
@@ -107,9 +108,24 @@ public class Markup {
         } catch (ResourceNotFoundException e) {
             throw e; // Let 404s bubble up without logging
         } catch (Exception e) {
+            if (hasFlowControlSignal(e)) {
+                // intentional control flow (e.g. context.redirect, context.switch) — not an error
+                throw new RuntimeException(e);
+            }
             logTemplateError(isPath, content, e);
             throw new RuntimeException(e);
         }
+    }
+
+    private static boolean hasFlowControlSignal(Throwable e) {
+        Throwable t = e;
+        while (t != null) {
+            if (t instanceof FlowControlSignal) {
+                return true;
+            }
+            t = t.getCause();
+        }
+        return false;
     }
 
     private static final int CONTEXT_LINES = 2;

@@ -300,7 +300,7 @@ context.flash           // Flash messages object
 context.csrf            // CSRF token object
 
 // Methods
-context.redirect(path)  // HTTP redirect
+context.redirect(path)  // HTTP 302 redirect — aborts current template/handler
 context.init()          // Initialize a new session
 context.close()         // Destroy session
 context.uuid()          // Generate a UUID
@@ -308,7 +308,42 @@ context.log(...)        // Log messages
 context.read(path)      // Read file as text
 context.toJson(obj)     // Serialize to JSON
 context.fromJson(str)   // Parse JSON string
-context.switch(template) // Switch to different template
+context.switch(template) // Render a different template instead — aborts current
+```
+
+### Flow control: `redirect` and `switch` abort rendering
+
+Both `context.redirect(path)` and `context.switch(template)` **short-circuit** the current evaluation — any code after the call, and any `th:*` attributes further down the template, are skipped. This keeps guard clauses clean:
+
+```html
+<script ka:scope="global">
+    // Guard clause: if not signed in, redirect. No further code runs here,
+    // and the template body below does not render — safe to dereference
+    // session.user without defensive th:if checks.
+    if (!session || !session.user) {
+        context.redirect('/signin');
+    }
+    _.displayName = session.user.name;  // always safe after the guard
+</script>
+<p id="welcome">Welcome, <span th:text="displayName">name</span>!</p>
+```
+
+**Under the hood:** both methods throw an internal `TemplateFlowSignal` that bypasses the JS-engine and markup-engine error paths (no log noise, no 500 response). The server request cycle catches the signal and applies the intended behavior — a 302 for redirect, or rendering the replacement template for switch.
+
+**`switch` vs `redirect`:** use `redirect` when you want a full HTTP round-trip (URL changes, browser history entry, flash messages survive). Use `switch` when you just want to render different HTML for the same request — ideal for "POST to create, then render the list view" inside an HTMX swap where a 302 would break the swap flow.
+
+```html
+<!-- admin-team-create.html — POST creates a team, then renders admin-teams.html -->
+<script ka:scope="global">
+    if (request.post) {
+        utils.createTeam(request.param('name'));
+        context.switch('admin-teams');   // render updated list, no redirect
+    }
+</script>
+<form ka:post="this" hx-target="#main-content">
+    <input name="name"/>
+    <button type="submit">Create</button>
+</form>
 ```
 
 ### `session` — User Session

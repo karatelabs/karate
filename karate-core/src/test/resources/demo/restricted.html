@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Restricted</title>
+</head>
+<body>
+<script ka:scope="global">
+    // Simulate an auth guard: if no session.user, redirect.
+    // This ensures the template below never tries to access user.name on null.
+    if (!session || !session.user) {
+        context.redirect('/');
+    }
+    _.displayName = session.user.name;
+</script>
+<main>
+    <h1>Restricted Area</h1>
+    <p id="welcome">Welcome, <span th:text="displayName">name</span>!</p>
+</main>
+</body>
+</html>

@@ -864,6 +864,10 @@ class Interpreter {
             if (e instanceof EngineException) {
                 throw e;
             }
+            // Flow-control signals from host functions are intentional — never wrap as errors
+            if (e instanceof FlowControlSignal) {
+                throw (RuntimeException) e;
+            }
             Token first = node.getFirstToken();
             StringBuilder sb = new StringBuilder();
             sb.append("js failed:\n");

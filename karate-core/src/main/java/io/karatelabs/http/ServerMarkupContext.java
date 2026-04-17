@@ -151,9 +151,16 @@ public class ServerMarkupContext implements MarkupContext {
 
     /**
      * Set redirect path. This will cause a 302 redirect response.
+     * <p>
+     * Throws a {@link TemplateFlowSignal} so the current template render or API
+     * handler evaluation is aborted cleanly (no further statements run, no
+     * downstream template errors logged). The signal is caught silently by the
+     * server request cycle; the actual redirect is driven by the {@code redirectPath}
+     * state set here.
      */
     public void redirect(String path) {
         this.redirectPath = path;
+        throw new TemplateFlowSignal(TemplateFlowSignal.Kind.REDIRECT);
     }
 
     /**
@@ -219,10 +226,16 @@ public class ServerMarkupContext implements MarkupContext {
 
     /**
      * Switch to a different template for rendering.
+     * <p>
+     * Throws a {@link TemplateFlowSignal} so the current template render is
+     * aborted cleanly (the original template is abandoned; the new one is
+     * rendered instead). The signal is caught silently by the server request
+     * cycle, which then renders {@code switchTemplate} in place of the original.
      */
     public void switchTemplate(String template) {
         this.switchTemplate = template;
         this.switched = true;
+        throw new TemplateFlowSignal(TemplateFlowSignal.Kind.SWITCH);
     }
 
     // SimpleObject/jsGet implementation

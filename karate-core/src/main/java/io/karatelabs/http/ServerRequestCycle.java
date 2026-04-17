@@ -26,6 +26,7 @@ package io.karatelabs.http;
 import io.karatelabs.common.Resource;
 import io.karatelabs.common.ResourceNotFoundException;
 import io.karatelabs.js.Engine;
+import io.karatelabs.js.FlowControlSignal;
 import io.karatelabs.markup.Markup;
 import io.karatelabs.markup.ResourceResolver;
 
@@ -175,6 +176,10 @@ public class ServerRequestCycle {
             return response;
 
         } catch (Exception e) {
+            if (containsFlowControlSignal(e)) {
+                // context.redirect / context.switch aborted the handler — response state already set
+                return response;
+            }
             return handleError(e);
         }
     }
@@ -204,9 +209,20 @@ public class ServerRequestCycle {
 
             // Render template
             Map<String, Object> vars = context.toVars();
-            String html = markup.processPath(templatePath, vars);
+            String html;
+            try {
+                html = markup.processPath(templatePath, vars);
+            } catch (RuntimeException e) {
+                if (containsFlowControlSignal(e)) {
+                    // context.redirect or context.switch aborted the original template;
+                    // redirect response is handled upstream; switch renders below
+                    html = "";
+                } else {
+                    throw e;
+                }
+            }
 
-            // Check if template switched
+            // Check if template switched — render the replacement template
             if (context.isSwitched()) {
                 String newTemplate = context.getSwitchTemplate();
                 context.setTemplateName(newTemplate);
@@ -223,6 +239,17 @@ public class ServerRequestCycle {
         } catch (Exception e) {
             return handleError(e);
         }
+    }
+
+    private static boolean containsFlowControlSignal(Throwable e) {
+        Throwable t = e;
+        while (t != null) {
+            if (t instanceof FlowControlSignal) {
+                return true;
+            }
+            t = t.getCause();
+        }
+        return false;
     }
 
     private HttpResponse handleError(Exception e) {

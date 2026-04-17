@@ -279,6 +279,41 @@ class DemoAppTest {
     }
 
     @Test
+    void testContextRedirectShortCircuitsTemplate() {
+        // /restricted's ka:scope calls context.redirect('/') when there's no
+        // session.user, then unconditionally accesses session.user.name.
+        // The redirect must short-circuit template eval so that dereference
+        // never runs — no template error, clean 302.
+        HttpResponse response = get("/restricted");
+        assertEquals(302, response.getStatus());
+        assertEquals("/", response.getHeader("Location"));
+        // body is discarded on redirect
+        assertEquals("", response.getBodyString());
+    }
+
+    @Test
+    void testContextSwitchRendersReplacementTemplate() {
+        // POST /create-item calls context.switch('items'), which aborts the
+        // original template and renders items.html in its place.
+        HttpResponse response = post("/create-item", "name=Durian");
+        assertEquals(200, response.getStatus());
+        String body = response.getBodyString();
+        // new template rendered (Items List from items.html)
+        assertTrue(body.contains("Items List"), "expected items.html to render, got: " + body);
+        // original template NOT rendered
+        assertFalse(body.contains("id=\"create-title\""),
+                "original template should have been aborted");
+    }
+
+    @Test
+    void testContextSwitchGetStillRendersOriginal() {
+        // GET /create-item does not trigger the switch — original renders.
+        HttpResponse response = get("/create-item");
+        assertEquals(200, response.getStatus());
+        assertTrue(response.getBodyString().contains("id=\"create-title\""));
+    }
+
+    @Test
     void testContextUuid() {
         HttpResponse response = get("/api/session?action=uuid");
         String body = response.getBodyString();

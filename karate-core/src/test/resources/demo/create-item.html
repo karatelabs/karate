@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Create Item</title>
+</head>
+<body>
+<script ka:scope="global">
+    if (request.post) {
+        // Pretend we just created something, then switch to the listing template
+        // to render the updated state — no HTTP redirect round-trip needed.
+        context.switch('items');
+    }
+</script>
+<main>
+    <h1 id="create-title">Create Item</h1>
+    <form method="post" th:action="context.template">
+        <input name="name"/>
+        <button type="submit">Create</button>
+    </form>
+</main>
+</body>
+</html>
