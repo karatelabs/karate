@@ -24,8 +24,10 @@
 package io.karatelabs.js;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Singleton prototype for String instances.
@@ -116,7 +118,47 @@ class JsStringPrototype extends Prototype {
 
     private Object split(Context context, Object[] args) {
         String s = asString(context);
-        return Arrays.asList(s.split((String) args[0]));
+        // JS semantics:
+        //   str.split() / str.split(undefined) → [str]
+        //   str.split('') → each char as element
+        //   str.split(sep) → literal match on sep (NOT a regex)
+        //   str.split(/re/) → regex match
+        //   limit (arg[1]) if provided truncates the result
+        // Previously we passed args[0] straight to Java's String.split, which
+        // interprets it as a regex — causing '|a|b|'.split('|') to blow up (| is
+        // alternation) and land as "Index out of bounds" further down the pipeline.
+        if (args.length == 0 || args[0] == null || args[0] == Terms.UNDEFINED) {
+            // Mutable so the caller can pop/push/splice — Arrays.asList is fixed-size
+            List<String> single = new ArrayList<>(1);
+            single.add(s);
+            return single;
+        }
+        int limit = -1; // JS default: keep all, including trailing empty strings
+        if (args.length > 1 && args[1] instanceof Number n) {
+            limit = n.intValue();
+            if (limit <= 0) return new ArrayList<String>();
+        }
+        String[] parts;
+        if (args[0] instanceof JsRegex regex) {
+            parts = regex.javaPattern.split(s, -1);
+        } else {
+            String sep = args[0].toString();
+            if (sep.isEmpty()) {
+                int capped = limit < 0 ? s.length() : Math.min(limit, s.length());
+                List<String> result = new ArrayList<>(capped);
+                for (int i = 0; i < capped; i++) {
+                    result.add(String.valueOf(s.charAt(i)));
+                }
+                return result;
+            }
+            // -1 to keep trailing empty segments (JS-compatible, Java default drops them)
+            parts = s.split(Pattern.quote(sep), -1);
+        }
+        // Wrap in a mutable ArrayList — downstream .pop/.push/.splice mutate the list.
+        int take = (limit >= 0 && parts.length > limit) ? limit : parts.length;
+        List<String> result = new ArrayList<>(take);
+        for (int i = 0; i < take; i++) result.add(parts[i]);
+        return result;
     }
 
     private Object charAt(Context context, Object[] args) {

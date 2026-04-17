@@ -94,7 +94,7 @@ class ContextRoot extends CoreContext {
             case "console", "parseInt", "parseFloat", "encodeURIComponent", "decodeURIComponent",
                  "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Infinity", "Java",
                  "JSON", "Math", "NaN", "Number", "Boolean", "Object", "RegExp", "String", "TypeError",
-                 "TextEncoder", "TextDecoder", "Uint8Array" -> true;
+                 "TextEncoder", "TextDecoder", "Uint8Array", "isNaN", "isFinite" -> true;
             default -> false;
         };
     }
@@ -125,6 +125,18 @@ class ContextRoot extends CoreContext {
                 return Terms.parseInt(args[0] + "", radix);
             };
             case "parseFloat" -> (JsInvokable) args -> Terms.parseFloat(args[0] + "", false);
+            case "isNaN" -> (JsInvokable) args -> {
+                if (args.length == 0 || args[0] == null || args[0] == Terms.UNDEFINED) return true;
+                Number n = Terms.objectToNumber(args[0]);
+                return n == null || Double.isNaN(n.doubleValue());
+            };
+            case "isFinite" -> (JsInvokable) args -> {
+                if (args.length == 0 || args[0] == null || args[0] == Terms.UNDEFINED) return false;
+                Number n = Terms.objectToNumber(args[0]);
+                if (n == null) return false;
+                double d = n.doubleValue();
+                return !Double.isNaN(d) && !Double.isInfinite(d);
+            };
             case "encodeURIComponent" -> (JsInvokable) args -> {
                 String encoded = URLEncoder.encode(args[0] + "", StandardCharsets.UTF_8);
                 return encoded.replace("+", "%20")

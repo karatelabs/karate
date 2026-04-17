@@ -73,6 +73,33 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testIsNaNGlobal() {
+        assertEquals(true, eval("isNaN(NaN)"));
+        assertEquals(true, eval("isNaN('foo')"));
+        assertEquals(true, eval("isNaN(undefined)"));
+        assertEquals(true, eval("isNaN()"));
+        assertEquals(false, eval("isNaN(0)"));
+        assertEquals(false, eval("isNaN(42)"));
+        assertEquals(false, eval("isNaN('42')"));
+        assertEquals(false, eval("isNaN('3.14')"));
+        // The idiom from the D1 benchmark — parseFloat then isNaN
+        assertEquals(false, eval("isNaN(parseFloat('850.00'))"));
+        assertEquals(true, eval("isNaN(parseFloat('abc'))"));
+    }
+
+    @Test
+    void testIsFiniteGlobal() {
+        assertEquals(true, eval("isFinite(0)"));
+        assertEquals(true, eval("isFinite(42)"));
+        assertEquals(true, eval("isFinite('42')"));
+        assertEquals(false, eval("isFinite(NaN)"));
+        assertEquals(false, eval("isFinite(Infinity)"));
+        assertEquals(false, eval("isFinite(-Infinity)"));
+        assertEquals(false, eval("isFinite('foo')"));
+        assertEquals(false, eval("isFinite(undefined)"));
+    }
+
+    @Test
     void testOptionalChainingBracket() {
         // Optional chaining with bracket on null/undefined
         assertNull(eval("var arr = null; arr?.[0]"));

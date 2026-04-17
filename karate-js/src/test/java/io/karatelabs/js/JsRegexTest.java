@@ -175,4 +175,69 @@ class JsRegexTest extends EvalBase {
         }
     }
 
+    // Repros drawn from the D1 tuning benchmark — Gemma hit "Index 1 out of
+    // bounds for length 1" while parsing a markdown table using the idiomatic
+    // str.replace(/.../g, '') chain to strip separators before parseFloat.
+
+    @Test
+    void testReplaceGlobalEmptyReplacement() {
+        eval("var x = '1,350'.replace(/,/g, '')");
+        assertEquals("1350", get("x"));
+    }
+
+    @Test
+    void testReplaceGlobalCharClassEmptyReplacement() {
+        eval("var x = '  850.00  '.replace(/[^0-9.-]+/g, '')");
+        assertEquals("850.00", get("x"));
+    }
+
+    @Test
+    void testParseFloatAfterReplace() {
+        eval("var x = parseFloat('1,350'.replace(/,/g, ''))");
+        assertEquals(1350, ((Number) get("x")).intValue());
+    }
+
+    @Test
+    void testSplitMapFilterThenIndexAndReplace() {
+        // Full chain from the D1 transcript that threw "Index 1 out of bounds".
+        eval("var row = '| EXP-301 | 2025-07-02 | Sarah Chen | Travel | United | Flight | 850.00 | Approved |';"
+                + "var cols = row.split('|').map(function(c){return c.trim();}).filter(function(c){return c!=='';});"
+                + "var len = cols.length;"
+                + "var amt = parseFloat(cols[6].replace(/,/g, ''));");
+        assertEquals(8, get("len"));
+        assertEquals(850, ((Number) get("amt")).intValue());
+    }
+
+    @Test
+    void testIndexingBeyondLengthReturnsUndefined() {
+        // JS semantics: arr[99] on a length-1 array yields undefined, not an
+        // IndexOutOfBounds. The bug originally surfaced here — a filter() return
+        // is a plain java.util.ArrayList, and out-of-range read needs to come
+        // back as UNDEFINED, not throw.
+        eval("var a = ['only'].filter(function(c){return c!=='';}); var r = a[99]");
+        assertNull(get("r"));
+    }
+
+    @Test
+    void testSplitByPipeLength() {
+        // split() returns Arrays$ArrayList — check length comes through
+        eval("var cols = '|a|b|c|'.split('|'); var n = cols.length");
+        assertEquals(5, ((Number) get("n")).intValue());
+    }
+
+    @Test
+    void testSplitMapFilterLength() {
+        // split().map().filter() — chain before the crashing index read
+        eval("var cols = '|a|b|c|'.split('|').map(function(c){return c.trim();}).filter(function(c){return c!=='';}); var n = cols.length");
+        assertEquals(3, ((Number) get("n")).intValue());
+    }
+
+    @Test
+    void testSplitMapFilterIndexInRange() {
+        // Read an IN-RANGE index from a filter() result — does NOT need
+        // out-of-range handling, just checks the pipeline.
+        eval("var cols = '|a|b|c|'.split('|').map(function(c){return c.trim();}).filter(function(c){return c!=='';}); var first = cols[0]");
+        assertEquals("a", get("first"));
+    }
+
 }

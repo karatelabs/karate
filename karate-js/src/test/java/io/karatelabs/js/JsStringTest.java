@@ -156,6 +156,59 @@ class JsStringTest extends EvalBase {
     }
 
     @Test
+    void testSplitLiteralSeparator() {
+        // String separators are literal — NOT regex. Previously '|' blew up as
+        // regex alternation, causing '|a|b|'.split('|') to return 7 items and
+        // breaking downstream index access with an IndexOutOfBounds.
+        assertEquals(List.of("", "a", "b", ""), eval("'|a|b|'.split('|')"));
+        assertEquals(List.of("", "a", "b", "c", ""), eval("'|a|b|c|'.split('|')"));
+        assertEquals(List.of("a.b.c"), eval("'a.b.c'.split('*')")); // no match
+        // regex metachar as literal separator
+        assertEquals(List.of("a", "b", "c"), eval("'a.b.c'.split('.')"));
+        assertEquals(List.of("a", "b", "c"), eval("'a+b+c'.split('+')"));
+        assertEquals(List.of("a", "b", "c"), eval("'a$b$c'.split('$')"));
+        // empty separator → each character
+        assertEquals(List.of("a", "b", "c"), eval("'abc'.split('')"));
+        // no separator → whole string
+        assertEquals(List.of("abc"), eval("'abc'.split()"));
+    }
+
+    @Test
+    void testSplitRegexSeparator() {
+        // Regex separator uses the pattern directly
+        assertEquals(List.of("a", "b", "c"), eval("'a1b2c'.split(/[0-9]/)"));
+        assertEquals(List.of("a", "b"), eval("'a,b'.split(/,/)"));
+    }
+
+    @Test
+    void testSplitWithLimit() {
+        // Second arg caps result length
+        assertEquals(List.of("a", "b"), eval("'a,b,c,d'.split(',', 2)"));
+        assertEquals(new java.util.ArrayList<String>(), eval("'a,b,c'.split(',', 0)"));
+    }
+
+    @Test
+    void testSplitResultIsMutable() {
+        // The array returned from split() must support pop/push/shift — surfaced
+        // in D1 where 'Sarah Chen'.split(' ').pop() threw "Error: null" because
+        // Arrays.asList() is fixed-size and .pop() internally calls .clear().
+        assertEquals("Chen", eval("'Sarah Chen'.split(' ').pop()"));
+        assertEquals("Sarah", eval("'Sarah Chen'.split(' ').shift()"));
+        Object afterPush = eval("var a = 'a,b'.split(','); a.push('c'); a.length");
+        assertEquals(3, ((Number) afterPush).intValue());
+    }
+
+    @Test
+    void testSplitThenPipelineChain() {
+        // The exact failure pattern from the D1 benchmark — '|'-delimited table
+        // row parsed via split().map().filter().
+        Object result = eval("var row = '| EXP-301 | Sarah Chen | Travel | 850.00 | Approved |';"
+                + "var cols = row.split('|').map(function(c){return c.trim();}).filter(function(c){return c!=='';});"
+                + "cols[3]");
+        assertEquals("850.00", result);
+    }
+
+    @Test
     void testReplace() {
         assertEquals("xxFOOxx", eval("a = 'xxfooxx'; a.replace('foo', 'FOO')"));
         assertEquals("xxFOOxx", eval("a = 'xxfooxx'; a.replace(/foo/, 'FOO')"));
