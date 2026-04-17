@@ -146,6 +146,7 @@ public final class HtmlReport {
                 int totalFeaturesFailed = 0;
                 int totalScenariosPassed = 0;
                 int totalScenariosFailed = 0;
+                int totalScenariosSkipped = 0;
                 long totalDuration = 0;
 
                 for (Path jsonlFile : jsonlFiles) {
@@ -184,6 +185,7 @@ public final class HtmlReport {
                                 totalFeaturesFailed += ((Number) summary.getOrDefault("featuresFailed", 0)).intValue();
                                 totalScenariosPassed += ((Number) summary.getOrDefault("scenariosPassed", 0)).intValue();
                                 totalScenariosFailed += ((Number) summary.getOrDefault("scenariosFailed", 0)).intValue();
+                                totalScenariosSkipped += ((Number) summary.getOrDefault("scenariosSkipped", 0)).intValue();
                                 totalDuration += ((Number) summary.getOrDefault("durationMillis", 0)).longValue();
                             }
                         }
@@ -205,6 +207,7 @@ public final class HtmlReport {
                 summary.put("scenario_count", totalScenarios);
                 summary.put("scenario_passed", totalScenariosPassed);
                 summary.put("scenario_failed", totalScenariosFailed);
+                summary.put("scenario_skipped", totalScenariosSkipped);
                 summary.put("duration_millis", totalDuration);
                 summary.put("status", totalFeaturesFailed > 0 ? "failed" : "passed");
 

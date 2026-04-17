@@ -804,6 +804,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // If suite has been aborted (abortSuiteOnFailure), skip this scenario
         if (suite != null && suite.isAborted() && featureRuntime.getCaller() == null) {
             stopped = true;
+            result.setAborted(true);
             result.setEndTime(System.currentTimeMillis());
             LogContext.clear();
             return result;
@@ -862,6 +863,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // Evaluate backtick scenario name for reports (e.g., `result is ${1+1}`)
             // Must happen BEFORE SCENARIO_EXIT so the event contains the evaluated name
             evaluateScenarioName();
+
+            // Propagate scenario-level abort to the result so reporting can tag it @skipped
+            if (aborted) {
+                result.setAborted(true);
+            }
 
             // Set end time BEFORE firing SCENARIO_EXIT so the event contains correct duration
             result.setEndTime(System.currentTimeMillis());

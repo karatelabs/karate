@@ -109,6 +109,10 @@ public class SuiteResult {
         return featureResults.stream().mapToInt(FeatureResult::getFailedCount).sum();
     }
 
+    public int getScenarioSkippedCount() {
+        return featureResults.stream().mapToInt(FeatureResult::getSkippedCount).sum();
+    }
+
     public boolean isPassed() {
         return featureResults.stream().noneMatch(FeatureResult::isFailed);
     }
@@ -141,6 +145,7 @@ public class SuiteResult {
         summary.put("scenarioCount", getScenarioCount());
         summary.put("scenariosPassed", getScenarioPassedCount());
         summary.put("scenariosFailed", getScenarioFailedCount());
+        summary.put("scenariosSkipped", getScenarioSkippedCount());
         summary.put("durationMillis", getDurationMillis());
         summary.put("passed", !isFailed());
         map.put("summary", summary);
@@ -249,12 +254,18 @@ public class SuiteResult {
         int scenarioTotal = getScenarioCount();
         int scenarioPassed = getScenarioPassedCount();
         int scenarioFailed = getScenarioFailedCount();
+        int scenarioSkipped = getScenarioSkippedCount();
         String scenarioStatus = scenarioFailed > 0
                 ? Console.fail(scenarioFailed + " failed")
                 : Console.pass("all passed");
 
-        Console.println(String.format("scenarios: %3d | passed: %4d | %s",
-                scenarioTotal, scenarioPassed, scenarioStatus));
+        if (scenarioSkipped > 0) {
+            Console.println(String.format("scenarios: %3d | passed: %4d | skipped: %4d | %s",
+                    scenarioTotal, scenarioPassed, scenarioSkipped, scenarioStatus));
+        } else {
+            Console.println(String.format("scenarios: %3d | passed: %4d | %s",
+                    scenarioTotal, scenarioPassed, scenarioStatus));
+        }
 
         // Footer with version, env, and HTML report (URL last for easy clicking)
         Console.println(Console.cyan("-".repeat(60)));

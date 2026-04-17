@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="../res/karate-report.css"/>
     <link rel="icon" href="../res/favicon.ico"/>
     <script src="../res/alpine.min.js" defer></script>
-    <title>Feature Report</title>
+    <title>Karate Feature</title>
     <style>
         .sidebar {
             position: fixed;
@@ -85,7 +85,7 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="../karate-summary.html">
                 <img src="../res/karate-logo.svg" alt="Karate" height="32" class="d-inline-block align-middle me-2"/>
-                Karate
+                <span x-text="featureSimpleName">Feature</span>
             </a>
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item">
@@ -106,7 +106,7 @@
         </div>
         <template x-for="scenario in data.scenarios" :key="scenario.refId">
             <a class="nav-scenario d-block text-decoration-none"
-               :class="scenario.passed ? 'text-success' : 'text-danger'"
+               :class="scenario.skipped ? 'text-warning' : (scenario.passed ? 'text-success' : 'text-danger')"
                :href="'#' + scenario.refId"
                :title="scenario.name">
                 <span class="fw-bold" x-text="scenario.refId"></span>
@@ -131,7 +131,7 @@
         <template x-for="scenario in data.scenarios" :key="scenario.refId">
             <div class="card mb-3" :id="scenario.refId">
                 <div class="card-header d-flex justify-content-between align-items-center py-2"
-                     :class="scenario.passed ? 'bg-success-subtle' : 'bg-danger-subtle'">
+                     :class="scenario.skipped ? 'bg-warning-subtle' : (scenario.passed ? 'bg-success-subtle' : 'bg-danger-subtle')">
                     <span>
                         <span class="fw-bold" x-text="scenario.refId"></span>
                         <span x-text="scenario.name"></span>
@@ -144,7 +144,8 @@
                     </span>
                     <span>
                         <small class="text-muted me-2" x-text="scenario.durationMillis + ' ms'"></small>
-                        <span x-show="scenario.passed" class="badge bg-success">PASS</span>
+                        <span x-show="scenario.skipped" class="badge bg-warning">SKIP</span>
+                        <span x-show="scenario.passed && !scenario.skipped" class="badge bg-success">PASS</span>
                         <span x-show="!scenario.passed" class="badge bg-danger">FAIL</span>
                     </span>
                 </div>

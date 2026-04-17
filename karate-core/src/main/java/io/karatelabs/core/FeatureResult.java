@@ -185,6 +185,10 @@ public class FeatureResult {
         return (int) scenarioResults.stream().filter(ScenarioResult::isFailed).count();
     }
 
+    public int getSkippedCount() {
+        return (int) scenarioResults.stream().filter(ScenarioResult::isSkipped).count();
+    }
+
     public boolean isPassed() {
         return scenarioResults.stream().noneMatch(ScenarioResult::isFailed);
     }
@@ -232,6 +236,7 @@ public class FeatureResult {
         map.put("durationMillis", getDurationMillis());
         map.put("passedCount", getPassedCount());
         map.put("failedCount", getFailedCount());
+        map.put("skippedCount", getSkippedCount());
 
         // Path fields
         map.put("packageQualifiedName", feature.getResource().getPackageQualifiedName());
@@ -286,6 +291,7 @@ public class FeatureResult {
         String path = getDisplayName();
         int passed = getPassedCount();
         int failed = getFailedCount();
+        int skipped = getSkippedCount();
         int total = getScenarioCount();
         double secs = getDurationMillis() / 1000.0;
 
@@ -299,8 +305,13 @@ public class FeatureResult {
 
         Console.println(Console.grey("-".repeat(57)));
         Console.println("feature: " + featureLine);
-        Console.println(String.format("scenarios: %2d | passed: %2d | %s | time: %.4f",
-                total, passed, status, secs));
+        if (skipped > 0) {
+            Console.println(String.format("scenarios: %2d | passed: %2d | skipped: %2d | %s | time: %.4f",
+                    total, passed, skipped, status, secs));
+        } else {
+            Console.println(String.format("scenarios: %2d | passed: %2d | %s | time: %.4f",
+                    total, passed, status, secs));
+        }
         Console.println(Console.grey("=".repeat(57)));
     }
 

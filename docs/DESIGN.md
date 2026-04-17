@@ -78,6 +78,7 @@ karate/
 | `@fail` | Expect failure (invert result) |
 | `@lock=name` | Named mutual exclusion (same name = sequential) |
 | `@lock=*` | Exclusive execution (no other scenarios run concurrently) |
+| `@skipped` | Synthetic — engine auto-adds in the result's tags when a scenario was aborted (via `karate.abort()` or suite abort). Informational only; surfaces in the HTML report's tag chips. `skippedCount` is additive — skipped scenarios still count as passed (no breaking change to existing counts). |
 
 ## Caching
 

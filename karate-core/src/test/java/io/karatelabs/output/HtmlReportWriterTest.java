@@ -109,7 +109,7 @@ class HtmlReportWriterTest {
      * Quick run: mvn test -Dtest=HtmlReportWriterTest#testHtmlReportGeneration -q
      */
     @Test
-    void testHtmlReportGeneration() {
+    void testHtmlReportGeneration() throws Exception {
         Console.setColorsEnabled(true);
         // Run features from test-classes directory with parallel for timeline
         String testResourcesDir = "target/test-classes/io/karatelabs/report";
@@ -124,6 +124,8 @@ class HtmlReportWriterTest {
         assertTrue(result.getFeatureCount() >= 4, "Should have at least 4 features (including http-demo)");
         assertTrue(result.getScenarioPassedCount() >= 17, "Should have many passing scenarios including HTTP tests");
         assertTrue(result.getScenarioFailedCount() >= 4, "Should have @wip failing scenarios (including match failure demos)");
+        assertTrue(result.getScenarioSkippedCount() >= 2,
+                "Should have at least 2 skipped scenarios from skipped-scenarios.feature");
 
         // Verify HTML reports were generated
         assertTrue(Files.exists(OUTPUT_DIR.resolve("karate-summary.html")));
@@ -135,6 +137,86 @@ class HtmlReportWriterTest {
 
         // Verify JSON Lines file was created
         assertTrue(Files.exists(OUTPUT_DIR.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl")));
+
+        // Verify summary HTML has skipped keys and the synthetic @skipped tag
+        String summaryHtml = Files.readString(OUTPUT_DIR.resolve("karate-summary.html"));
+        assertTrue(summaryHtml.contains("\"scenario_skipped\""),
+                "summary JSON should include scenario_skipped key");
+        assertTrue(summaryHtml.contains("@skipped"),
+                "summary JSON should include synthetic @skipped tag from skipped scenarios");
+    }
+
+    @Test
+    void testSkippedTagAndCountOnAbort(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("abort.feature");
+        Files.writeString(feature, """
+                Feature: Abort Skipped Test
+
+                Scenario: Aborted scenario
+                * karate.abort()
+                * def x = 1
+                * match x == 1
+
+                Scenario: Normal scenario
+                * def y = 2
+                * match y == 2
+                """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(1, result.getScenarioSkippedCount(), "Aborted scenario should count as skipped");
+        assertEquals(2, result.getScenarioPassedCount(), "Passed count unchanged (skipped is additive subset)");
+        assertEquals(0, result.getScenarioFailedCount());
+
+        // Inlined JSON in HTML should contain the synthetic @skipped tag
+        String html = Files.readString(reportDir.resolve("karate-summary.html"));
+        assertTrue(html.contains("@skipped"), "synthetic @skipped tag should appear in summary JSON");
+        assertTrue(html.contains("\"scenario_skipped\": 1"),
+                "scenario_skipped count should appear in summary JSON");
+    }
+
+    @Test
+    void testNoSkippedKeyWhenNoSkippedScenarios(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("clean.feature");
+        Files.writeString(feature, """
+                Feature: No Skipped Test
+
+                Scenario: First
+                * def a = 1
+                * match a == 1
+
+                Scenario: Second
+                * def b = 2
+                * match b == 2
+                """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(0, result.getScenarioSkippedCount());
+
+        String html = Files.readString(reportDir.resolve("karate-summary.html"));
+        assertTrue(html.contains("\"scenario_skipped\": 0"),
+                "scenario_skipped: 0 should be present (hero card x-show hides it)");
+        assertFalse(html.contains("@skipped"),
+                "synthetic @skipped tag should not appear when no scenarios are skipped");
     }
 
     @Test

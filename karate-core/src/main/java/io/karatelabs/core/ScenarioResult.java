@@ -42,6 +42,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     private long endTime;
     private String threadName;
     private boolean failTagApplied;
+    private boolean aborted;
 
     public ScenarioResult(Scenario scenario) {
         this.scenario = scenario;
@@ -57,6 +58,14 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
 
     public void setThreadName(String threadName) {
         this.threadName = threadName;
+    }
+
+    public boolean isAborted() {
+        return aborted;
+    }
+
+    public void setAborted(boolean aborted) {
+        this.aborted = aborted;
     }
 
     public Scenario getScenario() {
@@ -101,6 +110,22 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             }
         }
         return stepResults.stream().anyMatch(StepResult::isFailed);
+    }
+
+    /**
+     * True when this scenario was aborted via {@code karate.abort()} or had no step pass and
+     * no step fail (suite-aborted pre-run or empty scenario). Reported additively alongside
+     * {@link #isPassed()}; a skipped scenario is still counted as passed (preserves existing
+     * count semantics). Surfaces in reports via a synthetic {@code @skipped} tag.
+     */
+    public boolean isSkipped() {
+        if (failTagApplied || isFailed()) {
+            return false;
+        }
+        if (aborted) {
+            return true;
+        }
+        return stepResults.stream().noneMatch(s -> s.isPassed() || s.isFailed());
     }
 
     public long getDurationMillis() {
@@ -229,6 +254,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         // Status
         map.put("passed", isPassed());
         map.put("failed", isFailed());
+        map.put("skipped", isSkipped());
         map.put("durationMillis", getDurationMillis());
         if (isFailed()) {
             map.put("error", getFailureMessage());
@@ -249,13 +275,18 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         map.put("startTime", startTime);
         map.put("endTime", endTime);
 
-        // Tags (effective = merged feature + scenario)
+        // Tags (effective = merged feature + scenario); synthetic @skipped added when isSkipped()
         List<Tag> effectiveTags = scenario.getTagsEffective();
-        if (effectiveTags != null && !effectiveTags.isEmpty()) {
-            List<String> tagNames = new ArrayList<>();
+        List<String> tagNames = new ArrayList<>();
+        if (effectiveTags != null) {
             for (Tag tag : effectiveTags) {
                 tagNames.add(tag.toString());
             }
+        }
+        if (isSkipped() && !tagNames.contains("@skipped")) {
+            tagNames.add("@skipped");
+        }
+        if (!tagNames.isEmpty()) {
             map.put("tags", tagNames);
         }
 

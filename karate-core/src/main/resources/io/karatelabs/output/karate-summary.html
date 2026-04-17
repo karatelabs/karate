@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="res/karate-report.css"/>
     <link rel="icon" href="res/favicon.ico"/>
     <script src="res/alpine.min.js" defer></script>
-    <title>Karate Test Report</title>
+    <title>Karate Summary</title>
     <style>
         .sortable { cursor: pointer; user-select: none; }
         .sortable:hover { background-color: var(--bs-tertiary-bg); }
@@ -23,7 +23,7 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="karate-summary.html">
                 <img src="res/karate-logo.svg" alt="Karate" height="32" class="d-inline-block align-middle me-2"/>
-                Karate Test Report
+                Summary
             </a>
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item">
@@ -45,7 +45,7 @@
 
         <!-- Summary Cards -->
         <div class="row mb-4">
-            <div class="col-md-3">
+            <div :class="data.summary?.scenario_skipped > 0 ? 'col-md-3 col-xl' : 'col-md-3'">
                 <div class="card text-white bg-primary">
                     <div class="card-body">
                         <h5 class="card-title">Features</h5>
@@ -53,7 +53,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div :class="data.summary?.scenario_skipped > 0 ? 'col-md-3 col-xl' : 'col-md-3'">
                 <div class="card text-white bg-success">
                     <div class="card-body">
                         <h5 class="card-title">Scenarios Passed</h5>
@@ -61,7 +61,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div :class="data.summary?.scenario_skipped > 0 ? 'col-md-3 col-xl' : 'col-md-3'">
                 <div class="card text-white bg-danger">
                     <div class="card-body">
                         <h5 class="card-title">Scenarios Failed</h5>
@@ -69,7 +69,15 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-3 col-xl" x-show="data.summary?.scenario_skipped > 0">
+                <div class="card text-white bg-warning">
+                    <div class="card-body">
+                        <h5 class="card-title">Scenarios Skipped</h5>
+                        <h2 class="card-text" x-text="data.summary?.scenario_skipped || 0">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div :class="data.summary?.scenario_skipped > 0 ? 'col-md-3 col-xl' : 'col-md-3'">
                 <div class="card text-white bg-secondary">
                     <div class="card-body">
                         <h5 class="card-title">Duration</h5>
@@ -117,6 +125,10 @@
                         Failed
                         <span x-show="sortField === 'failedCount'" x-text="sortDir === 'asc' ? ' \u2191' : ' \u2193'"></span>
                     </th>
+                    <th class="sortable" @click="sortBy('passRate')" style="width: 90px;">
+                        Pass %
+                        <span x-show="sortField === 'passRate'" x-text="sortDir === 'asc' ? ' \u2191' : ' \u2193'"></span>
+                    </th>
                     <th class="sortable" @click="sortBy('durationMillis')" style="width: 120px;">
                         Duration
                         <span x-show="sortField === 'durationMillis'" x-text="sortDir === 'asc' ? ' \u2191' : ' \u2193'"></span>
@@ -149,6 +161,7 @@
                             <td x-text="f.scenarioCount">0</td>
                             <td x-text="f.passedCount">0</td>
                             <td x-text="f.failedCount">0</td>
+                            <td x-text="formatPassRate(f.passRate)">&mdash;</td>
                             <td><span x-text="f.durationMillis">0</span> ms</td>
                             <td>
                                 <span x-show="f.passed" class="badge bg-success">PASSED</span>
@@ -157,6 +170,16 @@
                         </tr>
                     </template>
                 </template>
+                <!-- Totals row -->
+                <tr class="table-secondary fw-bold" x-show="(data.features || []).length > 0">
+                    <td>Total (<span x-text="(data.features || []).length"></span> features)</td>
+                    <td x-text="totals.scenarios">0</td>
+                    <td x-text="totals.passed">0</td>
+                    <td x-text="totals.failed">0</td>
+                    <td x-text="formatPassRate(totals.passRate)">&mdash;</td>
+                    <td><span x-text="totals.durationMillis">0</span> ms</td>
+                    <td></td>
+                </tr>
                 <!-- Expanded Scenarios (when filtering by tags) -->
                 <template x-for="f in filteredFeatures" :key="'exp-' + f.fileName">
                     <template x-if="f.expanded && selectedTags.length > 0">
@@ -168,7 +191,7 @@
                                         <span x-text="scenario.name"></span>
                                     </small>
                                 </td>
-                                <td colspan="2">
+                                <td colspan="3">
                                     <template x-for="tag in scenario.tags || []" :key="tag">
                                         <span class="badge bg-info me-1" x-text="tag"></span>
                                     </template>
@@ -176,7 +199,8 @@
                                 <td></td>
                                 <td><small x-text="scenario.durationMillis + ' ms'"></small></td>
                                 <td>
-                                    <span x-show="scenario.passed" class="badge bg-success">PASS</span>
+                                    <span x-show="scenario.skipped" class="badge bg-warning">SKIP</span>
+                                    <span x-show="scenario.passed && !scenario.skipped" class="badge bg-success">PASS</span>
                                     <span x-show="!scenario.passed" class="badge bg-danger">FAIL</span>
                                 </td>
                             </tr>

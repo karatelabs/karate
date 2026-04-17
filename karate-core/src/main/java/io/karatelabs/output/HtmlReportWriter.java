@@ -248,6 +248,7 @@ public final class HtmlReportWriter {
         summary.put("scenario_count", result.getScenarioCount());
         summary.put("scenario_passed", result.getScenarioPassedCount());
         summary.put("scenario_failed", result.getScenarioFailedCount());
+        summary.put("scenario_skipped", result.getScenarioSkippedCount());
         summary.put("duration_millis", result.getDurationMillis());
         summary.put("status", result.isFailed() ? "failed" : "passed");
         suiteData.put("summary", summary);
@@ -434,6 +435,7 @@ public final class HtmlReportWriter {
         int featureFailed = 0;
         int scenarioPassed = 0;
         int scenarioFailed = 0;
+        int scenarioSkipped = 0;
         long durationMillis = 0;
 
         for (Map<String, Object> feature : features) {
@@ -448,6 +450,7 @@ public final class HtmlReportWriter {
                 }
                 scenarioPassed += ((Number) result.getOrDefault("passed_count", 0)).intValue();
                 scenarioFailed += ((Number) result.getOrDefault("failed_count", 0)).intValue();
+                scenarioSkipped += ((Number) result.getOrDefault("skipped_count", 0)).intValue();
                 durationMillis += ((Number) result.getOrDefault("duration_millis", 0)).longValue();
             }
         }
@@ -458,6 +461,7 @@ public final class HtmlReportWriter {
         summary.put("scenario_count", scenarioPassed + scenarioFailed);
         summary.put("scenario_passed", scenarioPassed);
         summary.put("scenario_failed", scenarioFailed);
+        summary.put("scenario_skipped", scenarioSkipped);
         summary.put("duration_millis", durationMillis);
         summary.put("status", featureFailed > 0 ? "failed" : "passed");
 
@@ -532,15 +536,21 @@ public final class HtmlReportWriter {
             data.put("thread", sr.getThreadName());
         }
 
-        // Tags
+        // Tags (plus synthetic @skipped when the scenario was aborted / never ran)
         var tags = sr.getScenario().getTags();
-        if (tags != null && !tags.isEmpty()) {
-            List<String> tagNames = new ArrayList<>();
+        List<String> tagNames = new ArrayList<>();
+        if (tags != null) {
             for (var tag : tags) {
                 tagNames.add(tag.toString());
             }
+        }
+        if (sr.isSkipped() && !tagNames.contains("@skipped")) {
+            tagNames.add("@skipped");
+        }
+        if (!tagNames.isEmpty()) {
             data.put("tags", tagNames);
         }
+        data.put("skipped", sr.isSkipped());
 
         // Steps
         List<Map<String, Object>> steps = new ArrayList<>();
@@ -638,19 +648,25 @@ public final class HtmlReportWriter {
             int total = scenarioResults != null ? scenarioResults.size() : 0;
             int passed = 0;
             int failed = 0;
+            int skipped = 0;
             List<Map<String, Object>> scenarioSummaries = new ArrayList<>();
             if (scenarioResults != null) {
                 for (Map<String, Object> s : scenarioResults) {
                     boolean scenarioPassed = Boolean.TRUE.equals(s.get("passed"));
+                    boolean scenarioSkipped = Boolean.TRUE.equals(s.get("skipped"));
                     if (scenarioPassed) {
                         passed++;
                     } else {
                         failed++;
                     }
+                    if (scenarioSkipped) {
+                        skipped++;
+                    }
                     Map<String, Object> scenarioSummary = new LinkedHashMap<>();
                     scenarioSummary.put("name", s.get("name"));
                     scenarioSummary.put("refId", s.get("refId"));
                     scenarioSummary.put("passed", scenarioPassed);
+                    scenarioSummary.put("skipped", scenarioSkipped);
                     scenarioSummary.put("durationMillis", s.get("durationMillis"));
                     scenarioSummary.put("tags", s.get("tags"));
                     scenarioSummaries.add(scenarioSummary);
@@ -659,6 +675,7 @@ public final class HtmlReportWriter {
             summary.put("scenarioCount", total);
             summary.put("passedCount", passed);
             summary.put("failedCount", failed);
+            summary.put("skippedCount", skipped);
             summary.put("scenarios", scenarioSummaries);
 
             summaryList.add(summary);
