@@ -113,32 +113,14 @@ public class PooledDriverProvider implements DriverProvider {
         }
 
         // Try to get a driver from the pool
-        Driver driver = availableDrivers.poll();
-
-        if (driver != null) {
-            // Got one from pool - check if it's still valid
-            if (driver.isTerminated()) {
-                logger.debug("Discarding terminated driver from pool");
-                createdCount.decrementAndGet();
-                driver = null;
-            } else {
-                resetDriver(driver);
-                logger.debug("Reusing pooled driver for scenario: {}", runtime.getScenario().getName());
-            }
-        }
+        Driver driver = takeHealthyFromPool(runtime.getScenario().getName());
 
         if (driver == null) {
             // Need to create a new driver or wait for one
             synchronized (initLock) {
                 // Double-check pool (another thread may have returned one)
-                driver = availableDrivers.poll();
-                if (driver != null && !driver.isTerminated()) {
-                    resetDriver(driver);
-                    logger.debug("Reusing pooled driver (after lock) for scenario: {}", runtime.getScenario().getName());
-                } else {
-                    if (driver != null && driver.isTerminated()) {
-                        createdCount.decrementAndGet();
-                    }
+                driver = takeHealthyFromPool(runtime.getScenario().getName());
+                if (driver == null) {
                     // Check if we can create more
                     if (createdCount.get() < poolSize) {
                         driver = createDriver(config);
@@ -154,6 +136,35 @@ public class PooledDriverProvider implements DriverProvider {
         }
 
         assignedDrivers.put(runtime, driver);
+        return driver;
+    }
+
+    /**
+     * Poll a driver from the pool and reset it. Returns the driver if it's healthy
+     * after reset, or null if the pool was empty / the polled driver was terminated
+     * or failed its post-reset liveness probe (in which case it's already closed
+     * and {@code createdCount} is decremented — the caller should create a fresh
+     * driver in its place).
+     */
+    private Driver takeHealthyFromPool(String scenarioName) {
+        Driver driver = availableDrivers.poll();
+        if (driver == null) {
+            return null;
+        }
+        if (driver.isTerminated()) {
+            logger.debug("Discarding terminated driver from pool");
+            createdCount.decrementAndGet();
+            return null;
+        }
+        if (!resetDriver(driver)) {
+            // resetDriver already logged why (exception or liveness probe). Close and
+            // drop the slot so the caller creates a replacement. See resetDriver javadoc
+            // for why this matters (tab-switch.feature poisoning scenario).
+            closeDriverQuietly(driver);
+            createdCount.decrementAndGet();
+            return null;
+        }
+        logger.debug("Reusing pooled driver for scenario: {}", scenarioName);
         return driver;
     }
 
@@ -189,14 +200,21 @@ public class PooledDriverProvider implements DriverProvider {
                 throw new RuntimeException("Timeout waiting for available driver for scenario '"
                         + scenarioName + "' [" + getStats() + "]");
             }
+            // If the driver is terminated OR fails reset/liveness, replace it.
+            // Same rationale as takeHealthyFromPool — a poisoned driver must not be
+            // handed out to the next scenario.
             if (driver.isTerminated()) {
-                // Create replacement
                 createdCount.decrementAndGet();
                 driver = createDriver(config);
                 createdCount.incrementAndGet();
                 logger.info("Replaced terminated driver for scenario: {}", scenarioName);
+            } else if (!resetDriver(driver)) {
+                closeDriverQuietly(driver);
+                createdCount.decrementAndGet();
+                driver = createDriver(config);
+                createdCount.incrementAndGet();
+                logger.info("Replaced unhealthy driver for scenario: {}", scenarioName);
             } else {
-                resetDriver(driver);
                 logger.info("Acquired pooled driver after wait for scenario: {}", scenarioName);
             }
             return driver;
@@ -258,8 +276,24 @@ public class PooledDriverProvider implements DriverProvider {
     /**
      * Reset driver state between scenarios.
      * Override to customize reset behavior.
+     * <p>
+     * Returns {@code true} if the driver is healthy and safe to return to the pool,
+     * {@code false} if it should be discarded and replaced. Callers (see
+     * {@link #release(ScenarioRuntime, Driver)}) MUST honor the false return —
+     * otherwise a poisoned driver can pollute every subsequent scenario.
+     * </p>
+     * <p>
+     * <b>Context for the health-check + discard logic:</b> without this, observed in
+     * CI as deterministic "CDP timeout for: Page.navigate" failures after
+     * tab-switch.feature — that scenario's repeated activateTarget/attachToTarget
+     * calls leave the driver's CDP channel stuck on navigation commands. The pool
+     * kept handing the stuck driver back out and every other cookie/keys scenario
+     * timed out at 30s. The fix is to probe liveness (see
+     * {@link Driver#isResponsive()}) and recycle drivers that fail the probe.
+     * Subclasses overriding this should preserve the boolean contract.
+     * </p>
      */
-    protected void resetDriver(Driver driver) {
+    protected boolean resetDriver(Driver driver) {
         try {
             // Dismiss any open dialog first — dialogs block all CDP Runtime.evaluate calls
             Dialog dialog = driver.getDialog();
@@ -274,8 +308,20 @@ public class PooledDriverProvider implements DriverProvider {
             driver.setUrl("about:blank");
             driver.clearCookies();
         } catch (Exception e) {
-            logger.warn("Error resetting driver state: {}", e.getMessage());
+            // Reset itself failed — channel is already sick (setUrl timeout, websocket closed, etc.)
+            logger.warn("Error resetting driver state, will discard: {}", e.getMessage());
+            return false;
         }
+        // Post-reset liveness probe. setUrl("about:blank") can succeed on a driver that
+        // will still hang on the next http:// navigation (seen after tab-switch.feature —
+        // about:blank is local so Chrome handles it even when network-facing navigation
+        // is stuck). A bounded Runtime.evaluate catches the degraded state before we
+        // return the driver to the pool.
+        if (!driver.isResponsive()) {
+            logger.warn("Driver failed post-reset liveness probe, will discard");
+            return false;
+        }
+        return true;
     }
 
     /**

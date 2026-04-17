@@ -1510,6 +1510,49 @@ public class CdpDriver implements Driver {
         return terminated;
     }
 
+    /**
+     * Bounded liveness probe for {@link PooledDriverProvider} reset.
+     * <p>
+     * Sends a trivial {@code Runtime.evaluate("1")} with a 3-second CDP timeout (vs
+     * the default 30s). Returns false on any error, timeout, or closed socket — the
+     * caller treats false as "discard this driver, create a fresh one for the next
+     * scenario."
+     * </p>
+     * <p>
+     * <b>Why this exists (context for future maintainers):</b> observed in CI as
+     * deterministic "CDP timeout for: Page.navigate" failures in cookie.feature and
+     * keys.feature (same scenarios every run, alternating cookie pattern — classic
+     * "poisoned pool driver" signature). Every failing run was preceded by
+     * tab-switch.feature, which makes 5 activateTarget / Target.attachToTarget calls
+     * back-to-back. Each attach creates a new session on the driver's websocket and
+     * old sessions are never detached — the accumulated session state appears to
+     * leave Chrome unable to respond to Page.navigate on that specific driver, while
+     * the other pool driver stays healthy. Without this probe the broken driver kept
+     * getting handed back out and every other cookie scenario timed out at 30s.
+     * </p>
+     * <p>
+     * We probe Runtime.evaluate rather than Page.navigate because it's cheap and
+     * local (no network). If even that is stuck, the driver is definitively done.
+     * </p>
+     */
+    @Override
+    public boolean isResponsive() {
+        if (terminated || !cdp.isOpen()) {
+            return false;
+        }
+        try {
+            CdpResponse response = cdp.method("Runtime.evaluate")
+                    .param("expression", "1")
+                    .param("returnByValue", true)
+                    .timeout(Duration.ofSeconds(3))
+                    .send();
+            return !response.isError();
+        } catch (Exception e) {
+            logger.warn("isResponsive check failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
     // ========== Accessors ==========
 
     public CdpClient getCdpClient() {

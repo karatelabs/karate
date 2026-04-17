@@ -1126,6 +1126,20 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     boolean isTerminated();
 
+    /**
+     * Quick health check — returns false if the driver's underlying protocol channel
+     * (CDP websocket, WebDriver session, etc.) is stuck or unresponsive. MUST use a
+     * short timeout so the caller doesn't block on a poisoned driver.
+     *
+     * <p>Used by {@link PooledDriverProvider} to decide whether a driver can be
+     * returned to the pool safely. The default here returns true (backends that can't
+     * cheaply probe the channel are assumed healthy). CDP overrides with a bounded
+     * Runtime.evaluate.</p>
+     */
+    default boolean isResponsive() {
+        return true;
+    }
+
     // ========== Accessors ==========
 
     /**
