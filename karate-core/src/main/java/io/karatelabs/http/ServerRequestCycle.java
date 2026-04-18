@@ -211,29 +211,50 @@ public class ServerRequestCycle {
         }
 
         try {
-            // Set template name in context
-            context.setTemplateName(templatePath);
-
-            // Render template
             Map<String, Object> vars = context.toVars();
-            String html;
-            try {
-                html = markup.processPath(templatePath, vars);
-            } catch (RuntimeException e) {
-                if (containsFlowControlSignal(e)) {
-                    // context.redirect or context.switch aborted the original template;
-                    // redirect response is handled upstream; switch renders below
-                    html = "";
-                } else {
-                    throw e;
-                }
+
+            // Render the resolved template (the "content"). Side effects of its
+            // ka:scope (flash, session, redirect, switch) commit before any
+            // shell template evaluates below.
+            String contentHtml = renderContent(templatePath, vars);
+
+            // If content aborted with a redirect, skip shell — response is a 302.
+            if (context.hasRedirect()) {
+                return response;
             }
 
-            // Check if template switched — render the replacement template
-            if (context.isSwitched()) {
-                String newTemplate = context.getSwitchTemplate();
-                context.setTemplateName(newTemplate);
-                html = markup.processPath(newTemplate, vars);
+            // If switch() was called, the replacement becomes the new content.
+            String contentTemplate = context.isSwitched() ? context.getSwitchTemplate() : templatePath;
+
+            // Shell-wrap: applies to full-page navigations only. Skipped for
+            // HX-Request (HTMX fragment swaps), rawPaths (pages that ship their
+            // own shell), and defensively when the resolved template IS the shell.
+            String shellTemplate = config.getShellTemplate();
+            boolean wrapWithShell = shellTemplate != null
+                    && !request.isAjax()
+                    && !config.isRawPath(path)
+                    && !contentTemplate.equals(shellTemplate);
+
+            String html;
+            if (wrapWithShell) {
+                vars.put("content", contentHtml);
+                vars.put("contentTemplate", contentTemplate);
+                // Content may have called context.init() — refresh the session
+                // binding so the shell's script sees the just-created session.
+                vars.put("session", context.getContextSession());
+                context.setTemplateName(shellTemplate);
+                try {
+                    html = markup.processPath(shellTemplate, vars);
+                } catch (RuntimeException e) {
+                    if (containsFlowControlSignal(e)) {
+                        // shell can itself redirect (rare) — response is a 302
+                        html = "";
+                    } else {
+                        throw e;
+                    }
+                }
+            } else {
+                html = contentHtml;
             }
 
             response.setBody(html);
@@ -246,6 +267,31 @@ public class ServerRequestCycle {
         } catch (Exception e) {
             return handleError(e);
         }
+    }
+
+    /**
+     * Render the content template, honoring {@code context.switch()} and
+     * {@code context.redirect()} short-circuits.
+     */
+    private String renderContent(String templatePath, Map<String, Object> vars) {
+        context.setTemplateName(templatePath);
+        String html;
+        try {
+            html = markup.processPath(templatePath, vars);
+        } catch (RuntimeException e) {
+            if (containsFlowControlSignal(e)) {
+                // context.redirect or context.switch aborted the original template
+                html = "";
+            } else {
+                throw e;
+            }
+        }
+        if (context.isSwitched()) {
+            String newTemplate = context.getSwitchTemplate();
+            context.setTemplateName(newTemplate);
+            html = markup.processPath(newTemplate, vars);
+        }
+        return html;
     }
 
     private boolean resourceExists(String path) {

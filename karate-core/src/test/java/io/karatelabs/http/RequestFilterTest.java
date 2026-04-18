@@ -33,7 +33,8 @@ class RequestFilterTest {
                 .sessionStore(sessionStore)
                 .sessionExpirySeconds(600)
                 .devMode(true)
-                .csrfEnabled(false);
+                .csrfEnabled(false)
+                .shellTemplate("layout.html");  // demo app wraps fragments in layout.html
     }
 
     private String extractSessionCookie(HttpResponse response) {
@@ -207,7 +208,8 @@ class RequestFilterTest {
         ServerConfig config = new ServerConfig()
                 .sessionStore(sessionStore)
                 .devMode(true)
-                .csrfEnabled(true);
+                .csrfEnabled(true)
+                .shellTemplate("layout.html");
         harness = createHarness(config);
 
         // Create a session first

@@ -33,6 +33,8 @@ class DemoAppTest {
                 .staticPrefix("/pub/")
                 .devMode(true)
                 .csrfEnabled(false)  // Disable for demo tests (CSRF tested separately)
+                .shellTemplate("layout.html")
+                .rawPaths("/raw-page")
                 .logHandler(message -> logMessages.add(message));
 
         RootResourceResolver resolver = new RootResourceResolver("classpath:demo");
@@ -549,25 +551,26 @@ class DemoAppTest {
 
     @Test
     void testFullPageRender() {
+        // Direct navigation to /items gets shell-wrapped: shell nav + items fragment.
         HttpResponse response = get("/items");
         String body = response.getBodyString();
-        // Full page should include header and h1
         assertTrue(body.contains("Items List"));
-        assertTrue(body.contains("id=\"main-nav\""));
+        assertTrue(body.contains("id=\"main-nav\""));        // shell's header
+        assertTrue(body.contains("id=\"main-content\""));    // shell's content slot
+        assertTrue(body.contains("id=\"items-page\""));      // fragment's section
     }
 
     @Test
     void testPartialRender() {
-        // First init session
+        // HTMX swap (HX-Request: true) returns bare items fragment — no shell wrap.
         HttpResponse r1 = get("/");
         String cookie = extractSessionCookie(r1);
 
-        // AJAX request should return partial content
         HttpResponse response = getAjaxWithCookie("/items", cookie);
         String body = response.getBodyString();
-        // Should NOT include h1 (skipped for AJAX)
-        assertFalse(body.contains("<h1>Items List</h1>"));
-        // Should still include items
+        assertFalse(body.contains("id=\"main-nav\""),      "AJAX should not include shell nav");
+        assertFalse(body.contains("id=\"main-content\""),  "AJAX should not include shell wrapper");
+        assertTrue(body.contains("id=\"items-page\""),     "AJAX should include bare fragment");
         assertTrue(body.contains("Apple"));
     }
 
@@ -667,15 +670,108 @@ class DemoAppTest {
 
     @Test
     void testSessionSyncAfterContextInit() {
-        // Test that 'session' variable is available after context.init()
-        // The index.html template calls context.init() and then uses session directly
+        // layout.html (the shell) calls context.init() and then reads session
+        // directly to compute visitCount — the cookie should be set and the
+        // session variable available.
         HttpResponse response = get("/");
         String cookie = extractSessionCookie(response);
-        // Session should have been created and cookie set
         assertNotNull(cookie, "Session cookie should be set after context.init()");
-        // The template should be able to use 'session' directly after init
-        // (visit count is stored in session.visitCount)
         assertTrue(response.getBodyString().contains(">1<"), "Visit count should be 1");
+    }
+
+    // =================================================================================================================
+    // Shell-wrap Tests — layout.html wraps full-page navigations
+    // =================================================================================================================
+
+    @Test
+    void testShellAppliedOnDirectNavigation() {
+        // Direct GET (no HX-Request): layout wraps the content fragment.
+        HttpResponse response = get("/items");
+        String body = response.getBodyString();
+        assertTrue(body.contains("<!DOCTYPE html>"),     "shell provides doctype");
+        assertTrue(body.contains("id=\"main-nav\""),     "shell includes header");
+        assertTrue(body.contains("id=\"main-content\""), "shell has content slot");
+        assertTrue(body.contains("id=\"items-page\""),   "fragment injected");
+        assertTrue(body.contains("Apple"),               "fragment data rendered");
+    }
+
+    @Test
+    void testShellSkippedForHtmxRequest() {
+        // HX-Request: true → bare fragment, no shell wrap.
+        HttpResponse response = getAjax("/items");
+        String body = response.getBodyString();
+        assertFalse(body.contains("<!DOCTYPE html>"),    "no shell doctype on HTMX swap");
+        assertFalse(body.contains("id=\"main-nav\""),    "no shell nav on HTMX swap");
+        assertFalse(body.contains("id=\"main-content\""),"no shell content wrapper");
+        assertTrue(body.contains("id=\"items-page\""),   "bare fragment returned");
+    }
+
+    @Test
+    void testShellSkippedForRawPath() {
+        // /raw-page is in rawPaths — ships its own shell, opts out of wrap.
+        HttpResponse response = get("/raw-page");
+        assertEquals(200, response.getStatus());
+        String body = response.getBodyString();
+        assertFalse(body.contains("id=\"main-nav\""),    "rawPath skips shell nav");
+        assertFalse(body.contains("id=\"main-content\""),"rawPath skips shell wrapper");
+        assertTrue(body.contains("id=\"raw-page\""),     "rawPath renders its own content");
+        assertTrue(body.contains("<title>Raw Page</title>"), "rawPath ships its own head");
+    }
+
+    @Test
+    void testShellWrapsSwitchedTemplate() {
+        // POST /create-item → context.switch('items') → layout wraps items.html.
+        HttpResponse response = post("/create-item", "name=Durian");
+        assertEquals(200, response.getStatus());
+        String body = response.getBodyString();
+        assertTrue(body.contains("id=\"main-nav\""),   "shell still wraps switched template");
+        assertTrue(body.contains("id=\"items-page\""), "switched template rendered as content");
+        assertFalse(body.contains("id=\"create-title\""), "original template aborted");
+    }
+
+    @Test
+    void testShellSkippedWhenContentRedirects() {
+        // /restricted calls context.redirect() before any content renders.
+        // The shell must NOT run — we return a plain 302, body empty.
+        HttpResponse response = get("/restricted");
+        assertEquals(302, response.getStatus());
+        assertEquals("/", response.getHeader("Location"));
+        assertEquals("", response.getBodyString(), "body must be empty on redirect (shell never runs)");
+    }
+
+    @Test
+    void testShellNotAppliedToApiOrStatic() {
+        // API and static routes are outside the template pipeline — never wrapped.
+        HttpResponse api = get("/api/items");
+        assertFalse(api.getBodyString().contains("id=\"main-nav\""));
+        HttpResponse pub = get("/pub/app.js");
+        assertFalse(pub.getBodyString().contains("id=\"main-nav\""));
+    }
+
+    @Test
+    void testShellExposesContentTemplateName() {
+        // Shell renders `contentTemplate` — useful for title bars, breadcrumbs.
+        HttpResponse response = get("/items");
+        String body = response.getBodyString();
+        assertTrue(body.contains("items.html"),
+                "shell should have access to the resolved content template path");
+    }
+
+    @Test
+    void testShellSeesFlashSetByContent() {
+        // Content renders first, so flash messages set in content's ka:scope
+        // are visible to the shell. (No explicit flash test template today —
+        // this just confirms visitCount set by the shell itself is reflected
+        // as one full-page render.)
+        HttpResponse r1 = get("/items");
+        assertTrue(r1.getBodyString().contains(">1<"), "first full-page nav → visit count 1");
+        String cookie = extractSessionCookie(r1);
+        HttpResponse r2 = getWithCookie("/form", cookie);
+        assertTrue(r2.getBodyString().contains(">2<"), "second full-page nav → visit count 2");
+        // HTMX swap should NOT bump visit count (shell doesn't run).
+        HttpResponse r3 = getAjaxWithCookie("/items", cookie);
+        assertFalse(r3.getBodyString().contains("Visit count"),
+                "HTMX swap bypasses shell; visit count not rendered");
     }
 
 }

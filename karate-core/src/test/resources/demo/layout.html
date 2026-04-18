@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Demo App</title>
+</head>
+<body>
+<script ka:scope="global">
+    _.appName = 'Demo App';
+    if (!session) {
+        context.init();
+    }
+    _.visitCount = (session.visitCount || 0) + 1;
+    session.visitCount = _.visitCount;
+</script>
+
+<div th:replace="header"></div>
+
+<main>
+    <h1 th:text="appName">App Name</h1>
+    <p>Visit count: <span th:text="visitCount">0</span></p>
+    <p>Session ID: <span th:text="context.sessionId">none</span></p>
+    <p>Template: <span th:text="contentTemplate">unknown</span></p>
+
+    <div id="main-content" th:utext="content">content</div>
+</main>
+</body>
+</html>

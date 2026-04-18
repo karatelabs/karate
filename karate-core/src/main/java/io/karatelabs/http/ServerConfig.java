@@ -65,6 +65,10 @@ public class ServerConfig {
     private String errorTemplate500;
     private java.util.LinkedHashMap<String, String> templateRoutes;
 
+    // Layout shell (applied to full-page navigations — skipped for HX-Request and rawPaths)
+    private String shellTemplate;
+    private java.util.Set<String> rawPaths;
+
     // Callbacks
     private Consumer<HttpRequest> requestInterceptor;
     private BiFunction<HttpRequest, ServerMarkupContext, HttpResponse> requestFilter;
@@ -172,6 +176,14 @@ public class ServerConfig {
 
     public java.util.LinkedHashMap<String, String> getTemplateRoutes() {
         return templateRoutes;
+    }
+
+    public String getShellTemplate() {
+        return shellTemplate;
+    }
+
+    public java.util.Set<String> getRawPaths() {
+        return rawPaths;
     }
 
     public Consumer<HttpRequest> getRequestInterceptor() {
@@ -323,6 +335,50 @@ public class ServerConfig {
         return this;
     }
 
+    /**
+     * Set a layout shell template that wraps full-page navigations. The shell's
+     * {@code th:utext="content"} slot receives the rendered content template's HTML.
+     * <p>
+     * The wrap is skipped when:
+     * <ul>
+     *   <li>The request has the {@code HX-Request} header (HTMX fragment swap)</li>
+     *   <li>The resolved path is in {@link #rawPaths(String...)}</li>
+     *   <li>The resolved template equals the shell template (defensive anti-recursion)</li>
+     *   <li>The resolved content short-circuited with {@code context.redirect()}</li>
+     * </ul>
+     * <p>
+     * Content renders first (so its ka:scope side effects — flash, session,
+     * switch, redirect — commit before the shell evaluates). If content calls
+     * {@code context.switch(t)}, the switched template becomes the new content
+     * and the shell still wraps it.
+     * <p>
+     * The shell receives these additional template variables:
+     * <ul>
+     *   <li>{@code content} — the rendered content HTML (use {@code th:utext="content"})</li>
+     *   <li>{@code contentTemplate} — the resolved content template path (e.g., {@code items.html})</li>
+     * </ul>
+     */
+    public ServerConfig shellTemplate(String shellTemplate) {
+        this.shellTemplate = shellTemplate;
+        return this;
+    }
+
+    /**
+     * Register paths that ship their own full HTML shell and should NOT be
+     * wrapped with {@link #shellTemplate(String)}. Typical uses: {@code /signin},
+     * {@code /signout}, landing pages with bespoke branding.
+     * <p>
+     * Exact path match (not prefix). Use the request path, not the template name.
+     */
+    public ServerConfig rawPaths(String... rawPaths) {
+        if (rawPaths == null || rawPaths.length == 0) {
+            this.rawPaths = null;
+        } else {
+            this.rawPaths = new java.util.HashSet<>(Arrays.asList(rawPaths));
+        }
+        return this;
+    }
+
     public ServerConfig requestInterceptor(Consumer<HttpRequest> requestInterceptor) {
         this.requestInterceptor = requestInterceptor;
         return this;
@@ -389,6 +445,13 @@ public class ServerConfig {
             return false;
         }
         return path.startsWith(staticPrefix);
+    }
+
+    /**
+     * Check if the given request path opts out of shell-wrap.
+     */
+    public boolean isRawPath(String path) {
+        return rawPaths != null && rawPaths.contains(path);
     }
 
     /**

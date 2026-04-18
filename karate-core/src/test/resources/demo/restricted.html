@@ -1,20 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>Restricted</title>
-</head>
-<body>
+<!--
+    Auth-guard fragment. The redirect short-circuits this template — the shell
+    is NOT applied either (a 302 is returned, body is empty). Demonstrates
+    clean guard-clause style: no defensive th:if required below.
+-->
 <script ka:scope="global">
-    // Simulate an auth guard: if no session.user, redirect.
-    // This ensures the template below never tries to access user.name on null.
     if (!session || !session.user) {
         context.redirect('/');
     }
     _.displayName = session.user.name;
 </script>
-<main>
-    <h1>Restricted Area</h1>
+<section id="restricted-page">
+    <h2>Restricted Area</h2>
     <p id="welcome">Welcome, <span th:text="displayName">name</span>!</p>
-</main>
-</body>
-</html>
+</section>

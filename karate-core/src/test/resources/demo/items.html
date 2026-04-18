@@ -1,71 +1,66 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Items</title>
-</head>
-<body>
+<!--
+    Fragment page. On full-page navigation, layout.html wraps this and provides
+    the nav + h1 page title. On HTMX swaps, only this content is returned.
+-->
 <script ka:scope="global">
     _.items = [
         { id: 1, name: 'Apple', price: 1.50 },
         { id: 2, name: 'Banana', price: 0.75 },
         { id: 3, name: 'Cherry', price: 2.00 }
-    ]
-    _.itemsJson = context.toJson(_.items)
-    _.headerContent = context.read('header.html')
-    _.readSucceeded = _.headerContent != null
+    ];
+    _.itemsJson = context.toJson(_.items);
+    _.headerContent = context.read('header.html');
+    _.readSucceeded = _.headerContent != null;
 </script>
 
-<div th:unless="request.ajax">
-    <div th:replace="header.html"></div>
-    <h1>Items List</h1>
-</div>
+<section id="items-page">
+    <h2>Items List</h2>
 
-<div id="items-container">
-    <table>
-        <thead th:unless="request.ajax">
-            <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Price</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="items-list">
-            <tr th:each="item : items">
-                <td th:text="item.id">ID</td>
-                <td th:text="item.name">Name</td>
-                <td th:text="item.price">Price</td>
-                <td>
-                    <button ka:get="/api/items"
-                            ka:vals="id:item.id"
-                            ka:target="#items-list"
-                            ka:swap="outerHTML">
-                        Refresh
-                    </button>
-                    <button ka:delete="/api/items"
-                            ka:vals="id:item.id"
-                            ka:confirm="Are you sure?"
-                            ka:target="#items-list"
-                            ka:swap="outerHTML">
-                        Delete
-                    </button>
-                </td>
-            </tr>
-        </tbody>
-    </table>
+    <div id="items-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="items-list">
+                <tr th:each="item : items">
+                    <td th:text="item.id">ID</td>
+                    <td th:text="item.name">Name</td>
+                    <td th:text="item.price">Price</td>
+                    <td>
+                        <button ka:get="/api/items"
+                                ka:vals="id:item.id"
+                                ka:target="#items-list"
+                                ka:swap="outerHTML">
+                            Refresh
+                        </button>
+                        <button ka:delete="/api/items"
+                                ka:vals="id:item.id"
+                                ka:confirm="Are you sure?"
+                                ka:target="#items-list"
+                                ka:swap="outerHTML">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
 
-    <!-- Loop with index -->
-    <ul id="indexed-list">
-        <li th:each="item, iter : items">
-            <span th:text="iter.index">0</span>:
-            <span th:text="item.name">Name</span>
-            <span th:if="iter.first">(first)</span>
-            <span th:if="iter.last">(last)</span>
-        </li>
-    </ul>
-</div>
+        <!-- Loop with index -->
+        <ul id="indexed-list">
+            <li th:each="item, iter : items">
+                <span th:text="iter.index">0</span>:
+                <span th:text="item.name">Name</span>
+                <span th:if="iter.first">(first)</span>
+                <span th:if="iter.last">(last)</span>
+            </li>
+        </ul>
+    </div>
 
-<div id="json-output" th:text="itemsJson">JSON here</div>
-<div id="read-check" th:if="readSucceeded">Read succeeded</div>
-</body>
-</html>
+    <div id="json-output" th:text="itemsJson">JSON here</div>
+    <div id="read-check" th:if="readSucceeded">Read succeeded</div>
+</section>

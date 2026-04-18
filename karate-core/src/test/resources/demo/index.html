@@ -1,45 +1,21 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Demo App</title>
-</head>
-<body>
-<script ka:scope="global">
-    // Only use _.foo for computed values that need logic
-    _.appName = 'Demo App'
-    // Initialize session if needed - session is automatically available after init()
-    if (!session) {
-        context.init()
-    }
-    // Now 'session' works directly (synced by callback)
-    _.visitCount = (session.visitCount || 0) + 1
-    session.visitCount = _.visitCount
-</script>
-
-<div th:replace="header.html"></div>
-
-<main>
-    <h1 th:text="appName">App Name</h1>
-    <p>Visit count: <span th:text="visitCount">0</span></p>
-    <p>Session ID: <span th:text="context.sessionId">none</span></p>
-    <p>Template: <span th:text="context.template">unknown</span></p>
-
-    <!-- Request method detection - use request object directly -->
+<!--
+    Fragment page. The layout.html shell wraps this on full-page navigation;
+    HTMX requests (HX-Request: true) get the bare fragment.
+-->
+<section id="index-page">
+    <!-- Request method detection -->
     <div th:if="request.get" id="method-get">This is a GET request</div>
     <div th:if="request.post" id="method-post">This is a POST request</div>
 
-    <!-- AJAX detection - use request.ajax directly -->
+    <!-- AJAX detection -->
     <div th:if="request.ajax" id="ajax-request">This is an AJAX request</div>
     <div th:unless="request.ajax" id="full-request">This is a full page request</div>
 
-    <!-- UUID generation - call context.uuid() directly -->
+    <!-- UUID generation -->
     <div id="uuid" th:text="context.uuid()">uuid here</div>
 
-    <!-- Links -->
     <nav>
         <a href="/items">View Items</a>
         <a href="/form">Submit Form</a>
     </nav>
-</main>
-</body>
-</html>
+</section>
