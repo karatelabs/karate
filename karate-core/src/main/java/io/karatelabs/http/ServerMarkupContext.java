@@ -337,6 +337,18 @@ public class ServerMarkupContext implements MarkupContext {
         return closed || session == null || session.isTemporary();
     }
 
+    /**
+     * True iff {@link #close()} was explicitly called this request — distinct
+     * from the broader {@link #isClosed()} which also returns true when there
+     * was never a session to begin with. Used by {@link ServerRequestHandler}
+     * to decide whether to emit a session-cookie-clear {@code Set-Cookie}
+     * (defense-in-depth signout: server-side record is gone, so make sure
+     * the client's stale cookie is gone too).
+     */
+    public boolean wasExplicitlyClosed() {
+        return closed;
+    }
+
     public boolean isSwitched() {
         return switched;
     }

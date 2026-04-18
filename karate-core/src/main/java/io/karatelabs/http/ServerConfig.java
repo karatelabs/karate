@@ -50,6 +50,8 @@ public class ServerConfig {
 
     // Security
     private boolean csrfEnabled = true;
+    private java.util.Set<String> csrfExemptPaths;
+    private SameSite sessionSameSite = SameSite.LAX;
     private String[] allowedOrigins;
     private boolean securityHeadersEnabled = true;
     private String contentSecurityPolicy;
@@ -132,6 +134,14 @@ public class ServerConfig {
 
     public boolean isCsrfEnabled() {
         return csrfEnabled;
+    }
+
+    public SameSite getSessionSameSite() {
+        return sessionSameSite;
+    }
+
+    public boolean isCsrfExemptPath(String path) {
+        return csrfExemptPaths != null && csrfExemptPaths.contains(path);
     }
 
     public String[] getAllowedOrigins() {
@@ -260,6 +270,53 @@ public class ServerConfig {
 
     public ServerConfig csrfEnabled(boolean csrfEnabled) {
         this.csrfEnabled = csrfEnabled;
+        return this;
+    }
+
+    /**
+     * Register paths where CSRF token validation is skipped. Use for endpoints
+     * that legitimately receive cross-site POSTs without a CSRF token but have
+     * their own anti-CSRF mechanism, for example:
+     * <ul>
+     *   <li>OAuth/OIDC {@code response_mode=form_post} callbacks — the IdP
+     *       posts {@code code}+{@code state} back to {@code /signin}; the
+     *       {@code state} parameter validation provides CSRF protection.</li>
+     *   <li>Webhook receivers where authenticity is verified via a signature
+     *       header (e.g. Stripe, GitHub).</li>
+     * </ul>
+     * <p>
+     * Exact path match (not prefix). For more granular control, use
+     * {@link #requestFilter(java.util.function.BiFunction)}.
+     */
+    public ServerConfig csrfExemptPaths(String... csrfExemptPaths) {
+        if (csrfExemptPaths == null || csrfExemptPaths.length == 0) {
+            this.csrfExemptPaths = null;
+        } else {
+            this.csrfExemptPaths = new java.util.HashSet<>(Arrays.asList(csrfExemptPaths));
+        }
+        return this;
+    }
+
+    /**
+     * Set the {@code SameSite} attribute on the session cookie. Default is
+     * {@link SameSite#LAX}, which works for ordinary form posts and OAuth
+     * callbacks that use {@code response_mode=query}.
+     * <p>
+     * Switch to {@link SameSite#NONE} when an OAuth/OIDC provider uses
+     * {@code response_mode=form_post} (cross-site top-level POST back to your
+     * callback URL). Lax cookies are dropped on cross-site POSTs by every
+     * standards-compliant browser, so the session cookie set during the
+     * pre-redirect signin flow would not survive the IdP's POST back.
+     * {@code None} requires {@code Secure}, which is added automatically
+     * outside dev mode.
+     * <p>
+     * When using {@code None}, ensure the path receiving the cross-site POST
+     * is in {@link #csrfExemptPaths(String...)} (the IdP cannot send your
+     * CSRF token) and that the path performs its own CSRF check (OAuth state
+     * parameter validation).
+     */
+    public ServerConfig sessionSameSite(SameSite sessionSameSite) {
+        this.sessionSameSite = sessionSameSite == null ? SameSite.LAX : sessionSameSite;
         return this;
     }
 

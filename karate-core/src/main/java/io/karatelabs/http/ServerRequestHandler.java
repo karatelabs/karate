@@ -202,6 +202,13 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
             return null;
         }
 
+        // Skip if the path is explicitly exempt (e.g. OAuth form_post callback,
+        // signature-verified webhook). The path is responsible for its own
+        // CSRF defense (OAuth state, webhook signature, etc.).
+        if (config.isCsrfExemptPath(request.getPath())) {
+            return null;
+        }
+
         // Skip if no session or temporary session - nothing to protect from CSRF
         // This allows signin/signup pages and public API endpoints to work
         Session session = context.getSession();
@@ -224,18 +231,50 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
     private void saveSession(ServerMarkupContext context, HttpResponse response) {
         Session session = context.getSession();
         if (session == null || session.isTemporary()) {
+            // If a template explicitly called context.close() this request
+            // (signout flow), clear the session cookie in the browser too.
+            // The server-side record is already gone; clearing the cookie
+            // makes the signout definite from the client side instead of
+            // leaving a defunct cookie hanging around.
+            if (context.wasExplicitlyClosed()) {
+                clearSessionCookie(response);
+            }
             return;
         }
         // Save to store
         config.getSessionStore().save(session);
 
-        // Set cookie. SameSite=Lax is the correct default for session cookies:
-        // Strict blocks the cookie on cross-site top-level navigations, which
-        // breaks OAuth callbacks (the provider redirects the user back to our
-        // /signin?code=... and the browser would not attach the cookie under
-        // Strict, losing the pre-redirect session state).
-        String cookieValue = config.getSessionCookieName() + "=" + session.getId() + "; Path=/; HttpOnly; SameSite=Lax";
-        if (!config.isDevMode()) {
+        // Set cookie. SameSite=Lax is the safe default — Strict drops the
+        // cookie on cross-site top-level navigations (OAuth response_mode=query
+        // callbacks are GETs back from the IdP and would lose state). Apps
+        // that need cross-site POST callbacks (OAuth response_mode=form_post,
+        // e.g. Microsoft via MSAL4J >=1.18) opt in to SameSite=None via
+        // ServerConfig.sessionSameSite(SameSite.NONE) — None requires Secure,
+        // which is added automatically below outside dev mode.
+        SameSite sameSite = config.getSessionSameSite();
+        String cookieValue = config.getSessionCookieName() + "=" + session.getId()
+                + "; Path=/; HttpOnly; SameSite=" + sameSite.headerValue();
+        // SameSite=None cookies MUST be Secure per the spec — browsers reject
+        // them otherwise. Force Secure for None even in dev mode (a
+        // None-without-Secure cookie is silently dropped, which is more
+        // confusing than the dev failing to test https locally).
+        if (!config.isDevMode() || sameSite == SameSite.NONE) {
+            cookieValue += "; Secure";
+        }
+        response.setHeader("Set-Cookie", cookieValue);
+    }
+
+    /**
+     * Emit a {@code Set-Cookie} that clears the session cookie in the browser.
+     * Mirrors the attributes used by {@link #saveSession} so the browser
+     * matches and removes the existing cookie — most browsers ignore a clear
+     * whose {@code Path}/{@code SameSite}/{@code Secure} don't match.
+     */
+    private void clearSessionCookie(HttpResponse response) {
+        SameSite sameSite = config.getSessionSameSite();
+        String cookieValue = config.getSessionCookieName() + "=; Path=/; HttpOnly; Max-Age=0"
+                + "; SameSite=" + sameSite.headerValue();
+        if (!config.isDevMode() || sameSite == SameSite.NONE) {
             cookieValue += "; Secure";
         }
         response.setHeader("Set-Cookie", cookieValue);
