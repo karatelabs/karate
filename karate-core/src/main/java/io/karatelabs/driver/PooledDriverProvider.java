@@ -240,6 +240,24 @@ public class PooledDriverProvider implements DriverProvider {
             return;
         }
 
+        // Tear down scenario-scoped state BEFORE returning to the pool. This is the
+        // "top-level scenario exit" hook per DRIVER.md — the owner scenario is done,
+        // so any driver state it installed (intercept handler, dialog handler, etc.)
+        // belongs to a scope that no longer exists and must not leak into the next
+        // scenario that acquires this driver.
+        //
+        // Why this matters (context for future maintainers): intercept.feature's
+        // wildcard-pattern scenario set Fetch.enable via driver.intercept() and never
+        // called stopIntercept. The driver went back to the pool with Fetch.enable
+        // still active and a stale JS InterceptHandler from a destroyed scenario.
+        // Every subsequent Page.navigate on that driver paused ALL subresource
+        // requests through our onRequestPaused event handler, which runs synchronously
+        // on the CDP websocket dispatch thread. A heavy page (HTML + CSS + JS + etc)
+        // could saturate that thread, queueing the Page.navigate command response
+        // behind the Fetch event backlog. The 30s CDP wall-clock timeout then fired
+        // before the response was dequeued → "CDP timeout for: Page.navigate".
+        cleanScenarioState(driver);
+
         // Return to pool
         boolean offered = availableDrivers.offer(driver);
         if (!offered) {
@@ -249,6 +267,41 @@ public class PooledDriverProvider implements DriverProvider {
             createdCount.decrementAndGet();
         } else {
             logger.debug("Returned driver to pool for scenario: {}", runtime.getScenario().getName());
+        }
+    }
+
+    /**
+     * Tear down scenario-scoped driver state at owner-scenario exit. Called from
+     * {@link #release} before the driver is offered back to the pool.
+     * <p>
+     * Only state that belongs to the scenario's scope should be cleaned here —
+     * NOT cookies or page state, those belong in {@link #resetDriver} at acquire
+     * time (per-scenario setup vs per-scenario teardown).
+     * </p>
+     * <p>
+     * Subclasses overriding this should call {@code super.cleanScenarioState(driver)}
+     * to preserve intercept/dialog teardown.
+     * </p>
+     */
+    protected void cleanScenarioState(Driver driver) {
+        // stopIntercept is a cheap no-op on drivers that never enabled Fetch (Chrome
+        // treats Fetch.disable as a no-op when Fetch wasn't enabled). Always calling
+        // it is simpler than tracking per-driver intercept state here.
+        try {
+            driver.stopIntercept();
+        } catch (UnsupportedOperationException e) {
+            // W3C backend doesn't support intercept — fine
+        } catch (Exception e) {
+            logger.debug("stopIntercept on release failed (non-fatal): {}", e.getMessage());
+        }
+        // Dialog handler is a reference to a scenario's JS function — null it out so
+        // the next scenario doesn't get callbacks on someone else's code.
+        try {
+            driver.onDialog(null);
+        } catch (UnsupportedOperationException e) {
+            // W3C backend uses a different dialog model
+        } catch (Exception e) {
+            logger.debug("onDialog(null) on release failed (non-fatal): {}", e.getMessage());
         }
     }
 
