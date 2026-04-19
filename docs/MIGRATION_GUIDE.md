@@ -298,6 +298,24 @@ import static io.karatelabs.gatling.KarateDsl.*;
 
 The DSL methods (`karateProtocol`, `karateFeature`, `karateSet`, `uri`) are the same — only the package changes.
 
+**Java 17+ `--add-opens` requirement.** Gatling 4.7+ calls `MethodHandles.privateLookupIn` on `java.lang` internals, which the JVM blocks unless `java.base/java.lang` is opened to unnamed modules. Add this to the `gatling-maven-plugin` configuration:
+
+```xml
+<plugin>
+  <groupId>io.gatling</groupId>
+  <artifactId>gatling-maven-plugin</artifactId>
+  <version>4.7.0</version>
+  <configuration>
+    ...
+    <jvmArgs>
+      <jvmArg>--add-opens=java.base/java.lang=ALL-UNNAMED</jvmArg>
+    </jvmArgs>
+  </configuration>
+</plugin>
+```
+
+Without it the simulation crashes on startup with `IllegalAccessException: module java.base does not open java.lang to unnamed module`.
+
 ## Deprecated Configure Options
 
 These configure options now produce a warning and have no effect:
@@ -434,6 +452,34 @@ The v1 embedded HTTP server (`com.intuit.karate.http.HttpServer` with `ServerCon
 - v1's `contextFactory` pattern for manual path routing does not exist in v2
 - v1's `useGlobalSession(true)` is replaced by explicit session init in JS handlers: `session || context.init()`
 
+### Startup pattern: `HttpServer.config(...).build()` → `HttpServer.start(port, handler)`
+
+```java
+// v1
+ServerConfig config = new ServerConfig("src/main/java/app").useGlobalSession(true);
+config.contextFactory(request -> {
+    ServerContext context = new ServerContext(config, request);
+    if (context.setApiIfPathStartsWith("/api/")) {
+        context.setLockNeeded(true);
+    }
+    return context;
+});
+HttpServer server = HttpServer.config(config).http(8080).build();
+
+// v2
+ServerConfig config = new ServerConfig("src/main/java/app")
+        .sessionStore(new InMemorySessionStore())  // required for context.init() to do anything
+        .csrfEnabled(false);                       // on by default; turn off for API-only test backends
+// /api/* and /pub/* routing is built in — no contextFactory
+ServerRequestHandler handler = new ServerRequestHandler(config, new RootResourceResolver(config.getResourceRoot()));
+HttpServer server = HttpServer.start(8080, handler);
+```
+
+Two easy-to-miss side effects of the change:
+
+- **Sessions are disabled unless a `SessionStore` is configured.** `config.isSessionEnabled()` returns true only when `sessionStore(...)` has been called. Without it, `context.init()` is a silent no-op and every JS handler dereferencing `session.foo` throws `cannot read properties of null`. `InMemorySessionStore` is the drop-in for dev and single-instance apps.
+- **CSRF is enabled by default in v2.** A POST from a test client that hasn't first fetched a page and picked up a CSRF token is rejected. For pure API demos, set `csrfEnabled(false)`; for web apps, use `csrfExemptPaths(...)` for webhook/API routes that authenticate differently.
+
 **If your tests used the embedded HTTP server as a test backend**, consider switching to `MockServer` with a feature file — this is the idiomatic v2 approach for test API backends. See [karate-todo](https://github.com/karatelabs/karate-todo) for a complete example.
 
 For serving full web applications with templates, see [TEMPLATING.md](./TEMPLATING.md).
@@ -446,10 +492,11 @@ For serving full web applications with templates, see [TEMPLATING.md](./TEMPLATI
 - [ ] Add `junit-jupiter` dependency explicitly (v2 doesn't bundle it)
 - [ ] Update Java version to 21+
 - [ ] Update `maven-surefire-plugin` to 3.2.5+ (for JUnit 6 support)
+- [ ] If using the Gatling plugin, add `--add-opens=java.base/java.lang=ALL-UNNAMED` to its `<jvmArgs>`
 - [ ] Replace `JsonUtils` with `Json` class (if used)
 - [ ] Remove code using `HttpLogModifier`, `WebSocketClient`, or Driver Java APIs (if used)
 - [ ] Update cookie domain assertions if needed
-- [ ] If using embedded HTTP server, migrate to `MockServer` or `ServerRequestHandler`
+- [ ] If using embedded HTTP server: switch to `HttpServer.start(port, ServerRequestHandler)`, add a `SessionStore`, and decide whether to keep CSRF on
 - [ ] If migrating to native v2 APIs: update imports, return types, and method names (see above)
 
 ---
