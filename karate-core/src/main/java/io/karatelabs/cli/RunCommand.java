@@ -36,6 +36,7 @@ import picocli.CommandLine.Parameters;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 
@@ -74,6 +75,15 @@ public class RunCommand implements Callable<Integer> {
             arity = "0..*"
     )
     List<String> paths;
+
+    @Option(
+            names = {"-P", "--path"},
+            split = ",",
+            description = "Feature file or directory to run. Repeatable and/or comma-separated. "
+                    + "Combines with any positional paths. "
+                    + "For paths containing commas, use the repeated form."
+    )
+    List<String> pathOptions;
 
     @Option(
             names = {"-t", "--tags"},
@@ -336,8 +346,15 @@ public class RunCommand implements Callable<Integer> {
     }
 
     private List<String> resolvePaths() {
-        if (paths != null && !paths.isEmpty()) {
-            return paths;
+        List<String> combined = new ArrayList<>();
+        if (paths != null) {
+            combined.addAll(paths);
+        }
+        if (pathOptions != null) {
+            combined.addAll(pathOptions);
+        }
+        if (!combined.isEmpty()) {
+            return combined;
         }
         if (pom != null && !pom.getPaths().isEmpty()) {
             return pom.getPaths();

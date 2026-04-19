@@ -104,6 +104,13 @@ karate run tests/setup.karate.js
 
 # Run mixed (discovers both .feature and .karate.js)
 karate run tests/
+
+# Run multiple paths from different packages in a single run
+# (useful when positional args are awkward, e.g. via -Dkarate.options in Maven)
+karate run -P classpath:com/comp/commission -P classpath:com/comp/statement
+
+# Comma-separated form — tight for Maven: -Dkarate.options="--path a,b"
+karate run --path classpath:com/comp/commission,classpath:com/comp/statement
 ```
 
 ### Running Specific Scenarios by Line Number
@@ -136,6 +143,7 @@ karate run classpath:features/users.feature:10
 
 | Option | Description |
 |--------|-------------|
+| `-P, --path <path>` | Feature file or directory to run — repeatable and/or comma-separated, combines with positional paths |
 | `-t, --tags <expr>` | Tag expression filter (e.g., `@smoke`, `~@slow`) |
 | `-T, --threads <n>` | Parallel thread count (default: 1) |
 | `-e, --env <name>` | Karate environment (karate.env) |
