@@ -658,10 +658,20 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                     if (!matchesLineFilter(scenario, lines)) {
                         return false;
                     }
-                    // Line filter matched - skip other filters (@ignore, @env, tags)
-                    // This allows running specific scenarios regardless of tags
+                    // Line filter matched — if a scenario name is also set,
+                    // intersect (both must match). Otherwise skip other filters.
+                    if (suite.scenarioName != null && !matchesScenarioName(scenario)) {
+                        return false;
+                    }
                     return true;
                 }
+            }
+
+            // Scenario name filter (IDE plugins use this as a stable, line-independent key).
+            // Same bypass semantics as line filter — if the user asked for a specific
+            // scenario by name, @ignore / @env should not stop it.
+            if (suite != null && suite.scenarioName != null) {
+                return matchesScenarioName(scenario);
             }
 
             // Apply call-level tag filter if specified (takes precedence)
@@ -743,6 +753,21 @@ public class FeatureRuntime implements Callable<FeatureResult> {
             }
 
             return false;
+        }
+
+        /**
+         * Exact (whitespace-trimmed) match against the suite-level scenario name filter.
+         * Null or empty scenario names never match. Duplicate names run all matches —
+         * consistent with how a tag filter selects every scenario carrying the tag.
+         * For Scenario Outlines every generated row shares the outline's name, so a
+         * name match runs all rows; row-level targeting still uses the {@code :LINE} suffix.
+         */
+        private boolean matchesScenarioName(Scenario scenario) {
+            String name = scenario.getName();
+            if (name == null) {
+                return false;
+            }
+            return name.trim().equals(suite.scenarioName);
         }
 
         /**

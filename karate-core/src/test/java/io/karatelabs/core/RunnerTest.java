@@ -495,4 +495,213 @@ class RunnerTest {
         assertEquals(2, result.getScenarioPassedCount());
     }
 
+    // ========== Scenario name filter (issue #2522) ==========
+
+    @Test
+    void testRunnerWithScenarioNameFilter() throws Exception {
+        Path feature = tempDir.resolve("name-filter.feature");
+        Files.writeString(feature, """
+            Feature: Multiple scenarios
+
+            Scenario: First scenario
+            * def a = 1
+
+            Scenario: Second scenario
+            * def b = 2
+
+            Scenario: Third scenario
+            * def c = 3
+            """);
+
+        SuiteResult result = Runner.path(feature.toString())
+                .scenarioName("Second scenario")
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(1, result.getScenarioPassedCount());
+    }
+
+    @Test
+    void testRunnerWithScenarioNameFilterTrimsInput() throws Exception {
+        Path feature = tempDir.resolve("name-trim.feature");
+        Files.writeString(feature, """
+            Feature: Trim test
+
+            Scenario: Login happy path
+            * def a = 1
+            """);
+
+        // Leading/trailing whitespace on the input must not prevent a match
+        SuiteResult result = Runner.path(feature.toString())
+                .scenarioName("  Login happy path  ")
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(1, result.getScenarioPassedCount());
+    }
+
+    @Test
+    void testRunnerWithScenarioNameFilterRunsAllDuplicates() throws Exception {
+        Path feature = tempDir.resolve("name-dup.feature");
+        Files.writeString(feature, """
+            Feature: Duplicate names
+
+            Scenario: Same name
+            * def a = 1
+
+            Scenario: Other
+            * def x = 1
+
+            Scenario: Same name
+            * def b = 2
+            """);
+
+        SuiteResult result = Runner.path(feature.toString())
+                .scenarioName("Same name")
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(2, result.getScenarioPassedCount());
+    }
+
+    @Test
+    void testRunnerWithScenarioNameFilterBypassesIgnoreTag() throws Exception {
+        Path feature = tempDir.resolve("name-ignore.feature");
+        Files.writeString(feature, """
+            Feature: Ignore bypass
+
+            @ignore
+            Scenario: Target
+            * def a = 1
+            """);
+
+        // Same bypass semantics as :LINE filter
+        SuiteResult result = Runner.path(feature.toString())
+                .scenarioName("Target")
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(1, result.getScenarioPassedCount());
+    }
+
+    @Test
+    void testRunnerWithScenarioNameFilterOutlineRunsAllRows() throws Exception {
+        Path feature = tempDir.resolve("name-outline.feature");
+        Files.writeString(feature, """
+            Feature: Outline name match
+
+            Scenario Outline: Parameterized check
+            * def val = <value>
+
+            Examples:
+            | value |
+            | 1     |
+            | 2     |
+            | 3     |
+            """);
+
+        SuiteResult result = Runner.path(feature.toString())
+                .scenarioName("Parameterized check")
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(3, result.getScenarioPassedCount());
+    }
+
+    @Test
+    void testRunnerWithScenarioNameFilterNoMatch() throws Exception {
+        Path feature = tempDir.resolve("name-nomatch.feature");
+        Files.writeString(feature, """
+            Feature: No match
+
+            Scenario: Alpha
+            * def a = 1
+            """);
+
+        SuiteResult result = Runner.path(feature.toString())
+                .scenarioName("Beta")
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertEquals(0, result.getScenarioCount());
+    }
+
+    @Test
+    void testRunnerWithScenarioNameFilterAcrossMultipleFeatures() throws Exception {
+        Path f1 = tempDir.resolve("a.feature");
+        Files.writeString(f1, """
+            Feature: A
+            Scenario: Shared
+            * def x = 1
+            Scenario: Only in A
+            * def y = 1
+            """);
+        Path f2 = tempDir.resolve("b.feature");
+        Files.writeString(f2, """
+            Feature: B
+            Scenario: Shared
+            * def x = 2
+            Scenario: Only in B
+            * def y = 2
+            """);
+
+        // Scannable across features: one name, picks matches from both files
+        SuiteResult result = Runner.path(tempDir.toString())
+                .scenarioName("Shared")
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(2, result.getFeatureCount());
+        assertEquals(2, result.getScenarioPassedCount());
+    }
+
+    @Test
+    void testRunnerWithScenarioNameAndLineFilterIntersect() throws Exception {
+        Path feature = tempDir.resolve("name-and-line.feature");
+        Files.writeString(feature, """
+            Feature: Name + line intersect
+
+            Scenario: Same name
+            * def a = 1
+
+            Scenario: Other
+            * def x = 1
+
+            Scenario: Same name
+            * def b = 2
+            """);
+
+        // :LINE narrows to one of the two duplicate "Same name" scenarios.
+        // Intersection semantics: both filters must match.
+        SuiteResult result = Runner.path(feature.toString() + ":3")
+                .scenarioName("Same name")
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(1, result.getScenarioPassedCount());
+    }
+
 }

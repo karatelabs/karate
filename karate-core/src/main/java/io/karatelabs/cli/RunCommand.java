@@ -105,7 +105,8 @@ public class RunCommand implements Callable<Integer> {
 
     @Option(
             names = {"-n", "--name"},
-            description = "Scenario name filter (regex)"
+            description = "Scenario name filter (exact match, leading/trailing whitespace ignored). "
+                    + "Bypasses tag filters so @ignore/@env do not exclude the match."
     )
     String scenarioName;
 

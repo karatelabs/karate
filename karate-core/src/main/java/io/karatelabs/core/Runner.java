@@ -263,7 +263,10 @@ public final class Runner {
         }
 
         /**
-         * Filter by scenario name (regex supported).
+         * Filter by scenario name (exact match, whitespace-trimmed on both sides).
+         * When set, only scenarios whose name equals this value will run, and
+         * tag filters (@ignore, @env) are bypassed for matches — the same
+         * semantics as the {@code file.feature:LINE} line filter.
          */
         public Builder scenarioName(String name) {
             this.scenarioName = name;
@@ -608,6 +611,7 @@ public final class Runner {
         io.karatelabs.http.HttpClientFactory getHttpClientFactory() { return httpClientFactory; }
         boolean isSkipTagFiltering() { return skipTagFiltering; }
         Map<String, Set<Integer>> getLineFilters() { return lineFilters; }
+        String getScenarioName() { return scenarioName; }
         io.karatelabs.js.RunInterceptor<?> getDebugInterceptor() { return debugInterceptor; }
         io.karatelabs.js.DebugPointFactory<?> getDebugPointFactory() { return debugPointFactory; }
         List<String> getPaths() { return paths; }

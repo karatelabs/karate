@@ -86,6 +86,7 @@ public class Suite {
     public final io.karatelabs.http.HttpClientFactory httpClientFactory;
     public final boolean skipTagFiltering;
     public final Map<String, Set<Integer>> lineFilters;
+    public final String scenarioName;
 
     // Debug support (for IDE debugging)
     public final io.karatelabs.js.RunInterceptor<?> debugInterceptor;
@@ -178,6 +179,11 @@ public class Suite {
         this.lineFilters = builder.getLineFilters() != null
                 ? Collections.unmodifiableMap(new HashMap<>(builder.getLineFilters()))
                 : Collections.emptyMap();
+        // Trim to null so downstream shouldSelect() checks are simple (null = no filter)
+        String rawScenarioName = builder.getScenarioName();
+        this.scenarioName = rawScenarioName == null || rawScenarioName.trim().isEmpty()
+                ? null
+                : rawScenarioName.trim();
         this.debugInterceptor = builder.getDebugInterceptor();
         this.debugPointFactory = builder.getDebugPointFactory();
 

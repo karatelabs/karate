@@ -44,7 +44,7 @@ import java.util.List;
  *   "tags": ["@smoke", "~@slow"],
  *   "env": "dev",
  *   "threads": 5,
- *   "scenarioName": ".*login.*",
+ *   "scenarioName": "Login happy path",
  *   "configDir": "src/test/resources",
  *   "workingDir": "/home/user/project",
  *   "dryRun": false,
