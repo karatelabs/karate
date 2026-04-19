@@ -318,6 +318,83 @@ The pom is always loaded if present, and CLI args override specific values. Use 
 
 ---
 
+## System Properties & Environment Variables
+
+`Runner.Builder.parallel()` reads a small set of system properties and environment variables just before running, and **overrides** Builder values with them. This preserves the v1 contract used by Maven and Gradle teams: a Runner class hard-codes its defaults (paths, tags, env), and CI passes `-Dkarate.options="--tags @smoke"` to run a subset with zero code change.
+
+### Supported overrides
+
+| Sysprop | Env var fallback | Effect |
+|---------|------------------|--------|
+| `karate.options` | `KARATE_OPTIONS` | Full option string, parsed with the `karate run` grammar. Overrides paths, `-P`, tags, threads, env, name, configdir, output, dryrun, formats, report log level |
+| `karate.env` | `KARATE_ENV` | Override karate environment |
+| `karate.config.dir` | `KARATE_CONFIG_DIR` | Override karate-config.js directory |
+| `karate.output.dir` | — | Override report output directory (honored via `FileUtils`) |
+
+Examples:
+
+```bash
+# Override a Runner class's hard-coded tags from Maven
+mvn test -Dtest=MyKarateTest -Dkarate.options="--tags @smoke"
+
+# Multiple overrides in one string
+mvn test -Dtest=MyKarateTest -Dkarate.options="--tags @smoke --env qa --threads 4"
+
+# Maven user override using individual env sysprop (terse)
+mvn test -Dtest=MyKarateTest -Dkarate.env=qa
+
+# Non-Java team using the standalone CLI with env var
+KARATE_OPTIONS="--tags @smoke" karate run features/
+KARATE_ENV=qa karate run features/
+```
+
+### Precedence (highest → lowest)
+
+```
+karate.options (sysprop)
+  └─ KARATE_OPTIONS (env)            # only if sysprop absent
+    └─ individual sysprops (karate.env, karate.config.dir)
+      └─ KARATE_ENV / KARATE_CONFIG_DIR (env)   # fallback
+        └─ karate.output.dir
+          └─ Runner.Builder values (programmatic)
+            └─ karate-pom.json
+              └─ defaults
+```
+
+Rules:
+- If **both** `karate.options` sysprop and `KARATE_OPTIONS` env var are set, the sysprop wins.
+- If `karate.options` sets `--env qa` **and** `-Dkarate.env=dev` is also set, `karate.options` wins (it's applied last).
+- Paths in `karate.options` **replace** Builder paths entirely (v1 parity) — not additive.
+- A malformed `karate.options` string is logged at WARN and ignored; the run proceeds with Builder defaults rather than crashing.
+
+### Logging
+
+- INFO: `using system property 'karate.options': --tags @smoke`
+- INFO: `karate.options applied: tags=[@smoke], env=qa, threads=4` — one-line summary of what actually took effect
+- DEBUG: per-field before → after diff, e.g. `tags: ['@wip'] (Builder) → ['@smoke'] (karate.options)` — useful when troubleshooting "why is the wrong tag running"
+- WARN: `invalid karate.options ignored: <message>` on parse errors
+
+### What `karate.options` can contain
+
+The option string uses the **same grammar as the `karate run` CLI**. Common flags:
+
+| Flag | Purpose |
+|------|---------|
+| positional paths or `-P, --path` | Feature files/dirs (replaces Builder paths) |
+| `-t, --tags` | Tag filter |
+| `-T, --threads` | Parallel thread count |
+| `-e, --env` | Karate environment |
+| `-n, --name` | Scenario name filter (regex) |
+| `-o, --output` | Output directory |
+| `-g, --configdir` | Directory containing `karate-config.js` |
+| `-f, --format` | Output formats (`html`, `cucumber:json`, `junit:xml`, `karate:jsonl`; prefix `~` to disable) |
+| `-D, --dryrun` | Dry-run |
+| `--report-log-level` | Minimum log level for HTML reports |
+
+CLI-lifecycle flags (`--no-pom`, `-p/--pom`, `-w/--workdir`, `-C/--clean`, `-B/--backup-reportdir`, `--runtime-log-level`, `--listener`, `--listener-factory`) are intentionally **ignored** when set via `karate.options` — they're orchestration concerns specific to invoking the CLI, not Builder state.
+
+---
+
 ## Implementation Plan
 
 ### Phase 1: Subcommand Refactoring

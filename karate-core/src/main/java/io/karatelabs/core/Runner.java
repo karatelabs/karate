@@ -610,6 +610,30 @@ public final class Runner {
         Map<String, Set<Integer>> getLineFilters() { return lineFilters; }
         io.karatelabs.js.RunInterceptor<?> getDebugInterceptor() { return debugInterceptor; }
         io.karatelabs.js.DebugPointFactory<?> getDebugPointFactory() { return debugPointFactory; }
+        List<String> getPaths() { return paths; }
+        List<Feature> getFeatures() { return features; }
+        LogLevel getLogLevel() { return logLevel; }
+
+        // ========== Package-private setters for KarateOptionsHandler (sysprop overrides) ==========
+
+        void setEnv(String env) { this.env = env; }
+        void setTags(List<String> tags) { this.tags = tags; }
+        void setScenarioName(String name) { this.scenarioName = name; }
+        void setConfigDir(String dir) { this.configDir = dir; }
+        void setOutputDir(Path dir) { this.outputDir = dir; }
+        void setDryRun(boolean dryRun) { this.dryRun = dryRun; }
+        void setOutputHtmlReport(boolean enabled) { this.outputHtmlReport = enabled; }
+        void setOutputJsonLines(boolean enabled) { this.outputJsonLines = enabled; }
+        void setOutputJunitXml(boolean enabled) { this.outputJunitXml = enabled; }
+        void setOutputCucumberJson(boolean enabled) { this.outputCucumberJson = enabled; }
+        void setLogLevel(LogLevel level) { if (level != null) this.logLevel = level; }
+
+        void clearPaths() {
+            paths.clear();
+            features.clear();
+            lineFilters.clear();
+            resolvedFeatures = null;
+        }
 
         /**
          * Execute the tests with the specified thread count.
@@ -619,23 +643,31 @@ public final class Runner {
          * @return the test results
          */
         public SuiteResult parallel(int threadCount) {
-            // Apply log level (this is a global setting)
+            // Apply system property / env variable overrides BEFORE debug delegation,
+            // so the debug server (if spawned) sees the merged Builder state via buildDebugArgs.
+            // Skipped when debugInterceptor != null (we're already inside the spawned debug server).
+            int effectiveThreads = threadCount;
+            if (debugInterceptor == null) {
+                effectiveThreads = KarateOptionsHandler.apply(this, threadCount);
+            }
+
+            // Apply log level (may have been changed by sysprop)
             io.karatelabs.output.LogContext.setLogLevel(logLevel);
 
             // Check for IDE debug integration via system property
             // When -Dkarate.debug.port is set (e.g. by IntelliJ or VS Code),
             // delegate to io.karatelabs.debug.Main.run() from karate-ide-v2.jar
-            SuiteResult debugResult = startDebugServerIfRequired(threadCount);
+            SuiteResult debugResult = startDebugServerIfRequired(effectiveThreads);
             if (debugResult != null) {
                 return debugResult;
             }
 
-            Suite suite = new Suite(this, Math.max(1, threadCount));
+            Suite suite = new Suite(this, Math.max(1, effectiveThreads));
             SuiteResult result = suite.run();
 
             // Print summary if enabled
             if (outputConsoleSummary) {
-                result.printSummary(env, threadCount);
+                result.printSummary(env, effectiveThreads);
             }
 
             return result;

@@ -452,27 +452,31 @@ public class RunCommand implements Callable<Integer> {
         return null;
     }
 
+    private boolean isFormatEnabled(String format, boolean defaultValue) {
+        return isFormatEnabled(formats, format, defaultValue);
+    }
+
     /**
      * Check if a format is enabled based on the -f/--format flag.
      * Supports negation with ~ prefix (e.g., ~html disables html).
+     * Reused by {@link io.karatelabs.core.KarateOptionsHandler} when parsing
+     * the {@code karate.options} system property.
      *
+     * @param formats      the parsed formats list (may be null)
      * @param format       the format name (e.g., "html", "cucumber:json")
      * @param defaultValue the default value if format not mentioned
      * @return true if format is enabled
      */
-    private boolean isFormatEnabled(String format, boolean defaultValue) {
+    public static boolean isFormatEnabled(List<String> formats, String format, boolean defaultValue) {
         if (formats == null) {
             return defaultValue;
         }
-        // Check for explicit disable (~format)
         if (formats.contains("~" + format)) {
             return false;
         }
-        // Check for explicit enable
         if (formats.contains(format)) {
             return true;
         }
-        // Not mentioned, use default
         return defaultValue;
     }
 
@@ -559,6 +563,18 @@ public class RunCommand implements Callable<Integer> {
 
     public String getWorkingDir() {
         return workingDir;
+    }
+
+    public List<String> getPathOptions() {
+        return pathOptions;
+    }
+
+    public List<String> getFormats() {
+        return formats;
+    }
+
+    public String getReportLogLevel() {
+        return reportLogLevel;
     }
 
 }
