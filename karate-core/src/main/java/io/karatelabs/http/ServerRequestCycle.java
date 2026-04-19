@@ -31,6 +31,7 @@ import io.karatelabs.markup.Markup;
 import io.karatelabs.markup.ResourceResolver;
 
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Per-request lifecycle wrapper that provides isolated Engine instances.
@@ -74,8 +75,6 @@ public class ServerRequestCycle {
         this.resolver = resolver;
         this.markup = markup;
         this.engine = createEngine();
-        // Wire up session sync callback
-        context.setOnSessionInit(this::bindSession);
     }
 
     private Engine createEngine() {
@@ -89,16 +88,10 @@ public class ServerRequestCycle {
         engine.putRootBinding("request", request);
         engine.putRootBinding("response", response);
         engine.putRootBinding("context", context);
-        // can be null, but JS can check for session truthiness
-        engine.putRootBinding("session", context.getSession());
+        // Supplier ensures scripts read the live session even after context.init()
+        // creates one mid-request. See docs/JS_ENGINE.md § Lazy Variables.
+        engine.putRootBinding("session", (Supplier<Session>) context::getSession);
         return engine;
-    }
-
-    /**
-     * Update the session binding after context.init() creates a new session.
-     */
-    public void bindSession(Session session) {
-        engine.put("session", session);
     }
 
     /**
@@ -239,9 +232,8 @@ public class ServerRequestCycle {
             if (wrapWithShell) {
                 vars.put("content", contentHtml);
                 vars.put("contentTemplate", contentTemplate);
-                // Content may have called context.init() — refresh the session
-                // binding so the shell's script sees the just-created session.
-                vars.put("session", context.getContextSession());
+                // Session is bound as a Supplier in toVars(), so the shell
+                // already sees any session created by the content template.
                 context.setTemplateName(shellTemplate);
                 try {
                     html = markup.processPath(shellTemplate, vars);

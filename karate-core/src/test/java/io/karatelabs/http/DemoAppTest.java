@@ -262,6 +262,20 @@ class DemoAppTest {
         assertTrue(r2.getBodyString().contains(">2<")); // Second visit
     }
 
+    @Test
+    void testSessionDirectAccessInTemplateAfterInit() {
+        // Regression: ka:scope calls context.init() then mutates session, and
+        // template expressions read session.* directly (no copy to `_.`).
+        // Fails if ServerMarkupContext.toVars() / ServerRequestCycle snapshot
+        // session at request start instead of binding it as a live Supplier.
+        HttpResponse response = get("/session-direct");
+        assertEquals(200, response.getStatus());
+        String body = response.getBodyString();
+        assertTrue(body.contains("id=\"direct-name\">Alice<"), body);
+        assertTrue(body.contains("id=\"direct-count\">3<"), body);
+        assertTrue(body.contains("id=\"direct-nonzero\""), body);
+    }
+
     // =================================================================================================================
     // Context Object Tests
     // =================================================================================================================

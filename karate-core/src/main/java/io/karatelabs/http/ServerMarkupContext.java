@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Server-side context exposed to templates and API handlers.
@@ -76,9 +77,6 @@ public class ServerMarkupContext implements MarkupContext {
     private final List<String> logMessages = new ArrayList<>();
     private final Map<String, Object> flash = new HashMap<>();
 
-    // Callback for syncing session to JS engine after init()
-    private java.util.function.Consumer<Session> onSessionInit;
-
     public ServerMarkupContext(HttpRequest request, HttpResponse response, ServerConfig config) {
         this.request = request;
         this.response = response;
@@ -97,8 +95,12 @@ public class ServerMarkupContext implements MarkupContext {
         vars.put("request", request);
         vars.put("response", response);
         vars.put("context", this);
-        // can be null, but JS/templates can check for session truthiness
-        vars.put("session", session);
+        // Wrap session as a Supplier so template expressions see a live view.
+        // Without this, the snapshot taken here is stale if a ka:scope block
+        // later calls context.init() — subsequent th:* expressions would still
+        // see the old null session. The JS engine auto-unwraps Suppliers on
+        // property access (see docs/JS_ENGINE.md § Lazy Variables).
+        vars.put("session", (Supplier<Session>) () -> this.session);
         return vars;
     }
 
@@ -192,25 +194,15 @@ public class ServerMarkupContext implements MarkupContext {
 
     /**
      * Initialize a new session. If sessions are not enabled in config, this is a no-op.
-     * After creating the session, the onSessionInit callback is invoked to sync with JS engine.
+     * Script and template bindings that reference {@code session} do so through a
+     * Supplier (see {@link #toVars()} and {@code ServerRequestCycle.createEngine()}),
+     * so no callback is needed — the next access reads the live value.
      */
     public void init() {
         if (config != null && config.isSessionEnabled()) {
             this.session = config.createSession();
             this.closed = false;
-            // Notify JS engine to update its session variable
-            if (onSessionInit != null) {
-                onSessionInit.accept(this.session);
-            }
         }
-    }
-
-    /**
-     * Set a callback to be invoked after session initialization.
-     * Used by MarkupTemplateContext to sync session to JS engine.
-     */
-    public void setOnSessionInit(java.util.function.Consumer<Session> callback) {
-        this.onSessionInit = callback;
     }
 
     /**

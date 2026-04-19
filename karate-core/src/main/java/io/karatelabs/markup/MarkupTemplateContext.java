@@ -49,8 +49,8 @@ public class MarkupTemplateContext implements IEngineContext {
         this.engine.put("_", vars);
         // Use existing MarkupContext from template variables if present (e.g., ServerMarkupContext in server mode)
         // Otherwise create a SimpleMarkupContext for plain templating mode
-        // Note: In server mode, the engine is shared with ServerRequestCycle (via ThreadLocal supplier)
-        // and session binding is already managed by ServerRequestCycle.bindSession()
+        // In server mode the engine is shared with ServerRequestCycle (via ThreadLocal supplier),
+        // and `session` is bound there as a Supplier — so reads always see the live value.
         Object existingContext = wrapped.getVariable("context");
         if (existingContext instanceof MarkupContext) {
             this.engine.put("context", existingContext);
@@ -61,28 +61,7 @@ public class MarkupTemplateContext implements IEngineContext {
 
     void evalGlobal(String src) {
         getVariableNames().forEach(name -> engine.put(name, getVariable(name)));
-        // Always sync session from template vars (may be null for new requests)
-        // This ensures the engine doesn't carry stale session from previous requests
-        Object sessionFromVars = wrapped.getVariable("session");
-        engine.put("session", sessionFromVars);
         engine.eval(src);
-        // After script execution, sync session if context.init() was called
-        syncSessionVariable();
-    }
-
-    /**
-     * Sync the 'session' variable if context.init() created a new session.
-     * This allows templates to use 'session' directly after calling context.init().
-     */
-    private void syncSessionVariable() {
-        Object contextObj = engine.get("context");
-        if (contextObj instanceof MarkupContext mc) {
-            Object session = mc.getContextSession();
-            if (session != null && engine.get("session") == null) {
-                engine.put("session", session);
-                wrapped.setVariable("session", session);
-            }
-        }
     }
 
     public Object evalLocalAsObject(String src) {

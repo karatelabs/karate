@@ -1,0 +1,17 @@
+<!--
+    Regression guard for the "session is null in template expressions after
+    ka:scope calls context.init()" bug. Fails before the Supplier-backed
+    session binding in ServerMarkupContext.toVars() and ServerRequestCycle.
+-->
+<script ka:scope="global">
+    if (!session) {
+        context.init();
+    }
+    session.userName = 'Alice';
+    session.itemCount = 3;
+</script>
+<section id="session-direct-page">
+    <div id="direct-name" th:text="session.userName">default</div>
+    <div id="direct-count" th:text="session.itemCount">0</div>
+    <div th:if="session.itemCount > 0" id="direct-nonzero">has items</div>
+</section>
