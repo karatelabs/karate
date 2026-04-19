@@ -393,6 +393,16 @@ The option string uses the **same grammar as the `karate run` CLI**. Common flag
 
 CLI-lifecycle flags (`--no-pom`, `-p/--pom`, `-w/--workdir`, `-C/--clean`, `-B/--backup-reportdir`, `--runtime-log-level`, `--listener`, `--listener-factory`) are intentionally **ignored** when set via `karate.options` — they're orchestration concerns specific to invoking the CLI, not Builder state.
 
+### Paths with spaces
+
+The option string is tokenized POSIX-shell-style, so inner double/single quotes survive and whitespace is preserved. For multiple paths that contain spaces:
+
+```bash
+mvn test -Dtest=UsersTest '-Dkarate.options=-P "src/features/happy path" -P "src/features/edge cases"'
+```
+
+Outer single quotes stop the shell from interpreting the inner doubles; inner doubles group each path into a single token inside the handler.
+
 ---
 
 ## Implementation Plan
