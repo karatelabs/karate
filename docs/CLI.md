@@ -139,6 +139,28 @@ karate run classpath:features/users.feature:10
 
 **Note:** Line number selection bypasses tag filters (`@ignore`, `@env`, etc.), allowing you to run specific scenarios regardless of their tags. This is useful for debugging or running individual tests from an IDE.
 
+### Running Specific Scenarios by Name
+
+Use `-n, --name` to select scenarios by their author-assigned name. Unlike line numbers, names are stable under edits and auto-formatting — IDE plugins can use them as a line-independent identifier for gutter/run-config invocations.
+
+```bash
+# Run a single scenario by name
+karate run -n "Login happy path" tests/users.feature
+
+# The name filter scans all features in the run, so it works across a directory
+karate run -n "Login happy path" tests/
+
+# Combine with :LINE to narrow to one row of a Scenario Outline
+karate run -n "Parameterized check" tests/outline.feature:9
+```
+
+**Matching semantics:**
+
+- **Exact match**, not regex. Leading/trailing whitespace is trimmed on both sides, so `-n " Login "` still matches `Login`.
+- **Duplicate names run all matches** — if two scenarios share a name, both run (consistent with how a tag filter selects every scenario carrying the tag).
+- **Scenario Outlines:** the name matches the outline and runs all its rows. For row-level targeting, combine `-n` with `:LINE` (intersection semantics — both must match).
+- **Bypasses tag filters** (`@ignore`, `@env`) — same as `:LINE`. Running a specific scenario by name always wins over filters.
+
 ### Options
 
 | Option | Description |
@@ -147,7 +169,7 @@ karate run classpath:features/users.feature:10
 | `-t, --tags <expr>` | Tag expression filter (e.g., `@smoke`, `~@slow`) |
 | `-T, --threads <n>` | Parallel thread count (default: 1) |
 | `-e, --env <name>` | Karate environment (karate.env) |
-| `-n, --name <regex>` | Scenario name filter |
+| `-n, --name <name>` | Scenario name filter (exact, whitespace-trimmed); bypasses tag filters |
 | `-o, --output <dir>` | Output directory (default: target/karate-reports) |
 | `-w, --workdir <dir>` | Working directory for relative paths |
 | `-g, --configdir <dir>` | Directory containing karate-config.js |
@@ -260,7 +282,7 @@ The project file name is `karate-pom.json` (inspired by Maven's POM concept). Wh
   "tags": ["@smoke", "~@slow"],
   "env": "dev",
   "threads": 5,
-  "scenarioName": ".*login.*",
+  "scenarioName": "Login happy path",
   "configDir": "src/test/resources",
   "workingDir": "/home/user/project",
   "dryRun": false,
@@ -384,7 +406,7 @@ The option string uses the **same grammar as the `karate run` CLI**. Common flag
 | `-t, --tags` | Tag filter |
 | `-T, --threads` | Parallel thread count |
 | `-e, --env` | Karate environment |
-| `-n, --name` | Scenario name filter (regex) |
+| `-n, --name` | Scenario name filter (exact, whitespace-trimmed) |
 | `-o, --output` | Output directory |
 | `-g, --configdir` | Directory containing `karate-config.js` |
 | `-f, --format` | Output formats (`html`, `cucumber:json`, `junit:xml`, `karate:jsonl`; prefix `~` to disable) |
