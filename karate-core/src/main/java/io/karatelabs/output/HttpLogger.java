@@ -86,24 +86,29 @@ public class HttpLogger {
 
     public void logRequest(HttpRequest request) {
         requestCount++;
-        if (log.isDebugEnabled()) {
+        // TRACE: full (headers + body); DEBUG: headers only; INFO: one-liner
+        if (log.isTraceEnabled() || log.isDebugEnabled()) {
             StringBuilder sb = new StringBuilder();
             sb.append(Console.BOLD).append("request:").append(Console.RESET).append('\n');
             sb.append(Console.DIM).append(requestCount).append(" > ").append(Console.RESET);
             sb.append(Console.CYAN).append(Console.BOLD).append(request.getMethod()).append(Console.RESET);
             sb.append(' ').append(request.getUrlAndPath()).append('\n');
             logHeaders(sb, requestCount, " > ", request.getHeaders());
-            ResourceType rt = ResourceType.fromContentType(request.getContentType());
-            if (rt != null && !rt.isBinary()) {
-                byte[] body;
-                if (rt == ResourceType.MULTIPART) {
-                    body = request.getBodyDisplay() == null ? null : request.getBodyDisplay().getBytes();
-                } else {
-                    body = request.getBody();
+            if (log.isTraceEnabled()) {
+                ResourceType rt = ResourceType.fromContentType(request.getContentType());
+                if (rt != null && !rt.isBinary()) {
+                    byte[] body;
+                    if (rt == ResourceType.MULTIPART) {
+                        body = request.getBodyDisplay() == null ? null : request.getBodyDisplay().getBytes();
+                    } else {
+                        body = request.getBody();
+                    }
+                    logBody(sb, body, rt);
                 }
-                logBody(sb, body, rt);
+                log.trace(sb.toString());
+            } else {
+                log.debug(sb.toString());
             }
-            log.debug(sb.toString());
         } else {
             StringBuilder sb = new StringBuilder();
             sb.append(Console.DIM).append(requestCount).append(" > ").append(Console.RESET);
@@ -115,7 +120,8 @@ public class HttpLogger {
 
     public void logResponse(HttpResponse response) {
         HttpRequest request = response.getRequest();
-        if (log.isDebugEnabled()) {
+        // TRACE: full (headers + body); DEBUG: headers only; INFO: one-liner
+        if (log.isTraceEnabled() || log.isDebugEnabled()) {
             StringBuilder sb = new StringBuilder();
             sb.append(Console.DIM).append("response time in milliseconds: ")
                     .append(response.getResponseTime()).append(Console.RESET).append('\n');
@@ -124,11 +130,15 @@ public class HttpLogger {
             sb.append(Console.CYAN).append(request.getMethod()).append(Console.RESET);
             sb.append(' ').append(request.getUrlAndPath()).append('\n');
             logHeaders(sb, requestCount, " < ", response.getHeaders());
-            ResourceType rt = response.getResourceType();
-            if (rt != null && !rt.isBinary()) {
-                logBody(sb, response.getBodyBytes(), rt);
+            if (log.isTraceEnabled()) {
+                ResourceType rt = response.getResourceType();
+                if (rt != null && !rt.isBinary()) {
+                    logBody(sb, response.getBodyBytes(), rt);
+                }
+                log.trace(sb.toString());
+            } else {
+                log.debug(sb.toString());
             }
-            log.debug(sb.toString());
         } else {
             StringBuilder sb = new StringBuilder();
             sb.append(Console.DIM).append(requestCount).append(" < ").append(Console.RESET);

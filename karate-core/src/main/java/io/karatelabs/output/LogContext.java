@@ -314,6 +314,10 @@ public class LogContext {
             return logger.isDebugEnabled();
         }
 
+        public boolean isTraceEnabled() {
+            return logger.isTraceEnabled();
+        }
+
         private void log(LogLevel level, String message) {
             if (level.isEnabled(threshold)) {
                 get().buffer.append(message).append('\n');
