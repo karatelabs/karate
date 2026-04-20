@@ -28,15 +28,24 @@ import io.karatelabs.common.ResourceType;
 import io.karatelabs.common.StringUtils;
 import io.karatelabs.http.HttpRequest;
 import io.karatelabs.http.HttpResponse;
+import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.Map;
 
 public class HttpLogger {
 
-    private static final LogContext.LogWriter log = LogContext.with(LogContext.HTTP_LOGGER);
+    private final LogContext.LogWriter log;
 
     private int requestCount;
+
+    public HttpLogger() {
+        this(LogContext.HTTP_LOGGER);
+    }
+
+    public HttpLogger(Logger logger) {
+        this.log = LogContext.with(logger);
+    }
 
     public static void logHeaders(StringBuilder sb, int num, String prefix, Map<String, List<String>> headers) {
         if (headers == null || headers.isEmpty()) {
@@ -77,45 +86,58 @@ public class HttpLogger {
 
     public void logRequest(HttpRequest request) {
         requestCount++;
-        StringBuilder sb = new StringBuilder();
-        String uri = request.getUrlAndPath();
-        sb.append(Console.BOLD).append("request:").append(Console.RESET).append('\n');
-        sb.append(Console.DIM).append(requestCount).append(" > ").append(Console.RESET);
-        sb.append(Console.CYAN).append(Console.BOLD).append(request.getMethod()).append(Console.RESET);
-        sb.append(' ').append(uri).append('\n');
-        logHeaders(sb, requestCount, " > ", request.getHeaders());
-        ResourceType rt = ResourceType.fromContentType(request.getContentType());
-        if (rt == null || rt.isBinary()) {
-            // don't log body
-        } else {
-            byte[] body;
-            if (rt == ResourceType.MULTIPART) {
-                body = request.getBodyDisplay() == null ? null : request.getBodyDisplay().getBytes();
-            } else {
-                body = request.getBody();
+        if (log.isDebugEnabled()) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(Console.BOLD).append("request:").append(Console.RESET).append('\n');
+            sb.append(Console.DIM).append(requestCount).append(" > ").append(Console.RESET);
+            sb.append(Console.CYAN).append(Console.BOLD).append(request.getMethod()).append(Console.RESET);
+            sb.append(' ').append(request.getUrlAndPath()).append('\n');
+            logHeaders(sb, requestCount, " > ", request.getHeaders());
+            ResourceType rt = ResourceType.fromContentType(request.getContentType());
+            if (rt != null && !rt.isBinary()) {
+                byte[] body;
+                if (rt == ResourceType.MULTIPART) {
+                    body = request.getBodyDisplay() == null ? null : request.getBodyDisplay().getBytes();
+                } else {
+                    body = request.getBody();
+                }
+                logBody(sb, body, rt);
             }
-            logBody(sb, body, rt);
+            log.debug(sb.toString());
+        } else {
+            StringBuilder sb = new StringBuilder();
+            sb.append(Console.DIM).append(requestCount).append(" > ").append(Console.RESET);
+            sb.append(Console.CYAN).append(Console.BOLD).append(request.getMethod()).append(Console.RESET);
+            sb.append(' ').append(request.getUrlAndPath());
+            log.info(sb.toString());
         }
-        log.info(sb.toString());
     }
 
     public void logResponse(HttpResponse response) {
         HttpRequest request = response.getRequest();
-        StringBuilder sb = new StringBuilder();
-        sb.append(Console.DIM).append("response time in milliseconds: ")
-                .append(response.getResponseTime()).append(Console.RESET).append('\n');
-        sb.append(Console.DIM).append(requestCount).append(" < ").append(Console.RESET);
-        sb.append(colorStatus(response.getStatus())).append(' ');
-        sb.append(Console.CYAN).append(request.getMethod()).append(Console.RESET);
-        sb.append(' ').append(request.getPath()).append('\n');
-        logHeaders(sb, requestCount, " < ", response.getHeaders());
-        ResourceType rt = response.getResourceType();
-        if (rt == null || rt.isBinary()) {
-            // don't log body
+        if (log.isDebugEnabled()) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(Console.DIM).append("response time in milliseconds: ")
+                    .append(response.getResponseTime()).append(Console.RESET).append('\n');
+            sb.append(Console.DIM).append(requestCount).append(" < ").append(Console.RESET);
+            sb.append(colorStatus(response.getStatus())).append(' ');
+            sb.append(Console.CYAN).append(request.getMethod()).append(Console.RESET);
+            sb.append(' ').append(request.getUrlAndPath()).append('\n');
+            logHeaders(sb, requestCount, " < ", response.getHeaders());
+            ResourceType rt = response.getResourceType();
+            if (rt != null && !rt.isBinary()) {
+                logBody(sb, response.getBodyBytes(), rt);
+            }
+            log.debug(sb.toString());
         } else {
-            logBody(sb, response.getBodyBytes(), rt);
+            StringBuilder sb = new StringBuilder();
+            sb.append(Console.DIM).append(requestCount).append(" < ").append(Console.RESET);
+            sb.append(colorStatus(response.getStatus())).append(' ');
+            sb.append(Console.CYAN).append(request.getMethod()).append(Console.RESET);
+            sb.append(' ').append(request.getUrlAndPath());
+            sb.append(Console.DIM).append(" (").append(response.getResponseTime()).append(" ms)").append(Console.RESET);
+            log.info(sb.toString());
         }
-        log.info(sb.toString());
     }
 
     private static String colorStatus(int status) {

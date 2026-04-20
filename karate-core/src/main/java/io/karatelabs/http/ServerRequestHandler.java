@@ -30,6 +30,8 @@ import io.karatelabs.markup.Markup;
 import io.karatelabs.markup.MarkupConfig;
 import io.karatelabs.markup.ResourceResolver;
 import io.karatelabs.markup.HxDialect;
+import io.karatelabs.output.HttpLogger;
+import io.karatelabs.output.LogContext;
 
 import java.util.function.Function;
 
@@ -60,6 +62,7 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
     private final ServerConfig config;
     private final ResourceResolver resolver;
     private final Markup markup;
+    private final HttpLogger httpLogger = new HttpLogger(LogContext.SERVER_LOGGER);
 
     public ServerRequestHandler(ServerConfig config, ResourceResolver resolver) {
         this.config = config;
@@ -74,6 +77,17 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
 
     @Override
     public HttpResponse apply(HttpRequest request) {
+        long start = System.currentTimeMillis();
+        httpLogger.logRequest(request);
+        HttpResponse response = handle(request);
+        response.setRequest(request);
+        response.setStartTime(start);
+        response.setResponseTime(System.currentTimeMillis() - start);
+        httpLogger.logResponse(response);
+        return response;
+    }
+
+    private HttpResponse handle(HttpRequest request) {
         HttpResponse response = new HttpResponse();
         String path = request.getPath();
 

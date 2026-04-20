@@ -52,6 +52,9 @@ public class LogContext {
     /** Logger for mock server logs */
     public static final Logger MOCK_LOGGER = LoggerFactory.getLogger("karate.mock");
 
+    /** Logger for embedded HTTP server request/response logs */
+    public static final Logger SERVER_LOGGER = LoggerFactory.getLogger("karate.server");
+
     /** Logger for test logs (karate.log, karate.logger, print statements) */
     public static final Logger SCENARIO_LOGGER = LoggerFactory.getLogger("karate.scenario");
 
@@ -112,7 +115,7 @@ public class LogContext {
      * Set the runtime log level for SLF4J/Logback.
      * Uses reflection to avoid compile-time dependency on Logback.
      * Sets the level on the "karate" logger, which affects all subcategories
-     * (karate.runtime, karate.http, karate.mock, karate.scenario, karate.console).
+     * (karate.runtime, karate.http, karate.mock, karate.server, karate.scenario, karate.console).
      *
      * @param level the log level (trace, debug, info, warn, error)
      * @return true if the level was set successfully, false if Logback is not available
@@ -305,6 +308,10 @@ public class LogContext {
         public void error(String message) {
             log(LogLevel.ERROR, message);
             logger.error(message);
+        }
+
+        public boolean isDebugEnabled() {
+            return logger.isDebugEnabled();
         }
 
         private void log(LogLevel level, String message) {
