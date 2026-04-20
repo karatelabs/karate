@@ -892,27 +892,35 @@ class Interpreter {
         Object switchValue = eval(node.get(2), context);
         List<Node> caseNodes = node.findImmediateChildren(NodeType.CASE_BLOCK);
         boolean found = false;
-        for (Node caseNode : caseNodes) {
-            if (!found) {
-                Object caseValue = eval(caseNode.get(1), context);
-                if (Terms.eq(switchValue, caseValue, true)) {
-                    found = true;
+        Object result = null;
+        try {
+            for (Node caseNode : caseNodes) {
+                if (!found) {
+                    Object caseValue = eval(caseNode.get(1), context);
+                    if (Terms.eq(switchValue, caseValue, true)) {
+                        found = true;
+                    }
                 }
-            }
-            if (found) {
-                for (int i = 3; i < caseNode.size(); i++) {
-                    Object caseResult = eval(caseNode.get(i), context);
-                    if (context.isStopped()) {
-                        return caseResult;
+                if (found) {
+                    for (int i = 3; i < caseNode.size(); i++) {
+                        result = eval(caseNode.get(i), context);
+                        if (context.isStopped()) {
+                            return result;
+                        }
                     }
                 }
             }
+            List<Node> defaultNodes = node.findImmediateChildren(NodeType.DEFAULT_BLOCK);
+            if (!defaultNodes.isEmpty()) {
+                result = evalBlock(defaultNodes.getFirst(), context);
+            }
+            return result;
+        } finally {
+            // break was consumed by this switch — don't propagate to parent block
+            if (context.isBreaking()) {
+                context.reset();
+            }
         }
-        List<Node> defaultNodes = node.findImmediateChildren(NodeType.DEFAULT_BLOCK);
-        if (!defaultNodes.isEmpty()) {
-            return evalBlock(defaultNodes.getFirst(), context);
-        }
-        return null;
     }
 
     private static Object evalThrowStmt(Node node, CoreContext context) {

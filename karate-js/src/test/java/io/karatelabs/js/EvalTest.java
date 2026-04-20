@@ -747,6 +747,31 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testSwitchBreakScoping() {
+        // break inside switch must not escape the enclosing if block
+        eval("var after = false; if (true) { switch ('a') { case 'a': break; case 'b': break } after = true }");
+        assertEquals(true, get("after"));
+        // break inside switch must not escape the enclosing for loop
+        eval("var count = 0; for (var i = 0; i < 3; i++) { switch (i) { case 0: break; case 1: break } count++ }");
+        assertEquals(3, get("count"));
+        // break inside switch must not escape the enclosing while loop
+        eval("var count = 0; var i = 0; while (i < 3) { switch (i) { case 0: break; case 1: break } count++; i++ }");
+        assertEquals(3, get("count"));
+        // break only unwinds the innermost switch (nested switches)
+        eval("var after = false; switch ('x') { case 'x': switch ('y') { case 'y': break } after = true; break }");
+        assertEquals(true, get("after"));
+        // default branch hit but break still confined to switch
+        eval("var after = false; if (true) { switch ('z') { case 'a': break; default: break } after = true }");
+        assertEquals(true, get("after"));
+        // return inside a switch inside a function still propagates out
+        eval("function f() { switch (1) { case 1: return 42 } return 0 } var r = f()");
+        assertEquals(42, get("r"));
+        // continue inside a switch inside a for loop still propagates to the loop
+        eval("var hits = 0; for (var i = 0; i < 3; i++) { switch (i) { case 1: continue } hits++ }");
+        assertEquals(2, get("hits"));
+    }
+
+    @Test
     void testLetAndConstBasic() {
         assertEquals(1, eval("let a = 1; a"));
         assertEquals(1, get("a"));
