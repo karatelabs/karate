@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.karatelabs</groupId>
         <artifactId>karate-parent</artifactId>
-        <version>2.0.3.RC1</version>
+        <version>2.0.3</version>
     </parent>
 
     <artifactId>karate-core</artifactId>
