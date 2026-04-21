@@ -186,14 +186,16 @@ public interface Driver extends CoreDriver, SimpleObject {
                 return null;
             };
 
-            // Screenshot
+            // Screenshot — Gherkin/JS default is to embed into the report
+            // (v1 behavior). The Java API's 0-arg screenshot() deliberately
+            // returns bytes without embedding; here we call screenshot(true)
+            // so that `* screenshot` from a feature file shows up in the HTML
+            // report. See: https://github.com/karatelabs/karate/issues/2798
             case DriverApi.SCREENSHOT -> (JavaCallable) (ctx, args) -> {
-                if (args.length == 0) {
-                    return screenshot();
-                } else if (args[0] instanceof Boolean b) {
+                if (args.length > 0 && args[0] instanceof Boolean b) {
                     return screenshot(b);
                 }
-                return screenshot();
+                return screenshot(true);
             };
 
             // Cookies

@@ -35,6 +35,7 @@ import io.karatelabs.driver.Keys;
 import io.karatelabs.driver.Locators;
 import io.karatelabs.driver.Mouse;
 import io.karatelabs.driver.PageLoadStrategy;
+import io.karatelabs.output.LogContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -780,7 +781,11 @@ public class W3cDriver implements Driver {
 
     @Override
     public byte[] screenshot(boolean embed) {
-        return screenshot(); // embed is handled by the reporting layer
+        byte[] bytes = screenshot();
+        if (embed) {
+            LogContext.get().embed(bytes, "image/png", "screenshot.png");
+        }
+        return bytes;
     }
 
     // ========== Dialog (additional abstract methods) ==========

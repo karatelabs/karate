@@ -36,7 +36,9 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.Testcontainers;
 import org.testcontainers.junit.jupiter.Container;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -112,16 +114,18 @@ class DriverFeatureTest {
     }
 
     @Test
-    void testDriverFeatures() {
+    void testDriverFeatures() throws Exception {
         // ContainerDriverProvider creates tabs in the Chrome container
         // Pool size is auto-detected from parallel(N) - no need to specify it
         ContainerDriverProvider provider = new ContainerDriverProvider(chrome);
+
+        Path reportDir = Path.of("target", "driver-feature-reports");
 
         // Run all driver feature tests with scenario-level parallelism
         // Cookie tests use @lock=cookies for mutual exclusion (cookies are browser-level shared state)
         SuiteResult result = Runner.path("classpath:io/karatelabs/driver/features")
                 .configDir("classpath:io/karatelabs/driver/features/karate-config.js")
-                .outputDir(Path.of("target", "driver-feature-reports"))
+                .outputDir(reportDir)
                 .outputHtmlReport(true)
                 .outputConsoleSummary(true)
                 .driverProvider(provider)
@@ -139,6 +143,39 @@ class DriverFeatureTest {
         }
 
         assertTrue(result.isPassed(), "All driver feature tests should pass");
+
+        assertScreenshotEmbeds(reportDir);
+    }
+
+    /**
+     * Regression guard for https://github.com/karatelabs/karate/issues/2798 —
+     * screenshot() from Gherkin must embed the image into the HTML report.
+     *
+     * <p>We verify the embed pipeline end-to-end: the PNG bytes land on disk
+     * in the {@code embeds/} directory AND the per-feature HTML carries the
+     * embed metadata in its inlined JSON (the {@code ../embeds/<file>} URL
+     * itself is rendered client-side by {@code karate-report.js}).
+     */
+    private static void assertScreenshotEmbeds(Path reportDir) throws Exception {
+        Path embedsDir = reportDir.resolve("embeds");
+        assertTrue(Files.isDirectory(embedsDir),
+                "embeds/ directory should exist after a screenshot()");
+        long pngCount;
+        try (Stream<Path> files = Files.list(embedsDir)) {
+            pngCount = files.filter(p -> p.getFileName().toString().endsWith(".png")).count();
+        }
+        // screenshot.feature has 3 scenarios, 2 of which embed (default + explicit true)
+        assertTrue(pngCount >= 2,
+                "expected >= 2 PNG embeds from screenshot.feature, found " + pngCount);
+
+        Path featureHtml = reportDir.resolve("feature-html")
+                .resolve("target.test-classes.io.karatelabs.driver.features.screenshot.html");
+        assertTrue(Files.exists(featureHtml), "screenshot feature HTML not found: " + featureHtml);
+        String html = Files.readString(featureHtml);
+        assertTrue(html.contains("\"mime_type\": \"image/png\""),
+                "feature HTML should inline embed JSON with image/png mime type");
+        assertTrue(html.matches("(?s).*\"file\":\\s*\"\\d+_screenshot[^\"]*\\.png\".*"),
+                "feature HTML should inline embed JSON with a screenshot .png file reference");
     }
 
 }
