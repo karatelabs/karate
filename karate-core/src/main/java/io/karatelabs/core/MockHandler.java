@@ -242,6 +242,10 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
             if (responseHeaders instanceof Map) {
                 config.setResponseHeaders((Map<String, Object>) responseHeaders);
             }
+            Object beforeScenario = karateConfig.getBeforeScenario();
+            if (beforeScenario instanceof JavaCallable callable) {
+                config.setBeforeScenario(callable);
+            }
             Object afterScenario = karateConfig.getAfterScenario();
             if (afterScenario instanceof JavaCallable callable) {
                 config.setAfterScenario(callable);
@@ -398,6 +402,14 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         Engine engine = runtime.getEngine();
         StepExecutor executor = new StepExecutor(runtime);
 
+        // Execute beforeScenario hook before step execution so request-scoped setup can run per-request.
+        // A hook exception surfaces as HTTP 500 (same as a step failure) - wrap the hook body in
+        // try/catch if you want to suppress errors.
+        Exception beforeError = invokeMockHook(config.getBeforeScenario(), "beforeScenario");
+        if (beforeError != null) {
+            return hookErrorResponse("beforeScenario", beforeError);
+        }
+
         // Execute all steps in the scenario using StepExecutor
         for (Step step : scenario.getSteps()) {
             StepResult result = executor.execute(step);
@@ -414,19 +426,36 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         // Save any new variables to globals
         saveGlobals(engine);
 
-        // Execute afterScenario hook if configured
-        // Pass null context - the JS function uses its declaredContext which has access to karate object
-        JavaCallable afterScenario = config.getAfterScenario();
-        if (afterScenario != null) {
-            try {
-                afterScenario.call(null);
-            } catch (Exception e) {
-                logger.warn("afterScenario hook failed: {}", e.getMessage());
-            }
+        // Execute afterScenario hook if configured.
+        // Pass null context - the JS function uses its declaredContext which has access to karate object.
+        // A hook exception surfaces as HTTP 500 (same convention as beforeScenario / step failures).
+        Exception afterError = invokeMockHook(config.getAfterScenario(), "afterScenario");
+        if (afterError != null) {
+            return hookErrorResponse("afterScenario", afterError);
         }
 
         // Build response from variables
         return buildResponse(engine, request);
+    }
+
+    private Exception invokeMockHook(JavaCallable hook, String hookName) {
+        if (hook == null) {
+            return null;
+        }
+        try {
+            hook.call(null);
+            return null;
+        } catch (Exception e) {
+            logger.warn("{} hook failed: {}", hookName, e.getMessage());
+            return e;
+        }
+    }
+
+    private HttpResponse hookErrorResponse(String hookName, Exception error) {
+        HttpResponse response = new HttpResponse();
+        response.setStatus(500);
+        response.setBody(Map.of("error", hookName + " hook failed: " + error.getMessage()));
+        return response;
     }
 
     @SuppressWarnings("unchecked")

@@ -206,6 +206,15 @@ Background:
 
 Applied to all responses. Scenario-level `responseHeaders` overrides.
 
+### beforeScenario
+
+```gherkin
+Background:
+  * configure beforeScenario = function(){ karate.log('request received') }
+```
+
+Executes per request, before scenario matching runs. Useful for per-request setup since a mock `Background` only runs once at server init.
+
 ### afterScenario
 
 ```gherkin
@@ -213,7 +222,11 @@ Background:
   * configure afterScenario = function(){ karate.log('request handled') }
 ```
 
-Executes after each scenario, before response is sent.
+Executes per request after the matched scenario completes, before the response is sent.
+
+**Hook failures** (either hook) surface as HTTP 500 with an `error` field in the body — same convention as step failures. Wrap the hook body in `try/catch` if you want to suppress errors.
+
+Both hooks are also supported for regular (non-mock) scenarios. `beforeScenario` fires before `Background` steps, so it must be defined in `karate-config.js` to apply to the current scenario; defining it inside a feature's `Background` is a no-op for that scenario.
 
 ---
 

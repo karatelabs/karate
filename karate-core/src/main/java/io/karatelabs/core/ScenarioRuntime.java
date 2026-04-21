@@ -810,6 +810,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             return result;
         }
 
+        boolean scenarioStarted = false;
         try {
             // Fire SCENARIO_ENTER event
             if (suite != null) {
@@ -817,6 +818,25 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 if (!proceed) {
                     // Listener returned false - skip this scenario
                     stopped = true;
+                }
+            }
+
+            // Invoke beforeScenario hook (if set and listener didn't veto).
+            // Note: Since this fires BEFORE Background, a beforeScenario defined inside
+            // a Background has no effect on the current scenario - define it in karate-config.js.
+            // A hook exception fails the scenario (same convention as a step failure); wrap
+            // the hook body in try/catch to suppress. Honors continueOnStepFailure so users in
+            // soft-assertion mode can still run scenario steps after a hook failure.
+            if (!stopped) {
+                scenarioStarted = true;
+                Throwable hookError = invokeHook(config.getBeforeScenario(), "beforeScenario");
+                if (hookError != null) {
+                    result.addStepResult(StepResult.fakeFailure(
+                            "beforeScenario hook failed: " + hookError.getMessage(),
+                            System.currentTimeMillis(), hookError));
+                    if (!config.isContinueOnStepFailure()) {
+                        stopped = true;
+                    }
                 }
             }
 
@@ -892,6 +912,22 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
             // Close driver if it was initialized
             closeDriver();
+
+            // Invoke afterScenario hook - runs on both pass and fail paths so teardown always executes.
+            // Skipped when the scenario never actually started (SCENARIO_ENTER vetoed or suite aborted).
+            // A hook exception fails the scenario (same convention as a step failure); wrap the hook
+            // body in try/catch to suppress. The primary step error, if any, is preserved as the root
+            // cause because the hook's fakeFailure step is appended after existing step results.
+            if (scenarioStarted) {
+                Throwable hookError = invokeHook(config.getAfterScenario(), "afterScenario");
+                if (hookError != null) {
+                    result.addStepResult(StepResult.fakeFailure(
+                            "afterScenario hook failed: " + hookError.getMessage(),
+                            System.currentTimeMillis(), hookError));
+                    // Bump end time since we added a post-scenario step
+                    result.setEndTime(System.currentTimeMillis());
+                }
+            }
 
             // Handle @fail tag - invert pass/fail result
             if (scenario.isFail()) {
@@ -1306,6 +1342,24 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             channels = new ArrayList<>();
         }
         channels.add(channel);
+    }
+
+    /**
+     * Invoke a lifecycle hook (beforeScenario / afterScenario) if it is a callable.
+     * Returns null on success or no-op; returns the Throwable on failure.
+     * Exceptions are always logged WARN (callers decide whether to surface as a scenario failure).
+     */
+    private Throwable invokeHook(Object hookRef, String hookName) {
+        if (!(hookRef instanceof JavaCallable callable)) {
+            return null;
+        }
+        try {
+            callable.call(null);
+            return null;
+        } catch (Exception e) {
+            logger.warn("{} hook failed: {}", hookName, e.getMessage());
+            return e;
+        }
     }
 
     private void closeChannels() {

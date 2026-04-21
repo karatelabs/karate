@@ -349,6 +349,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
     /**
      * Invokes the configured afterFeature hook if present.
      * Uses the last executed scenario's runtime context.
+     * Hook failures are surfaced in the report via a fake failure step on the last scenario.
      */
     private void invokeAfterFeatureHook(ScenarioRuntime sr) {
         KarateConfig config = sr.getConfig();
@@ -358,6 +359,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                 callable.call(null);
             } catch (Exception e) {
                 logger.warn("afterFeature hook failed: {}", e.getMessage());
+                appendHookFailure(sr.getResult(), "afterFeature", e);
             }
         }
     }
@@ -383,6 +385,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
 
     /**
      * Invokes the configured afterScenarioOutline hook if present.
+     * Hook failures are surfaced in the report via a fake failure step on the outline's last scenario.
      */
     private void invokeAfterScenarioOutlineHook(ScenarioRuntime sr) {
         KarateConfig config = sr.getConfig();
@@ -392,8 +395,19 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                 callable.call(null);
             } catch (Exception e) {
                 logger.warn("afterScenarioOutline hook failed: {}", e.getMessage());
+                appendHookFailure(sr.getResult(), "afterScenarioOutline", e);
             }
         }
+    }
+
+    /**
+     * Attach a fake failure step to a scenario result so a hook exception surfaces in reports.
+     */
+    private void appendHookFailure(ScenarioResult scenarioResult, String hookName, Throwable error) {
+        long now = System.currentTimeMillis();
+        scenarioResult.addStepResult(StepResult.fakeFailure(
+                hookName + " hook failed: " + error.getMessage(), now, error));
+        scenarioResult.setEndTime(now);
     }
 
     /**

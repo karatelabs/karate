@@ -35,6 +35,7 @@ public class MockConfig {
 
     private boolean corsEnabled;
     private Map<String, Object> responseHeaders;
+    private JavaCallable beforeScenario;
     private JavaCallable afterScenario;
 
     public boolean isCorsEnabled() {
@@ -51,6 +52,14 @@ public class MockConfig {
 
     public void setResponseHeaders(Map<String, Object> responseHeaders) {
         this.responseHeaders = responseHeaders;
+    }
+
+    public JavaCallable getBeforeScenario() {
+        return beforeScenario;
+    }
+
+    public void setBeforeScenario(JavaCallable beforeScenario) {
+        this.beforeScenario = beforeScenario;
     }
 
     public JavaCallable getAfterScenario() {

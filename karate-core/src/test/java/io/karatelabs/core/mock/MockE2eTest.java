@@ -1056,6 +1056,84 @@ class MockE2eTest {
         }
     }
 
+    // ===== Configure beforeScenario Tests =====
+
+    @Test
+    void testConfigureBeforeScenarioFromBackgroundRunsPerRequest() {
+        // beforeScenario hook runs before scenario matching on each request, so the counter
+        // reflects the per-request invocation (Background only runs once at mock init).
+        MockServer beforeScenarioServer = MockServer.featureString("""
+            Feature: beforeScenario Mock Test
+
+            Background:
+              * def counter = { value: 0 }
+              * configure beforeScenario = function(){ counter.value++ }
+
+            Scenario: pathMatches('/hits')
+              * def response = { count: counter.value }
+            """)
+            .port(0)
+            .start();
+
+        try {
+            int testPort = beforeScenarioServer.getPort();
+            ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
+                Feature: beforeScenario increments per request
+
+                Scenario: first and second request
+                * url 'http://localhost:%d'
+
+                * path '/hits'
+                * method get
+                * status 200
+                * match response.count == 1
+
+                * path '/hits'
+                * method get
+                * status 200
+                * match response.count == 2
+                """.formatted(testPort));
+
+            assertPassed(sr);
+        } finally {
+            beforeScenarioServer.stopAsync();
+        }
+    }
+
+    @Test
+    void testMockHookFailureReturns500() {
+        // A failing afterScenario hook causes the mock to return 500 (same convention as step failures).
+        MockServer hookServer = MockServer.featureString("""
+            Feature: mock hook failure
+
+            Background:
+              * configure afterScenario = function(){ karate.fail('boom') }
+
+            Scenario: pathMatches('/ping')
+              * def response = { ok: true }
+            """)
+            .port(0)
+            .start();
+
+        try {
+            int testPort = hookServer.getPort();
+            ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
+                Feature: mock hook failure returns 500
+
+                Scenario: hook failure surfaces as 500
+                * url 'http://localhost:%d'
+                * path '/ping'
+                * method get
+                * status 500
+                * match response.error contains 'afterScenario'
+                """.formatted(testPort));
+
+            assertPassed(sr);
+        } finally {
+            hookServer.stopAsync();
+        }
+    }
+
     // ===== Retry Until Tests =====
 
     @Test

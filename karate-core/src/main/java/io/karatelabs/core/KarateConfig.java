@@ -125,6 +125,11 @@ public class KarateConfig implements SimpleObject {
     // Mock settings
     private boolean corsEnabled;
     private Object responseHeaders;  // Map<String,Object> or JS function
+    // Lifecycle hooks. beforeScenario set inside a Background does NOT fire for the current
+    // scenario (it runs before Background) - define in karate-config.js to apply from the first scenario.
+    // Hook exceptions always fail the enclosing scenario - wrap hook bodies in try/catch if you want
+    // to suppress errors (same convention as regular steps).
+    private Object beforeScenario;        // Invokable - hook called before each scenario (before Background)
     private Object afterScenario;         // Invokable - hook called after each scenario
     private Object afterScenarioOutline;  // Invokable - hook called after all examples of an outline complete
     private Object afterFeature;          // Invokable - hook called after feature completes
@@ -196,6 +201,7 @@ public class KarateConfig implements SimpleObject {
         // Mock settings
         this.corsEnabled = other.corsEnabled;
         this.responseHeaders = other.responseHeaders;
+        this.beforeScenario = other.beforeScenario;
         this.afterScenario = other.afterScenario;
         this.afterScenarioOutline = other.afterScenarioOutline;
         this.afterFeature = other.afterFeature;
@@ -320,6 +326,10 @@ public class KarateConfig implements SimpleObject {
             }
             case "responseHeaders" -> {
                 this.responseHeaders = value;
+                yield false;
+            }
+            case "beforeScenario" -> {
+                this.beforeScenario = value;
                 yield false;
             }
             case "afterScenario" -> {
@@ -620,6 +630,7 @@ public class KarateConfig implements SimpleObject {
             case "matchEachEmptyAllowed" -> matchEachEmptyAllowed;
             case "corsEnabled" -> corsEnabled;
             case "responseHeaders" -> responseHeaders;
+            case "beforeScenario" -> beforeScenario;
             case "afterScenario" -> afterScenario;
             case "afterScenarioOutline" -> afterScenarioOutline;
             case "afterFeature" -> afterFeature;
@@ -860,6 +871,10 @@ public class KarateConfig implements SimpleObject {
 
     public Object getResponseHeaders() {
         return responseHeaders;
+    }
+
+    public Object getBeforeScenario() {
+        return beforeScenario;
     }
 
     public Object getAfterScenario() {

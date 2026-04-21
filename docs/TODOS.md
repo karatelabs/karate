@@ -6,8 +6,6 @@ Scratch pad for tracking work across the project. See also [CAPABILITIES.yaml](.
 
 ## Runtime / Core
 
-- [ ] Wire `configure afterScenario` hook in regular scenario execution (currently only works for mocks); also support strict mode where hook failures fail the scenario ([#2540](https://github.com/karatelabs/karate/issues/2540), [#2699](https://github.com/karatelabs/karate/issues/2699))
-- [ ] `configure beforeScenario` hook for mocks ([#2239](https://github.com/karatelabs/karate/issues/2239))
 - [ ] Expose caller's `karate.scenario` in mock feature files so mocks can vary behavior by calling scenario ([#2618](https://github.com/karatelabs/karate/issues/2618))
 - [ ] HTTP/2 support
 - [ ] Response time validation
@@ -62,6 +60,7 @@ Scratch pad for tracking work across the project. See also [CAPABILITIES.yaml](.
 
 - [ ] Playwright emulation (Firefox/WebKit via Playwright CDP)
 - [ ] `Runner.Builder` exposure via `protocol.runner()` for Gatling
+- [ ] Add SSE browser-side test to `DriverFeatureTest` — verify `EventSource` connects to `SseHandler` and receives events in a real browser. Current SSE tests only validate server-side wire format. This would cover the HTMX `sse-swap` and Alpine `EventSource` patterns end-to-end.
 
 ## Cross-Language / Platform
 
