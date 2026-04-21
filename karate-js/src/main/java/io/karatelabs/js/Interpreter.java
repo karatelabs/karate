@@ -929,7 +929,24 @@ class Interpreter {
     }
 
     private static Object evalTryStmt(Node node, CoreContext context) {
-        Object tryValue = eval(node.get(1), context);
+        Object tryValue;
+        try {
+            tryValue = eval(node.get(1), context);
+        } catch (RuntimeException e) {
+            // FlowControlSignal (e.g. template redirect) is intentional — never JS-catch
+            if (e instanceof FlowControlSignal) {
+                throw e;
+            }
+            // EngineException is the wrapper applied at the statement boundary below; if it
+            // reaches here, unwrap to the underlying cause so the JS side sees its message.
+            Throwable cause = e;
+            while (cause instanceof EngineException && cause.getCause() != null) {
+                cause = cause.getCause();
+            }
+            String msg = cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName();
+            context.stopAndThrow(new JsError(msg, cause));
+            tryValue = null;
+        }
         Node finallyBlock = null;
         if (node.get(2).token.type == CATCH) {
             if (node.size() > 7) {

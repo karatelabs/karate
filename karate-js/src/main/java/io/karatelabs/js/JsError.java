@@ -23,38 +23,80 @@
  */
 package io.karatelabs.js;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * JavaScript Error wrapper that provides Error prototype methods.
  */
 class JsError extends JsObject {
 
     private final String message;
+    private final String name;
+    private final Throwable cause;
 
     public JsError(String message) {
+        this(message, "Error", null);
+    }
+
+    public JsError(String message, Throwable cause) {
+        this(message, "Error", cause);
+    }
+
+    public JsError(String message, String name, Throwable cause) {
         super(null, JsObjectPrototype.INSTANCE);
         this.message = message;
+        this.name = name;
+        this.cause = cause;
+    }
+
+    public Throwable getCause() {
+        return cause;
     }
 
     @Override
-    public Object getMember(String name) {
+    public Object getMember(String key) {
         // Check own properties first
-        Object own = super.getMember(name);
+        Object own = super.getMember(key);
         if (own != null) {
             return own;
         }
-        // Error instance property
-        if ("message".equals(name)) {
-            return message;
+        return switch (key) {
+            case "message" -> message;
+            case "name" -> name;
+            case "toString" -> (JsCallable) (ctx, args) -> toString();
+            default -> null;
+        };
+    }
+
+    @Override
+    public Map<String, Object> toMap() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("name", name);
+        result.put("message", message);
+        // include any user-set own properties last
+        Map<String, Object> own = super.toMap();
+        if (own != null) {
+            result.putAll(own);
         }
-        return null;
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        // matches JS: '' + new Error('foo') === 'Error: foo'
+        if (message == null || message.isEmpty()) {
+            return name;
+        }
+        return name + ": " + message;
     }
 
     @Override
     public Object call(Context context, Object[] args) {
-        if (args.length > 0) {
-            return new JsError(args[0] + "");
-        }
-        return new JsError(null);
+        // ES6: Error('foo') and new Error('foo') both return an Error instance.
+        // Preserve the constructor's name so subclasses (TypeError, etc.) carry it through.
+        String msg = (args.length > 0 && args[0] != null && args[0] != Terms.UNDEFINED) ? args[0] + "" : null;
+        return new JsError(msg, this.name, null);
     }
 
 }

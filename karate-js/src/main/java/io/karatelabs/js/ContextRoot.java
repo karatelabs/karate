@@ -160,7 +160,7 @@ class ContextRoot extends CoreContext {
             case "undefined" -> Terms.UNDEFINED;
             case "Array" -> JsArrayConstructor.INSTANCE;
             case "Date" -> JsDateConstructor.INSTANCE;
-            case "Error" -> new JsError("Error");
+            case "Error" -> new JsError(null, "Error", null);
             case "Infinity" -> Double.POSITIVE_INFINITY;
             case "Java" -> new JsJava(bridge);
             case "JSON" -> new JsJson();
@@ -171,7 +171,7 @@ class ContextRoot extends CoreContext {
             case "Object" -> JsObjectConstructor.INSTANCE;
             case "RegExp" -> new JsRegex();
             case "String" -> JsStringConstructor.INSTANCE;
-            case "TypeError" -> new JsError("TypeError");
+            case "TypeError" -> new JsError(null, "TypeError", null);
             case "TextDecoder" -> new JsTextDecoder();
             case "TextEncoder" -> new JsTextEncoder();
             case "Uint8Array" -> new JsUint8Array(0);

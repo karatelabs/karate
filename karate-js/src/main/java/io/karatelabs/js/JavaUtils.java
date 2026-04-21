@@ -56,26 +56,46 @@ public class JavaUtils {
     }
 
     static Object invokeStatic(Class<?> clazz, String name, Object[] args) {
-        try {
-            Method method = findMethod(clazz, name, args);
-            if (method == null) {
-                throw new RuntimeException("TypeError: ." + name + " is not a function (called on " + jsTypeName(clazz) + ")");
-            }
-            return invoke(null, method, args);
-        } catch (Exception e) {
+        Method method = findMethod(clazz, name, args);
+        if (method == null) {
             throw new RuntimeException("TypeError: ." + name + " is not a function (called on " + jsTypeName(clazz) + ")");
+        }
+        try {
+            return invoke(null, method, args);
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException re) {
+                throw re;
+            }
+            if (cause instanceof Error err) {
+                throw err;
+            }
+            throw new RuntimeException(cause == null ? e.getMessage() : cause.getMessage(), cause);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException("TypeError: ." + name + " is not accessible (on " + jsTypeName(clazz) + ")");
         }
     }
 
     static Object invoke(Object object, String name, Object[] args) {
-        try {
-            Method method = findMethod(object.getClass(), name, args);
-            if (method == null) {
-                throw new RuntimeException("TypeError: ." + name + " is not a function (called on " + jsTypeName(object.getClass()) + ")");
-            }
-            return invoke(object, method, args);
-        } catch (Exception e) {
+        Method method = findMethod(object.getClass(), name, args);
+        if (method == null) {
             throw new RuntimeException("TypeError: ." + name + " is not a function (called on " + jsTypeName(object.getClass()) + ")");
+        }
+        try {
+            return invoke(object, method, args);
+        } catch (InvocationTargetException e) {
+            // Unwrap so the underlying Java exception (and its message) reaches the caller
+            // and can become a JS-catchable JsError at the host-function boundary.
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException re) {
+                throw re;
+            }
+            if (cause instanceof Error err) {
+                throw err;
+            }
+            throw new RuntimeException(cause == null ? e.getMessage() : cause.getMessage(), cause);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException("TypeError: ." + name + " is not accessible (on " + jsTypeName(object.getClass()) + ")");
         }
     }
 

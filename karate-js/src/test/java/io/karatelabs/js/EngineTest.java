@@ -829,6 +829,160 @@ class EngineTest {
     }
 
     @Test
+    void testJavaCallableExceptionIsJsCatchable() {
+        // RuntimeException thrown by a JavaCallable becomes a JS-catchable Error
+        // with the original message exposed via e.message
+        Engine engine = new Engine();
+        engine.put("boom", (JavaCallable) (ctx, args) -> {
+            throw new RuntimeException("signature verification failed");
+        });
+        Object result = engine.eval(
+                "var msg;\n" +
+                        "try { boom(); msg = 'no-throw'; } catch (e) { msg = 'caught:' + e.message }\n" +
+                        "msg");
+        assertEquals("caught:signature verification failed", result);
+    }
+
+    @Test
+    void testJavaCallableExceptionExposesNameAndToString() {
+        // Wrapped errors have name="Error" and a JS-compatible toString ("Error: <msg>")
+        Engine engine = new Engine();
+        engine.put("boom", (JavaCallable) (ctx, args) -> {
+            throw new IllegalStateException("bad state");
+        });
+        Object result = engine.eval(
+                "try { boom(); '' } catch (e) { e.name + '|' + e.message + '|' + ('' + e) }");
+        assertEquals("Error|bad state|Error: bad state", result);
+    }
+
+    @Test
+    void testJavaCallableExceptionUncaughtBubbles() {
+        // When NOT inside try/catch, the original message still surfaces to Java callers
+        Engine engine = new Engine();
+        engine.put("boom", (JavaCallable) (ctx, args) -> {
+            throw new RuntimeException("kaboom");
+        });
+        try {
+            engine.eval("boom()");
+            fail("expected error");
+        } catch (RuntimeException e) {
+            assertTrue(e.getMessage().contains("kaboom"), "message should bubble: " + e.getMessage());
+        }
+    }
+
+    @Test
+    void testJavaInvokableExceptionIsJsCatchable() {
+        // JavaInvokable is also external — same JS-catchable behavior
+        Engine engine = new Engine();
+        engine.put("boom", (JavaInvokable) args -> {
+            throw new RuntimeException("invoke failed");
+        });
+        Object result = engine.eval(
+                "try { boom() } catch (e) { 'got:' + e.message }");
+        assertEquals("got:invoke failed", result);
+    }
+
+    @Test
+    void testJavaCallableNullMessageHandled() {
+        // RuntimeException with null message falls back to class simple name
+        Engine engine = new Engine();
+        engine.put("boom", (JavaCallable) (ctx, args) -> {
+            throw new IllegalStateException();
+        });
+        Object result = engine.eval(
+                "try { boom() } catch (e) { e.message }");
+        assertEquals("IllegalStateException", result);
+    }
+
+    @Test
+    void testJavaCallableExceptionRethrowAsString() {
+        // Common downstream pattern: catch JS, rethrow as plain string,
+        // outer handler concatenates 'error:' + rethrown
+        Engine engine = new Engine();
+        engine.put("decode", (JavaCallable) (ctx, args) -> {
+            throw new RuntimeException("signature verification failed");
+        });
+        Object result = engine.eval(
+                "try {\n" +
+                        "  try { decode('bad') } catch (e) { throw e.message }\n" +
+                        "} catch (msg) { 'error:' + msg }");
+        assertEquals("error:signature verification failed", result);
+    }
+
+    @Test
+    void testFlowControlSignalNotCatchableByJs() {
+        // FlowControlSignal exceptions must pass through unchanged — JS catch{} cannot intercept
+        Engine engine = new Engine();
+        engine.put("redirect", (JavaCallable) (ctx, args) -> {
+            throw new TestFlowSignal("redirect to /home");
+        });
+        try {
+            engine.eval("try { redirect() } catch (e) { /* should NOT catch */ }");
+            fail("expected FlowControlSignal to propagate");
+        } catch (TestFlowSignal e) {
+            assertEquals("redirect to /home", e.getMessage());
+        }
+    }
+
+    @Test
+    void testThrownErrorObjectWorks() {
+        // ES6 baseline: throw new Error('foo'); catch(e) { e.message }
+        Engine engine = new Engine();
+        Object result = engine.eval(
+                "try { throw new Error('boom') } catch (e) { e.name + ':' + e.message }");
+        assertEquals("Error:boom", result);
+    }
+
+    @Test
+    void testThrownTypeErrorPreservesName() {
+        // ES6: new TypeError('foo') has name='TypeError', not 'Error'
+        Engine engine = new Engine();
+        Object result = engine.eval(
+                "try { throw new TypeError('bad type') } catch (e) { e.name + ':' + e.message }");
+        assertEquals("TypeError:bad type", result);
+    }
+
+    @Test
+    void testErrorToStringEs6() {
+        // ES6: '' + new Error('foo') === 'Error: foo'
+        Engine engine = new Engine();
+        assertEquals("Error: boom", engine.eval("'' + new Error('boom')"));
+        assertEquals("TypeError: bad", engine.eval("'' + new TypeError('bad')"));
+        // No-message case: just the name
+        assertEquals("Error", engine.eval("'' + new Error()"));
+    }
+
+    @Test
+    void testErrorWithoutNewKeyword() {
+        // ES6: Error('foo') (without new) returns an Error instance, same as new Error('foo')
+        Engine engine = new Engine();
+        assertEquals("boom", engine.eval("Error('boom').message"));
+        assertEquals("Error", engine.eval("Error('boom').name"));
+        assertEquals("TypeError", engine.eval("TypeError('x').name"));
+    }
+
+    @Test
+    void testJsThrownErrorPropagatesToJavaCaller() {
+        // Uncaught JS-thrown Error surfaces to Java caller with its message
+        Engine engine = new Engine();
+        try {
+            engine.eval("throw new Error('uncaught')");
+            fail("expected error");
+        } catch (RuntimeException e) {
+            assertTrue(e.getMessage().contains("uncaught"), "message should propagate: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Used by testFlowControlSignalNotCatchableByJs.
+     */
+    static class TestFlowSignal extends RuntimeException implements FlowControlSignal {
+        TestFlowSignal(String msg) {
+            super(msg);
+        }
+    }
+
+    @Test
     void testErrorMessagesUseJsTypeNames() {
         // JavaUtils.invoke errors should use JS type names, not Java class names
         // Test: calling non-existent method on a Map (Object in JS terms)

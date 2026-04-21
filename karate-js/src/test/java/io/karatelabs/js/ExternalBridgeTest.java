@@ -211,29 +211,31 @@ class ExternalBridgeTest extends EvalBase {
 
     @Test
     void testJavaInteropException() {
+        // Exceptions from Java methods now surface with the original message (was: masked as TypeError).
+        // A JS try/catch can intercept them.
         try {
             eval("var DemoUtils = Java.type('io.karatelabs.js.DemoUtils'); var b = DemoUtils.doWorkException; var c = b()");
             fail("expected exception");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("TypeError: .doWorkException is not a function"));
+            assertTrue(e.getMessage().contains("failed"), "expected 'failed' in: " + e.getMessage());
         }
         try {
             eval("var DemoUtils = Java.type('io.karatelabs.js.DemoUtils'); var b = DemoUtils.doWorkException; var c = b().foo");
             fail("expected exception");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("TypeError: .doWorkException is not a function"));
+            assertTrue(e.getMessage().contains("failed"), "expected 'failed' in: " + e.getMessage());
         }
         try {
             eval("var DemoPojo = Java.type('io.karatelabs.js.DemoPojo'); var b = new DemoPojo(); var c = b.doWorkException()");
             fail("expected exception");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("TypeError: .doWorkException is not a function"));
+            assertTrue(e.getMessage().contains("failed"), "expected 'failed' in: " + e.getMessage());
         }
         try {
             eval("var DemoUtils = Java.type('io.karatelabs.js.DemoUtils'); var b = DemoUtils.doWorkException()");
             fail("expected exception");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("TypeError: .doWorkException is not a function"));
+            assertTrue(e.getMessage().contains("failed"), "expected 'failed' in: " + e.getMessage());
         }
         try {
             eval("var DemoSimpleObject = Java.type('io.karatelabs.js.DemoSimpleObject'); var b = new DemoSimpleObject(); var c = b.doWorkException()");
@@ -247,6 +249,14 @@ class ExternalBridgeTest extends EvalBase {
         } catch (Exception e) {
             assertTrue(e.getMessage().contains("failed"));
         }
+        // JS try/catch can now intercept the Java exception via e.message
+        assertEquals("caught:failed", eval(
+                "var DemoUtils = Java.type('io.karatelabs.js.DemoUtils');\n" +
+                        "try { DemoUtils.doWorkException() } catch (e) { 'caught:' + e.message }"));
+        assertEquals("caught:failed", eval(
+                "var DemoPojo = Java.type('io.karatelabs.js.DemoPojo');\n" +
+                        "var b = new DemoPojo();\n" +
+                        "try { b.doWorkException() } catch (e) { 'caught:' + e.message }"));
     }
 
     @Test
@@ -683,6 +693,59 @@ class ExternalBridgeTest extends EvalBase {
         engine.put("myKarate", myKarate);
 
         assertEquals("bar", engine.eval("myKarate.xmlPath(doc, '/root/foo')"));
+    }
+
+    // =================================================================================================================
+    // Java exception → JS-catchable Error Tests
+    // =================================================================================================================
+
+    @Test
+    void testJavaMethodExceptionIsJsCatchable() {
+        // Calling an instance method on a Java object via the external bridge:
+        // exception is unwrapped from InvocationTargetException and surfaces as a JS-catchable Error.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("obj", new ThrowingJavaObject());
+        Object result = engine.eval(
+                "try { obj.kaboom() } catch (e) { 'got:' + e.message }");
+        assertEquals("got:from java method", result);
+    }
+
+    @Test
+    void testJavaStaticMethodExceptionIsJsCatchable() {
+        // Static method path: Java.type(...).method() — same unwrapping applies.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Object result = engine.eval(
+                "var T = Java.type('io.karatelabs.js.ExternalBridgeTest$ThrowingJavaObject');\n" +
+                        "try { T.staticBoom() } catch (e) { 'got:' + e.message }");
+        assertEquals("got:from static java method", result);
+    }
+
+    @Test
+    void testJavaMethodCheckedExceptionIsJsCatchable() {
+        // Checked exception wrapped in InvocationTargetException also surfaces with its message.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("obj", new ThrowingJavaObject());
+        Object result = engine.eval(
+                "try { obj.checkedBoom() } catch (e) { 'got:' + e.message }");
+        assertEquals("got:checked fail", result);
+    }
+
+    @SuppressWarnings("unused")
+    public static class ThrowingJavaObject {
+        public Object kaboom() {
+            throw new RuntimeException("from java method");
+        }
+
+        public Object checkedBoom() throws Exception {
+            throw new Exception("checked fail");
+        }
+
+        public static Object staticBoom() {
+            throw new RuntimeException("from static java method");
+        }
     }
 
     // =================================================================================================================

@@ -456,6 +456,64 @@ class JsDate extends JsObject implements JavaMirror {
 
 ---
 
+## Exception Handling
+
+### Java exceptions are JS-catchable
+
+When a `JavaCallable`, `SimpleObject` method, or `Java.type(...)` instance/static method throws a Java `RuntimeException` while its call site is inside a JS `try` body, the engine converts the exception into a JS-level `Error` and binds it to the `catch` variable. Scripts can intercept Java failures with ordinary JS idioms:
+
+```javascript
+try {
+  utils.decodeLicenseFile(bad);           // throws RuntimeException("signature verification failed")
+} catch (e) {
+  console.log(e.name);                    // "Error"
+  console.log(e.message);                 // "signature verification failed"
+  console.log('' + e);                    // "Error: signature verification failed"
+}
+```
+
+**Implementation.** The conversion happens at a single boundary — `Interpreter.evalTryStmt()`. The try body is evaluated inside a Java `try { ... } catch (RuntimeException e)`; if an exception escapes, the engine calls `context.stopAndThrow(new JsError(e.getMessage(), e))` and lets the existing catch-block machinery bind the `JsError` to the error variable. Any reflection-layer `InvocationTargetException` is unwrapped inside `JavaUtils.invoke`/`invokeStatic` so the original cause reaches the boundary unchanged.
+
+The call-site path (`Interpreter.evalFnCall`) is intentionally left as plain Java throw/propagate. This preserves the existing behavior for **uncaught** exceptions: they continue to bubble up through the expression chain, pick up the helpful `expression: <code> - <message>` framing at `PropertyAccess.getRefDotExpr`, and finally become the usual `js failed:` wrapper at the statement boundary. Only entering a `try` block changes the outcome.
+
+### Exceptions that bypass JS catch
+
+Some exceptions represent control flow rather than errors and must never be caught by scripts. They are marked with the `FlowControlSignal` interface and propagate through both `evalTryStmt` and `Engine.eval` unchanged:
+
+```java
+public class TemplateFlowSignal extends RuntimeException implements FlowControlSignal {
+    // thrown by context.redirect(...) / context.switch(...)
+}
+```
+
+Guidance for host code:
+- **Plain `RuntimeException`** — Use for genuine error conditions. The JS side can catch and handle.
+- **`FlowControlSignal` subclass** — Use for intentional abort signals (redirect, switch, cancel). JS cannot catch; Java callers use `instanceof` to detect.
+
+### JsError shape
+
+`JsError` extends `JsObject` and exposes:
+- `name` — defaults to `"Error"`. `new TypeError('x')` sets it to `"TypeError"`.
+- `message` — original exception message (or `null` if none).
+- `toString()` — matches ES6: `"Error: <message>"`, or just `"Error"` when no message.
+- `getCause()` (Java-only) — the original `Throwable` for debugging. Not exposed to JS.
+
+Constructors `Error`, `TypeError` behave ES6-compliant:
+
+```javascript
+new Error('boom').message             // 'boom'
+new Error('boom').name                // 'Error'
+Error('boom').message                 // 'boom' — without `new` also works
+new TypeError('bad').name             // 'TypeError' — constructor name is preserved
+'' + new Error('x')                   // 'Error: x'
+```
+
+### Error-message preservation through reflection
+
+`JavaUtils.invoke` and `JavaUtils.invokeStatic` separate "method not found" (TypeError with `"TypeError: .foo is not a function"`) from "method threw" (unwraps `InvocationTargetException`, rethrows the underlying `RuntimeException` with its original message). Before this change, reflective invocation failures were all collapsed into a generic `TypeError: .<name> is not a function`, masking real exception messages.
+
+---
+
 ## Numeric Conversion Pattern
 
 "Unwrap first, then switch on raw types":
@@ -799,6 +857,8 @@ runScript("const json = response.json(); pm.test('ok', () => {});");  // No conf
 | BindValue | `karate-js/src/main/java/io/karatelabs/js/BindValue.java` |
 | JsCallable | `karate-js/src/main/java/io/karatelabs/js/JsCallable.java` |
 | JavaCallable | `karate-js/src/main/java/io/karatelabs/js/JavaCallable.java` |
+| JsError | `karate-js/src/main/java/io/karatelabs/js/JsError.java` |
+| FlowControlSignal | `karate-js/src/main/java/io/karatelabs/js/FlowControlSignal.java` |
 | Terms | `karate-js/src/main/java/io/karatelabs/js/Terms.java` |
 | JsDate | `karate-js/src/main/java/io/karatelabs/js/JsDate.java` |
 | CallInfo | `karate-js/src/main/java/io/karatelabs/js/CallInfo.java` |
