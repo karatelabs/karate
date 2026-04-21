@@ -925,7 +925,11 @@ public class CdpDriver implements Driver {
      * - Multiple retries may indicate a real problem worth investigating
      */
     private CdpResponse cdpEval(String expression) {
-        // Fail fast if a dialog is blocking and no handler will dismiss it
+        // Fail fast if a dialog is already open and blocking. A pre-existing
+        // unhandled dialog means any new Runtime.evaluate would be cancelled
+        // by our Page.javascriptDialogOpening handler (or hang until the 30s
+        // CDP timeout). Users should register onDialog() or call dialog(true|false)
+        // before further script activity.
         if (dialogHandler == null && currentDialog != null && !currentDialog.isHandled()) {
             throw new DialogOpenedException("dialog is blocking Runtime.evaluate");
         }
@@ -943,7 +947,25 @@ public class CdpDriver implements Driver {
                 message.param("contextId", contextId);
             }
 
-            CdpResponse response = message.send();
+            CdpResponse response;
+            try {
+                response = message.send();
+            } catch (DialogOpenedException e) {
+                // The script itself triggered a blocking JS dialog (alert/confirm/
+                // prompt/beforeunload). Chrome suspends Runtime.evaluate until the
+                // dialog is handled, and our Page.javascriptDialogOpening handler
+                // cancels the pending eval to avoid a 30s CDP timeout.
+                //
+                // From the user's perspective this is success, not failure — the
+                // script did exactly what they asked. The dialog is captured and
+                // accessible via getDialog() / getDialogText() / driver.dialogText
+                // and can be resolved with dialog(true|false). Return an empty
+                // response so extractJsValue yields null.
+                //
+                // See: https://github.com/karatelabs/karate/issues/2797
+                logger.debug("script opened a dialog, returning null: {}", truncate(expression, 100));
+                return new CdpResponse(Map.of());
+            }
 
             // Check for transient context errors that should be retried
             if (isTransientContextError(response)) {

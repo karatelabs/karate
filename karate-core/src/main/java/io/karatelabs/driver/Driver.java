@@ -62,6 +62,7 @@ public interface Driver extends CoreDriver, SimpleObject {
             case DriverApi.TITLE -> getTitle();
             case DriverApi.COOKIES -> getCookies();
             case DriverApi.DIMENSIONS -> getDimensions();
+            case DriverApi.DIALOG_TEXT -> getDialogText();
 
             // Element actions (return Element for chaining)
             case DriverApi.CLICK -> (JavaCallable) (ctx, args) ->

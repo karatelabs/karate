@@ -51,3 +51,21 @@ Feature: Dialog Tests
     * def resultText = text('#result')
     * match resultText == 'Prompt result: null'
     * onDialog(null)
+
+  # Regression guard for https://github.com/karatelabs/karate/issues/2797
+  # A script() that itself opens a blocking JS dialog (confirm/alert/prompt)
+  # must not throw — the dialog text must be readable via driver.dialogText
+  # and the dialog must be dismissable with dialog(true|false).
+  Scenario: Script that opens confirm dialog without a handler
+    * script("confirm('Hello World!')")
+    * match driver.dialogText == 'Hello World!'
+    * dialog(false)
+    * def cleared = driver.dialogText
+    * match cleared == null
+
+  Scenario: Script that opens alert dialog without a handler
+    * script("alert('boom!')")
+    * match driver.dialogText == 'boom!'
+    * dialog(true)
+    * def cleared = driver.dialogText
+    * match cleared == null

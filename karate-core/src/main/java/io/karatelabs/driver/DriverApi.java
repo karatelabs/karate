@@ -68,6 +68,7 @@ public class DriverApi {
     // Dialog
     public static final String DIALOG = "dialog";
     public static final String ON_DIALOG = "onDialog";
+    public static final String DIALOG_TEXT = "dialogText";
 
     // Input
     public static final String MOUSE = "mouse";
