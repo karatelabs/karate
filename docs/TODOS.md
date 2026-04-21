@@ -6,7 +6,6 @@ Scratch pad for tracking work across the project. See also [CAPABILITIES.yaml](.
 
 ## Runtime / Core
 
-- [ ] Expose caller's `karate.scenario` in mock feature files so mocks can vary behavior by calling scenario ([#2618](https://github.com/karatelabs/karate/issues/2618))
 - [ ] HTTP/2 support
 - [ ] Response time validation
 - [ ] `@retry` tag — re-run failed scenarios, CLI: `karate --rerun target/karate-reports/rerun.txt` ([#2578](https://github.com/karatelabs/karate/issues/2578))
