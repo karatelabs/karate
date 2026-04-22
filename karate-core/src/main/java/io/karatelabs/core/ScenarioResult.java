@@ -175,12 +175,13 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     }
 
     /**
-     * Get the failure message with feature file path and line number for display.
-     * Format: "path/to/feature.feature:LINE step text"
+     * Get the Gherkin text of the failed step, including its prefix (e.g. "* match c == null").
+     * Useful for error output so the reader can see the offending source line without
+     * opening the feature file.
      *
-     * @return formatted failure message, or null if no failure
+     * @return "<prefix> <text>", or null if no failure
      */
-    public String getFailureMessageForDisplay() {
+    public String getFailedStepText() {
         StepResult failedStep = stepResults.stream()
                 .filter(StepResult::isFailed)
                 .findFirst()
@@ -189,11 +190,34 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             return null;
         }
         Step step = failedStep.getStep();
-        if (step == null) {
+        if (step == null || step.getText() == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        if (step.getPrefix() != null) {
+            sb.append(step.getPrefix()).append(' ');
+        }
+        // keyword (match/def/etc.) is stored separately from the step body
+        if (step.getKeyword() != null) {
+            sb.append(step.getKeyword()).append(' ');
+        }
+        sb.append(step.getText());
+        return sb.toString();
+    }
+
+    /**
+     * Get the failure message with feature file path and line number for display.
+     * Format: "path/to/feature.feature:LINE step text"
+     *
+     * @return formatted failure message, or null if no failure
+     */
+    public String getFailureMessageForDisplay() {
+        String stepText = getFailedStepText();
+        if (stepText == null) {
             return null;
         }
         String location = getFailedStepLocation();
-        return location != null ? location + " " + step.getText() : step.getText();
+        return location != null ? location + " " + stepText : stepText;
     }
 
     public Throwable getError() {

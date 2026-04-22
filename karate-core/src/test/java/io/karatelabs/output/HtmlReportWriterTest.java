@@ -127,6 +127,18 @@ class HtmlReportWriterTest {
         assertTrue(result.getScenarioSkippedCount() >= 2,
                 "Should have at least 2 skipped scenarios from skipped-scenarios.feature");
 
+        // Every failed scenario must expose location + source line for the summary
+        result.getFeatureResults().forEach(fr ->
+                fr.getScenarioResults().stream().filter(sr -> sr.isFailed()).forEach(sr -> {
+                    assertNotNull(sr.getFailedStepLocation(),
+                            "failed scenario '" + sr.getScenario().getName() + "' missing step location");
+                    String stepText = sr.getFailedStepText();
+                    assertNotNull(stepText,
+                            "failed scenario '" + sr.getScenario().getName() + "' missing step source text");
+                    assertTrue(stepText.startsWith("*") || stepText.matches("(?i)^(given|when|then|and|but) .*"),
+                            "step text should carry its Gherkin prefix: " + stepText);
+                }));
+
         // Verify HTML reports were generated
         assertTrue(Files.exists(OUTPUT_DIR.resolve("karate-summary.html")));
         assertTrue(Files.exists(OUTPUT_DIR.resolve("karate-timeline.html")));

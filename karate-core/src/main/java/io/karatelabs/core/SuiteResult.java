@@ -212,6 +212,12 @@ public class SuiteResult {
                         if (stepLocation != null) {
                             Console.println("      " + stepLocation);
                         }
+                        // Show the Gherkin source line so the reader sees the offending step
+                        // without opening the feature file (v1 parity)
+                        String stepText = sr.getFailedStepText();
+                        if (stepText != null) {
+                            Console.println("      " + Console.cyan(stepText));
+                        }
                         // Show error message (truncate only very long messages)
                         if (sr.getFailureMessage() != null) {
                             String msg = sr.getFailureMessage();
