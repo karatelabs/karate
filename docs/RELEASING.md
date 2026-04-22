@@ -4,17 +4,16 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
 
 ## 1. Prepare the Release
 
-- [ ] Ensure all target issues for the milestone are closed or deferred
+- [ ] Manually close or defer each open issue on the `X.Y.Z` milestone via the GitHub UI (issues labeled `fixed` typically just need to be closed)
 - [ ] Verify `main` is green on CI
 - [ ] Update version in `pom.xml` (remove any `-SNAPSHOT` or `.RC*` suffix):
   ```bash
   mvn versions:set -DnewVersion=X.Y.Z -DgenerateBackupPoms=false
   ```
-- [ ] Commit, tag, and push:
+- [ ] Commit and push (the `vX.Y.Z` tag is created later via the GitHub release UI, not from the CLI):
   ```bash
   git add -A && git commit -m "release X.Y.Z"
-  git tag vX.Y.Z
-  git push && git push --tags
+  git push
   ```
 
 ## 2. Publish Maven Artifacts
@@ -25,7 +24,7 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
 
 ## 3. GitHub Release
 
-- [ ] Create a new release from tag `vX.Y.Z`: https://github.com/karatelabs/karate/releases/new
+- [ ] Go to https://github.com/karatelabs/karate/releases/new and create tag `vX.Y.Z` on the release form (target: `main`) — this creates the tag as part of publishing the release
 - [ ] Write release notes:
   - Summary of important fixes / features
   - Link to the milestone: `https://github.com/karatelabs/karate/milestone/NN?closed=1`
@@ -82,9 +81,9 @@ This is critical — the CLI installer pulls versions from this manifest.
   ```bash
   mvn versions:set -DnewVersion=X.Y.Z+1.RC1 -DgenerateBackupPoms=false
   ```
-- [ ] Commit and push:
+- [ ] Commit and push (use `[no ci]` to skip the CI build for this bump):
   ```bash
-  git add -A && git commit -m "prepare for next development iteration"
+  git add -A && git commit -m "prepare for next development iteration [no ci]"
   git push
   ```
 
