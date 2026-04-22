@@ -826,6 +826,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         }
 
         boolean scenarioStarted = false;
+        // Scenario-lifecycle hooks (beforeScenario/afterScenario) only fire for top-level
+        // scenarios so a hook that uses karate.call() does not recurse into the called feature.
+        boolean topLevel = featureRuntime == null || featureRuntime.getCaller() == null;
         try {
             // Fire SCENARIO_ENTER event
             if (suite != null) {
@@ -845,7 +848,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             if (!stopped) {
                 scenarioStarted = true;
                 // Skip hook in dry-run mode for non-@setup scenarios (V1 parity)
-                if (!isDryRunSkip()) {
+                if (topLevel && !isDryRunSkip()) {
                     Throwable hookError = invokeHook(config.getBeforeScenario(), "beforeScenario");
                     if (hookError != null) {
                         result.addStepResult(StepResult.fakeFailure(
@@ -940,7 +943,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // A hook exception fails the scenario (same convention as a step failure); wrap the hook
             // body in try/catch to suppress. The primary step error, if any, is preserved as the root
             // cause because the hook's fakeFailure step is appended after existing step results.
-            if (scenarioStarted && !isDryRunSkip()) {
+            // Skipped for called features (karate.call) so a hook that itself calls a feature
+            // does not recurse - matches afterFeature / afterScenarioOutline which also gate on caller == null.
+            if (scenarioStarted && topLevel && !isDryRunSkip()) {
                 Throwable hookError = invokeHook(config.getAfterScenario(), "afterScenario");
                 if (hookError != null) {
                     result.addStepResult(StepResult.fakeFailure(

@@ -292,6 +292,47 @@ public class ScenarioHooksTest {
         assertEquals(2, beforeHookCount, "beforeScenario should fire once per scenario");
     }
 
+    // ===== #2796 follow-up: karate.call() inside afterScenario must not recurse =====
+
+    @Test
+    void testAfterScenarioWithKarateCallDoesNotRecurse() throws Exception {
+        // Before the fix: afterScenario hook fired for the called feature's scenario too,
+        // which re-entered karate.call() → infinite recursion → StackOverflowError.
+        Path cleanup = tempDir.resolve("cleanup.feature");
+        Files.writeString(cleanup, """
+            @ignore
+            Feature: Cleanup
+
+            Scenario: Cleanup
+              * Java.type('io.karatelabs.core.ScenarioHooksTest').incrementBeforeHookCount()
+            """);
+        Path feature = tempDir.resolve("main.feature");
+        Files.writeString(feature, """
+            Feature: afterScenario with karate.call
+
+            Background:
+              * configure afterScenario =
+              \"\"\"
+              function(){
+                Java.type('io.karatelabs.core.ScenarioHooksTest').incrementHookCount();
+                karate.call('cleanup.feature');
+              }
+              \"\"\"
+
+            Scenario: one
+              * def x = 1
+
+            Scenario: two
+              * def y = 2
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+
+        assertTrue(result.isPassed(), getFailureMessage(result));
+        assertEquals(2, hookCount, "afterScenario should fire once per top-level scenario, not for called ones");
+        assertEquals(2, beforeHookCount, "cleanup scenario body should have run once per call");
+    }
+
     @Test
     void testBeforeScenarioInBackgroundDoesNotFireForOwnScenario() throws Exception {
         // beforeScenario runs BEFORE Background, so setting it in Background cannot
