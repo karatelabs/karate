@@ -2472,6 +2472,33 @@ public class CdpDriver implements Driver {
     }
 
     /**
+     * Get info for all page targets (tabs) — targetId, url, title, active flag.
+     * Richer counterpart to {@link #getPages()} for callers that need to present
+     * tab info to a user (or LLM) before switching.
+     *
+     * @return list of maps with keys: targetId, url, title, active
+     */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> getTargetInfos() {
+        CdpResponse response = cdp.browserMethod("Target.getTargets").send();
+        List<Map<String, Object>> targets = response.getResult("targetInfos");
+        List<Map<String, Object>> result = new ArrayList<>();
+        if (targets != null) {
+            for (Map<String, Object> target : targets) {
+                if (!"page".equals(target.get("type"))) continue;
+                Map<String, Object> info = new LinkedHashMap<>();
+                String targetId = (String) target.get("targetId");
+                info.put("targetId", targetId);
+                info.put("url", target.get("url"));
+                info.put("title", target.get("title"));
+                info.put("active", targetId != null && targetId.equals(currentTargetId));
+                result.add(info);
+            }
+        }
+        return result;
+    }
+
+    /**
      * Switch to a page by title or URL substring.
      * Includes verification that the switch was successful.
      *
