@@ -92,6 +92,12 @@ public class GatlingCicdSimulation extends Simulation {
             .exec(karateSet("name", s -> s.getString("name")))
             .exec(karateFeature("classpath:features/cats-create-fail.feature"));
 
+    // Scenario 6: Group-wrapped CRUD to verify Gatling sub-group aggregation (issue #2681)
+    ScenarioBuilder groupedScenario = scenario("Grouped CRUD")
+            .group("Grouped-CRUD").on(
+                    exec(karateFeature("classpath:features/cats-crud.feature"))
+            );
+
     {
         setUp(
                 // Silent warm-up first
@@ -113,6 +119,10 @@ public class GatlingCicdSimulation extends Simulation {
                 errorHandlingScenario.injectOpen(
                         nothingFor(1),
                         atOnceUsers(2)
+                ),
+                groupedScenario.injectOpen(
+                        nothingFor(1),
+                        atOnceUsers(2)
                 )
         ).protocols(protocol)
         .assertions(
@@ -121,7 +131,11 @@ public class GatlingCicdSimulation extends Simulation {
                 // POST /cats includes Error Handling scenario - expect at least 1 failure
                 details("POST /cats").failedRequests().count().gte(1L),
                 // Verify we got requests (simulation ran correctly)
-                global().allRequests().count().gte(8L)
+                global().allRequests().count().gte(8L),
+                // Sub-group aggregation (issue #2681) - 2 users x (1 POST + 1 GET) = 2 each
+                details("Grouped-CRUD", "POST /cats").successfulRequests().count().is(2L),
+                details("Grouped-CRUD", "GET /cats/{id}").successfulRequests().count().is(2L),
+                details("Grouped-CRUD", "POST /cats").failedRequests().count().is(0L)
         );
     }
 
