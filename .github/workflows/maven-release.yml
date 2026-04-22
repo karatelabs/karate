@@ -116,7 +116,7 @@ jobs:
         if: github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled'
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: mvn -B -ntp dependency-check:check -Pdepcheck -DnvdApiKey=${NVD_API_KEY} -DossindexAnalyzerEnabled=false
+        run: mvn -B -ntp dependency-check:check -Pdepcheck -DnvdApiKey=${NVD_API_KEY} -DossIndexAnalyzerEnabled=false
 
       - name: Generate CVE & SBOM report
         if: always() && (github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled')
