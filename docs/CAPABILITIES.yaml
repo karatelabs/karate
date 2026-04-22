@@ -867,9 +867,6 @@ categories:
           - name: retry until keyword
             v1: true
             v2: implemented
-          - name: Re-run only failed tests
-            v1: false
-            v2: future
           - name: Random seed for test order
             v1: false
             v2: future
@@ -1365,6 +1362,27 @@ categories:
   - name: Commercial Tools
     description: Enterprise and commercial offerings
     items:
+      - name: Retry & Report Aggregation Connector
+        description: Rerun failed scenarios and consolidate multi-runner results into a unified report
+        v1: false
+        v2: planned
+        license: commercial
+        tags: [commercial]
+        notes: "Covers rerun-failed-tests, SuiteResult.merge, and scenario-outline retry correctness — deferred from OSS as non-trivial orchestration, to be delivered as a separate connector"
+        items:
+          - name: Rerun failed scenarios (rerun.txt)
+            v1: false
+            v2: planned
+            license: commercial
+          - name: Multi-runner result consolidation (SuiteResult.merge)
+            v1: false
+            v2: planned
+            license: commercial
+          - name: Retry-correct Scenario Outline reporting
+            v1: false
+            v2: planned
+            license: commercial
+
       - name: Karate Xplorer
         description: Desktop platform for API testing
         v1: false

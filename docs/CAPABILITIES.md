@@ -2,7 +2,7 @@
 
 Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
-> **Generated:** 2026-04-14 from `CAPABILITIES.yaml`
+> **Generated:** 2026-04-22 from `CAPABILITIES.yaml`
 >
 > See also: [Design Principles](./PRINCIPLES.md) | [Roadmap](./ROADMAP.md)
 
@@ -21,7 +21,7 @@ Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
 ## Summary
 
-**Total capabilities: 370**
+**Total capabilities: 373**
 
 | Category | Count |
 |----------|-------|
@@ -29,8 +29,8 @@ Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 | v1 features pending | 8 |
 | New in v2 (implemented) | 50 |
 | New in v2 (in progress) | 1 |
-| Planned | 15 |
-| Future / Wish list | 165 |
+| Planned | 19 |
+| Future / Wish list | 164 |
 
 ## Categories
 
@@ -325,7 +325,6 @@ Tools and workflows for test development
 - `[1.x ✓]` Robustness & Predictability
   - `[1.x ✓]` Retry on failure
   - `[1.x ✓]` retry until keyword
-  - `[-]` Re-run only failed tests
   - `[-]` Random seed for test order
 
 - `[1.x ✓]` Docker & Cloud Readiness
@@ -514,6 +513,11 @@ Polyglot and non-Java platform support
 ### Commercial Tools
 
 Enterprise and commercial offerings
+
+- `[ ]` Retry & Report Aggregation Connector `$`
+  - `[ ]` Rerun failed scenarios (rerun.txt) `$`
+  - `[ ]` Multi-runner result consolidation (SuiteResult.merge) `$`
+  - `[ ]` Retry-correct Scenario Outline reporting `$`
 
 - `[v2]` Karate Xplorer `$`
   - `[v2]` Postman emulation `$`

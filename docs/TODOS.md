@@ -8,9 +8,7 @@ Scratch pad for tracking work across the project. See also [CAPABILITIES.yaml](.
 
 - [ ] HTTP/2 support
 - [ ] Response time validation
-- [ ] `@retry` tag — re-run failed scenarios, CLI: `karate --rerun target/karate-reports/rerun.txt` ([#2578](https://github.com/karatelabs/karate/issues/2578))
 - [ ] `@report=false` tag (exclude scenario from reports but still execute)
-- [ ] `SuiteResult.merge()` API to consolidate multiple runner results into a single report ([#2337](https://github.com/karatelabs/karate/issues/2337))
 - [ ] Priority 7: JavaScript script execution (`*.karate.js` files)
 - [ ] Priority 9: `configure report = { showJsLineNumbers: true }`
 - [ ] Priority 9: `karate-base.js` (shared config from classpath JAR)
