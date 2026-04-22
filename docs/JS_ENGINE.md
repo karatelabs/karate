@@ -872,6 +872,47 @@ runScript("const json = response.json(); pm.test('ok', () => {});");  // No conf
 
 ---
 
+## Performance Benchmarks
+
+Results from `karate-js/src/test/java/io/karatelabs/parser/EngineBenchmark.java`. The benchmark runs two 20 KB scripts: an array-method-heavy workload (`filter`/`map`/`reduce`/`find`/`some`/`every`/`slice`/`concat`/`indexOf`) and an object-method-heavy workload (`Object.keys`/`values`/`entries`/`assign`/`hasOwnProperty`/`toString`). Each script allocates a fresh `Engine` per iteration.
+
+Invoke via:
+
+```bash
+# Fast mode: median of 10 runs
+java -cp "karate-js/target/classes:karate-js/target/test-classes:<deps>" \
+  io.karatelabs.parser.EngineBenchmark
+
+# Profile mode: 30 s warm loop, averages over thousands of iterations (JIT-stable, low noise)
+java -cp ... io.karatelabs.parser.EngineBenchmark profile
+```
+
+### Reference machine
+
+| | |
+|---|---|
+| Hardware | MacBook Pro (MacBookPro18,1), Apple M1 Pro, 10 cores (8P+2E), 16 GB |
+| OS | macOS 26.3.1 |
+| JDK | OpenJDK 24.0.2 |
+
+### Results — 2026-04-22 (profile mode, 30 s averages)
+
+| Commit | Array 20 KB eval | Object 20 KB eval | Iterations/30 s |
+|---|---|---|---|
+| `28d020b87` — benchmark introduced (2026-01-22) | 2.06 ms | 0.84 ms | 10,294 |
+| `60b6fde76` — current HEAD (2026-04-22) | **1.32 ms** | **0.50 ms** | **16,397** |
+| Speedup | **1.56×** | **1.68×** | **1.59×** |
+
+Engine instantiation is essentially unchanged (~0.4–0.6 µs median in both). The gains come from the cumulative perf work landed between the two commits: tighter `Node` allocation and pre-sized child arrays, static `PropertyAccess`, level-keyed bindings replacing per-scope contexts, EnumSet token lookups in the parser, and lazy ArrayList init on token-only nodes.
+
+### Notes on interpretation
+
+- Fast mode (median of 10) is noisy — the first 1–2 measured iterations consistently show a tail from residual JIT/GC work, despite the 5-iteration warmup. Prefer profile mode for comparing commits.
+- Results are sensitive to thermal state and background load on the M1 Pro; expect ±5–10% run-to-run even in profile mode.
+- The scripts are deterministic in size (20,722 B array / 20,642 B object) and regenerated per JVM, so cross-commit comparisons are apples-to-apples as long as `EngineBenchmark.java` itself is unchanged.
+
+---
+
 ## Future Improvements (Swift Engine Comparison)
 
 This section documents potential improvements identified by comparing the Java engine with a Swift-based JavaScript engine implementation. The Swift engine is smaller (~8 files vs 50+) because it implements fewer features (no prototype chain, no regex, simpler scoping). The Java engine's complexity is justified by its requirements: full ES6 scoping, prototype chain, Java interop, IDE tooling support, and event/debugging system.
