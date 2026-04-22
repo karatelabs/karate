@@ -220,6 +220,61 @@ class HtmlReportWriterTest {
     }
 
     @Test
+    void testDryRunSkipsStepsButGeneratesReport(@TempDir Path tempDir) throws Exception {
+        // Dry-run should report every non-@setup step as passed without executing it, while
+        // @setup scenarios run fully so dynamic outlines still resolve. The "dry-" prefix in
+        // outline row names proves karate.dryRun was observable inside the @setup scenario.
+        Path feature = tempDir.resolve("dryrun.feature");
+        Files.writeString(feature, """
+                Feature: Dry Run Example
+
+                  @setup
+                  Scenario:
+                    * def tag = karate.dryRun ? 'dry' : 'live'
+                    * def rows = [{ name: tag + '-alpha' }, { name: tag + '-beta' }]
+
+                  Scenario: would fail for real
+                    * url 'http://127.0.0.1:1'
+                    * method get
+                    * match response == { never: 'matches' }
+
+                  Scenario Outline: outline <name>
+                    * match 1 == 2
+
+                    Examples:
+                      | karate.setup().rows |
+                """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .dryRun(true)
+                .parallel(1);
+
+        assertTrue(result.isPassed(), "dry-run should mark all scenarios as passed");
+        assertEquals(0, result.getScenarioFailedCount());
+        // 1 regular + 2 outline rows resolved from @setup data = 3 passing non-setup scenarios
+        assertEquals(3, result.getScenarioPassedCount(),
+                "setup-driven outline should still expand its rows under dry-run");
+
+        // Reports generated as usual
+        assertTrue(Files.exists(reportDir.resolve("karate-summary.html")));
+        assertTrue(Files.exists(reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl")));
+
+        // @setup scenario ran fully (outline rows exist) AND karate.dryRun was true inside it
+        // (rows carry the "dry-" prefix). If @setup had been skipped, no outline rows would appear.
+        String jsonl = Files.readString(reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl"));
+        assertTrue(jsonl.contains("outline dry-alpha"),
+                "outline row should resolve from @setup and carry the dry-run marker");
+        assertTrue(jsonl.contains("outline dry-beta"));
+    }
+
+    @Test
     void testHtmlReportWithEnv() {
         Path outputDir = Path.of("target/karate-report-dev-env");
         String testResourcesDir = "target/test-classes/io/karatelabs/report";

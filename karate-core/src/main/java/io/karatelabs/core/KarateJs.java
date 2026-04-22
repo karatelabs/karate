@@ -1085,6 +1085,23 @@ public class KarateJs extends KarateJsBase implements PerfContext {
         };
     }
 
+    /**
+     * Exposes the suite's dry-run flag to feature files. Lets {@code @setup} scenarios
+     * short-circuit expensive fixture creation when the run is purely for report generation.
+     */
+    private boolean isDryRun() {
+        ScenarioRuntime rt = getRuntime();
+        if (rt == null) {
+            return false;
+        }
+        FeatureRuntime fr = rt.getFeatureRuntime();
+        if (fr == null) {
+            return false;
+        }
+        Suite suite = fr.getSuite();
+        return suite != null && suite.dryRun;
+    }
+
     // ========== Channel Support ==========
 
     private JavaInvokable channel() {
@@ -1165,6 +1182,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             case "config" -> getConfig();
             case "configure" -> configure();
             case "doc" -> doc();
+            case "dryRun" -> isDryRun();
             case "embed" -> embed();
             case "env" -> env;
             case "eval" -> eval();

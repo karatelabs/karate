@@ -95,6 +95,30 @@ karate/
 
 `Runner.Builder.scenarioName("Login happy path")` (CLI: `-n/--name`) — selects scenarios by exact name, trimmed on both sides. Same tag-bypass semantics as the line filter; intersects with `:LINE` when both are set (for Scenario Outline row targeting). Stable under edits — IDE plugins use this as a line-independent key. Source: `FeatureRuntime.matchesScenarioName`.
 
+## Dry Run
+
+`Runner.Builder.dryRun(true)` or CLI `-D/--dryrun` skips step execution and still produces a full report. Intended for fast feature-file validation, outline-expansion sanity checks, and CI smoke passes that don't need real I/O.
+
+Under dry-run:
+
+- Every step on a non-`@setup` scenario is recorded as passed with 0ms duration — no HTTP, no `match`, no `def`, no side effects.
+- `karate-base.js`, `karate-config.js`, and env-specific config JS are **not** evaluated for non-`@setup` scenarios.
+- `beforeScenario` / `afterScenario` hooks are skipped for non-`@setup` scenarios.
+- `@setup` scenarios execute fully, so dynamic outlines (`Examples: | karate.setup().data |`) still resolve their rows.
+- All configured report formats (HTML, JUnit XML, Cucumber JSON, JSONL) are generated normally.
+
+**Escape hatch — `karate.dryRun`.** A boolean readable from any step, useful inside `@setup` to short-circuit expensive fixture creation:
+
+```gherkin
+@setup
+Scenario:
+  * def rows = karate.dryRun ? [{ name: 'placeholder' }] : fetchFromDb()
+```
+
+Source: `ScenarioRuntime.isDryRunSkip()`, `KarateJs.isDryRun()`.
+
+---
+
 ## System-Property Overrides
 
 `Runner.Builder.parallel()` applies CI overrides before execution (v1 parity). Reads `karate.options` (with `KARATE_OPTIONS` env fallback), plus `karate.env` and `karate.config.dir`, and overrides Builder values in place. The option string uses the `karate run` CLI grammar. Applied before `startDebugServerIfRequired`, so IDE debug launches inherit the merged state via `buildDebugArgs`. See [CLI.md](./CLI.md#system-properties--environment-variables). Source: `KarateOptionsHandler.java`.

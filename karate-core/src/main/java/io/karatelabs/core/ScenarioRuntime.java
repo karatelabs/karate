@@ -158,9 +158,13 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             karate.setEnv(featureRuntime.getSuite().env);
         }
 
-        // Evaluate config (only for top-level scenarios, not called features)
+        // Evaluate config (only for top-level scenarios, not called features).
+        // In dry-run mode, skip config JS for non-@setup scenarios - @setup scenarios
+        // still run fully so scenario outlines can resolve their example data (V1 parity).
         if (featureRuntime != null && featureRuntime.getSuite() != null && featureRuntime.getCaller() == null) {
-            evalConfig();
+            if (!isDryRunSkip()) {
+                evalConfig();
+            }
         }
 
         // Inherit parent variables if called from another feature
@@ -195,6 +199,17 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // Set __num to the example index (0-based)
             karate.engine.putRootBinding("__num", scenario.getExampleIndex());
         }
+    }
+
+    /**
+     * True when this scenario's steps, hooks and config JS should be bypassed for dry-run.
+     * {@code @setup} scenarios are exempt so dynamic scenario-outline example data
+     * (e.g. {@code Examples: | karate.setup().data |}) still resolves in the report.
+     * Feature authors can observe dry-run state from inside {@code @setup} via {@code karate.dryRun}.
+     */
+    boolean isDryRunSkip() {
+        Suite suite = featureRuntime != null ? featureRuntime.getSuite() : null;
+        return suite != null && suite.dryRun && !scenario.isSetup();
     }
 
     /**
@@ -829,13 +844,16 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // soft-assertion mode can still run scenario steps after a hook failure.
             if (!stopped) {
                 scenarioStarted = true;
-                Throwable hookError = invokeHook(config.getBeforeScenario(), "beforeScenario");
-                if (hookError != null) {
-                    result.addStepResult(StepResult.fakeFailure(
-                            "beforeScenario hook failed: " + hookError.getMessage(),
-                            System.currentTimeMillis(), hookError));
-                    if (!config.isContinueOnStepFailure()) {
-                        stopped = true;
+                // Skip hook in dry-run mode for non-@setup scenarios (V1 parity)
+                if (!isDryRunSkip()) {
+                    Throwable hookError = invokeHook(config.getBeforeScenario(), "beforeScenario");
+                    if (hookError != null) {
+                        result.addStepResult(StepResult.fakeFailure(
+                                "beforeScenario hook failed: " + hookError.getMessage(),
+                                System.currentTimeMillis(), hookError));
+                        if (!config.isContinueOnStepFailure()) {
+                            stopped = true;
+                        }
                     }
                 }
             }
@@ -858,7 +876,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
                 currentStep = steps.get(stepIndex);
                 stepIndex++;
-                StepResult sr = executor.execute(currentStep);
+                // In dry-run mode, mark steps as passed without executing them (V1 parity).
+                // @setup scenarios execute normally via isDryRunSkip() returning false.
+                StepResult sr = isDryRunSkip()
+                        ? StepResult.passed(currentStep, System.currentTimeMillis(), 0)
+                        : executor.execute(currentStep);
                 result.addStepResult(sr);
 
                 if (sr.isFailed()) {
@@ -918,7 +940,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // A hook exception fails the scenario (same convention as a step failure); wrap the hook
             // body in try/catch to suppress. The primary step error, if any, is preserved as the root
             // cause because the hook's fakeFailure step is appended after existing step results.
-            if (scenarioStarted) {
+            if (scenarioStarted && !isDryRunSkip()) {
                 Throwable hookError = invokeHook(config.getAfterScenario(), "afterScenario");
                 if (hookError != null) {
                     result.addStepResult(StepResult.fakeFailure(

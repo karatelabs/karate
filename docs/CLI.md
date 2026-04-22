@@ -176,7 +176,7 @@ karate run -n "Parameterized check" tests/outline.feature:9
 | `-p, --pom <file>` | Path to project file (default: karate-pom.json) |
 | `--no-pom` | Ignore karate-pom.json even if present |
 | `-C, --clean` | Clean output directory before running |
-| `-D, --dryrun` | Parse but don't execute |
+| `-D, --dryrun` | Skip step execution; @setup scenarios still run. See [Dry Run](#dry-run). |
 | `--no-color` | Disable colored output |
 | `--report-log-level <level>` | Minimum log level for HTML reports (default: info) |
 | `--runtime-log-level <level>` | SLF4J logger level for console output |

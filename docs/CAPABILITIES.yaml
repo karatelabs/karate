@@ -955,6 +955,7 @@ categories:
           - name: Dry run mode
             v1: true
             v2: implemented
+            notes: "-D/--dryrun skips step execution and hooks; @setup scenarios still run so dynamic outlines resolve; karate.dryRun boolean readable from feature files"
           - name: Debug mode
             v1: false
             v2: implemented
