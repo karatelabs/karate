@@ -363,6 +363,48 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    // Arrow-function lambdas passed to karate.* APIs (Java-side JavaCallable dispatch).
+    // Regression guard: karate-js inline lambdas must reach Java as first-class
+    // callables, not as stringified source. This is the same mechanism that
+    // powers `waitUntil(() => ...)`, Kafka `consumer.filter = x => ...`, etc.
+    @Test
+    void testInlineArrowLambdaWithKarateFilter() {
+        ScenarioRuntime sr = run("""
+            * def list = [{ key: 'zero' }, { key: 'one' }, { key: 'two' }]
+            * def res = karate.filter(list, x => x.key != 'zero')
+            * match res == [{ key: 'one' }, { key: 'two' }]
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testInlineArrowLambdaWithKarateMap() {
+        ScenarioRuntime sr = run("""
+            * def res = karate.map([1, 2, 3], x => x * 10)
+            * match res == [10, 20, 30]
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testJsFunctionJavaToStringIsParseableSource() {
+        // Regression for 2.0.4: JsFunction.toString() (from Java — e.g. when a
+        // callable is stringified by a driver binding or log formatter) must
+        // return parseable JS source. Before the fix, arrow functions returned
+        // "[FN_ARROW_EXPR] _ => ..." and wrapped functions returned
+        // "io.karatelabs.js.JsFunctionWrapper@<hash>". Both broke V8 parsing
+        // when callers like CdpDriver shipped the string to Runtime.evaluate.
+        ScenarioRuntime sr = run("""
+            * def fn = _ => _.value
+            * def src = '' + fn
+            * match src == '_ => _.value'
+            * def fn2 = function add(a, b) { return a + b }
+            * def src2 = '' + fn2
+            * match src2 == 'function add(a, b) { return a + b }'
+            """);
+        assertPassed(sr);
+    }
+
     @Test
     void testKarateFilterWithIndex() {
         ScenarioRuntime sr = run("""

@@ -145,9 +145,4 @@ class JsFunctionNode extends JsFunction {
         return node.getTextIncludingWhitespace();
     }
 
-    @Override
-    public String toString() {
-        return node.toString();
-    }
-
 }

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -166,6 +167,64 @@ class JsFunctionTest extends EvalBase {
         JsFunction jsFn = (JsFunction) fn;
         String source = jsFn.getSource();
         assertEquals("_ => _.value", source);
+    }
+
+    @Test
+    void testFunctionJavaToStringReturnsSource() {
+        // Regression: Java-side toString() on a JS function must return parseable
+        // source, never the default Object.toString() (e.g. "JsFunctionWrapper@...")
+        // nor a node-debug form (e.g. "[FN_ARROW_EXPR] () => ..."). karate-core's
+        // driver layer stringifies callables when dispatching, and non-JS output
+        // then fails in V8 with "Malformed arrow function parameter list" or
+        // "Invalid or unexpected token".
+
+        // Arrow function, retrieved from Java (goes through Engine.toJava → JsFunctionWrapper)
+        eval("var fn = _ => _.value");
+        Object fn = get("fn");
+        assertTrue(fn instanceof JsFunction);
+        String s = fn.toString();
+        assertFalse(s.startsWith("io.karatelabs.js."),
+                "toString() leaked Object default: " + s);
+        assertFalse(s.startsWith("["),
+                "toString() leaked node-debug form: " + s);
+        assertEquals("_ => _.value", s);
+
+        // Arrow with no params (the exact shape from the regression report)
+        eval("var fn = () => locateAll('.border-bottom').length == 0");
+        assertEquals("() => locateAll('.border-bottom').length == 0", get("fn").toString());
+
+        // Arrow with single paren-less param
+        eval("var fn = x => x + 1");
+        assertEquals("x => x + 1", get("fn").toString());
+
+        // Classic function expression
+        eval("var fn = function(a, b){ return a + b }");
+        assertEquals("function(a, b){ return a + b }", get("fn").toString());
+
+        // Named function declaration
+        eval("function add(a, b){ return a + b }");
+        assertEquals("function add(a, b){ return a + b }", get("add").toString());
+    }
+
+    @Test
+    void testFunctionWrapperToStringNotObjectDefault() {
+        // Flavour B from the regression: a JsFunctionWrapper's toString() used to
+        // return "io.karatelabs.js.JsFunctionWrapper@<hash>" — the @ then breaks V8.
+        eval("function find(title){ return title }");
+        Object fn = get("find");
+        assertTrue(fn instanceof JsFunctionWrapper);
+        String s = fn.toString();
+        assertFalse(s.contains("@"), "@ in toString would break V8 parsing: " + s);
+        assertEquals("function find(title){ return title }", s);
+    }
+
+    @Test
+    void testStringConcatWithFunctionIsSource() {
+        // Java string concatenation invokes toString() implicitly.
+        // Must produce parseable JS source, not an internal debug form.
+        eval("var fn = x => x * 2");
+        String concatenated = "result: " + get("fn");
+        assertEquals("result: x => x * 2", concatenated);
     }
 
     @Test

@@ -128,11 +128,20 @@ public interface Driver extends CoreDriver, SimpleObject {
             case DriverApi.WAIT_FOR_URL -> (JavaCallable) (ctx, args) ->
                     waitForUrl(String.valueOf(args[0]));
             case DriverApi.WAIT_UNTIL -> (JavaCallable) (ctx, args) -> {
+                // 1-arg form: if the arg is a callable (JS lambda, Supplier, ...)
+                // poll it locally in karate-js instead of stringifying and shipping
+                // to V8 — the closure's bindings (locateAll, find, etc.) live here.
                 if (args.length == 1) {
+                    Supplier<Object> supplier = DriverApi.asSupplier(args[0], ctx);
+                    if (supplier != null) {
+                        return waitUntil(supplier);
+                    }
                     return waitUntil(String.valueOf(args[0]));
-                } else {
-                    return waitUntil(String.valueOf(args[0]), String.valueOf(args[1]));
                 }
+                // 2-arg form: locator + element-bound JS expression that runs in
+                // the browser (e.g. el => !el.disabled). Stringification is
+                // intentional here; JsFunction.toString() yields valid JS source.
+                return waitUntil(String.valueOf(args[0]), String.valueOf(args[1]));
             };
 
             case DriverApi.WAIT_FOR_RESULT_COUNT -> (JavaCallable) (ctx, args) ->

@@ -52,6 +52,16 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
         return null;
     }
 
+    @Override
+    public String toString() {
+        String source = getSource();
+        if (source != null) {
+            return source;
+        }
+        String fnName = name != null ? name : "";
+        return "function " + fnName + "() { [native code] }";
+    }
+
     /**
      * Returns the function's prototype object (used for instance creation).
      * This is the object that will be set as [[Prototype]] of instances created with 'new'.

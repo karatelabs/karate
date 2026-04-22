@@ -1,9 +1,13 @@
 package io.karatelabs.driver;
 
 import io.karatelabs.js.Args;
+import io.karatelabs.js.Context;
 import io.karatelabs.js.Engine;
+import io.karatelabs.js.JavaCallable;
 
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.function.Supplier;
 
 public class DriverApi {
 
@@ -99,6 +103,38 @@ public class DriverApi {
             MOUSE, KEYS,
             RETRY
     );
+
+    /**
+     * Adapt a JS/Java callable argument to a {@code Supplier<Object>}.
+     * <p>Karate treats inline JS lambdas as first-class Java callables — the
+     * same pattern that powers {@code karate.filter(list, x => ...)}.
+     * This helper lets driver bindings route a callable argument to the
+     * {@code Supplier}-taking overload of a method (polled locally in
+     * karate-js) rather than coercing it to a string and shipping it off to
+     * the browser, where its karate-js scope wouldn't exist.
+     *
+     * @return a {@code Supplier} wrapping the callable, or {@code null} when
+     * the argument is not a recognised callable (caller should fall through
+     * to the {@code String} overload).
+     */
+    public static Supplier<Object> asSupplier(Object arg, Context ctx) {
+        if (arg instanceof JavaCallable jc) {
+            return () -> jc.call(ctx, new Object[0]);
+        }
+        if (arg instanceof Supplier<?> s) {
+            return () -> (Object) s.get();
+        }
+        if (arg instanceof Callable<?> c) {
+            return () -> {
+                try {
+                    return c.call();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            };
+        }
+        return null;
+    }
 
     /**
      * Bind driver action methods as global functions.
