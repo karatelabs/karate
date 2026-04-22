@@ -51,7 +51,14 @@ public class Xml {
     }
 
     public static String toString(Node node, boolean pretty) {
-        DOMSource domSource = new DOMSource(node);
+        // issue #2469 - when serializing a subtree that's still attached to a
+        // bigger document, any prefix declared on an ancestor (e.g. xsi on
+        // soap:Envelope, used deep in the tree) is out of scope from the
+        // serializer's view and it throws "Namespace for prefix X has not
+        // been declared". Clone the subtree and copy the ancestor xmlns:*
+        // decls onto the clone's root before handing it off.
+        Node source = resolvePrefixes(node);
+        DOMSource domSource = new DOMSource(source);
         StringWriter writer = new StringWriter();
         StreamResult result = new StreamResult(writer);
         TransformerFactory tf = TransformerFactory.newInstance();
@@ -69,6 +76,29 @@ public class Xml {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static Node resolvePrefixes(Node node) {
+        if (node == null || node.getNodeType() != Node.ELEMENT_NODE) {
+            return node;
+        }
+        Element target = (Element) node;
+        Node parent = target.getParentNode();
+        if (parent == null || parent.getNodeType() == Node.DOCUMENT_NODE) {
+            return node;
+        }
+        Map<String, String> inherited = collectAncestorNamespaces(target);
+        inherited.keySet().removeIf(k -> target.getAttributeNode(k) != null);
+        if (inherited.isEmpty()) {
+            return node;
+        }
+        Document newDoc = newDocument();
+        Element imported = (Element) newDoc.importNode(target, true);
+        newDoc.appendChild(imported);
+        for (Map.Entry<String, String> e : inherited.entrySet()) {
+            imported.setAttribute(e.getKey(), e.getValue());
+        }
+        return imported;
     }
 
     public static Document toXmlDoc(String xml) {
@@ -429,21 +459,41 @@ public class Xml {
     public static Document toNewDocument(Node in) {
         Document doc = newDocument();
         Node node = doc.importNode(in, true);
+        // inherit in-scope xmlns:* declarations from the source node's
+        // ancestors so a subtree lifted out of a bigger document stays
+        // self-contained — otherwise prefixed names referencing an ancestor
+        // namespace (e.g. xsi:nil) fail to serialize. issue #2469
+        if (in.getNodeType() == Node.ELEMENT_NODE && node.getNodeType() == Node.ELEMENT_NODE) {
+            Element target = (Element) node;
+            Map<String, String> inherited = collectAncestorNamespaces(in);
+            for (Map.Entry<String, String> e : inherited.entrySet()) {
+                if (target.getAttributeNode(e.getKey()) == null) {
+                    target.setAttribute(e.getKey(), e.getValue());
+                }
+            }
+        }
         doc.appendChild(node);
         return doc;
     }
 
-    public static boolean isXml(String s) {
-        if (s == null || s.isEmpty()) {
-            return false;
-        }
-        if (s.charAt(0) == ' ') {
-            s = s.trim();
-            if (s.isEmpty()) {
-                return false;
+    private static Map<String, String> collectAncestorNamespaces(Node node) {
+        Map<String, String> inherited = new LinkedHashMap<>();
+        Node parent = node.getParentNode();
+        while (parent != null && parent.getNodeType() == Node.ELEMENT_NODE) {
+            NamedNodeMap attribs = parent.getAttributes();
+            if (attribs != null) {
+                for (int i = 0; i < attribs.getLength(); i++) {
+                    Node attr = attribs.item(i);
+                    String name = attr.getNodeName();
+                    if (("xmlns".equals(name) || name.startsWith("xmlns:"))
+                            && !inherited.containsKey(name)) {
+                        inherited.put(name, attr.getNodeValue());
+                    }
+                }
             }
+            parent = parent.getParentNode();
         }
-        return s.charAt(0) == '<';
+        return inherited;
     }
 
 }

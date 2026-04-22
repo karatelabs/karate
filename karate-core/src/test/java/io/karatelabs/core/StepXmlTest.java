@@ -665,4 +665,71 @@ class StepXmlTest {
         assertPassed(sr);
     }
 
+    @Test
+    void testMatchSoapResponseWithAncestorNamespaces() {
+        // issue #2469 - xsi declared on soap:Envelope, used deep in tree.
+        // match on the whole doc must succeed - the diff path (toString on
+        // descendant subtree) used to throw "Namespace for prefix 'xsi' has
+        // not been declared" if anything differed, and the xmlstring
+        // conversion of an extracted subtree used to throw the same.
+        ScenarioRuntime sr = run("""
+            * def content =
+              \"\"\"
+              <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
+                  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                <soap:Body>
+                  <GetNextDeparturesResponse xmlns="http://gndrurl">
+                    <DeparturesBoard xmlns:c6="http://c6url" xmlns:t13="http://t13url">
+                      <t13:destination>
+                        <t13:service xsi:nil="true"/>
+                      </t13:destination>
+                    </DeparturesBoard>
+                  </GetNextDeparturesResponse>
+                </soap:Body>
+              </soap:Envelope>
+              \"\"\"
+            * def content2 =
+              \"\"\"
+              <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
+                  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                <soap:Body>
+                  <GetNextDeparturesResponse xmlns="http://gndrurl">
+                    <DeparturesBoard xmlns:c6="http://c6url" xmlns:t13="http://t13url">
+                      <t13:destination>
+                        <t13:service xsi:nil="true"/>
+                      </t13:destination>
+                    </DeparturesBoard>
+                  </GetNextDeparturesResponse>
+                </soap:Body>
+              </soap:Envelope>
+              \"\"\"
+            * match content == content2
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testXmlStringOfDescendantWithAncestorNamespaces() {
+        // issue #2469 - xmlstring of a sub-element must pull in ancestor
+        // xmlns:* declarations so the subtree serializes cleanly
+        ScenarioRuntime sr = run("""
+            * def content =
+              \"\"\"
+              <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                <soap:Body>
+                  <outer xmlns="http://example">
+                    <inner xsi:nil="true"/>
+                  </outer>
+                </soap:Body>
+              </soap:Envelope>
+              \"\"\"
+            * def sub = get content //*[local-name()='outer']
+            * xmlstring result = sub
+            * match result contains 'xsi:nil'
+            """);
+        assertPassed(sr);
+    }
 }

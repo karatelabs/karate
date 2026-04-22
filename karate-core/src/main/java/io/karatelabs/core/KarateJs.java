@@ -24,11 +24,7 @@
 package io.karatelabs.core;
 
 import com.jayway.jsonpath.JsonPath;
-import io.karatelabs.common.DataUtils;
-import io.karatelabs.common.FileUtils;
-import io.karatelabs.common.Json;
-import io.karatelabs.common.Resource;
-import io.karatelabs.common.Xml;
+import io.karatelabs.common.*;
 import io.karatelabs.gherkin.Feature;
 import io.karatelabs.gherkin.MatchExpression;
 import io.karatelabs.http.DefaultHttpClientFactory;
@@ -523,7 +519,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                         // Create new XML document
                         doc = Xml.newDocument();
                         engine.put(name, doc);
-                    } else if (target instanceof String && Xml.isXml((String) target)) {
+                    } else if (target instanceof String && StringUtils.isXml((String) target)) {
                         // Convert XML string to Document
                         doc = Xml.toXmlDoc((String) target);
                         engine.put(name, doc);

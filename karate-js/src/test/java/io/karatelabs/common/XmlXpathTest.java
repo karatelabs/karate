@@ -70,4 +70,28 @@ class XmlXpathTest {
         assertEquals(0, nodeList.getLength());
     }
 
+    @Test
+    void testSerializeDescendantWithAncestorNamespaces() {
+        // issue #2469 - xsi declared on soap:Envelope, attribute used on a
+        // nested element. Serializing the nested subtree must pull down
+        // ancestor xmlns:* declarations or the Transformer throws
+        // "Namespace for prefix 'xsi' has not been declared".
+        String soap = """
+                <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                  <soap:Body>
+                    <outer xmlns="http://example">
+                      <inner xsi:nil="true"/>
+                    </outer>
+                  </soap:Body>
+                </soap:Envelope>
+                """;
+        Document doc = Xml.toXmlDoc(soap);
+        org.w3c.dom.Node outer = Xml.getNodeByPath(doc, "//*[local-name()='outer']", false);
+        assertNotNull(outer);
+        String s = Xml.toString(outer);
+        assertTrue(s.contains("xsi:nil=\"true\""));
+        assertTrue(s.contains("xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""));
+    }
+
 }
