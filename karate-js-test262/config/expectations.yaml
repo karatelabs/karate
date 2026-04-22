@@ -1,0 +1,151 @@
+# test262 expectations for karate-js
+#
+# Only concept: SKIP. If a test matches any rule below, it's not run
+# and appears in results.jsonl as {"status":"SKIP","reason":...}.
+# Everything else is attempted — failures are failures, recorded as FAIL.
+#
+# Match order: paths -> flags -> features -> includes. First match wins.
+# All entries MUST have a `reason` (one short sentence).
+#
+# To add a skip: put the rule in the right section, write the reason, commit.
+
+version: 1
+
+skip:
+
+  # Entire suite directories that are out of scope for an ES6 core engine.
+  # Paths use glob syntax (* matches within a segment, ** across segments).
+  paths:
+    - path: test/intl402/**
+      reason: internationalization (ECMA-402) out of scope
+    - path: test/staging/**
+      reason: experimental proposals not yet ratified
+    - path: test/annexB/**
+      reason: legacy-web-browser behaviors out of scope
+
+  # Tests whose YAML frontmatter contains any of these `flags:` values.
+  flags:
+    - flag: module
+      reason: karate-js does not support ES modules
+    - flag: async
+      reason: async/await not supported
+    - flag: onlyStrict
+      reason: strict-mode-only tests not applicable (engine has no separate strict mode)
+    - flag: CanBlockIsTrue
+      reason: engine cannot block on shared-memory worker agents
+    - flag: CanBlockIsFalse
+      reason: CanBlock flag not modeled
+
+  # Tests whose YAML frontmatter contains any of these `features:` values.
+  features:
+    - feature: Symbol
+      reason: Symbol not supported
+    - feature: Symbol.asyncIterator
+      reason: Symbol not supported
+    - feature: Symbol.iterator
+      reason: Symbol not supported
+    - feature: BigInt
+      reason: BigInt not supported
+    - feature: generators
+      reason: generator functions not supported
+    - feature: class
+      reason: class syntax not supported (use prototypes)
+    - feature: class-fields-public
+      reason: class syntax not supported
+    - feature: class-fields-private
+      reason: class syntax not supported
+    - feature: class-methods-private
+      reason: class syntax not supported
+    - feature: class-static-fields-public
+      reason: class syntax not supported
+    - feature: class-static-methods-private
+      reason: class syntax not supported
+    - feature: Proxy
+      reason: Proxy not implemented
+    - feature: Reflect
+      reason: Reflect not implemented
+    - feature: async-functions
+      reason: async/await not supported
+    - feature: async-iteration
+      reason: async/await not supported
+    - feature: Temporal
+      reason: Temporal proposal not implemented
+    - feature: TypedArray
+      reason: only Uint8Array is supported
+    - feature: ArrayBuffer
+      reason: ArrayBuffer semantics not implemented
+    - feature: SharedArrayBuffer
+      reason: SharedArrayBuffer not implemented
+    - feature: DataView
+      reason: DataView not implemented
+    - feature: Atomics
+      reason: Atomics not supported
+    - feature: WeakRef
+      reason: WeakRef not implemented
+    - feature: FinalizationRegistry
+      reason: FinalizationRegistry not implemented
+    - feature: WeakMap
+      reason: WeakMap not implemented
+    - feature: WeakSet
+      reason: WeakSet not implemented
+    - feature: Promise
+      reason: Promises not supported
+    - feature: Promise.any
+      reason: Promises not supported
+    - feature: Promise.allSettled
+      reason: Promises not supported
+    - feature: regexp-named-groups
+      reason: named regex groups not yet implemented
+    - feature: regexp-lookbehind
+      reason: regex lookbehind not yet implemented
+    - feature: regexp-unicode-property-escapes
+      reason: unicode property escapes not implemented
+    - feature: regexp-match-indices
+      reason: match indices not implemented
+    - feature: regexp-duplicate-named-groups
+      reason: duplicate named groups not implemented
+    - feature: regexp-v-flag
+      reason: /v regex flag not implemented
+    - feature: dynamic-import
+      reason: dynamic import not supported
+    - feature: optional-chaining
+      reason: optional chaining operator not implemented
+    - feature: nullish-coalescing
+      reason: nullish coalescing not implemented
+    - feature: numeric-separator-literal
+      reason: numeric separators not implemented
+    - feature: tail-call-optimization
+      reason: tail-call optimization not guaranteed
+    # destructuring-binding is INTENTIONALLY NOT skipped — LLM-written JS uses
+    # `const { a, b } = obj` constantly; we want to surface real breakage here.
+    # If engine support proves too incomplete, re-add with a specific reason.
+    - feature: new.target
+      reason: new.target not supported
+    - feature: Array.prototype.includes
+      reason: not implemented
+    - feature: globalThis
+      reason: globalThis not exposed
+
+  # Tests whose YAML frontmatter `includes:` references any of these harness helpers
+  # (the harness file itself may exist, but it depends on engine internals we do not expose).
+  includes:
+    - include: propertyHelper.js
+      reason: requires engine internals karate-js does not expose
+    - include: nativeFunctionMatcher.js
+      reason: depends on Function.prototype.toString internals
+    - include: promiseHelper.js
+      reason: Promises not supported
+    - include: detachArrayBuffer.js
+      reason: ArrayBuffer semantics not implemented
+    - include: compareArray.js
+      reason: depends on Symbol.iterator
+    - include: testTypedArray.js
+      reason: TypedArray (beyond Uint8Array) not supported
+    - include: testAtomics.js
+      reason: Atomics not supported
+    - include: testBigIntTypedArray.js
+      reason: BigInt not supported
+    - include: testIntl.js
+      reason: internationalization out of scope
+    - include: proxyTrapsHelper.js
+      reason: Proxy not implemented

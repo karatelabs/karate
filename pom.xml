@@ -50,6 +50,7 @@
 		<module>karate-core</module>
 		<module>karate-junit6</module>
 		<module>karate-gatling</module>
+		<module>karate-js-test262</module>
 	</modules>
 
     <dependencies>

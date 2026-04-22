@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.karatelabs</groupId>
+        <artifactId>karate-parent</artifactId>
+        <version>2.0.5.RC1</version>
+    </parent>
+
+    <artifactId>karate-js-test262</artifactId>
+    <packaging>jar</packaging>
+    <name>${project.artifactId}</name>
+    <description>ECMAScript test262 conformance harness for karate-js</description>
+
+    <!--
+      This module is an internal testing/reporting harness. It must NOT be
+      published to Maven Central when running the release workflow (see
+      .github/workflows/maven-release.yml).
+    -->
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>false</maven.install.skip>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <maven.source.skip>true</maven.source.skip>
+        <gpg.skip>true</gpg.skip>
+        <skipPublishing>true</skipPublishing>
+    </properties>
+
+    <build>
+        <plugins>
+            <!-- Belt-and-braces: explicitly skip the source-attach execution
+                 inherited from the parent pom for this internal module. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.6.3</version>
+                <configuration>
+                    <mainClass>io.karatelabs.js.test262.Test262Runner</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.karatelabs</groupId>
+            <artifactId>karate-js</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+
+</project>
