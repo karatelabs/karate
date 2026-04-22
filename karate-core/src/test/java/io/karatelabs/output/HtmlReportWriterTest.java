@@ -220,6 +220,132 @@ class HtmlReportWriterTest {
     }
 
     @Test
+    void testTagExcludedFeaturesAreNotReported(@TempDir Path tempDir) throws Exception {
+        // Reproduces the karate-todo bug: a feature whose feature-level tag (e.g. @external)
+        // causes every scenario to be excluded by a suite-level negative tag selector must not
+        // surface in the HTML summary as a 0-scenario "passed" row, must not produce an empty
+        // per-feature HTML file, and must not inflate the feature count.
+        Path external = tempDir.resolve("external.feature");
+        Files.writeString(external, """
+                @external
+                Feature: External API
+
+                Scenario: fetch
+                * def a = 1
+                """);
+
+        Path todo = tempDir.resolve("todo.feature");
+        Files.writeString(todo, """
+                @todo
+                Feature: Work In Progress
+
+                Scenario: later
+                * def a = 1
+                """);
+
+        Path real = tempDir.resolve("real.feature");
+        Files.writeString(real, """
+                Feature: Real
+
+                Scenario: runs
+                * def a = 1
+                * match a == 1
+                """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(
+                        external.toString(), todo.toString(), real.toString())
+                .tags("~@external", "~@todo")
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(1, result.getFeatureCount(), "excluded features must not count as features");
+        assertEquals(1, result.getScenarioPassedCount());
+
+        // Only the "real" feature should have an HTML page written to feature-html/
+        Path featuresDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
+        String[] featureFiles = featuresDir.toFile().list();
+        assertNotNull(featureFiles);
+        assertEquals(1, featureFiles.length,
+                "should not emit per-feature HTML for tag-excluded features, got: "
+                        + String.join(",", featureFiles));
+
+        // The summary's inlined JSON must not reference the excluded feature names
+        String summaryHtml = Files.readString(reportDir.resolve("karate-summary.html"));
+        assertFalse(summaryHtml.contains("External API"),
+                "summary must not list tag-excluded feature");
+        assertFalse(summaryHtml.contains("Work In Progress"),
+                "summary must not list tag-excluded feature");
+        assertTrue(summaryHtml.contains("Real"));
+    }
+
+    @Test
+    void testScenarioLevelTagStillRunsFeature(@TempDir Path tempDir) throws Exception {
+        // Regression guard: when the excluded tag is on a scenario (not the feature),
+        // at least one other scenario in the feature still matches, so the feature must run.
+        Path feature = tempDir.resolve("mixed.feature");
+        Files.writeString(feature, """
+                Feature: Mixed
+
+                @external
+                Scenario: skipped
+                * def a = 1
+
+                Scenario: runs
+                * def b = 2
+                * match b == 2
+                """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString())
+                .tags("~@external")
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(1, result.getFeatureCount());
+        assertEquals(1, result.getScenarioPassedCount());
+    }
+
+    @Test
+    void testLineFilterBypassesFeatureTagExclusion(@TempDir Path tempDir) throws Exception {
+        // Regression guard: line-number targeting must bypass tag filters even when the
+        // feature-level tag would otherwise cause the whole feature to be pre-filtered.
+        Path feature = tempDir.resolve("targeted.feature");
+        Files.writeString(feature, """
+                @external
+                Feature: Targeted
+
+                Scenario: pick me
+                * def a = 1
+                * match a == 1
+                """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString() + ":4")
+                .tags("~@external")
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(1, result.getFeatureCount());
+        assertEquals(1, result.getScenarioPassedCount());
+    }
+
+    @Test
     void testDryRunSkipsStepsButGeneratesReport(@TempDir Path tempDir) throws Exception {
         // Dry-run should report every non-@setup step as passed without executing it, while
         // @setup scenarios run fully so dynamic outlines still resolve. The "dry-" prefix in

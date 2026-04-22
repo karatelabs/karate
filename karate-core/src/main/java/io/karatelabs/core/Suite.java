@@ -28,7 +28,10 @@ import io.karatelabs.common.Resource;
 import io.karatelabs.common.ResourceNotFoundException;
 import io.karatelabs.driver.DriverProvider;
 import io.karatelabs.driver.PooledDriverProvider;
+import io.karatelabs.gherkin.ExamplesTable;
 import io.karatelabs.gherkin.Feature;
+import io.karatelabs.gherkin.FeatureSection;
+import io.karatelabs.gherkin.Scenario;
 import io.karatelabs.gherkin.Tag;
 import io.karatelabs.output.*;
 import org.slf4j.Logger;
@@ -267,6 +270,10 @@ public class Suite {
         result.setReportDir(outputDir);
         result.setHtmlReportEnabled(outputHtmlReport);
 
+        // Clear any per-Scenario selection cache from a prior run against the same
+        // parsed Feature objects. The pre-filter below will repopulate for this run.
+        clearScenarioSelectionCache();
+
         // Backup existing report directory if enabled
         if (backupReportDir) {
             backupReportDirIfExists();
@@ -443,7 +450,116 @@ public class Suite {
                 return true;
             }
         }
-        return false;
+        return allSectionsExcluded(feature);
+    }
+
+    /**
+     * Returns true when no section in the feature can match the suite's filters,
+     * so running the feature would only produce an empty FeatureResult. Without this
+     * pre-filter, features whose feature-level tags (e.g. {@code @external}) exclude
+     * every scenario via a selector like {@code ~@external} still get added to the
+     * suite result with zero scenarios, showing up as green "passed" rows in the HTML
+     * summary and inflating the feature count. The check is sound: it iterates every
+     * section and returns true only if none of them could pass the selector.
+     * <p>
+     * Short-circuits when no tag selector is set — {@code @ignore}/{@code @env} at the
+     * scenario level still produce empty FeatureResults under the status quo and the
+     * bug report explicitly asked to preserve that.
+     * <p>
+     * Never pre-excludes when a bypass filter is active — line filters, scenario name
+     * filters, and {@code skipTagFiltering} all have their own selection semantics in
+     * {@link FeatureRuntime} that bypass tag selection.
+     * <p>
+     * For persistent (non-outline) scenarios, the evaluation result is cached on the
+     * {@link Scenario} via {@link Scenario#setSelected(Boolean)} so that
+     * {@link FeatureRuntime#shouldSelect} can reuse it instead of re-evaluating.
+     */
+    private boolean allSectionsExcluded(Feature feature) {
+        if (tagSelector == null) {
+            return false;
+        }
+        if (skipTagFiltering) {
+            return false;
+        }
+        if (scenarioName != null) {
+            return false;
+        }
+        if (!lineFilters.isEmpty()) {
+            String featureUri = feature.getResource().getUri().toString();
+            Set<Integer> lines = lineFilters.get(featureUri);
+            if (lines != null && !lines.isEmpty()) {
+                return false;
+            }
+        }
+        List<FeatureSection> sections = feature.getSections();
+        if (sections == null || sections.isEmpty()) {
+            return false;
+        }
+        List<Tag> featureTags = feature.getTags();
+        // Full iteration (no early exit) so every non-outline Scenario's selection
+        // gets cached — FeatureRuntime reads the cache in shouldSelect and avoids
+        // a second TagSelector.evaluate. Net evaluations drop from ~1.5× per
+        // scenario to exactly 1× for features that run.
+        boolean anyPassed = false;
+        for (FeatureSection section : sections) {
+            if (sectionCanMatch(section, featureTags)) {
+                anyPassed = true;
+            }
+        }
+        return !anyPassed;
+    }
+
+    private boolean sectionCanMatch(FeatureSection section, List<Tag> featureTags) {
+        if (section.isOutline()) {
+            List<Tag> base = mergeTags(featureTags, section.getScenarioOutline().getTags());
+            List<ExamplesTable> tables = section.getScenarioOutline().getExamplesTables();
+            if (tables != null && !tables.isEmpty()) {
+                // Examples tables can carry their own tags that only apply to rows in
+                // that table — if any table could make the selector pass, we can't skip.
+                // Row-level scenarios are generated fresh per run; no cache to populate.
+                boolean anyTablePasses = false;
+                for (ExamplesTable table : tables) {
+                    if (tagSelectorPasses(mergeTags(base, table.getTags()))) {
+                        anyTablePasses = true;
+                    }
+                }
+                return anyTablePasses;
+            }
+            return tagSelectorPasses(base);
+        }
+        Scenario scenario = section.getScenario();
+        boolean passes = tagSelectorPasses(mergeTags(featureTags, scenario.getTags()));
+        scenario.setSelected(passes);
+        return passes;
+    }
+
+    private boolean tagSelectorPasses(List<Tag> tags) {
+        return new TagSelector(tags).evaluate(tagSelector, env);
+    }
+
+    private void clearScenarioSelectionCache() {
+        for (Feature feature : features) {
+            List<FeatureSection> sections = feature.getSections();
+            if (sections == null) continue;
+            for (FeatureSection section : sections) {
+                if (!section.isOutline() && section.getScenario() != null) {
+                    section.getScenario().setSelected(null);
+                }
+            }
+        }
+    }
+
+    private static List<Tag> mergeTags(List<Tag> a, List<Tag> b) {
+        if (a == null || a.isEmpty()) {
+            return b == null ? Collections.emptyList() : b;
+        }
+        if (b == null || b.isEmpty()) {
+            return a;
+        }
+        List<Tag> merged = new ArrayList<>(a.size() + b.size());
+        merged.addAll(a);
+        merged.addAll(b);
+        return merged;
     }
 
     // ========== Event System ==========

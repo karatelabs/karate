@@ -14,6 +14,7 @@ Scratch pad for tracking work across the project. See also [CAPABILITIES.yaml](.
 - [ ] Priority 9: `karate-base.js` (shared config from classpath JAR)
 - [ ] Step definitions with regex pattern matching
 - [ ] Multiple Suite Execution: `Runner.suites().add(...).parallel(n).run()`
+- [ ] Shared "misc" JS engine for tag-selector evaluation, `@setup` dynamic expressions, and examples-table cell interpolation. Currently `TagSelector.evaluate` creates a fresh `Engine` per call — low individual cost but adds up across per-section pre-filter + per-scenario runtime evaluation. Would need per-thread or pooled engines for parallel execution.
 
 ## JavaScript Engine (karate-js)
 

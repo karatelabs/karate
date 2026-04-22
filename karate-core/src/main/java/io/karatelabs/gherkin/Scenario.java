@@ -44,6 +44,11 @@ public class Scenario {
     private List<Step> steps;
     private Map<String, Object> exampleData;
     private String dynamicExpression;
+    // Suite-level pre-filter (see Suite.allSectionsExcluded) writes this so
+    // FeatureRuntime.shouldSelect can skip re-evaluating TagSelector for the
+    // same tags + suite selector. Null = not yet evaluated. Only populated for
+    // persistent (non-outline) scenarios; outline rows generate fresh copies.
+    private Boolean selected;
 
     public Scenario(Feature feature, FeatureSection section, int exampleIndex) {
         this.feature = feature;
@@ -223,6 +228,14 @@ public class Scenario {
 
     public void setTags(List<Tag> tags) {
         this.tags = tags;
+    }
+
+    public Boolean getSelected() {
+        return selected;
+    }
+
+    public void setSelected(Boolean selected) {
+        this.selected = selected;
     }
 
     public String getName() {

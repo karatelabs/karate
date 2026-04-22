@@ -705,6 +705,14 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                 return true;
             }
 
+            // Fast path: Suite's pre-filter (Suite.allSectionsExcluded) may have
+            // already evaluated and cached the result on this scenario. Only populated
+            // for persistent (non-outline) scenarios — outline rows are generated
+            // fresh per iteration and fall through to full evaluation below.
+            Boolean cached = scenario.getSelected();
+            if (cached != null) {
+                return cached;
+            }
             // Use TagSelector for suite-level filtering
             // This handles @ignore, @setup, @env, and complex expressions like anyOf(), allOf()
             List<Tag> tags = scenario.getTagsEffective();
