@@ -130,7 +130,7 @@ Karate v2 includes **backward compatibility shims** that allow most v1 code to w
 <dependency>
     <groupId>io.karatelabs</groupId>
     <artifactId>karate-junit6</artifactId>
-    <version>2.0.2</version>
+    <version>2.0.4</version>
     <scope>test</scope>
 </dependency>
 <dependency>
@@ -518,6 +518,51 @@ io.karatelabs.core.SuiteResult v2Results = v1Results.toSuiteResult();
 
 ---
 
+## CI/CD with Testcontainers
+
+For a complete reference CI/CD pipeline that runs API tests, UI tests (via a containerized Chrome),
+Gatling smoke, secret scanning, and publishes HTML reports to GitHub Pages, see
+[karatelabs/karate-todo](https://github.com/karatelabs/karate-todo).
+
+The UI side uses `chromedp/headless-shell` + `Testcontainers.exposeHostPorts(...)` to reach an
+in-process Karate-hosted app from inside the browser container. The critical pattern:
+
+```java
+// src/test/java/app/ui/UiTest.java
+private static final int PORT = 18080;
+
+static {
+    // Docker 29.x API negotiation workaround
+    System.setProperty("api.version", "1.44");
+}
+
+@BeforeAll
+static void beforeAll() {
+    server = App.start(App.serverConfig("src/main/java/app"), PORT);
+    chrome = new ChromeContainer();  // extends GenericContainer
+    chrome.start();
+}
+
+@Test
+void testAll() {
+    ContainerDriverProvider provider = new ContainerDriverProvider(chrome);
+    SuiteResult result = Runner.path("classpath:app/ui")
+            .tags("~@external", "~@todo")
+            .systemProperty("serverUrl", chrome.getHostAccessUrl(PORT))
+            .systemProperty("apiUrl", "http://localhost:" + PORT)
+            .driverProvider(provider)
+            .parallel(1);
+    assertEquals(0, result.getScenarioFailedCount(), String.join("\n", result.getErrors()));
+}
+```
+
+`ContainerDriverProvider` is a thin extension of `PooledDriverProvider` that overrides `createDriver(config)`
+to call `CdpDriver.connect(container.getCdpUrl(), CdpDriverOptions.fromMap(config))` — each pooled slot gets a
+fresh tab in the shared container. Full source:
+[`app/ui/support/`](https://github.com/karatelabs/karate-todo/tree/main/src/test/java/app/ui/support).
+
+---
+
 ## Getting Help
 
 - GitHub Issues: https://github.com/karatelabs/karate/issues
@@ -556,3 +601,12 @@ A complete v1 → v2 migration using native v2 APIs (no shims):
 - Embedded HTTP server → `MockServer` for test backend
 - `Results` → `SuiteResult` with updated method names
 - `com.intuit.karate.gatling` → `io.karatelabs.gatling` imports
+
+**Reference diffs:**
+
+- Bulk v1 → v2 migration: [commit d901b3e](https://github.com/karatelabs/karate-todo/commit/d901b3e2b12a0a7f5dccd6b403117d0d3778eb59)
+  — pom (Java 21, karate 2.0.x, karate-junit6, surefire 3.5.2, Gatling `--add-opens`), `App.java`
+  (v2 `HttpServer.start` + `ServerRequestHandler` + `SessionStore`), JS handlers (`session || context.init()`),
+  templates (absolute `/pub` paths, CDN trinity), JUnit 6 runners, Gatling package rename.
+- CI/CD + Testcontainers UI harness on top of v2.0.4: see the `Add Testcontainers UI runner...` and
+  `Add GitHub Actions CI...` commits on `main`.
