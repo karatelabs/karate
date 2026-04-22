@@ -219,11 +219,11 @@ public final class CucumberJsonWriter {
         // Embeddings (from logs and embeds)
         List<Map<String, Object>> embeddings = new ArrayList<>();
 
-        // Add log as text/plain embedding if present
+        // Add log as text/plain embedding if present (strip ANSI escape codes — consumers choke on them)
         if (sr.getLog() != null && !sr.getLog().isEmpty()) {
             Map<String, Object> logEmbed = new LinkedHashMap<>();
             logEmbed.put("mime_type", "text/plain");
-            logEmbed.put("data", Base64.getEncoder().encodeToString(sr.getLog().getBytes()));
+            logEmbed.put("data", Base64.getEncoder().encodeToString(Console.stripAnsi(sr.getLog()).getBytes()));
             embeddings.add(logEmbed);
         }
 

@@ -214,6 +214,38 @@ class JunitXmlWriterTest {
     }
 
     @Test
+    void testJunitXmlStripsAnsiEscapeCodes() throws Exception {
+        // regression for https://github.com/karatelabs/karate/issues/2799
+        // step logs can contain raw ANSI codes (from HttpLogger) which break CI parsers
+        // build ANSI at runtime via String.fromCharCode so the feature source has no ESC bytes
+        // (if ESC were in the step text itself it'd leak into the XML regardless of log stripping)
+        Path feature = tempDir.resolve("ansi.feature");
+        Files.writeString(feature, """
+            Feature: ANSI Test
+
+            Scenario: With ANSI
+            * def esc = String.fromCharCode(27)
+            * karate.log(esc + '[31mRED-LOG' + esc + '[0m ok')
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputJunitXml(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        Path xmlPath = reportDir.resolve("junit-xml/ansi.xml");
+        String xml = Files.readString(xmlPath);
+
+        String esc = String.valueOf((char) 27);
+        assertTrue(xml.contains("RED-LOG"), "log content should be retained");
+        assertFalse(xml.contains(esc), "XML should not contain ANSI escape codes");
+    }
+
+    @Test
     void testJunitXmlWithStepLogs() throws Exception {
         Path feature = tempDir.resolve("logs.feature");
         Files.writeString(feature, """

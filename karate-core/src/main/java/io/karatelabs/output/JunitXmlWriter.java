@@ -175,10 +175,10 @@ public final class JunitXmlWriter {
             String text = sr.getStep().getText();
             sb.append(prefix).append(" ").append(text).append("\n");
 
-            // Include step log if present
+            // Include step log if present (strip ANSI escape codes — CI parsers choke on them)
             String stepLog = sr.getLog();
             if (stepLog != null && !stepLog.isEmpty()) {
-                sb.append(stepLog);
+                sb.append(Console.stripAnsi(stepLog));
                 if (!stepLog.endsWith("\n")) {
                     sb.append("\n");
                 }

@@ -243,6 +243,57 @@ class CucumberJsonWriterTest {
     }
 
     @Test
+    void testCucumberJsonStripsAnsiEscapeCodes() throws Exception {
+        // regression for https://github.com/karatelabs/karate/issues/2799
+        // step logs can contain raw ANSI codes (from HttpLogger) which break downstream tools
+        // build ANSI at runtime via String.fromCharCode so the feature source has no ESC bytes
+        Path feature = tempDir.resolve("ansi.feature");
+        Files.writeString(feature, """
+            Feature: ANSI Test
+
+            Scenario: With ANSI
+            * def esc = String.fromCharCode(27)
+            * karate.log(esc + '[31mRED-LOG' + esc + '[0m ok')
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputCucumberJson(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        Path jsonPath = reportDir.resolve("cucumber-json/ansi.json");
+        String jsonStr = Files.readString(jsonPath);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> features = (List<Map<String, Object>>) (List<?>) Json.of(jsonStr).asList();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> elements = (List<Map<String, Object>>) features.get(0).get("elements");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> steps = (List<Map<String, Object>>) elements.get(0).get("steps");
+
+        // find the embedded text/plain log and decode it
+        boolean checkedLog = false;
+        for (Map<String, Object> step : steps) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> embeddings = (List<Map<String, Object>>) step.get("embeddings");
+            if (embeddings == null) continue;
+            for (Map<String, Object> embed : embeddings) {
+                if ("text/plain".equals(embed.get("mime_type"))) {
+                    String decoded = new String(java.util.Base64.getDecoder().decode(embed.get("data").toString()));
+                    String esc = String.valueOf((char) 27);
+                    assertTrue(decoded.contains("RED-LOG"), "log content should be retained");
+                    assertFalse(decoded.contains(esc), "log should not contain ANSI escape codes");
+                    checkedLog = true;
+                }
+            }
+        }
+        assertTrue(checkedLog, "expected a text/plain log embedding");
+    }
+
+    @Test
     void testCucumberJsonWithDocString() throws Exception {
         Path feature = tempDir.resolve("docstring.feature");
         Files.writeString(feature, """
