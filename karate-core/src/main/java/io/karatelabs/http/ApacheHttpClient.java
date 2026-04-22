@@ -513,6 +513,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         response.setStartTime(startTime);
         response.setResponseTime(endTime - startTime);
         response.setStatus(statusCode);
+        response.setStatusText(httpResponse.getReasonPhrase());
         response.setHeaders(headers);
         if (httpResponse instanceof ClassicHttpResponse classicHttpResponse) {
             HttpEntity entity = classicHttpResponse.getEntity();

@@ -369,6 +369,7 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         // Initialize response variables with defaults (must be reset per request)
         engine.put("response", null);
         engine.put("responseStatus", 200);
+        engine.put("responseStatusText", null);
         engine.put("responseHeaders", new HashMap<>());
         engine.put("responseDelay", 0);
         engine.put("pathParams", new HashMap<>());
@@ -465,6 +466,7 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         // Get response variables from engine
         Object responseBody = engine.get("response");
         Object responseStatus = engine.get("responseStatus");
+        Object responseStatusText = engine.get("responseStatusText");
         Object responseHeaders = engine.get("responseHeaders");
         Object responseDelay = engine.get("responseDelay");
 
@@ -472,6 +474,7 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         if (responseBody instanceof HttpResponse proceedResponse) {
             // Pass through the proceed response directly
             response.setStatus(proceedResponse.getStatus());
+            response.setStatusText(proceedResponse.getStatusText());
             response.setBody(proceedResponse.getBodyBytes(), proceedResponse.getResourceType());
             if (proceedResponse.getHeaders() != null) {
                 response.setHeaders(proceedResponse.getHeaders());
@@ -486,6 +489,9 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         // Set status
         if (responseStatus instanceof Number) {
             response.setStatus(((Number) responseStatus).intValue());
+        }
+        if (responseStatusText instanceof String s) {
+            response.setStatusText(s);
         }
 
         // Apply configured response headers first

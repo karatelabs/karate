@@ -128,7 +128,10 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
     }
 
     static FullHttpResponse toResponse(HttpResponse response) {
-        HttpResponseStatus status = HttpResponseStatus.valueOf(response.getStatus());
+        String statusText = response.getStatusText();
+        HttpResponseStatus status = statusText == null
+                ? HttpResponseStatus.valueOf(response.getStatus())
+                : HttpResponseStatus.valueOf(response.getStatus(), statusText);
         FullHttpResponse res = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
         Map<String, List<String>> headers = response.getHeaders();
         if (headers != null) {

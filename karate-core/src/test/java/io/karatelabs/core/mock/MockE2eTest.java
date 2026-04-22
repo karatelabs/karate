@@ -91,6 +91,12 @@ class MockE2eTest {
             Scenario: pathMatches('/hello')
               * def response = foo
 
+            # Custom status text (reason phrase)
+            Scenario: pathMatches('/teapot')
+              * def responseStatus = 418
+              * def responseStatusText = 'I am a teapot, really'
+              * def response = { short: 'stout' }
+
             # Performance test scenarios
             Scenario: pathMatches('/fast')
               * def response = { speed: 'fast' }
@@ -378,6 +384,34 @@ class MockE2eTest {
             * method get
             * status 200
             * match response == { bar: 'baz' }
+            """.formatted(port));
+
+        assertPassed(sr);
+    }
+
+    @Test
+    void testResponseStatusText() {
+        ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
+            Feature: Test Response Status Text
+
+            Scenario: Status text is surfaced for known codes
+            * url 'http://localhost:%d'
+
+            * path '/hello'
+            * method get
+            * status 200
+            * match responseStatusText == 'OK'
+
+            * path '/payments/999'
+            * method get
+            * status 404
+            * match responseStatusText == 'Not Found'
+
+            * path '/teapot'
+            * method get
+            * status 418
+            * match response == { short: 'stout' }
+            * match responseStatusText == 'I am a teapot, really'
             """.formatted(port));
 
         assertPassed(sr);

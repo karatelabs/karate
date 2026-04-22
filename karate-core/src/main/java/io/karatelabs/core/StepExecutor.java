@@ -2013,6 +2013,7 @@ public class StepExecutor {
         runtime.setVariable("responseTime", response.getResponseTime());
         // Hidden variables (accessible but not in getAllVariables())
         runtime.setHiddenVariable("responseBytes", response.getBodyBytes());
+        runtime.setHiddenVariable("responseStatusText", response.getStatusText());
         Object responseCookies = response.getCookies();
         runtime.setHiddenVariable("responseCookies", responseCookies);
         runtime.setHiddenVariable("requestTimeStamp", response.getStartTime());
