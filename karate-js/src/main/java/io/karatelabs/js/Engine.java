@@ -27,6 +27,7 @@ import io.karatelabs.common.Resource;
 import io.karatelabs.parser.JsParser;
 import io.karatelabs.parser.Node;
 import io.karatelabs.parser.NodeType;
+import io.karatelabs.parser.ParserException;
 
 import java.io.File;
 import java.util.Map;
@@ -186,15 +187,23 @@ public class Engine {
                 // flow-control signal from a host function — pass through unchanged
                 throw (RuntimeException) e;
             }
+            if (e instanceof ParserException pe) {
+                // preserve parser-failure type so callers can distinguish parse phase
+                throw pe;
+            }
             String message = e.getMessage();
             if (message == null) {
                 message = e + "";
             }
             Resource resource = program.getFirstToken().getResource();
-            if (resource.isFile()) {
-                message = message + "\n" + resource.getRelativePath();
+            String relPath = resource.isFile() ? resource.getRelativePath() : null;
+            if (relPath != null && !message.endsWith(relPath)) {
+                message = message + "\n" + relPath;
             }
-            throw new RuntimeException(message);
+            // Preserve structured jsErrorName when we already have an EngineException
+            // (e.g., from Interpreter.evalProgram for uncaught JS throws).
+            String jsErrorName = e instanceof EngineException ee ? ee.getJsErrorName() : null;
+            throw new EngineException(message, e, jsErrorName);
         }
     }
 

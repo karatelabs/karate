@@ -755,14 +755,25 @@ class Interpreter {
             if (context.isError()) {
                 Object errorThrown = context.getErrorThrown();
                 String errorMessage = null;
+                String errorName = null;
                 if (errorThrown instanceof JsObject jsError) {
                     Object message = jsError.getMember("message");
                     if (message instanceof String) {
                         errorMessage = (String) message;
                     }
+                    Object name = jsError.getMember("name");
+                    if (name instanceof String) {
+                        errorName = (String) name;
+                    }
                 }
-                String message = child.toStringError(errorMessage == null ? errorThrown.toString() : errorMessage);
-                throw new RuntimeException(message);
+                String rawMessage = errorMessage == null ? errorThrown.toString() : errorMessage;
+                // Keep a readable prefix in the message for logging, but the structured
+                // errorName is what callers (like the test262 runner) should consult.
+                if (errorName != null && !rawMessage.startsWith(errorName + ":")) {
+                    rawMessage = errorName + ": " + rawMessage;
+                }
+                String message = child.toStringError(rawMessage);
+                throw new EngineException(message, null, errorName);
             }
         }
         return progResult;

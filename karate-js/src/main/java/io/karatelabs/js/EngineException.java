@@ -25,8 +25,29 @@ package io.karatelabs.js;
 
 public class EngineException extends RuntimeException {
 
-    EngineException(String message, Throwable cause) {
+    private final String jsErrorName;
+
+    public EngineException(String message, Throwable cause) {
+        this(message, cause, null);
+    }
+
+    /**
+     * @param jsErrorName canonical JS error constructor name
+     *                    ("TypeError" | "ReferenceError" | "RangeError" | "SyntaxError" |
+     *                     "URIError" | "EvalError" | "Error" | null if non-JS origin)
+     */
+    public EngineException(String message, Throwable cause, String jsErrorName) {
         super(message, cause);
+        this.jsErrorName = jsErrorName;
+    }
+
+    /**
+     * @return the JS error constructor name when this exception originated from
+     *         an uncaught JS {@code throw}; {@code null} for Java-origin errors
+     *         (the caller can still inspect {@link #getMessage()} or the cause chain).
+     */
+    public String getJsErrorName() {
+        return jsErrorName;
     }
 
 }

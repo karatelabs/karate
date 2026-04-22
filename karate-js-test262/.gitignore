@@ -1,0 +1,9 @@
+# Anchored to the module root — without the leading slash these patterns
+# would also match the "io/karatelabs/js/test262" package directory and the
+# "src/test/" tree, swallowing our own source files.
+/test262/
+/html/
+/results.jsonl
+/run-meta.json
+/logs/
+/target/

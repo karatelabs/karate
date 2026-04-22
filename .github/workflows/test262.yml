@@ -1,0 +1,81 @@
+name: test262
+
+# Manually-triggered ECMAScript conformance run for karate-js.
+# Clones tc39/test262 at the pinned SHA, runs the full suite, generates the
+# HTML report, and uploads both the report and results.jsonl as artifacts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Restrict to a path glob (empty = full suite)"
+        required: false
+        default: ""
+      timeout_ms:
+        description: "Per-test watchdog (ms)"
+        required: false
+        default: "10000"
+
+permissions: read-all
+
+jobs:
+  test262:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Fetch test262
+        run: |
+          chmod +x karate-js-test262/fetch-test262.sh
+          karate-js-test262/fetch-test262.sh
+
+      # Single Maven invocation: install karate-js into the local repo (so the
+      # test262 module can resolve it), then compile the test262 module. Using
+      # -am -pl builds only what's needed.
+      - name: Build reactor (karate-js + test262 harness)
+        run: mvn -B -ntp -pl karate-js-test262 -am install -DskipTests
+
+      - name: Run test262 suite
+        working-directory: karate-js-test262
+        env:
+          EXEC_ARGS: >-
+            ${{ github.event.inputs.only != '' && format('--only {0}', github.event.inputs.only) || '' }}
+            --timeout-ms ${{ github.event.inputs.timeout_ms }}
+        run: mvn -B -ntp -f ../pom.xml -pl karate-js-test262 -o exec:java -Dexec.args="$EXEC_ARGS"
+
+      - name: Generate HTML report
+        working-directory: karate-js-test262
+        run: >
+          mvn -B -ntp -f ../pom.xml -pl karate-js-test262 -o exec:java
+          -Dexec.mainClass=io.karatelabs.js.test262.Test262Report
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test262-report
+          retention-days: 14
+          path: |
+            karate-js-test262/html/
+            karate-js-test262/results.jsonl
+            karate-js-test262/run-meta.json
+
+      - name: Print summary
+        if: always()
+        run: |
+          if [ -f karate-js-test262/run-meta.json ]; then
+            echo "### test262 summary" >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat karate-js-test262/run-meta.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi

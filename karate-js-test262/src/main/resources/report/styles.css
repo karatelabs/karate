@@ -1,0 +1,52 @@
+* { box-sizing: border-box; }
+html { font: 14px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #222; }
+body { margin: 0; padding: 1.25rem 1.5rem 3rem; max-width: 1100px; }
+
+h1 { margin: 0 0 .25rem; font-size: 1.4rem; font-weight: 600; }
+h2 { margin: 1.5rem 0 .5rem; font-size: 1rem; font-weight: 600; color: #555; border-bottom: 1px solid #eee; padding-bottom: .25rem; }
+
+header { margin-bottom: 1rem; }
+
+#meta { color: #777; font-size: .85rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; margin: .3rem 0 .8rem; }
+
+.summary { display: flex; gap: .35rem; align-items: center; margin: .4rem 0 .8rem; flex-wrap: wrap; }
+.pill { display: inline-block; padding: 0.2rem 0.55rem; border-radius: 1rem; font-size: .8rem; font-weight: 500; }
+.pill.pass  { background: #e8f5e9; color: #2e7d32; }
+.pill.fail  { background: #ffebee; color: #c62828; }
+.pill.skip  { background: #f5f5f5; color: #616161; }
+.pill.total { background: #eceff1; color: #455a64; }
+
+.filters { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; font-size: .9rem; margin: .3rem 0; }
+.filters input[type=text], .filters #q { flex: 1 1 240px; padding: .35rem .55rem; font: inherit; border: 1px solid #ccc; border-radius: 4px; }
+
+ul.top-stats { list-style: none; padding: 0; margin: 0; }
+ul.top-stats li { padding: .3rem 0; border-bottom: 1px dashed #eee; display: flex; align-items: center; gap: .75rem; font-family: ui-monospace, monospace; font-size: .9rem; }
+ul.top-stats li strong { min-width: 10rem; font-weight: 600; }
+.bar svg { vertical-align: middle; display: inline-block; border-radius: 2px; }
+.counts { color: #666; font-size: .85rem; }
+
+#tree details { margin: .15rem 0; padding-left: .4rem; border-left: 2px solid transparent; }
+#tree details[open] { border-left-color: #e0e0e0; }
+#tree summary { cursor: pointer; padding: .15rem .25rem; display: flex; gap: .5rem; align-items: center; }
+#tree summary:hover { background: #fafafa; }
+#tree .dir { font-family: ui-monospace, monospace; color: #455a64; font-weight: 500; }
+#tree details details { margin-left: 1rem; }
+#tree details ul.tests { margin-left: 1.5rem; list-style: none; padding-left: 0; }
+#tree details ul.tests li { padding: .1rem .25rem; font-family: ui-monospace, monospace; font-size: .85rem; display: flex; gap: .5rem; align-items: baseline; }
+#tree details ul.tests li.t-PASS { color: #444; }
+#tree details ul.tests li.t-PASS .status { color: #2e7d32; font-weight: 600; }
+#tree details ul.tests li.t-FAIL .status { color: #c62828; font-weight: 600; }
+#tree details ul.tests li.t-SKIP { color: #888; }
+#tree details ul.tests li.t-SKIP .status { color: #888; font-weight: 600; }
+#tree details ul.tests li a { color: #1565c0; text-decoration: none; }
+#tree details ul.tests li a:hover { text-decoration: underline; }
+#tree details ul.tests li em { color: #888; font-style: italic; font-size: .8rem; margin-left: .2rem; }
+#tree details ul.tests li.hidden, #tree details.hidden { display: none; }
+
+pre { background: #fafafa; border: 1px solid #eee; border-radius: 4px; padding: .6rem .8rem; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; line-height: 1.45; }
+pre.error { background: #ffebee; border-color: #ffcdd2; color: #b71c1c; white-space: pre-wrap; }
+pre.cmd   { background: #263238; color: #eceff1; border-color: #263238; user-select: all; }
+pre.source .ln { color: #9e9e9e; display: inline-block; width: auto; user-select: none; margin-right: .3rem; }
+
+a { color: #1565c0; }
+a:hover { text-decoration: underline; }
