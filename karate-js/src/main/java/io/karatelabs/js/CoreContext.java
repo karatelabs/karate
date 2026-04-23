@@ -241,8 +241,11 @@ class CoreContext implements Context {
     }
 
     void declare(String key, Object value, BindScope scope, boolean initialized) {
-        if (value instanceof JsFunction) {
-            ((JsFunction) value).name = key;
+        if (value instanceof JsFunction fn && (fn.name == null || fn.name.isEmpty())) {
+            // ES6 name inference: assign `fn.name = key` only when the function is
+            // anonymous. Named function declarations (and references to them bound to
+            // other keys/parameters) must keep their original .name per spec.
+            fn.name = key;
         }
         if (scope != null) { // let or const
             BindValue existing = findConstOrLetAtCurrentLevel(key);

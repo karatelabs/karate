@@ -77,6 +77,11 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
     }
 
     @Override
+    boolean isJsFunction() {
+        return true;
+    }
+
+    @Override
     public Object getMember(String name) {
         // For functions, "prototype" returns the function's prototype object
         // Check _map first to allow "Foo.prototype = ..." assignments

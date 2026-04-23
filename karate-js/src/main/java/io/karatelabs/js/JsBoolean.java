@@ -26,6 +26,10 @@ package io.karatelabs.js;
 public non-sealed class JsBoolean extends JsObject implements JsPrimitive {
 
     final boolean value;
+    // true only for the single instance registered as the global `Boolean` in
+    // ContextRoot — marks this as the constructor-role object so typeof reports
+    // "function". Regular `new Boolean(x)` instances leave this false.
+    boolean builtinConstructor;
 
     JsBoolean() {
         this(false);
@@ -38,6 +42,11 @@ public non-sealed class JsBoolean extends JsObject implements JsPrimitive {
     @Override
     public Object getJavaValue() {
         return value;
+    }
+
+    @Override
+    boolean isJsFunction() {
+        return builtinConstructor;
     }
 
     @Override

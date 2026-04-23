@@ -493,15 +493,23 @@ public class Terms {
     }
 
     public static String typeOf(Object value) {
-        // boxed primitives are objects
-        if (value instanceof JsPrimitive) {
-            return "object";
-        }
         if (value instanceof String) {
             return "string";
         }
-        if (value instanceof JsFunction || value instanceof JsInvokable) {
+        // Raw JsInvokable lambdas (parseInt, eval, Math.max, ...).
+        if (value instanceof JsInvokable) {
             return "function";
+        }
+        // JsFunction + built-in constructor singletons (Boolean/RegExp/Error
+        // globals) self-report via isJsFunction() override. Must come before
+        // the JsPrimitive check because JsBoolean is both primitive AND the
+        // global Boolean constructor — the latter sets builtinConstructor=true.
+        if (value instanceof JsObject jo && jo.isJsFunction()) {
+            return "function";
+        }
+        // Boxed primitives are objects
+        if (value instanceof JsPrimitive) {
+            return "object";
         }
         if (value instanceof Number) {
             return "number";

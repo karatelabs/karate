@@ -64,6 +64,17 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
     }
 
     /**
+     * Whether this value should report {@code typeof === "function"} to JS.
+     * Default {@code false}; overridden by {@link JsFunction} and by built-in
+     * constructor singletons (e.g. the global {@code Boolean}, {@code RegExp},
+     * {@code Error}) that are {@code JsObject} subclasses rather than
+     * {@code JsFunction}. See {@link Terms#typeOf(Object)}.
+     */
+    boolean isJsFunction() {
+        return false;
+    }
+
+    /**
      * Sets the prototype (__proto__) of this object.
      */
     public void setPrototype(ObjectLike proto) {

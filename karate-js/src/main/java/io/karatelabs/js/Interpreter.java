@@ -776,8 +776,15 @@ class Interpreter {
                         errorMessage = (String) message;
                     }
                     Object name = jsError.getMember("name");
-                    if (name instanceof String) {
-                        errorName = (String) name;
+                    if (name instanceof String s && !s.isEmpty()) {
+                        errorName = s;
+                    } else if (jsError.getMember("constructor") instanceof JsFunction ctor
+                            && ctor.getMember("name") instanceof String ctorName
+                            && !ctorName.isEmpty()) {
+                        // User-defined error classes (e.g. test262's Test262Error) often omit
+                        // .name on the prototype; fall back to constructor.name so host callers
+                        // still see a meaningful error type.
+                        errorName = ctorName;
                     }
                 }
                 String rawMessage = errorMessage == null ? errorThrown.toString() : errorMessage;
@@ -894,6 +901,23 @@ class Interpreter {
                 throw (RuntimeException) e;
             }
             Token first = node.getFirstToken();
+            // Carry engine-origin JS error identity across the boundary so
+            // `EngineException.getJsErrorName()` works without re-parsing the message.
+            String jsErrorName = null;
+            JsErrorException jex = findJsErrorException(e);
+            if (jex != null) {
+                jsErrorName = jex.payload.getName();
+            } else {
+                // Map raw Java exceptions to a JS error constructor name so host
+                // callers never see "IndexOutOfBoundsException" leak through. The
+                // message body stays the JVM text (still informative), but the
+                // structured jsErrorName + prefix make classification JS-native.
+                jsErrorName = classifyJavaException(e);
+            }
+            String body = e.getMessage();
+            if (jsErrorName != null && body != null && !body.startsWith(jsErrorName + ":")) {
+                body = jsErrorName + ": " + body;
+            }
             StringBuilder sb = new StringBuilder();
             sb.append("js failed:\n");
             sb.append("==========\n");
@@ -904,17 +928,10 @@ class Interpreter {
                 sb.append("  Line: ").append(first.line + 1).append(", Col: ").append(first.col).append("\n");
             }
             sb.append("  Code: ").append(first.getLineText().trim()).append("\n");
-            sb.append("  Error: ").append(e.getMessage()).append("\n");
+            sb.append("  Error: ").append(body).append("\n");
             sb.append("==========");
             if (first.getResource().isFile()) {
                 System.err.println("file://" + first.getResource().getUri().getPath() + ":" + first.getPositionDisplay() + " " + e);
-            }
-            // Carry engine-origin JS error identity across the boundary so
-            // `EngineException.getJsErrorName()` works without re-parsing the message.
-            String jsErrorName = null;
-            JsErrorException jex = findJsErrorException(e);
-            if (jex != null) {
-                jsErrorName = jex.payload.getName();
             }
             throw new EngineException(sb.toString(), e, jsErrorName);
         }
@@ -970,6 +987,27 @@ class Interpreter {
         Throwable cur = t;
         while (cur != null) {
             if (cur instanceof JsErrorException jex) return jex;
+            Throwable next = cur.getCause();
+            if (next == null || next == cur) return null;
+            cur = next;
+        }
+        return null;
+    }
+
+    /**
+     * Map raw Java exceptions to the JS error constructor name callers should
+     * see. Walks the cause chain so wrapping (e.g. reflection's
+     * {@code InvocationTargetException}) doesn't hide the real origin. Returns
+     * {@code null} if nothing maps — callers then leave jsErrorName unset.
+     */
+    private static String classifyJavaException(Throwable t) {
+        Throwable cur = t;
+        while (cur != null) {
+            if (cur instanceof IndexOutOfBoundsException) return "RangeError";
+            if (cur instanceof ArithmeticException) return "RangeError";
+            if (cur instanceof NullPointerException) return "TypeError";
+            if (cur instanceof ClassCastException) return "TypeError";
+            if (cur instanceof NumberFormatException) return "TypeError";
             Throwable next = cur.getCause();
             if (next == null || next == cur) return null;
             cur = next;

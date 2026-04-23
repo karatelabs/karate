@@ -76,6 +76,48 @@ class EvalTest extends EvalBase {
         // User functions
         assertEquals("function", eval("typeof (function(){})"));
         assertEquals("function", eval("var f = () => 1; typeof f"));
+        // Constructor singletons that extend JsObject (not JsFunction):
+        // Boolean/RegExp/Error/TypeError/... must still report "function".
+        assertEquals("function", eval("typeof Boolean"));
+        assertEquals("function", eval("typeof RegExp"));
+        assertEquals("function", eval("typeof Error"));
+        assertEquals("function", eval("typeof TypeError"));
+        assertEquals("function", eval("typeof RangeError"));
+        assertEquals("function", eval("typeof ReferenceError"));
+        assertEquals("function", eval("typeof SyntaxError"));
+        // Instances of those constructors are objects (not functions).
+        assertEquals("object", eval("typeof new Boolean(true)"));
+        assertEquals("object", eval("typeof new RegExp('x')"));
+        assertEquals("object", eval("typeof new Error('oops')"));
+        assertEquals("object", eval("typeof new TypeError('nope')"));
+        assertEquals("object", eval("typeof /foo/"));
+    }
+
+    @Test
+    void testFunctionNameInference() {
+        // ES6 name inference: anonymous function/arrow assigned to a binding picks up the key.
+        assertEquals("f", eval("var f = function() {}; f.name"));
+        assertEquals("g", eval("var g = () => {}; g.name"));
+        // Named function expression keeps its own name, not the binding key.
+        assertEquals("named", eval("var x = function named() {}; x.name"));
+        // Named function declaration: passing it as a parameter or via var must NOT rename it.
+        assertEquals("Foo", eval("function Foo() {} var x = Foo; x.name"));
+        assertEquals("Foo", eval("function Foo() {} function take(p) { return p.name; } take(Foo)"));
+        // Mutation guard: calling take(Foo) must not mutate Foo.name globally.
+        assertEquals("Foo", eval("function Foo() {} function take(p) { return p; } take(Foo); Foo.name"));
+        // instance.constructor.name chain via a parameter binding.
+        assertEquals("Test262Error",
+                eval("function Test262Error(m) { this.message = m; }" +
+                        " function rethrow(ctor) { throw new Test262Error('x'); }" +
+                        " try { rethrow(Test262Error); } catch (e) { e.constructor.name }"));
+    }
+
+    @Test
+    void testThrownErrorTypeFallsBackToConstructorName() {
+        // User-defined error classes that omit .name on the prototype must still
+        // surface a meaningful type to host callers via constructor.name lookup.
+        assertEquals("MyErr",
+                eval("function MyErr(m) { this.message = m; } try { throw new MyErr('oops'); } catch (e) { e.constructor.name }"));
     }
 
     @Test

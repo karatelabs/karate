@@ -38,8 +38,18 @@ public class JsRegex extends JsObject {
     public final String flags;
     public final Pattern javaPattern;
     public final boolean global;
+    // true only for the single instance registered as the global `RegExp` in
+    // ContextRoot — marks this as the constructor-role object so typeof reports
+    // "function". Regular /foo/ literals and `new RegExp(...)` instances leave
+    // this false.
+    boolean builtinConstructor;
 
     private int lastIndex = 0;
+
+    @Override
+    boolean isJsFunction() {
+        return builtinConstructor;
+    }
 
     JsRegex() {
         this("(?:)");

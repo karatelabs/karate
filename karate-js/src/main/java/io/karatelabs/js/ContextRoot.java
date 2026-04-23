@@ -178,9 +178,17 @@ class ContextRoot extends CoreContext {
             case "Math" -> new JsMath();
             case "NaN" -> Double.NaN;
             case "Number" -> JsNumberConstructor.INSTANCE;
-            case "Boolean" -> new JsBoolean();
+            case "Boolean" -> {
+                JsBoolean b = new JsBoolean();
+                b.builtinConstructor = true;
+                yield b;
+            }
             case "Object" -> JsObjectConstructor.INSTANCE;
-            case "RegExp" -> new JsRegex();
+            case "RegExp" -> {
+                JsRegex r = new JsRegex();
+                r.builtinConstructor = true;
+                yield r;
+            }
             case "String" -> JsStringConstructor.INSTANCE;
             case "TypeError" -> new JsError(null, "TypeError", null);
             case "ReferenceError" -> new JsError(null, "ReferenceError", null);

@@ -81,6 +81,14 @@ class JsError extends JsObject {
     }
 
     @Override
+    boolean isJsFunction() {
+        // Registered globals (Error, TypeError, RangeError, ...) have
+        // constructor == null; thrown instances point their .constructor at
+        // the registered global. Only the former should report "function".
+        return constructor == null;
+    }
+
+    @Override
     public Object getMember(String key) {
         // Check own properties first
         Object own = super.getMember(key);

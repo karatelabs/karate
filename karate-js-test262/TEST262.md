@@ -505,40 +505,44 @@ remove items once fixed.
   `ContextRoot.initGlobal` with indirect-eval semantics (parses and
   evaluates in the engine root scope; non-string arguments pass through
   unchanged per spec). Direct-eval scope capture is still out of scope.
-- **`typeof` on `JsInvokable` globals.** ✅ *Addressed.* `Terms.typeOf`
-  now returns `"function"` for any `JsInvokable`, not just `JsFunction`.
-  Fixes `typeof parseInt`, `typeof eval`, `typeof isNaN`, `typeof isFinite`,
-  `typeof parseFloat`, `typeof encodeURI*`, and the `Math.*` / `JSON.*`
-  method references. Still reports `"object"` for `Boolean` / `RegExp` /
-  `Error` / `TypeError` / … — these extend `JsObject` rather than
-  `JsFunction`, and the prototype-method refs cast as `(JsCallable) x::y`
-  (e.g. `[1].map`, `'x'.charAt`) are also still `"object"`. A broader fix
-  would either flip these classes to extend `JsFunction` or introduce a
-  separate "is-function" marker; deferred until the Tier 2 built-ins pass
-  surfaces the demand.
-- **Negative-test parse-error classification.** ✅ *Not actually broken.*
-  The prior note described `Unknown: expected negative … but got NN:N
-  STATEMENT` failures; a current run shows **zero** `"expected negative"`
-  failures in `results.jsonl`. Parse-phase negatives already route
-  correctly through `Test262Runner.classifyNegative(..., "parse",
-  "SyntaxError", pe)`. The residual `Unknown: NN:N STATEMENT` failures
-  (~1300) are a *different* issue — they are assertion failures from the
-  harness's `assert.js` (Test262Error thrown, message framed by
-  `Node.toStringError` so the first line is the engine position
-  `<line>:<col> <NodeType>` rather than the real error body). See the
-  separate framing gap below.
-- **Engine-position prefix hides assertion messages (framing gap).**
-  `Node.toStringError` prepends `<line>:<col> <NodeType>` before the real
-  message. `ErrorUtils.firstLine()` then returns the position prefix, not
-  the body — so `results.jsonl` shows `"message":"13:1 STATEMENT"` instead
-  of `"Array.prototype.isPrototypeOf(Array()) must return true …"`. Two
-  cheap fixes: (a) swap the order in `Node.toStringError` so the real
-  message is first, position appended, or (b) teach `ErrorUtils.firstLine`
-  to skip an initial `^\d+:\d+\s+[A-Z_]+$` line. Option (a) is the root
-  cause per Working Principle #3 (errors must look like JavaScript, not
-  engine internals). ~1300 tests would suddenly have readable failure
-  messages; classification might also improve for a subset where the true
-  body starts with a known `<Name>:` prefix.
+- **`typeof` on all callable surfaces.** ✅ *Addressed.* `Terms.typeOf`
+  now returns `"function"` for any `JsInvokable`, for `JsFunction`, and
+  for built-in constructor singletons that extend `JsObject` rather than
+  `JsFunction` (the `Boolean`, `RegExp`, `Error`/`TypeError`/etc. globals)
+  via a `JsObject.isJsFunction()` override. Only remaining gap: prototype
+  method refs cast as `(JsCallable) x::y` (e.g. `[1].map`, `'x'.charAt`)
+  still report `"object"` because they are raw `JsCallable` instances
+  that aren't `JsObject` subclasses — widening there would need either
+  a method-ref signature change (→ `JsInvokable`) or an extra instance
+  filter (can't just widen to `JsCallable`: `JsArray`/`JsObject` both
+  implement it). Low-impact for real-world code.
+- **Engine-position prefix hides assertion messages (framing gap).** ✅
+  *Addressed.* `Node.toStringError` now emits the user message first and
+  a JS-stack-frame-style `    at <path>:<line>:<col>` suffix instead of
+  leading with the engine-internal `<line>:<col> <NodeType>` token.
+  ~1500 Array-slice failures that previously showed `"13:1 STATEMENT"`
+  now surface the actual assertion text.
+- **`Test262Error` / user-defined error classes classified as Unknown.**
+  ✅ *Addressed.* `Interpreter.evalProgram` falls back to `constructor.name`
+  when the thrown JsObject has no `.name` property set on its prototype,
+  populating `EngineException.jsErrorName` so the runner's `ErrorUtils`
+  surfaces a meaningful type. Also fixed a related function-name-inference
+  bug in `CoreContext.declare` where passing a named function as a
+  parameter was permanently renaming it globally (`x.name` returning the
+  parameter identifier); guarded the inference to only fire when the
+  function's name is currently empty. Net effect on the Array slice:
+  `Unknown` fail bucket went from ~1480 → 136; 1325 now classify as
+  `Test262Error` (assertion failures).
+- **Raw Java exception names leak through `EngineException.getMessage()`.**
+  ✅ *Addressed.* `Interpreter.evalStatement`'s catch block now maps
+  common JVM exceptions to JS error constructor names via
+  `classifyJavaException`: `IndexOutOfBoundsException` /
+  `ArithmeticException` → `RangeError`; `NullPointerException` /
+  `ClassCastException` / `NumberFormatException` → `TypeError`. The
+  mapped name is both stamped on `EngineException.jsErrorName` and
+  prefixed to the message body so runner-side and JS-side consumers
+  agree. 13 `"Index -N out of bounds"` failures in the Array slice are
+  now classified as `RangeError` instead of `Unknown`.
 - **`cannot read properties of undefined (reading 'name')`.** ✅ *Addressed.*
   Root cause turned out not to be a `.name` read in engine code but the
   test262 harness's `assert.throws(Ctor, fn)` reading `thrown.constructor.name`
@@ -574,23 +578,28 @@ remove items once fixed.
 
 ### Recommended next-session ordering
 
-Prior items 1–3 + strict-mode policy + `typeof` for `JsInvokable` are
-done. Remaining, in priority order:
+Strict-mode policy, error-message framing, `typeof` coverage,
+`Test262Error` classification, and Java-exception wrapping are all
+done. Unknown in the Array slice is down from 1480 → 136.
 
-1. **Fix `Node.toStringError` ordering** so the engine position prefix
-   (`<line>:<col> <NodeType>`) comes *after* the real message, not
-   before. Currently ~1300 tests in `results.jsonl` report
-   `"message":"13:1 STATEMENT"` because `ErrorUtils.firstLine()` only
-   sees the position prefix. Root-cause fix per Working Principle #3.
-   Alternative: teach `ErrorUtils.firstLine` to skip a leading
-   `^\d+:\d+\s+[A-Z_]+$` line — runner-side, contained, but treats the
-   symptom not the cause.
-2. **Classify `Test262Error` distinctly.** Assertion failures from
-   `assert.js` currently collapse to `"Unknown"` because the thrown
-   message has no `<Name>:` prefix. Either teach `ErrorUtils.classify`
-   to detect `Test262Error:` / the `assert.js` message shapes, or surface
-   them under a dedicated `"AssertionFailed"` bucket in results. Not a
-   correctness fix, but dramatically improves report triage.
+Remaining concrete levers before Tier 2:
+
+1. **Tighten `ErrorUtils.classify` for a few remaining Unknown patterns.**
+   The surviving 136 Array-slice Unknowns include `"Java heap space"`
+   (OOM — leave as Unknown), `"cannot call: [FN_EXPR] function fun() {"`
+   (engine bug when a function is invoked in a position it doesn't
+   expect — needs engine fix), and messages like
+   `"expression: $262.createRealm().global - TypeError: ..."` where the
+   real error name is a substring rather than a prefix. Teach
+   `classifyByMessagePrefix` to scan *within* the message (bounded) when
+   no prefix match fires, and it'll catch the last one.
+2. **Promote prototype method refs to report `typeof === "function"`.**
+   `[1].map`, `'x'.charAt`, etc. currently return `"object"` because the
+   prototype singletons expose them as `(JsCallable) this::method` — a
+   raw JsCallable that isn't a JsObject. Either change the cast sites to
+   `(JsInvokable) ...` (signature mismatch: need to adapt to
+   `invoke(Object[])`) or wrap in a tiny `JsFunction` adapter. Not
+   critical for Tier 2 but idiomatic JS expects this.
 
 After that, the earlier Tier 2 plan (`Object`/`Array`/`String` built-ins)
 is the next cliff worth climbing.
