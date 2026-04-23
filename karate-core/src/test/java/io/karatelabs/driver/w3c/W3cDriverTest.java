@@ -110,4 +110,30 @@ class W3cDriverTest {
         // An escaped quote doesn't close the string, so ; inside stays hidden
         assertEquals(-1, W3cDriver.indexOfTopLevelSemicolon("foo('a\\';b')"));
     }
+
+    @Test
+    void testIndexOfTopLevelSemicolonSkipsBracedBodies() {
+        // Karate's internal helpers generate IIFEs whose body uses `;`. These
+        // are single top-level expressions, not multi-statement scripts, so the
+        // scanner must ignore ; inside () {} [] groups.
+        String iife = "(function(){ var e = document.querySelector('#x'); return fun(e) })()";
+        assertEquals(-1, W3cDriver.indexOfTopLevelSemicolon(iife));
+
+        String objLiteral = "({ a: 1, b: (function(){ var x; return x })() })";
+        assertEquals(-1, W3cDriver.indexOfTopLevelSemicolon(objLiteral));
+
+        String callWithCallback = "waitFor(fn, function(){ var i = 0; return i })";
+        assertEquals(-1, W3cDriver.indexOfTopLevelSemicolon(callWithCallback));
+    }
+
+    @Test
+    void testPrefixReturnIifeGetsReturnPrefix() {
+        // Regression: an IIFE is a value-producing expression, so it must get
+        // `return` prefixed so W3C executeScript returns the value. Before the
+        // brace-depth fix, the `;` inside the function body looked top-level and
+        // blocked the return prefix — Karate's internal helpers (position(),
+        // waitForText(), etc.) then ran but returned null, timing out.
+        String iife = "(function(){ var e = document.querySelector('#x'); return e.getBoundingClientRect() })()";
+        assertEquals("return " + iife, W3cDriver.prefixReturnIfNeeded(iife));
+    }
 }

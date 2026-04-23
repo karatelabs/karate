@@ -1043,14 +1043,23 @@ public class W3cDriver implements Driver {
 
     /**
      * Scan for the first top-level semicolon, ignoring ones inside string literals
-     * (single, double, or backtick-quoted). Good enough to distinguish
-     * {@code "a = 1; b = 2"} (multi-statement) from {@code "foo('a;b')"} (single call).
+     * (single, double, or backtick-quoted) and inside any brackets/braces/parens.
+     * A {@code ;} only separates top-level statements when every enclosing group
+     * has been closed — otherwise it's inside an IIFE body, call expression, object
+     * literal, etc. and belongs to that construct.
+     *
+     * <p>Distinguishes {@code "a = 1; b = 2"} (multi-statement) from
+     * {@code "(function(){ var e = x; return e })()"} (single IIFE expression)
+     * and {@code "foo('a;b')"} (single call with string arg).</p>
      */
     static int indexOfTopLevelSemicolon(String s) {
         boolean inSingle = false;
         boolean inDouble = false;
         boolean inBacktick = false;
         boolean escape = false;
+        int parenDepth = 0;
+        int braceDepth = 0;
+        int bracketDepth = 0;
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
             if (escape) {
@@ -1073,10 +1082,21 @@ public class W3cDriver implements Driver {
                 if (c == '`') inBacktick = false;
                 continue;
             }
-            if (c == '\'') inSingle = true;
-            else if (c == '"') inDouble = true;
-            else if (c == '`') inBacktick = true;
-            else if (c == ';') return i;
+            switch (c) {
+                case '\'' -> inSingle = true;
+                case '"' -> inDouble = true;
+                case '`' -> inBacktick = true;
+                case '(' -> parenDepth++;
+                case ')' -> { if (parenDepth > 0) parenDepth--; }
+                case '{' -> braceDepth++;
+                case '}' -> { if (braceDepth > 0) braceDepth--; }
+                case '[' -> bracketDepth++;
+                case ']' -> { if (bracketDepth > 0) bracketDepth--; }
+                case ';' -> {
+                    if (parenDepth == 0 && braceDepth == 0 && bracketDepth == 0) return i;
+                }
+                default -> { /* no-op */ }
+            }
         }
         return -1;
     }
