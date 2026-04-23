@@ -750,30 +750,76 @@ by "how often does idiomatic LLM-written JS hit this?" not by
 test-count. Each entry names (a) what LLMs actually do that depends on
 it, (b) the shape of the work, and (c) the skip-list entry to retire.
 
+**Baseline health** (probe at current HEAD): `expressions/**` 1607,
+`Math/**` 140/65 ok, `Number/**` 157/92 ok, `String/**` 267/783
+(method gaps), `RegExp/**` 449/482 ok, **`Date/**` 30/373 — poor,
+worth its own session**, `Boolean/**` 23/19, `Object/prototype/**`
+66/104 ok, `try/**` 58/110 ok. `Promise/**` / `BigInt/**` /
+`TypedArrayConstructors/Uint8Array/**` all fully SKIP-gated today.
+
 ---
 
 **1. Optional chaining (`?.`) + nullish coalescing (`??`).**
 
-Both currently skipped via `expectations.yaml`
-(`feature: optional-chaining`, `feature: nullish-coalescing`). LLMs
-write `config?.server?.port ?? 8080` reflexively — this is defensive
-property access plus default fallback, the single most common modern
-JS pattern after destructuring. Neither feature exists in karate-js
-today.
+Both currently skipped (`feature: optional-chaining`,
+`feature: nullish-coalescing`). LLMs write
+`config?.server?.port ?? 8080` reflexively — defensive property access
+plus default fallback, the single most common modern JS pattern after
+destructuring.
 
 Shape: new tokens (`?.`, `??`), parser slots in the postfix chain
 (optional chaining) and logical-operator tier (nullish coalescing),
-interpreter short-circuit evaluation. Small to mid session — both
-features share the same "short-circuit on nullish" machinery, land
-them together. Remove both skip entries when done.
+interpreter short-circuit on nullish. Small-to-mid session; bundle
+them — shared short-circuit-on-nullish machinery. Remove both skip
+entries.
 
-**Why first:** cheapest *and* highest-frequency. Together they touch
-thousands of real LLM-generated snippets; ignoring them means any
-paste from a modern codebase breaks at the first `?.`.
+**Why first:** cheapest *and* highest-frequency. Any paste from a
+modern codebase breaks at the first `?.` today.
 
 ---
 
-**2. Iteration-layer unification + un-skip `Symbol.iterator`.**
+**2. Promises + async/await.**
+
+Currently all skipped (`feature: Promise`, `feature: async-functions`,
+`flag: async`). Despite the skips, 142 `Promise/**` tests leak through
+as FAIL today — worth auditing once we implement.
+
+**Architectural decision up front.** karate-js is synchronous; no
+event loop, no microtask queue. Two viable paths:
+  1. **Full async runtime** — add a microtask queue, Promise state
+     machine, async-function transformation to resumable state
+     machine, `await` as a yield point. Weeks of work; the big-bang
+     version.
+  2. **Synchronous subset** — a Promise that resolves eagerly when
+     possible (most glue code uses `await` on already-settled
+     thenables or on synchronous operations dressed as async).
+     `async function` becomes "run synchronously, wrap result in
+     `Promise.resolve`"; `await expr` synchronously unwraps a
+     thenable. No microtask ordering, no `setTimeout`. Breaks
+     genuinely-async workloads but unblocks ~80% of LLM-generated
+     glue code that uses `async/await` for shape, not parallelism.
+
+Recommendation: start with path 2, document the subset, and only
+escalate to path 1 if a real workload surfaces that needs timer-driven
+scheduling. karate-js is embedded in a test/workflow runner where
+synchronous-thenable semantics match the surrounding Java code's
+execution model anyway.
+
+Shape for path 2: `Promise` constructor with immediate resolution,
+`then`/`catch`/`finally` chaining (microtask → direct callback),
+`Promise.all`/`race`/`allSettled`/`resolve`/`reject`. Parser
+recognizes `async function` / `async () =>` / `await expr`;
+interpreter treats `await` as "unwrap thenable now, re-raise if
+rejected." Retire the three skip entries plus `for-await-of` (if in
+scope).
+
+**Why second:** user-flagged as "sooner" and rightly — LLMs default to
+`async`/`await` even for synchronous-looking code. Without it the
+engine rejects a large fraction of idiomatic modern JS.
+
+---
+
+**3. Iteration-layer unification + un-skip `Symbol.iterator`.**
 
 Right now karate-js has **ad-hoc iteration** scattered across sites
 that each special-case `List` / `String` / `JsArray`:
@@ -806,16 +852,14 @@ call sites above. (3) Remove `feature: Symbol.iterator` from
 `JsString` as a well-known-symbol alias. Real `Symbol()` construction
 can stay skipped.
 
-**Why second:** architectural, but this session's work exposed how
-fragile the ad-hoc pattern is (the String-case in `destructurePattern`
-is smell). One refactor in exchange for: simpler engine, consistent
-semantics across all iteration sites, a huge cascade of newly-runnable
-Array tests, and the door open to for-of over user-defined iterables.
-Per Working Principle #2 — the friction is real; fix it now.
+**Why third:** architectural, but this session's work exposed how
+fragile the ad-hoc pattern is. One refactor retires a massive SKIP
+cluster *and* enables #6 (Map/Set) + more robust `for-of`. Per
+Working Principle #2 — the friction is real; fix it now.
 
 ---
 
-**3. Class syntax (ES6).**
+**4. Class syntax (ES6).**
 
 Currently skipped (`feature: class` plus five `class-*` variants).
 LLMs default to `class Foo extends Bar {}` when they want OO.
@@ -823,40 +867,94 @@ Karate-js already has the prototype and `new` machinery — this is
 primarily a parser + desugarer.
 
 Shape: (1) parser recognizes `class`/`extends`/method-definitions;
-(2) desugar to an equivalent constructor function + prototype
-assignments at parse time (or during interpretation); (3) handle
-`super` calls inside constructors and methods; (4) `static` members
-become direct function properties. Mid-to-large session. Remove the
-six `class-*` skips when done.
+(2) desugar to constructor function + prototype assignments;
+(3) handle `super` calls inside constructors and methods;
+(4) `static` members become direct function properties. Mid-to-large
+session. Retire the six `class-*` skips.
 
-**Why third:** qualitatively important but larger scope than #1/#2.
-Also, much working karate-js code uses prototype syntax directly, so
-the impact on existing LLM-written code is high but not
-feature-blocking the way #1 is.
-
----
-
-**4. Destructuring-assignment residuals (75).**
-
-After the reserved-words widening + default-undefined + iterable-check
-fixes, the assignment slice has 75 fails, all low-leverage:
-
-- **47 SyntaxErrors, all `-escaped` forms** — need lexer support for
-  `\uXXXX` in identifier scans. Isolated lexer project; LLMs don't
-  write escape-form keywords.
-- **14 Test262Errors** — TDZ-on-assignment-to-later-`let`,
-  init-evaluation order, function-name inference in defaults. Small
-  independent fixes; low frequency in real code.
-- **14 Unknowns — negative parse tests** (`[...rest, elem]`,
-  `{...rest, key: v}`) that need pattern-vs-literal two-mode parsing.
-  Significant refactor; real-world code doesn't write these.
-
-**Why fourth:** each sub-bucket is architectural or
-low-LLM-frequency. Skip unless one of them blocks something.
+**Why fourth:** qualitatively important but larger scope. Existing
+karate-js code that uses prototype syntax directly still works, so
+this is coverage for new LLM-written code, not a break-fix for
+existing users.
 
 ---
 
-**5. Deferred — descriptor infra, low LLM-leverage.**
+**5. BigInt.**
+
+Currently fully skipped (`feature: BigInt` gates 77 `BigInt/**`
+tests). LLMs reach for BigInt occasionally — cryptographic math, ID
+generation above `Number.MAX_SAFE_INTEGER`, timestamps at nanosecond
+precision. Not daily, but when needed, nothing else substitutes.
+
+Shape: new token (`123n` literal suffix), new runtime type
+(`java.math.BigInteger`-backed), arithmetic dispatch in `Terms` to
+promote when either operand is BigInt, TypeError when mixing
+BigInt/Number without explicit coercion, `typeof` → `"bigint"`,
+`BigInt()` constructor global. Medium session. Retire the BigInt
+skip.
+
+**Why fifth:** user-explicit ask, genuinely useful, but lower
+frequency than #1–#4 in real-world glue code.
+
+---
+
+**6. Utility-method sweep + Map / Set.**
+
+Across `String/**` (267/783), `Array/prototype/**` (595/1808), and
+`Object/prototype/**` (66/104), a large fraction of fails are
+missing-method gaps rather than wrong-semantics:
+
+- `Object.entries` / `Object.fromEntries` / `Object.assign` gaps
+- `Array.prototype.includes` (currently skip-listed!),
+  `.flat`, `.flatMap`, `.at`
+- `String.prototype.padStart` / `padEnd` / `replaceAll` / `matchAll`
+  / `at`
+- `Map` and `Set` constructors (both fully skipped today; reach-for
+  default for LLMs doing lookups, deduplication)
+
+`Map`/`Set` depend on #3 (iterator protocol) for their constructors
+`new Map(iterable)`. Cluster this after #3 so the collection work can
+ride on the unified iteration surface.
+
+Shape: methodical — pick a built-in, implement missing methods with
+reference to the spec, add regression tests. Each subsection is a
+single commit's worth of work, test-count delta in the hundreds per
+session.
+
+**Why sixth:** cumulative impact is huge but each individual gap is
+small. Tractable but tedious; can be parallelized or dripped in
+between bigger projects.
+
+---
+
+**7. Date polish.**
+
+30/373 is the worst basic-slice number. `JsDate` passes its JUnit
+suite but spec conformance is poor — likely `valueOf` /
+`getTimezoneOffset` / `toISOString` / `parse` edge cases, and date
+arithmetic boundaries. LLMs write date math constantly (scheduling,
+timestamp formatting, relative-time math).
+
+Shape: audit the 373 fails, group by method, fix per-method. Probably
+a single-session sweep. No skip-list change needed; it's a
+conformance effort, not a feature-gate.
+
+**Why seventh:** surprisingly bad but per-test fixes, not
+architectural. Worth doing when Date pain surfaces in a real workload.
+
+---
+
+**8. Destructuring-assignment residuals (75).**
+
+After this session's fixes, the 75 remaining fails are low-leverage:
+47 need lexer identifier-escape support (LLMs don't write
+`break`), 14 are semantic TDZ / init-order corners, 14 are
+negative parse tests needing pattern-vs-literal two-mode parsing.
+Demoted from previous-session's #1.
+
+---
+
+**9. Deferred — descriptor infra, low LLM-leverage.**
 
 - **Array cliff (~1896 FAILs)**, **Object-attribute polish
   (~1855 FAILs)**, **harness helpers (`propertyHelper.js`,
