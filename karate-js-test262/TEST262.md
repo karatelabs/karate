@@ -485,20 +485,24 @@ High-leverage issues that each break many tests at once. Fixing one of these
 is worth more than fixing twenty one-off bugs. Grow this list as tiers run;
 remove items once fixed.
 
-- **Global error constructors missing / not spec-identity.** `TypeError`,
-  `RangeError`, `ReferenceError`, `SyntaxError`, `URIError`, `Error` —
-  test262 assertions lean on them constantly (`assert.throws(TypeError,
-  …)` pattern, `instanceof`, `.constructor.name`, `.message`). Whenever a
-  test body does `throw new TypeError(...)`, `e instanceof TypeError`, or
-  `err.constructor === RangeError`, missing/mis-identified globals cause
-  classifier noise *and* silent false-positive passes (the check throws
-  `ReferenceError` which the harness interprets as "assertion didn't fire
-  → pass"). Verify each is a real global callable, has `.prototype.name`
-  matching the spec, and that thrown engine errors use the matching
-  constructor so `instanceof` works. A recent commit landed name-aware
-  `instanceof` + `.constructor` identity — next step is to make sure every
-  engine-emitted error actually *constructs* through that path rather than
-  fabricating a plain object.
+- **Engine-emitted errors must route through the registered error
+  constructors.** The globals `TypeError`/`RangeError`/`ReferenceError`/
+  `SyntaxError`/`URIError`/`EvalError` are registered
+  ([`ContextRoot.java:97`](../karate-js/src/main/java/io/karatelabs/js/ContextRoot.java))
+  and `instanceof` / `.constructor` are name-aware (commit `5293be05c`).
+  What still may be broken: whether every engine-generated error — thrown
+  from `Interpreter`, `PropertyAccess`, `Terms`, `JsArrayPrototype`, etc.
+  — actually *constructs* a `JsError` with the right name rather than
+  fabricating a plain throw-value, string, or `EngineException` wrapper.
+  If it doesn't, `e instanceof TypeError` is silently false and
+  `assert.throws(TypeError, fn)` fails even though the engine did throw
+  "a type error." **How to verify:** grep for `throw new
+  EngineException("TypeError:` / `"RangeError:` / etc. inside the
+  engine — each of those should be `throw JsError.typeError(...)`
+  (or similar). Also sample a test262 failure like
+  `statements/const/dstr/obj-ptrn-prop-obj.js` (currently
+  `ReferenceError: x is not defined`) and confirm what actually reaches
+  the harness.
 - **`eval` as a global.** Observed: `FAIL test/language/expressions/comma/
   S11.14_A1.js — ReferenceError: eval is not defined`. This breaks any
   test that uses `eval(...)` directly (not rare) and makes the runner's
@@ -551,16 +555,22 @@ remove items once fixed.
 Measured in "how much of the still-failing-after-this-session mass does
 this unblock". Do them roughly in this order:
 
-1. **Register global error constructors + verify `instanceof` identity.**
-   Smallest surface, cascades across every slice that uses `assert.throws`.
-2. **Fix `cannot read properties of undefined (reading 'name')`.** One
+1. **Fix `cannot read properties of undefined (reading 'name')`.** One
    guard; already observed across `statements/const/**` and elsewhere.
-3. **Make `eval` a global.** Unblocks direct-`eval` tests and tightens the
-   runner bootstrap invariant.
+   Almost certainly a single site in the engine's error-construction path
+   that tries to read `.name` off a JsError built without one.
+2. **Make `eval` a callable global.** Unblocks direct-`eval` tests and
+   removes a class of `ReferenceError` false-positive passes.
+3. **Audit engine error-construction sites** (grep
+   `throw new EngineException("TypeError:` etc.) and ensure each routes
+   through the registered `JsError` constructors — so `assert.throws
+   (TypeError, fn)` + `e instanceof TypeError` actually work in the
+   harness. The globals already exist; this is about the *thrown*
+   object's identity, not the global binding.
 4. **Decide strict-mode policy.** Either flip `"use strict"` parser-side
    or add a paths/flags skip entry with a reason.
-5. Then move to the negative-test classifier bridge (engine
-   `cannot parse statement` → `SyntaxError`/phase=parse mapping).
+5. Then bridge the negative-test classifier (engine
+   `cannot parse statement` → `SyntaxError` phase=parse mapping).
 
 After that, the earlier Tier 2 plan (`Object`/`Array`/`String` built-ins)
 is the next cliff worth climbing.
