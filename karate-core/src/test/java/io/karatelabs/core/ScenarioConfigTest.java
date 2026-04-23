@@ -741,4 +741,149 @@ class ScenarioConfigTest {
         assertEquals(1, result.getScenarioFailedCount());
     }
 
+    // ========== Issue #2804: variables from Background call not visible in Scenario ==========
+
+    @Test
+    void testIssue2804_plain() throws Exception {
+        // Baseline: define testData directly in Background (no call). Expected to pass.
+        Path feature = tempDir.resolve("testData-plain.feature");
+        Files.writeString(feature, """
+            Feature: testData test
+              Background:
+                * def testData = { foo: 1234, bar: 1234 }
+              Scenario: Dummy Test
+                * match testData.foo == testData.bar
+            """);
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+        assertTrue(result.isPassed(), "plain pattern should pass");
+    }
+
+    @Test
+    void testIssue2804_predefined() throws Exception {
+        // Pre-define testData = {} then call a reusable feature which redefines it.
+        Path reusable = tempDir.resolve("testData-direct.reusable.feature");
+        Files.writeString(reusable, """
+            @ignore
+            Feature: A simple reusable Karate feature
+              Scenario:
+                * def testData = { foo: 1234, bar: 1234 }
+            """);
+        Path feature = tempDir.resolve("testData-predefined.feature");
+        Files.writeString(feature, """
+            Feature: testData test
+              Background:
+                * def testData = {}
+                * call read('testData-direct.reusable.feature')
+              Scenario: Dummy Test
+                * match testData.foo == testData.bar
+            """);
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+        assertTrue(result.isPassed(), "predefined pattern should pass");
+    }
+
+    @Test
+    void testIssue2804_direct() throws Exception {
+        // Reusable feature uses `def` to create testData - caller does NOT pre-define it.
+        // V1 behavior: the call in Background merges variables into caller scope.
+        Path reusable = tempDir.resolve("testData-direct.reusable.feature");
+        Files.writeString(reusable, """
+            @ignore
+            Feature: A simple reusable Karate feature
+              Scenario:
+                * def testData = { foo: 1234, bar: 1234 }
+            """);
+        Path feature = tempDir.resolve("testData-direct.feature");
+        Files.writeString(feature, """
+            Feature: testData test
+              Background:
+                * call read('testData-direct.reusable.feature')
+              Scenario: Dummy Test
+                * match testData.foo == testData.bar
+            """);
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+        assertTrue(result.isPassed(), "direct-def-via-call pattern should pass");
+    }
+
+    @Test
+    void testIssue2804_karate() throws Exception {
+        // Reusable feature uses `karate.set()` to create testData - caller does NOT pre-define it.
+        // V1 behavior: the call in Background merges variables into caller scope.
+        Path reusable = tempDir.resolve("testData-karate.reusable.feature");
+        Files.writeString(reusable, """
+            @ignore
+            Feature: A simple reusable Karate feature
+              Scenario:
+                * karate.set('testData', { foo: 1234, bar: 1234 })
+            """);
+        Path feature = tempDir.resolve("testData-karate.feature");
+        Files.writeString(feature, """
+            Feature: testData test
+              Background:
+                * call read('testData-karate.reusable.feature')
+              Scenario: Dummy Test
+                * match testData.foo == testData.bar
+            """);
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+        assertTrue(result.isPassed(), "karate.set-via-call pattern should pass");
+    }
+
+    // Same as above, but running via scenario-name filter (simulates IDE "run single scenario").
+    // This is the path that actually fails per the issue reporter.
+
+    @Test
+    void testIssue2804_direct_singleScenario() throws Exception {
+        Path reusable = tempDir.resolve("testData-direct.reusable.feature");
+        Files.writeString(reusable, """
+            @ignore
+            Feature: A simple reusable Karate feature
+              Scenario:
+                * def testData = { foo: 1234, bar: 1234 }
+            """);
+        Path feature = tempDir.resolve("testData-direct.feature");
+        Files.writeString(feature, """
+            Feature: testData test
+              Background:
+                * call read('testData-direct.reusable.feature')
+              Scenario: Dummy Test
+                * match testData.foo == testData.bar
+            """);
+        SuiteResult result = Runner.builder()
+                .path(feature.toString())
+                .workingDir(tempDir)
+                .scenarioName("Dummy Test")
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+        assertTrue(result.isPassed(), "direct-def-via-call should pass when running single scenario by name");
+    }
+
+    @Test
+    void testIssue2804_karate_singleScenario() throws Exception {
+        Path reusable = tempDir.resolve("testData-karate.reusable.feature");
+        Files.writeString(reusable, """
+            @ignore
+            Feature: A simple reusable Karate feature
+              Scenario:
+                * karate.set('testData', { foo: 1234, bar: 1234 })
+            """);
+        Path feature = tempDir.resolve("testData-karate.feature");
+        Files.writeString(feature, """
+            Feature: testData test
+              Background:
+                * call read('testData-karate.reusable.feature')
+              Scenario: Dummy Test
+                * match testData.foo == testData.bar
+            """);
+        SuiteResult result = Runner.builder()
+                .path(feature.toString())
+                .workingDir(tempDir)
+                .scenarioName("Dummy Test")
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+        assertTrue(result.isPassed(), "karate.set-via-call should pass when running single scenario by name");
+    }
+
 }

@@ -681,23 +681,28 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                 }
             }
 
-            // Scenario name filter (IDE plugins use this as a stable, line-independent key).
-            // Same bypass semantics as line filter — if the user asked for a specific
-            // scenario by name, @ignore / @env should not stop it.
-            if (suite != null && suite.scenarioName != null) {
-                return matchesScenarioName(scenario);
-            }
-
             // Apply call-level tag filter if specified (takes precedence)
             // This allows calling specific @ignore scenarios by tag
             if (callTagSelector != null) {
                 return matchesCallTag(scenario, callTagSelector);
             }
 
-            // For called features (caller != null), don't filter by @ignore
-            // @ignore only excludes scenarios from top-level runner selection
+            // For called features (caller != null), don't apply user-facing filters
+            // (@ignore, @env, scenarioName). These only exclude scenarios from
+            // top-level runner selection. Issue #2804: without this, a called
+            // feature's anonymous Scenario: would be filtered out whenever a
+            // top-level scenarioName filter is active, causing variable-propagation
+            // from Background `call read(...)` to silently break.
             if (caller != null) {
                 return true;
+            }
+
+            // Scenario name filter (IDE plugins use this as a stable, line-independent key).
+            // Same bypass semantics as line filter — if the user asked for a specific
+            // scenario by name, @ignore / @env should not stop it. Only applies at
+            // the top level (the `caller != null` branch above handles called features).
+            if (suite != null && suite.scenarioName != null) {
+                return matchesScenarioName(scenario);
             }
 
             // Skip tag filtering if configured (run all scenarios regardless of @env, @ignore)
