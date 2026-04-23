@@ -211,7 +211,7 @@ class CoreContext implements Context {
             if (result != null || _bindings.hasMember(key)) {
                 BindValue bv = findConstOrLet(key);
                 if (bv != null && !bv.initialized) {
-                    throw new RuntimeException("cannot access '" + key + "' before initialization");
+                    throw new RuntimeException("ReferenceError: cannot access '" + key + "' before initialization");
                 }
                 if (result instanceof Supplier<?> supplier) {
                     return supplier.get();
@@ -259,7 +259,7 @@ class CoreContext implements Context {
                     existing.evalId = root.evalId;
                     return;
                 } else {
-                    throw new RuntimeException("identifier '" + key + "' has already been declared");
+                    throw new RuntimeException("SyntaxError: identifier '" + key + "' has already been declared");
                 }
             }
             pushBinding(key, value, scope, initialized);
@@ -307,7 +307,7 @@ class CoreContext implements Context {
             Object oldValue = _bindings.getMember(key);
             if (bv != null) {
                 if (bv.scope == BindScope.CONST && bv.initialized) {
-                    throw new RuntimeException("assignment to constant: " + key);
+                    throw new RuntimeException("TypeError: assignment to constant: " + key);
                 }
                 bv.initialized = true;
             }

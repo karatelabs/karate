@@ -25,6 +25,8 @@ package io.karatelabs.js;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class EngineExceptionTest {
@@ -73,8 +75,9 @@ class EngineExceptionTest {
     void testReferenceToUndefinedVar() {
         EngineException ex = assertThrowsEngineException("noSuchVariable");
         assertTrue(ex.getMessage().contains("noSuchVariable"), ex.getMessage());
-        // engine-origin error — not from a JS `throw`, so no structured name
-        assertNull(ex.getJsErrorName());
+        // engine-origin ReferenceError — message prefix "ReferenceError: " is parsed
+        // into structured name so host callers (and `e instanceof ReferenceError`) work.
+        assertEquals("ReferenceError", ex.getJsErrorName());
     }
 
     @Test
@@ -82,8 +85,7 @@ class EngineExceptionTest {
         // Prototype.putMember emits "TypeError: Cannot add property ..."
         EngineException ex = assertThrowsEngineException("Array.prototype.foo = 1");
         assertTrue(ex.getMessage().contains("TypeError:"), ex.getMessage());
-        // engine-origin; structured name is null, message-prefix classification kicks in
-        assertNull(ex.getJsErrorName());
+        assertEquals("TypeError", ex.getJsErrorName());
     }
 
     @Test
@@ -91,7 +93,68 @@ class EngineExceptionTest {
         // JsNumberPrototype emits "RangeError: precision must be between 1 and 100"
         EngineException ex = assertThrowsEngineException("(123).toPrecision(0)");
         assertTrue(ex.getMessage().contains("RangeError:"), ex.getMessage());
-        assertNull(ex.getJsErrorName());
+        assertEquals("RangeError", ex.getJsErrorName());
+    }
+
+    @Test
+    void testPropertyAccessOnUndefinedIsTypeError() {
+        EngineException ex = assertThrowsEngineException("var o; o.foo;");
+        assertTrue(ex.getMessage().contains("TypeError:"), ex.getMessage());
+        assertEquals("TypeError", ex.getJsErrorName());
+    }
+
+    @Test
+    void testTryCatchPreservesTypeErrorIdentity() {
+        // A property access on undefined, caught by JS try/catch, should produce a
+        // JsError whose name is "TypeError" — so `e instanceof TypeError` works.
+        Engine engine = new Engine();
+        Object result = engine.eval(
+                "var r = {}; try { var o; o.foo; } catch (e) {" +
+                " r.name = e.name; r.isType = e instanceof TypeError;" +
+                " r.isRef = e instanceof ReferenceError; r.isError = e instanceof Error; } r;");
+        assertNotNull(result);
+        Map<?, ?> map = (Map<?, ?>) result;
+        assertEquals("TypeError", map.get("name"));
+        assertEquals(Boolean.TRUE, map.get("isType"));
+        assertEquals(Boolean.FALSE, map.get("isRef"));
+        assertEquals(Boolean.TRUE, map.get("isError")); // TypeError is-a Error
+    }
+
+    @Test
+    void testTryCatchPreservesReferenceErrorIdentity() {
+        Engine engine = new Engine();
+        Object result = engine.eval(
+                "var r = {}; try { noSuchVar; } catch (e) {" +
+                " r.name = e.name; r.isRef = e instanceof ReferenceError; } r;");
+        Map<?, ?> map = (Map<?, ?>) result;
+        assertEquals("ReferenceError", map.get("name"));
+        assertEquals(Boolean.TRUE, map.get("isRef"));
+    }
+
+    @Test
+    void testEngineErrorConstructorIdentity() {
+        // The test262 harness's assert.throws reads `thrown.constructor.name` —
+        // so engine-generated errors must expose a non-null .constructor that
+        // points to the registered global (matching `e.constructor === TypeError`).
+        Engine engine = new Engine();
+        Object result = engine.eval(
+                "var r = {}; try { noSuchVar; } catch (e) {" +
+                " r.ctorName = e.constructor.name; r.ctorIs = (e.constructor === ReferenceError); } r;");
+        Map<?, ?> map = (Map<?, ?>) result;
+        assertEquals("ReferenceError", map.get("ctorName"));
+        assertEquals(Boolean.TRUE, map.get("ctorIs"));
+    }
+
+    @Test
+    void testEvalGlobalIsCallable() {
+        // `eval` must be defined as a global so indirect invocation via (0, eval)(...)
+        // works. Real test262 harness uses $262.evalScript which is built on indirect eval.
+        // `typeof eval === "function"` is a separate issue — all JsInvokable globals
+        // currently report "object" (tracked separately).
+        Engine engine = new Engine();
+        assertNotEquals("undefined", engine.eval("typeof eval"));
+        assertEquals(3.0, ((Number) engine.eval("eval('1 + 2')")).doubleValue());
+        assertEquals(3.0, ((Number) engine.eval("(0, eval)('1 + 2')")).doubleValue());
     }
 
     @Test

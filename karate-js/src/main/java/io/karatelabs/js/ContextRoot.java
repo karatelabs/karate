@@ -95,7 +95,7 @@ class ContextRoot extends CoreContext {
                  "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Infinity", "Java",
                  "JSON", "Math", "NaN", "Number", "Boolean", "Object", "RegExp", "String",
                  "TypeError", "ReferenceError", "RangeError", "SyntaxError", "URIError", "EvalError",
-                 "TextEncoder", "TextDecoder", "Uint8Array", "isNaN", "isFinite" -> true;
+                 "TextEncoder", "TextDecoder", "Uint8Array", "isNaN", "isFinite", "eval" -> true;
             default -> false;
         };
     }
@@ -159,6 +159,16 @@ class ContextRoot extends CoreContext {
             case "decodeURI" -> (JsInvokable) args ->
                     URLDecoder.decode(args[0] + "", StandardCharsets.UTF_8);
             case "undefined" -> Terms.UNDEFINED;
+            case "eval" -> (JsInvokable) args -> {
+                if (args.length == 0) return Terms.UNDEFINED;
+                Object src = args[0];
+                // per ES spec: non-string arguments are returned unchanged
+                if (!(src instanceof String s)) {
+                    return src;
+                }
+                // indirect-eval semantics: evaluate in the global (root) scope
+                return engine.evalRaw(s);
+            };
             case "Array" -> JsArrayConstructor.INSTANCE;
             case "Date" -> JsDateConstructor.INSTANCE;
             case "Error" -> new JsError(null, "Error", null);

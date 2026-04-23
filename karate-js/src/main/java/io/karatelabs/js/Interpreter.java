@@ -266,7 +266,7 @@ class Interpreter {
             }
             return result;
         } else {
-            throw new RuntimeException(node.toStringWithoutType() + " is not a function");
+            throw new RuntimeException("TypeError: " + node.toStringWithoutType() + " is not a function");
         }
     }
 
@@ -582,7 +582,7 @@ class Interpreter {
             } else if (child.type == NodeType.EXPR) {
                 Object value = eval(child, context);
                 if (value == Terms.UNDEFINED) {
-                    throw new RuntimeException(child.getText() + " is not defined");
+                    throw new RuntimeException("ReferenceError: " + child.getText() + " is not defined");
                 }
                 sb.append(value);
             }
@@ -801,7 +801,7 @@ class Interpreter {
             if (context.hasKey(varName)) {
                 return context.get(varName);
             }
-            throw new RuntimeException(varName + " is not defined");
+            throw new RuntimeException("ReferenceError: " + varName + " is not defined");
         }
     }
 
@@ -909,7 +909,11 @@ class Interpreter {
             if (first.getResource().isFile()) {
                 System.err.println("file://" + first.getResource().getUri().getPath() + ":" + first.getPositionDisplay() + " " + e);
             }
-            throw new EngineException(sb.toString(), e);
+            // Carry engine-origin JS error identity across the boundary so
+            // `e instanceof TypeError` and `EngineException.getJsErrorName()` work.
+            String[] parsed = JsError.parsePrefix(e.getMessage());
+            String jsErrorName = parsed != null ? parsed[0] : null;
+            throw new EngineException(sb.toString(), e, jsErrorName);
         }
     }
 
@@ -969,7 +973,20 @@ class Interpreter {
                 cause = cause.getCause();
             }
             String msg = cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName();
-            context.stopAndThrow(new JsError(msg, cause));
+            JsError errObj = JsError.fromJavaCause(msg, cause);
+            // Wire .constructor to the registered global so `e.constructor === TypeError`
+            // and `e.constructor.name` work inside JS catch blocks (test262 harness relies
+            // on both). Falls back to the generic Error global if the specific one is absent.
+            if (errObj.getName() != null) {
+                Object ctor = context.root.get(errObj.getName());
+                if (!(ctor instanceof JsError)) {
+                    ctor = context.root.get("Error");
+                }
+                if (ctor instanceof JsError ctorErr) {
+                    errObj.setConstructor(ctorErr);
+                }
+            }
+            context.stopAndThrow(errObj);
             tryValue = null;
         }
         Node finallyBlock = null;

@@ -486,30 +486,28 @@ is worth more than fixing twenty one-off bugs. Grow this list as tiers run;
 remove items once fixed.
 
 - **Engine-emitted errors must route through the registered error
-  constructors.** The globals `TypeError`/`RangeError`/`ReferenceError`/
-  `SyntaxError`/`URIError`/`EvalError` are registered
-  ([`ContextRoot.java:97`](../karate-js/src/main/java/io/karatelabs/js/ContextRoot.java))
-  and `instanceof` / `.constructor` are name-aware (commit `5293be05c`).
-  What still may be broken: whether every engine-generated error — thrown
-  from `Interpreter`, `PropertyAccess`, `Terms`, `JsArrayPrototype`, etc.
-  — actually *constructs* a `JsError` with the right name rather than
-  fabricating a plain throw-value, string, or `EngineException` wrapper.
-  If it doesn't, `e instanceof TypeError` is silently false and
-  `assert.throws(TypeError, fn)` fails even though the engine did throw
-  "a type error." **How to verify:** grep for `throw new
-  EngineException("TypeError:` / `"RangeError:` / etc. inside the
-  engine — each of those should be `throw JsError.typeError(...)`
-  (or similar). Also sample a test262 failure like
-  `statements/const/dstr/obj-ptrn-prop-obj.js` (currently
-  `ReferenceError: x is not defined`) and confirm what actually reaches
-  the harness.
-- **`eval` as a global.** Observed: `FAIL test/language/expressions/comma/
-  S11.14_A1.js — ReferenceError: eval is not defined`. This breaks any
-  test that uses `eval(...)` directly (not rare) and makes the runner's
-  `$262.evalScript` bootstrap fragile. The engine needs a callable `eval`
-  global (direct eval scope semantics are a separate problem; indirect
-  eval via `(0, eval)(src)` — now used by the runner — already works if
-  the binding merely exists).
+  constructors.** ✅ *Addressed.* Engine sites that previously threw plain
+  `RuntimeException` (`PropertyAccess` property access on undefined,
+  `Interpreter` "is not a function" / "is not defined", `CoreContext`
+  TDZ / const-reassign / redeclare) now emit a recognized
+  `"<Name>: ..."` prefix. `Interpreter.evalTryStmt` parses the prefix
+  into a structured `JsError` (name + linked `.constructor` pointing at
+  the registered global), and `Interpreter.evalStatement` sets
+  `EngineException.getJsErrorName()` so host callers see the JS error
+  name without re-parsing. Consequence: `e instanceof TypeError`,
+  `e.name`, and `e.constructor.name` all work for engine-originated
+  errors caught in JS. Remaining throw sites that still use plain
+  `RuntimeException` without a prefix (in `JsArrayPrototype`, `JsRegex`,
+  `JsJson`, `JsStringPrototype`, `CoreContext.java:1016` "finally block
+  threw error") are lower-traffic and can be converted the same way as
+  needed.
+- **`eval` as a global.** ✅ *Addressed.* `eval` is now registered in
+  `ContextRoot.initGlobal` with indirect-eval semantics (parses and
+  evaluates in the engine root scope; non-string arguments pass through
+  unchanged per spec). Direct-eval scope capture is still out of scope.
+  Note: `typeof eval === "function"` still reports `"object"` because
+  `Terms.typeOf` doesn't map `JsInvokable` to `"function"` — this is a
+  separate gap that also affects `parseInt`, `isNaN`, etc.
 - **`assert.throws` helper in test262 harness.** Many of the
   `expected negative … but got: 13:1 STATEMENT` failures come from the
   runner's negative-test classifier not matching the engine's
@@ -519,12 +517,14 @@ remove items once fixed.
   `cannot parse statement` to `SyntaxError` phase=parse. Right now these
   are "engine says the right thing, runner doesn't recognize it" —
   cheapest lever is the runner-side map.
-- **`cannot read properties of undefined (reading 'name')`.** Shows up a
-  lot in `statements/const/**` and elsewhere. Somewhere in the interpreter
-  (likely in the error-construction path) something is accessing
-  `.name` on an undefined value. Grep for `\.name\b` in `Interpreter`,
-  `JsError`, `JsFunctionNode`, `EngineException` — this is a single
-  guard away from unblocking a cluster of otherwise-trivial tests.
+- **`cannot read properties of undefined (reading 'name')`.** ✅ *Addressed.*
+  Root cause turned out not to be a `.name` read in engine code but the
+  test262 harness's `assert.throws(Ctor, fn)` reading `thrown.constructor.name`
+  on engine-generated `JsError` instances whose `.constructor` field was
+  never populated. Fixed at the JS try/catch wrapping site
+  (`Interpreter.evalTryStmt`) by resolving the registered global for the
+  error's `.name` and wiring it into the new `JsError.constructor` (new
+  package-private setter). Const-slice result: 34 → 45 PASS.
 - **Directive prologue (`"use strict"`) is a statement-level string
   literal that turns on strict mode.** test262 wraps tons of tests in
   `"use strict"; ...` — in lenient parsers the string is silently
@@ -552,25 +552,24 @@ remove items once fixed.
 
 ### Recommended next-session ordering
 
-Measured in "how much of the still-failing-after-this-session mass does
-this unblock". Do them roughly in this order:
+Items 1–3 from the previous session are done. Remaining, in priority
+order:
 
-1. **Fix `cannot read properties of undefined (reading 'name')`.** One
-   guard; already observed across `statements/const/**` and elsewhere.
-   Almost certainly a single site in the engine's error-construction path
-   that tries to read `.name` off a JsError built without one.
-2. **Make `eval` a callable global.** Unblocks direct-`eval` tests and
-   removes a class of `ReferenceError` false-positive passes.
-3. **Audit engine error-construction sites** (grep
-   `throw new EngineException("TypeError:` etc.) and ensure each routes
-   through the registered `JsError` constructors — so `assert.throws
-   (TypeError, fn)` + `e instanceof TypeError` actually work in the
-   harness. The globals already exist; this is about the *thrown*
-   object's identity, not the global binding.
-4. **Decide strict-mode policy.** Either flip `"use strict"` parser-side
+1. **Decide strict-mode policy.** Either flip `"use strict"` parser-side
    or add a paths/flags skip entry with a reason.
-5. Then bridge the negative-test classifier (engine
-   `cannot parse statement` → `SyntaxError` phase=parse mapping).
+2. **Bridge the negative-test classifier** (engine
+   `cannot parse statement` → `SyntaxError` phase=parse mapping). Many
+   of the remaining `Unknown: expected negative Negative[phase=parse, …]
+   but got: NN:N STATEMENT` failures come from this. Cheapest lever is
+   runner-side in `ErrorUtils` / `Test262NegativeMatcher`: map the
+   generic "cannot parse statement" to `SyntaxError` phase=parse. The
+   engine-side alternative is to throw a `ParserException` whose
+   message includes `"SyntaxError:"` so the prefix classifier picks it
+   up without a bespoke rule.
+3. **`typeof eval === "function"`** (and `typeof parseInt`, etc.). All
+   `JsInvokable` globals currently report `"object"` because
+   `Terms.typeOf` only maps `JsFunction` to `"function"`. Trivial
+   change, unblocks a small but measurable cluster.
 
 After that, the earlier Tier 2 plan (`Object`/`Array`/`String` built-ins)
 is the next cliff worth climbing.
