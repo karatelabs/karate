@@ -627,6 +627,50 @@ History for context (so you can see the direction of travel):
 - Nested `{}` inside `${...}` now lex correctly (placeholder state
   tracked by depth, not by the first inner `}`).
 
+**Recently landed — IIFE in expression position:**
+
+- `PropertyAccess.getCallable` now evaluates `FN_EXPR` and
+  `FN_ARROW_EXPR` in the callable slot of a call expression. Parser
+  was already producing `FN_CALL_EXPR -> [FN_EXPR, FN_CALL_ARGS]`
+  correctly; the dispatch switch was missing those cases and threw
+  `TypeError: cannot call: [FN_EXPR]`. Five-line change.
+- Slice deltas: `expressions/call/**` 16 → **30 PASS** (+14),
+  `expressions/template-literal/**` 39 → **42 PASS** (+3, the
+  predicted abrupt tests), `expressions/function/**` 36 → 37 PASS
+  (+1 direct; most remaining fails in this slice are destructuring
+  or duplicate-param collateral, not IIFE). Arrow IIFE `(x => x)(1)`
+  and paren-wrapped IIFE `(function(){})()` unchanged (both were
+  already working via `PAREN_EXPR`).
+
+**Recently landed — destructuring overhaul (assignment + declaration):**
+
+- Unified `Interpreter.destructurePattern` / `bindTarget` /
+  `bindLeaf` helpers that recurse on nested patterns
+  (`var [a, [b, c]] = ...`, `var {x: {y}} = ...`), handle rename +
+  default (`{a: b = 5}`), and fire default values only when the
+  source slot is literally `undefined` (not null). The old inline
+  `context.declare` calls in `evalLitArray` / `evalLitObject`
+  destructuring branches were lossy — they read `exprNode.getFirstToken()`
+  as the var name, which silently declared a garbage binding for
+  any non-IDENT target and never recursed.
+- `evalAssignExpr` now routes `[a,b] = arr` and `({a,b} = obj)`
+  through `destructurePattern` with `bindScope == null` — that path
+  supports property-reference targets (`[o.x] = [99]`, `{a: o.x} = …`)
+  and full nesting. Declaration destructuring (`var/let/const`)
+  shares the same helper, so nested `var {x: {y}} = …` works too.
+- Per spec 13.3.3.5, destructuring null / undefined now throws
+  `TypeError` (`GetIterator(null)` / `RequireObjectCoercible(null)`).
+- `evalLitArray` / `evalLitObject` are now pure literal-construction:
+  their `bindScope` / `bindSource` parameters are gone. Any call site
+  that needs destructuring goes through `destructurePattern`.
+- Slice deltas:
+  `expressions/assignment/dstr/**` 82 → **147 PASS** (+65),
+  `statements/variable/dstr/**` 23 → **49 PASS** (+26),
+  `statements/let/dstr/**` 21 → **47 PASS** (+26),
+  `statements/const/dstr/**` 21 → **47 PASS** (+26),
+  `expressions/function/**` 37 → **56 PASS** (+19, destructured
+  function params started working once the pattern helper recursed).
+
 **What remains — work items, highest leverage first.** Each entry
 names (a) the concrete pass/fail numbers from a probe in the current
 HEAD, (b) the one-line reason it is ranked where it is, and (c) the
@@ -634,74 +678,7 @@ first file/function to touch.
 
 ---
 
-**1. IIFE in expression position — small fix, cross-cutting unlocks.**
-
-`(function(){}())`, `(function(){})()`, and bare `function(){}()`
-all throw `TypeError: cannot call: [FN_EXPR] ...`. The parser builds
-an FN_EXPR node but the call-site wiring does not let a function
-expression sit in the callable slot of a call expression. The
-interpreter's call path then rejects it.
-
-- `test/language/expressions/function/**` → 36 PASS / **159 FAIL** /
-  69 SKIP. ≥7 direct "cannot call: [FN_EXPR]" hits, and the pattern
-  is load-bearing in test262's own harness style
-  (`(function(){ ... })()`). Many of the 159 fails are collateral
-  (default params, destructuring params, etc.) that will still need
-  work, but IIFE unblocks a good share.
-- 3 × template-literal `abrupt` tests fail today solely because of
-  this.
-- Same pattern appears as a smaller bucket inside `expressions/call/**`
-  (16 PASS / 44 FAIL / 32 SKIP).
-
-**Why first:** smallest diff (parser + one interpreter branch),
-highest ratio of downstream tests that just start working. Start in
-`JsParser.expr` / the call-expression slot and `Interpreter`'s
-call-expression eval (look where `FN_EXPR` is handled as a producer
-but not as a callee).
-
-**When done:** re-probe `expressions/function/**`, `expressions/call/**`,
-and the 3 template `abrupt` tests. Also check that ordinary
-`(x => x)(1)` arrow-IIFE still works (it does today — don't regress).
-
----
-
-**2. Destructuring assignment as an expression.**
-
-`test/language/expressions/assignment/dstr/**` → **82 PASS / 148 FAIL
-/ 138 SKIP.** Declarations (`var [a,b] = arr`) already work; the gap
-is pure assignment-expression form: `[a, b] = arr` and
-`({a, b} = obj)`. The parser sees `[a, b]` as a `LIT_ARRAY` and then
-cannot consume `= arr` on the RHS, producing **45 × `expected:
-[EXPR]`** failures (the single largest bucket in the subtree).
-
-**Why second:** LLM-generated JS writes `[a, b] = fn()` constantly.
-The interpreter already has a working destructuring path
-(`Interpreter.evalAssign`, bindScope-free branch) — the missing piece
-is a parser edit to accept `LIT_ARRAY` / `LIT_OBJECT` on the LHS of
-`=`. The fan-out of a parser-only change is low risk.
-
-**First move:** widen the assignment parser (`JsParser`) to produce
-an assignment when the LHS is `LIT_ARRAY` / `LIT_OBJECT` and the next
-token is `=`. Then wire into `Interpreter.evalAssign` via the
-existing destructuring branch.
-
----
-
-**3. `var` / `const` destructuring edge cases.**
-
-`test/language/statements/variable/dstr/**` → 23 / **48** / 26.
-`test/language/statements/const/dstr/**` → 21 / **46** / 26.
-Dominant failure: `ReferenceError: x is not defined` after an
-apparently successful destructuring — the parser accepted the
-pattern but the binding never reached the scope. Likely
-nested-pattern or default-value corners in `Interpreter.evalAssign`.
-
-**Why third:** same muscle memory as #2; expect overlap. Do last of
-the three so you can use the widened assignment grammar as a testbed.
-
----
-
-**4. Tagged templates — ~13 template-suite fails and beyond.**
+**1. Tagged templates — ~13 template-suite fails and beyond.**
 
 `` tag`foo ${x}` `` (React / styled-components / SQL). Needs:
 (a) parser support for the tag-applied-to-template syntactic slot,
@@ -709,14 +686,30 @@ the three so you can use the widened assignment grammar as a testbed.
 (c) invocation as `tag(strings, ...substitutions)`. Isolated from
 other subtrees — does not block anything else.
 
-**Why fourth:** real feature work (≥ half-day), smaller numeric
-payoff than #1–#3, but high qualitative value — untagged templates
-plus tagged templates together cover ~all real-world usage. Worth
-doing once #1–#3 make meaningful language progress.
+**Why first:** real feature work (≥ half-day) but high qualitative
+value — untagged templates plus tagged templates together cover
+~all real-world usage of template literals.
 
 ---
 
-**5. Strict-mode directive prologue — cheapest triage.**
+**2. Remaining destructuring-assignment failures (83).**
+
+After the overhaul, the assignment slice still has 83 fails: ~48
+SyntaxErrors (parser refuses reserved words as object keys in a
+destructuring LHS — `({break: x} = {break: 42})`), ~3 TypeErrors
+(spec-required throws for specific malformed patterns), ~13
+Unknowns (unexpected-pass on negative parse tests, e.g. invalid
+destructuring forms that should SyntaxError), ~19 Test262Errors
+(semantic gaps — function-name inference for `[foo = function(){}] = …`
+expecting `foo.name === 'foo'`, array-iterator protocol corners).
+
+**Why second:** each bucket is a distinct fix. The reserved-words
+cluster is the biggest single lever — widening the parser's key
+token set for LIT_OBJECT-in-LHS position lights up ~48 tests.
+
+---
+
+**3. Strict-mode directive prologue — cheapest triage.**
 
 Hundreds of `flags: [onlyStrict]` tests currently show as
 *unexpected passes* because the parser tolerates `"use strict"`
@@ -726,12 +719,12 @@ Cheapest win: add a `flags: [onlyStrict]` rule to
 so those stop hiding real signal. Actually implementing strict
 mode is not cheap — the skip is.
 
-**Why fifth:** pure triage; clears noise so the remaining fails are
+**Why third:** pure triage; clears noise so the remaining fails are
 meaningful. A single YAML edit.
 
 ---
 
-**6. Deferred — architectural, low LLM-leverage.**
+**4. Deferred — architectural, low LLM-leverage.**
 
 - **Array cliff (~1896 FAILs in `test/built-ins/Array/**`)** needs
   property-descriptor attribute tracking, the full iterator protocol

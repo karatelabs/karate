@@ -1027,6 +1027,34 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testNestedDeclarationDestructuring() {
+        // Nested array pattern
+        eval("var [a, [b, c]] = [1, [2, 3]]");
+        assertEquals(1, get("a"));
+        assertEquals(2, get("b"));
+        assertEquals(3, get("c"));
+        // Nested object pattern
+        eval("var {x: {y}} = {x: {y: 99}}");
+        assertEquals(99, get("y"));
+        // Rename + default: {a: b = default}
+        eval("var {a: b = 5} = {a: 10}");
+        assertEquals(10, get("b"));
+        eval("var {a: b = 5} = {}");
+        assertEquals(5, get("b"));
+        // Shorthand default fires only on undefined
+        eval("var {a = 5} = {a: 10}");
+        assertEquals(10, get("a"));
+        eval("var {a = 5} = {a: null}");
+        assertNull(get("a"));
+        // Nested pattern with default
+        eval("var [[a = 5] = []] = [[]]");
+        assertEquals(5, get("a"));
+        // let/const work the same way
+        eval("let {foo: {bar}} = {foo: {bar: 'deep'}}");
+        assertEquals("deep", get("bar"));
+    }
+
+    @Test
     void testCommaOperatorInParens() {
         // sequence operator returns the last value
         assertEquals(3, eval("(1, 2, 3)"));
@@ -1159,6 +1187,59 @@ class EvalTest extends EvalBase {
         assertEquals(true, eval(
                 "var o = { a: 1, f() { return 2; }, g: function() { return 3; } };"
                         + " o.a === 1 && o.f() === 2 && o.g() === 3"));
+    }
+
+    @Test
+    void testDestructuringAssignmentExpression() {
+        // Array destructuring assignment as expression
+        eval("var a, b; [a, b] = [1, 2]");
+        assertEquals(1, get("a"));
+        assertEquals(2, get("b"));
+        // Object destructuring assignment
+        eval("var x, y; ({x, y} = {x: 10, y: 20})");
+        assertEquals(10, get("x"));
+        assertEquals(20, get("y"));
+        // Nested patterns recurse
+        eval("var p, q, r; [p, [q, r]] = [1, [2, 3]]");
+        assertEquals(1, get("p"));
+        assertEquals(2, get("q"));
+        assertEquals(3, get("r"));
+        // Default values fire only when source is undefined
+        assertEquals("5:7", eval("var a, b; [a = 5, b = 6] = [undefined, 7]; a+':'+b"));
+        assertEquals(10, eval("var a; ({a = 5} = {a: 10}); a"));
+        assertEquals(5, eval("var a; ({a = 5} = {}); a"));
+        // Rename + default in object pattern
+        assertEquals(10, eval("var p; ({a: p = 5} = {a: 10}); p"));
+        assertEquals(5, eval("var p; ({a: p = 5} = {}); p"));
+        // Nested object destructuring
+        assertEquals(99, eval("var y; ({x: {y}} = {x: {y: 99}}); y"));
+        // Property reference as destructuring target
+        assertEquals(99, eval("var o = {x: 0}; [o.x] = [99]; o.x"));
+        // Rest: array
+        assertEquals("1:2:3", eval("var a, r; [a, ...r] = [1, 2, 3]; a + ':' + r[0] + ':' + r[1]"));
+        // Rest: object
+        assertEquals(true, eval("var a, r; ({a, ...r} = {a: 1, b: 2, c: 3}); a === 1 && r.b === 2 && r.c === 3"));
+        // Return value is the RHS
+        assertEquals(true, eval("var a, b; var r = ([a, b] = [1, 2]); r[0] === 1 && r[1] === 2"));
+        // Chained destructuring assignment
+        assertEquals(true, eval("var a, b, c; a = [b, c] = [10, 20]; b === 10 && c === 20 && a[0] === 10 && a[1] === 20"));
+    }
+
+    @Test
+    void testImmediatelyInvokedFunctionExpression() {
+        // Named function expression immediately invoked
+        assertEquals(1, eval("var x = function f1(){ return 1; }(); x"));
+        // Anonymous function expression immediately invoked
+        assertEquals(2, eval("var y = function (){ return 2; }(); y"));
+        // Function expression wrapped in parens, then invoked
+        assertEquals(3, eval("var z = (function(){ return 3; })(); z"));
+        // Invoke-from-inside-parens form: (function(){ ... }())
+        assertEquals(4, eval("var w = (function(){ return 4; }()); w"));
+        // Arrow IIFE still works (was already supported via PAREN_EXPR)
+        assertEquals(10, eval("(x => x * 2)(5)"));
+        assertEquals(5, eval("((a, b) => a + b)(2, 3)"));
+        // IIFE with arguments
+        assertEquals(6, eval("(function(a, b){ return a + b; })(2, 4)"));
     }
 
 }

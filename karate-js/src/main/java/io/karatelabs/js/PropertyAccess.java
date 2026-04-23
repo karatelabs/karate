@@ -73,6 +73,7 @@ class PropertyAccess {
             case REF_BRACKET_EXPR -> getCallableRefBracketExpr(node, context);
             case PAREN_EXPR -> new Object[]{Interpreter.eval(node.get(1), context), null};
             case FN_CALL_EXPR -> new Object[]{Interpreter.eval(node, context), null};
+            case FN_EXPR, FN_ARROW_EXPR -> new Object[]{Interpreter.eval(node, context), null};
             default -> throw JsErrorException.typeError("cannot call: " + node);
         };
     }

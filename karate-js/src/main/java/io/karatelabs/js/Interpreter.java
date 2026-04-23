@@ -60,18 +60,8 @@ class Interpreter {
 
     @SuppressWarnings("unchecked")
     static Object evalAssign(Node bindings, CoreContext context, BindScope bindScope, Object value, boolean initialized) {
-        if (bindings.type == NodeType.LIT_ARRAY) {
-            List<Object> list = null;
-            if (value instanceof List) {
-                list = (List<Object>) value;
-            }
-            evalLitArray(bindings, context, bindScope, list);
-        } else if (bindings.type == NodeType.LIT_OBJECT) {
-            Map<String, Object> object = null;
-            if (value instanceof Map) {
-                object = (Map<String, Object>) value;
-            }
-            evalLitObject(bindings, context, bindScope, object);
+        if (bindings.type == NodeType.LIT_ARRAY || bindings.type == NodeType.LIT_OBJECT) {
+            destructurePattern(bindings, context, bindScope, value, initialized);
         } else if (bindings.isToken() && bindings.token.type == IDENT) {
             String name = bindings.getText();
             context.declare(name, value, toScope(bindScope), initialized);
@@ -97,13 +87,170 @@ class Interpreter {
         Object value = eval(node.get(2), context);
         if (operator == EQ) {
             if (lhs.type == NodeType.LIT_EXPR) {
-                evalAssign(lhs.getFirst(), context, BindScope.VAR, value, true);
+                Node pattern = lhs.getFirst();
+                if (pattern.type == NodeType.LIT_ARRAY || pattern.type == NodeType.LIT_OBJECT) {
+                    destructurePattern(pattern, context, null, value, false);
+                } else {
+                    evalAssign(pattern, context, BindScope.VAR, value, true);
+                }
             } else {
                 PropertyAccess.set(lhs, context, value, node);
             }
             return value;
         }
         return PropertyAccess.compound(lhs, context, operator, value, node);
+    }
+
+    /**
+     * Walk a destructuring pattern (LIT_ARRAY or LIT_OBJECT) and bind each leaf
+     * target from the corresponding piece of `source`. When `bindScope` is
+     * non-null the pattern is a declaration (`var/let/const [a] = ...`) and
+     * leaves are declared; when null it is an assignment expression
+     * (`[a] = ...`) and leaves are updated / applied via `PropertyAccess.set`.
+     * Nested patterns recurse; default values fire only when the corresponding
+     * source value is undefined.
+     */
+    @SuppressWarnings("unchecked")
+    private static void destructurePattern(Node pattern, CoreContext context,
+                                            BindScope bindScope, Object source, boolean initialized) {
+        // Per spec 13.3.3.5: destructuring null/undefined throws TypeError.
+        // ArrayBindingPattern calls GetIterator(value); ObjectBindingPattern
+        // calls RequireObjectCoercible(value); both fail for null/undefined.
+        if (source == null || source == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("cannot destructure " + source);
+        }
+        if (pattern.type == NodeType.LIT_ARRAY) {
+            List<Object> list = (source instanceof List<?>) ? (List<Object>) source : null;
+            int last = pattern.size() - 1;
+            int index = 0;
+            for (int i = 1; i < last; i++) {
+                Node elem = pattern.get(i);
+                Node first = elem.get(0);
+                if (first.isToken() && first.token.type == DOT_DOT_DOT) {
+                    JsArray rest = new JsArray();
+                    if (list != null) {
+                        for (int j = index; j < list.size(); j++) {
+                            Object v = list instanceof JsArray arr ? arr.getElement(j) : list.get(j);
+                            rest.list.add(v);
+                        }
+                    }
+                    bindTarget(elem.get(1), context, bindScope, rest, initialized);
+                    break;
+                } else if (first.isToken() && first.token.type == COMMA) {
+                    index++;
+                } else {
+                    Object v = Terms.UNDEFINED;
+                    if (list != null && index < list.size()) {
+                        Object temp = list instanceof JsArray arr ? arr.getElement(index) : list.get(index);
+                        if (temp != Terms.UNDEFINED) {
+                            v = temp;
+                        }
+                    }
+                    bindTarget(first, context, bindScope, v, initialized);
+                    index++;
+                }
+            }
+        } else if (pattern.type == NodeType.LIT_OBJECT) {
+            Map<String, Object> map = (source instanceof Map<?, ?>) ? (Map<String, Object>) source : null;
+            Set<String> consumed = new HashSet<>();
+            int last = pattern.size() - 1;
+            for (int i = 1; i < last; i++) {
+                Node elem = pattern.get(i);
+                Node keyNode = elem.getFirst();
+                TokenType keyType = keyNode.token.type;
+                if (keyType == DOT_DOT_DOT) {
+                    Map<String, Object> rest = new LinkedHashMap<>();
+                    if (map != null) {
+                        for (Map.Entry<String, Object> e : map.entrySet()) {
+                            if (!consumed.contains(e.getKey())) {
+                                rest.put(e.getKey(), e.getValue());
+                            }
+                        }
+                    }
+                    bindTarget(elem.get(1), context, bindScope, new JsObject(rest), initialized);
+                    break;
+                }
+                boolean computed = keyType == L_BRACKET;
+                int afterKeyPos = computed ? 3 : 1;
+                String key;
+                if (computed) {
+                    Object keyValue = evalExpr(elem.get(1), context);
+                    key = Terms.toStringCoerce(keyValue, context);
+                } else if (keyType == S_STRING || keyType == D_STRING) {
+                    key = (String) Terms.literalValue(keyNode.token);
+                } else {
+                    key = keyNode.getText();
+                }
+                consumed.add(key);
+                Object v = Terms.UNDEFINED;
+                if (map != null && map.containsKey(key)) {
+                    Object temp = map.get(key);
+                    if (temp != Terms.UNDEFINED) {
+                        v = temp;
+                    }
+                }
+                if (!computed && elem.size() < 3) {
+                    // shorthand {foo}
+                    bindLeaf(keyNode, key, context, bindScope, v, initialized);
+                } else if (!computed && elem.size() == 3 && elem.get(1).token.type == EQ) {
+                    // shorthand with default {foo = default}
+                    if (v == Terms.UNDEFINED) {
+                        v = evalExpr(elem.get(2), context);
+                    }
+                    bindLeaf(keyNode, key, context, bindScope, v, initialized);
+                } else {
+                    // keyed: {foo: target} or {foo: target = default} or {[k]: target}
+                    bindTarget(elem.get(afterKeyPos + 1), context, bindScope, v, initialized);
+                }
+            }
+        }
+    }
+
+    /**
+     * Bind `value` to one destructuring target node. The target may be an
+     * IDENT reference, a property reference (o.x / o[i], assignment mode only),
+     * a nested array / object pattern, or any of those wrapped in a
+     * default-value `ASSIGN_EXPR` layer that fires only when `value` is
+     * undefined.
+     */
+    private static void bindTarget(Node target, CoreContext context,
+                                    BindScope bindScope, Object value, boolean initialized) {
+        Node node = target;
+        if (node.type == NodeType.EXPR) {
+            node = node.getFirst();
+        }
+        if (node.type == NodeType.ASSIGN_EXPR) {
+            Node defaultNode = node.getLast();
+            node = node.getFirst();
+            if (value == Terms.UNDEFINED) {
+                value = evalExpr(defaultNode, context);
+            }
+        }
+        Node inner = node;
+        if (node.type == NodeType.LIT_EXPR) {
+            inner = node.getFirst();
+        }
+        if (inner.type == NodeType.LIT_ARRAY || inner.type == NodeType.LIT_OBJECT) {
+            destructurePattern(inner, context, bindScope, value, initialized);
+        } else if (node.type == NodeType.REF_EXPR) {
+            bindLeaf(node, node.getText(), context, bindScope, value, initialized);
+        } else if (node.type == NodeType.REF_DOT_EXPR || node.type == NodeType.REF_BRACKET_EXPR) {
+            PropertyAccess.set(node, context, value, null);
+        } else if (node.isToken() && node.token.type == IDENT) {
+            bindLeaf(node, node.getText(), context, bindScope, value, initialized);
+        }
+    }
+
+    private static void bindLeaf(Node node, String name, CoreContext context,
+                                  BindScope bindScope, Object value, boolean initialized) {
+        if (bindScope != null) {
+            context.declare(name, value, toScope(bindScope), initialized);
+            if (context.root.listener != null) {
+                context.root.listener.onBind(BindEvent.declare(name, value, bindScope, context, node));
+            }
+        } else {
+            context.update(name, value, node);
+        }
     }
 
     private static Object evalBlock(Node node, CoreContext context) {
@@ -451,75 +598,31 @@ class Interpreter {
         return scope == BindScope.VAR ? null : scope;
     }
 
-    private static Object evalLitArray(Node node, CoreContext context, BindScope bindScope, List<Object> bindSource) {
+    private static Object evalLitArray(Node node, CoreContext context) {
         int last = node.size() - 1;
         JsArray array = new JsArray();
         List<Object> list = array.list;  // Direct access to internal list for building
-        int index = 0;
         for (int i = 1; i < last; i++) {
             Node elem = node.get(i);
             Node exprNode = elem.get(0);
-            if (exprNode.token.type == DOT_DOT_DOT) { // rest
-                if (bindScope != null) {
-                    String varName = elem.getLast().getText();
-                    JsArray restArray = new JsArray();
-                    if (bindSource != null) {
-                        for (int j = index; j < bindSource.size(); j++) {
-                            // Use raw access for JsArray to preserve undefined values
-                            Object elem_ = bindSource instanceof JsArray arr
-                                    ? arr.getElement(j)
-                                    : bindSource.get(j);
-                            restArray.list.add(elem_);
-                        }
-                    }
-                    context.declare(varName, restArray, toScope(bindScope), true);
-                } else {
-                    Object value = evalRefExpr(elem.get(1), context);
-                    Iterable<KeyValue> iterable = Terms.toIterable(value);
-                    for (KeyValue kv : iterable) {
-                        list.add(kv.value());
-                    }
+            if (exprNode.token.type == DOT_DOT_DOT) { // spread
+                Object value = evalRefExpr(elem.get(1), context);
+                Iterable<KeyValue> iterable = Terms.toIterable(value);
+                for (KeyValue kv : iterable) {
+                    list.add(kv.value());
                 }
-            } else if (exprNode.token.type == COMMA) { // sparse
+            } else if (exprNode.token.type == COMMA) { // sparse hole
                 list.add(null);
-                index++;
             } else {
-                if (bindScope != null) {
-                    Object value = Terms.UNDEFINED;
-                    String varName = exprNode.getFirstToken().getText();
-                    if (exprNode.getFirst().type == NodeType.ASSIGN_EXPR) { // default value
-                        value = evalExpr(exprNode.getFirst().getLast(), context);
-                    }
-                    if (bindSource != null && index < bindSource.size()) {
-                        // Use raw access to get actual value (including undefined)
-                        // JsArray.get() auto-unwraps, but we need raw values for destructuring
-                        Object temp = bindSource instanceof JsArray arr
-                                ? arr.getElement(index)
-                                : bindSource.get(index);
-                        if (temp != Terms.UNDEFINED) {
-                            value = temp;
-                        }
-                    }
-                    context.declare(varName, value, toScope(bindScope), true);
-                } else {
-                    Object value = evalExpr(exprNode, context);
-                    list.add(value);
-                }
-                index++;
+                list.add(evalExpr(exprNode, context));
             }
         }
         return array;
     }
 
-    @SuppressWarnings("unchecked")
-    private static Object evalLitObject(Node node, CoreContext context, BindScope bindScope, Map<String, Object> bindSource) {
+    private static Object evalLitObject(Node node, CoreContext context) {
         int last = node.size() - 1;
-        Map<String, Object> result;
-        if (bindSource != null) {
-            result = new HashMap<>(bindSource); // use to derive ...rest if it appears
-        } else {
-            result = new JsObject(new LinkedHashMap<>(last - 1));
-        }
+        Map<String, Object> result = new JsObject(new LinkedHashMap<>(last - 1));
         for (int i = 1; i < last; i++) {
             Node elem = node.get(i);
             Node keyNode = elem.getFirst();
@@ -528,7 +631,7 @@ class Interpreter {
             // followed by the property name (IDENT/STRING/NUMBER or [expr]), then FN_EXPR.
             // Distinguished from shorthand methods named 'get'/'set' (which have FN_EXPR
             // directly at position 1, not position >=2).
-            if (bindScope == null && token == IDENT
+            if (token == IDENT
                     && (isAccessorKeyword(keyNode.getText()))
                     && elem.size() > 2
                     && accessorFnExprPosition(elem) > 1) {
@@ -551,53 +654,20 @@ class Interpreter {
                 key = keyNode.getText();
             }
             if (token == DOT_DOT_DOT) {
-                if (bindScope != null) {
-                    // previous keys were being removed from result
-                    context.declare(key, result, toScope(bindScope), true);
-                } else {
-                    Object value = context.get(key);
-                    if (value instanceof Map) {
-                        Map<String, Object> temp = (Map<String, Object>) value;
-                        result.putAll(temp);
-                    }
+                Object value = context.get(key);
+                if (value instanceof Map<?, ?> temp) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> map = (Map<String, Object>) temp;
+                    result.putAll(map);
                 }
             } else if (elem.size() > afterKeyPos && elem.get(afterKeyPos).type == NodeType.FN_EXPR) {
                 // Shorthand method: {foo() {...}} or {[k]() {...}} — the synthetic
-                // FN_EXPR is the next child after the key structure. Destructuring
-                // never produces this shape.
-                Object value = evalFnExpr(elem.get(afterKeyPos), context);
-                result.put(key, value);
-            } else if (!computed && elem.size() < 3) { // es6 shorthand property {foo}
-                if (bindScope != null) {
-                    Object value = Terms.UNDEFINED;
-                    if (bindSource != null && bindSource.containsKey(key)) {
-                        value = bindSource.get(key);
-                    }
-                    context.declare(key, value, toScope(bindScope), true);
-                    result.remove(key);
-                } else {
-                    Object value = context.get(key);
-                    result.put(key, value);
-                }
+                // FN_EXPR is the next child after the key structure.
+                result.put(key, evalFnExpr(elem.get(afterKeyPos), context));
+            } else if (!computed && elem.size() < 3) { // shorthand {foo}
+                result.put(key, context.get(key));
             } else {
-                int valuePos = afterKeyPos + 1;
-                if (bindScope != null) {
-                    Object value = Terms.UNDEFINED;
-                    if (bindSource != null && bindSource.containsKey(key)) {
-                        value = bindSource.get(key);
-                    }
-                    if (elem.get(afterKeyPos).getFirstToken().type == EQ) { // default value
-                        value = evalExpr(elem.get(valuePos), context);
-                        context.declare(key, value, toScope(bindScope), true);
-                    } else {
-                        String varName = elem.get(valuePos).getText();
-                        context.declare(varName, value, toScope(bindScope), true);
-                    }
-                    result.remove(key);
-                } else {
-                    Object value = evalExpr(elem.get(valuePos), context);
-                    result.put(key, value);
-                }
+                result.put(key, evalExpr(elem.get(afterKeyPos + 1), context));
             }
         }
         return result;
@@ -753,8 +823,8 @@ class Interpreter {
             return value;
         }
         return switch (node.type) {
-            case NodeType.LIT_ARRAY -> evalLitArray(node, context, null, null);
-            case NodeType.LIT_OBJECT -> evalLitObject(node, context, null, null);
+            case NodeType.LIT_ARRAY -> evalLitArray(node, context);
+            case NodeType.LIT_OBJECT -> evalLitObject(node, context);
             case NodeType.LIT_TEMPLATE -> evalLitTemplate(node, context);
             case NodeType.LIT_REGEX -> new JsRegex(node.getFirstToken().getText());
             default -> throw new RuntimeException("unexpected lit expr: " + node);
