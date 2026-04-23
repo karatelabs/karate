@@ -505,18 +505,40 @@ remove items once fixed.
   `ContextRoot.initGlobal` with indirect-eval semantics (parses and
   evaluates in the engine root scope; non-string arguments pass through
   unchanged per spec). Direct-eval scope capture is still out of scope.
-  Note: `typeof eval === "function"` still reports `"object"` because
-  `Terms.typeOf` doesn't map `JsInvokable` to `"function"` — this is a
-  separate gap that also affects `parseInt`, `isNaN`, etc.
-- **`assert.throws` helper in test262 harness.** Many of the
-  `expected negative … but got: 13:1 STATEMENT` failures come from the
-  runner's negative-test classifier not matching the engine's
-  `cannot parse statement` error. Either (a) emit the spec error name
-  (`SyntaxError`) on the ParserException side, or (b) teach
-  `ErrorUtils`/`Test262NegativeMatcher` to map the generic
-  `cannot parse statement` to `SyntaxError` phase=parse. Right now these
-  are "engine says the right thing, runner doesn't recognize it" —
-  cheapest lever is the runner-side map.
+- **`typeof` on `JsInvokable` globals.** ✅ *Addressed.* `Terms.typeOf`
+  now returns `"function"` for any `JsInvokable`, not just `JsFunction`.
+  Fixes `typeof parseInt`, `typeof eval`, `typeof isNaN`, `typeof isFinite`,
+  `typeof parseFloat`, `typeof encodeURI*`, and the `Math.*` / `JSON.*`
+  method references. Still reports `"object"` for `Boolean` / `RegExp` /
+  `Error` / `TypeError` / … — these extend `JsObject` rather than
+  `JsFunction`, and the prototype-method refs cast as `(JsCallable) x::y`
+  (e.g. `[1].map`, `'x'.charAt`) are also still `"object"`. A broader fix
+  would either flip these classes to extend `JsFunction` or introduce a
+  separate "is-function" marker; deferred until the Tier 2 built-ins pass
+  surfaces the demand.
+- **Negative-test parse-error classification.** ✅ *Not actually broken.*
+  The prior note described `Unknown: expected negative … but got NN:N
+  STATEMENT` failures; a current run shows **zero** `"expected negative"`
+  failures in `results.jsonl`. Parse-phase negatives already route
+  correctly through `Test262Runner.classifyNegative(..., "parse",
+  "SyntaxError", pe)`. The residual `Unknown: NN:N STATEMENT` failures
+  (~1300) are a *different* issue — they are assertion failures from the
+  harness's `assert.js` (Test262Error thrown, message framed by
+  `Node.toStringError` so the first line is the engine position
+  `<line>:<col> <NodeType>` rather than the real error body). See the
+  separate framing gap below.
+- **Engine-position prefix hides assertion messages (framing gap).**
+  `Node.toStringError` prepends `<line>:<col> <NodeType>` before the real
+  message. `ErrorUtils.firstLine()` then returns the position prefix, not
+  the body — so `results.jsonl` shows `"message":"13:1 STATEMENT"` instead
+  of `"Array.prototype.isPrototypeOf(Array()) must return true …"`. Two
+  cheap fixes: (a) swap the order in `Node.toStringError` so the real
+  message is first, position appended, or (b) teach `ErrorUtils.firstLine`
+  to skip an initial `^\d+:\d+\s+[A-Z_]+$` line. Option (a) is the root
+  cause per Working Principle #3 (errors must look like JavaScript, not
+  engine internals). ~1300 tests would suddenly have readable failure
+  messages; classification might also improve for a subset where the true
+  body starts with a known `<Name>:` prefix.
 - **`cannot read properties of undefined (reading 'name')`.** ✅ *Addressed.*
   Root cause turned out not to be a `.name` read in engine code but the
   test262 harness's `assert.throws(Ctor, fn)` reading `thrown.constructor.name`
@@ -552,24 +574,23 @@ remove items once fixed.
 
 ### Recommended next-session ordering
 
-Items 1–3 from the previous session are done. Remaining, in priority
-order:
+Prior items 1–3 + strict-mode policy + `typeof` for `JsInvokable` are
+done. Remaining, in priority order:
 
-1. **Decide strict-mode policy.** Either flip `"use strict"` parser-side
-   or add a paths/flags skip entry with a reason.
-2. **Bridge the negative-test classifier** (engine
-   `cannot parse statement` → `SyntaxError` phase=parse mapping). Many
-   of the remaining `Unknown: expected negative Negative[phase=parse, …]
-   but got: NN:N STATEMENT` failures come from this. Cheapest lever is
-   runner-side in `ErrorUtils` / `Test262NegativeMatcher`: map the
-   generic "cannot parse statement" to `SyntaxError` phase=parse. The
-   engine-side alternative is to throw a `ParserException` whose
-   message includes `"SyntaxError:"` so the prefix classifier picks it
-   up without a bespoke rule.
-3. **`typeof eval === "function"`** (and `typeof parseInt`, etc.). All
-   `JsInvokable` globals currently report `"object"` because
-   `Terms.typeOf` only maps `JsFunction` to `"function"`. Trivial
-   change, unblocks a small but measurable cluster.
+1. **Fix `Node.toStringError` ordering** so the engine position prefix
+   (`<line>:<col> <NodeType>`) comes *after* the real message, not
+   before. Currently ~1300 tests in `results.jsonl` report
+   `"message":"13:1 STATEMENT"` because `ErrorUtils.firstLine()` only
+   sees the position prefix. Root-cause fix per Working Principle #3.
+   Alternative: teach `ErrorUtils.firstLine` to skip a leading
+   `^\d+:\d+\s+[A-Z_]+$` line — runner-side, contained, but treats the
+   symptom not the cause.
+2. **Classify `Test262Error` distinctly.** Assertion failures from
+   `assert.js` currently collapse to `"Unknown"` because the thrown
+   message has no `<Name>:` prefix. Either teach `ErrorUtils.classify`
+   to detect `Test262Error:` / the `assert.js` message shapes, or surface
+   them under a dedicated `"AssertionFailed"` bucket in results. Not a
+   correctness fix, but dramatically improves report triage.
 
 After that, the earlier Tier 2 plan (`Object`/`Array`/`String` built-ins)
 is the next cliff worth climbing.

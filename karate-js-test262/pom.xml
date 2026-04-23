@@ -60,6 +60,14 @@
             <artifactId>karate-js</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- Silences SLF4J "no providers" warning on exec:java; the runner uses
+             System.out/err directly, so a no-op binding is sufficient. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
 
 </project>

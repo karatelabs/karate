@@ -106,11 +106,11 @@ public class Node {
     public String toStringError(String message) {
         Token first = getFirstToken();
         if (first.getResource().isFile()) {
-            return first.getPositionDisplay() + " " + type + "\n" + first.getResource().getRelativePath() + "\n" + message;
+            return message + "\n    at " + first.getResource().getRelativePath() + ":" + first.getPositionDisplay();
         } else if (first.line == 0) {
             return message;
         } else {
-            return first.getPositionDisplay() + " " + type + "\n" + message;
+            return message + "\n    at " + first.getPositionDisplay();
         }
     }
 

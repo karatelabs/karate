@@ -500,7 +500,7 @@ public class Terms {
         if (value instanceof String) {
             return "string";
         }
-        if (value instanceof JsFunction) {
+        if (value instanceof JsFunction || value instanceof JsInvokable) {
             return "function";
         }
         if (value instanceof Number) {

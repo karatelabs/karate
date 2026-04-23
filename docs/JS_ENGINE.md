@@ -850,6 +850,32 @@ runScript("const json = response.json(); pm.test('ok', () => {});");
 runScript("const json = response.json(); pm.test('ok', () => {});");  // No conflict!
 ```
 
+### Strict Mode Policy
+
+karate-js has **no strict/sloppy distinction**. There is a single execution
+mode, and it is closer to sloppy than to strict. A `"use strict"` (or
+`'use strict'`) directive is accepted but has no effect — it parses as a
+plain string-literal ExpressionStatement and its value is discarded like
+any other expression-statement result. This is the spec-intended
+backward-compatible behavior for an engine that does not implement strict
+mode: ES5 deliberately chose a string-literal directive form so that
+pre-ES5 engines would silently ignore it.
+
+Consequences:
+
+- `with`, duplicate parameter names, octal literals like `0755`, and
+  assignments to `eval`/`arguments` are not rejected as SyntaxErrors.
+- `this` in a plain function call resolves to the global binding object,
+  not `undefined`.
+- Assigning to an undeclared name creates a global (see above).
+- The test262 harness skips tests flagged `onlyStrict` via
+  `karate-js-test262/config/expectations.yaml`; there is no plan to
+  implement a parser-side strict flip.
+
+If you need strict semantics, run your code in an engine that supports
+them; karate-js is a pragmatic embedded engine tuned for LLM-written and
+hand-written idiomatic JS, not for spec-lawyer strict-mode enforcement.
+
 ---
 
 ## File References

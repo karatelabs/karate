@@ -50,6 +50,35 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testTypeofCallable() {
+        // JsInvokable-registered globals must report "function", not "object"
+        assertEquals("function", eval("typeof parseInt"));
+        assertEquals("function", eval("typeof parseFloat"));
+        assertEquals("function", eval("typeof isNaN"));
+        assertEquals("function", eval("typeof isFinite"));
+        assertEquals("function", eval("typeof eval"));
+        assertEquals("function", eval("typeof encodeURIComponent"));
+        assertEquals("function", eval("typeof decodeURIComponent"));
+        // JsFunction constructor singletons
+        assertEquals("function", eval("typeof String"));
+        assertEquals("function", eval("typeof Number"));
+        assertEquals("function", eval("typeof Object"));
+        assertEquals("function", eval("typeof Array"));
+        assertEquals("function", eval("typeof Date"));
+        // Namespace objects stay "object"
+        assertEquals("object", eval("typeof Math"));
+        assertEquals("object", eval("typeof JSON"));
+        // Math methods are JsInvokable
+        assertEquals("function", eval("typeof Math.max"));
+        assertEquals("function", eval("typeof Math.random"));
+        assertEquals("function", eval("typeof JSON.stringify"));
+        assertEquals("function", eval("typeof JSON.parse"));
+        // User functions
+        assertEquals("function", eval("typeof (function(){})"));
+        assertEquals("function", eval("var f = () => 1; typeof f"));
+    }
+
+    @Test
     void testNewExpressionChaining() {
         // new binds to the first call expression only
         // new Foo().bar() should parse as (new Foo()).bar()
