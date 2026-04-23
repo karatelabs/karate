@@ -745,61 +745,135 @@ detail):
 - **Error classification & framing** — see "Known first-order gaps →
   Addressed".
 
-**What remains — work items, highest leverage first.** Each entry
-names (a) the concrete pass/fail numbers from a probe in the current
-HEAD, (b) the one-line reason it is ranked where it is, and (c) the
-first file/function to touch.
+**What remains — work items, highest LLM-value first.** Ordering is
+by "how often does idiomatic LLM-written JS hit this?" not by
+test-count. Each entry names (a) what LLMs actually do that depends on
+it, (b) the shape of the work, and (c) the skip-list entry to retire.
 
 ---
 
-**1. Remaining destructuring-assignment failures (75).**
+**1. Optional chaining (`?.`) + nullish coalescing (`??`).**
+
+Both currently skipped via `expectations.yaml`
+(`feature: optional-chaining`, `feature: nullish-coalescing`). LLMs
+write `config?.server?.port ?? 8080` reflexively — this is defensive
+property access plus default fallback, the single most common modern
+JS pattern after destructuring. Neither feature exists in karate-js
+today.
+
+Shape: new tokens (`?.`, `??`), parser slots in the postfix chain
+(optional chaining) and logical-operator tier (nullish coalescing),
+interpreter short-circuit evaluation. Small to mid session — both
+features share the same "short-circuit on nullish" machinery, land
+them together. Remove both skip entries when done.
+
+**Why first:** cheapest *and* highest-frequency. Together they touch
+thousands of real LLM-generated snippets; ignoring them means any
+paste from a modern codebase breaks at the first `?.`.
+
+---
+
+**2. Iteration-layer unification + un-skip `Symbol.iterator`.**
+
+Right now karate-js has **ad-hoc iteration** scattered across sites
+that each special-case `List` / `String` / `JsArray`:
+
+- `destructurePattern` in `Interpreter` (this session added a
+  bespoke String → List<Object> expansion).
+- `evalForStmt` for `for-of` (walks List elements).
+- `...spread` in call args (`evalFnCall` iterates List).
+- `...spread` in array literals.
+- `Array.from`, `Array.of`, and similar built-ins.
+
+No single "give me an iterator over X" seam exists. Adding one — a
+`getIterator(Object)` helper returning a `JsIterator` interface with
+`next(): IterResult`, backed by:
+- JsArray / List → index walker
+- String → code-unit walker
+- JsObject with `@@iterator` key → user-defined iterator via its
+  `next()` method
+- a minimal `Symbol.iterator` registered as a *well-known-symbol*
+  string key (`"@@iterator"` until real `Symbol` lands)
+
+— collapses five ad-hoc call sites into one, and unblocks
+`compareArray.js` (gates thousands of `test/built-ins/**` tests
+currently SKIP'd because `Symbol.iterator` is feature-skipped).
+
+Shape: focused engine-plumbing session. (1) Introduce `JsIterator`
+interface + `IterUtils.getIterator(Object)`. (2) Convert the five
+call sites above. (3) Remove `feature: Symbol.iterator` from
+`expectations.yaml`. (4) Expose `@@iterator` read on `JsArray` /
+`JsString` as a well-known-symbol alias. Real `Symbol()` construction
+can stay skipped.
+
+**Why second:** architectural, but this session's work exposed how
+fragile the ad-hoc pattern is (the String-case in `destructurePattern`
+is smell). One refactor in exchange for: simpler engine, consistent
+semantics across all iteration sites, a huge cascade of newly-runnable
+Array tests, and the door open to for-of over user-defined iterables.
+Per Working Principle #2 — the friction is real; fix it now.
+
+---
+
+**3. Class syntax (ES6).**
+
+Currently skipped (`feature: class` plus five `class-*` variants).
+LLMs default to `class Foo extends Bar {}` when they want OO.
+Karate-js already has the prototype and `new` machinery — this is
+primarily a parser + desugarer.
+
+Shape: (1) parser recognizes `class`/`extends`/method-definitions;
+(2) desugar to an equivalent constructor function + prototype
+assignments at parse time (or during interpretation); (3) handle
+`super` calls inside constructors and methods; (4) `static` members
+become direct function properties. Mid-to-large session. Remove the
+six `class-*` skips when done.
+
+**Why third:** qualitatively important but larger scope than #1/#2.
+Also, much working karate-js code uses prototype syntax directly, so
+the impact on existing LLM-written code is high but not
+feature-blocking the way #1 is.
+
+---
+
+**4. Destructuring-assignment residuals (75).**
 
 After the reserved-words widening + default-undefined + iterable-check
-fixes, the assignment slice has 75 fails split into three clusters,
-none with a quick lever:
+fixes, the assignment slice has 75 fails, all low-leverage:
 
-- **47 SyntaxErrors, all `-escaped` forms** (`ident-name-prop-name-literal-break-escaped.js`
-  etc.). These use unicode-escape identifier syntax
-  (`break` = `break`). Needs lexer support for `\uXXXX` /
-  `\u{…}` inside identifier scans AND a normalization pass so the
-  parser treats the folded name as the key. Isolated lexer project;
-  low LLM-value (models don't write escape-form keywords).
-- **14 Test262Errors** — remaining semantic corners: TDZ-on-assignment
-  to later-`let` bindings, init-evaluation order, function-name
-  inference in destructuring defaults, array-rest with string source.
-  Each is an independent small fix.
-- **14 Unknowns — negative parse tests** that karate-js currently
-  accepts (`[...rest, elem]`, `{...rest, key: v}`, etc.). Spec says
-  rest must be last in array/object patterns, but the same syntax is
-  legal in array/object *literals* (spread element). Two-mode parsing
-  (pattern vs literal) is a significant refactor.
+- **47 SyntaxErrors, all `-escaped` forms** — need lexer support for
+  `\uXXXX` in identifier scans. Isolated lexer project; LLMs don't
+  write escape-form keywords.
+- **14 Test262Errors** — TDZ-on-assignment-to-later-`let`,
+  init-evaluation order, function-name inference in defaults. Small
+  independent fixes; low frequency in real code.
+- **14 Unknowns — negative parse tests** (`[...rest, elem]`,
+  `{...rest, key: v}`) that need pattern-vs-literal two-mode parsing.
+  Significant refactor; real-world code doesn't write these.
 
-**Why first:** after this session's fixes, the remaining buckets have
-become architectural. Worth another session only with a specific lever
-in mind (e.g. identifier-escape support in the lexer unlocks 47 tests
-in one commit, but is a lexer-wide change).
+**Why fourth:** each sub-bucket is architectural or
+low-LLM-frequency. Skip unless one of them blocks something.
 
 ---
 
-**2. Deferred — architectural, low LLM-leverage.**
+**5. Deferred — descriptor infra, low LLM-leverage.**
 
-- **Array cliff (~1896 FAILs in `test/built-ins/Array/**`)** needs
-  property-descriptor attribute tracking, the full iterator protocol
-  (`Symbol.iterator` is skip-listed), sparse-array dictionary mode,
-  and TypedArray / species. Core `Array.prototype.*` already works
-  for idiomatic code.
-- **Object-attribute polish (~1855 FAILs)** concentrates in
-  writable/enumerable/configurable semantics (~217 `Expected a
-  TypeError to be thrown`, ~100 `accessed !== true` checks). Same
-  descriptor-infra story as Array.
-- **Harness helpers (`propertyHelper.js`, `compareArray.js`,
-  `testTypedArray.js`)** are blocked on the same descriptor /
-  iterator infra; un-skipping one of these unlocks thousands of
-  built-in tests at a stroke — but only after the infra exists.
+- **Array cliff (~1896 FAILs)**, **Object-attribute polish
+  (~1855 FAILs)**, **harness helpers (`propertyHelper.js`,
+  `testTypedArray.js`)** — all blocked on the same descriptor layer:
+  per-property `writable`/`enumerable`/`configurable` attribute
+  tracking, accessor getter/setter enforcement, `Object.freeze` /
+  `seal` / `preventExtensions`.
 
-Treat the descriptor layer as one project (not three): when someone
-decides to do it, it's the same set of changes that unlocks Array,
-Object-polish, and the helpers together.
+  **Low LLM-value** per our analysis: LLMs don't write
+  `defineProperty`, don't rely on `writable: false` enforcement, and
+  don't produce code that breaks if attributes are missing. The
+  thousands of failing tests assert spec invariants, not things
+  LLM-generated code hits. Treat the descriptor layer as one project
+  (not three) — but only worth starting when the skip list's SKIP
+  fraction is hiding too much other signal. Currently item #2
+  (iteration unification) is a cheaper way to retire a big cluster of
+  SKIPs.
 
 ---
 
