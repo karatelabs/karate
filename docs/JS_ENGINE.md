@@ -869,7 +869,7 @@ Consequences:
   not `undefined`.
 - Assigning to an undeclared name creates a global (see above).
 - The test262 harness skips tests flagged `onlyStrict` via
-  `karate-js-test262/config/expectations.yaml`; there is no plan to
+  `karate-js-test262/etc/expectations.yaml`; there is no plan to
   implement a parser-side strict flip.
 
 If you need strict semantics, run your code in an engine that supports
@@ -998,13 +998,31 @@ public final class JsUndefined implements JsValue {
 
 ### 2. Future TODO Items
 
-**JavaScript Stack Traces for Errors**
-- Current error messages are basic with no JS call stack
-- Would require tracking function entry/exit in `Interpreter.evalFnCall()`
-- Store function name + source location in `CoreContext`, capture on throw
-- Priority: High (improves debugging experience)
+> For the full prioritized roadmap (including test-count deltas and
+> skip-list-retirement plan) see
+> [karate-js-test262/TEST262.md § What remains](../karate-js-test262/TEST262.md#recommended-next-session-ordering).
+> The items below are the architectural shape only.
 
-**Async/Await Support**
-- Engine is currently synchronous (async handled at Karate DSL level)
-- Current design doesn't preclude async - context-based execution can track promise state
-- Priority: Future (when needed)
+**JavaScript Stack Traces for Errors**
+- Single-frame position is done: `Node.toStringError` now appends
+  `    at <path>:<line>:<col>` (JS-stack-frame-style) after the user
+  message. Enough that LLMs reading `.message` get a source locator.
+- Multi-frame call stack still TODO — would track function entry/exit
+  in `Interpreter.evalFnCall`, stash name + source on `CoreContext`,
+  and capture the chain on throw. Priority: medium.
+
+**Async/Await + Promises**
+- Engine is synchronous; no event loop or microtask queue. LLMs write
+  `async`/`await` reflexively, so the current full-skip of
+  `feature: Promise` / `feature: async-functions` / `flag: async` in
+  `etc/expectations.yaml` rejects a large fraction of modern JS.
+- Recommended path (per TEST262.md item #2): **synchronous subset
+  first** — `Promise` as an eagerly-resolving thenable, `async
+  function` runs synchronously and wraps its result in
+  `Promise.resolve`, `await expr` synchronously unwraps a thenable.
+  Breaks genuinely-concurrent workloads but handles the ~80% of LLM
+  glue where `async`/`await` is shape not parallelism, and matches
+  the surrounding Java code's execution model in karate's
+  test/workflow runner. Escalate to a full microtask-queue runtime
+  only when a real workload needs timer-driven scheduling.
+- Priority: high (promoted from "Future").
