@@ -630,6 +630,17 @@ Items left for later; un-scheduled but tracked.
   in git while engine iterates). Re-evaluate when Tier 0–2 are ≥95%
   green — at that point, diff-based regression detection becomes the
   cheapest signal.
+- **Thin `EngineException` once `JsError` goes public.** Today
+  `EngineException` (host boundary) carries a `jsErrorName` string that
+  duplicates what's in the cause-chain's `JsErrorException` payload.
+  `JsError` is package-private, so we can't just expose the payload. Once
+  a host use case forces `JsError` public, drop the name field and have
+  `EngineException.getJsErrorName()` / `getJsErrorMessage()` delegate to
+  the payload. Keep `EngineException` for the host-side framing
+  ("js failed: / ========== / ..."), and keep `ParserException` separate
+  — it lives in `io.karatelabs.parser` (no runtime deps) and the test262
+  runner uses `instanceof ParserException` to distinguish
+  `phase: parse` from `phase: runtime` SyntaxErrors.
 
 ---
 
