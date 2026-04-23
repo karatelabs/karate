@@ -34,6 +34,9 @@ class JsError extends JsObject {
     private final String message;
     private final String name;
     private final Throwable cause;
+    // ref to the global constructor this instance was produced from
+    // (Error, TypeError, RangeError, ...) — null for the global instances themselves
+    private JsError constructor;
 
     public JsError(String message) {
         this(message, "Error", null);
@@ -50,6 +53,10 @@ class JsError extends JsObject {
         this.cause = cause;
     }
 
+    public String getName() {
+        return name;
+    }
+
     public Throwable getCause() {
         return cause;
     }
@@ -64,6 +71,7 @@ class JsError extends JsObject {
         return switch (key) {
             case "message" -> message;
             case "name" -> name;
+            case "constructor" -> constructor;
             case "toString" -> (JsCallable) (ctx, args) -> toString();
             default -> null;
         };
@@ -96,7 +104,9 @@ class JsError extends JsObject {
         // ES6: Error('foo') and new Error('foo') both return an Error instance.
         // Preserve the constructor's name so subclasses (TypeError, etc.) carry it through.
         String msg = (args.length > 0 && args[0] != null && args[0] != Terms.UNDEFINED) ? args[0] + "" : null;
-        return new JsError(msg, this.name, null);
+        JsError instance = new JsError(msg, this.name, null);
+        instance.constructor = this;
+        return instance;
     }
 
 }

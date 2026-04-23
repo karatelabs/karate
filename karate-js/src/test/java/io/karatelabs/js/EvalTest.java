@@ -377,6 +377,49 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testErrorInstanceOf() {
+        // same-type: an instance is instanceof its own constructor
+        assertEquals(true, eval("new Error() instanceof Error"));
+        assertEquals(true, eval("new TypeError() instanceof TypeError"));
+        assertEquals(true, eval("new RangeError() instanceof RangeError"));
+        assertEquals(true, eval("new ReferenceError() instanceof ReferenceError"));
+        assertEquals(true, eval("new SyntaxError() instanceof SyntaxError"));
+        // base-class: all NativeError types inherit from Error
+        assertEquals(true, eval("new TypeError() instanceof Error"));
+        assertEquals(true, eval("new RangeError() instanceof Error"));
+        assertEquals(true, eval("new ReferenceError() instanceof Error"));
+        assertEquals(true, eval("new SyntaxError() instanceof Error"));
+        assertEquals(true, eval("new URIError() instanceof Error"));
+        assertEquals(true, eval("new EvalError() instanceof Error"));
+        // cross-type: different NativeError types are NOT instanceof each other
+        assertEquals(false, eval("new RangeError() instanceof TypeError"));
+        assertEquals(false, eval("new TypeError() instanceof RangeError"));
+        assertEquals(false, eval("new SyntaxError() instanceof ReferenceError"));
+        // base-error is not an instanceof any NativeError subtype
+        assertEquals(false, eval("new Error() instanceof TypeError"));
+        assertEquals(false, eval("new Error() instanceof RangeError"));
+    }
+
+    @Test
+    void testErrorConstructor() {
+        // .constructor on a thrown/newed error points to the global constructor
+        assertEquals(true, eval("new Error().constructor === Error"));
+        assertEquals(true, eval("new TypeError().constructor === TypeError"));
+        assertEquals(true, eval("new RangeError().constructor === RangeError"));
+        assertEquals(true, eval("new ReferenceError().constructor === ReferenceError"));
+        // cross-type: constructor identity is strict, not name-based
+        assertEquals(false, eval("new RangeError().constructor === TypeError"));
+        assertEquals(false, eval("new TypeError().constructor === Error"));
+        // the test262 pattern: assert.throws(RangeError, fn) equivalent
+        assertEquals(true, eval(
+                "var caught; try { throw new RangeError('x') } catch(e) { caught = e }; " +
+                        "caught.constructor === RangeError"));
+        assertEquals(false, eval(
+                "var caught; try { throw new RangeError('x') } catch(e) { caught = e }; " +
+                        "caught.constructor === TypeError"));
+    }
+
+    @Test
     void testUnary() {
         assertEquals(true, eval("!false"));
         assertEquals(-6, eval("~5"));

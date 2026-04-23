@@ -449,17 +449,6 @@ High-leverage issues that each break many tests at once. Fixing one of these
 is worth more than fixing twenty one-off bugs. Grow this list as tiers run;
 remove items once fixed.
 
-- **`JsError` subtype `instanceof` / `.constructor` identity** (per Working
-  Principle #3 — error-surface fix). All error constructors (`Error`,
-  `TypeError`, `RangeError`, …) are `JsError` instances sharing one Java
-  class, so `Terms.instanceOf` — which compares by `getClass()` — treats
-  `new RangeError() instanceof TypeError` as `true`. `.constructor` on a
-  thrown error also doesn't resolve to the global constructor, so test262's
-  `assert.throws(RangeError, fn)` (which does
-  `thrown.constructor !== expectedErrorConstructor`) will mis-classify.
-  Fixing this means either (a) distinct Java subclasses per NativeError, or
-  (b) making `instanceOf` / `.constructor` name-aware. Gates any test that
-  does `instanceof` on errors or uses `assert.throws`.
 - **Comma / sequence operator not accepted inside parentheses.** `(a, b)`,
   `(0, eval)(x)`, `for (i = 0, j = 0; ...; i++, j++)`, and all patterns
   that put a sequence expression in parens fail to parse with
