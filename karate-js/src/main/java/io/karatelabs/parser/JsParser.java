@@ -786,6 +786,19 @@ public class JsParser extends BaseParser {
         if (consumeIf(EQ)) { // var / assigment destructuring
             expr(-1, true);
         }
+        // ES6 shorthand method: `foo(args) { body }` inside an object literal.
+        // Detected after the key token is consumed, before the comma/brace
+        // shortcut for {foo, bar} shorthand properties.
+        if (peekIf(L_PAREN)) {
+            enter(NodeType.FN_EXPR);
+            fn_decl_args();
+            block(true);
+            exit();
+            if (!(consumeIf(COMMA) || peekIf(R_CURLY))) {
+                error(COMMA, R_CURLY);
+            }
+            return exit();
+        }
         if (consumeIf(COMMA) || peekIf(R_CURLY)) { // es6 enhanced object literals
             return exit();
         }

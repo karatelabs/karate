@@ -772,4 +772,23 @@ class JsParserTest {
         assertEquals(NodeType.EXPR_LIST, throwNode.get(1).type);
     }
 
+    @Test
+    void testObjectShorthandMethod() {
+        JsParser parser = new JsParser(Resource.text("var o = { foo() { return 1; }, bar(a, b) { return a + b; } };"));
+        Node ast = parser.parse();
+        assertFalse(parser.hasErrors());
+        Node obj = ast.findFirstChild(NodeType.LIT_OBJECT);
+        assertNotNull(obj);
+        java.util.List<Node> elems = obj.findImmediateChildren(NodeType.OBJECT_ELEM);
+        assertEquals(2, elems.size());
+        // Each element's second child is the synthetic FN_EXPR (with or without
+        // a trailing COMMA in position 2).
+        for (Node elem : elems) {
+            assertEquals(NodeType.FN_EXPR, elem.get(1).type);
+            // The synthetic FN_EXPR has [FN_DECL_ARGS, BLOCK] (no leading `function` keyword).
+            assertEquals(NodeType.FN_DECL_ARGS, elem.get(1).getFirst().type);
+            assertEquals(NodeType.BLOCK, elem.get(1).getLast().type);
+        }
+    }
+
 }

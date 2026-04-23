@@ -1104,4 +1104,20 @@ class EvalTest extends EvalBase {
         assertEquals(3, get("n"));
     }
 
+    @Test
+    void testObjectShorthandMethods() {
+        // Zero-arg shorthand method
+        assertEquals(1, eval("({ foo() { return 1; } }).foo()"));
+        // Multi-arg shorthand method
+        assertEquals(7, eval("({ add(a, b) { return a + b; } }).add(3, 4)"));
+        // `this` inside shorthand method refers to the object
+        assertEquals(42, eval("({ x: 42, get() { return this.x; } }).get()"));
+        // typeof reports "function"
+        assertEquals("function", eval("typeof ({ foo() {} }).foo"));
+        // Mixed with regular properties and arrow/function values
+        assertEquals(true, eval(
+                "var o = { a: 1, f() { return 2; }, g: function() { return 3; } };"
+                        + " o.a === 1 && o.f() === 2 && o.g() === 3"));
+    }
+
 }

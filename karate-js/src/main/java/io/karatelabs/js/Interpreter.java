@@ -271,6 +271,11 @@ class Interpreter {
     }
 
     private static Object evalFnExpr(Node node, CoreContext context) {
+        // Shorthand method syntax ({foo() {...}}) produces an FN_EXPR whose
+        // first child is FN_DECL_ARGS (no leading `function` keyword / name).
+        if (node.getFirst().type == NodeType.FN_DECL_ARGS) {
+            return new JsFunctionNode(false, node, fnArgs(node.getFirst()), node.getLast(), context);
+        }
         if (node.get(1).token.type == IDENT) {
             JsFunctionNode fn = new JsFunctionNode(false, node, fnArgs(node.get(2)), node.getLast(), context);
             context.put(node.get(1).getText(), fn);
@@ -538,6 +543,12 @@ class Interpreter {
                         result.putAll(temp);
                     }
                 }
+            } else if (elem.size() >= 2 && elem.get(1).type == NodeType.FN_EXPR) {
+                // Shorthand method: {foo() {...}} — position 1 is the synthetic
+                // FN_EXPR regardless of a trailing comma token at position 2.
+                // Destructuring never produces this shape.
+                Object value = evalFnExpr(elem.get(1), context);
+                result.put(key, value);
             } else if (elem.size() < 3) { // es6 enhanced object literals
                 if (bindScope != null) {
                     Object value = Terms.UNDEFINED;
