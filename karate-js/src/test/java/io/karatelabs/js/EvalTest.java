@@ -203,9 +203,14 @@ class EvalTest extends EvalBase {
         assertNull(get("a")); // undefined is converted to null by toJava()
         assertEquals(1, eval("var a = 1"));
         assertEquals(1, get("a"));
+        // Each declarator carries its own (optional) initializer per spec.
         assertEquals(2, eval("var a, b = 2"));
-        assertEquals(2, get("a"));
+        assertNull(get("a"));
         assertEquals(2, get("b"));
+        eval("var x = 1, y = 2, z = 3");
+        assertEquals(1, get("x"));
+        assertEquals(2, get("y"));
+        assertEquals(3, get("z"));
     }
 
     @Test
@@ -937,6 +942,84 @@ class EvalTest extends EvalBase {
         assertEquals(2, get("y"));
         eval("({ a: x } = { a: 2 })");
         assertEquals(2, get("x"));
+    }
+
+    @Test
+    void testCommaOperatorInParens() {
+        // sequence operator returns the last value
+        assertEquals(3, eval("(1, 2, 3)"));
+        assertEquals("c", eval("('a', 'b', 'c')"));
+        // side effects in earlier expressions are observed
+        eval("var x = 0; var y = (x = 1, x + 1)");
+        assertEquals(1, get("x"));
+        assertEquals(2, get("y"));
+        // in an assignment rhs
+        eval("var a; a = (1, 2, 3)");
+        assertEquals(3, get("a"));
+    }
+
+    @Test
+    void testCommaOperatorInForLoop() {
+        // idiomatic for-loop with multi-declarator var and comma-sequence update
+        eval("var sum = 0; for (var i = 0, j = 10; i < 3; i++, j--) { sum += i + j; }");
+        // iterations: (0,10)+(1,9)+(2,8) = 10+10+10 = 30
+        assertEquals(30, get("sum"));
+    }
+
+    @Test
+    void testCommaOperatorInReturnAndThrow() {
+        eval("function f() { return 1, 2, 3; } var r = f()");
+        assertEquals(3, get("r"));
+        eval("var caught; try { throw (1, 'err-msg'); } catch (e) { caught = e; }");
+        assertEquals("err-msg", get("caught"));
+    }
+
+    @Test
+    void testMultiDeclaratorVar() {
+        eval("var a = 1, b = 2, c = 3");
+        assertEquals(1, get("a"));
+        assertEquals(2, get("b"));
+        assertEquals(3, get("c"));
+        // mixed — no-init declarators are undefined; initialized ones use their own expr
+        eval("var p, q = 10, r, s = 20");
+        assertNull(get("p"));
+        assertEquals(10, get("q"));
+        assertNull(get("r"));
+        assertEquals(20, get("s"));
+        // initializer side effects observable during the declaration
+        eval("var m = 1, n = m + 1");
+        assertEquals(1, get("m"));
+        assertEquals(2, get("n"));
+    }
+
+    @Test
+    void testMultiDeclaratorLet() {
+        eval("let a = 1, b = 2");
+        assertEquals(1, get("a"));
+        assertEquals(2, get("b"));
+        // let per-iteration isolation with multiple loop vars — each closure snapshots (i, j)
+        eval("var captured = [];\n" +
+             "for (let i = 0, j = 10; i < 3; i++, j--) {\n" +
+             "  captured.push(function() { return i + '/' + j; });\n" +
+             "}\n" +
+             "var out = captured.map(function (f) { return f(); }).join(',')");
+        assertEquals("0/10,1/9,2/8", get("out"));
+    }
+
+    @Test
+    void testMultiDeclaratorConstRequiresInit() {
+        // const without initializer is a parse error
+        assertThrows(Exception.class, () -> eval("const a = 1, b"));
+    }
+
+    @Test
+    void testCommaOperatorInConditions() {
+        // if condition
+        eval("var taken; if (0, 1) { taken = 'then'; } else { taken = 'else'; }");
+        assertEquals("then", get("taken"));
+        // while condition — stops when last value is falsy
+        eval("var n = 0; while (n++, n < 3) { }");
+        assertEquals(3, get("n"));
     }
 
 }

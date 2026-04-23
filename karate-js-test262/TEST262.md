@@ -485,48 +485,52 @@ High-leverage issues that each break many tests at once. Fixing one of these
 is worth more than fixing twenty one-off bugs. Grow this list as tiers run;
 remove items once fixed.
 
-- **Comma / sequence operator not accepted inside parentheses.** `(a, b)`,
-  `(0, eval)(x)`, `for (i = 0, j = 0; ...; i++, j++)`, and all patterns
-  that put a sequence expression in parens fail to parse with
-  `expected: [R_PAREN]`. This blocks the idiomatic `(0, eval)(src)`
-  indirect-eval trick that test262's `$262.evalScript` is supposed to use,
-  plus many in-the-wild patterns. The runner currently works around it
-  with `var indirect = eval; indirect(src)`, but this is exactly the
-  friction the engine should fix per working principle #2. Spec: this is
-  the `Expression : Expression , AssignmentExpression` production, ES1.
-
-  **Design note for the fix session — no new AST node needed.** The
-  infrastructure is already in place; the bug is pure call-site wiring.
-  - `NodeType.EXPR_LIST` already exists and `JsParser.expr_list()`
-    (`karate-js/src/main/java/io/karatelabs/parser/JsParser.java:147`)
-    already parses comma-separated expressions.
-  - `Interpreter.evalExprList`
-    (`karate-js/src/main/java/io/karatelabs/js/Interpreter.java:159`)
-    already implements correct sequence semantics — evaluates each child
-    in order, returns the last value. That *is* the comma operator.
-  - Today `expr_list()` is only invoked at the top-level statement
-    production (`JsParser.java:126`: `expr_list() && eos()`). Every other
-    expression slot calls `expr(-1, …)`, which parses one
-    AssignmentExpression and leaves `,` unconsumed → `expected: [R_PAREN]`.
-  - **Fix shape:** replace `expr(-1, …)` with `expr_list()` at each spec-
-    legal sequence site. Concrete call sites:
-    - `paren_expr()` line ~847
-    - `if_stmt` / `while_stmt` / `do_while_stmt` / `switch_stmt`
-      conditions (lines ~172, 283, 296, and the switch discriminant)
-    - `return_stmt` line ~211, `throw_stmt` line ~219
-    - all three `for_stmt` slots (lines ~249, 253, 255)
-  - **Do NOT** replace `expr(...)` inside comma-separated list contexts
-    where `,` is a separator, not a sequence operator: function arguments,
-    array/object literal elements, `var` declarator lists, `fn_decl_args`.
-  - **Arrow-function safety:** `looksLikeArrowFunction()`
-    (`JsParser.java:569`) does explicit `...) =>` lookahead and fires
-    *before* `paren_expr()` is tried — so letting `paren_expr` accept
-    comma sequences won't conflict with `(a, b) => …` parameter parsing.
-  - **Tests to add:** `JsParserTest` for the shape of the resulting AST
-    (`EXPR_LIST` under `PAREN_EXPR`, under `RETURN_STMT`, inside
-    `FOR_STMT` slots), and `EvalTest` for runtime semantics
-    (`(1, 2, 3)` → `3`; `(0, eval)('x')` calls `eval` with global `this`).
-    No lexer changes are needed — `COMMA` already tokenizes correctly.
+- **Global error constructors missing / not spec-identity.** `TypeError`,
+  `RangeError`, `ReferenceError`, `SyntaxError`, `URIError`, `Error` —
+  test262 assertions lean on them constantly (`assert.throws(TypeError,
+  …)` pattern, `instanceof`, `.constructor.name`, `.message`). Whenever a
+  test body does `throw new TypeError(...)`, `e instanceof TypeError`, or
+  `err.constructor === RangeError`, missing/mis-identified globals cause
+  classifier noise *and* silent false-positive passes (the check throws
+  `ReferenceError` which the harness interprets as "assertion didn't fire
+  → pass"). Verify each is a real global callable, has `.prototype.name`
+  matching the spec, and that thrown engine errors use the matching
+  constructor so `instanceof` works. A recent commit landed name-aware
+  `instanceof` + `.constructor` identity — next step is to make sure every
+  engine-emitted error actually *constructs* through that path rather than
+  fabricating a plain object.
+- **`eval` as a global.** Observed: `FAIL test/language/expressions/comma/
+  S11.14_A1.js — ReferenceError: eval is not defined`. This breaks any
+  test that uses `eval(...)` directly (not rare) and makes the runner's
+  `$262.evalScript` bootstrap fragile. The engine needs a callable `eval`
+  global (direct eval scope semantics are a separate problem; indirect
+  eval via `(0, eval)(src)` — now used by the runner — already works if
+  the binding merely exists).
+- **`assert.throws` helper in test262 harness.** Many of the
+  `expected negative … but got: 13:1 STATEMENT` failures come from the
+  runner's negative-test classifier not matching the engine's
+  `cannot parse statement` error. Either (a) emit the spec error name
+  (`SyntaxError`) on the ParserException side, or (b) teach
+  `ErrorUtils`/`Test262NegativeMatcher` to map the generic
+  `cannot parse statement` to `SyntaxError` phase=parse. Right now these
+  are "engine says the right thing, runner doesn't recognize it" —
+  cheapest lever is the runner-side map.
+- **`cannot read properties of undefined (reading 'name')`.** Shows up a
+  lot in `statements/const/**` and elsewhere. Somewhere in the interpreter
+  (likely in the error-construction path) something is accessing
+  `.name` on an undefined value. Grep for `\.name\b` in `Interpreter`,
+  `JsError`, `JsFunctionNode`, `EngineException` — this is a single
+  guard away from unblocking a cluster of otherwise-trivial tests.
+- **Directive prologue (`"use strict"`) is a statement-level string
+  literal that turns on strict mode.** test262 wraps tons of tests in
+  `"use strict"; ...` — in lenient parsers the string is silently
+  tolerated but strict-only assertions (`with` statement = SyntaxError,
+  duplicate params = SyntaxError, assignment to `eval`/`arguments` =
+  SyntaxError, octal literals = SyntaxError) all fail their
+  negative-test expectation. Either implement the parser-side strict
+  mode flip or explicitly skip `flags: [onlyStrict]` tests via
+  `expectations.yaml` with a reason (currently they fail as "unexpected
+  pass"). Cheapest win: skip, document, revisit.
 - **Harness-helper dependencies we currently skip.** `propertyHelper.js`,
   `compareArray.js`, `testTypedArray.js`, etc. depend on engine internals
   karate-js does not expose (descriptor introspection via
@@ -541,7 +545,25 @@ remove items once fixed.
   `.message` via `assert.throws` see the framed text — so the classifier
   workaround doesn't fix the real problem. Reserve the frame for
   host-side logging; expose the raw JS message on the exception directly.
-- *(more will land here as tiers are worked; remove items once fixed.)*
+
+### Recommended next-session ordering
+
+Measured in "how much of the still-failing-after-this-session mass does
+this unblock". Do them roughly in this order:
+
+1. **Register global error constructors + verify `instanceof` identity.**
+   Smallest surface, cascades across every slice that uses `assert.throws`.
+2. **Fix `cannot read properties of undefined (reading 'name')`.** One
+   guard; already observed across `statements/const/**` and elsewhere.
+3. **Make `eval` a global.** Unblocks direct-`eval` tests and tightens the
+   runner bootstrap invariant.
+4. **Decide strict-mode policy.** Either flip `"use strict"` parser-side
+   or add a paths/flags skip entry with a reason.
+5. Then move to the negative-test classifier bridge (engine
+   `cannot parse statement` → `SyntaxError`/phase=parse mapping).
+
+After that, the earlier Tier 2 plan (`Object`/`Array`/`String` built-ins)
+is the next cliff worth climbing.
 
 ---
 

@@ -158,7 +158,7 @@ class JsParserTest {
         expr("/foo/", "/foo/");
         expr("(/a\\/b/)", "/a\\/b/");
         expr("/foo/i", "/foo/i");
-        expr("var re1 = /test/", "[var,$re1,'=','/test/']");
+        expr("var re1 = /test/", "[var,[$re1,'=','/test/']]");
     }
 
     @Test
@@ -247,10 +247,10 @@ class JsParserTest {
     @Test
     void testVarStatement() {
         expr("var foo", "[var,$foo]");
-        expr("var foo, bar", "[var,[$foo,','$bar]]");
-        expr("var foo = 1", "[var,$foo,'=',1]");
-        expr("var foo, bar = 1", "[var,[$foo,','$bar],'=',1]");
-        expr("var a, b = 1 + 2", "[var,[$a,','$b],'=',[1,'+',2]]");
+        expr("var foo, bar", "[var,$foo,',',$bar]");
+        expr("var foo = 1", "[var,[$foo,'=',1]]");
+        expr("var foo = 1, bar = 2", "[var,[$foo,'=',1],',',[$bar,'=',2]]");
+        expr("var a = 1 + 2, b = 3", "[var,[$a,'=',[1,'+',2]],',',[$b,'=',3]]");
     }
 
     @Test
@@ -704,6 +704,72 @@ class JsParserTest {
         Node ast = parser.parse();
         assertNotNull(ast);
         assertTrue(parser.hasErrors(), "Expected error for invalid function parameter");
+    }
+
+    @Test
+    void testCommaOperatorInParens() {
+        JsParser parser = new JsParser(Resource.text("(1, 2, 3)"));
+        Node ast = parser.parse();
+        Node paren = ast.findFirstChild(NodeType.PAREN_EXPR);
+        assertNotNull(paren);
+        Node exprList = paren.get(1);
+        assertEquals(NodeType.EXPR_LIST, exprList.type);
+        assertEquals(3, exprList.findImmediateChildren(NodeType.EXPR).size());
+    }
+
+    @Test
+    void testIndirectEvalPattern() {
+        JsParser parser = new JsParser(Resource.text("(0, eval)('x')"));
+        Node ast = parser.parse();
+        assertFalse(parser.hasErrors(), "Expected no errors, got: " + parser.getErrors());
+        Node paren = ast.findFirstChild(NodeType.PAREN_EXPR);
+        assertNotNull(paren);
+        Node exprList = paren.get(1);
+        assertEquals(NodeType.EXPR_LIST, exprList.type);
+        assertEquals(2, exprList.findImmediateChildren(NodeType.EXPR).size());
+    }
+
+    @Test
+    void testCommaOperatorInReturn() {
+        JsParser parser = new JsParser(Resource.text("function f() { return 1, 2, 3; }"));
+        Node ast = parser.parse();
+        assertFalse(parser.hasErrors());
+        Node ret = ast.findFirstChild(NodeType.RETURN_STMT);
+        assertNotNull(ret);
+        Node exprList = ret.get(1);
+        assertEquals(NodeType.EXPR_LIST, exprList.type);
+        assertEquals(3, exprList.findImmediateChildren(NodeType.EXPR).size());
+    }
+
+    @Test
+    void testCommaOperatorInForSlots() {
+        JsParser parser = new JsParser(Resource.text("for (i = 0, j = 0; i < 3; i++, j++) { }"));
+        Node ast = parser.parse();
+        assertFalse(parser.hasErrors());
+        Node forNode = ast.findFirstChild(NodeType.FOR_STMT);
+        assertNotNull(forNode);
+        // init slot (idx 2), cond slot (idx 4), update slot (idx 6)
+        assertEquals(NodeType.EXPR_LIST, forNode.get(2).type);
+        assertEquals(2, forNode.get(2).findImmediateChildren(NodeType.EXPR).size());
+        assertEquals(NodeType.EXPR_LIST, forNode.get(4).type);
+        assertEquals(NodeType.EXPR_LIST, forNode.get(6).type);
+        assertEquals(2, forNode.get(6).findImmediateChildren(NodeType.EXPR).size());
+    }
+
+    @Test
+    void testCommaOperatorInIfWhileThrow() {
+        JsParser parser = new JsParser(Resource.text("if (a, b) { while (x, y) throw 1, 2; }"));
+        Node ast = parser.parse();
+        assertFalse(parser.hasErrors());
+        Node ifNode = ast.findFirstChild(NodeType.IF_STMT);
+        assertNotNull(ifNode);
+        assertEquals(NodeType.EXPR_LIST, ifNode.get(2).type);
+        Node whileNode = ast.findFirstChild(NodeType.WHILE_STMT);
+        assertNotNull(whileNode);
+        assertEquals(NodeType.EXPR_LIST, whileNode.get(2).type);
+        Node throwNode = ast.findFirstChild(NodeType.THROW_STMT);
+        assertNotNull(throwNode);
+        assertEquals(NodeType.EXPR_LIST, throwNode.get(1).type);
     }
 
 }

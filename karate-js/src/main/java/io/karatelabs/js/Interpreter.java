@@ -72,6 +72,12 @@ class Interpreter {
                 object = (Map<String, Object>) value;
             }
             evalLitObject(bindings, context, bindScope, object);
+        } else if (bindings.isToken() && bindings.token.type == IDENT) {
+            String name = bindings.getText();
+            context.declare(name, value, toScope(bindScope), initialized);
+            if (context.root.listener != null) {
+                context.root.listener.onBind(BindEvent.declare(name, value, bindScope, context, bindings));
+            }
         } else {
             List<Node> varNames = bindings.findChildren(IDENT);
             for (Node varName : varNames) {
@@ -297,19 +303,20 @@ class Interpreter {
             } else if (node.get(3).token.type == SEMI) {
                 // C-style for loop: for(init; condition; increment)
                 boolean isLetOrConst;
-                String loopVarName = null;
                 BindScope loopVarScope = null;
+                List<String> loopVarNames = null;
                 if (node.get(2).type == NodeType.VAR_STMT) {
                     evalVarStmt(node.get(2), context);
                     isLetOrConst = node.get(2).getFirstToken().type != VAR;
                     if (isLetOrConst) {
-                        // Extract loop variable name for per-iteration capture
-                        Node varBindings = node.get(2).get(1);
-                        List<Node> varNames = varBindings.findChildren(IDENT);
-                        if (!varNames.isEmpty()) {
-                            loopVarName = varNames.get(0).getText();
-                            loopVarScope = node.get(2).getFirstToken().type == LET ? BindScope.LET : BindScope.CONST;
+                        // Collect all loop variable names across declarators for per-iteration capture
+                        loopVarNames = new ArrayList<>();
+                        for (Node declarator : node.get(2).findImmediateChildren(NodeType.VAR_DECL)) {
+                            for (Node ident : declarator.findChildren(IDENT)) {
+                                loopVarNames.add(ident.getText());
+                            }
                         }
+                        loopVarScope = node.get(2).getFirstToken().type == LET ? BindScope.LET : BindScope.CONST;
                     }
                 } else {
                     isLetOrConst = false;
@@ -325,13 +332,17 @@ class Interpreter {
                         context.iteration = index;
                         Object forCondition = eval(node.get(4), context);
                         if (Terms.isTruthy(forCondition)) {
-                            if (isLetOrConst && loopVarName != null) {
-                                // Enter body scope and snapshot loop variable for this iteration
-                                Object loopVarValue = context.get(loopVarName);
+                            if (isLetOrConst && loopVarNames != null && !loopVarNames.isEmpty()) {
+                                // Snapshot all loop variables, then push fresh bindings for this iteration
+                                List<Object> snapshot = new ArrayList<>(loopVarNames.size());
+                                for (String name : loopVarNames) {
+                                    snapshot.add(context.get(name));
+                                }
                                 context.enterScope(ContextScope.LOOP_BODY, forBody);
                                 enteredBodyScope = true;
-                                // Push a fresh binding for this iteration (shadows the outer one)
-                                context.declare(loopVarName, loopVarValue, loopVarScope, true);
+                                for (int k = 0; k < loopVarNames.size(); k++) {
+                                    context.declare(loopVarNames.get(k), snapshot.get(k), loopVarScope, true);
+                                }
                             }
                             forResult = eval(forBody, context);
                             if (isLetOrConst && enteredBodyScope) {
@@ -360,7 +371,10 @@ class Interpreter {
                 BindScope bindScope;
                 Node bindings;
                 if (node.get(2).type == NodeType.VAR_STMT) {
-                    bindings = node.get(2).get(1);
+                    // Unwrap the single VAR_DECL to its inner binding (IDENT | LIT_ARRAY | LIT_OBJECT).
+                    // for-in/of spec disallows more than one declarator and disallows initializers.
+                    Node declarator = node.get(2).get(1);
+                    bindings = declarator.getFirst();
                     bindScope = switch (node.get(2).getFirstToken().type) {
                         case LET -> BindScope.LET;
                         case CONST -> BindScope.CONST;
@@ -1034,22 +1048,31 @@ class Interpreter {
     }
 
     private static Object evalVarStmt(Node node, CoreContext context) {
-        Object value;
-        boolean initialized;
-        if (node.size() > 3) {
-            value = eval(node.get(3), context);
-            initialized = true;
-        } else {
-            value = Terms.UNDEFINED;
-            initialized = false;
-        }
         BindScope bindScope = switch (node.getFirstToken().type) {
             case CONST -> BindScope.CONST;
             case LET -> BindScope.LET;
             default -> BindScope.VAR;
         };
-        Node bindings = node.get(1);
-        return evalAssign(bindings, context, bindScope, value, initialized);
+        Object lastValue = Terms.UNDEFINED;
+        for (int i = 0, n = node.size(); i < n; i++) {
+            Node child = node.get(i);
+            if (child.type != NodeType.VAR_DECL) {
+                continue;
+            }
+            Node binding = child.getFirst();
+            Object value;
+            boolean initialized;
+            if (child.size() > 2) { // binding, EQ, expr
+                value = eval(child.get(2), context);
+                initialized = true;
+            } else {
+                value = Terms.UNDEFINED;
+                initialized = false;
+            }
+            evalAssign(binding, context, bindScope, value, initialized);
+            lastValue = value;
+        }
+        return lastValue;
     }
 
     private static Object evalWhileStmt(Node node, CoreContext context) {
@@ -1143,7 +1166,7 @@ class Interpreter {
             case MATH_POST_EXPR -> evalMathPostExpr(node, context);
             case MATH_PRE_EXPR -> evalMathPreExpr(node, context);
             case NEW_EXPR -> evalFnCall(node.get(1), context, true);
-            case PAREN_EXPR -> evalExpr(node.get(1), context);
+            case PAREN_EXPR -> eval(node.get(1), context);
             case PROGRAM -> evalProgram(node, context);
             case REF_EXPR -> evalRefExpr(node, context);
             case REF_BRACKET_EXPR, REF_DOT_EXPR -> PropertyAccess.get(node, context);

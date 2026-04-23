@@ -311,14 +311,12 @@ public final class Test262Runner {
             "  }\n" +
             "  console.log(s);\n" +
             "};\n" +
-            // Indirect eval via an alias: assigning `eval` to a local before invoking it
-            // is an ES spec "indirect eval", which evaluates at the realm's global scope
-            // (matching INTERPRETING.md's ParseScript + ScriptEvaluation semantics).
-            // The classic `(0, eval)(src)` form is semantically equivalent but isn't
-            // accepted by karate-js's parser today.
+            // `(0, eval)(src)` is the ES spec "indirect eval" form — it evaluates at
+            // the realm's global scope (matching INTERPRETING.md's ParseScript +
+            // ScriptEvaluation semantics).
             "var $262 = {\n" +
             "  global: (function(){ return this; })(),\n" +
-            "  evalScript: function(src) { var indirect = eval; return indirect(src); },\n" +
+            "  evalScript: function(src) { return (0, eval)(src); },\n" +
             "  gc: function() { throw new Error('gc not supported'); },\n" +
             "  detachArrayBuffer: function() { throw new Error('detachArrayBuffer not supported'); },\n" +
             "  createRealm: function() { throw new Error('createRealm not supported'); },\n" +

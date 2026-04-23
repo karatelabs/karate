@@ -33,6 +33,7 @@ public enum NodeType {
     IF_STMT,
     VAR_STMT,
     VAR_NAMES,
+    VAR_DECL,
     RETURN_STMT,
     TRY_STMT,
     THROW_STMT,
