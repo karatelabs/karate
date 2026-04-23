@@ -773,6 +773,26 @@ class JsParserTest {
     }
 
     @Test
+    void testObjectComputedKey() {
+        JsParser parser = new JsParser(Resource.text("var o = { [k]: 1, ['a' + 'b']: 2 };"));
+        Node ast = parser.parse();
+        assertFalse(parser.hasErrors());
+        Node obj = ast.findFirstChild(NodeType.LIT_OBJECT);
+        assertNotNull(obj);
+        java.util.List<Node> elems = obj.findImmediateChildren(NodeType.OBJECT_ELEM);
+        assertEquals(2, elems.size());
+        // Each computed-key element: [L_BRACKET, EXPR, R_BRACKET, COLON, EXPR]
+        // (plus optional COMMA at end).
+        for (Node elem : elems) {
+            assertEquals("[", elem.getFirst().getText());
+            assertEquals(NodeType.EXPR, elem.get(1).type);
+            assertEquals("]", elem.get(2).getText());
+            assertEquals(":", elem.get(3).getText());
+            assertEquals(NodeType.EXPR, elem.get(4).type);
+        }
+    }
+
+    @Test
     void testObjectShorthandMethod() {
         JsParser parser = new JsParser(Resource.text("var o = { foo() { return 1; }, bar(a, b) { return a + b; } };"));
         Node ast = parser.parse();

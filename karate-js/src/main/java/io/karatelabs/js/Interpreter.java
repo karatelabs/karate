@@ -524,8 +524,15 @@ class Interpreter {
             Node elem = node.get(i);
             Node keyNode = elem.getFirst();
             TokenType token = keyNode.token.type;
+            // Computed keys: [expr] — OBJECT_ELEM starts with L_BRACKET, EXPR, R_BRACKET.
+            // The value (or FN_EXPR for shorthand method) follows at position 3.
+            boolean computed = token == L_BRACKET;
+            int afterKeyPos = computed ? 3 : 1;
             String key;
-            if (token == DOT_DOT_DOT) {
+            if (computed) {
+                Object keyValue = evalExpr(elem.get(1), context);
+                key = Terms.TO_STRING(keyValue);
+            } else if (token == DOT_DOT_DOT) {
                 key = elem.get(1).getText();
             } else if (token == S_STRING || token == D_STRING) {
                 key = (String) Terms.literalValue(keyNode.token);
@@ -543,13 +550,13 @@ class Interpreter {
                         result.putAll(temp);
                     }
                 }
-            } else if (elem.size() >= 2 && elem.get(1).type == NodeType.FN_EXPR) {
-                // Shorthand method: {foo() {...}} — position 1 is the synthetic
-                // FN_EXPR regardless of a trailing comma token at position 2.
-                // Destructuring never produces this shape.
-                Object value = evalFnExpr(elem.get(1), context);
+            } else if (elem.size() > afterKeyPos && elem.get(afterKeyPos).type == NodeType.FN_EXPR) {
+                // Shorthand method: {foo() {...}} or {[k]() {...}} — the synthetic
+                // FN_EXPR is the next child after the key structure. Destructuring
+                // never produces this shape.
+                Object value = evalFnExpr(elem.get(afterKeyPos), context);
                 result.put(key, value);
-            } else if (elem.size() < 3) { // es6 enhanced object literals
+            } else if (!computed && elem.size() < 3) { // es6 shorthand property {foo}
                 if (bindScope != null) {
                     Object value = Terms.UNDEFINED;
                     if (bindSource != null && bindSource.containsKey(key)) {
@@ -562,21 +569,22 @@ class Interpreter {
                     result.put(key, value);
                 }
             } else {
+                int valuePos = afterKeyPos + 1;
                 if (bindScope != null) {
                     Object value = Terms.UNDEFINED;
                     if (bindSource != null && bindSource.containsKey(key)) {
                         value = bindSource.get(key);
                     }
-                    if (elem.get(1).getFirstToken().type == EQ) { // default value
-                        value = evalExpr(elem.get(2), context);
+                    if (elem.get(afterKeyPos).getFirstToken().type == EQ) { // default value
+                        value = evalExpr(elem.get(valuePos), context);
                         context.declare(key, value, toScope(bindScope), true);
                     } else {
-                        String varName = elem.get(2).getText();
+                        String varName = elem.get(valuePos).getText();
                         context.declare(varName, value, toScope(bindScope), true);
                     }
                     result.remove(key);
                 } else {
-                    Object value = evalExpr(elem.get(2), context);
+                    Object value = evalExpr(elem.get(valuePos), context);
                     result.put(key, value);
                 }
             }

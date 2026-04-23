@@ -1105,6 +1105,22 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testObjectComputedKeys() {
+        // Simple computed key
+        assertEquals(42, eval("var k = 'x'; ({[k]: 42})[k]"));
+        // Computed key from an expression
+        assertEquals(1, eval("({['a' + 'b']: 1}).ab"));
+        // Number expression coerces to string key
+        assertEquals("four", eval("({[2+2]: 'four'})[4]"));
+        // Mixed with regular and shorthand keys
+        assertEquals(true, eval(
+                "var k = 'x'; var o = {a: 1, [k]: 2, [k + '2']: 3};"
+                        + " o.a === 1 && o.x === 2 && o.x2 === 3"));
+        // Computed key with shorthand method
+        assertEquals(99, eval("var k = 'f'; ({[k]() { return 99; }}).f()"));
+    }
+
+    @Test
     void testObjectShorthandMethods() {
         // Zero-arg shorthand method
         assertEquals(1, eval("({ foo() { return 1; } }).foo()"));

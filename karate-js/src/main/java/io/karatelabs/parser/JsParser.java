@@ -43,7 +43,7 @@ public class JsParser extends BaseParser {
     private static final EnumSet<TokenType> T_MATH_POST_EXPR = EnumSet.of(PLUS_PLUS, MINUS_MINUS);
     private static final EnumSet<TokenType> T_UNARY_EXPR = EnumSet.of(NOT, TILDE);
     private static final EnumSet<TokenType> T_MATH_PRE_EXPR = EnumSet.of(PLUS_PLUS, MINUS_MINUS, MINUS, PLUS);
-    private static final EnumSet<TokenType> T_OBJECT_ELEM = EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, DOT_DOT_DOT);
+    private static final EnumSet<TokenType> T_OBJECT_ELEM = EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, DOT_DOT_DOT, L_BRACKET);
     private static final EnumSet<TokenType> T_LIT_EXPR = EnumSet.of(S_STRING, D_STRING, NUMBER, TRUE, FALSE, NULL);
     private static final EnumSet<TokenType> T_FOR_IN_OF = EnumSet.of(IN, OF);
 
@@ -782,6 +782,16 @@ public class JsParser extends BaseParser {
     private boolean object_elem() {
         if (!enter(NodeType.OBJECT_ELEM, T_OBJECT_ELEM)) {
             return false;
+        }
+        // ES6 computed key: `[expr]: value` or `[expr](args) { body }`.
+        // The L_BRACKET was consumed by enter; parse the key expression and R_BRACKET here,
+        // then fall through to the colon/shorthand-method branches below.
+        if (lastConsumed() == L_BRACKET) {
+            expr(-1, true);
+            if (!consumeIf(R_BRACKET)) {
+                error(R_BRACKET);
+                return exit(false, false);
+            }
         }
         if (consumeIf(EQ)) { // var / assigment destructuring
             expr(-1, true);
