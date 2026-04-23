@@ -292,6 +292,42 @@ commitment.
 
 ---
 
+## Where engine code lives
+
+Most test262-driven fixes touch one of these layers. Pointers so you
+don't have to `grep` from scratch each session:
+
+| Concern | Source package | Key files |
+|---|---|---|
+| Lexer (tokenization) | `karate-js/src/main/java/io/karatelabs/parser/` | `JsLexer.java`, `BaseLexer.java`, `TokenType.java`, `Token.java` |
+| Parser (AST build) | `karate-js/src/main/java/io/karatelabs/parser/` | `JsParser.java`, `BaseParser.java`, `NodeType.java`, `Node.java` |
+| Parse errors | `karate-js/src/main/java/io/karatelabs/parser/` | `ParserException.java`, `SyntaxError.java` |
+| Interpreter (AST eval) | `karate-js/src/main/java/io/karatelabs/js/` | `Interpreter.java`, `CoreContext.java`, `ContextRoot.java` |
+| Types / built-ins | `karate-js/src/main/java/io/karatelabs/js/` | `JsObject.java`, `JsArray.java`, `JsString.java`, `JsError.java`, `JsFunction.java`, prototype classes (`JsArrayPrototype` etc.), `Terms.java` (operators/coercion) |
+| Runtime exceptions | `karate-js/src/main/java/io/karatelabs/js/` | `EngineException.java` |
+
+| Test concern | Test package | Key files |
+|---|---|---|
+| Lexer token-level | `karate-js/src/test/java/io/karatelabs/parser/` | `JsLexerTest.java` |
+| Parser AST shape | `karate-js/src/test/java/io/karatelabs/parser/` | `JsParserTest.java` |
+| Parse-error surface | `karate-js/src/test/java/io/karatelabs/js/` | `ParserExceptionTest.java` |
+| Performance regression | `karate-js/src/test/java/io/karatelabs/parser/` | `EngineBenchmark.java`, `LexerBenchmark.java` |
+
+Guidance:
+- **Pure tokenization change** (new literal form, escape sequence, line
+  terminator) → `JsLexer` + `JsLexerTest`.
+- **Grammar change** (new syntactic form, operator slot widening, call-site
+  wiring like the comma operator above) → `JsParser` + `JsParserTest`
+  for AST shape, plus `EvalTest` for runtime semantics.
+- **Semantics-only change** (prototype behavior, coercion, operator
+  evaluation) → `Interpreter.java` or the relevant `Js*Prototype`;
+  test in `EvalTest` or the matching `Js*Test` per the mapping below.
+- `NodeType` and `TokenType` are small enums — consult them before
+  inventing new node/token kinds; many "feels like I need a new node"
+  fixes turn out to be wiring an existing one to a new call site.
+
+---
+
 ## Landing regression tests in karate-js
 
 When a test262 failure drives an engine fix, also add a small hand-written
@@ -458,14 +494,39 @@ remove items once fixed.
   with `var indirect = eval; indirect(src)`, but this is exactly the
   friction the engine should fix per working principle #2. Spec: this is
   the `Expression : Expression , AssignmentExpression` production, ES1.
-  **Design note for the fix session:** the parser already has an
-  `expr_list()` helper in `JsParser.java` (handles comma-separated
-  expressions for other contexts); consider whether that can be reused
-  or adapted rather than introducing a new `SEQ_EXPR` node type —
-  worth thinking through before picking an approach. Affected call sites
-  (where comma is spec-legal): `paren_expr`, `if_stmt`/`while_stmt`/
-  `do_while_stmt`/`switch_stmt` conditions, `return_stmt`, `throw_stmt`,
-  all three `for_stmt` slots, top-level expression statements.
+
+  **Design note for the fix session — no new AST node needed.** The
+  infrastructure is already in place; the bug is pure call-site wiring.
+  - `NodeType.EXPR_LIST` already exists and `JsParser.expr_list()`
+    (`karate-js/src/main/java/io/karatelabs/parser/JsParser.java:147`)
+    already parses comma-separated expressions.
+  - `Interpreter.evalExprList`
+    (`karate-js/src/main/java/io/karatelabs/js/Interpreter.java:159`)
+    already implements correct sequence semantics — evaluates each child
+    in order, returns the last value. That *is* the comma operator.
+  - Today `expr_list()` is only invoked at the top-level statement
+    production (`JsParser.java:126`: `expr_list() && eos()`). Every other
+    expression slot calls `expr(-1, …)`, which parses one
+    AssignmentExpression and leaves `,` unconsumed → `expected: [R_PAREN]`.
+  - **Fix shape:** replace `expr(-1, …)` with `expr_list()` at each spec-
+    legal sequence site. Concrete call sites:
+    - `paren_expr()` line ~847
+    - `if_stmt` / `while_stmt` / `do_while_stmt` / `switch_stmt`
+      conditions (lines ~172, 283, 296, and the switch discriminant)
+    - `return_stmt` line ~211, `throw_stmt` line ~219
+    - all three `for_stmt` slots (lines ~249, 253, 255)
+  - **Do NOT** replace `expr(...)` inside comma-separated list contexts
+    where `,` is a separator, not a sequence operator: function arguments,
+    array/object literal elements, `var` declarator lists, `fn_decl_args`.
+  - **Arrow-function safety:** `looksLikeArrowFunction()`
+    (`JsParser.java:569`) does explicit `...) =>` lookahead and fires
+    *before* `paren_expr()` is tried — so letting `paren_expr` accept
+    comma sequences won't conflict with `(a, b) => …` parameter parsing.
+  - **Tests to add:** `JsParserTest` for the shape of the resulting AST
+    (`EXPR_LIST` under `PAREN_EXPR`, under `RETURN_STMT`, inside
+    `FOR_STMT` slots), and `EvalTest` for runtime semantics
+    (`(1, 2, 3)` → `3`; `(0, eval)('x')` calls `eval` with global `this`).
+    No lexer changes are needed — `COMMA` already tokenizes correctly.
 - **Harness-helper dependencies we currently skip.** `propertyHelper.js`,
   `compareArray.js`, `testTypedArray.js`, etc. depend on engine internals
   karate-js does not expose (descriptor introspection via
