@@ -56,7 +56,7 @@ class PropertyAccess {
             case LIT_EXPR -> Interpreter.eval(node, context);
             case PAREN_EXPR -> Interpreter.eval(node.get(1), context);
             case FN_CALL_EXPR -> Interpreter.eval(node, context);
-            default -> throw new RuntimeException("cannot get from: " + node);
+            default -> throw JsErrorException.typeError("cannot get from: " + node);
         };
     }
 
@@ -73,7 +73,7 @@ class PropertyAccess {
             case REF_BRACKET_EXPR -> getCallableRefBracketExpr(node, context);
             case PAREN_EXPR -> new Object[]{Interpreter.eval(node.get(1), context), null};
             case FN_CALL_EXPR -> new Object[]{Interpreter.eval(node, context), null};
-            default -> throw new RuntimeException("cannot call: " + node);
+            default -> throw JsErrorException.typeError("cannot call: " + node);
         };
     }
 
@@ -92,7 +92,7 @@ class PropertyAccess {
             case REF_EXPR -> context.update(node.getText(), value, trackingNode);
             case REF_DOT_EXPR -> setRefDotExpr(node, context, value, trackingNode);
             case REF_BRACKET_EXPR -> setRefBracketExpr(node, context, value, trackingNode);
-            default -> throw new RuntimeException("cannot set on: " + node);
+            default -> throw JsErrorException.typeError("cannot set on: " + node);
         }
     }
 
@@ -121,7 +121,7 @@ class PropertyAccess {
             }
             case REF_DOT_EXPR -> compoundRefDotExpr(node, context, operator, operand, trackingNode);
             case REF_BRACKET_EXPR -> compoundRefBracketExpr(node, context, operator, operand, trackingNode);
-            default -> throw new RuntimeException("cannot apply compound assignment to: " + node);
+            default -> throw JsErrorException.typeError("cannot apply compound assignment to: " + node);
         };
     }
 
@@ -144,7 +144,7 @@ class PropertyAccess {
                 Object oldValue = Interpreter.eval(node, context);
                 yield oldValue; // Can't actually modify a literal result
             }
-            default -> throw new RuntimeException("cannot apply post inc/dec to: " + node);
+            default -> throw JsErrorException.typeError("cannot apply post inc/dec to: " + node);
         };
     }
 
@@ -162,7 +162,7 @@ class PropertyAccess {
             }
             case REF_DOT_EXPR -> preIncDecRefDotExpr(node, context, isIncrement);
             case REF_BRACKET_EXPR -> preIncDecRefBracketExpr(node, context, isIncrement);
-            default -> throw new RuntimeException("cannot apply pre inc/dec to: " + node);
+            default -> throw JsErrorException.typeError("cannot apply pre inc/dec to: " + node);
         };
     }
 
@@ -218,7 +218,7 @@ class PropertyAccess {
                     object = null;
                 }
                 if (object == null) {
-                    throw new RuntimeException("expression: " + node.getFirst().getText() + " - " + e.getMessage());
+                    throw new RuntimeException("expression: " + node.getFirst().getText() + " - " + e.getMessage(), e);
                 }
             }
         } else {
@@ -279,7 +279,7 @@ class PropertyAccess {
                     object = null;
                 }
                 if (object == null) {
-                    throw new RuntimeException("expression: " + node.getFirst().getText() + " - " + e.getMessage());
+                    throw new RuntimeException("expression: " + node.getFirst().getText() + " - " + e.getMessage(), e);
                 }
             }
             // Handle optional chaining: obj?.method() where obj is null/undefined
@@ -355,7 +355,7 @@ class PropertyAccess {
             if (object instanceof Map || object instanceof ObjectLike) {
                 return getByName(object, String.valueOf(index), optional, context, functionCall);
             }
-            throw new RuntimeException("get by index [" + i + "] for non-array: " + object);
+            throw JsErrorException.typeError("get by index [" + i + "] for non-array: " + object);
         }
         return getByName(object, String.valueOf(index), optional, context, functionCall);
     }
@@ -432,7 +432,7 @@ class PropertyAccess {
             setByIndex(object, index, value, context, trackingNode);
             return;
         } else {
-            throw new RuntimeException("cannot set on optional call expression");
+            throw JsErrorException.typeError("cannot set on optional call expression");
         }
 
         setByName(object, name, value, context, trackingNode);
@@ -475,7 +475,7 @@ class PropertyAccess {
 
     private static void setByName(Object object, String name, Object value, CoreContext context, Node trackingNode) {
         if (name == null) {
-            throw new RuntimeException("unexpected set [null]:" + value + " on: " + object);
+            throw JsErrorException.typeError("unexpected set [null]:" + value + " on: " + object);
         }
         if (object == null) {
             context.update(name, value, trackingNode);
@@ -499,10 +499,10 @@ class PropertyAccess {
                 firePropertySet(context, name, value, null, object, trackingNode);
             } catch (Exception e) {
                 logger.error("external bridge error: {}", e.getMessage());
-                throw new RuntimeException("cannot set '" + name + "'");
+                throw JsErrorException.typeError("cannot set '" + name + "'");
             }
         } else {
-            throw new RuntimeException("cannot set '" + name + "'");
+            throw JsErrorException.typeError("cannot set '" + name + "'");
         }
     }
 
@@ -526,7 +526,7 @@ class PropertyAccess {
             Object index = Interpreter.eval(node.get(1).get(2), context);
             return compoundByIndex(object, index, operator, operand, context, trackingNode);
         } else {
-            throw new RuntimeException("cannot apply compound assignment to optional call");
+            throw JsErrorException.typeError("cannot apply compound assignment to optional call");
         }
 
         return compoundByName(object, name, operator, operand, context, trackingNode);
@@ -572,7 +572,7 @@ class PropertyAccess {
             Object index = Interpreter.eval(node.get(1).get(2), context);
             return postIncDecByIndex(object, index, isIncrement, context);
         } else {
-            throw new RuntimeException("cannot apply inc/dec to optional call");
+            throw JsErrorException.typeError("cannot apply inc/dec to optional call");
         }
 
         return postIncDecByName(object, name, isIncrement, context);
@@ -618,7 +618,7 @@ class PropertyAccess {
             Object index = Interpreter.eval(node.get(1).get(2), context);
             return preIncDecByIndex(object, index, isIncrement, context);
         } else {
-            throw new RuntimeException("cannot apply inc/dec to optional call");
+            throw JsErrorException.typeError("cannot apply inc/dec to optional call");
         }
 
         return preIncDecByName(object, name, isIncrement, context);

@@ -45,7 +45,7 @@ public class JsJava implements SimpleObject {
                 // TODO regex, functions, lambdas
                 return null;
             };
-            default -> throw new RuntimeException("no such api on Java: " + name);
+            default -> throw JsErrorException.typeError("no such api on Java: " + name);
         };
     }
 

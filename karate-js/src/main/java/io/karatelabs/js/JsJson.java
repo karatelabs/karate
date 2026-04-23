@@ -37,7 +37,7 @@ public class JsJson implements SimpleObject {
         return switch (name) {
             case "stringify" -> stringify();
             case "parse" -> parse();
-            default -> throw new RuntimeException("no such api on JSON: " + name);
+            default -> throw JsErrorException.typeError("no such api on JSON: " + name);
         };
     }
 

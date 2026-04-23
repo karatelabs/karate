@@ -167,7 +167,7 @@ public class JavaUtils {
                         return jo.getMethod(name);
                     }
                 }
-                throw new RuntimeException("no instance property: " + name);
+                throw JsErrorException.typeError("no instance property: " + name);
             }
         }
         try {
