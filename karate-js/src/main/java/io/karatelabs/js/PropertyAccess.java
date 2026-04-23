@@ -450,7 +450,15 @@ class PropertyAccess {
             if (object instanceof List) {
                 List<Object> list = (List<Object>) object;
                 Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
-                list.set(i, value);
+                if (i < list.size()) {
+                    list.set(i, value);
+                } else {
+                    // JS semantics: arr[i] = x for i >= length extends the array with holes
+                    while (list.size() < i) {
+                        list.add(Terms.UNDEFINED);
+                    }
+                    list.add(value);
+                }
                 firePropertySet(context, String.valueOf(i), value, oldValue, object, trackingNode);
                 return;
             } else if (object instanceof byte[] bytes) {

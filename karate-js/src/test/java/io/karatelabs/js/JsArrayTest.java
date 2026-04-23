@@ -53,6 +53,17 @@ class JsArrayTest extends EvalBase {
     }
 
     @Test
+    void testArrayIndexedAssignGrowsLength() {
+        // new Array() + indexed assignment past length extends the array
+        eval("var a = new Array(); a[0] = 'x'; a[1] = 'y'; a[2] = 'z'");
+        match(get("a"), "['x', 'y', 'z']");
+        assertEquals(3, eval("var a = new Array(); a[0] = 'x'; a[1] = 'y'; a[2] = 'z'; a.length"));
+        // sparse growth leaves undefined holes
+        assertEquals(4, eval("var b = []; b[3] = 'end'; b.length"));
+        assertEquals("end", eval("var b = []; b[3] = 'end'; b[3]"));
+    }
+
+    @Test
     void testArrayApi() {
         match(eval("[1, 2, 3].length"), "3");
         match(eval("[1, 2, 3].map(x => x * 2)"), "[2, 4, 6]");
