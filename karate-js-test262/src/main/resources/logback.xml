@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logging config for the test262 runner.
+
+  A session log is written to target/logs/test262-<timestamp>.log (gitignored).
+  The console appender is kept quiet (WARN) so Test262Runner's own System.out
+  progress / FAIL / Summary lines remain the primary on-screen output.
+  Everything that goes through the SLF4J logger in the runner is captured in
+  the file at INFO so `tail -f target/logs/test262.log` is a live view of the
+  whole run, including periodic progress and per-failure lines.
+
+  Maven's `target/` directory is gitignored by the parent pom. The per-run
+  timestamp means multiple sessions don't clobber each other; the old ones
+  linger in target/logs/ and get wiped by `mvn clean`.
+-->
+<configuration>
+    <timestamp key="sessionStamp" datePattern="yyyyMMdd-HHmmss"/>
+
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>target/logs/test262-${sessionStamp}.log</file>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %msg%n</pattern>
+        </encoder>
+        <append>false</append>
+    </appender>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Runner traffic goes only to the file so we don't duplicate the
+         println output that Test262Runner already emits to stdout. -->
+    <logger name="io.karatelabs.js.test262" level="INFO" additivity="false">
+        <appender-ref ref="FILE"/>
+    </logger>
+
+    <!-- Everything else (libraries, karate-js itself) goes to console at WARN. -->
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

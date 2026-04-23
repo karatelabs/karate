@@ -5,20 +5,22 @@ import io.karatelabs.js.Engine;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Loads test262 harness helpers (assert.js, sta.js, plus the per-test {@code includes}).
  * <p>
  * Harness files are read from {@code <test262>/harness/} and cached in memory since
- * the same ~40 helpers are loaded over and over across the suite.
+ * the same ~40 helpers are loaded over and over across the suite. Thread-safe —
+ * the cache is a {@link ConcurrentHashMap} so one instance can be shared across
+ * all worker threads in parallel runs.
  */
 public final class HarnessLoader {
 
     private final Path harnessDir;
-    private final Map<String, String> cache = new HashMap<>();
+    private final Map<String, String> cache = new ConcurrentHashMap<>();
 
     public HarnessLoader(Path test262Root) {
         this.harnessDir = test262Root.resolve("harness");

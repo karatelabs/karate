@@ -27,6 +27,11 @@
         <maven.source.skip>true</maven.source.skip>
         <gpg.skip>true</gpg.skip>
         <skipPublishing>true</skipPublishing>
+        <!-- Default main class for `mvn exec:java`. Override on the command line
+             with `-Dexec.mainClass=...` (e.g. run.sh does this to drive the HTML
+             report generator). Property substitution here is what makes the CLI
+             override actually take effect — a bare POM-literal would not. -->
+        <exec.mainClass>io.karatelabs.js.test262.Test262Runner</exec.mainClass>
     </properties>
 
     <build>
@@ -48,7 +53,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.6.3</version>
                 <configuration>
-                    <mainClass>io.karatelabs.js.test262.Test262Runner</mainClass>
+                    <mainClass>${exec.mainClass}</mainClass>
                 </configuration>
             </plugin>
         </plugins>
@@ -60,12 +65,14 @@
             <artifactId>karate-js</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- Silences SLF4J "no providers" warning on exec:java; the runner uses
-             System.out/err directly, so a no-op binding is sufficient. -->
+        <!-- Logback provides both the SLF4J binding AND a rolling file appender.
+             The runner mirrors every progress / FAIL / Summary line through an
+             SLF4J logger so that tail -f target/logs/test262.log is equivalent
+             to watching the console. Config: src/main/resources/logback.xml. -->
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-nop</artifactId>
-            <version>${slf4j.version}</version>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
             <scope>runtime</scope>
         </dependency>
     </dependencies>

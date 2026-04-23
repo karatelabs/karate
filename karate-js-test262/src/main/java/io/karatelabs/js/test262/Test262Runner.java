@@ -2,6 +2,8 @@ package io.karatelabs.js.test262;
 
 import io.karatelabs.js.Engine;
 import io.karatelabs.parser.ParserException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -33,6 +35,23 @@ import java.util.stream.Stream;
  * See {@code karate-js-test262/TEST262.md} for full docs.
  */
 public final class Test262Runner {
+
+    private static final Logger logger = LoggerFactory.getLogger(Test262Runner.class);
+
+    /** Periodic progress line cadence: every N tests OR every M seconds, whichever first. */
+    private static final int PROGRESS_EVERY_N_TESTS = 500;
+    private static final long PROGRESS_EVERY_MS = 5_000L;
+
+    /**
+     * Print a line to stdout AND mirror it into the session log file
+     * (configured in {@code logback.xml}). This is the single output funnel
+     * the runner uses for progress / FAIL / Summary / Aborted lines so
+     * {@code tail -f target/logs/test262-*.log} is a live view of the run.
+     */
+    private static void say(String line) {
+        System.out.println(line);
+        logger.info(line);
+    }
 
     public static void main(String[] args) throws Exception {
         Cli cli = Cli.parse(args);
@@ -80,16 +99,26 @@ public final class Test262Runner {
         Pattern onlyRe = cli.only == null ? null : globToRegex(cli.only);
         Set<String> resumeDone = cli.resume ? loadExistingPaths(cli.results) : Set.of();
 
-        Instant started = Instant.now();
-        int pass = 0, fail = 0, skip = 0;
-        List<ResultRecord> records = new ArrayList<>(all.size());
+        // Log the session banner to the file appender only — the console already
+        // gets its own startup context via Maven's stderr and the runner's output.
+        logger.info("test262 runner starting  args={} only={} timeout-ms={} max-duration-ms={} resume={}",
+                cli.rawArgs, cli.only == null ? "-" : cli.only, cli.timeoutMs, cli.maxDurationMs, cli.resume);
 
-        // reuse one single-thread executor across all tests for watchdog timeouts
-        ExecutorService exec = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "test262-runner");
-            t.setDaemon(true);
-            return t;
-        });
+        Instant started = Instant.now();
+        long startedNanos = System.nanoTime();
+        long maxDurationNanos = cli.maxDurationMs > 0 ? cli.maxDurationMs * 1_000_000L : Long.MAX_VALUE;
+
+        int pass = 0, fail = 0, skip = 0;
+        int processed = 0;
+        long lastProgressNanos = startedNanos;
+        List<ResultRecord> records = new ArrayList<>(all.size());
+        boolean aborted = false;
+
+        // single-thread executor for the watchdog; recreated if a test times out so
+        // a runaway test cannot stall subsequent tests by re-queuing behind it
+        // (the engine does not poll Thread.interrupt(), so cancel(true) alone cannot
+        // reclaim a stuck thread — we retire it and move on).
+        ExecutorService exec = newInnerExec();
 
         try {
             for (Path abs : all) {
@@ -97,33 +126,87 @@ public final class Test262Runner {
                 if (onlyRe != null && !onlyRe.matcher(rel).matches()) continue;
                 if (resumeDone.contains(rel)) continue;
 
+                if (System.nanoTime() - startedNanos > maxDurationNanos) {
+                    aborted = true;
+                    say("");
+                    say(String.format("ABORTED: --max-duration %dms exceeded; writing partial results",
+                            cli.maxDurationMs));
+                    break;
+                }
+
                 Test262Case tc;
+                boolean loaded;
                 try {
                     tc = Test262Case.load(cli.test262, abs);
+                    loaded = true;
                 } catch (RuntimeException re) {
-                    System.out.println("FAIL " + rel + " — load error: " + re.getMessage());
+                    tc = null;
+                    loaded = false;
+                    say("FAIL " + rel + " — load error: " + re.getMessage());
                     records.add(ResultRecord.fail(rel, "Harness", "failed to load: " + re.getMessage()));
                     fail++;
-                    continue;
                 }
 
-                String reason = expectations.matchSkip(tc);
-                if (reason != null) {
-                    records.add(ResultRecord.skip(rel, reason));
-                    skip++;
-                    continue;
-                }
+                if (loaded) {
+                    String reason = expectations.matchSkip(tc);
+                    if (reason != null) {
+                        records.add(ResultRecord.skip(rel, reason));
+                        skip++;
+                    } else {
+                        // Inline timeout handling so we can retire `exec` and install a fresh
+                        // one when a test hangs. Without this, the next test queues behind the
+                        // stuck inner thread and hits the per-test timeout itself — the whole
+                        // suite would slow to 10s/test from a single infinite-loop test.
+                        ResultRecord r;
+                        final Test262Case finalTc = tc;
+                        Future<ResultRecord> fut = exec.submit(() -> evaluate(finalTc, harness));
+                        try {
+                            r = fut.get(cli.timeoutMs, TimeUnit.MILLISECONDS);
+                        } catch (TimeoutException te) {
+                            fut.cancel(true);
+                            exec.shutdownNow();
+                            exec = newInnerExec();
+                            r = ResultRecord.fail(rel, "Timeout",
+                                    "no completion within " + cli.timeoutMs + "ms");
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            fut.cancel(true);
+                            exec.shutdownNow();
+                            exec = newInnerExec();
+                            r = ResultRecord.fail(rel, "Interrupted", ie.getMessage());
+                        } catch (ExecutionException ee) {
+                            Throwable cause = ee.getCause() == null ? ee : ee.getCause();
+                            r = ResultRecord.fail(rel, "Unknown",
+                                    ErrorUtils.firstLine(cause.getMessage(), 200));
+                        }
 
-                ResultRecord r = runOne(tc, harness, exec, cli.timeoutMs);
-                records.add(r);
-                switch (r.status()) {
-                    case PASS -> pass++;
-                    case FAIL -> {
-                        fail++;
-                        System.out.println("FAIL " + rel + " — " + (r.errorType() == null ? "" : r.errorType() + ": ")
-                                + (r.message() == null ? "" : r.message()));
+                        records.add(r);
+                        switch (r.status()) {
+                            case PASS -> pass++;
+                            case FAIL -> {
+                                fail++;
+                                say("FAIL " + rel + " — "
+                                        + (r.errorType() == null ? "" : r.errorType() + ": ")
+                                        + (r.message() == null ? "" : r.message()));
+                            }
+                            case SKIP -> skip++;
+                        }
                     }
-                    case SKIP -> skip++;
+                }
+                processed++;
+
+                // Periodic progress line — plain text, no \r. Every N tests OR every M seconds
+                // of wall time since the last line, whichever fires first. Safe on TTYs and
+                // piped/CI output alike; gives long runs an observable heartbeat without
+                // needing a ticker thread.
+                long nowNanos = System.nanoTime();
+                if (processed % PROGRESS_EVERY_N_TESTS == 0
+                        || (nowNanos - lastProgressNanos) >= PROGRESS_EVERY_MS * 1_000_000L) {
+                    long elapsedMs = (nowNanos - startedNanos) / 1_000_000L;
+                    double rate = elapsedMs > 0 ? (processed * 1000.0 / elapsedMs) : 0.0;
+                    say(String.format("[progress] %d processed  pass %d  fail %d  skip %d  @ %.0f/s  elapsed %s",
+                            processed, pass, fail, skip, rate, formatDuration(java.time.Duration.ofMillis(elapsedMs))));
+                    lastProgressNanos = nowNanos;
                 }
             }
         } finally {
@@ -154,11 +237,21 @@ public final class Test262Runner {
                 cli.rawArgs);
         meta.writeTo(cli.runMeta);
 
-        System.out.println();
-        System.out.printf("Summary: %d pass / %d fail / %d skip / %d total in %s%n",
-                pass, fail, skip, pass + fail + skip, formatDuration(java.time.Duration.between(started, ended)));
-        System.out.println("Results: " + cli.results.toAbsolutePath());
-        System.out.println("Report:  java io.karatelabs.js.test262.Test262Report");
+        say("");
+        say(String.format("%s: %d pass / %d fail / %d skip / %d total in %s",
+                aborted ? "Aborted" : "Summary",
+                pass, fail, skip, pass + fail + skip,
+                formatDuration(java.time.Duration.between(started, ended))));
+        say("Results: " + cli.results.toAbsolutePath());
+        say("Report:  java io.karatelabs.js.test262.Test262Report");
+    }
+
+    private static ExecutorService newInnerExec() {
+        return Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "test262-runner");
+            t.setDaemon(true);
+            return t;
+        });
     }
 
     /* ------------------------------ single-file ------------------------------ */
@@ -225,6 +318,10 @@ public final class Test262Runner {
         boolean isRaw = tc.metadata().raw();
 
         Engine engine = new Engine();
+        // Route this engine's console.log into a per-test sink. The default is
+        // System.out.println, which would interleave lines from tests that happen to
+        // print during suite runs and pollute our own progress/FAIL output.
+        engine.setOnConsoleLog(line -> { /* sink: intentionally discard */ });
 
         // INTERPRETING.md: raw tests must run in a pristine realm — no harness files,
         // no host-defined bindings. Non-raw tests get host bindings THEN harness helpers,

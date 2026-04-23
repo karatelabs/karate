@@ -172,17 +172,19 @@ work. They apply alongside the Roadmap below.
 karate-js-test262/
 ├── TEST262.md                        # this file (the living document)
 ├── pom.xml                           # Maven module (deploy explicitly disabled)
+├── run.sh                            # one-shot: install + run suite + generate HTML
 ├── fetch-test262.sh                  # shallow clone of tc39/test262 at pinned SHA
 ├── config/
 │   └── expectations.yaml             # declarative SKIP list (committed)
 ├── src/main/java/…/test262/          # runner + report + helpers
 ├── src/test/java/…/test262/          # unit tests for the harness itself
 ├── src/main/resources/report/        # HTML/CSS/JS templates for the report
+├── src/main/resources/logback.xml    # logger config (file appender → target/logs/)
 ├── test262/                          # [gitignored] the cloned suite
 ├── results.jsonl                     # [gitignored] per-test pass/fail/skip
 ├── run-meta.json                     # [gitignored] per-run context
 ├── html/                             # [gitignored] generated report
-└── logs/                             # [gitignored] --single verbose output
+└── target/logs/                      # [gitignored] per-session runner log (tail -f this)
 ```
 
 ---
@@ -196,11 +198,25 @@ All commands assume `cwd = karate-js-test262/` (see Quick Start). Use
 uses the karate-js jar from your local Maven repo, not from the reactor
 (see Quick Start's "Why install instead of `-am`").
 
+The one-shot wrapper at [`./run.sh`](run.sh) does install + run + HTML in
+a single command and writes a timestamped log to `target/logs/` so you
+(or an external caller) can `tail -f` while the suite is running:
+
+```sh
+./run.sh                                        # full suite + HTML report
+./run.sh --only 'test/language/**'              # slice
+./run.sh --only 'test/language/**' --max-duration 300000   # 5-min cap
+tail -f target/logs/test262-*.log               # live view during a run
+```
+
+Or invoke the pieces by hand:
+
 ```sh
 # After editing karate-js/: refresh the local repo
 mvn -f ../pom.xml -pl karate-js -o install -DskipTests
 
-# Full suite (sequential; minutes to tens of minutes)
+# Full suite (sequential; minutes to tens of minutes). A progress line is
+# emitted every 500 tests OR every 5s of wall time, whichever fires first.
 mvn -f ../pom.xml -pl karate-js-test262 -o exec:java
 
 # Narrow to a tier (see Roadmap below)
@@ -215,6 +231,13 @@ mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
 #   (caveat: does NOT refresh records for tests that were since removed or
 #    re-classified as SKIP. Delete results.jsonl for a clean run.)
 mvn -f ../pom.xml -pl karate-js-test262 -o exec:java -Dexec.args="--resume"
+
+# Run a "set" with a wall-clock safety cap — useful when driving the runner
+# from scripts / a sub-shell that must not block indefinitely. Partial
+# results are written and an `Aborted:` summary replaces the usual one
+# once the cap trips.
+mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
+    -Dexec.args="--only test/language/** --max-duration 300000"   # 5 min hard cap
 ```
 
 ### All flags
@@ -226,14 +249,59 @@ mvn -f ../pom.xml -pl karate-js-test262 -o exec:java -Dexec.args="--resume"
 | `--results <path>` | `results.jsonl` | output JSONL |
 | `--run-meta <path>` | `run-meta.json` | output run metadata |
 | `--timeout-ms <n>` | `10000` | per-test watchdog (infinite-loop guard) |
+| `--max-duration <ms>` | `0` (unlimited) | overall wall-clock cap; writes partial results and prints `Aborted:` on hit |
 | `--only <glob>` | — | restrict to matching paths |
 | `--single <path>` | — | run one test, no file writes |
 | `-v` / `-vv` | off | (with `--single`) `-v` prints parsed metadata; `-vv` adds full source |
 | `--resume` | off | skip tests already in existing `results.jsonl` |
 
-Runs are **silent except failures**. A `FAIL <path> — <type>: <msg>` line is
-printed as each failure occurs; a one-line summary ends the run. Generate the
-HTML report separately with `-Dexec.mainClass=io.karatelabs.js.test262.Test262Report`.
+Runs are **silent except failures + periodic progress**. A
+`FAIL <path> — <type>: <msg>` line is printed as each failure occurs; a
+`[progress] <N> processed …` line prints every 500 tests or every 5 seconds
+(whichever fires first) so long runs have an observable heartbeat. A one-line
+`Summary:` (or `Aborted:`) ends the run. Every line is mirrored (with
+timestamps) to `target/logs/test262-<yyyyMMdd-HHmmss>.log` via Logback
+(config: `src/main/resources/logback.xml`), so `tail -f` on the newest
+file in `target/logs/` is a live view equivalent to watching the console.
+
+Generate the HTML report with
+`mvn exec:java -Dexec.mainClass=io.karatelabs.js.test262.Test262Report`;
+`./run.sh` runs that step automatically. The POM uses
+`<mainClass>${exec.mainClass}</mainClass>` with a default, which is what
+makes the `-Dexec.mainClass` override actually take effect (a bare POM
+literal would not — the command-line property would be silently ignored
+and `Test262Runner` would re-run instead of the report generator).
+
+### Hang handling
+
+The runner uses a single-thread `ExecutorService` to enforce `--timeout-ms`
+per test. The karate-js engine does not currently poll `Thread.interrupt()`,
+so a `cancel(true)` on a runaway test cannot stop the underlying thread.
+When a timeout fires, the runner **retires the executor** (shuts it down,
+creates a fresh one) so subsequent tests don't queue behind the stuck
+thread. Without this step, a single `while (true) {}` in a test file would
+cause every test after it to report Timeout and take the full
+`--timeout-ms` each, because its submission would wait on the stuck
+thread to drain. Net cost of a genuine hang today: one abandoned daemon
+thread, one Timeout row in `results.jsonl`, and a few ms of recreate
+overhead — the suite continues at full speed.
+
+### Running a "set" safely (for scripts and agents)
+
+When driving the runner from another process (a slash command, a CI
+scaffold, an agent), use `--max-duration` as a safety net so a
+catastrophic engine bug cannot wedge the caller. Typical shape:
+
+```sh
+# 5-min hard cap; partial results written if we hit it.
+mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
+    -Dexec.args="--only test/language/expressions/assignment/** --max-duration 300000" \
+    -q 2>&1 | tail -20
+```
+
+The periodic `[progress]` line gives you a machine-parseable heartbeat:
+the caller can stream stdout and tail the most recent progress line
+without waiting for the whole run to finish.
 
 ---
 
@@ -769,7 +837,8 @@ not a bucket — pick off while nearby.
 | Engine change seems to have no effect on test262 output | You forgot `mvn ... -pl karate-js -o install -DskipTests`. The runner uses the karate-js jar from your local Maven repo, not the reactor classpath. |
 | HTML dashboard shows empty header | `run-meta.json` missing — run `Test262Report` *after* `Test262Runner` in the same directory. |
 | `ReferenceError: <name> is not defined` on common classes like `ReferenceError`/`RangeError` | Known first-order gap — those constructors are not registered globals yet. |
-| Suite seems to hang on one test | Infinite loop; watchdog should kick in at `--timeout-ms`. If it doesn't, bisect with `--only`. |
+| Suite seems to hang on one test | Infinite loop; watchdog kicks in at `--timeout-ms`. The inner executor is retired and replaced on every timeout so subsequent tests start on a fresh thread; a genuine hang leaks one daemon thread and keeps going. If progress truly stops, bisect with `--only`, or add `--max-duration` as a safety net. |
+| Driving the runner from a script / agent that must not block | Pass `--max-duration <ms>`. On hit, partial results are written and `Aborted:` replaces the usual `Summary:` line. The periodic `[progress]` output on stdout lets the caller tail heartbeat without waiting for the full run. |
 | Tests that used to pass now fail after an engine change | Run `EngineBenchmark` too — perf regression sometimes manifests as timeouts before correctness. |
 | `--resume` gives stale results | Known limitation — it doesn't refresh records for tests that were removed or re-SKIP'd. Delete `results.jsonl` for a clean baseline. |
 
@@ -791,10 +860,6 @@ Items left for later; un-scheduled but tracked.
   re-parses `assert.js`, `sta.js`, and each test's `includes:` on every
   test; ~50k re-parses per full-suite run is a measurable chunk of wall
   time. Cache `Node` trees and re-eval from AST.
-- **Parallel test execution.** Runner is sequential. Each test gets a
-  fresh `Engine`, so per-test isolation holds; switch
-  `ExecutorService` to a thread pool once the classifier is stable enough
-  that non-deterministic ordering in logs is acceptable.
 - **`phase: resolution` (module-resolution) negative tests.** Currently
   conflated with `runtime`. Modules are globally skipped via
   `flags: [module]`, so this is latent — document if we ever un-skip
@@ -806,9 +871,19 @@ Items left for later; un-scheduled but tracked.
 - **`readHeadSha` path fragility.** `Test262Runner.readHeadSha` walks up
   `cli.test262.getParent().getParent()` to find the karate repo. Prefer a
   `git rev-parse HEAD` subprocess, or a `--karate-sha` flag.
-- **Thread-safe `HarnessLoader` cache.** `HashMap` is fine for
-  sequential runs; switch to `ConcurrentHashMap` before enabling parallel
-  execution.
+- **Surface per-test console capture in `ResultRecord`.** `evaluate(...)`
+  already wires `Engine.setOnConsoleLog(...)` to a per-test sink
+  (discarded today). Plumb it into `ResultRecord` for FAIL rows so
+  `--single -vv` and the HTML drill-down can show what the test
+  printed. Adds debug value; the capture itself is already what
+  would prevent `print` output from tests polluting our stdout.
+- **Parallel execution.** Prior attempts showed no speedup on moderate
+  slices (thread context-switch overhead beat the 1ms per-test eval cost
+  on the hot path) and the engine does not poll `Thread.interrupt()`,
+  making safe cancellation hard. `HarnessLoader.cache` is already
+  `ConcurrentHashMap` so the shared-state work is done; revisit when
+  either (a) per-test cost grows enough that 8× parallelism clearly
+  wins, or (b) the engine learns to cooperatively abort.
 - **Commit `results.jsonl` once stable.** Currently gitignored (too noisy
   in git while engine iterates). Re-evaluate when Tier 0–2 are ≥95%
   green — at that point, diff-based regression detection becomes the

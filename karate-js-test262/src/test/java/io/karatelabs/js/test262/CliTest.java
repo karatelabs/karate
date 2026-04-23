@@ -37,8 +37,15 @@ class CliTest {
     void testDefaults() {
         Cli c = Cli.parse(new String[] {});
         assertEquals(10_000L, c.timeoutMs);
+        assertEquals(0L, c.maxDurationMs);
         assertNull(c.only);
         assertNull(c.single);
         assertFalse(c.resume);
+    }
+
+    @Test
+    void testMaxDurationFlag() {
+        Cli c = Cli.parse(new String[] { "--max-duration", "30000" });
+        assertEquals(30_000L, c.maxDurationMs);
     }
 }
