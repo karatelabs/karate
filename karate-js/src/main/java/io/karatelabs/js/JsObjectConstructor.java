@@ -52,6 +52,12 @@ class JsObjectConstructor extends JsFunction {
             case "create" -> (JsInvokable) this::create;
             case "getPrototypeOf" -> (JsInvokable) this::getPrototypeOf;
             case "setPrototypeOf" -> (JsInvokable) this::setPrototypeOf;
+            case "hasOwn" -> (JsInvokable) this::hasOwn;
+            case "getOwnPropertyNames" -> (JsInvokable) this::getOwnPropertyNames;
+            case "getOwnPropertyDescriptor" -> (JsInvokable) this::getOwnPropertyDescriptor;
+            case "getOwnPropertyDescriptors" -> (JsInvokable) this::getOwnPropertyDescriptors;
+            case "defineProperty" -> (JsInvokable) this::defineProperty;
+            case "defineProperties" -> (JsInvokable) this::defineProperties;
             case "prototype" -> JsObjectPrototype.INSTANCE;
             default -> super.getMember(name);
         };
@@ -141,6 +147,10 @@ class JsObjectConstructor extends JsFunction {
         if (args.length > 0 && args[0] instanceof ObjectLike proto) {
             newObj.setPrototype(proto);
         }
+        // Second argument: property descriptors (same shape as Object.defineProperties).
+        if (args.length > 1 && args[1] != null && args[1] != Terms.UNDEFINED) {
+            defineProperties(new Object[]{newObj, args[1]});
+        }
         return newObj;
     }
 
@@ -172,6 +182,136 @@ class JsObjectConstructor extends JsFunction {
             }
         }
         return args.length > 0 ? args[0] : null;
+    }
+
+    private Object hasOwn(Object[] args) {
+        if (args.length < 1 || args[0] == null || args[0] == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("Cannot convert undefined or null to object");
+        }
+        if (args.length < 2 || args[1] == null) {
+            return false;
+        }
+        String prop = args[1].toString();
+        return ownKeys(args[0]).contains(prop);
+    }
+
+    private Object getOwnPropertyNames(Object[] args) {
+        if (args.length < 1 || args[0] == null || args[0] == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("Cannot convert undefined or null to object");
+        }
+        return new ArrayList<>(ownKeys(args[0]));
+    }
+
+    private Object getOwnPropertyDescriptor(Object[] args) {
+        if (args.length < 1 || args[0] == null || args[0] == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("Cannot convert undefined or null to object");
+        }
+        if (args.length < 2 || args[1] == null) {
+            return Terms.UNDEFINED;
+        }
+        String prop = args[1].toString();
+        if (!ownKeys(args[0]).contains(prop)) {
+            return Terms.UNDEFINED;
+        }
+        Object value = ownGet(args[0], prop);
+        Map<String, Object> desc = new LinkedHashMap<>();
+        desc.put("value", value);
+        desc.put("writable", true);
+        desc.put("enumerable", true);
+        desc.put("configurable", true);
+        return desc;
+    }
+
+    private Object getOwnPropertyDescriptors(Object[] args) {
+        if (args.length < 1 || args[0] == null || args[0] == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("Cannot convert undefined or null to object");
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (String key : ownKeys(args[0])) {
+            Object value = ownGet(args[0], key);
+            Map<String, Object> desc = new LinkedHashMap<>();
+            desc.put("value", value);
+            desc.put("writable", true);
+            desc.put("enumerable", true);
+            desc.put("configurable", true);
+            result.put(key, desc);
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object defineProperty(Object[] args) {
+        if (args.length < 1 || !(args[0] instanceof ObjectLike || args[0] instanceof Map)) {
+            throw JsErrorException.typeError("Object.defineProperty called on non-object");
+        }
+        if (args.length < 2 || args[1] == null) {
+            throw JsErrorException.typeError("property key is null");
+        }
+        if (args.length < 3 || args[2] == null || args[2] == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("Property descriptor must be an object");
+        }
+        String prop = args[1].toString();
+        Object desc = args[2];
+        Map<String, Object> descMap;
+        if (desc instanceof ObjectLike ol) {
+            descMap = ol.toMap();
+        } else if (desc instanceof Map) {
+            descMap = (Map<String, Object>) desc;
+        } else {
+            throw JsErrorException.typeError("Property descriptor must be an object");
+        }
+        if (descMap.containsKey("value")) {
+            ownPut(args[0], prop, descMap.get("value"));
+        }
+        // Accessor (get/set) and attribute tracking (writable/enumerable/configurable)
+        // are not modeled — the value slot is the only effect of defineProperty today.
+        return args[0];
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object defineProperties(Object[] args) {
+        if (args.length < 1 || !(args[0] instanceof ObjectLike || args[0] instanceof Map)) {
+            throw JsErrorException.typeError("Object.defineProperties called on non-object");
+        }
+        if (args.length < 2 || args[1] == null || args[1] == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("Cannot convert undefined or null to object");
+        }
+        Object descsObj = args[1];
+        Map<String, Object> descs;
+        if (descsObj instanceof ObjectLike ol) {
+            descs = ol.toMap();
+        } else if (descsObj instanceof Map) {
+            descs = (Map<String, Object>) descsObj;
+        } else {
+            throw JsErrorException.typeError("Cannot convert undefined or null to object");
+        }
+        for (Map.Entry<String, Object> e : descs.entrySet()) {
+            defineProperty(new Object[]{args[0], e.getKey(), e.getValue()});
+        }
+        return args[0];
+    }
+
+    @SuppressWarnings("unchecked")
+    private static java.util.Set<String> ownKeys(Object obj) {
+        if (obj instanceof ObjectLike ol) return ol.toMap().keySet();
+        if (obj instanceof Map<?, ?> m) return ((Map<String, Object>) m).keySet();
+        return java.util.Collections.emptySet();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object ownGet(Object obj, String key) {
+        if (obj instanceof ObjectLike ol) return ol.toMap().get(key);
+        if (obj instanceof Map<?, ?> m) return ((Map<String, Object>) m).get(key);
+        return Terms.UNDEFINED;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void ownPut(Object obj, String key, Object value) {
+        if (obj instanceof ObjectLike ol) {
+            ol.putMember(key, value);
+        } else if (obj instanceof Map<?, ?> m) {
+            ((Map<String, Object>) m).put(key, value);
+        }
     }
 
 }

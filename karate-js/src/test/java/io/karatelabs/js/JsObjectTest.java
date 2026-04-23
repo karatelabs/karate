@@ -584,4 +584,77 @@ class JsObjectTest extends EvalBase {
                         + "d.constructor === Dog"));
     }
 
+    // -------------------------------------------------------------------------
+    // ES2022 Object.hasOwn
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testHasOwn() {
+        assertEquals(true, eval("Object.hasOwn({a: 1}, 'a')"));
+        assertEquals(false, eval("Object.hasOwn({a: 1}, 'b')"));
+        // Inherited properties don't count.
+        assertEquals(false, eval("Object.hasOwn(Object.create({x: 1}), 'x')"));
+    }
+
+    @Test
+    void testHasOwnOnNullOrUndefined() {
+        assertThrows(Exception.class, () -> eval("Object.hasOwn(null, 'x')"));
+        assertThrows(Exception.class, () -> eval("Object.hasOwn(undefined, 'x')"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Object.getOwnPropertyNames / getOwnPropertyDescriptor / Descriptors
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testGetOwnPropertyNames() {
+        // Returns own string keys (not inherited).
+        assertEquals(true, eval(
+                "var names = Object.getOwnPropertyNames({a: 1, b: 2});"
+                        + " names.length === 2 && names.indexOf('a') !== -1 && names.indexOf('b') !== -1"));
+    }
+
+    @Test
+    void testGetOwnPropertyDescriptor() {
+        // Descriptor for an own data property.
+        assertEquals(1, eval("Object.getOwnPropertyDescriptor({a: 1}, 'a').value"));
+        assertEquals(true, eval("Object.getOwnPropertyDescriptor({a: 1}, 'a').writable"));
+        assertEquals(true, eval("Object.getOwnPropertyDescriptor({a: 1}, 'a').enumerable"));
+        assertEquals(true, eval("Object.getOwnPropertyDescriptor({a: 1}, 'a').configurable"));
+        // Missing property → undefined.
+        assertEquals("undefined", eval("typeof Object.getOwnPropertyDescriptor({a: 1}, 'missing')"));
+    }
+
+    @Test
+    void testGetOwnPropertyDescriptors() {
+        assertEquals(1, eval("Object.getOwnPropertyDescriptors({a: 1, b: 2}).a.value"));
+        assertEquals(2, eval("Object.getOwnPropertyDescriptors({a: 1, b: 2}).b.value"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Object.defineProperty / defineProperties
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testDefineProperty() {
+        // Data descriptor with value is set.
+        assertEquals(42, eval("var o = {}; Object.defineProperty(o, 'x', {value: 42}); o.x"));
+        // Returns the object.
+        assertEquals(true, eval("var o = {}; Object.defineProperty(o, 'x', {value: 1}) === o"));
+    }
+
+    @Test
+    void testDefinePropertyRejectsInvalidInputs() {
+        assertThrows(Exception.class, () -> eval("Object.defineProperty(null, 'x', {value: 1})"));
+        assertThrows(Exception.class, () -> eval("Object.defineProperty({}, 'x', null)"));
+        assertThrows(Exception.class, () -> eval("Object.defineProperty({}, 'x', undefined)"));
+    }
+
+    @Test
+    void testDefineProperties() {
+        assertEquals(true, eval(
+                "var o = {}; Object.defineProperties(o, {a: {value: 1}, b: {value: 2}});"
+                        + " o.a === 1 && o.b === 2"));
+    }
+
 }
