@@ -587,193 +587,121 @@ list. Revisit when earlier tiers are green.
 
 ## Known first-order gaps
 
-High-leverage issues that each break many tests at once. Fixing one of these
-is worth more than fixing twenty one-off bugs. Grow this list as tiers run;
-remove items once fixed.
+High-leverage issues that each break many tests at once.
 
-- **Engine-emitted errors must route through the registered error
-  constructors.** ✅ *Addressed.* Engine sites that previously threw plain
-  `RuntimeException` (`PropertyAccess` property access on undefined,
-  `Interpreter` "is not a function" / "is not defined", `CoreContext`
-  TDZ / const-reassign / redeclare) now emit a recognized
-  `"<Name>: ..."` prefix. `Interpreter.evalTryStmt` parses the prefix
-  into a structured `JsError` (name + linked `.constructor` pointing at
-  the registered global), and `Interpreter.evalStatement` sets
-  `EngineException.getJsErrorName()` so host callers see the JS error
-  name without re-parsing. Consequence: `e instanceof TypeError`,
-  `e.name`, and `e.constructor.name` all work for engine-originated
-  errors caught in JS. The user-visible throw sites in `PropertyAccess`
-  ("cannot get from", "cannot call", "cannot set on", "cannot set 'X'",
-  "cannot apply compound/inc/dec", "get by index for non-array",
-  "expression: X - Y"), `JsJson` ("no such api on JSON"), `JsJava`
-  ("no such api on Java"), and `JavaUtils` ("no instance property")
-  now throw `JsErrorException.typeError(...)` directly; the
-  `expression: ...` wrappers preserve the cause chain so a nested
-  `JsErrorException` classifies via its structured name. Remaining plain
-  `RuntimeException` sites (internal-invariant messages like "unexpected
-  operator", `JsArrayPrototype`/`JsRegex`/`JsStringPrototype`, and
-  `Interpreter.java:1107` "finally block threw error") are low-traffic
-  and convert the same way as needed.
-- **`eval` as a global.** ✅ *Addressed.* `eval` is now registered in
-  `ContextRoot.initGlobal` with indirect-eval semantics (parses and
-  evaluates in the engine root scope; non-string arguments pass through
-  unchanged per spec). Direct-eval scope capture is still out of scope.
-- **`typeof` on all callable surfaces.** ✅ *Addressed.* `Terms.typeOf`
-  now returns `"function"` for any `JsInvokable`, for `JsFunction`, for
-  built-in constructor singletons that extend `JsObject` rather than
-  `JsFunction` (the `Boolean`, `RegExp`, `Error`/`TypeError`/etc. globals)
-  via a `JsObject.isJsFunction()` override, **and** for prototype method
-  refs cast as `(JsCallable) this::method` (e.g. `[1].map`, `'x'.charAt`,
-  `({}).hasOwnProperty`) via a `JsCallable && !(value instanceof
-  ObjectLike)` branch. The `ObjectLike` guard keeps `JsObject` / `JsArray`
-  (which both implement `JsCallable` directly) reporting `"object"`.
-- **Engine-position prefix hides assertion messages (framing gap).** ✅
-  *Addressed.* `Node.toStringError` now emits the user message first and
-  a JS-stack-frame-style `    at <path>:<line>:<col>` suffix instead of
-  leading with the engine-internal `<line>:<col> <NodeType>` token.
-  ~1500 Array-slice failures that previously showed `"13:1 STATEMENT"`
-  now surface the actual assertion text.
-- **`Test262Error` / user-defined error classes classified as Unknown.**
-  ✅ *Addressed.* `Interpreter.evalProgram` falls back to `constructor.name`
-  when the thrown JsObject has no `.name` property set on its prototype,
-  populating `EngineException.jsErrorName` so the runner's `ErrorUtils`
-  surfaces a meaningful type. Also fixed a related function-name-inference
-  bug in `CoreContext.declare` where passing a named function as a
-  parameter was permanently renaming it globally (`x.name` returning the
-  parameter identifier); guarded the inference to only fire when the
-  function's name is currently empty. Net effect on the Array slice:
-  `Unknown` fail bucket went from ~1480 → 136; 1325 now classify as
-  `Test262Error` (assertion failures).
-- **`ErrorUtils.classify` missed embedded error names in wrapper messages.**
-  ✅ *Addressed.* Messages like
-  `"expression: $262.createRealm().global - TypeError: cannot read ..."`
-  where the error type is a substring (not a prefix) now classify
-  correctly. `ErrorUtils.classifyByMessagePrefix` falls back to scanning
-  for `<Name>:` preceded by a non-word character after the prefix check
-  fails. Paired with `PropertyAccess`'s `expression: ... - ...` wrappers
-  now preserving the cause chain so the structured `JsErrorException`
-  name propagates through `findJsErrorException`, these are classified
-  by their underlying structured name first; the embedded-name scan is
-  a safety net for any wrapper that loses the cause.
-- **Raw Java exception names leak through `EngineException.getMessage()`.**
-  ✅ *Addressed.* `Interpreter.evalStatement`'s catch block now maps
-  common JVM exceptions to JS error constructor names via
-  `classifyJavaException`: `IndexOutOfBoundsException` /
+### Open
+
+- **Directive prologue (`"use strict"`) flip.** Parser tolerates the
+  string without activating strict-mode assertions; `flags: [onlyStrict]`
+  tests show as *unexpected passes* and hide real signal. Cheapest win:
+  skip via `expectations.yaml` with a reason. Real strict-mode
+  implementation (with/duplicate-params/eval-assign/octal-literal
+  negative checks) is a separate, larger project.
+- **Harness-helper dependencies.** `propertyHelper.js`,
+  `compareArray.js`, `testTypedArray.js` need descriptor introspection
+  (`Object.getOwnPropertyDescriptor`) and full iterator protocol —
+  karate-js exposes neither. Gate **thousands** of `test/built-ins/**`
+  tests currently skipped via `expectations.yaml`. The next big lever
+  once Tier 2 built-ins are solid.
+- **`EngineException` framing noise** (per Working Principle #3). Wraps
+  runtime errors in a multi-line `js failed: / ========== / Code: /
+  Error: ...` frame. The runner strips it in `ErrorUtils.unwrapFraming`,
+  but JS-side fixtures that inspect `.message` via `assert.throws` see
+  the framed text — classifier workaround doesn't fix the real problem.
+  Reserve the frame for host-side logging; expose the raw JS message on
+  `EngineException` directly.
+
+### Addressed — design decisions preserved
+
+- **Engine-emitted errors route through the registered error
+  constructors.** Engine sites (`PropertyAccess`, `Interpreter`,
+  `CoreContext` TDZ/const-reassign/redeclare, `JsJson`, `JsJava`,
+  `JavaUtils`) emit `"<Name>: ..."` prefixes.
+  `Interpreter.evalTryStmt` parses the prefix into a structured
+  `JsError` with linked `.constructor`; `Interpreter.evalStatement`
+  stamps `EngineException.getJsErrorName()`. Result: `e instanceof
+  TypeError`, `e.name`, `e.constructor.name` all work for
+  engine-originated errors. Low-traffic internal-invariant sites
+  (`JsArrayPrototype`/`JsRegex`/`JsStringPrototype`, "finally block
+  threw error") still throw plain `RuntimeException` — convert the
+  same way as needed.
+- **`eval` is a global** registered in `ContextRoot.initGlobal` with
+  indirect-eval semantics (parses/evaluates in engine root scope;
+  non-string args pass through). Direct-eval scope capture is out of
+  scope.
+- **`typeof` on all callable surfaces.** `Terms.typeOf` returns
+  `"function"` for `JsInvokable`, `JsFunction`, built-in constructor
+  singletons (via `JsObject.isJsFunction()` — `Boolean`/`RegExp`/error
+  globals), and `JsCallable` method refs (`[1].map`, `'x'.charAt`).
+  The `!(value instanceof ObjectLike)` guard keeps `JsObject`/`JsArray`
+  reporting `"object"`.
+- **Error-position framing.** `Node.toStringError` leads with the user
+  message and appends `    at <path>:<line>:<col>` (JS-stack-frame-style)
+  instead of the engine-internal `<line>:<col> <NodeType>` prefix.
+- **`Test262Error` / user-defined error classes** classified via
+  `constructor.name` fallback in `Interpreter.evalProgram` when the
+  thrown `JsObject` has no `.name` on its prototype. Related: fixed a
+  function-name-inference bug in `CoreContext.declare` where a named
+  function passed as a parameter was permanently renaming globally —
+  inference now fires only when the function's name is empty.
+- **`ErrorUtils.classify` scans embedded `<Name>:`** as a fallback for
+  wrapper messages where the type isn't a prefix (e.g. `"expression:
+  ... - TypeError: ..."`). Wrappers now preserve the cause chain so the
+  structured `JsErrorException` name propagates first; embedded-name
+  scan is the safety net.
+- **JVM exception → JS error mapping** at `Interpreter.evalStatement`
+  catch via `classifyJavaException`: `IndexOutOfBoundsException` /
   `ArithmeticException` → `RangeError`; `NullPointerException` /
-  `ClassCastException` / `NumberFormatException` → `TypeError`. The
-  mapped name is both stamped on `EngineException.jsErrorName` and
-  prefixed to the message body so runner-side and JS-side consumers
-  agree. 13 `"Index -N out of bounds"` failures in the Array slice are
-  now classified as `RangeError` instead of `Unknown`.
-- **`cannot read properties of undefined (reading 'name')`.** ✅ *Addressed.*
-  Root cause turned out not to be a `.name` read in engine code but the
-  test262 harness's `assert.throws(Ctor, fn)` reading `thrown.constructor.name`
-  on engine-generated `JsError` instances whose `.constructor` field was
-  never populated. Fixed at the JS try/catch wrapping site
+  `ClassCastException` / `NumberFormatException` → `TypeError`. Name is
+  stamped on `EngineException.jsErrorName` and prefixed to the message.
+- **`JsError.constructor` populated** at the JS try/catch wrapping site
   (`Interpreter.evalTryStmt`) by resolving the registered global for the
-  error's `.name` and wiring it into the new `JsError.constructor` (new
-  package-private setter). Const-slice result: 34 → 45 PASS.
-- **Directive prologue (`"use strict"`) is a statement-level string
-  literal that turns on strict mode.** test262 wraps tons of tests in
-  `"use strict"; ...` — in lenient parsers the string is silently
-  tolerated but strict-only assertions (`with` statement = SyntaxError,
-  duplicate params = SyntaxError, assignment to `eval`/`arguments` =
-  SyntaxError, octal literals = SyntaxError) all fail their
-  negative-test expectation. Either implement the parser-side strict
-  mode flip or explicitly skip `flags: [onlyStrict]` tests via
-  `expectations.yaml` with a reason (currently they fail as "unexpected
-  pass"). Cheapest win: skip, document, revisit.
-- **Harness-helper dependencies we currently skip.** `propertyHelper.js`,
-  `compareArray.js`, `testTypedArray.js`, etc. depend on engine internals
-  karate-js does not expose (descriptor introspection via
-  `Object.getOwnPropertyDescriptor`, proper iterator protocol, etc.).
-  These gate **thousands** of `test/built-ins/**` tests currently SKIP'd
-  via `expectations.yaml`. Once Tier 2's built-ins work, un-skipping these
-  helpers one at a time is the next lever.
-- **Engine framing noise in error messages** (per Working Principle #3).
-  `EngineException` wraps runtime errors in a multi-line `js failed: /
-  ========== / Code: / Error: ...` frame. The test262 runner strips this
-  in `ErrorUtils.unwrapFraming`, but JS-side fixtures that inspect
-  `.message` via `assert.throws` see the framed text — so the classifier
-  workaround doesn't fix the real problem. Reserve the frame for
-  host-side logging; expose the raw JS message on the exception directly.
+  error's `.name`, so `assert.throws(Ctor, fn)` reading
+  `thrown.constructor.name` works.
 
 ### Recommended next-session ordering
 
-History for context (so you can see the direction of travel):
+**Recently landed** (decisions preserved; see git log for per-commit
+detail):
 
-- Error classification & framing: done.
-- `Object` built-ins: 298 → 550 → **552 PASS** after the ToString
-  overhaul. Remaining ~1850 fails are property-descriptor / enumerable
-  semantics — deferred (see item 4 below).
-- Object-literal parser gaps: shorthand methods, computed keys, and
-  accessors (getters/setters) all work.
-- Template literals: 18 → **39 PASS** (see "Recently landed" below).
-- Spec `ToString`: `Terms.toStringCoerce(Object, CoreContext)` is now
-  the single coercion path; `JsObjectPrototype` / `JsArrayPrototype` /
-  `JsBooleanPrototype` / `JsNumberPrototype` all have spec-correct
-  `toString`. The old JSON-formatter (`Terms.TO_STRING`, later
-  `toDisplayString`) is gone — use `StringUtils.formatJson` directly
-  if you need JSON display.
-
-**Recently landed — template-literal overhaul:**
-
-- `${obj}` now dispatches through the prototype chain; the default
-  `Object.prototype.toString` is spec (`"[object Object]"`) and
-  `Array.prototype.toString` calls `this.join(",")`. User overrides
-  and subclasses (Date, RegExp, Function) are honored. Throws from
-  user `toString` propagate via the context, preserving the original
-  JS error value's constructor identity for JS-side try/catch.
-- `JsLexer.scanTemplateContent` rejects malformed escapes (legacy
-  octal `\1`..`\9`, `\xGG`, malformed `\u`, `\u{>0x10FFFF}`) as
-  parse-phase `SyntaxError`. Safe because tagged templates — which
-  would need access to the raw form — are not yet supported.
-- Nested `{}` inside `${...}` now lex correctly (placeholder state
-  tracked by depth, not by the first inner `}`).
-
-**Recently landed — IIFE in expression position:**
-
-- `PropertyAccess.getCallable` now evaluates `FN_EXPR` and
-  `FN_ARROW_EXPR` in the callable slot of a call expression. Parser
-  was already producing `FN_CALL_EXPR -> [FN_EXPR, FN_CALL_ARGS]`
-  correctly; the dispatch switch was missing those cases and threw
-  `TypeError: cannot call: [FN_EXPR]`. Five-line change.
-- Slice deltas: `expressions/call/**` 16 → **30 PASS** (+14),
-  `expressions/template-literal/**` 39 → **42 PASS** (+3, the
-  predicted abrupt tests), `expressions/function/**` 36 → 37 PASS
-  (+1 direct; most remaining fails in this slice are destructuring
-  or duplicate-param collateral, not IIFE). Arrow IIFE `(x => x)(1)`
-  and paren-wrapped IIFE `(function(){})()` unchanged (both were
-  already working via `PAREN_EXPR`).
-
-**Recently landed — destructuring overhaul (assignment + declaration):**
-
-- Unified `Interpreter.destructurePattern` / `bindTarget` /
-  `bindLeaf` helpers that recurse on nested patterns
-  (`var [a, [b, c]] = ...`, `var {x: {y}} = ...`), handle rename +
-  default (`{a: b = 5}`), and fire default values only when the
-  source slot is literally `undefined` (not null). The old inline
-  `context.declare` calls in `evalLitArray` / `evalLitObject`
-  destructuring branches were lossy — they read `exprNode.getFirstToken()`
-  as the var name, which silently declared a garbage binding for
-  any non-IDENT target and never recursed.
-- `evalAssignExpr` now routes `[a,b] = arr` and `({a,b} = obj)`
-  through `destructurePattern` with `bindScope == null` — that path
-  supports property-reference targets (`[o.x] = [99]`, `{a: o.x} = …`)
-  and full nesting. Declaration destructuring (`var/let/const`)
-  shares the same helper, so nested `var {x: {y}} = …` works too.
-- Per spec 13.3.3.5, destructuring null / undefined now throws
-  `TypeError` (`GetIterator(null)` / `RequireObjectCoercible(null)`).
-- `evalLitArray` / `evalLitObject` are now pure literal-construction:
-  their `bindScope` / `bindSource` parameters are gone. Any call site
-  that needs destructuring goes through `destructurePattern`.
-- Slice deltas:
-  `expressions/assignment/dstr/**` 82 → **147 PASS** (+65),
-  `statements/variable/dstr/**` 23 → **49 PASS** (+26),
-  `statements/let/dstr/**` 21 → **47 PASS** (+26),
-  `statements/const/dstr/**` 21 → **47 PASS** (+26),
-  `expressions/function/**` 37 → **56 PASS** (+19, destructured
-  function params started working once the pattern helper recursed).
+- **Template-literal overhaul.** `${obj}` dispatches through the
+  prototype chain (spec `Object.prototype.toString` = `"[object
+  Object]"`; `Array.prototype.toString` calls `this.join(",")`). User
+  `toString` throws propagate with JS-side constructor identity intact.
+  `JsLexer.scanTemplateContent` rejects malformed escapes (legacy octal,
+  `\xGG`, malformed `\u`, overflow `\u{…}`) as parse-phase `SyntaxError`
+  — safe until tagged templates land. Nested `{}` inside `${...}` lex
+  correctly (depth-tracked). 18 → **42 PASS** in
+  `expressions/template-literal/**`.
+- **IIFE in expression position.** `PropertyAccess.getCallable` now
+  evaluates `FN_EXPR` / `FN_ARROW_EXPR` in the callable slot — parser
+  was already emitting `FN_CALL_EXPR -> [FN_EXPR, FN_CALL_ARGS]`; the
+  dispatch switch was missing those cases. `expressions/call/**`
+  16 → **30 PASS**. Paren-wrapped IIFE and arrow IIFE were already
+  working via `PAREN_EXPR`.
+- **Destructuring overhaul (assignment + declaration).** Unified
+  `Interpreter.destructurePattern` / `bindTarget` / `bindLeaf` helpers
+  recurse on nested patterns, handle rename+default (`{a: b = 5}`),
+  fire defaults only on literal `undefined` (not null). `evalAssignExpr`
+  and the `var/let/const` paths share the helper, so property-reference
+  targets (`[o.x] = [99]`) and full nesting work. Per 13.3.3.5,
+  destructuring null/undefined throws `TypeError`. `evalLitArray` /
+  `evalLitObject` are pure literal-construction (their `bindScope`/
+  `bindSource` params are gone). Slice deltas:
+  `assignment/dstr/**` 82 → **147**, `variable/dstr/**` 23 → **49**,
+  `let/dstr/**` 21 → **47**, `const/dstr/**` 21 → **47**,
+  `expressions/function/**` 37 → **56** (destructured params).
+- **`Object` built-ins: 298 → 552 PASS** after the ToString overhaul.
+  Remaining ~1850 fails are property-descriptor semantics — see item 4.
+- **Spec `ToString` unified** via `Terms.toStringCoerce(Object,
+  CoreContext)`; `JsObjectPrototype` / `JsArrayPrototype` /
+  `JsBooleanPrototype` / `JsNumberPrototype` have spec-correct
+  `toString`. Old JSON-formatter gone — use `StringUtils.formatJson`
+  directly for JSON display.
+- **Object-literal parser gaps closed:** shorthand methods, computed
+  keys, accessors (getters/setters).
+- **Error classification & framing** — see "Known first-order gaps →
+  Addressed".
 
 **What remains — work items, highest leverage first.** Each entry
 names (a) the concrete pass/fail numbers from a probe in the current
