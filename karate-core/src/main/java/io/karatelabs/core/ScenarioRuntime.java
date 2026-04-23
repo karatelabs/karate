@@ -787,6 +787,13 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
     @SuppressWarnings("unchecked")
     private static Object shallowCopy(Object value) {
+        // JsCallable functions implement Map but must be shared, not wrapped.
+        // Issue #2805: without this guard, functions from karate-config.js get
+        // turned into plain LinkedHashMaps when inherited into an isolated-scope
+        // called feature, losing their callable behavior.
+        if (value instanceof JavaCallable) {
+            return value;
+        }
         if (value instanceof Map) {
             return new LinkedHashMap<>((Map<String, Object>) value);
         } else if (value instanceof List) {

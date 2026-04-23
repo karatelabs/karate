@@ -886,4 +886,83 @@ class ScenarioConfigTest {
         assertTrue(result.isPassed(), "karate.set-via-call should pass when running single scenario by name");
     }
 
+    // ========== Issue #2805: functions from karate-config.js not available in called feature ==========
+
+    @Test
+    void testIssue2805_callonceInBackground() throws Exception {
+        // karate-config.js defines a variable AND a function
+        Path configFile = tempDir.resolve("karate-config.js");
+        Files.writeString(configFile, """
+            function fn() {
+              return {
+                foo: 'str',
+                bar: function () { return 'baz' }
+              };
+            }
+            """);
+
+        // Called feature uses both `foo` (string) and `bar()` (function) from global config
+        Path fooFeature = tempDir.resolve("foo.feature");
+        Files.writeString(fooFeature, """
+            @ignore
+            Feature: Foo
+              Scenario: Print global foo and return value of bar()
+                * match foo == 'str'
+                * def baz = bar()
+                * match baz == 'baz'
+            """);
+
+        // Caller uses callonce to invoke foo.feature
+        Path callerFeature = tempDir.resolve("bar_calls_foo.feature");
+        Files.writeString(callerFeature, """
+            Feature: Bar
+              Background:
+                * def fooFeature = callonce read('foo.feature')
+              Scenario: Fails but is expected to work
+                * match foo == 'str'
+                * def baz = bar()
+                * match baz == 'baz'
+                * match fooFeature.baz == 'baz'
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+        assertTrue(result.isPassed(), "callonce of feature should inherit functions from karate-config.js");
+    }
+
+    @Test
+    void testIssue2805_callInBackground() throws Exception {
+        // Same as above but using plain `call` instead of `callonce`
+        Path configFile = tempDir.resolve("karate-config.js");
+        Files.writeString(configFile, """
+            function fn() {
+              return {
+                foo: 'str',
+                bar: function () { return 'baz' }
+              };
+            }
+            """);
+
+        Path fooFeature = tempDir.resolve("foo.feature");
+        Files.writeString(fooFeature, """
+            @ignore
+            Feature: Foo
+              Scenario:
+                * match foo == 'str'
+                * def baz = bar()
+                * match baz == 'baz'
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+              Background:
+                * def fooFeature = call read('foo.feature')
+              Scenario:
+                * match fooFeature.baz == 'baz'
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+        assertTrue(result.isPassed(), "call of feature should inherit functions from karate-config.js");
+    }
+
 }
