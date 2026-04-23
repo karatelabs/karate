@@ -237,6 +237,21 @@ class DialogE2eTest extends DriverTestBase {
         assertEquals(2, dialogCount.get());
     }
 
+    // Regression guard for https://github.com/karatelabs/karate/issues/2801
+    // click() that triggers a blocking JS dialog must not throw. Dialog text
+    // must be readable via driver.getDialogText() and dialog(true|false) must
+    // resolve it.
+    @Test
+    @Order(12)
+    void testClickOpensDialogWithoutHandler() {
+        driver.setUrl("about:blank");
+        driver.script("document.body.innerHTML = '<button id=\"show_alert_button\" onclick=\"alert(\\'Hello World!\\')\">Click Me</button>'");
+        driver.click("#show_alert_button");
+        assertEquals("Hello World!", driver.getDialogText());
+        driver.dialog(true);
+        assertNull(driver.getDialogText());
+    }
+
     @Test
     @Order(11)
     void testScriptFailsFastWhenDialogBlocking() throws Exception {

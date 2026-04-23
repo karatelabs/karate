@@ -1602,7 +1602,7 @@ public class CdpDriver implements Driver {
         logger.debug("click: {}", locator);
         retryIfNeeded(locator);
         script(Locators.clickJs(locator));
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     /**
@@ -1612,7 +1612,7 @@ public class CdpDriver implements Driver {
         logger.debug("focus: {}", locator);
         retryIfNeeded(locator);
         script(Locators.focusJs(locator));
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     /**
@@ -1622,7 +1622,7 @@ public class CdpDriver implements Driver {
         logger.debug("clear: {}", locator);
         retryIfNeeded(locator);
         script(Locators.clearJs(locator));
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     /**
@@ -1641,7 +1641,7 @@ public class CdpDriver implements Driver {
             clear(locator);
             keys().type(value);
         }
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     /**
@@ -1651,7 +1651,7 @@ public class CdpDriver implements Driver {
         logger.debug("value: {} <- {}", locator, value);
         retryIfNeeded(locator);
         script(Locators.inputJs(locator, value));
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     /**
@@ -1661,7 +1661,7 @@ public class CdpDriver implements Driver {
         logger.debug("select: {} <- {}", locator, text);
         retryIfNeeded(locator);
         script(Locators.optionSelector(locator, text));
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     /**
@@ -1676,7 +1676,7 @@ public class CdpDriver implements Driver {
                         " e.dispatchEvent(new Event('input', {bubbles: true}));" +
                         " e.dispatchEvent(new Event('change', {bubbles: true}))");
         script(js);
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     /**
@@ -1686,7 +1686,7 @@ public class CdpDriver implements Driver {
         logger.debug("scroll: {}", locator);
         retryIfNeeded(locator);
         script(Locators.scrollJs(locator));
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     /**
@@ -1696,7 +1696,7 @@ public class CdpDriver implements Driver {
         logger.debug("highlight: {}", locator);
         retryIfNeeded(locator);
         script(Locators.highlight(locator, options.getHighlightDuration()));
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     // ========== Element State ==========
@@ -1903,7 +1903,7 @@ public class CdpDriver implements Driver {
 
         while (System.currentTimeMillis() < deadline) {
             if (exists(locator)) {
-                return BaseElement.of(this, locator);
+                return BaseElement.existing(this, locator);
             }
             sleep(pollInterval);
         }
@@ -1935,7 +1935,7 @@ public class CdpDriver implements Driver {
         while (System.currentTimeMillis() < deadline) {
             for (String locator : locators) {
                 if (exists(locator)) {
-                    return BaseElement.of(this, locator);
+                    return BaseElement.existing(this, locator);
                 }
             }
             sleep(pollInterval);
@@ -1962,7 +1962,7 @@ public class CdpDriver implements Driver {
             if (exists(locator)) {
                 String text = text(locator);
                 if (text != null && text.contains(expected)) {
-                    return BaseElement.of(this, locator);
+                    return BaseElement.existing(this, locator);
                 }
             }
             sleep(pollInterval);
@@ -1987,7 +1987,7 @@ public class CdpDriver implements Driver {
 
         while (System.currentTimeMillis() < deadline) {
             if (exists(locator) && enabled(locator)) {
-                return BaseElement.of(this, locator);
+                return BaseElement.existing(this, locator);
             }
             sleep(pollInterval);
         }
@@ -2039,7 +2039,7 @@ public class CdpDriver implements Driver {
             if (exists(locator)) {
                 Object result = script(locator, expression);
                 if (Terms.isTruthy(result)) {
-                    return BaseElement.of(this, locator);
+                    return BaseElement.existing(this, locator);
                 }
             }
             sleep(pollInterval);

@@ -69,3 +69,16 @@ Feature: Dialog Tests
     * dialog(true)
     * def cleared = driver.dialogText
     * match cleared == null
+
+  # Regression guard for https://github.com/karatelabs/karate/issues/2801
+  # click() on an element whose onclick opens a blocking dialog must not throw.
+  # Previously the post-action BaseElement.of() re-ran exists(), which hit the
+  # "dialog is blocking" fail-fast check in cdpEval.
+  Scenario: Click that opens alert dialog without a handler
+    * driver 'about:blank'
+    * script("document.body.innerHTML = '<button id=\"alertBtn\" onclick=\"alert(\\'Click!\\')\">X</button>'")
+    * click('#alertBtn')
+    * match driver.dialogText == 'Click!'
+    * dialog(true)
+    * def cleared = driver.dialogText
+    * match cleared == null

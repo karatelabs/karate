@@ -366,7 +366,7 @@ public class W3cDriver implements Driver {
     public Element click(String locator) {
         // v1 pattern: JS click, not W3C endpoint — more reliable, handles shadow DOM, custom elements
         eval(Locators.clickJs(locator));
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     @Override
@@ -383,32 +383,32 @@ public class W3cDriver implements Driver {
             eval(Locators.clearJs(locator));
             session.sendKeys(elementId, value);
         }
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     @Override
     public Element clear(String locator) {
         // v1 pattern: JS value = '' — more consistent than W3C clear endpoint
         eval(Locators.clearJs(locator));
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     @Override
     public Element focus(String locator) {
         eval(Locators.focusJs(locator));
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     @Override
     public Element scroll(String locator) {
         eval(Locators.scrollJs(locator));
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     @Override
     public Element highlight(String locator) {
         eval(Locators.highlight(locator, options.getHighlightDuration()));
-        return BaseElement.of(this, locator);
+        return BaseElement.existing(this, locator);
     }
 
     // ========== Element State (all via JS eval — v1 pattern) ==========
@@ -487,7 +487,7 @@ public class W3cDriver implements Driver {
         long deadline = System.currentTimeMillis() + timeout.toMillis();
         while (System.currentTimeMillis() < deadline) {
             if (exists(locator)) {
-                return BaseElement.of(this, locator);
+                return BaseElement.existing(this, locator);
             }
             sleep(options.getRetryInterval());
         }
@@ -510,7 +510,7 @@ public class W3cDriver implements Driver {
         while (System.currentTimeMillis() < deadline) {
             for (String locator : locators) {
                 if (exists(locator)) {
-                    return BaseElement.of(this, locator);
+                    return BaseElement.existing(this, locator);
                 }
             }
             sleep(options.getRetryInterval());
@@ -530,7 +530,7 @@ public class W3cDriver implements Driver {
             try {
                 String text = text(locator);
                 if (text != null && text.contains(expected)) {
-                    return BaseElement.of(this, locator);
+                    return BaseElement.existing(this, locator);
                 }
             } catch (Exception e) {
                 // Element may not exist yet
@@ -551,7 +551,7 @@ public class W3cDriver implements Driver {
         while (System.currentTimeMillis() < deadline) {
             try {
                 if (enabled(locator)) {
-                    return BaseElement.of(this, locator);
+                    return BaseElement.existing(this, locator);
                 }
             } catch (Exception e) {
                 // Element may not exist yet
@@ -592,7 +592,7 @@ public class W3cDriver implements Driver {
             try {
                 Object result = eval(js);
                 if (isTruthy(result)) {
-                    return BaseElement.of(this, locator);
+                    return BaseElement.existing(this, locator);
                 }
             } catch (Exception e) {
                 // Element may not exist yet
