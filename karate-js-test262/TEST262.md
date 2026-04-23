@@ -596,68 +596,167 @@ remove items once fixed.
 
 ### Recommended next-session ordering
 
-Classification and framing work is done. `Object` built-ins had a big
-round — `Object.hasOwn`, `getOwnPropertyNames`,
-`getOwnPropertyDescriptor(s)`, `defineProperty`, `defineProperties`,
-and `Object.create(proto, descriptors)` now work (298 → 550 PASS in
-`test/built-ins/Object/**`). Object-literal parser gaps also closed:
-shorthand methods (`{foo() {}}`), computed keys (`{[k]: v}`), and
-getters/setters (`{get x() {}, set x(v) {}}`).
+History for context (so you can see the direction of travel):
 
-**Pick up here** — concrete levers with measured impact, ordered by
-leverage-per-hour. Numbers are from probe runs in the current HEAD.
+- Error classification & framing: done.
+- `Object` built-ins: 298 → 550 → **552 PASS** after the ToString
+  overhaul. Remaining ~1850 fails are property-descriptor / enumerable
+  semantics — deferred (see item 4 below).
+- Object-literal parser gaps: shorthand methods, computed keys, and
+  accessors (getters/setters) all work.
+- Template literals: 18 → **39 PASS** (see "Recently landed" below).
+- Spec `ToString`: `Terms.toStringCoerce(Object, CoreContext)` is now
+  the single coercion path; `JsObjectPrototype` / `JsArrayPrototype` /
+  `JsBooleanPrototype` / `JsNumberPrototype` all have spec-correct
+  `toString`. The old JSON-formatter (`Terms.TO_STRING`, later
+  `toDisplayString`) is gone — use `StringUtils.formatJson` directly
+  if you need JSON display.
 
-1. **Template literals — highest concentration of contained fails.**
-   `test/language/expressions/template-literal/**` → 18 PASS /
-   **38 FAIL** / 1 SKIP. Three sub-buckets:
-   - **14 × `cannot parse statement`** — tagged templates
-     (`` tag`hello ${x}` ``) and complex interpolation patterns are
-     not parsed. Common in React/styled-components/SQL libraries.
-   - **15 × `expected negative SyntaxError but got: This statement
-     should not be evaluated`** — the parser accepts escape sequences
-     that the spec rejects (malformed hex / unicode escapes inside
-     templates). Reject these at lex-time in `JsLexer`'s template
-     scanner.
-   - **Object-to-string coercion in templates**: `${obj}` emits
-     `io.karatelabs.js.JsObject@78292ffe` instead of `[object Object]`.
-     Route template interpolation through `Terms.TO_STRING` (which
-     already handles ObjectLike correctly) — likely a one-line fix in
-     `evalLitTemplate`.
+**Recently landed — template-literal overhaul:**
 
-2. **Destructuring assignment as an expression** —
-   `test/language/expressions/assignment/dstr/**` → 82 PASS /
-   **148 FAIL** / 138 SKIP. Dominant pattern: **45 × `expected:
-   [EXPR]`** on `[a, b] = arr` or `({a, b} = obj)`. The parser sees
-   `[a, b]` as an array literal, not as a destructuring target, so
-   `= arr` on the RHS fails. Declarations (`var [a, b] = arr`) already
-   work — the gap is pure assignment expressions. Touch the assignment
-   parser to accept LIT_ARRAY / LIT_OBJECT on the LHS, then let the
-   interpreter reuse the existing bindScope-free destructuring path.
+- `${obj}` now dispatches through the prototype chain; the default
+  `Object.prototype.toString` is spec (`"[object Object]"`) and
+  `Array.prototype.toString` calls `this.join(",")`. User overrides
+  and subclasses (Date, RegExp, Function) are honored. Throws from
+  user `toString` propagate via the context, preserving the original
+  JS error value's constructor identity for JS-side try/catch.
+- `JsLexer.scanTemplateContent` rejects malformed escapes (legacy
+  octal `\1`..`\9`, `\xGG`, malformed `\u`, `\u{>0x10FFFF}`) as
+  parse-phase `SyntaxError`. Safe because tagged templates — which
+  would need access to the raw form — are not yet supported.
+- Nested `{}` inside `${...}` now lex correctly (placeholder state
+  tracked by depth, not by the first inner `}`).
 
-3. **`var`/`const` destructuring edge cases** —
-   `test/language/statements/variable/dstr/**` → 23 PASS / 48 FAIL /
-   26 SKIP (and same shape in `const/dstr/`). Mostly **`ReferenceError:
-   x is not defined`** (11×) after a successful destructuring — so the
-   parser accepts the pattern but bindings never make it into scope
-   for some shapes. Likely nested-pattern or default-value corners.
-   Worth fixing once (2) is done.
+**What remains — work items, highest leverage first.** Each entry
+names (a) the concrete pass/fail numbers from a probe in the current
+HEAD, (b) the one-line reason it is ranked where it is, and (c) the
+first file/function to touch.
 
-4. **Array built-ins, deferred.** The big Array cliff remains mostly
-   architectural — property-descriptor attribute tracking, proper
-   iterator protocol (`Symbol.iterator` is skip-listed), sparse-array
-   dictionary mode, TypedArray/species. Core `Array.prototype.*`
-   already works for idiomatic code. Skip this in favor of higher
-   leverage items above.
+---
 
-5. **Object-slice polish, also deferred.** The remaining ~1855 Object
-   FAILs concentrate in tests that need writable/enumerable/configurable
-   attribute semantics (~217 `Expected a TypeError to be thrown`,
-   ~100 `accessed !== true` enumerable checks). Low LLM-code leverage
-   vs the engine-churn cost of descriptor tracking.
+**1. IIFE in expression position — small fix, cross-cutting unlocks.**
 
-Remaining Array-slice Unknowns from earlier (~9 tests, all
-low-priority): 6 × `"null"` NPE path, 2 × `IllegalName` JDK lambda
-leak, 1 × `Java heap space` OOM.
+`(function(){}())`, `(function(){})()`, and bare `function(){}()`
+all throw `TypeError: cannot call: [FN_EXPR] ...`. The parser builds
+an FN_EXPR node but the call-site wiring does not let a function
+expression sit in the callable slot of a call expression. The
+interpreter's call path then rejects it.
+
+- `test/language/expressions/function/**` → 36 PASS / **159 FAIL** /
+  69 SKIP. ≥7 direct "cannot call: [FN_EXPR]" hits, and the pattern
+  is load-bearing in test262's own harness style
+  (`(function(){ ... })()`). Many of the 159 fails are collateral
+  (default params, destructuring params, etc.) that will still need
+  work, but IIFE unblocks a good share.
+- 3 × template-literal `abrupt` tests fail today solely because of
+  this.
+- Same pattern appears as a smaller bucket inside `expressions/call/**`
+  (16 PASS / 44 FAIL / 32 SKIP).
+
+**Why first:** smallest diff (parser + one interpreter branch),
+highest ratio of downstream tests that just start working. Start in
+`JsParser.expr` / the call-expression slot and `Interpreter`'s
+call-expression eval (look where `FN_EXPR` is handled as a producer
+but not as a callee).
+
+**When done:** re-probe `expressions/function/**`, `expressions/call/**`,
+and the 3 template `abrupt` tests. Also check that ordinary
+`(x => x)(1)` arrow-IIFE still works (it does today — don't regress).
+
+---
+
+**2. Destructuring assignment as an expression.**
+
+`test/language/expressions/assignment/dstr/**` → **82 PASS / 148 FAIL
+/ 138 SKIP.** Declarations (`var [a,b] = arr`) already work; the gap
+is pure assignment-expression form: `[a, b] = arr` and
+`({a, b} = obj)`. The parser sees `[a, b]` as a `LIT_ARRAY` and then
+cannot consume `= arr` on the RHS, producing **45 × `expected:
+[EXPR]`** failures (the single largest bucket in the subtree).
+
+**Why second:** LLM-generated JS writes `[a, b] = fn()` constantly.
+The interpreter already has a working destructuring path
+(`Interpreter.evalAssign`, bindScope-free branch) — the missing piece
+is a parser edit to accept `LIT_ARRAY` / `LIT_OBJECT` on the LHS of
+`=`. The fan-out of a parser-only change is low risk.
+
+**First move:** widen the assignment parser (`JsParser`) to produce
+an assignment when the LHS is `LIT_ARRAY` / `LIT_OBJECT` and the next
+token is `=`. Then wire into `Interpreter.evalAssign` via the
+existing destructuring branch.
+
+---
+
+**3. `var` / `const` destructuring edge cases.**
+
+`test/language/statements/variable/dstr/**` → 23 / **48** / 26.
+`test/language/statements/const/dstr/**` → 21 / **46** / 26.
+Dominant failure: `ReferenceError: x is not defined` after an
+apparently successful destructuring — the parser accepted the
+pattern but the binding never reached the scope. Likely
+nested-pattern or default-value corners in `Interpreter.evalAssign`.
+
+**Why third:** same muscle memory as #2; expect overlap. Do last of
+the three so you can use the widened assignment grammar as a testbed.
+
+---
+
+**4. Tagged templates — ~13 template-suite fails and beyond.**
+
+`` tag`foo ${x}` `` (React / styled-components / SQL). Needs:
+(a) parser support for the tag-applied-to-template syntactic slot,
+(b) the template-object contract (`strings.raw` / cooked forms),
+(c) invocation as `tag(strings, ...substitutions)`. Isolated from
+other subtrees — does not block anything else.
+
+**Why fourth:** real feature work (≥ half-day), smaller numeric
+payoff than #1–#3, but high qualitative value — untagged templates
+plus tagged templates together cover ~all real-world usage. Worth
+doing once #1–#3 make meaningful language progress.
+
+---
+
+**5. Strict-mode directive prologue — cheapest triage.**
+
+Hundreds of `flags: [onlyStrict]` tests currently show as
+*unexpected passes* because the parser tolerates `"use strict"`
+without flipping strict mode (see "Known first-order gaps" above).
+Cheapest win: add a `flags: [onlyStrict]` rule to
+`expectations.yaml` with a reason ("strict mode not implemented")
+so those stop hiding real signal. Actually implementing strict
+mode is not cheap — the skip is.
+
+**Why fifth:** pure triage; clears noise so the remaining fails are
+meaningful. A single YAML edit.
+
+---
+
+**6. Deferred — architectural, low LLM-leverage.**
+
+- **Array cliff (~1896 FAILs in `test/built-ins/Array/**`)** needs
+  property-descriptor attribute tracking, the full iterator protocol
+  (`Symbol.iterator` is skip-listed), sparse-array dictionary mode,
+  and TypedArray / species. Core `Array.prototype.*` already works
+  for idiomatic code.
+- **Object-attribute polish (~1855 FAILs)** concentrates in
+  writable/enumerable/configurable semantics (~217 `Expected a
+  TypeError to be thrown`, ~100 `accessed !== true` checks). Same
+  descriptor-infra story as Array.
+- **Harness helpers (`propertyHelper.js`, `compareArray.js`,
+  `testTypedArray.js`)** are blocked on the same descriptor /
+  iterator infra; un-skipping one of these unlocks thousands of
+  built-in tests at a stroke — but only after the infra exists.
+
+Treat the descriptor layer as one project (not three): when someone
+decides to do it, it's the same set of changes that unlocks Array,
+Object-polish, and the helpers together.
+
+---
+
+**Ancient residuals to clean up opportunistically.** Remaining
+Array-slice Unknowns: 6 × `"null"` NPE path, 2 × `IllegalName` JDK
+lambda leak, 1 × `Java heap space` OOM. These are individual bugs,
+not a bucket — pick off while nearby.
 
 ---
 

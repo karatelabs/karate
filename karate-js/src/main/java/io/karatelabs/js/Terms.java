@@ -23,10 +23,8 @@
  */
 package io.karatelabs.js;
 
-import io.karatelabs.common.StringUtils;
 import io.karatelabs.common.Xml;
 import io.karatelabs.parser.Token;
-import net.minidev.json.JSONValue;
 import org.w3c.dom.Node;
 
 import java.lang.reflect.Array;
@@ -568,39 +566,61 @@ public class Terms {
         return false;
     }
 
-    static String TO_STRING(Object o) {
+    /**
+     * ECMAScript {@code ToString} abstract operation. Converts a value to its spec-defined
+     * JavaScript string representation.
+     * <ul>
+     *   <li>{@code null} → {@code "null"}</li>
+     *   <li>{@code undefined} → {@code "undefined"}</li>
+     *   <li>primitives and {@link JsValue} → their natural string form</li>
+     *   <li>{@link ObjectLike} → invokes {@code toString} via the prototype chain. The default
+     *       {@link JsObjectPrototype} returns {@code "[object Object]"}; arrays return
+     *       {@code this.join(",")}; functions / dates / regex return their specific forms;
+     *       user-overridden {@code toString} is honored.</li>
+     * </ul>
+     * When {@code context} is {@code null} and the value is an {@link ObjectLike}, falls back
+     * to {@code "[object Object]"} (the user-visible override cannot be invoked without one).
+     */
+    public static String toStringCoerce(Object o, CoreContext context) {
         if (o == null) {
-            return "[object Null]";
+            return "null";
         }
-        if (Terms.isPrimitive(o) || o instanceof JsValue) {
+        if (o == UNDEFINED) {
+            return "undefined";
+        }
+        if (isPrimitive(o) || o instanceof JsValue) {
             return o.toString();
         }
-        switch (o) {
-            case JsArray jsArray -> {
-                // Use StringUtils.formatJson to avoid recursion issues with JSONValue
-                // JsArray implements List, so pass it directly
-                return StringUtils.formatJson(jsArray, false, false, false);
-            }
-            case JsFunction ignored -> {
-                return "[object Object]";
-            }
-            case SimpleObject so -> {
-                JsCallable callable = so.jsToString();
-                return (String) callable.call(null, new Object[0]);
-            }
-            case ObjectLike objectLike -> {
-                Map<String, Object> map = objectLike.toMap();
-                if (map != null) {
-                    return JSONValue.toJSONString(map);
+        // Java-native types (Map, List, raw arrays, XML Node, Date) are wrapped so
+        // their JS toString dispatches via the correct prototype.
+        ObjectLike ol = (o instanceof ObjectLike) ? (ObjectLike) o : toObjectLike(o);
+        if (ol != null) {
+            if (context != null) {
+                Object fn = ol.getMember("toString");
+                if (fn instanceof JsCallable jsc) {
+                    CoreContext callCtx = new CoreContext(context, null, null);
+                    callCtx.thisObject = ol;
+                    Object r = jsc.call(callCtx, new Object[0]);
+                    // Propagate a throw from the callee via the context so that
+                    // the original JS value (including custom classes like
+                    // Test262Error) retains its identity when a surrounding JS
+                    // try/catch reads `thrown.constructor`. A Java-exception
+                    // conversion here would flatten the value to a generic Error.
+                    if (callCtx.isError()) {
+                        context.updateFrom(callCtx);
+                        return "";
+                    }
+                    if (r instanceof String s) {
+                        return s;
+                    }
+                    if (r != null && r != UNDEFINED && !(r instanceof ObjectLike)) {
+                        return r.toString();
+                    }
                 }
             }
-            default -> {
-            }
+            return "[object Object]";
         }
-        if (o instanceof Map || o instanceof List) {
-            return JSONValue.toJSONString(o);
-        }
-        return "[object Object]";
+        return o.toString();
     }
 
 }

@@ -360,9 +360,59 @@ public class JsLexer extends BaseLexer {
             }
             if (c == '\\') {
                 advance();
-                if (!isAtEnd()) {
-                    advance();
+                if (isAtEnd()) {
+                    break;
                 }
+                char esc = peek();
+                // Spec: in non-tagged template literals, malformed escape sequences are
+                // early errors. We have no way to tell tag vs no-tag at lex time, so we
+                // reject at lex time; tagged templates are not yet supported anyway.
+                // Invalid legacy octal: \1..\9 or \0 followed by a decimal digit.
+                if (esc >= '1' && esc <= '9') {
+                    throw new ParserException("invalid escape sequence in template literal: \\" + esc);
+                }
+                if (esc == '0' && peek(1) >= '0' && peek(1) <= '9') {
+                    throw new ParserException("invalid escape sequence in template literal: \\0" + peek(1));
+                }
+                // Hex escape backslash-x HH — require exactly two hex digits.
+                if (esc == 'x') {
+                    if (!isHexDigit(peek(1)) || !isHexDigit(peek(2))) {
+                        throw new ParserException("invalid hex escape sequence in template literal");
+                    }
+                }
+                // Unicode escape backslash-u HHHH or backslash-u {H...} — require proper form.
+                if (esc == 'u') {
+                    char next = peek(1);
+                    if (next == '{') {
+                        // backslash-u { codepoint } — one or more hex digits, closed by }
+                        int j = 2;
+                        if (!isHexDigit(peek(j))) {
+                            throw new ParserException("invalid unicode escape sequence in template literal");
+                        }
+                        int codepoint = 0;
+                        while (isHexDigit(peek(j))) {
+                            char h = peek(j);
+                            int v = (h >= '0' && h <= '9') ? h - '0'
+                                    : (h >= 'a' && h <= 'f') ? h - 'a' + 10
+                                    : h - 'A' + 10;
+                            codepoint = (codepoint << 4) | v;
+                            if (codepoint > 0x10FFFF) {
+                                throw new ParserException("unicode escape sequence out of range in template literal");
+                            }
+                            j++;
+                        }
+                        if (peek(j) != '}') {
+                            throw new ParserException("invalid unicode escape sequence in template literal");
+                        }
+                    } else {
+                        // backslash-u HHHH — four hex digits
+                        if (!isHexDigit(peek(1)) || !isHexDigit(peek(2))
+                                || !isHexDigit(peek(3)) || !isHexDigit(peek(4))) {
+                            throw new ParserException("invalid unicode escape sequence in template literal");
+                        }
+                    }
+                }
+                advance();
                 continue;
             }
             advance();
@@ -516,6 +566,13 @@ public class JsLexer extends BaseLexer {
 
         switch (c) {
             case '{':
+                // When inside a template placeholder (${...}), a nested `{`
+                // (function body, object literal, block) pushes another
+                // PLACEHOLDER level so the matching `}` pops back to this
+                // depth instead of terminating the placeholder prematurely.
+                if (currentState() == LexerState.PLACEHOLDER) {
+                    pushState(LexerState.PLACEHOLDER);
+                }
                 return L_CURLY;
             case '}':
                 if (currentState() == LexerState.PLACEHOLDER) {

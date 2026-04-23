@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2025 Karate Labs Inc.
+ * Copyright 2026 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,44 +23,44 @@
  */
 package io.karatelabs.js;
 
-public non-sealed class JsBoolean extends JsObject implements JsPrimitive {
+/**
+ * Singleton prototype for Boolean instances.
+ * Inherits from JsObjectPrototype.
+ */
+class JsBooleanPrototype extends Prototype {
 
-    final boolean value;
-    // true only for the single instance registered as the global `Boolean` in
-    // ContextRoot — marks this as the constructor-role object so typeof reports
-    // "function". Regular `new Boolean(x)` instances leave this false.
-    boolean builtinConstructor;
+    static final JsBooleanPrototype INSTANCE = new JsBooleanPrototype();
 
-    JsBoolean() {
-        this(false);
-    }
-
-    JsBoolean(boolean value) {
-        super(null, JsBooleanPrototype.INSTANCE);
-        this.value = value;
+    private JsBooleanPrototype() {
+        super(JsObjectPrototype.INSTANCE);
     }
 
     @Override
-    public Object getJavaValue() {
-        return value;
+    protected Object getBuiltinProperty(String name) {
+        return switch (name) {
+            case "toString" -> (JsCallable) JsBooleanPrototype::toStringMethod;
+            case "valueOf" -> (JsCallable) JsBooleanPrototype::valueOfMethod;
+            default -> null;
+        };
     }
 
-    @Override
-    boolean isJsFunction() {
-        return builtinConstructor;
-    }
-
-    @Override
-    public Object call(Context context, Object[] args) {
-        boolean temp = false;
-        if (args.length > 0) {
-            temp = Terms.isTruthy(args[0]);
+    private static boolean asBoolean(Context context) {
+        Object thisObj = context.getThisObject();
+        if (thisObj instanceof JsBoolean jb) {
+            return jb.value;
         }
-        CallInfo callInfo = context.getCallInfo();
-        if (callInfo != null && callInfo.constructor) {
-            return new JsBoolean(temp);
+        if (thisObj instanceof Boolean b) {
+            return b;
         }
-        return temp;
+        return false;
+    }
+
+    private static Object toStringMethod(Context context, Object[] args) {
+        return Boolean.toString(asBoolean(context));
+    }
+
+    private static Object valueOfMethod(Context context, Object[] args) {
+        return asBoolean(context);
     }
 
 }

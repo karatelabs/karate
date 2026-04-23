@@ -34,6 +34,19 @@ class JsObjectPrototype extends Prototype {
 
     static final JsObjectPrototype INSTANCE = new JsObjectPrototype();
 
+    /**
+     * The default {@code Object.prototype.toString} implementation. Exposed so
+     * pretty-printers (e.g. {@link JsConsole}) can detect a user-overridden
+     * {@code toString} vs the default by reference identity.
+     * <p>
+     * Spec note: {@code Object.prototype.toString} returns {@code "[object " + tag + "]"}
+     * where {@code tag} comes from {@code @@toStringTag} or the internal slot. karate-js
+     * returns {@code "[object Object]"} for plain objects — the tag variants for
+     * arrays/dates/etc. are produced by those types' own {@code toString} overrides
+     * in their prototypes, not here.
+     */
+    static final JsCallable DEFAULT_TO_STRING = (context, args) -> "[object Object]";
+
     private JsObjectPrototype() {
         super(null); // Object.prototype.__proto__ === null
     }
@@ -41,7 +54,7 @@ class JsObjectPrototype extends Prototype {
     @Override
     protected Object getBuiltinProperty(String name) {
         return switch (name) {
-            case "toString" -> (JsCallable) (context, args) -> Terms.TO_STRING(context.getThisObject());
+            case "toString" -> DEFAULT_TO_STRING;
             case "valueOf" -> (JsCallable) (context, args) -> context.getThisObject();
             case "hasOwnProperty" -> (JsCallable) this::hasOwnProperty;
             default -> null;

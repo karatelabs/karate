@@ -39,21 +39,10 @@ class JsConsole implements SimpleObject {
     private String argsToString(Context context, Object[] args) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < args.length; i++) {
-            Object arg = args[i];
             if (i > 0) {
                 sb.append(' ');
             }
-            Object callable = null;
-            if (arg instanceof ObjectLike objectLike) {
-                callable = objectLike.getMember(SimpleObject.TO_STRING);
-            }
-            if (callable instanceof JsCallable jsc) {
-                CoreContext callContext = new CoreContext((CoreContext) context, null, null);
-                callContext.thisObject = arg;
-                sb.append(jsc.call(callContext, new Object[0]));
-            } else {
-                sb.append(Terms.TO_STRING(arg));
-            }
+            sb.append(Terms.toStringCoerce(args[i], (CoreContext) context));
         }
         return sb.toString();
     }
@@ -80,13 +69,13 @@ class JsConsole implements SimpleObject {
             };
             case "dir", "dirxml" -> (JsCallable) (context, args) -> {
                 if (args.length > 0) {
-                    output(Terms.TO_STRING(args[0]));
+                    output(Terms.toStringCoerce(args[0], (CoreContext) context));
                 }
                 return null;
             };
             case "table" -> (JsCallable) (context, args) -> {
                 if (args.length > 0) {
-                    output(Terms.TO_STRING(args[0]));
+                    output(Terms.toStringCoerce(args[0], (CoreContext) context));
                 }
                 return null;
             };
@@ -103,23 +92,23 @@ class JsConsole implements SimpleObject {
                 return null;
             };
             case "count" -> (JsCallable) (context, args) -> {
-                String label = args.length > 0 ? Terms.TO_STRING(args[0]) : "default";
+                String label = args.length > 0 ? Terms.toStringCoerce(args[0], (CoreContext) context) : "default";
                 int count = counts.merge(label, 1, Integer::sum);
                 output(label + ": " + count);
                 return null;
             };
             case "countReset" -> (JsCallable) (context, args) -> {
-                String label = args.length > 0 ? Terms.TO_STRING(args[0]) : "default";
+                String label = args.length > 0 ? Terms.toStringCoerce(args[0], (CoreContext) context) : "default";
                 counts.remove(label);
                 return null;
             };
             case "time" -> (JsCallable) (context, args) -> {
-                String label = args.length > 0 ? Terms.TO_STRING(args[0]) : "default";
+                String label = args.length > 0 ? Terms.toStringCoerce(args[0], (CoreContext) context) : "default";
                 timers.put(label, System.currentTimeMillis());
                 return null;
             };
             case "timeLog" -> (JsCallable) (context, args) -> {
-                String label = args.length > 0 ? Terms.TO_STRING(args[0]) : "default";
+                String label = args.length > 0 ? Terms.toStringCoerce(args[0], (CoreContext) context) : "default";
                 Long start = timers.get(label);
                 if (start != null) {
                     long elapsed = System.currentTimeMillis() - start;
@@ -128,7 +117,7 @@ class JsConsole implements SimpleObject {
                 return null;
             };
             case "timeEnd" -> (JsCallable) (context, args) -> {
-                String label = args.length > 0 ? Terms.TO_STRING(args[0]) : "default";
+                String label = args.length > 0 ? Terms.toStringCoerce(args[0], (CoreContext) context) : "default";
                 Long start = timers.remove(label);
                 if (start != null) {
                     long elapsed = System.currentTimeMillis() - start;

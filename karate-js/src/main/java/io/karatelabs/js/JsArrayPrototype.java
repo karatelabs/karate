@@ -34,6 +34,14 @@ class JsArrayPrototype extends Prototype {
 
     static final JsArrayPrototype INSTANCE = new JsArrayPrototype();
 
+    /**
+     * The default {@code Array.prototype.toString} — equivalent to {@code this.join(",")}.
+     * Exposed so pretty-printers (e.g. {@link JsConsole}) can detect a user-overridden
+     * {@code toString} vs the default by reference identity.
+     */
+    static final JsCallable DEFAULT_TO_STRING =
+            (context, args) -> INSTANCE.join(context, new Object[0]);
+
     private JsArrayPrototype() {
         super(JsObjectPrototype.INSTANCE);
     }
@@ -41,6 +49,7 @@ class JsArrayPrototype extends Prototype {
     @Override
     protected Object getBuiltinProperty(String name) {
         return switch (name) {
+            case "toString" -> DEFAULT_TO_STRING;
             case "map" -> (JsCallable) this::map;
             case "filter" -> (JsCallable) this::filter;
             case "join" -> (JsCallable) this::join;
@@ -173,12 +182,22 @@ class JsArrayPrototype extends Prototype {
 
     private Object join(Context context, Object[] args) {
         StringBuilder sb = new StringBuilder();
-        String delimiter = (args.length > 0 && args[0] != null) ? args[0].toString() : ",";
+        CoreContext cc = context instanceof CoreContext core ? core : null;
+        String delimiter = ",";
+        if (args.length > 0 && args[0] != null && args[0] != Terms.UNDEFINED) {
+            delimiter = Terms.toStringCoerce(args[0], cc);
+        }
+        boolean first = true;
         for (KeyValue kv : jsEntries(context)) {
-            if (!sb.isEmpty()) {
+            if (!first) {
                 sb.append(delimiter);
             }
-            sb.append(kv.value());
+            first = false;
+            Object v = kv.value();
+            // Spec: null / undefined elements contribute the empty string in join
+            if (v != null && v != Terms.UNDEFINED) {
+                sb.append(Terms.toStringCoerce(v, cc));
+            }
         }
         return sb.toString();
     }

@@ -47,9 +47,28 @@ class JsNumberPrototype extends Prototype {
             case "toFixed" -> (JsCallable) this::toFixed;
             case "toPrecision" -> (JsCallable) this::toPrecision;
             case "toLocaleString" -> (JsCallable) this::toLocaleString;
+            case "toString" -> (JsCallable) this::toStringMethod;
             case "valueOf" -> (JsCallable) this::valueOf;
             default -> null;
         };
+    }
+
+    private Object toStringMethod(Context context, Object[] args) {
+        Number n = asNumber(context);
+        if (args.length > 0 && args[0] != null) {
+            int radix = Terms.objectToNumber(args[0]).intValue();
+            if (radix < 2 || radix > 36) {
+                throw JsErrorException.rangeError("toString() radix must be between 2 and 36");
+            }
+            if (radix != 10) {
+                double d = n.doubleValue();
+                if (d == Math.floor(d) && !Double.isInfinite(d)) {
+                    return Long.toString((long) d, radix);
+                }
+                return Double.toString(d);
+            }
+        }
+        return n.toString();
     }
 
     // Helper method to get number from this context

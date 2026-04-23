@@ -542,7 +542,7 @@ class Interpreter {
             String key;
             if (computed) {
                 Object keyValue = evalExpr(elem.get(1), context);
-                key = Terms.TO_STRING(keyValue);
+                key = Terms.toStringCoerce(keyValue, context);
             } else if (token == DOT_DOT_DOT) {
                 key = elem.get(1).getText();
             } else if (token == S_STRING || token == D_STRING) {
@@ -653,7 +653,7 @@ class Interpreter {
         String key;
         if (keyChild.token != null && keyChild.token.type == L_BRACKET) {
             Object keyValue = evalExpr(elem.get(2), context);
-            key = Terms.TO_STRING(keyValue);
+            key = Terms.toStringCoerce(keyValue, context);
         } else if (keyChild.token != null
                 && (keyChild.token.type == S_STRING || keyChild.token.type == D_STRING)) {
             key = (String) Terms.literalValue(keyChild.token);
@@ -679,15 +679,18 @@ class Interpreter {
     private static String evalLitTemplate(Node node, CoreContext context) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0, n = node.size(); i < n; i++) {
+            if (context.isError()) {
+                return sb.toString();
+            }
             Node child = node.get(i);
             if (child.token.type == T_STRING) {
-                sb.append(child.token.getText());
+                sb.append(unescapeString(child.token.getText()));
             } else if (child.type == NodeType.EXPR) {
                 Object value = eval(child, context);
-                if (value == Terms.UNDEFINED) {
-                    throw JsErrorException.referenceError(child.getText() + " is not defined");
+                if (context.isError()) {
+                    return sb.toString();
                 }
-                sb.append(value);
+                sb.append(Terms.toStringCoerce(value, context));
             }
         }
         return sb.toString();
