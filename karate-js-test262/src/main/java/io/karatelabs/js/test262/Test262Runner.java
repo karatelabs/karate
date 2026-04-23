@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -121,6 +122,19 @@ public final class Test262Runner {
         // reclaim a stuck thread — we retire it and move on).
         ExecutorService exec = newInnerExec();
 
+        // Live partial file: appended per test, flushed every write, in submission
+        // order (not sorted). `tail -f` on this is a real-time feed during a run,
+        // and on abrupt exit the file remains as forensics. The end-of-run
+        // ResultWriter.write() produces the canonical sorted results.jsonl; the
+        // partial file is deleted on successful completion.
+        Path partial = cli.results.resolveSibling(cli.results.getFileName() + ".partial");
+        Path partialParent = partial.getParent();
+        if (partialParent != null) Files.createDirectories(partialParent);
+        BufferedWriter partialWriter = Files.newBufferedWriter(partial, StandardCharsets.UTF_8,
+                java.nio.file.StandardOpenOption.CREATE,
+                java.nio.file.StandardOpenOption.TRUNCATE_EXISTING,
+                java.nio.file.StandardOpenOption.WRITE);
+
         try {
             for (Path abs : all) {
                 String rel = cli.test262.relativize(abs).toString().replace('\\', '/');
@@ -144,14 +158,19 @@ public final class Test262Runner {
                     tc = null;
                     loaded = false;
                     say("FAIL " + rel + " — load error: " + re.getMessage());
-                    records.add(ResultRecord.fail(rel, "Harness", "failed to load: " + re.getMessage()));
+                    ResultRecord loadErr = ResultRecord.fail(rel, "Harness",
+                            "failed to load: " + re.getMessage());
+                    records.add(loadErr);
+                    appendPartial(partialWriter, loadErr);
                     fail++;
                 }
 
                 if (loaded) {
                     String reason = expectations.matchSkip(tc);
                     if (reason != null) {
-                        records.add(ResultRecord.skip(rel, reason));
+                        ResultRecord sk = ResultRecord.skip(rel, reason);
+                        records.add(sk);
+                        appendPartial(partialWriter, sk);
                         skip++;
                     } else {
                         // Inline timeout handling so we can retire `exec` and install a fresh
@@ -182,6 +201,7 @@ public final class Test262Runner {
                         }
 
                         records.add(r);
+                        appendPartial(partialWriter, r);
                         switch (r.status()) {
                             case PASS -> pass++;
                             case FAIL -> {
@@ -212,6 +232,7 @@ public final class Test262Runner {
             }
         } finally {
             exec.shutdownNow();
+            try { partialWriter.close(); } catch (IOException ignored) { /* best-effort */ }
         }
 
         Instant ended = Instant.now();
@@ -226,6 +247,12 @@ public final class Test262Runner {
         }
 
         ResultWriter.write(cli.results, toWrite);
+
+        // Sorted canonical file is now in place; the live tap is redundant.
+        // Keep it around on abort so the stop point is forensically visible.
+        if (!aborted) {
+            try { Files.deleteIfExists(partial); } catch (IOException ignored) { /* best-effort */ }
+        }
 
         RunMeta meta = new RunMeta(
                 readTest262Sha(cli.test262),
@@ -253,6 +280,20 @@ public final class Test262Runner {
             t.setDaemon(true);
             return t;
         });
+    }
+
+    /**
+     * Append one record's JSONL line + newline to the live partial file and
+     * flush so a concurrent {@code tail -f} sees it immediately. I/O errors
+     * here are swallowed — the in-memory {@code records} list is the source
+     * of truth for the end-of-run sorted write; the partial is a tap.
+     */
+    private static void appendPartial(BufferedWriter w, ResultRecord r) {
+        try {
+            w.write(r.toJsonLine());
+            w.newLine();
+            w.flush();
+        } catch (IOException ignored) { /* best-effort tap */ }
     }
 
     /* ------------------------------ single-file ------------------------------ */

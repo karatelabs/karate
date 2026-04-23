@@ -190,7 +190,8 @@ karate-js-test262/
 ├── src/main/resources/logback.xml     # logger config (file appender → target/test262/)
 ├── test262/                           # [gitignored] the cloned suite
 └── target/test262/                    # [gitignored] all per-run outputs
-    ├── results.jsonl                  # per-test pass/fail/skip, sorted by path
+    ├── results.jsonl                  # per-test pass/fail/skip, sorted by path (end of run)
+    ├── results.jsonl.partial          # live feed — appended per test, flushed; deleted on clean exit, kept on abort
     ├── run-meta.json                  # per-run context
     ├── test262-<yyyyMMdd-HHmmss>.log  # timestamped session log (tail -f this)
     └── html/                          # generated HTML report
@@ -219,7 +220,8 @@ you (or an external caller) can `tail -f` while the suite is running:
 etc/run.sh                                              # full suite + HTML report
 etc/run.sh --only 'test/language/**'                    # slice
 etc/run.sh --only 'test/language/**' --max-duration 300000   # 5-min cap
-tail -f target/test262/test262-*.log                    # live view during a run
+tail -f target/test262/test262-*.log                    # live console + progress view
+tail -f target/test262/results.jsonl.partial            # live per-test JSONL feed
 ```
 
 Or invoke the pieces by hand:
@@ -320,7 +322,19 @@ without waiting for the whole run to finish.
 
 ## Results schema
 
-`target/test262/results.jsonl` — one line per test, sorted alphabetically by path:
+Two JSONL files during a run:
+
+- `target/test262/results.jsonl.partial` — appended per test as results
+  arrive, flushed per write. **Run order, not sorted.** This is what
+  `tail -f` or an external watcher sees in real time. Deleted on clean
+  exit; preserved on abort (`--max-duration` hit, Ctrl-C, JVM kill) so
+  you can see exactly how far the run got.
+- `target/test262/results.jsonl` — the canonical output, **sorted
+  alphabetically by path**, atomically written at end-of-run (tmp +
+  rename). This is what tooling reads and what `--resume` skips-seen
+  against.
+
+Example line shape (same in both):
 
 ```jsonl
 {"path":"test/language/expressions/addition/S11.6.1_A1.js","status":"PASS"}
