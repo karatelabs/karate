@@ -21,13 +21,21 @@ published to Maven Central — it is an internal testing/reporting harness.
 ## Quick start
 
 **All commands run from the `karate-js-test262/` directory** (the runner
-resolves `config/expectations.yaml` and `test262/` relative to the current
+resolves `etc/expectations.yaml` and `test262/` relative to the current
 working directory). If you run from the repo root, pass `--expectations`
 and `--test262` as absolute paths.
 
 ```sh
 cd karate-js-test262
-./fetch-test262.sh                                # first time only — shallow clone
+etc/fetch-test262.sh                              # first time only — shallow clone
+etc/run.sh --only 'test/language/expressions/addition/**'   # install + run + HTML
+open target/test262/html/index.html
+```
+
+Or drive the three Maven invocations yourself:
+
+```sh
+cd karate-js-test262
 
 # 1. Install current karate-js to local Maven repo so the runner picks it up
 mvn -f ../pom.xml -pl karate-js -o install -DskipTests
@@ -39,7 +47,7 @@ mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
 # 3. Generate the HTML report
 mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
     -Dexec.mainClass=io.karatelabs.js.test262.Test262Report
-open html/index.html
+open target/test262/html/index.html
 ```
 
 **Why install instead of `-am`:** `exec:java` is a direct goal, not a
@@ -51,7 +59,7 @@ repo first, then running without `-am`, sidesteps the reactor entirely.
 
 The `-f ../pom.xml` makes Maven find the parent reactor for `-pl`
 resolution while the working directory stays inside the module so the
-runner resolves `config/expectations.yaml` and `test262/` correctly.
+runner resolves `etc/expectations.yaml` and `test262/` correctly.
 
 Typical inner loop: change something in `karate-js/`, re-install (step 1),
 re-run (step 2) with the same `--only`, refresh the HTML report, drill
@@ -65,7 +73,7 @@ karate-js is a lightweight JavaScript engine. Hand-written JUnit tests in
 `karate-js/src/test/java/` cover behaviors we care about but tell us nothing
 about **spec compliance**. Running tc39/test262 gives us ground truth — and
 the module's committed skip list
-([`config/expectations.yaml`](config/expectations.yaml)) becomes the
+([`etc/expectations.yaml`](etc/expectations.yaml)) becomes the
 declarative statement of "what karate-js deliberately does not support."
 
 The **real bar** is not spec-lawyer compliance — it is *can karate-js run
@@ -79,7 +87,7 @@ Design goals:
   drill-down with a one-liner reproducer per failing test.
 - **Declarative non-goals** — features/flags/paths we skip are listed with
   one-line reasons, in YAML, in git.
-- **No noise** — `results.jsonl` is currently gitignored; the committed
+- **No noise** — `target/test262/results.jsonl` is currently gitignored; the committed
   expectations.yaml tells the story of intent. Revisit committing results
   once the engine is stable enough that diffs are meaningful.
 
@@ -100,7 +108,7 @@ work. They apply alongside the Roadmap below.
 2. **Fix friction before moving on.** If the harness makes something hard
    to see, or the engine makes something hard to debug, **stop and fix it
    first**. Concretely:
-   - Bad error messages in `results.jsonl` → improve `ErrorUtils` or the
+   - Bad error messages in `target/test262/results.jsonl` → improve `ErrorUtils` or the
      engine's error-framing, don't work around it.
    - Can't tell parse-phase from runtime-phase → improve the classifier
      or the engine's exception typing.
@@ -170,22 +178,27 @@ work. They apply alongside the Roadmap below.
 
 ```
 karate-js-test262/
-├── TEST262.md                        # this file (the living document)
-├── pom.xml                           # Maven module (deploy explicitly disabled)
-├── run.sh                            # one-shot: install + run suite + generate HTML
-├── fetch-test262.sh                  # shallow clone of tc39/test262 at pinned SHA
-├── config/
-│   └── expectations.yaml             # declarative SKIP list (committed)
-├── src/main/java/…/test262/          # runner + report + helpers
-├── src/test/java/…/test262/          # unit tests for the harness itself
-├── src/main/resources/report/        # HTML/CSS/JS templates for the report
-├── src/main/resources/logback.xml    # logger config (file appender → target/logs/)
-├── test262/                          # [gitignored] the cloned suite
-├── results.jsonl                     # [gitignored] per-test pass/fail/skip
-├── run-meta.json                     # [gitignored] per-run context
-├── html/                             # [gitignored] generated report
-└── target/logs/                      # [gitignored] per-session runner log (tail -f this)
+├── TEST262.md                         # this file (the living document)
+├── pom.xml                            # Maven module (deploy explicitly disabled)
+├── etc/
+│   ├── expectations.yaml              # declarative SKIP list (committed)
+│   ├── fetch-test262.sh               # shallow clone of tc39/test262 at pinned SHA
+│   └── run.sh                         # one-shot: install + run suite + generate HTML
+├── src/main/java/…/test262/           # runner + report + helpers
+├── src/test/java/…/test262/           # unit tests for the harness itself
+├── src/main/resources/report/         # HTML/CSS/JS templates for the report
+├── src/main/resources/logback.xml     # logger config (file appender → target/test262/)
+├── test262/                           # [gitignored] the cloned suite
+└── target/test262/                    # [gitignored] all per-run outputs
+    ├── results.jsonl                  # per-test pass/fail/skip, sorted by path
+    ├── run-meta.json                  # per-run context
+    ├── test262-<yyyyMMdd-HHmmss>.log  # timestamped session log (tail -f this)
+    └── html/                          # generated HTML report
 ```
+
+Everything a run produces lives under one directory (`target/test262/`), so
+`mvn clean` wipes it in full and the CI workflow uploads it as a single
+artifact.
 
 ---
 
@@ -198,15 +211,15 @@ All commands assume `cwd = karate-js-test262/` (see Quick Start). Use
 uses the karate-js jar from your local Maven repo, not from the reactor
 (see Quick Start's "Why install instead of `-am`").
 
-The one-shot wrapper at [`./run.sh`](run.sh) does install + run + HTML in
-a single command and writes a timestamped log to `target/logs/` so you
-(or an external caller) can `tail -f` while the suite is running:
+The one-shot wrapper at [`etc/run.sh`](etc/run.sh) does install + run + HTML
+in a single command and writes a timestamped log under `target/test262/` so
+you (or an external caller) can `tail -f` while the suite is running:
 
 ```sh
-./run.sh                                        # full suite + HTML report
-./run.sh --only 'test/language/**'              # slice
-./run.sh --only 'test/language/**' --max-duration 300000   # 5-min cap
-tail -f target/logs/test262-*.log               # live view during a run
+etc/run.sh                                              # full suite + HTML report
+etc/run.sh --only 'test/language/**'                    # slice
+etc/run.sh --only 'test/language/**' --max-duration 300000   # 5-min cap
+tail -f target/test262/test262-*.log                    # live view during a run
 ```
 
 Or invoke the pieces by hand:
@@ -227,9 +240,9 @@ mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
 mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
     -Dexec.args="--single test/language/expressions/addition/S11.6.1_A1.js -vv"
 
-# Resume after a crash — re-uses the existing results.jsonl
+# Resume after a crash — re-uses the existing target/test262/results.jsonl
 #   (caveat: does NOT refresh records for tests that were since removed or
-#    re-classified as SKIP. Delete results.jsonl for a clean run.)
+#    re-classified as SKIP. Delete target/test262/results.jsonl for a clean run.)
 mvn -f ../pom.xml -pl karate-js-test262 -o exec:java -Dexec.args="--resume"
 
 # Run a "set" with a wall-clock safety cap — useful when driving the runner
@@ -244,29 +257,29 @@ mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--expectations <path>` | `config/expectations.yaml` | skip list manifest |
+| `--expectations <path>` | `etc/expectations.yaml` | skip list manifest |
 | `--test262 <path>` | `test262` | suite clone dir |
-| `--results <path>` | `results.jsonl` | output JSONL |
-| `--run-meta <path>` | `run-meta.json` | output run metadata |
+| `--results <path>` | `target/test262/results.jsonl` | output JSONL |
+| `--run-meta <path>` | `target/test262/run-meta.json` | output run metadata |
 | `--timeout-ms <n>` | `10000` | per-test watchdog (infinite-loop guard) |
 | `--max-duration <ms>` | `0` (unlimited) | overall wall-clock cap; writes partial results and prints `Aborted:` on hit |
 | `--only <glob>` | — | restrict to matching paths |
 | `--single <path>` | — | run one test, no file writes |
 | `-v` / `-vv` | off | (with `--single`) `-v` prints parsed metadata; `-vv` adds full source |
-| `--resume` | off | skip tests already in existing `results.jsonl` |
+| `--resume` | off | skip tests already in existing `target/test262/results.jsonl` |
 
 Runs are **silent except failures + periodic progress**. A
 `FAIL <path> — <type>: <msg>` line is printed as each failure occurs; a
 `[progress] <N> processed …` line prints every 500 tests or every 5 seconds
 (whichever fires first) so long runs have an observable heartbeat. A one-line
 `Summary:` (or `Aborted:`) ends the run. Every line is mirrored (with
-timestamps) to `target/logs/test262-<yyyyMMdd-HHmmss>.log` via Logback
+timestamps) to `target/test262/test262-<yyyyMMdd-HHmmss>.log` via Logback
 (config: `src/main/resources/logback.xml`), so `tail -f` on the newest
-file in `target/logs/` is a live view equivalent to watching the console.
+file in `target/test262/` is a live view equivalent to watching the console.
 
 Generate the HTML report with
 `mvn exec:java -Dexec.mainClass=io.karatelabs.js.test262.Test262Report`;
-`./run.sh` runs that step automatically. The POM uses
+`etc/run.sh` runs that step automatically. The POM uses
 `<mainClass>${exec.mainClass}</mainClass>` with a default, which is what
 makes the `-Dexec.mainClass` override actually take effect (a bare POM
 literal would not — the command-line property would be silently ignored
@@ -283,8 +296,8 @@ thread. Without this step, a single `while (true) {}` in a test file would
 cause every test after it to report Timeout and take the full
 `--timeout-ms` each, because its submission would wait on the stuck
 thread to drain. Net cost of a genuine hang today: one abandoned daemon
-thread, one Timeout row in `results.jsonl`, and a few ms of recreate
-overhead — the suite continues at full speed.
+thread, one Timeout row in `target/test262/results.jsonl`, and a few ms of
+recreate overhead — the suite continues at full speed.
 
 ### Running a "set" safely (for scripts and agents)
 
@@ -307,7 +320,7 @@ without waiting for the whole run to finish.
 
 ## Results schema
 
-`results.jsonl` — one line per test, sorted alphabetically by path:
+`target/test262/results.jsonl` — one line per test, sorted alphabetically by path:
 
 ```jsonl
 {"path":"test/language/expressions/addition/S11.6.1_A1.js","status":"PASS"}
@@ -329,7 +342,7 @@ The classifier itself is in `ErrorUtils`.
 ## The skip list
 
 There is only one concept: **SKIP**. A test matching any rule in
-`config/expectations.yaml` is not run and appears as `{"status":"SKIP",...}`
+`etc/expectations.yaml` is not run and appears as `{"status":"SKIP",...}`
 in results. Everything else is attempted; failures are failures.
 
 Match order: `paths → flags → features → includes`. First match wins. Every
@@ -340,7 +353,7 @@ with `flags: [module]` and `features: [Symbol]` is skipped with the
 *module* reason (the `flags` match fires before `features` is consulted).
 If you want `features: [Symbol]` to win, don't have a matching flag rule.
 
-See [`config/expectations.yaml`](config/expectations.yaml) for the starter
+See [`etc/expectations.yaml`](etc/expectations.yaml) for the starter
 set and rationale (Symbol, BigInt, generators, class syntax, Proxy, Reflect,
 Promises, async/await, Temporal, TypedArray beyond Uint8Array, WeakRef,
 ArrayBuffer, and the suite directories `test/intl402/`, `test/staging/`,
@@ -831,16 +844,16 @@ not a bucket — pick off while nearby.
 
 | Symptom | Likely cause / fix |
 |---|---|
-| `expectations file not found: config/expectations.yaml` | You ran from the wrong directory. `cd karate-js-test262` first (see Quick Start). |
-| `test262 directory not found: test262` | You haven't run `./fetch-test262.sh` yet (or you're in the wrong dir). |
+| `expectations file not found: etc/expectations.yaml` | You ran from the wrong directory. `cd karate-js-test262` first (see Quick Start). |
+| `test262 directory not found: test262` | You haven't run `etc/fetch-test262.sh` yet (or you're in the wrong dir). |
 | `Failed to execute goal ... exec-maven-plugin ... on project karate-parent: The parameters 'mainClass' ... are missing or invalid` | You used `-am` with `exec:java`. Don't — install `karate-js` separately (see Quick Start) and run without `-am`. |
 | Engine change seems to have no effect on test262 output | You forgot `mvn ... -pl karate-js -o install -DskipTests`. The runner uses the karate-js jar from your local Maven repo, not the reactor classpath. |
-| HTML dashboard shows empty header | `run-meta.json` missing — run `Test262Report` *after* `Test262Runner` in the same directory. |
+| HTML dashboard shows empty header | `target/test262/run-meta.json` missing — run `Test262Report` *after* `Test262Runner` in the same directory. |
 | `ReferenceError: <name> is not defined` on common classes like `ReferenceError`/`RangeError` | Known first-order gap — those constructors are not registered globals yet. |
 | Suite seems to hang on one test | Infinite loop; watchdog kicks in at `--timeout-ms`. The inner executor is retired and replaced on every timeout so subsequent tests start on a fresh thread; a genuine hang leaks one daemon thread and keeps going. If progress truly stops, bisect with `--only`, or add `--max-duration` as a safety net. |
 | Driving the runner from a script / agent that must not block | Pass `--max-duration <ms>`. On hit, partial results are written and `Aborted:` replaces the usual `Summary:` line. The periodic `[progress]` output on stdout lets the caller tail heartbeat without waiting for the full run. |
 | Tests that used to pass now fail after an engine change | Run `EngineBenchmark` too — perf regression sometimes manifests as timeouts before correctness. |
-| `--resume` gives stale results | Known limitation — it doesn't refresh records for tests that were removed or re-SKIP'd. Delete `results.jsonl` for a clean baseline. |
+| `--resume` gives stale results | Known limitation — it doesn't refresh records for tests that were removed or re-SKIP'd. Delete `target/test262/results.jsonl` for a clean baseline. |
 
 ---
 
@@ -884,7 +897,7 @@ Items left for later; un-scheduled but tracked.
   `ConcurrentHashMap` so the shared-state work is done; revisit when
   either (a) per-test cost grows enough that 8× parallelism clearly
   wins, or (b) the engine learns to cooperatively abort.
-- **Commit `results.jsonl` once stable.** Currently gitignored (too noisy
+- **Commit `target/test262/results.jsonl` once stable.** Currently gitignored (too noisy
   in git while engine iterates). Re-evaluate when Tier 0–2 are ≥95%
   green — at that point, diff-based regression detection becomes the
   cheapest signal.
@@ -906,7 +919,7 @@ Items left for later; un-scheduled but tracked.
 
 ### Add a skip rule
 
-Edit `config/expectations.yaml`, add under the right section, always with a
+Edit `etc/expectations.yaml`, add under the right section, always with a
 `reason`:
 
 ```yaml
@@ -980,7 +993,7 @@ improved. See Working Principle #2 above.
 
 ### Bump the pinned test262 SHA
 
-Edit the `TEST262_SHA=...` line at the top of `fetch-test262.sh`, delete
+Edit the `TEST262_SHA=...` line at the top of `etc/fetch-test262.sh`, delete
 the local `test262/` directory, re-run the script. All subsequent runs use
 the new commit. Coordinate bumps with whoever else is iterating — the test
 suite itself evolves and can add/remove tests.
@@ -991,9 +1004,12 @@ suite itself evolves and can add/remove tests.
 
 A `workflow_dispatch`-only workflow at
 [`.github/workflows/test262.yml`](../.github/workflows/test262.yml) runs
-`fetch-test262.sh` + the runner + the report, and uploads both the HTML
-tree and `results.jsonl` as artifacts. It is never triggered automatically
-— you kick it off from the Actions tab when you want a fresh run.
+`etc/fetch-test262.sh` + the runner + the report, and uploads the whole
+`target/test262/` directory as a single artifact (results.jsonl +
+run-meta.json + session log + generated HTML tree). It is never
+triggered automatically — you kick it off from the Actions tab when you
+want a fresh run. The two workflow inputs (`only` and `timeout_ms`)
+default to full-suite / 10 s per test.
 
 The module's `pom.xml` sets `maven.deploy.skip=true` / `gpg.skip=true` /
 `skipPublishing=true` so the release workflow

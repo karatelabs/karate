@@ -10,8 +10,11 @@ set -euo pipefail
 # Pinned test262 commit (edit to bump). Use a full 40-char SHA.
 TEST262_SHA="d5e73fc8d2c663554fb72e2380a8c2bc1a318a33"
 
+# Resolve the module root (parent of etc/) so the suite is cloned at a
+# predictable location regardless of the caller's cwd.
 HERE="$(cd "$(dirname "$0")" && pwd)"
-DIR="$HERE/test262"
+MODULE_ROOT="$(cd "$HERE/.." && pwd)"
+DIR="$MODULE_ROOT/test262"
 
 if [ ! -d "$DIR/.git" ]; then
     echo "cloning tc39/test262 into $DIR ..."

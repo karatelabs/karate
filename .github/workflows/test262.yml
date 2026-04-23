@@ -36,8 +36,8 @@ jobs:
 
       - name: Fetch test262
         run: |
-          chmod +x karate-js-test262/fetch-test262.sh
-          karate-js-test262/fetch-test262.sh
+          chmod +x karate-js-test262/etc/fetch-test262.sh
+          karate-js-test262/etc/fetch-test262.sh
 
       # Single Maven invocation: install karate-js into the local repo (so the
       # test262 module can resolve it), then compile the test262 module. Using
@@ -59,23 +59,24 @@ jobs:
           mvn -B -ntp -f ../pom.xml -pl karate-js-test262 -o exec:java
           -Dexec.mainClass=io.karatelabs.js.test262.Test262Report
 
+      # All runner outputs (results.jsonl, run-meta.json, session log, and the
+      # generated html/ dashboard) land under target/test262/ — one artifact
+      # covers the whole session. GitHub zips the uploaded tree automatically.
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test262-report
           retention-days: 14
-          path: |
-            karate-js-test262/html/
-            karate-js-test262/results.jsonl
-            karate-js-test262/run-meta.json
+          path: karate-js-test262/target/test262/
 
       - name: Print summary
         if: always()
         run: |
-          if [ -f karate-js-test262/run-meta.json ]; then
+          META=karate-js-test262/target/test262/run-meta.json
+          if [ -f "$META" ]; then
             echo "### test262 summary" >> "$GITHUB_STEP_SUMMARY"
             echo '```json' >> "$GITHUB_STEP_SUMMARY"
-            cat karate-js-test262/run-meta.json >> "$GITHUB_STEP_SUMMARY"
+            cat "$META" >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi

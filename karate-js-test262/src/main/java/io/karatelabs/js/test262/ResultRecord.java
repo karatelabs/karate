@@ -1,7 +1,7 @@
 package io.karatelabs.js.test262;
 
 /**
- * One row in results.jsonl. Immutable. The runner writes these sorted by {@code path}.
+ * One row in target/results.jsonl. Immutable. The runner writes these sorted by {@code path}.
  * <p>
  * JSON key order is fixed (path, status, error_type, message, reason) so that
  * file diffs across runs are minimal and interpretable. All optional fields are

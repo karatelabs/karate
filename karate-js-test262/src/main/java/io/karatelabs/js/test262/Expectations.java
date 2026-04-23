@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Loads {@code config/expectations.yaml} and matches a {@link Test262Case}
+ * Loads {@code etc/expectations.yaml} and matches a {@link Test262Case}
  * against its skip rules.
  * <p>
  * Match order: paths -> flags -> features -> includes. First match wins and

@@ -16,24 +16,26 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Reads {@code results.jsonl} + {@code run-meta.json} and writes a static
- * HTML dashboard under {@code html/}. Fully static; no server, no runtime JSON
- * fetches. The dashboard page and per-failure drill-downs are self-contained.
+ * Reads {@code target/test262/results.jsonl} +
+ * {@code target/test262/run-meta.json} and writes a static HTML dashboard
+ * under {@code target/test262/html/}. Fully static; no server, no runtime
+ * JSON fetches. The dashboard page and per-failure drill-downs are
+ * self-contained.
  * <p>
  * Usage:
  * <pre>
  *   java io.karatelabs.js.test262.Test262Report \
- *       [--results results.jsonl] [--run-meta run-meta.json] \
- *       [--test262 test262] [--out html]
+ *       [--results target/test262/results.jsonl] [--run-meta target/test262/run-meta.json] \
+ *       [--test262 test262] [--out target/test262/html]
  * </pre>
  */
 public final class Test262Report {
 
     public static void main(String[] args) throws Exception {
-        Path results = Paths.get("results.jsonl");
-        Path runMeta = Paths.get("run-meta.json");
+        Path results = Paths.get("target/test262/results.jsonl");
+        Path runMeta = Paths.get("target/test262/run-meta.json");
         Path test262Dir = Paths.get("test262");
-        Path outDir = Paths.get("html");
+        Path outDir = Paths.get("target/test262/html");
 
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {

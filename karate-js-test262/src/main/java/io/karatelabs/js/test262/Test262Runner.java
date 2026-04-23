@@ -29,8 +29,9 @@ import java.util.stream.Stream;
  * test262 conformance runner for karate-js.
  * <p>
  * Sequential, fresh {@link Engine} per test, per-test watchdog timeout.
- * Writes results as sorted JSONL to {@code results.jsonl} (committable) and
- * per-run context to {@code run-meta.json} (gitignored).
+ * Writes results as sorted JSONL to {@code target/results.jsonl} and per-run
+ * context to {@code target/run-meta.json}. A timestamped session log is
+ * mirrored to {@code target/test262/test262-*.log} via Logback.
  * <p>
  * See {@code karate-js-test262/TEST262.md} for full docs.
  */
@@ -46,7 +47,7 @@ public final class Test262Runner {
      * Print a line to stdout AND mirror it into the session log file
      * (configured in {@code logback.xml}). This is the single output funnel
      * the runner uses for progress / FAIL / Summary / Aborted lines so
-     * {@code tail -f target/logs/test262-*.log} is a live view of the run.
+     * {@code tail -f target/test262/test262-*.log} is a live view of the run.
      */
     private static void say(String line) {
         System.out.println(line);

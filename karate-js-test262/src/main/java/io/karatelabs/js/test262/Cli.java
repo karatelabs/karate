@@ -11,10 +11,10 @@ import java.util.List;
  */
 public final class Cli {
 
-    public Path expectations = Paths.get("config/expectations.yaml");
+    public Path expectations = Paths.get("etc/expectations.yaml");
     public Path test262 = Paths.get("test262");
-    public Path results = Paths.get("results.jsonl");
-    public Path runMeta = Paths.get("run-meta.json");
+    public Path results = Paths.get("target/test262/results.jsonl");
+    public Path runMeta = Paths.get("target/test262/run-meta.json");
     public long timeoutMs = 10_000L;
     public long maxDurationMs = 0L; // 0 = unlimited
     public String only;         // glob; null = no restriction
@@ -76,16 +76,16 @@ public final class Cli {
             Usage: java io.karatelabs.js.test262.Test262Runner [flags]
 
             Flags:
-              --expectations <path>    YAML skip list (default: config/expectations.yaml)
+              --expectations <path>    YAML skip list (default: etc/expectations.yaml)
               --test262 <path>         test262 clone root (default: test262)
-              --results <path>         output JSONL path (default: results.jsonl)
-              --run-meta <path>        output metadata JSON (default: run-meta.json)
+              --results <path>         output JSONL path (default: target/test262/results.jsonl)
+              --run-meta <path>        output metadata JSON (default: target/test262/run-meta.json)
               --timeout-ms <n>         per-test watchdog (default: 10000)
               --max-duration <ms>      overall wall-clock cap; writes partial results on hit (default: 0 = unlimited)
               --only <glob>            restrict to tests matching a path glob, e.g. 'test/language/**'
               --single <path>          run exactly one test (no file writes); use -vv to trace
               -v | -vv                 verbose output (--single mode only)
-              --resume                 skip tests already present in the existing results.jsonl
+              --resume                 skip tests already present in the existing target/test262/results.jsonl
               -h | --help              show this help
 
             Prerequisite: ./fetch-test262.sh (one-time)

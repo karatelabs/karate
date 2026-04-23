@@ -12,7 +12,7 @@ class ExpectationsTest {
 
     @Test
     void testLoadsBundledExpectations() {
-        Path yaml = Paths.get("config/expectations.yaml");
+        Path yaml = Paths.get("etc/expectations.yaml");
         assumeExists(yaml);
         Expectations exp = Expectations.load(yaml);
 
@@ -27,7 +27,7 @@ class ExpectationsTest {
 
     @Test
     void testFlagsSkip() {
-        Path yaml = Paths.get("config/expectations.yaml");
+        Path yaml = Paths.get("etc/expectations.yaml");
         assumeExists(yaml);
         Expectations exp = Expectations.load(yaml);
 
@@ -42,7 +42,7 @@ class ExpectationsTest {
 
     @Test
     void testFeaturesSkip() {
-        Path yaml = Paths.get("config/expectations.yaml");
+        Path yaml = Paths.get("etc/expectations.yaml");
         assumeExists(yaml);
         Expectations exp = Expectations.load(yaml);
 
@@ -57,7 +57,7 @@ class ExpectationsTest {
 
     @Test
     void testIncludesSkip() {
-        Path yaml = Paths.get("config/expectations.yaml");
+        Path yaml = Paths.get("etc/expectations.yaml");
         assumeExists(yaml);
         Expectations exp = Expectations.load(yaml);
 

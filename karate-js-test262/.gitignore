@@ -1,9 +1,6 @@
-# Anchored to the module root — without the leading slash these patterns
+# Anchored to the module root — without the leading slash the /test262/ pattern
 # would also match the "io/karatelabs/js/test262" package directory and the
-# "src/test/" tree, swallowing our own source files.
+# "src/test/" tree, swallowing our own source files. Results, run-meta, logs,
+# and the generated HTML all live under /target/ now and are covered by it.
 /test262/
-/html/
-/results.jsonl
-/run-meta.json
-/logs/
 /target/

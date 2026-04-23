@@ -2,22 +2,22 @@
 <!--
   Logging config for the test262 runner.
 
-  A session log is written to target/logs/test262-<timestamp>.log (gitignored).
+  A session log is written to target/test262/test262-<timestamp>.log.
   The console appender is kept quiet (WARN) so Test262Runner's own System.out
   progress / FAIL / Summary lines remain the primary on-screen output.
   Everything that goes through the SLF4J logger in the runner is captured in
-  the file at INFO so `tail -f target/logs/test262.log` is a live view of the
-  whole run, including periodic progress and per-failure lines.
+  the file at INFO so `tail -f target/test262/test262-*.log` is a live view
+  of the whole run, including periodic progress and per-failure lines.
 
-  Maven's `target/` directory is gitignored by the parent pom. The per-run
-  timestamp means multiple sessions don't clobber each other; the old ones
-  linger in target/logs/ and get wiped by `mvn clean`.
+  Maven's `target/` directory is gitignored, so these logs never show up in
+  git. The per-run timestamp means multiple sessions don't clobber each
+  other; old sessions linger until `mvn clean` wipes them.
 -->
 <configuration>
     <timestamp key="sessionStamp" datePattern="yyyyMMdd-HHmmss"/>
 
     <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>target/logs/test262-${sessionStamp}.log</file>
+        <file>target/test262/test262-${sessionStamp}.log</file>
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} %-5level %msg%n</pattern>
         </encoder>
