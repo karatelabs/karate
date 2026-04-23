@@ -396,6 +396,10 @@ public abstract class BaseParser {
         return nodeStack[stackPointer - 1].getLast().token.type;
     }
 
+    protected String lastConsumedText() {
+        return nodeStack[stackPointer - 1].getLast().token.getText();
+    }
+
     protected int getPosition() {
         return position;
     }

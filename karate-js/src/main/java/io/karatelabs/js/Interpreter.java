@@ -524,6 +524,17 @@ class Interpreter {
             Node elem = node.get(i);
             Node keyNode = elem.getFirst();
             TokenType token = keyNode.token.type;
+            // ES6 getter/setter: OBJECT_ELEM starts with IDENT 'get' or 'set',
+            // followed by the property name (IDENT/STRING/NUMBER or [expr]), then FN_EXPR.
+            // Distinguished from shorthand methods named 'get'/'set' (which have FN_EXPR
+            // directly at position 1, not position >=2).
+            if (bindScope == null && token == IDENT
+                    && (isAccessorKeyword(keyNode.getText()))
+                    && elem.size() > 2
+                    && accessorFnExprPosition(elem) > 1) {
+                evalAccessorElem(elem, keyNode.getText(), context, result);
+                continue;
+            }
             // Computed keys: [expr] — OBJECT_ELEM starts with L_BRACKET, EXPR, R_BRACKET.
             // The value (or FN_EXPR for shorthand method) follows at position 3.
             boolean computed = token == L_BRACKET;
@@ -590,6 +601,79 @@ class Interpreter {
             }
         }
         return result;
+    }
+
+    private static boolean isAccessorKeyword(String text) {
+        return "get".equals(text) || "set".equals(text);
+    }
+
+    private static final Object[] EMPTY_ARGS = new Object[0];
+
+    /** Invokes an accessor getter with {@code this} bound to the owning object. */
+    static Object invokeGetter(JsCallable getter, Object thisObj, CoreContext context) {
+        Object savedThis = context.thisObject;
+        context.thisObject = thisObj;
+        try {
+            return getter.call(context, EMPTY_ARGS);
+        } finally {
+            context.thisObject = savedThis;
+        }
+    }
+
+    /** Invokes an accessor setter with {@code this} bound to the owning object. */
+    static void invokeSetter(JsCallable setter, Object thisObj, Object value, CoreContext context) {
+        Object savedThis = context.thisObject;
+        context.thisObject = thisObj;
+        try {
+            setter.call(context, new Object[]{value});
+        } finally {
+            context.thisObject = savedThis;
+        }
+    }
+
+    /**
+     * Returns the index of the FN_EXPR child (the accessor body) within an
+     * OBJECT_ELEM, or {@code -1} if absent. The parser places it as the last
+     * structural child; a trailing COMMA token may sit after it.
+     */
+    private static int accessorFnExprPosition(Node elem) {
+        for (int j = elem.size() - 1; j >= 0; j--) {
+            if (elem.get(j).type == NodeType.FN_EXPR) {
+                return j;
+            }
+        }
+        return -1;
+    }
+
+    private static void evalAccessorElem(Node elem, String kind, CoreContext context, Map<String, Object> result) {
+        int fnPos = accessorFnExprPosition(elem);
+        // Key is at position 1 (IDENT/STRING/NUMBER) or [L_BRACKET, EXPR, R_BRACKET]
+        // starting at position 1.
+        Node keyChild = elem.get(1);
+        String key;
+        if (keyChild.token != null && keyChild.token.type == L_BRACKET) {
+            Object keyValue = evalExpr(elem.get(2), context);
+            key = Terms.TO_STRING(keyValue);
+        } else if (keyChild.token != null
+                && (keyChild.token.type == S_STRING || keyChild.token.type == D_STRING)) {
+            key = (String) Terms.literalValue(keyChild.token);
+        } else {
+            key = keyChild.getText();
+        }
+        Object fn = evalFnExpr(elem.get(fnPos), context);
+        if (!(fn instanceof JsCallable callable)) {
+            return; // defensive; evalFnExpr always returns a JsFunctionNode
+        }
+        Object existing = result.get(key);
+        JsAccessor acc = existing instanceof JsAccessor ea
+                ? ea
+                : new JsAccessor(null, null);
+        if ("get".equals(kind)) {
+            acc.getter = callable;
+        } else {
+            acc.setter = callable;
+        }
+        result.put(key, acc);
     }
 
     private static String evalLitTemplate(Node node, CoreContext context) {

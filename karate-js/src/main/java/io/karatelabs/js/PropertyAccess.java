@@ -376,9 +376,18 @@ class PropertyAccess {
 
         if (object instanceof JsObject jsObj) {
             if (jsObj.containsKey(name)) {
-                return jsObj.getMember(name);
+                Object result = jsObj.getMember(name);
+                if (result instanceof JsAccessor acc) {
+                    return acc.getter == null ? Terms.UNDEFINED
+                            : Interpreter.invokeGetter(acc.getter, object, context);
+                }
+                return result;
             }
             Object result = jsObj.getMember(name);
+            if (result instanceof JsAccessor acc) {
+                return acc.getter == null ? Terms.UNDEFINED
+                        : Interpreter.invokeGetter(acc.getter, object, context);
+            }
             if (isFound(result)) return result;
             return Terms.UNDEFINED;
         } else if (object instanceof JsArray jsArr) {
@@ -481,6 +490,15 @@ class PropertyAccess {
             context.update(name, value, trackingNode);
         } else if (object instanceof ObjectLike objectLike) {
             Object oldValue = objectLike.getMember(name);
+            // If the existing slot is an accessor, invoke the setter (keeping the
+            // JsAccessor in place) instead of overwriting the descriptor.
+            if (oldValue instanceof JsAccessor acc) {
+                if (acc.setter != null) {
+                    Interpreter.invokeSetter(acc.setter, object, value, context);
+                }
+                // No setter: silently ignored (matches lenient-mode JS).
+                return;
+            }
             objectLike.putMember(name, value);
             firePropertySet(context, name, value, oldValue, object, trackingNode);
         } else if (object instanceof Map) {

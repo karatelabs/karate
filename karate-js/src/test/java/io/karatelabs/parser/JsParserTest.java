@@ -773,6 +773,24 @@ class JsParserTest {
     }
 
     @Test
+    void testObjectGetterSetter() {
+        JsParser parser = new JsParser(Resource.text(
+                "var o = { get foo() { return 1; }, set bar(v) { this._v = v; } };"));
+        Node ast = parser.parse();
+        assertFalse(parser.hasErrors());
+        Node obj = ast.findFirstChild(NodeType.LIT_OBJECT);
+        assertNotNull(obj);
+        java.util.List<Node> elems = obj.findImmediateChildren(NodeType.OBJECT_ELEM);
+        assertEquals(2, elems.size());
+        // Each accessor element: [IDENT('get'/'set'), IDENT(name), FN_EXPR] (+ trailing COMMA).
+        for (Node elem : elems) {
+            String first = elem.getFirst().getText();
+            assertTrue("get".equals(first) || "set".equals(first));
+            assertEquals(NodeType.FN_EXPR, elem.get(2).type);
+        }
+    }
+
+    @Test
     void testObjectComputedKey() {
         JsParser parser = new JsParser(Resource.text("var o = { [k]: 1, ['a' + 'b']: 2 };"));
         Node ast = parser.parse();

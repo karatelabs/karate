@@ -1105,6 +1105,31 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testObjectGettersAndSetters() {
+        // Basic getter.
+        assertEquals(42, eval("({ get foo() { return 42; } }).foo"));
+        // Basic setter updates `this`.
+        assertEquals(5, eval("var o = { set bar(v) { this._x = v; } }; o.bar = 5; o._x"));
+        // Paired getter + setter share state on same key.
+        assertEquals(14, eval(
+                "var o = { _n: 10, get n() { return this._n; }, set n(v) { this._n = v * 2; } };"
+                        + " o.n = 7; o.n"));
+        // Getter-only: assignment is silently ignored.
+        assertEquals(1, eval("var o = { get x() { return 1; } }; o.x = 999; o.x"));
+        // Setter-only: read is undefined.
+        assertEquals("undefined", eval("var o = { set x(v) {} }; typeof o.x"));
+        // `get` / `set` as regular property names still work.
+        assertEquals(1, eval("({ get: 1 }).get"));
+        assertEquals(2, eval("({ set: 2 }).set"));
+        // Shorthand method named `get` or `set`.
+        assertEquals(99, eval("({ get() { return 99; } }).get()"));
+        // String-literal accessor key.
+        assertEquals("bar", eval("({ get 'foo'() { return 'bar'; } }).foo"));
+        // Computed accessor key.
+        assertEquals("computed", eval("var k='dyn'; ({ get [k]() { return 'computed'; } }).dyn"));
+    }
+
+    @Test
     void testObjectComputedKeys() {
         // Simple computed key
         assertEquals(42, eval("var k = 'x'; ({[k]: 42})[k]"));
