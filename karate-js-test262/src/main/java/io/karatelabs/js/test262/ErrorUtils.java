@@ -58,8 +58,33 @@ public final class ErrorUtils {
                 return name;
             }
         }
+        // Fallback: scan for "<Name>:" appearing anywhere after a non-word boundary.
+        // Catches wrapper messages like "expression: $262.createRealm().global - TypeError: ...".
+        String inner = findEmbeddedErrorName(body);
+        if (inner != null) return inner;
         // Heuristic for engine-emitted ReferenceError messages ("foo is not defined").
         if (body.contains("is not defined")) return "ReferenceError";
+        return null;
+    }
+
+    /**
+     * Scans {@code body} for an embedded {@code <Name>:} preceded by a non-word character
+     * (space, dash, colon, paren, etc.), so an inner error type shows through wrapper framing
+     * like {@code "expression: foo - TypeError: ..."}. Returns the first match, or {@code null}.
+     */
+    private static String findEmbeddedErrorName(String body) {
+        for (String name : KNOWN_NAMES) {
+            int from = 0;
+            while (true) {
+                int idx = body.indexOf(name + ":", from);
+                if (idx < 0) break;
+                if (idx > 0) {
+                    char prev = body.charAt(idx - 1);
+                    if (!Character.isLetterOrDigit(prev) && prev != '_') return name;
+                }
+                from = idx + 1;
+            }
+        }
         return null;
     }
 

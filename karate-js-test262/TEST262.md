@@ -147,9 +147,11 @@ work. They apply alongside the Roadmap below.
    per-statement eval cost compound into minutes of wall time. After any
    non-trivial engine change, run
    [`EngineBenchmark`](../karate-js/src/test/java/io/karatelabs/parser/EngineBenchmark.java)
+   **in profile mode** (`EngineBenchmark profile` — 30 s warm loop, JIT-stable)
    and compare against the reference results in
    [JS_ENGINE.md § Performance Benchmarks](../docs/JS_ENGINE.md#performance-benchmarks).
-   See the [check performance](#check-performance-after-an-engine-change)
+   Default (no arg) is fast mode — median-of-10 cold runs, noisy, gut-check
+   only. See the [check performance](#check-performance-after-an-engine-change)
    recipe below.
 
 6. **Small, focused engine changes.** Prefer several small PRs over one
@@ -496,26 +498,31 @@ remove items once fixed.
   `EngineException.getJsErrorName()` so host callers see the JS error
   name without re-parsing. Consequence: `e instanceof TypeError`,
   `e.name`, and `e.constructor.name` all work for engine-originated
-  errors caught in JS. Remaining throw sites that still use plain
-  `RuntimeException` without a prefix (in `JsArrayPrototype`, `JsRegex`,
-  `JsJson`, `JsStringPrototype`, `CoreContext.java:1016` "finally block
-  threw error") are lower-traffic and can be converted the same way as
-  needed.
+  errors caught in JS. The user-visible throw sites in `PropertyAccess`
+  ("cannot get from", "cannot call", "cannot set on", "cannot set 'X'",
+  "cannot apply compound/inc/dec", "get by index for non-array",
+  "expression: X - Y"), `JsJson` ("no such api on JSON"), `JsJava`
+  ("no such api on Java"), and `JavaUtils` ("no instance property")
+  now throw `JsErrorException.typeError(...)` directly; the
+  `expression: ...` wrappers preserve the cause chain so a nested
+  `JsErrorException` classifies via its structured name. Remaining plain
+  `RuntimeException` sites (internal-invariant messages like "unexpected
+  operator", `JsArrayPrototype`/`JsRegex`/`JsStringPrototype`, and
+  `Interpreter.java:1107` "finally block threw error") are low-traffic
+  and convert the same way as needed.
 - **`eval` as a global.** ✅ *Addressed.* `eval` is now registered in
   `ContextRoot.initGlobal` with indirect-eval semantics (parses and
   evaluates in the engine root scope; non-string arguments pass through
   unchanged per spec). Direct-eval scope capture is still out of scope.
 - **`typeof` on all callable surfaces.** ✅ *Addressed.* `Terms.typeOf`
-  now returns `"function"` for any `JsInvokable`, for `JsFunction`, and
-  for built-in constructor singletons that extend `JsObject` rather than
+  now returns `"function"` for any `JsInvokable`, for `JsFunction`, for
+  built-in constructor singletons that extend `JsObject` rather than
   `JsFunction` (the `Boolean`, `RegExp`, `Error`/`TypeError`/etc. globals)
-  via a `JsObject.isJsFunction()` override. Only remaining gap: prototype
-  method refs cast as `(JsCallable) x::y` (e.g. `[1].map`, `'x'.charAt`)
-  still report `"object"` because they are raw `JsCallable` instances
-  that aren't `JsObject` subclasses — widening there would need either
-  a method-ref signature change (→ `JsInvokable`) or an extra instance
-  filter (can't just widen to `JsCallable`: `JsArray`/`JsObject` both
-  implement it). Low-impact for real-world code.
+  via a `JsObject.isJsFunction()` override, **and** for prototype method
+  refs cast as `(JsCallable) this::method` (e.g. `[1].map`, `'x'.charAt`,
+  `({}).hasOwnProperty`) via a `JsCallable && !(value instanceof
+  ObjectLike)` branch. The `ObjectLike` guard keeps `JsObject` / `JsArray`
+  (which both implement `JsCallable` directly) reporting `"object"`.
 - **Engine-position prefix hides assertion messages (framing gap).** ✅
   *Addressed.* `Node.toStringError` now emits the user message first and
   a JS-stack-frame-style `    at <path>:<line>:<col>` suffix instead of
@@ -533,6 +540,17 @@ remove items once fixed.
   function's name is currently empty. Net effect on the Array slice:
   `Unknown` fail bucket went from ~1480 → 136; 1325 now classify as
   `Test262Error` (assertion failures).
+- **`ErrorUtils.classify` missed embedded error names in wrapper messages.**
+  ✅ *Addressed.* Messages like
+  `"expression: $262.createRealm().global - TypeError: cannot read ..."`
+  where the error type is a substring (not a prefix) now classify
+  correctly. `ErrorUtils.classifyByMessagePrefix` falls back to scanning
+  for `<Name>:` preceded by a non-word character after the prefix check
+  fails. Paired with `PropertyAccess`'s `expression: ... - ...` wrappers
+  now preserving the cause chain so the structured `JsErrorException`
+  name propagates through `findJsErrorException`, these are classified
+  by their underlying structured name first; the embedded-name scan is
+  a safety net for any wrapper that loses the cause.
 - **Raw Java exception names leak through `EngineException.getMessage()`.**
   ✅ *Addressed.* `Interpreter.evalStatement`'s catch block now maps
   common JVM exceptions to JS error constructor names via
@@ -578,31 +596,26 @@ remove items once fixed.
 
 ### Recommended next-session ordering
 
-Strict-mode policy, error-message framing, `typeof` coverage,
-`Test262Error` classification, and Java-exception wrapping are all
-done. Unknown in the Array slice is down from 1480 → 136.
+Strict-mode policy, error-message framing, `typeof` coverage (including
+prototype method refs), `Test262Error` classification, Java-exception
+wrapping, `ErrorUtils.classify` embedded-name scanning, and conversion
+of user-visible `RuntimeException` throws in `PropertyAccess` / `JsJson` /
+`JsJava` / `JavaUtils` to `JsErrorException.typeError` are all done.
+Unknown in the Array slice is down from 1480 → **9**.
 
-Remaining concrete levers before Tier 2:
+Remaining Array-slice Unknowns (~9 tests, all low-priority):
 
-1. **Tighten `ErrorUtils.classify` for a few remaining Unknown patterns.**
-   The surviving 136 Array-slice Unknowns include `"Java heap space"`
-   (OOM — leave as Unknown), `"cannot call: [FN_EXPR] function fun() {"`
-   (engine bug when a function is invoked in a position it doesn't
-   expect — needs engine fix), and messages like
-   `"expression: $262.createRealm().global - TypeError: ..."` where the
-   real error name is a substring rather than a prefix. Teach
-   `classifyByMessagePrefix` to scan *within* the message (bounded) when
-   no prefix match fires, and it'll catch the last one.
-2. **Promote prototype method refs to report `typeof === "function"`.**
-   `[1].map`, `'x'.charAt`, etc. currently return `"object"` because the
-   prototype singletons expose them as `(JsCallable) this::method` — a
-   raw JsCallable that isn't a JsObject. Either change the cast sites to
-   `(JsInvokable) ...` (signature mismatch: need to adapt to
-   `invoke(Object[])`) or wrap in a tiny `JsFunction` adapter. Not
-   critical for Tier 2 but idiomatic JS expects this.
+- 6 × `"null"` — NPE path where the outer `EngineException` ends up with
+  message `"null"` and no structured `jsErrorName` reaches the runner.
+  Likely a non-`evalStatement` exception path (callback invocation inside
+  a prototype method). Investigate when touching `JsArrayPrototype` or
+  callback dispatch.
+- 2 × `"IllegalName: io.karatelabs.js.JsArrayPrototype$$Lambda/..."` — a
+  JDK-origin string leaking a lambda class name into an identifier-name
+  context. Low-traffic; revisit when touching identifier validation.
+- 1 × `"Java heap space"` — OOM, leave as Unknown.
 
-After that, the earlier Tier 2 plan (`Object`/`Array`/`String` built-ins)
-is the next cliff worth climbing.
+Next cliff: the earlier Tier 2 plan (`Object`/`Array`/`String` built-ins).
 
 ---
 
@@ -719,23 +732,28 @@ gaps" if anything new emerged, and move on to the next tier. No ceremony.
 
 The conformance suite allocates a fresh `Engine` per test (~50k tests in
 the default pinned SHA); small regressions compound into minutes of wall
-time. After any non-trivial engine change:
+time. After any non-trivial engine change, **prefer profile mode** — the
+30 s warm loop is JIT-stable and directly comparable to the reference
+table. Fast mode's median-of-10 is dominated by cold-start noise and
+should only be used for a quick gut-check:
 
 ```sh
-# Fast (median of 10 runs) — noisy but quick feedback
 mvn -pl karate-js -q test-compile
-java -cp "karate-js/target/classes:karate-js/target/test-classes:$(find ~/.m2/repository -name 'slf4j-api-*.jar' | head -1):$(find ~/.m2/repository -name 'json-smart-*.jar' | head -1):$(find ~/.m2/repository -name 'accessors-smart-*.jar' | head -1):$(find ~/.m2/repository -name 'asm-9*.jar' | grep -v asm-tree | grep -v asm-commons | head -1)" \
-    io.karatelabs.parser.EngineBenchmark
 
-# Profile mode (30 s warm loop; JIT-stable, much lower noise)
-java -cp "…same classpath…" io.karatelabs.parser.EngineBenchmark profile
+# Profile mode (30 s warm loop; JIT-stable, ~16k iterations averaged)
+# This is the mode the reference table in JS_ENGINE.md was recorded in.
+java -cp "karate-js/target/classes:karate-js/target/test-classes:$(find ~/.m2/repository -name 'slf4j-api-*.jar' | head -1):$(find ~/.m2/repository -name 'json-smart-*.jar' | head -1):$(find ~/.m2/repository -name 'accessors-smart-*.jar' | head -1):$(find ~/.m2/repository -name 'asm-9*.jar' | grep -v asm-tree | grep -v asm-commons | head -1)" \
+    io.karatelabs.parser.EngineBenchmark profile
+
+# Fast mode (median of 10 cold runs) — noisy, do not compare against the reference table
+java -cp "…same classpath…" io.karatelabs.parser.EngineBenchmark
 ```
 
-Compare against the reference numbers in
+Compare the profile-mode output against the reference numbers in
 [JS_ENGINE.md § Performance Benchmarks](../docs/JS_ENGINE.md#performance-benchmarks).
-If the medians moved materially (>±10% in profile mode), understand why
-before merging. If the change is unavoidable (correctness > speed), update
-the reference table in `JS_ENGINE.md` in the same commit.
+If the averages moved materially (>±10%), understand why before merging.
+If the change is unavoidable (correctness > speed), update the reference
+table in `JS_ENGINE.md` in the same commit.
 
 ### Fix harness friction
 

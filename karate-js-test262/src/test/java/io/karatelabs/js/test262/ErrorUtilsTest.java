@@ -49,6 +49,25 @@ class ErrorUtilsTest {
     }
 
     @Test
+    void testClassifyEmbeddedErrorName() {
+        // Wrapper messages that embed the real error name after a non-word separator.
+        String msg = "expression: $262.createRealm().global - TypeError: cannot read properties of null";
+        assertEquals("TypeError", ErrorUtils.classify(new RuntimeException(msg)));
+    }
+
+    @Test
+    void testClassifyEmbeddedErrorNameNotInsideIdentifier() {
+        // A substring that's part of a larger identifier must not classify.
+        assertNull(ErrorUtils.classify(new RuntimeException("myTypeError: should not match")));
+    }
+
+    @Test
+    void testClassifyEmbeddedErrorNameAfterSpace() {
+        assertEquals("RangeError",
+                ErrorUtils.classify(new RuntimeException("wrapped up: RangeError: out of bounds")));
+    }
+
+    @Test
     void testClassifyWalksCauseChainForStructuredName() {
         EngineException inner = new EngineException("TypeError: x", null, "TypeError");
         RuntimeException outer = new RuntimeException("wrapped", inner);
