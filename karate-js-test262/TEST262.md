@@ -592,11 +592,12 @@ High-leverage issues that each break many tests at once.
 ### Open
 
 - **Directive prologue (`"use strict"`) flip.** Parser tolerates the
-  string without activating strict-mode assertions; `flags: [onlyStrict]`
-  tests show as *unexpected passes* and hide real signal. Cheapest win:
-  skip via `expectations.yaml` with a reason. Real strict-mode
+  string without activating strict-mode assertions. Skip triage is done
+  (`flags: [onlyStrict]` entry in `expectations.yaml` — keeps
+  unexpected-passes from hiding real signal). Real strict-mode
   implementation (with/duplicate-params/eval-assign/octal-literal
-  negative checks) is a separate, larger project.
+  negative checks) is a separate, larger project; revisit only if a
+  meaningful test cluster outside `onlyStrict` depends on it.
 - **Harness-helper dependencies.** `propertyHelper.js`,
   `compareArray.js`, `testTypedArray.js` need descriptor introspection
   (`Object.getOwnPropertyDescriptor`) and full iterator protocol —
@@ -664,6 +665,47 @@ High-leverage issues that each break many tests at once.
 **Recently landed** (decisions preserved; see git log for per-commit
 detail):
 
+- **Destructuring — default-undefined + iterable-check.**
+  `destructurePattern` now reads object-source properties via
+  `ObjectLike.getMember` instead of the Java `Map.get`. Reason: `JsObject`
+  implements `Map<String, Object>` and its `get(Object)` auto-unwraps
+  `Terms.UNDEFINED → null` via `Engine.toJava` — so
+  `{x = 1} = {x: undefined}` saw `x=null` (present-but-undefined looked
+  absent, default didn't fire). Null / UNDEFINED / absent get
+  disambiguated by falling back to `Map.containsKey` on the own
+  properties map (so `{x = 5} = {x: null}` still preserves `x=null`
+  without the default firing). Also added spec-correct iterable check
+  for array destructuring (13.3.3.5): non-List / non-String sources
+  throw `TypeError`. Slice deltas:
+  `assignment/dstr/**` 147 → **157** (+10),
+  `variable/dstr/**` 49 → **52**, `let/dstr/**` 47 → **50**,
+  `const/dstr/**` 47 → **50**, `expressions/function/**` 56 → **66**
+  (+10 — bonus cascade from the same fix via default params),
+  `expressions/template-literal/**` 42 → **51**.
+- **Reserved words as object-literal keys.** Parser's `T_OBJECT_ELEM` /
+  `T_ACCESSOR_KEY_START` sets are now built at class-init from every
+  TokenType with `keyword == true`, so `{break: x}`, `{default: 1}`,
+  `{class: foo}` parse as object literals and destructuring LHS
+  patterns. (Escaped-identifier forms like `break` still fail —
+  they need lexer support for `\uXXXX` in identifier scanning, a
+  separate lexer project.)
+- **Tagged templates.** New `FN_TAGGED_TEMPLATE_EXPR` node with shape
+  `[<callable>, LIT_TEMPLATE]`. Parser hook in `expr_rhs` after
+  `FN_CALL_EXPR` fires on a trailing BACKTICK (same postfix-chain
+  precedence as `()` / `.x`). `evalFnTaggedTemplate` walks the
+  LIT_TEMPLATE children to recover paired cooked/raw segments and
+  substitution expressions — for N expressions there are always N+1
+  string slots (possibly empty). `strings` is a `JsArray` with the
+  raw array attached via `putMember("raw", raw)`. `new tag`x`` routes
+  through a new `evalNewExpr` helper that evaluates the tagged
+  template first (MemberExpression semantics) then constructs the
+  result with no args. `test/language/expressions/tagged-template/**`
+  0 → **11 PASS** of 22 non-skip. Known limits: no template-site
+  caching (same lexical site returns different arrays — breaks 6
+  `cache-*` tests), no `Object.freeze` on the strings array (descriptor
+  infra), no lexer relaxation for malformed escapes in tag context
+  (cooked should be `undefined`, raw preserves source — lexer still
+  rejects at parse time).
 - **Template-literal overhaul.** `${obj}` dispatches through the
   prototype chain (spec `Object.prototype.toString` = `"[object
   Object]"`; `Array.prototype.toString` calls `this.join(",")`). User
@@ -710,53 +752,36 @@ first file/function to touch.
 
 ---
 
-**1. Tagged templates — ~13 template-suite fails and beyond.**
+**1. Remaining destructuring-assignment failures (75).**
 
-`` tag`foo ${x}` `` (React / styled-components / SQL). Needs:
-(a) parser support for the tag-applied-to-template syntactic slot,
-(b) the template-object contract (`strings.raw` / cooked forms),
-(c) invocation as `tag(strings, ...substitutions)`. Isolated from
-other subtrees — does not block anything else.
+After the reserved-words widening + default-undefined + iterable-check
+fixes, the assignment slice has 75 fails split into three clusters,
+none with a quick lever:
 
-**Why first:** real feature work (≥ half-day) but high qualitative
-value — untagged templates plus tagged templates together cover
-~all real-world usage of template literals.
+- **47 SyntaxErrors, all `-escaped` forms** (`ident-name-prop-name-literal-break-escaped.js`
+  etc.). These use unicode-escape identifier syntax
+  (`break` = `break`). Needs lexer support for `\uXXXX` /
+  `\u{…}` inside identifier scans AND a normalization pass so the
+  parser treats the folded name as the key. Isolated lexer project;
+  low LLM-value (models don't write escape-form keywords).
+- **14 Test262Errors** — remaining semantic corners: TDZ-on-assignment
+  to later-`let` bindings, init-evaluation order, function-name
+  inference in destructuring defaults, array-rest with string source.
+  Each is an independent small fix.
+- **14 Unknowns — negative parse tests** that karate-js currently
+  accepts (`[...rest, elem]`, `{...rest, key: v}`, etc.). Spec says
+  rest must be last in array/object patterns, but the same syntax is
+  legal in array/object *literals* (spread element). Two-mode parsing
+  (pattern vs literal) is a significant refactor.
 
----
-
-**2. Remaining destructuring-assignment failures (83).**
-
-After the overhaul, the assignment slice still has 83 fails: ~48
-SyntaxErrors (parser refuses reserved words as object keys in a
-destructuring LHS — `({break: x} = {break: 42})`), ~3 TypeErrors
-(spec-required throws for specific malformed patterns), ~13
-Unknowns (unexpected-pass on negative parse tests, e.g. invalid
-destructuring forms that should SyntaxError), ~19 Test262Errors
-(semantic gaps — function-name inference for `[foo = function(){}] = …`
-expecting `foo.name === 'foo'`, array-iterator protocol corners).
-
-**Why second:** each bucket is a distinct fix. The reserved-words
-cluster is the biggest single lever — widening the parser's key
-token set for LIT_OBJECT-in-LHS position lights up ~48 tests.
+**Why first:** after this session's fixes, the remaining buckets have
+become architectural. Worth another session only with a specific lever
+in mind (e.g. identifier-escape support in the lexer unlocks 47 tests
+in one commit, but is a lexer-wide change).
 
 ---
 
-**3. Strict-mode directive prologue — cheapest triage.**
-
-Hundreds of `flags: [onlyStrict]` tests currently show as
-*unexpected passes* because the parser tolerates `"use strict"`
-without flipping strict mode (see "Known first-order gaps" above).
-Cheapest win: add a `flags: [onlyStrict]` rule to
-`expectations.yaml` with a reason ("strict mode not implemented")
-so those stop hiding real signal. Actually implementing strict
-mode is not cheap — the skip is.
-
-**Why third:** pure triage; clears noise so the remaining fails are
-meaningful. A single YAML edit.
-
----
-
-**4. Deferred — architectural, low LLM-leverage.**
+**2. Deferred — architectural, low LLM-leverage.**
 
 - **Array cliff (~1896 FAILs in `test/built-ins/Array/**`)** needs
   property-descriptor attribute tracking, the full iterator protocol

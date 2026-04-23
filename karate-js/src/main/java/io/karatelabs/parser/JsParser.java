@@ -43,8 +43,29 @@ public class JsParser extends BaseParser {
     private static final EnumSet<TokenType> T_MATH_POST_EXPR = EnumSet.of(PLUS_PLUS, MINUS_MINUS);
     private static final EnumSet<TokenType> T_UNARY_EXPR = EnumSet.of(NOT, TILDE);
     private static final EnumSet<TokenType> T_MATH_PRE_EXPR = EnumSet.of(PLUS_PLUS, MINUS_MINUS, MINUS, PLUS);
-    private static final EnumSet<TokenType> T_OBJECT_ELEM = EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, DOT_DOT_DOT, L_BRACKET);
-    private static final EnumSet<TokenType> T_ACCESSOR_KEY_START = EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, L_BRACKET);
+    // PropertyName is an IdentifierName (identifier OR any reserved word),
+    // plus string/numeric literals, computed-key bracket, and spread. The
+    // spec allows `{break: 1}`, `{default: 1}`, etc. in object literals and
+    // destructuring patterns alike. Keywords are added at class-init time
+    // from TokenType.keyword.
+    private static final EnumSet<TokenType> T_OBJECT_ELEM = buildObjectElemSet();
+    private static final EnumSet<TokenType> T_ACCESSOR_KEY_START = buildAccessorKeySet();
+
+    private static EnumSet<TokenType> buildObjectElemSet() {
+        EnumSet<TokenType> s = EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, DOT_DOT_DOT, L_BRACKET);
+        for (TokenType t : TokenType.values()) {
+            if (t.keyword) s.add(t);
+        }
+        return s;
+    }
+
+    private static EnumSet<TokenType> buildAccessorKeySet() {
+        EnumSet<TokenType> s = EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, L_BRACKET);
+        for (TokenType t : TokenType.values()) {
+            if (t.keyword) s.add(t);
+        }
+        return s;
+    }
     private static final EnumSet<TokenType> T_LIT_EXPR = EnumSet.of(S_STRING, D_STRING, NUMBER, TRUE, FALSE, NULL);
     private static final EnumSet<TokenType> T_FOR_IN_OF = EnumSet.of(IN, OF);
 
@@ -518,6 +539,12 @@ public class JsParser extends BaseParser {
                 if (isCallerType(NodeType.NEW_EXPR)) {
                     break;
                 }
+            } else if (peekIf(BACKTICK)) {
+                // tagged template: prior postfix expression applied to the template literal
+                // shape: FN_TAGGED_TEMPLATE_EXPR -> [<callable>, LIT_TEMPLATE]
+                enter(NodeType.FN_TAGGED_TEMPLATE_EXPR);
+                lit_template();
+                exit(Shift.LEFT);
             } else if (enter(NodeType.REF_DOT_EXPR, T_REF_DOT_EXPR)) {
                 TokenType dotType = lastConsumed();
                 // allow reserved words as property accessors

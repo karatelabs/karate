@@ -1242,4 +1242,37 @@ class EvalTest extends EvalBase {
         assertEquals(6, eval("(function(a, b){ return a + b; })(2, 4)"));
     }
 
+    @Test
+    void testTaggedTemplate() {
+        // Basic no-substitution: strings[0] === 'hello', strings.raw[0] === 'hello'
+        assertEquals(true, eval("var s; function t(x){ s = x; return x[0] + '|' + x.raw[0]; }; t`hello` === 'hello|hello'"));
+        // N substitutions yield N+1 string slots
+        assertEquals("a|1|b|2|c", eval("function t(s, a, b){ return s[0]+'|'+a+'|'+s[1]+'|'+b+'|'+s[2]; }; t`a${1}b${2}c`"));
+        // Empty leading / trailing slot
+        assertEquals("||42||", eval("function t(s, x){ return s[0]+'|'+s[0]+'|'+x+'|'+s[1]+'|'+s[1]; }; t`${42}`"));
+        // Raw vs cooked: escape `\n` cooked as newline, raw as literal backslash-n
+        assertEquals(true, eval("function t(s){ return s[0].charCodeAt(0) === 10 && s.raw[0] === '\\\\n'; }; t`\\n`"));
+        // Tag is a method reference: `obj.tag\`x\`` receives obj as 'this'
+        assertEquals(99, eval("var o = {k: 99, t: function(s){ return this.k; }}; o.t`anything`"));
+        // `new tag\`x\`` — per spec, the tagged template evaluates first and new applies to the result
+        assertEquals(7, eval("function Ctor(){ this.v = 7; }; function tag(){ return Ctor; }; (new tag`first`).v"));
+    }
+
+    @Test
+    void testDestructuringDefaultUndefinedVsNull() {
+        // Present-with-undefined: default fires
+        assertEquals(1, eval("var x; ({ x = 1 } = { x: undefined }); x"));
+        // Present-with-null: default does NOT fire (null is a valid value)
+        assertNull(eval("var x; ({ x = 1 } = { x: null }); x"));
+        // Absent: default fires
+        assertEquals(5, eval("var x; ({ x = 5 } = {}); x"));
+        // Present-with-value: value wins
+        assertEquals(42, eval("var x; ({ x = 1 } = { x: 42 }); x"));
+        // Array destructuring on non-iterable throws TypeError (spec 13.3.3.5)
+        assertThrows(Exception.class, () -> eval("var a; [a] = true"));
+        assertThrows(Exception.class, () -> eval("[,] = 1"));
+        // String is iterable (destructures by code unit)
+        assertEquals("h", eval("var a; [a] = 'hello'; a"));
+    }
+
 }

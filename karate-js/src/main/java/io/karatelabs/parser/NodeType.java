@@ -60,6 +60,7 @@ public enum NodeType {
     FN_CALL_EXPR,
     FN_CALL_ARGS,
     FN_CALL_ARG,
+    FN_TAGGED_TEMPLATE_EXPR,
     ASSIGN_EXPR,
     LOGIC_EXPR,
     LOGIC_AND_EXPR,
@@ -115,7 +116,8 @@ public enum NodeType {
             // Two-child nodes: operator + operand
             case UNARY_EXPR, TYPEOF_EXPR, MATH_PRE_EXPR, MATH_POST_EXPR,
                  LIT_EXPR, LIT_REGEX, EOS, BREAK_STMT, CONTINUE_STMT,
-                 PLACEHOLDER, FN_DECL_ARG, FN_CALL_ARG, ARRAY_ELEM -> 2;
+                 PLACEHOLDER, FN_DECL_ARG, FN_CALL_ARG, ARRAY_ELEM,
+                 FN_TAGGED_TEMPLATE_EXPR -> 2;
             // Three-child nodes: binary ops after Shift.LEFT (left, op, right)
             case REF_DOT_EXPR, INSTANCEOF_EXPR -> 3;
             // Ternary: condition ? true_expr : false_expr = 5 children

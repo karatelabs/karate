@@ -120,7 +120,18 @@ class Interpreter {
             throw JsErrorException.typeError("cannot destructure " + source);
         }
         if (pattern.type == NodeType.LIT_ARRAY) {
-            List<Object> list = (source instanceof List<?>) ? (List<Object>) source : null;
+            // Array destructuring per spec 13.3.3.5 calls GetIterator(value).
+            // Lists are iterable directly. Strings are iterable by code unit.
+            // Non-iterable primitives (boolean, number) throw TypeError.
+            List<Object> list;
+            if (source instanceof List<?>) {
+                list = (List<Object>) source;
+            } else if (source instanceof String s) {
+                list = new ArrayList<>(s.length());
+                for (int k = 0; k < s.length(); k++) list.add(String.valueOf(s.charAt(k)));
+            } else {
+                throw JsErrorException.typeError(source + " is not iterable");
+            }
             int last = pattern.size() - 1;
             int index = 0;
             for (int i = 1; i < last; i++) {
@@ -128,11 +139,9 @@ class Interpreter {
                 Node first = elem.get(0);
                 if (first.isToken() && first.token.type == DOT_DOT_DOT) {
                     JsArray rest = new JsArray();
-                    if (list != null) {
-                        for (int j = index; j < list.size(); j++) {
-                            Object v = list instanceof JsArray arr ? arr.getElement(j) : list.get(j);
-                            rest.list.add(v);
-                        }
+                    for (int j = index; j < list.size(); j++) {
+                        Object v = list instanceof JsArray arr ? arr.getElement(j) : list.get(j);
+                        rest.list.add(v);
                     }
                     bindTarget(elem.get(1), context, bindScope, rest, initialized);
                     break;
@@ -140,7 +149,7 @@ class Interpreter {
                     index++;
                 } else {
                     Object v = Terms.UNDEFINED;
-                    if (list != null && index < list.size()) {
+                    if (index < list.size()) {
                         Object temp = list instanceof JsArray arr ? arr.getElement(index) : list.get(index);
                         if (temp != Terms.UNDEFINED) {
                             v = temp;
@@ -151,6 +160,11 @@ class Interpreter {
                 }
             }
         } else if (pattern.type == NodeType.LIT_OBJECT) {
+            // Use ObjectLike.getMember for property reads — Map.get on JsObject
+            // auto-unwraps UNDEFINED → null via Engine.toJava, which would make
+            // a present-but-undefined property look like an absent one, and
+            // suppress the default-value branch below.
+            ObjectLike objSource = (source instanceof ObjectLike) ? (ObjectLike) source : null;
             Map<String, Object> map = (source instanceof Map<?, ?>) ? (Map<String, Object>) source : null;
             Set<String> consumed = new HashSet<>();
             int last = pattern.size() - 1;
@@ -183,7 +197,22 @@ class Interpreter {
                 }
                 consumed.add(key);
                 Object v = Terms.UNDEFINED;
-                if (map != null && map.containsKey(key)) {
+                if (objSource != null) {
+                    // getMember returns the raw slot value (UNDEFINED stays UNDEFINED,
+                    // unlike Map.get which unwraps via Engine.toJava). But null from
+                    // getMember is ambiguous: could be "present with explicit null"
+                    // or "absent" — disambiguate via Map.containsKey on the own
+                    // properties map so default fires only for true absence / undefined.
+                    Object temp = objSource.getMember(key);
+                    if (temp == Terms.UNDEFINED) {
+                        // v stays UNDEFINED, default will fire
+                    } else if (temp == null) {
+                        if (map != null && map.containsKey(key)) v = null;
+                        // else absent, v stays UNDEFINED, default fires
+                    } else {
+                        v = temp;
+                    }
+                } else if (map != null && map.containsKey(key)) {
                     Object temp = map.get(key);
                     if (temp != Terms.UNDEFINED) {
                         v = temp;
@@ -415,6 +444,143 @@ class Interpreter {
         } else {
             throw JsErrorException.typeError(node.toStringWithoutType() + " is not a function");
         }
+    }
+
+    // Handles NEW_EXPR dispatch. Most operand shapes go through evalFnCall's
+    // newKeyword path. FN_TAGGED_TEMPLATE_EXPR is special: per spec the tagged
+    // template is itself a MemberExpression whose evaluation is the function
+    // result, and `new` applies to that result with no arguments.
+    private static Object evalNewExpr(Node node, CoreContext context) {
+        // NEW_EXPR -> [NEW, EXPR -> [<operand>]]; evalFnCall expects the EXPR wrapper.
+        Node exprWrap = node.get(1);
+        Node operand = exprWrap.getFirst();
+        if (operand.type != NodeType.FN_TAGGED_TEMPLATE_EXPR) {
+            return evalFnCall(exprWrap, context, true);
+        }
+        // Per spec, `new tag`x`` applies new to the result of the tagged template
+        // invocation, not to the tag itself. Evaluate the tagged template, then
+        // construct the result with no args. (`new tag`x`()` parses as FN_CALL_EXPR
+        // wrapping FN_TAGGED_TEMPLATE_EXPR and goes through the default path above.)
+        Object callable = evalFnTaggedTemplate(operand, context);
+        if (context.isError()) {
+            return Terms.UNDEFINED;
+        }
+        if (!(callable instanceof JsCallable c)) {
+            throw JsErrorException.typeError(operand.toStringWithoutType() + " is not a constructor");
+        }
+        return invokeAsConstructor(c, new Object[0], operand, context);
+    }
+
+    private static Object invokeAsConstructor(JsCallable callable, Object[] args, Node node, CoreContext context) {
+        CoreContext callContext;
+        JsObject newInstance = null;
+        Object result;
+        if (callable instanceof JsFunctionNode jsFunc) {
+            callContext = new CoreContext(context, node, args, jsFunc.declaredContext, jsFunc.capturedBindings);
+            callContext.callInfo = new CallInfo(true, callable);
+            newInstance = new JsObject();
+            Object proto = jsFunc.getMember("prototype");
+            if (proto instanceof ObjectLike protoObj) {
+                newInstance.setPrototype(protoObj);
+            }
+            callContext.thisObject = newInstance;
+            callContext.event(EventType.CONTEXT_ENTER, node);
+            result = jsFunc.bindArgsAndExecute(callContext, context, args);
+        } else {
+            callContext = new CoreContext(context, node, args);
+            callContext.callInfo = new CallInfo(true, callable);
+            callContext.thisObject = callable;
+            callContext.event(EventType.CONTEXT_ENTER, node);
+            result = callable.call(callContext, args);
+            context.updateFrom(callContext);
+        }
+        if (newInstance != null && !(result instanceof ObjectLike)) {
+            result = newInstance;
+        }
+        return result;
+    }
+
+    // Tagged template: tag`abc ${x} def` invokes tag(strings, x, ...) where
+    // strings is a JsArray of the cooked string segments with a .raw property
+    // holding a parallel array of the un-escaped source segments.
+    // Node shape: FN_TAGGED_TEMPLATE_EXPR -> [<callable_expr>, LIT_TEMPLATE]
+    private static Object evalFnTaggedTemplate(Node node, CoreContext context) {
+        Node callableNode = node.get(0);
+        Node tpl = node.get(1);
+        // Walk LIT_TEMPLATE children to recover paired cooked/raw segments and
+        // substitution expressions. For N expressions there are always N+1
+        // string slots (possibly empty).
+        JsArray cooked = new JsArray();
+        JsArray raw = new JsArray();
+        List<Object> substitutions = new ArrayList<>();
+        StringBuilder cookedAccum = new StringBuilder();
+        StringBuilder rawAccum = new StringBuilder();
+        for (int i = 0, n = tpl.size(); i < n; i++) {
+            Node child = tpl.get(i);
+            if (child.isToken()) {
+                TokenType tt = child.token.type;
+                if (tt == T_STRING) {
+                    String text = child.token.getText();
+                    rawAccum.append(text);
+                    cookedAccum.append(unescapeString(text));
+                } else if (tt == DOLLAR_L_CURLY) {
+                    cooked.add(cookedAccum.toString());
+                    raw.add(rawAccum.toString());
+                    cookedAccum.setLength(0);
+                    rawAccum.setLength(0);
+                }
+                // BACKTICK, R_CURLY: ignore
+            } else if (child.type == NodeType.EXPR) {
+                Object value = eval(child, context);
+                if (context.isError()) {
+                    return Terms.UNDEFINED;
+                }
+                substitutions.add(value);
+            }
+        }
+        // Final trailing segment (always present, possibly empty)
+        cooked.add(cookedAccum.toString());
+        raw.add(rawAccum.toString());
+        cooked.putMember("raw", raw);
+
+        Object[] callableAndReceiver = PropertyAccess.getCallable(callableNode, context);
+        Object o = callableAndReceiver[0];
+        Object receiver = callableAndReceiver[1];
+        if (o == Terms.UNDEFINED) { // optional chaining
+            return o;
+        }
+        if (!(o instanceof JsCallable callable)) {
+            throw JsErrorException.typeError(callableNode.toStringWithoutType() + " is not a function");
+        }
+        Object[] args = new Object[substitutions.size() + 1];
+        args[0] = cooked;
+        for (int i = 0; i < substitutions.size(); i++) {
+            args[i + 1] = substitutions.get(i);
+        }
+        if (callable.isExternal()) {
+            for (int i = 0; i < args.length; i++) {
+                Object a = args[i];
+                if (a == Terms.UNDEFINED) args[i] = null;
+                else if (a instanceof JsValue jv && !(a instanceof JsPrimitive)) args[i] = jv.getJavaValue();
+            }
+        }
+        CoreContext callContext;
+        Object result;
+        if (callable instanceof JsFunctionNode jsFunc) {
+            callContext = new CoreContext(context, node, args, jsFunc.declaredContext, jsFunc.capturedBindings);
+            if (!jsFunc.arrow) {
+                callContext.thisObject = receiver == null ? callable : receiver;
+            }
+            callContext.event(EventType.CONTEXT_ENTER, node);
+            result = jsFunc.bindArgsAndExecute(callContext, context, args);
+        } else {
+            callContext = new CoreContext(context, node, args);
+            callContext.thisObject = receiver == null ? callable : receiver;
+            callContext.event(EventType.CONTEXT_ENTER, node);
+            result = callable.call(callContext, args);
+            context.updateFrom(callContext);
+        }
+        return result;
     }
 
     private static Object evalFnExpr(Node node, CoreContext context) {
@@ -1419,6 +1585,7 @@ class Interpreter {
             case FN_EXPR -> evalFnExpr(node, context);
             case FN_ARROW_EXPR -> evalFnArrowExpr(node, context);
             case FN_CALL_EXPR -> evalFnCall(node, context, false);
+            case FN_TAGGED_TEMPLATE_EXPR -> evalFnTaggedTemplate(node, context);
             case FOR_STMT -> evalForStmt(node, context);
             case IF_STMT -> evalIfStmt(node, context);
             case INSTANCEOF_EXPR -> evalInstanceOfExpr(node, context);
@@ -1432,7 +1599,7 @@ class Interpreter {
             case MATH_MUL_EXPR -> evalMathMulExpr(node, context);
             case MATH_POST_EXPR -> evalMathPostExpr(node, context);
             case MATH_PRE_EXPR -> evalMathPreExpr(node, context);
-            case NEW_EXPR -> evalFnCall(node.get(1), context, true);
+            case NEW_EXPR -> evalNewExpr(node, context);
             case PAREN_EXPR -> eval(node.get(1), context);
             case PROGRAM -> evalProgram(node, context);
             case REF_EXPR -> evalRefExpr(node, context);
