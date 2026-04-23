@@ -596,26 +596,68 @@ remove items once fixed.
 
 ### Recommended next-session ordering
 
-Strict-mode policy, error-message framing, `typeof` coverage (including
-prototype method refs), `Test262Error` classification, Java-exception
-wrapping, `ErrorUtils.classify` embedded-name scanning, and conversion
-of user-visible `RuntimeException` throws in `PropertyAccess` / `JsJson` /
-`JsJava` / `JavaUtils` to `JsErrorException.typeError` are all done.
-Unknown in the Array slice is down from 1480 → **9**.
+Classification and framing work is done. `Object` built-ins had a big
+round — `Object.hasOwn`, `getOwnPropertyNames`,
+`getOwnPropertyDescriptor(s)`, `defineProperty`, `defineProperties`,
+and `Object.create(proto, descriptors)` now work (298 → 550 PASS in
+`test/built-ins/Object/**`). Object-literal parser gaps also closed:
+shorthand methods (`{foo() {}}`), computed keys (`{[k]: v}`), and
+getters/setters (`{get x() {}, set x(v) {}}`).
 
-Remaining Array-slice Unknowns (~9 tests, all low-priority):
+**Pick up here** — concrete levers with measured impact, ordered by
+leverage-per-hour. Numbers are from probe runs in the current HEAD.
 
-- 6 × `"null"` — NPE path where the outer `EngineException` ends up with
-  message `"null"` and no structured `jsErrorName` reaches the runner.
-  Likely a non-`evalStatement` exception path (callback invocation inside
-  a prototype method). Investigate when touching `JsArrayPrototype` or
-  callback dispatch.
-- 2 × `"IllegalName: io.karatelabs.js.JsArrayPrototype$$Lambda/..."` — a
-  JDK-origin string leaking a lambda class name into an identifier-name
-  context. Low-traffic; revisit when touching identifier validation.
-- 1 × `"Java heap space"` — OOM, leave as Unknown.
+1. **Template literals — highest concentration of contained fails.**
+   `test/language/expressions/template-literal/**` → 18 PASS /
+   **38 FAIL** / 1 SKIP. Three sub-buckets:
+   - **14 × `cannot parse statement`** — tagged templates
+     (`` tag`hello ${x}` ``) and complex interpolation patterns are
+     not parsed. Common in React/styled-components/SQL libraries.
+   - **15 × `expected negative SyntaxError but got: This statement
+     should not be evaluated`** — the parser accepts escape sequences
+     that the spec rejects (malformed hex / unicode escapes inside
+     templates). Reject these at lex-time in `JsLexer`'s template
+     scanner.
+   - **Object-to-string coercion in templates**: `${obj}` emits
+     `io.karatelabs.js.JsObject@78292ffe` instead of `[object Object]`.
+     Route template interpolation through `Terms.TO_STRING` (which
+     already handles ObjectLike correctly) — likely a one-line fix in
+     `evalLitTemplate`.
 
-Next cliff: the earlier Tier 2 plan (`Object`/`Array`/`String` built-ins).
+2. **Destructuring assignment as an expression** —
+   `test/language/expressions/assignment/dstr/**` → 82 PASS /
+   **148 FAIL** / 138 SKIP. Dominant pattern: **45 × `expected:
+   [EXPR]`** on `[a, b] = arr` or `({a, b} = obj)`. The parser sees
+   `[a, b]` as an array literal, not as a destructuring target, so
+   `= arr` on the RHS fails. Declarations (`var [a, b] = arr`) already
+   work — the gap is pure assignment expressions. Touch the assignment
+   parser to accept LIT_ARRAY / LIT_OBJECT on the LHS, then let the
+   interpreter reuse the existing bindScope-free destructuring path.
+
+3. **`var`/`const` destructuring edge cases** —
+   `test/language/statements/variable/dstr/**` → 23 PASS / 48 FAIL /
+   26 SKIP (and same shape in `const/dstr/`). Mostly **`ReferenceError:
+   x is not defined`** (11×) after a successful destructuring — so the
+   parser accepts the pattern but bindings never make it into scope
+   for some shapes. Likely nested-pattern or default-value corners.
+   Worth fixing once (2) is done.
+
+4. **Array built-ins, deferred.** The big Array cliff remains mostly
+   architectural — property-descriptor attribute tracking, proper
+   iterator protocol (`Symbol.iterator` is skip-listed), sparse-array
+   dictionary mode, TypedArray/species. Core `Array.prototype.*`
+   already works for idiomatic code. Skip this in favor of higher
+   leverage items above.
+
+5. **Object-slice polish, also deferred.** The remaining ~1855 Object
+   FAILs concentrate in tests that need writable/enumerable/configurable
+   attribute semantics (~217 `Expected a TypeError to be thrown`,
+   ~100 `accessed !== true` enumerable checks). Low LLM-code leverage
+   vs the engine-churn cost of descriptor tracking.
+
+Remaining Array-slice Unknowns from earlier (~9 tests, all
+low-priority): 6 × `"null"` NPE path, 2 × `IllegalName` JDK lambda
+leak, 1 × `Java heap space` OOM.
 
 ---
 
