@@ -91,6 +91,17 @@ class EvalTest extends EvalBase {
         assertEquals("object", eval("typeof new Error('oops')"));
         assertEquals("object", eval("typeof new TypeError('nope')"));
         assertEquals("object", eval("typeof /foo/"));
+        // Prototype method refs — raw (JsCallable) this::method lambdas must
+        // still report "function", not "object".
+        assertEquals("function", eval("typeof [1,2,3].map"));
+        assertEquals("function", eval("typeof [1,2,3].filter"));
+        assertEquals("function", eval("typeof [1,2,3].slice"));
+        assertEquals("function", eval("typeof 'x'.charAt"));
+        assertEquals("function", eval("typeof 'x'.indexOf"));
+        assertEquals("function", eval("typeof 'x'.toUpperCase"));
+        assertEquals("function", eval("typeof ({}).hasOwnProperty"));
+        assertEquals("function", eval("typeof ({}).toString"));
+        assertEquals("function", eval("typeof (5).toFixed"));
     }
 
     @Test

@@ -507,6 +507,13 @@ public class Terms {
         if (value instanceof JsObject jo && jo.isJsFunction()) {
             return "function";
         }
+        // Raw JsCallable method refs exposed by Prototype.getBuiltinProperty
+        // ((JsCallable) this::map, etc.). JsObject / JsArray also implement
+        // JsCallable but are excluded here by the ObjectLike guard, so they
+        // fall through to "object" below.
+        if (value instanceof JsCallable && !(value instanceof ObjectLike)) {
+            return "function";
+        }
         // Boxed primitives are objects
         if (value instanceof JsPrimitive) {
             return "object";
