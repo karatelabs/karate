@@ -46,7 +46,7 @@ class JsMath extends JsObject {
             case "acos" -> math(Math::acos);
             case "acosh" -> math(x -> {
                 if (x < 1) {
-                    throw new RuntimeException("value must be >= 1");
+                    throw JsErrorException.rangeError("value must be >= 1");
                 }
                 return Math.log(x + Math.sqrt(x * x - 1));
             });
@@ -56,7 +56,7 @@ class JsMath extends JsObject {
             case "atan2" -> math(Math::atan2);
             case "atanh" -> math(x -> {
                 if (x <= -1 || x >= 1) {
-                    throw new RuntimeException("value must be between -1 and 1 (exclusive)");
+                    throw JsErrorException.rangeError("value must be between -1 and 1 (exclusive)");
                 }
                 return 0.5 * Math.log((1 + x) / (1 - x));
             });

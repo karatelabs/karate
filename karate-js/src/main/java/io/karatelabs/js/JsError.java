@@ -53,66 +53,24 @@ class JsError extends JsObject {
         this.cause = cause;
     }
 
-    private static final String[] KNOWN_NAMES = {
-            "TypeError", "ReferenceError", "RangeError", "SyntaxError",
-            "URIError", "EvalError", "Error"
-    };
-
-    /**
-     * Parse a leading "<ErrorName>: " prefix off a raw engine message.
-     *
-     * @return {@code [name, stripped-message]} when a recognized prefix is present,
-     *         or {@code null} otherwise
-     */
-    static String[] parsePrefix(String msg) {
-        if (msg == null) return null;
-        for (String name : KNOWN_NAMES) {
-            String prefix = name + ": ";
-            if (msg.startsWith(prefix)) {
-                return new String[]{name, msg.substring(prefix.length())};
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Build a {@link JsError} from a Java exception's message, recognizing a
-     * "<ErrorName>: " prefix to assign the proper JS error name.
-     */
-    static JsError fromJavaCause(String msg, Throwable cause) {
-        String[] parsed = parsePrefix(msg);
-        if (parsed != null) {
-            return new JsError(parsed[1], parsed[0], cause);
-        }
-        return new JsError(msg, cause);
-    }
-
-    public static JsError typeError(String message) {
-        return new JsError(message, "TypeError", null);
-    }
-
-    public static JsError referenceError(String message) {
-        return new JsError(message, "ReferenceError", null);
-    }
-
-    public static JsError rangeError(String message) {
-        return new JsError(message, "RangeError", null);
-    }
-
-    public static JsError syntaxError(String message) {
-        return new JsError(message, "SyntaxError", null);
-    }
-
     public String getName() {
         return name;
     }
 
+    String getMessageString() {
+        return message;
+    }
+
+    JsError getConstructor() {
+        return constructor;
+    }
+
     /**
-     * Set the {@code .constructor} property so that JS-side identity checks
-     * ({@code e.constructor === TypeError}, {@code thrown.constructor.name}) match
-     * the registered global. Used when the engine constructs a JsError directly
-     * (e.g., from a Java-level RuntimeException caught by a JS try/catch) rather
-     * than via {@link #call}.
+     * Wire the {@code .constructor} property so JS-side identity checks
+     * ({@code e.constructor === TypeError}, {@code thrown.constructor.name})
+     * match the registered global. Called at the JS-catch boundary for errors
+     * that originate outside {@link #call} (e.g., engine-thrown
+     * {@link JsErrorException}).
      */
     void setConstructor(JsError constructor) {
         this.constructor = constructor;

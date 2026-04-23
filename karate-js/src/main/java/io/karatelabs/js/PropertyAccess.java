@@ -189,7 +189,7 @@ class PropertyAccess {
             }
             return result;
         }
-        throw new RuntimeException("ReferenceError: " + name + " is not defined");
+        throw JsErrorException.referenceError(name + " is not defined");
     }
 
     private static Object getRefDotExpr(Node node, CoreContext context, boolean functionCall) {
@@ -331,7 +331,7 @@ class PropertyAccess {
             int i = n.intValue();
             if (object == null || object == Terms.UNDEFINED) {
                 if (optional) return Terms.UNDEFINED;
-                throw new RuntimeException("TypeError: cannot read properties of " + object + " (reading '[" + i + "]')");
+                throw JsErrorException.typeError("cannot read properties of " + object + " (reading '[" + i + "]')");
             }
             if (object instanceof JsArray array) {
                 return array.getElement(i);
@@ -371,7 +371,7 @@ class PropertyAccess {
                 return result;
             }
             if (optional) return Terms.UNDEFINED;
-            throw new RuntimeException("TypeError: cannot read properties of " + object + " (reading '" + name + "')");
+            throw JsErrorException.typeError("cannot read properties of " + object + " (reading '" + name + "')");
         }
 
         if (object instanceof JsObject jsObj) {

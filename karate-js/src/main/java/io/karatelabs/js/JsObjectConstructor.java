@@ -91,7 +91,7 @@ class JsObjectConstructor extends JsFunction {
             return new LinkedHashMap<>();
         }
         if (args[0] == null || args[0] == Terms.UNDEFINED) {
-            throw new RuntimeException("assign() requires valid first argument");
+            throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
         Map<String, Object> result = new LinkedHashMap<>();
         for (KeyValue kv : Terms.toIterable(args[0])) {
@@ -108,7 +108,7 @@ class JsObjectConstructor extends JsFunction {
     @SuppressWarnings("unchecked")
     private Object fromEntries(Object[] args) {
         if (args.length == 0 || args[0] == null || args[0] == Terms.UNDEFINED) {
-            throw new RuntimeException("fromEntries() requires valid argument(s)");
+            throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
         Map<String, Object> result = new LinkedHashMap<>();
         for (KeyValue kv : Terms.toIterable(args[0])) {

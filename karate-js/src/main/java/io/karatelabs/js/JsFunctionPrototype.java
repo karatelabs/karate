@@ -92,7 +92,7 @@ class JsFunctionPrototype extends Prototype {
     private Object callMethod(Context context, Object[] args) {
         JsCallable callable = asCallable(context);
         if (callable == null) {
-            throw new RuntimeException("call() requires a function");
+            throw JsErrorException.typeError("Function.prototype.call called on non-callable");
         }
         ThisArgs thisArgs = new ThisArgs(args, false);
         if (context instanceof CoreContext cc) {
@@ -104,7 +104,7 @@ class JsFunctionPrototype extends Prototype {
     private Object applyMethod(Context context, Object[] args) {
         JsCallable callable = asCallable(context);
         if (callable == null) {
-            throw new RuntimeException("apply() requires a function");
+            throw JsErrorException.typeError("Function.prototype.apply called on non-callable");
         }
         ThisArgs thisArgs = new ThisArgs(args, true);
         if (context instanceof CoreContext cc) {

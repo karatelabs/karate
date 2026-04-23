@@ -68,7 +68,7 @@ class JsStringConstructor extends JsFunction {
             if (arg instanceof Number num) {
                 int n = num.intValue();
                 if (n < 0 || n > 0x10FFFF) {
-                    throw new RuntimeException("invalid code point: " + num);
+                    throw JsErrorException.rangeError("Invalid code point " + num);
                 }
                 sb.appendCodePoint(n);
             }

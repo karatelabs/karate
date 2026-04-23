@@ -266,7 +266,7 @@ class Interpreter {
             }
             return result;
         } else {
-            throw new RuntimeException("TypeError: " + node.toStringWithoutType() + " is not a function");
+            throw JsErrorException.typeError(node.toStringWithoutType() + " is not a function");
         }
     }
 
@@ -582,7 +582,7 @@ class Interpreter {
             } else if (child.type == NodeType.EXPR) {
                 Object value = eval(child, context);
                 if (value == Terms.UNDEFINED) {
-                    throw new RuntimeException("ReferenceError: " + child.getText() + " is not defined");
+                    throw JsErrorException.referenceError(child.getText() + " is not defined");
                 }
                 sb.append(value);
             }
@@ -801,7 +801,7 @@ class Interpreter {
             if (context.hasKey(varName)) {
                 return context.get(varName);
             }
-            throw new RuntimeException("ReferenceError: " + varName + " is not defined");
+            throw JsErrorException.referenceError(varName + " is not defined");
         }
     }
 
@@ -910,9 +910,12 @@ class Interpreter {
                 System.err.println("file://" + first.getResource().getUri().getPath() + ":" + first.getPositionDisplay() + " " + e);
             }
             // Carry engine-origin JS error identity across the boundary so
-            // `e instanceof TypeError` and `EngineException.getJsErrorName()` work.
-            String[] parsed = JsError.parsePrefix(e.getMessage());
-            String jsErrorName = parsed != null ? parsed[0] : null;
+            // `EngineException.getJsErrorName()` works without re-parsing the message.
+            String jsErrorName = null;
+            JsErrorException jex = findJsErrorException(e);
+            if (jex != null) {
+                jsErrorName = jex.payload.getName();
+            }
             throw new EngineException(sb.toString(), e, jsErrorName);
         }
     }
@@ -957,6 +960,57 @@ class Interpreter {
         return context.stopAndThrow(result);
     }
 
+    /**
+     * Walks the cause chain looking for a {@link JsErrorException}. Returns it
+     * when found, or {@code null} otherwise. Used at both the JS-catch boundary
+     * ({@link #evalTryStmt}) and the host boundary ({@link #evalStatement}) to
+     * read the structured JS-error payload without re-parsing messages.
+     */
+    private static JsErrorException findJsErrorException(Throwable t) {
+        Throwable cur = t;
+        while (cur != null) {
+            if (cur instanceof JsErrorException jex) return jex;
+            Throwable next = cur.getCause();
+            if (next == null || next == cur) return null;
+            cur = next;
+        }
+        return null;
+    }
+
+    /**
+     * Build the {@link JsError} that JS code observes in a {@code catch} clause.
+     * Prefers a structured {@link JsErrorException} payload from the cause chain;
+     * falls back to a generic {@code Error} built from the deepest cause's message.
+     */
+    private static JsError buildCaughtError(Throwable e) {
+        JsErrorException jex = findJsErrorException(e);
+        if (jex != null) return jex.payload;
+        Throwable cause = e;
+        while (cause instanceof EngineException && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        String msg = cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName();
+        return new JsError(msg, cause);
+    }
+
+    /**
+     * Wire {@code errObj.constructor} to the registered global matching its
+     * {@code .name} (or {@code Error} as a fallback) so that JS-side identity
+     * checks — {@code e.constructor === TypeError}, {@code e.constructor.name} —
+     * behave the same whether the error was produced by a JS {@code throw} or by
+     * engine code.
+     */
+    private static void wireErrorConstructor(JsError errObj, CoreContext context) {
+        if (errObj.getConstructor() != null || errObj.getName() == null) return;
+        Object ctor = context.root.get(errObj.getName());
+        if (!(ctor instanceof JsError)) {
+            ctor = context.root.get("Error");
+        }
+        if (ctor instanceof JsError ctorErr) {
+            errObj.setConstructor(ctorErr);
+        }
+    }
+
     private static Object evalTryStmt(Node node, CoreContext context) {
         Object tryValue;
         try {
@@ -966,26 +1020,8 @@ class Interpreter {
             if (e instanceof FlowControlSignal) {
                 throw e;
             }
-            // EngineException is the wrapper applied at the statement boundary below; if it
-            // reaches here, unwrap to the underlying cause so the JS side sees its message.
-            Throwable cause = e;
-            while (cause instanceof EngineException && cause.getCause() != null) {
-                cause = cause.getCause();
-            }
-            String msg = cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName();
-            JsError errObj = JsError.fromJavaCause(msg, cause);
-            // Wire .constructor to the registered global so `e.constructor === TypeError`
-            // and `e.constructor.name` work inside JS catch blocks (test262 harness relies
-            // on both). Falls back to the generic Error global if the specific one is absent.
-            if (errObj.getName() != null) {
-                Object ctor = context.root.get(errObj.getName());
-                if (!(ctor instanceof JsError)) {
-                    ctor = context.root.get("Error");
-                }
-                if (ctor instanceof JsError ctorErr) {
-                    errObj.setConstructor(ctorErr);
-                }
-            }
+            JsError errObj = buildCaughtError(e);
+            wireErrorConstructor(errObj, context);
             context.stopAndThrow(errObj);
             tryValue = null;
         }

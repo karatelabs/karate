@@ -171,7 +171,7 @@ class JsRegexTest extends EvalBase {
             eval("var re = /(/;"); // Unbalanced parenthesis
             fail("Should have thrown an exception for invalid regex");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("invalid regex"));
+            assertTrue(e.getMessage().contains("Invalid regular expression"), e.getMessage());
         }
     }
 

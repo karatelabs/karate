@@ -50,7 +50,7 @@ public class JsRegex extends JsObject {
         if (literalText.startsWith("/")) {
             int lastSlashIndex = literalText.lastIndexOf('/');
             if (lastSlashIndex <= 0) {
-                throw new RuntimeException("Invalid RegExp literal: " + literalText);
+                throw JsErrorException.syntaxError("Invalid RegExp literal: " + literalText);
             }
             // extract pattern and flags from the literal
             this.pattern = literalText.substring(1, lastSlashIndex);
@@ -69,7 +69,7 @@ public class JsRegex extends JsObject {
             String javaPattern = translateJsRegexToJava(this.pattern);
             this.javaPattern = Pattern.compile(javaPattern, javaFlags);
         } catch (PatternSyntaxException e) {
-            throw new RuntimeException("invalid regex: " + pattern + " - " + e.getMessage());
+            throw JsErrorException.syntaxError("Invalid regular expression: /" + pattern + "/ - " + e.getMessage());
         }
     }
 
@@ -83,7 +83,7 @@ public class JsRegex extends JsObject {
             String javaPattern = translateJsRegexToJava(this.pattern);
             this.javaPattern = Pattern.compile(javaPattern, javaFlags);
         } catch (PatternSyntaxException e) {
-            throw new RuntimeException("invalid regex: " + pattern + " - " + e.getMessage());
+            throw JsErrorException.syntaxError("Invalid regular expression: /" + pattern + "/ - " + e.getMessage());
         }
     }
 

@@ -162,4 +162,47 @@ class EngineExceptionTest {
         EngineException ex = assertThrowsEngineException("throw new TypeError('x')");
         assertNotNull(ex.getCause(), "cause should not be null");
     }
+
+    @Test
+    void testJsErrorExceptionFactoriesCarryStructuredPayload() {
+        // JsErrorException is the Java carrier engine code uses to throw JS errors.
+        // Each factory produces a JsError payload with the right .name, and the
+        // exception's own Java-side message uses the "<name>: <msg>" form.
+        JsErrorException type = JsErrorException.typeError("bad arg");
+        assertEquals("TypeError", type.payload.getName());
+        assertEquals("bad arg", type.payload.getMessageString());
+        assertEquals("TypeError: bad arg", type.getMessage());
+
+        JsErrorException ref = JsErrorException.referenceError("x is not defined");
+        assertEquals("ReferenceError", ref.payload.getName());
+
+        JsErrorException range = JsErrorException.rangeError("out of range");
+        assertEquals("RangeError", range.payload.getName());
+
+        JsErrorException syntax = JsErrorException.syntaxError("bad token");
+        assertEquals("SyntaxError", syntax.payload.getName());
+
+        JsErrorException generic = JsErrorException.error("oops");
+        assertEquals("Error", generic.payload.getName());
+    }
+
+    @Test
+    void testNonJsJavaExceptionCaughtAsGenericError() {
+        // When a raw Java exception (not JsErrorException) escapes host code and
+        // is caught by JS try/catch, it surfaces as a generic Error with the
+        // Java message — the JS side should see name === "Error" and the
+        // message text intact.
+        Engine engine = new Engine();
+        engine.put("boom", (io.karatelabs.js.JsInvokable) args -> {
+            throw new IllegalStateException("host-side boom");
+        });
+        Object result = engine.eval(
+                "var r = {}; try { boom(); } catch (e) {" +
+                " r.name = e.name; r.msg = e.message;" +
+                " r.isError = e instanceof Error; } r;");
+        Map<?, ?> map = (Map<?, ?>) result;
+        assertEquals("Error", map.get("name"));
+        assertTrue(((String) map.get("msg")).contains("host-side boom"));
+        assertEquals(Boolean.TRUE, map.get("isError"));
+    }
 }

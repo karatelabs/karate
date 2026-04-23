@@ -340,7 +340,7 @@ class JsArrayPrototype extends Prototype {
         List<Object> thisArray = rawList(context);
         JsCallable callable = toCallable(args);
         if (thisArray.isEmpty() && args.length < 2) {
-            throw new RuntimeException("reduce() called on empty array with no initial value");
+            throw JsErrorException.typeError("Reduce of empty array with no initial value");
         }
         int startIndex = 0;
         Object accumulator;
@@ -361,7 +361,7 @@ class JsArrayPrototype extends Prototype {
         List<Object> thisArray = rawList(context);
         JsCallable callable = toCallable(args);
         if (thisArray.isEmpty() && args.length < 2) {
-            throw new RuntimeException("reduceRight() called on empty array with no initial value");
+            throw JsErrorException.typeError("Reduce of empty array with no initial value");
         }
         int startIndex = thisArray.size() - 1;
         Object accumulator;

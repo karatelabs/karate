@@ -91,7 +91,7 @@ class JsNumberPrototype extends Prototype {
         }
         int precision = Terms.objectToNumber(args[0]).intValue();
         if (precision < 1 || precision > 100) {
-            throw new RuntimeException("RangeError: precision must be between 1 and 100");
+            throw JsErrorException.rangeError("precision must be between 1 and 100");
         }
         // Use BigDecimal for rounding
         BigDecimal bd = new BigDecimal(d);

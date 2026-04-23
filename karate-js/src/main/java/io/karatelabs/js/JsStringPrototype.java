@@ -265,7 +265,7 @@ class JsStringPrototype extends Prototype {
         String s = asString(context);
         int count = ((Number) args[0]).intValue();
         if (count < 0) {
-            throw new RuntimeException("invalid count value");
+            throw JsErrorException.rangeError("Invalid count value");
         }
         return s.repeat(count);
     }
@@ -332,7 +332,7 @@ class JsStringPrototype extends Prototype {
         String s = asString(context);
         if (args[0] instanceof JsRegex regex) {
             if (!regex.global) {
-                throw new RuntimeException("replaceAll requires regex with global flag");
+                throw JsErrorException.typeError("String.prototype.replaceAll called with a non-global RegExp argument");
             }
             return regex.replace(s, (String) args[1]);
         }

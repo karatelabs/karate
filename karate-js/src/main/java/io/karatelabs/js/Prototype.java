@@ -60,12 +60,12 @@ abstract class Prototype implements ObjectLike {
 
     @Override
     public void putMember(String name, Object value) {
-        throw new RuntimeException("TypeError: Cannot add property '" + name + "' to immutable built-in prototype");
+        throw JsErrorException.typeError("Cannot add property '" + name + "' to immutable built-in prototype");
     }
 
     @Override
     public void removeMember(String name) {
-        throw new RuntimeException("TypeError: Cannot delete property '" + name + "' from immutable built-in prototype");
+        throw JsErrorException.typeError("Cannot delete property '" + name + "' from immutable built-in prototype");
     }
 
     @Override

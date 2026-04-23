@@ -70,7 +70,7 @@ public class JavaObject implements ExternalAccess, ObjectLike {
 
     @Override
     public void removeMember(String name) {
-        throw new RuntimeException("TypeError: cannot delete property on " + JavaUtils.jsTypeName(object.getClass()));
+        throw JsErrorException.typeError("cannot delete property on " + JavaUtils.jsTypeName(object.getClass()));
     }
 
     @SuppressWarnings("unchecked")
