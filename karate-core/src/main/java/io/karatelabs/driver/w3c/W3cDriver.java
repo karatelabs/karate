@@ -1028,8 +1028,57 @@ public class W3cDriver implements Driver {
                 || trimmed.startsWith("throw ")) {
             return js;
         }
+        // Multi-statement detection: a top-level semicolon followed by more code means
+        // prefixing `return` would turn everything after the first `;` into dead code
+        // (e.g. `return a = 1; b = 2` only runs the first assignment). Leave such scripts
+        // untouched so W3C executeScript runs the full function body. See
+        // https://github.com/karatelabs/karate/issues/2803.
+        int semi = indexOfTopLevelSemicolon(trimmed);
+        if (semi >= 0 && !trimmed.substring(semi + 1).isBlank()) {
+            return js;
+        }
         // Everything else (IIFEs, bare expressions, property access, function calls) — prefix return
         return "return " + js;
+    }
+
+    /**
+     * Scan for the first top-level semicolon, ignoring ones inside string literals
+     * (single, double, or backtick-quoted). Good enough to distinguish
+     * {@code "a = 1; b = 2"} (multi-statement) from {@code "foo('a;b')"} (single call).
+     */
+    static int indexOfTopLevelSemicolon(String s) {
+        boolean inSingle = false;
+        boolean inDouble = false;
+        boolean inBacktick = false;
+        boolean escape = false;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (escape) {
+                escape = false;
+                continue;
+            }
+            if (c == '\\' && (inSingle || inDouble || inBacktick)) {
+                escape = true;
+                continue;
+            }
+            if (inSingle) {
+                if (c == '\'') inSingle = false;
+                continue;
+            }
+            if (inDouble) {
+                if (c == '"') inDouble = false;
+                continue;
+            }
+            if (inBacktick) {
+                if (c == '`') inBacktick = false;
+                continue;
+            }
+            if (c == '\'') inSingle = true;
+            else if (c == '"') inDouble = true;
+            else if (c == '`') inBacktick = true;
+            else if (c == ';') return i;
+        }
+        return -1;
     }
 
     private static boolean isTruthy(Object value) {
