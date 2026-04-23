@@ -154,9 +154,15 @@ work. They apply alongside the Roadmap below.
    only. See the [check performance](#check-performance-after-an-engine-change)
    recipe below.
 
-6. **Small, focused engine changes.** Prefer several small PRs over one
-   sweeping one. The test262 scorecard makes it easy to attribute
-   regressions when changes are tight.
+6. **Focused engine changes, but batched commits are fine.** A single
+   commit covering several related fixes from one session (e.g. IIFE +
+   destructuring overhaul landed together) is preferred over the ceremony
+   of splitting hunks across files. What matters is that each commit
+   message clearly enumerates the logical changes and quotes concrete
+   pass-rate deltas per slice so that a future bisect can still attribute
+   regressions. Only split commits when the work is genuinely independent
+   (e.g. a purely cosmetic change alongside a behavioral fix) — not for
+   its own sake.
 
 ---
 
