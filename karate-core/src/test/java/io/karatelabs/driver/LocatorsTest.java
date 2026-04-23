@@ -295,6 +295,48 @@ class LocatorsTest {
         assertEquals("() => { return document.title }", Locators.toFunction(fn));
     }
 
+    // ========== toFunction: Regression for #2803 ==========
+    // Plain string expressions must pass through toFunction() untouched.
+    // Driver.script(Object) only wraps in IIFE when the result contains "=>"
+    // or starts with "function", so anything toFunction() returns unchanged
+    // here reaches the browser verbatim.
+
+    @Test
+    void testToFunctionVoidMethodCallPassThrough() {
+        // .click() / .focus() / .dispatchEvent() return undefined — the
+        // string must not be rewritten into an arrow function form, or
+        // the IIFE wrap would try to call undefined as a function.
+        String voidClick = "document.querySelector('.my-tab').click()";
+        assertEquals(voidClick, Locators.toFunction(voidClick));
+
+        String voidFocus = "document.getElementById('username').focus()";
+        assertEquals(voidFocus, Locators.toFunction(voidFocus));
+
+        String voidDispatch = "document.getElementById('x').dispatchEvent(new Event('focus'))";
+        assertEquals(voidDispatch, Locators.toFunction(voidDispatch));
+
+        String voidSetItem = "sessionStorage.setItem('k', 'v')";
+        assertEquals(voidSetItem, Locators.toFunction(voidSetItem));
+    }
+
+    @Test
+    void testToFunctionStatementsPassThrough() {
+        // var/let/const and semicolon-joined statements must reach the
+        // browser as-is. If they were wrapped in "(...)" the parser would
+        // reject them with "Unexpected token 'var'" etc.
+        assertEquals("var x = 1; window.y = x", Locators.toFunction("var x = 1; window.y = x"));
+        assertEquals("let x = 1; window.y = x", Locators.toFunction("let x = 1; window.y = x"));
+        assertEquals("const x = 1; window.y = x", Locators.toFunction("const x = 1; window.y = x"));
+        assertEquals("window.a = 1; window.b = 2", Locators.toFunction("window.a = 1; window.b = 2"));
+    }
+
+    @Test
+    void testToFunctionCommaOperatorPassThrough() {
+        // (expr1, expr2) must remain a comma expression, not get split into
+        // separate arguments.
+        assertEquals("(1, 2, 3)", Locators.toFunction("(1, 2, 3)"));
+    }
+
     // ========== wrapInFunctionInvoke Tests ==========
 
     @Test
