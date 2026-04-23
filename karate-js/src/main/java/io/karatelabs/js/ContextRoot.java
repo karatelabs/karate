@@ -93,7 +93,8 @@ class ContextRoot extends CoreContext {
         return switch (key) {
             case "console", "parseInt", "parseFloat", "encodeURIComponent", "decodeURIComponent",
                  "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Infinity", "Java",
-                 "JSON", "Math", "NaN", "Number", "Boolean", "Object", "RegExp", "String", "TypeError",
+                 "JSON", "Math", "NaN", "Number", "Boolean", "Object", "RegExp", "String",
+                 "TypeError", "ReferenceError", "RangeError", "SyntaxError", "URIError", "EvalError",
                  "TextEncoder", "TextDecoder", "Uint8Array", "isNaN", "isFinite" -> true;
             default -> false;
         };
@@ -172,6 +173,11 @@ class ContextRoot extends CoreContext {
             case "RegExp" -> new JsRegex();
             case "String" -> JsStringConstructor.INSTANCE;
             case "TypeError" -> new JsError(null, "TypeError", null);
+            case "ReferenceError" -> new JsError(null, "ReferenceError", null);
+            case "RangeError" -> new JsError(null, "RangeError", null);
+            case "SyntaxError" -> new JsError(null, "SyntaxError", null);
+            case "URIError" -> new JsError(null, "URIError", null);
+            case "EvalError" -> new JsError(null, "EvalError", null);
             case "TextDecoder" -> new JsTextDecoder();
             case "TextEncoder" -> new JsTextEncoder();
             case "Uint8Array" -> new JsUint8Array(0);

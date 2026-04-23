@@ -962,6 +962,27 @@ class EngineTest {
     }
 
     @Test
+    void testErrorSubtypeConstructorsAreGlobals() {
+        // The five additional NativeError constructors from ES1/ES3 must be
+        // globally visible — test262 fixtures constantly do `throw new RangeError(...)`
+        // and `assert.throws(ReferenceError, ...)`.
+        Engine engine = new Engine();
+        assertEquals("ReferenceError:r", engine.eval(
+                "try { throw new ReferenceError('r') } catch (e) { e.name + ':' + e.message }"));
+        assertEquals("RangeError:rg", engine.eval(
+                "try { throw new RangeError('rg') } catch (e) { e.name + ':' + e.message }"));
+        assertEquals("SyntaxError:s", engine.eval(
+                "try { throw new SyntaxError('s') } catch (e) { e.name + ':' + e.message }"));
+        assertEquals("URIError:u", engine.eval(
+                "try { throw new URIError('u') } catch (e) { e.name + ':' + e.message }"));
+        assertEquals("EvalError:ev", engine.eval(
+                "try { throw new EvalError('ev') } catch (e) { e.name + ':' + e.message }"));
+        // Without-new form and toString() should work uniformly for all subtypes
+        assertEquals("RangeError: oops", engine.eval("'' + RangeError('oops')"));
+        assertEquals("ReferenceError", engine.eval("'' + new ReferenceError()"));
+    }
+
+    @Test
     void testJsThrownErrorPropagatesToJavaCaller() {
         // Uncaught JS-thrown Error surfaces to Java caller with its message
         Engine engine = new Engine();

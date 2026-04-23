@@ -28,21 +28,34 @@ and `--test262` as absolute paths.
 ```sh
 cd karate-js-test262
 ./fetch-test262.sh                                # first time only — shallow clone
-mvn -f ../pom.xml -pl karate-js-test262 -am -o exec:java \
+
+# 1. Install current karate-js to local Maven repo so the runner picks it up
+mvn -f ../pom.xml -pl karate-js -o install -DskipTests
+
+# 2. Run the conformance runner (uses the just-installed karate-js)
+mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
     -Dexec.args="--only test/language/expressions/addition/**"
+
+# 3. Generate the HTML report
 mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
     -Dexec.mainClass=io.karatelabs.js.test262.Test262Report
 open html/index.html
 ```
 
-The `-f ../pom.xml` makes Maven use the parent reactor for `-pl -am`
-resolution while keeping the working directory inside the module so the
-runner finds its config. This is the one-liner convention used throughout
-this document.
+**Why install instead of `-am`:** `exec:java` is a direct goal, not a
+phase, so Maven invokes it on *every* selected reactor project. With
+`-pl karate-js-test262 -am`, the reactor also includes `karate-parent`,
+which has no `mainClass` configured — the goal fails there and aborts
+the run before the module is reached. Installing karate-js to the local
+repo first, then running without `-am`, sidesteps the reactor entirely.
 
-Typical inner loop: change something in `karate-js/`, re-run with the same
-`--only`, refresh the HTML report, drill into a failing test via its
-`Reproducer` button.
+The `-f ../pom.xml` makes Maven find the parent reactor for `-pl`
+resolution while the working directory stays inside the module so the
+runner resolves `config/expectations.yaml` and `test262/` correctly.
+
+Typical inner loop: change something in `karate-js/`, re-install (step 1),
+re-run (step 2) with the same `--only`, refresh the HTML report, drill
+into a failing test via its `Reproducer` button.
 
 ---
 
@@ -147,9 +160,16 @@ karate-js-test262/
 All commands assume `cwd = karate-js-test262/` (see Quick Start). Use
 `-f ../pom.xml` so Maven finds the parent reactor.
 
+**After any change under `karate-js/`, re-install it first** — the runner
+uses the karate-js jar from your local Maven repo, not from the reactor
+(see Quick Start's "Why install instead of `-am`").
+
 ```sh
+# After editing karate-js/: refresh the local repo
+mvn -f ../pom.xml -pl karate-js -o install -DskipTests
+
 # Full suite (sequential; minutes to tens of minutes)
-mvn -f ../pom.xml -pl karate-js-test262 -am -o exec:java
+mvn -f ../pom.xml -pl karate-js-test262 -o exec:java
 
 # Narrow to a tier (see Roadmap below)
 mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
@@ -245,6 +265,52 @@ If you find yourself wanting a more structured error surface (e.g. typed
 `EngineException.getJsError()`), that is a valid engine improvement — the
 current prefix-based classifier is a pragmatic starting point, not a
 commitment.
+
+---
+
+## Landing regression tests in karate-js
+
+When a test262 failure drives an engine fix, also add a small hand-written
+JUnit test alongside the fix, in
+[`karate-js/src/test/java/io/karatelabs/js/`](../karate-js/src/test/java/io/karatelabs/js/).
+test262 is the breadth scorecard; the JUnit tests are the targeted
+regression net that runs on every build.
+
+**Rough mapping — use the existing `Js*Test` file whose name matches the
+area. No formal reorganization, no new classes, no JUnit `@Tag`s.**
+
+| test262 path | JUnit file |
+|---|---|
+| `test/built-ins/Array/**` | `JsArrayTest` |
+| `test/built-ins/String/**` | `JsStringTest` |
+| `test/built-ins/Object/**` | `JsObjectTest` |
+| `test/built-ins/Math/**` | `JsMathTest` |
+| `test/built-ins/Number/**` | `JsNumberTest` |
+| `test/built-ins/JSON/**` | `JsJsonTest` |
+| `test/built-ins/Date/**` | `JsDateTest` |
+| `test/built-ins/RegExp/**` | `JsRegexTest` |
+| `test/built-ins/Function/**` | `JsFunctionTest` |
+| `test/built-ins/Boolean/**` | `JsBooleanTest` |
+| `test/language/expressions/**`, `test/language/statements/**`, `test/language/types/**` | `EvalTest` (language-semantics catch-all) |
+| Parser / lexer error regressions, `test/language/literals/**` syntax-level | `JsParserTest`, `JsLexerTest`, `ParserExceptionTest`, `TermsTest` |
+| `EngineException` / error-propagation shape | `EngineExceptionTest` |
+
+**`EngineTest` is *not* a test262 sink.** It covers the engine's
+integration surface: `ContextListener` events, `BindEvent`, `Engine.put`
+lifecycle, Java↔JS exception boundary, `$BUILTIN`/prototype immutability.
+Only drop test262-driven tests here if they genuinely exercise that
+embedding surface (e.g. observing a `BindEvent` for a spec-defined
+binding). Language-semantics drops belong in `EvalTest` or a `Js*Test`.
+
+**When to split a file.** Don't split pre-emptively. If a cluster inside
+`EvalTest` grows to ~10+ tests on one feature (e.g. destructuring, TDZ,
+template literals), spin it out (e.g. `JsDestructuringTest`). The test262
+tier work will surface these naturally — let the split follow the
+evidence, not a plan.
+
+**Filtering by spec surface is test262's job.** If you want "all Symbol
+tests" or "all Array.prototype.map tests," run the conformance suite with
+the right `--only` glob. Don't duplicate that slicing in JUnit with tags.
 
 ---
 
@@ -359,14 +425,17 @@ High-leverage issues that each break many tests at once. Fixing one of these
 is worth more than fixing twenty one-off bugs. Grow this list as tiers run;
 remove items once fixed.
 
-- **Missing global error constructors.** `ReferenceError`, `RangeError`,
-  `URIError`, `EvalError` (and `SyntaxError` as a runtime-catchable
-  constructor) are not registered as globals — only `Error` and `TypeError`
-  are. Any test that does `throw new RangeError(...)` or
-  `assert.throws(ReferenceError, ...)` fails with
-  `"RangeError is not defined"`. Registering these (pointing at the
-  existing `JsError` machinery with the right `name`) unlocks a large
-  fraction of the test262 tree.
+- **`JsError` subtype `instanceof` / `.constructor` identity.** All error
+  constructors (`Error`, `TypeError`, `RangeError`, …) are `JsError`
+  instances sharing one Java class, so `Terms.instanceOf` — which compares
+  by `getClass()` — treats `new RangeError() instanceof TypeError` as
+  `true`. `.constructor` on a thrown error also doesn't resolve to the
+  global constructor, so test262's `assert.throws(RangeError, fn)` (which
+  does `thrown.constructor !== expectedErrorConstructor`) will
+  mis-classify. Fixing this means either (a) distinct Java subclasses per
+  NativeError, or (b) making `instanceOf` / `.constructor` name-aware.
+  Gates any test that does `instanceof` on errors or uses
+  `assert.throws`.
 - **Comma / sequence operator not accepted inside parentheses.** `(a, b)`,
   `(0, eval)(x)`, `for (i = 0, j = 0; ...; i++, j++)`, and all patterns
   that put a sequence expression in parens fail to parse with
@@ -407,6 +476,8 @@ remove items once fixed.
 |---|---|
 | `expectations file not found: config/expectations.yaml` | You ran from the wrong directory. `cd karate-js-test262` first (see Quick Start). |
 | `test262 directory not found: test262` | You haven't run `./fetch-test262.sh` yet (or you're in the wrong dir). |
+| `Failed to execute goal ... exec-maven-plugin ... on project karate-parent: The parameters 'mainClass' ... are missing or invalid` | You used `-am` with `exec:java`. Don't — install `karate-js` separately (see Quick Start) and run without `-am`. |
+| Engine change seems to have no effect on test262 output | You forgot `mvn ... -pl karate-js -o install -DskipTests`. The runner uses the karate-js jar from your local Maven repo, not the reactor classpath. |
 | HTML dashboard shows empty header | `run-meta.json` missing — run `Test262Report` *after* `Test262Runner` in the same directory. |
 | `ReferenceError: <name> is not defined` on common classes like `ReferenceError`/`RangeError` | Known first-order gap — those constructors are not registered globals yet. |
 | Suite seems to hang on one test | Infinite loop; watchdog should kick in at `--timeout-ms`. If it doesn't, bisect with `--only`. |
