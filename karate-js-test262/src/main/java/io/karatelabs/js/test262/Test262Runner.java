@@ -30,9 +30,15 @@ import java.util.stream.Stream;
  * test262 conformance runner for karate-js.
  * <p>
  * Sequential, fresh {@link Engine} per test, per-test watchdog timeout.
- * Writes results as sorted JSONL to {@code target/results.jsonl} and per-run
- * context to {@code target/run-meta.json}. A timestamped session log is
- * mirrored to {@code target/test262/test262-*.log} via Logback.
+ * During a run, each result is appended (flushed) to
+ * {@code target/test262/results.jsonl.partial} — this is the live tap for
+ * {@code tail -f} and also survives an abrupt JVM exit. At end-of-run the
+ * lines are sorted by path and atomically renamed into the canonical
+ * {@code target/test262/results.jsonl}; the partial is deleted on a clean
+ * exit and kept on abort. A single {@code target/test262/progress.log} is
+ * overwritten per run and captures the startup banner, periodic
+ * {@code [progress]} lines, and the final {@code Summary} / {@code Aborted}
+ * line — FAIL metadata lives in the JSONL, not the log.
  * <p>
  * See {@code karate-js-test262/TEST262.md} for full docs.
  */
@@ -45,12 +51,13 @@ public final class Test262Runner {
     private static final long PROGRESS_EVERY_MS = 5_000L;
 
     /**
-     * Print a line to stdout AND mirror it into the session log file
-     * (configured in {@code logback.xml}). This is the single output funnel
-     * the runner uses for progress / FAIL / Summary / Aborted lines so
-     * {@code tail -f target/test262/test262-*.log} is a live view of the run.
+     * Print a progress / banner / summary line to stdout AND mirror it into
+     * the log file ({@code target/test262/progress.log}). Per-test FAIL
+     * lines do NOT go through here — they print directly to stdout and
+     * their full detail lives in {@code results.jsonl.partial}, so
+     * duplicating them into the log would add noise without new signal.
      */
-    private static void say(String line) {
+    private static void sayProgress(String line) {
         System.out.println(line);
         logger.info(line);
     }
@@ -101,8 +108,8 @@ public final class Test262Runner {
         Pattern onlyRe = cli.only == null ? null : globToRegex(cli.only);
         Set<String> resumeDone = cli.resume ? loadExistingPaths(cli.results) : Set.of();
 
-        // Log the session banner to the file appender only — the console already
-        // gets its own startup context via Maven's stderr and the runner's output.
+        // Startup banner — file appender only; the console already gets its own
+        // startup context via Maven's stderr and the runner's output.
         logger.info("test262 runner starting  args={} only={} timeout-ms={} max-duration-ms={} resume={}",
                 cli.rawArgs, cli.only == null ? "-" : cli.only, cli.timeoutMs, cli.maxDurationMs, cli.resume);
 
@@ -113,7 +120,6 @@ public final class Test262Runner {
         int pass = 0, fail = 0, skip = 0;
         int processed = 0;
         long lastProgressNanos = startedNanos;
-        List<ResultRecord> records = new ArrayList<>(all.size());
         boolean aborted = false;
 
         // single-thread executor for the watchdog; recreated if a test times out so
@@ -122,11 +128,11 @@ public final class Test262Runner {
         // reclaim a stuck thread — we retire it and move on).
         ExecutorService exec = newInnerExec();
 
-        // Live partial file: appended per test, flushed every write, in submission
-        // order (not sorted). `tail -f` on this is a real-time feed during a run,
-        // and on abrupt exit the file remains as forensics. The end-of-run
-        // ResultWriter.write() produces the canonical sorted results.jsonl; the
-        // partial file is deleted on successful completion.
+        // Live partial file: each result is appended and flushed as it is produced,
+        // in submission order (NOT sorted). `tail -f` sees records as they arrive,
+        // and on abrupt exit the file remains as forensics. This is the ONLY store
+        // of results during the run — the in-memory list was removed because it
+        // scaled linearly with suite size and duplicated what the file already had.
         Path partial = cli.results.resolveSibling(cli.results.getFileName() + ".partial");
         Path partialParent = partial.getParent();
         if (partialParent != null) Files.createDirectories(partialParent);
@@ -143,92 +149,78 @@ public final class Test262Runner {
 
                 if (System.nanoTime() - startedNanos > maxDurationNanos) {
                     aborted = true;
-                    say("");
-                    say(String.format("ABORTED: --max-duration %dms exceeded; writing partial results",
+                    sayProgress("");
+                    sayProgress(String.format("ABORTED: --max-duration %dms exceeded; writing partial results",
                             cli.maxDurationMs));
                     break;
                 }
 
+                ResultRecord r;
+
                 Test262Case tc;
-                boolean loaded;
                 try {
                     tc = Test262Case.load(cli.test262, abs);
-                    loaded = true;
                 } catch (RuntimeException re) {
-                    tc = null;
-                    loaded = false;
-                    say("FAIL " + rel + " — load error: " + re.getMessage());
-                    ResultRecord loadErr = ResultRecord.fail(rel, "Harness",
-                            "failed to load: " + re.getMessage());
-                    records.add(loadErr);
-                    appendPartial(partialWriter, loadErr);
+                    System.out.println("FAIL " + rel + " — load error: " + re.getMessage());
+                    appendPartial(partialWriter,
+                            ResultRecord.fail(rel, "Harness", "failed to load: " + re.getMessage()));
                     fail++;
+                    processed++;
+                    lastProgressNanos = maybeProgressTick(processed, pass, fail, skip, startedNanos, lastProgressNanos);
+                    continue;
                 }
 
-                if (loaded) {
-                    String reason = expectations.matchSkip(tc);
-                    if (reason != null) {
-                        ResultRecord sk = ResultRecord.skip(rel, reason);
-                        records.add(sk);
-                        appendPartial(partialWriter, sk);
-                        skip++;
-                    } else {
-                        // Inline timeout handling so we can retire `exec` and install a fresh
-                        // one when a test hangs. Without this, the next test queues behind the
-                        // stuck inner thread and hits the per-test timeout itself — the whole
-                        // suite would slow to 10s/test from a single infinite-loop test.
-                        ResultRecord r;
-                        final Test262Case finalTc = tc;
-                        Future<ResultRecord> fut = exec.submit(() -> evaluate(finalTc, harness));
-                        try {
-                            r = fut.get(cli.timeoutMs, TimeUnit.MILLISECONDS);
-                        } catch (TimeoutException te) {
-                            fut.cancel(true);
-                            exec.shutdownNow();
-                            exec = newInnerExec();
-                            r = ResultRecord.fail(rel, "Timeout",
-                                    "no completion within " + cli.timeoutMs + "ms");
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                            fut.cancel(true);
-                            exec.shutdownNow();
-                            exec = newInnerExec();
-                            r = ResultRecord.fail(rel, "Interrupted", ie.getMessage());
-                        } catch (ExecutionException ee) {
-                            Throwable cause = ee.getCause() == null ? ee : ee.getCause();
-                            r = ResultRecord.fail(rel, "Unknown",
-                                    ErrorUtils.firstLine(cause.getMessage(), 200));
-                        }
+                String reason = expectations.matchSkip(tc);
+                if (reason != null) {
+                    appendPartial(partialWriter, ResultRecord.skip(rel, reason));
+                    skip++;
+                    processed++;
+                    lastProgressNanos = maybeProgressTick(processed, pass, fail, skip, startedNanos, lastProgressNanos);
+                    continue;
+                }
 
-                        records.add(r);
-                        appendPartial(partialWriter, r);
-                        switch (r.status()) {
-                            case PASS -> pass++;
-                            case FAIL -> {
-                                fail++;
-                                say("FAIL " + rel + " — "
-                                        + (r.errorType() == null ? "" : r.errorType() + ": ")
-                                        + (r.message() == null ? "" : r.message()));
-                            }
-                            case SKIP -> skip++;
-                        }
+                // Inline timeout handling so we can retire `exec` and install a fresh
+                // one when a test hangs. Without this, the next test queues behind the
+                // stuck inner thread and hits the per-test timeout itself — the whole
+                // suite would slow to 10s/test from a single infinite-loop test.
+                final Test262Case finalTc = tc;
+                Future<ResultRecord> fut = exec.submit(() -> evaluate(finalTc, harness));
+                try {
+                    r = fut.get(cli.timeoutMs, TimeUnit.MILLISECONDS);
+                } catch (TimeoutException te) {
+                    fut.cancel(true);
+                    exec.shutdownNow();
+                    exec = newInnerExec();
+                    r = ResultRecord.fail(rel, "Timeout",
+                            "no completion within " + cli.timeoutMs + "ms");
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    fut.cancel(true);
+                    exec.shutdownNow();
+                    exec = newInnerExec();
+                    r = ResultRecord.fail(rel, "Interrupted", ie.getMessage());
+                } catch (ExecutionException ee) {
+                    Throwable cause = ee.getCause() == null ? ee : ee.getCause();
+                    r = ResultRecord.fail(rel, "Unknown",
+                            ErrorUtils.firstLine(cause.getMessage(), 200));
+                }
+
+                appendPartial(partialWriter, r);
+                switch (r.status()) {
+                    case PASS -> pass++;
+                    case FAIL -> {
+                        fail++;
+                        // FAIL lines go to stdout only — the full record (with
+                        // error_type, message, path) is in results.jsonl.partial,
+                        // which is where a consumer should parse failures from.
+                        System.out.println("FAIL " + rel + " — "
+                                + (r.errorType() == null ? "" : r.errorType() + ": ")
+                                + (r.message() == null ? "" : r.message()));
                     }
+                    case SKIP -> skip++;
                 }
                 processed++;
-
-                // Periodic progress line — plain text, no \r. Every N tests OR every M seconds
-                // of wall time since the last line, whichever fires first. Safe on TTYs and
-                // piped/CI output alike; gives long runs an observable heartbeat without
-                // needing a ticker thread.
-                long nowNanos = System.nanoTime();
-                if (processed % PROGRESS_EVERY_N_TESTS == 0
-                        || (nowNanos - lastProgressNanos) >= PROGRESS_EVERY_MS * 1_000_000L) {
-                    long elapsedMs = (nowNanos - startedNanos) / 1_000_000L;
-                    double rate = elapsedMs > 0 ? (processed * 1000.0 / elapsedMs) : 0.0;
-                    say(String.format("[progress] %d processed  pass %d  fail %d  skip %d  @ %.0f/s  elapsed %s",
-                            processed, pass, fail, skip, rate, formatDuration(java.time.Duration.ofMillis(elapsedMs))));
-                    lastProgressNanos = nowNanos;
-                }
+                lastProgressNanos = maybeProgressTick(processed, pass, fail, skip, startedNanos, lastProgressNanos);
             }
         } finally {
             exec.shutdownNow();
@@ -237,19 +229,15 @@ public final class Test262Runner {
 
         Instant ended = Instant.now();
 
-        // Re-read existing records if --resume so the committed JSONL still has everything.
-        List<ResultRecord> toWrite = records;
-        if (cli.resume && !resumeDone.isEmpty()) {
-            final List<ResultRecord> finalRecords = records;
-            List<ResultRecord> combined = new ArrayList<>(records);
-            combined.addAll(loadExistingRecords(cli.results, rel -> !containsPath(finalRecords, rel)));
-            toWrite = combined;
-        }
+        // End-of-run: read the partial (new records, run order), merge with any
+        // existing sorted results.jsonl entries that --resume preserved, sort all
+        // lines (JSONL starts with {"path":"X",... so lex sort == path sort), and
+        // atomic-write the canonical results.jsonl.
+        List<String> merged = mergePartialWithExisting(partial, cli.results, cli.resume);
+        ResultWriter.sortAndWrite(cli.results, merged);
 
-        ResultWriter.write(cli.results, toWrite);
-
-        // Sorted canonical file is now in place; the live tap is redundant.
-        // Keep it around on abort so the stop point is forensically visible.
+        // Canonical file is in place; the live tap is redundant. Keep it on abort
+        // so the stop point is forensically visible.
         if (!aborted) {
             try { Files.deleteIfExists(partial); } catch (IOException ignored) { /* best-effort */ }
         }
@@ -265,13 +253,68 @@ public final class Test262Runner {
                 cli.rawArgs);
         meta.writeTo(cli.runMeta);
 
-        say("");
-        say(String.format("%s: %d pass / %d fail / %d skip / %d total in %s",
+        sayProgress("");
+        sayProgress(String.format("%s: %d pass / %d fail / %d skip / %d total in %s",
                 aborted ? "Aborted" : "Summary",
                 pass, fail, skip, pass + fail + skip,
                 formatDuration(java.time.Duration.between(started, ended))));
-        say("Results: " + cli.results.toAbsolutePath());
-        say("Report:  java io.karatelabs.js.test262.Test262Report");
+        sayProgress("Results: " + cli.results.toAbsolutePath());
+        sayProgress("Report:  java io.karatelabs.js.test262.Test262Report");
+    }
+
+    /**
+     * Emit a [progress] line to stdout + log if enough tests or wall-clock time
+     * have elapsed since the last one. Returns the new lastProgressNanos baseline.
+     */
+    private static long maybeProgressTick(int processed, int pass, int fail, int skip,
+                                           long startedNanos, long lastProgressNanos) {
+        long nowNanos = System.nanoTime();
+        boolean count = processed % PROGRESS_EVERY_N_TESTS == 0;
+        boolean time = (nowNanos - lastProgressNanos) >= PROGRESS_EVERY_MS * 1_000_000L;
+        if (!count && !time) return lastProgressNanos;
+        long elapsedMs = (nowNanos - startedNanos) / 1_000_000L;
+        double rate = elapsedMs > 0 ? (processed * 1000.0 / elapsedMs) : 0.0;
+        sayProgress(String.format("[progress] %d processed  pass %d  fail %d  skip %d  @ %.0f/s  elapsed %s",
+                processed, pass, fail, skip, rate,
+                formatDuration(java.time.Duration.ofMillis(elapsedMs))));
+        return nowNanos;
+    }
+
+    /**
+     * Read the partial file (new records in run order) and merge with any rows
+     * from the existing canonical results.jsonl whose path was NOT re-run this
+     * session (only meaningful when --resume was used). Returns the combined
+     * list of raw JSONL lines, ready to be sorted + atomic-written.
+     */
+    private static List<String> mergePartialWithExisting(Path partial, Path canonical, boolean resume) throws IOException {
+        List<String> newLines = Files.isRegularFile(partial)
+                ? Files.readAllLines(partial, StandardCharsets.UTF_8)
+                : new ArrayList<>();
+        if (!resume || !Files.isRegularFile(canonical)) {
+            return newLines;
+        }
+        Set<String> newPaths = new HashSet<>();
+        for (String line : newLines) {
+            String p = extractPath(line);
+            if (p != null) newPaths.add(p);
+        }
+        List<String> oldLines = Files.readAllLines(canonical, StandardCharsets.UTF_8);
+        List<String> merged = new ArrayList<>(newLines.size() + oldLines.size());
+        merged.addAll(newLines);
+        for (String line : oldLines) {
+            String p = extractPath(line);
+            if (p != null && !newPaths.contains(p)) merged.add(line);
+        }
+        return merged;
+    }
+
+    /** Pull the value of the leading {@code "path":"…"} field out of a JSONL line. */
+    private static String extractPath(String jsonLine) {
+        int i = jsonLine.indexOf("\"path\":\"");
+        if (i < 0) return null;
+        int s = i + "\"path\":\"".length();
+        int e = jsonLine.indexOf('"', s);
+        return e > s ? jsonLine.substring(s, e) : null;
     }
 
     private static ExecutorService newInnerExec() {
@@ -284,16 +327,14 @@ public final class Test262Runner {
 
     /**
      * Append one record's JSONL line + newline to the live partial file and
-     * flush so a concurrent {@code tail -f} sees it immediately. I/O errors
-     * here are swallowed — the in-memory {@code records} list is the source
-     * of truth for the end-of-run sorted write; the partial is a tap.
+     * flush so a concurrent {@code tail -f} sees it immediately. The partial
+     * is the only store of results during the run, so I/O failures are fatal:
+     * this throws and aborts the suite rather than silently losing rows.
      */
-    private static void appendPartial(BufferedWriter w, ResultRecord r) {
-        try {
-            w.write(r.toJsonLine());
-            w.newLine();
-            w.flush();
-        } catch (IOException ignored) { /* best-effort tap */ }
+    private static void appendPartial(BufferedWriter w, ResultRecord r) throws IOException {
+        w.write(r.toJsonLine());
+        w.newLine();
+        w.flush();
     }
 
     /* ------------------------------ single-file ------------------------------ */
@@ -506,45 +547,6 @@ public final class Test262Runner {
             return Set.of();
         }
         return out;
-    }
-
-    private static List<ResultRecord> loadExistingRecords(Path jsonl, java.util.function.Predicate<String> keepByPath) {
-        // Minimal parse to reuse prior records on --resume; we only need to echo them back.
-        List<ResultRecord> out = new ArrayList<>();
-        if (!Files.isRegularFile(jsonl)) return out;
-        try (BufferedReader br = Files.newBufferedReader(jsonl, StandardCharsets.UTF_8)) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                String path = between(line, "\"path\":\"", "\"");
-                if (path == null || !keepByPath.test(path)) continue;
-                String status = between(line, "\"status\":\"", "\"");
-                String errorType = between(line, "\"error_type\":\"", "\"");
-                String message = between(line, "\"message\":\"", "\"");
-                String reason = between(line, "\"reason\":\"", "\"");
-                if (status == null) continue;
-                out.add(new ResultRecord(
-                        path,
-                        ResultRecord.Status.valueOf(status),
-                        errorType, message, reason));
-            }
-        } catch (IOException e) {
-            return Collections.emptyList();
-        }
-        return out;
-    }
-
-    private static String between(String line, String left, String right) {
-        int i = line.indexOf(left);
-        if (i < 0) return null;
-        int s = i + left.length();
-        int e = line.indexOf(right, s);
-        if (e < 0) return null;
-        return line.substring(s, e);
-    }
-
-    private static boolean containsPath(List<ResultRecord> records, String path) {
-        for (ResultRecord r : records) if (r.path().equals(path)) return true;
-        return false;
     }
 
     private static String readTest262Sha(Path test262Root) {

@@ -193,7 +193,7 @@ karate-js-test262/
     ├── results.jsonl                  # per-test pass/fail/skip, sorted by path (end of run)
     ├── results.jsonl.partial          # live feed — appended per test, flushed; deleted on clean exit, kept on abort
     ├── run-meta.json                  # per-run context
-    ├── test262-<yyyyMMdd-HHmmss>.log  # timestamped session log (tail -f this)
+    ├── progress.log                   # overwritten per run — banner + [progress] lines + final summary
     └── html/                          # generated HTML report
 ```
 
@@ -220,7 +220,7 @@ you (or an external caller) can `tail -f` while the suite is running:
 etc/run.sh                                              # full suite + HTML report
 etc/run.sh --only 'test/language/**'                    # slice
 etc/run.sh --only 'test/language/**' --max-duration 300000   # 5-min cap
-tail -f target/test262/test262-*.log                    # live console + progress view
+tail -f target/test262/progress.log                     # live [progress] lines + summary
 tail -f target/test262/results.jsonl.partial            # live per-test JSONL feed
 ```
 
@@ -271,13 +271,16 @@ mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
 | `--resume` | off | skip tests already in existing `target/test262/results.jsonl` |
 
 Runs are **silent except failures + periodic progress**. A
-`FAIL <path> — <type>: <msg>` line is printed as each failure occurs; a
-`[progress] <N> processed …` line prints every 500 tests or every 5 seconds
-(whichever fires first) so long runs have an observable heartbeat. A one-line
-`Summary:` (or `Aborted:`) ends the run. Every line is mirrored (with
-timestamps) to `target/test262/test262-<yyyyMMdd-HHmmss>.log` via Logback
-(config: `src/main/resources/logback.xml`), so `tail -f` on the newest
-file in `target/test262/` is a live view equivalent to watching the console.
+`FAIL <path> — <type>: <msg>` line is printed to stdout as each failure
+occurs; a `[progress] <N> processed …` line prints every 500 tests or every
+5 seconds (whichever fires first) so long runs have an observable heartbeat.
+A one-line `Summary:` (or `Aborted:`) ends the run.
+
+The progress / banner / summary lines (NOT the per-FAIL ones) are also
+mirrored to `target/test262/progress.log` via Logback
+(config: `src/main/resources/logback.xml`) so `tail -f progress.log` is a
+lightweight live view. Per-FAIL detail deliberately lives only in the JSONL
+files — mirroring it into the log would duplicate data without a new signal.
 
 Generate the HTML report with
 `mvn exec:java -Dexec.mainClass=io.karatelabs.js.test262.Test262Report`;
