@@ -30,7 +30,7 @@ import java.util.stream.Stream;
  * Writes results as sorted JSONL to {@code results.jsonl} (committable) and
  * per-run context to {@code run-meta.json} (gitignored).
  * <p>
- * See {@code karate-js-test262/README.md} for full docs.
+ * See {@code karate-js-test262/TEST262.md} for full docs.
  */
 public final class Test262Runner {
 

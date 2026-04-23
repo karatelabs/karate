@@ -111,14 +111,38 @@ work. They apply alongside the Roadmap below.
    Working around tooling pain compounds over 50k tests; fixing it once
    pays back the same day.
 
-3. **The engine event system is fair game for testability.** karate-js's
+3. **Errors must look like JavaScript, not Java.** karate-js is executed by
+   LLMs as often as it's written for them — the `.message`, error-constructor
+   identity, and (when we add them) stack frames they read back are part of
+   their feedback loop. A leaking `IndexOutOfBoundsException` or `at
+   io.karatelabs.js.Interpreter.eval(...)` frame is a correctness bug, not a
+   cosmetic one: it derails the model's next step. Concretely:
+   - Any raw Java exception escaping `Engine.eval(...)` (ArithmeticException,
+     IndexOutOfBoundsException, NullPointerException, ClassCastException…) →
+     catch at the boundary, re-throw as the right JS error type with a
+     JS-native message.
+   - Reserve the `js failed: / ========== / Code: / Error: …` framing for
+     host-side logging; expose raw JS-style `.message` on `EngineException`
+     directly.
+   - Error constructor identity (`.constructor`, `instanceof`) is part of the
+     error surface — see Known first-order gaps.
+   - When stack traces arrive, they should enumerate JS frames (script
+     file:line, JS function names), not Java frames — Java frames are
+     implementation detail.
+
+   This is a stronger form of #2: even if the test262 classifier strips
+   noise, the *engine's user-visible error surface* is its own output
+   contract. Treat every raw Java exception name or `io.karatelabs.js.*`
+   frame an LLM could read as a bug.
+
+4. **The engine event system is fair game for testability.** karate-js's
    `ContextListener` / `Event` / `BindEvent` surface (see
    [JS_ENGINE.md](../docs/JS_ENGINE.md)) exists partly for debugging and
    introspection. If exposing a new event or adding a field to an existing
    one makes test262 failures dramatically clearer, do it — this is not
    a load-bearing API guarantee.
 
-4. **Performance is a feature.** The suite runs a fresh `new Engine()` per
+5. **Performance is a feature.** The suite runs a fresh `new Engine()` per
    test (~50k tests); regressions of a few µs in engine startup or
    per-statement eval cost compound into minutes of wall time. After any
    non-trivial engine change, run
@@ -128,7 +152,7 @@ work. They apply alongside the Roadmap below.
    See the [check performance](#check-performance-after-an-engine-change)
    recipe below.
 
-5. **Small, focused engine changes.** Prefer several small PRs over one
+6. **Small, focused engine changes.** Prefer several small PRs over one
    sweeping one. The test262 scorecard makes it easy to attribute
    regressions when changes are tight.
 
@@ -138,7 +162,7 @@ work. They apply alongside the Roadmap below.
 
 ```
 karate-js-test262/
-├── README.md                         # this file (the living document)
+├── TEST262.md                        # this file (the living document)
 ├── pom.xml                           # Maven module (deploy explicitly disabled)
 ├── fetch-test262.sh                  # shallow clone of tc39/test262 at pinned SHA
 ├── config/
@@ -425,17 +449,17 @@ High-leverage issues that each break many tests at once. Fixing one of these
 is worth more than fixing twenty one-off bugs. Grow this list as tiers run;
 remove items once fixed.
 
-- **`JsError` subtype `instanceof` / `.constructor` identity.** All error
-  constructors (`Error`, `TypeError`, `RangeError`, …) are `JsError`
-  instances sharing one Java class, so `Terms.instanceOf` — which compares
-  by `getClass()` — treats `new RangeError() instanceof TypeError` as
-  `true`. `.constructor` on a thrown error also doesn't resolve to the
-  global constructor, so test262's `assert.throws(RangeError, fn)` (which
-  does `thrown.constructor !== expectedErrorConstructor`) will
-  mis-classify. Fixing this means either (a) distinct Java subclasses per
-  NativeError, or (b) making `instanceOf` / `.constructor` name-aware.
-  Gates any test that does `instanceof` on errors or uses
-  `assert.throws`.
+- **`JsError` subtype `instanceof` / `.constructor` identity** (per Working
+  Principle #3 — error-surface fix). All error constructors (`Error`,
+  `TypeError`, `RangeError`, …) are `JsError` instances sharing one Java
+  class, so `Terms.instanceOf` — which compares by `getClass()` — treats
+  `new RangeError() instanceof TypeError` as `true`. `.constructor` on a
+  thrown error also doesn't resolve to the global constructor, so test262's
+  `assert.throws(RangeError, fn)` (which does
+  `thrown.constructor !== expectedErrorConstructor`) will mis-classify.
+  Fixing this means either (a) distinct Java subclasses per NativeError, or
+  (b) making `instanceOf` / `.constructor` name-aware. Gates any test that
+  does `instanceof` on errors or uses `assert.throws`.
 - **Comma / sequence operator not accepted inside parentheses.** `(a, b)`,
   `(0, eval)(x)`, `for (i = 0, j = 0; ...; i++, j++)`, and all patterns
   that put a sequence expression in parens fail to parse with
@@ -460,12 +484,13 @@ remove items once fixed.
   These gate **thousands** of `test/built-ins/**` tests currently SKIP'd
   via `expectations.yaml`. Once Tier 2's built-ins work, un-skipping these
   helpers one at a time is the next lever.
-- **Engine framing noise in error messages.** The default `EngineException`
-  wraps runtime errors in a multi-line `js failed: / ========== / Code: /
-  Error: ...` frame. The runner strips this in `ErrorUtils.unwrapFraming`,
-  but JS-side fixtures that inspect `.message` via `assert.throws` may see
-  the framed text. Consider reserving the frame for logging and exposing
-  the raw message via `EngineException.getMessage()`.
+- **Engine framing noise in error messages** (per Working Principle #3).
+  `EngineException` wraps runtime errors in a multi-line `js failed: /
+  ========== / Code: / Error: ...` frame. The test262 runner strips this
+  in `ErrorUtils.unwrapFraming`, but JS-side fixtures that inspect
+  `.message` via `assert.throws` see the framed text — so the classifier
+  workaround doesn't fix the real problem. Reserve the frame for
+  host-side logging; expose the raw JS message on the exception directly.
 - *(more will land here as tiers are worked; remove items once fixed.)*
 
 ---

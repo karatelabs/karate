@@ -2,7 +2,7 @@
 
 This document describes the JavaScript engine architecture, type system, and Java interop patterns for karate-js.
 
-> See also: [DESIGN.md](./DESIGN.md) | [TODOS.md](./TODOS.md) | [karate-js README](../karate-js/README.md) | [karate-js-test262 README](../karate-js-test262/README.md)
+> See also: [DESIGN.md](./DESIGN.md) | [TODOS.md](./TODOS.md) | [karate-js README](../karate-js/README.md) | [karate-js-test262 TEST262.md](../karate-js-test262/TEST262.md)
 
 ---
 
@@ -457,6 +457,15 @@ class JsDate extends JsObject implements JavaMirror {
 ---
 
 ## Exception Handling
+
+> **Design tenet.** What surfaces when a JS program fails is part of the
+> engine's *output contract*, because karate-js is executed by LLMs as often
+> as it's written for them. Error messages, constructor identity, and (when
+> we add them) stack frames must look JS-native — a raw `IndexOutOfBoundsException`
+> or `at io.karatelabs.js.Interpreter.eval(...)` frame leaking out is a
+> correctness bug, not cosmetic noise. See
+> [karate-js-test262 Working Principle #3](../karate-js-test262/TEST262.md#working-principles)
+> for the full statement.
 
 ### Java exceptions are JS-catchable
 
