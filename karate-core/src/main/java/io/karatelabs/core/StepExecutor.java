@@ -72,11 +72,30 @@ public class StepExecutor {
         this.runtime = runtime;
     }
 
-    private void addCallResult(FeatureResult result) {
+    void addCallResult(FeatureResult result) {
         if (stepCallResults == null) {
             stepCallResults = new ArrayList<>();
         }
         stepCallResults.add(result);
+    }
+
+    /**
+     * Clear the call-results buffer so a non-step code path (a lifecycle hook) can
+     * collect karate.call() results in isolation from the previous step's execution.
+     */
+    void resetCallResults() {
+        stepCallResults = null;
+    }
+
+    /**
+     * Return accumulated call results and clear the buffer. Used by ScenarioRuntime
+     * when wrapping a lifecycle hook so the call results can be attached to a synthetic
+     * hook step instead of being discarded.
+     */
+    List<FeatureResult> drainCallResults() {
+        List<FeatureResult> out = stepCallResults;
+        stepCallResults = null;
+        return out;
     }
 
     private Suite getSuite() {

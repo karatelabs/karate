@@ -46,6 +46,7 @@ public class StepResult {
     private String log;
     private List<Embed> embeds;
     private List<FeatureResult> callResults;  // For call steps - called feature results (V1 style)
+    private String hookName;  // "beforeScenario" / "afterScenario" when this represents a lifecycle hook
 
     private StepResult(Step step, Status status, long startTime, long durationNanos, Throwable error) {
         this.step = step;
@@ -82,6 +83,18 @@ public class StepResult {
     public static StepResult fakeFailure(String message, long startTime, Throwable error) {
         StepResult sr = new StepResult(null, Status.FAILED, startTime, 0, error);
         sr.log = message;
+        return sr;
+    }
+
+    /**
+     * Create a synthetic step result representing a beforeScenario / afterScenario hook.
+     * The hook name becomes the step text; nested karate.call() results and logs are set
+     * by the caller via the existing setters.
+     */
+    public static StepResult hook(String hookName, Status status, long startTime,
+                                  long durationNanos, Throwable error) {
+        StepResult sr = new StepResult(null, status, startTime, durationNanos, error);
+        sr.hookName = hookName;
         return sr;
     }
 
@@ -148,6 +161,14 @@ public class StepResult {
         return callResults != null && !callResults.isEmpty();
     }
 
+    public String getHookName() {
+        return hookName;
+    }
+
+    public boolean isHook() {
+        return hookName != null;
+    }
+
     public boolean isPassed() {
         return status == Status.PASSED;
     }
@@ -175,12 +196,17 @@ public class StepResult {
         if (step != null) {
             map.put("step", step.toJson());
         } else {
-            // Fake step (e.g., for @fail tag)
+            // Fake step (e.g., for @fail tag, or a lifecycle hook)
             Map<String, Object> fakeStep = new LinkedHashMap<>();
             fakeStep.put("index", -1);
             fakeStep.put("line", 0);
             fakeStep.put("prefix", "*");
-            fakeStep.put("text", log != null ? log : "");
+            if (hookName != null) {
+                fakeStep.put("text", hookName);
+                fakeStep.put("hook", hookName);
+            } else {
+                fakeStep.put("text", log != null ? log : "");
+            }
             map.put("step", fakeStep);
         }
 

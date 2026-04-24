@@ -175,10 +175,10 @@ class RunnerTest {
                 .outputConsoleSummary(false)
                 .parallel(1);
 
-        // Should find only non-@ignore features: test-report, second-feature, third-feature, http-demo, skipped-scenarios
-        assertEquals(5, result.getFeatureCount());
-        // Total scenarios: 12 + 4 + 4 + 5 + 3 = 28
-        assertEquals(28, result.getScenarioCount());
+        // Should find only non-@ignore features: test-report, second-feature, third-feature, http-demo, skipped-scenarios, hooks-demo
+        assertEquals(6, result.getFeatureCount());
+        // Total scenarios: 12 + 4 + 4 + 5 + 3 + 4 = 32
+        assertEquals(32, result.getScenarioCount());
     }
 
     @Test
@@ -193,7 +193,7 @@ class RunnerTest {
                 .parallel(1);
 
         // @ignore features are skipped, http-demo and skipped-scenarios included
-        assertEquals(5, result.getFeatureCount());
+        assertEquals(6, result.getFeatureCount());
     }
 
     @Test

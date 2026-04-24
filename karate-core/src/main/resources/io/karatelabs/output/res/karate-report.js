@@ -164,6 +164,10 @@ const KarateReport = {
         html += `<span class="fw-bold">${this._esc(step.keyword)}</span> `;
         html += `<span>${this._esc(step.text)}</span>`;
 
+        if (step.hook) {
+            html += ` <span class="badge bg-secondary ms-1" title="lifecycle hook">hook</span>`;
+        }
+
         // Collapsed badges
         if (step.hasLogs) {
             html += ` <span class="badge bg-secondary ms-1 k-badge-collapsed" title="Has logs - click to expand">log</span>`;

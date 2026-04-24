@@ -580,10 +580,15 @@ public final class HtmlReportWriter {
                 data.put("comments", comments);
             }
         } else {
-            // Fake step (e.g., for @fail tag)
+            // Fake step (e.g., for @fail tag, or a lifecycle hook)
             data.put("prefix", "*");
             data.put("keyword", "*");
-            data.put("text", step.getLog() != null ? step.getLog() : "");
+            if (step.isHook()) {
+                data.put("text", step.getHookName());
+                data.put("hook", step.getHookName());
+            } else {
+                data.put("text", step.getLog() != null ? step.getLog() : "");
+            }
             data.put("line", 0);
         }
         data.put("status", step.getStatus().name().toLowerCase());

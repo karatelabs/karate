@@ -408,7 +408,13 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         );
 
         // Execute the called feature
-        nestedFr.call();
+        FeatureResult nestedResult = nestedFr.call();
+
+        // Record the nested feature result so it surfaces in the report under the
+        // current step (or the synthetic step for a lifecycle hook wrapper).
+        if (nestedResult != null) {
+            executor.addCallResult(nestedResult);
+        }
 
         // Return result variables from the last executed scenario
         if (nestedFr.getLastExecuted() != null) {
@@ -859,14 +865,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 scenarioStarted = true;
                 // Skip hook in dry-run mode for non-@setup scenarios (V1 parity)
                 if (topLevel && !isDryRunSkip()) {
-                    Throwable hookError = invokeHook(config.getBeforeScenario(), "beforeScenario");
-                    if (hookError != null) {
-                        result.addStepResult(StepResult.fakeFailure(
-                                "beforeScenario hook failed: " + hookError.getMessage(),
-                                System.currentTimeMillis(), hookError));
-                        if (!config.isContinueOnStepFailure()) {
-                            stopped = true;
-                        }
+                    Throwable hookError = invokeAndRecordHook(config.getBeforeScenario(), "beforeScenario");
+                    if (hookError != null && !config.isContinueOnStepFailure()) {
+                        stopped = true;
                     }
                 }
             }
@@ -956,11 +957,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // Skipped for called features (karate.call) so a hook that itself calls a feature
             // does not recurse - matches afterFeature / afterScenarioOutline which also gate on caller == null.
             if (scenarioStarted && topLevel && !isDryRunSkip()) {
-                Throwable hookError = invokeHook(config.getAfterScenario(), "afterScenario");
+                Throwable hookError = invokeAndRecordHook(config.getAfterScenario(), "afterScenario");
                 if (hookError != null) {
-                    result.addStepResult(StepResult.fakeFailure(
-                            "afterScenario hook failed: " + hookError.getMessage(),
-                            System.currentTimeMillis(), hookError));
                     // Bump end time since we added a post-scenario step
                     result.setEndTime(System.currentTimeMillis());
                 }
@@ -1397,6 +1395,49 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             logger.warn("{} hook failed: {}", hookName, e.getMessage());
             return e;
         }
+    }
+
+    /**
+     * Run a lifecycle hook and append a synthetic StepResult describing the invocation
+     * to the scenario's step list so it renders in the HTML report alongside regular
+     * Gherkin steps. The synthetic step carries any karate.call() results produced inside
+     * the hook (via the same buffer real steps use) plus the hook's log / embed output.
+     * Returns null when there is no callable hook configured or the hook passed; returns
+     * the Throwable so callers can apply the existing stop/continue semantics.
+     */
+    private Throwable invokeAndRecordHook(Object hookRef, String hookName) {
+        if (!(hookRef instanceof JavaCallable)) {
+            return null;
+        }
+        long startTime = System.currentTimeMillis();
+        long startNanos = System.nanoTime();
+        executor.resetCallResults();
+        // Drain any residual log/embed buffer so the hook step only reflects hook output
+        LogContext ctx = LogContext.get();
+        ctx.collect();
+        ctx.collectEmbeds();
+
+        Throwable err = invokeHook(hookRef, hookName);
+
+        long durationNanos = System.nanoTime() - startNanos;
+        StepResult.Status status = err == null ? StepResult.Status.PASSED : StepResult.Status.FAILED;
+        StepResult sr = StepResult.hook(hookName, status, startTime, durationNanos, err);
+        List<FeatureResult> calls = executor.drainCallResults();
+        if (calls != null && !calls.isEmpty()) {
+            sr.setCallResults(calls);
+        }
+        String log = ctx.collect();
+        if (log != null && !log.isEmpty()) {
+            sr.setLog(log);
+        }
+        List<StepResult.Embed> embeds = ctx.collectEmbeds();
+        if (embeds != null) {
+            for (StepResult.Embed e : embeds) {
+                sr.addEmbed(e);
+            }
+        }
+        result.addStepResult(sr);
+        return err;
     }
 
     private void closeChannels() {

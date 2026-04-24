@@ -121,15 +121,24 @@ class HtmlReportWriterTest {
                 .parallel(3);  // parallel for timeline testing
 
         // Verify the run completed (feature count may vary with @ignore features)
-        assertTrue(result.getFeatureCount() >= 4, "Should have at least 4 features (including http-demo)");
-        assertTrue(result.getScenarioPassedCount() >= 17, "Should have many passing scenarios including HTTP tests");
-        assertTrue(result.getScenarioFailedCount() >= 4, "Should have @wip failing scenarios (including match failure demos)");
+        assertTrue(result.getFeatureCount() >= 5, "Should have at least 5 features (including http-demo and hooks-demo)");
+        assertTrue(result.getScenarioPassedCount() >= 19, "Should have many passing scenarios including HTTP tests");
+        assertTrue(result.getScenarioFailedCount() >= 6, "Should have @wip failing scenarios (including match failure + hook demos)");
         assertTrue(result.getScenarioSkippedCount() >= 2,
                 "Should have at least 2 skipped scenarios from skipped-scenarios.feature");
 
-        // Every failed scenario must expose location + source line for the summary
+        // Every failed scenario must expose location + source line for the summary -
+        // except scenarios whose only failure is a lifecycle hook (hooks are JS, not Gherkin,
+        // so they have no source-line location to point at).
         result.getFeatureResults().forEach(fr ->
                 fr.getScenarioResults().stream().filter(sr -> sr.isFailed()).forEach(sr -> {
+                    var firstFailed = sr.getStepResults().stream()
+                            .filter(io.karatelabs.core.StepResult::isFailed)
+                            .findFirst()
+                            .orElse(null);
+                    if (firstFailed != null && firstFailed.isHook()) {
+                        return;
+                    }
                     assertNotNull(sr.getFailedStepLocation(),
                             "failed scenario '" + sr.getScenario().getName() + "' missing step location");
                     String stepText = sr.getFailedStepText();
@@ -832,6 +841,240 @@ class HtmlReportWriterTest {
         // Warning should appear in the step log
         assertTrue(jsonl.contains("Failed to evaluate scenario name"),
             "Warning should appear in report log");
+    }
+
+    // ========== beforeScenario / afterScenario Hook Reporting ==========
+
+    @Test
+    void testHookStepsRenderInReport(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("hooks-basic.feature");
+        Files.writeString(feature, """
+                Feature: Hook Steps Basic
+
+                Scenario: body runs between hooks
+                * configure afterScenario = function(){ karate.log('after-done') }
+                * def x = 1
+                * match x == 1
+                """);
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+                function fn() {
+                  karate.configure('beforeScenario', function(){ karate.log('before-done') });
+                  return {};
+                }
+                """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .configDir(tempDir.toString())
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(1, result.getScenarioPassedCount(), "hook steps must not inflate scenario counts");
+        assertEquals(0, result.getScenarioFailedCount());
+
+        Path featuresDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
+        String[] featureFiles = featuresDir.toFile().list();
+        assertNotNull(featureFiles);
+        assertEquals(1, featureFiles.length);
+        String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
+
+        assertTrue(featureHtml.contains("\"hook\": \"beforeScenario\""),
+                "feature HTML should expose beforeScenario hook marker");
+        assertTrue(featureHtml.contains("\"hook\": \"afterScenario\""),
+                "feature HTML should expose afterScenario hook marker");
+    }
+
+    @Test
+    void testHookCallRendersNestedFeature(@TempDir Path tempDir) throws Exception {
+        Path setup = tempDir.resolve("setup.feature");
+        Files.writeString(setup, """
+                Feature: Setup Helper
+
+                Scenario: helper
+                * def helper = 'ok'
+                * match helper == 'ok'
+                """);
+        Path main = tempDir.resolve("main.feature");
+        Files.writeString(main, """
+                Feature: Main
+
+                Scenario: body only
+                * def a = 1
+                * match a == 1
+                """);
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+                function fn() {
+                  karate.configure('beforeScenario', function(){
+                    karate.call('setup.feature');
+                  });
+                  return {};
+                }
+                """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(main.toString())
+                .workingDir(tempDir)
+                .configDir(tempDir.toString())
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+
+        Path featuresDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
+        String[] featureFiles = featuresDir.toFile().list();
+        assertNotNull(featureFiles);
+        assertEquals(1, featureFiles.length);
+        String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
+
+        assertTrue(featureHtml.contains("\"hook\": \"beforeScenario\""),
+                "feature HTML should expose beforeScenario hook marker");
+        assertTrue(featureHtml.contains("Setup Helper"),
+                "feature HTML should include the nested called feature's name");
+        assertTrue(featureHtml.contains("\"hasCallResults\": true"),
+                "hook step should carry nested call results");
+    }
+
+    @Test
+    void testBeforeScenarioFailureAppearsInReport(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("before-fail.feature");
+        Files.writeString(feature, """
+                Feature: Before Hook Failure
+
+                Scenario: body is skipped when before-hook fails
+                * def x = 1
+                * match x == 1
+                """);
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+                function fn() {
+                  karate.configure('beforeScenario', function(){
+                    karate.fail('before boom');
+                  });
+                  return {};
+                }
+                """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .configDir(tempDir.toString())
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertFalse(result.isPassed());
+        assertEquals(1, result.getScenarioFailedCount());
+
+        Path featuresDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
+        String[] featureFiles = featuresDir.toFile().list();
+        assertNotNull(featureFiles);
+        String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
+
+        assertTrue(featureHtml.contains("\"hook\": \"beforeScenario\""));
+        assertTrue(featureHtml.contains("before boom"),
+                "feature HTML should surface the hook failure message");
+        // Body steps that never ran must be marked skipped so the report shows them greyed out.
+        assertTrue(featureHtml.contains("\"status\": \"skipped\""),
+                "body steps should be marked skipped when before-hook halts the scenario");
+    }
+
+    @Test
+    void testAfterScenarioMatchFailureAppearsInReport(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("after-match-fail.feature");
+        Files.writeString(feature, """
+                Feature: After Hook Match Failure
+
+                Background:
+                  * configure afterScenario =
+                  \"\"\"
+                  function(){
+                    var r = karate.match('en', 'enrt');
+                    if (!r.pass) karate.fail('E2E validation failed: ' + r.message);
+                  }
+                  \"\"\"
+
+                Scenario: passing body
+                * def x = 1
+                * match x == 1
+                """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertFalse(result.isPassed());
+        assertEquals(1, result.getScenarioFailedCount());
+
+        Path featuresDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
+        String[] featureFiles = featuresDir.toFile().list();
+        assertNotNull(featureFiles);
+        String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
+
+        assertTrue(featureHtml.contains("\"hook\": \"afterScenario\""));
+        assertTrue(featureHtml.contains("E2E validation failed"),
+                "feature HTML should surface the hook failure message");
+    }
+
+    @Test
+    void testHookStepCapturesOnlyHookLog(@TempDir Path tempDir) throws Exception {
+        // Regression guard: LogContext must be clean at hook entry so the hook step's log
+        // captures only hook output, not lingering body-step output.
+        Path feature = tempDir.resolve("hook-log-isolation.feature");
+        Files.writeString(feature, """
+                Feature: Hook Log Isolation
+
+                Scenario: body and after emit distinct logs
+                * configure afterScenario = function(){ karate.log('HOOK_ONLY_LINE') }
+                * def x = 1
+                * karate.log('BODY_ONLY_LINE')
+                """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+
+        String jsonl = Files.readString(reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl"));
+
+        // Find the afterScenario hook entry in the first SCENARIO_EXIT event and extract
+        // just its stepLog string value (not a fuzzy slice which would pick up later events).
+        int hookIdx = jsonl.indexOf("\"hook\":\"afterScenario\"");
+        assertTrue(hookIdx > 0, "afterScenario hook should appear in event stream");
+        int stepLogKey = jsonl.indexOf("\"stepLog\":\"", hookIdx);
+        assertTrue(stepLogKey > 0, "hook step should carry a stepLog field");
+        int valueStart = stepLogKey + "\"stepLog\":\"".length();
+        int valueEnd = jsonl.indexOf("\"", valueStart);
+        String hookLog = jsonl.substring(valueStart, valueEnd);
+
+        assertTrue(hookLog.contains("HOOK_ONLY_LINE"),
+                "hook step log should contain the hook's log line: " + hookLog);
+        assertFalse(hookLog.contains("BODY_ONLY_LINE"),
+                "hook step log must not contain body step log output: " + hookLog);
     }
 
 }
