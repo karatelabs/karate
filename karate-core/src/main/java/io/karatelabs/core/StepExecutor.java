@@ -392,33 +392,7 @@ public class StepExecutor {
 
         // Check if it's an array loop call
         if (call.argList != null) {
-            List<Map<String, Object>> results = new ArrayList<>();
-            int loopIndex = 0;
-            for (Object item : call.argList) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> callArg = item instanceof Map ? (Map<String, Object>) item : null;
-
-                FeatureRuntime nestedFr = new FeatureRuntime(
-                        fr != null ? fr.getSuite() : null,
-                        calledFeature,
-                        fr,
-                        runtime,
-                        false,  // Isolated scope
-                        callArg,
-                        call.tagSelector
-                );
-                nestedFr.setLoopIndex(loopIndex);
-
-                FeatureResult featureResult = nestedFr.call();
-                addCallResult(featureResult);
-                checkFeatureResult(featureResult);
-
-                if (nestedFr.getLastExecuted() != null) {
-                    results.add(nestedFr.getLastExecuted().getAllVariables());
-                }
-                loopIndex++;
-            }
-            runtime.setVariable(resultVar, results);
+            runtime.setVariable(resultVar, callFeatureLoop(calledFeature, call.argList, call.tagSelector));
             return;
         }
 
@@ -494,55 +468,39 @@ public class StepExecutor {
         }
     }
 
+    /**
+     * Execute an array-loop call - iterate argList, invoking calledFeature in isolated
+     * scope once per element with __loop set to the iteration index. Shared by the
+     * `call` / `callonce` keyword paths and the `karate.call()` JS API.
+     */
     @SuppressWarnings("unchecked")
-    private void executeFeatureCall(Feature calledFeature, Object arg, String resultVar) {
+    List<Map<String, Object>> callFeatureLoop(Feature calledFeature, List<?> argList, String tagSelector) {
         FeatureRuntime fr = runtime.getFeatureRuntime();
+        List<Map<String, Object>> results = new ArrayList<>();
+        int loopIndex = 0;
+        for (Object item : argList) {
+            Map<String, Object> callArg = item instanceof Map ? (Map<String, Object>) item : null;
+            FeatureRuntime nestedFr = new FeatureRuntime(
+                    fr != null ? fr.getSuite() : null,
+                    calledFeature,
+                    fr,
+                    runtime,
+                    false,  // Always isolated scope for array loop
+                    callArg,
+                    tagSelector
+            );
+            nestedFr.setLoopIndex(loopIndex);
 
-        if (arg instanceof List) {
-            // Loop call - iterate over list and collect results
-            List<Object> argList = (List<Object>) arg;
-            List<Map<String, Object>> results = new ArrayList<>();
-            for (Object item : argList) {
-                Map<String, Object> argMap = item instanceof Map
-                        ? (Map<String, Object>) item : null;
-                Map<String, Object> result = callFeatureOnce(calledFeature, fr, argMap);
-                results.add(result);
+            FeatureResult featureResult = nestedFr.call();
+            addCallResult(featureResult);
+            checkFeatureResult(featureResult);
+
+            if (nestedFr.getLastExecuted() != null) {
+                results.add(nestedFr.getLastExecuted().getAllVariables());
             }
-            runtime.setVariable(resultVar, results);
-        } else {
-            // Single call
-            Map<String, Object> argMap = arg instanceof Map
-                    ? (Map<String, Object>) arg : null;
-            Map<String, Object> result = callFeatureOnce(calledFeature, fr, argMap);
-            runtime.setVariable(resultVar, result);
+            loopIndex++;
         }
-    }
-
-    private Map<String, Object> callFeatureOnce(Feature calledFeature, FeatureRuntime parentFr, Map<String, Object> arg) {
-        // Create nested FeatureRuntime with isolated scope (sharedScope=false)
-        FeatureRuntime nestedFr = new FeatureRuntime(
-                parentFr != null ? parentFr.getSuite() : null,
-                calledFeature,
-                parentFr,
-                runtime,
-                false,  // Isolated scope - copy variables, don't share
-                arg
-        );
-
-        // Execute the called feature
-        FeatureResult featureResult = nestedFr.call();
-
-        // Capture feature result for HTML report display (V1 style)
-        addCallResult(featureResult);
-
-        // Propagate failure from called feature to caller
-        checkFeatureResult(featureResult);
-
-        // Capture result variables from the last executed scenario (isolated scope)
-        if (nestedFr.getLastExecuted() != null) {
-            return nestedFr.getLastExecuted().getAllVariables();
-        }
-        return new HashMap<>();
+        return results;
     }
 
     private void checkFeatureResult(FeatureResult featureResult) {
@@ -2415,39 +2373,7 @@ public class StepExecutor {
 
         // Check if it's an array loop call
         if (call.argList != null) {
-            List<Map<String, Object>> results = new ArrayList<>();
-            int loopIndex = 0;
-
-            for (Object item : call.argList) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> callArg = item instanceof Map ? (Map<String, Object>) item : null;
-
-                // Create nested FeatureRuntime for each iteration
-                FeatureRuntime nestedFr = new FeatureRuntime(
-                        fr != null ? fr.getSuite() : null,
-                        calledFeature,
-                        fr,
-                        runtime,
-                        false,  // Always isolated scope for array loop
-                        callArg,
-                        call.tagSelector
-                );
-                nestedFr.setLoopIndex(loopIndex);
-
-                FeatureResult featureResult = nestedFr.call();
-
-                // Capture feature result for HTML report display (V1 style)
-                addCallResult(featureResult);
-
-                // Propagate failure from called feature to caller
-                checkFeatureResult(featureResult);
-
-                if (nestedFr.getLastExecuted() != null) {
-                    results.add(nestedFr.getLastExecuted().getAllVariables());
-                }
-                loopIndex++;
-            }
-
+            List<Map<String, Object>> results = callFeatureLoop(calledFeature, call.argList, call.tagSelector);
             if (call.resultVar != null) {
                 runtime.setVariable(call.resultVar, results);
             }
@@ -2518,42 +2444,7 @@ public class StepExecutor {
 
         // Check if it's an array loop call
         if (argObj instanceof List) {
-            List<?> argList = (List<?>) argObj;
-            List<Map<String, Object>> results = new ArrayList<>();
-            int loopIndex = 0;
-
-            for (Object item : argList) {
-                Map<String, Object> callArg = null;
-                if (item instanceof Map) {
-                    callArg = (Map<String, Object>) item;
-                }
-
-                // Create nested FeatureRuntime for each iteration
-                FeatureRuntime nestedFr = new FeatureRuntime(
-                        fr != null ? fr.getSuite() : null,
-                        calledFeature,
-                        fr,
-                        runtime,
-                        false,  // Always isolated scope for array loop
-                        callArg,
-                        tagSelector
-                );
-                nestedFr.setLoopIndex(loopIndex);
-
-                FeatureResult featureResult = nestedFr.call();
-
-                // Capture feature result for HTML report display (V1 style)
-                addCallResult(featureResult);
-
-                // Propagate failure from called feature to caller
-                checkFeatureResult(featureResult);
-
-                if (nestedFr.getLastExecuted() != null) {
-                    results.add(nestedFr.getLastExecuted().getAllVariables());
-                }
-                loopIndex++;
-            }
-
+            List<Map<String, Object>> results = callFeatureLoop(calledFeature, (List<?>) argObj, tagSelector);
             if (resultVar != null) {
                 runtime.setVariable(resultVar, results);
             }

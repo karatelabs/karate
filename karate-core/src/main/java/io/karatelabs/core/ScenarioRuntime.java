@@ -348,47 +348,51 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      * Supports call-by-tag syntax:
      * - call('file.feature@name=tagvalue') - call feature, run only scenario with matching tag
      * - call('@tagname') - call scenario in same file by tag
+     *
+     * When arg is a List, loops over elements (same as `call read('path') array`) and
+     * returns a List of result maps.
      */
     @SuppressWarnings("unchecked")
-    public Map<String, Object> executeJsCall(String path, Object arg) {
+    public Object executeJsCall(String path, Object arg) {
         if (featureRuntime == null) {
             throw new RuntimeException("karate.call() requires a feature context");
         }
 
         // Parse path and tag selector
-        String featurePath;
         String tagSelector;
         Feature calledFeature;
 
         if (path.startsWith("@")) {
             // Same-file tag call: call('@tagname')
-            featurePath = null;
             tagSelector = path;  // Keep the @ prefix
             calledFeature = featureRuntime.getFeature();
         } else {
             // Check for tag suffix: file.feature@tag
             int tagPos = path.indexOf(".feature@");
+            String featurePath;
             if (tagPos != -1) {
                 featurePath = path.substring(0, tagPos + 8);  // "file.feature"
                 tagSelector = "@" + path.substring(tagPos + 9);  // "@tag"
-                Resource calledResource = featureRuntime.resolve(featurePath);
-                calledFeature = Feature.read(calledResource);
             } else {
-                // Normal call without tag
                 featurePath = path;
                 tagSelector = null;
-                Resource calledResource = featureRuntime.resolve(featurePath);
-                calledFeature = Feature.read(calledResource);
             }
+            Resource calledResource = featureRuntime.resolve(featurePath);
+            calledFeature = Feature.read(calledResource);
         }
 
-        // Convert arg to Map if needed
+        // Array-loop call - delegate to shared helper used by the `call` keyword
+        if (arg instanceof List) {
+            return executor.callFeatureLoop(calledFeature, (List<?>) arg, tagSelector);
+        }
+
+        // Single call - arg must be a map (or null)
         Map<String, Object> callArg = null;
         if (arg != null) {
             if (arg instanceof Map) {
                 callArg = (Map<String, Object>) arg;
             } else {
-                throw new RuntimeException("karate.call() arg must be a map/object, got: " + arg.getClass());
+                throw new RuntimeException("karate.call() arg must be a map or list, got: " + arg.getClass());
             }
         }
 
@@ -418,8 +422,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      * Uses the same cache as the callonce keyword.
      * Uses double-check locking to ensure thread-safe execution in parallel scenarios.
      */
-    @SuppressWarnings("unchecked")
-    public Map<String, Object> executeJsCallOnce(String path, Object arg) {
+    public Object executeJsCallOnce(String path, Object arg) {
         if (featureRuntime == null) {
             throw new RuntimeException("karate.callonce() requires a feature context");
         }
@@ -432,26 +435,26 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         java.util.concurrent.locks.ReentrantLock lock = featureRuntime.getCallOnceLock();
 
         // Fast path - check cache without lock
-        Map<String, Object> cached = (Map<String, Object>) cache.get(cacheKey);
+        Object cached = cache.get(cacheKey);
         if (cached != null) {
             // Deep copy to prevent cross-scenario mutation
-            return (Map<String, Object>) deepCopy(cached);
+            return deepCopy(cached);
         }
 
         // Slow path - acquire lock for execution
         lock.lock();
         try {
             // Double-check after acquiring lock
-            Map<String, Object> rechecked = (Map<String, Object>) cache.get(cacheKey);
+            Object rechecked = cache.get(cacheKey);
             if (rechecked != null) {
-                return (Map<String, Object>) deepCopy(rechecked);
+                return deepCopy(rechecked);
             }
 
             // Not cached - execute the call
-            Map<String, Object> result = executeJsCall(path, arg);
+            Object result = executeJsCall(path, arg);
 
             // Cache a deep copy to prevent the caller from mutating the cache
-            cache.put(cacheKey, (Map<String, Object>) deepCopy(result));
+            cache.put(cacheKey, deepCopy(result));
 
             return result;
         } finally {

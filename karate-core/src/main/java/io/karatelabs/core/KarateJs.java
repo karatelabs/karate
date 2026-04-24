@@ -628,10 +628,12 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 path = args[0].toString();
                 arg = args.length > 1 ? args[1] : null;
             }
-            Map<String, Object> result = rt.executeJsCall(path, arg);
-            if (sharedScope && result != null) {
-                // Merge result variables into current scope
-                for (var entry : result.entrySet()) {
+            Object result = rt.executeJsCall(path, arg);
+            if (sharedScope && result instanceof Map) {
+                // Merge result variables into current scope (only meaningful for single-call results)
+                @SuppressWarnings("unchecked")
+                Map<String, Object> resultMap = (Map<String, Object>) result;
+                for (var entry : resultMap.entrySet()) {
                     engine.put(entry.getKey(), entry.getValue());
                 }
             }

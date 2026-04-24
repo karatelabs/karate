@@ -198,6 +198,63 @@ class StepCallTest {
     }
 
     @Test
+    void testKarateCallWithArrayLoop() throws Exception {
+        // https://github.com/karatelabs/karate/issues/2806
+        // karate.call(path, array) should iterate and invoke the callee per-element,
+        // matching the semantics of: call read('path') array
+        Path calledFeature = tempDir.resolve("called.feature");
+        Files.writeString(calledFeature, """
+            Feature: Called
+            Scenario:
+            * def received = username
+            * def index = __loop
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def users = [{ username: 'alice' }, { username: 'bob' }, { username: 'carol' }]
+            * def results = karate.call('called.feature', users)
+            * match results[*].received == ['alice', 'bob', 'carol']
+            * match results[*].index == [0, 1, 2]
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(), "karate.call() with array should loop: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testKarateCallOnceWithArrayLoop() throws Exception {
+        // karate.callonce(path, array) should also loop and cache the list result
+        Path calledFeature = tempDir.resolve("called.feature");
+        Files.writeString(calledFeature, """
+            Feature: Called
+            Scenario:
+            * def out = name + '-' + __loop
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Callonce Array
+            Background:
+            * def data = [{ name: 'A' }, { name: 'B' }]
+            * def cached = karate.callonce('called.feature', data)
+
+            Scenario: First
+            * match cached[*].out == ['A-0', 'B-1']
+
+            Scenario: Second
+            * match cached[*].out == ['A-0', 'B-1']
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(), "karate.callonce() with array should loop: " + getFailureMessage(result));
+    }
+
+    @Test
     void testKarateCallWithoutArguments() throws Exception {
         // Create called feature
         Path calledFeature = tempDir.resolve("called.feature");
