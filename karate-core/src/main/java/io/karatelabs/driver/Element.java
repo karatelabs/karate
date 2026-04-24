@@ -103,6 +103,21 @@ public interface Element extends SimpleObject {
 
     List<Element> locateAll(String childLocator);
 
+    // ========== Navigation ==========
+
+    /**
+     * The parent of this element, or an element that reports
+     * {@code exists() == false} if this element has no parent.
+     */
+    Element parent();
+
+    /**
+     * The closest ancestor (or self) matching the given CSS selector.
+     * Mirrors the native {@code Element.closest()} DOM API — robust
+     * to markup shuffling, preferred over counting {@code parent} hops.
+     */
+    Element closest(String selector);
+
     // ========== Script Execution ==========
 
     Object script(String expression);

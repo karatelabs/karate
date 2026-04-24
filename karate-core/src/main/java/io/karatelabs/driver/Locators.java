@@ -464,6 +464,29 @@ public class Locators {
     }
 
     /**
+     * Generate a pure-JS locator that resolves to the parent element of the given locator,
+     * or {@code null} if the base locator resolves to nothing or the element has no parent.
+     * <p>Result starts with {@code (} so it passes through {@link #selector(String)} unchanged
+     * and can be used anywhere a locator string is accepted (element ops, waits, script).
+     */
+    public static String parentJs(String locator) {
+        return wrapInFunctionInvoke(
+                "var e = " + selector(locator) + "; return e ? e.parentElement : null");
+    }
+
+    /**
+     * Generate a pure-JS locator that resolves to the closest ancestor (or self) matching
+     * the given CSS selector, or {@code null} if no ancestor matches.
+     * <p>Mirrors the native {@code Element.closest()} DOM API. Result starts with {@code (}
+     * so it passes through {@link #selector(String)} unchanged.
+     */
+    public static String closestJs(String locator, String cssSelector) {
+        String escaped = escapeForJs(cssSelector);
+        return wrapInFunctionInvoke(
+                "var e = " + selector(locator) + "; return e ? e.closest(\"" + escaped + "\") : null");
+    }
+
+    /**
      * Generate JS to check if element is enabled.
      */
     public static String enabledJs(String locator) {

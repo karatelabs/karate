@@ -235,6 +235,20 @@ public class BaseElement implements Element {
         return driver.locateAll(fullLocator);
     }
 
+    // ========== Navigation ==========
+
+    @Override
+    public Element parent() {
+        assertExists();
+        return BaseElement.of(driver, Locators.parentJs(locator));
+    }
+
+    @Override
+    public Element closest(String selector) {
+        assertExists();
+        return BaseElement.of(driver, Locators.closestJs(locator, selector));
+    }
+
     // ========== Script Execution ==========
 
     @Override
@@ -309,6 +323,10 @@ public class BaseElement implements Element {
             case "attribute" -> (JavaCallable) (ctx, args) -> attribute(args.length > 0 ? String.valueOf(args[0]) : "");
             case "property" -> (JavaCallable) (ctx, args) -> property(args.length > 0 ? String.valueOf(args[0]) : "");
             case "script" -> (JavaCallable) (ctx, args) -> script(args.length > 0 ? String.valueOf(args[0]) : "");
+            // Navigation — parent returns Element directly so v1-style `e.parent.parent`
+            // chains without parens; closest takes a selector so it must be a callable.
+            case "parent" -> parent();
+            case "closest" -> (JavaCallable) (ctx, args) -> closest(args.length > 0 ? String.valueOf(args[0]) : "");
             default -> null;
         };
     }

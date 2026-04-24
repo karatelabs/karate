@@ -189,7 +189,51 @@ Feature: Element Tests
     * def options = locateAll('#country option')
     * match options.length == 5
 
-  # ========== ScriptAll ==========
+  # ========== Element Navigation (parent / closest) ==========
+
+  Scenario: parent walks up one DOM level
+    * def group = locate('#username').parent
+    * match group.exists() == true
+    * match group.attribute('class') == 'form-group'
+
+  Scenario: parent chained walks up multiple levels
+    * def form = locate('#username').parent.parent
+    * match form.exists() == true
+    * match form.attribute('id') == 'test-form'
+
+  Scenario: parent of the document root reports no match
+    # html's parent is the document node, which is not an Element — parentElement returns null
+    * def root = locate('html').parent
+    * match root.exists() == false
+
+  Scenario: closest finds the nearest matching ancestor
+    * def form = locate('#username').closest('form')
+    * match form.exists() == true
+    * match form.attribute('id') == 'test-form'
+
+  Scenario: closest matches the element itself when it matches
+    * def self = locate('#username').closest('input')
+    * match self.exists() == true
+    * match self.attribute('id') == 'username'
+
+  Scenario: closest returns no match when no ancestor matches
+    * def none = locate('#username').closest('.does-not-exist')
+    * match none.exists() == false
+
+  Scenario: closest chains off parent
+    * def form = locate('#username').parent.closest('form')
+    * match form.exists() == true
+    * match form.attribute('id') == 'test-form'
+
+  Scenario: closest supports attribute selectors
+    * def labelled = locate('#username').closest('[id=test-form]')
+    * match labelled.exists() == true
+    * match labelled.attribute('id') == 'test-form'
+
+  # ========== script() and scriptAll() behaviors ==========
+  # Regressions for #2803: plain strings passed to script() must reach the browser
+  # unchanged — no implicit parenthesization that would break void method calls,
+  # statements, or the comma operator.
 
   Scenario: Script all elements
     * def values = scriptAll('#country option', '_.value')
@@ -197,6 +241,55 @@ Feature: Element Tests
     * match values contains 'uk'
     * match values contains 'ca'
     * match values contains 'au'
+
+  Scenario: script() with void .click() on an element
+    # .click() returns undefined; must not be invoked as a function
+    * script("document.getElementById('submit-btn').click()")
+
+  Scenario: script() with void .focus()
+    * script("document.getElementById('username').focus()")
+    * match script("document.activeElement.id") == 'username'
+
+  Scenario: script() with void .scrollIntoView()
+    * script("document.getElementById('bio').scrollIntoView()")
+
+  Scenario: script() with void .dispatchEvent()
+    * script("document.getElementById('username').dispatchEvent(new Event('focus'))")
+
+  Scenario: script() with void sessionStorage.setItem()
+    * script("sessionStorage.setItem('k2803', 'v2803')")
+    * match script("sessionStorage.getItem('k2803')") == 'v2803'
+
+  Scenario: script() with semicolon-separated statements
+    * script("window.__t1_2803 = 1; window.__t2_2803 = 2")
+    * match script("window.__t1_2803") == 1
+    * match script("window.__t2_2803") == 2
+
+  Scenario: script() with var declaration
+    * script("var x = 42; window.__tvar_2803 = x")
+    * match script("window.__tvar_2803") == 42
+
+  Scenario: script() with let declaration
+    * script("let x = 43; window.__tlet_2803 = x")
+    * match script("window.__tlet_2803") == 43
+
+  Scenario: script() with const declaration
+    * script("const x = 44; window.__tconst_2803 = x")
+    * match script("window.__tconst_2803") == 44
+
+  Scenario: script() with comma operator in parens returns last expression
+    # Must NOT be interpreted as multiple arguments to an outer call
+    * def result = script("(1, 2, 3)")
+    * match result == 3
+
+  Scenario: script() returns value for value-producing expressions
+    * def result = script("document.title")
+    * match result == 'Input Test'
+
+  Scenario: script() returns null for void expressions (undefined)
+    # v1 behaviour: .click() returns undefined which surfaces as null in Karate
+    * def result = script("document.getElementById('submit-btn').click()")
+    * match result == null
 
   # ========== Position ==========
 

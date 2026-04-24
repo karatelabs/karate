@@ -97,6 +97,12 @@ io.karatelabs.driver/
 | `exists(locator)` | ✅ Working |
 | `position(locator)` | ✅ Working |
 
+*Element Navigation:*
+| V1 Gherkin | V2 Status |
+|------------|-----------|
+| `element.parent` | ✅ Working — returns parent Element, chainable (`e.parent.parent`) |
+| `element.closest(selector)` | ✅ Working (new in v2) — nearest ancestor matching CSS selector |
+
 *Wait Methods:*
 | V1 Gherkin | V2 Status |
 |------------|-----------|
@@ -318,6 +324,27 @@ Map<String, Object> position(String locator, boolean relative)
 Element locate(String locator)
 List<Element> locateAll(String locator)
 Element optional(String locator)                 // No throw if missing
+```
+
+### Element Navigation
+```java
+// On Element — walk the DOM without leaving the driver API
+Element parent()                                  // Parent Element, or non-existent if root
+Element closest(String selector)                  // Nearest ancestor (or self) matching CSS
+```
+
+Both return an `Element`. The returned element carries a pure-JS locator, so it composes with every other element op — `e.parent.parent.script(...)`, `e.closest('form').attribute('id')`, `waitFor(e.parent.getLocator())`.
+
+Prefer `closest(selector)` over chained `parent` calls when the structural contract is "some ancestor matches X" — it's robust to markup shuffling and reads like the native `Element.closest()` DOM API.
+
+```gherkin
+# Walk up from a labelled input to its form
+* def form = locate('#username').closest('form')
+* match form.attribute('id') == 'test-form'
+
+# Single-hop parent
+* def group = locate('#username').parent
+* match group.attribute('class') == 'form-group'
 ```
 
 ### Wait Methods

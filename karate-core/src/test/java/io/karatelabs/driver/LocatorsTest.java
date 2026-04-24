@@ -623,6 +623,66 @@ class LocatorsTest {
         assertTrue(result.contains("nth-of-type"));
     }
 
+    // ========== Navigation: parentJs / closestJs ==========
+
+    @Test
+    void testParentJsNullSafe() {
+        String result = Locators.parentJs("#foo");
+        // IIFE that guards against missing base element
+        assertTrue(result.startsWith("(function()"), "should be a pure-JS IIFE: " + result);
+        assertTrue(result.contains("e ? e.parentElement : null"));
+        assertTrue(result.contains("document.querySelector(\"#foo\")")
+                || result.contains("qsDeep(\"#foo\")"));
+    }
+
+    @Test
+    void testParentJsPassesThroughSelector() {
+        // Pure-JS locators (starting with `(`) must pass through selector() unchanged
+        // — otherwise the element ops pipeline would wrap/mangle them.
+        String parentLocator = Locators.parentJs("#foo");
+        assertEquals(parentLocator, Locators.selector(parentLocator));
+    }
+
+    @Test
+    void testParentJsChainable() {
+        // e.parent.parent composes: the outer IIFE takes the inner IIFE as its base.
+        String inner = Locators.parentJs("#foo");
+        String outer = Locators.parentJs(inner);
+        assertTrue(outer.startsWith("(function()"));
+        assertTrue(outer.contains(inner), "outer must embed inner IIFE");
+    }
+
+    @Test
+    void testClosestJsNullSafe() {
+        String result = Locators.closestJs("#foo", ".row");
+        assertTrue(result.startsWith("(function()"));
+        assertTrue(result.contains("e ? e.closest(\".row\") : null"));
+    }
+
+    @Test
+    void testClosestJsEscapesQuotes() {
+        // A selector containing a quote must not break out of the generated JS string.
+        String result = Locators.closestJs("#foo", "[data-x=\"y\"]");
+        assertFalse(result.contains("data-x=\"y\""),
+                "unescaped double-quote would break the JS literal: " + result);
+        assertTrue(result.contains("e.closest("));
+    }
+
+    @Test
+    void testClosestJsPassesThroughSelector() {
+        String closestLocator = Locators.closestJs("#foo", ".row");
+        assertEquals(closestLocator, Locators.selector(closestLocator));
+    }
+
+    @Test
+    void testNavigationComposesWithClosest() {
+        // e.parent.closest('.row') — closest builds on top of a parent IIFE
+        String parent = Locators.parentJs("#foo");
+        String closest = Locators.closestJs(parent, ".row");
+        assertTrue(closest.contains(parent), "closest must embed the parent IIFE as its base");
+        assertTrue(closest.contains("e.closest(\".row\")"));
+    }
+
     // ========== Error Cases ==========
 
     @Test

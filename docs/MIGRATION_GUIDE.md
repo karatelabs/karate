@@ -434,12 +434,29 @@ Benefits:
 
 See [DRIVER.md](./DRIVER.md) for detailed DriverProvider documentation.
 
+### Element DOM Navigation
+
+V1's `element.parent` accessor is preserved in v2 — v2 element tests that walk the DOM via `e.parent` or `e.parent.parent` continue to work:
+
+```gherkin
+* def group = locate('#username').parent
+* match group.attribute('class') == 'form-group'
+```
+
+V2 additionally introduces `element.closest(selector)`, mirroring the native `Element.closest()` DOM API. Prefer it over chained `.parent` calls when the structural contract is "some ancestor matches X" — robust to markup shuffling:
+
+```gherkin
+* def form = locate('#username').closest('form')
+* match form.attribute('id') == 'test-form'
+```
+
 ### Migration Checklist for Driver Tests
 
 - [ ] Remove `scope: 'caller'` from driver config if present (no longer needed)
 - [ ] Replace `delay(millis)` with `karate.pause(millis)` if used before the driver starts
 - [ ] `showDriverLog` has no effect (TODO)
 - [ ] W3C WebDriver types (`chromedriver`, `geckodriver`, `safaridriver`) are now fully supported
+- [ ] `element.parent` still works — v2 adds `element.closest(selector)` for markup-robust ancestor lookups
 
 ---
 
