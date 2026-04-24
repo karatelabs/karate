@@ -189,22 +189,7 @@ Feature: Element Tests
     * def options = locateAll('#country option')
     * match options.length == 5
 
-  # ========== Element Navigation (parent / closest) ==========
-
-  Scenario: parent walks up one DOM level
-    * def group = locate('#username').parent
-    * match group.exists() == true
-    * match group.attribute('class') == 'form-group'
-
-  Scenario: parent chained walks up multiple levels
-    * def form = locate('#username').parent.parent
-    * match form.exists() == true
-    * match form.attribute('id') == 'test-form'
-
-  Scenario: parent of the document root reports no match
-    # html's parent is the document node, which is not an Element — parentElement returns null
-    * def root = locate('html').parent
-    * match root.exists() == false
+  # ========== Element Navigation (closest / matches) ==========
 
   Scenario: closest finds the nearest matching ancestor
     * def form = locate('#username').closest('form')
@@ -220,15 +205,27 @@ Feature: Element Tests
     * def none = locate('#username').closest('.does-not-exist')
     * match none.exists() == false
 
-  Scenario: closest chains off parent
-    * def form = locate('#username').parent.closest('form')
-    * match form.exists() == true
-    * match form.attribute('id') == 'test-form'
-
   Scenario: closest supports attribute selectors
     * def labelled = locate('#username').closest('[id=test-form]')
     * match labelled.exists() == true
     * match labelled.attribute('id') == 'test-form'
+
+  Scenario: closest chains with locateAll for sibling-style walks
+    # v2 replacement for the v1 pattern e.parent.children — find row, enumerate cells
+    * def inputs = locate('#username').closest('form').locateAll('input')
+    * assert inputs.length >= 3
+
+  Scenario: matches returns true when selector matches
+    * match locate('#username').matches('input[type=text]') == true
+    * match locate('#submit-btn').matches('button[type=submit]') == true
+
+  Scenario: matches returns false when selector does not match
+    * match locate('#username').matches('button') == false
+    * match locate('#username').matches('.does-not-exist') == false
+
+  Scenario: matches pairs with closest for conditional walks
+    * def form = locate('#username').closest('form')
+    * match form.matches('#test-form') == true
 
   # ========== script() and scriptAll() behaviors ==========
   # Regressions for #2803: plain strings passed to script() must reach the browser

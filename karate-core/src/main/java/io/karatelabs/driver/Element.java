@@ -106,17 +106,17 @@ public interface Element extends SimpleObject {
     // ========== Navigation ==========
 
     /**
-     * The parent of this element, or an element that reports
-     * {@code exists() == false} if this element has no parent.
-     */
-    Element parent();
-
-    /**
      * The closest ancestor (or self) matching the given CSS selector.
      * Mirrors the native {@code Element.closest()} DOM API — robust
-     * to markup shuffling, preferred over counting {@code parent} hops.
+     * to markup shuffling, preferred over counting parent hops.
      */
     Element closest(String selector);
+
+    /**
+     * Whether this element matches the given CSS selector.
+     * Mirrors the native {@code Element.matches()} DOM API.
+     */
+    boolean matches(String selector);
 
     // ========== Script Execution ==========
 

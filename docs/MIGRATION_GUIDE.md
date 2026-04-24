@@ -436,18 +436,26 @@ See [DRIVER.md](./DRIVER.md) for detailed DriverProvider documentation.
 
 ### Element DOM Navigation
 
-V1's `element.parent` accessor is preserved in v2 — v2 element tests that walk the DOM via `e.parent` or `e.parent.parent` continue to work:
+V2 drops v1's tree-walking element accessors — `parent`, `children`, `firstChild`, `lastChild`, `previousSibling`, `nextSibling` — by design. Hop-counting patterns like `e.parent.parent` are fragile: any intervening `<div>` added by a designer silently breaks the test. The v2 surface is selector-based and mirrors the native W3C DOM `Element` API:
+
+| API | Purpose |
+|-----|---------|
+| `element.closest(selector)` | Nearest ancestor (or self) matching a CSS selector |
+| `element.matches(selector)` | Boolean: does this element match the selector |
+| `element.locate(childSelector)` / `element.locateAll(childSelector)` | Scoped descendant lookups |
+| `element.script(jsExpression)` | Escape hatch for arbitrary DOM walks (`_.nextElementSibling.id`, etc.) |
+
+V1 → V2 translation recipes:
 
 ```gherkin
-* def group = locate('#username').parent
-* match group.attribute('class') == 'form-group'
-```
+# v1: row.parent.click() — v2: closest + a selector
+* locate('//td[text()="John"]').closest('tr').click()
 
-V2 additionally introduces `element.closest(selector)`, mirroring the native `Element.closest()` DOM API. Prefer it over chained `.parent` calls when the structural contract is "some ancestor matches X" — robust to markup shuffling:
+# v1: el.parent.children → v2: closest + scoped locateAll
+* def cells = locate('//td[text()="John"]').closest('tr').locateAll('td')
 
-```gherkin
-* def form = locate('#username').closest('form')
-* match form.attribute('id') == 'test-form'
+# v1: el.nextSibling — v2: script() drops into the browser
+* def nextId = locate('#anchor').script('_.nextElementSibling.id')
 ```
 
 ### Migration Checklist for Driver Tests
@@ -456,7 +464,7 @@ V2 additionally introduces `element.closest(selector)`, mirroring the native `El
 - [ ] Replace `delay(millis)` with `karate.pause(millis)` if used before the driver starts
 - [ ] `showDriverLog` has no effect (TODO)
 - [ ] W3C WebDriver types (`chromedriver`, `geckodriver`, `safaridriver`) are now fully supported
-- [ ] `element.parent` still works — v2 adds `element.closest(selector)` for markup-robust ancestor lookups
+- [ ] Rewrite v1 tree-walking (`element.parent`, `.children`, `.nextSibling`, etc.) in terms of `closest(selector)` + scoped `locateAll`, or `element.script()` for arbitrary DOM walks
 
 ---
 

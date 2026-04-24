@@ -623,40 +623,24 @@ class LocatorsTest {
         assertTrue(result.contains("nth-of-type"));
     }
 
-    // ========== Navigation: parentJs / closestJs ==========
+    // ========== Navigation: closestJs / matchesJs ==========
 
     @Test
-    void testParentJsNullSafe() {
-        String result = Locators.parentJs("#foo");
+    void testClosestJsNullSafe() {
+        String result = Locators.closestJs("#foo", ".row");
         // IIFE that guards against missing base element
         assertTrue(result.startsWith("(function()"), "should be a pure-JS IIFE: " + result);
-        assertTrue(result.contains("e ? e.parentElement : null"));
+        assertTrue(result.contains("e ? e.closest(\".row\") : null"));
         assertTrue(result.contains("document.querySelector(\"#foo\")")
                 || result.contains("qsDeep(\"#foo\")"));
     }
 
     @Test
-    void testParentJsPassesThroughSelector() {
+    void testClosestJsPassesThroughSelector() {
         // Pure-JS locators (starting with `(`) must pass through selector() unchanged
         // — otherwise the element ops pipeline would wrap/mangle them.
-        String parentLocator = Locators.parentJs("#foo");
-        assertEquals(parentLocator, Locators.selector(parentLocator));
-    }
-
-    @Test
-    void testParentJsChainable() {
-        // e.parent.parent composes: the outer IIFE takes the inner IIFE as its base.
-        String inner = Locators.parentJs("#foo");
-        String outer = Locators.parentJs(inner);
-        assertTrue(outer.startsWith("(function()"));
-        assertTrue(outer.contains(inner), "outer must embed inner IIFE");
-    }
-
-    @Test
-    void testClosestJsNullSafe() {
-        String result = Locators.closestJs("#foo", ".row");
-        assertTrue(result.startsWith("(function()"));
-        assertTrue(result.contains("e ? e.closest(\".row\") : null"));
+        String closestLocator = Locators.closestJs("#foo", ".row");
+        assertEquals(closestLocator, Locators.selector(closestLocator));
     }
 
     @Test
@@ -669,18 +653,92 @@ class LocatorsTest {
     }
 
     @Test
-    void testClosestJsPassesThroughSelector() {
-        String closestLocator = Locators.closestJs("#foo", ".row");
-        assertEquals(closestLocator, Locators.selector(closestLocator));
+    void testClosestJsChainable() {
+        // e.closest('.row').closest('form') composes: outer IIFE wraps inner IIFE.
+        String inner = Locators.closestJs("#foo", ".row");
+        String outer = Locators.closestJs(inner, "form");
+        assertTrue(outer.startsWith("(function()"));
+        assertTrue(outer.contains(inner), "outer must embed inner IIFE");
     }
 
     @Test
-    void testNavigationComposesWithClosest() {
-        // e.parent.closest('.row') — closest builds on top of a parent IIFE
-        String parent = Locators.parentJs("#foo");
-        String closest = Locators.closestJs(parent, ".row");
-        assertTrue(closest.contains(parent), "closest must embed the parent IIFE as its base");
-        assertTrue(closest.contains("e.closest(\".row\")"));
+    void testMatchesJsReturnsBooleanFalseWhenMissing() {
+        String result = Locators.matchesJs("#foo", ".active");
+        assertTrue(result.startsWith("(function()"));
+        // Missing elements must report false rather than throwing on null.matches
+        assertTrue(result.contains("e ? e.matches(\".active\") : false"));
+    }
+
+    @Test
+    void testMatchesJsEscapesQuotes() {
+        String result = Locators.matchesJs("#foo", "[data-x=\"y\"]");
+        assertFalse(result.contains("data-x=\"y\""),
+                "unescaped double-quote would break the JS literal: " + result);
+        assertTrue(result.contains("e.matches("));
+    }
+
+    @Test
+    void testMatchesJsComposesOverClosestLocator() {
+        // closest returns a locator; matches on that locator is a valid composition.
+        String closest = Locators.closestJs("#foo", ".row");
+        String matches = Locators.matchesJs(closest, "tr");
+        assertTrue(matches.contains(closest), "matches must embed the closest IIFE as its base");
+        assertTrue(matches.contains("e.matches(\"tr\")"));
+    }
+
+    // ========== Scoped lookups off a pure-JS base (closest + locate/locateAll) ==========
+
+    @Test
+    void testScopedSelectorJsIsNullSafeAndIIFE() {
+        String base = Locators.closestJs("#foo", "form");
+        String scoped = Locators.scopedSelectorJs(base, "input");
+        assertTrue(scoped.startsWith("(function()"));
+        assertTrue(scoped.contains("__b ? __b.querySelector(\"input\") : null"));
+        assertTrue(scoped.contains(base), "scoped selector must embed the base IIFE");
+    }
+
+    @Test
+    void testScopedSelectorJsPassesThroughSelector() {
+        // The result must itself be usable as a locator — pass through selector() unchanged.
+        String base = Locators.closestJs("#foo", "form");
+        String scoped = Locators.scopedSelectorJs(base, "input");
+        assertEquals(scoped, Locators.selector(scoped));
+    }
+
+    @Test
+    void testScopedCountJsReturnsZeroForMissingBase() {
+        String base = Locators.closestJs("#foo", "form");
+        String countJs = Locators.scopedCountJs(base, "input");
+        assertTrue(countJs.contains("__b ? __b.querySelectorAll(\"input\").length : 0"));
+    }
+
+    @Test
+    void testScopedIndexedSelectorJsBoundsChecks() {
+        // Out-of-range index must return null, not throw on undefined.click() downstream.
+        String base = Locators.closestJs("#foo", "form");
+        String indexed = Locators.scopedIndexedSelectorJs(base, "input", 2);
+        assertTrue(indexed.contains("all.length > 2 ? all[2] : null"));
+        assertTrue(indexed.contains(base));
+    }
+
+    @Test
+    void testScopedIndexedSelectorJsReResolvesBase() {
+        // Each indexed locator must re-eval the base so later element ops tolerate
+        // DOM mutations between count and access.
+        String base = Locators.closestJs("#foo", "form");
+        String i0 = Locators.scopedIndexedSelectorJs(base, "input", 0);
+        String i1 = Locators.scopedIndexedSelectorJs(base, "input", 1);
+        assertTrue(i0.contains(base));
+        assertTrue(i1.contains(base));
+        assertNotEquals(i0, i1);
+    }
+
+    @Test
+    void testScopedHelpersEscapeQuotes() {
+        String base = Locators.closestJs("#foo", "form");
+        String scoped = Locators.scopedSelectorJs(base, "[data-x=\"y\"]");
+        assertFalse(scoped.contains("data-x=\"y\""),
+                "unescaped double-quote would break the JS literal: " + scoped);
     }
 
     // ========== Error Cases ==========

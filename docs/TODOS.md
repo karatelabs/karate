@@ -59,6 +59,7 @@ Scratch pad for tracking work across the project. See also [CAPABILITIES.yaml](.
 - [ ] Playwright emulation (Firefox/WebKit via Playwright CDP)
 - [ ] `Runner.Builder` exposure via `protocol.runner()` for Gatling
 - [ ] Add SSE browser-side test to `DriverFeatureTest` — verify `EventSource` connects to `SseHandler` and receives events in a real browser. Current SSE tests only validate server-side wire format. This would cover the HTMX `sse-swap` and Alpine `EventSource` patterns end-to-end.
+- [ ] Consider `find` / `findAll` as aliases for `locate` / `locateAll` — jQuery, Cypress, Selenium (`findElement`) all use `find` for scoped descendant lookups, and `$()` / `$$()` shorthands are near-universal. `locate` is internally consistent with Karate's "locator" noun but non-standard elsewhere. Cost is ~5 lines (bind as aliases in `Driver.jsGet` and `BaseElement.jsGet`); benefit is one less thing for users arriving from other frameworks to learn. Skip until someone actually asks — existing `locate` is established, documented, and v1-compatible.
 
 ## Cross-Language / Platform
 

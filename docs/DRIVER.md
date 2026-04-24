@@ -98,10 +98,16 @@ io.karatelabs.driver/
 | `position(locator)` | ✅ Working |
 
 *Element Navigation:*
-| V1 Gherkin | V2 Status |
-|------------|-----------|
-| `element.parent` | ✅ Working — returns parent Element, chainable (`e.parent.parent`) |
-| `element.closest(selector)` | ✅ Working (new in v2) — nearest ancestor matching CSS selector |
+
+V2 drops v1's `parent`, `children`, `firstChild`, `lastChild`, `previousSibling`, `nextSibling` element accessors by design, in favor of a lean selector-based surface that mirrors the native W3C DOM Element API. Hop-counting patterns like `e.parent.parent` are fragile under markup changes; selectors are not.
+
+| API | V2 Status |
+|-----|-----------|
+| `element.closest(selector)` | ✅ Working — nearest ancestor (or self) matching CSS selector |
+| `element.matches(selector)` | ✅ Working — boolean "does this element match the selector" |
+| `element.locate(childSelector)` | ✅ Working — scoped single match within this element (already available) |
+| `element.locateAll(childSelector)` | ✅ Working — scoped multi-match within this element (already available) |
+| `element.parent`, `.children`, `.firstChild`, `.lastChild`, `.previousSibling`, `.nextSibling` | ❌ Removed — use `closest` / scoped `locateAll`, or drop into `element.script()` for arbitrary DOM walks |
 
 *Wait Methods:*
 | V1 Gherkin | V2 Status |
@@ -328,23 +334,31 @@ Element optional(String locator)                 // No throw if missing
 
 ### Element Navigation
 ```java
-// On Element — walk the DOM without leaving the driver API
-Element parent()                                  // Parent Element, or non-existent if root
+// On Element — selector-based DOM navigation matching native W3C Element API
 Element closest(String selector)                  // Nearest ancestor (or self) matching CSS
+boolean matches(String selector)                  // Does this element match the selector
 ```
 
-Both return an `Element`. The returned element carries a pure-JS locator, so it composes with every other element op — `e.parent.parent.script(...)`, `e.closest('form').attribute('id')`, `waitFor(e.parent.getLocator())`.
+`closest` returns an `Element` carrying a pure-JS locator, so it composes with every other element op — `e.closest('form').attribute('id')`, `e.closest('tr').locateAll('td')`, `waitFor(e.closest('.row').getLocator())`.
 
-Prefer `closest(selector)` over chained `parent` calls when the structural contract is "some ancestor matches X" — it's robust to markup shuffling and reads like the native `Element.closest()` DOM API.
+`matches` returns a boolean — useful in predicates and conditional walks.
 
 ```gherkin
 # Walk up from a labelled input to its form
 * def form = locate('#username').closest('form')
 * match form.attribute('id') == 'test-form'
 
-# Single-hop parent
-* def group = locate('#username').parent
-* match group.attribute('class') == 'form-group'
+# Check membership against a selector
+* match locate('#username').matches('input[type=text]') == true
+
+# Row-scoped enumeration replaces v1's e.parent.children
+* def cells = locate('//td[text()="John"]').closest('tr').locateAll('td')
+```
+
+For arbitrary DOM walks that don't map onto a CSS selector, drop into the browser via `element.script()`:
+
+```gherkin
+* def nextId = locate('#anchor').script('_.nextElementSibling.id')
 ```
 
 ### Wait Methods

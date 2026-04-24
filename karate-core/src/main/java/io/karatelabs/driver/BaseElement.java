@@ -25,6 +25,7 @@ package io.karatelabs.driver;
 
 import io.karatelabs.js.JavaCallable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -224,6 +225,9 @@ public class BaseElement implements Element {
     @Override
     public Element locate(String childLocator) {
         assertExists();
+        if (isPureJsLocator(locator)) {
+            return BaseElement.of(driver, Locators.scopedSelectorJs(locator, childLocator));
+        }
         String fullLocator = locator + " " + childLocator;
         return BaseElement.of(driver, fullLocator);
     }
@@ -231,22 +235,46 @@ public class BaseElement implements Element {
     @Override
     public List<Element> locateAll(String childLocator) {
         assertExists();
+        if (isPureJsLocator(locator)) {
+            // Base is a resolved-at-JS-time expression (e.g. from closest()) — we can't
+            // just string-concat a child selector onto it. Materialize via scoped
+            // count + indexed pure-JS locators that re-resolve the base each access.
+            Object countResult = driver.script(Locators.scopedCountJs(locator, childLocator));
+            int count = countResult instanceof Number ? ((Number) countResult).intValue() : 0;
+            List<Element> elements = new ArrayList<>();
+            for (int i = 0; i < count; i++) {
+                String indexedJs = Locators.scopedIndexedSelectorJs(locator, childLocator, i);
+                elements.add(new BaseElement(driver, indexedJs, true));
+            }
+            return elements;
+        }
         String fullLocator = locator + " " + childLocator;
         return driver.locateAll(fullLocator);
+    }
+
+    /**
+     * A pure-JS locator is a JS expression that evaluates to an element at runtime —
+     * produced by {@link #closest(String)} and anything else routing through
+     * {@link Locators#wrapInFunctionInvoke}. Distinguished from XPath (which starts
+     * with {@code (//}) and from wildcard/CSS.
+     */
+    private static boolean isPureJsLocator(String locator) {
+        return locator.startsWith("(") && !locator.startsWith("(//");
     }
 
     // ========== Navigation ==========
 
     @Override
-    public Element parent() {
-        assertExists();
-        return BaseElement.of(driver, Locators.parentJs(locator));
-    }
-
-    @Override
     public Element closest(String selector) {
         assertExists();
         return BaseElement.of(driver, Locators.closestJs(locator, selector));
+    }
+
+    @Override
+    public boolean matches(String selector) {
+        assertExists();
+        Object result = driver.script(Locators.matchesJs(locator, selector));
+        return Boolean.TRUE.equals(result);
     }
 
     // ========== Script Execution ==========
@@ -323,10 +351,9 @@ public class BaseElement implements Element {
             case "attribute" -> (JavaCallable) (ctx, args) -> attribute(args.length > 0 ? String.valueOf(args[0]) : "");
             case "property" -> (JavaCallable) (ctx, args) -> property(args.length > 0 ? String.valueOf(args[0]) : "");
             case "script" -> (JavaCallable) (ctx, args) -> script(args.length > 0 ? String.valueOf(args[0]) : "");
-            // Navigation — parent returns Element directly so v1-style `e.parent.parent`
-            // chains without parens; closest takes a selector so it must be a callable.
-            case "parent" -> parent();
+            // Navigation — selector-based, the W3C DOM Element idioms.
             case "closest" -> (JavaCallable) (ctx, args) -> closest(args.length > 0 ? String.valueOf(args[0]) : "");
+            case "matches" -> (JavaCallable) (ctx, args) -> matches(args.length > 0 ? String.valueOf(args[0]) : "");
             default -> null;
         };
     }

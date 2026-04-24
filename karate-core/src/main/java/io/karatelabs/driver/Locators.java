@@ -464,26 +464,69 @@ public class Locators {
     }
 
     /**
-     * Generate a pure-JS locator that resolves to the parent element of the given locator,
-     * or {@code null} if the base locator resolves to nothing or the element has no parent.
-     * <p>Result starts with {@code (} so it passes through {@link #selector(String)} unchanged
-     * and can be used anywhere a locator string is accepted (element ops, waits, script).
-     */
-    public static String parentJs(String locator) {
-        return wrapInFunctionInvoke(
-                "var e = " + selector(locator) + "; return e ? e.parentElement : null");
-    }
-
-    /**
      * Generate a pure-JS locator that resolves to the closest ancestor (or self) matching
      * the given CSS selector, or {@code null} if no ancestor matches.
      * <p>Mirrors the native {@code Element.closest()} DOM API. Result starts with {@code (}
-     * so it passes through {@link #selector(String)} unchanged.
+     * so it passes through {@link #selector(String)} unchanged and can be used anywhere
+     * a locator string is accepted (element ops, waits, script).
      */
     public static String closestJs(String locator, String cssSelector) {
         String escaped = escapeForJs(cssSelector);
         return wrapInFunctionInvoke(
                 "var e = " + selector(locator) + "; return e ? e.closest(\"" + escaped + "\") : null");
+    }
+
+    /**
+     * Generate a JS expression that evaluates to {@code true} when the element resolved
+     * by the given locator matches the CSS selector, or {@code false} otherwise (including
+     * when the element does not exist).
+     * <p>Mirrors the native {@code Element.matches()} DOM API. Unlike {@link #closestJs},
+     * this returns a boolean, so it is a full JS expression meant for {@code driver.script()}
+     * rather than a locator string.
+     */
+    public static String matchesJs(String locator, String cssSelector) {
+        String escaped = escapeForJs(cssSelector);
+        return wrapInFunctionInvoke(
+                "var e = " + selector(locator) + "; return e ? e.matches(\"" + escaped + "\") : false");
+    }
+
+    /**
+     * Generate a pure-JS locator that evaluates to the first descendant of the given
+     * pure-JS base locator matching the child CSS selector, or {@code null} if no match.
+     * <p>Used by {@link BaseElement#locate(String)} when the base element's locator is
+     * itself a JS expression (e.g. produced by {@link #closestJs}) — naive string-concat
+     * would produce invalid JS.
+     */
+    public static String scopedSelectorJs(String baseJsLocator, String cssChildSelector) {
+        String escaped = escapeForJs(cssChildSelector);
+        return wrapInFunctionInvoke(
+                "var __b = " + baseJsLocator + "; return __b ? __b.querySelector(\"" + escaped + "\") : null");
+    }
+
+    /**
+     * Generate a JS expression that counts descendants of the given pure-JS base locator
+     * matching the child CSS selector. Returns 0 when the base is missing.
+     */
+    public static String scopedCountJs(String baseJsLocator, String cssChildSelector) {
+        String escaped = escapeForJs(cssChildSelector);
+        return wrapInFunctionInvoke(
+                "var __b = " + baseJsLocator + "; return __b ? __b.querySelectorAll(\"" + escaped + "\").length : 0");
+    }
+
+    /**
+     * Generate a pure-JS locator that evaluates to the nth descendant of the given
+     * pure-JS base locator matching the child CSS selector. Index is zero-based.
+     * <p>Re-resolves the base on every access, so the resulting locator tolerates DOM
+     * mutations between the count and later element ops — matching how CDP driver
+     * {@code createIndexedLocator} behaves for CSS/XPath locators.
+     */
+    public static String scopedIndexedSelectorJs(String baseJsLocator, String cssChildSelector, int index) {
+        String escaped = escapeForJs(cssChildSelector);
+        return wrapInFunctionInvoke(
+                "var __b = " + baseJsLocator + ";" +
+                " if (!__b) return null;" +
+                " var all = __b.querySelectorAll(\"" + escaped + "\");" +
+                " return all.length > " + index + " ? all[" + index + "] : null");
     }
 
     /**
