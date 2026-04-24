@@ -829,13 +829,13 @@ class ExternalBridgeTest extends EvalBase {
     }
 
     // =================================================================================================================
-    // JavaMirror → Java Conversion at JS/Java Boundary Tests
+    // JsValue → Java Conversion at JS/Java Boundary Tests
     // These tests verify that JsDate, JsUint8Array, etc. are unwrapped to their Java equivalents
     // =================================================================================================================
 
     @Test
     void testJsDatePassedToJavaMethodBecomesJavaDate() {
-        // new Date() returns JsDate (a JavaMirror), should be unwrapped to java.util.Date
+        // new Date() returns JsDate (a JsValue), should be unwrapped to java.util.Date
         engine = new Engine();
         engine.setExternalBridge(bridge);
         engine.eval("""
@@ -844,7 +844,7 @@ class ExternalBridgeTest extends EvalBase {
                 var d = new Date(1609459200000);
                 var result = pojo.describeType(d);
                 """);
-        // JsDate implements JavaMirror, should be unwrapped to java.util.Date
+        // JsDate implements JsValue, should be unwrapped to java.util.Date
         assertEquals("java.util.Date", engine.get("result"));
     }
 
@@ -921,7 +921,7 @@ class ExternalBridgeTest extends EvalBase {
 
     @Test
     void testJsUint8ArrayPassedToJavaMethodBecomesByteArray() {
-        // Uint8Array (JsUint8Array is a JavaMirror) should be unwrapped to byte[]
+        // Uint8Array (JsUint8Array implements JsValue) should be unwrapped to byte[]
         engine = new Engine();
         engine.setExternalBridge(bridge);
         engine.eval("""
@@ -963,8 +963,8 @@ class ExternalBridgeTest extends EvalBase {
     }
 
     @Test
-    void testMultipleJavaMirrorArgsPassedToJavaMethod() {
-        // Multiple JavaMirror args in one call
+    void testMultipleJsValueArgsPassedToJavaMethod() {
+        // Multiple JsValue args in one call
         engine = new Engine();
         engine.setExternalBridge(bridge);
         // Use a SimpleObject to capture args

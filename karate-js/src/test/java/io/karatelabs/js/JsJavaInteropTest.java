@@ -9,22 +9,30 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for JS/Java interop.
+ * Tests for JS ↔ Java interop at the engine boundary.
+ * <p>
+ * The previous {@code JavaMirror} class was retired in favor of the sealed
+ * {@code JsValue} hierarchy plus {@code JsObject implements Map} /
+ * {@code JsArray implements List}. These tests still apply:
  * <p>
  * Design principles:
- * 1. JsArray implements List, JsObject implements Map - seamless Java interop
- * 2. ES6 semantics preserved within JS (undefined, prototype chain, etc.)
- * 3. Lazy auto-unwrap at Java interface boundary:
- * - List.get(int) / Map.get(Object) → unwrapped values (null, Date, etc.)
- * - JsArray.getElement(int) / JsObject.getMember(String) → raw JS values
- * 4. Conversion at boundaries: Engine.eval() top-level, SimpleObject args
+ * <ol>
+ *   <li>JsArray implements List, JsObject implements Map - seamless Java interop</li>
+ *   <li>ES6 semantics preserved within JS (undefined, prototype chain, etc.)</li>
+ *   <li>Lazy auto-unwrap at Java interface boundary:
+ *       List.get(int) / Map.get(Object) → unwrapped values (null, Date, etc.);
+ *       JsArray.getElement(int) / JsObject.getMember(String) → raw JS values</li>
+ *   <li>Conversion at boundaries: Engine.eval() top-level, SimpleObject args</li>
+ * </ol>
  * <p>
  * Access patterns:
- * - Java user: casts to List/Map, gets unwrapped values automatically
- * - JS internal: uses getElement()/getMember(), sees raw JS values
+ * <ul>
+ *   <li>Java user: casts to List/Map, gets unwrapped values automatically</li>
+ *   <li>JS internal: uses getElement()/getMember(), sees raw JS values</li>
+ * </ul>
  */
 @SuppressWarnings("unchecked")
-class JavaMirrorTest {
+class JsJavaInteropTest {
 
     // =================================================================================================================
     // Top-Level Conversion Tests (Engine.eval return values)
@@ -949,7 +957,7 @@ class JavaMirrorTest {
 
     @Test
     void testJsUint8ArrayConvertsToByteArray() {
-        // Uint8Array is a JavaMirror, should be converted at boundary
+        // Uint8Array (JsUint8Array implements JsValue) - should be converted at boundary
         Engine engine = new Engine();
         Object result = engine.eval("new Uint8Array([1, 2, 3])");
 

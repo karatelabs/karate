@@ -196,7 +196,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     @Override
     public Object get(int index) {
-        // List.get() auto-unwraps for Java consumers (converts undefined to null, unwraps JavaMirror types)
+        // List.get() auto-unwraps for Java consumers (converts undefined to null, unwraps JsValue types)
         return Engine.toJava(list.get(index));
     }
 

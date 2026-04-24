@@ -223,12 +223,17 @@ class CoreContext implements Context {
         if (capturedBindings != null && capturedBindings.containsKey(key)) {
             return capturedBindings.get(key).value;
         }
-        if (parent != null && parent.hasKey(key)) {
+        // Function contexts use lexical scoping - walk closureContext, NOT parent
+        // (parent here is the caller's context, which would give dynamic scoping).
+        // Non-function contexts (block/loop scopes inside a function) use parent.
+        // Issue #2802: a caller's parameter name was shadowing the callee's
+        // closure-captured `var`/parameter of the same name.
+        if (closureContext != null) {
+            if (closureContext.hasKey(key)) {
+                return closureContext.get(key);
+            }
+        } else if (parent != null && parent.hasKey(key)) {
             return parent.get(key);
-        }
-        // Function context: fall back to closure context for lexical scoping
-        if (closureContext != null && closureContext.hasKey(key)) {
-            return closureContext.get(key);
         }
         if (root.hasKey(key)) {
             return root.get(key);
@@ -318,18 +323,30 @@ class CoreContext implements Context {
             if (root.listener != null) {
                 root.listener.onBind(BindEvent.assign(key, value, oldValue, this, node));
             }
+        } else if (closureContext != null) {
+            // Function context: assignment to outer-scope vars must follow
+            // the lexical chain, not the dynamic caller chain (issue #2802).
+            if (closureContext.hasKey(key)) {
+                closureContext.update(key, value, node);
+            } else {
+                assignImplicitGlobal(key, value, node);
+            }
         } else if (parent != null && parent.hasKey(key)) {
             parent.update(key, value, node);
         } else {
-            // implicit global: assign to global scope (ES6 non-strict behavior)
-            CoreContext globalContext = this;
-            while (globalContext.depth > 0) {
-                globalContext = globalContext.parent;
-            }
-            globalContext.putBinding(key, value, null, true);
-            if (root.listener != null) {
-                root.listener.onBind(BindEvent.declare(key, value, BindScope.VAR, this, node));
-            }
+            assignImplicitGlobal(key, value, node);
+        }
+    }
+
+    private void assignImplicitGlobal(String key, Object value, Node node) {
+        // implicit global: assign to global scope (ES6 non-strict behavior)
+        CoreContext globalContext = this;
+        while (globalContext.depth > 0) {
+            globalContext = globalContext.parent;
+        }
+        globalContext.putBinding(key, value, null, true);
+        if (root.listener != null) {
+            root.listener.onBind(BindEvent.declare(key, value, BindScope.VAR, this, node));
         }
     }
 
@@ -363,11 +380,12 @@ class CoreContext implements Context {
         if (capturedBindings != null && capturedBindings.containsKey(key)) {
             return true;
         }
-        if (parent != null && parent.hasKey(key)) {
-            return true;
-        }
-        // Function context: check closure context
-        if (closureContext != null && closureContext.hasKey(key)) {
+        // Function contexts use lexical scoping - mirror get() above.
+        if (closureContext != null) {
+            if (closureContext.hasKey(key)) {
+                return true;
+            }
+        } else if (parent != null && parent.hasKey(key)) {
             return true;
         }
         return root.hasKey(key);

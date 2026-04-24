@@ -3,6 +3,7 @@ package io.karatelabs.js;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -400,6 +401,157 @@ class JsFunctionTest extends EvalBase {
         eval("var payload = \"" + jsonPayload.replace("\\", "\\\\").replace("\"", "\\\"") + "\"");
         String extractedPayload = (String) get("payload");
         assertEquals(jsonPayload, extractedPayload);
+    }
+
+    // ====================================================================================
+    // Lexical scoping regression suite — issue #2802
+    //
+    // Bug shape: a callee's closure-captured outer var was being shadowed by
+    // a same-named variable in the caller's scope, because the function context's
+    // `parent` (dynamic call chain) was searched before its lexical
+    // closureContext. Fix: function contexts use closureContext only.
+    // ====================================================================================
+
+    @Test
+    void testCalleeClosureNotShadowedByCallerParam() {
+        // Issue #2802: factory captures `config` by closure; caller's parameter
+        // is also named `config`. Lexical scoping must win — closure must see
+        // the factory's captured config.
+        assertEquals("jdbc:fake", eval(
+                "var dbConfig = { url: 'jdbc:fake' };\n" +
+                        "var factory = function(config) {\n" +
+                        "  return { read: function() { return config.url; } };\n" +
+                        "};\n" +
+                        "var db = factory(dbConfig);\n" +
+                        "var caller = function(config) { return config.db.read(); };\n" +
+                        "caller({ db: db });"));
+    }
+
+    @Test
+    void testCalleeClosureNotShadowedByCallerVar() {
+        // var-declared shadow in caller, not just parameter
+        assertEquals(1, eval(
+                "var x = 1;\n" +
+                        "var inner = function() { return x; };\n" +
+                        "var outer = function() { var x = 99; return inner(); };\n" +
+                        "outer();"));
+    }
+
+    @Test
+    void testCalleeClosureNotShadowedByCallerLet() {
+        assertEquals(1, eval(
+                "var x = 1;\n" +
+                        "var inner = function() { return x; };\n" +
+                        "var outer = function() { let x = 99; return inner(); };\n" +
+                        "outer();"));
+    }
+
+    @Test
+    void testNestedFunctionUsesLexicalNotDynamicScope() {
+        // inner is defined inside outer; called from a third function.
+        // The intermediate function declares `secret`, which must not leak in.
+        assertEquals("from-outer", eval(
+                "var inner;\n" +
+                        "function outer() {\n" +
+                        "  var secret = 'from-outer';\n" +
+                        "  inner = function() { return secret; };\n" +
+                        "}\n" +
+                        "outer();\n" +
+                        "function middleman() { var secret = 'from-middleman'; return inner(); }\n" +
+                        "middleman();"));
+    }
+
+    @Test
+    void testArrowFunctionClosureLexical() {
+        assertEquals("captured", eval(
+                "var captured = 'captured';\n" +
+                        "var arrow = () => captured;\n" +
+                        "var caller = function(captured) { return arrow(); };\n" +
+                        "caller('caller-local');"));
+    }
+
+    @Test
+    void testCallbackPassedToHostShapedHelper() {
+        // [].map(fn) - the callback's closure must resolve `multiplier` lexically
+        // even though it's invoked from inside Array.prototype.map.
+        assertEquals(List.of(2, 4, 6), eval(
+                "var multiplier = 2;\n" +
+                        "function run() { return [1, 2, 3].map(function(n){ return n * multiplier; }); }\n" +
+                        "run();"));
+    }
+
+    @Test
+    void testCallerCannotReadCalleesLocals() {
+        // Reverse direction - caller must NOT see callee's locals after call returns,
+        // and must not see them during the call either.
+        assertEquals("undefined", eval(
+                "function inner() { var hidden = 42; }\n" +
+                        "function outer() { inner(); return typeof hidden; }\n" +
+                        "outer();"));
+    }
+
+    @Test
+    void testAssignmentToOuterVarFollowsLexicalScope() {
+        // Assignment to a free variable should hit the LEXICAL outer scope,
+        // not the caller's same-named var.
+        assertEquals("lexical-was-mutated", eval(
+                "var x = 'lexical-original';\n" +
+                        "function mutator() { x = 'lexical-was-mutated'; return null; }\n" +
+                        "function caller() { var x = 'caller-local'; mutator(); return x; }\n" +
+                        "caller();" +
+                        "x;"));
+    }
+
+    @Test
+    void testAssignmentToOuterVarLeavesCallerLocalAlone() {
+        // Companion to the above: caller's local x must remain its own value
+        // because mutator's assignment goes through the lexical chain.
+        assertEquals("caller-local", eval(
+                "var x = 'lexical-original';\n" +
+                        "function mutator() { x = 'lexical-was-mutated'; return null; }\n" +
+                        "function caller() { var x = 'caller-local'; mutator(); return x; }\n" +
+                        "caller();"));
+    }
+
+    @Test
+    void testFunctionStoredInObjectInvokedFromAnotherFunction() {
+        // The exact issue 2802 shape: factory returns {method}, that method is
+        // invoked via `obj.method()` from inside a different function whose
+        // parameter shadows the closure var.
+        assertEquals(7, eval(
+                "function makeAdder(x) { return { add: function(y) { return x + y; } }; }\n" +
+                        "var a = makeAdder(3);\n" +
+                        "function callIt(x) { return x.adder.add(4); }\n" +
+                        "callIt({ adder: a });"));
+    }
+
+    @Test
+    void testTwoDeepClosuresUseTheirOwnLexicalScopes() {
+        // Two factories with overlapping var names; calling the second must
+        // not perturb the first's closure.
+        assertEquals(List.of("a-val", "b-val"), eval(
+                "function makeA() { var v = 'a-val'; return function(){ return v; }; }\n" +
+                        "function makeB() { var v = 'b-val'; return function(){ return v; }; }\n" +
+                        "var fa = makeA();\n" +
+                        "var fb = makeB();\n" +
+                        "[fa(), fb()];"));
+    }
+
+    @Test
+    void testJavaTypeReferenceSurvivesAcrossCallBoundary() {
+        // 2.0.3 symptom from issue #2802: Java.type wrapper captured in a
+        // closure must remain functional when the function is called via
+        // an indirect path. We don't have Java.type in the pure-JS test
+        // engine, but we can simulate the same shape with any host object
+        // by passing it via `eval` vars.
+        Map<String, Object> vars = Map.of("host", java.util.Collections.singletonMap("ping", "pong"));
+        assertEquals("pong", new EvalBase() {{ engine = new Engine(); vars.forEach(engine::put); }}
+                .engine.eval(
+                        "var captured = host;\n" +
+                                "var factory = function() { return function() { return captured.ping; }; };\n" +
+                                "var f = factory();\n" +
+                                "var caller = function(host) { return f(); };\n" +
+                                "caller({ ping: 'wrong' });"));
     }
 
 }

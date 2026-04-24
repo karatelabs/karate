@@ -134,7 +134,7 @@ class SimpleObjectTest {
     }
 
     // =================================================================================================================
-    // Boundary Conversion Tests (moved from JavaMirrorTest)
+    // Boundary Conversion Tests (moved from JsJavaInteropTest)
     // Arguments passed to SimpleObject methods are converted at JS/Java boundary
     // =================================================================================================================
 

@@ -88,7 +88,7 @@ public class JsJson implements SimpleObject {
             }
 
             // Use centralized StringUtils.formatJson for both compact and pretty output
-            // This ensures proper handling of JS types (undefined, JavaMirror wrappers)
+            // This ensures proper handling of JS types (undefined, JsValue wrappers)
             // lenient=false for strict JSON (double quotes), sort=false to preserve order
             return StringUtils.formatJson(value, pretty, false, false, indentStr);
         };

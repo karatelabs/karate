@@ -1149,6 +1149,40 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    // ========== Issue #2802: lexical scoping across call boundaries ==========
+
+    @Test
+    void testCalleeClosureNotShadowedByCallerSameNamedParam() {
+        // https://github.com/karatelabs/karate/issues/2802
+        // Factory captures `config` by closure; caller's parameter is also named
+        // `config`. Lexical scoping must win - closure must see the factory's
+        // captured config, not the caller's `{ db: ... }` argument.
+        ScenarioRuntime sr = run("""
+            * def dbConfig = { url: 'jdbc:fake', user: 'u' }
+            * def factory = function(config) { return { read: function() { return config.url } } }
+            * def db = factory(dbConfig)
+            * def caller = function(config) { return config.db.read() }
+            * def result = caller({ db: db })
+            * match result == 'jdbc:fake'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testReadJsFunctionPreservesLexicalScope() {
+        // Same shape but the caller is loaded via read('classpath:*.js') -
+        // the original failure path from the issue.
+        ScenarioRuntime sr = run("""
+            * def dbConfig = { url: 'jdbc:fake' }
+            * def factory = function(config) { return { read: function() { return config.url } } }
+            * def db = factory(dbConfig)
+            * def caller = read('classpath:io/karatelabs/core/issue2802-poll.js')
+            * def result = caller({ db: db })
+            * match result == 'jdbc:fake'
+            """);
+        assertPassed(sr);
+    }
+
     // ========== Issue #2777: ES6 null/undefined loose equality ==========
 
     @Test

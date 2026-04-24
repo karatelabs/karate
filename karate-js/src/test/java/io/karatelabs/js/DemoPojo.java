@@ -118,7 +118,7 @@ public class DemoPojo {
         return value.getClass().getSimpleName() + ":" + value;
     }
 
-    // For testing JavaMirror → Java conversion at JS/Java boundary
+    // For testing JsValue → Java conversion at JS/Java boundary
     public String describeType(Object value) {
         if (value == null) {
             return "null";
