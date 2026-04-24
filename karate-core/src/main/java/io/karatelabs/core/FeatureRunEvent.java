@@ -61,13 +61,16 @@ public record FeatureRunEvent(
         }
         // FEATURE_ENTER data (lightweight)
         Map<String, Object> map = new LinkedHashMap<>();
-        if (source != null && source.getFeature() != null) {
-            var feature = source.getFeature();
-            if (feature.getResource() != null) {
-                map.put("path", feature.getResource().getRelativePath());
+        if (source != null) {
+            if (source.getFeature() != null) {
+                var feature = source.getFeature();
+                if (feature.getResource() != null) {
+                    map.put("path", feature.getResource().getRelativePath());
+                }
+                map.put("name", feature.getName());
+                map.put("line", feature.getLine());
             }
-            map.put("name", feature.getName());
-            map.put("line", feature.getLine());
+            map.put("callDepth", source.getCallDepth());
         }
         return map;
     }

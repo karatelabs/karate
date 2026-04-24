@@ -97,6 +97,17 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         this.callArg = callArg;
         this.callTagSelector = callTagSelector;
         this.result = new FeatureResult(feature);
+        this.result.setCallDepth(getCallDepth());
+    }
+
+    public int getCallDepth() {
+        int depth = 0;
+        FeatureRuntime fr = caller;
+        while (fr != null) {
+            depth++;
+            fr = fr.caller;
+        }
+        return depth;
     }
 
     public static FeatureRuntime of(Feature feature) {

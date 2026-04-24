@@ -406,6 +406,231 @@ class JsonLinesReportListenerTest {
     }
 
     @Test
+    void testJsonLinesScenarioExitCarriesError() throws Exception {
+        Path feature = tempDir.resolve("failing.feature");
+        Files.writeString(feature, """
+            Feature: Scenario Error Test
+
+            Scenario: will fail on a match
+            * def actual = 1
+            * match actual == 999
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        Path jsonlPath = reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl");
+        String[] lines = Files.readString(jsonlPath).trim().split("\n");
+
+        Map<String, Object> scenarioExit = null;
+        for (String line : lines) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> envelope = (Map<String, Object>) Json.of(line).value();
+            if ("SCENARIO_EXIT".equals(envelope.get("type"))) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> data = (Map<String, Object>) envelope.get("data");
+                scenarioExit = data;
+                break;
+            }
+        }
+        assertNotNull(scenarioExit, "should have SCENARIO_EXIT event");
+        assertEquals(false, scenarioExit.get("passed"));
+        assertEquals(false, scenarioExit.get("skipped"));
+        String error = (String) scenarioExit.get("error");
+        assertNotNull(error, "SCENARIO_EXIT must carry an error message on failure");
+        assertTrue(error.contains("match") || error.contains("999") || error.contains("actual"),
+                "error should reference the failed step: " + error);
+    }
+
+    @Test
+    void testJsonLinesScenarioExitSkipped() throws Exception {
+        Path feature = tempDir.resolve("skipped.feature");
+        Files.writeString(feature, """
+            Feature: Scenario Skip Test
+
+            Scenario: aborts mid-way
+            * def a = 1
+            * karate.abort()
+            * def b = 2
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        Path jsonlPath = reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl");
+        String[] lines = Files.readString(jsonlPath).trim().split("\n");
+
+        Map<String, Object> scenarioExit = null;
+        for (String line : lines) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> envelope = (Map<String, Object>) Json.of(line).value();
+            if ("SCENARIO_EXIT".equals(envelope.get("type"))) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> data = (Map<String, Object>) envelope.get("data");
+                scenarioExit = data;
+                break;
+            }
+        }
+        assertNotNull(scenarioExit, "should have SCENARIO_EXIT event");
+        assertEquals(true, scenarioExit.get("skipped"), "aborted scenario must report skipped=true");
+        assertNull(scenarioExit.get("error"), "skipped scenario must not carry an error");
+    }
+
+    @Test
+    void testJsonLinesCalledFeatureCallDepth() throws Exception {
+        Path called = tempDir.resolve("called.feature");
+        Files.writeString(called, """
+            @ignore
+            Feature: Called Feature
+
+            Scenario: inner
+            * def result = 'called-result'
+            """);
+
+        Path caller = tempDir.resolve("caller.feature");
+        Files.writeString(caller, """
+            Feature: Caller Feature
+
+            Scenario: outer
+            * def response = call read('called.feature')
+            * match response.result == 'called-result'
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        Runner.path(caller.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        Path jsonlPath = reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl");
+        String[] lines = Files.readString(jsonlPath).trim().split("\n");
+
+        int topFeatureEnter = 0, calledFeatureEnter = 0;
+        int topFeatureExit = 0, calledFeatureExit = 0;
+        int topScenarioEnter = 0, calledScenarioEnter = 0;
+        int topScenarioExit = 0, calledScenarioExit = 0;
+        for (String line : lines) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> envelope = (Map<String, Object>) Json.of(line).value();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) envelope.get("data");
+            String type = (String) envelope.get("type");
+            if (data == null || type == null || !type.startsWith("FEATURE_") && !type.startsWith("SCENARIO_")) {
+                continue;
+            }
+            assertTrue(data.containsKey("callDepth"),
+                    "callDepth field must be present on every feature/scenario event: " + type);
+            int depth = ((Number) data.get("callDepth")).intValue();
+            switch (type) {
+                case "FEATURE_ENTER" -> {
+                    if (depth == 0) topFeatureEnter++;
+                    else if (depth == 1) calledFeatureEnter++;
+                }
+                case "FEATURE_EXIT" -> {
+                    if (depth == 0) topFeatureExit++;
+                    else if (depth == 1) calledFeatureExit++;
+                }
+                case "SCENARIO_ENTER" -> {
+                    if (depth == 0) topScenarioEnter++;
+                    else if (depth == 1) calledScenarioEnter++;
+                }
+                case "SCENARIO_EXIT" -> {
+                    if (depth == 0) topScenarioExit++;
+                    else if (depth == 1) calledScenarioExit++;
+                }
+            }
+        }
+
+        assertEquals(1, topFeatureEnter, "exactly one top-level FEATURE_ENTER");
+        assertEquals(1, topFeatureExit, "exactly one top-level FEATURE_EXIT");
+        assertEquals(1, topScenarioEnter, "exactly one top-level SCENARIO_ENTER");
+        assertEquals(1, topScenarioExit, "exactly one top-level SCENARIO_EXIT");
+        assertEquals(1, calledFeatureEnter, "called feature must report callDepth=1 on FEATURE_ENTER");
+        assertEquals(1, calledFeatureExit, "called feature must report callDepth=1 on FEATURE_EXIT");
+        assertEquals(1, calledScenarioEnter, "called scenario must report callDepth=1 on SCENARIO_ENTER");
+        assertEquals(1, calledScenarioExit, "called scenario must report callDepth=1 on SCENARIO_EXIT");
+    }
+
+    @Test
+    void testJsonLinesNestedCallDepth() throws Exception {
+        Path inner = tempDir.resolve("inner.feature");
+        Files.writeString(inner, """
+            @ignore
+            Feature: Inner
+
+            Scenario: deepest
+            * def depth = 'inner'
+            """);
+
+        Path middle = tempDir.resolve("middle.feature");
+        Files.writeString(middle, """
+            @ignore
+            Feature: Middle
+
+            Scenario: middle
+            * call read('inner.feature')
+            """);
+
+        Path outer = tempDir.resolve("outer.feature");
+        Files.writeString(outer, """
+            Feature: Outer
+
+            Scenario: top
+            * call read('middle.feature')
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        Runner.path(outer.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        Path jsonlPath = reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl");
+        String[] lines = Files.readString(jsonlPath).trim().split("\n");
+
+        int[] featureEnterByDepth = new int[3];
+        int[] scenarioEnterByDepth = new int[3];
+        for (String line : lines) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> envelope = (Map<String, Object>) Json.of(line).value();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) envelope.get("data");
+            String type = (String) envelope.get("type");
+            if (data == null || type == null) continue;
+            if (!"FEATURE_ENTER".equals(type) && !"SCENARIO_ENTER".equals(type)) continue;
+            int depth = ((Number) data.get("callDepth")).intValue();
+            assertTrue(depth >= 0 && depth < featureEnterByDepth.length, "unexpected depth: " + depth);
+            if ("FEATURE_ENTER".equals(type)) featureEnterByDepth[depth]++;
+            else scenarioEnterByDepth[depth]++;
+        }
+
+        assertEquals(1, featureEnterByDepth[0], "one outer feature");
+        assertEquals(1, featureEnterByDepth[1], "one middle feature");
+        assertEquals(1, featureEnterByDepth[2], "one inner feature");
+        assertEquals(1, scenarioEnterByDepth[0], "one outer scenario");
+        assertEquals(1, scenarioEnterByDepth[1], "one middle scenario");
+        assertEquals(1, scenarioEnterByDepth[2], "one inner scenario");
+    }
+
+    @Test
     void testHtmlReportGeneratedWithJsonLines() throws Exception {
         Path feature = tempDir.resolve("test.feature");
         Files.writeString(feature, """

@@ -66,10 +66,15 @@ public record ScenarioRunEvent(
             map.put("name", scenario.getName());
             map.put("line", scenario.getLine());
             map.put("refId", scenario.getRefId());
+            map.put("callDepth", fr != null ? fr.getCallDepth() : 0);
         }
         if (type == RunEventType.SCENARIO_EXIT && result != null) {
             map.put("passed", !result.isFailed());
+            map.put("skipped", result.isSkipped());
             map.put("durationMillis", result.getDurationMillis());
+            if (result.isFailed()) {
+                map.put("error", result.getFailureMessage());
+            }
         }
         return map;
     }
