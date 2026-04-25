@@ -1041,13 +1041,37 @@ methods/constants wired, descriptor reads now consult
 remaining work is opportunistic — wrap individual built-in
 constructors and prototypes in the same shape as Math.
 
+**Order of attack for a fresh session:**
+
+1. **Land the singleton-reset infra first, as its own commit.** Pick
+   one of the two options below; the rollout commits then don't have
+   to think about it. Drop a small JUnit test that exercises the
+   leak path explicitly (e.g. two `new Engine()` instances back to
+   back, with `delete Number.isFinite` between) so a regression
+   later can't silently re-introduce it.
+2. Wrap one constructor (Number is the smallest — 4 methods + 8
+   constants), probe with `--only test/built-ins/Number/**`, confirm
+   no per-engine state leaks across runs.
+3. Sweep the remaining built-in constructors and prototypes following
+   the same pattern. Probe each slice as you go; the deltas should
+   all be net positive (zero predicted regressions, since the
+   descriptor reader was already returning the wrong shape — making
+   it correct can only convert FAILs to PASSes).
+4. `JsArray.length` descriptor as a separate small commit (see below).
+
+The Math wrap (`karate-js/src/main/java/io/karatelabs/js/JsMath.java`)
+is the canonical template — `_methodCache`, `resolveMember`,
+`hasOwnIntrinsic`, `isMathMethod` / `isMathConstant`, `getOwnAttrs`.
+Copy the shape; the only per-class changes are the lists of method
+and constant names.
+
 - **Number constructor + prototype.** Static methods (`isFinite` /
   `isInteger` / `isNaN` / `isSafeInteger`) need `JsBuiltinMethod`
   wrapping; constants (`EPSILON` / `MAX_VALUE` / `MIN_VALUE` /
   `MAX_SAFE_INTEGER` / `MIN_SAFE_INTEGER` / `POSITIVE_INFINITY` /
   `NEGATIVE_INFINITY` / `NaN`) need `hasOwnIntrinsic` + `getOwnAttrs`.
-  Prototype methods (`toString` / `toFixed` / `valueOf` / `toExponential`
-  / `toPrecision`) similarly.
+  Prototype methods (`toString` / `toFixed` / `valueOf` /
+  `toExponential` / `toPrecision`) similarly.
 
   **Caveat: JVM-wide singleton state leak.** `JsNumberConstructor`,
   `JsObjectConstructor`, `JsDateConstructor`, etc. are all
@@ -1058,11 +1082,36 @@ constructors and prototypes in the same shape as Math.
   in the same JVM — propertyHelper's `isConfigurable()` does exactly
   this destructive write/delete pattern. The previous session's
   `Prototype.clearAllUserProps()` mechanism handles this for
-  `Prototype` instances; constructor singletons need a parallel hook.
-  Either: (a) extend the clear mechanism to constructor singletons,
-  or (b) allocate constructors per-Engine like `JsMath`. Pick when
-  scoping the rollout; estimated +18–30 PASS in Number alone, +50ish
-  across the rest.
+  `Prototype` instances (see
+  [`Prototype.java`](../karate-js/src/main/java/io/karatelabs/js/Prototype.java) —
+  static `ALL` list ~line 60, walked by `clearAllUserProps()`,
+  invoked from `Engine` constructor); constructor singletons need a
+  parallel hook. Two options:
+  - **(a) Extend the clear mechanism.** Add a parallel
+    `BUILT_IN_CONSTRUCTORS` static list (or generalize the existing
+    one to take any `JsObject`) and a `clearEngineState()` method
+    on `JsObject` that wipes `_map` / `_attrs` / `_tombstones` plus
+    any subclass cache (`_methodCache` etc.). Lower-blast-radius:
+    nothing outside JsObject hierarchy changes.
+  - **(b) Allocate per-Engine, like JsMath.** Change
+    [`ContextRoot.initGlobal`](../karate-js/src/main/java/io/karatelabs/js/ContextRoot.java)
+    cases for each constructor — `case "Number" -> new
+    JsNumberConstructor()` instead of `JsNumberConstructor.INSTANCE`.
+    Keep the singleton field (others may still reference it as a
+    cached default) but the engine's globals are fresh. Audit
+    references first: `git grep '\.INSTANCE'` under
+    `karate-js/src/main/java/io/karatelabs/js/` to confirm no
+    other site relies on `Foo.INSTANCE === bound-global`. Last
+    audit (this session): only `ContextRoot` referenced
+    `JsNumberConstructor.INSTANCE` — so for Number specifically,
+    option (b) is a one-line diff.
+
+  Pick (a) if you'd rather not touch ContextRoot or risk identity
+  surprises; pick (b) if you want a tiny diff per constructor and
+  to mirror what JsMath already does. The estimate for the full
+  Number constructor + prototype wrap is +18–30 PASS in Number
+  alone, +50ish across other slices once the same pattern rolls
+  out.
 
 - **`Prototype` per-method attributes.** Built-in prototype methods
   (`Array.prototype.push`, `String.prototype.charAt`, etc.) are
@@ -1072,7 +1121,8 @@ constructors and prototypes in the same shape as Math.
   on each prototype to declare `WRITABLE | CONFIGURABLE`. Existing
   `Prototype.userProps` already participates in the per-Engine clear
   list, so any tombstones from `delete Array.prototype.push` would
-  reset cleanly.
+  reset cleanly via the same mechanism — no new infra needed for
+  the prototypes (only for the *constructor* singletons above).
 
 - **`JsArray.length` descriptor.** Spec: `{writable: true,
   enumerable: false, configurable: false}`. Currently
@@ -1080,7 +1130,8 @@ constructors and prototypes in the same shape as Math.
   Override `getOwnAttrs("length")` on JsArray to return
   `WRITABLE` (no enumerable, no configurable). The trickier piece is
   that `length` is also writable in a special way (truncates the
-  list); the descriptor shape change is independent of that.
+  list); the descriptor shape change is independent of that, so
+  ship it as its own commit.
 
 ### Tier 3 — cross-cutting feature unblock
 
