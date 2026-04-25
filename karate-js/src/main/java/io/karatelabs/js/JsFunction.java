@@ -82,6 +82,13 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
     }
 
     @Override
+    public boolean hasOwnIntrinsic(String name) {
+        // Every function exposes prototype, name, length, and constructor as own.
+        return "prototype".equals(name) || "name".equals(name)
+                || "length".equals(name) || "constructor".equals(name);
+    }
+
+    @Override
     public Object getMember(String name) {
         // For functions, "prototype" returns the function's prototype object
         // Check _map first to allow "Foo.prototype = ..." assignments

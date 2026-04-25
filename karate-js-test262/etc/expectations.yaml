@@ -42,6 +42,8 @@ skip:
       reason: Symbol not supported
     - feature: Symbol.asyncIterator
       reason: Symbol not supported
+    - feature: Symbol.toPrimitive
+      reason: Symbol.toPrimitive dispatch not modeled (no real Symbol identity)
     # Symbol.iterator un-skipped: karate-js exposes @@iterator (string-keyed
     # stand-in) on JsArray / JsString and routes for-of / spread / destructuring /
     # Array.from through IterUtils.getIterator. Tests that rely on real Symbol

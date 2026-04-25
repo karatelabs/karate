@@ -132,4 +132,17 @@ abstract class Prototype implements ObjectLike {
      */
     protected abstract Object getBuiltinProperty(String name);
 
+    /**
+     * True iff {@code name} is an "own" property on this prototype itself (user-added or
+     * built-in). Used by {@code Object.prototype.hasOwnProperty} when the receiver is the
+     * prototype object — spec-required for {@code Date.prototype.hasOwnProperty('toString')}
+     * etc. to return true. Does NOT walk {@code __proto__}.
+     */
+    boolean hasOwnMember(String name) {
+        if (userProps != null && userProps.containsKey(name)) {
+            return true;
+        }
+        return getBuiltinProperty(name) != null;
+    }
+
 }

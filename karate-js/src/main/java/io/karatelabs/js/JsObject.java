@@ -81,6 +81,20 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
         this.__proto__ = proto;
     }
 
+    /**
+     * True iff this object exposes {@code name} as an "own" intrinsic property
+     * (e.g. {@code Date.prototype}, {@code Date.now}, {@code Date.UTC}). Default:
+     * false — only user-added entries in {@link #_map} count as own.
+     * <p>
+     * Subclasses (especially built-in constructors) override to declare which
+     * names their {@link #getMember} resolves directly without delegating to
+     * {@code __proto__}. Used by {@code Object.prototype.hasOwnProperty} so that
+     * {@code Date.hasOwnProperty('UTC') === true} per spec.
+     */
+    public boolean hasOwnIntrinsic(String name) {
+        return false;
+    }
+
     @Override
     public Object getMember(String name) {
         // 1. Check own properties

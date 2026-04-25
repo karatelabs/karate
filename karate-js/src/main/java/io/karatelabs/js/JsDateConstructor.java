@@ -23,13 +23,11 @@
  */
 package io.karatelabs.js;
 
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.util.Date;
 
 /**
  * JavaScript Date constructor function.
- * Provides static methods like Date.now, Date.parse.
+ * Provides static methods like Date.now, Date.parse, Date.UTC.
  */
 class JsDateConstructor extends JsFunction {
 
@@ -43,10 +41,20 @@ class JsDateConstructor extends JsFunction {
     public Object getMember(String name) {
         return switch (name) {
             case "now" -> (JsInvokable) this::now;
-            case "parse" -> (JsInvokable) this::parse;
-            case "UTC" -> (JsInvokable) this::utc;
+            case "parse" -> (JsCallable) (context, args) -> parse(args);
+            case "UTC" -> (JsCallable) (context, args) ->
+                    utcWithContext(context instanceof CoreContext c ? c : null, args);
             case "prototype" -> JsDatePrototype.INSTANCE;
+            case "length" -> 7;
             default -> super.getMember(name);
+        };
+    }
+
+    @Override
+    public boolean hasOwnIntrinsic(String name) {
+        return switch (name) {
+            case "now", "parse", "UTC" -> true;
+            default -> super.hasOwnIntrinsic(name);
         };
     }
 
@@ -61,75 +69,130 @@ class JsDateConstructor extends JsFunction {
             return new JsDate().toString();
         }
 
-        // new Date(...) - process arguments and return JsDate object
+        // new Date()
         if (args.length == 0) {
             return new JsDate();
-        } else if (args.length == 1) {
-            Object arg = args[0];
-            if (arg instanceof Number n) {
-                return new JsDate(n.longValue());
-            } else if (arg instanceof String s) {
-                return new JsDate(s);
-            } else if (arg instanceof JsDate date) {
-                return new JsDate(date.getTime());
-            } else if (arg instanceof Date date) {
-                return new JsDate(date);
-            } else {
-                return new JsDate();
-            }
-        } else if (args.length >= 3) {
-            int year = args[0] instanceof Number ? ((Number) args[0]).intValue() : 0;
-            int month = args[1] instanceof Number ? ((Number) args[1]).intValue() : 0;
-            int day = args[2] instanceof Number ? ((Number) args[2]).intValue() : 1;
-            if (args.length >= 6) {
-                int hours = args[3] instanceof Number ? ((Number) args[3]).intValue() : 0;
-                int minutes = args[4] instanceof Number ? ((Number) args[4]).intValue() : 0;
-                int seconds = args[5] instanceof Number ? ((Number) args[5]).intValue() : 0;
-                if (args.length >= 7) {
-                    int ms = args[6] instanceof Number ? ((Number) args[6]).intValue() : 0;
-                    return new JsDate(year, month, day, hours, minutes, seconds, ms);
-                } else {
-                    return new JsDate(year, month, day, hours, minutes, seconds);
-                }
-            } else {
-                return new JsDate(year, month, day);
-            }
-        } else {
-            return new JsDate();
         }
+
+        CoreContext cc = context instanceof CoreContext c ? c : null;
+
+        // new Date(value) — single arg: Number, String, Date, or arbitrary object.
+        // Spec: ToPrimitive(arg, default); if String → parse; else ToNumber.
+        if (args.length == 1) {
+            Object arg = args[0];
+            if (arg instanceof JsDate jd) {
+                return new JsDate(jd.getTimeValue());
+            }
+            if (arg instanceof Date d) {
+                return new JsDate(d);
+            }
+            Object prim = arg;
+            if (arg instanceof ObjectLike) {
+                prim = Terms.toPrimitive(arg, "default", cc);
+                if (cc != null && cc.isError()) {
+                    return new JsDate(Double.NaN); // engine will surface error
+                }
+            } else if (arg instanceof JsValue jv) {
+                prim = jv.getJsValue();
+            }
+            if (prim instanceof String s) {
+                return new JsDate(JsDate.parseToTimeValue(s));
+            }
+            double v = Terms.objectToNumber(prim).doubleValue();
+            return new JsDate(v);
+        }
+
+        // new Date(year, month [, date [, hours [, minutes [, seconds [, ms]]]]])
+        // Each arg coerced via ToNumber (valueOf-aware). ANY NaN input → Invalid Date.
+        double[] parts = coerceArgs(args, Math.min(args.length, 7), cc);
+        if (parts == null) {
+            return new JsDate(Double.NaN);
+        }
+        double year = parts[0];
+        double month = parts[1];
+        double date = parts.length > 2 ? parts[2] : 1;
+        double hours = parts.length > 3 ? parts[3] : 0;
+        double minutes = parts.length > 4 ? parts[4] : 0;
+        double seconds = parts.length > 5 ? parts[5] : 0;
+        double ms = parts.length > 6 ? parts[6] : 0;
+
+        // Spec: years 0..99 → +1900 (legacy two-digit-year handling)
+        if (!Double.isNaN(year)) {
+            double iy = year < 0 ? Math.ceil(year) : Math.floor(year);
+            if (iy >= 0 && iy <= 99) {
+                year = 1900 + iy;
+            }
+        }
+
+        double day = JsDate.makeDay(year, month, date);
+        double time = JsDate.makeTime(hours, minutes, seconds, ms);
+        double local = JsDate.makeDate(day, time);
+        return new JsDate(JsDate.localToUtc(local));
     }
 
-    // Static methods
+    /** Coerces N args via spec ToNumber (with valueOf dispatch). Null = a coercion threw. */
+    private static double[] coerceArgs(Object[] args, int n, CoreContext cc) {
+        double[] out = new double[n];
+        for (int i = 0; i < n; i++) {
+            Object v = args[i];
+            if (v instanceof ObjectLike && cc != null) {
+                v = Terms.toPrimitive(v, "number", cc);
+                if (cc.isError()) return null;
+            } else if (v instanceof JsValue jv) {
+                v = jv.getJsValue();
+            }
+            out[i] = Terms.objectToNumber(v).doubleValue();
+        }
+        return out;
+    }
+
+    // ---------- static methods ----------
 
     private Object now(Object[] args) {
         return System.currentTimeMillis();
     }
 
     private Object parse(Object[] args) {
-        if (args.length == 0 || args[0] == null) {
+        if (args.length == 0) {
             return Double.NaN;
         }
-        try {
-            String dateStr = args[0].toString();
-            return JsDate.parse(dateStr).getTime();
-        } catch (Exception e) {
-            return Double.NaN;
-        }
+        Object arg = args[0];
+        String s = (arg == null) ? "null" : String.valueOf(arg instanceof JsValue jv ? jv.getJsValue() : arg);
+        double v = JsDate.parseToTimeValue(s);
+        return Double.isNaN(v) ? Double.NaN : (long) v;
     }
 
     private Object utc(Object[] args) {
-        if (args.length < 2) {
+        return utcWithContext(null, args);
+    }
+
+    private Object utcWithContext(CoreContext cc, Object[] args) {
+        if (args.length == 0) {
             return Double.NaN;
         }
-        int year = args[0] instanceof Number ? ((Number) args[0]).intValue() : 0;
-        int month = args[1] instanceof Number ? ((Number) args[1]).intValue() : 0;
-        int day = args.length > 2 && args[2] instanceof Number ? ((Number) args[2]).intValue() : 1;
-        int hours = args.length > 3 && args[3] instanceof Number ? ((Number) args[3]).intValue() : 0;
-        int minutes = args.length > 4 && args[4] instanceof Number ? ((Number) args[4]).intValue() : 0;
-        int seconds = args.length > 5 && args[5] instanceof Number ? ((Number) args[5]).intValue() : 0;
-        int ms = args.length > 6 && args[6] instanceof Number ? ((Number) args[6]).intValue() : 0;
-        ZonedDateTime zdt = ZonedDateTime.of(year, month + 1, day, hours, minutes, seconds, ms * 1_000_000, ZoneOffset.UTC);
-        return zdt.toInstant().toEpochMilli();
+        double[] parts = coerceArgs(args, Math.min(args.length, 7), cc);
+        if (parts == null) {
+            return Double.NaN;
+        }
+        double year = parts[0];
+        double month = parts.length > 1 ? parts[1] : 0;
+        double date = parts.length > 2 ? parts[2] : 1;
+        double hours = parts.length > 3 ? parts[3] : 0;
+        double minutes = parts.length > 4 ? parts[4] : 0;
+        double seconds = parts.length > 5 ? parts[5] : 0;
+        double ms = parts.length > 6 ? parts[6] : 0;
+
+        if (!Double.isNaN(year)) {
+            double iy = year < 0 ? Math.ceil(year) : Math.floor(year);
+            if (iy >= 0 && iy <= 99) {
+                year = 1900 + iy;
+            }
+        }
+
+        double day = JsDate.makeDay(year, month, date);
+        double time = JsDate.makeTime(hours, minutes, seconds, ms);
+        double v = JsDate.timeClip(JsDate.makeDate(day, time));
+        return Double.isNaN(v) ? Double.NaN : (long) v;
     }
 
 }

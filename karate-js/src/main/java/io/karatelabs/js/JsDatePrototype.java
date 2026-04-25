@@ -24,28 +24,45 @@
 package io.karatelabs.js;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
+import java.time.format.TextStyle;
 import java.util.Locale;
-import java.util.Map;
 
 /**
- * Singleton prototype for Date instances.
- * Contains instance methods like getTime, setTime, toISOString, etc.
- * Inherits from JsObjectPrototype.
+ * Singleton prototype for Date instances. Inherits from JsObjectPrototype.
+ * <p>
+ * All getters return {@code NaN} when [[DateValue]] is NaN (Invalid Date).
+ * All setters propagate NaN — any NaN-valued component (or the existing date
+ * being invalid for non-{@code setTime}/{@code setFullYear} setters) results
+ * in the date becoming Invalid. {@code thisTimeValue} TypeErrors when {@code this}
+ * is not a Date.
  */
 class JsDatePrototype extends Prototype {
 
     static final JsDatePrototype INSTANCE = new JsDatePrototype();
 
-    private static final DateTimeFormatter ISO_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
+    private static String formatIso(JsDate d) {
+        // Spec ISO format with extended ±YYYYYY year for out-of-range values.
+        ZonedDateTime z = ZonedDateTime.ofInstant(Instant.ofEpochMilli(d.getTime()), ZoneOffset.UTC);
+        return String.format(Locale.ROOT, "%s-%02d-%02dT%02d:%02d:%02d.%03dZ",
+                JsDate.formatYearIso(z.getYear()), z.getMonthValue(), z.getDayOfMonth(),
+                z.getHour(), z.getMinute(), z.getSecond(),
+                (int) Math.floorMod(d.getTime(), 1000L));
+    }
 
-    private static final DateTimeFormatter UTC_STRING_FORMATTER =
-            DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'GMT'").withZone(ZoneOffset.UTC);
+    private static String formatUtc(JsDate d) {
+        ZonedDateTime z = ZonedDateTime.ofInstant(Instant.ofEpochMilli(d.getTime()), ZoneOffset.UTC);
+        String dayName = z.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
+        String monthName = z.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
+        return String.format(Locale.ROOT, "%s, %02d %s %s %02d:%02d:%02d GMT",
+                dayName, z.getDayOfMonth(), monthName, JsDate.formatYear4(z.getYear()),
+                z.getHour(), z.getMinute(), z.getSecond());
+    }
 
     private JsDatePrototype() {
         super(JsObjectPrototype.INSTANCE);
@@ -54,10 +71,11 @@ class JsDatePrototype extends Prototype {
     @Override
     protected Object getBuiltinProperty(String name) {
         return switch (name) {
+            case "constructor" -> JsDateConstructor.INSTANCE;
             case "getTime", "valueOf" -> (JsCallable) this::getTime;
             case "toString" -> (JsCallable) this::toStringMethod;
             case "toISOString" -> (JsCallable) this::toISOString;
-            case "toUTCString" -> (JsCallable) this::toUTCString;
+            case "toUTCString", "toGMTString" -> (JsCallable) this::toUTCString;
             case "getFullYear" -> (JsCallable) this::getFullYear;
             case "getMonth" -> (JsCallable) this::getMonth;
             case "getDate" -> (JsCallable) this::getDate;
@@ -66,6 +84,7 @@ class JsDatePrototype extends Prototype {
             case "getMinutes" -> (JsCallable) this::getMinutes;
             case "getSeconds" -> (JsCallable) this::getSeconds;
             case "getMilliseconds" -> (JsCallable) this::getMilliseconds;
+            case "getYear" -> (JsCallable) this::getYear;
             case "setDate" -> (JsCallable) this::setDate;
             case "setMonth" -> (JsCallable) this::setMonth;
             case "setFullYear" -> (JsCallable) this::setFullYear;
@@ -74,12 +93,20 @@ class JsDatePrototype extends Prototype {
             case "setSeconds" -> (JsCallable) this::setSeconds;
             case "setMilliseconds" -> (JsCallable) this::setMilliseconds;
             case "setTime" -> (JsCallable) this::setTime;
+            case "setYear" -> (JsCallable) this::setYear;
+            case "setUTCDate" -> (JsCallable) this::setUTCDate;
+            case "setUTCMonth" -> (JsCallable) this::setUTCMonth;
+            case "setUTCFullYear" -> (JsCallable) this::setUTCFullYear;
+            case "setUTCHours" -> (JsCallable) this::setUTCHours;
+            case "setUTCMinutes" -> (JsCallable) this::setUTCMinutes;
+            case "setUTCSeconds" -> (JsCallable) this::setUTCSeconds;
+            case "setUTCMilliseconds" -> (JsCallable) this::setUTCMilliseconds;
             case "toLocaleDateString" -> (JsCallable) this::toLocaleDateString;
             case "toLocaleTimeString" -> (JsCallable) this::toLocaleTimeString;
             case "toLocaleString" -> (JsCallable) this::toLocaleString;
             case "toDateString" -> (JsCallable) this::toDateString;
             case "toTimeString" -> (JsCallable) this::toTimeString;
-            case "toJSON" -> (JsCallable) this::toISOString;
+            case "toJSON" -> (JsCallable) this::toJSON;
             case "getTimezoneOffset" -> (JsCallable) this::getTimezoneOffset;
             case "getUTCFullYear" -> (JsCallable) this::getUTCFullYear;
             case "getUTCMonth" -> (JsCallable) this::getUTCMonth;
@@ -93,211 +120,545 @@ class JsDatePrototype extends Prototype {
         };
     }
 
-    // Helper method to get JsDate from this context
-    private static JsDate asDate(Context context) {
+    /**
+     * Spec thisTimeValue: returns the JsDate's [[DateValue]] or TypeErrors if
+     * {@code this} is not a Date.
+     */
+    private static JsDate requireDate(Context context) {
         Object thisObj = context.getThisObject();
-        if (thisObj instanceof JsDate date) {
-            return date;
+        if (thisObj instanceof JsDate d) {
+            return d;
         }
-        return new JsDate();
+        throw JsErrorException.typeError("this is not a Date object");
     }
 
-    private static ZonedDateTime toZonedDateTime(JsDate date) {
-        return ZonedDateTime.ofInstant(Instant.ofEpochMilli(date.getTime()), ZoneId.systemDefault());
+    /** Number-valued time helper, returns NaN-Double for invalid dates, Long otherwise. */
+    private static Object boxTime(double v) {
+        if (Double.isNaN(v)) {
+            return Double.NaN;
+        }
+        return (long) v;
     }
 
-    // Instance methods
+    private static ZonedDateTime localZdt(JsDate d) {
+        return ZonedDateTime.ofInstant(Instant.ofEpochMilli(d.getTime()), ZoneId.systemDefault());
+    }
+
+    private static ZonedDateTime utcZdt(JsDate d) {
+        return ZonedDateTime.ofInstant(Instant.ofEpochMilli(d.getTime()), ZoneOffset.UTC);
+    }
+
+    // ---------- getters ----------
 
     private Object getTime(Context context, Object[] args) {
-        return asDate(context).getTime();
+        JsDate d = requireDate(context);
+        return d.isInvalid() ? Double.NaN : (Object) d.getTime();
     }
 
     private Object toStringMethod(Context context, Object[] args) {
-        return asDate(context).toString();
+        return requireDate(context).toString();
     }
 
     private Object toISOString(Context context, Object[] args) {
-        return ISO_FORMATTER.format(Instant.ofEpochMilli(asDate(context).getTime()));
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) {
+            throw JsErrorException.rangeError("Invalid time value");
+        }
+        return formatIso(d);
     }
 
     private Object toUTCString(Context context, Object[] args) {
-        return UTC_STRING_FORMATTER.format(Instant.ofEpochMilli(asDate(context).getTime()));
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) {
+            return "Invalid Date";
+        }
+        return formatUtc(d);
+    }
+
+    /**
+     * Spec Date.prototype.toJSON: works on ANY object (not just Date) per
+     * §21.4.4.37. ToPrimitive(this, hint Number); if Number+non-finite return null;
+     * else Invoke(O, "toISOString"). The unusual generic-this pattern is why
+     * this method does NOT use {@link #requireDate}.
+     */
+    private Object toJSON(Context context, Object[] args) {
+        Object o = context.getThisObject();
+        if (o == null || o == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("Cannot convert null or undefined to object");
+        }
+        CoreContext cc = cc(context);
+        Object tv = o;
+        if (o instanceof ObjectLike && cc != null) {
+            tv = Terms.toPrimitive(o, "number", cc);
+            if (cc.isError()) return null;
+        } else if (o instanceof JsValue jv) {
+            tv = jv.getJsValue();
+        }
+        if (tv instanceof Number n && !Double.isFinite(n.doubleValue())) {
+            return null;
+        }
+        // Direct shortcut for Date this — produce ISO string. Avoids the generic
+        // Invoke(O, "toISOString") path doing a redundant getMember dispatch.
+        if (o instanceof JsDate d) {
+            return formatIso(d);
+        }
+        // Invoke O.toISOString()
+        if (o instanceof ObjectLike ol) {
+            Object iso = ol.getMember("toISOString");
+            if (iso instanceof JsCallable jc) {
+                CoreContext sub = (cc == null) ? null : new CoreContext(cc, null, null);
+                if (sub != null) sub.thisObject = o;
+                Object r = jc.call(sub == null ? context : sub, new Object[0]);
+                if (sub != null && sub.isError() && cc != null) {
+                    cc.updateFrom(sub);
+                    return null;
+                }
+                return r;
+            }
+        }
+        throw JsErrorException.typeError("toISOString is not a function");
     }
 
     private Object getFullYear(Context context, Object[] args) {
-        return toZonedDateTime(asDate(context)).getYear();
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return localZdt(d).getYear();
+    }
+
+    private Object getYear(Context context, Object[] args) {
+        // Annex B: getYear returns getFullYear() - 1900
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return localZdt(d).getYear() - 1900;
     }
 
     private Object getMonth(Context context, Object[] args) {
-        return toZonedDateTime(asDate(context)).getMonthValue() - 1; // 0-indexed
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return localZdt(d).getMonthValue() - 1;
     }
 
     private Object getDate(Context context, Object[] args) {
-        return toZonedDateTime(asDate(context)).getDayOfMonth();
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return localZdt(d).getDayOfMonth();
     }
 
     private Object getDay(Context context, Object[] args) {
-        return toZonedDateTime(asDate(context)).getDayOfWeek().getValue() % 7; // Sun=0
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return localZdt(d).getDayOfWeek().getValue() % 7;
     }
 
     private Object getHours(Context context, Object[] args) {
-        return toZonedDateTime(asDate(context)).getHour();
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return localZdt(d).getHour();
     }
 
     private Object getMinutes(Context context, Object[] args) {
-        return toZonedDateTime(asDate(context)).getMinute();
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return localZdt(d).getMinute();
     }
 
     private Object getSeconds(Context context, Object[] args) {
-        return toZonedDateTime(asDate(context)).getSecond();
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return localZdt(d).getSecond();
     }
 
     private Object getMilliseconds(Context context, Object[] args) {
-        return toZonedDateTime(asDate(context)).getNano() / 1_000_000;
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return (int) (Math.floorMod(d.getTime(), 1000L));
     }
 
-    private Object setDate(Context context, Object[] args) {
-        if (args.length == 0 || !(args[0] instanceof Number)) {
-            return Double.NaN;
-        }
-        int day = ((Number) args[0]).intValue();
-        JsDate jsDate = asDate(context);
-        ZonedDateTime zdt = toZonedDateTime(jsDate);
-        // Set to 1st of month, then add (day-1) to handle overflow
-        zdt = zdt.withDayOfMonth(1).plusDays(day - 1);
-        jsDate.setMillis(zdt.toInstant().toEpochMilli());
-        return jsDate.getTime();
+    private Object getTimezoneOffset(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        // Negate the LocalTZA (in minutes) — JS reports +5:30 as -330. Uses the
+        // same minute-truncated offset as JsDate.localToUtc / utcToLocal so
+        // assertRelativeDateMs round-trips for sub-minute historical zones.
+        return -(int) (JsDate.localTzaMs(d.getTime()) / 60_000L);
     }
 
-    private Object setMonth(Context context, Object[] args) {
-        if (args.length == 0 || !(args[0] instanceof Number)) {
-            return Double.NaN;
-        }
-        int month = ((Number) args[0]).intValue();
-        JsDate jsDate = asDate(context);
-        ZonedDateTime zdt = toZonedDateTime(jsDate);
-        int originalDay = zdt.getDayOfMonth();
-        // Set to Jan 1st of current year, add months, then restore day
-        zdt = zdt.withMonth(1).withDayOfMonth(1).plusMonths(month);
-        int maxDay = zdt.toLocalDate().lengthOfMonth();
-        zdt = zdt.withDayOfMonth(Math.min(originalDay, maxDay));
-        if (args.length > 1 && args[1] instanceof Number) {
-            int day = ((Number) args[1]).intValue();
-            zdt = zdt.withDayOfMonth(1).plusDays(day - 1);
-        }
-        jsDate.setMillis(zdt.toInstant().toEpochMilli());
-        return jsDate.getTime();
+    private Object getUTCFullYear(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return utcZdt(d).getYear();
     }
 
-    private Object setFullYear(Context context, Object[] args) {
-        if (args.length == 0 || !(args[0] instanceof Number)) {
-            return Double.NaN;
-        }
-        int year = ((Number) args[0]).intValue();
-        JsDate jsDate = asDate(context);
-        ZonedDateTime zdt = toZonedDateTime(jsDate);
-        int originalDay = zdt.getDayOfMonth();
-        zdt = zdt.withYear(year);
-        // Handle Feb 29 -> Feb 28 for non-leap years
-        int maxDay = zdt.toLocalDate().lengthOfMonth();
-        if (originalDay > maxDay) {
-            zdt = zdt.withDayOfMonth(maxDay);
-        }
-        if (args.length > 1 && args[1] instanceof Number) {
-            int month = ((Number) args[1]).intValue();
-            zdt = zdt.withMonth(1).withDayOfMonth(1).plusMonths(month);
-            maxDay = zdt.toLocalDate().lengthOfMonth();
-            zdt = zdt.withDayOfMonth(Math.min(originalDay, maxDay));
-        }
-        if (args.length > 2 && args[2] instanceof Number) {
-            int day = ((Number) args[2]).intValue();
-            zdt = zdt.withDayOfMonth(1).plusDays(day - 1);
-        }
-        jsDate.setMillis(zdt.toInstant().toEpochMilli());
-        return jsDate.getTime();
+    private Object getUTCMonth(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return utcZdt(d).getMonthValue() - 1;
     }
 
-    private Object setHours(Context context, Object[] args) {
-        if (args.length == 0 || !(args[0] instanceof Number)) {
-            return Double.NaN;
-        }
-        int hours = ((Number) args[0]).intValue();
-        JsDate jsDate = asDate(context);
-        ZonedDateTime zdt = toZonedDateTime(jsDate)
-                .withHour(0).plusHours(hours);
-        if (args.length > 1 && args[1] instanceof Number) {
-            int minutes = ((Number) args[1]).intValue();
-            zdt = zdt.withMinute(0).plusMinutes(minutes);
-        }
-        if (args.length > 2 && args[2] instanceof Number) {
-            int seconds = ((Number) args[2]).intValue();
-            zdt = zdt.withSecond(0).plusSeconds(seconds);
-        }
-        if (args.length > 3 && args[3] instanceof Number) {
-            int ms = ((Number) args[3]).intValue();
-            zdt = zdt.withNano(0).plusNanos(ms * 1_000_000L);
-        }
-        jsDate.setMillis(zdt.toInstant().toEpochMilli());
-        return jsDate.getTime();
+    private Object getUTCDate(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return utcZdt(d).getDayOfMonth();
     }
 
-    private Object setMinutes(Context context, Object[] args) {
-        if (args.length == 0 || !(args[0] instanceof Number)) {
-            return Double.NaN;
-        }
-        int minutes = ((Number) args[0]).intValue();
-        JsDate jsDate = asDate(context);
-        ZonedDateTime zdt = toZonedDateTime(jsDate)
-                .withMinute(0).plusMinutes(minutes);
-        if (args.length > 1 && args[1] instanceof Number) {
-            int seconds = ((Number) args[1]).intValue();
-            zdt = zdt.withSecond(0).plusSeconds(seconds);
-        }
-        if (args.length > 2 && args[2] instanceof Number) {
-            int ms = ((Number) args[2]).intValue();
-            zdt = zdt.withNano(0).plusNanos(ms * 1_000_000L);
-        }
-        jsDate.setMillis(zdt.toInstant().toEpochMilli());
-        return jsDate.getTime();
+    private Object getUTCDay(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return utcZdt(d).getDayOfWeek().getValue() % 7;
     }
 
-    private Object setSeconds(Context context, Object[] args) {
-        if (args.length == 0 || !(args[0] instanceof Number)) {
-            return Double.NaN;
-        }
-        int seconds = ((Number) args[0]).intValue();
-        JsDate jsDate = asDate(context);
-        ZonedDateTime zdt = toZonedDateTime(jsDate)
-                .withSecond(0).plusSeconds(seconds);
-        if (args.length > 1 && args[1] instanceof Number) {
-            int ms = ((Number) args[1]).intValue();
-            zdt = zdt.withNano(0).plusNanos(ms * 1_000_000L);
-        }
-        jsDate.setMillis(zdt.toInstant().toEpochMilli());
-        return jsDate.getTime();
+    private Object getUTCHours(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return utcZdt(d).getHour();
     }
 
-    private Object setMilliseconds(Context context, Object[] args) {
-        if (args.length == 0 || !(args[0] instanceof Number)) {
-            return Double.NaN;
+    private Object getUTCMinutes(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return utcZdt(d).getMinute();
+    }
+
+    private Object getUTCSeconds(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return utcZdt(d).getSecond();
+    }
+
+    private Object getUTCMilliseconds(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return Double.NaN;
+        return (int) (Math.floorMod(d.getTime(), 1000L));
+    }
+
+    // ---------- setters ----------
+    //
+    // Spec ordering for every setter (applies to setHours / setMinutes / setSeconds /
+    // setMilliseconds / setDate / setMonth / setFullYear and their UTC variants):
+    //
+    //   1. Read t = thisTimeValue(this) — BEFORE coercing args.
+    //   2. ToNumber each provided arg in source order. valueOf / toString on
+    //      object args may throw or mutate `this` — neither short-circuits the
+    //      remaining coercions per spec.
+    //   3. If any coercion errored, propagate (the surrounding engine will throw).
+    //   4. If t was NaN, return NaN WITHOUT touching [[DateValue]] (so a valueOf
+    //      that mutated `this` back to a valid value is preserved).
+    //   5. Else compute new t, TimeClip + UTC where applicable, store, return.
+
+    /** Coerces N args to Number. Returns null if any coercion threw (caller bails). */
+    private static double[] coerceArgs(Object[] args, int n, CoreContext cc) {
+        double[] out = new double[n];
+        for (int i = 0; i < n; i++) {
+            if (i >= args.length) {
+                out[i] = Double.NaN; // sentinel for "not provided"
+                continue;
+            }
+            Object v = args[i];
+            if (v instanceof ObjectLike && cc != null) {
+                v = Terms.toPrimitive(v, "number", cc);
+                if (cc.isError()) {
+                    return null;
+                }
+            } else if (v instanceof JsValue jv) {
+                v = jv.getJsValue();
+            }
+            out[i] = Terms.objectToNumber(v).doubleValue();
         }
-        int ms = ((Number) args[0]).intValue();
-        JsDate jsDate = asDate(context);
-        ZonedDateTime zdt = toZonedDateTime(jsDate)
-                .withNano(0).plusNanos(ms * 1_000_000L);
-        jsDate.setMillis(zdt.toInstant().toEpochMilli());
-        return jsDate.getTime();
+        return out;
+    }
+
+    private static CoreContext cc(Context context) {
+        return context instanceof CoreContext c ? c : null;
     }
 
     private Object setTime(Context context, Object[] args) {
-        if (args.length == 0 || !(args[0] instanceof Number)) {
+        JsDate d = requireDate(context);
+        double[] c = coerceArgs(args, 1, cc(context));
+        if (c == null) return Double.NaN; // engine will surface error
+        d.setTimeValue(c[0]);
+        return boxTime(d.getTimeValue());
+    }
+
+    private Object setMilliseconds(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        double[] c = coerceArgs(args, 1, cc(context));
+        if (c == null) return Double.NaN;
+        if (Double.isNaN(t)) return Double.NaN;
+        double local = JsDate.utcToLocal(t);
+        ZonedDateTime z = localZdt(d);
+        double time = JsDate.makeTime(z.getHour(), z.getMinute(), z.getSecond(), c[0]);
+        double newLocal = JsDate.makeDate(Math.floor(local / JsDate.MS_PER_DAY), time);
+        d.setTimeValue(JsDate.localToUtc(newLocal));
+        return boxTime(d.getTimeValue());
+    }
+
+    private Object setSeconds(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        int n = Math.min(args.length, 2);
+        if (n == 0) n = 1;
+        double[] c = coerceArgs(args, n, cc(context));
+        if (c == null) return Double.NaN;
+        if (Double.isNaN(t)) return Double.NaN;
+        ZonedDateTime z = localZdt(d);
+        double local = JsDate.utcToLocal(t);
+        double useMs = (n > 1) ? c[1] : Math.floorMod((long) t, 1000L);
+        double time = JsDate.makeTime(z.getHour(), z.getMinute(), c[0], useMs);
+        double newLocal = JsDate.makeDate(Math.floor(local / JsDate.MS_PER_DAY), time);
+        d.setTimeValue(JsDate.localToUtc(newLocal));
+        return boxTime(d.getTimeValue());
+    }
+
+    private Object setMinutes(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        int n = Math.min(args.length, 3);
+        if (n == 0) n = 1;
+        double[] c = coerceArgs(args, n, cc(context));
+        if (c == null) return Double.NaN;
+        if (Double.isNaN(t)) return Double.NaN;
+        ZonedDateTime z = localZdt(d);
+        double local = JsDate.utcToLocal(t);
+        double useS = (n > 1) ? c[1] : z.getSecond();
+        double useMs = (n > 2) ? c[2] : Math.floorMod((long) t, 1000L);
+        double time = JsDate.makeTime(z.getHour(), c[0], useS, useMs);
+        double newLocal = JsDate.makeDate(Math.floor(local / JsDate.MS_PER_DAY), time);
+        d.setTimeValue(JsDate.localToUtc(newLocal));
+        return boxTime(d.getTimeValue());
+    }
+
+    private Object setHours(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        int n = Math.min(args.length, 4);
+        if (n == 0) n = 1;
+        double[] c = coerceArgs(args, n, cc(context));
+        if (c == null) return Double.NaN;
+        if (Double.isNaN(t)) return Double.NaN;
+        ZonedDateTime z = localZdt(d);
+        double local = JsDate.utcToLocal(t);
+        double useM = (n > 1) ? c[1] : z.getMinute();
+        double useS = (n > 2) ? c[2] : z.getSecond();
+        double useMs = (n > 3) ? c[3] : Math.floorMod((long) t, 1000L);
+        double time = JsDate.makeTime(c[0], useM, useS, useMs);
+        double newLocal = JsDate.makeDate(Math.floor(local / JsDate.MS_PER_DAY), time);
+        d.setTimeValue(JsDate.localToUtc(newLocal));
+        return boxTime(d.getTimeValue());
+    }
+
+    private Object setDate(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        double[] c = coerceArgs(args, 1, cc(context));
+        if (c == null) return Double.NaN;
+        if (Double.isNaN(t)) return Double.NaN;
+        ZonedDateTime z = localZdt(d);
+        double local = JsDate.utcToLocal(t);
+        double timeOfDay = local - Math.floor(local / JsDate.MS_PER_DAY) * JsDate.MS_PER_DAY;
+        double day = JsDate.makeDay(z.getYear(), z.getMonthValue() - 1, c[0]);
+        double newLocal = JsDate.makeDate(day, timeOfDay);
+        d.setTimeValue(JsDate.localToUtc(newLocal));
+        return boxTime(d.getTimeValue());
+    }
+
+    private Object setMonth(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        int n = Math.min(args.length, 2);
+        if (n == 0) n = 1;
+        double[] c = coerceArgs(args, n, cc(context));
+        if (c == null) return Double.NaN;
+        if (Double.isNaN(t)) return Double.NaN;
+        ZonedDateTime z = localZdt(d);
+        double local = JsDate.utcToLocal(t);
+        double timeOfDay = local - Math.floor(local / JsDate.MS_PER_DAY) * JsDate.MS_PER_DAY;
+        double useDt = (n > 1) ? c[1] : z.getDayOfMonth();
+        double day = JsDate.makeDay(z.getYear(), c[0], useDt);
+        double newLocal = JsDate.makeDate(day, timeOfDay);
+        d.setTimeValue(JsDate.localToUtc(newLocal));
+        return boxTime(d.getTimeValue());
+    }
+
+    private Object setFullYear(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        int n = Math.min(args.length, 3);
+        if (n == 0) n = 1;
+        double[] c = coerceArgs(args, n, cc(context));
+        if (c == null) return Double.NaN;
+        // Spec: if Invalid Date, treat t as +0 (use local epoch)
+        ZonedDateTime z;
+        double timeOfDay;
+        if (Double.isNaN(t)) {
+            z = ZonedDateTime.ofInstant(Instant.EPOCH, ZoneId.systemDefault());
+            timeOfDay = 0;
+        } else {
+            z = localZdt(d);
+            double local = JsDate.utcToLocal(t);
+            timeOfDay = local - Math.floor(local / JsDate.MS_PER_DAY) * JsDate.MS_PER_DAY;
+        }
+        double useMo = (n > 1) ? c[1] : (z.getMonthValue() - 1);
+        double useDt = (n > 2) ? c[2] : z.getDayOfMonth();
+        double day = JsDate.makeDay(c[0], useMo, useDt);
+        double newLocal = JsDate.makeDate(day, timeOfDay);
+        d.setTimeValue(JsDate.localToUtc(newLocal));
+        return boxTime(d.getTimeValue());
+    }
+
+    private Object setYear(Context context, Object[] args) {
+        // Annex B: setYear(y); y in [0,99] → +1900; NaN → Invalid
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        double[] c = coerceArgs(args, 1, cc(context));
+        if (c == null) return Double.NaN;
+        double y = c[0];
+        if (Double.isNaN(y)) {
+            d.setTimeValue(Double.NaN);
             return Double.NaN;
         }
-        long timestamp = ((Number) args[0]).longValue();
-        JsDate jsDate = asDate(context);
-        jsDate.setMillis(timestamp);
-        return timestamp;
+        double iy = y < 0 ? Math.ceil(y) : Math.floor(y);
+        if (iy >= 0 && iy <= 99) {
+            iy = 1900 + iy;
+        }
+        ZonedDateTime z;
+        double timeOfDay;
+        if (Double.isNaN(t)) {
+            z = ZonedDateTime.ofInstant(Instant.EPOCH, ZoneId.systemDefault());
+            timeOfDay = 0;
+        } else {
+            z = localZdt(d);
+            double local = JsDate.utcToLocal(t);
+            timeOfDay = local - Math.floor(local / JsDate.MS_PER_DAY) * JsDate.MS_PER_DAY;
+        }
+        double day = JsDate.makeDay(iy, z.getMonthValue() - 1, z.getDayOfMonth());
+        double newLocal = JsDate.makeDate(day, timeOfDay);
+        d.setTimeValue(JsDate.localToUtc(newLocal));
+        return boxTime(d.getTimeValue());
     }
+
+    // ---------- UTC setters (no LocalTime/UTC conversion) ----------
+
+    private Object setUTCMilliseconds(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        double[] c = coerceArgs(args, 1, cc(context));
+        if (c == null) return Double.NaN;
+        if (Double.isNaN(t)) return Double.NaN;
+        ZonedDateTime z = utcZdt(d);
+        double time = JsDate.makeTime(z.getHour(), z.getMinute(), z.getSecond(), c[0]);
+        double v = JsDate.makeDate(Math.floor(t / JsDate.MS_PER_DAY), time);
+        d.setTimeValue(v);
+        return boxTime(d.getTimeValue());
+    }
+
+    private Object setUTCSeconds(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        int n = Math.min(args.length, 2);
+        if (n == 0) n = 1;
+        double[] c = coerceArgs(args, n, cc(context));
+        if (c == null) return Double.NaN;
+        if (Double.isNaN(t)) return Double.NaN;
+        ZonedDateTime z = utcZdt(d);
+        double useMs = (n > 1) ? c[1] : Math.floorMod((long) t, 1000L);
+        double time = JsDate.makeTime(z.getHour(), z.getMinute(), c[0], useMs);
+        double v = JsDate.makeDate(Math.floor(t / JsDate.MS_PER_DAY), time);
+        d.setTimeValue(v);
+        return boxTime(d.getTimeValue());
+    }
+
+    private Object setUTCMinutes(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        int n = Math.min(args.length, 3);
+        if (n == 0) n = 1;
+        double[] c = coerceArgs(args, n, cc(context));
+        if (c == null) return Double.NaN;
+        if (Double.isNaN(t)) return Double.NaN;
+        ZonedDateTime z = utcZdt(d);
+        double useS = (n > 1) ? c[1] : z.getSecond();
+        double useMs = (n > 2) ? c[2] : Math.floorMod((long) t, 1000L);
+        double time = JsDate.makeTime(z.getHour(), c[0], useS, useMs);
+        double v = JsDate.makeDate(Math.floor(t / JsDate.MS_PER_DAY), time);
+        d.setTimeValue(v);
+        return boxTime(d.getTimeValue());
+    }
+
+    private Object setUTCHours(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        int n = Math.min(args.length, 4);
+        if (n == 0) n = 1;
+        double[] c = coerceArgs(args, n, cc(context));
+        if (c == null) return Double.NaN;
+        if (Double.isNaN(t)) return Double.NaN;
+        ZonedDateTime z = utcZdt(d);
+        double useM = (n > 1) ? c[1] : z.getMinute();
+        double useS = (n > 2) ? c[2] : z.getSecond();
+        double useMs = (n > 3) ? c[3] : Math.floorMod((long) t, 1000L);
+        double time = JsDate.makeTime(c[0], useM, useS, useMs);
+        double v = JsDate.makeDate(Math.floor(t / JsDate.MS_PER_DAY), time);
+        d.setTimeValue(v);
+        return boxTime(d.getTimeValue());
+    }
+
+    private Object setUTCDate(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        double[] c = coerceArgs(args, 1, cc(context));
+        if (c == null) return Double.NaN;
+        if (Double.isNaN(t)) return Double.NaN;
+        ZonedDateTime z = utcZdt(d);
+        double timeOfDay = t - Math.floor(t / JsDate.MS_PER_DAY) * JsDate.MS_PER_DAY;
+        double day = JsDate.makeDay(z.getYear(), z.getMonthValue() - 1, c[0]);
+        double v = JsDate.makeDate(day, timeOfDay);
+        d.setTimeValue(v);
+        return boxTime(d.getTimeValue());
+    }
+
+    private Object setUTCMonth(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        int n = Math.min(args.length, 2);
+        if (n == 0) n = 1;
+        double[] c = coerceArgs(args, n, cc(context));
+        if (c == null) return Double.NaN;
+        if (Double.isNaN(t)) return Double.NaN;
+        ZonedDateTime z = utcZdt(d);
+        double timeOfDay = t - Math.floor(t / JsDate.MS_PER_DAY) * JsDate.MS_PER_DAY;
+        double useDt = (n > 1) ? c[1] : z.getDayOfMonth();
+        double day = JsDate.makeDay(z.getYear(), c[0], useDt);
+        double v = JsDate.makeDate(day, timeOfDay);
+        d.setTimeValue(v);
+        return boxTime(d.getTimeValue());
+    }
+
+    private Object setUTCFullYear(Context context, Object[] args) {
+        JsDate d = requireDate(context);
+        double t = d.getTimeValue();
+        int n = Math.min(args.length, 3);
+        if (n == 0) n = 1;
+        double[] c = coerceArgs(args, n, cc(context));
+        if (c == null) return Double.NaN;
+        ZonedDateTime z;
+        double timeOfDay;
+        if (Double.isNaN(t)) {
+            z = ZonedDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC);
+            timeOfDay = 0;
+        } else {
+            z = utcZdt(d);
+            timeOfDay = t - Math.floor(t / JsDate.MS_PER_DAY) * JsDate.MS_PER_DAY;
+        }
+        double useMo = (n > 1) ? c[1] : (z.getMonthValue() - 1);
+        double useDt = (n > 2) ? c[2] : z.getDayOfMonth();
+        double day = JsDate.makeDay(c[0], useMo, useDt);
+        double v = JsDate.makeDate(day, timeOfDay);
+        d.setTimeValue(v);
+        return boxTime(d.getTimeValue());
+    }
+
+    // ---------- locale / display ----------
 
     private static Locale parseLocale(Object[] args) {
         if (args.length > 0 && args[0] instanceof String tag) {
@@ -307,76 +668,53 @@ class JsDatePrototype extends Prototype {
     }
 
     private Object toLocaleDateString(Context context, Object[] args) {
-        JsDate jsDate = asDate(context);
-        Locale locale = parseLocale(args);
-        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(locale);
-        return toZonedDateTime(jsDate).format(formatter);
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return "Invalid Date";
+        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                .withLocale(parseLocale(args));
+        return localZdt(d).format(formatter);
     }
 
     private Object toLocaleTimeString(Context context, Object[] args) {
-        JsDate jsDate = asDate(context);
-        Locale locale = parseLocale(args);
-        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM).withLocale(locale);
-        return toZonedDateTime(jsDate).format(formatter);
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return "Invalid Date";
+        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM)
+                .withLocale(parseLocale(args));
+        return localZdt(d).format(formatter);
     }
 
     private Object toLocaleString(Context context, Object[] args) {
-        JsDate jsDate = asDate(context);
-        Locale locale = parseLocale(args);
-        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT, FormatStyle.MEDIUM).withLocale(locale);
-        return toZonedDateTime(jsDate).format(formatter);
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return "Invalid Date";
+        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT, FormatStyle.MEDIUM)
+                .withLocale(parseLocale(args));
+        return localZdt(d).format(formatter);
     }
 
     private Object toDateString(Context context, Object[] args) {
-        ZonedDateTime zdt = toZonedDateTime(asDate(context));
-        return DateTimeFormatter.ofPattern("EEE MMM dd yyyy").format(zdt);
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return "Invalid Date";
+        ZonedDateTime z = localZdt(d);
+        String dayName = z.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
+        String monthName = z.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
+        return String.format(Locale.ROOT, "%s %s %02d %s",
+                dayName, monthName, z.getDayOfMonth(), JsDate.formatYear4(z.getYear()));
     }
 
     private Object toTimeString(Context context, Object[] args) {
-        ZonedDateTime zdt = toZonedDateTime(asDate(context));
-        return DateTimeFormatter.ofPattern("HH:mm:ss 'GMT'XXX").format(zdt);
+        JsDate d = requireDate(context);
+        if (d.isInvalid()) return "Invalid Date";
+        ZonedDateTime z = localZdt(d);
+        // "HH:mm:ss GMT±HHMM" — must match the test262 regex
+        // /^[0-9]{2}:[0-9]{2}:[0-9]{2} GMT[+-][0-9]{4}( \(.+\))?$/.
+        return String.format(Locale.ROOT, "%02d:%02d:%02d %s",
+                z.getHour(), z.getMinute(), z.getSecond(),
+                JsDate.formatGmtOffset((int) (JsDate.localTzaMs(d.getTime()) / 1000L)));
     }
 
-    private Object getTimezoneOffset(Context context, Object[] args) {
-        ZonedDateTime zdt = toZonedDateTime(asDate(context));
-        // JS returns offset in minutes, negative of UTC offset (UTC+5:30 → -330)
-        return -(zdt.getOffset().getTotalSeconds() / 60);
+    // Suppresses an unused warning in IDEs — kept for symmetry with the local form
+    @SuppressWarnings("unused")
+    private static LocalDate utcLocalDate(JsDate d) {
+        return utcZdt(d).toLocalDate();
     }
-
-    private static ZonedDateTime toUTC(JsDate date) {
-        return ZonedDateTime.ofInstant(Instant.ofEpochMilli(date.getTime()), ZoneOffset.UTC);
-    }
-
-    private Object getUTCFullYear(Context context, Object[] args) {
-        return toUTC(asDate(context)).getYear();
-    }
-
-    private Object getUTCMonth(Context context, Object[] args) {
-        return toUTC(asDate(context)).getMonthValue() - 1; // 0-indexed
-    }
-
-    private Object getUTCDate(Context context, Object[] args) {
-        return toUTC(asDate(context)).getDayOfMonth();
-    }
-
-    private Object getUTCDay(Context context, Object[] args) {
-        return toUTC(asDate(context)).getDayOfWeek().getValue() % 7; // Sun=0
-    }
-
-    private Object getUTCHours(Context context, Object[] args) {
-        return toUTC(asDate(context)).getHour();
-    }
-
-    private Object getUTCMinutes(Context context, Object[] args) {
-        return toUTC(asDate(context)).getMinute();
-    }
-
-    private Object getUTCSeconds(Context context, Object[] args) {
-        return toUTC(asDate(context)).getSecond();
-    }
-
-    private Object getUTCMilliseconds(Context context, Object[] args) {
-        return toUTC(asDate(context)).getNano() / 1_000_000;
-    }
-
 }

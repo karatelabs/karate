@@ -380,4 +380,126 @@ class JsDateTest extends EvalBase {
         assertEquals("2025-01-15T00:00:00.000Z", get("localIso"));
     }
 
+    @Test
+    void testInvalidDateNaNPropagation() {
+        // new Date(NaN) → Invalid Date; getters return NaN; toString returns "Invalid Date"
+        eval("var d = new Date(NaN);"
+                + "var t = d.getTime();"
+                + "var y = d.getFullYear();"
+                + "var s = d.toString();");
+        assertEquals(Double.NaN, get("t"));
+        assertEquals(Double.NaN, get("y"));
+        assertEquals("Invalid Date", get("s"));
+    }
+
+    @Test
+    void testInvalidDateToISOStringThrowsRangeError() {
+        // toISOString on Invalid Date is a RangeError per spec
+        try {
+            eval("new Date(NaN).toISOString()");
+            fail("Expected RangeError");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("RangeError"), "Expected RangeError, got: " + e.getMessage());
+        }
+    }
+
+    @Test
+    void testTwoArgConstructor() {
+        // new Date(year, month) with 2 args was previously dropping to current time
+        assertEquals(1467331200000L, eval("new Date(2016, 6).getTime()"));
+        assertEquals(6, eval("new Date(2016, 6).getMonth()"));
+    }
+
+    @Test
+    void testYearTwoDigitLegacyMapping() {
+        // Spec: years 0..99 → +1900 in the Date constructor
+        assertEquals(1999, eval("new Date(99, 0).getFullYear()"));
+        assertEquals(1900, eval("new Date(0, 0).getFullYear()"));
+        // outside 0..99: pass through
+        assertEquals(2099, eval("new Date(2099, 0).getFullYear()"));
+    }
+
+    @Test
+    void testSetterValueOfDispatch() {
+        // Spec: setHours coerces ToNumber on its arg, calling user-defined valueOf
+        eval("var d = new Date(2016, 6);"
+                + "var calls = 0;"
+                + "var arg = { valueOf: function() { calls++; return 2; } };"
+                + "d.setHours(arg);"
+                + "var hour = d.getHours();");
+        assertEquals(1, get("calls"));
+        assertEquals(2, get("hour"));
+    }
+
+    @Test
+    void testSetterReadsTimeValueBeforeArgCoercion() {
+        // Spec: thisTimeValue is read BEFORE ToNumber. If t is NaN, return NaN
+        // without overwriting [[DateValue]] — so a valueOf that mutated the date
+        // back to a valid value is preserved.
+        eval("var d = new Date(NaN);"
+                + "var arg = { valueOf: function() { d.setTime(0); return 1; } };"
+                + "var r = d.setHours(arg);"
+                + "var t = d.getTime();");
+        assertEquals(Double.NaN, get("r"), "setHours returns NaN because original t was NaN");
+        assertEquals(0L, get("t"), "[[DateValue]] preserves the value the valueOf wrote");
+    }
+
+    @Test
+    void testHasOwnPropertyOnDatePrototype() {
+        // Built-in prototype methods are own properties of Date.prototype
+        assertEquals(true, eval("Date.prototype.hasOwnProperty('toString')"));
+        assertEquals(true, eval("Date.prototype.hasOwnProperty('getTime')"));
+        assertEquals(true, eval("Date.prototype.hasOwnProperty('constructor')"));
+    }
+
+    @Test
+    void testHasOwnPropertyOnConstructor() {
+        // Date constructor's intrinsic statics are own properties
+        assertEquals(true, eval("Date.hasOwnProperty('now')"));
+        assertEquals(true, eval("Date.hasOwnProperty('parse')"));
+        assertEquals(true, eval("Date.hasOwnProperty('UTC')"));
+        assertEquals(true, eval("Date.hasOwnProperty('prototype')"));
+    }
+
+    @Test
+    void testObjectPrototypeToStringTag() {
+        // Object.prototype.toString.call(date) === "[object Date]" via type-tag dispatch
+        assertEquals("[object Date]", eval("Object.prototype.toString.call(new Date())"));
+        assertEquals("[object Array]", eval("Object.prototype.toString.call([])"));
+        assertEquals("[object Object]", eval("Object.prototype.toString.call({})"));
+    }
+
+    @Test
+    void testNonDateThisThrowsTypeError() {
+        // Date.prototype.getTime.call({}) → TypeError
+        try {
+            eval("Date.prototype.getTime.call({})");
+            fail("Expected TypeError");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("TypeError"), "Expected TypeError, got: " + e.getMessage());
+        }
+    }
+
+    @Test
+    void testParseRoundTripToString() {
+        // Date.parse(new Date(0).toString()) === 0 — round-trip through our toString format.
+        // Engine may return Long or Double for numeric values; compare via longValue().
+        assertEquals(0L, ((Number) eval("Date.parse(new Date(0).toString())")).longValue());
+        assertEquals(0L, ((Number) eval("Date.parse(new Date(0).toUTCString())")).longValue());
+        assertEquals(0L, ((Number) eval("Date.parse(new Date(0).toISOString())")).longValue());
+    }
+
+    @Test
+    void testIsoExtendedYear() {
+        // Year > 9999 / < 0 → ±YYYYYY ISO extended-year format
+        assertEquals("+010000-01-01T00:00:00.000Z", eval("new Date(Date.UTC(10000, 0, 1)).toISOString()"));
+        assertEquals("-000001-07-01T00:00:00.000Z", eval("new Date('-000001-07-01T00:00Z').toISOString()"));
+    }
+
+    @Test
+    void testNegativeYearToString() {
+        // Year -1 → "-0001" in toString output (4-digit padded with explicit sign)
+        Object s = eval("new Date('-000001-07-01T00:00Z').toString()");
+        assertTrue(s.toString().contains("-0001"), "expected '-0001' in: " + s);
+    }
 }

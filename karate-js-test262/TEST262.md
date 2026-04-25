@@ -885,6 +885,44 @@ session needs to violate one, the principle goes up for review explicitly.
   caller's args. `length` / `name` of the bound function are
   approximate (name is `"bound " + target.name`); call semantics are
   what matters.
+- **Date stores `[[DateValue]]` as `double` with NaN = Invalid Date.**
+  `JsDate` no longer uses `long millis`; the spec representation is a
+  Number that may be NaN, and Java's `(long) NaN == 0` would silently
+  collapse Invalid Date to epoch. Methods route through pure helpers
+  (`JsDate.makeDay` / `makeTime` / `makeDate` / `timeClip` /
+  `localToUtc` / `utcToLocal` / `parseToTimeValue`) so the
+  Constructor and Prototype share spec algorithms. `localTzaMs` is
+  truncated to integer minutes so historical zones with sub-minute
+  offsets round-trip through `getTimezoneOffset()` (which spec defines
+  as integer minutes). `requireDate(context)` TypeErrors on non-Date
+  `this` (Spec thisTimeValue). Setters read `[[DateValue]]` *before*
+  coercing args, coerce all args even when the captured value is NaN
+  (preserves observable side effects from `valueOf`), then bail
+  without writing back when the captured value was NaN — the
+  date might have been mutated to a valid value during coercion and
+  must not be clobbered.
+- **`Object.prototype.hasOwnProperty` is prototype-aware and
+  intrinsic-aware.** When the receiver is a `Prototype` singleton
+  (`Date.prototype`, `Array.prototype`, etc.) it consults
+  `Prototype.hasOwnMember` (built-in methods + userProps); when the
+  receiver is a `JsObject` it consults `JsObject.hasOwnIntrinsic`
+  alongside the `_map` lookup so built-in constructors report their
+  intrinsic statics (`Date.prototype`, `Date.now`, `Date.UTC`, etc.)
+  as own. Subclasses (`JsFunction` exposes `prototype`/`name`/`length`/
+  `constructor`; `JsDateConstructor` adds `now`/`parse`/`UTC`) override
+  `hasOwnIntrinsic` to declare the names their `getMember` resolves
+  directly. Required for the `S15.9.5_A*` and `S15.9.4_A*` test
+  clusters and analogous tests under other built-ins.
+- **`Object.prototype.toString` dispatches on the host wrapper class.**
+  `JsObjectPrototype.DEFAULT_TO_STRING` returns `"[object <Tag>]"`
+  where the tag is derived from the receiver type — `Array` for
+  `JsArray` / `List`, `Date` for `JsDate` / `java.util.Date`, `RegExp`
+  / `Map` / `Set` / `Error` / `Boolean` / `Number` / `String` /
+  `Function`, and `Object` as the fallback. `JsObject` implements
+  `JsCallable` (host-side artifact) so the `Function` branch must
+  exclude plain `JsObject` instances — only `JsFunction` (and
+  `JsObject` whose `isJsFunction()` returns true) qualifies.
+  Substitute for the spec's `@@toStringTag` until Symbol expansion.
 
 ---
 
@@ -896,15 +934,14 @@ actually do that depends on it, the shape of the work, and the skip-list
 entry to retire (if any). Re-probe with the relevant `--only` glob before
 scoping a session.
 
-- **Date polish.** `Date/**` is the worst basic-slice pass rate of any
-  built-in — last probe **33 pass / 370 fail / 191 skip / 594 total**.
-  `JsDate` passes its JUnit suite but spec conformance is poor — likely
-  `valueOf` / `getTimezoneOffset` / `toISOString` / `parse` edge cases, and
-  date arithmetic boundaries. LLMs write date math constantly (scheduling,
-  timestamp formatting, relative-time math). Shape: audit the fails, group
-  by method, fix per-method. Probably a multi-session sweep given the size
-  of the gap. No skip-list change needed; it's a conformance effort, not a
-  feature-gate.
+- **Date residuals (descriptor / Function / isConstructor blocked).** Date polish
+  shipped (see Recently completed) leaving 11 fails, all blocked on infra outside
+  Date scope: `Function` global (1), `isConstructor` introspection / "non-constructible"
+  marker (4 — `is-a-constructor`/`not-a-constructor` × 4), `JsCallable.length` exposure
+  (2 — `Date.now.length` / `toISOString.length`), and accessor descriptors / `Object.isExtensible`
+  (4 — `toJSON/builtin.js`, `toJSON/invoke-arguments.js`, `toJSON/invoke-abrupt.js`,
+  `toJSON/to-primitive-abrupt.js`). Pick up when the underlying gap is being addressed —
+  none are Date-shaped fixes.
 
 - **Map / Set residuals.** Map and Set constructors landed (see Recently
   completed). Open residuals from the basic slices:
@@ -965,6 +1002,61 @@ scoping a session.
 Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
+
+- **Date polish.** `built-ins/Date/**` went from **33 pass / 370 fail / 191 skip
+  / 594 total** to **367 pass / 11 fail / 216 skip / 594 total** (+334 passing,
+  +25 newly skipped via `feature: Symbol.toPrimitive`). The rewrite swapped
+  `JsDate`'s `long millis` for a `double timeValue` (NaN sentinel = Invalid
+  Date), implemented spec `MakeDay` / `MakeTime` / `MakeDate` / `TimeClip`
+  helpers as pure functions on `JsDate`, and rebuilt the prototype around
+  spec algorithm ordering. Concretely:
+  - `JsDateConstructor` and the prototype setters call `Terms.toPrimitive`
+    on object args (valueOf / toString dispatch) and propagate
+    `cc.isError()` so a throwing `valueOf` becomes a JS exception.
+  - All getters return NaN for Invalid Date; all setters read
+    `[[DateValue]]` *before* arg coercion (so a valueOf that mutates the
+    date doesn't poison the captured `t`), coerce all args even when `t`
+    is NaN (spec ordering / observable side effects), then bail without
+    overwriting `[[DateValue]]` when `t` was NaN.
+  - Two-arg constructor (`new Date(year, month)`) now actually builds the
+    date — was previously falling through to `new Date()` (current time).
+    Years 0..99 map to 1900..1999 per spec.
+  - `setUTC*` family added (`setUTCDate` / `setUTCMonth` / `setUTCFullYear` /
+    `setUTCHours` / `setUTCMinutes` / `setUTCSeconds` / `setUTCMilliseconds`).
+    Annex B `getYear` / `setYear` also wired.
+  - `Date.prototype.toJSON` now follows the spec's "generic-this" path
+    (ToPrimitive(O) → if Number+non-finite return null, else
+    Invoke(O, "toISOString")) — works on non-Date receivers too.
+  - `requireDate(context)` TypeErrors when `this` is not a JsDate (was
+    silently fabricating a fresh `new JsDate()`).
+  - String parser handles ES Date Time String Format more completely:
+    bare `YYYY` / `YYYY-MM`, extended-year `±YYYYYY-MM-DDTHH:mm:ss.sssZ`,
+    and round-trips for our own `toString` / `toUTCString` output.
+  - `toString` / `toDateString` / `toUTCString` / `toISOString` /
+    `toTimeString` re-implemented manually (not via Java pattern letters)
+    so negative years pad as `-0001` (not `0002`) and the timezone slot
+    matches the test262 regex `GMT[+-][0-9]{4}`.
+  - LocalTZA truncated to integer minutes so historical zones with
+    sub-minute offsets (Madras Mean Time +05:21:10 in 1899) round-trip
+    correctly through `assertRelativeDateMs(d, expectedMs)` —
+    `getTimezoneOffset()` reports an integer-minute value, and the
+    local↔UTC conversion now uses the same granularity.
+  - Adjuncts (general, not Date-only):
+    `Object.prototype.hasOwnProperty` checks `Prototype.hasOwnMember`
+    when the receiver is a built-in prototype singleton, and
+    `JsObject.hasOwnIntrinsic` when the receiver is a built-in
+    constructor — so `Date.prototype.hasOwnProperty('toString')` and
+    `Date.hasOwnProperty('UTC')` return true per spec. Affects every
+    built-in, not just Date.
+    `Object.prototype.toString.call(value)` now dispatches on the
+    receiver's host class to produce `[object Date]` /
+    `[object Array]` / `[object Map]` / `[object RegExp]` etc.
+    `Object.prototype.isPrototypeOf` and `propertyIsEnumerable`
+    landed (the latter as an own-property alias since we don't
+    track attribute slots).
+
+  Residual fails (each blocked on infra outside Date scope — see
+  *Date residuals* in the action list above for the enumerated list).
 
 - **`Map` / `Set` / `String.prototype.matchAll` + per-Engine prototype
   isolation.** Map and Set landed end-to-end:
