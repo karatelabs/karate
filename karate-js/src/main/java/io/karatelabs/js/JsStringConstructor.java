@@ -33,6 +33,7 @@ class JsStringConstructor extends JsFunction {
 
     private JsStringConstructor() {
         this.name = "String";
+        this.length = 1;
     }
 
     @Override

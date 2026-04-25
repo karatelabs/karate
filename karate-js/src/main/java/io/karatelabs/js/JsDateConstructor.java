@@ -35,17 +35,17 @@ class JsDateConstructor extends JsFunction {
 
     private JsDateConstructor() {
         this.name = "Date";
+        this.length = 7;
     }
 
     @Override
     public Object getMember(String name) {
         return switch (name) {
-            case "now" -> (JsInvokable) this::now;
-            case "parse" -> (JsCallable) (context, args) -> parse(args);
-            case "UTC" -> (JsCallable) (context, args) ->
-                    utcWithContext(context instanceof CoreContext c ? c : null, args);
+            case "now" -> new JsBuiltinMethod("now", 0, (JsInvokable) this::now);
+            case "parse" -> new JsBuiltinMethod("parse", 1, (ctx, args) -> parse(args));
+            case "UTC" -> new JsBuiltinMethod("UTC", 7, (ctx, args) ->
+                    utcWithContext(ctx instanceof CoreContext c ? c : null, args));
             case "prototype" -> JsDatePrototype.INSTANCE;
-            case "length" -> 7;
             default -> super.getMember(name);
         };
     }

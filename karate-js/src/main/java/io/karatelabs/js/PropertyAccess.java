@@ -339,7 +339,7 @@ class PropertyAccess {
         if (context.hasKey(name)) {
             Object result = context.get(name);
             if (functionCall && context.root.bridge != null && result instanceof ExternalAccess ea) {
-                return (JsCallable) (c, args) -> ea.construct(args);
+                return (JsConstructor) (c, args) -> ea.construct(args);
             }
             return result;
         }
@@ -363,7 +363,7 @@ class PropertyAccess {
                     ExternalAccess ja = context.root.bridge.forType(path);
                     if (ja != null) {
                         if (functionCall) {
-                            return (JsCallable) (c, args) -> ja.construct(args);
+                            return (JsConstructor) (c, args) -> ja.construct(args);
                         }
                         return ja;
                     }
@@ -404,7 +404,7 @@ class PropertyAccess {
 
         if (name == null) {
             if (functionCall && context.root.bridge != null && object instanceof ExternalAccess ea) {
-                return (JsCallable) (c, args) -> ea.construct(args);
+                return (JsConstructor) (c, args) -> ea.construct(args);
             }
             return object;
         }
@@ -435,7 +435,7 @@ class PropertyAccess {
                     String path = base + "." + name;
                     ExternalAccess ja = context.root.bridge.forType(path);
                     if (ja != null) {
-                        return new Object[]{(JsCallable) (c, args) -> ja.construct(args), null};
+                        return new Object[]{(JsConstructor) (c, args) -> ja.construct(args), null};
                     }
                     object = context.root.bridge.forType(base);
                 } else {
@@ -473,7 +473,7 @@ class PropertyAccess {
 
         if (name == null) {
             if (context.root.bridge != null && object instanceof ExternalAccess ea) {
-                return new Object[]{(JsCallable) (c, args) -> ea.construct(args), null};
+                return new Object[]{(JsConstructor) (c, args) -> ea.construct(args), null};
             }
             return new Object[]{object, null};
         }
@@ -557,7 +557,7 @@ class PropertyAccess {
             if (context.hasKey(name)) {
                 Object result = context.get(name);
                 if (functionCall && context.root.bridge != null && result instanceof ExternalAccess ea) {
-                    return (JsCallable) (c, args) -> ea.construct(args);
+                    return (JsConstructor) (c, args) -> ea.construct(args);
                 }
                 return result;
             }

@@ -51,6 +51,11 @@ public class JsRegex extends JsObject {
         return builtinConstructor;
     }
 
+    @Override
+    public boolean isConstructable() {
+        return builtinConstructor;
+    }
+
     JsRegex() {
         this("(?:)");
     }

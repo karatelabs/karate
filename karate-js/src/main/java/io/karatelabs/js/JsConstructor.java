@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2025 Karate Labs Inc.
+ * Copyright 2026 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,25 +23,17 @@
  */
 package io.karatelabs.js;
 
+/**
+ * Marker for a constructor-shaped {@link JsCallable} — used to wrap external
+ * (Java-bridge) types so {@code new SomeJavaClass()} doesn't fail the
+ * {@code isConstructable} guard in the interpreter's construct path.
+ */
 @FunctionalInterface
-interface JsCallable {
+interface JsConstructor extends JsCallable {
 
-    Object call(Context context, Object[] args);
-
-    default boolean isExternal() {
-        return false;
-    }
-
-    /**
-     * Whether this callable can be invoked with {@code new}. Default: false —
-     * only things that explicitly opt in (user-defined non-arrow functions,
-     * {@link JsFunction} subclasses, builtin constructor singletons, and the
-     * {@link JsConstructor} marker for Java-bridge types) report true. Used
-     * by the interpreter's construct path to throw a TypeError on
-     * {@code new <non-constructor>(...)} per spec.
-     */
+    @Override
     default boolean isConstructable() {
-        return false;
+        return true;
     }
 
 }

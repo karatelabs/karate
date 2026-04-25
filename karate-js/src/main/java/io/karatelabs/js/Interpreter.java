@@ -400,6 +400,9 @@ class Interpreter {
     private static Object invokeCallable(Object o, Object receiver, Node fnArgsNode,
                                           boolean newKeyword, Node node, CoreContext context) {
         if (o instanceof JsCallable callable) {
+            if (newKeyword && !callable.isConstructable()) {
+                throw JsErrorException.typeError(node.toStringWithoutType() + " is not a constructor");
+            }
             List<Object> argsList = new ArrayList<>();
             int argsCount = fnArgsNode == null ? 0 : fnArgsNode.size();
             for (int i = 0; i < argsCount; i++) {
@@ -495,10 +498,23 @@ class Interpreter {
         if (context.isError()) {
             return Terms.UNDEFINED;
         }
-        if (!(callable instanceof JsCallable c)) {
+        if (!(callable instanceof JsCallable c) || !c.isConstructable()) {
             throw JsErrorException.typeError(operand.toStringWithoutType() + " is not a constructor");
         }
         return invokeAsConstructor(c, new Object[0], operand, context);
+    }
+
+    /**
+     * Construct {@code callable} as if invoked via {@code new}. Used by
+     * {@code Reflect.construct} which has no syntactic Node to thread through;
+     * the engine creates a synthetic placeholder so event tracing has something
+     * to attach to. Throws TypeError if the target is not constructable.
+     */
+    static Object constructFromHost(JsCallable callable, Object[] args, CoreContext context) {
+        if (!callable.isConstructable()) {
+            throw JsErrorException.typeError("target is not a constructor");
+        }
+        return invokeAsConstructor(callable, args, new Node(NodeType.NEW_EXPR), context);
     }
 
     private static Object invokeAsConstructor(JsCallable callable, Object[] args, Node node, CoreContext context) {

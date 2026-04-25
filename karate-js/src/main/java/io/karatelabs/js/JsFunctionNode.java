@@ -53,6 +53,11 @@ class JsFunctionNode extends JsFunction {
         this.argCount = argNodes.size();
         this.body = body;
         this.declaredContext = declaredContext;
+        // Spec §15.2: f.length is the number of formal parameters before the
+        // first one with a default value or a rest element. Approximating with
+        // argCount is correct for the common case (no defaults, no rest) and
+        // off-by-N for the rest — refine if test262 surfaces it.
+        this.length = argCount;
         // Capture references to let/const BindValues at creation time for closure semantics
         this.capturedBindings = captureBindings(declaredContext);
     }
@@ -143,6 +148,11 @@ class JsFunctionNode extends JsFunction {
     @Override
     public String getSource() {
         return node.getTextIncludingWhitespace();
+    }
+
+    @Override
+    public boolean isConstructable() {
+        return !arrow;
     }
 
 }

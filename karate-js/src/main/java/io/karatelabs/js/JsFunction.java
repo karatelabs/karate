@@ -32,6 +32,11 @@ package io.karatelabs.js;
 public abstract class JsFunction extends JsObject implements JavaCallable {
 
     String name;
+    // Spec `length` per §10.2.4 — number of expected arguments. Subclasses set
+    // their own arity in the ctor (Date=7, Array=1, etc.); user-defined
+    // JsFunctionNode sets argCount; built-in non-constructor methods carry
+    // their declared length via JsBuiltinMethod. Default 0 matches "no args".
+    int length;
     private JsObject functionPrototype;
 
     protected JsFunction() {
@@ -41,6 +46,14 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
     @Override
     public boolean isExternal() {
         return false; // mark this as JS native while allowing Java code to cast to public JavaCallable
+    }
+
+    @Override
+    public boolean isConstructable() {
+        // Subclasses that aren't constructable (e.g., arrow JsFunctionNode)
+        // override to return false. Built-in non-constructor callables are
+        // not JsFunction at all — they're raw (JsCallable) lambdas.
+        return true;
     }
 
     /**
@@ -102,14 +115,17 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
             }
             return getFunctionPrototype();
         }
-        // Special case: name property
+        // Special cases: name + length are own intrinsics on every function.
         if ("name".equals(name)) {
             return this.name;
         }
-        // Special case: constructor property
-        if ("constructor".equals(name)) {
-            return this;
+        if ("length".equals(name)) {
+            return this.length;
         }
+        // `constructor` is inherited from Function.prototype, not an own property —
+        // super.getMember walks the prototype chain to JsFunctionPrototype, where
+        // it resolves to the Function global. Returning `this` here would make
+        // `f.constructor === f`, which breaks `f.constructor === Function`.
         return super.getMember(name);
     }
 

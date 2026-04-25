@@ -38,6 +38,7 @@ class JsArrayConstructor extends JsFunction {
 
     private JsArrayConstructor() {
         this.name = "Array";
+        this.length = 1;
     }
 
     @Override

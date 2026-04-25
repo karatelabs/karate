@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2025 Karate Labs Inc.
+ * Copyright 2026 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,24 +23,34 @@
  */
 package io.karatelabs.js;
 
-@FunctionalInterface
-interface JsCallable {
+/**
+ * Wraps a built-in callable lambda with spec {@code .name} and {@code .length}
+ * — the values test262 reads back via {@code Date.now.length === 0} etc. Without
+ * this wrapper, raw {@code (JsCallable) this::foo} method refs report no name
+ * and no length, breaking the {@code length.js} / {@code name.js} suites.
+ * <p>
+ * Built-in methods aren't constructable per spec — overrides
+ * {@link #isConstructable} back to {@code false} so {@code new Date.now()}
+ * throws TypeError, even though the parent {@link JsFunction} would otherwise
+ * opt in.
+ */
+final class JsBuiltinMethod extends JsFunction {
 
-    Object call(Context context, Object[] args);
+    private final JsCallable delegate;
 
-    default boolean isExternal() {
-        return false;
+    JsBuiltinMethod(String name, int length, JsCallable delegate) {
+        this.name = name;
+        this.length = length;
+        this.delegate = delegate;
     }
 
-    /**
-     * Whether this callable can be invoked with {@code new}. Default: false —
-     * only things that explicitly opt in (user-defined non-arrow functions,
-     * {@link JsFunction} subclasses, builtin constructor singletons, and the
-     * {@link JsConstructor} marker for Java-bridge types) report true. Used
-     * by the interpreter's construct path to throw a TypeError on
-     * {@code new <non-constructor>(...)} per spec.
-     */
-    default boolean isConstructable() {
+    @Override
+    public Object call(Context context, Object[] args) {
+        return delegate.call(context, args);
+    }
+
+    @Override
+    public boolean isConstructable() {
         return false;
     }
 

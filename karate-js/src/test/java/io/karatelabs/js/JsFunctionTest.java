@@ -108,8 +108,10 @@ class JsFunctionTest extends EvalBase {
         // ES6: Function.prototype.toString returns actual source for user-defined functions
         assertEquals("function(){ }", eval("var a = function(){ }; a.toString()"));
         assertEquals("function a(){ }", eval("function a(){ }; a.toString()"));
-        assertEquals("a", eval("var a = function(){ }; a.constructor.name"));
-        assertEquals("a", eval("function a(){ }; a.constructor.name"));
+        // Per spec, every function inherits .constructor from Function.prototype,
+        // which points to the Function global — not to the function itself.
+        assertEquals("Function", eval("var a = function(){ }; a.constructor.name"));
+        assertEquals("Function", eval("function a(){ }; a.constructor.name"));
         // ES6: a.prototype.toString does NOT affect a.toString() - prototype is only for instances
         assertEquals("function(){ }", eval("var a = function(){ }; a.prototype.toString = function(){ return 'foo' }; a.toString()"));
     }
@@ -581,6 +583,53 @@ class JsFunctionTest extends EvalBase {
                                 "var f = factory();\n" +
                                 "var caller = function(host) { return f(); };\n" +
                                 "caller({ ping: 'wrong' });"));
+    }
+
+    @Test
+    void testFunctionGlobalConstructsFromSource() {
+        // new Function('a', 'b', 'return a + b') compiles a function from string args
+        assertEquals(5, eval("var f = new Function('a', 'b', 'return a + b'); f(2, 3)"));
+        // Plain Function() (no `new`) is equivalent
+        assertEquals(7, eval("var f = Function('a', 'b', 'return a + b'); f(3, 4)"));
+        // Body-only call
+        assertEquals(42, eval("var f = new Function('return 42'); f()"));
+        // typeof + constructor identity
+        assertEquals("function", eval("typeof Function"));
+        assertEquals(true, eval("var f = new Function('return 1'); Object.getPrototypeOf(f) === Function.prototype"));
+        assertEquals(true, eval("(function(){}).constructor === Function"));
+    }
+
+    @Test
+    void testNewOnNonConstructorThrows() {
+        // Built-in non-constructors (prototype methods, statics like Date.now) should TypeError on new.
+        assertEquals("TypeError", eval("try { new Date.now() } catch (e) { e.name }"));
+        assertEquals("TypeError", eval("try { new Math.abs(1) } catch (e) { e.name }"));
+        // Arrow functions are not constructors.
+        assertEquals("TypeError", eval("var f = () => 1; try { new f() } catch (e) { e.name }"));
+        // Plain user functions still work.
+        assertEquals(1, eval("function F(){ this.x = 1 }; new F().x"));
+    }
+
+    @Test
+    void testBuiltinMethodLengthAndName() {
+        // Spec lengths from §21.4 — Date is the proof-of-concept.
+        assertEquals(0, eval("Date.now.length"));
+        assertEquals(1, eval("Date.parse.length"));
+        assertEquals(7, eval("Date.UTC.length"));
+        assertEquals(0, eval("Date.prototype.getTime.length"));
+        assertEquals(4, eval("Date.prototype.setHours.length"));
+        // .name reads back the registered name, not the host method ref's noise.
+        assertEquals("now", eval("Date.now.name"));
+        assertEquals("getTime", eval("Date.prototype.getTime.name"));
+    }
+
+    @Test
+    void testReflectConstructAndApply() {
+        // Reflect.construct dispatches to constructors and respects isConstructable.
+        assertEquals(5, eval("function F(a,b){ this.s = a+b }; Reflect.construct(F, [2,3]).s"));
+        assertEquals("TypeError", eval("try { Reflect.construct(Date.now, []) } catch (e) { e.name }"));
+        // Reflect.apply forwards thisArg and argumentsList.
+        assertEquals(6, eval("Reflect.apply(function(a,b){ return this.x + a + b }, { x: 1 }, [2, 3])"));
     }
 
 }

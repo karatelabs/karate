@@ -38,6 +38,7 @@ class JsObjectConstructor extends JsFunction {
 
     private JsObjectConstructor() {
         this.name = "Object";
+        this.length = 1;
     }
 
     @Override

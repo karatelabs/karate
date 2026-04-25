@@ -37,6 +37,7 @@ class JsBigIntConstructor extends JsFunction {
 
     private JsBigIntConstructor() {
         this.name = "BigInt";
+        this.length = 1;
     }
 
     @Override

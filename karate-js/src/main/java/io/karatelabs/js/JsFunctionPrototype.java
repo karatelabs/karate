@@ -47,6 +47,7 @@ class JsFunctionPrototype extends Prototype {
             case "apply" -> (JsCallable) this::applyMethod;
             case "bind" -> (JsCallable) this::bindMethod;
             case "toString" -> (JsCallable) this::toStringMethod;
+            case "constructor" -> JsFunctionConstructor.INSTANCE;
             default -> null;
         };
     }

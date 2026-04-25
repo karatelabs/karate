@@ -51,6 +51,11 @@ public non-sealed class JsBoolean extends JsObject implements JsPrimitive {
     }
 
     @Override
+    public boolean isConstructable() {
+        return builtinConstructor;
+    }
+
+    @Override
     public Object call(Context context, Object[] args) {
         boolean temp = false;
         if (args.length > 0) {

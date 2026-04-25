@@ -934,89 +934,19 @@ actually do that depends on it, the shape of the work, and the skip-list
 entry to retire (if any). Re-probe with the relevant `--only` glob before
 scoping a session.
 
-- **Function-object identity trio.** Three closely-related gaps that
-  surfaced as Date residuals but block hundreds of tests across *every*
-  built-in. Probe data (re-verify before scoping):
-
-  | `--only` glob | Pass / Fail / Skip / Total | Notes |
-  |---|---|---|
-  | `test/built-ins/**/not-a-constructor.js` | 62 / **213** / 240 / 515 | 125 fail "no TypeError thrown"; 20 fail "wrong error type" — both unblocked by a non-constructible marker |
-  | `test/built-ins/**/is-a-constructor.js`  | 0 / **28** / 17 / 45    | All want `isConstructor(BuiltIn) === true` for Date, RegExp, error subtypes, etc. |
-  | `test/built-ins/**/length.js`            | 1 / **37** / 695 / 733  | `Date.now.length === 0` style — needs `.length` exposed on built-in callables |
-  | `test/built-ins/**/name.js`              | 0 / **6** / 663 / 669   | Companion to `.length` |
-  | `test/built-ins/Function/**`             | 89 / **264** / 156 / 509 | **Dominant fail mode: `Function is not defined` (~143 direct, more secondary)** — no global `Function` constructor / `Function.prototype` intrinsic |
-
-  Estimated combined unlock: **~350+ tests across the suite**, plus
-  retiring all 11 Date residuals from the previous session (`Date.now.length`,
-  `toISOString.length`, `is-a-constructor`, `not-a-constructor` × 4,
-  `S15.9.4_A4`). Order of attack — each step independent, each adds
-  observable score:
-
-  1. **Non-constructible marker on `JsCallable`.** Every call site that
-     does `new <foo>(...)` should TypeError when `<foo>` is a built-in
-     non-constructor (e.g. `Date.now`, `Math.abs`, prototype methods like
-     `Date.prototype.getTime`). Most prototype methods are inline
-     `(JsCallable) this::someMethod` lambdas registered in
-     `getBuiltinProperty`; only `JsFunction` (and its subclasses,
-     including every `Js*Constructor` and user-defined `JsFunctionNode`)
-     should be constructible. Smallest change: add a default method
-     `default boolean isConstructible() { return false; }` on
-     `JsCallable` (`JsCallable.java`); override `true` on `JsFunction`
-     (`JsFunction.java`); check in `Interpreter.invokeAsConstructor`
-     (`Interpreter.java:504`) at the entry — throw
-     `JsErrorException.typeError(...)` when `!callable.isConstructible()`.
-     Also check at `evalNewExpr`'s tagged-template fallback path
-     (`Interpreter.java:498` — already type-checks for `JsCallable`).
-     Note: `JsObject` implements `JsCallable` (host artifact), so the
-     marker must distinguish "callable as function" from "callable as
-     constructor" — a user invoking `new someObject()` where
-     `someObject` is a plain JsObject should still TypeError.
-
-  2. **`Function` global + `Function.prototype` intrinsic.** Register
-     `Function` in `ContextRoot.initGlobal` as a callable that:
-     - Without args: returns `function anonymous() {}` (or, easiest: parse
-       the last arg as a body and prior args as params using our
-       existing `JsParser`). The classic `new Function('return 1')` shape.
-     - As a static surface: exposes `Function.prototype` returning the
-       singleton `JsFunctionPrototype.INSTANCE`. Verify the
-       `Object.getPrototypeOf(someFn) === Function.prototype` chain.
-
-     Pointers: `ContextRoot.initGlobal` (see how `Date`/`Map` are
-     registered — `case "Function" -> JsFunctionConstructor.INSTANCE`),
-     a new `JsFunctionConstructor extends JsFunction`, and
-     `JsFunctionPrototype.INSTANCE` (already exists — verify it's
-     reachable as `Function.prototype` via the new global).
-
-  3. **`isConstructor`.** The test262 harness's `isConstructor.js`
-     defines `function isConstructor(f) { try { Reflect.construct(...) }
-     catch { return false } return true }` — so this naturally falls out
-     of step 1 *if* we also expose a minimal `Reflect.construct`. Smaller
-     scoped option: implement just enough `Reflect` (`construct` + maybe
-     `apply`) to satisfy the harness; full Reflect is still feature-gated.
-     Probably worth its own short session after step 1.
-
-  4. **`.length` and `.name` on built-in callables.** Today
-     `JsFunction.getMember("name")` / `("length")` works for things that
-     extend `JsFunction`, but bare `JsCallable` lambdas (the prototype
-     methods, e.g. `Date.prototype.getTime`) have no member surface. Two
-     options: (a) wrap each prototype method in a tiny `JsFunction`
-     subclass with `name`/`length` set at registration (heavy);
-     (b) intercept `getMember("length")` / `getMember("name")` on the
-     dispatch surface where `JsCallable` is exposed (light, but needs a
-     coordinator — currently `getBuiltinProperty` returns the lambda
-     directly to the property-access path). Pick (b) and add a small
-     wrapper class `JsBuiltinMethod implements JsCallable` that carries
-     `name` / `length` and delegates `call`. Then `getBuiltinProperty`
-     returns `new JsBuiltinMethod("getTime", 0, this::getTime)`.
-
-  Land JUnit regressions in the matching `Js*Test` files: `EngineTest`
-  for the Function global, `JsFunctionTest` (create if missing) for
-  `.length` / `.name`, `JsDateTest` for the residuals that retire
-  (`Date.now.length`, etc.).
-
-  After each step: re-run the relevant `--only` glob from the table,
-  plus `test/built-ins/Date/**` (367 → ?) and `test/built-ins/Function/**`
-  (89 → ?) to track score.
+- **`.length` / `.name` rollout to remaining prototypes (residual from
+  function-identity trio).** `JsBuiltinMethod` infra landed and is wired
+  through `JsDateConstructor` + `JsDatePrototype`; the proof-of-concept
+  retired the two Date `.length` residuals (`Date.now.length`,
+  `toISOString.length`). Sweep the same wrapper through the remaining
+  `getBuiltinProperty` switches: `JsArrayPrototype`, `JsObjectPrototype`,
+  `JsStringPrototype`, `JsNumberPrototype`, `JsBigIntPrototype`,
+  `JsRegexPrototype`, `JsMapPrototype`, `JsSetPrototype`,
+  `JsFunctionPrototype`, plus `JsArrayConstructor` / `JsBigIntConstructor`
+  static methods. Per-method spec arities are in ECMA-262 §22-§24. Each
+  conversion is mechanical — wrap `(JsCallable) this::foo` as
+  `new JsBuiltinMethod("foo", N, (c, a) -> foo(c, a))`. Probe before
+  scoping: `--only test/built-ins/**/length.js` and `name.js`.
 
 - **Descriptor infra (deferred — probe-confirmed low score impact).**
   Per-property `writable`/`enumerable`/`configurable`, accessor getter/
@@ -1091,6 +1021,61 @@ scoping a session.
 Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
+
+- **Function-object identity trio (steps 1–3).** Score impact across the
+  priority probes:
+
+  | `--only` glob | Before | After | Δ |
+  |---|---|---|---|
+  | `test/built-ins/**/not-a-constructor.js` | 62 / 213 / 240 / 515 | **215** / 60 / 240 / 515 | **+153** |
+  | `test/built-ins/**/is-a-constructor.js` | 0 / 28 / 17 / 45 | **18** / 10 / 17 / 45 | **+18** |
+  | `test/built-ins/Function/**` | 89 / 264 / 156 / 509 | **191** / 162 / 156 / 509 | **+102** |
+  | `test/built-ins/Date/**` | 367 / 11 / 216 / 594 | **374** / 4 / 216 / 594 | **+7** |
+
+  Concretely:
+  - **`isConstructable` marker on `JsCallable`** (the spelling tracks
+    Java's `*-able` interface convention). Default `false`; overridden
+    `true` on `JsFunction`, `JsFunctionNode` (gated by `!arrow`),
+    `JsBoolean` / `JsRegex` / `JsError` (when `builtinConstructor` /
+    registered-global), `JsTextEncoder` / `JsTextDecoder` /
+    `JsUint8Array`. The interpreter's two construct paths
+    (`invokeCallable` when `newKeyword=true`, and `evalNewExpr`'s
+    tagged-template fallback) check the flag and TypeError otherwise.
+    A new `JsConstructor` functional interface lets the Java-bridge
+    construct lambdas in `PropertyAccess` (the `(JsConstructor) (c, a) ->
+    ea.construct(args)` shape) opt back in.
+  - **`Function` global + `Function.prototype` intrinsic.**
+    `JsFunctionConstructor extends JsFunction` registered in
+    `ContextRoot.initGlobal`. `new Function('a','b','return a+b')`
+    builds a source string `(function anonymous(a,b) { return a+b })`,
+    feeds it through `Engine.evalRaw`, returns the resulting
+    `JsFunctionNode`. `Function.prototype` returns the
+    `JsFunctionPrototype.INSTANCE` singleton — so
+    `Object.getPrototypeOf(someFn) === Function.prototype` holds and
+    `(function(){}).constructor === Function` resolves correctly. The
+    fix dropped `JsFunction.getMember`'s `case "constructor" -> this`
+    short-circuit so `f.constructor` walks the prototype chain to
+    `JsFunctionPrototype.constructor → JsFunctionConstructor.INSTANCE`.
+    One existing JUnit assertion was wrong (`a.constructor.name === 'a'`)
+    and was corrected to match the spec.
+  - **Minimal `Reflect.construct` / `Reflect.apply`.** Just enough
+    surface for the test262 `isConstructor.js` harness to work. Full
+    `Reflect` stays gated via `feature: Reflect` — tests with the
+    narrower `feature: Reflect.construct` key now run.
+    `Interpreter.constructFromHost` is the package-visible entry point
+    that bypasses the syntactic `NEW_EXPR` Node and dispatches to
+    `invokeAsConstructor` after validating `isConstructable()`.
+  - **`JsBuiltinMethod` infra (partial — Date proof-of-concept).**
+    `final class JsBuiltinMethod extends JsFunction` carrying explicit
+    `name` + `length` and a delegate `JsCallable`. Wired through
+    `JsDateConstructor` (now/parse/UTC) and `JsDatePrototype` (every
+    method, with spec arities). Other prototypes still return raw
+    `(JsCallable) this::foo` — see the active priority entry above.
+
+  Residual fails: 4 in Date — `toJSON/builtin.js` (needs
+  `Object.isExtensible`), `toJSON/{invoke-arguments,invoke-abrupt,
+  to-primitive-abrupt}.js` (need accessor-descriptor object literals).
+  All blocked on the descriptor-infra item.
 
 - **Date polish.** `built-ins/Date/**` went from **33 pass / 370 fail / 191 skip
   / 594 total** to **367 pass / 11 fail / 216 skip / 594 total** (+334 passing,

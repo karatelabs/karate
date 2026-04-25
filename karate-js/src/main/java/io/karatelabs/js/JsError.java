@@ -89,6 +89,13 @@ class JsError extends JsObject {
     }
 
     @Override
+    public boolean isConstructable() {
+        // Same rule as isJsFunction(): only the registered global instances
+        // are constructors; thrown instances are plain error objects.
+        return constructor == null;
+    }
+
+    @Override
     public Object getMember(String key) {
         // Check own properties first
         Object own = super.getMember(key);

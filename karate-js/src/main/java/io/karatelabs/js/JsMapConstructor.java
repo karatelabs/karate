@@ -37,6 +37,7 @@ class JsMapConstructor extends JsFunction {
 
     private JsMapConstructor() {
         this.name = "Map";
+        // length=0 — Map() takes optional iterable; spec arity is 0.
     }
 
     @Override

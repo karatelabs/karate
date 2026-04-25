@@ -92,11 +92,11 @@ class ContextRoot extends CoreContext {
         }
         return switch (key) {
             case "console", "parseInt", "parseFloat", "encodeURIComponent", "decodeURIComponent",
-                 "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Infinity", "Java",
-                 "JSON", "Map", "Math", "NaN", "Number", "BigInt", "Boolean", "Object", "RegExp", "Set",
-                 "String", "TypeError", "ReferenceError", "RangeError", "SyntaxError", "URIError",
-                 "EvalError", "TextEncoder", "TextDecoder", "Uint8Array", "isNaN", "isFinite", "eval",
-                 "Symbol" -> true;
+                 "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Function",
+                 "Infinity", "Java", "JSON", "Map", "Math", "NaN", "Number", "BigInt", "Boolean",
+                 "Object", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
+                 "SyntaxError", "URIError", "EvalError", "TextEncoder", "TextDecoder", "Uint8Array",
+                 "isNaN", "isFinite", "eval", "Symbol", "Reflect" -> true;
             default -> false;
         };
     }
@@ -172,6 +172,7 @@ class ContextRoot extends CoreContext {
             };
             case "Array" -> JsArrayConstructor.INSTANCE;
             case "Date" -> JsDateConstructor.INSTANCE;
+            case "Function" -> JsFunctionConstructor.INSTANCE;
             case "Error" -> new JsError(null, "Error", null);
             case "Infinity" -> Double.POSITIVE_INFINITY;
             case "Java" -> new JsJava(bridge);
@@ -203,6 +204,10 @@ class ContextRoot extends CoreContext {
             case "TextDecoder" -> new JsTextDecoder();
             case "TextEncoder" -> new JsTextEncoder();
             case "Uint8Array" -> new JsUint8Array(0);
+            // Minimal Reflect — only `construct` and `apply` are wired so the
+            // test262 isConstructor harness works. Full Reflect stays gated
+            // via the `feature: Reflect` skip in expectations.yaml.
+            case "Reflect" -> new JsReflect();
             // Minimal Symbol: only the well-known symbols are exposed, as their
             // string-keyed stand-ins ("@@iterator" etc.). No Symbol() constructor,
             // no unique-symbol identity — tests that need real Symbol stay gated by

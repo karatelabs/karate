@@ -52,4 +52,9 @@ class JsTextEncoder extends JsObject {
         return this;
     }
 
+    @Override
+    public boolean isConstructable() {
+        return true;
+    }
+
 }

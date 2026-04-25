@@ -307,6 +307,11 @@ non-sealed class JsUint8Array extends JsArray implements JsBinaryValue {
         return buffer;
     }
 
+    @Override
+    public boolean isConstructable() {
+        return true;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public Object call(Context context, Object[] args) {
