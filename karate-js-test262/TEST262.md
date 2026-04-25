@@ -840,6 +840,18 @@ session needs to violate one, the principle goes up for review explicitly.
   methods themselves can't be deleted via `removeMember`. Required for
   `Array.prototype.foo = ...` polyfill patterns and for spec-conformant
   test262 behavior.
+- **Per-Engine prototype isolation.** Built-in prototypes are JVM-wide
+  singletons (e.g. `JsArrayPrototype.INSTANCE`), but their `userProps`
+  must reset each time a new `Engine` is constructed — otherwise a
+  previous test that did `Map.prototype.set = function() { throw ... }`
+  poisons the next session. `Prototype` constructor registers each
+  singleton in a static `ALL` list; `Engine()` calls
+  `Prototype.clearAllUserProps()` which walks the list and clears each
+  `userProps` map. Spec-compliant for sequential single-Engine usage
+  (the realistic case); concurrent Engines in the same JVM still share
+  the underlying singleton during overlapping windows. Performance
+  impact: invisible — the loop is ~10 entries with usually-empty maps,
+  lost in noise at script-eval scale.
 - **Function declarations hoist** at the start of the enclosing program
   / block scope. `Interpreter.hoistFunctionDeclarations` walks
   immediate `STATEMENT > FN_EXPR` children, evaluates each — binding
@@ -884,36 +896,49 @@ actually do that depends on it, the shape of the work, and the skip-list
 entry to retire (if any). Re-probe with the relevant `--only` glob before
 scoping a session.
 
-- **Utility-method sweep + `Map` / `Set`.** Across `String/**`,
-  `Object/prototype/**`, a large fraction of fails are still
-  missing-method gaps rather than wrong-semantics:
-  - `String.prototype.padStart` / `padEnd` / `replaceAll` / `matchAll` /
-    `at`
-  - `Map` and `Set` constructors (both fully skipped today; reach-for
-    default for LLMs doing lookups, deduplication)
+- **Date polish.** `Date/**` is the worst basic-slice pass rate of any
+  built-in — last probe **33 pass / 370 fail / 191 skip / 594 total**.
+  `JsDate` passes its JUnit suite but spec conformance is poor — likely
+  `valueOf` / `getTimezoneOffset` / `toISOString` / `parse` edge cases, and
+  date arithmetic boundaries. LLMs write date math constantly (scheduling,
+  timestamp formatting, relative-time math). Shape: audit the fails, group
+  by method, fix per-method. Probably a multi-session sweep given the size
+  of the gap. No skip-list change needed; it's a conformance effort, not a
+  feature-gate.
 
-  `Map`/`Set` constructors can ride on `IterUtils.getIterator` — the
-  iteration unification is in place, so `new Map(iterable)` is a small
-  shape concern, not a missing protocol.
+- **Map / Set residuals.** Map and Set constructors landed (see Recently
+  completed). Open residuals from the basic slices:
+  - **`Map.prototype.groupBy` / `getOrInsert` / `getOrInsertComputed`** —
+    newer (ES2024+) methods, not yet implemented. Each is a small per-method
+    addition. Skip via `feature:` if scoped out, or wire them through the
+    normal `JsMapPrototype.getBuiltinProperty` switch.
+  - **`Set.prototype.difference` / `intersection` / `union` /
+    `isDisjointFrom` / `isSubsetOf` / `isSupersetOf` / `symmetricDifference`**
+    — the ES2025 set-relation methods. Same shape: per-method add. Some test
+    cases use `with` block syntax which hits a parser limitation
+    (`SyntaxError: cannot parse statement`).
+  - **`Map.prototype.size` / `Set.prototype.size` accessor introspection** —
+    the spec defines size as an accessor descriptor. We intercept reads on
+    the instance (`JsMap.getMember("size")`) but spec tests like
+    `does-not-have-mapdata-internal-slot.js` assert
+    `Object.getOwnPropertyDescriptor(Map.prototype, 'size').get` is a
+    function. Blocked on accessor descriptor infra.
+  - **`Object.getPrototypeOf(Map.prototype)`** returns
+    `JsObjectPrototype.INSTANCE` (the singleton) but tests compare against
+    `Object.prototype` (the global). Need `Object.prototype` and
+    `JsObjectPrototype.INSTANCE` to be the same identity, or have
+    `getPrototypeOf` walk through the global. Same for `Set.prototype`.
+  - **`Symbol.species`** — not exposed; ~5 tests in each cluster reference
+    `Map[Symbol.species]` / `Set[Symbol.species]`. Blocked on Symbol.
 
-  Shape: methodical — pick a built-in, implement missing methods with
-  reference to the spec, add regression tests. Each subsection is a single
-  commit's worth of work. Cumulative impact is huge but each individual
-  gap is small; tractable but tedious; can be parallelized or dripped in
-  between bigger projects.
+- **Utility-method residual sweep.** `String.prototype` is now nearly
+  complete (`padStart` / `padEnd` / `replaceAll` / `matchAll` / `at` all
+  landed). Remaining method gaps across other built-ins — pick off
+  opportunistically as triage surfaces them.
 
   *(Object.entries/fromEntries/assign and Array.prototype.includes/flat/
   flatMap/at were already implemented; Array.prototype.includes was
-  un-skipped this session.)*
-
-- **Date polish.** `Date/**` has the worst basic-slice pass rate of any
-  built-in. `JsDate` passes its JUnit suite but spec conformance is poor —
-  likely `valueOf` / `getTimezoneOffset` / `toISOString` / `parse` edge
-  cases, and date arithmetic boundaries. LLMs write date math constantly
-  (scheduling, timestamp formatting, relative-time math). Shape: audit the
-  fails, group by method, fix per-method. Probably a single-session sweep.
-  No skip-list change needed; it's a conformance effort, not a
-  feature-gate.
+  un-skipped previously.)*
 
 - **Destructuring residuals.** Bulk works; the long tail is low-leverage —
   lexer identifier-escape support (LLMs don't write `break`), TDZ /
@@ -940,6 +965,47 @@ scoping a session.
 Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
+
+- **`Map` / `Set` / `String.prototype.matchAll` + per-Engine prototype
+  isolation.** Map and Set landed end-to-end:
+  - `JsMap` / `JsMapPrototype` / `JsMapConstructor` —
+    `set` / `get` / `has` / `delete` / `clear` / `size` / `forEach` /
+    `keys` / `values` / `entries`, plus `@@iterator` defaulting to
+    `entries`. Construction with an iterable invokes the prototype's
+    `set` (so user-overridden `Map.prototype.set` is honored per spec).
+  - `JsSet` / `JsSetPrototype` / `JsSetConstructor` — `add` / `has` /
+    `delete` / `clear` / `size` / `forEach` / `keys` / `values` /
+    `entries` / `@@iterator`; iterable construction invokes the
+    prototype's `add`.
+  - SameValueZero key semantics: `-0 → +0` normalization, NaN-equal-NaN
+    via Java's Double.equals quirk, `1 === 1.0` cross-Java-numeric-type
+    matching via linear-scan fallback in `findStoredKey` (storage stays
+    `LinkedHashMap` for the common case; the scan only fires on numeric
+    keys).
+  - `String.prototype.matchAll` returns a spec-shaped iterator object
+    over `JsArray` match results (with `index` / `input` / capture
+    groups). TypeError on non-global RegExp argument per spec.
+  - `forEach` on Map and Set walks the live entry list with a cursor,
+    so entries appended during iteration are visited (per spec).
+    `Set.prototype.forEach` honors the optional `thisArg` second arg.
+
+  Map slice: 0 → 74 pass / 29 fail / 101 skip / 204 total.
+  Set slice: 0 → 150 pass / 85 fail / 148 skip / 383 total.
+  String matchAll slice: 1 → 2 pass / 13 fail / 10 skip / 25 total
+  (most fails depend on infra outside this session — see Map/Set residuals
+  for the same blockers).
+
+  Adjunct: **per-Engine prototype isolation** (see Design invariants).
+  Built-in `Prototype` singletons accumulated user-added properties across
+  the JVM lifetime, so a test that did `Map.prototype.set = function() {
+  throw ... }` poisoned every subsequent test. `Engine` constructor now
+  calls `Prototype.clearAllUserProps()` which walks a registered list of
+  prototype singletons and clears each one's `userProps`. Profile-mode
+  benchmark (Array 20KB / Object 20KB) shows no regression — the clear
+  loop is ~10 entries × cleared-`LinkedHashMap`.
+
+  Residual fails (each small or blocked on bigger infra — see Map / Set
+  residuals action item above for the enumerated list).
 
 - **Prototype extension + function-decl hoisting + array-like generic
   methods.** Three changes that compound: built-in prototypes accept

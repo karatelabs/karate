@@ -93,9 +93,10 @@ class ContextRoot extends CoreContext {
         return switch (key) {
             case "console", "parseInt", "parseFloat", "encodeURIComponent", "decodeURIComponent",
                  "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Infinity", "Java",
-                 "JSON", "Math", "NaN", "Number", "BigInt", "Boolean", "Object", "RegExp", "String",
-                 "TypeError", "ReferenceError", "RangeError", "SyntaxError", "URIError", "EvalError",
-                 "TextEncoder", "TextDecoder", "Uint8Array", "isNaN", "isFinite", "eval", "Symbol" -> true;
+                 "JSON", "Map", "Math", "NaN", "Number", "BigInt", "Boolean", "Object", "RegExp", "Set",
+                 "String", "TypeError", "ReferenceError", "RangeError", "SyntaxError", "URIError",
+                 "EvalError", "TextEncoder", "TextDecoder", "Uint8Array", "isNaN", "isFinite", "eval",
+                 "Symbol" -> true;
             default -> false;
         };
     }
@@ -175,6 +176,7 @@ class ContextRoot extends CoreContext {
             case "Infinity" -> Double.POSITIVE_INFINITY;
             case "Java" -> new JsJava(bridge);
             case "JSON" -> new JsJson();
+            case "Map" -> JsMapConstructor.INSTANCE;
             case "Math" -> new JsMath();
             case "NaN" -> Double.NaN;
             case "Number" -> JsNumberConstructor.INSTANCE;
@@ -190,6 +192,7 @@ class ContextRoot extends CoreContext {
                 r.builtinConstructor = true;
                 yield r;
             }
+            case "Set" -> JsSetConstructor.INSTANCE;
             case "String" -> JsStringConstructor.INSTANCE;
             case "TypeError" -> new JsError(null, "TypeError", null);
             case "ReferenceError" -> new JsError(null, "ReferenceError", null);

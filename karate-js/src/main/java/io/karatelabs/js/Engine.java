@@ -41,6 +41,13 @@ public class Engine {
 
     private final Bindings bindings = new Bindings();
 
+    public Engine() {
+        // Built-in prototype singletons (JsArrayPrototype, JsMapPrototype, …) accumulate
+        // user-added properties across the JVM's lifetime. Reset them per Engine so test
+        // harnesses that overwrite e.g. Map.prototype.set don't poison the next session.
+        Prototype.clearAllUserProps();
+    }
+
     public Object eval(Node program) {
         return evalInternal(program, null);
     }

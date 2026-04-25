@@ -25,7 +25,9 @@ package io.karatelabs.js;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Base class for JS prototype chains. Implements property lookup with inheritance.
@@ -52,11 +54,29 @@ import java.util.Map;
  */
 abstract class Prototype implements ObjectLike {
 
+    /**
+     * Built-in prototype singletons register themselves here at construction time.
+     * {@link Engine#Engine()} walks this list and clears each one's {@code userProps}
+     * so that prototype mutations (e.g. {@code Map.prototype.set = function() { throw ... }})
+     * inside one Engine instance don't bleed into the next. Required for test262 isolation —
+     * tests routinely overwrite built-in methods to probe construction internals.
+     */
+    private static final List<Prototype> ALL = new CopyOnWriteArrayList<>();
+
+    static void clearAllUserProps() {
+        for (Prototype p : ALL) {
+            if (p.userProps != null) {
+                p.userProps.clear();
+            }
+        }
+    }
+
     private final Prototype __proto__;
     private Map<String, Object> userProps;
 
     Prototype(Prototype __proto__) {
         this.__proto__ = __proto__;
+        ALL.add(this);
     }
 
     @Override

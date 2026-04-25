@@ -69,6 +69,7 @@ class JsStringPrototype extends Prototype {
             case "replace" -> (JsCallable) this::replace;
             case "replaceAll" -> (JsCallable) this::replaceAll;
             case "match" -> (JsCallable) this::match;
+            case "matchAll" -> (JsCallable) this::matchAll;
             case "search" -> (JsCallable) this::search;
             case "valueOf" -> (JsCallable) this::valueOf;
             case "toLocaleLowerCase" -> (JsCallable) this::toLowerCase;
@@ -351,6 +352,67 @@ class JsStringPrototype extends Prototype {
             regex = new JsRegex(args[0].toString());
         }
         return regex.match(s);
+    }
+
+    private Object matchAll(Context context, Object[] args) {
+        String s = asString(context);
+        // Spec: if regexp is a RegExp object, it must have the global flag.
+        // Otherwise we coerce to a global RegExp (string-source patterns are auto-g).
+        final JsRegex regex;
+        if (args.length == 0 || args[0] == null || args[0] == Terms.UNDEFINED) {
+            regex = new JsRegex("", "g");
+        } else if (args[0] instanceof JsRegex r) {
+            if (!r.global) {
+                throw JsErrorException.typeError("String.prototype.matchAll called with a non-global RegExp argument");
+            }
+            regex = r;
+        } else {
+            regex = new JsRegex(args[0].toString(), "g");
+        }
+        java.util.regex.Matcher matcher = regex.javaPattern.matcher(s);
+        JsIterator iter = new JsIterator() {
+            boolean fetched;
+            boolean done;
+            JsArray pending;
+
+            private void fetch() {
+                if (fetched || done) return;
+                if (!matcher.find()) {
+                    done = true;
+                    return;
+                }
+                List<Object> groups = new ArrayList<>();
+                groups.add(matcher.group(0));
+                for (int i = 1; i <= matcher.groupCount(); i++) {
+                    String g = matcher.group(i);
+                    groups.add(g != null ? g : Terms.UNDEFINED);
+                }
+                JsArray match = new JsArray(groups);
+                match.putMember("index", matcher.start());
+                match.putMember("input", s);
+                pending = match;
+                fetched = true;
+            }
+
+            @Override
+            public boolean hasNext() {
+                fetch();
+                return !done;
+            }
+
+            @Override
+            public Object next() {
+                fetch();
+                if (done) {
+                    throw new java.util.NoSuchElementException();
+                }
+                fetched = false;
+                JsArray v = pending;
+                pending = null;
+                return v;
+            }
+        };
+        return IterUtils.toIteratorObject(iter);
     }
 
     private Object search(Context context, Object[] args) {
