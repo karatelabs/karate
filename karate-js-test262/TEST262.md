@@ -673,12 +673,17 @@ relevant `--only` glob before scoping.
   implementation (with/duplicate-params/eval-assign/octal-literal
   negative checks) is a separate, larger project; revisit only if a
   meaningful test cluster outside `onlyStrict` depends on it.
-- **Harness-helper dependencies.** `propertyHelper.js`, `compareArray.js`,
+- **Harness-helper dependencies.** `propertyHelper.js`,
   `testTypedArray.js` need descriptor introspection
-  (`Object.getOwnPropertyDescriptor`) and full iterator protocol —
-  karate-js exposes neither. Gates a large fraction of `test/built-ins/**`
-  tests currently skipped via `expectations.yaml`. The next big lever once
-  Tier 2 built-ins are solid.
+  (`Object.getOwnPropertyDescriptor` returning attribute slots,
+  `defineProperty` enforcing them). `compareArray.js` itself is now
+  an empty stub but its users frequently lean on accessor descriptors
+  (`Object.defineProperty` with `get` / `set`) — without enforcement,
+  iteration-protocol tests that throw via accessor getters loop
+  forever, so the include is still skipped. Gates a large fraction of
+  `test/built-ins/**` tests; the next big lever once Tier 2 built-ins
+  are solid. (Iterator protocol itself is in place — `IterUtils.getIterator`
+  + `@@iterator` stand-in.)
 - **`EngineException` framing noise** (per *errors must look like
   JavaScript*). Wraps runtime errors in a multi-line `js failed: /
   ========== / Code: / Error: ...` frame. The runner strips it in
