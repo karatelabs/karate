@@ -449,6 +449,48 @@ public class JsLexer extends BaseLexer {
             return NUMBER;
         }
 
+        // Binary number (0b / 0B)
+        if (c == '0' && (peek(1) == 'b' || peek(1) == 'B')) {
+            advance(); // 0
+            advance(); // b
+            int binStart = pos;
+            while (!isAtEnd() && (peek() == '0' || peek() == '1')) {
+                advance();
+            }
+            if (pos == binStart) {
+                throw new ParserException("invalid binary literal");
+            }
+            if (!isAtEnd() && peek() == '_') {
+                scanBinaryDigitsWithSeparators();
+            }
+            if (!isAtEnd() && peek() == 'n') {
+                advance();
+                return BIGINT;
+            }
+            return NUMBER;
+        }
+
+        // Octal number (0o / 0O)
+        if (c == '0' && (peek(1) == 'o' || peek(1) == 'O')) {
+            advance(); // 0
+            advance(); // o
+            int octStart = pos;
+            while (!isAtEnd() && peek() >= '0' && peek() <= '7') {
+                advance();
+            }
+            if (pos == octStart) {
+                throw new ParserException("invalid octal literal");
+            }
+            if (!isAtEnd() && peek() == '_') {
+                scanOctalDigitsWithSeparators();
+            }
+            if (!isAtEnd() && peek() == 'n') {
+                advance();
+                return BIGINT;
+            }
+            return NUMBER;
+        }
+
         boolean isInteger = true;
 
         // Decimal number
@@ -540,6 +582,30 @@ public class JsLexer extends BaseLexer {
         }
     }
 
+    private void scanBinaryDigitsWithSeparators() {
+        while (!isAtEnd() && peek() == '_') {
+            advance();
+            if (isAtEnd() || !(peek() == '0' || peek() == '1')) {
+                throw new ParserException("invalid numeric separator");
+            }
+            while (!isAtEnd() && (peek() == '0' || peek() == '1')) {
+                advance();
+            }
+        }
+    }
+
+    private void scanOctalDigitsWithSeparators() {
+        while (!isAtEnd() && peek() == '_') {
+            advance();
+            if (isAtEnd() || peek() < '0' || peek() > '7') {
+                throw new ParserException("invalid numeric separator");
+            }
+            while (!isAtEnd() && peek() >= '0' && peek() <= '7') {
+                advance();
+            }
+        }
+    }
+
     // ========== Identifiers and Keywords ==========
 
     private TokenType scanIdentifier() {
@@ -562,8 +628,9 @@ public class JsLexer extends BaseLexer {
     }
 
     private TokenType keywordOrIdent(int start, int len) {
-        // Note: "this" and "void" are NOT keywords in the lexer - they're identifiers
-        // that get special handling in the parser/evaluator
+        // Note: "this" is NOT a keyword in the lexer - it's an identifier that gets
+        // special handling in the parser/evaluator. "void" lexes as the VOID keyword
+        // so the parser can dispatch it as a unary operator.
         // Fast path: switch on length first, then first char
         if (len == 2) {
             char c0 = source.charAt(start);
@@ -588,6 +655,7 @@ public class JsLexer extends BaseLexer {
             if (c0 == 't' && matchKeyword(start, "true")) return TRUE;
             if (c0 == 'e' && matchKeyword(start, "else")) return ELSE;
             if (c0 == 'c' && matchKeyword(start, "case")) return CASE;
+            if (c0 == 'v' && matchKeyword(start, "void")) return VOID;
         } else if (len == 5) {
             char c0 = source.charAt(start);
             if (c0 == 'f' && matchKeyword(start, "false")) return FALSE;

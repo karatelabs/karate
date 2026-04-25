@@ -175,7 +175,7 @@ public enum TokenType {
             case L_PAREN, L_BRACKET, L_CURLY, COMMA, SEMI, COLON, EQ, EQ_EQ, EQ_EQ_EQ, NOT_EQ, NOT_EQ_EQ, LT, LT_EQ, GT,
                  GT_EQ, PLUS, PLUS_EQ, MINUS, MINUS_EQ, STAR, STAR_EQ, STAR_STAR, STAR_STAR_EQ, SLASH_EQ, PERCENT,
                  PERCENT_EQ, AMP, AMP_EQ, AMP_AMP, AMP_AMP_EQ, PIPE, PIPE_EQ, PIPE_PIPE, PIPE_PIPE_EQ, CARET, CARET_EQ,
-                 QUES, QUES_QUES, TILDE, NOT, RETURN, TYPEOF, DELETE, INSTANCEOF, IN, DO, IF, ELSE, CASE, DEFAULT,
+                 QUES, QUES_QUES, TILDE, NOT, RETURN, TYPEOF, VOID, DELETE, INSTANCEOF, IN, DO, IF, ELSE, CASE, DEFAULT,
                  THROW, EQ_GT -> true;
             // after these tokens, a regex literal is not allowed
             case R_PAREN, R_BRACKET, R_CURLY, IDENT, NUMBER, BIGINT, S_STRING, D_STRING, TRUE, FALSE, NULL -> false;

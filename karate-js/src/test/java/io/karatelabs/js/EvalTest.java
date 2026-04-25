@@ -286,6 +286,21 @@ class EvalTest extends EvalBase {
         assertEquals(2, get("a"));
         assertEquals(2, eval("a = 16; a >>>= 3"));
         assertEquals(2, get("a"));
+        // Binary / octal numeric literals
+        assertEquals(2, eval("0b10"));
+        assertEquals(13, eval("0b1101"));
+        assertEquals(15, eval("0o17"));
+        assertEquals(63, eval("0O77"));
+        // Binary / octal literals as computed object keys
+        assertEquals("get string", eval("var o = { get [0b10]() { return 'get string'; } }; o['2']"));
+        assertEquals("v", eval("var o = { [0o17]: 'v' }; o['15']"));
+        // void unary operator
+        assertNull(eval("void 0"));
+        assertNull(eval("void 'anything'"));
+        eval("var sideEffect = false; void (sideEffect = true);");
+        assertEquals(true, get("sideEffect"));
+        // void with object literal at statement start (parser-disambiguation case)
+        assertNull(eval("void { a: 1, b: 2 }"));
         eval("var a = { foo: 'bar' }");
         match(get("a"), "{ foo: 'bar' }");
         eval("var a = { 0: 'a', 1: 'b' }");

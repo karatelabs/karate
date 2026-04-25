@@ -41,7 +41,7 @@ public class JsParser extends BaseParser {
     private static final EnumSet<TokenType> T_MATH_MUL_EXPR = EnumSet.of(STAR, SLASH, PERCENT);
     private static final EnumSet<TokenType> T_REF_DOT_EXPR = EnumSet.of(DOT, QUES_DOT);
     private static final EnumSet<TokenType> T_MATH_POST_EXPR = EnumSet.of(PLUS_PLUS, MINUS_MINUS);
-    private static final EnumSet<TokenType> T_UNARY_EXPR = EnumSet.of(NOT, TILDE);
+    private static final EnumSet<TokenType> T_UNARY_EXPR = EnumSet.of(NOT, TILDE, VOID);
     private static final EnumSet<TokenType> T_MATH_PRE_EXPR = EnumSet.of(PLUS_PLUS, MINUS_MINUS, MINUS, PLUS);
     // PropertyName is an IdentifierName (identifier OR any reserved word),
     // plus string/numeric literals, computed-key bracket, and spread. The
@@ -73,7 +73,7 @@ public class JsParser extends BaseParser {
     private static final EnumSet<TokenType> T_EXPR_START = EnumSet.of(
             IDENT, S_STRING, D_STRING, NUMBER, BIGINT, TRUE, FALSE, NULL,  // literals & ref
             L_CURLY, L_BRACKET, BACKTICK, REGEX,                           // compound literals
-            FUNCTION, L_PAREN, NEW, TYPEOF,                                // keywords & grouping
+            FUNCTION, L_PAREN, NEW, TYPEOF, VOID,                          // keywords & grouping
             NOT, TILDE, PLUS_PLUS, MINUS_MINUS, MINUS, PLUS                // unary operators
     );
     private static final EnumSet<TokenType> T_LIT_EXPR_START = EnumSet.of(

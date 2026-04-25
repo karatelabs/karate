@@ -952,11 +952,11 @@ Action list — start at the top. Ordered by core-engine confidence
 score impact (a one-fix harness unblock beats ten one-test patches).
 Re-probe with the relevant `--only` glob before scoping a session.
 
-Current state baseline (2026-04, post class/super skip + bitwise compound assignments):
+Current state baseline (2026-04, post void operator + binary/octal literals):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
-| `test/language/**` | 3045 | 3088 | 15150 | 21283 |
+| `test/language/**` | 3093 | 3040 | 15150 | 21283 |
 | `test/built-ins/Math/**` | 177 | 28 | 122 | 327 |
 | `test/built-ins/Number/**` | 195 | 86 | 59 | 340 |
 | `test/built-ins/String/**` | 346 | 675 | 202 | 1223 |
@@ -965,18 +965,20 @@ Current state baseline (2026-04, post class/super skip + bitwise compound assign
 | `test/built-ins/Date/**` | 374 | 4 | 216 | 594 |
 | `test/built-ins/Function/**` | 194 | 159 | 156 | 509 |
 
+> **Note:** Object-literal getter/setter parsing (previously listed at
+> the top of Tier 1) was already implemented — see
+> `EvalTest.testObjectGettersAndSetters` and commit
+> `184598c3a`. The TEST262.md text was stale. Step 1 of Tier 2's
+> *Descriptor infra* (the parser piece) is therefore already done; the
+> remaining work is steps 2–5 (accessor descriptors threaded through
+> `ObjectLike.putMember`/`getMember` → `Object.defineProperty` →
+> `getOwnPropertyDescriptor` → `isExtensible`/`freeze`).
+
 ### Tier 1 — core-engine parser/expression gaps
 
 These are the items that most directly answer "does the engine read
 plain JS correctly?" — and they live in `test/language/expressions/**`
 where every fix shows up on the scorecard for the right reason.
-
-- **Object-literal getter / setter parsing** (`{ get foo() {...},
-  set foo(v) {...} }`). Today the parser rejects them. This is *both*
-  a core-language gap (LLMs do write accessor literals) and the
-  prerequisite for descriptor infra below — landing it twice would
-  duplicate the parser work. Worth ~50–100 tests directly in
-  `expressions/object`, but its real value is unblocking Tier 2.
 
 - **Negative-test strictness pass.** ~236 tests in
   `expressions/assignmenttargettype/**` are negative tests where the
@@ -1103,6 +1105,63 @@ Smaller items, picked off when nearby. Not session-sized on their own.
 Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
+
+- **`void` unary operator + binary/octal numeric literals.**
+  Two adjacent parser/lexer gaps that surfaced while triaging the
+  (already-shipped) accessor-literal item:
+
+  | Slice | Before | After | Δ |
+  |---|---|---|---|
+  | `test/language/**` | 3045 / 3088 / 15150 | **3093** / 3040 / 15150 | **+48 PASS, −48 FAIL** |
+  | `test/language/expressions/object/**` | 165 / 315 / 690 | **171** / 309 / 690 | **+6** |
+  | `test/language/expressions/void/**` | 0 (parse error) | **8** / 1 / 0 | **+8** |
+
+  Concretely:
+  - **`void` was not lexed as a keyword.** The lexer comment said
+    "this and void are NOT keywords in the lexer", and `keywordOrIdent`
+    indeed returned IDENT for `void`. No parser path consumed it.
+    Fix: add `c0 == 'v' && matchKeyword(start, "void") -> VOID` in
+    the len==4 branch; thread VOID through `T_UNARY_EXPR` (so it
+    flows through the existing `unary_expr()` shape, parallel to
+    NOT/TILDE), `T_EXPR_START` (so statement-level `void { ... }`
+    isn't pre-empted by the block path), and the `regexAllowed` set
+    (so `void /regex/` works). Interpreter: one `case VOID ->
+    Terms.UNDEFINED` arm in `evalUnaryExpr` — operand evaluated for
+    side effects, result discarded per spec. Unblocks `void { ... };`
+    statement form (the `prop-dup-*` cluster — 8 tests — depended on
+    this) and idiomatic `void 0` patterns.
+  - **Binary / octal numeric literals.** Lexer recognized `0x`/`0X`
+    (hex) but not `0b`/`0B` (binary) or `0o`/`0O` (octal) — both
+    valid since ES2015. Added `scanNumber` branches that mirror the
+    hex shape (fast-path digit loop, separator support via
+    `scanBinaryDigitsWithSeparators`/`scanOctalDigitsWithSeparators`,
+    BigInt suffix). `Terms.fromHex` renamed to `fromRadixPrefix`,
+    extended to dispatch on prefix (`x`/`b`/`o` → radix 16/2/8) and
+    return the parsed value; `toBigInt` mirror-extended the same way.
+    Existing hex-only behavior preserved on the common path.
+
+  Residual fails enumerated:
+  - **`accessor-name-computed-in.js`** — `in` operator inside computed
+    accessor key (`[a in b]`) isn't parsed; tests using `in` in expressions
+    seem to confuse the parser. Single-test cluster. Investigate when
+    nearby.
+  - **`accessor-name-literal-string-{line-continuation,hex-escape,
+    unicode-escape,default-escaped-ext}.js`** (~5 tests) — string-literal
+    escape sequences in accessor key positions don't normalize to the
+    canonical name string at access time. Same shape across the cluster:
+    the literal text is stored as the key (`'\x66\x6f\x6f'`) but access
+    via the unescaped form (`obj.foo`) misses. Likely fix in
+    `evalAccessorElem` to call `unescapeString` (already exists for
+    template literals) on string-literal accessor keys.
+  - **`accessor-name-literal-numeric-non-canonical.js`** — `{get 1.0() {}}`
+    should canonicalize `1.0` to `"1"` per `ToString(1)`. Numeric-key
+    canonicalization in `evalAccessorElem` uses `keyChild.getText()` (the
+    raw token text) instead of `Terms.toStringCoerce(Number(...))`.
+  - **`accessor-name-computed-err-to-prop-key.js`** — `ToPropertyKey`
+    on a thrown-via-Symbol object should TypeError. Symbol-gated.
+  - **`S11.4.2_A1.js`** — `void` followed by exotic whitespace
+    (``/``) between operator and operand. Lexer
+    whitespace recognition; not specific to `void`.
 
 - **Class/super skip-list expansion + bitwise compound assignments.**
   Two combined changes that compound:

@@ -144,9 +144,9 @@ public class Terms {
         } else if (str.charAt(index) == '+') {
             index++;
         }
-        Number hex = fromHex(str);
-        if (hex != null) {
-            return narrow(hex.doubleValue());
+        Number radix = fromRadixPrefix(str);
+        if (radix != null) {
+            return narrow(radix.doubleValue());
         }
         long intPart = 0;
         double fracPart = 0;
@@ -211,8 +211,8 @@ public class Terms {
         try {
             return narrow(Double.parseDouble(text));
         } catch (Exception e) {
-            Number hex = fromHex(text);
-            return hex == null ? Double.NaN : narrow(hex.doubleValue());
+            Number radix = fromRadixPrefix(text);
+            return radix == null ? Double.NaN : narrow(radix.doubleValue());
         }
     }
 
@@ -231,9 +231,9 @@ public class Terms {
     }
 
     // Parse a BIGINT literal token. The token text always ends with `n`; it may
-    // contain `_` separators between digits; it may have an `0x`/`0X` hex prefix.
-    // Plain decimal integer otherwise (no `.`, no exponent — those are forbidden
-    // by the lexer for BIGINT).
+    // contain `_` separators between digits; it may have an `0x`/`0X`, `0b`/`0B`,
+    // or `0o`/`0O` radix prefix. Plain decimal integer otherwise (no `.`, no
+    // exponent — those are forbidden by the lexer for BIGINT).
     private static BigInteger toBigInt(String text) {
         // strip trailing `n`
         String s = text.substring(0, text.length() - 1);
@@ -241,18 +241,23 @@ public class Terms {
         if (s.indexOf('_') >= 0) {
             s = s.replace("_", "");
         }
-        if (s.length() > 2 && s.charAt(0) == '0' && (s.charAt(1) == 'x' || s.charAt(1) == 'X')) {
-            return new BigInteger(s.substring(2), 16);
+        if (s.length() > 2 && s.charAt(0) == '0') {
+            char p = s.charAt(1);
+            if (p == 'x' || p == 'X') return new BigInteger(s.substring(2), 16);
+            if (p == 'b' || p == 'B') return new BigInteger(s.substring(2), 2);
+            if (p == 'o' || p == 'O') return new BigInteger(s.substring(2), 8);
         }
         return new BigInteger(s);
     }
 
-    static Number fromHex(String text) {
-        if (text.charAt(0) == '0') {
-            char second = text.charAt(1);
-            if (second == 'x' || second == 'X') { // hex
-                long longValue = Long.parseLong(text.substring(2), 16);
-                return narrow(longValue);
+    static Number fromRadixPrefix(String text) {
+        if (text.length() > 2 && text.charAt(0) == '0') {
+            char p = text.charAt(1);
+            int radix = (p == 'x' || p == 'X') ? 16
+                    : (p == 'b' || p == 'B') ? 2
+                    : (p == 'o' || p == 'O') ? 8 : 0;
+            if (radix != 0) {
+                return narrow(Long.parseLong(text.substring(2), radix));
             }
         }
         return null;

@@ -155,6 +155,18 @@ class JsLexerTest {
         assertEquals(List.of(NUMBER, EOF), types("0xFF"));
         assertEquals(List.of(NUMBER, EOF), types("0XFF"));
         assertEquals(List.of(NUMBER, EOF), types("0xDEADBEEF"));
+
+        // Binary
+        assertEquals(List.of(NUMBER, EOF), types("0b0"));
+        assertEquals(List.of(NUMBER, EOF), types("0b10"));
+        assertEquals(List.of(NUMBER, EOF), types("0B1101"));
+        assertEquals(List.of(BIGINT, EOF), types("0b10n"));
+
+        // Octal
+        assertEquals(List.of(NUMBER, EOF), types("0o0"));
+        assertEquals(List.of(NUMBER, EOF), types("0o17"));
+        assertEquals(List.of(NUMBER, EOF), types("0O77"));
+        assertEquals(List.of(BIGINT, EOF), types("0o17n"));
     }
 
     @Test
@@ -316,7 +328,7 @@ class JsLexerTest {
         assertEquals(List.of(THROW, EOF), types("throw"));
         assertEquals(List.of(IN, EOF), types("in"));
         assertEquals(List.of(OF, EOF), types("of"));
-        assertEquals(List.of(IDENT, EOF), types("void"));
+        assertEquals(List.of(VOID, EOF), types("void"));
     }
 
     @Test

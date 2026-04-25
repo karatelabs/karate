@@ -1616,6 +1616,7 @@ class Interpreter {
         return switch (node.getFirst().token.type) {
             case NOT -> !Terms.isTruthy(unaryValue);
             case TILDE -> Terms.bitNot(unaryValue);
+            case VOID -> Terms.UNDEFINED; // operand evaluated for side effects, result discarded
             default -> throw new RuntimeException("unexpected operator: " + node.getFirst());
         };
     }
