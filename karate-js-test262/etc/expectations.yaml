@@ -136,11 +136,12 @@ skip:
 
   # Tests whose YAML frontmatter `includes:` references any of these harness helpers
   # (the harness file itself may exist, but it depends on engine internals we do not expose).
+  # propertyHelper.js + compareArray.js un-skipped: per-property attribute bits
+  # (writable / enumerable / configurable) are now tracked on JsObject and
+  # enforced on putMember / removeMember / for-in / propertyIsEnumerable.
+  # compareArray.js itself is now an empty stub (the helper moved into assert.js);
+  # its users no longer need a special harness.
   includes:
-    - include: propertyHelper.js
-      reason: descriptor APIs land but per-property attribute bits (writable/enumerable/configurable) aren't tracked — tests that verify a non-writable / non-enumerable / non-configurable property would FAIL en masse
-    - include: compareArray.js
-      reason: many users define accessor getters that throw to terminate iteration; without configurable-attribute enforcement, those tests hang
     - include: nativeFunctionMatcher.js
       reason: depends on Function.prototype.toString internals
     - include: promiseHelper.js

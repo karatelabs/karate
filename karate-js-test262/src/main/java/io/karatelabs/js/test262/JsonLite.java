@@ -26,7 +26,14 @@ final class JsonLite {
                 case '\r' -> sb.append("\\r");
                 case '\t' -> sb.append("\\t");
                 default -> {
-                    if (c < 0x20) {
+                    // Escape all surrogate code units regardless of pairing.
+                    // A lone surrogate that survives to the UTF-8 BufferedWriter
+                    // throws MalformedInputException and aborts the whole run
+                    // (encountered while triaging Array/concat tests that build
+                    // diagnostic messages from strings containing emoji). Always
+                    // emitting paired-or-not surrogates as backslash-u-NNNN is
+                    // JSON-legal and round-trips through any compliant reader.
+                    if (c < 0x20 || (c >= 0xD800 && c <= 0xDFFF)) {
                         sb.append(String.format("\\u%04x", (int) c));
                     } else {
                         sb.append(c);

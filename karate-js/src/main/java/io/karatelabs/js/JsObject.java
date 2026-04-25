@@ -36,17 +36,24 @@ import java.util.*;
  */
 class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
 
+    // Per-property attribute bits stored in a single byte. Sparse: a key is only
+    // present in {@code _attrs} if its triplet *deviates* from the all-true default,
+    // so plain `obj.foo = 1` writes never allocate the map. Bit layout matches
+    // the order of the spec's three boolean attributes.
+    static final byte WRITABLE = 0b001;
+    static final byte ENUMERABLE = 0b010;
+    static final byte CONFIGURABLE = 0b100;
+    static final byte ATTRS_DEFAULT = WRITABLE | ENUMERABLE | CONFIGURABLE;
+
     private Map<String, Object> _map;
     private ObjectLike __proto__;
-    // Extensibility flags for Object.preventExtensions / seal / freeze.
-    // Tracked here as plain booleans rather than per-property attribute slots:
-    // sealed/frozen apply to the *whole* object uniformly, so a single flag
-    // on JsObject is enough for the common case. Per-property attribute
-    // tracking (writable/enumerable/configurable) would need extra state and
-    // is the deferred follow-up listed in TEST262.md.
+    // Object-wide extensibility flags. Per-property attributes live in {@code _attrs}.
+    // The per-object flags double as fast-path early exits in putMember / removeMember
+    // so frozen objects don't have to consult _attrs on every write.
     private boolean nonExtensible;
     private boolean sealed;
     private boolean frozen;
+    private Map<String, Byte> _attrs;
 
     JsObject(Map<String, Object> map) {
         this._map = map;
@@ -138,13 +145,75 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
         if (frozen) {
             return;
         }
-        if (nonExtensible && (_map == null || !_map.containsKey(name))) {
+        boolean keyExists = _map != null && _map.containsKey(name);
+        if (nonExtensible && !keyExists) {
             return;
+        }
+        // Per-property writable=false: silently ignore the [[Set]]. Spec says
+        // throw under strict; we're non-strict by default.
+        if (keyExists && _attrs != null) {
+            Byte b = _attrs.get(name);
+            if (b != null && (b & WRITABLE) == 0) {
+                return;
+            }
         }
         if (_map == null) {
             _map = new LinkedHashMap<>();
         }
         _map.put(name, value);
+    }
+
+    /**
+     * Returns the attribute byte for {@code name}: bit-OR of {@link #WRITABLE},
+     * {@link #ENUMERABLE}, {@link #CONFIGURABLE}. Defaults to all-true when the
+     * key has never been touched by {@code defineProperty} / {@code seal} /
+     * {@code freeze}.
+     */
+    byte getAttrs(String name) {
+        if (_attrs == null) return ATTRS_DEFAULT;
+        Byte b = _attrs.get(name);
+        return b == null ? ATTRS_DEFAULT : b;
+    }
+
+    /** Stores the attribute byte for {@code name}; absence means all-true. */
+    void setAttrs(String name, byte attrs) {
+        if (attrs == ATTRS_DEFAULT) {
+            if (_attrs != null) {
+                _attrs.remove(name);
+            }
+            return;
+        }
+        if (_attrs == null) {
+            _attrs = new LinkedHashMap<>();
+        }
+        _attrs.put(name, attrs);
+    }
+
+    boolean isWritable(String name) {
+        return (getAttrs(name) & WRITABLE) != 0;
+    }
+
+    boolean isEnumerable(String name) {
+        return (getAttrs(name) & ENUMERABLE) != 0;
+    }
+
+    boolean isConfigurable(String name) {
+        return (getAttrs(name) & CONFIGURABLE) != 0;
+    }
+
+    /**
+     * Low-level descriptor write used by {@code Object.defineProperty}. Bypasses
+     * the {@code [[Set]]} writable check (defineProperty is allowed to mutate
+     * non-writable data props subject to its own configurable rules, which the
+     * caller already validated). Caller is responsible for extensibility +
+     * configurability checks.
+     */
+    void defineOwn(String name, Object value, byte attrs) {
+        if (_map == null) {
+            _map = new LinkedHashMap<>();
+        }
+        _map.put(name, value);
+        setAttrs(name, attrs);
     }
 
     boolean isExtensible() {
@@ -166,18 +235,53 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
     void seal() {
         this.nonExtensible = true;
         this.sealed = true;
+        // Mark every existing key as non-configurable so that
+        // getOwnPropertyDescriptor reports configurable=false. Per-object flag
+        // is the fast-path early exit on writes/removes; this map is for the
+        // attribute readers.
+        if (_map != null) {
+            for (String key : _map.keySet()) {
+                byte cur = getAttrs(key);
+                setAttrs(key, (byte) (cur & ~CONFIGURABLE));
+            }
+        }
     }
 
     void freeze() {
         this.nonExtensible = true;
         this.sealed = true;
         this.frozen = true;
+        if (_map != null) {
+            for (Map.Entry<String, Object> e : _map.entrySet()) {
+                byte cur = getAttrs(e.getKey());
+                cur &= ~CONFIGURABLE;
+                // writable is N/A for accessor properties — only set on data slots.
+                if (!(e.getValue() instanceof JsAccessor)) {
+                    cur &= ~WRITABLE;
+                }
+                setAttrs(e.getKey(), cur);
+            }
+        }
     }
 
     @Override
     public void removeMember(String name) {
-        if (_map != null) {
-            _map.remove(name);
+        if (_map == null || !_map.containsKey(name)) {
+            return;
+        }
+        // Per-property configurable=false: silently fail. Spec says throw under
+        // strict; we're non-strict by default. Sealed/frozen flags imply this
+        // (they set configurable=false on every key) but checking the bit
+        // directly is cheaper than walking _attrs after a flag fast-path miss.
+        if (_attrs != null) {
+            Byte b = _attrs.get(name);
+            if (b != null && (b & CONFIGURABLE) == 0) {
+                return;
+            }
+        }
+        _map.remove(name);
+        if (_attrs != null) {
+            _attrs.remove(name);
         }
     }
 
@@ -291,21 +395,43 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
 
     /**
      * Returns an iterable for JS for-in/for-of iteration with KeyValue pairs.
-     * This is used internally by JS iteration constructs.
+     * This is used internally by JS iteration constructs and by {@code Terms.toIterable},
+     * which is the back-end for {@code Object.keys / values / entries / assign} and
+     * {@code for...in}. All of those filter by enumerable per spec — only
+     * {@code Object.getOwnPropertyNames} / {@code hasOwn} need every own key, and
+     * those go through {@link #toMap()} directly.
      */
     public Iterable<KeyValue> jsEntries() {
         return () -> new Iterator<>() {
             final Iterator<Map.Entry<String, Object>> entries = toMap().entrySet().iterator();
             int index = 0;
+            Map.Entry<String, Object> peeked = null;
+
+            private boolean advance() {
+                while (entries.hasNext()) {
+                    Map.Entry<String, Object> e = entries.next();
+                    // Fast path: no _attrs map means every key is enumerable.
+                    if (_attrs == null || isEnumerable(e.getKey())) {
+                        peeked = e;
+                        return true;
+                    }
+                }
+                peeked = null;
+                return false;
+            }
 
             @Override
             public boolean hasNext() {
-                return entries.hasNext();
+                return peeked != null || advance();
             }
 
             @Override
             public KeyValue next() {
-                Map.Entry<String, Object> entry = entries.next();
+                if (peeked == null && !advance()) {
+                    throw new NoSuchElementException();
+                }
+                Map.Entry<String, Object> entry = peeked;
+                peeked = null;
                 return new KeyValue(JsObject.this, index++, entry.getKey(), entry.getValue());
             }
         };

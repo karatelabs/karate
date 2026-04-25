@@ -270,7 +270,7 @@ class JsObjectConstructor extends JsFunction {
         if (!ownKeys(args[0]).contains(prop)) {
             return Terms.UNDEFINED;
         }
-        return buildDescriptor(ownGet(args[0], prop));
+        return buildDescriptor(ownGet(args[0], prop), ownAttrs(args[0], prop));
     }
 
     private Object getOwnPropertyDescriptors(Object[] args) {
@@ -279,7 +279,7 @@ class JsObjectConstructor extends JsFunction {
         }
         Map<String, Object> result = new LinkedHashMap<>();
         for (String key : ownKeys(args[0])) {
-            result.put(key, buildDescriptor(ownGet(args[0], key)));
+            result.put(key, buildDescriptor(ownGet(args[0], key), ownAttrs(args[0], key)));
         }
         return result;
     }
@@ -289,23 +289,18 @@ class JsObjectConstructor extends JsFunction {
      * If the slot holds a {@link JsAccessor}, return the accessor shape
      * ({@code get / set / enumerable / configurable}); otherwise return the
      * data shape ({@code value / writable / enumerable / configurable}).
-     * <p>
-     * Attribute bits ({@code writable / enumerable / configurable}) aren't
-     * tracked per-property today — we report sensible defaults (all true for
-     * user-set props). This is the point listed in TEST262.md as deferred:
-     * full attribute enforcement comes in a follow-up session.
      */
-    private static Map<String, Object> buildDescriptor(Object value) {
+    private static Map<String, Object> buildDescriptor(Object value, byte attrs) {
         Map<String, Object> desc = new LinkedHashMap<>();
         if (value instanceof JsAccessor acc) {
             desc.put("get", acc.getter == null ? Terms.UNDEFINED : acc.getter);
             desc.put("set", acc.setter == null ? Terms.UNDEFINED : acc.setter);
         } else {
             desc.put("value", value);
-            desc.put("writable", true);
+            desc.put("writable", (attrs & JsObject.WRITABLE) != 0);
         }
-        desc.put("enumerable", true);
-        desc.put("configurable", true);
+        desc.put("enumerable", (attrs & JsObject.ENUMERABLE) != 0);
+        desc.put("configurable", (attrs & JsObject.CONFIGURABLE) != 0);
         return desc;
     }
 
@@ -334,22 +329,34 @@ class JsObjectConstructor extends JsFunction {
         boolean hasSet = descMap.containsKey("set");
         boolean hasValue = descMap.containsKey("value");
         boolean hasWritable = descMap.containsKey("writable");
+        boolean hasEnumerable = descMap.containsKey("enumerable");
+        boolean hasConfigurable = descMap.containsKey("configurable");
         boolean isAccessor = hasGet || hasSet;
         boolean isData = hasValue || hasWritable;
         if (isAccessor && isData) {
             throw JsErrorException.typeError(
                     "Invalid property descriptor. Cannot both specify accessors and a value or writable attribute");
         }
+
+        Object target = args[0];
+        boolean keyExists = ownKeys(target).contains(prop);
+
+        // Extensibility check — only on JsObject (Maps and other ObjectLikes don't model it).
+        if (!keyExists && target instanceof JsObject jo && !jo.isExtensible()) {
+            throw JsErrorException.typeError("Cannot define property " + prop + ", object is not extensible");
+        }
+
+        // Validate accessor shapes early so we can fall through to the unified write below.
+        JsCallable newGetter = null;
+        JsCallable newSetter = null;
         if (isAccessor) {
-            JsCallable getter = null;
-            JsCallable setter = null;
             if (hasGet) {
                 Object g = descMap.get("get");
                 if (g != null && g != Terms.UNDEFINED) {
                     if (!(g instanceof JsCallable c)) {
                         throw JsErrorException.typeError("Getter must be a function");
                     }
-                    getter = c;
+                    newGetter = c;
                 }
             }
             if (hasSet) {
@@ -358,23 +365,119 @@ class JsObjectConstructor extends JsFunction {
                     if (!(s instanceof JsCallable c)) {
                         throw JsErrorException.typeError("Setter must be a function");
                     }
-                    setter = c;
+                    newSetter = c;
                 }
             }
+        }
+
+        Object existing = keyExists ? ownGet(target, prop) : null;
+        boolean existingIsAccessor = existing instanceof JsAccessor;
+        byte oldAttrs = ownAttrs(target, prop);
+
+        // Compute new attribute byte. New keys default to all-false per spec
+        // ValidateAndApplyPropertyDescriptor (defineProperty's defaults differ
+        // from [[Set]]'s all-true defaults). Existing keys preserve missing fields.
+        byte newAttrs = keyExists ? oldAttrs : 0;
+        if (hasWritable) {
+            newAttrs = setBit(newAttrs, JsObject.WRITABLE, Terms.isTruthy(descMap.get("writable")));
+        }
+        if (hasEnumerable) {
+            newAttrs = setBit(newAttrs, JsObject.ENUMERABLE, Terms.isTruthy(descMap.get("enumerable")));
+        }
+        if (hasConfigurable) {
+            newAttrs = setBit(newAttrs, JsObject.CONFIGURABLE, Terms.isTruthy(descMap.get("configurable")));
+        }
+        // Accessor descriptors carry no writable bit; clear it so the stored byte
+        // reflects "not applicable" rather than a stale write/preserved truth.
+        if (isAccessor) {
+            newAttrs = (byte) (newAttrs & ~JsObject.WRITABLE);
+        }
+
+        // Configurability check on existing keys (spec ValidateAndApplyPropertyDescriptor).
+        // If the key is non-configurable, almost every change is forbidden — only:
+        //   1. Setting the same value (no-op redefine).
+        //   2. Toggling writable from true → false on a data property.
+        if (keyExists && (oldAttrs & JsObject.CONFIGURABLE) == 0) {
+            // configurable cannot flip false → true
+            if (hasConfigurable && (newAttrs & JsObject.CONFIGURABLE) != 0) {
+                throw JsErrorException.typeError("Cannot redefine property: " + prop);
+            }
+            // enumerable cannot change
+            if (hasEnumerable && ((oldAttrs ^ newAttrs) & JsObject.ENUMERABLE) != 0) {
+                throw JsErrorException.typeError("Cannot redefine property: " + prop);
+            }
+            // Cannot switch between data and accessor shapes
+            if (existingIsAccessor != isAccessor && (isAccessor || isData)) {
+                throw JsErrorException.typeError("Cannot redefine property: " + prop);
+            }
+            if (existingIsAccessor && isAccessor) {
+                // Accessor→accessor: get / set cannot change unless they match the existing.
+                JsAccessor exAcc = (JsAccessor) existing;
+                JsCallable mergedGet = hasGet ? newGetter : exAcc.getter;
+                JsCallable mergedSet = hasSet ? newSetter : exAcc.setter;
+                if (mergedGet != exAcc.getter || mergedSet != exAcc.setter) {
+                    throw JsErrorException.typeError("Cannot redefine property: " + prop);
+                }
+            } else if (!existingIsAccessor && isData) {
+                // Data → data on non-configurable: writable cannot flip false → true.
+                boolean oldWritable = (oldAttrs & JsObject.WRITABLE) != 0;
+                boolean newWritable = (newAttrs & JsObject.WRITABLE) != 0;
+                if (!oldWritable && newWritable) {
+                    throw JsErrorException.typeError("Cannot redefine property: " + prop);
+                }
+                // If !writable, value cannot change.
+                if (!oldWritable && hasValue) {
+                    Object newValue = descMap.get("value");
+                    if (!Terms.eq(existing, newValue, true)) {
+                        throw JsErrorException.typeError("Cannot redefine property: " + prop);
+                    }
+                }
+            }
+        }
+
+        // Apply.
+        if (isAccessor) {
             // Merge with existing accessor: defining only `get` keeps the existing setter,
             // and vice versa. Matches the literal path's merge behavior in evalLitObject.
-            Object existing = ownGet(args[0], prop);
-            if (existing instanceof JsAccessor exAcc) {
+            JsCallable getter = newGetter;
+            JsCallable setter = newSetter;
+            if (existingIsAccessor) {
+                JsAccessor exAcc = (JsAccessor) existing;
                 if (!hasGet) getter = exAcc.getter;
                 if (!hasSet) setter = exAcc.setter;
             }
-            ownPut(args[0], prop, new JsAccessor(getter, setter));
+            applyDefine(target, prop, new JsAccessor(getter, setter), newAttrs);
         } else if (hasValue) {
-            ownPut(args[0], prop, descMap.get("value"));
+            applyDefine(target, prop, descMap.get("value"), newAttrs);
+        } else if (!keyExists) {
+            // New key created via attribute-only descriptor: spec says value defaults
+            // to undefined.
+            applyDefine(target, prop, Terms.UNDEFINED, newAttrs);
+        } else if (existingIsAccessor && !isAccessor) {
+            // Switching accessor → data with no value specified: spec defaults value to undefined.
+            applyDefine(target, prop, Terms.UNDEFINED, newAttrs);
+        } else {
+            // Existing data key, only attribute changes — preserve existing value.
+            applyDefine(target, prop, existing, newAttrs);
         }
-        // Attribute tracking (writable/enumerable/configurable) is not modeled —
-        // the value/accessor slot is the only effect of defineProperty today.
-        return args[0];
+        return target;
+    }
+
+    private static byte setBit(byte attrs, byte mask, boolean on) {
+        return on ? (byte) (attrs | mask) : (byte) (attrs & ~mask);
+    }
+
+    private static void applyDefine(Object target, String key, Object value, byte attrs) {
+        if (target instanceof JsObject jo) {
+            jo.defineOwn(key, value, attrs);
+        } else {
+            ownPut(target, key, value);
+        }
+    }
+
+    private static byte ownAttrs(Object obj, String key) {
+        if (obj instanceof JsObject jo) return jo.getAttrs(key);
+        return JsObject.ATTRS_DEFAULT;
     }
 
     @SuppressWarnings("unchecked")

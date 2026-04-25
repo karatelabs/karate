@@ -77,14 +77,12 @@ class ExpectationsTest {
 
         Test262Metadata m = new Test262Metadata(
                 java.util.List.of(), java.util.List.of(),
-                java.util.List.of("assert.js", "propertyHelper.js"),
+                java.util.List.of("assert.js", "promiseHelper.js"),
                 null, false, null);
         Test262Case c = syntheticCase("test/built-ins/Object/proto.js", m);
         String reason = exp.matchSkip(c);
         assertNotNull(reason);
-        // propertyHelper.js is in the starter skip list
-        assertTrue(reason.toLowerCase().contains("internals")
-                || reason.toLowerCase().contains("property"), reason);
+        assertTrue(reason.toLowerCase().contains("promise"), reason);
     }
 
     private static Test262Case syntheticCase(String relPath, Test262Metadata m) {

@@ -932,6 +932,28 @@ session needs to violate one, the principle goes up for review explicitly.
   `hasOwnIntrinsic` to declare the names their `getMember` resolves
   directly. Required for the `S15.9.5_A*` and `S15.9.4_A*` test
   clusters and analogous tests under other built-ins.
+- **Per-property attributes on `JsObject` use a sparse byte map.**
+  `_attrs: Map<String, Byte>` next to the per-object `nonExtensible` /
+  `sealed` / `frozen` flags. Bit 0 = writable, bit 1 = enumerable,
+  bit 2 = configurable; absent key means all-true (the new-property
+  default for plain `obj.x = ...`). `defineProperty` writes attrs
+  explicitly and uses the spec's "missing fields default to false on
+  new keys, preserve on existing" rule (different from `[[Set]]`'s
+  all-true default — this distinction is load-bearing). Per-object
+  flags `frozen` / `nonExtensible` are kept as fast-path early-exits
+  on `putMember` / `removeMember` so frozen objects don't have to
+  consult `_attrs` per write. Read paths: `getOwnPropertyDescriptor`
+  reads `_attrs` (or the all-true default); `JsObject.jsEntries()` —
+  the back-end for `for...in` / `Object.keys` / `Object.values` /
+  `Object.entries` / `Object.assign` via `Terms.toIterable` — filters
+  out non-enumerable keys but is bypassed entirely when `_attrs ==
+  null`. `Object.getOwnPropertyNames` / `hasOwn` go through `toMap()`
+  directly and are unaffected. `propertyIsEnumerable` consults
+  `isEnumerable(name)`. Configurability rules enforced on
+  defineProperty: TypeError on flipping configurable false→true,
+  changing enumerable, switching data↔accessor shape, or changing
+  a non-writable value — with the spec-allowed exceptions (writable
+  true→false on data, no-op same-value redefine) passing through.
 - **`Object.prototype.toString` dispatches on the host wrapper class.**
   `JsObjectPrototype.DEFAULT_TO_STRING` returns `"[object <Tag>]"`
   where the tag is derived from the receiver type — `Array` for
@@ -952,18 +974,19 @@ Action list — start at the top. Ordered by core-engine confidence
 score impact (a one-fix harness unblock beats ten one-test patches).
 Re-probe with the relevant `--only` glob before scoping a session.
 
-Current state baseline (2026-04, post descriptor infra):
+Current state baseline (2026-04, post per-property attribute enforcement +
+`propertyHelper.js` / `compareArray.js` un-skip):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
-| `test/language/**` | 3121 | 3012 | 15150 | 21283 |
-| `test/built-ins/Math/**` | 177 | 28 | 122 | 327 |
-| `test/built-ins/Number/**` | 187 | 94 | 59 | 340 |
-| `test/built-ins/String/**` | 349 | 672 | 202 | 1223 |
-| `test/built-ins/Array/**` | 1085 | 1495 | 501 | 3081 |
-| `test/built-ins/Object/**` | 975 | 1447 | 989 | 3411 |
-| `test/built-ins/Date/**` | 374 | 4 | 216 | 594 |
-| `test/built-ins/Function/**` | 204 | 149 | 156 | 509 |
+| `test/language/**` | 3992 | 4071 | 15582 | 23645 |
+| `test/built-ins/Math/**` | 177 | 149 | 1 | 327 |
+| `test/built-ins/Number/**` | 187 | 141 | 12 | 340 |
+| `test/built-ins/String/**` | 356 | 783 | 84 | 1223 |
+| `test/built-ins/Array/**` | 1123 | 1777 | 181 | 3081 |
+| `test/built-ins/Object/**` | 1763 | 1517 | 131 | 3411 |
+| `test/built-ins/Date/**` | 382 | 142 | 70 | 594 |
+| `test/built-ins/Function/**` | 204 | 177 | 128 | 509 |
 
 ### Tier 1 — core-engine parser/expression gaps
 
@@ -980,68 +1003,46 @@ where every fix shows up on the scorecard for the right reason.
   bounded but the cluster otherwise stays a source of "engine too
   lenient" noise.
 
-### Tier 2 — descriptor attribute enforcement (un-skip harness)
+### Tier 2 — built-in method attribute attribution
 
-- **Per-property attribute bits (`writable` / `enumerable` /
-  `configurable`).** The descriptor surface is in place
-  (`Object.defineProperty` / `getOwnPropertyDescriptor` / accessor
-  literals / `isExtensible` / `seal` / `freeze`), but the attribute
-  triplet is reported hardcoded `true` on the read path and not
-  enforced anywhere on the write path. Until those bits are tracked
-  per-property, the `propertyHelper.js` and `compareArray.js`
-  harness includes have to stay skipped — un-skipping today net-
-  regresses Array/String slices because tests verifying built-in
-  prototype properties as `non-writable / non-enumerable` get
-  back `writable: true` from us and FAIL en masse.
+- **Spec-default attributes on built-in methods (`writable: true`,
+  `enumerable: false`, `configurable: true`) and on `length` /
+  `name`.** Per-property attribute enforcement on user-defined props
+  via `Object.defineProperty` shipped (see Recently completed). The
+  remaining gap: **built-in prototype methods report `enumerable: true`
+  via `getOwnPropertyDescriptor` because the `Prototype` /
+  `JsBuiltinMethod` resolution doesn't carry attribute info** — it
+  hits the all-true default in `getOwnPropertyDescriptor`.
+  `propertyHelper.verifyCallableProperty` checks for the spec-default
+  triplet on every built-in method; with all-true fallback, ~hundreds
+  of `length.js` / `name.js` / `prop-desc.js` tests across
+  Math/Number/String/Function/Date/Array/Object FAIL with
+  "obj['method'] descriptor should not be enumerable".
 
-  Predicted impact: ~+1500–2200 PASS once both the attribute
-  triplet is tracked AND the two harness includes are un-skipped
-  (combined `propertyHelper.js` + `compareArray.js` SKIPs).
+  Predicted impact: another ~+400–800 PASS once `Prototype.getMember`
+  / `JsBuiltinMethod` / built-in `length` and `name` slots get
+  spec-default attributes (`writable: true`, `enumerable: false`,
+  `configurable: true` for methods; `writable: false`,
+  `enumerable: false`, `configurable: true` for `length` / `name`).
+  The attribute storage on `JsObject` already exists; this is wiring
+  the *built-in* property reads (currently going through hardcoded
+  switches) into the same descriptor pipeline as user props.
 
-  Existing scaffolding to extend:
-  - `JsObject.java` already has the per-object flags
-    (`nonExtensible` / `sealed` / `frozen`) plus their write-side
-    enforcement in `putMember`. Add the new sparse attribute map
-    next to them.
-  - `JsObjectConstructor.defineProperty` / `buildDescriptor` already
-    branch data-vs-accessor and read/write the descriptor object.
-    Extend each to thread the triplet through.
-  - `expectations.yaml` `includes:` block has `propertyHelper.js`
-    and `compareArray.js` skipped, with reasons that document the
-    blocker. Removing those two entries is the un-skip step.
-
-  Order of attack:
-  1. Add a parallel `Map<String, AttributeFlags>` on `JsObject`
-     (sparse — only properties whose attributes deviate from the
-     default `{writable, enumerable, configurable: true}` use a
-     slot, since that triplet is the new-property default). Memory
-     footprint stays near zero on the common case. Place next to
-     the existing `nonExtensible` / `sealed` / `frozen` fields so
-     the boundary (per-object flag fast-path → per-property check)
-     stays visible.
-  2. `defineProperty` writes to that map when the descriptor
-     specifies any of the three; default missing fields per spec
-     (false for new properties, preserve for existing). Update
-     `JsObjectConstructor.buildDescriptor` to read the actual bits.
-  3. `getOwnPropertyDescriptor` reads from that map, falling back
-     to the all-true default. Same for `getOwnPropertyDescriptors`.
-  4. Enforce on write paths: `JsObject.putMember` checks
-     `writable`/extensible (extend the existing `frozen` /
-     `nonExtensible` early-exit); `removeMember` checks
-     `configurable`; `for...in` (currently iterating
-     `_map.entrySet()` somewhere — grep for the `IN` token in
-     `Interpreter.java`) skips `enumerable: false`.
-  5. Wire `seal` / `freeze` to populate the attribute map for
-     all existing keys (currently they only flip the per-object
-     flags). Keep the per-object flags as a fast-path early exit
-     on the write path so frozen objects don't have to walk the
-     map for every key.
-  6. Un-skip `propertyHelper.js` and `compareArray.js` in
-     `expectations.yaml`. Probe each major built-in slice; expect
-     net positive across all of them. Watch for hangs on
-     accessor-getter-throws iteration patterns (compareArray.js
-     was specifically called out for this) — `--max-duration`
-     cap recommended.
+  Where to wire:
+  - `JsObjectConstructor.getOwnPropertyDescriptor` currently calls
+    `ownAttrs(obj, key)` which only consults `JsObject._attrs`.
+    Extend the lookup to ask the prototype/built-in: e.g.
+    `Prototype.getOwnAttrs(name)` returning the spec triplet for
+    built-in members.
+  - `Prototype` and built-in constructor classes (`JsArrayConstructor`
+    etc.) need to declare per-method attributes — most are uniform
+    `enumerable: false, writable: true, configurable: true`, so a
+    static default in `Prototype` covers everything except `length`
+    / `name` on `JsFunction` (which are `writable: false`).
+  - `JsArray.length` is special — `writable: true, enumerable: false,
+    configurable: false` per spec. Currently `getMember("length")`
+    short-circuits to `list.size()`; no slot-based descriptor.
+    Sentinel attrs in `JsArray.getOwnAttrs("length")` would handle it.
 
 ### Tier 3 — cross-cutting feature unblock
 
@@ -1121,6 +1122,110 @@ Smaller items, picked off when nearby. Not session-sized on their own.
 Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
+
+- **Per-property attribute enforcement (`writable` / `enumerable` /
+  `configurable`) + harness un-skip.** The big Tier 2 lever from the
+  prior plan. JsObject grew a sparse `_attrs` byte map; defineProperty
+  threads the triplet (defaults to all-false for new keys per spec,
+  preserves missing fields on existing keys); `[[Set]]` checks
+  writable; `delete` / `removeMember` checks configurable; `for...in`
+  / `Object.keys` / `Object.values` / `Object.entries` /
+  `Object.assign` filter by enumerable; `seal` / `freeze` populate
+  the attribute map for existing keys; non-configurable redefinition
+  rules enforced (TypeError on attempts to flip configurable false→true,
+  change enumerable, switch shape, or change a non-writable value).
+  `propertyHelper.js` and `compareArray.js` un-skipped from
+  `expectations.yaml`.
+
+  | `--only` glob | Before | After | Δ pass |
+  |---|---|---|---|
+  | `test/built-ins/Object/**` | 975 / 1447 / 989 | **1763** / 1517 / 131 | **+788** |
+  | `test/language/**` | 3121 / 3012 / 15150 | **3992** / 4071 / 15582 | **+871** |
+  | `test/built-ins/Array/**` | 1085 / 1495 / 501 | **1123** / 1777 / 181 | **+38** |
+  | `test/built-ins/Date/**` | 374 / 4 / 216 | **382** / 142 / 70 | **+8** |
+  | `test/built-ins/String/**` | 349 / 672 / 202 | **356** / 783 / 84 | **+7** |
+  | `test/built-ins/Function/**` | 204 / 149 / 156 | **204** / 177 / 128 | 0 |
+  | `test/built-ins/Math/**` | 177 / 28 / 122 | **177** / 149 / 1 | 0 |
+  | `test/built-ins/Number/**` | 187 / 94 / 59 | **187** / 141 / 12 | 0 |
+
+  Net **~+1712 PASS** across the probed slices, in the predicted
+  +1500–2200 band. Slices where pass moved 0 (Math/Number/Function)
+  saw their SKIPs convert to FAILs — those tests now run but require
+  the *built-in* method attribute attribution that's the new Tier 2
+  follow-up. Hidden coverage flipped to visible-fail signal, which is
+  the right direction.
+
+  Concretely:
+  - **Storage.** `JsObject` carries a sparse `Map<String, Byte>
+    _attrs` next to the existing `nonExtensible` / `sealed` / `frozen`
+    flags. Default (all three bits set) is encoded by absence — no
+    map entry is allocated when a property is created via plain `obj.x
+    = ...`, so the common path stays zero-allocation. Bit layout:
+    `WRITABLE = 0b001`, `ENUMERABLE = 0b010`, `CONFIGURABLE = 0b100`,
+    `ATTRS_DEFAULT = 0b111`.
+  - **defineProperty new vs. existing semantics.** New keys default
+    missing attribute fields to false (per spec
+    ValidateAndApplyPropertyDescriptor); existing keys preserve
+    missing fields. The `[[Set]]` path (plain assignment, `putMember`)
+    keeps creating new keys with all-true defaults — the two paths
+    diverge correctly.
+  - **Configurability rules enforced.** Redefining a non-configurable
+    property TypeErrors on most changes; the spec-allowed exceptions
+    (writable true→false, no-op same-value redefine) pass through.
+    Includes the data↔accessor shape switch and accessor get/set
+    identity checks.
+  - **`buildDescriptor` reads from `_attrs`.** Both
+    `getOwnPropertyDescriptor` and `getOwnPropertyDescriptors` now
+    return the actual attribute bits (writable on data, enumerable,
+    configurable on both). Accessor shape suppresses writable per
+    spec.
+  - **Iteration filters by enumerable.** `JsObject.jsEntries()`
+    (the back-end for `Terms.toIterable`, `for...in`, `Object.keys`,
+    `Object.values`, `Object.entries`, `Object.assign`) skips entries
+    whose attribute byte has `ENUMERABLE` cleared. Fast path: when
+    `_attrs == null` (no defineProperty has touched the object), the
+    filter is bypassed entirely. `Object.getOwnPropertyNames` /
+    `hasOwn` go through `toMap()` directly and are unaffected — they
+    must include non-enumerable own keys.
+  - **`seal` / `freeze` populate the map.** `seal` clears
+    `CONFIGURABLE` on every existing key (so descriptor reads report
+    `configurable: false`); `freeze` additionally clears `WRITABLE` on
+    data slots (skipping accessor slots since `writable` is N/A there).
+    The per-object flags are kept as the fast-path early-exit on
+    `putMember` / `removeMember`, so frozen objects don't have to
+    consult `_attrs` per key.
+  - **`propertyIsEnumerable`** consults `JsObject.isEnumerable(name)`
+    after the own-key check; previously assumed all own keys were
+    enumerable.
+  - **Harness friction fix:** `JsonLite.writeString` now escapes
+    surrogate halves as `\uXXXX` regardless of pairing. Without this,
+    a test message containing a lone surrogate (e.g. emoji-related
+    `Array.prototype.concat` diagnostics that quote
+    `"yuck💩"`) tripped `MalformedInputException` in the
+    UTF-8 BufferedWriter and aborted the whole run on the FAIL row's
+    JSONL append. The escape is JSON-legal and round-trips correctly.
+
+  Residual fails (each blocked on infra not in this session):
+  - **Built-in method attributes.** ~hundreds of `length.js` /
+    `name.js` / `prop-desc.js` tests across Math/Number/Function/
+    Array/String/Date verify built-in methods report `enumerable:
+    false`, but our descriptor reader hits the all-true default
+    because `Prototype.getMember` / `JsBuiltinMethod` don't carry
+    attribute info. This is the new Tier 2 follow-up.
+  - **`JsArray.length` descriptor.** Spec: `writable: true,
+    enumerable: false, configurable: false`. Our read returns
+    all-true (length is short-circuited in `JsArray.getMember`,
+    bypassing `_attrs`). Cluster of ~10 tests across
+    `Array.prototype.*` and `Array/length/**`.
+  - **Array element index descriptors after `defineProperty`.**
+    `Object.defineProperty(arr, "0", {value: x, writable: false})`
+    — the attribute map lives on `JsObject` but `JsArray` overrides
+    `getMember`/`putMember` and stores indices in `list`, not in
+    `_map`. Cross-cutting array-vs-defineProperty work, follow-up.
+  - **`Object.create(proto, descriptors)` non-configurable defaults.**
+    Smoke-tested via `JsObjectTest.testCreate*`; the spec edge cases
+    around inheriting non-configurable descriptors from the prototype
+    chain weren't all covered. Tackle when nearby.
 
 - **Descriptor infra — `Object.defineProperty` accessor descriptors,
   `getOwnPropertyDescriptor` accessor shape, `isExtensible` /

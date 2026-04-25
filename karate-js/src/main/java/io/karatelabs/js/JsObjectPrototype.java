@@ -109,9 +109,18 @@ class JsObjectPrototype extends Prototype {
         if (args.length == 0 || args[0] == null) {
             return false;
         }
-        // We don't model attribute slots; treat any own property as enumerable.
-        // Same lookup as hasOwnProperty.
-        return hasOwnProperty(context, args);
+        String prop = args[0].toString();
+        Object thisObj = context.getThisObject();
+        // Reuse hasOwnProperty's own-key check, then layer the enumerable bit on top.
+        // Returns false for non-own keys (including missing) and for own keys
+        // whose attribute byte has ENUMERABLE cleared.
+        if (!Terms.isTruthy(hasOwnProperty(context, args))) {
+            return false;
+        }
+        if (thisObj instanceof JsObject jo) {
+            return jo.isEnumerable(prop);
+        }
+        return true;
     }
 
     private Object hasOwnProperty(Context context, Object[] args) {

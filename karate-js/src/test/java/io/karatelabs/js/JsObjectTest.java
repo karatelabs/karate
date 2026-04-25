@@ -660,10 +660,13 @@ class JsObjectTest extends EvalBase {
                         + "  get: function() { return this._n; },"
                         + "  set: function(v) { this._n = v * 2; } });"
                         + " o.n = 10; o.n"));
-        // Defining only `set` preserves an existing `get`.
+        // Defining only `set` preserves an existing `get`. The first call must
+        // specify configurable: true — defineProperty defaults missing fields
+        // to false on a new key per spec, and the redefine on a non-configurable
+        // accessor would throw TypeError.
         assertEquals(8, eval(
                 "var captured; var o = {};"
-                        + " Object.defineProperty(o, 'x', {get: function() { return 7; }});"
+                        + " Object.defineProperty(o, 'x', {get: function() { return 7; }, configurable: true});"
                         + " Object.defineProperty(o, 'x', {set: function(v) { captured = v; }});"
                         + " o.x = 1; captured + o.x")); // setter captured 1; getter still returns 7
 
@@ -756,6 +759,84 @@ class JsObjectTest extends EvalBase {
         // New keys blocked on sealed.
         assertEquals(true, eval(
                 "var o = {}; Object.seal(o); o.x = 1; o.x === undefined"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Per-property attribute enforcement: writable / enumerable / configurable.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testAttributeReadback() {
+        // Plain assignment creates with all-true defaults.
+        assertEquals(true, eval(
+                "var o = {a: 1};"
+                        + " var d = Object.getOwnPropertyDescriptor(o, 'a');"
+                        + " d.writable === true && d.enumerable === true && d.configurable === true"));
+        // defineProperty defaults missing fields to false on a new key.
+        assertEquals(true, eval(
+                "var o = {}; Object.defineProperty(o, 'x', {value: 1});"
+                        + " var d = Object.getOwnPropertyDescriptor(o, 'x');"
+                        + " d.writable === false && d.enumerable === false && d.configurable === false"));
+    }
+
+    @Test
+    void testWritableEnforcement() {
+        // Non-writable data property silently ignores [[Set]].
+        assertEquals(1, eval(
+                "var o = {}; Object.defineProperty(o, 'x', {value: 1, configurable: true});"
+                        + " o.x = 99; o.x"));
+    }
+
+    @Test
+    void testConfigurableEnforcement() {
+        // Non-configurable cannot be deleted.
+        assertEquals(true, eval(
+                "var o = {}; Object.defineProperty(o, 'x', {value: 1});"
+                        + " delete o.x; o.x === 1"));
+        // Non-configurable cannot be redefined to writable: true once set false.
+        assertThrows(Exception.class, () -> eval(
+                "var o = {}; Object.defineProperty(o, 'x', {value: 1, writable: false});"
+                        + " Object.defineProperty(o, 'x', {writable: true})"));
+        // Non-configurable cannot switch from data to accessor.
+        assertThrows(Exception.class, () -> eval(
+                "var o = {}; Object.defineProperty(o, 'x', {value: 1});"
+                        + " Object.defineProperty(o, 'x', {get: function(){return 2;}})"));
+    }
+
+    @Test
+    void testEnumerableFiltersIteration() {
+        // Object.keys / for-in skip non-enumerable own keys.
+        assertEquals(1, eval(
+                "var o = {a: 1};"
+                        + " Object.defineProperty(o, 'b', {value: 2});"
+                        + " Object.keys(o).length"));
+        assertEquals("a", eval(
+                "var o = {a: 1};"
+                        + " Object.defineProperty(o, 'b', {value: 2});"
+                        + " var seen = ''; for (var k in o) seen += k; seen"));
+        // getOwnPropertyNames includes non-enumerable.
+        assertEquals(2, eval(
+                "var o = {a: 1};"
+                        + " Object.defineProperty(o, 'b', {value: 2});"
+                        + " Object.getOwnPropertyNames(o).length"));
+        // propertyIsEnumerable consults the bit.
+        assertEquals(false, eval(
+                "var o = {}; Object.defineProperty(o, 'x', {value: 1});"
+                        + " o.propertyIsEnumerable('x')"));
+        assertEquals(true, eval(
+                "var o = {a: 1}; o.propertyIsEnumerable('a')"));
+    }
+
+    @Test
+    void testSealFreezeReportAttrs() {
+        // After seal, every existing key reports configurable: false.
+        assertEquals(false, eval(
+                "var o = {a: 1}; Object.seal(o);"
+                        + " Object.getOwnPropertyDescriptor(o, 'a').configurable"));
+        // After freeze, every existing data key reports writable: false too.
+        assertEquals(false, eval(
+                "var o = {a: 1}; Object.freeze(o);"
+                        + " Object.getOwnPropertyDescriptor(o, 'a').writable"));
     }
 
 }
