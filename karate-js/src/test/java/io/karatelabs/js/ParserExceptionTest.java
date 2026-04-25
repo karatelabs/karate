@@ -62,4 +62,37 @@ class ParserExceptionTest {
             // expected
         }
     }
+
+    // The four spec-defined Static Semantics: Early Errors involving optional
+    // chaining. Each must surface as ParserException — the test262 runner
+    // classifies that as `phase: parse, type: SyntaxError`, matching what the
+    // negative tests expect.
+
+    @Test
+    void testOptionalChainAssignmentIsParseError() {
+        // `OptionalExpression` is not a valid simple-assignment target.
+        Engine engine = new Engine();
+        assertThrows(ParserException.class, () -> engine.eval("var obj = {}; obj?.a = 1;"));
+        assertThrows(ParserException.class, () -> engine.eval("var obj = {}; obj?.a += 1;"));
+        assertThrows(ParserException.class, () -> engine.eval("var obj = {}; obj?.a.b = 1;"));
+        assertThrows(ParserException.class, () -> engine.eval("var obj = {}; obj?.[k] = 1;"));
+    }
+
+    @Test
+    void testOptionalChainUpdateIsParseError() {
+        // `++expr` / `expr--` operands must be valid simple-assignment targets.
+        Engine engine = new Engine();
+        assertThrows(ParserException.class, () -> engine.eval("var obj = {}; ++obj?.a;"));
+        assertThrows(ParserException.class, () -> engine.eval("var obj = {}; --obj?.a;"));
+        assertThrows(ParserException.class, () -> engine.eval("var obj = {}; obj?.a++;"));
+        assertThrows(ParserException.class, () -> engine.eval("var obj = {}; obj?.a--;"));
+    }
+
+    @Test
+    void testOptionalChainTaggedTemplateIsParseError() {
+        // `OptionalChain :: ?. TemplateLiteral` is explicitly listed as a Syntax Error.
+        Engine engine = new Engine();
+        assertThrows(ParserException.class, () -> engine.eval("var a = {fn(){}}; a?.fn`hello`;"));
+        assertThrows(ParserException.class, () -> engine.eval("var a = {fn(){}}; a?.fn`x${1}y`;"));
+    }
 }

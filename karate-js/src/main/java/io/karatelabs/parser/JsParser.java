@@ -83,6 +83,12 @@ public class JsParser extends BaseParser {
 
     private Node ast;
 
+    // True if any `?.` was consumed during parsing — gates the
+    // post-parse early-error walk so files with no optional chaining
+    // pay no AST-traversal cost. Reset to false implicitly per JsParser
+    // instance (one parse per instance).
+    private boolean sawOptionalChain;
+
     public JsParser(Resource resource) {
         super(resource, JsLexer.getTokens(resource), false);
     }
@@ -116,7 +122,96 @@ public class JsParser extends BaseParser {
             error("cannot parse statement");
         }
         exit();
+        // Only walk for early-error validation if the parse actually saw a `?.`
+        // — the walk is O(AST size) and would otherwise tax every parse for a
+        // feature most files don't use. Per Working Principle #5: pay edge-case
+        // cost on the edge case.
+        if (!errorRecoveryEnabled && sawOptionalChain) {
+            validateOptionalChainEarlyErrors(ast);
+        }
         return ast;
+    }
+
+    /**
+     * Spec early errors involving optional chaining: an OptionalExpression cannot be
+     * an assignment target, the operand of {@code ++}/{@code --}, or the head of a
+     * tagged template literal. Walked once over the parsed tree; throws
+     * {@link ParserException} so the test262 runner classifies the failure as
+     * {@code phase: parse}.
+     */
+    private void validateOptionalChainEarlyErrors(Node node) {
+        if (node == null) return;
+        switch (node.type) {
+            case ASSIGN_EXPR -> {
+                if (node.size() > 0 && subtreeContainsOptionalChain(node.getFirst())) {
+                    throw new ParserException("optional chain is not a valid assignment target");
+                }
+            }
+            case MATH_POST_EXPR -> {
+                // children: [operand, ++/--]
+                if (node.size() > 0 && subtreeContainsOptionalChain(node.getFirst())) {
+                    throw new ParserException("optional chain cannot be the operand of postfix ++/--");
+                }
+            }
+            case MATH_PRE_EXPR -> {
+                // children: [op, operand]
+                if (node.size() > 1 && subtreeContainsOptionalChain(node.get(1))) {
+                    throw new ParserException("optional chain cannot be the operand of prefix ++/--");
+                }
+            }
+            case FN_TAGGED_TEMPLATE_EXPR -> {
+                if (node.size() > 0 && subtreeContainsOptionalChain(node.getFirst())) {
+                    throw new ParserException("tagged template literal cannot follow an optional chain");
+                }
+            }
+            default -> {
+            }
+        }
+        for (int i = 0, n = node.size(); i < n; i++) {
+            Node child = node.get(i);
+            if (!child.isToken()) {
+                validateOptionalChainEarlyErrors(child);
+            }
+        }
+    }
+
+    /**
+     * True if {@code node}'s chain subtree contains any {@code ?.} marker. Walks
+     * down through chain types only — PAREN_EXPR or any non-chain node ends the
+     * walk, since parens reset the optional-chain scope per spec.
+     */
+    private static boolean subtreeContainsOptionalChain(Node node) {
+        Node cur = node;
+        // Skip thin wrappers — EXPR / EXPR_LIST single-child / PAREN_EXPR — to reach
+        // the actual chain head. Parens reset the chain scope per spec for execution,
+        // but `(a?.b) = 1` and `--(a?.b)` are still parse errors because the cover
+        // OptionalExpression is not a valid simple-assignment target.
+        while (cur != null && (cur.type == NodeType.EXPR || cur.type == NodeType.EXPR_LIST
+                || cur.type == NodeType.PAREN_EXPR)) {
+            if (cur.size() == 0) return false;
+            // PAREN_EXPR has shape [(, body, )]; EXPR/EXPR_LIST wrap their content as the first child.
+            cur = cur.type == NodeType.PAREN_EXPR ? cur.get(1) : cur.getFirst();
+        }
+        while (cur != null) {
+            if (cur.type == NodeType.REF_DOT_EXPR) {
+                Node second = cur.size() > 1 ? cur.get(1) : null;
+                if (second != null) {
+                    if (second.isToken() && second.token.type == QUES_DOT) return true;
+                    if (!second.isToken() && second.size() > 0) {
+                        Node firstOfSecond = second.getFirst();
+                        if (firstOfSecond.isToken() && firstOfSecond.token.type == QUES_DOT) return true;
+                    }
+                }
+                cur = cur.size() > 0 ? cur.getFirst() : null;
+            } else if (cur.type == NodeType.REF_BRACKET_EXPR
+                    || cur.type == NodeType.FN_CALL_EXPR
+                    || cur.type == NodeType.FN_TAGGED_TEMPLATE_EXPR) {
+                cur = cur.size() > 0 ? cur.getFirst() : null;
+            } else {
+                return false;
+            }
+        }
+        return false;
     }
 
     // Recovery points for statements
@@ -547,13 +642,29 @@ public class JsParser extends BaseParser {
                 exit(Shift.LEFT);
             } else if (enter(NodeType.REF_DOT_EXPR, T_REF_DOT_EXPR)) {
                 TokenType dotType = lastConsumed();
+                if (dotType == QUES_DOT) {
+                    sawOptionalChain = true;
+                }
                 // allow reserved words as property accessors
                 TokenType dotNext = peek();
                 if (dotNext == IDENT || dotNext.keyword) {
                     consumeNext();
                 } else if (dotType == QUES_DOT) {
-                    if (dotNext == L_BRACKET || dotNext == L_PAREN) {
-                        expr_rhs(12);
+                    // Parse only the immediate `?.[expr]` or `?.(args)` step. Subsequent
+                    // postfix ops (`.x`, `[k]`, `(args)`) chain at the outer expr_rhs
+                    // level, producing a flat left-recursive AST. Recursing into
+                    // expr_rhs(12) here would nest the rest of the chain inside this
+                    // REF_DOT_EXPR — confusing the interpreter's chain-step traversal.
+                    if (dotNext == L_BRACKET) {
+                        enter(NodeType.REF_BRACKET_EXPR, L_BRACKET);
+                        expr(-1, true);
+                        consumeSoft(R_BRACKET);
+                        exit(Shift.LEFT);
+                    } else if (dotNext == L_PAREN) {
+                        enter(NodeType.FN_CALL_EXPR, L_PAREN);
+                        fn_call_args();
+                        consumeSoft(R_PAREN);
+                        exit(Shift.LEFT);
                     } else {
                         error(L_BRACKET, L_PAREN);
                     }

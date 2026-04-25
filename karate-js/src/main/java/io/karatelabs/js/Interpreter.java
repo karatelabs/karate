@@ -349,6 +349,16 @@ class Interpreter {
         return result;
     }
 
+    // Converts the SHORT_CIRCUITED sentinel back to UNDEFINED at the chain root.
+    // Inner chain steps see SHORT_CIRCUITED and propagate; only the outermost step
+    // in an optional chain — the chain root — surfaces UNDEFINED to the rest of the program.
+    private static Object chainStepResult(Object result, Node node) {
+        if (result == PropertyAccess.SHORT_CIRCUITED && PropertyAccess.isChainRoot(node)) {
+            return Terms.UNDEFINED;
+        }
+        return result;
+    }
+
     private static Object evalFnCall(Node node, CoreContext context, boolean newKeyword) {
         Node fnArgsNode;
         if (newKeyword) {
@@ -367,9 +377,27 @@ class Interpreter {
         Object[] callableAndReceiver = PropertyAccess.getCallable(node, context);
         Object o = callableAndReceiver[0];
         Object receiver = callableAndReceiver[1];
-        if (o == Terms.UNDEFINED) { // optional chaining
-            return o;
-        }
+        if (o == PropertyAccess.SHORT_CIRCUITED) return PropertyAccess.SHORT_CIRCUITED;
+        return invokeCallable(o, receiver, fnArgsNode, newKeyword, node, context);
+    }
+
+    // Handles `a?.(args)` shape: REF_DOT_EXPR[base, FN_CALL_EXPR[?., (, args, )]].
+    // Per spec the chain head is the base (must be evaluated once); if nullish,
+    // short-circuit the entire call without evaluating the args. Goes through
+    // getCallable so a method-reference base (`a.b?.()`) keeps `a` as receiver.
+    private static Object evalOptionalCall(Node node, CoreContext context) {
+        Object[] callableAndReceiver = PropertyAccess.getCallable(node.getFirst(), context);
+        Object o = callableAndReceiver[0];
+        Object receiver = callableAndReceiver[1];
+        if (o == PropertyAccess.SHORT_CIRCUITED) return PropertyAccess.SHORT_CIRCUITED;
+        if (o == null || o == Terms.UNDEFINED) return PropertyAccess.SHORT_CIRCUITED;
+        Node callExpr = node.get(1); // FN_CALL_EXPR -> [?., (, FN_CALL_ARGS, )]
+        Node fnArgsNode = callExpr.get(2);
+        return invokeCallable(o, receiver, fnArgsNode, false, node.getFirst(), context);
+    }
+
+    private static Object invokeCallable(Object o, Object receiver, Node fnArgsNode,
+                                          boolean newKeyword, Node node, CoreContext context) {
         if (o instanceof JsCallable callable) {
             List<Object> argsList = new ArrayList<>();
             int argsCount = fnArgsNode == null ? 0 : fnArgsNode.size();
@@ -1584,8 +1612,8 @@ class Interpreter {
             case LIT_EXPR -> evalLitExpr(node, context);
             case FN_EXPR -> evalFnExpr(node, context);
             case FN_ARROW_EXPR -> evalFnArrowExpr(node, context);
-            case FN_CALL_EXPR -> evalFnCall(node, context, false);
-            case FN_TAGGED_TEMPLATE_EXPR -> evalFnTaggedTemplate(node, context);
+            case FN_CALL_EXPR -> chainStepResult(evalFnCall(node, context, false), node);
+            case FN_TAGGED_TEMPLATE_EXPR -> chainStepResult(evalFnTaggedTemplate(node, context), node);
             case FOR_STMT -> evalForStmt(node, context);
             case IF_STMT -> evalIfStmt(node, context);
             case INSTANCEOF_EXPR -> evalInstanceOfExpr(node, context);
@@ -1603,7 +1631,16 @@ class Interpreter {
             case PAREN_EXPR -> eval(node.get(1), context);
             case PROGRAM -> evalProgram(node, context);
             case REF_EXPR -> evalRefExpr(node, context);
-            case REF_BRACKET_EXPR, REF_DOT_EXPR -> PropertyAccess.get(node, context);
+            case REF_BRACKET_EXPR -> chainStepResult(PropertyAccess.get(node, context), node);
+            case REF_DOT_EXPR -> {
+                // Special case: `a?.(args)` parses as REF_DOT_EXPR[base, FN_CALL_EXPR[?., (, args, )]]
+                // — dispatch as a call rather than a property get so the function is invoked.
+                Node second = node.size() > 1 ? node.get(1) : null;
+                Object result = (second != null && second.type == NodeType.FN_CALL_EXPR)
+                        ? evalOptionalCall(node, context)
+                        : PropertyAccess.get(node, context);
+                yield chainStepResult(result, node);
+            }
             case RETURN_STMT -> evalReturnStmt(node, context);
             case STATEMENT -> evalStatement(node, context);
             case SWITCH_STMT -> evalSwitchStmt(node, context);

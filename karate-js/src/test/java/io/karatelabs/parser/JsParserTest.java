@@ -182,6 +182,28 @@ class JsParserTest {
         expr("a.null", "[$a,'.',null]");
     }
 
+    // The optional-chaining AST must stay FLAT — successive postfix ops (`.x`,
+    // `[k]`, `(args)`) chain at the same level as the `?.` step rather than
+    // nesting inside it. The previous (recursive `expr_rhs(12)`) parsing
+    // produced nested REF_DOT_EXPRs that the interpreter couldn't traverse
+    // uniformly. Asserting the flat shape locks in the contract.
+    @Test
+    void testPathExprOptionalChain() {
+        // basic optional dot
+        expr("a?.b", "[$a,'?.',$b]");
+        // optional bracket — `?.[k]` keeps QUES_DOT inside the REF_BRACKET_EXPR
+        expr("a?.[0]", "[$a,['?.','[',0,']']]");
+        // optional call — `?.()` keeps QUES_DOT inside the FN_CALL_EXPR
+        expr("a?.()", "[$a,['?.','(',[],')']]");
+        // chaining after `?.x` flattens left-recursively — same shape as `a.b.c`
+        expr("a?.b.c", "[[$a,'?.',$b],'.',$c]");
+        expr("a?.b.c.d", "[[[$a,'?.',$b],'.',$c],'.',$d]");
+        // chaining after `?.[k]` and `?.(args)` also flattens
+        expr("a?.[0].c", "[[$a,['?.','[',0,']']],'.',$c]");
+        expr("a.b?.()", "[[$a,'.',$b],['?.','(',[],')']]");
+        expr("a.b?.().c", "[[[$a,'.',$b],['?.','(',[],')']],'.',$c]");
+    }
+
     @Test
     void testPathMix() {
         expr("(a)", "$a");

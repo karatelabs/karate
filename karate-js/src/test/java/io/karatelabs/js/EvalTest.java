@@ -838,6 +838,109 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testOptionalChainLongShortCircuit() {
+        // When `?.` fires (LHS is nullish), the WHOLE chain short-circuits to undefined,
+        // not just the immediate access. Per spec 13.3.9: a chain head's nullish base
+        // makes the whole OptionalExpression evaluate to undefined.
+        assertNull(eval("var a = undefined; a?.b.c"));
+        assertNull(eval("var a = undefined; a?.b.c.d"));
+        assertNull(eval("var a = null; a?.b.c.d.e"));
+        assertNull(eval("var a = undefined; a?.b().c"));
+        assertNull(eval("var a = null; a?.b.c().d"));
+        assertNull(eval("var a = undefined; a?.[0].x"));
+        assertNull(eval("var a = null; a?.[0].x.y"));
+        // chain succeeds, then short-circuits at a NESTED ?. that goes nullish
+        assertNull(eval("var a = { b: null }; a?.b?.c.d"));
+        // chain succeeds and reads through normally
+        assertEquals(42, eval("var a = { b: { c: { d: 42 } } }; a?.b.c.d"));
+        // ?. does NOT short-circuit when an intermediate value is null but the
+        // optional was on a non-nullish step — `null.b` still throws TypeError.
+        try {
+            eval("var obj = { a: null }; obj?.a.b.c");
+            fail("error expected");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("cannot read properties of null"));
+        }
+    }
+
+    @Test
+    void testOptionalChainSideEffectShortCircuit() {
+        // When the chain head is nullish, no further sub-expressions in the chain
+        // are evaluated — so increments / function args inside the tail must not run.
+        assertEquals(1, eval("var a = undefined; var x = 1; a?.[++x]; x"));
+        assertEquals(1, eval("var a = null; var x = 1; a?.b.c(++x).d; x"));
+        assertEquals(1, eval("var a = undefined; var x = 1; a?.b(++x); x"));
+        // when the chain succeeds, side effects DO run
+        assertEquals(20, eval("var a = [10, 20]; var x = 0; a?.[++x]"));
+        assertEquals(1, eval("var a = [10, 20]; var x = 0; a?.[++x]; x"));
+    }
+
+    @Test
+    void testOptionalCallActuallyInvokes() {
+        // `a?.()` must call `a`, not just return its value (regression: previously
+        // returned the function value without invoking).
+        assertEquals(99, eval("var f = function(){ return 99; }; f?.()"));
+        assertEquals(10, eval("var f = function(x){ return x * 2; }; f?.(5)"));
+        // null/undefined target short-circuits
+        assertNull(eval("var f = null; f?.()"));
+        assertNull(eval("var f = undefined; f?.(throwIfCalled())"));
+    }
+
+    @Test
+    void testOptionalCallPreservesThis() {
+        // `a.b?.()` must keep `a` as receiver — otherwise `this` inside b is wrong.
+        // Spec EvaluateCall passes baseValue as thisValue.
+        String setup = "var a = { b: function(){ return this._b; }, _b: 42 }; ";
+        assertEquals(42, eval(setup + "a.b?.()"));
+        assertEquals(42, eval(setup + "a?.b?.()"));
+        assertEquals(42, eval(setup + "a?.b()"));
+        // method chain after optional call
+        String setup2 = "var a = { b: function(){ return this._b; }, _b: { c: 99 } }; ";
+        assertEquals(99, eval(setup2 + "a.b?.().c"));
+        assertEquals(99, eval(setup2 + "a?.b?.().c"));
+    }
+
+    @Test
+    void testParenPreservesReceiver() {
+        // Per spec, parens preserve the Reference Record — `(a.b)()` and `(a?.b)()`
+        // call with `this = a`. Previously parens dropped the receiver.
+        String setup = "var a = { b: function(){ return this._b; }, _b: 42 }; ";
+        assertEquals(42, eval(setup + "(a.b)()"));
+        assertEquals(42, eval(setup + "(a?.b)()"));
+        assertEquals(42, eval(setup + "(a.b)?.()"));
+        assertEquals(42, eval(setup + "(a?.b)?.()"));
+        // BUT — parens terminate the optional chain. `(a?.b).c` does NOT
+        // short-circuit when a is nullish; instead `(undefined).c` throws.
+        try {
+            eval("var a = null; (a?.b).c");
+            fail("error expected — parens terminate optional chain");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("cannot read properties"));
+        }
+    }
+
+    @Test
+    void testQuesDotDecimalLookahead() {
+        // Per spec `OptionalChainingPunctuator :: ?. [lookahead ∉ DecimalDigit]`,
+        // so `1 ?.5 : 0` lexes as ternary `1 ? .5 : 0`, not `1 ?. 5 : 0`.
+        assertEquals(0.5d, eval("true ?.5 : 0"));
+        assertEquals(0.5d, eval("var x = true; x?.5 : 0"));
+        // and `?.` is still recognized when followed by non-digit
+        assertEquals(1, eval("var a = { b: 1 }; a?.b"));
+    }
+
+    @Test
+    void testNullishCoalescingShortCircuit() {
+        // RHS not evaluated when LHS is non-nullish.
+        assertEquals(0, eval("var x = 0; (function(){ x = 1; return 'r'; })(), 0 ?? (function(){ x = 2; return 'r'; })()"));
+        // chained ??
+        assertEquals(1, eval("null ?? null ?? 1"));
+        assertEquals(2, eval("null ?? 2 ?? 1"));
+        // RHS-only side effects fire when LHS IS nullish
+        assertEquals(7, eval("var x = 0; var r = null ?? (x = 7); x"));
+    }
+
+    @Test
     void testThrow() {
         try {
             eval("function a(b){ b() }; a(() => { throw new Error('foo') })");

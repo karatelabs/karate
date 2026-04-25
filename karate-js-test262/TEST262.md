@@ -98,12 +98,22 @@ Design goals:
 These are operating-mode guidelines for anyone picking up engine-compliance
 work. They apply alongside the Roadmap below.
 
-1. **Real-world JS is the target, test262 is the scorecard.** When you're
-   triaging failures, weight "does this break common LLM-written code?"
-   higher than "does this break an obscure spec corner?" A fix that
-   unblocks 500 idiomatic tests is worth more than one that tightens a
-   rarely-exercised edge case. The tier list already reflects this
-   ordering (fundamentals → common built-ins → long tail).
+1. **Real-world JS is the target, test262 is the scorecard, the spec is
+   ground truth.**
+   - When triaging, weight "does this break common LLM-written code?"
+     higher than "does this break an obscure spec corner?" A fix that
+     unblocks 500 idiomatic tests is worth more than one that tightens
+     a rarely-exercised edge case. The tier list reflects this ordering
+     (fundamentals → common built-ins → long tail).
+   - **Existing JUnit tests can be wrong.** When a hand-written test in
+     `karate-js/src/test/` disagrees with the ECMAScript spec, the spec
+     wins — read [tc39/ecma262](https://tc39.es/ecma262/) §13.x before
+     assuming the JUnit assertion is correct, and fix the test along
+     with the engine. The session that just touched a feature is the
+     cheapest moment to clean up its hand-written tests; don't preserve
+     a wrong assertion just because it has a `@Test` annotation. (If
+     you're unsure whether the existing assertion is wrong, write a
+     test262 reproducer first — that's the impartial referee.)
 
 2. **Fix friction before moving on.** If the harness makes something hard
    to see, or the engine makes something hard to debug, **stop and fix it
@@ -150,17 +160,40 @@ work. They apply alongside the Roadmap below.
    one makes test262 failures dramatically clearer, do it — this is not
    a load-bearing API guarantee.
 
-5. **Performance is a feature.** The suite runs a fresh `new Engine()` per
-   test (~50k tests); regressions of a few µs in engine startup or
-   per-statement eval cost compound into minutes of wall time. After any
-   non-trivial engine change, run
+5. **Performance is a feature — protect the hot path.** The suite runs a
+   fresh `new Engine()` per test (~50k tests); regressions of a few µs in
+   engine startup or per-statement eval cost compound into minutes of wall
+   time. After any non-trivial engine change, run
    [`EngineBenchmark`](../karate-js/src/test/java/io/karatelabs/parser/EngineBenchmark.java)
-   **in profile mode** (`EngineBenchmark profile` — 30 s warm loop, JIT-stable)
-   and compare against the reference results in
+   **in profile mode** (`EngineBenchmark profile` — 30 s warm loop,
+   JIT-stable) and compare against the reference results in
    [JS_ENGINE.md § Performance Benchmarks](../docs/JS_ENGINE.md#performance-benchmarks).
    Default (no arg) is fast mode — median-of-10 cold runs, noisy, gut-check
    only. See the [check performance](#check-performance-after-an-engine-change)
    recipe below.
+
+   When wiring a new feature, **structure dispatch so the hot path stays
+   free of new branches**. A new flag/syntax can't add a runtime check to
+   every existing property read — the cost has to be paid by the code that
+   exercises the new feature, not by the rest of the engine. Concrete
+   techniques:
+   - **Sentinel propagation > exception throwing** for non-exceptional
+     control flow. The `?.` short-circuit uses
+     `PropertyAccess.SHORT_CIRCUITED` (a singleton object identity) rather
+     than a thrown signal — every chain step pays a single reference
+     comparison; only the chain root branches. Java exceptions are slow
+     enough that doing this on a hot path costs measurably.
+   - **Pay edge-case cost on the edge case.** Validation walks (early
+     errors), AST repair, optional-feature wiring belong post-parse or in
+     error paths — not interleaved into the hot eval loop.
+   - **Static analysis once, propagate the boolean.** "Does this subtree
+     have an `?.`?" is computed at parse time on a shape that exists,
+     never recomputed in the inner loop.
+   - **Default to the no-feature path.** A new `if (cur.type == X) ...`
+     in `Interpreter.eval` should fail fast (cheap type check), not
+     allocate or recurse.
+
+   When in doubt, run profile-mode `EngineBenchmark` before and after.
 
 6. **Focused engine changes, but batched commits are fine.** A single
    commit covering several related fixes from one session (e.g. IIFE +
@@ -171,6 +204,31 @@ work. They apply alongside the Roadmap below.
    regressions. Only split commits when the work is genuinely independent
    (e.g. a purely cosmetic change alongside a behavioral fix) — not for
    its own sake.
+
+7. **Engine code is built session by session — refactor toward elegance.**
+   When you spot near-duplicate dispatch, an awkward AST shape, or a
+   workaround that's clearly the wrong layer to fix, decide between
+   "fix it now" and "write it down" — never carry the smell forward
+   implicitly. Two adjacent sessions both rediscovering the same
+   duplication is a tax on every future contributor.
+   - **Fix inline** when the unification is small and keeps the diff
+     focused. The session that just touched the area is the cheapest
+     moment for a small DRY pass — variables are loaded, spec is fresh.
+   - **File a Deferred TODO** when the cleanup is bigger than the
+     current task warrants. The TODO must include **concrete pointers**
+     (file, method, what's duplicated, what the unification looks like)
+     so a future session can land it cold without re-deriving the
+     diagnosis. Vague "this could be cleaner" notes are worthless.
+   - **Recommend cleanup in the commit message** when you noticed
+     something during the work but didn't act. Future bisects should
+     surface the observation.
+
+   A workaround is a clue that the layer below is wrong. The `?.`
+   session hit this: the parser's recursive `expr_rhs(12)` produced
+   nested REF_DOT_EXPR shapes that the interpreter couldn't traverse
+   uniformly. The right fix was at the parser (emit a flat chain), not
+   at the interpreter (handle the nested shape). When evaluating
+   "where to fix this," ask which layer's contract is being broken.
 
 ---
 
@@ -665,6 +723,59 @@ High-leverage issues that each break many tests at once.
 **Recently landed** (decisions preserved; see git log for per-commit
 detail):
 
+- **Optional chaining (`?.`) and nullish coalescing (`??`).** Both
+  retired from `expectations.yaml`. The `nullish-coalescing` skip entry
+  was a misnomer — test262 uses the `coalesce-expression` feature key,
+  so the skip rule had been matching nothing and `??` itself was
+  largely already working. Real fixes:
+  - **Lexer punctuator lookahead.** `JsLexer` for `'?'` refuses `?.`
+    when the next char is a decimal digit, so `1 ?.5 : 0` lexes as
+    `1 ? .5 : 0` per spec (`OptionalChainingPunctuator :: ?.
+    [lookahead ∉ DecimalDigit]`).
+  - **Flat-chain AST.** `JsParser.expr_rhs`'s `?.[expr]` / `?.(args)`
+    branch parses a single optional-access step (manually building the
+    `REF_BRACKET_EXPR` / `FN_CALL_EXPR` child) instead of recursing
+    into `expr_rhs(12)`. Result: `a?.b.c` and `a.b?.().c` both produce
+    a uniform left-recursive REF_DOT_EXPR chain — the interpreter
+    walks one shape, not the previous nested-tail shape that didn't
+    have a clean dispatch path.
+  - **Spec early errors.** `JsParser.validateOptionalChainEarlyErrors`
+    is a single post-parse walk that throws `ParserException` for
+    assignment, `++/--`, or tagged-template after `?.` (the
+    `static-semantics-simple-assignment`,
+    `update-expression-prefix/postfix`,
+    `early-errors-tail-position-optchain-template-string` clusters).
+    Done post-parse rather than inline so the inner expr-loop stays
+    branch-free.
+  - **`SHORT_CIRCUITED` sentinel + chain-root catch.**
+    `PropertyAccess.SHORT_CIRCUITED` (distinct identity from
+    `Terms.UNDEFINED`) propagates through chain steps; each chain-step
+    method does a single `==` check. `Interpreter.chainStepResult`
+    converts it to UNDEFINED only at the chain root, identified via
+    `PropertyAccess.isChainRoot` walking up `Node.getParent`. The
+    "distinct from UNDEFINED" detail is load-bearing: `obj?.a.b` where
+    `obj.a == null` still throws TypeError per spec — only nullish *at
+    the `?.` step itself* short-circuits, and a normal-undefined value
+    flowing through the chain mid-way must NOT be confused with a
+    short-circuit signal.
+  - **`a?.()` actually invokes.** `Interpreter.evalOptionalCall`
+    dispatched from the `REF_DOT_EXPR` switch when its second child is
+    `FN_CALL_EXPR`. Previously this shape returned the function value
+    instead of calling it. Goes through `getCallable` so `a.b?.()`
+    keeps `a` as receiver.
+  - **PAREN_EXPR receiver preservation.** `(a.b)()` now binds
+    `this = a` (was a pre-existing bug; it manifested in
+    `optional-call-preserves-this.js`).
+    `PropertyAccess.getCallableParenInner` recurses through
+    single-expression parens to the underlying property-access node.
+    Parens also terminate the optional chain — `SHORT_CIRCUITED` is
+    converted to UNDEFINED at the paren boundary so `(a?.b)()`
+    short-circuits then throws "not a function" rather than silently
+    returning undefined.
+  - Slice deltas: `optional-chaining/**` 10 → **25 PASS** of 32
+    non-skip; `coalesce/**` 16 PASS of 22 non-skip. Remaining
+    `coalesce/**` fails are negative parse tests for `a || b ?? c`
+    precedence and a Symbol dependency — separate from `??` proper.
 - **Destructuring — default-undefined + iterable-check.**
   `destructurePattern` now reads object-source properties via
   `ObjectLike.getMember` instead of the Java `Map.get`. Reason: `JsObject`
@@ -734,7 +845,8 @@ detail):
   `let/dstr/**` 21 → **47**, `const/dstr/**` 21 → **47**,
   `expressions/function/**` 37 → **56** (destructured params).
 - **`Object` built-ins: 298 → 552 PASS** after the ToString overhaul.
-  Remaining ~1850 fails are property-descriptor semantics — see item 4.
+  Remaining ~1850 fails are property-descriptor semantics — see item 8
+  (descriptor infra) below.
 - **Spec `ToString` unified** via `Terms.toStringCoerce(Object,
   CoreContext)`; `JsObjectPrototype` / `JsArrayPrototype` /
   `JsBooleanPrototype` / `JsNumberPrototype` have spec-correct
@@ -759,26 +871,7 @@ worth its own session**, `Boolean/**` 23/19, `Object/prototype/**`
 
 ---
 
-**1. Optional chaining (`?.`) + nullish coalescing (`??`).**
-
-Both currently skipped (`feature: optional-chaining`,
-`feature: nullish-coalescing`). LLMs write
-`config?.server?.port ?? 8080` reflexively — defensive property access
-plus default fallback, the single most common modern JS pattern after
-destructuring.
-
-Shape: new tokens (`?.`, `??`), parser slots in the postfix chain
-(optional chaining) and logical-operator tier (nullish coalescing),
-interpreter short-circuit on nullish. Small-to-mid session; bundle
-them — shared short-circuit-on-nullish machinery. Remove both skip
-entries.
-
-**Why first:** cheapest *and* highest-frequency. Any paste from a
-modern codebase breaks at the first `?.` today.
-
----
-
-**2. Promises + async/await.**
+**1. Promises + async/await.**
 
 Currently all skipped (`feature: Promise`, `feature: async-functions`,
 `flag: async`). Despite the skips, 142 `Promise/**` tests leak through
@@ -813,13 +906,13 @@ interpreter treats `await` as "unwrap thenable now, re-raise if
 rejected." Retire the three skip entries plus `for-await-of` (if in
 scope).
 
-**Why second:** user-flagged as "sooner" and rightly — LLMs default to
+**Why first:** user-flagged as "sooner" and rightly — LLMs default to
 `async`/`await` even for synchronous-looking code. Without it the
 engine rejects a large fraction of idiomatic modern JS.
 
 ---
 
-**3. Iteration-layer unification + un-skip `Symbol.iterator`.**
+**2. Iteration-layer unification + un-skip `Symbol.iterator`.**
 
 Right now karate-js has **ad-hoc iteration** scattered across sites
 that each special-case `List` / `String` / `JsArray`:
@@ -852,14 +945,14 @@ call sites above. (3) Remove `feature: Symbol.iterator` from
 `JsString` as a well-known-symbol alias. Real `Symbol()` construction
 can stay skipped.
 
-**Why third:** architectural, but this session's work exposed how
+**Why second:** architectural, but this session's work exposed how
 fragile the ad-hoc pattern is. One refactor retires a massive SKIP
-cluster *and* enables #6 (Map/Set) + more robust `for-of`. Per
+cluster *and* enables #5 (Map/Set) + more robust `for-of`. Per
 Working Principle #2 — the friction is real; fix it now.
 
 ---
 
-**4. Class syntax (ES6).**
+**3. Class syntax (ES6).**
 
 Currently skipped (`feature: class` plus five `class-*` variants).
 LLMs default to `class Foo extends Bar {}` when they want OO.
@@ -872,14 +965,14 @@ Shape: (1) parser recognizes `class`/`extends`/method-definitions;
 (4) `static` members become direct function properties. Mid-to-large
 session. Retire the six `class-*` skips.
 
-**Why fourth:** qualitatively important but larger scope. Existing
+**Why third:** qualitatively important but larger scope. Existing
 karate-js code that uses prototype syntax directly still works, so
 this is coverage for new LLM-written code, not a break-fix for
 existing users.
 
 ---
 
-**5. BigInt.**
+**4. BigInt.**
 
 Currently fully skipped (`feature: BigInt` gates 77 `BigInt/**`
 tests). LLMs reach for BigInt occasionally — cryptographic math, ID
@@ -893,12 +986,12 @@ BigInt/Number without explicit coercion, `typeof` → `"bigint"`,
 `BigInt()` constructor global. Medium session. Retire the BigInt
 skip.
 
-**Why fifth:** user-explicit ask, genuinely useful, but lower
-frequency than #1–#4 in real-world glue code.
+**Why fourth:** user-explicit ask, genuinely useful, but lower
+frequency than #1–#3 in real-world glue code.
 
 ---
 
-**6. Utility-method sweep + Map / Set.**
+**5. Utility-method sweep + Map / Set.**
 
 Across `String/**` (267/783), `Array/prototype/**` (595/1808), and
 `Object/prototype/**` (66/104), a large fraction of fails are
@@ -912,8 +1005,8 @@ missing-method gaps rather than wrong-semantics:
 - `Map` and `Set` constructors (both fully skipped today; reach-for
   default for LLMs doing lookups, deduplication)
 
-`Map`/`Set` depend on #3 (iterator protocol) for their constructors
-`new Map(iterable)`. Cluster this after #3 so the collection work can
+`Map`/`Set` depend on #2 (iterator protocol) for their constructors
+`new Map(iterable)`. Cluster this after #2 so the collection work can
 ride on the unified iteration surface.
 
 Shape: methodical — pick a built-in, implement missing methods with
@@ -921,13 +1014,13 @@ reference to the spec, add regression tests. Each subsection is a
 single commit's worth of work, test-count delta in the hundreds per
 session.
 
-**Why sixth:** cumulative impact is huge but each individual gap is
+**Why fifth:** cumulative impact is huge but each individual gap is
 small. Tractable but tedious; can be parallelized or dripped in
 between bigger projects.
 
 ---
 
-**7. Date polish.**
+**6. Date polish.**
 
 30/373 is the worst basic-slice number. `JsDate` passes its JUnit
 suite but spec conformance is poor — likely `valueOf` /
@@ -939,12 +1032,12 @@ Shape: audit the 373 fails, group by method, fix per-method. Probably
 a single-session sweep. No skip-list change needed; it's a
 conformance effort, not a feature-gate.
 
-**Why seventh:** surprisingly bad but per-test fixes, not
+**Why sixth:** surprisingly bad but per-test fixes, not
 architectural. Worth doing when Date pain surfaces in a real workload.
 
 ---
 
-**8. Destructuring-assignment residuals (75).**
+**7. Destructuring-assignment residuals (75).**
 
 After this session's fixes, the 75 remaining fails are low-leverage:
 47 need lexer identifier-escape support (LLMs don't write
@@ -954,7 +1047,7 @@ Demoted from previous-session's #1.
 
 ---
 
-**9. Deferred — descriptor infra, low LLM-leverage.**
+**8. Deferred — descriptor infra, low LLM-leverage.**
 
 - **Array cliff (~1896 FAILs)**, **Object-attribute polish
   (~1855 FAILs)**, **harness helpers (`propertyHelper.js`,
@@ -970,8 +1063,8 @@ Demoted from previous-session's #1.
   LLM-generated code hits. Treat the descriptor layer as one project
   (not three) — but only worth starting when the skip list's SKIP
   fraction is hiding too much other signal. Currently item #2
-  (iteration unification) is a cheaper way to retire a big cluster of
-  SKIPs.
+  (iteration unification, above) is a cheaper way to retire a big
+  cluster of SKIPs.
 
 ---
 
@@ -1003,6 +1096,18 @@ not a bucket — pick off while nearby.
 
 Items left for later; un-scheduled but tracked.
 
+- **Unify the read-side dot dispatch in `PropertyAccess`.** The
+  write-side (set / compound / postIncDec / preIncDec / delete) was
+  unified through `resolveWriteSite` + `AccessSite` in the `?.`
+  session — 10 near-duplicate dispatch wrappers collapsed. The
+  read-side (`getRefDotExpr`, `getCallableRefDotExpr`) still has
+  mirrored bridge-fallback + `?.` logic with slightly different
+  return shapes (single `Object` vs `Object[]{value, receiver}`).
+  Unifying these would either need a shared helper that returns both
+  shapes (allocates a wrapper — bad for the hot path) or a
+  callback-style "what to do when bridge resolves the full path"
+  parameter. Defer until there's a third caller that wants the same
+  resolution shape, or until the read paths grow another concern.
 - **Replace hand-rolled YAML parser with SnakeYAML.** `Expectations.java`
   and `Test262Metadata.java` are hand-rolled to avoid the dep. They break
   on `#` in quoted reasons, block-scalar (`|`, `>`) `description:` fields,

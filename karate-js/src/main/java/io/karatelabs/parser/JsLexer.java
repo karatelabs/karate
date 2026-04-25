@@ -607,7 +607,11 @@ public class JsLexer extends BaseLexer {
                 return DOT;
 
             case '?':
-                if (match('.')) {
+                // `?.` is the optional-chaining punctuator UNLESS the next char is a
+                // decimal digit — per spec the lookahead `?. [lookahead ∉ DecimalDigit]`
+                // makes `1 ?.5 : 0` lex as `1 ? .5 : 0` rather than `1 ?. 5 : 0`.
+                if (peek() == '.' && !isDigit(peek(1))) {
+                    match('.');
                     return QUES_DOT;
                 }
                 if (match('?')) {
