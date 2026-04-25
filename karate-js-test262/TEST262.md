@@ -952,27 +952,18 @@ Action list — start at the top. Ordered by core-engine confidence
 score impact (a one-fix harness unblock beats ten one-test patches).
 Re-probe with the relevant `--only` glob before scoping a session.
 
-Current state baseline (2026-04, post void operator + binary/octal literals):
+Current state baseline (2026-04, post descriptor infra):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
-| `test/language/**` | 3093 | 3040 | 15150 | 21283 |
+| `test/language/**` | 3121 | 3012 | 15150 | 21283 |
 | `test/built-ins/Math/**` | 177 | 28 | 122 | 327 |
-| `test/built-ins/Number/**` | 195 | 86 | 59 | 340 |
-| `test/built-ins/String/**` | 346 | 675 | 202 | 1223 |
-| `test/built-ins/Array/**` | 1006 | 1574 | 501 | 3081 |
-| `test/built-ins/Object/**` | 529 | 1893 | 989 | 3411 |
+| `test/built-ins/Number/**` | 187 | 94 | 59 | 340 |
+| `test/built-ins/String/**` | 349 | 672 | 202 | 1223 |
+| `test/built-ins/Array/**` | 1085 | 1495 | 501 | 3081 |
+| `test/built-ins/Object/**` | 975 | 1447 | 989 | 3411 |
 | `test/built-ins/Date/**` | 374 | 4 | 216 | 594 |
-| `test/built-ins/Function/**` | 194 | 159 | 156 | 509 |
-
-> **Note:** Object-literal getter/setter parsing (previously listed at
-> the top of Tier 1) was already implemented — see
-> `EvalTest.testObjectGettersAndSetters` and commit
-> `184598c3a`. The TEST262.md text was stale. Step 1 of Tier 2's
-> *Descriptor infra* (the parser piece) is therefore already done; the
-> remaining work is steps 2–5 (accessor descriptors threaded through
-> `ObjectLike.putMember`/`getMember` → `Object.defineProperty` →
-> `getOwnPropertyDescriptor` → `isExtensible`/`freeze`).
+| `test/built-ins/Function/**` | 204 | 149 | 156 | 509 |
 
 ### Tier 1 — core-engine parser/expression gaps
 
@@ -989,43 +980,45 @@ where every fix shows up on the scorecard for the right reason.
   bounded but the cluster otherwise stays a source of "engine too
   lenient" noise.
 
-### Tier 2 — harness unblock (largest single score lever)
+### Tier 2 — descriptor attribute enforcement (un-skip harness)
 
-- **Descriptor infra — accessor literals → `Object.defineProperty` →
-  `getOwnPropertyDescriptor` → `isExtensible` / `freeze`.** Combined
-  unlock across `propertyHelper.js` (~1810 SKIP) and `compareArray.js`
-  (~382 SKIP) is roughly **2200 tests gated**, the largest single
-  lever on the board. Most of those gated tests don't *test*
-  descriptors — they test iteration, comparison, object identity
-  through a harness that happens to need accessors. Engine surface
-  area we already support, currently invisible to the scorecard.
-  Also retires:
-  - All 4 Date residuals (`toJSON/{builtin,invoke-arguments,
-    invoke-abrupt,to-primitive-abrupt}.js`).
-  - Map/Set `does-not-have-mapdata-internal-slot.js` and the
-    `Object.getOwnPropertyDescriptor(Map.prototype, 'size').get`
-    cluster.
-  - The `prop-desc.js` cluster (small directly, large via includes).
+- **Per-property attribute bits (`writable` / `enumerable` /
+  `configurable`).** The descriptor surface is in place
+  (`Object.defineProperty` / `getOwnPropertyDescriptor` / accessor
+  literals / `isExtensible` / `seal` / `freeze`), but the attribute
+  triplet is reported hardcoded `true` on the read path and not
+  enforced anywhere on the write path. Until those bits are tracked
+  per-property, the `propertyHelper.js` and `compareArray.js`
+  harness includes have to stay skipped — un-skipping today net-
+  regresses Array/String slices because tests verifying built-in
+  prototype properties as `non-writable / non-enumerable` get
+  back `writable: true` from us and FAIL en masse.
 
+  Predicted impact: ~+1500–2200 PASS once both the attribute
+  triplet is tracked AND the two harness includes are un-skipped
+  (combined `propertyHelper.js` + `compareArray.js` SKIPs).
   Order of attack:
-  1. Object-literal `get foo()` / `set foo(v)` parsing (the Tier-1
-     item above — start it here if not done sooner).
-  2. `JsAccessor` already exists; thread accessor descriptors
-     through `ObjectLike.putMember` / `getMember` so they're
-     installable from JS.
-  3. `Object.defineProperty(o, k, {get, set, value, writable,
-     enumerable, configurable})` — accept all six attribute keys,
-     reject conflicts (data + accessor) per spec.
-  4. `Object.getOwnPropertyDescriptor` — return an attribute object
-     with the right keys.
-  5. `Object.isExtensible` / `Object.preventExtensions` /
-     `Object.freeze` / `Object.seal` — minimal but honest impls
-     that gate `putMember` / `defineProperty`.
-
-  Predicted impact: +200–400 PASS in one session if scoped to (a)–(c);
-  full attribute enforcement (the writable/enumerable bits actually
-  enforced everywhere) deferred to a follow-up session that un-skips
-  the harness rules.
+  1. Add a parallel `Map<String, AttributeFlags>` on `JsObject`
+     (sparse — only properties whose attributes deviate from the
+     default `{writable, enumerable, configurable: true}` use a
+     slot, since that triplet is the new-property default). Memory
+     footprint stays near zero on the common case.
+  2. `defineProperty` writes to that map when the descriptor
+     specifies any of the three; default missing fields per spec
+     (false for new properties, preserve for existing).
+  3. `getOwnPropertyDescriptor` reads from that map, falling back
+     to the all-true default. Same for `getOwnPropertyDescriptors`.
+  4. Enforce on write paths: `putMember` checks `writable` / extensible;
+     `removeMember` checks `configurable`; `for...in` skips
+     `enumerable: false`.
+  5. Wire `seal` / `freeze` to populate the attribute map for
+     all existing keys (currently they only flip the per-object
+     flags). Keep the per-object flags as a fast-path early exit
+     on the write path so frozen objects don't have to walk the
+     map for every key.
+  6. Un-skip `propertyHelper.js` and `compareArray.js` in
+     `expectations.yaml`. Probe each major built-in slice; expect
+     net positive across all of them.
 
 ### Tier 3 — cross-cutting feature unblock
 
@@ -1105,6 +1098,69 @@ Smaller items, picked off when nearby. Not session-sized on their own.
 Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
+
+- **Descriptor infra — `Object.defineProperty` accessor descriptors,
+  `getOwnPropertyDescriptor` accessor shape, `isExtensible` /
+  `preventExtensions` / `seal` / `freeze`.** Tier 2 step 1 (parser)
+  was already shipped; this lands steps 2–5 except per-property
+  attribute enforcement (the deferred step listed in the new Tier 2).
+
+  | `--only` glob | Before | After | Δ |
+  |---|---|---|---|
+  | `test/built-ins/Object/**` | 529 / 1893 / 989 | **975** / 1447 / 989 | **+446** |
+  | `test/built-ins/Array/**` | 1006 / 1574 / 501 | **1085** / 1495 / 501 | **+79** |
+  | `test/built-ins/Function/**` | 194 / 159 / 156 | **204** / 149 / 156 | **+10** |
+  | `test/language/**` | 3093 / 3040 / 15150 | **3121** / 3012 / 15150 | **+28** |
+
+  Concretely:
+  - **`Object.defineProperty` accepts accessor descriptors.**
+    `JsObjectConstructor.defineProperty` previously silently dropped
+    `get`/`set` keys (only `value` did anything). Now it detects the
+    descriptor type (data: `value`/`writable`; accessor: `get`/`set`),
+    rejects the data+accessor conflict per spec, validates that
+    `get`/`set` are callables, and constructs a `JsAccessor` installed
+    via `putMember`. Merge with existing accessor: defining only one
+    half preserves the other (matches the literal path's behavior in
+    `evalLitObject`).
+  - **`getOwnPropertyDescriptor` returns the right shape.** New
+    `buildDescriptor` helper detects `JsAccessor` slots and returns
+    `{get, set, enumerable, configurable}`; data slots return
+    `{value, writable, enumerable, configurable}`. The triplet
+    `enumerable / writable / configurable` is hardcoded `true` —
+    that's the deferred Tier 2 work.
+  - **`Object.isExtensible / preventExtensions / isSealed / seal /
+    isFrozen / freeze`.** Per-`JsObject` boolean flags (`nonExtensible`
+    / `sealed` / `frozen`); `putMember` consults them at the write
+    boundary (frozen → ignore; non-extensible → ignore writes that
+    would create a new key, allow updates to existing). Per-property
+    attribute slots aren't tracked, so the per-key sealing dimension
+    of `seal` (configurable: false on existing keys) is approximate —
+    enough for most tests but not for ones verifying individual key
+    descriptors after seal.
+  - **`Array.prototype.*` methods see accessor values, not wrappers.**
+    `JsArrayPrototype.rawList` builds an array-like snapshot via
+    `getMember(String.valueOf(i))`. Without my change, an accessor
+    installed via `defineProperty(obj, "1", {set: ...})` would surface
+    in the snapshot as a raw `JsAccessor` object (callbacks would see
+    `typeof JsAccessor === "object"`, not `undefined`). Fixed by
+    detecting `JsAccessor` in the snapshot loop and resolving through
+    the getter (or `UNDEFINED` for setter-only). This unlocked ~20
+    `Array.prototype.*` regression tests.
+
+  Residual fails (each blocked on infra not in this session):
+  - **`propertyHelper.js` users with non-writable / non-enumerable /
+    non-configurable expectations.** ~2200 tests gated; un-skipping
+    today net-regresses Array/String slices because we report all
+    three attributes as `true`. The next Tier-2 item handles this.
+  - **`compareArray.js` un-skipped users with accessor-throws-to-
+    terminate iteration patterns.** Same blocker — without
+    configurable enforcement on `length`, those tests can hang.
+  - **Setter side effects on existing JsArray indices** —
+    `defineProperty(arr, "0", {set: fn})` doesn't dispatch through
+    `JsArray.getMember(numeric)` because that path uses canonical
+    numeric-index resolution (`list.get(i)`) and bypasses the
+    JsAccessor map. Cluster of ~5 fails. Probably small but
+    requires a numeric-index-vs-accessor coexistence story.
 
 - **`void` unary operator + binary/octal numeric literals.**
   Two adjacent parser/lexer gaps that surfaced while triaging the

@@ -38,6 +38,15 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
 
     private Map<String, Object> _map;
     private ObjectLike __proto__;
+    // Extensibility flags for Object.preventExtensions / seal / freeze.
+    // Tracked here as plain booleans rather than per-property attribute slots:
+    // sealed/frozen apply to the *whole* object uniformly, so a single flag
+    // on JsObject is enough for the common case. Per-property attribute
+    // tracking (writable/enumerable/configurable) would need extra state and
+    // is the deferred follow-up listed in TEST262.md.
+    private boolean nonExtensible;
+    private boolean sealed;
+    private boolean frozen;
 
     JsObject(Map<String, Object> map) {
         this._map = map;
@@ -122,10 +131,47 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
             }
             return;
         }
+        // Frozen: silently ignore all writes (lenient mode — strict-mode
+        // TypeError flip lives elsewhere). Non-extensible: ignore writes
+        // that would *create* a new own property; existing-key updates are
+        // still allowed (sealed differs from frozen by allowing them).
+        if (frozen) {
+            return;
+        }
+        if (nonExtensible && (_map == null || !_map.containsKey(name))) {
+            return;
+        }
         if (_map == null) {
             _map = new LinkedHashMap<>();
         }
         _map.put(name, value);
+    }
+
+    boolean isExtensible() {
+        return !nonExtensible;
+    }
+
+    boolean isSealed() {
+        return sealed || frozen;
+    }
+
+    boolean isFrozen() {
+        return frozen;
+    }
+
+    void preventExtensions() {
+        this.nonExtensible = true;
+    }
+
+    void seal() {
+        this.nonExtensible = true;
+        this.sealed = true;
+    }
+
+    void freeze() {
+        this.nonExtensible = true;
+        this.sealed = true;
+        this.frozen = true;
     }
 
     @Override

@@ -118,8 +118,18 @@ class JsArrayPrototype extends Prototype {
             if (lenObj instanceof Number n) {
                 int len = Math.max(n.intValue(), 0);
                 List<Object> snapshot = new ArrayList<>(len);
+                CoreContext cc = context instanceof CoreContext cx ? cx : null;
                 for (int i = 0; i < len; i++) {
                     Object v = ol.getMember(String.valueOf(i));
+                    // Accessor descriptors installed via Object.defineProperty
+                    // sit in the map as JsAccessor instances. Resolve through
+                    // the getter so callbacks see real values, not the
+                    // accessor wrapper. Setter-only accessors yield undefined.
+                    if (v instanceof JsAccessor acc) {
+                        v = acc.getter == null || cc == null
+                                ? Terms.UNDEFINED
+                                : Interpreter.invokeGetter(acc.getter, ol, cc);
+                    }
                     snapshot.add(v == null ? Terms.UNDEFINED : v);
                 }
                 return snapshot;

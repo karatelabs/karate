@@ -644,10 +644,53 @@ class JsObjectTest extends EvalBase {
     }
 
     @Test
+    void testDefinePropertyAccessor() {
+        // Getter installed via defineProperty fires on read.
+        assertEquals(42, eval(
+                "var o = {}; Object.defineProperty(o, 'x', {get: function() { return 42; }}); o.x"));
+        // Setter installed via defineProperty fires on write; getter unmodified.
+        assertEquals(99, eval(
+                "var captured; var o = {};"
+                        + " Object.defineProperty(o, 'x', {set: function(v) { captured = v; }});"
+                        + " o.x = 99; captured"));
+        // Paired getter+setter share state on the same key.
+        assertEquals(20, eval(
+                "var o = {_n: 0};"
+                        + " Object.defineProperty(o, 'n', {"
+                        + "  get: function() { return this._n; },"
+                        + "  set: function(v) { this._n = v * 2; } });"
+                        + " o.n = 10; o.n"));
+        // Defining only `set` preserves an existing `get`.
+        assertEquals(8, eval(
+                "var captured; var o = {};"
+                        + " Object.defineProperty(o, 'x', {get: function() { return 7; }});"
+                        + " Object.defineProperty(o, 'x', {set: function(v) { captured = v; }});"
+                        + " o.x = 1; captured + o.x")); // setter captured 1; getter still returns 7
+
+        // getOwnPropertyDescriptor returns accessor-shape for accessor slots.
+        assertEquals(true, eval(
+                "var o = {}; Object.defineProperty(o, 'x', {get: function(){return 1;}});"
+                        + " var d = Object.getOwnPropertyDescriptor(o, 'x');"
+                        + " typeof d.get === 'function' && d.value === undefined && d.writable === undefined"));
+        // Object literal accessor via getOwnPropertyDescriptor.
+        assertEquals("function", eval(
+                "var o = { get foo() { return 1; } };"
+                        + " typeof Object.getOwnPropertyDescriptor(o, 'foo').get"));
+    }
+
+    @Test
     void testDefinePropertyRejectsInvalidInputs() {
         assertThrows(Exception.class, () -> eval("Object.defineProperty(null, 'x', {value: 1})"));
         assertThrows(Exception.class, () -> eval("Object.defineProperty({}, 'x', null)"));
         assertThrows(Exception.class, () -> eval("Object.defineProperty({}, 'x', undefined)"));
+        // Data + accessor descriptor conflict.
+        assertThrows(Exception.class, () -> eval(
+                "Object.defineProperty({}, 'x', {value: 1, get: function(){return 1;}})"));
+        // Non-callable get / set.
+        assertThrows(Exception.class, () -> eval(
+                "Object.defineProperty({}, 'x', {get: 'not a function'})"));
+        assertThrows(Exception.class, () -> eval(
+                "Object.defineProperty({}, 'x', {set: 42})"));
     }
 
     @Test
@@ -655,6 +698,64 @@ class JsObjectTest extends EvalBase {
         assertEquals(true, eval(
                 "var o = {}; Object.defineProperties(o, {a: {value: 1}, b: {value: 2}});"
                         + " o.a === 1 && o.b === 2"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Object.isExtensible / preventExtensions / isSealed / seal / isFrozen / freeze
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testExtensibilityPredicates() {
+        // New objects are extensible.
+        assertEquals(true, eval("Object.isExtensible({})"));
+        // Primitives report false for extensible (post-ES2015 relaxation: not a TypeError).
+        assertEquals(false, eval("Object.isExtensible(1)"));
+        assertEquals(false, eval("Object.isExtensible('s')"));
+        // Non-frozen / non-sealed objects.
+        assertEquals(false, eval("Object.isSealed({})"));
+        assertEquals(false, eval("Object.isFrozen({})"));
+        // Primitives are sealed/frozen by definition.
+        assertEquals(true, eval("Object.isSealed(1)"));
+        assertEquals(true, eval("Object.isFrozen(1)"));
+    }
+
+    @Test
+    void testPreventExtensions() {
+        assertEquals(true, eval(
+                "var o = {a: 1}; Object.preventExtensions(o);"
+                        + " !Object.isExtensible(o)"));
+        // Existing key updates still go through.
+        assertEquals(2, eval(
+                "var o = {a: 1}; Object.preventExtensions(o); o.a = 2; o.a"));
+        // New keys silently ignored (lenient — no strict-mode TypeError).
+        assertEquals(true, eval(
+                "var o = {}; Object.preventExtensions(o); o.x = 1; o.x === undefined"));
+    }
+
+    @Test
+    void testFreeze() {
+        assertEquals(true, eval(
+                "var o = {a: 1}; Object.freeze(o); Object.isFrozen(o)"));
+        // Sealed and frozen imply non-extensible.
+        assertEquals(false, eval(
+                "var o = {}; Object.freeze(o); Object.isExtensible(o)"));
+        assertEquals(true, eval(
+                "var o = {}; Object.freeze(o); Object.isSealed(o)"));
+        // Existing key updates blocked on a frozen object (lenient ignore).
+        assertEquals(1, eval(
+                "var o = {a: 1}; Object.freeze(o); o.a = 99; o.a"));
+    }
+
+    @Test
+    void testSeal() {
+        assertEquals(true, eval(
+                "var o = {a: 1}; Object.seal(o); Object.isSealed(o)"));
+        // Sealed → non-extensible but existing data writes still go through.
+        assertEquals(99, eval(
+                "var o = {a: 1}; Object.seal(o); o.a = 99; o.a"));
+        // New keys blocked on sealed.
+        assertEquals(true, eval(
+                "var o = {}; Object.seal(o); o.x = 1; o.x === undefined"));
     }
 
 }
