@@ -267,7 +267,7 @@ class JsObjectConstructor extends JsFunction {
             return Terms.UNDEFINED;
         }
         String prop = args[1].toString();
-        if (!ownKeys(args[0]).contains(prop)) {
+        if (!isOwnKey(args[0], prop)) {
             return Terms.UNDEFINED;
         }
         return buildDescriptor(ownGet(args[0], prop), ownAttrs(args[0], prop));
@@ -278,10 +278,44 @@ class JsObjectConstructor extends JsFunction {
             throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
         Map<String, Object> result = new LinkedHashMap<>();
-        for (String key : ownKeys(args[0])) {
+        // toMap() entries plus any intrinsic keys that are reachable but not in toMap.
+        java.util.LinkedHashSet<String> keys = new java.util.LinkedHashSet<>(ownKeys(args[0]));
+        // Built-in constructors / prototypes report their intrinsics via
+        // hasOwnIntrinsic. These don't appear in toMap() — discover them by
+        // probing a fixed set of well-known names. The set is the union of
+        // intrinsic names known to the JsFunction hierarchy plus what built-in
+        // constructors typically declare; subclasses are responsible for
+        // returning true from hasOwnIntrinsic for names they expose.
+        if (args[0] instanceof JsObject jo) {
+            for (String name : INTRINSIC_PROBE_NAMES) {
+                if (!keys.contains(name) && jo.hasOwnIntrinsic(name)) {
+                    keys.add(name);
+                }
+            }
+        }
+        for (String key : keys) {
             result.put(key, buildDescriptor(ownGet(args[0], key), ownAttrs(args[0], key)));
         }
         return result;
+    }
+
+    /**
+     * Names probed by {@link #getOwnPropertyDescriptors} when discovering
+     * intrinsic-only keys (those not in {@code toMap()}). Keep this list short
+     * — it's used to enumerate descriptors for built-in constructors /
+     * prototypes that don't materialize their intrinsic entries in
+     * {@code _map}. The single-property {@code getOwnPropertyDescriptor} path
+     * does not use this list (it consults {@code hasOwnIntrinsic} for the
+     * given name directly).
+     */
+    private static final String[] INTRINSIC_PROBE_NAMES = {
+            "length", "name", "prototype", "constructor"
+    };
+
+    private static boolean isOwnKey(Object obj, String key) {
+        if (obj instanceof JsObject jo) return jo.isOwnProperty(key);
+        if (ownKeys(obj).contains(key)) return true;
+        return false;
     }
 
     /**
@@ -476,7 +510,7 @@ class JsObjectConstructor extends JsFunction {
     }
 
     private static byte ownAttrs(Object obj, String key) {
-        if (obj instanceof JsObject jo) return jo.getAttrs(key);
+        if (obj instanceof JsObject jo) return jo.getOwnAttrs(key);
         return JsObject.ATTRS_DEFAULT;
     }
 
@@ -512,7 +546,18 @@ class JsObjectConstructor extends JsFunction {
 
     @SuppressWarnings("unchecked")
     private static Object ownGet(Object obj, String key) {
-        if (obj instanceof ObjectLike ol) return ol.toMap().get(key);
+        if (obj instanceof ObjectLike ol) {
+            // Intrinsic own properties (length, name, prototype, etc.) live
+            // in getMember switches, not in toMap(). Fall through to getMember
+            // when the toMap()'s missing the key — but only after toMap reports
+            // absence so user-set values still win over intrinsics.
+            Map<String, Object> m = ol.toMap();
+            if (m.containsKey(key)) return m.get(key);
+            if (obj instanceof JsObject jo && jo.hasOwnIntrinsic(key)) {
+                return ol.getMember(key);
+            }
+            return Terms.UNDEFINED;
+        }
         if (obj instanceof Map<?, ?> m) return ((Map<String, Object>) m).get(key);
         return Terms.UNDEFINED;
     }

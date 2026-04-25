@@ -136,7 +136,7 @@ class JsObjectPrototype extends Prototype {
             return proto.hasOwnMember(prop);
         }
         if (thisObj instanceof JsObject jo) {
-            return jo.toMap().containsKey(prop) || jo.hasOwnIntrinsic(prop);
+            return jo.isOwnProperty(prop);
         }
         if (thisObj instanceof ObjectLike ol) {
             return ol.toMap().containsKey(prop);

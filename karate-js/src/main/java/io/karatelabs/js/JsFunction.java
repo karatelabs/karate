@@ -94,6 +94,34 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
         return true;
     }
 
+    /**
+     * Spec attribute defaults for the four intrinsics every function carries.
+     * Per ECMA-262 §10.2.4 / §10.2.5:
+     * <ul>
+     *   <li>{@code length} / {@code name}: {@code {writable: false,
+     *       enumerable: false, configurable: true}}.</li>
+     *   <li>{@code prototype} on a <em>user-defined</em> function:
+     *       {@code {writable: true, enumerable: false, configurable: false}}
+     *       — this is the default returned here, since most idiomatic JS
+     *       does {@code Sub.prototype = Object.create(Super.prototype)}.
+     *       Built-in constructors (Array, Date, Number, etc.) override to
+     *       all-false (non-writable, non-enumerable, non-configurable).</li>
+     *   <li>{@code constructor} on a function's prototype is
+     *       {@code {writable: true, enumerable: false, configurable: true}}.</li>
+     * </ul>
+     * Returning these directly is cheaper than allocating a per-property entry
+     * in {@code _attrs} for every built-in function in the JVM.
+     */
+    @Override
+    public byte getOwnAttrs(String name) {
+        return switch (name) {
+            case "length", "name" -> CONFIGURABLE;
+            case "prototype" -> WRITABLE;
+            case "constructor" -> WRITABLE | CONFIGURABLE;
+            default -> super.getOwnAttrs(name);
+        };
+    }
+
     @Override
     public boolean hasOwnIntrinsic(String name) {
         // Every function exposes prototype, name, length, and constructor as own.
@@ -103,6 +131,13 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
 
     @Override
     public Object getMember(String name) {
+        // Tombstoned intrinsic (post `delete fn.length` / `delete fn.name`):
+        // skip the field fallback entirely. JsObject.getMember already walks
+        // the prototype chain for tombstoned names, which is the correct
+        // resolution (no own → up the chain).
+        if (isTombstoned(name)) {
+            return super.getMember(name);
+        }
         // For functions, "prototype" returns the function's prototype object
         // Check _map first to allow "Foo.prototype = ..." assignments
         if ("prototype".equals(name)) {

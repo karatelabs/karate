@@ -236,4 +236,71 @@ class JsMathTest extends EvalBase {
         assertEquals(1234567.88, engine.eval("roundHalfUp(1234567.884, 2)"));
     }
 
+    // -------------------------------------------------------------------------
+    // Built-in property descriptor / intrinsic attribution.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testMathMethodsHaveOwnLengthAndName() {
+        // Math.abs has the right own intrinsics.
+        assertEquals(true, eval("Math.abs.length === 1"));
+        assertEquals(true, eval("Math.abs.name === 'abs'"));
+        assertEquals(true, eval("Math.abs.hasOwnProperty('length')"));
+        assertEquals(true, eval("Math.abs.hasOwnProperty('name')"));
+        // Stable identity across reads (cached per-Engine).
+        assertEquals(true, eval("Math.abs === Math.abs"));
+    }
+
+    @Test
+    void testMathMethodDescriptors() {
+        // Method on Math: { writable: true, enumerable: false, configurable: true }
+        assertEquals(true, eval(
+                "var d = Object.getOwnPropertyDescriptor(Math, 'cos');"
+                        + " typeof d.value === 'function'"
+                        + " && d.writable === true"
+                        + " && d.enumerable === false"
+                        + " && d.configurable === true"));
+        // length on a built-in method: { writable: false, enumerable: false, configurable: true }
+        assertEquals(true, eval(
+                "var d = Object.getOwnPropertyDescriptor(Math.cos, 'length');"
+                        + " d.value === 1"
+                        + " && d.writable === false"
+                        + " && d.enumerable === false"
+                        + " && d.configurable === true"));
+    }
+
+    @Test
+    void testMathConstantsAreNonWritable() {
+        // Constants: { writable: false, enumerable: false, configurable: false }
+        assertEquals(true, eval(
+                "var d = Object.getOwnPropertyDescriptor(Math, 'PI');"
+                        + " d.writable === false"
+                        + " && d.enumerable === false"
+                        + " && d.configurable === false"));
+        // Silent no-op assignment.
+        assertEquals(true, eval(
+                "Math.PI = 99; Math.PI > 3.14 && Math.PI < 3.15"));
+    }
+
+    @Test
+    void testDeleteIntrinsicTombstone() {
+        // delete on a configurable intrinsic actually removes it.
+        assertEquals(true, eval(
+                "delete Math.abs; Math.abs === undefined"
+                        + " && !Math.hasOwnProperty('abs')"));
+        // delete on a non-configurable intrinsic is silently a no-op.
+        assertEquals(true, eval(
+                "delete Math.PI; Math.PI > 3.14"
+                        + " && Math.hasOwnProperty('PI')"));
+    }
+
+    @Test
+    void testReassignAfterDeleteClearsTombstone() {
+        // After delete + reassign, the property is back as the user-set value.
+        assertEquals(42, eval(
+                "delete Math.abs; Math.abs = 42; Math.abs"));
+        assertEquals(true, eval(
+                "delete Math.cos; Math.cos = 'x'; Math.hasOwnProperty('cos')"));
+    }
+
 }

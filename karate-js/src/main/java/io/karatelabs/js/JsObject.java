@@ -54,6 +54,14 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
     private boolean sealed;
     private boolean frozen;
     private Map<String, Byte> _attrs;
+    // Tombstones for intrinsic-backed own properties (length / name on built-in
+    // functions, etc.) that the user has deleted via `delete obj.foo` or
+    // `Object.defineProperty(obj, 'foo', {configurable: ?})`. The intrinsic
+    // resolution lives in subclass {@code getMember} switches, not in {@code _map},
+    // so deletion has nothing to remove from the map — we mark the name as
+    // "removed" here, and {@link #getMember} / {@link #isOwnProperty} skip the
+    // intrinsic fallback when the name is tombstoned. Lazily allocated.
+    private java.util.Set<String> _tombstones;
 
     JsObject(Map<String, Object> map) {
         this._map = map;
@@ -113,6 +121,13 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
 
     @Override
     public Object getMember(String name) {
+        // 0. Tombstoned: a previously-existing intrinsic was deleted. Skip
+        // both _map and subclass intrinsic resolution (which can't see this
+        // map); proceed directly to the prototype chain so e.g.
+        // Math.abs.constructor still resolves after `delete Math.abs.constructor`.
+        if (_tombstones != null && _tombstones.contains(name)) {
+            return __proto__ != null ? __proto__.getMember(name) : null;
+        }
         // 1. Check own properties
         if (_map != null && _map.containsKey(name)) {
             return _map.get(name);
@@ -126,6 +141,29 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
             return __proto__.getMember(name);
         }
         return null;
+    }
+
+    /**
+     * True iff {@code name} is an own property on this object — covers
+     * {@code _map} entries, intrinsic properties declared by subclasses (via
+     * {@link #hasOwnIntrinsic}), and excludes tombstoned (deleted) intrinsics.
+     * Use this for {@code Object.getOwnPropertyDescriptor} / {@code hasOwn} /
+     * {@code in} semantics; raw {@code _map.containsKey} misses intrinsic
+     * length / name / prototype on built-in functions.
+     */
+    public boolean isOwnProperty(String name) {
+        if (_tombstones != null && _tombstones.contains(name)) return false;
+        if (_map != null && _map.containsKey(name)) return true;
+        return hasOwnIntrinsic(name);
+    }
+
+    boolean isTombstoned(String name) {
+        return _tombstones != null && _tombstones.contains(name);
+    }
+
+    /** True iff {@code name} is in the own-property map (excluding intrinsics and tombstones). */
+    boolean ownContainsKey(String name) {
+        return _map != null && _map.containsKey(name);
     }
 
     @Override
@@ -146,7 +184,15 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
             return;
         }
         boolean keyExists = _map != null && _map.containsKey(name);
-        if (nonExtensible && !keyExists) {
+        boolean tombstoned = _tombstones != null && _tombstones.contains(name);
+        // Intrinsic-backed properties (built-in length / name / Math.E …) need
+        // to honor their spec attributes on [[Set]] too. Treat them as "exists"
+        // for extensibility purposes (writes to them aren't creating a new key
+        // from the perspective of nonExtensible) but consult getOwnAttrs for
+        // the writable check. Tombstoned entries are treated as missing —
+        // putting them back is allowed if the object is extensible.
+        boolean intrinsic = !keyExists && !tombstoned && hasOwnIntrinsic(name);
+        if (nonExtensible && !keyExists && !intrinsic) {
             return;
         }
         // Per-property writable=false: silently ignore the [[Set]]. Spec says
@@ -157,10 +203,17 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
                 return;
             }
         }
+        if (intrinsic && (getOwnAttrs(name) & WRITABLE) == 0) {
+            return;
+        }
         if (_map == null) {
             _map = new LinkedHashMap<>();
         }
         _map.put(name, value);
+        // Successful write clears any tombstone — the key now exists again.
+        if (tombstoned) {
+            _tombstones.remove(name);
+        }
     }
 
     /**
@@ -173,6 +226,24 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
         if (_attrs == null) return ATTRS_DEFAULT;
         Byte b = _attrs.get(name);
         return b == null ? ATTRS_DEFAULT : b;
+    }
+
+    /**
+     * Spec-correct attribute byte for an intrinsic own property. Default reads
+     * from {@link #_attrs} via {@link #getAttrs(String)} — same as user-defined
+     * keys. Subclasses (especially built-in constructors / prototypes / the
+     * {@link JsFunction} hierarchy) override to return tighter attributes for
+     * intrinsic members declared via {@link #hasOwnIntrinsic(String)} —
+     * e.g. built-in method properties default to
+     * {@code {writable: true, enumerable: false, configurable: true}}; built-in
+     * constants default to all-false.
+     * <p>
+     * The owner of this method is also responsible for declaring the same key
+     * via {@code hasOwnIntrinsic} — otherwise {@code getOwnPropertyDescriptor}
+     * won't reach this lookup at all.
+     */
+    public byte getOwnAttrs(String name) {
+        return getAttrs(name);
     }
 
     /** Stores the attribute byte for {@code name}; absence means all-true. */
@@ -193,8 +264,13 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
         return (getAttrs(name) & WRITABLE) != 0;
     }
 
+    /**
+     * Spec-correct enumerability check. Routes through {@link #getOwnAttrs}
+     * so subclass overrides (e.g. JsMath returning {@code WRITABLE |
+     * CONFIGURABLE} — no enumerable bit — for its built-in methods) apply.
+     */
     boolean isEnumerable(String name) {
-        return (getAttrs(name) & ENUMERABLE) != 0;
+        return (getOwnAttrs(name) & ENUMERABLE) != 0;
     }
 
     boolean isConfigurable(String name) {
@@ -266,22 +342,48 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
 
     @Override
     public void removeMember(String name) {
-        if (_map == null || !_map.containsKey(name)) {
+        // Already tombstoned — nothing to do.
+        if (_tombstones != null && _tombstones.contains(name)) {
             return;
         }
-        // Per-property configurable=false: silently fail. Spec says throw under
-        // strict; we're non-strict by default. Sealed/frozen flags imply this
-        // (they set configurable=false on every key) but checking the bit
-        // directly is cheaper than walking _attrs after a flag fast-path miss.
-        if (_attrs != null) {
-            Byte b = _attrs.get(name);
-            if (b != null && (b & CONFIGURABLE) == 0) {
-                return;
+        boolean inMap = _map != null && _map.containsKey(name);
+        boolean intrinsic = hasOwnIntrinsic(name);
+        if (!inMap && !intrinsic) {
+            return;
+        }
+        // Configurability check. Per-property attributes in _attrs win when
+        // present; otherwise fall back to the intrinsic's getOwnAttrs default.
+        // Sealed/frozen flags also imply non-configurable (they populate _attrs
+        // on existing keys), but checking the bit directly is cheaper than
+        // walking the flag fast-path twice.
+        boolean configurable;
+        if (inMap && _attrs != null && _attrs.get(name) != null) {
+            configurable = (_attrs.get(name) & CONFIGURABLE) != 0;
+        } else if (intrinsic) {
+            configurable = (getOwnAttrs(name) & CONFIGURABLE) != 0;
+        } else {
+            configurable = true; // user-set property with no _attrs entry
+        }
+        if (!configurable) {
+            return;
+        }
+        // Remove the user-set entry (if any).
+        if (inMap) {
+            _map.remove(name);
+            if (_attrs != null) {
+                _attrs.remove(name);
             }
         }
-        _map.remove(name);
-        if (_attrs != null) {
-            _attrs.remove(name);
+        // Tombstone if there is an underlying intrinsic. Without this, after
+        // `Math.abs = X; delete Math.abs;` the intrinsic Math.abs would
+        // "shine through" and `hasOwnProperty` would incorrectly report it as
+        // own. The tombstone shadows the intrinsic; a later assignment
+        // (`Math.abs = Y`) clears the tombstone in putMember.
+        if (intrinsic) {
+            if (_tombstones == null) {
+                _tombstones = new java.util.HashSet<>();
+            }
+            _tombstones.add(name);
         }
     }
 

@@ -932,6 +932,35 @@ session needs to violate one, the principle goes up for review explicitly.
   `hasOwnIntrinsic` to declare the names their `getMember` resolves
   directly. Required for the `S15.9.5_A*` and `S15.9.4_A*` test
   clusters and analogous tests under other built-ins.
+- **Intrinsic-attribute pipeline.** Built-in own properties resolved
+  via subclass `getMember` switches (not via `_map`) declare themselves
+  as own through `hasOwnIntrinsic(name)` and report attribute bits
+  through `getOwnAttrs(name)`. `JsFunction` returns spec defaults for
+  its four intrinsics (`length`/`name`: configurable-only; `prototype`:
+  writable; `constructor`: writable + configurable); subclasses
+  (`JsMath`, etc.) cover their own methods/constants. The descriptor
+  read pipeline (`Object.getOwnPropertyDescriptor`,
+  `propertyIsEnumerable`, `Object.keys` / `for...in` enumerable filter)
+  consults this rather than the all-true default. New attribute slots
+  on `_attrs` (set by `Object.defineProperty`) win over the intrinsic
+  defaults so user override is still possible.
+- **Tombstone-on-delete for intrinsic properties.** `_tombstones:
+  Set<String>` (lazy) records intrinsic own properties that the user
+  has deleted (`delete obj.foo`). `getMember` short-circuits tombstoned
+  names to the prototype chain (skipping subclass intrinsic field
+  fallback); `isOwnProperty` returns false; `removeMember` populates
+  the set when the intrinsic is configurable; `putMember` clears the
+  tombstone on a successful write so reassignment revives the
+  property. Matters for `propertyHelper.verifyProperty`'s destructive
+  `isConfigurable()` check, which tries `delete obj[name]` and asserts
+  `!hasOwnProperty(obj, name)`.
+- **`JsObject.isOwnProperty(name)` is the canonical own-key check.**
+  Returns true iff `name` is in `_map` OR `hasOwnIntrinsic(name)` AND
+  not tombstoned. Replaces the previous mix of
+  `toMap().containsKey + hasOwnIntrinsic` checks at three call sites
+  (`JsObjectConstructor.isOwnKey`, `JsObjectPrototype.hasOwnProperty`,
+  `propertyIsEnumerable`). Anything that wants spec-level "is this an
+  own property" goes through here.
 - **Per-property attributes on `JsObject` use a sparse byte map.**
   `_attrs: Map<String, Byte>` next to the per-object `nonExtensible` /
   `sealed` / `frozen` flags. Bit 0 = writable, bit 1 = enumerable,
@@ -974,19 +1003,19 @@ Action list — start at the top. Ordered by core-engine confidence
 score impact (a one-fix harness unblock beats ten one-test patches).
 Re-probe with the relevant `--only` glob before scoping a session.
 
-Current state baseline (2026-04, post per-property attribute enforcement +
-`propertyHelper.js` / `compareArray.js` un-skip):
+Current state baseline (2026-04, post built-in intrinsic attribute attribution
++ tombstone-on-delete + Math methods wrapped):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
-| `test/language/**` | 3992 | 4071 | 15582 | 23645 |
-| `test/built-ins/Math/**` | 177 | 149 | 1 | 327 |
+| `test/language/**` | 4003 | 4060 | 15582 | 23645 |
+| `test/built-ins/Math/**` | 293 | 33 | 1 | 327 |
 | `test/built-ins/Number/**` | 187 | 141 | 12 | 340 |
-| `test/built-ins/String/**` | 356 | 783 | 84 | 1223 |
-| `test/built-ins/Array/**` | 1123 | 1777 | 181 | 3081 |
-| `test/built-ins/Object/**` | 1763 | 1517 | 131 | 3411 |
-| `test/built-ins/Date/**` | 382 | 142 | 70 | 594 |
-| `test/built-ins/Function/**` | 204 | 177 | 128 | 509 |
+| `test/built-ins/String/**` | 357 | 782 | 84 | 1223 |
+| `test/built-ins/Array/**` | 1127 | 1773 | 181 | 3081 |
+| `test/built-ins/Object/**` | 1798 | 1482 | 131 | 3411 |
+| `test/built-ins/Date/**` | 474 | 50 | 70 | 594 |
+| `test/built-ins/Function/**` | 215 | 166 | 128 | 509 |
 
 ### Tier 1 — core-engine parser/expression gaps
 
@@ -1003,46 +1032,55 @@ where every fix shows up on the scorecard for the right reason.
   bounded but the cluster otherwise stays a source of "engine too
   lenient" noise.
 
-### Tier 2 — built-in method attribute attribution
+### Tier 2 — built-in attribute attribution rollout (residual)
 
-- **Spec-default attributes on built-in methods (`writable: true`,
-  `enumerable: false`, `configurable: true`) and on `length` /
-  `name`.** Per-property attribute enforcement on user-defined props
-  via `Object.defineProperty` shipped (see Recently completed). The
-  remaining gap: **built-in prototype methods report `enumerable: true`
-  via `getOwnPropertyDescriptor` because the `Prototype` /
-  `JsBuiltinMethod` resolution doesn't carry attribute info** — it
-  hits the all-true default in `getOwnPropertyDescriptor`.
-  `propertyHelper.verifyCallableProperty` checks for the spec-default
-  triplet on every built-in method; with all-true fallback, ~hundreds
-  of `length.js` / `name.js` / `prop-desc.js` tests across
-  Math/Number/String/Function/Date/Array/Object FAIL with
-  "obj['method'] descriptor should not be enumerable".
+The first wave landed: `getOwnAttrs` infrastructure on JsObject,
+JsFunction defaults for length/name/prototype/constructor, Math
+methods/constants wired, descriptor reads now consult
+`hasOwnIntrinsic` + `getOwnAttrs` (see Recently completed). The
+remaining work is opportunistic — wrap individual built-in
+constructors and prototypes in the same shape as Math.
 
-  Predicted impact: another ~+400–800 PASS once `Prototype.getMember`
-  / `JsBuiltinMethod` / built-in `length` and `name` slots get
-  spec-default attributes (`writable: true`, `enumerable: false`,
-  `configurable: true` for methods; `writable: false`,
-  `enumerable: false`, `configurable: true` for `length` / `name`).
-  The attribute storage on `JsObject` already exists; this is wiring
-  the *built-in* property reads (currently going through hardcoded
-  switches) into the same descriptor pipeline as user props.
+- **Number constructor + prototype.** Static methods (`isFinite` /
+  `isInteger` / `isNaN` / `isSafeInteger`) need `JsBuiltinMethod`
+  wrapping; constants (`EPSILON` / `MAX_VALUE` / `MIN_VALUE` /
+  `MAX_SAFE_INTEGER` / `MIN_SAFE_INTEGER` / `POSITIVE_INFINITY` /
+  `NEGATIVE_INFINITY` / `NaN`) need `hasOwnIntrinsic` + `getOwnAttrs`.
+  Prototype methods (`toString` / `toFixed` / `valueOf` / `toExponential`
+  / `toPrecision`) similarly.
 
-  Where to wire:
-  - `JsObjectConstructor.getOwnPropertyDescriptor` currently calls
-    `ownAttrs(obj, key)` which only consults `JsObject._attrs`.
-    Extend the lookup to ask the prototype/built-in: e.g.
-    `Prototype.getOwnAttrs(name)` returning the spec triplet for
-    built-in members.
-  - `Prototype` and built-in constructor classes (`JsArrayConstructor`
-    etc.) need to declare per-method attributes — most are uniform
-    `enumerable: false, writable: true, configurable: true`, so a
-    static default in `Prototype` covers everything except `length`
-    / `name` on `JsFunction` (which are `writable: false`).
-  - `JsArray.length` is special — `writable: true, enumerable: false,
-    configurable: false` per spec. Currently `getMember("length")`
-    short-circuits to `list.size()`; no slot-based descriptor.
-    Sentinel attrs in `JsArray.getOwnAttrs("length")` would handle it.
+  **Caveat: JVM-wide singleton state leak.** `JsNumberConstructor`,
+  `JsObjectConstructor`, `JsDateConstructor`, etc. are all
+  `static final INSTANCE` singletons (unlike `JsMath`, which is
+  allocated per-Engine in `ContextRoot.initGlobal`). If we add a
+  `_methodCache` and tombstones to a singleton, deleting a method in
+  one test (`delete Number.isFinite`) would leak to subsequent tests
+  in the same JVM — propertyHelper's `isConfigurable()` does exactly
+  this destructive write/delete pattern. The previous session's
+  `Prototype.clearAllUserProps()` mechanism handles this for
+  `Prototype` instances; constructor singletons need a parallel hook.
+  Either: (a) extend the clear mechanism to constructor singletons,
+  or (b) allocate constructors per-Engine like `JsMath`. Pick when
+  scoping the rollout; estimated +18–30 PASS in Number alone, +50ish
+  across the rest.
+
+- **`Prototype` per-method attributes.** Built-in prototype methods
+  (`Array.prototype.push`, `String.prototype.charAt`, etc.) are
+  resolved by `Prototype.getMember` switches as raw `JsCallable`
+  lambdas — no `length`/`name` own properties, no attribute slots.
+  Wrap each method in `JsBuiltinMethod` and override `getOwnAttrs`
+  on each prototype to declare `WRITABLE | CONFIGURABLE`. Existing
+  `Prototype.userProps` already participates in the per-Engine clear
+  list, so any tombstones from `delete Array.prototype.push` would
+  reset cleanly.
+
+- **`JsArray.length` descriptor.** Spec: `{writable: true,
+  enumerable: false, configurable: false}`. Currently
+  `getMember("length")` short-circuits to `list.size()`; no slot.
+  Override `getOwnAttrs("length")` on JsArray to return
+  `WRITABLE` (no enumerable, no configurable). The trickier piece is
+  that `length` is also writable in a special way (truncates the
+  list); the descriptor shape change is independent of that.
 
 ### Tier 3 — cross-cutting feature unblock
 
@@ -1122,6 +1160,112 @@ Smaller items, picked off when nearby. Not session-sized on their own.
 Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
+
+- **Built-in intrinsic attribute attribution + tombstone-on-delete +
+  Math wrap.** Follow-up to the per-property attribute enforcement
+  work. With `propertyHelper.js` un-skipped, ~hundreds of tests now
+  call `verifyProperty(BuiltIn, 'method', {writable, enumerable,
+  configurable, value})` and `verifyCallableProperty` on built-in
+  methods. The descriptor reader was hitting all-true defaults
+  because `Prototype.getMember` / built-in constructor `getMember`
+  switches don't carry attribute info. This commit threads spec
+  defaults through the descriptor pipeline for the foundation
+  (JsFunction's four intrinsics) and the Math object specifically.
+
+  | `--only` glob | Before | After | Δ pass |
+  |---|---|---|---|
+  | `test/built-ins/Math/**` | 177 / 149 / 1 | **293** / 33 / 1 | **+116** |
+  | `test/built-ins/Date/**` | 382 / 142 / 70 | **474** / 50 / 70 | **+92** |
+  | `test/built-ins/Object/**` | 1763 / 1517 / 131 | **1798** / 1482 / 131 | **+35** |
+  | `test/built-ins/Function/**` | 204 / 177 / 128 | **215** / 166 / 128 | **+11** |
+  | `test/language/**` | 3992 / 4071 / 15582 | **4003** / 4060 / 15582 | **+11** |
+  | `test/built-ins/Array/**` | 1123 / 1777 / 181 | **1127** / 1773 / 181 | **+4** |
+  | `test/built-ins/String/**` | 356 / 783 / 84 | **357** / 782 / 84 | **+1** |
+
+  Net **~+270 PASS**. Math is the headline (+116 from the wrap +
+  attrs); Date (+92) benefits from the JsFunction defaults applying
+  to `Date`/`Date.now`/`Date.UTC`/`Date.parse`. Number's potential
+  ~+18 deferred — see the Tier 2 residual note above on singleton
+  state leak.
+
+  Concretely:
+  - **`getOwnAttrs(name)` mechanism on JsObject.** Default reads
+    from `_attrs` (the user-defined attribute map from the prior
+    session); subclasses override to return spec-default attributes
+    for intrinsic-declared own properties. Routed into both
+    `JsObject.isEnumerable` (so `for...in` / `Object.keys` filter
+    is spec-correct for built-ins, not just user-defined) and
+    `JsObjectConstructor.ownAttrs` (so descriptor reads see the
+    right bits).
+  - **JsFunction defaults.** `length` / `name` →
+    `{writable: false, enumerable: false, configurable: true}`.
+    `prototype` → `{writable: true, enumerable: false,
+    configurable: false}` (user-function shape; built-in
+    constructors override to all-false but the user-function shape
+    is the most common case). `constructor` →
+    `{writable: true, enumerable: false, configurable: true}`.
+  - **Math wrap.** Each method wrapped in `JsBuiltinMethod(name,
+    length, delegate)` so `Math.cos.length === 1` /
+    `Math.cos.name === 'cos'` work as own properties. Methods
+    cached per-Engine in a `_methodCache` Map so `Math.cos ===
+    Math.cos` holds (and tombstones can be applied to a stable
+    instance). `JsMath.hasOwnIntrinsic` declares each method +
+    constant; `JsMath.getOwnAttrs` returns
+    `WRITABLE | CONFIGURABLE` for methods (per spec) and `0`
+    (all-false) for the seven constants. Plus added `Math.LOG10E`
+    which was missing from the original switch.
+  - **Tombstone semantics for `delete` on intrinsics.**
+    `propertyHelper.verifyProperty` actually deletes the property
+    being verified to prove it's configurable, then asserts
+    `!hasOwnProperty(obj, name)`. Intrinsic-backed properties
+    (resolved via getMember switches, not stored in `_map`) had no
+    way to "go away" — `delete Math.cos` was silently a no-op,
+    breaking `isConfigurable()`. Now `JsObject` carries a sparse
+    `_tombstones: Set<String>`. `removeMember` adds to it when the
+    intrinsic is configurable; `getMember` short-circuits to the
+    prototype chain when tombstoned (skipping subclass intrinsic
+    field fallback); `isOwnProperty` returns false; `putMember`
+    clears the tombstone on a successful write so re-assignment
+    revives the property.
+  - **`isOwnProperty(name)` on JsObject** — the canonical own-key
+    check. Replaces the previous mix of
+    `_map.containsKey + hasOwnIntrinsic` checks at three sites
+    (`JsObjectConstructor.isOwnKey`, `hasOwn`,
+    `propertyIsEnumerable`). Returns false for tombstoned keys.
+  - **Descriptor read pipeline updates.**
+    `JsObjectConstructor.getOwnPropertyDescriptor` consults
+    `isOwnProperty` (which sees through `hasOwnIntrinsic`) instead
+    of just the `_map.keySet` containment check; `ownGet` falls
+    through to `getMember` for intrinsic-only keys so e.g.
+    `getOwnPropertyDescriptor(Math, 'cos')` resolves the
+    JsBuiltinMethod via `Math.getMember("cos")` not
+    `Math._map.get("cos")` (which is empty).
+    `getOwnPropertyDescriptors` walks toMap() + a fixed probe set
+    (`length / name / prototype / constructor`) for intrinsic-only
+    keys.
+  - **`putMember` honors intrinsic writable.** Before, writing to
+    `Math.E` succeeded because `_map` was empty and there was no
+    writable check on the intrinsic side. Now `putMember` consults
+    `getOwnAttrs(name)` for intrinsic-only keys and refuses the
+    write when `WRITABLE` is clear. Combined with the existing
+    user-side `_attrs` writable check, both paths enforce now.
+
+  Residual fails (each blocked on infra not in this session):
+  - **Number / Function / Array / String / Date prototype methods**
+    — same wrap pattern needs to roll out to the rest. Singleton
+    state leak (`JsNumberConstructor` etc. are JVM-wide singletons,
+    unlike `JsMath`) needs a parallel reset hook to
+    `Prototype.clearAllUserProps`. Predicted ~+50–100 PASS once
+    that's threaded.
+  - **`Math.f16round` / `Math.sumPrecise`** — ES2024 / ES2025
+    additions not implemented. ~8 fails.
+  - **`Math.max`/`Math.min` argument coercion order** — 3 tests
+    expect side effects from `valueOf` to happen in a specific
+    order; we currently coerce all args before reducing. Small fix.
+  - **`Math.asinh(-Infinity)` / `Math.atanh(±1)`** — return NaN
+    where spec wants ±Infinity. Edge cases in our manual log+sqrt
+    impl.
+  - **`Symbol.toStringTag` on Math** — gated on Symbol expansion.
 
 - **Per-property attribute enforcement (`writable` / `enumerable` /
   `configurable`) + harness un-skip.** The big Tier 2 lever from the
