@@ -33,7 +33,7 @@ public class JsParser extends BaseParser {
 
     // EnumSet token sets for O(1) lookup in hot paths
     private static final EnumSet<TokenType> T_VAR_STMT = EnumSet.of(VAR, CONST, LET);
-    private static final EnumSet<TokenType> T_ASSIGN_EXPR = EnumSet.of(EQ, PLUS_EQ, MINUS_EQ, STAR_EQ, SLASH_EQ, PERCENT_EQ, STAR_STAR_EQ, GT_GT_EQ, LT_LT_EQ, GT_GT_GT_EQ);
+    private static final EnumSet<TokenType> T_ASSIGN_EXPR = EnumSet.of(EQ, PLUS_EQ, MINUS_EQ, STAR_EQ, SLASH_EQ, PERCENT_EQ, STAR_STAR_EQ, GT_GT_EQ, LT_LT_EQ, GT_GT_GT_EQ, AMP_EQ, PIPE_EQ, CARET_EQ);
     private static final EnumSet<TokenType> T_LOGIC_EQ_EXPR = EnumSet.of(EQ_EQ_EQ, NOT_EQ_EQ, EQ_EQ, NOT_EQ);
     private static final EnumSet<TokenType> T_LOGIC_CMP_EXPR = EnumSet.of(LT, GT, LT_EQ, GT_EQ);
     private static final EnumSet<TokenType> T_LOGIC_SHIFT_EXPR = EnumSet.of(GT_GT, LT_LT, GT_GT_GT);

@@ -273,6 +273,19 @@ class EvalTest extends EvalBase {
         assertEquals(1, get("a"));
         assertEquals(9, eval("a = 3; a **= 2"));
         assertEquals(9, get("a"));
+        // Bitwise / shift compound assignments — &=, |=, ^=, <<=, >>=, >>>=
+        assertEquals(1, eval("a = 5; a &= 3"));
+        assertEquals(1, get("a"));
+        assertEquals(7, eval("a = 5; a |= 3"));
+        assertEquals(7, get("a"));
+        assertEquals(6, eval("a = 5; a ^= 3"));
+        assertEquals(6, get("a"));
+        assertEquals(8, eval("a = 1; a <<= 3"));
+        assertEquals(8, get("a"));
+        assertEquals(2, eval("a = 16; a >>= 3"));
+        assertEquals(2, get("a"));
+        assertEquals(2, eval("a = 16; a >>>= 3"));
+        assertEquals(2, get("a"));
         eval("var a = { foo: 'bar' }");
         match(get("a"), "{ foo: 'bar' }");
         eval("var a = { 0: 'a', 1: 'b' }");

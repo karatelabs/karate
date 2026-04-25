@@ -952,11 +952,11 @@ Action list — start at the top. Ordered by core-engine confidence
 score impact (a one-fix harness unblock beats ten one-test patches).
 Re-probe with the relevant `--only` glob before scoping a session.
 
-Current state baseline (2026-04, post function-identity trio):
+Current state baseline (2026-04, post class/super skip + bitwise compound assignments):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
-| `test/language/**` | 3127 | 4194 | 13961 | 21282 |
+| `test/language/**` | 3045 | 3088 | 15150 | 21283 |
 | `test/built-ins/Math/**` | 177 | 28 | 122 | 327 |
 | `test/built-ins/Number/**` | 195 | 86 | 59 | 340 |
 | `test/built-ins/String/**` | 346 | 675 | 202 | 1223 |
@@ -965,30 +965,11 @@ Current state baseline (2026-04, post function-identity trio):
 | `test/built-ins/Date/**` | 374 | 4 | 216 | 594 |
 | `test/built-ins/Function/**` | 194 | 159 | 156 | 509 |
 
-### Tier 0 — fix friction (cheap, do first when noticed)
-
-- **Mis-tagged class/super failures.** ~1000 tests in
-  `test/language/{statements,expressions}/class/**` and `super` lack
-  `feature: class` YAML tags but exercise class syntax we don't support.
-  They surface as FAIL (with parser errors), not SKIP, polluting every
-  language probe. Fix: add `path: test/language/**/class/**` and a
-  `super` matcher to `etc/expectations.yaml`. One-line config change,
-  immediately moves 1000+ noise rows from FAIL to SKIP.
-
 ### Tier 1 — core-engine parser/expression gaps
 
 These are the items that most directly answer "does the engine read
 plain JS correctly?" — and they live in `test/language/expressions/**`
 where every fix shows up on the scorecard for the right reason.
-
-- **Bitwise / shift / exponent compound assignments** —
-  `&=`, `|=`, `^=`, `<<=`, `>>=`, `>>>=`, `**=` currently fail to
-  parse (`cannot parse statement`). The arithmetic compounds
-  (`+=`, `-=`, `*=`, `/=`, `%=`) work. Predicted unlock: ~150–200
-  tests in `test/language/expressions/compound-assignment/**`. Pure
-  parser fix in `JsParser` — extend `T_ASSIGN_EXPR` and the matching
-  operator-application table in `PropertyAccess.applyOperator`. Probe:
-  `--only test/language/expressions/compound-assignment/**`.
 
 - **Object-literal getter / setter parsing** (`{ get foo() {...},
   set foo(v) {...} }`). Today the parser rejects them. This is *both*
@@ -1122,6 +1103,53 @@ Smaller items, picked off when nearby. Not session-sized on their own.
 Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
+
+- **Class/super skip-list expansion + bitwise compound assignments.**
+  Two combined changes that compound:
+
+  | Slice | Before | After | Δ |
+  |---|---|---|---|
+  | `test/language/**` (FAIL) | 4194 | 3088 | **−1106** |
+  | `test/language/expressions/compound-assignment/**` (PASS) | 149 | 203 | **+54** |
+
+  Concretely:
+  - **`etc/expectations.yaml` path skips for class / super.**
+    ~1000 tests under `test/language/**/class/**` and
+    `test/language/expressions/super/**` lacked the `feature: class`
+    YAML tag and surfaced as parser-error FAILs, polluting every
+    language probe. Two `paths:` entries (one for `class/**`, one
+    for `expressions/super/**`) move 1100+ noise rows from FAIL to
+    SKIP.
+  - **Pre-existing parser bug in `Expectations.java`.** The hand-rolled
+    YAML parser only flushed pending key/reason on a new `- ` item,
+    not on section transition (`paths:` → `flags:`). The last entry
+    of every section was being silently misrouted to the *next*
+    section's map. Surfaced when the new last `paths:` entry
+    (`expressions/super/**`) didn't match. Fix: flush at section
+    transition. Regression test added in `ExpectationsTest`.
+  - **Bitwise compound assignments (`&=`, `|=`, `^=`).** Tokens were
+    already lexed (`AMP_EQ`, `PIPE_EQ`, `CARET_EQ`) and `Terms` had
+    the underlying ops (`bitAnd` / `bitOr` / `bitXor`). Wiring was
+    missing in `JsParser.T_ASSIGN_EXPR` (the assignment-operator set
+    consulted by `expr_rhs`) and in `PropertyAccess.applyOperator`
+    (the compound-op dispatcher). One token added to each. The shift
+    and exponent compounds (`<<=`, `>>=`, `>>>=`, `**=`) were
+    *already* wired and pass — the action item's framing ("currently
+    fail to parse") was outdated for those four; the actual gap was
+    just the three bitwise compounds.
+
+  Residual fails in `compound-assignment/**` (147): all blocked on
+  infra outside this session.
+  - **Strict-mode ReferenceError tests** (~9): `eval("undeclared *= 1")`
+    must throw ReferenceError under strict. Engine has no strict-mode
+    flip — already documented in TEST262.md *Open gaps*.
+  - **`with` block + accessor getter/setter object literals** (~50):
+    `with (scope) { x ^= 3 }` plus `var scope = { get x() {...}, set x(v) {...} }`.
+    Blocked on the Tier-1 *Object-literal getter/setter parsing* and
+    the engine has no `with` (out of scope).
+  - **Negative parse tests** (`*-non-simple.js`, ~11): expect
+    SyntaxError for `({a:0} += b)` etc. — covered by Tier-1
+    *Negative-test strictness pass*.
 
 - **Function-object identity trio + `JsFunction.length` unification.**
   Score impact across the priority probes:

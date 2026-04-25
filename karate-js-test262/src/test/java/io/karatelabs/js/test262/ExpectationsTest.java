@@ -56,6 +56,20 @@ class ExpectationsTest {
     }
 
     @Test
+    void testLastEntryInSectionFlushed() {
+        // Regression: the last entry of every section was being silently dropped
+        // (or misrouted to the next section's map) because the parser only flushed
+        // pending key/reason when a new `- ` item started, never on section
+        // transition. Verify the last paths entry still matches.
+        Path yaml = Paths.get("etc/expectations.yaml");
+        assumeExists(yaml);
+        Expectations exp = Expectations.load(yaml);
+
+        Test262Case last = syntheticCase("test/language/expressions/super/foo.js", Test262Metadata.empty());
+        assertNotNull(exp.matchSkip(last), "last paths entry must skip");
+    }
+
+    @Test
     void testIncludesSkip() {
         Path yaml = Paths.get("etc/expectations.yaml");
         assumeExists(yaml);

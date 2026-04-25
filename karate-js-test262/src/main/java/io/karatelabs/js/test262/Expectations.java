@@ -99,6 +99,12 @@ public final class Expectations {
                 continue;
             }
             if (indent == 2 && stripped.endsWith(":")) {
+                // Flush the last item of the previous section before switching —
+                // otherwise the trailing entry's pending key/reason carry over
+                // and get attributed to the next section's map.
+                flush(currentSection, pendingKey, pendingReason, paths, flags, features, includes);
+                pendingKey = null;
+                pendingReason = null;
                 String section = stripped.substring(0, stripped.length() - 1);
                 switch (section) {
                     case "paths":    currentSection = "paths";    pendingField = "path";    break;

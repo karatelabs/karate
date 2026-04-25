@@ -22,6 +22,13 @@ skip:
       reason: experimental proposals not yet ratified
     - path: test/annexB/**
       reason: legacy-web-browser behaviors out of scope
+    # class syntax is feature-gated (`feature: class` etc.) but ~1000 tests under
+    # test/language/**/class/** and expressions/super/** lack the YAML tag and
+    # surface as parser-error FAILs, polluting every language probe. Path-skip them.
+    - path: test/language/**/class/**
+      reason: class syntax not supported (use prototypes)
+    - path: test/language/expressions/super/**
+      reason: class syntax not supported (use prototypes)
 
   # Tests whose YAML frontmatter contains any of these `flags:` values.
   flags:

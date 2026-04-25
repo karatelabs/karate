@@ -803,6 +803,9 @@ class PropertyAccess {
             case GT_GT_EQ -> new Terms(oldValue, operand).bitShiftRight();
             case LT_LT_EQ -> new Terms(oldValue, operand).bitShiftLeft();
             case GT_GT_GT_EQ -> new Terms(oldValue, operand).bitShiftRightUnsigned();
+            case AMP_EQ -> new Terms(oldValue, operand).bitAnd();
+            case PIPE_EQ -> new Terms(oldValue, operand).bitOr();
+            case CARET_EQ -> new Terms(oldValue, operand).bitXor();
             default -> throw new RuntimeException("unexpected operator: " + operator);
         };
     }
