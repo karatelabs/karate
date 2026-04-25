@@ -997,20 +997,40 @@ where every fix shows up on the scorecard for the right reason.
   Predicted impact: ~+1500–2200 PASS once both the attribute
   triplet is tracked AND the two harness includes are un-skipped
   (combined `propertyHelper.js` + `compareArray.js` SKIPs).
+
+  Existing scaffolding to extend:
+  - `JsObject.java` already has the per-object flags
+    (`nonExtensible` / `sealed` / `frozen`) plus their write-side
+    enforcement in `putMember`. Add the new sparse attribute map
+    next to them.
+  - `JsObjectConstructor.defineProperty` / `buildDescriptor` already
+    branch data-vs-accessor and read/write the descriptor object.
+    Extend each to thread the triplet through.
+  - `expectations.yaml` `includes:` block has `propertyHelper.js`
+    and `compareArray.js` skipped, with reasons that document the
+    blocker. Removing those two entries is the un-skip step.
+
   Order of attack:
   1. Add a parallel `Map<String, AttributeFlags>` on `JsObject`
      (sparse — only properties whose attributes deviate from the
      default `{writable, enumerable, configurable: true}` use a
      slot, since that triplet is the new-property default). Memory
-     footprint stays near zero on the common case.
+     footprint stays near zero on the common case. Place next to
+     the existing `nonExtensible` / `sealed` / `frozen` fields so
+     the boundary (per-object flag fast-path → per-property check)
+     stays visible.
   2. `defineProperty` writes to that map when the descriptor
      specifies any of the three; default missing fields per spec
-     (false for new properties, preserve for existing).
+     (false for new properties, preserve for existing). Update
+     `JsObjectConstructor.buildDescriptor` to read the actual bits.
   3. `getOwnPropertyDescriptor` reads from that map, falling back
      to the all-true default. Same for `getOwnPropertyDescriptors`.
-  4. Enforce on write paths: `putMember` checks `writable` / extensible;
-     `removeMember` checks `configurable`; `for...in` skips
-     `enumerable: false`.
+  4. Enforce on write paths: `JsObject.putMember` checks
+     `writable`/extensible (extend the existing `frozen` /
+     `nonExtensible` early-exit); `removeMember` checks
+     `configurable`; `for...in` (currently iterating
+     `_map.entrySet()` somewhere — grep for the `IN` token in
+     `Interpreter.java`) skips `enumerable: false`.
   5. Wire `seal` / `freeze` to populate the attribute map for
      all existing keys (currently they only flip the per-object
      flags). Keep the per-object flags as a fast-path early exit
@@ -1018,7 +1038,10 @@ where every fix shows up on the scorecard for the right reason.
      map for every key.
   6. Un-skip `propertyHelper.js` and `compareArray.js` in
      `expectations.yaml`. Probe each major built-in slice; expect
-     net positive across all of them.
+     net positive across all of them. Watch for hangs on
+     accessor-getter-throws iteration patterns (compareArray.js
+     was specifically called out for this) — `--max-duration`
+     cap recommended.
 
 ### Tier 3 — cross-cutting feature unblock
 
