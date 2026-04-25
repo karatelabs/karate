@@ -95,7 +95,7 @@ class ContextRoot extends CoreContext {
                  "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Infinity", "Java",
                  "JSON", "Math", "NaN", "Number", "Boolean", "Object", "RegExp", "String",
                  "TypeError", "ReferenceError", "RangeError", "SyntaxError", "URIError", "EvalError",
-                 "TextEncoder", "TextDecoder", "Uint8Array", "isNaN", "isFinite", "eval" -> true;
+                 "TextEncoder", "TextDecoder", "Uint8Array", "isNaN", "isFinite", "eval", "Symbol" -> true;
             default -> false;
         };
     }
@@ -199,6 +199,16 @@ class ContextRoot extends CoreContext {
             case "TextDecoder" -> new JsTextDecoder();
             case "TextEncoder" -> new JsTextEncoder();
             case "Uint8Array" -> new JsUint8Array(0);
+            // Minimal Symbol: only the well-known symbols are exposed, as their
+            // string-keyed stand-ins ("@@iterator" etc.). No Symbol() constructor,
+            // no unique-symbol identity — tests that need real Symbol stay gated by
+            // `feature: Symbol`. Lets `arr[Symbol.iterator]` resolve to `arr["@@iterator"]`.
+            case "Symbol" -> {
+                JsObject sym = new JsObject();
+                sym.putMember("iterator", IterUtils.SYMBOL_ITERATOR);
+                sym.putMember("asyncIterator", "@@asyncIterator");
+                yield sym;
+            }
             default -> null;
         };
     }

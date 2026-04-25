@@ -701,20 +701,44 @@ class EvalTest extends EvalBase {
 
     @Test
     void testForOfLoop() {
-        eval("var a = []; var x; for (x of {a: 1, b: 2, c: 3}) a.push(x)");
-        match(get("a"), "[1, 2, 3]");
-        eval("var a = []; var x; for (x of {a: 1, b: 2, c: 3}) { if (x == 2) break; a.push(x) }");
-        match(get("a"), "[1]");
-        eval("var a = []; var x; for (x of {a: 1, b: 2, c: 3}) { if (x == 2) continue; a.push(x) }");
-        match(get("a"), "[1, 3]");
+        // Per spec, for-of requires an iterable — plain objects without @@iterator
+        // throw TypeError. Use an array for value iteration; for-in is the right
+        // construct for enumerating object properties.
         eval("var a = []; var x; for (x of [1, 2, 3]) a.push(x)");
         match(get("a"), "[1, 2, 3]");
         eval("var a = []; var x; for (x of [1, 2, 3]) { if (x == 2) break; a.push(x) }");
         match(get("a"), "[1]");
         eval("var a = []; var x; for (x of [1, 2, 3]) { if (x == 2) continue; a.push(x) }");
         match(get("a"), "[1, 3]");
-        eval("var a = []; for (const x of {a: 1, b: 2, c: 3}) a.push(x)");
+        eval("var a = []; for (const x of [1, 2, 3]) a.push(x)");
         match(get("a"), "[1, 2, 3]");
+        // String iteration yields code-unit chars per spec
+        eval("var a = []; for (const c of 'abc') a.push(c)");
+        match(get("a"), "['a', 'b', 'c']");
+    }
+
+    @Test
+    void testForOfNonIterableThrows() {
+        // for-of on null/undefined/plain-object/number must throw TypeError
+        // (ECMAScript 13.7.5.13 ForIn/OfHeadEvaluation step 6).
+        try {
+            eval("for (const x of null) {}");
+            throw new AssertionError("expected TypeError on for-of null");
+        } catch (RuntimeException expected) {
+            // ok
+        }
+        try {
+            eval("for (const x of undefined) {}");
+            throw new AssertionError("expected TypeError on for-of undefined");
+        } catch (RuntimeException expected) {
+            // ok
+        }
+        try {
+            eval("for (const x of {a: 1}) {}");
+            throw new AssertionError("expected TypeError on for-of plain object");
+        } catch (RuntimeException expected) {
+            // ok
+        }
     }
 
     @Test

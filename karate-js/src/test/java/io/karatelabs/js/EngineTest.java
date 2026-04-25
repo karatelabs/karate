@@ -496,14 +496,16 @@ class EngineTest {
         assertEquals(List.of("a", "b", "c"), engine.get("b"));
         assertEquals("0:a|1:b|2:c|", sb.toString());
         //====
+        // for-of requires an iterable — use an array, not a plain object,
+        // so the iteration tracker observes value enumeration through GetIterator.
         sb.setLength(0);
         engine.eval("""
-                var a = { a: 1, b: 2, c: 3 };
+                var a = [10, 20, 30];
                 var b = [];
                 for (x of a) b.push(x);
                 """);
-        assertEquals(List.of(1, 2, 3), engine.get("b"));
-        assertEquals("0:1|1:2|2:3|", sb.toString());
+        assertEquals(List.of(10, 20, 30), engine.get("b"));
+        assertEquals("0:10|1:20|2:30|", sb.toString());
     }
 
     @Test

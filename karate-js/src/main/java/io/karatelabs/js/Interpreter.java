@@ -121,42 +121,31 @@ class Interpreter {
         }
         if (pattern.type == NodeType.LIT_ARRAY) {
             // Array destructuring per spec 13.3.3.5 calls GetIterator(value).
-            // Lists are iterable directly. Strings are iterable by code unit.
-            // Non-iterable primitives (boolean, number) throw TypeError.
-            List<Object> list;
-            if (source instanceof List<?>) {
-                list = (List<Object>) source;
-            } else if (source instanceof String s) {
-                list = new ArrayList<>(s.length());
-                for (int k = 0; k < s.length(); k++) list.add(String.valueOf(s.charAt(k)));
-            } else {
-                throw JsErrorException.typeError(source + " is not iterable");
-            }
+            // Pull through the unified iterator surface — IterUtils throws TypeError
+            // for non-iterables (boolean, plain object without @@iterator, etc.).
+            JsIterator iter = IterUtils.getIterator(source, context);
             int last = pattern.size() - 1;
-            int index = 0;
             for (int i = 1; i < last; i++) {
                 Node elem = pattern.get(i);
                 Node first = elem.get(0);
                 if (first.isToken() && first.token.type == DOT_DOT_DOT) {
                     JsArray rest = new JsArray();
-                    for (int j = index; j < list.size(); j++) {
-                        Object v = list instanceof JsArray arr ? arr.getElement(j) : list.get(j);
-                        rest.list.add(v);
+                    while (iter.hasNext()) {
+                        rest.list.add(iter.next());
                     }
                     bindTarget(elem.get(1), context, bindScope, rest, initialized);
                     break;
                 } else if (first.isToken() && first.token.type == COMMA) {
-                    index++;
+                    if (iter.hasNext()) iter.next();
                 } else {
                     Object v = Terms.UNDEFINED;
-                    if (index < list.size()) {
-                        Object temp = list instanceof JsArray arr ? arr.getElement(index) : list.get(index);
+                    if (iter.hasNext()) {
+                        Object temp = iter.next();
                         if (temp != Terms.UNDEFINED) {
                             v = temp;
                         }
                     }
                     bindTarget(first, context, bindScope, v, initialized);
-                    index++;
                 }
             }
         } else if (pattern.type == NodeType.LIT_OBJECT) {
@@ -406,8 +395,9 @@ class Interpreter {
                 Node argNode = fnArgNode.get(0);
                 if (argNode.isToken()) { // DOT_DOT_DOT
                     Object arg = eval(fnArgNode.get(1), context);
-                    if (arg instanceof List<?> list) {
-                        argsList.addAll(list);
+                    JsIterator iter = IterUtils.getIterator(arg, context);
+                    while (iter.hasNext()) {
+                        argsList.add(iter.next());
                     }
                 } else {
                     Object arg = eval(argNode, context);
@@ -713,7 +703,6 @@ class Interpreter {
             } else { // for in / of
                 boolean in = node.get(3).token.type == IN;
                 Object forObject = eval(node.get(4), context);
-                Iterable<KeyValue> iterable = Terms.toIterable(forObject);
                 BindScope bindScope;
                 Node bindings;
                 if (node.get(2).type == NodeType.VAR_STMT) {
@@ -731,28 +720,56 @@ class Interpreter {
                     bindings = node.get(2);
                 }
                 boolean isLetOrConst = bindScope == BindScope.LET || bindScope == BindScope.CONST;
-                int index = -1;
-                for (KeyValue kv : iterable) {
-                    index++;
-                    context.iteration = index;
-                    Object varValue = in ? kv.key() : kv.value();
-                    if (isLetOrConst) {
-                        // Enter body scope for this iteration
-                        context.enterScope(ContextScope.LOOP_BODY, forBody);
-                        enteredBodyScope = true;
+                // for-in keeps key-enumeration semantics (Object.keys-equivalent; null/undefined
+                // sources are silently iterated zero times per spec).
+                // for-of takes the spec iteration protocol: GetIterator(value) — TypeError on
+                // null/undefined or any non-iterable, value-only enumeration.
+                if (in) {
+                    int index = -1;
+                    for (KeyValue kv : Terms.toIterable(forObject)) {
+                        index++;
+                        context.iteration = index;
+                        if (isLetOrConst) {
+                            context.enterScope(ContextScope.LOOP_BODY, forBody);
+                            enteredBodyScope = true;
+                        }
+                        evalAssign(bindings, context, bindScope, kv.key(), true);
+                        forResult = eval(forBody, context);
+                        if (isLetOrConst && enteredBodyScope) {
+                            context.exitScope();
+                            enteredBodyScope = false;
+                        }
+                        if (context.isStopped()) {
+                            if (context.isContinuing()) {
+                                context.reset();
+                            } else {
+                                break;
+                            }
+                        }
                     }
-                    // Declare/assign loop variable(s) - handles both simple and destructuring cases
-                    evalAssign(bindings, context, bindScope, varValue, true);
-                    forResult = eval(forBody, context);
-                    if (isLetOrConst && enteredBodyScope) {
-                        context.exitScope();
-                        enteredBodyScope = false;
-                    }
-                    if (context.isStopped()) {
-                        if (context.isContinuing()) {
-                            context.reset();
-                        } else { // break, return or throw
-                            break;
+                } else {
+                    JsIterator iter = IterUtils.getIterator(forObject, context);
+                    int index = -1;
+                    while (iter.hasNext()) {
+                        index++;
+                        context.iteration = index;
+                        Object varValue = iter.next();
+                        if (isLetOrConst) {
+                            context.enterScope(ContextScope.LOOP_BODY, forBody);
+                            enteredBodyScope = true;
+                        }
+                        evalAssign(bindings, context, bindScope, varValue, true);
+                        forResult = eval(forBody, context);
+                        if (isLetOrConst && enteredBodyScope) {
+                            context.exitScope();
+                            enteredBodyScope = false;
+                        }
+                        if (context.isStopped()) {
+                            if (context.isContinuing()) {
+                                context.reset();
+                            } else {
+                                break;
+                            }
                         }
                     }
                 }
@@ -801,9 +818,9 @@ class Interpreter {
             Node exprNode = elem.get(0);
             if (exprNode.token.type == DOT_DOT_DOT) { // spread
                 Object value = evalRefExpr(elem.get(1), context);
-                Iterable<KeyValue> iterable = Terms.toIterable(value);
-                for (KeyValue kv : iterable) {
-                    list.add(kv.value());
+                JsIterator iter = IterUtils.getIterator(value, context);
+                while (iter.hasNext()) {
+                    list.add(iter.next());
                 }
             } else if (exprNode.token.type == COMMA) { // sparse hole
                 list.add(null);

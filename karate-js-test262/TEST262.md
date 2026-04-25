@@ -723,6 +723,64 @@ High-leverage issues that each break many tests at once.
 **Recently landed** (decisions preserved; see git log for per-commit
 detail):
 
+- **Iteration-layer unification (`@@iterator` / spec GetIterator).**
+  Five ad-hoc value-iteration sites — `destructurePattern` (array),
+  `evalForStmt` (for-of branch), `invokeCallable` (spread args),
+  `evalLitArray` (spread element), `JsArrayConstructor.from` — collapsed
+  through `IterUtils.getIterator(Object, Context)` returning a
+  `JsIterator extends Iterator<Object>`. Built-ins (JsArray, JsString,
+  List, native arrays) take fast paths; user-defined `ObjectLike` with
+  `@@iterator` go through the spec dance (call iterator method →
+  repeatedly invoke `.next()` → unpack `{value, done}`, with accessor
+  invocation on the result so `get value() { throw }` propagates).
+  - **`Symbol.iterator` retired from `expectations.yaml`.** A minimal
+    `Symbol` global is registered in `ContextRoot.initGlobal` exposing
+    only `Symbol.iterator` / `Symbol.asyncIterator` as their well-known
+    string keys (`"@@iterator"` / `"@@asyncIterator"`). No
+    `Symbol(...)` constructor, no unique-symbol identity — tests
+    needing those still skip via `feature: Symbol`. JsArray / JsString
+    expose `@@iterator` from `getMember`, returning a JsCallable that
+    builds a spec-shaped iterator object via `IterUtils.toIteratorObject`
+    (a JsObject with `next()` returning `{value, done}` and
+    self-iterability `[Symbol.iterator]() { return this }` per
+    %IteratorPrototype%).
+  - **`for-of` on null/undefined now TypeErrors** (was silently iterating
+    zero times — flagged in the optional-chaining session). The split is
+    explicit: for-in keeps `Terms.toIterable` (key enumeration over
+    objects, silent zero on null/undefined per spec); for-of always
+    routes through `IterUtils.getIterator` (TypeError on non-iterable).
+  - **JS-side errors during user iteration** (next() that throws,
+    accessor-getter that throws) propagate via `context.error` rather
+    than Java exceptions; `userIterator.fetch()` checks
+    `cc.isError()` after each callable invocation and marks the iterator
+    exhausted, so for-of/spread/destructuring loops unwind cleanly with
+    the error still set on the context for the outer handler.
+  - **Hand-written tests fixed.** `EvalTest.testForOfLoop` was asserting
+    `for (x of {a:1, b:2})` enumerates values — non-spec; replaced with
+    array iteration, plus a `testForOfNonIterableThrows` regression test
+    covering null / undefined / plain-object. `EngineTest.testForLoopIterationTracking`'s
+    for-of probe was changed from a plain object to an array.
+  - Slice deltas (this session, against HEAD before changes):
+    `for-of/**` 188 → **202 PASS** (-89 SKIP via Symbol.iterator un-skip,
+    +75 of those into FAIL — most need real Symbol() or generators);
+    `Array/from/**` 2 → **11 PASS** (-17 SKIP);
+    `Array/**` (broader) +2 PASS;
+    `expressions/**` 1645 → **1703 PASS** (+58, -177 SKIP);
+    `expressions/call/**` 30 → **40 PASS** (spread args now handle
+    strings + user iterables);
+    `expressions/function/**` 66 → **74 PASS**;
+    `assignment/dstr/**` 157 → **176 PASS**;
+    `let/dstr/**` 50 → **53**, `const/dstr/**` 50 → **53**,
+    `variable/dstr/**` 52 → **55**.
+    No PASS regressions in any sampled slice (Object/prototype/** held
+    at 55 → **56**; the doc's prior 66 number was stale).
+  - **EngineBenchmark profile mode unchanged** — 1.31 ms array / 0.48 ms
+    object, in line with the 2026-04-22 reference (1.32 / 0.50). Hot
+    path remains a single type check (JsArray / String / List / String /
+    JavaArray) before falling to the user-iterator slow path; no
+    allocation on the built-in fast paths beyond the inner-class
+    `JsIterator` (one per iteration site, same shape as the previous
+    `Iterable<KeyValue>` returns).
 - **Optional chaining (`?.`) and nullish coalescing (`??`).** Both
   retired from `expectations.yaml`. The `nullish-coalescing` skip entry
   was a misnomer — test262 uses the `coalesce-expression` feature key,
@@ -862,13 +920,22 @@ by "how often does idiomatic LLM-written JS hit this?" not by
 test-count. Each entry names (a) what LLMs actually do that depends on
 it, (b) the shape of the work, and (c) the skip-list entry to retire.
 
-**Baseline health** (probe at current HEAD): `expressions/**` 1645,
-`Math/**` 140/65 ok, `Number/**` 157/92 ok, `String/**` 267/783
-(method gaps), `RegExp/**` 449/482 ok, **`Date/**` 30/373 — poor,
-worth its own session**, `Boolean/**` 23/19, `Object/prototype/**`
-66/104 ok, `try/**` 58/110 ok. `Promise/**` / `BigInt/**` /
-`TypedArrayConstructors/Uint8Array/**` all fully SKIP-gated today.
-Numbers drift each session — re-probe before scoping.
+**Baseline health** (probe at current HEAD, post iteration unification):
+`expressions/**` 1703 PASS / 2242 FAIL / 7093 SKIP,
+`Object/**` 476/1944, `Object/prototype/**` 56/118,
+`Array/**` 647/1911, `Array/from/**` 11/28,
+`for-of/**` 202/338, `expressions/call/**` 40/36,
+`expressions/function/**` 74/137,
+`assignment/dstr/**` 176/103, `let/dstr/**` 53/22,
+`const/dstr/**` 53/22, `variable/dstr/**` 55/24,
+`expressions/template-literal/**` 51/5.
+Older numbers from prior sessions —
+`Math/**` 140/65, `Number/**` 157/92, `String/**` 267/783
+(method gaps), `RegExp/**` 449/482, **`Date/**` 30/373 — poor,
+worth its own session**, `Boolean/**` 23/19, `try/**` 58/110.
+`Promise/**` / `BigInt/**` / `TypedArrayConstructors/Uint8Array/**`
+all fully SKIP-gated today. Numbers drift each session — re-probe
+before scoping.
 
 ---
 
@@ -913,52 +980,7 @@ engine rejects a large fraction of idiomatic modern JS.
 
 ---
 
-**2. Iteration-layer unification + un-skip `Symbol.iterator`.**
-
-Right now karate-js has **ad-hoc iteration** scattered across sites
-that each special-case `List` / `String` / `JsArray`:
-
-- `destructurePattern` in `Interpreter` (the destructuring overhaul
-  added a bespoke String → List<Object> expansion).
-- `evalForStmt` for `for-of` (walks List elements; also has a known
-  bug — `for-of` on `undefined` should throw TypeError per spec
-  but currently iterates zero times silently, surfaced by
-  `optional-chaining/iteration-statement-for-of-type-error.js`).
-- `...spread` in call args (`evalFnCall` iterates List).
-- `...spread` in array literals.
-- `Array.from`, `Array.of`, and similar built-ins.
-
-No single "give me an iterator over X" seam exists. Adding one — a
-`getIterator(Object)` helper returning a `JsIterator` interface with
-`next(): IterResult`, backed by:
-- JsArray / List → index walker
-- String → code-unit walker
-- JsObject with `@@iterator` key → user-defined iterator via its
-  `next()` method
-- a minimal `Symbol.iterator` registered as a *well-known-symbol*
-  string key (`"@@iterator"` until real `Symbol` lands)
-
-— collapses five ad-hoc call sites into one, and unblocks
-`compareArray.js` (gates thousands of `test/built-ins/**` tests
-currently SKIP'd because `Symbol.iterator` is feature-skipped).
-
-Shape: focused engine-plumbing session. (1) Introduce `JsIterator`
-interface + `IterUtils.getIterator(Object)`. (2) Convert the five
-call sites above — including the `for-of`-on-nullish TypeError fix.
-(3) Remove `feature: Symbol.iterator` from `expectations.yaml`.
-(4) Expose `@@iterator` read on `JsArray` / `JsString` as a
-well-known-symbol alias. Real `Symbol()` construction can stay
-skipped.
-
-**Why second:** architectural, but the friction has been documented
-across multiple sessions (destructuring, optional chaining, spread).
-One refactor retires a massive SKIP cluster *and* enables #5
-(Map/Set) + more robust `for-of`. Per Working Principle #2 — the
-friction is real; fix it now.
-
----
-
-**3. Class syntax (ES6).**
+**2. Class syntax (ES6).**
 
 Currently skipped (`feature: class` plus five `class-*` variants).
 LLMs default to `class Foo extends Bar {}` when they want OO.
@@ -971,14 +993,14 @@ Shape: (1) parser recognizes `class`/`extends`/method-definitions;
 (4) `static` members become direct function properties. Mid-to-large
 session. Retire the six `class-*` skips.
 
-**Why third:** qualitatively important but larger scope. Existing
+**Why second:** qualitatively important but larger scope. Existing
 karate-js code that uses prototype syntax directly still works, so
 this is coverage for new LLM-written code, not a break-fix for
 existing users.
 
 ---
 
-**4. BigInt.**
+**3. BigInt.**
 
 Currently fully skipped (`feature: BigInt` gates 77 `BigInt/**`
 tests). LLMs reach for BigInt occasionally — cryptographic math, ID
@@ -992,12 +1014,12 @@ BigInt/Number without explicit coercion, `typeof` → `"bigint"`,
 `BigInt()` constructor global. Medium session. Retire the BigInt
 skip.
 
-**Why fourth:** user-explicit ask, genuinely useful, but lower
-frequency than #1–#3 in real-world glue code.
+**Why third:** user-explicit ask, genuinely useful, but lower
+frequency than #1–#2 in real-world glue code.
 
 ---
 
-**5. Utility-method sweep + Map / Set.**
+**4. Utility-method sweep + Map / Set.**
 
 Across `String/**` (267/783), `Array/prototype/**` (595/1808), and
 `Object/prototype/**` (66/104), a large fraction of fails are
@@ -1011,22 +1033,22 @@ missing-method gaps rather than wrong-semantics:
 - `Map` and `Set` constructors (both fully skipped today; reach-for
   default for LLMs doing lookups, deduplication)
 
-`Map`/`Set` depend on #2 (iterator protocol) for their constructors
-`new Map(iterable)`. Cluster this after #2 so the collection work can
-ride on the unified iteration surface.
+`Map`/`Set` constructors can now ride on `IterUtils.getIterator` — the
+iteration unification is in place, so `new Map(iterable)` is a small
+shape concern, not a missing protocol.
 
 Shape: methodical — pick a built-in, implement missing methods with
 reference to the spec, add regression tests. Each subsection is a
 single commit's worth of work, test-count delta in the hundreds per
 session.
 
-**Why fifth:** cumulative impact is huge but each individual gap is
+**Why fourth:** cumulative impact is huge but each individual gap is
 small. Tractable but tedious; can be parallelized or dripped in
 between bigger projects.
 
 ---
 
-**6. Date polish.**
+**5. Date polish.**
 
 30/373 is the worst basic-slice number. `JsDate` passes its JUnit
 suite but spec conformance is poor — likely `valueOf` /
@@ -1038,12 +1060,12 @@ Shape: audit the 373 fails, group by method, fix per-method. Probably
 a single-session sweep. No skip-list change needed; it's a
 conformance effort, not a feature-gate.
 
-**Why sixth:** surprisingly bad but per-test fixes, not
+**Why fifth:** surprisingly bad but per-test fixes, not
 architectural. Worth doing when Date pain surfaces in a real workload.
 
 ---
 
-**7. Destructuring-assignment residuals (75).**
+**6. Destructuring-assignment residuals (75).**
 
 After this session's fixes, the 75 remaining fails are low-leverage:
 47 need lexer identifier-escape support (LLMs don't write
@@ -1053,7 +1075,7 @@ Demoted from previous-session's #1.
 
 ---
 
-**8. Deferred — descriptor infra, low LLM-leverage.**
+**7. Deferred — descriptor infra, low LLM-leverage.**
 
 - **Array cliff (~1896 FAILs)**, **Object-attribute polish
   (~1855 FAILs)**, **harness helpers (`propertyHelper.js`,

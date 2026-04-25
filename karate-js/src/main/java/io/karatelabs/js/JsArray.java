@@ -84,7 +84,23 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         if ("__proto__".equals(name)) {
             return __proto__;
         }
-        // 4. Delegate to prototype chain
+        // 4. @@iterator: stand-in for Symbol.iterator until real Symbol support lands.
+        // Returns a callable that, given `this = array`, builds the spec-shaped iterator
+        // object ({next() -> {value, done}}). Built-in fast path bypasses this seam;
+        // only user code reading `arr[Symbol.iterator]()` lands here.
+        if (IterUtils.SYMBOL_ITERATOR.equals(name)) {
+            return (JsCallable) (ctx, args) -> {
+                Object thisObj = ctx.getThisObject();
+                JsIterator iter;
+                if (thisObj instanceof JsArray arr) {
+                    iter = IterUtils.getIterator(arr, ctx);
+                } else {
+                    iter = IterUtils.getIterator(JsArray.this, ctx);
+                }
+                return IterUtils.toIteratorObject(iter);
+            };
+        }
+        // 5. Delegate to prototype chain
         if (__proto__ != null) {
             return __proto__.getMember(name);
         }

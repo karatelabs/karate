@@ -60,26 +60,37 @@ class JsArrayConstructor extends JsFunction {
 
     @SuppressWarnings("unchecked")
     private Object from(Context context, Object[] args) {
+        if (args.length == 0 || args[0] == null || args[0] == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("Array.from requires an iterable or array-like object, not " + (args.length == 0 ? "undefined" : args[0]));
+        }
+        Object source = args[0];
+        JsCallable mapFn = (args.length > 1 && args[1] instanceof JsCallable) ? (JsCallable) args[1] : null;
         List<Object> results = new ArrayList<>();
-        JsCallable callable = null;
-        if (args.length > 1 && args[1] instanceof JsCallable) {
-            callable = (JsCallable) args[1];
+        // Iterable path: anything with @@iterator (built-in or user). Per spec, this
+        // takes priority over the array-like length-walk fallback.
+        JsIterator iter = IterUtils.tryGetIterator(source, context);
+        if (iter != null) {
+            int index = 0;
+            while (iter.hasNext()) {
+                Object v = iter.next();
+                Object mapped = mapFn == null ? v : mapFn.call(context, new Object[]{v, index});
+                results.add(mapped);
+                index++;
+            }
+            return results;
         }
-        JsArray array;
-        if (args[0] instanceof Map) {
-            array = JsArray.toArray((Map<String, Object>) args[0]);
-        } else if (args[0] instanceof JsArray ja) {
-            array = ja;
-        } else if (args[0] instanceof List) {
-            array = new JsArray((List<Object>) args[0]);
-        } else {
-            array = new JsArray();
+        // Array-like fallback: map-of-string-keys with `length` (e.g. {0: 'a', 1: 'b', length: 2}).
+        if (source instanceof Map) {
+            JsArray array = JsArray.toArray((Map<String, Object>) source);
+            int index = 0;
+            for (Object v : array.list) {
+                Object mapped = mapFn == null ? v : mapFn.call(context, new Object[]{v, index});
+                results.add(mapped);
+                index++;
+            }
+            return results;
         }
-        for (KeyValue kv : array.jsEntries()) {
-            Object result = callable == null ? kv.value() : callable.call(context, new Object[]{kv.value(), kv.index()});
-            results.add(result);
-        }
-        return results;
+        throw JsErrorException.typeError(source + " is not iterable");
     }
 
     private Object isArray(Object[] args) {

@@ -42,8 +42,10 @@ skip:
       reason: Symbol not supported
     - feature: Symbol.asyncIterator
       reason: Symbol not supported
-    - feature: Symbol.iterator
-      reason: Symbol not supported
+    # Symbol.iterator un-skipped: karate-js exposes @@iterator (string-keyed
+    # stand-in) on JsArray / JsString and routes for-of / spread / destructuring /
+    # Array.from through IterUtils.getIterator. Tests that rely on real Symbol
+    # construction still skip via `feature: Symbol`.
     - feature: BigInt
       reason: BigInt not supported
     - feature: generators

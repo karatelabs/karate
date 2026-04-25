@@ -62,6 +62,21 @@ non-sealed class JsString extends JsObject implements JsPrimitive {
         if ("length".equals(name)) {
             return text.length();
         }
+        // @@iterator: stand-in for Symbol.iterator until real Symbol support lands.
+        if (IterUtils.SYMBOL_ITERATOR.equals(name)) {
+            return (JsCallable) (ctx, args) -> {
+                Object thisObj = ctx.getThisObject();
+                JsIterator iter;
+                if (thisObj instanceof JsString js) {
+                    iter = IterUtils.getIterator(js, ctx);
+                } else if (thisObj instanceof String s) {
+                    iter = IterUtils.getIterator(s, ctx);
+                } else {
+                    iter = IterUtils.getIterator(JsString.this, ctx);
+                }
+                return IterUtils.toIteratorObject(iter);
+            };
+        }
         return null;
     }
 
