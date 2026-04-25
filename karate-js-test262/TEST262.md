@@ -829,6 +829,45 @@ session needs to violate one, the principle goes up for review explicitly.
   destructuring binds via the unified `destructurePattern` /
   `bindTarget` / `bindLeaf` helpers, which recurse on nested patterns
   and share between assignment and `var`/`let`/`const` paths.
+- **Built-in prototypes accept user-added properties.** `Prototype` has
+  a `userProps` map; user-added properties win over built-ins on
+  lookup (configurable: true / writable: true per spec). Built-in
+  methods themselves can't be deleted via `removeMember`. Required for
+  `Array.prototype.foo = ...` polyfill patterns and for spec-conformant
+  test262 behavior.
+- **Function declarations hoist** at the start of the enclosing program
+  / block scope. `Interpreter.hoistFunctionDeclarations` walks
+  immediate `STATEMENT > FN_EXPR` children, evaluates each — binding
+  the name. The main loop in `evalProgram` / `evalBlock` then *skips*
+  the FN_EXPR statement (re-evaluating would replace the hoisted
+  binding with a fresh `JsFunctionNode` and drop any property
+  assignments made on the hoisted function, e.g. `foo.prototype = X`
+  before `function foo(){}`). Per spec FunctionDeclaration's
+  completion is empty (the previous value carries through); we
+  additionally fall back to the last hoisted function as the
+  completion when a script contains *only* declarations, so host
+  callers loading a script that's just `function fn() {...}` still
+  get `fn` back from `eval`.
+- **`Array.prototype.*` are generic over array-like `this`.**
+  `JsArrayPrototype.rawList` falls back to a `0..length-1` snapshot
+  via `getMember(String.valueOf(i))` for any ObjectLike with a
+  numeric `.length` — so `Array.prototype.every.call(date, fn)` and
+  the `Array.prototype.X.call(obj, ...)` test262 pattern work.
+  Mutating methods on a non-array operate on the snapshot list and
+  don't write back (would need spec ToObject + index-write
+  semantics; not yet modeled).
+- **`JsArray.getMember` resolves canonical numeric-index keys.**
+  `Array.prototype` lookup includes `String.valueOf(i)` reads (e.g.
+  inside `rawList`'s array-like fallback). `JsArray.getMember("3")`
+  returns `list.get(3)` rather than delegating to the prototype
+  chain. Strict canonical parse (rejects `"01"`, `"+1"`, `"1.0"`)
+  so non-canonical string keys still go to namedProps / proto chain.
+- **`Function.prototype.bind`** in `JsFunctionPrototype.bindMethod`:
+  returns a new `JsFunction` whose `call(ctx, args)` sets
+  `ctx.thisObject = boundThis` and prepends pre-bound args to the
+  caller's args. `length` / `name` of the bound function are
+  approximate (name is `"bound " + target.name`); call semantics are
+  what matters.
 
 ---
 
@@ -841,11 +880,8 @@ entry to retire (if any). Re-probe with the relevant `--only` glob before
 scoping a session.
 
 - **Utility-method sweep + `Map` / `Set`.** Across `String/**`,
-  `Array/prototype/**`, `Object/prototype/**`, a large fraction of fails
-  are missing-method gaps rather than wrong-semantics:
-  - `Object.entries` / `Object.fromEntries` / `Object.assign` gaps
-  - `Array.prototype.includes` (currently skip-listed!), `.flat`,
-    `.flatMap`, `.at`
+  `Object/prototype/**`, a large fraction of fails are still
+  missing-method gaps rather than wrong-semantics:
   - `String.prototype.padStart` / `padEnd` / `replaceAll` / `matchAll` /
     `at`
   - `Map` and `Set` constructors (both fully skipped today; reach-for
@@ -860,6 +896,10 @@ scoping a session.
   commit's worth of work. Cumulative impact is huge but each individual
   gap is small; tractable but tedious; can be parallelized or dripped in
   between bigger projects.
+
+  *(Object.entries/fromEntries/assign and Array.prototype.includes/flat/
+  flatMap/at were already implemented; Array.prototype.includes was
+  un-skipped this session.)*
 
 - **Date polish.** `Date/**` has the worst basic-slice pass rate of any
   built-in. `JsDate` passes its JUnit suite but spec conformance is poor —
@@ -895,6 +935,42 @@ scoping a session.
 Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
+
+- **Prototype extension + function-decl hoisting + array-like generic
+  methods.** Three changes that compound: built-in prototypes accept
+  user-added properties (`Array.prototype.foo = ...` per spec —
+  configurable: true / writable: true), function declarations hoist to
+  the enclosing program/block scope (so `foo.prototype = X` before
+  `function foo(){}` survives), and `Array.prototype.*` methods read
+  from any array-like `this` via `.length` + indexed snapshot (so
+  `Array.prototype.every.call(date, fn)` etc. behave). Plus
+  `Function.prototype.bind` and `JsArray.getMember` numeric-index
+  routing (needed when a JsArray sits in a prototype chain).
+  `Array.prototype.includes` skip retired.
+  `built-ins/Array/**`: 648 → 912 pass (+264).
+  Full diff: `Prototype.java`, `Interpreter.java`, `JsArray.java`,
+  `JsArrayPrototype.java`, `JsFunctionPrototype.java`.
+
+  Residual fails (each small or blocked on bigger infra):
+  - **Mutating Array methods on non-array `this`** — `[].push.call(obj, ...)`
+    on an arbitrary object operates on the snapshot list and the
+    mutation doesn't write back to the source. Spec ToObject + index
+    write-back would need property-write semantics on ObjectLike.
+  - **`obj` arg passed to `every`/`some`/`reduce` callbacks** — currently
+    passes the snapshot list, not the original `this`. Per spec the
+    third callback arg should be `O` (the original). Cluster of ~10
+    test262 fails. Single-line fix per method.
+  - **`for (let x = 0; x < N;) { x++; }`** — pre-existing hang
+    independent of this work. Per-iteration `let`-snapshot in
+    `evalForStmt` doesn't write the body's mutation of the loop
+    variable back to the LOOP_INIT scope, so `x` stays 0 forever.
+    Affects ~10 `language/statements/**` tests; revisit when scoping
+    a `let`-binding fix.
+  - **`compareArray.js` skip kept** — many of its users depend on
+    accessor descriptors (`Object.defineProperty` get/set), which
+    aren't enforced. Without enforcement, iteration-protocol tests
+    that throw via accessor getters loop forever. Un-skip when
+    descriptor infra lands.
 
 - **BigInt + numeric separators.** BigInt landed end-to-end: `123n`
   literals (with `_` separators), `BigInteger`-backed runtime, full

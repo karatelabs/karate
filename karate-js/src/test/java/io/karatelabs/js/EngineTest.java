@@ -613,38 +613,23 @@ class EngineTest {
     }
 
     @Test
-    void testBuiltinPrototypeImmutability() {
+    void testBuiltinPrototypeExtension() {
+        // Per spec, built-in prototype methods are configurable: true / writable: true.
+        // Extending Array.prototype etc. is legitimate JS and the new property must be
+        // visible to all instances via prototype lookup. Common in real-world libraries
+        // (polyfills) and idiomatic LLM-written code.
         Engine engine = new Engine();
-        // Built-in prototypes should be immutable
-        // Attempting to modify Array.prototype should throw TypeError
-        try {
-            engine.eval("Array.prototype.customMethod = function() { return 'custom'; }");
-            fail("expected TypeError for modifying built-in prototype");
-        } catch (Exception e) {
-            assertTrue(e.getMessage().contains("TypeError"));
-            assertTrue(e.getMessage().contains("immutable built-in prototype"));
-        }
-        // Same for String.prototype
-        try {
-            engine.eval("String.prototype.customMethod = function() { return 'custom'; }");
-            fail("expected TypeError for modifying built-in prototype");
-        } catch (Exception e) {
-            assertTrue(e.getMessage().contains("TypeError"));
-        }
-        // Same for Object.prototype
-        try {
-            engine.eval("Object.prototype.customMethod = function() { return 'custom'; }");
-            fail("expected TypeError for modifying built-in prototype");
-        } catch (Exception e) {
-            assertTrue(e.getMessage().contains("TypeError"));
-        }
-        // User objects should still be fully mutable
+        engine.eval("Array.prototype.customMethod = function() { return 'custom'; }");
+        assertEquals("custom", engine.eval("[].customMethod()"));
+        engine.eval("String.prototype.shout = function() { return this + '!'; }");
+        assertEquals("hi!", engine.eval("'hi'.shout()"));
+        engine.eval("Object.prototype.tag = 'tagged';");
+        assertEquals("tagged", engine.eval("({}).tag"));
+        // User objects/arrays/functions remain mutable (regression check).
         engine.eval("var obj = {}; obj.foo = 'bar';");
         assertEquals("bar", engine.eval("obj.foo"));
-        // User arrays should still be mutable
         engine.eval("var arr = [1, 2, 3]; arr.push(4);");
         assertEquals(4, engine.eval("arr.length"));
-        // User functions should still be mutable
         engine.eval("function myFunc() { return 1; }; myFunc.customProp = 'hello';");
         assertEquals("hello", engine.eval("myFunc.customProp"));
     }

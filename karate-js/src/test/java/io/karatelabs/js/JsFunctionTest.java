@@ -538,6 +538,35 @@ class JsFunctionTest extends EvalBase {
     }
 
     @Test
+    void testBindThisAndArgs() {
+        // bind binds `this` and prepends args; subsequent invocations append actuals.
+        matchEval("function f(x, y) { return this.n + x + y; }\n"
+                + "var bound = f.bind({ n: 10 }, 1);\n"
+                + "bound(2)", "13");
+        // bind can be used to give built-ins a fixed receiver — the test262
+        // pattern `[].flat.bind(a)()` for unmounted method invocation.
+        matchEval("var a = [[1, 2], [3, 4]];\n"
+                + "var fn = [].flat.bind(a);\n"
+                + "fn()", "[1, 2, 3, 4]");
+        // No prebound args, undefined this — passes all actuals through.
+        matchEval("function add(x, y) { return x + y; }\n"
+                + "add.bind()(3, 4)", "7");
+    }
+
+    @Test
+    void testFunctionDeclarationHoisting() {
+        // function declarations hoist: code earlier in the script can still
+        // reference them and assign properties (e.g. .prototype) to them.
+        matchEval("foo();\n"
+                + "function foo() { return 42; }", "42");
+        // assignment to hoisted function before its lexical position survives
+        // — re-evaluating the FN_EXPR in normal flow must not clobber it.
+        matchEval("foo.tag = 'tagged';\n"
+                + "function foo() {}\n"
+                + "foo.tag", "'tagged'");
+    }
+
+    @Test
     void testJavaTypeReferenceSurvivesAcrossCallBoundary() {
         // 2.0.3 symptom from issue #2802: Java.type wrapper captured in a
         // closure must remain functional when the function is called via

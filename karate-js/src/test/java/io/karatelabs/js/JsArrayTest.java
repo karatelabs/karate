@@ -12,6 +12,38 @@ class JsArrayTest extends EvalBase {
     }
 
     @Test
+    void testFunctionHoistingWithPrototypeAssignmentBeforeDeclaration() {
+        // Function declarations hoist; assignments to the hoisted function (e.g.
+        // setting its `.prototype`) before the lexical declaration must survive.
+        // Re-evaluating the FN_EXPR in normal flow would replace the binding and
+        // drop the property assignment. test262 has dozens of "subclassed array"
+        // tests in this exact shape under test/built-ins/Array/prototype/<method>/.
+        matchEval("foo.prototype = [1, 2, 3];\n"
+                + "function foo() {}\n"
+                + "var f = new foo();\n"
+                + "f.reduce(function (a, b) { return a + b; })", "6");
+        // Order-independent: declaration first should still work.
+        matchEval("function foo() {}\n"
+                + "foo.prototype = [10, 20];\n"
+                + "var f = new foo();\n"
+                + "f.length", "2");
+    }
+
+    @Test
+    void testBuiltinPrototypeExtensionVisibleToInstances() {
+        // Spec: built-in prototype methods are configurable: true / writable: true.
+        // Adding a method to Array.prototype must be visible on every array instance
+        // via the prototype chain.
+        matchEval("Array.prototype.first = function () { return this[0]; };\n"
+                + "[10, 20, 30].first()", "10");
+        matchEval("Array.prototype.lastEl = function () { return this[this.length - 1]; };\n"
+                + "[1, 2, 3, 4].lastEl()", "4");
+        // Object.prototype extensions are visible on every object literal.
+        matchEval("Object.prototype.tag = 'tagged';\n"
+                + "({}).tag", "'tagged'");
+    }
+
+    @Test
     void testArray() {
         matchEval("[]", "[]");
         matchEval("[ 1 ]", "[ 1 ]");

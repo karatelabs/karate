@@ -82,8 +82,8 @@ class EngineExceptionTest {
 
     @Test
     void testEngineProducedTypeErrorPrefix() {
-        // Prototype.putMember emits "TypeError: Cannot add property ..."
-        EngineException ex = assertThrowsEngineException("Array.prototype.foo = 1");
+        // Calling a non-callable emits "TypeError: ... is not a function"
+        EngineException ex = assertThrowsEngineException("var x = 1; x()");
         assertTrue(ex.getMessage().contains("TypeError:"), ex.getMessage());
         assertEquals("TypeError", ex.getJsErrorName());
     }

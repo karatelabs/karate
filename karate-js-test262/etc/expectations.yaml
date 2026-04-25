@@ -121,8 +121,7 @@ skip:
     # If engine support proves too incomplete, re-add with a specific reason.
     - feature: new.target
       reason: new.target not supported
-    - feature: Array.prototype.includes
-      reason: not implemented
+    # Array.prototype.includes un-skipped: implemented in JsArrayPrototype.
     - feature: globalThis
       reason: globalThis not exposed
 
@@ -138,7 +137,7 @@ skip:
     - include: detachArrayBuffer.js
       reason: ArrayBuffer semantics not implemented
     - include: compareArray.js
-      reason: depends on Symbol.iterator
+      reason: tests in this set lean on accessor descriptors (Object.defineProperty get/set) which we don't enforce — leads to hangs in iteration-protocol tests
     - include: testTypedArray.js
       reason: TypedArray (beyond Uint8Array) not supported
     - include: testAtomics.js

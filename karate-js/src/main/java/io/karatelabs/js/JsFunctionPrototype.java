@@ -45,8 +45,8 @@ class JsFunctionPrototype extends Prototype {
         return switch (name) {
             case "call" -> (JsCallable) this::callMethod;
             case "apply" -> (JsCallable) this::applyMethod;
+            case "bind" -> (JsCallable) this::bindMethod;
             case "toString" -> (JsCallable) this::toStringMethod;
-            // TODO: bind
             default -> null;
         };
     }
@@ -111,6 +111,46 @@ class JsFunctionPrototype extends Prototype {
             cc.thisObject = thisArgs.thisObject;
         }
         return callable.call(context, thisArgs.args.toArray(new Object[0]));
+    }
+
+    // Spec: Function.prototype.bind(thisArg, ...preBound) returns a new callable
+    // that, when invoked, calls the target with `this` set to thisArg and
+    // arguments = preBound concat actualArgs. Pre-bound args win in order.
+    // We don't model `length` / `name` of the bound function precisely — most
+    // call sites only care about the call semantics.
+    private Object bindMethod(Context context, Object[] args) {
+        Object thisObj = context.getThisObject();
+        if (!(thisObj instanceof JsCallable target)) {
+            throw JsErrorException.typeError("Function.prototype.bind called on non-callable");
+        }
+        Object boundThis = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        Object[] preBound = args.length > 1
+                ? Arrays.copyOfRange(args, 1, args.length)
+                : new Object[0];
+        JsFunction bound = new JsFunction() {
+            @Override
+            public Object call(Context ctx, Object[] callArgs) {
+                Object[] all;
+                if (preBound.length == 0) {
+                    all = callArgs;
+                } else {
+                    all = new Object[preBound.length + callArgs.length];
+                    System.arraycopy(preBound, 0, all, 0, preBound.length);
+                    System.arraycopy(callArgs, 0, all, preBound.length, callArgs.length);
+                }
+                if (ctx instanceof CoreContext cc) {
+                    cc.thisObject = boundThis;
+                }
+                return target.call(ctx, all);
+            }
+        };
+        // Spec: bound function's name is "bound " + target.name
+        if (target instanceof JsFunction tf && tf.name != null) {
+            bound.name = "bound " + tf.name;
+        } else {
+            bound.name = "bound";
+        }
+        return bound;
     }
 
     private Object toStringMethod(Context context, Object[] args) {

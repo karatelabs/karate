@@ -24,6 +24,7 @@
 package io.karatelabs.js;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -31,7 +32,9 @@ import java.util.Map;
  * <p>
  * Property resolution order in {@link #getMember(String)}:
  * <ol>
- *   <li>Check instance properties ({@code props} map)</li>
+ *   <li>User-added properties ({@code userProps} map) — wins over built-ins per spec
+ *       (Array.prototype methods are configurable: true, writable: true, so
+ *       {@code Array.prototype.map = customFn} legitimately overrides)</li>
  *   <li>Call {@link #getBuiltinProperty(String)} - subclass-defined built-in properties</li>
  *   <li>If {@code getBuiltinProperty} returns {@code null}, delegate to {@code __proto__}</li>
  * </ol>
@@ -42,12 +45,15 @@ import java.util.Map;
  *   <li>{@code null} - to delegate lookup to the parent prototype (__proto__)</li>
  * </ul>
  * <p>
- * Built-in prototypes (Array.prototype, String.prototype, etc.) are immutable singletons.
- * Attempting to modify them via putMember/removeMember will throw a TypeError.
+ * Built-in prototypes are singletons but not frozen — user code may extend them
+ * ({@code Array.prototype.myMethod = ...}) and the override will be visible to
+ * all instances via prototype lookup. {@code removeMember} only removes from
+ * {@code userProps}; built-in methods cannot be deleted.
  */
 abstract class Prototype implements ObjectLike {
 
     private final Prototype __proto__;
+    private Map<String, Object> userProps;
 
     Prototype(Prototype __proto__) {
         this.__proto__ = __proto__;
@@ -60,27 +66,37 @@ abstract class Prototype implements ObjectLike {
 
     @Override
     public void putMember(String name, Object value) {
-        throw JsErrorException.typeError("Cannot add property '" + name + "' to immutable built-in prototype");
+        if (userProps == null) {
+            userProps = new LinkedHashMap<>();
+        }
+        userProps.put(name, value);
     }
 
     @Override
     public void removeMember(String name) {
-        throw JsErrorException.typeError("Cannot delete property '" + name + "' from immutable built-in prototype");
+        // Only user-added properties are removable; built-in methods stay.
+        if (userProps != null) {
+            userProps.remove(name);
+        }
     }
 
     @Override
     public Map<String, Object> toMap() {
-        return Collections.emptyMap();
+        return userProps == null ? Collections.emptyMap() : userProps;
     }
 
     @Override
     public final Object getMember(String name) {
-        // 1. Check built-in properties defined by this prototype
+        // 1. User-added properties win over built-ins (configurable: true per spec)
+        if (userProps != null && userProps.containsKey(name)) {
+            return userProps.get(name);
+        }
+        // 2. Built-in properties defined by this prototype
         Object result = getBuiltinProperty(name);
         if (result != null) {
             return result;
         }
-        // 2. Delegate to __proto__ chain
+        // 3. Delegate to __proto__ chain
         if (__proto__ != null) {
             return __proto__.getMember(name);
         }

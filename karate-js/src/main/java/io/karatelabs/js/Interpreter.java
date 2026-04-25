@@ -274,11 +274,23 @@ class Interpreter {
     private static Object evalBlock(Node node, CoreContext context) {
         context.enterScope(ContextScope.BLOCK, node);
         context.event(EventType.CONTEXT_ENTER, node);
+        // Hoist function declarations before any statement runs so earlier
+        // statements can still reference them. Re-running the FN_EXPR in normal
+        // flow would replace the hoisted binding with a fresh JsFunctionNode and
+        // drop any property assignments made on the hoisted function (e.g.
+        // foo.prototype = X before function foo(){}); the loop below skips them.
+        hoistFunctionDeclarations(node, context);
         Object blockResult = null;
         try {
             for (int i = 0, n = node.size(); i < n; i++) {
                 Node child = node.get(i);
                 if (child.type == NodeType.STATEMENT) {
+                    // Function decls produce an empty completion per spec; skip
+                    // here (they were already pre-bound by hoistFunctionDeclarations
+                    // above) so blockResult continues to track the previous value.
+                    if (isFunctionDeclarationStatement(child)) {
+                        continue;
+                    }
                     blockResult = eval(child, context);
                     if (context.isStopped()) {
                         break;
@@ -599,6 +611,41 @@ class Interpreter {
             context.updateFrom(callContext);
         }
         return result;
+    }
+
+    // Pre-walk parent's STATEMENT children for function declarations
+    // (FN_EXPR with leading `function` keyword + IDENT name) and bind each name
+    // before any statement runs. Re-evaluation when the declaration is reached in
+    // normal flow re-binds to a fresh JsFunctionNode with the same captures —
+    // functionally equivalent, just a small extra allocation per declaration.
+    static void hoistFunctionDeclarations(Node parent, CoreContext context) {
+        for (int i = 0, n = parent.size(); i < n; i++) {
+            Node child = parent.get(i);
+            if (isFunctionDeclarationStatement(child)) {
+                evalFnExpr(child.getFirst(), context);
+            }
+        }
+    }
+
+    /**
+     * True if {@code stmt} is a {@code STATEMENT} wrapping a named {@code FN_EXPR}
+     * (i.e., a {@code function name(){}} declaration at statement position). Used
+     * by both the hoisting pre-pass and the main eval loop to skip re-evaluation
+     * — running the FN_EXPR twice would replace the hoisted binding with a fresh
+     * {@link JsFunctionNode}, dropping any property assignments made on the
+     * hoisted function before its lexical position (e.g. {@code foo.prototype = X}
+     * before {@code function foo(){}}).
+     */
+    private static boolean isFunctionDeclarationStatement(Node stmt) {
+        if (stmt.type != NodeType.STATEMENT || stmt.size() == 0) {
+            return false;
+        }
+        Node first = stmt.getFirst();
+        if (first.type != NodeType.FN_EXPR || first.size() < 2) {
+            return false;
+        }
+        Node second = first.get(1);
+        return second.token != null && second.token.type == IDENT;
     }
 
     private static Object evalFnExpr(Node node, CoreContext context) {
@@ -1161,13 +1208,30 @@ class Interpreter {
     }
 
     private static Object evalProgram(Node node, CoreContext context) {
+        // Hoist top-level function declarations so they're visible before their lexical
+        // position. Per ES5/ES6, `function foo() {}` at script-level is registered before
+        // any other statement runs — code earlier in the source can still reference foo.
+        hoistFunctionDeclarations(node, context);
+        // Per spec, FunctionDeclaration produces an empty completion (the previous
+        // value carries through). We additionally fall back to the last hoisted
+        // function when the script contains *only* declarations — a karate-js
+        // convention so host code that loads a script consisting of just a
+        // function definition can use the eval result directly.
         Object progResult = null;
+        boolean anyNonDecl = false;
+        Object lastFnDecl = null;
         for (int i = 0, n = node.size(); i < n; i++) {
             Node child = node.get(i);
             if (child.isEof()) {
                 break;
             }
+            if (isFunctionDeclarationStatement(child)) {
+                String fnName = child.getFirst().get(1).getText();
+                lastFnDecl = context.get(fnName);
+                continue;
+            }
             progResult = eval(child, context);
+            anyNonDecl = true;
             if (context.isError()) {
                 Object errorThrown = context.getErrorThrown();
                 String errorMessage = null;
@@ -1199,7 +1263,7 @@ class Interpreter {
                 throw new EngineException(message, null, errorName);
             }
         }
-        return progResult;
+        return anyNonDecl ? progResult : lastFnDecl;
     }
 
     private static Object evalRefExpr(Node node, CoreContext context) {

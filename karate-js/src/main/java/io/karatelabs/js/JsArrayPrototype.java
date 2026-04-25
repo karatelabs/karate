@@ -107,6 +107,24 @@ class JsArrayPrototype extends Prototype {
         if (ol instanceof JsArray arr) {
             return arr.toList();
         }
+        // Spec: Array.prototype.* are intentionally generic — they treat `this` as an
+        // array-like object with a `.length` and indexed properties. Snapshot 0..len-1
+        // for read-only operations. Mutating methods (push/pop/sort/...) on non-arrays
+        // mutate this snapshot, which doesn't propagate back to the source — non-spec,
+        // but better than crashing. Real spec ToObject + property writes would need
+        // descriptor infrastructure we don't yet have.
+        if (ol != null) {
+            Object lenObj = ol.getMember("length");
+            if (lenObj instanceof Number n) {
+                int len = Math.max(n.intValue(), 0);
+                List<Object> snapshot = new ArrayList<>(len);
+                for (int i = 0; i < len; i++) {
+                    Object v = ol.getMember(String.valueOf(i));
+                    snapshot.add(v == null ? Terms.UNDEFINED : v);
+                }
+                return snapshot;
+            }
+        }
         return new ArrayList<>();
     }
 
@@ -121,6 +139,7 @@ class JsArrayPrototype extends Prototype {
         if (ol instanceof JsArray arr) {
             return arr.jsEntries();
         }
+        // Falls through to the array-like snapshot in rawList for ObjectLike with .length.
         List<Object> list = rawList(context);
         return () -> new Iterator<>() {
             int index = 0;

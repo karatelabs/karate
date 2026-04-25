@@ -84,7 +84,20 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         if ("__proto__".equals(name)) {
             return __proto__;
         }
-        // 4. @@iterator: stand-in for Symbol.iterator until real Symbol support lands.
+        // 4. Numeric index access — supports prototype-chain reads where the JsArray
+        // sits as `this` (e.g. f.[i] when `f.__proto__ === [1,2,3]`). Plain
+        // `arr[i]` goes through PropertyAccess.getByIndex's fast path; this handles
+        // the chained / generic getMember route.
+        if (!name.isEmpty()) {
+            char c0 = name.charAt(0);
+            if (c0 >= '0' && c0 <= '9') {
+                int i = parseIndex(name);
+                if (i >= 0 && i < list.size()) {
+                    return list.get(i);
+                }
+            }
+        }
+        // 5. @@iterator: stand-in for Symbol.iterator until real Symbol support lands.
         // Returns a callable that, given `this = array`, builds the spec-shaped iterator
         // object ({next() -> {value, done}}). Built-in fast path bypasses this seam;
         // only user code reading `arr[Symbol.iterator]()` lands here.
@@ -100,11 +113,29 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
                 return IterUtils.toIteratorObject(iter);
             };
         }
-        // 5. Delegate to prototype chain
+        // 6. Delegate to prototype chain
         if (__proto__ != null) {
             return __proto__.getMember(name);
         }
         return null;
+    }
+
+    private static int parseIndex(String s) {
+        // Strict canonical-integer parse: rejects "01", "+1", "-1", "1.0".
+        // Spec: an array index is a String whose value is a CanonicalNumericIndexString
+        // less than 2^32 - 1. We don't model the upper bound (in-range check by list.size).
+        int n = s.length();
+        if (n == 0) return -1;
+        if (n > 10) return -1; // any 11+ digit index overflows int and isn't a usable element index
+        int v = 0;
+        for (int i = 0; i < n; i++) {
+            char c = s.charAt(i);
+            if (c < '0' || c > '9') return -1;
+            v = v * 10 + (c - '0');
+        }
+        // Reject leading-zero forms like "01", but allow "0".
+        if (n > 1 && s.charAt(0) == '0') return -1;
+        return v;
     }
 
     @Override
