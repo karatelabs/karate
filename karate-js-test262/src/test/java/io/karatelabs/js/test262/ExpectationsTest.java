@@ -47,12 +47,12 @@ class ExpectationsTest {
         Expectations exp = Expectations.load(yaml);
 
         Test262Metadata m = new Test262Metadata(
-                java.util.List.of(), java.util.List.of("BigInt"), java.util.List.of(),
+                java.util.List.of(), java.util.List.of("Symbol"), java.util.List.of(),
                 null, false, null);
-        Test262Case c = syntheticCase("test/language/bigint.js", m);
+        Test262Case c = syntheticCase("test/language/symbol.js", m);
         String reason = exp.matchSkip(c);
         assertNotNull(reason);
-        assertTrue(reason.toLowerCase().contains("bigint"), reason);
+        assertTrue(reason.toLowerCase().contains("symbol"), reason);
     }
 
     @Test

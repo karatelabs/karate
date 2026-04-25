@@ -192,8 +192,27 @@ They apply alongside the Roadmap below.
   - **Default to the no-feature path.** A new `if (cur.type == X) ...`
     in `Interpreter.eval` should fail fast (cheap type check), not
     allocate or recurse.
-
-  When in doubt, run profile-mode `EngineBenchmark` before and after.
+  - **Tight happy path, rare branches off to the side — both in
+    lexer/parser AND interpreter.** Most source characters are plain
+    ASCII; most numbers are plain decimals; most property reads hit
+    own-properties on plain objects; most arithmetic operands are
+    plain `Number`. Exotic shapes (numeric separators, BigInt `n`
+    suffix, Unicode escapes, BigInt arithmetic dispatch, `?.`
+    short-circuit, getter/setter accessors) should be entered *after*
+    a fast-path test fails, not woven into the inner loop.
+    - **Lexer:** scan consecutive plain digits in one tight
+      `while (isDigit(peek())) advance();` loop, then *outside*
+      that loop check for `_` / `n` / `.` / `e` and only re-enter a
+      slower branch if one matches.
+    - **Parser:** keep the descent on common productions free of
+      lookahead for rare ones; resolve rare-form ambiguities
+      post-parse where possible.
+    - **Interpreter:** in `Terms` arithmetic and property
+      resolution, type-check for the rare case (`BigInteger`
+      operand, accessor descriptor) only after the common case
+      misses. The cost of supporting a rare form is paid by code
+      that uses it, not by every numeric op or property read in
+      every test.
 
 - **Focused engine changes, but batched commits are fine.** A single commit
   covering several related fixes from one session (e.g. IIFE + destructuring
@@ -756,6 +775,49 @@ session needs to violate one, the principle goes up for review explicitly.
   chain (so user `toString` throws propagate with constructor identity
   intact). Template-literal lexing is depth-tracked for nested `{}`
   inside `${...}`.
+- **`Terms.toPrimitive` is the spec ToPrimitive boundary.** Object →
+  primitive coercion (used by `BigInt()`, `Number()`, radix args of
+  `toString`, `ToIndex` on `asIntN`/`asUintN`) goes through
+  `Terms.toPrimitive(value, hint, context)`. Hint `"number"` (default)
+  tries `valueOf` then `toString`; hint `"string"` reverses. Each
+  callable runs in a sub-context so its errors flow through
+  `context.updateFrom(...)` rather than wrapping as Java exceptions —
+  same propagation pattern as `toStringCoerce`. Boxed primitives
+  (`JsNumber`/`JsString`/`JsBoolean`/`JsBigInt`) unwrap directly to
+  their `getJavaValue()` rather than dispatching through valueOf;
+  cheaper and equivalent. Both methods returning objects → TypeError.
+  `Symbol.toPrimitive` is *not* dispatched (matches our minimal
+  Symbol surface).
+- **`Terms.narrow()` checks both ends.** Pre-existing bug:
+  `if (d <= Integer.MAX_VALUE) return (int) d` cast any negative
+  value past `Integer.MIN_VALUE` to an overflowed int. Fix: both
+  bounds (`d >= Integer.MIN_VALUE && d <= Integer.MAX_VALUE`) on
+  the int and long collapses. The collapse rule itself is unchanged
+  for in-range values.
+- **BigInt rides on `java.math.BigInteger` with type-tested dispatch.**
+  `BigInteger extends Number`, so it flows through `Terms.objectToNumber`
+  unchanged. Each arithmetic op in `Terms` (`add`, `mul`, `div`, `mod`,
+  `exp`, `min`, bit-ops) checks `lhs instanceof BigInteger ||
+  rhs instanceof BigInteger` *before* the existing `doubleValue()`
+  fast path; mixing BigInt with non-BigInt throws TypeError per spec
+  via `requireBothBigInt`. The branch is paid only by code that
+  exercises BigInt — plain Number arithmetic stays unchanged.
+  Property access wraps via `Terms.toJsValue` → `JsBigInt` (sealed
+  primitive, like `JsNumber`/`JsString`/`JsBoolean`); the
+  `BigInteger` case must be listed *before* `Number n` because
+  `BigInteger` is a `Number`. Increment/decrement uses
+  `Terms.incDecStep(operand)` which returns `BigInteger.ONE` for
+  BigInt operands so `i++` doesn't TypeError on type mixing.
+  `JSON.stringify` pre-walks for BigInt and throws TypeError;
+  unary `+1n` is a TypeError, unary `-1n` negates.
+- **Numeric separators sit on the rare-path lexer rule.** `JsLexer.scanNumber`
+  uses tight digit loops on the common (separator-free) path; only after
+  the fast loop terminates does it test `peek() == '_'` and call
+  `scanDigitsWithSeparators` / `scanHexDigitsWithSeparators` (rare
+  path). The rare-path scanner enforces "between two digits" by
+  consuming the `_`, then asserting the next char is a digit; doubled
+  separators error out by the same check. `Terms.toNumber` strips `_`
+  only when `text.indexOf('_') >= 0` (no allocation on the common case).
 - **Destructuring uses `ObjectLike.getMember`, not `Map.get`.**
   `Interpreter.destructurePattern` reads object-source properties via
   `ObjectLike.getMember`, falling back to `Map.containsKey` on the
@@ -772,27 +834,11 @@ session needs to violate one, the principle goes up for review explicitly.
 
 ## Active priorities
 
-Ordered by "how often does idiomatic LLM-written JS hit this?" — not by
-test count. Each entry names what LLMs actually do that depends on it, the
-shape of the work, and the skip-list entry to retire (if any). Re-probe
-with the relevant `--only` glob before scoping a session.
-
-- **Class syntax (ES6).** LLMs default to `class Foo extends Bar {}` when
-  they want OO. Karate-js already has the prototype and `new` machinery —
-  this is primarily a parser + desugarer. Shape: parser recognizes
-  `class`/`extends`/method-definitions; desugar to constructor function +
-  prototype assignments; handle `super` calls inside constructors and
-  methods; `static` members become direct function properties.
-  Mid-to-large session. Retires the six `class-*` skip entries.
-
-- **BigInt.** LLMs reach for BigInt occasionally — cryptographic math, ID
-  generation above `Number.MAX_SAFE_INTEGER`, timestamps at nanosecond
-  precision. Shape: new token (`123n` literal suffix), new runtime type
-  (`java.math.BigInteger`-backed), arithmetic dispatch in `Terms` to promote
-  when either operand is BigInt, TypeError when mixing BigInt/Number without
-  explicit coercion, `typeof` → `"bigint"`, `BigInt()` constructor global.
-  Medium session. Retires the BigInt skip and unblocks the `BigInt/**`
-  cluster, which currently has no coverage.
+Action list — start at the top. Ordered by "how often does idiomatic
+LLM-written JS hit this?", not by test count. Each entry names what LLMs
+actually do that depends on it, the shape of the work, and the skip-list
+entry to retire (if any). Re-probe with the relevant `--only` glob before
+scoping a session.
 
 - **Utility-method sweep + `Map` / `Set`.** Across `String/**`,
   `Array/prototype/**`, `Object/prototype/**`, a large fraction of fails
@@ -843,6 +889,50 @@ with the relevant `--only` glob before scoping a session.
 - **Cleanup residuals.** Individual bugs to pick off opportunistically:
   occasional `"null"` NPE paths, `IllegalName` JDK lambda leak, `Java heap
   space` OOM in array-slice paths. Not a bucket — grab while nearby.
+
+### Recently completed (residuals tracked)
+
+Not action items — retrospective notes on areas that just shipped, with
+their residual fails enumerated for opportunistic pickup. Read for
+context; the action list is above.
+
+- **BigInt + numeric separators.** BigInt landed end-to-end: `123n`
+  literals (with `_` separators), `BigInteger`-backed runtime, full
+  `Terms` arithmetic dispatch (mixing with Number is a TypeError per
+  spec), `typeof "bigint"`, `BigInt()` global with `asIntN`/`asUintN`
+  (with proper `ToPrimitive` + `ToIndex` coercion),
+  `BigInt.prototype.toString(radix)` / `valueOf`, `JSON.stringify`
+  TypeError, `Number(1n)` collapse, `Number({valueOf})` ToPrimitive,
+  `i++`/`i--` step-1n. BigInt skip and numeric-separator-literal skip
+  retired. `BigInt/**` cluster: 35 pass / 9 fail / 33 skip (was 0 pass
+  before this session); Number cluster +7, `language/expressions/**`
+  +134 (boundary fixes from `narrow()` and ToPrimitive cascade beyond
+  just BigInt).
+
+  Residual fails (all individually small or blocked on bigger infra):
+  - **`new BigInt.asIntN(...)` should TypeError** (×2) — needs a
+    "non-constructible function" mark on `JsCallable`/`JsInvokable` so
+    `new` checks before invoking. Useful fix but ripples through the
+    call/construct dispatch in `Interpreter`.
+  - **`Symbol.toPrimitive` dispatch in `Terms.toPrimitive`** — one test
+    (`constructor-coercion.js`) uses `[Symbol.toPrimitive]`. Needs
+    minimal Symbol expansion (well-known string-keyed stand-ins exist;
+    thread `"@@toPrimitive"` through `toPrimitive`). Small.
+  - **`isConstructor(BigInt)` introspection** — `Reflect.construct`
+    surface.
+  - **`Function` global / `BigInt.__proto__`** — exposing
+    `Function.prototype` as a real intrinsic.
+  - **`Object(1n)` wrapper-object identity** — `Object(primitive)`
+    should return a wrapper that auto-unboxes. Same shape as
+    `Object(1)` / `Object(true)` wrapper-object gaps.
+  - **`cross-realm`** — multi-realm not modeled. Skip-worthy.
+
+- **`Number` / `Math` adjacency.** Constants, predicates, and ES2015
+  Math additions are all in place. Latent `Terms.narrow()` overflow on
+  values `< Integer.MIN_VALUE` was fixed (was silently casting
+  `(int) d` for any `d <= Integer.MAX_VALUE`, including large
+  negatives). No further work expected here unless something concrete
+  fails.
 
 ---
 
@@ -1065,6 +1155,29 @@ that session:
 Detailed architectural design (microtask model, thread strategy,
 `setTimeout` backing, `engine.eval(...)` return semantics, which test262
 clusters to retire) belongs in the implementation session, not here.
+
+### Class syntax (ES6)
+
+Currently all skipped (`feature: class`, `feature: class-fields-public`,
+`feature: class-fields-private`, `feature: class-methods-private`,
+`feature: class-static-fields-public`,
+`feature: class-static-methods-private`). karate-js has the prototype
+machinery and `new`, but no parser support for
+`class`/`extends`/`super`/method-definition syntax — implementing it
+would need parser productions for class declarations and expressions
+plus an interpreter desugarer to constructor-function +
+prototype-assignment form, with `super` resolved through the captured
+class context.
+
+Deferred because LLMs writing glue / test code for karate default to
+function and prototype style and can be prompted to stay there; class
+syntax is a "good to have" rather than load-bearing for the
+embed-karate-with-LLM use case. The cluster currently fails primarily
+at parse-time with `SyntaxError` ("cannot parse statement"), which is
+the right shape — code that uses `class` should fail loudly, not
+silently produce wrong behavior. Pick up if a real workload (a karate
+user pasting `class`-shaped code, a meaningful test cluster outside the
+`feature: class` skips that depends on it) creates demand.
 
 ---
 

@@ -57,7 +57,24 @@ non-sealed class JsNumber extends JsObject implements JsPrimitive {
     static Object getObject(Context context, Object[] args) {
         Number temp = 0;
         if (args.length > 0) {
-            temp = Terms.objectToNumber(args[0]);
+            Object a = args[0];
+            // Spec ToNumber: ObjectLike inputs run through ToPrimitive (hint "number"),
+            // so `Number({valueOf: () => 42})` returns 42. Rare-path branch — primitives
+            // skip it. CoreContext cast is safe (every JS call site has a CoreContext).
+            if (a instanceof ObjectLike) {
+                a = Terms.toPrimitive(a, "number", (CoreContext) context);
+                if (context instanceof CoreContext cc && cc.isError()) {
+                    return Terms.UNDEFINED;
+                }
+            }
+            // BigInt → Number is permitted via the Number() constructor (with possible
+            // precision loss). Without this, Terms.objectToNumber would preserve the
+            // BigInteger identity and `Number(1n)` would still report typeof "bigint".
+            if (a instanceof java.math.BigInteger bi) {
+                temp = Terms.narrow(bi.doubleValue());
+            } else {
+                temp = Terms.objectToNumber(a);
+            }
         }
         CallInfo callInfo = context.getCallInfo();
         if (callInfo != null && callInfo.constructor) {

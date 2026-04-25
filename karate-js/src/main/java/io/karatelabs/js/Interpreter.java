@@ -1139,8 +1139,23 @@ class Interpreter {
         return switch (node.get(0).token.type) {
             case PLUS_PLUS -> PropertyAccess.preIncDec(exprNode, context, true);
             case MINUS_MINUS -> PropertyAccess.preIncDec(exprNode, context, false);
-            case MINUS -> terms(eval(exprNode, context), -1).mul();
-            case PLUS -> Terms.objectToNumber(eval(exprNode, context));
+            case MINUS -> {
+                Object v = eval(exprNode, context);
+                // Rare path: BigInt unary negation needs to stay in the BigInt domain.
+                // The plain-Number case below would TypeError because rhs (-1) is Integer.
+                if (v instanceof java.math.BigInteger bi) {
+                    yield Terms.narrowBigInt(bi.negate());
+                }
+                yield terms(v, -1).mul();
+            }
+            case PLUS -> {
+                Object v = eval(exprNode, context);
+                // Spec: unary + on BigInt is a TypeError (no implicit BigInt → Number).
+                if (v instanceof java.math.BigInteger) {
+                    throw JsErrorException.typeError("Cannot convert a BigInt to a number using unary +");
+                }
+                yield Terms.objectToNumber(v);
+            }
             default -> throw new RuntimeException("unexpected operator: " + node.getFirst());
         };
     }

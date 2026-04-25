@@ -52,7 +52,7 @@ public class JsParser extends BaseParser {
     private static final EnumSet<TokenType> T_ACCESSOR_KEY_START = buildAccessorKeySet();
 
     private static EnumSet<TokenType> buildObjectElemSet() {
-        EnumSet<TokenType> s = EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, DOT_DOT_DOT, L_BRACKET);
+        EnumSet<TokenType> s = EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, BIGINT, DOT_DOT_DOT, L_BRACKET);
         for (TokenType t : TokenType.values()) {
             if (t.keyword) s.add(t);
         }
@@ -60,25 +60,25 @@ public class JsParser extends BaseParser {
     }
 
     private static EnumSet<TokenType> buildAccessorKeySet() {
-        EnumSet<TokenType> s = EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, L_BRACKET);
+        EnumSet<TokenType> s = EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, BIGINT, L_BRACKET);
         for (TokenType t : TokenType.values()) {
             if (t.keyword) s.add(t);
         }
         return s;
     }
-    private static final EnumSet<TokenType> T_LIT_EXPR = EnumSet.of(S_STRING, D_STRING, NUMBER, TRUE, FALSE, NULL);
+    private static final EnumSet<TokenType> T_LIT_EXPR = EnumSet.of(S_STRING, D_STRING, NUMBER, BIGINT, TRUE, FALSE, NULL);
     private static final EnumSet<TokenType> T_FOR_IN_OF = EnumSet.of(IN, OF);
 
     // Lookahead sets - EnumSet for O(1) contains() via bitmask
     private static final EnumSet<TokenType> T_EXPR_START = EnumSet.of(
-            IDENT, S_STRING, D_STRING, NUMBER, TRUE, FALSE, NULL,  // literals & ref
-            L_CURLY, L_BRACKET, BACKTICK, REGEX,                   // compound literals
-            FUNCTION, L_PAREN, NEW, TYPEOF,                        // keywords & grouping
-            NOT, TILDE, PLUS_PLUS, MINUS_MINUS, MINUS, PLUS        // unary operators
+            IDENT, S_STRING, D_STRING, NUMBER, BIGINT, TRUE, FALSE, NULL,  // literals & ref
+            L_CURLY, L_BRACKET, BACKTICK, REGEX,                           // compound literals
+            FUNCTION, L_PAREN, NEW, TYPEOF,                                // keywords & grouping
+            NOT, TILDE, PLUS_PLUS, MINUS_MINUS, MINUS, PLUS                // unary operators
     );
     private static final EnumSet<TokenType> T_LIT_EXPR_START = EnumSet.of(
-            S_STRING, D_STRING, NUMBER, TRUE, FALSE, NULL,         // simple literals
-            L_CURLY, L_BRACKET, BACKTICK, REGEX                    // compound literals
+            S_STRING, D_STRING, NUMBER, BIGINT, TRUE, FALSE, NULL,         // simple literals
+            L_CURLY, L_BRACKET, BACKTICK, REGEX                            // compound literals
     );
 
     private Node ast;
@@ -887,7 +887,7 @@ public class JsParser extends BaseParser {
         if (!enter(NodeType.MATH_PRE_EXPR, T_MATH_PRE_EXPR)) {
             return false;
         }
-        if (!(expr(13, false) || consumeIf(NUMBER))) {
+        if (!(expr(13, false) || consumeIf(NUMBER) || consumeIf(BIGINT))) {
             error(NodeType.EXPR);
         }
         return exit();
@@ -935,7 +935,7 @@ public class JsParser extends BaseParser {
                     error(R_BRACKET);
                     return exit(false, false);
                 }
-            } else if (!(consumeIf(IDENT) || consumeIf(S_STRING) || consumeIf(D_STRING) || consumeIf(NUMBER))) {
+            } else if (!(consumeIf(IDENT) || consumeIf(S_STRING) || consumeIf(D_STRING) || consumeIf(NUMBER) || consumeIf(BIGINT))) {
                 error(IDENT, S_STRING);
                 return exit(false, false);
             }

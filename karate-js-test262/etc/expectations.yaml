@@ -46,8 +46,9 @@ skip:
     # stand-in) on JsArray / JsString and routes for-of / spread / destructuring /
     # Array.from through IterUtils.getIterator. Tests that rely on real Symbol
     # construction still skip via `feature: Symbol`.
-    - feature: BigInt
-      reason: BigInt not supported
+    # BigInt un-skipped: lexer recognizes the `n` literal suffix, runtime is backed
+    # by java.math.BigInteger, arithmetic dispatches through Terms with TypeError on
+    # mixing with Number, JSON.stringify throws TypeError per spec.
     - feature: generators
       reason: generator functions not supported
     - feature: class
@@ -110,8 +111,9 @@ skip:
       reason: /v regex flag not implemented
     - feature: dynamic-import
       reason: dynamic import not supported
-    - feature: numeric-separator-literal
-      reason: numeric separators not implemented
+    # numeric-separator-literal un-skipped: lexer accepts `_` between digits in
+    # decimal, hex, exponent, and BigInt literals; first-char and trailing/doubled
+    # separators are early errors.
     - feature: tail-call-optimization
       reason: tail-call optimization not guaranteed
     # destructuring-binding is INTENTIONALLY NOT skipped — LLM-written JS uses
@@ -142,7 +144,7 @@ skip:
     - include: testAtomics.js
       reason: Atomics not supported
     - include: testBigIntTypedArray.js
-      reason: BigInt not supported
+      reason: BigInt64Array / BigUint64Array (TypedArray beyond Uint8Array) not supported
     - include: testIntl.js
       reason: internationalization out of scope
     - include: proxyTrapsHelper.js

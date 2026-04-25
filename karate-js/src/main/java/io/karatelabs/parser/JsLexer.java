@@ -429,44 +429,115 @@ public class JsLexer extends BaseLexer {
         if (c == '0' && (peek(1) == 'x' || peek(1) == 'X')) {
             advance(); // 0
             advance(); // x
+            int hexStart = pos;
+            // Fast path: hex digits only, no separator
             while (!isAtEnd() && isHexDigit(peek())) {
                 advance();
             }
+            // Rare path: separator(s) inside hex literal — must follow a digit, not the prefix
+            if (!isAtEnd() && peek() == '_') {
+                if (pos == hexStart) {
+                    throw new ParserException("invalid numeric separator");
+                }
+                scanHexDigitsWithSeparators();
+            }
+            // Rare path: BigInt suffix — `0xff_ffn` is valid
+            if (!isAtEnd() && peek() == 'n') {
+                advance();
+                return BIGINT;
+            }
             return NUMBER;
         }
+
+        boolean isInteger = true;
 
         // Decimal number
         // Integer part
         if (c == '.') {
             // Number starting with .
+            isInteger = false;
             advance();
         } else {
+            // Fast path: integer digits, no separator
             while (!isAtEnd() && isDigit(peek())) {
                 advance();
             }
+            // Rare path: separator(s) inside integer part
+            if (!isAtEnd() && peek() == '_') {
+                scanDigitsWithSeparators();
+            }
             // Decimal part
             if (peek() == '.' && isDigit(peek(1))) {
+                isInteger = false;
                 advance(); // .
             }
         }
 
-        // Fractional part
+        // Fractional part — fast path
         while (!isAtEnd() && isDigit(peek())) {
             advance();
         }
+        // Rare path: separator(s) inside fractional part
+        if (!isAtEnd() && peek() == '_') {
+            scanDigitsWithSeparators();
+            isInteger = false; // separators implied a fractional part if we got here via `.`
+        }
 
-        // Exponent part
-        if (peek() == 'e' || peek() == 'E') {
+        // Exponent part — rare branch, doesn't fire on plain integers/decimals
+        char p = peek();
+        if (p == 'e' || p == 'E') {
+            isInteger = false;
             advance();
             if (peek() == '+' || peek() == '-') {
                 advance();
             }
+            int expDigitsStart = pos;
+            while (!isAtEnd() && isDigit(peek())) {
+                advance();
+            }
+            if (!isAtEnd() && peek() == '_') {
+                if (pos == expDigitsStart) {
+                    throw new ParserException("invalid numeric separator");
+                }
+                scanDigitsWithSeparators();
+            }
+        }
+
+        // Rare path: BigInt suffix — only valid on integer literals
+        if (isInteger && !isAtEnd() && peek() == 'n') {
+            advance();
+            return BIGINT;
+        }
+
+        return NUMBER;
+    }
+
+    // Slow path: number contained at least one `_` separator. Spec rules:
+    //   - `_` must appear between two digits (no leading, trailing, or doubled)
+    //   - the first `_` we see has already been validated (preceding char is a digit)
+    private void scanDigitsWithSeparators() {
+        while (!isAtEnd() && peek() == '_') {
+            advance(); // consume `_`
+            if (isAtEnd() || !isDigit(peek())) {
+                throw new ParserException("invalid numeric separator");
+            }
+            // gobble the run of digits that follows, then loop in case another `_` appears
             while (!isAtEnd() && isDigit(peek())) {
                 advance();
             }
         }
+    }
 
-        return NUMBER;
+    private void scanHexDigitsWithSeparators() {
+        while (!isAtEnd() && peek() == '_') {
+            advance();
+            if (isAtEnd() || !isHexDigit(peek())) {
+                throw new ParserException("invalid numeric separator");
+            }
+            while (!isAtEnd() && isHexDigit(peek())) {
+                advance();
+            }
+        }
     }
 
     // ========== Identifiers and Keywords ==========

@@ -55,7 +55,13 @@ class JsNumberPrototype extends Prototype {
 
     private Object toStringMethod(Context context, Object[] args) {
         Number n = asNumber(context);
-        if (args.length > 0 && args[0] != null) {
+        // Spec: only `undefined` (or absent) defaults to radix 10; `null` runs through
+        // ToInteger → 0 → RangeError.
+        if (args.length > 0 && args[0] != Terms.UNDEFINED) {
+            // ToIntegerOrInfinity rejects BigInt — spec mandates TypeError.
+            if (args[0] instanceof java.math.BigInteger) {
+                throw JsErrorException.typeError("Cannot convert a BigInt to a number");
+            }
             int radix = Terms.objectToNumber(args[0]).intValue();
             if (radix < 2 || radix > 36) {
                 throw JsErrorException.rangeError("toString() radix must be between 2 and 36");

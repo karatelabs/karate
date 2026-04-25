@@ -266,7 +266,8 @@ class PropertyAccess {
             case REF_EXPR -> {
                 String name = node.getText();
                 Object oldValue = context.get(name);
-                Object newValue = isIncrement ? Terms.add(oldValue, 1) : new Terms(oldValue, 1).min();
+                Object step = Terms.incDecStep(oldValue);
+                Object newValue = isIncrement ? Terms.add(oldValue, step) : new Terms(oldValue, step).min();
                 context.update(name, newValue);
                 yield oldValue;
             }
@@ -294,7 +295,8 @@ class PropertyAccess {
             case REF_EXPR -> {
                 String name = node.getText();
                 Object oldValue = context.get(name);
-                Object newValue = isIncrement ? Terms.add(oldValue, 1) : new Terms(oldValue, 1).min();
+                Object step = Terms.incDecStep(oldValue);
+                Object newValue = isIncrement ? Terms.add(oldValue, step) : new Terms(oldValue, step).min();
                 context.update(name, newValue);
                 yield newValue;
             }
@@ -724,7 +726,8 @@ class PropertyAccess {
             if (object instanceof List) {
                 List<Object> list = (List<Object>) object;
                 Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
-                Object newValue = isIncrement ? Terms.add(oldValue, 1) : new Terms(oldValue, 1).min();
+                Object step = Terms.incDecStep(oldValue);
+                Object newValue = isIncrement ? Terms.add(oldValue, step) : new Terms(oldValue, step).min();
                 list.set(i, newValue);
                 firePropertySet(context, String.valueOf(i), newValue, oldValue, object, null);
                 return oldValue;
@@ -735,7 +738,8 @@ class PropertyAccess {
 
     private static Object postIncDecByName(Object object, String name, boolean isIncrement, CoreContext context) {
         Object oldValue = getByName(object, name, false, context, false);
-        Object newValue = isIncrement ? Terms.add(oldValue, 1) : new Terms(oldValue, 1).min();
+        Object step = Terms.incDecStep(oldValue);
+        Object newValue = isIncrement ? Terms.add(oldValue, step) : new Terms(oldValue, step).min();
         setByName(object, name, newValue, context, null);
         return oldValue;
     }
@@ -746,7 +750,8 @@ class PropertyAccess {
             if (object instanceof List) {
                 List<Object> list = (List<Object>) object;
                 Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
-                Object newValue = isIncrement ? Terms.add(oldValue, 1) : new Terms(oldValue, 1).min();
+                Object step = Terms.incDecStep(oldValue);
+                Object newValue = isIncrement ? Terms.add(oldValue, step) : new Terms(oldValue, step).min();
                 list.set(i, newValue);
                 firePropertySet(context, String.valueOf(i), newValue, oldValue, object, null);
                 return newValue;
@@ -757,7 +762,8 @@ class PropertyAccess {
 
     private static Object preIncDecByName(Object object, String name, boolean isIncrement, CoreContext context) {
         Object oldValue = getByName(object, name, false, context, false);
-        Object newValue = isIncrement ? Terms.add(oldValue, 1) : new Terms(oldValue, 1).min();
+        Object step = Terms.incDecStep(oldValue);
+        Object newValue = isIncrement ? Terms.add(oldValue, step) : new Terms(oldValue, step).min();
         setByName(object, name, newValue, context, null);
         return newValue;
     }

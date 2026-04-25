@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2025 Karate Labs Inc.
+ * Copyright 2026 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,19 +23,31 @@
  */
 package io.karatelabs.js;
 
+import java.math.BigInteger;
+
 /**
- * Sealed interface for JS boxed primitives (Number, String, Boolean objects).
- * <p>
- * These are created via {@code new Number(5)}, {@code new String("x")}, {@code new Boolean(true)}.
- * Unlike primitive values, boxed primitives are objects and always truthy.
- * <p>
- * Permitted implementations:
- * <ul>
- *   <li>{@link JsNumber} - wraps a Number value</li>
- *   <li>{@link JsString} - wraps a String value</li>
- *   <li>{@link JsBoolean} - wraps a boolean value</li>
- * </ul>
+ * Auto-boxing wrapper for {@link BigInteger}, used by property access so that
+ * {@code (1n).toString(2)} dispatches through {@link JsBigIntPrototype}.
+ * The runtime value of a BigInt expression is the raw {@link BigInteger};
+ * this wrapper only exists for the brief property-access boundary.
  */
-sealed interface JsPrimitive extends JsValue permits JsNumber, JsString, JsBoolean, JsBigInt {
+non-sealed class JsBigInt extends JsObject implements JsPrimitive {
+
+    final BigInteger value;
+
+    JsBigInt(BigInteger value) {
+        super(null, JsBigIntPrototype.INSTANCE);
+        this.value = value;
+    }
+
+    @Override
+    public String toString() {
+        return value.toString();
+    }
+
+    @Override
+    public Object getJavaValue() {
+        return value;
+    }
 
 }

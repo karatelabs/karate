@@ -26,6 +26,7 @@ package io.karatelabs.js;
 import io.karatelabs.common.StringUtils;
 import net.minidev.json.JSONValue;
 
+import java.math.BigInteger;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,11 +88,36 @@ public class JsJson implements SimpleObject {
                 }
             }
 
+            // Spec: JSON.stringify on a value tree containing BigInt throws TypeError.
+            // Walk happens only on the rare path where a BigInt is actually present —
+            // common case eats one root-level instanceof check.
+            if (containsBigInt(value)) {
+                throw JsErrorException.typeError("Do not know how to serialize a BigInt");
+            }
+
             // Use centralized StringUtils.formatJson for both compact and pretty output
             // This ensures proper handling of JS types (undefined, JsValue wrappers)
             // lenient=false for strict JSON (double quotes), sort=false to preserve order
             return StringUtils.formatJson(value, pretty, false, false, indentStr);
         };
+    }
+
+    private static boolean containsBigInt(Object value) {
+        if (value instanceof BigInteger) return true;
+        if (value instanceof JsBigInt) return true;
+        if (value instanceof Map<?, ?> m) {
+            for (Object v : m.values()) {
+                if (containsBigInt(v)) return true;
+            }
+            return false;
+        }
+        if (value instanceof List<?> list) {
+            for (Object v : list) {
+                if (containsBigInt(v)) return true;
+            }
+            return false;
+        }
+        return false;
     }
 
     @SuppressWarnings("unchecked")

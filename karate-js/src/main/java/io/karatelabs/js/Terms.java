@@ -28,6 +28,7 @@ import io.karatelabs.parser.Token;
 import org.w3c.dom.Node;
 
 import java.lang.reflect.Array;
+import java.math.BigInteger;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -53,6 +54,21 @@ public class Terms {
     Terms(Object lhsObject, Object rhsObject) {
         lhs = objectToNumber(lhsObject);
         rhs = objectToNumber(rhsObject);
+    }
+
+    // True iff either operand is BigInt. Fast path: most call sites have
+    // plain Number operands and this returns false on the first instanceof.
+    private boolean isBigIntOp() {
+        return lhs instanceof BigInteger || rhs instanceof BigInteger;
+    }
+
+    // Spec: arithmetic ops require both operands to be BigInt or both Number;
+    // mixing throws TypeError. Centralized check fires only on the rare path.
+    private void requireBothBigInt(String opName) {
+        if (!(lhs instanceof BigInteger) || !(rhs instanceof BigInteger)) {
+            throw JsErrorException.typeError(
+                "Cannot mix BigInt and other types, use explicit conversions (" + opName + ")");
+        }
     }
 
     static Number parseInt(String str, int radix) {
@@ -187,6 +203,11 @@ public class Terms {
         if (text.isEmpty()) {
             return 0;
         }
+        // Rare path: numeric separators in literal text. Lexer-validated form (no leading,
+        // trailing, or doubled `_`), so a plain replace is safe. Skips allocation when no `_`.
+        if (text.indexOf('_') >= 0) {
+            text = text.replace("_", "");
+        }
         try {
             return narrow(Double.parseDouble(text));
         } catch (Exception e) {
@@ -202,10 +223,28 @@ public class Terms {
                 yield text.substring(1, text.length() - 1);
             }
             case NUMBER -> toNumber(token.getText());
+            case BIGINT -> toBigInt(token.getText());
             case TRUE -> true;
             case FALSE -> false;
             default -> null; // includes NULL
         };
+    }
+
+    // Parse a BIGINT literal token. The token text always ends with `n`; it may
+    // contain `_` separators between digits; it may have an `0x`/`0X` hex prefix.
+    // Plain decimal integer otherwise (no `.`, no exponent — those are forbidden
+    // by the lexer for BIGINT).
+    private static BigInteger toBigInt(String text) {
+        // strip trailing `n`
+        String s = text.substring(0, text.length() - 1);
+        // strip separators only if any are present (avoids allocation on the common case)
+        if (s.indexOf('_') >= 0) {
+            s = s.replace("_", "");
+        }
+        if (s.length() > 2 && s.charAt(0) == '0' && (s.charAt(1) == 'x' || s.charAt(1) == 'X')) {
+            return new BigInteger(s.substring(2), 16);
+        }
+        return new BigInteger(s);
     }
 
     static Number fromHex(String text) {
@@ -242,6 +281,11 @@ public class Terms {
             return true;
         }
         if (strict) {
+            // BigInt + BigInt was handled by lhs.equals(rhs) above; reaching here with
+            // a BigInt operand means the other is non-BigInt — different type → false.
+            if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
+                return false;
+            }
             if (lhs instanceof Number && rhs instanceof Number) {
                 return ((Number) lhs).doubleValue() == ((Number) rhs).doubleValue();
             }
@@ -257,6 +301,10 @@ public class Terms {
         if (lhs.equals(rhs)) {
             return true;
         }
+        // BigInt vs Number / String: compare mathematical values per spec 7.2.14
+        if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
+            return bigIntLooseEq(lhs, rhs);
+        }
         if (lhs instanceof Number || rhs instanceof Number) { // coerce to number
             Terms terms = new Terms(lhs, rhs);
             return terms.lhs.equals(terms.rhs);
@@ -264,61 +312,171 @@ public class Terms {
         return false;
     }
 
+    private static boolean bigIntLooseEq(Object lhs, Object rhs) {
+        BigInteger bi;
+        Object other;
+        if (lhs instanceof BigInteger b) { bi = b; other = rhs; }
+        else { bi = (BigInteger) rhs; other = lhs; }
+        // BigInt vs String: try parse string as BigInt
+        if (other instanceof String s) {
+            try {
+                return bi.equals(new BigInteger(s.trim()));
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        if (other instanceof Number n) {
+            double d = n.doubleValue();
+            if (!Double.isFinite(d)) return false;
+            if (d != Math.floor(d)) return false; // fractional part — not equal to any BigInt
+            // Use BigDecimal to convert exactly (handles values beyond long range)
+            return bi.equals(new java.math.BigDecimal(d).toBigInteger());
+        }
+        if (other instanceof Boolean b) {
+            return bi.equals(b ? BigInteger.ONE : BigInteger.ZERO);
+        }
+        return false;
+    }
+
     static boolean lt(Object lhs, Object rhs) {
+        if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
+            return bigIntCompare(lhs, rhs) < 0;
+        }
         Terms terms = new Terms(lhs, rhs);
         return terms.lhs.doubleValue() < terms.rhs.doubleValue();
     }
 
     static boolean gt(Object lhs, Object rhs) {
+        if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
+            return bigIntCompare(lhs, rhs) > 0;
+        }
         Terms terms = new Terms(lhs, rhs);
         return terms.lhs.doubleValue() > terms.rhs.doubleValue();
     }
 
     static boolean ltEq(Object lhs, Object rhs) {
+        if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
+            return bigIntCompare(lhs, rhs) <= 0;
+        }
         Terms terms = new Terms(lhs, rhs);
         return terms.lhs.doubleValue() <= terms.rhs.doubleValue();
     }
 
     static boolean gtEq(Object lhs, Object rhs) {
+        if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
+            return bigIntCompare(lhs, rhs) >= 0;
+        }
         Terms terms = new Terms(lhs, rhs);
         return terms.lhs.doubleValue() >= terms.rhs.doubleValue();
     }
 
+    // Returns Integer.MIN_VALUE for "incomparable" (NaN-like — surfaces via the
+    // < / > / <= / >= callers as `false`, which is the spec result).
+    private static int bigIntCompare(Object lhs, Object rhs) {
+        if (lhs instanceof BigInteger && rhs instanceof BigInteger) {
+            return ((BigInteger) lhs).compareTo((BigInteger) rhs);
+        }
+        BigInteger bi;
+        Object other;
+        boolean swapped;
+        if (lhs instanceof BigInteger b) { bi = b; other = rhs; swapped = false; }
+        else { bi = (BigInteger) rhs; other = lhs; swapped = true; }
+        // BigInt vs String: parse, fall back to NaN-like incomparable
+        if (other instanceof String s) {
+            try {
+                int c = bi.compareTo(new BigInteger(s.trim()));
+                return swapped ? -c : c;
+            } catch (NumberFormatException e) {
+                return Integer.MIN_VALUE;
+            }
+        }
+        if (other instanceof Number n) {
+            double d = n.doubleValue();
+            if (Double.isNaN(d)) return Integer.MIN_VALUE;
+            if (d == Double.POSITIVE_INFINITY) return swapped ? 1 : -1;
+            if (d == Double.NEGATIVE_INFINITY) return swapped ? -1 : 1;
+            int c = new java.math.BigDecimal(d).compareTo(new java.math.BigDecimal(bi));
+            // c was Number.compareTo(BigInt); swap sign so result is BigInt-relative
+            c = -c;
+            return swapped ? -c : c;
+        }
+        return Integer.MIN_VALUE;
+    }
+
     Object bitAnd() {
+        if (isBigIntOp()) {
+            requireBothBigInt("&");
+            return narrowBigInt(((BigInteger) lhs).and((BigInteger) rhs));
+        }
         return lhs.intValue() & rhs.intValue();
     }
 
     Object bitOr() {
+        if (isBigIntOp()) {
+            requireBothBigInt("|");
+            return narrowBigInt(((BigInteger) lhs).or((BigInteger) rhs));
+        }
         return lhs.intValue() | rhs.intValue();
     }
 
     Object bitXor() {
+        if (isBigIntOp()) {
+            requireBothBigInt("^");
+            return narrowBigInt(((BigInteger) lhs).xor((BigInteger) rhs));
+        }
         return lhs.intValue() ^ rhs.intValue();
     }
 
     Object bitShiftRight() {
+        if (isBigIntOp()) {
+            requireBothBigInt(">>");
+            return narrowBigInt(((BigInteger) lhs).shiftRight(((BigInteger) rhs).intValueExact()));
+        }
         return lhs.intValue() >> rhs.intValue();
     }
 
     Object bitShiftLeft() {
+        if (isBigIntOp()) {
+            requireBothBigInt("<<");
+            return narrowBigInt(((BigInteger) lhs).shiftLeft(((BigInteger) rhs).intValueExact()));
+        }
         return lhs.intValue() << rhs.intValue();
     }
 
     Object bitShiftRightUnsigned() {
+        if (isBigIntOp()) {
+            // spec: unsigned right shift on BigInt always TypeError, even when both operands are BigInt
+            throw JsErrorException.typeError("BigInts have no unsigned right shift, use >> instead");
+        }
         return narrow((lhs.intValue() & 0xFFFFFFFFL) >>> rhs.intValue());
     }
 
     static Object bitNot(Object value) {
         Number number = objectToNumber(value);
+        if (number instanceof BigInteger bi) {
+            return narrowBigInt(bi.not());
+        }
         return ~number.intValue();
     }
 
     Object mul() {
+        if (isBigIntOp()) {
+            requireBothBigInt("*");
+            return narrowBigInt(((BigInteger) lhs).multiply((BigInteger) rhs));
+        }
         double result = lhs.doubleValue() * rhs.doubleValue();
         return narrow(result);
     }
 
     Object div() {
+        if (isBigIntOp()) {
+            requireBothBigInt("/");
+            BigInteger r = (BigInteger) rhs;
+            if (r.signum() == 0) {
+                throw JsErrorException.rangeError("Division by zero");
+            }
+            return narrowBigInt(((BigInteger) lhs).divide(r));
+        }
         if (rhs.equals(POSITIVE_ZERO)) {
             return lhs.doubleValue() > 0 ? Double.POSITIVE_INFINITY : Double.NEGATIVE_INFINITY;
         }
@@ -336,16 +494,37 @@ public class Terms {
     }
 
     Object min() {
+        if (isBigIntOp()) {
+            requireBothBigInt("-");
+            return narrowBigInt(((BigInteger) lhs).subtract((BigInteger) rhs));
+        }
         double result = lhs.doubleValue() - rhs.doubleValue();
         return narrow(result);
     }
 
     Object mod() {
+        if (isBigIntOp()) {
+            requireBothBigInt("%");
+            BigInteger r = (BigInteger) rhs;
+            if (r.signum() == 0) {
+                throw JsErrorException.rangeError("Division by zero");
+            }
+            // Java BigInteger.remainder matches JS BigInt % semantics (sign follows dividend)
+            return narrowBigInt(((BigInteger) lhs).remainder(r));
+        }
         double result = lhs.doubleValue() % rhs.doubleValue();
         return narrow(result);
     }
 
     Object exp() {
+        if (isBigIntOp()) {
+            requireBothBigInt("**");
+            BigInteger r = (BigInteger) rhs;
+            if (r.signum() < 0) {
+                throw JsErrorException.rangeError("Exponent must be non-negative");
+            }
+            return narrowBigInt(((BigInteger) lhs).pow(r.intValueExact()));
+        }
         double result = Math.pow(lhs.doubleValue(), rhs.doubleValue());
         return narrow(result);
     }
@@ -354,10 +533,32 @@ public class Terms {
         if (lhs instanceof String || rhs instanceof String) {
             return lhs + "" + rhs;
         }
+        // BigInt branch — pulled into a fast type test that fails on the common case
+        if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
+            if (!(lhs instanceof BigInteger) || !(rhs instanceof BigInteger)) {
+                throw JsErrorException.typeError(
+                    "Cannot mix BigInt and other types, use explicit conversions (+)");
+            }
+            return narrowBigInt(((BigInteger) lhs).add((BigInteger) rhs));
+        }
         Number lhsNum = objectToNumber(lhs);
         Number rhsNum = objectToNumber(rhs);
         double result = lhsNum.doubleValue() + rhsNum.doubleValue();
         return narrow(result);
+    }
+
+    // BigInt does NOT participate in `narrow` (which collapses to int/long/double).
+    // Returning the BigInteger as-is preserves the bigint type identity through
+    // arithmetic; downstream `typeOf` continues to report "bigint".
+    static BigInteger narrowBigInt(BigInteger value) {
+        return value;
+    }
+
+    // The step value for `++` / `--` of an operand. Plain Number gets the
+    // Integer 1; BigInt gets BigInteger.ONE so the BigInt arithmetic path
+    // is reached and `i++` doesn't TypeError on mixing types.
+    static Object incDecStep(Object operand) {
+        return operand instanceof BigInteger ? BigInteger.ONE : 1;
     }
 
     public static Number narrow(double d) {
@@ -367,10 +568,12 @@ public class Terms {
         if (d % 1 != 0) {
             return d;
         }
-        if (d <= Integer.MAX_VALUE) {
+        // Both bounds matter: a negative value < Integer.MIN_VALUE was previously
+        // narrowed to int via `d <= MAX_VALUE`, which silently overflowed. Same for long.
+        if (d >= Integer.MIN_VALUE && d <= Integer.MAX_VALUE) {
             return (int) d;
         }
-        if (d <= Long.MAX_VALUE) {
+        if (d >= Long.MIN_VALUE && d <= Long.MAX_VALUE) {
             return (long) d;
         }
         return d;
@@ -382,6 +585,9 @@ public class Terms {
         }
         return switch (o) {
             case String s -> new JsString(s);
+            // BigInteger before Number — BigInteger extends Number; if we fell through
+            // to JsNumber the prototype lookup would route to JsNumberPrototype.
+            case BigInteger bi -> new JsBigInt(bi);
             case Number n -> new JsNumber(n);
             case Boolean b -> new JsBoolean(b);
             case Date d -> new JsDate(d);
@@ -516,6 +722,10 @@ public class Terms {
         if (value instanceof JsPrimitive) {
             return "object";
         }
+        // BigInt before generic Number — BigInteger extends Number
+        if (value instanceof BigInteger) {
+            return "bigint";
+        }
         if (value instanceof Number) {
             return "number";
         }
@@ -581,6 +791,65 @@ public class Terms {
      * When {@code context} is {@code null} and the value is an {@link ObjectLike}, falls back
      * to {@code "[object Object]"} (the user-visible override cannot be invoked without one).
      */
+    /**
+     * ECMAScript {@code ToPrimitive} abstract operation. Coerces an object to a
+     * primitive value by invoking {@code valueOf} / {@code toString} via the
+     * prototype chain.
+     * <p>
+     * Hint is {@code "number"} (default — try valueOf first) or {@code "string"}
+     * (try toString first). Spec rule: the first method that returns a non-object
+     * wins; if both return objects, throws TypeError.
+     * <p>
+     * Errors raised by {@code valueOf} / {@code toString} flow through the supplied
+     * {@code context} (same pattern as {@link #toStringCoerce}); callers must check
+     * {@code context.isError()} after invoking. When error state is set, returns
+     * {@link #UNDEFINED} as a placeholder — the caller should bail.
+     * <p>
+     * Hot-path note: every call site already had to dispatch on type for primitives;
+     * this method only enters the ObjectLike branch on the rare case where the input
+     * is genuinely an object.
+     */
+    static Object toPrimitive(Object value, String hint, CoreContext context) {
+        if (value == null || value == UNDEFINED) {
+            return value;
+        }
+        // Boxed primitives unwrap directly — equivalent to spec valueOf for these,
+        // but cheaper than a method dispatch.
+        if (value instanceof JsPrimitive jp) {
+            return jp.getJavaValue();
+        }
+        if (value instanceof BigInteger || isPrimitive(value)) {
+            return value;
+        }
+        // ObjectLike (or Java-native types we wrap): run OrdinaryToPrimitive.
+        ObjectLike ol = (value instanceof ObjectLike) ? (ObjectLike) value : toObjectLike(value);
+        if (ol == null || context == null) {
+            // No prototype dispatch possible — return as-is and let the caller cope.
+            return value;
+        }
+        String[] order = "string".equals(hint)
+                ? new String[]{"toString", "valueOf"}
+                : new String[]{"valueOf", "toString"};
+        for (String methodName : order) {
+            Object fn = ol.getMember(methodName);
+            if (!(fn instanceof JsCallable jsc)) {
+                continue;
+            }
+            CoreContext callCtx = new CoreContext(context, null, null);
+            callCtx.thisObject = ol;
+            Object r = jsc.call(callCtx, new Object[0]);
+            if (callCtx.isError()) {
+                context.updateFrom(callCtx);
+                return UNDEFINED;
+            }
+            // Spec: a primitive (or BigInt) wins; an object falls through to the next method.
+            if (r == null || r == UNDEFINED || isPrimitive(r) || r instanceof BigInteger) {
+                return r;
+            }
+        }
+        throw JsErrorException.typeError("Cannot convert object to primitive value");
+    }
+
     public static String toStringCoerce(Object o, CoreContext context) {
         if (o == null) {
             return "null";

@@ -93,7 +93,7 @@ class ContextRoot extends CoreContext {
         return switch (key) {
             case "console", "parseInt", "parseFloat", "encodeURIComponent", "decodeURIComponent",
                  "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Infinity", "Java",
-                 "JSON", "Math", "NaN", "Number", "Boolean", "Object", "RegExp", "String",
+                 "JSON", "Math", "NaN", "Number", "BigInt", "Boolean", "Object", "RegExp", "String",
                  "TypeError", "ReferenceError", "RangeError", "SyntaxError", "URIError", "EvalError",
                  "TextEncoder", "TextDecoder", "Uint8Array", "isNaN", "isFinite", "eval", "Symbol" -> true;
             default -> false;
@@ -178,6 +178,7 @@ class ContextRoot extends CoreContext {
             case "Math" -> new JsMath();
             case "NaN" -> Double.NaN;
             case "Number" -> JsNumberConstructor.INSTANCE;
+            case "BigInt" -> JsBigIntConstructor.INSTANCE;
             case "Boolean" -> {
                 JsBoolean b = new JsBoolean();
                 b.builtinConstructor = true;
