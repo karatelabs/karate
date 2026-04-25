@@ -934,14 +934,114 @@ actually do that depends on it, the shape of the work, and the skip-list
 entry to retire (if any). Re-probe with the relevant `--only` glob before
 scoping a session.
 
-- **Date residuals (descriptor / Function / isConstructor blocked).** Date polish
-  shipped (see Recently completed) leaving 11 fails, all blocked on infra outside
-  Date scope: `Function` global (1), `isConstructor` introspection / "non-constructible"
-  marker (4 — `is-a-constructor`/`not-a-constructor` × 4), `JsCallable.length` exposure
-  (2 — `Date.now.length` / `toISOString.length`), and accessor descriptors / `Object.isExtensible`
-  (4 — `toJSON/builtin.js`, `toJSON/invoke-arguments.js`, `toJSON/invoke-abrupt.js`,
-  `toJSON/to-primitive-abrupt.js`). Pick up when the underlying gap is being addressed —
-  none are Date-shaped fixes.
+- **Function-object identity trio.** Three closely-related gaps that
+  surfaced as Date residuals but block hundreds of tests across *every*
+  built-in. Probe data (re-verify before scoping):
+
+  | `--only` glob | Pass / Fail / Skip / Total | Notes |
+  |---|---|---|
+  | `test/built-ins/**/not-a-constructor.js` | 62 / **213** / 240 / 515 | 125 fail "no TypeError thrown"; 20 fail "wrong error type" — both unblocked by a non-constructible marker |
+  | `test/built-ins/**/is-a-constructor.js`  | 0 / **28** / 17 / 45    | All want `isConstructor(BuiltIn) === true` for Date, RegExp, error subtypes, etc. |
+  | `test/built-ins/**/length.js`            | 1 / **37** / 695 / 733  | `Date.now.length === 0` style — needs `.length` exposed on built-in callables |
+  | `test/built-ins/**/name.js`              | 0 / **6** / 663 / 669   | Companion to `.length` |
+  | `test/built-ins/Function/**`             | 89 / **264** / 156 / 509 | **Dominant fail mode: `Function is not defined` (~143 direct, more secondary)** — no global `Function` constructor / `Function.prototype` intrinsic |
+
+  Estimated combined unlock: **~350+ tests across the suite**, plus
+  retiring all 11 Date residuals from the previous session (`Date.now.length`,
+  `toISOString.length`, `is-a-constructor`, `not-a-constructor` × 4,
+  `S15.9.4_A4`). Order of attack — each step independent, each adds
+  observable score:
+
+  1. **Non-constructible marker on `JsCallable`.** Every call site that
+     does `new <foo>(...)` should TypeError when `<foo>` is a built-in
+     non-constructor (e.g. `Date.now`, `Math.abs`, prototype methods like
+     `Date.prototype.getTime`). Most prototype methods are inline
+     `(JsCallable) this::someMethod` lambdas registered in
+     `getBuiltinProperty`; only `JsFunction` (and its subclasses,
+     including every `Js*Constructor` and user-defined `JsFunctionNode`)
+     should be constructible. Smallest change: add a default method
+     `default boolean isConstructible() { return false; }` on
+     `JsCallable` (`JsCallable.java`); override `true` on `JsFunction`
+     (`JsFunction.java`); check in `Interpreter.invokeAsConstructor`
+     (`Interpreter.java:504`) at the entry — throw
+     `JsErrorException.typeError(...)` when `!callable.isConstructible()`.
+     Also check at `evalNewExpr`'s tagged-template fallback path
+     (`Interpreter.java:498` — already type-checks for `JsCallable`).
+     Note: `JsObject` implements `JsCallable` (host artifact), so the
+     marker must distinguish "callable as function" from "callable as
+     constructor" — a user invoking `new someObject()` where
+     `someObject` is a plain JsObject should still TypeError.
+
+  2. **`Function` global + `Function.prototype` intrinsic.** Register
+     `Function` in `ContextRoot.initGlobal` as a callable that:
+     - Without args: returns `function anonymous() {}` (or, easiest: parse
+       the last arg as a body and prior args as params using our
+       existing `JsParser`). The classic `new Function('return 1')` shape.
+     - As a static surface: exposes `Function.prototype` returning the
+       singleton `JsFunctionPrototype.INSTANCE`. Verify the
+       `Object.getPrototypeOf(someFn) === Function.prototype` chain.
+
+     Pointers: `ContextRoot.initGlobal` (see how `Date`/`Map` are
+     registered — `case "Function" -> JsFunctionConstructor.INSTANCE`),
+     a new `JsFunctionConstructor extends JsFunction`, and
+     `JsFunctionPrototype.INSTANCE` (already exists — verify it's
+     reachable as `Function.prototype` via the new global).
+
+  3. **`isConstructor`.** The test262 harness's `isConstructor.js`
+     defines `function isConstructor(f) { try { Reflect.construct(...) }
+     catch { return false } return true }` — so this naturally falls out
+     of step 1 *if* we also expose a minimal `Reflect.construct`. Smaller
+     scoped option: implement just enough `Reflect` (`construct` + maybe
+     `apply`) to satisfy the harness; full Reflect is still feature-gated.
+     Probably worth its own short session after step 1.
+
+  4. **`.length` and `.name` on built-in callables.** Today
+     `JsFunction.getMember("name")` / `("length")` works for things that
+     extend `JsFunction`, but bare `JsCallable` lambdas (the prototype
+     methods, e.g. `Date.prototype.getTime`) have no member surface. Two
+     options: (a) wrap each prototype method in a tiny `JsFunction`
+     subclass with `name`/`length` set at registration (heavy);
+     (b) intercept `getMember("length")` / `getMember("name")` on the
+     dispatch surface where `JsCallable` is exposed (light, but needs a
+     coordinator — currently `getBuiltinProperty` returns the lambda
+     directly to the property-access path). Pick (b) and add a small
+     wrapper class `JsBuiltinMethod implements JsCallable` that carries
+     `name` / `length` and delegates `call`. Then `getBuiltinProperty`
+     returns `new JsBuiltinMethod("getTime", 0, this::getTime)`.
+
+  Land JUnit regressions in the matching `Js*Test` files: `EngineTest`
+  for the Function global, `JsFunctionTest` (create if missing) for
+  `.length` / `.name`, `JsDateTest` for the residuals that retire
+  (`Date.now.length`, etc.).
+
+  After each step: re-run the relevant `--only` glob from the table,
+  plus `test/built-ins/Date/**` (367 → ?) and `test/built-ins/Function/**`
+  (89 → ?) to track score.
+
+- **Descriptor infra (deferred — probe-confirmed low score impact).**
+  Per-property `writable`/`enumerable`/`configurable`, accessor getter/
+  setter enforcement, `Object.freeze`/`seal`/`preventExtensions`,
+  `Object.isExtensible`, `Object.getOwnPropertyDescriptor` returning
+  attribute slots. The "low LLM-value" caveat from prior work still
+  holds, and the 2026-04 probe confirms the score impact is also smaller
+  than the file count suggests:
+  - `test/built-ins/**/prop-desc.js`: 0 pass / **4 fail** / 603 skip / 607
+    total — most prop-desc tests SKIP via the `propertyHelper.js` include
+    filter, so the directly-actionable score is small.
+  - The cluster does unblock the ~4 Date `toJSON/*` residuals
+    (`builtin.js` needs `Object.isExtensible`; `invoke-arguments.js` /
+    `invoke-abrupt.js` / `to-primitive-abrupt.js` need accessor
+    descriptors via `get toISOString() { ... }` object-literal getters).
+  - And it unblocks the harness include skips (`compareArray.js`,
+    `propertyHelper.js`, `testTypedArray.js`) — that's where the real
+    score lives, not in the directly-named tests.
+
+  Order if/when picked up: (a) parser support for object-literal getters
+  / setters (`get name() { ... }` / `set name(v) { ... }`); (b) attribute
+  descriptors on `ObjectLike.putMember` / `getMember`; (c)
+  `Object.defineProperty` / `getOwnPropertyDescriptor` /
+  `isExtensible` / `freeze`. Worth starting only when the function-identity
+  trio is shipped and the SKIP fraction starts hiding too much other signal.
 
 - **Map / Set residuals.** Map and Set constructors landed (see Recently
   completed). Open residuals from the basic slices:
@@ -981,17 +1081,6 @@ scoping a session.
   lexer identifier-escape support (LLMs don't write `break`), TDZ /
   init-order corners, negative parse tests needing pattern-vs-literal
   two-mode parsing. Tackle when nearby.
-
-- **Descriptor infra (deferred).** Per-property
-  `writable`/`enumerable`/`configurable` attribute tracking, accessor
-  getter/setter enforcement, `Object.freeze` / `seal` / `preventExtensions`.
-  Same project unblocks the *Array cliff*, *Object-attribute polish*, and
-  *harness helpers* clusters. **Low LLM-value:** LLMs don't write
-  `defineProperty`, don't rely on `writable: false` enforcement, and don't
-  produce code that breaks if attributes are missing. The thousands of
-  failing tests assert spec invariants, not things LLM-generated code hits.
-  Worth starting only when the SKIP fraction is hiding too much other
-  signal.
 
 - **Cleanup residuals.** Individual bugs to pick off opportunistically:
   occasional `"null"` NPE paths, `IllegalName` JDK lambda leak, `Java heap
