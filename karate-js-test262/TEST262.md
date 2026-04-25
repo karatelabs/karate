@@ -105,6 +105,25 @@ They apply alongside the Roadmap below.
   rarely-exercised edge case. The tier list reflects this ordering
   (fundamentals → common built-ins → long tail).
 
+  But the scorecard exists for a reason: **the engine should give
+  confidence that it handles general JS syntax, expressions, math,
+  functions, scoping, and control flow correctly.** Two corollaries:
+  - **`test/language/**` is the core-engine surface;
+    `test/built-ins/**` is the standard library.** Failures in
+    `test/language/expressions/compound-assignment` mean the parser
+    can't read code an LLM might write tomorrow; failures in
+    `test/built-ins/AggregateError` mean we lack a constructor that
+    almost no LLM uses. Same FAIL count, very different signal.
+  - **Harness-include skips are leverage multipliers, not corners.**
+    `propertyHelper.js` and `compareArray.js` together gate ~2200
+    `test/built-ins/**` tests today. Those tests overwhelmingly
+    exercise *core* JS (iteration, comparison, object identity)
+    through a feature we don't expose (accessor descriptors). One
+    infra fix moves the engine's *known-good surface* by thousands
+    of tests — they aren't credit for new behavior, they're proof
+    the existing behavior was already correct. Prioritize harness
+    unblocks accordingly.
+
   **Existing JUnit tests can be wrong.** When a hand-written test in
   `karate-js/src/test/` disagrees with the ECMAScript spec, the spec wins —
   read [tc39/ecma262](https://tc39.es/ecma262/) §13.x before assuming the
@@ -928,93 +947,175 @@ session needs to violate one, the principle goes up for review explicitly.
 
 ## Active priorities
 
-Action list — start at the top. Ordered by "how often does idiomatic
-LLM-written JS hit this?", not by test count. Each entry names what LLMs
-actually do that depends on it, the shape of the work, and the skip-list
-entry to retire (if any). Re-probe with the relevant `--only` glob before
-scoping a session.
+Action list — start at the top. Ordered by core-engine confidence
+(does the engine read/run plain JS correctly?) cross-multiplied by
+score impact (a one-fix harness unblock beats ten one-test patches).
+Re-probe with the relevant `--only` glob before scoping a session.
 
-- **`.length` / `.name` rollout to remaining prototypes (residual from
-  function-identity trio).** `JsBuiltinMethod` infra landed and is wired
-  through `JsDateConstructor` + `JsDatePrototype`; the proof-of-concept
-  retired the two Date `.length` residuals (`Date.now.length`,
-  `toISOString.length`). Sweep the same wrapper through the remaining
-  `getBuiltinProperty` switches: `JsArrayPrototype`, `JsObjectPrototype`,
-  `JsStringPrototype`, `JsNumberPrototype`, `JsBigIntPrototype`,
-  `JsRegexPrototype`, `JsMapPrototype`, `JsSetPrototype`,
-  `JsFunctionPrototype`, plus `JsArrayConstructor` / `JsBigIntConstructor`
-  static methods. Per-method spec arities are in ECMA-262 §22-§24. Each
-  conversion is mechanical — wrap `(JsCallable) this::foo` as
-  `new JsBuiltinMethod("foo", N, (c, a) -> foo(c, a))`. Probe before
-  scoping: `--only test/built-ins/**/length.js` and `name.js`.
+Current state baseline (2026-04, post function-identity trio):
 
-- **Descriptor infra (deferred — probe-confirmed low score impact).**
-  Per-property `writable`/`enumerable`/`configurable`, accessor getter/
-  setter enforcement, `Object.freeze`/`seal`/`preventExtensions`,
-  `Object.isExtensible`, `Object.getOwnPropertyDescriptor` returning
-  attribute slots. The "low LLM-value" caveat from prior work still
-  holds, and the 2026-04 probe confirms the score impact is also smaller
-  than the file count suggests:
-  - `test/built-ins/**/prop-desc.js`: 0 pass / **4 fail** / 603 skip / 607
-    total — most prop-desc tests SKIP via the `propertyHelper.js` include
-    filter, so the directly-actionable score is small.
-  - The cluster does unblock the ~4 Date `toJSON/*` residuals
-    (`builtin.js` needs `Object.isExtensible`; `invoke-arguments.js` /
-    `invoke-abrupt.js` / `to-primitive-abrupt.js` need accessor
-    descriptors via `get toISOString() { ... }` object-literal getters).
-  - And it unblocks the harness include skips (`compareArray.js`,
-    `propertyHelper.js`, `testTypedArray.js`) — that's where the real
-    score lives, not in the directly-named tests.
+| Slice | Pass | Fail | Skip | Total |
+|---|---|---|---|---|
+| `test/language/**` | 3127 | 4194 | 13961 | 21282 |
+| `test/built-ins/Math/**` | 177 | 28 | 122 | 327 |
+| `test/built-ins/Number/**` | 195 | 86 | 59 | 340 |
+| `test/built-ins/String/**` | 346 | 675 | 202 | 1223 |
+| `test/built-ins/Array/**` | 1006 | 1574 | 501 | 3081 |
+| `test/built-ins/Object/**` | 529 | 1893 | 989 | 3411 |
+| `test/built-ins/Date/**` | 374 | 4 | 216 | 594 |
+| `test/built-ins/Function/**` | 194 | 159 | 156 | 509 |
 
-  Order if/when picked up: (a) parser support for object-literal getters
-  / setters (`get name() { ... }` / `set name(v) { ... }`); (b) attribute
-  descriptors on `ObjectLike.putMember` / `getMember`; (c)
-  `Object.defineProperty` / `getOwnPropertyDescriptor` /
-  `isExtensible` / `freeze`. Worth starting only when the function-identity
-  trio is shipped and the SKIP fraction starts hiding too much other signal.
+### Tier 0 — fix friction (cheap, do first when noticed)
 
-- **Map / Set residuals.** Map and Set constructors landed (see Recently
-  completed). Open residuals from the basic slices:
-  - **`Map.prototype.groupBy` / `getOrInsert` / `getOrInsertComputed`** —
-    newer (ES2024+) methods, not yet implemented. Each is a small per-method
-    addition. Skip via `feature:` if scoped out, or wire them through the
-    normal `JsMapPrototype.getBuiltinProperty` switch.
+- **Mis-tagged class/super failures.** ~1000 tests in
+  `test/language/{statements,expressions}/class/**` and `super` lack
+  `feature: class` YAML tags but exercise class syntax we don't support.
+  They surface as FAIL (with parser errors), not SKIP, polluting every
+  language probe. Fix: add `path: test/language/**/class/**` and a
+  `super` matcher to `etc/expectations.yaml`. One-line config change,
+  immediately moves 1000+ noise rows from FAIL to SKIP.
+
+### Tier 1 — core-engine parser/expression gaps
+
+These are the items that most directly answer "does the engine read
+plain JS correctly?" — and they live in `test/language/expressions/**`
+where every fix shows up on the scorecard for the right reason.
+
+- **Bitwise / shift / exponent compound assignments** —
+  `&=`, `|=`, `^=`, `<<=`, `>>=`, `>>>=`, `**=` currently fail to
+  parse (`cannot parse statement`). The arithmetic compounds
+  (`+=`, `-=`, `*=`, `/=`, `%=`) work. Predicted unlock: ~150–200
+  tests in `test/language/expressions/compound-assignment/**`. Pure
+  parser fix in `JsParser` — extend `T_ASSIGN_EXPR` and the matching
+  operator-application table in `PropertyAccess.applyOperator`. Probe:
+  `--only test/language/expressions/compound-assignment/**`.
+
+- **Object-literal getter / setter parsing** (`{ get foo() {...},
+  set foo(v) {...} }`). Today the parser rejects them. This is *both*
+  a core-language gap (LLMs do write accessor literals) and the
+  prerequisite for descriptor infra below — landing it twice would
+  duplicate the parser work. Worth ~50–100 tests directly in
+  `expressions/object`, but its real value is unblocking Tier 2.
+
+- **Negative-test strictness pass.** ~236 tests in
+  `expressions/assignmenttargettype/**` are negative tests where the
+  spec mandates a SyntaxError on patterns like `(a + b) = 1`,
+  `a + b => c`, etc., and the engine silently accepts them. Same
+  shape across the cluster — single recursive "is this a valid
+  assignment target?" walk on the parsed AST. Score impact is
+  bounded but the cluster otherwise stays a source of "engine too
+  lenient" noise.
+
+### Tier 2 — harness unblock (largest single score lever)
+
+- **Descriptor infra — accessor literals → `Object.defineProperty` →
+  `getOwnPropertyDescriptor` → `isExtensible` / `freeze`.** Combined
+  unlock across `propertyHelper.js` (~1810 SKIP) and `compareArray.js`
+  (~382 SKIP) is roughly **2200 tests gated**, the largest single
+  lever on the board. Most of those gated tests don't *test*
+  descriptors — they test iteration, comparison, object identity
+  through a harness that happens to need accessors. Engine surface
+  area we already support, currently invisible to the scorecard.
+  Also retires:
+  - All 4 Date residuals (`toJSON/{builtin,invoke-arguments,
+    invoke-abrupt,to-primitive-abrupt}.js`).
+  - Map/Set `does-not-have-mapdata-internal-slot.js` and the
+    `Object.getOwnPropertyDescriptor(Map.prototype, 'size').get`
+    cluster.
+  - The `prop-desc.js` cluster (small directly, large via includes).
+
+  Order of attack:
+  1. Object-literal `get foo()` / `set foo(v)` parsing (the Tier-1
+     item above — start it here if not done sooner).
+  2. `JsAccessor` already exists; thread accessor descriptors
+     through `ObjectLike.putMember` / `getMember` so they're
+     installable from JS.
+  3. `Object.defineProperty(o, k, {get, set, value, writable,
+     enumerable, configurable})` — accept all six attribute keys,
+     reject conflicts (data + accessor) per spec.
+  4. `Object.getOwnPropertyDescriptor` — return an attribute object
+     with the right keys.
+  5. `Object.isExtensible` / `Object.preventExtensions` /
+     `Object.freeze` / `Object.seal` — minimal but honest impls
+     that gate `putMember` / `defineProperty`.
+
+  Predicted impact: +200–400 PASS in one session if scoped to (a)–(c);
+  full attribute enforcement (the writable/enumerable bits actually
+  enforced everywhere) deferred to a follow-up session that un-skips
+  the harness rules.
+
+### Tier 3 — cross-cutting feature unblock
+
+- **Partial Symbol expansion** — well-known symbols only, not the full
+  primitive type. The string-keyed scaffold already in place for
+  `@@iterator` widens to `@@toPrimitive`, `@@toStringTag`, `@@species`,
+  `@@hasInstance`, `@@isConcatSpreadable`, `@@matchAll`, `@@replace`,
+  `@@search`, `@@split`. Symbol-gated tests cluster across *every*
+  core type (Object 58, String 40, Array 35, Map 34, Date 30,
+  RegExp 29, WeakMap 27, the Symbol object itself 47, etc.) — total
+  ~580 SKIP today. Even a partial expansion that:
+  - Wires `Terms.toPrimitive` to dispatch through
+    `obj["@@toPrimitive"]` if present (already named in three other
+    residuals: BigInt `constructor-coercion.js`, Date residuals,
+    Map/Set Symbol.species).
+  - Exposes `Symbol.species` / `Symbol.toStringTag` /
+    `Symbol.hasInstance` as string-keyed stand-ins on the existing
+    Symbol global.
+  - Routes `Object.prototype.toString.call(x)` through
+    `obj["@@toStringTag"]`.
+  
+  …unblocks a measurable fraction of the 580 without introducing a
+  new primitive type. Full `Symbol()` constructor with unique
+  identity, `Symbol.for` / `keyFor` / global registry, and proper
+  typeof === "symbol" stays gated as before.
+
+  Probe before scoping: count SKIP-by-feature in the latest
+  `test/built-ins/**` results.jsonl, group by which Symbol features
+  cluster where, decide which carve-outs land first.
+
+### Tier 4 — opportunistic residuals
+
+Smaller items, picked off when nearby. Not session-sized on their own.
+
+- **Map / Set method residuals.**
+  - **`Map.prototype.groupBy` / `getOrInsert` / `getOrInsertComputed`**
+    (ES2024+).
   - **`Set.prototype.difference` / `intersection` / `union` /
-    `isDisjointFrom` / `isSubsetOf` / `isSupersetOf` / `symmetricDifference`**
-    — the ES2025 set-relation methods. Same shape: per-method add. Some test
-    cases use `with` block syntax which hits a parser limitation
-    (`SyntaxError: cannot parse statement`).
-  - **`Map.prototype.size` / `Set.prototype.size` accessor introspection** —
-    the spec defines size as an accessor descriptor. We intercept reads on
-    the instance (`JsMap.getMember("size")`) but spec tests like
-    `does-not-have-mapdata-internal-slot.js` assert
-    `Object.getOwnPropertyDescriptor(Map.prototype, 'size').get` is a
-    function. Blocked on accessor descriptor infra.
-  - **`Object.getPrototypeOf(Map.prototype)`** returns
-    `JsObjectPrototype.INSTANCE` (the singleton) but tests compare against
-    `Object.prototype` (the global). Need `Object.prototype` and
-    `JsObjectPrototype.INSTANCE` to be the same identity, or have
-    `getPrototypeOf` walk through the global. Same for `Set.prototype`.
-  - **`Symbol.species`** — not exposed; ~5 tests in each cluster reference
-    `Map[Symbol.species]` / `Set[Symbol.species]`. Blocked on Symbol.
+    `isDisjointFrom` / `isSubsetOf` / `isSupersetOf` /
+    `symmetricDifference`** (ES2025). Some test cases use `with`
+    blocks which hit a separate parser gap.
+  - **`Object.getPrototypeOf(Map.prototype)` identity** — returns
+    `JsObjectPrototype.INSTANCE` (singleton) where tests compare
+    against `Object.prototype` (the global). Need them to share
+    identity. Same for `Set.prototype`.
 
-- **Utility-method residual sweep.** `String.prototype` is now nearly
-  complete (`padStart` / `padEnd` / `replaceAll` / `matchAll` / `at` all
-  landed). Remaining method gaps across other built-ins — pick off
-  opportunistically as triage surfaces them.
+- **`.length` / `.name` rollout to remaining prototypes.**
+  `JsBuiltinMethod` infra is in place; `JsDateConstructor` +
+  `JsDatePrototype` are wired. Probe (2026-04) shows the
+  *incremental* test count from sweeping it through other prototypes
+  is small (most `length.js` fails are about array-instance length
+  semantics, not method arity; most `name.js` fails are
+  Symbol-gated). Treat as background cleanup — wrap any prototype
+  in `JsBuiltinMethod` while you're already touching it for another
+  reason. Don't schedule a session for the rollout alone.
 
-  *(Object.entries/fromEntries/assign and Array.prototype.includes/flat/
-  flatMap/at were already implemented; Array.prototype.includes was
-  un-skipped previously.)*
+- **Utility-method residual sweep.** `String.prototype` is nearly
+  complete (`padStart` / `padEnd` / `replaceAll` / `matchAll` / `at`
+  all landed). Remaining method gaps across other built-ins — pick
+  off opportunistically as triage surfaces them.
+  *(Object.entries/fromEntries/assign and Array.prototype.includes/
+  flat/flatMap/at were already implemented; Array.prototype.includes
+  was un-skipped previously.)*
 
-- **Destructuring residuals.** Bulk works; the long tail is low-leverage —
-  lexer identifier-escape support (LLMs don't write `break`), TDZ /
-  init-order corners, negative parse tests needing pattern-vs-literal
-  two-mode parsing. Tackle when nearby.
+- **Destructuring residuals.** Bulk works; the long tail is
+  low-leverage — lexer identifier-escape support (LLMs don't write
+  `break`), TDZ / init-order corners, negative parse tests needing
+  pattern-vs-literal two-mode parsing. Tackle when nearby.
 
 - **Cleanup residuals.** Individual bugs to pick off opportunistically:
-  occasional `"null"` NPE paths, `IllegalName` JDK lambda leak, `Java heap
-  space` OOM in array-slice paths. Not a bucket — grab while nearby.
+  occasional `"null"` NPE paths, `IllegalName` JDK lambda leak, `Java
+  heap space` OOM in array-slice paths. Not a bucket — grab while
+  nearby.
 
 ### Recently completed (residuals tracked)
 
@@ -1022,14 +1123,14 @@ Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
 
-- **Function-object identity trio (steps 1–3).** Score impact across the
-  priority probes:
+- **Function-object identity trio + `JsFunction.length` unification.**
+  Score impact across the priority probes:
 
   | `--only` glob | Before | After | Δ |
   |---|---|---|---|
   | `test/built-ins/**/not-a-constructor.js` | 62 / 213 / 240 / 515 | **215** / 60 / 240 / 515 | **+153** |
   | `test/built-ins/**/is-a-constructor.js` | 0 / 28 / 17 / 45 | **18** / 10 / 17 / 45 | **+18** |
-  | `test/built-ins/Function/**` | 89 / 264 / 156 / 509 | **191** / 162 / 156 / 509 | **+102** |
+  | `test/built-ins/Function/**` | 89 / 264 / 156 / 509 | **194** / 159 / 156 / 509 | **+105** |
   | `test/built-ins/Date/**` | 367 / 11 / 216 / 594 | **374** / 4 / 216 / 594 | **+7** |
 
   Concretely:
@@ -1070,12 +1171,21 @@ context; the action list is above.
     `name` + `length` and a delegate `JsCallable`. Wired through
     `JsDateConstructor` (now/parse/UTC) and `JsDatePrototype` (every
     method, with spec arities). Other prototypes still return raw
-    `(JsCallable) this::foo` — see the active priority entry above.
+    `(JsCallable) this::foo` — see the Tier-4 opportunistic entry.
+  - **`int length` lifted onto `JsFunction`** next to the existing
+    `String name` field; resolved centrally in `JsFunction.getMember`.
+    Every `Js*Constructor` now sets its spec arity in the ctor
+    (Date=7, Array=1, Function=1, Map=0, Set=0, etc.); the redundant
+    `case "length" -> N` arms fell out. `JsFunctionNode` sets
+    `length = argCount` so user functions report `f.length` for free
+    (this is where the +3 over the Tier-3 baseline came from).
+    `JsBuiltinMethod` shrank to ~5 lines of body — name and length
+    moved up to the parent.
 
   Residual fails: 4 in Date — `toJSON/builtin.js` (needs
   `Object.isExtensible`), `toJSON/{invoke-arguments,invoke-abrupt,
   to-primitive-abrupt}.js` (need accessor-descriptor object literals).
-  All blocked on the descriptor-infra item.
+  All blocked on the descriptor-infra item (Tier 2).
 
 - **Date polish.** `built-ins/Date/**` went from **33 pass / 370 fail / 191 skip
   / 594 total** to **367 pass / 11 fail / 216 skip / 594 total** (+334 passing,
