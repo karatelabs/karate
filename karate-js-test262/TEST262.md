@@ -862,12 +862,13 @@ by "how often does idiomatic LLM-written JS hit this?" not by
 test-count. Each entry names (a) what LLMs actually do that depends on
 it, (b) the shape of the work, and (c) the skip-list entry to retire.
 
-**Baseline health** (probe at current HEAD): `expressions/**` 1607,
+**Baseline health** (probe at current HEAD): `expressions/**` 1645,
 `Math/**` 140/65 ok, `Number/**` 157/92 ok, `String/**` 267/783
 (method gaps), `RegExp/**` 449/482 ok, **`Date/**` 30/373 — poor,
 worth its own session**, `Boolean/**` 23/19, `Object/prototype/**`
 66/104 ok, `try/**` 58/110 ok. `Promise/**` / `BigInt/**` /
 `TypedArrayConstructors/Uint8Array/**` all fully SKIP-gated today.
+Numbers drift each session — re-probe before scoping.
 
 ---
 
@@ -917,9 +918,12 @@ engine rejects a large fraction of idiomatic modern JS.
 Right now karate-js has **ad-hoc iteration** scattered across sites
 that each special-case `List` / `String` / `JsArray`:
 
-- `destructurePattern` in `Interpreter` (this session added a
-  bespoke String → List<Object> expansion).
-- `evalForStmt` for `for-of` (walks List elements).
+- `destructurePattern` in `Interpreter` (the destructuring overhaul
+  added a bespoke String → List<Object> expansion).
+- `evalForStmt` for `for-of` (walks List elements; also has a known
+  bug — `for-of` on `undefined` should throw TypeError per spec
+  but currently iterates zero times silently, surfaced by
+  `optional-chaining/iteration-statement-for-of-type-error.js`).
 - `...spread` in call args (`evalFnCall` iterates List).
 - `...spread` in array literals.
 - `Array.from`, `Array.of`, and similar built-ins.
@@ -940,15 +944,17 @@ currently SKIP'd because `Symbol.iterator` is feature-skipped).
 
 Shape: focused engine-plumbing session. (1) Introduce `JsIterator`
 interface + `IterUtils.getIterator(Object)`. (2) Convert the five
-call sites above. (3) Remove `feature: Symbol.iterator` from
-`expectations.yaml`. (4) Expose `@@iterator` read on `JsArray` /
-`JsString` as a well-known-symbol alias. Real `Symbol()` construction
-can stay skipped.
+call sites above — including the `for-of`-on-nullish TypeError fix.
+(3) Remove `feature: Symbol.iterator` from `expectations.yaml`.
+(4) Expose `@@iterator` read on `JsArray` / `JsString` as a
+well-known-symbol alias. Real `Symbol()` construction can stay
+skipped.
 
-**Why second:** architectural, but this session's work exposed how
-fragile the ad-hoc pattern is. One refactor retires a massive SKIP
-cluster *and* enables #5 (Map/Set) + more robust `for-of`. Per
-Working Principle #2 — the friction is real; fix it now.
+**Why second:** architectural, but the friction has been documented
+across multiple sessions (destructuring, optional chaining, spread).
+One refactor retires a massive SKIP cluster *and* enables #5
+(Map/Set) + more robust `for-of`. Per Working Principle #2 — the
+friction is real; fix it now.
 
 ---
 
