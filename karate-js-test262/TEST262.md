@@ -177,8 +177,7 @@ Action list — start at the top. Ordered by core-engine confidence
 cross-multiplied by score impact. Re-probe with the relevant `--only` glob
 before scoping a session.
 
-**Current state baseline** (last sampled 2026-04-26, post JsArray hole
-sentinel + length truncation + length descriptor):
+**Current state baseline** (last sampled 2026-04-26):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
@@ -194,47 +193,32 @@ sentinel + length truncation + length descriptor):
 
 ### Top items
 
-1. **Full Symbol primitive (layer 2 — promoted from former #1's "deferred"
-   tail).** Partial expansion shipped 2026-04-26: well-known symbols are
-   exposed as string-keyed stand-ins, `@@toPrimitive` dispatches via
-   `Terms.toPrimitive` (and now `Terms.add` — binary + / +=), `@@toStringTag`
-   overrides `Object.prototype.toString`, `Date.prototype[@@toPrimitive]`
-   landed (default→string per spec). Net delta vs prior baseline: **+25
-   language, +23 Date, +2 Symbol, +1 Object/Function each ≈ +52 PASS**, with
-   ~109 fewer SKIPs. Residual is the *Symbol-as-primitive* tests:
-   `typeof Symbol.X === "symbol"`, `Symbol()` constructor with unique
-   identity, `Symbol.for` / `keyFor` global registry, `symbol.description`,
-   `Object.getOwnPropertySymbols`, `Reflect.ownKeys` returning symbol keys.
-   Touches: new primitive type in `Terms.typeOf` / `eq` / coercion sites;
-   property-key abstraction so `JsObject._map` (currently `Map<String,Object>`)
-   can carry symbol keys distinct from string keys; `_attrs` / `_tombstones`
-   / `isOwnProperty` / intrinsic-attribute pipeline all key by `String` and
-   need parallel symbol storage. ~580 SKIPs today; 2-4 sessions of focused
-   work. Re-probe before scoping with `test/built-ins/Symbol/**` to size
-   per-feature cluster.
+1. **Full Symbol primitive (layer 2).** Well-known symbols already exposed
+   as string-keyed stand-ins (see [JS_ENGINE.md § Iteration](../docs/JS_ENGINE.md#iteration)).
+   Residual is *Symbol-as-primitive*: `typeof Symbol.X === "symbol"`,
+   `Symbol()` constructor with unique identity, `Symbol.for` / `keyFor`
+   global registry, `symbol.description`, `Object.getOwnPropertySymbols`,
+   `Reflect.ownKeys` returning symbol keys. Touches: new primitive type
+   in `Terms.typeOf` / `eq` / coercion sites; property-key abstraction so
+   `JsObject._map` (currently `Map<String,Object>`) can carry symbol
+   keys distinct from string keys; `_attrs` / `_tombstones` /
+   `isOwnProperty` / intrinsic-attribute pipeline all key by `String` and
+   need parallel symbol storage. ~580 SKIPs today; 2-4 sessions of
+   focused work. Re-probe before scoping with `test/built-ins/Symbol/**`
+   to size per-feature cluster.
 
-2. **`this = 1` / `import.meta = 1` / `eval = 1` NPE.** Tier-1 negative-test
-   stragglers. `this` lexes as IDENT; `import.meta` parses as a normal
-   `REF_DOT_EXPR`; `eval = 1` hits a pre-existing NPE in the engine's
-   host-bindings setup (`Cannot read field "listener" because "this.root"
-   is null`). 5 fails total in `expressions/assignmenttargettype/**`.
+2. **`this = 1` / `import.meta = 1` / `eval = 1` NPE.** Tier-1 negative-
+   test stragglers. `this` lexes as IDENT; `import.meta` parses as a
+   normal `REF_DOT_EXPR`; `eval = 1` hits a pre-existing NPE in the
+   engine's host-bindings setup (`Cannot read field "listener" because
+   "this.root" is null`). 5 fails total in
+   `expressions/assignmenttargettype/**`.
 
-3. **JsArray per-index attribute tracking (residual).** Layer-2 landed
-   2026-04-26: `JsArray.HOLE` sentinel distinguishes sparse holes from
-   `null`/`undefined`; `arr.length = N` truncates / extends with HOLE per
-   §10.4.2.4 ArraySetLength; `Object.defineProperty(arr, "length", {value:
-   N})` routes through the same `setLength` path; `arr[i] = x` for `i >=
-   size` extends with HOLE-padding; `length` reports its spec descriptor
-   `{writable: true, enumerable: false, configurable: false}`; `hasOwn` /
-   `Object.keys` / `Object.getOwnPropertyDescriptor` honor own-vs-hole
-   semantics; `JsArray.jsEntries` and `IterUtils.listIterator` translate
-   HOLE for hole-skipping (forEach/map/filter) vs hole-as-undefined
-   (for-of/spread) per spec. Net delta vs prior baseline: **+14 Array,
-   +21 Object, +21 language ≈ +57 PASS**, no JUnit regressions.
-   Residual is per-index attributes: `defineProperty(arr, "0",
-   {writable: false, value: x})` writes to the dense list and loses the
-   `writable: false` bit (no parallel `_attrs` map on JsArray). Adding
-   one mirrors what `JsObject._attrs` already does and would unblock the
+3. **JsArray per-index attribute tracking.** `defineProperty(arr, "0",
+   {writable: false, value: x})` writes to the dense list and silently
+   loses the `writable: false` bit — there's no parallel `_attrs` map on
+   `JsArray` (one exists on `JsObject`). Adding one mirrors the
+   `JsObject._attrs` design and would unblock the
    `Array/prototype/*-target-array-with-non-writable-property` cluster.
 
 ### Background
@@ -250,14 +234,12 @@ Picked off opportunistically when nearby — not session-sized on their own.
   Same for `Set.prototype`.
 
 - **`.length` / `.name` rollout to remaining prototypes.** `JsBuiltinMethod`
-  infra is in place; Date is wired. Probe (2026-04) shows the *incremental*
-  test count from sweeping it through other prototypes is small — most
-  `length.js` fails are about array-instance length semantics, most `name.js`
-  fails are Symbol-gated. Treat as background cleanup.
+  infra is in place. Incremental wins are small — most residual `length.js`
+  fails are array-instance length semantics, most `name.js` fails are
+  Symbol-gated. Treat as background cleanup.
 
-- **Utility-method residual sweep.** String.prototype is nearly complete
-  (`padStart` / `padEnd` / `replaceAll` / `matchAll` / `at` all landed). Pick
-  off remaining gaps as triage surfaces them.
+- **Utility-method residual sweep.** Pick off remaining built-in gaps as
+  triage surfaces them.
 
 - **Destructuring residuals.** Bulk works; the long tail is low-leverage —
   lexer identifier-escape support, TDZ / init-order corners, negative parse
@@ -352,152 +334,16 @@ Items left for later; un-scheduled but tracked.
 
 ---
 
-## Engine guarantees (test262-driven)
+## Engine guarantees
 
-Engine rules established by prior compliance work. Treat as load-bearing — if
-a session needs to violate one, the rule goes up for review explicitly. **Full
-prose lives in [JS_ENGINE.md § Spec Invariants](../docs/JS_ENGINE.md#spec-invariants-test262-driven).**
-
-**Errors & exception routing**
-- Engine-emitted errors route through registered constructors (`<Name>:`
-  prefix → `JsError` with linked `.constructor`)
-- `Test262Error` / user-defined errors classified via `constructor.name` fallback
-- `ErrorUtils.classify` scans embedded `<Name>:` as a fallback
-- JVM exception → JS error mapping at the `evalStatement` catch
-  (`IndexOutOfBoundsException`/`ArithmeticException` → RangeError; NPE/CCE/NFE → TypeError)
-- `JsError.constructor` populated at JS try/catch wrapping
-- Error position framing leads with the message (`at <path>:<line>:<col>`)
-- `EngineException` exposes a structured `getJsMessage()` (the unframed
-  JS-side `.message` value, no `<Name>:` prefix, no host `js failed:` frame)
-  alongside `getMessage()` (framed for logging) and `getJsErrorName()`. Host
-  callers building a JS-facing surface should prefer `getJsMessage()` —
-  no message-string parsing needed.
-
-**typeof & callable identity**
-- `typeof` reports `"function"` on every callable surface (JsInvokable,
-  JsFunction, built-in constructor singletons, JsCallable method refs)
-
-**Globals**
-- `eval` is a global with indirect-eval semantics (no scope capture)
-
-**Iteration**
-- Iteration goes through `IterUtils.getIterator`; `for-of` on null/undefined
-  is TypeError, `for-in` keeps `Terms.toIterable`
-- Partial `Symbol` global — well-known symbols exposed as string-keyed
-  stand-ins (`@@iterator`, `@@asyncIterator`, `@@toPrimitive`, `@@toStringTag`,
-  `@@hasInstance`, `@@isConcatSpreadable`, `@@species`, `@@match`, `@@matchAll`,
-  `@@replace`, `@@search`, `@@split`, `@@unscopables`); no constructor / no
-  unique identity / no `typeof === "symbol"`
-
-**Optional chaining**
-- `PropertyAccess.SHORT_CIRCUITED` sentinel propagation (distinct from
-  `Terms.UNDEFINED`); converted to UNDEFINED only at chain root
-
-**Object literals & destructuring**
-- Reserved words as object-literal keys (`{break: x}`, `{class: foo}`, …)
-- Destructuring uses `ObjectLike.getMember`; defaults fire on `undefined`
-  only; array-source routes through `IterUtils.getIterator`
-
-**Numeric / coercion**
-- Spec ToString unified via `Terms.toStringCoerce`
-- `Terms.toPrimitive` is the spec ToPrimitive boundary — checks `obj["@@toPrimitive"]`
-  first (set-but-not-callable is TypeError; result must be primitive), then
-  falls back to `Terms.ordinaryToPrimitive` (valueOf/toString dispatch with
-  sub-context error propagation)
-- `Terms.add` (binary `+` / `+=`) ToPrimitive's ObjectLike operands first per
-  spec — gained a `CoreContext` parameter for that
-- `Terms.narrow()` checks both ends (overflow fix on negative-past-MIN_VALUE)
-
-**BigInt**
-- BigInt rides on `java.math.BigInteger` with type-tested dispatch; mixing
-  with Number is TypeError via `requireBothBigInt`
-- Numeric separators sit on the rare-path lexer rule (zero allocation on
-  the common path)
-
-**Property attributes**
-- Per-property attributes use a sparse byte map (`_attrs`); absent = all-true
-- `defineProperty` enforces "missing-fields default false on new keys,
-  preserve on existing"; configurability rules enforced
-- `Object.prototype.hasOwnProperty` is prototype-aware and intrinsic-aware
-- Intrinsic-attribute pipeline (`hasOwnIntrinsic` + `getOwnAttrs`) feeds the
-  descriptor read pipeline
-- Tombstone-on-delete for intrinsic properties (`_tombstones` set)
-- `JsObject.isOwnProperty(name)` is the canonical own-key check
-
-**Prototype machinery**
-- Built-in prototypes accept user-added properties (`userProps` on `Prototype`)
-- Per-Engine prototype isolation — `clearAllUserProps` + `clearAllEngineState`
-  walk registered singletons on each `new Engine()`
-- Function declarations hoist (and the main eval loop *skips* hoisted
-  FN_EXPR statements)
-- `Array.prototype.*` are generic over array-like `this` via `rawList`'s
-  `.length` + indexed snapshot
-- `JsArray.getMember` resolves canonical numeric-index keys (rejects `"01"`,
-  `"+1"`, `"1.0"`)
-- `JsArray` indexed-accessor enforcement: descriptors installed via
-  `Object.defineProperty(arr, i, {get/set/value: ...})` land in `namedProps`
-  under the canonical string-form key and take precedence over the dense
-  list backing store. Reads dispatch via `JsArray.getIndexedSlot(i)` (hot
-  path: single null-check on `namedProps`); writes route through the
-  named-key path when `hasIndexedDescriptor(i)` so accessor setters fire.
-  `rawList` / `jsEntries` take the per-index snapshot path when
-  `arr.hasAnyDescriptor()` so `Array.prototype.*` callbacks see resolved
-  values, not the JsAccessor wrapper.
-- `JsArray.HOLE` sentinel marks sparse slots distinct from `null` /
-  `undefined`. `[0,,2]` writes HOLE at index 1 (not null), so
-  `arr.hasOwnProperty(1) === false` while `[0,null,2].hasOwnProperty(1)
-  === true`. Read seams translate HOLE to `undefined` (`getElement`,
-  `List.get`, `PropertyAccess.getByIndex` for raw List, `IterUtils`
-  iterator) so user code never observes the sentinel; iteration helpers
-  that the spec says skip holes (`Array.prototype.{forEach, map, filter,
-  every, some, find, findIndex, reduce, reduceRight}`) do so via
-  `JsArray.jsEntries` which skips HOLE entries.
-- `arr.length = N` truncates the dense list when N < current size or
-  pads with HOLE when N > current size, per §10.4.2.4 ArraySetLength.
-  `arr[i] = x` for `i >= size` extends with HOLE-padding to grow the
-  array in one shot. `Object.defineProperty(arr, "length", {value: N})`
-  routes through the same `setLength` path. `length` exposes its spec
-  descriptor `{writable: true, enumerable: false, configurable: false}`
-  via `JsArray.getOwnAttrs`.
-- `JsArray.isOwnProperty` is the canonical own-key check for arrays —
-  covers `length`, `namedProps` entries (descriptors / named props), and
-  canonical numeric indices in range that are not HOLE. Wired through
-  `Object.hasOwn`, `arr.hasOwnProperty`, `Object.getOwnPropertyDescriptor`,
-  and the `ownKeys` helper that backs `Object.keys` /
-  `Object.getOwnPropertyNames`.
-- `Function.prototype.bind` returns a new JsFunction with bound `thisObject`
-  + pre-bound args
-
-**Date**
-- `JsDate` stores `[[DateValue]]` as `double` with NaN = Invalid Date;
-  helpers (`makeDay` / `makeTime` / `timeClip` / `localToUtc` / `utcToLocal`)
-  shared between Constructor and Prototype
-- LocalTZA truncated to integer minutes (per spec `getTimezoneOffset`)
-- Setters read `[[DateValue]]` *before* coercing args (preserves observable
-  side effects from valueOf)
-- `Date.prototype[@@toPrimitive]` overrides "default" hint to "string" per
-  §21.4.4.45 — `date + ""` and `date + date` string-concat instead of
-  timestamp-add. Calls `Terms.ordinaryToPrimitive` to avoid re-entering the
-  @@toPrimitive lookup.
-
-**Templates**
-- Tagged-template AST shape — `FN_TAGGED_TEMPLATE_EXPR` is `[<callable>,
-  LIT_TEMPLATE]`; N substitutions ⇒ N+1 string slots; `strings.raw` attached
-
-**Object.prototype.toString**
-- Consults `obj.getMember("@@toStringTag")` first; if a string, uses it as
-  the tag. Otherwise dispatches on host wrapper class (`[object Date]` /
-  `Array` / `Map` / `RegExp` / `Set` / `Error` / `Boolean` / `Number` /
-  `String` / `Function` / `Object`)
-- `Error.prototype.toString` shadows `Object.prototype.toString` in
-  `JsError.getMember` (returns `name + ": " + message` per spec) — exposed
-  as a latent bug when `Terms.add` started routing ObjectLike operands
-  through `Terms.toPrimitive`
-
-**Engine ↔ runner contract**
-- Runner depends on `ParserException` propagation (parse-phase classification),
-  `EngineException` wrapping (runtime), and JS-error-name prefix injection at
-  `Interpreter.evalProgram` — see `ErrorUtils` and the Engine guarantees above.
+Spec invariants and engine architecture decisions live in
+[**JS_ENGINE.md § Spec Invariants**](../docs/JS_ENGINE.md#spec-invariants-test262-driven)
+— treat as load-bearing; sessions that need to violate one bring the rule
+up for review explicitly. The runner depends on `ParserException`
+propagation (parse-phase classification), `EngineException` wrapping
+(runtime), and the structured `getJsErrorName()` / `getJsMessage()`
+surface — `ErrorUtils` reads those directly rather than parsing message
+strings.
 
 ---
 

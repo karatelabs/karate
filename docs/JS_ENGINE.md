@@ -630,6 +630,16 @@ scan is the safety net.
 appends `    at <path>:<line>:<col>` (JS-stack-frame-style) instead of the
 engine-internal `<line>:<col> <NodeType>` prefix.
 
+**`EngineException` exposes a structured `getJsMessage()`.** The unframed
+JS-side `.message` value (no `<Name>:` prefix, no host `js failed: /
+==========` frame) — what `e.message` inside a JS `catch` would observe.
+Distinct from `getMessage()` (kept framed for logs) and complements
+`getJsErrorName()`. Set at both wrap sites in `Interpreter`
+(`evalProgram` for uncaught throws, `evalStatement` for runtime errors)
+and preserved by `Engine.evalInternal` when re-wrapping at the host
+boundary. Host callers building a JS-facing surface should prefer this
+over parsing the framed message string.
+
 ### typeof and callable identity
 
 **`typeof` reports `"function"` on all callable surfaces.** `Terms.typeOf`
@@ -858,6 +868,44 @@ spec ToObject + index-write semantics; not yet modeled).
 `list.get(3)` rather than delegating to the prototype chain. Strict canonical
 parse (rejects `"01"`, `"+1"`, `"1.0"`) so non-canonical string keys still go
 to namedProps / proto chain.
+
+**`JsArray.HOLE` sentinel marks sparse slots.** Distinct singleton (not
+`null`, not `Terms.UNDEFINED`) — `[0,,2]` writes `HOLE` at index 1 so
+`arr.hasOwnProperty(1) === false` while `[0,null,2].hasOwnProperty(1) ===
+true` (our previous shared-`null` storage couldn't model this). Read seams
+translate `HOLE` → `undefined` (`JsArray.getElement`, `List.get`,
+`PropertyAccess.getByIndex` raw-List branch, `IterUtils.listIterator`) so
+user code never observes the sentinel. `JsArray.jsEntries` *skips* `HOLE`
+entries — the spec says `Array.prototype.{forEach, map, filter, every,
+some, find, findIndex, reduce, reduceRight}` and `for...in` skip holes,
+while `for...of` / spread / destructuring read holes as `undefined` (the
+listIterator path).
+
+**`JsArray` length semantics (§10.4.2.4 ArraySetLength).** `arr.length = N`
+truncates the dense list when `N < size` or pads with `HOLE` when `N >
+size`, via `JsArray.setLength(int)`. `arr[i] = x` for `i >= size` extends
+with HOLE-padding to grow in one shot. `Object.defineProperty(arr,
+"length", {value: N})` routes through the same `setLength` path.
+`length` exposes its spec descriptor `{writable: true, enumerable: false,
+configurable: false}` via `JsArray.getOwnAttrs`.
+
+**`JsArray` indexed-accessor enforcement.** Descriptors installed via
+`Object.defineProperty(arr, i, {get/set/value: ...})` land in `namedProps`
+under the canonical string-form key and take precedence over the dense
+list. Reads dispatch via `JsArray.getIndexedSlot(i)` (hot path: single
+null-check on `namedProps`); writes route through the named-key path when
+`hasIndexedDescriptor(i)` so `JsAccessor` setters fire.
+`JsArrayPrototype.rawList` / `jsEntries` take the per-index snapshot path
+when `arr.hasAnyDescriptor()` so callbacks see resolved values, not the
+accessor wrapper.
+
+**`JsArray.isOwnProperty` is the canonical own-key check for arrays.**
+Returns true iff `name` is `"length"`, in `namedProps` (descriptors / named
+properties), or a canonical numeric index in range with `list.get(i) !=
+HOLE`. Wired through `Object.hasOwn`, `arr.hasOwnProperty`,
+`Object.getOwnPropertyDescriptor`, and the `ownKeys` helper that backs
+`Object.keys` / `Object.getOwnPropertyNames` (which emits indices in
+ascending order, then named-prop keys, then `"length"`).
 
 **`Function.prototype.bind`** in `JsFunctionPrototype.bindMethod`: returns a
 new `JsFunction` whose `call(ctx, args)` sets `ctx.thisObject = boundThis`
