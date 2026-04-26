@@ -1,6 +1,5 @@
 package io.karatelabs.js;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -273,7 +272,6 @@ class SpecPinTest extends EvalBase {
     }
 
     @Test
-    @Disabled("Currently broken — coercion miss to be fixed in mega-commit 2M (Terms in-place)")
     void toPrimitive_hintNumber_callsValueOf() {
         assertEquals(7, eval(
                 "var o = {valueOf: function(){return 7;}, toString: function(){return 'x';}};"
@@ -281,9 +279,10 @@ class SpecPinTest extends EvalBase {
     }
 
     @Test
-    @Disabled("Currently broken — `obj + ''` coerces with hint=default (valueOf wins) per spec, "
-            + "but the test wanted hint=string semantics. Revisit in mega-commit 2M.")
-    void toPrimitive_hintString_callsToString() {
+    void toPrimitive_objectWithOnlyToString_concatsAsString() {
+        // ES §13.15.3 binary `+`: ToPrimitive(o, "default") on a plain object,
+        // which OrdinaryToPrimitive runs as valueOf-then-toString. With no
+        // valueOf override, falls through to toString.
         assertEquals("x", eval(
                 "var o = {toString: function(){return 'x';}};"
                         + " o + ''"));

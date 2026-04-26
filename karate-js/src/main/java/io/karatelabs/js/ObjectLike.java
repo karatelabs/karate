@@ -43,4 +43,15 @@ public interface ObjectLike {
         return null;
     }
 
+    /**
+     * True iff {@code name} is an own property — not inherited, not absent.
+     * Default reads {@link #toMap()} which works for any host ObjectLike;
+     * {@link JsObject} / {@link JsArray} / {@link Prototype} override with
+     * tighter implementations that distinguish tombstones from absent
+     * keys and intrinsic-installed entries.
+     */
+    default boolean isOwnProperty(String name) {
+        return toMap().containsKey(name);
+    }
+
 }

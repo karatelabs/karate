@@ -199,7 +199,8 @@ abstract class Prototype implements ObjectLike {
      * or built-in). Used by {@code Object.prototype.hasOwnProperty} when the
      * receiver is the prototype object itself. Does NOT walk {@code __proto__}.
      */
-    boolean hasOwnMember(String name) {
+    @Override
+    public boolean isOwnProperty(String name) {
         if (tombstones != null && tombstones.contains(name)) {
             return false;
         }

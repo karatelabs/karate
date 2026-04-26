@@ -37,11 +37,17 @@ package io.karatelabs.js;
 final class JsBuiltinMethod extends JsFunction {
 
     private final JsCallable delegate;
+    private final boolean constructable;
 
     JsBuiltinMethod(String name, int length, JsCallable delegate) {
+        this(name, length, delegate, false);
+    }
+
+    JsBuiltinMethod(String name, int length, JsCallable delegate, boolean constructable) {
         this.name = name;
         this.length = length;
         this.delegate = delegate;
+        this.constructable = constructable;
     }
 
     @Override
@@ -51,7 +57,7 @@ final class JsBuiltinMethod extends JsFunction {
 
     @Override
     public boolean isConstructable() {
-        return false;
+        return constructable;
     }
 
 }

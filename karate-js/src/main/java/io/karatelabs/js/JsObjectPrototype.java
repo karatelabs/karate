@@ -140,7 +140,7 @@ class JsObjectPrototype extends Prototype {
         // Date.prototype.hasOwnProperty('toString') === true). Walks neither
         // userProps via toMap() nor the __proto__ chain.
         if (thisObj instanceof Prototype proto) {
-            return proto.hasOwnMember(prop);
+            return proto.isOwnProperty(prop);
         }
         if (thisObj instanceof JsObject jo) {
             return jo.isOwnProperty(prop);

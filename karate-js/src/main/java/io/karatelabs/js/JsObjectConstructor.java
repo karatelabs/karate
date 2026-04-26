@@ -348,9 +348,7 @@ class JsObjectConstructor extends JsFunction {
     };
 
     private static boolean isOwnKey(Object obj, String key) {
-        if (obj instanceof JsObject jo) return jo.isOwnProperty(key);
-        if (obj instanceof JsArray ja) return ja.isOwnProperty(key);
-        if (obj instanceof Prototype p) return p.hasOwnMember(key);
+        if (obj instanceof ObjectLike ol) return ol.isOwnProperty(key);
         if (ownKeys(obj).contains(key)) return true;
         return false;
     }
@@ -631,25 +629,16 @@ class JsObjectConstructor extends JsFunction {
     @SuppressWarnings("unchecked")
     private static Object ownGet(Object obj, String key) {
         if (obj instanceof ObjectLike ol) {
-            // Intrinsic own properties (length, name, prototype, etc.) live
-            // in getMember switches, not in toMap(). Fall through to getMember
-            // when the toMap()'s missing the key — but only after toMap reports
-            // absence so user-set values still win over intrinsics.
+            // toMap entries take precedence — user-set values shadow intrinsics.
+            // For names absent from toMap but reported as own (intrinsics on
+            // JsObject / JsArray indices+length / Prototype built-ins), route
+            // through getMember to surface the live value.
             Map<String, Object> m = ol.toMap();
             if (m.containsKey(key)) return m.get(key);
+            if (ol.isOwnProperty(key)) return ol.getMember(key);
+            // Special-case for JsObject's intrinsic surface that's neither in
+            // toMap nor reported by isOwnProperty's default impl.
             if (obj instanceof JsObject jo && jo.hasOwnIntrinsic(key)) {
-                return ol.getMember(key);
-            }
-            // JsArray's intrinsics (length + canonical numeric indices) likewise
-            // resolve via getMember, not toMap. isOwnProperty is the gate so we
-            // only fall through for actual array indices in range / "length".
-            if (obj instanceof JsArray ja && ja.isOwnProperty(key)) {
-                return ol.getMember(key);
-            }
-            // Prototype's built-in methods (e.g. Array.prototype.push) similarly
-            // live in subclass getBuiltinProperty switches — route through
-            // getMember so descriptor reads pick them up.
-            if (obj instanceof Prototype p && p.hasOwnMember(key)) {
                 return ol.getMember(key);
             }
             return Terms.UNDEFINED;

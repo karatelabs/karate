@@ -1237,7 +1237,9 @@ class Interpreter {
                 if (v instanceof java.math.BigInteger) {
                     throw JsErrorException.typeError("Cannot convert a BigInt to a number using unary +");
                 }
-                yield Terms.objectToNumber(v);
+                // Spec ToNumber routes through ToPrimitive (hint=number) for
+                // objects, so {valueOf: () => 7} returns 7 not NaN.
+                yield Terms.toNumberCoerce(v, context);
             }
             default -> throw new RuntimeException("unexpected operator: " + node.getFirst());
         };
