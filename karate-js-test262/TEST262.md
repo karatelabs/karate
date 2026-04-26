@@ -1003,21 +1003,22 @@ Action list — start at the top. Ordered by core-engine confidence
 score impact (a one-fix harness unblock beats ten one-test patches).
 Re-probe with the relevant `--only` glob before scoping a session.
 
-Current state baseline (2026-04, post Array.prototype wrap +
-Prototype tombstones/getOwnAttrs, on top of the full
-constructor-singleton wrap sweep — Math + Number + Object + Array +
-String + Date + BigInt + Function + Map + Set):
+Current state baseline (2026-04, post full prototype wrap sweep —
+Array + Number + String + Date + Object + Boolean + Function +
+RegExp + BigInt + Map + Set — on top of the constructor-singleton
+sweep, Prototype tombstones/getOwnAttrs, singleton-reset infra,
+assignment-target negative-test pass):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
 | `test/language/**` | 4265 | 3798 | 15582 | 23645 |
 | `test/built-ins/Math/**` | 293 | 33 | 1 | 327 |
-| `test/built-ins/Number/**` | 216 | 112 | 12 | 340 |
-| `test/built-ins/String/**` | 363 | 776 | 84 | 1223 |
+| `test/built-ins/Number/**` | 232 | 96 | 12 | 340 |
+| `test/built-ins/String/**` | 456 | 683 | 84 | 1223 |
 | `test/built-ins/Array/**` | 1203 | 1697 | 181 | 3081 |
-| `test/built-ins/Object/**` | 1918 | 1362 | 131 | 3411 |
+| `test/built-ins/Object/**` | 2004 | 1276 | 131 | 3411 |
 | `test/built-ins/Date/**` | 477 | 47 | 70 | 594 |
-| `test/built-ins/Function/**` | 215 | 166 | 128 | 509 |
+| `test/built-ins/Function/**` | 228 | 153 | 128 | 509 |
 
 ### Tier 1 — core-engine parser/expression gaps
 
@@ -1041,18 +1042,9 @@ Function / Map / Number / Object / Set / String) wrapped with
 `clearEngineState()`) plumbs per-Engine reset for all of them.
 Remaining work is the **prototype** side and `JsArray.length`.
 
-- **`Prototype` per-method wraps (residual).** Array.prototype is
-  done (see Recently completed) — Prototype now has tombstones,
-  `getOwnAttrs`, and a `clearSubclassState` cache hook, and
-  `JsObjectConstructor.isOwnKey` / `ownAttrs` / `ownGet` route
-  through Prototype for descriptor reads. JsArrayPrototype's 35
-  built-in methods are wrapped in `JsBuiltinMethod` with spec
-  length+name. Same one-file template still to roll out across
-  JsObjectPrototype, JsStringPrototype, JsNumberPrototype,
-  JsDatePrototype, JsBooleanPrototype, JsBigIntPrototype,
-  JsFunctionPrototype, JsMapPrototype, JsSetPrototype,
-  JsRegExpPrototype, JsErrorPrototype. Per-prototype delta in
-  the +5–60 PASS range based on Array's experience.
+*(Constructor + prototype wrap rollout fully shipped — see Recently
+completed. The Prototype.method() helper + base-class
+`_methodCache` + tombstones cover every built-in prototype.)*
 
 - **`JsArray.length` descriptor.** Spec: `{writable: true,
   enumerable: false, configurable: false}`. Currently
@@ -1141,6 +1133,53 @@ Smaller items, picked off when nearby. Not session-sized on their own.
 Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
+
+- **Full prototype wrap sweep + DRY refactor (Number / String / Date /
+  Map / Set / Object / Boolean / Function / RegExp / BigInt).**
+  Three commits land the remaining 10 prototypes after the
+  Array.prototype foundation, plus a refactor that lifts the
+  cache-and-wrap template from each prototype into the `Prototype`
+  base class. Each subclass's switch now reads
+  `case "push" -> method(name, 1, this::push)` instead of a six-line
+  cache check + `new JsBuiltinMethod("push", 1, …)` ceremony — the
+  base class's `_methodCache` field, `lookupBuiltin` template,
+  `clearAllUserProps` integration, and `method()` helper handle the
+  rest. Constructor wraps got the same `name` + `method()` treatment
+  via a parallel static helper on `JsObject`.
+
+  | `--only` glob | Before sweep | After sweep | Δ pass |
+  |---|---|---|---|
+  | `test/built-ins/String/**` | 363 / 776 / 84 | **456** / 683 / 84 | **+93** |
+  | `test/built-ins/Object/**` | 1918 / 1362 / 131 | **2004** / 1276 / 131 | **+86** |
+  | `test/built-ins/Number/**` | 216 / 112 / 12 | **232** / 96 / 12 | **+16** |
+  | `test/built-ins/Map/**` | 80 / 74 / 50 | **98** / 56 / 50 | **+18** |
+  | `test/built-ins/Set/**` | 154 / 206 / 23 | **168** / 192 / 23 | **+14** |
+  | `test/built-ins/Function/**` | 215 / 166 / 128 | **228** / 153 / 128 | **+13** |
+  | `test/built-ins/BigInt/**` | 48 / 13 / 16 | **52** / 9 / 16 | **+4** |
+  | `test/language/**` | 4265 / 3798 / 15582 | **4266** / 3797 / 15582 | **+1** |
+
+  Net **+245 PASS**. String and Object lead because both sit at the
+  intersection of two effects: their own `name.js` / `length.js` /
+  `prop-desc.js` tests across every prototype method, plus the
+  cross-cutting `Object.getOwnPropertyDescriptor(SomeProto, 'X')`
+  paths that previously returned `undefined` for every built-in
+  prototype key. Date / Boolean / RegExp / Math / Array unchanged in
+  their own slices on this round (Array was shipped earlier; Date's
+  prototype was already wrapped inline; the rest have small or no
+  prototype-test footprints).
+
+  Refactor mechanics:
+  - `Prototype._methodCache` (LinkedHashMap) lives on the base.
+    `lookupBuiltin` is the cache-aware wrapper called from
+    `getMember`; subclasses just declare `getBuiltinProperty` (the
+    switch). `clearAllUserProps` walks the cache too.
+  - `Prototype.method(name, length, delegate)` and
+    `JsObject.method(name, length, delegate)` (static) are the
+    canonical sugar — using the case-label value `name` as the first
+    arg removes a class of "wrong-name" typos
+    (e.g. `trimLeft.name === "trimLeft"`, not "trimStart").
+  - The `clearSubclassState()` hook introduced for Array.prototype
+    is gone — base-class cache management makes it unnecessary.
 
 - **Array.prototype wrap + Prototype tombstones / `getOwnAttrs`.**
   First step on the prototype side, after the constructor sweep.
