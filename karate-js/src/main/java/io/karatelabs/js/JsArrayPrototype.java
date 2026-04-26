@@ -109,14 +109,14 @@ class JsArrayPrototype extends Prototype {
             if (!arr.hasAnyDescriptor()) {
                 return arr.toList();
             }
-            // Slow path: snapshot via getIndexedSlot so accessor descriptors
+            // Slow path: snapshot via getIndexedValue so accessor descriptors
             // installed at any index dispatch through the getter (matching the
             // ObjectLike branch below for non-array array-likes).
             CoreContext cc = context instanceof CoreContext cx ? cx : null;
             int len = arr.size();
             List<Object> snapshot = new ArrayList<>(len);
             for (int i = 0; i < len; i++) {
-                Object v = arr.getIndexedSlot(i);
+                Object v = arr.getIndexedValue(i);
                 if (v instanceof JsAccessor acc) {
                     v = acc.getter == null || cc == null
                             ? Terms.UNDEFINED

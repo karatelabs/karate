@@ -410,8 +410,8 @@ class JsFunctionTest extends EvalBase {
     //
     // Bug shape: a callee's closure-captured outer var was being shadowed by
     // a same-named variable in the caller's scope, because the function context's
-    // `parent` (dynamic call chain) was searched before its lexical
-    // closureContext. Fix: function contexts use closureContext only.
+    // `parent` (dynamic call chain) was searched before its lexical `outer`
+    // chain. Fix: function contexts walk `outer` (lexical) only.
     // ====================================================================================
 
     @Test

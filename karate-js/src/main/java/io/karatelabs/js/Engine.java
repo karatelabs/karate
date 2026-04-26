@@ -40,8 +40,8 @@ public class Engine {
     // Single global store. Holds user-visible bindings (Engine.put / top-level
     // var / implicit globals) AND hidden entries (putRootBinding-injected
     // resources, lazy-cached built-ins from initGlobal). The hidden flag on
-    // BindValue distinguishes them; Engine.getBindings() filters hidden out for
-    // host inspection. Used as the script-level _bindings (passed in via
+    // Slot distinguishes them; Engine.getBindings() filters hidden out for
+    // host inspection. Used as the script-level bindings (passed in via
     // evalInternal) and as the root's binding store — same instance.
     // Package-private so ContextRoot/JsGlobalThis can read/write directly.
     final BindingsStore bindings = new BindingsStore();

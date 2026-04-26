@@ -109,8 +109,8 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
      *   <li>{@code constructor} on a function's prototype is
      *       {@code {writable: true, enumerable: false, configurable: true}}.</li>
      * </ul>
-     * Returning these directly is cheaper than allocating a per-property entry
-     * in {@code _attrs} for every built-in function in the JVM.
+     * Returning these directly is cheaper than allocating a {@code Slot} per
+     * intrinsic key on every built-in function in the JVM.
      */
     @Override
     public byte getOwnAttrs(String name) {
@@ -139,10 +139,10 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
             return super.getMember(name);
         }
         // For functions, "prototype" returns the function's prototype object
-        // Check _map first to allow "Foo.prototype = ..." assignments
+        // Check own props first to allow "Foo.prototype = ..." assignments
         if ("prototype".equals(name)) {
             Object fromSuper = super.getMember(name);
-            // If explicitly set in _map (not inherited from prototype chain), use that value.
+            // If explicitly set on own props (not inherited from prototype chain), use that value.
             // We check `!(fromSuper instanceof JsFunction)` rather than `JsCallable` because
             // assigning a built-in function singleton (e.g. Foo.prototype = SomeBuiltin) is
             // legitimate and should be returned as-is — only the auto-created Function

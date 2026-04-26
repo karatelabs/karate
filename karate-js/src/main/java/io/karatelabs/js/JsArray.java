@@ -59,11 +59,28 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     };
 
     final List<Object> list;
-    private Map<String, Object> namedProps;
-    // Per-property attribute bits, keyed by canonical name (numeric indices use
-    // their string form, e.g. "0"). Sparse — absent keys use {@link JsObject#ATTRS_DEFAULT}.
-    // Mirrors {@link JsObject#_attrs}; see that field for the bit layout rationale.
-    private Map<String, Byte> _attrs;
+    /**
+     * Sparse string-keyed properties — descriptors installed via
+     * {@code Object.defineProperty(arr, …)}, named (non-index) keys. Unified
+     * value-plus-attribute storage: each {@link Slot} carries the value and
+     * its attribute byte. Absent keys use {@link Slot#ATTRS_DEFAULT}.
+     * <p>
+     * Numeric indices that override the dense {@link #list} (accessors, or
+     * data slots set via {@code defineProperty} with non-default attrs) are
+     * stored here under the canonical string-form key ({@code "0"}, …);
+     * {@link #getIndexedValue} consults this map first for indexed reads.
+     */
+    private Map<String, Slot> namedProps;
+    /**
+     * Writable bit for the {@code "length"} property. Spec invariant: length is
+     * always non-enumerable and non-configurable; only the writable bit can be
+     * customized (cleared by {@code Object.defineProperty(arr, "length",
+     * {writable: false})} or {@link #freeze()}). Stored separately because
+     * length's value lives in {@link #list}{@code .size()} — putting it in
+     * {@link #namedProps} as a Slot would either need an attrs-only marker or
+     * shadow the dense length with the slot's null {@code value}.
+     */
+    private boolean lengthWritable = true;
     private ObjectLike __proto__ = JsArrayPrototype.INSTANCE;
 
     public JsArray(List<Object> list) {
@@ -95,8 +112,9 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     @Override
     public Object getMember(String name) {
         // 1. Check named properties first (stored in namedProps)
-        if (namedProps != null && namedProps.containsKey(name)) {
-            return namedProps.get(name);
+        if (namedProps != null) {
+            Slot s = namedProps.get(name);
+            if (s != null) return s.value;
         }
         // 2. Special case: length property
         if ("length".equals(name)) {
@@ -182,46 +200,47 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         }
         // Per-property writable=false: silently ignore (lenient mode — strict-mode
         // TypeError flip lives elsewhere). Mirrors JsObject.putMember's check.
-        if (_attrs != null) {
-            Byte b = _attrs.get(name);
-            if (b != null && (b & JsObject.WRITABLE) == 0) {
-                return;
-            }
+        Slot existing = namedProps == null ? null : namedProps.get(name);
+        if (existing != null && !existing.isWritable()) {
+            return;
         }
         // Numeric index write — write into the dense list (and pad with HOLE if
         // the index is past size, growing length per array-exotic semantics).
         // Two slow-path exits land in namedProps instead:
         //   - Descriptors: a JsAccessor value is a defineProperty install,
         //     which must shadow the dense slot (PropertyAccess reads consult
-        //     namedProps first via getIndexedSlot).
+        //     namedProps first via getIndexedValue).
         //   - Existing namedProps entry at this index: keep the override
         //     active so the descriptor isn't silently lost.
         int i = parseIndex(name);
-        boolean hasNamedAtIndex = namedProps != null && namedProps.containsKey(name);
-        if (i >= 0 && !hasNamedAtIndex && !(value instanceof JsAccessor)) {
+        if (i >= 0 && existing == null && !(value instanceof JsAccessor)) {
             while (list.size() < i) list.add(HOLE);
             if (i < list.size()) list.set(i, value);
             else list.add(value);
             return;
         }
-        if (namedProps == null) {
-            namedProps = new LinkedHashMap<>();
+        if (existing != null) {
+            existing.value = value;
+        } else {
+            if (namedProps == null) {
+                namedProps = new LinkedHashMap<>();
+            }
+            namedProps.put(name, new Slot(name, value));
         }
-        namedProps.put(name, value);
     }
 
     /**
      * Low-level descriptor write used by {@code Object.defineProperty}. Bypasses
      * the {@code [[Set]]} writable check (defineProperty is allowed to mutate
      * non-writable data props subject to its own configurable rules, which the
-     * caller already validated). Stores {@code attrs} in {@link #_attrs} so the
-     * descriptor's writable/enumerable/configurable bits survive subsequent
-     * reads via {@link #getOwnAttrs(String)}.
+     * caller already validated). Stores the descriptor's writable / enumerable /
+     * configurable bits on the {@link Slot}'s {@code attrs} byte so subsequent
+     * reads via {@link #getOwnAttrs(String)} see them.
      * <p>
      * Data descriptors at a numeric index land in the dense {@link #list};
      * accessor descriptors and named (non-index) keys land in {@link #namedProps}
-     * — getIndexedSlot consults namedProps first, so an accessor at index 0
-     * correctly shadows any dense value at the same slot.
+     * — {@link #getIndexedValue} consults namedProps first, so an accessor at
+     * index 0 correctly shadows any dense value at the same slot.
      * <p>
      * The {@code length} key routes through ArraySetLength: validates the value
      * as Uint32 (RangeError on invalid), truncates/extends accordingly, then
@@ -250,39 +269,56 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             while (list.size() < i) list.add(HOLE);
             if (i < list.size()) list.set(i, value);
             else list.add(value);
+            // Attrs only stick when non-default — otherwise the absence of a
+            // namedProps entry leaves the index at ATTRS_DEFAULT.
+            if (attrs != Slot.ATTRS_DEFAULT) {
+                if (namedProps == null) {
+                    namedProps = new LinkedHashMap<>();
+                }
+                Slot s = new Slot(name, value);
+                s.attrs = attrs;
+                namedProps.put(name, s);
+            }
         } else {
             if (namedProps == null) {
                 namedProps = new LinkedHashMap<>();
             }
-            namedProps.put(name, value);
+            Slot s = namedProps.get(name);
+            if (s == null) {
+                s = new Slot(name, value);
+                namedProps.put(name, s);
+            } else {
+                s.value = value;
+            }
+            s.attrs = attrs;
         }
-        setAttrs(name, attrs);
     }
 
     /**
-     * Returns the attribute byte for {@code name}: bit-OR of {@link JsObject#WRITABLE},
-     * {@link JsObject#ENUMERABLE}, {@link JsObject#CONFIGURABLE}. Defaults to
-     * all-true when the key has never been touched by {@code defineProperty} /
+     * Returns the attribute byte for {@code name}: bit-OR of {@link Slot#WRITABLE},
+     * {@link Slot#ENUMERABLE}, {@link Slot#CONFIGURABLE}. Defaults to all-true
+     * when the key has never been touched by {@code defineProperty} /
      * {@code seal} / {@code freeze}. Mirrors {@link JsObject#getAttrs(String)}.
      */
     byte getAttrs(String name) {
-        if (_attrs == null) return JsObject.ATTRS_DEFAULT;
-        Byte b = _attrs.get(name);
-        return b == null ? JsObject.ATTRS_DEFAULT : b;
+        Slot s = namedProps == null ? null : namedProps.get(name);
+        return s == null ? Slot.ATTRS_DEFAULT : s.attrs;
     }
 
-    /** Stores the attribute byte for {@code name}; absence means all-true. */
+    /** Stores the attribute byte for {@code name} on its slot. The
+     *  {@code "length"} key special-cases to the {@link #lengthWritable} field
+     *  since length's value lives in the dense list, not in a namedProps slot.
+     *  Other keys without an existing slot or accessor: storing non-default
+     *  attrs is a no-op (nothing to attach attrs to without a value override). */
     void setAttrs(String name, byte attrs) {
-        if (attrs == JsObject.ATTRS_DEFAULT) {
-            if (_attrs != null) {
-                _attrs.remove(name);
-            }
+        if ("length".equals(name)) {
+            lengthWritable = (attrs & Slot.WRITABLE) != 0;
             return;
         }
-        if (_attrs == null) {
-            _attrs = new LinkedHashMap<>();
+        Slot s = namedProps == null ? null : namedProps.get(name);
+        if (s != null) {
+            s.attrs = attrs;
         }
-        _attrs.put(name, attrs);
     }
 
     /**
@@ -399,7 +435,6 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             int retainTo = blockingIndex + 1;
             if (retainTo < list.size()) {
                 list.subList(retainTo, list.size()).clear();
-                removeAttrsRange(retainTo, oldLen);
                 if (namedProps != null) {
                     for (int i = retainTo; i < oldLen; i++) namedProps.remove(Integer.toString(i));
                 }
@@ -407,7 +442,6 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             return false;
         }
         list.subList(newLen, oldLen).clear();
-        removeAttrsRange(newLen, oldLen);
         if (namedProps != null) {
             for (int i = newLen; i < oldLen; i++) namedProps.remove(Integer.toString(i));
         }
@@ -415,16 +449,8 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     }
 
     private boolean isIndexConfigurable(int i) {
-        if (_attrs == null) return true;
-        Byte b = _attrs.get(Integer.toString(i));
-        return b == null || (b & JsObject.CONFIGURABLE) != 0;
-    }
-
-    private void removeAttrsRange(int from, int to) {
-        if (_attrs == null) return;
-        for (int i = from; i < to; i++) {
-            _attrs.remove(Integer.toString(i));
-        }
+        Slot s = namedProps == null ? null : namedProps.get(Integer.toString(i));
+        return s == null || s.isConfigurable();
     }
 
     @Override
@@ -436,8 +462,15 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     @Override
     public Map<String, Object> toMap() {
-        // Arrays don't typically convert to maps, return named props
-        return namedProps == null ? Collections.emptyMap() : namedProps;
+        // Arrays don't typically convert to maps; surface namedProps' values
+        // (the value-side of each Slot, excluding any pure-attrs slots that
+        // carry no value override).
+        if (namedProps == null || namedProps.isEmpty()) return Collections.emptyMap();
+        Map<String, Object> view = new LinkedHashMap<>(namedProps.size());
+        for (Slot s : namedProps.values()) {
+            view.put(s.name, s.value);
+        }
+        return view;
     }
 
     // =================================================================================================
@@ -594,26 +627,24 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      * Hot path: {@code namedProps == null} for plain arrays — single null
      * check, no allocation, then the existing fast path.
      */
-    Object getIndexedSlot(int index) {
+    Object getIndexedValue(int index) {
         if (namedProps != null && index >= 0) {
-            Object slot = namedProps.get(Integer.toString(index));
-            if (slot != null) return slot;
+            Slot s = namedProps.get(Integer.toString(index));
+            if (s != null) return s.value;
         }
         return getElement(index);
     }
 
     /**
      * True iff a descriptor is installed at index {@code index} — either an
-     * accessor / overridden value in {@link #namedProps}, or a per-index
-     * attribute entry in {@link #_attrs} (e.g. {@code writable: false}). Routes
-     * the indexed-write fast path through {@code setByName} so writable=false
-     * is honored.
+     * accessor / overridden value or a non-default attribute byte. Both live
+     * in {@link #namedProps} now (one Slot per overridden index). Routes the
+     * indexed-write fast path through {@code setByName} so writable=false is
+     * honored.
      */
     boolean hasIndexedDescriptor(int index) {
-        if (index < 0) return false;
-        String key = Integer.toString(index);
-        return (namedProps != null && namedProps.containsKey(key))
-                || (_attrs != null && _attrs.containsKey(key));
+        if (index < 0 || namedProps == null) return false;
+        return namedProps.containsKey(Integer.toString(index));
     }
 
     /**
@@ -648,24 +679,18 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      * configurable: false}} per §10.4.2 ArrayCreate; the writable bit may
      * later be cleared by {@code Object.defineProperty(arr, "length",
      * {writable: false})} or {@code Object.freeze(arr)} — that override is
-     * stored in {@link #_attrs} and consulted here. Length is always
-     * non-enumerable and non-configurable; the stored byte's other bits are
-     * ignored by this getter.
+     * stored on the {@code "length"} Slot in {@link #namedProps} and consulted
+     * here. Length is always non-enumerable and non-configurable; the stored
+     * byte's other bits are ignored by this getter.
      * <p>
-     * Other keys consult {@link #_attrs} — entries installed via
-     * {@code Object.defineProperty} (or via the indexed-descriptor path on
-     * {@link #defineOwn}) deviate from the all-true default; absent keys are
+     * Other keys consult {@link #namedProps} via {@link #getAttrs} — slots
+     * installed via {@code Object.defineProperty} (or via the indexed-descriptor
+     * path on {@link #defineOwn}) carry the override; absent keys default to
      * all-true.
      */
     public byte getOwnAttrs(String name) {
         if ("length".equals(name)) {
-            if (_attrs != null) {
-                Byte b = _attrs.get("length");
-                if (b != null) {
-                    return (byte) (b & JsObject.WRITABLE);
-                }
-            }
-            return JsObject.WRITABLE;
+            return lengthWritable ? Slot.WRITABLE : 0;
         }
         return getAttrs(name);
     }

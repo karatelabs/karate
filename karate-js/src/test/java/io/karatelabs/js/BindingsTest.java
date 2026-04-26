@@ -229,25 +229,25 @@ class BindingsTest {
     }
 
     @Test
-    void testStoreBindValueScope() {
+    void testStoreSlotScope() {
         BindingsStore store = new BindingsStore();
         store.putMember("x", 42, BindScope.CONST, true);
         store.putMember("y", "hello", BindScope.LET, true);
         store.putMember("z", 100);
 
-        assertEquals(BindScope.CONST, store.getBindValue("x").scope);
-        assertEquals(BindScope.LET, store.getBindValue("y").scope);
-        assertNull(store.getBindValue("z").scope);
+        assertEquals(BindScope.CONST, store.getSlot("x").scope);
+        assertEquals(BindScope.LET, store.getSlot("y").scope);
+        assertNull(store.getSlot("z").scope);
     }
 
     @Test
     void testStoreClearBindingScope() {
         BindingsStore store = new BindingsStore();
         store.putMember("x", 1, BindScope.LET, true);
-        assertNotNull(store.getBindValue("x").scope);
+        assertNotNull(store.getSlot("x").scope);
 
         store.clearBindingScope("x");
-        assertNull(store.getBindValue("x").scope);
+        assertNull(store.getSlot("x").scope);
         assertEquals(1, store.getMember("x"));
     }
 
@@ -260,8 +260,8 @@ class BindingsTest {
         BindingsStore copy = new BindingsStore(original);
         assertEquals(1, copy.getMember("x"));
         assertEquals(2, copy.getMember("y"));
-        assertNotNull(copy.getBindValue("x"));
-        assertEquals(BindScope.LET, copy.getBindValue("x").scope);
+        assertNotNull(copy.getSlot("x"));
+        assertEquals(BindScope.LET, copy.getSlot("x").scope);
 
         copy.putMember("x", 100);
         assertEquals(1, original.getMember("x"));
@@ -309,7 +309,7 @@ class BindingsTest {
         store.putMember("x", 2, BindScope.CONST, true);
 
         assertEquals(2, store.getMember("x"));
-        assertEquals(BindScope.CONST, store.getBindValue("x").scope);
+        assertEquals(BindScope.CONST, store.getSlot("x").scope);
     }
 
     @Test

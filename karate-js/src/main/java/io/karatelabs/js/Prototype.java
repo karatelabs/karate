@@ -73,8 +73,8 @@ abstract class Prototype implements ObjectLike {
             if (p.tombstones != null) {
                 p.tombstones.clear();
             }
-            if (p._methodCache != null) {
-                p._methodCache.clear();
+            if (p.methodCache != null) {
+                p.methodCache.clear();
             }
         }
     }
@@ -83,8 +83,9 @@ abstract class Prototype implements ObjectLike {
     private Map<String, Object> userProps;
     /**
      * Tombstones for built-in properties that the user has deleted via
-     * {@code delete Foo.prototype.bar}. Mirror of {@link JsObject#_tombstones}:
-     * the underlying built-in resolution lives in subclass switches and has
+     * {@code delete Foo.prototype.bar}. Mirrors the {@code Slot.tombstoned}
+     * flag in {@link JsObject}: the underlying built-in resolution lives in
+     * subclass switches and has
      * nothing for {@link #removeMember} to take out of {@link #userProps}, so we
      * record the deletion here and have {@link #getMember} skip the built-in
      * lookup when the name is tombstoned. A successful re-assignment via
@@ -99,7 +100,7 @@ abstract class Prototype implements ObjectLike {
      * Engine via {@link #clearAllUserProps()}; allocated on first method
      * resolution so prototypes that expose only data slots stay zero-cost.
      */
-    private Map<String, JsBuiltinMethod> _methodCache;
+    private Map<String, JsBuiltinMethod> methodCache;
 
     Prototype(Prototype __proto__) {
         this.__proto__ = __proto__;
@@ -189,16 +190,16 @@ abstract class Prototype implements ObjectLike {
      * pointers) bypass the cache and are re-resolved each call.
      */
     private Object lookupBuiltin(String name) {
-        if (_methodCache != null) {
-            JsBuiltinMethod cached = _methodCache.get(name);
+        if (methodCache != null) {
+            JsBuiltinMethod cached = methodCache.get(name);
             if (cached != null) return cached;
         }
         Object result = getBuiltinProperty(name);
         if (result instanceof JsBuiltinMethod jbm) {
-            if (_methodCache == null) {
-                _methodCache = new LinkedHashMap<>();
+            if (methodCache == null) {
+                methodCache = new LinkedHashMap<>();
             }
-            _methodCache.put(name, jbm);
+            methodCache.put(name, jbm);
         }
         return result;
     }

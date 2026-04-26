@@ -24,7 +24,9 @@
 package io.karatelabs.js;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 /**
  * Top-level {@code this} — the karate-js stand-in for spec {@code globalThis}.
@@ -46,13 +48,13 @@ final class JsGlobalThis extends JsObject {
 
     /**
      * Names whose attrs were explicitly written by {@code defineProperty} (or
-     * accessed-once internal calls). The inherited {@code _attrs} map prunes
-     * entries equal to {@link JsObject#ATTRS_DEFAULT} (W|E|C) — fine for a
-     * normal JsObject (default == fresh assignment), but globalThis's default
-     * ({@code W | C}, no E) differs, so we need a separate signal to know
-     * whether to apply the global default or honor the stored attrs.
+     * accessed-once internal calls). The inherited {@code Slot} attrs default
+     * to {@link Slot#ATTRS_DEFAULT} (W|E|C) — fine for a normal JsObject
+     * (default == fresh assignment), but globalThis's default ({@code W | C},
+     * no E) differs, so we need a separate signal to know whether to apply the
+     * global default or honor the stored attrs.
      */
-    private java.util.Set<String> _explicit;
+    private java.util.Set<String> explicit;
 
     JsGlobalThis(ContextRoot root) {
         this.root = root;
@@ -107,20 +109,20 @@ final class JsGlobalThis extends JsObject {
     void defineOwn(String name, Object value, byte attrs) {
         // Object.defineProperty(globalThis, name, ...) routes here. Value goes
         // to the unified bindings (so plain `name` lookup sees it); attrs go
-        // to the inherited _attrs map AND _explicit so getOwnAttrs honors the
-        // explicit attrs even when they happen to equal ATTRS_DEFAULT
-        // (which setAttrs would otherwise prune as redundant).
+        // to the inherited Slot AND `explicit` so getOwnAttrs honors them even
+        // when they happen to equal ATTRS_DEFAULT (which setAttrs skips for
+        // a missing slot, since absent == default in the normal-object world).
         clearTombstone(name);
         bindings().putMember(name, value);
         setAttrs(name, attrs);
-        if (_explicit == null) _explicit = new java.util.HashSet<>();
-        _explicit.add(name);
+        if (explicit == null) explicit = new java.util.HashSet<>();
+        explicit.add(name);
     }
 
     @Override
     public void removeMember(String name) {
         bindings().remove(name);
-        if (_explicit != null) _explicit.remove(name);
+        if (explicit != null) explicit.remove(name);
         // super applies the configurability check + tombstones the slot so
         // the next read doesn't re-resurrect a built-in via initGlobal.
         super.removeMember(name);
@@ -141,10 +143,10 @@ final class JsGlobalThis extends JsObject {
     @Override
     public byte getOwnAttrs(String name) {
         // defineProperty on globalThis is the only path that should bypass
-        // the global-default attrs. _explicit tracks those explicitly even
-        // when their stored byte equals ATTRS_DEFAULT (in which case _attrs
-        // wouldn't carry them, since setAttrs prunes the default).
-        if (_explicit != null && _explicit.contains(name)) {
+        // the global-default attrs. explicit tracks those explicitly even
+        // when their stored byte equals ATTRS_DEFAULT (in which case the
+        // inherited setAttrs leaves no slot, since absent == default).
+        if (explicit != null && explicit.contains(name)) {
             return super.getOwnAttrs(name);
         }
         // Per ES spec §10.2 / §19.1: every non-essential global is
@@ -155,6 +157,50 @@ final class JsGlobalThis extends JsObject {
             return WRITABLE | CONFIGURABLE;
         }
         return super.getOwnAttrs(name);
+    }
+
+    /**
+     * For-in / Object.keys / etc. iterate the unified bindings store, not
+     * {@link JsObject#props} (which only carries tombstones for globalThis).
+     * Filters via {@link #isEnumerable} so non-explicit globals (default
+     * {@code W | C}) are skipped.
+     */
+    @Override
+    public Iterable<KeyValue> jsEntries() {
+        return () -> new Iterator<>() {
+            final Iterator<Map.Entry<String, Object>> source =
+                    bindings().getRawMap().entrySet().iterator();
+            int index = 0;
+            Map.Entry<String, Object> peeked = null;
+
+            private boolean advance() {
+                while (source.hasNext()) {
+                    Map.Entry<String, Object> e = source.next();
+                    if (isTombstoned(e.getKey())) continue;
+                    if (isEnumerable(e.getKey())) {
+                        peeked = e;
+                        return true;
+                    }
+                }
+                peeked = null;
+                return false;
+            }
+
+            @Override
+            public boolean hasNext() {
+                return peeked != null || advance();
+            }
+
+            @Override
+            public KeyValue next() {
+                if (peeked == null && !advance()) {
+                    throw new NoSuchElementException();
+                }
+                Map.Entry<String, Object> entry = peeked;
+                peeked = null;
+                return new KeyValue(JsGlobalThis.this, index++, entry.getKey(), entry.getValue());
+            }
+        };
     }
 
     @Override
@@ -168,9 +214,9 @@ final class JsGlobalThis extends JsObject {
         return raw.isEmpty() ? Collections.emptyMap() : raw;
     }
 
-    // Map<String, Object> overrides — JsObject's defaults check _map (always
-    // empty here). Forward to the unified store so Java consumers
-    // (e.g. iteration over globalThis) see the real state.
+    // Map<String, Object> overrides — JsObject's defaults check `props` (always
+    // empty here for non-tombstoned slots). Forward to the unified store so
+    // Java consumers (e.g. iteration over globalThis) see the real state.
 
     @Override
     public int size() {

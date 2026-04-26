@@ -1312,13 +1312,19 @@ class Interpreter {
     private static Object evalRefExpr(Node node, CoreContext context) {
         if (node.getFirst().type == NodeType.FN_ARROW_EXPR) { // arrow function
             return evalFnArrowExpr(node.getFirst(), context);
-        } else {
-            String varName = node.getText();
-            if (context.hasKey(varName)) {
-                return context.get(varName);
-            }
+        }
+        String varName = node.getText();
+        if ("this".equals(varName)) {
+            return context.getThisObject();
+        }
+        if (context.callArgs != null && "arguments".equals(varName)) {
+            return Arrays.asList(context.callArgs);
+        }
+        Slot s = context.resolve(varName);
+        if (s == null) {
             throw JsErrorException.referenceError(varName + " is not defined");
         }
+        return context.readSlot(s, varName);
     }
 
     private static Object evalReturnStmt(Node node, CoreContext context) {

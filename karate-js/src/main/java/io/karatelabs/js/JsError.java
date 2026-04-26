@@ -97,7 +97,7 @@ class JsError extends JsObject implements JsCallable {
 
     @Override
     public Object getMember(String key) {
-        // Check own properties first (super walks _map then __proto__ chain)
+        // Check own properties first (super walks props then __proto__ chain)
         Object own = super.getMember(key);
         if (own != null) {
             // Spec: Error.prototype.toString shadows Object.prototype.toString.

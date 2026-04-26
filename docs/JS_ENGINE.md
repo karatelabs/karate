@@ -341,20 +341,17 @@ class JsArray implements List<Object>, ObjectLike, JsCallable {
 
 // JsObject implements Map<String, Object>
 class JsObject implements Map<String, Object>, ObjectLike {
-    private Map<String, Object> _map;
-    private Map<String, Byte> _attrs;        // sparse {writable, enumerable, configurable} byte map
-    private Set<String> _tombstones;          // intrinsics user has deleted
+    private Map<String, Slot> props;          // unified: value + attrs byte + tombstone flag per name
     private ObjectLike __proto__ = JsObjectPrototype.INSTANCE;
 
     // JS internal - raw values, prototype chain.
     // (Simplified — see Spec Invariants § Property attributes for the
     //  intrinsic / tombstone / accessor pipeline.)
     public Object getMember(String name) {
-        if (_tombstones != null && _tombstones.contains(name)) {
-            return __proto__ != null ? __proto__.getMember(name) : null;
-        }
-        if (_map != null && _map.containsKey(name)) {
-            return _map.get(name);
+        Slot s = props == null ? null : props.get(name);
+        if (s != null) {
+            if (s.tombstoned) return __proto__ != null ? __proto__.getMember(name) : null;
+            return s.value;
         }
         // Subclass intrinsic-field fallback (e.g. JsFunction's name/length/prototype/constructor)
         return __proto__ != null ? __proto__.getMember(name) : null;
@@ -362,15 +359,16 @@ class JsObject implements Map<String, Object>, ObjectLike {
 
     // Canonical own-key check — see Spec Invariants
     public boolean isOwnProperty(String name) {
-        if (_tombstones != null && _tombstones.contains(name)) return false;
-        if (_map != null && _map.containsKey(name)) return true;
+        Slot s = props == null ? null : props.get(name);
+        if (s != null) return !s.tombstoned;
         return hasOwnIntrinsic(name);   // subclass-declared own intrinsics
     }
 
     // Java interface - auto-unwrap, own properties only
     @Override
     public Object get(Object key) {
-        Object raw = _map != null ? _map.get(key.toString()) : null;
+        Slot s = props == null || !(key instanceof String n) ? null : props.get(n);
+        Object raw = s == null || s.tombstoned ? null : s.value;
         return Engine.toJava(raw);  // undefined→null, JsDate→Date
     }
 }
@@ -740,24 +738,32 @@ through). Direct-eval scope capture is out of scope.
 binding at every scope: top-level `var` / `let` / `const`, implicit globals,
 `Engine.put`-injected host state, `Engine.putRootBinding`-injected resources,
 and the lazy-cached built-ins from `ContextRoot.initGlobal`. Per-entry
-`hidden` flag on `BindValue` distinguishes the last two so
+`hidden` flag on `Slot` distinguishes the last two so
 `Engine.getBindings()` (a thin auto-unwrapping `Bindings` wrapper) filters
 them out of host inspection while the engine's lookup chain sees one
 unified set. `Engine.getRootBindings()` exposes the hidden subset to hosts
 that need to inherit it across scenarios.
+
+**Name resolution is a single chain walk.** `CoreContext.resolve(name)` walks
+own bindings → captured (closure snapshot) → `outer` (lexical parent for
+function contexts; dynamic `parent` otherwise — see issue #2802) → root
+(with lazy built-in init) and returns the matching `Slot` or null. `get`,
+`hasKey`, `update` all compose over a single `resolve` call (was: five
+separate chain walks with subtly different shapes). Spec mapping:
+ResolveBinding (ES 8.1.2.1).
 
 **Top-level `this` is a `JsGlobalThis` stand-in for `globalThis`.**
 `ContextRoot` constructs one and assigns it to `thisObject`; child contexts
 inherit it until a function call rebinds. Reads / writes go through the
 single shared `BindingsStore`, so `this.foo = 1; foo` and
 `foo = 1; this.foo` see the same value (no divergence). Lazy built-ins
-land hidden via `_bindings.putHidden`, so `Object.keys(globalThis)` only
+land hidden via `bindings.putHidden`, so `Object.keys(globalThis)` only
 sees user-visible state. `getOwnAttrs` reports
 `{ writable: true, enumerable: false, configurable: true }` per spec
 default for built-ins; `defineProperty(globalThis, …)` overrides via the
-inherited `_attrs` map plus an `_explicit` set (the global default differs
-from `ATTRS_DEFAULT`'s `W|E|C`, so explicit-equals-`ATTRS_DEFAULT` writes
-need a separate marker).
+inherited Slot's attrs byte plus an `explicit` set (the global default
+differs from `ATTRS_DEFAULT`'s `W|E|C`, so explicit-equals-`ATTRS_DEFAULT`
+writes need a separate marker).
 
 **`this` binding follows spec OrdinaryCallBindThis.** Every regular call
 site routes through `Interpreter.bindThisForCall(receiver, context)`,
@@ -864,21 +870,23 @@ allocation on the common case).
 
 ### Property attributes
 
-**Per-property attributes on `JsObject` use a sparse byte map.** `_attrs:
-Map<String, Byte>` next to the per-object `nonExtensible` / `sealed` /
-`frozen` flags. Bit 0 = writable, bit 1 = enumerable, bit 2 = configurable;
-absent key means all-true (the new-property default for plain `obj.x = ...`).
-`defineProperty` writes attrs explicitly and uses the spec's "missing fields
-default to false on new keys, preserve on existing" rule (different from
-`[[Set]]`'s all-true default — this distinction is load-bearing). Per-object
-flags `frozen` / `nonExtensible` are kept as fast-path early-exits on
-`putMember` / `removeMember` so frozen objects don't have to consult `_attrs`
-per write. Read paths: `getOwnPropertyDescriptor` reads `_attrs` (or the
-all-true default); `JsObject.jsEntries()` — the back-end for `for...in` /
+**Per-property attributes live on each `Slot`.** Own properties on `JsObject`
+are stored as `props: Map<String, Slot>`; each `Slot` carries `value`,
+`attrs` (bit 0 = writable, bit 1 = enumerable, bit 2 = configurable), and
+the `tombstoned` flag. New slots default to `ATTRS_DEFAULT` (W|E|C) — the
+new-property default for plain `obj.x = ...`. `defineProperty` writes attrs
+explicitly and uses the spec's "missing fields default to false on new keys,
+preserve on existing" rule (different from `[[Set]]`'s all-true default —
+this distinction is load-bearing). Per-object flags `frozen` / `nonExtensible`
+are kept as fast-path early-exits on `putMember` / `removeMember` so frozen
+objects don't have to consult per-slot bits per write. Read paths:
+`getOwnPropertyDescriptor` reads the slot's attrs byte (or all-true default
+for a missing slot); `JsObject.jsEntries()` — the back-end for `for...in` /
 `Object.keys` / `Object.values` / `Object.entries` / `Object.assign` via
-`Terms.toIterable` — filters out non-enumerable keys but is bypassed entirely
-when `_attrs == null`. `Object.getOwnPropertyNames` / `hasOwn` go through
-`toMap()` directly and are unaffected. `propertyIsEnumerable` consults
+`Terms.toIterable` — iterates `toMap()` (so subclass overrides like
+`JsGlobalThis` participate) and filters by `isEnumerable(name)` so subclass
+`getOwnAttrs` overrides win. `Object.getOwnPropertyNames` / `hasOwn` go
+through `toMap()` directly. `propertyIsEnumerable` consults
 `isEnumerable(name)`. Configurability rules enforced on defineProperty:
 TypeError on flipping configurable false→true, changing enumerable, switching
 data↔accessor shape, or changing a non-writable value — with the spec-allowed
@@ -898,7 +906,7 @@ resolves directly. Required for the `S15.9.5_A*` and `S15.9.4_A*` test
 clusters and analogous tests under other built-ins.
 
 **Intrinsic-attribute pipeline.** Built-in own properties resolved via
-subclass `getMember` switches (not via `_map`) declare themselves as own
+subclass `getMember` switches (not via `props`) declare themselves as own
 through `hasOwnIntrinsic(name)` and report attribute bits through
 `getOwnAttrs(name)`. `JsFunction` returns spec defaults for its four
 intrinsics (`length` / `name`: configurable-only; `prototype`: writable;
@@ -906,21 +914,20 @@ intrinsics (`length` / `name`: configurable-only; `prototype`: writable;
 their own methods/constants. The descriptor read pipeline
 (`Object.getOwnPropertyDescriptor`, `propertyIsEnumerable`, `Object.keys` /
 `for...in` enumerable filter) consults this rather than the all-true default.
-New attribute slots on `_attrs` (set by `Object.defineProperty`) win over the
+A user-set Slot's attrs (set by `Object.defineProperty`) win over the
 intrinsic defaults so user override is still possible.
 
-**Tombstone-on-delete for intrinsic properties.** `_tombstones: Set<String>`
-(lazy) records intrinsic own properties that the user has deleted (`delete
-obj.foo`). `getMember` short-circuits tombstoned names to the prototype chain
-(skipping subclass intrinsic field fallback); `isOwnProperty` returns false;
-`removeMember` populates the set when the intrinsic is configurable;
-`putMember` clears the tombstone on a successful write so reassignment revives
-the property. Matters for `propertyHelper.verifyProperty`'s destructive
-`isConfigurable()` check, which tries `delete obj[name]` and asserts
-`!hasOwnProperty(obj, name)`.
+**Tombstone-on-delete for intrinsic properties.** Each `Slot` carries a
+`tombstoned` flag (was: a separate `_tombstones: Set<String>`); set true by
+`removeMember` when the deleted name had a backing intrinsic, cleared by
+`putMember` on a successful re-write. `getMember` short-circuits tombstoned
+slots to the prototype chain (skipping subclass intrinsic field fallback);
+`isOwnProperty` returns false. Matters for `propertyHelper.verifyProperty`'s
+destructive `isConfigurable()` check, which tries `delete obj[name]` and
+asserts `!hasOwnProperty(obj, name)`.
 
 **`JsObject.isOwnProperty(name)` is the canonical own-key check.** Returns
-true iff `name` is in `_map` OR `hasOwnIntrinsic(name)` AND not tombstoned.
+true iff there's a non-tombstoned slot for `name` OR `hasOwnIntrinsic(name)`.
 Replaces the previous mix of `toMap().containsKey + hasOwnIntrinsic` checks at
 three call sites (`JsObjectConstructor.isOwnKey`,
 `JsObjectPrototype.hasOwnProperty`, `propertyIsEnumerable`). Anything that
@@ -951,8 +958,8 @@ The same pattern holds on the constructor side via `JsObject.ENGINE_RESET_LIST`
 BigInt / Date / Function / Map / Number / Object / Set / String) register
 themselves; `Engine.<init>` invokes `JsObject.clearAllEngineState()` right
 after `Prototype.clearAllUserProps()`. Default `clearEngineState()` wipes
-`_map` / `_attrs` / `_tombstones` / extensibility flags; subclasses with
-caches override and `super.clearEngineState()` first.
+`props` / extensibility flags; subclasses with caches override and call
+`super.clearEngineState()` first.
 
 **Function declarations hoist** at the start of the enclosing program / block
 scope. `Interpreter.hoistFunctionDeclarations` walks immediate `STATEMENT >
@@ -1020,48 +1027,44 @@ Three spec checks land in order:
    non-configurable.** Walks the truncate range high-to-low; on a blocking
    index, truncates above it, returns `false`. `Object.defineProperty`
    surfaces the `false` as `TypeError("Cannot redefine property: length")`.
-   `_attrs` and `namedProps` entries for cleared indices are removed.
+   `namedProps` entries for cleared indices are removed.
 
 `length`'s descriptor starts `{writable: true, enumerable: false,
-configurable: false}` (`JsArray.getOwnAttrs` consults `_attrs["length"]`
-for the writable override; the other two bits are always non-spec-
-configurable). The spec-precise interleaving where a prototype getter on
-the deleted index mutates `length`'s writable bit *during* pop/shift —
-asserted via call-count in `set-length-array-length-is-non-writable.js` —
-is not yet modeled (upfront check vs. spec's get → delete → set ordering).
+configurable: false}`. Length's writable bit is stored in a dedicated
+`lengthWritable` boolean rather than a Slot (length's value lives in
+`list.size()`, so a Slot would either need an attrs-only marker or
+shadow the dense length with a null value). `defineProperty` can flip
+that bit; the other two are spec-fixed. The spec-precise interleaving
+where a prototype getter on the deleted index mutates `length`'s
+writable bit *during* pop/shift — asserted via call-count in
+`set-length-array-length-is-non-writable.js` — is not yet modeled
+(upfront check vs. spec's get → delete → set ordering).
 
 **`JsArray` indexed-accessor enforcement.** Descriptors installed via
 `Object.defineProperty(arr, i, {get/set/value: ...})` land in `namedProps`
 under the canonical string-form key and take precedence over the dense
-list. Reads dispatch via `JsArray.getIndexedSlot(i)` (hot path: single
+list. Reads dispatch via `JsArray.getIndexedValue(i)` (hot path: single
 null-check on `namedProps`); writes route through the named-key path when
 `hasIndexedDescriptor(i)` so `JsAccessor` setters fire.
 `JsArrayPrototype.rawList` / `jsEntries` take the per-index snapshot path
 when `arr.hasAnyDescriptor()` so callbacks see resolved values, not the
 accessor wrapper.
 
-**`JsArray._attrs` mirrors `JsObject._attrs`.** Per-property attribute byte
-map (sparse `Map<String, Byte>`) keyed by canonical name — numeric indices
-use their string form (`"0"`, `"1"`, ...). Bit layout matches `JsObject`
-(writable / enumerable / configurable). Three storage layers cooperate:
-`list` holds default-attr data values at numeric indices, `namedProps` holds
-accessor descriptors and non-index keys, `_attrs` holds the attribute byte
-for any key whose triplet deviates from the all-true default. Plain
-`arr[i] = x` doesn't allocate `_attrs`; `defineProperty(arr, "0",
-{writable: false, value: x})` writes the value to the dense list (so
-iteration semantics are preserved) and records the attribute byte in
-`_attrs["0"]`. Subsequent `arr[0] = y` is silently ignored: `putMember`
-checks `_attrs` for writable=false, and `hasIndexedDescriptor(i)` returns
-true when `_attrs` has an entry, routing the indexed-write through
-`setByName` so the check fires. `getOwnAttrs` consults `_attrs` for all
-keys including `"length"` — defineProperty can flip length's writable bit
-to false (the only mutable spec bit; enumerable/configurable are masked
-out on read since length is permanently non-enumerable + non-configurable).
-`Object.defineProperty` dispatches to
-`JsArray.defineOwn(name, value, attrs)` via `applyDefine`; data descriptors
-at numeric indices clear any prior `namedProps` entry (the dense slot
-becomes the authoritative read) while accessor descriptors land in
-`namedProps` as before.
+**`JsArray.namedProps` is a `Map<String, Slot>`.** Mirrors `JsObject.props`
+in shape — each Slot carries `value` and `attrs` byte. Two storage layers
+cooperate: `list` holds default-attr data values at numeric indices,
+`namedProps` holds the rare-path overrides — accessor descriptors,
+non-default attrs at numeric indices (`Object.defineProperty(arr, "0",
+{writable: false, ...})`), and named (non-index) keys. Plain `arr[i] = x`
+doesn't allocate a Slot. After `defineProperty(arr, "0", {writable: false,
+value: x})`, `namedProps["0"]` carries both the value and the W-cleared
+attrs; `putMember` checks the Slot's writable bit and silently no-ops on
+subsequent `arr[0] = y`. `hasIndexedDescriptor(i)` is the routing hint
+that pushes indexed writes through `setByName` so the check fires.
+`Object.defineProperty` dispatches to `JsArray.defineOwn(name, value,
+attrs)` via `applyDefine`; data descriptors at numeric indices write to
+the dense list and additionally record a Slot in `namedProps` only when
+attrs deviate from the all-true default.
 
 **`JsArray.isOwnProperty` is the canonical own-key check for arrays.**
 Returns true iff `name` is `"length"`, in `namedProps` (descriptors / named
@@ -1487,7 +1490,7 @@ hand-written idiomatic JS, not for spec-lawyer strict-mode enforcement.
 | JsUndefined | `karate-js/src/main/java/io/karatelabs/js/JsUndefined.java` |
 | JsPrimitive | `karate-js/src/main/java/io/karatelabs/js/JsPrimitive.java` |
 | Bindings | `karate-js/src/main/java/io/karatelabs/js/Bindings.java` |
-| BindValue | `karate-js/src/main/java/io/karatelabs/js/BindValue.java` |
+| Slot (binding + property entry) | `karate-js/src/main/java/io/karatelabs/js/Slot.java` |
 | JsCallable | `karate-js/src/main/java/io/karatelabs/js/JsCallable.java` |
 | JavaCallable | `karate-js/src/main/java/io/karatelabs/js/JavaCallable.java` |
 | JsError | `karate-js/src/main/java/io/karatelabs/js/JsError.java` |
@@ -1528,15 +1531,16 @@ java -cp ... io.karatelabs.parser.EngineBenchmark profile
 | OS | macOS 26.3.1 |
 | JDK | OpenJDK 24.0.2 |
 
-### Results — 2026-04-22 (profile mode, 30 s averages)
+### Results — 2026-04-26 (profile mode, 30 s averages)
 
 | Commit | Array 20 KB eval | Object 20 KB eval | Iterations/30 s |
 |---|---|---|---|
 | `28d020b87` — benchmark introduced (2026-01-22) | 2.06 ms | 0.84 ms | 10,294 |
-| `60b6fde76` — current HEAD (2026-04-22) | **1.32 ms** | **0.50 ms** | **16,397** |
-| Speedup | **1.56×** | **1.68×** | **1.59×** |
+| `60b6fde76` — pre-Slot HEAD (2026-04-22) | 1.32 ms | 0.50 ms | 16,397 |
+| post-Slot unification (2026-04-26) | **1.36 ms** | **0.53 ms** | **15,824** |
+| Speedup vs. 2026-01-22 baseline | **1.51×** | **1.58×** | **1.54×** |
 
-Engine instantiation is essentially unchanged (~0.4–0.6 µs median in both). The gains come from the cumulative perf work landed between the two commits: tighter `Node` allocation and pre-sized child arrays, static `PropertyAccess`, level-keyed bindings replacing per-scope contexts, EnumSet token lookups in the parser, and lazy ArrayList init on token-only nodes.
+Engine instantiation is essentially unchanged (~0.4–0.6 µs median in both). Cumulative gains come from earlier perf work: tighter `Node` allocation and pre-sized child arrays, static `PropertyAccess`, level-keyed bindings replacing per-scope contexts, EnumSet token lookups in the parser, and lazy ArrayList init on token-only nodes. The 2026-04-26 row reflects the `Slot` unification (R4 + S1) — every JsObject property now allocates a `Slot` (vs. the prior plain `Map.Entry<String, Object>`); the +3% / +6% delta is the predicted memory-pressure cost, well within the ±10% / ±15% session budget.
 
 ### Notes on interpretation
 
@@ -1579,8 +1583,8 @@ public final class JsUndefined implements JsValue {
 
 **Additional changes in this refactor:**
 - `Terms.UNDEFINED` now uses `JsUndefined.INSTANCE` (singleton for identity comparison)
-- `Bindings` class using `Map<String, BindValue>` for scope storage with auto-unwrapping at Java boundaries
-- `BindValue` consolidates binding name, value, type (let/const/var), and initialization state
+- `Bindings` class using `Map<String, Slot>` for scope storage with auto-unwrapping at Java boundaries
+- `Slot` is the unified entry primitive for both variable bindings (binding name, value, scope, initialized state, evalId, hidden) and JsObject own properties (value, attribute byte, tombstone flag) — see § Property attributes
 - `JsFunctionWrapper` for auto-converting function return values
 - Removed `JsErrorPrototype` (JsError now uses JsObjectPrototype directly)
 - Made all prototype helper methods static (`asString`, `asNumber`, `asDate`, etc.)

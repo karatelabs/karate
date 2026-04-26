@@ -28,7 +28,7 @@ package io.karatelabs.js;
  * <p>
  * Static methods are wrapped in {@link JsBuiltinMethod} (per the JsMath /
  * JsNumberConstructor template) so they expose spec {@code length} and
- * {@code name}; method instances are cached per-Engine in {@code _methodCache}.
+ * {@code name}; method instances are cached per-Engine in {@code methodCache}.
  * {@link #hasOwnIntrinsic} / {@link #getOwnAttrs} declare each method plus
  * the {@code prototype} slot per spec.
  */
@@ -36,7 +36,7 @@ class JsStringConstructor extends JsFunction {
 
     static final JsStringConstructor INSTANCE = new JsStringConstructor();
 
-    private java.util.Map<String, JsBuiltinMethod> _methodCache;
+    private java.util.Map<String, JsBuiltinMethod> methodCache;
 
     private JsStringConstructor() {
         this.name = "String";
@@ -49,16 +49,16 @@ class JsStringConstructor extends JsFunction {
         if (isTombstoned(name) || ownContainsKey(name)) {
             return super.getMember(name);
         }
-        if (_methodCache != null) {
-            JsBuiltinMethod cached = _methodCache.get(name);
+        if (methodCache != null) {
+            JsBuiltinMethod cached = methodCache.get(name);
             if (cached != null) return cached;
         }
         Object result = resolveMember(name);
         if (result instanceof JsBuiltinMethod jbm) {
-            if (_methodCache == null) {
-                _methodCache = new java.util.HashMap<>();
+            if (methodCache == null) {
+                methodCache = new java.util.HashMap<>();
             }
-            _methodCache.put(name, jbm);
+            methodCache.put(name, jbm);
         }
         return result;
     }
@@ -91,7 +91,7 @@ class JsStringConstructor extends JsFunction {
     @Override
     protected void clearEngineState() {
         super.clearEngineState();
-        if (_methodCache != null) _methodCache.clear();
+        if (methodCache != null) methodCache.clear();
     }
 
     private static boolean isStringMethod(String n) {

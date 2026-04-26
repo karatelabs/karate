@@ -44,7 +44,7 @@ class JsFunctionNode extends JsFunction {
     final List<Node> argNodes;
     final int argCount;
     final CoreContext declaredContext;
-    final Map<String, BindValue> capturedBindings; // References to BindValues at creation time
+    final Map<String, Slot> capturedBindings; // References to Slots at creation time
 
     public JsFunctionNode(boolean arrow, Node node, List<Node> argNodes, Node body, CoreContext declaredContext) {
         this.arrow = arrow;
@@ -58,22 +58,22 @@ class JsFunctionNode extends JsFunction {
         // argCount is correct for the common case (no defaults, no rest) and
         // off-by-N for the rest — refine if test262 surfaces it.
         this.length = argCount;
-        // Capture references to let/const BindValues at creation time for closure semantics
+        // Capture references to let/const Slots at creation time for closure semantics
         this.capturedBindings = captureBindings(declaredContext);
     }
 
-    private static Map<String, BindValue> captureBindings(CoreContext context) {
-        if (context._bindings == null) {
+    private static Map<String, Slot> captureBindings(CoreContext context) {
+        if (context.bindings == null) {
             return null;
         }
-        Map<String, BindValue> snapshot = null;
-        for (String key : context._bindings.keys()) {
-            BindValue bv = context._bindings.getBindValue(key);
-            if (bv != null && bv.scope != null) { // Only capture let/const bindings
+        Map<String, Slot> snapshot = null;
+        for (String key : context.bindings.keys()) {
+            Slot s = context.bindings.getSlot(key);
+            if (s != null && s.scope != null) { // Only capture let/const bindings
                 if (snapshot == null) {
                     snapshot = new HashMap<>(4); // Typically few captured vars
                 }
-                snapshot.put(key, bv); // Store reference, not copy
+                snapshot.put(key, s); // Store reference, not copy
             }
         }
         return snapshot;

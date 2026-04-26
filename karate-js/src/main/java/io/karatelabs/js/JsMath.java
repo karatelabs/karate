@@ -46,7 +46,7 @@ import java.util.function.Function;
  */
 class JsMath extends JsObject {
 
-    private java.util.Map<String, JsBuiltinMethod> _methodCache;
+    private java.util.Map<String, JsBuiltinMethod> methodCache;
 
     @Override
     public Object getMember(String name) {
@@ -56,16 +56,16 @@ class JsMath extends JsObject {
             return super.getMember(name);
         }
         // Cache hit: stable identity for the wrapped method instance.
-        if (_methodCache != null) {
-            JsBuiltinMethod cached = _methodCache.get(name);
+        if (methodCache != null) {
+            JsBuiltinMethod cached = methodCache.get(name);
             if (cached != null) return cached;
         }
         Object result = resolveMember(name);
         if (result instanceof JsBuiltinMethod jbm) {
-            if (_methodCache == null) {
-                _methodCache = new java.util.HashMap<>();
+            if (methodCache == null) {
+                methodCache = new java.util.HashMap<>();
             }
-            _methodCache.put(name, jbm);
+            methodCache.put(name, jbm);
         }
         return result;
     }

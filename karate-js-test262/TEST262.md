@@ -138,7 +138,7 @@ Each session that touches the engine should:
 
 ## Slice baseline
 
-Numbers as of 2026-04-26 (`run-2026-04-26-174407`):
+Numbers as of 2026-04-26 (`run-2026-04-26-190508`, post-Slot-unification):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
@@ -208,31 +208,6 @@ Picked off opportunistically when nearby — not session-sized on their own.
 Un-scheduled but tracked. Two flavors: large feature gaps that are intentional
 non-goals today, and small harness-quality fixes that don't gate work but
 should be done when convenient.
-
-### Engine refactors (deferred)
-
-- **EnvironmentRecord-shaped name resolution.** `CoreContext.get` /
-  `update` / `declare` / `hasKey` / `assignImplicitGlobal` each walk the
-  same chain (`_bindings` → `closureContext` → `parent` → `root`) with
-  subtly different shapes. The spec's `ResolveBinding` /
-  `GetIdentifierReference` is the underlying algorithm — a single
-  `resolveBinding(context, name)` returning `{ store, BindValue }` would
-  let `get` be "find slot, return value", `update` be "find slot, mutate
-  or fall through to assignImplicitGlobal", `declare` be "find slot in
-  current scope, push if absent." Touches the **hottest path** in the
-  engine (every variable lookup); EngineBenchmark must stay within ±5%,
-  not the usual ±10%, or walk it back. Save for a session that's already
-  in the lookup machinery (strict-mode bindings, modules).
-
-- **Fast-path bypass sweep.** `JsObject.jsEntries` had `if (_attrs == null
-  || isEnumerable(...))` — the `_attrs == null` short-circuit skipped
-  subclass `getOwnAttrs` overrides entirely. Patched in commit
-  `1a67fb110`. Pattern likely exists elsewhere as `_attrs == null` /
-  `_map == null` / `_tombstones == null` / `__proto__ == null` (and
-  `!=` variants) across `JsObject.java`, `JsArray.java`, `Prototype.java`,
-  `JsFunction.java`. For each, ask: **does this fast-path bypass a
-  virtual method a subclass might override?** If yes, route through the
-  virtual method. ~30 minutes plus EngineBenchmark verification.
 
 ### Large feature gaps (intentional non-goals)
 

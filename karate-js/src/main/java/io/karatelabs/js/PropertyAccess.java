@@ -525,7 +525,7 @@ class PropertyAccess {
                 throw JsErrorException.typeError("cannot read properties of " + object + " (reading '[" + i + "]')");
             }
             if (object instanceof JsArray array) {
-                Object slot = array.getIndexedSlot(i);
+                Object slot = array.getIndexedValue(i);
                 if (slot instanceof JsAccessor acc) {
                     return acc.getter == null ? Terms.UNDEFINED
                             : Interpreter.invokeGetter(acc.getter, object, context);
@@ -551,7 +551,7 @@ class PropertyAccess {
             }
             ObjectLike converted = Terms.toObjectLike(object);
             if (converted instanceof JsArray jsArray) {
-                Object slot = jsArray.getIndexedSlot(i);
+                Object slot = jsArray.getIndexedValue(i);
                 if (slot instanceof JsAccessor acc) {
                     return acc.getter == null ? Terms.UNDEFINED
                             : Interpreter.invokeGetter(acc.getter, jsArray, context);

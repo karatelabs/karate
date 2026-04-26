@@ -50,10 +50,10 @@ class ContextRoot implements Context {
 
     /**
      * Single shared bindings store — same instance as {@link Engine#bindings}.
-     * Held here so engine internals can write through {@code root._bindings}
-     * symmetrically with how script-level CoreContexts use {@code _bindings}.
+     * Held here so engine internals can write through {@code root.bindings}
+     * symmetrically with how script-level CoreContexts use {@code bindings}.
      */
-    final BindingsStore _bindings;
+    final BindingsStore bindings;
 
     /**
      * Top-level {@code this} — globalThis stand-in. Reflects built-in globals
@@ -74,7 +74,7 @@ class ContextRoot implements Context {
 
     ContextRoot(Engine engine) {
         this.engine = engine;
-        this._bindings = engine.bindings;
+        this.bindings = engine.bindings;
         this.thisObject = new JsGlobalThis(this);
     }
 
@@ -83,37 +83,54 @@ class ContextRoot implements Context {
     }
 
     /**
-     * Lookup chain entry point — script-level CoreContext falls through here
-     * after exhausting its parent walk. Reads the unified store; if that misses,
-     * triggers lazy initGlobal for built-ins.
+     * Terminal step of {@link CoreContext#resolve} — script-level CoreContext
+     * falls through here after exhausting its outer walk. Returns the
+     * existing Slot, or lazily initializes a built-in (Math, JSON, etc.)
+     * and returns its newly-cached Slot. Returns {@code null} if the name
+     * is neither user-bound nor a recognized built-in.
      */
-    Object get(String key) {
-        if (_bindings.hasMember(key)) {
-            Object result = _bindings.getMember(key);
-            if (result instanceof Supplier<?> supplier) {
-                return supplier.get();
-            }
-            return result;
+    Slot resolveOrInit(String key) {
+        Slot s = bindings.getSlot(key);
+        if (s != null) {
+            return s;
         }
         Object global = initGlobal(key);
         if (global != null) {
             // Cache as hidden so Engine.getBindings() inspection doesn't
             // surface lazy-loaded built-ins.
-            _bindings.putHidden(key, global);
-            return global;
+            bindings.putHidden(key, global);
+            return bindings.getSlot(key);
         }
-        return Terms.UNDEFINED;
+        return null;
+    }
+
+    /**
+     * Lookup-chain entry for callers that want a value (not a Slot) — wraps
+     * {@link #resolveOrInit} with Supplier-unwrap and undefined fallback.
+     */
+    Object get(String key) {
+        Slot s = resolveOrInit(key);
+        if (s == null) {
+            return Terms.UNDEFINED;
+        }
+        Object v = s.value;
+        return v instanceof Supplier<?> sup ? sup.get() : v;
     }
 
     /**
      * True if {@code key} resolves at the global level — either it's already
      * in the unified store, or it's a recognized built-in name that
-     * {@link #initGlobal} can lazily produce.
+     * {@link #initGlobal} can lazily produce. Side-effect-free: does NOT
+     * trigger lazy init.
      */
     boolean hasKey(String key) {
-        if (_bindings.hasMember(key)) {
+        if (bindings.hasMember(key)) {
             return true;
         }
+        return canInitGlobal(key);
+    }
+
+    private static boolean canInitGlobal(String key) {
         return switch (key) {
             case "console", "parseInt", "parseFloat", "encodeURIComponent", "decodeURIComponent",
                  "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Function",

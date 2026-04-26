@@ -29,7 +29,7 @@ import java.util.Map;
 
 /**
  * Raw bindings store — internal storage layer for the JS engine. Holds
- * {@link BindValue} entries keyed by name and exposes only raw, identity-
+ * {@link Slot} entries keyed by name and exposes only raw, identity-
  * preserving operations: no auto-unwrapping of {@link JsValue} / {@link JsFunction},
  * no Map-interface concessions for host iteration. Engine internals (CoreContext,
  * ContextRoot, JsGlobalThis, Interpreter, JsFunctionNode) read and write here.
@@ -41,7 +41,7 @@ import java.util.Map;
  */
 class BindingsStore {
 
-    private final Map<String, BindValue> map;
+    private final Map<String, Slot> map;
 
     BindingsStore() {
         this.map = new HashMap<>();
@@ -52,7 +52,7 @@ class BindingsStore {
         this.map = new HashMap<>();
         if (source != null) {
             for (Map.Entry<String, Object> e : source.entrySet()) {
-                map.put(e.getKey(), new BindValue(e.getKey(), e.getValue()));
+                map.put(e.getKey(), new Slot(e.getKey(), e.getValue()));
             }
         }
     }
@@ -63,30 +63,30 @@ class BindingsStore {
      */
     BindingsStore(BindingsStore other) {
         this.map = new HashMap<>();
-        for (Map.Entry<String, BindValue> e : other.map.entrySet()) {
-            map.put(e.getKey(), new BindValue(e.getValue()));
+        for (Map.Entry<String, Slot> e : other.map.entrySet()) {
+            map.put(e.getKey(), new Slot(e.getValue()));
         }
     }
 
     //=== raw read =====================================================================================================
 
     Object getMember(String key) {
-        BindValue bv = map.get(key);
-        return bv != null ? bv.value : null;
+        Slot s = map.get(key);
+        return s != null ? s.value : null;
     }
 
     boolean hasMember(String key) {
         return map.containsKey(key);
     }
 
-    /** BindValue accessor for TDZ checks, scope inspection, evalId stamping, etc. */
-    BindValue getBindValue(String key) {
+    /** Slot accessor for TDZ checks, scope inspection, evalId stamping, etc. */
+    Slot getSlot(String key) {
         return map.get(key);
     }
 
     boolean isHidden(String key) {
-        BindValue bv = map.get(key);
-        return bv != null && bv.hidden;
+        Slot s = map.get(key);
+        return s != null && s.hidden;
     }
 
     /**
@@ -97,7 +97,7 @@ class BindingsStore {
      */
     Map<String, Object> getRawMap() {
         Map<String, Object> result = new HashMap<>(map.size());
-        for (Map.Entry<String, BindValue> e : map.entrySet()) {
+        for (Map.Entry<String, Slot> e : map.entrySet()) {
             result.put(e.getKey(), e.getValue().value);
         }
         return result;
@@ -111,7 +111,7 @@ class BindingsStore {
      */
     Map<String, Object> getRawMap(boolean hidden) {
         Map<String, Object> result = new HashMap<>(map.size());
-        for (Map.Entry<String, BindValue> e : map.entrySet()) {
+        for (Map.Entry<String, Slot> e : map.entrySet()) {
             if (e.getValue().hidden == hidden) {
                 result.put(e.getKey(), e.getValue().value);
             }
@@ -127,9 +127,9 @@ class BindingsStore {
     }
 
     /** Write with optional let/const scope. Updates an existing entry's value
-     * (and scope, if provided), or inserts a fresh BindValue. */
+     * (and scope, if provided), or inserts a fresh Slot. */
     void putMember(String key, Object value, BindScope scope, boolean initialized) {
-        BindValue existing = map.get(key);
+        Slot existing = map.get(key);
         if (existing != null) {
             existing.value = value;
             if (scope != null) {
@@ -137,9 +137,9 @@ class BindingsStore {
                 existing.initialized = initialized;
             }
         } else if (scope != null) {
-            map.put(key, new BindValue(key, value, scope, initialized));
+            map.put(key, new Slot(key, value, scope, initialized));
         } else {
-            map.put(key, new BindValue(key, value));
+            map.put(key, new Slot(key, value));
         }
     }
 
@@ -149,14 +149,14 @@ class BindingsStore {
      * and by {@link ContextRoot}'s lazy built-in cache.
      */
     void putHidden(String key, Object value) {
-        BindValue existing = map.get(key);
+        Slot existing = map.get(key);
         if (existing != null) {
             existing.value = value;
             existing.hidden = true;
         } else {
-            BindValue bv = new BindValue(key, value);
-            bv.hidden = true;
-            map.put(key, bv);
+            Slot s = new Slot(key, value);
+            s.hidden = true;
+            map.put(key, s);
         }
     }
 
@@ -167,10 +167,10 @@ class BindingsStore {
     /** Reset binding metadata so a let/const re-declaration in the same loop
      * iteration re-initializes cleanly. */
     void clearBindingScope(String key) {
-        BindValue bv = map.get(key);
-        if (bv != null) {
-            bv.scope = null;
-            bv.initialized = true;
+        Slot s = map.get(key);
+        if (s != null) {
+            s.scope = null;
+            s.initialized = true;
         }
     }
 
@@ -179,27 +179,27 @@ class BindingsStore {
     /** Push a binding at {@code level}, linking any existing binding as the
      * shadowed previous-of-this-name. */
     void pushBinding(String key, Object value, BindScope scope, int level) {
-        BindValue existing = map.get(key);
-        BindValue newBv = new BindValue(key, value, scope, true, level, existing);
-        map.put(key, newBv);
+        Slot existing = map.get(key);
+        Slot newSlot = new Slot(key, value, scope, true, level, existing);
+        map.put(key, newSlot);
     }
 
     /** Push a binding with explicit initialized state (TDZ-aware paths). */
     void pushBinding(String key, Object value, BindScope scope, int level, boolean initialized) {
-        BindValue existing = map.get(key);
-        BindValue newBv = new BindValue(key, value, scope, initialized, level, existing);
-        map.put(key, newBv);
+        Slot existing = map.get(key);
+        Slot newSlot = new Slot(key, value, scope, initialized, level, existing);
+        map.put(key, newSlot);
     }
 
     /** Drop every binding at {@code level}, restoring shadowed predecessors. */
     void popLevel(int level) {
-        Iterator<Map.Entry<String, BindValue>> it = map.entrySet().iterator();
+        Iterator<Map.Entry<String, Slot>> it = map.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<String, BindValue> e = it.next();
-            BindValue bv = e.getValue();
-            if (bv.level == level) {
-                if (bv.previous != null) {
-                    e.setValue(bv.previous);
+            Map.Entry<String, Slot> e = it.next();
+            Slot s = e.getValue();
+            if (s.level == level) {
+                if (s.previous != null) {
+                    e.setValue(s.previous);
                 } else {
                     it.remove();
                 }

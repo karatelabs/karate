@@ -28,6 +28,21 @@ import io.karatelabs.parser.Node;
 import java.util.*;
 import java.util.function.Supplier;
 
+/**
+ * Execution context. Two outward links per ECMAScript 8.3:
+ * <ul>
+ *   <li>{@code outer} — lexical environment chain (the function's definition
+ *       site for function contexts; mirrors {@code LexicalEnvironment.outer}).
+ *       Threaded by every name lookup ({@link #resolve}).</li>
+ *   <li>{@code parent} — dynamic call / control chain (the caller's context).
+ *       Used by {@link #getParent()} for host introspection and by
+ *       {@link #updateFrom} for return / break / throw propagation up the
+ *       call stack.</li>
+ * </ul>
+ * For non-function child contexts (block, loop) {@code outer == parent}.
+ * For function-call contexts, {@code outer = function.declaredContext},
+ * {@code parent = invokingContext}, and they generally differ.
+ */
 class CoreContext implements Context {
 
     ContextRoot root;
@@ -35,18 +50,18 @@ class CoreContext implements Context {
     Object thisObject = Terms.UNDEFINED;
     CallInfo callInfo;
 
-    BindingsStore _bindings;
+    BindingsStore bindings;
 
     // Function context fields (non-null indicates this is a function context)
     final Object[] callArgs;
-    final CoreContext closureContext;
+    final CoreContext outer;
 
     // Scope management (level-keyed bindings)
     int currentLevel = 0;
     List<ScopeEntry> scopeStack; // Lazy - created on first enterScope
 
-    // Captured bindings for closures (references to BindValues from function creation time)
-    final Map<String, BindValue> capturedBindings;
+    // Captured bindings for closures (references to Slots from function creation time)
+    final Map<String, Slot> capturedBindings;
 
 
     CoreContext(ContextRoot root, CoreContext parent, int depth, Node node, ContextScope scope, BindingsStore bindings) {
@@ -56,9 +71,9 @@ class CoreContext implements Context {
         this.node = node;
         this.scope = scope;
         this.callArgs = null;
-        this.closureContext = null;
+        this.outer = null;
         this.capturedBindings = null;
-        this._bindings = bindings;
+        this.bindings = bindings;
         // Inherit `this` from the parent CoreContext, or from the root when
         // we're a script-level (or evalWith-ghost) context with no parent.
         if (parent != null) {
@@ -70,14 +85,14 @@ class CoreContext implements Context {
 
     // Unified constructor for child contexts (function calls)
     CoreContext(CoreContext parent, Node node, Object[] functionArgs,
-                CoreContext closureContext, Map<String, BindValue> captured) {
+                CoreContext outer, Map<String, Slot> captured) {
         this.root = parent.root;
         this.parent = parent;
         this.depth = parent.depth + 1;
         this.node = node;
         this.scope = ContextScope.FUNCTION;
         this.callArgs = functionArgs;
-        this.closureContext = closureContext;
+        this.outer = outer;
         this.capturedBindings = captured;
         this.thisObject = parent.thisObject;
     }
@@ -173,8 +188,8 @@ class CoreContext implements Context {
 
     void exitScope() {
         if (scopeStack != null && !scopeStack.isEmpty()) {
-            if (_bindings != null) {
-                _bindings.popLevel(currentLevel);
+            if (bindings != null) {
+                bindings.popLevel(currentLevel);
             }
             scopeStack.remove(scopeStack.size() - 1);
             currentLevel--;
@@ -200,50 +215,80 @@ class CoreContext implements Context {
         return scope;
     }
 
-    //==================================================================================================================
+    //=== Name resolution =============================================================================================
     //
+    // Spec mapping: ResolveBinding (ES 8.1.2.1). Walks the lexical chain
+    // once and returns the Slot — the unified handle that get / update /
+    // hasKey compose over.
+    //
+    // Chain order: own bindings (local) → captured (closure snapshot) →
+    // outer (lexical parent for function contexts; dynamic parent
+    // otherwise — see issue #2802) → root (with lazy built-in init).
+    Slot resolve(String key) {
+        if (bindings != null) {
+            Slot s = bindings.getSlot(key);
+            if (s != null) {
+                return s;
+            }
+        }
+        if (capturedBindings != null) {
+            Slot s = capturedBindings.get(key);
+            if (s != null) {
+                return s;
+            }
+        }
+        // Function contexts use lexical scoping — walk outer, NOT parent
+        // (parent here is the caller's context, which would give dynamic
+        // scoping). Non-function contexts (block / loop scopes inside a
+        // function) have outer == null and walk parent. Issue #2802: a
+        // caller's parameter name used to shadow the callee's closure-
+        // captured `var` / parameter of the same name.
+        if (outer != null) {
+            Slot s = outer.resolve(key);
+            if (s != null) {
+                return s;
+            }
+        } else if (parent != null) {
+            Slot s = parent.resolve(key);
+            if (s != null) {
+                return s;
+            }
+        }
+        return root.resolveOrInit(key);
+    }
+
     Object get(String key) {
         if ("this".equals(key)) {
             return thisObject;
         }
-        // Function context: handle "arguments" keyword
         if (callArgs != null && "arguments".equals(key)) {
             return Arrays.asList(callArgs);
         }
-        // Check local bindings first (local declarations shadow captured closures)
-        if (_bindings != null) {
-            Object result = _bindings.getMember(key);
-            if (result != null || _bindings.hasMember(key)) {
-                BindValue bv = findConstOrLet(key);
-                if (bv != null && !bv.initialized) {
-                    throw JsErrorException.referenceError("cannot access '" + key + "' before initialization");
-                }
-                if (result instanceof Supplier<?> supplier) {
-                    return supplier.get();
-                }
-                return result;
-            }
+        Slot s = resolve(key);
+        if (s == null) {
+            return Terms.UNDEFINED;
         }
-        // Check captured bindings (closure values from function definition time)
-        if (capturedBindings != null && capturedBindings.containsKey(key)) {
-            return capturedBindings.get(key).value;
+        return readSlot(s, key);
+    }
+
+    /** Apply TDZ check + Supplier-unwrap to a resolved Slot. Shared between
+     *  {@link #get} and {@link Interpreter#evalRefExpr}'s single-walk path. */
+    Object readSlot(Slot s, String key) {
+        if (s.scope != null && !s.initialized) {
+            throw JsErrorException.referenceError("cannot access '" + key + "' before initialization");
         }
-        // Function contexts use lexical scoping - walk closureContext, NOT parent
-        // (parent here is the caller's context, which would give dynamic scoping).
-        // Non-function contexts (block/loop scopes inside a function) use parent.
-        // Issue #2802: a caller's parameter name was shadowing the callee's
-        // closure-captured `var`/parameter of the same name.
-        if (closureContext != null) {
-            if (closureContext.hasKey(key)) {
-                return closureContext.get(key);
-            }
-        } else if (parent != null && parent.hasKey(key)) {
-            return parent.get(key);
+        Object v = s.value;
+        return v instanceof Supplier<?> supplier ? supplier.get() : v;
+    }
+
+    boolean hasKey(String key) {
+        if ("this".equals(key)) {
+            return true;
         }
-        if (root.hasKey(key)) {
-            return root.get(key);
+        if (callArgs != null && "arguments".equals(key)) {
+            return true;
         }
-        return Terms.UNDEFINED;
+        return resolve(key) != null;
     }
 
     void put(String key, Object value) {
@@ -258,14 +303,14 @@ class CoreContext implements Context {
             fn.name = key;
         }
         if (scope != null) { // let or const
-            BindValue existing = findConstOrLetAtCurrentLevel(key);
-            if (existing != null) {
+            Slot existing = bindings == null ? null : bindings.getSlot(key);
+            if (existing != null && existing.scope != null && existing.level == currentLevel) {
                 ContextScope currentScope = getCurrentScope();
                 if (currentScope == ContextScope.LOOP_INIT || currentScope == ContextScope.LOOP_BODY) {
-                    // Loop iteration: re-declaration is valid (per-iteration scope)
-                    // Push a new binding that shadows the captured one
+                    // Loop iteration: re-declaration is valid (per-iteration scope).
+                    // Fall through to pushBinding which shadows the existing slot.
                 } else if (depth == 0 && existing.evalId != root.evalId) {
-                    // Cross-eval re-declaration at top level (REPL semantics)
+                    // Cross-eval re-declaration at top level (REPL semantics).
                     existing.value = value;
                     existing.scope = scope;
                     existing.initialized = initialized;
@@ -275,38 +320,28 @@ class CoreContext implements Context {
                     throw JsErrorException.syntaxError("identifier '" + key + "' has already been declared");
                 }
             }
-            pushBinding(key, value, scope, initialized);
+            if (bindings == null) {
+                bindings = new BindingsStore();
+            }
+            bindings.pushBinding(key, value, scope, currentLevel, initialized);
             if (depth == 0) {
                 // Stamp evalId on top-level let/const so cross-eval (REPL)
-                // re-declaration semantics in declare() can detect "this was
+                // re-declaration semantics above can detect "this was
                 // declared in a previous eval, so re-declaring is allowed."
-                _bindings.getBindValue(key).evalId = root.evalId;
+                bindings.getSlot(key).evalId = root.evalId;
             }
         } else { // hoist var to function level
             int functionLevel = findFunctionLevel();
-            if (_bindings == null) {
-                _bindings = new BindingsStore();
+            if (bindings == null) {
+                bindings = new BindingsStore();
             }
-            // Check if var already exists at or below function level
-            BindValue existing = _bindings.getBindValue(key);
+            Slot existing = bindings.getSlot(key);
             if (existing != null && existing.level <= functionLevel) {
-                // Update existing var
                 existing.value = value;
             } else {
-                // Push new var at function level
-                _bindings.pushBinding(key, value, null, functionLevel);
+                bindings.pushBinding(key, value, null, functionLevel);
             }
         }
-    }
-
-    private BindValue findConstOrLetAtCurrentLevel(String key) {
-        if (_bindings != null) {
-            BindValue bv = _bindings.getBindValue(key);
-            if (bv != null && bv.scope != null && bv.level == currentLevel) {
-                return bv;
-            }
-        }
-        return null;
     }
 
     void update(String key, Object value) {
@@ -314,31 +349,23 @@ class CoreContext implements Context {
     }
 
     void update(String key, Object value, Node node) {
-        if (_bindings != null && _bindings.hasMember(key)) {
-            BindValue bv = findConstOrLet(key);
-            Object oldValue = _bindings.getMember(key);
-            if (bv != null) {
-                if (bv.scope == BindScope.CONST && bv.initialized) {
-                    throw JsErrorException.typeError("assignment to constant: " + key);
-                }
-                bv.initialized = true;
-            }
-            _bindings.putMember(key, value);
-            if (root.listener != null) {
-                root.listener.onBind(BindEvent.assign(key, value, oldValue, this, node));
-            }
-        } else if (closureContext != null) {
-            // Function context: assignment to outer-scope vars must follow
-            // the lexical chain, not the dynamic caller chain (issue #2802).
-            if (closureContext.hasKey(key)) {
-                closureContext.update(key, value, node);
-            } else {
-                assignImplicitGlobal(key, value, node);
-            }
-        } else if (parent != null && parent.hasKey(key)) {
-            parent.update(key, value, node);
-        } else {
+        Slot s = resolve(key);
+        if (s == null) {
             assignImplicitGlobal(key, value, node);
+            return;
+        }
+        if (s.scope == BindScope.CONST && s.initialized) {
+            throw JsErrorException.typeError("assignment to constant: " + key);
+        }
+        Object oldValue = s.value;
+        s.initialized = true;
+        // Unified write — works whether the Slot lives in this context's
+        // bindings, in capturedBindings, in an outer context, or in root.
+        // Sibling closures sharing the same Slot reference see the new
+        // value immediately.
+        s.value = value;
+        if (root.listener != null) {
+            root.listener.onBind(BindEvent.assign(key, value, oldValue, this, node));
         }
     }
 
@@ -346,61 +373,10 @@ class CoreContext implements Context {
         // ES6 non-strict implicit global: writes go straight to the engine's
         // single shared Bindings (root and script context point at the same
         // instance). No parent walk needed.
-        root._bindings.putMember(key, value, null, true);
+        root.bindings.putMember(key, value, null, true);
         if (root.listener != null) {
             root.listener.onBind(BindEvent.declare(key, value, BindScope.VAR, this, node));
         }
-    }
-
-    private void putBinding(String key, Object value, BindScope scope, boolean initialized) {
-        if (_bindings == null) {
-            _bindings = new BindingsStore();
-        }
-        _bindings.putMember(key, value, scope, initialized);
-    }
-
-    private void pushBinding(String key, Object value, BindScope scope, boolean initialized) {
-        if (_bindings == null) {
-            _bindings = new BindingsStore();
-        }
-        _bindings.pushBinding(key, value, scope, currentLevel, initialized);
-    }
-
-    boolean hasKey(String key) {
-        if ("this".equals(key)) {
-            return true;
-        }
-        // Function context: handle "arguments" keyword
-        if (callArgs != null && "arguments".equals(key)) {
-            return true;
-        }
-        // Check local bindings first (local declarations shadow captured closures)
-        if (_bindings != null && _bindings.hasMember(key)) {
-            return true;
-        }
-        // Check captured bindings (closure values from function definition time)
-        if (capturedBindings != null && capturedBindings.containsKey(key)) {
-            return true;
-        }
-        // Function contexts use lexical scoping - mirror get() above.
-        if (closureContext != null) {
-            if (closureContext.hasKey(key)) {
-                return true;
-            }
-        } else if (parent != null && parent.hasKey(key)) {
-            return true;
-        }
-        return root.hasKey(key);
-    }
-
-    private BindValue findConstOrLet(String key) {
-        if (_bindings != null) {
-            BindValue bv = _bindings.getBindValue(key);
-            if (bv != null && bv.scope != null) {
-                return bv;
-            }
-        }
-        return null;
     }
 
     //==================================================================================================================

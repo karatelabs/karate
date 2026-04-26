@@ -28,7 +28,7 @@ package io.karatelabs.js;
  * <p>
  * Static methods (isFinite / isInteger / isNaN / isSafeInteger) are wrapped in
  * {@link JsBuiltinMethod} so they expose spec {@code length} and {@code name}
- * as own properties. Method instances are cached per-Engine in {@code _methodCache}
+ * as own properties. Method instances are cached per-Engine in {@code methodCache}
  * so {@code Number.isFinite === Number.isFinite} holds within a session and
  * tombstones from {@code delete Number.isFinite} are applied to a stable instance.
  * The cache is wiped per-Engine via {@link #clearEngineState()} (see the
@@ -48,7 +48,7 @@ class JsNumberConstructor extends JsFunction {
     private static final long MAX_SAFE_INTEGER = 9007199254740991L;
     private static final long MIN_SAFE_INTEGER = -9007199254740991L;
 
-    private java.util.Map<String, JsBuiltinMethod> _methodCache;
+    private java.util.Map<String, JsBuiltinMethod> methodCache;
 
     private JsNumberConstructor() {
         this.name = "Number";
@@ -63,16 +63,16 @@ class JsNumberConstructor extends JsFunction {
             return super.getMember(name);
         }
         // Cache hit: stable identity for the wrapped method instance.
-        if (_methodCache != null) {
-            JsBuiltinMethod cached = _methodCache.get(name);
+        if (methodCache != null) {
+            JsBuiltinMethod cached = methodCache.get(name);
             if (cached != null) return cached;
         }
         Object result = resolveMember(name);
         if (result instanceof JsBuiltinMethod jbm) {
-            if (_methodCache == null) {
-                _methodCache = new java.util.HashMap<>();
+            if (methodCache == null) {
+                methodCache = new java.util.HashMap<>();
             }
-            _methodCache.put(name, jbm);
+            methodCache.put(name, jbm);
         }
         return result;
     }
@@ -123,7 +123,7 @@ class JsNumberConstructor extends JsFunction {
     @Override
     protected void clearEngineState() {
         super.clearEngineState();
-        if (_methodCache != null) _methodCache.clear();
+        if (methodCache != null) methodCache.clear();
     }
 
     @Override
