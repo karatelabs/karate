@@ -1003,17 +1003,18 @@ Action list — start at the top. Ordered by core-engine confidence
 score impact (a one-fix harness unblock beats ten one-test patches).
 Re-probe with the relevant `--only` glob before scoping a session.
 
-Current state baseline (2026-04, post assignment-target negative-test pass
-+ built-in intrinsic attribute attribution + tombstone-on-delete + Math wrap):
+Current state baseline (2026-04, post Number constructor wrap +
+singleton-reset infra + assignment-target negative-test pass +
+built-in intrinsic attribute attribution + Math wrap):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
-| `test/language/**` | 4264 | 3799 | 15582 | 23645 |
+| `test/language/**` | 4265 | 3798 | 15582 | 23645 |
 | `test/built-ins/Math/**` | 293 | 33 | 1 | 327 |
-| `test/built-ins/Number/**` | 187 | 141 | 12 | 340 |
+| `test/built-ins/Number/**` | 215 | 113 | 12 | 340 |
 | `test/built-ins/String/**` | 357 | 782 | 84 | 1223 |
 | `test/built-ins/Array/**` | 1127 | 1773 | 181 | 3081 |
-| `test/built-ins/Object/**` | 1798 | 1482 | 131 | 3411 |
+| `test/built-ins/Object/**` | 1804 | 1476 | 131 | 3411 |
 | `test/built-ins/Date/**` | 474 | 50 | 70 | 594 |
 | `test/built-ins/Function/**` | 215 | 166 | 128 | 509 |
 
@@ -1033,92 +1034,43 @@ off opportunistically.)*
 The first wave landed: `getOwnAttrs` infrastructure on JsObject,
 JsFunction defaults for length/name/prototype/constructor, Math
 methods/constants wired, descriptor reads now consult
-`hasOwnIntrinsic` + `getOwnAttrs` (see Recently completed). The
-remaining work is opportunistic — wrap individual built-in
-constructors and prototypes in the same shape as Math.
-
-**Order of attack for a fresh session:**
-
-1. **Land the singleton-reset infra first, as its own commit.** Pick
-   one of the two options below; the rollout commits then don't have
-   to think about it. Drop a small JUnit test that exercises the
-   leak path explicitly (e.g. two `new Engine()` instances back to
-   back, with `delete Number.isFinite` between) so a regression
-   later can't silently re-introduce it.
-2. Wrap one constructor (Number is the smallest — 4 methods + 8
-   constants), probe with `--only test/built-ins/Number/**`, confirm
-   no per-engine state leaks across runs.
-3. Sweep the remaining built-in constructors and prototypes following
-   the same pattern. Probe each slice as you go; the deltas should
-   all be net positive (zero predicted regressions, since the
-   descriptor reader was already returning the wrong shape — making
-   it correct can only convert FAILs to PASSes).
-4. `JsArray.length` descriptor as a separate small commit (see below).
+`hasOwnIntrinsic` + `getOwnAttrs`. Singleton-reset infra
+(`JsObject.ENGINE_RESET_LIST` + `clearEngineState()`) is in place,
+all nine constructor singletons (Array / BigInt / Date / Function /
+Map / Number / Object / Set / String) register themselves, and
+Number is now wrapped (see Recently completed). Remaining work is
+opportunistic.
 
 The Math wrap (`karate-js/src/main/java/io/karatelabs/js/JsMath.java`)
-is the canonical template — `_methodCache`, `resolveMember`,
-`hasOwnIntrinsic`, `isMathMethod` / `isMathConstant`, `getOwnAttrs`.
-Copy the shape; the only per-class changes are the lists of method
-and constant names.
+plus the Number wrap (`JsNumberConstructor.java`) are the canonical
+templates — `_methodCache`, `resolveMember`, `hasOwnIntrinsic`,
+`getOwnAttrs`, `clearEngineState` override. Copy the shape; the only
+per-class changes are the lists of method and constant names. The
+infra commit `6104205f9` already plumbs the per-Engine reset for
+every constructor singleton, so subsequent wraps just touch one file
+each.
 
-- **Number constructor + prototype.** Static methods (`isFinite` /
-  `isInteger` / `isNaN` / `isSafeInteger`) need `JsBuiltinMethod`
-  wrapping; constants (`EPSILON` / `MAX_VALUE` / `MIN_VALUE` /
-  `MAX_SAFE_INTEGER` / `MIN_SAFE_INTEGER` / `POSITIVE_INFINITY` /
-  `NEGATIVE_INFINITY` / `NaN`) need `hasOwnIntrinsic` + `getOwnAttrs`.
-  Prototype methods (`toString` / `toFixed` / `valueOf` /
-  `toExponential` / `toPrecision`) similarly.
-
-  **Caveat: JVM-wide singleton state leak.** `JsNumberConstructor`,
-  `JsObjectConstructor`, `JsDateConstructor`, etc. are all
-  `static final INSTANCE` singletons (unlike `JsMath`, which is
-  allocated per-Engine in `ContextRoot.initGlobal`). If we add a
-  `_methodCache` and tombstones to a singleton, deleting a method in
-  one test (`delete Number.isFinite`) would leak to subsequent tests
-  in the same JVM — propertyHelper's `isConfigurable()` does exactly
-  this destructive write/delete pattern. The previous session's
-  `Prototype.clearAllUserProps()` mechanism handles this for
-  `Prototype` instances (see
-  [`Prototype.java`](../karate-js/src/main/java/io/karatelabs/js/Prototype.java) —
-  static `ALL` list ~line 60, walked by `clearAllUserProps()`,
-  invoked from `Engine` constructor); constructor singletons need a
-  parallel hook. Two options:
-  - **(a) Extend the clear mechanism.** Add a parallel
-    `BUILT_IN_CONSTRUCTORS` static list (or generalize the existing
-    one to take any `JsObject`) and a `clearEngineState()` method
-    on `JsObject` that wipes `_map` / `_attrs` / `_tombstones` plus
-    any subclass cache (`_methodCache` etc.). Lower-blast-radius:
-    nothing outside JsObject hierarchy changes.
-  - **(b) Allocate per-Engine, like JsMath.** Change
-    [`ContextRoot.initGlobal`](../karate-js/src/main/java/io/karatelabs/js/ContextRoot.java)
-    cases for each constructor — `case "Number" -> new
-    JsNumberConstructor()` instead of `JsNumberConstructor.INSTANCE`.
-    Keep the singleton field (others may still reference it as a
-    cached default) but the engine's globals are fresh. Audit
-    references first: `git grep '\.INSTANCE'` under
-    `karate-js/src/main/java/io/karatelabs/js/` to confirm no
-    other site relies on `Foo.INSTANCE === bound-global`. Last
-    audit (this session): only `ContextRoot` referenced
-    `JsNumberConstructor.INSTANCE` — so for Number specifically,
-    option (b) is a one-line diff.
-
-  Pick (a) if you'd rather not touch ContextRoot or risk identity
-  surprises; pick (b) if you want a tiny diff per constructor and
-  to mirror what JsMath already does. The estimate for the full
-  Number constructor + prototype wrap is +18–30 PASS in Number
-  alone, +50ish across other slices once the same pattern rolls
-  out.
+- **Other constructor wraps.** Object / Array / String / Date /
+  Function / BigInt / Map / Set still resolve their static methods
+  as raw `JsCallable` lambdas — wrap each in `JsBuiltinMethod` +
+  declare `hasOwnIntrinsic` / `getOwnAttrs` like JsNumberConstructor.
+  Per-constructor delta is in the +5–30 PASS range each based on
+  Number's experience; sweep them as discrete commits.
 
 - **`Prototype` per-method attributes.** Built-in prototype methods
-  (`Array.prototype.push`, `String.prototype.charAt`, etc.) are
-  resolved by `Prototype.getMember` switches as raw `JsCallable`
-  lambdas — no `length`/`name` own properties, no attribute slots.
-  Wrap each method in `JsBuiltinMethod` and override `getOwnAttrs`
-  on each prototype to declare `WRITABLE | CONFIGURABLE`. Existing
-  `Prototype.userProps` already participates in the per-Engine clear
-  list, so any tombstones from `delete Array.prototype.push` would
-  reset cleanly via the same mechanism — no new infra needed for
-  the prototypes (only for the *constructor* singletons above).
+  (`Array.prototype.push`, `String.prototype.charAt`,
+  `Number.prototype.toFixed`, etc.) are resolved by
+  `Prototype.getBuiltinProperty` switches as raw `JsCallable` lambdas
+  — no `length`/`name` own properties, no attribute slots, and
+  `delete Array.prototype.push` is currently a silent no-op
+  (Prototype.removeMember only touches `userProps`). Two pieces of
+  work needed (separate from the constructor wraps): wrap each
+  method in `JsBuiltinMethod` (for `length`/`name`), and add
+  delete-with-tombstone support to Prototype so propertyHelper's
+  `isConfigurable()` (which asserts `delete obj[name]` actually
+  removes) reports correctly. The earlier note that "no new infra
+  needed for the prototypes" understated this — Prototype does need
+  its own tombstone slot or a Map-style override.
 
 - **`JsArray.length` descriptor.** Spec: `{writable: true,
   enumerable: false, configurable: false}`. Currently
@@ -1207,6 +1159,46 @@ Smaller items, picked off when nearby. Not session-sized on their own.
 Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
+
+- **Number constructor wrap.** Sequel to the singleton-reset infra
+  below. `JsNumberConstructor` now follows the JsMath pattern: the
+  four static methods (`isFinite` / `isInteger` / `isNaN` /
+  `isSafeInteger`) are wrapped in `JsBuiltinMethod` with spec
+  `length` / `name`, cached per-Engine in `_methodCache` so identity
+  holds and tombstones stick, with `clearEngineState()` overridden to
+  wipe the cache. `hasOwnIntrinsic` declares the methods, the eight
+  constants, and `prototype`; `getOwnAttrs` returns
+  `WRITABLE | CONFIGURABLE` for methods, all-false for constants and
+  for the `prototype` slot (overriding JsFunction's user-function
+  default of `WRITABLE`).
+
+  | `--only` glob | Before | After | Δ pass |
+  |---|---|---|---|
+  | `test/built-ins/Number/**` | 187 / 141 / 12 | **215** / 113 / 12 | **+28** |
+  | `test/built-ins/Object/**` | 1798 / 1482 / 131 | **1804** / 1476 / 131 | **+6** |
+
+  Net **+34 PASS**. Number landed in the predicted +18–30 band; Object
+  picked up incidental wins from `Object.getOwnPropertyDescriptor(Number, 'X')`
+  now returning the right shape. Math / Array / Date / Function /
+  String / language slices unchanged. Same wrap pattern still to roll
+  out across the other constructors — see Tier 2 above.
+
+- **Per-Engine reset for built-in constructor singletons.** Mirror of
+  `Prototype.ALL` / `clearAllUserProps` on the JsObject side. New
+  `JsObject.ENGINE_RESET_LIST` (a `CopyOnWriteArrayList`) collects
+  singleton instances that call `registerForEngineReset()` from their
+  constructor; `Engine.<init>` invokes
+  `JsObject.clearAllEngineState()` right after
+  `Prototype.clearAllUserProps()`. Default `clearEngineState()` wipes
+  `_map` / `_attrs` / `_tombstones` / extensibility flags; subclasses
+  with caches override and `super.clearEngineState()` first.
+  All nine constructor singletons (Array / BigInt / Date / Function /
+  Map / Number / Object / Set / String) registered themselves in the
+  same commit. `EngineTest.testBuiltinConstructorStateResetBetween
+  Engines` exercises the user-set / delete / re-resolve paths so a
+  regression can't silently re-introduce the leak. Pure infra — no
+  behavior change for non-leak cases. Incidentally fixed +1 PASS in
+  `test/language/**` from a previously polluted test (4264 → 4265).
 
 - **Assignment-target negative-test pass (IsValidSimpleAssignmentTarget).**
   Folded into the existing post-parse early-error walk in

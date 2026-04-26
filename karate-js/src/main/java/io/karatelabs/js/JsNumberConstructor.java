@@ -25,8 +25,21 @@ package io.karatelabs.js;
 
 /**
  * JavaScript Number constructor function.
- * Provides static methods like Number.isFinite, Number.isInteger, Number.isNaN, etc.
- * Also provides static constants like Number.EPSILON, Number.MAX_VALUE, etc.
+ * <p>
+ * Static methods (isFinite / isInteger / isNaN / isSafeInteger) are wrapped in
+ * {@link JsBuiltinMethod} so they expose spec {@code length} and {@code name}
+ * as own properties. Method instances are cached per-Engine in {@code _methodCache}
+ * so {@code Number.isFinite === Number.isFinite} holds within a session and
+ * tombstones from {@code delete Number.isFinite} are applied to a stable instance.
+ * The cache is wiped per-Engine via {@link #clearEngineState()} (see the
+ * {@code ENGINE_RESET_LIST} mechanism on {@link JsObject}).
+ * <p>
+ * {@link #hasOwnIntrinsic} and {@link #getOwnAttrs} declare each method, constant
+ * and the {@code prototype} slot per spec so {@code getOwnPropertyDescriptor}
+ * reports the correct attribute bits — constants are
+ * {@code {writable: false, enumerable: false, configurable: false}}, methods are
+ * {@code {writable: true, enumerable: false, configurable: true}}, and a built-in
+ * constructor's {@code prototype} is all-false.
  */
 class JsNumberConstructor extends JsFunction {
 
@@ -34,6 +47,8 @@ class JsNumberConstructor extends JsFunction {
 
     private static final long MAX_SAFE_INTEGER = 9007199254740991L;
     private static final long MIN_SAFE_INTEGER = -9007199254740991L;
+
+    private java.util.Map<String, JsBuiltinMethod> _methodCache;
 
     private JsNumberConstructor() {
         this.name = "Number";
@@ -43,11 +58,31 @@ class JsNumberConstructor extends JsFunction {
 
     @Override
     public Object getMember(String name) {
+        // User-set values + tombstones take precedence over intrinsic resolution.
+        if (isTombstoned(name) || ownContainsKey(name)) {
+            return super.getMember(name);
+        }
+        // Cache hit: stable identity for the wrapped method instance.
+        if (_methodCache != null) {
+            JsBuiltinMethod cached = _methodCache.get(name);
+            if (cached != null) return cached;
+        }
+        Object result = resolveMember(name);
+        if (result instanceof JsBuiltinMethod jbm) {
+            if (_methodCache == null) {
+                _methodCache = new java.util.HashMap<>();
+            }
+            _methodCache.put(name, jbm);
+        }
+        return result;
+    }
+
+    private Object resolveMember(String name) {
         return switch (name) {
-            case "isFinite" -> (JsInvokable) this::isFinite;
-            case "isInteger" -> (JsInvokable) this::isInteger;
-            case "isNaN" -> (JsInvokable) this::isNaN;
-            case "isSafeInteger" -> (JsInvokable) this::isSafeInteger;
+            case "isFinite" -> new JsBuiltinMethod("isFinite", 1, (JsInvokable) this::isFinite);
+            case "isInteger" -> new JsBuiltinMethod("isInteger", 1, (JsInvokable) this::isInteger);
+            case "isNaN" -> new JsBuiltinMethod("isNaN", 1, (JsInvokable) this::isNaN);
+            case "isSafeInteger" -> new JsBuiltinMethod("isSafeInteger", 1, (JsInvokable) this::isSafeInteger);
             case "EPSILON" -> Math.ulp(1.0);
             case "MAX_VALUE" -> Double.MAX_VALUE;
             case "MIN_VALUE" -> Double.MIN_VALUE;
@@ -62,8 +97,54 @@ class JsNumberConstructor extends JsFunction {
     }
 
     @Override
+    public boolean hasOwnIntrinsic(String name) {
+        return isNumberMethod(name) || isNumberConstant(name)
+                || super.hasOwnIntrinsic(name); // length / name / prototype / constructor
+    }
+
+    @Override
+    public byte getOwnAttrs(String name) {
+        if (isNumberConstant(name)) {
+            // Constants: { writable: false, enumerable: false, configurable: false }
+            return 0;
+        }
+        if (isNumberMethod(name)) {
+            // Methods: { writable: true, enumerable: false, configurable: true }
+            return WRITABLE | CONFIGURABLE;
+        }
+        if ("prototype".equals(name)) {
+            // Built-in constructor prototype: all-false (overrides JsFunction's
+            // user-function default of WRITABLE).
+            return 0;
+        }
+        return super.getOwnAttrs(name);
+    }
+
+    @Override
+    protected void clearEngineState() {
+        super.clearEngineState();
+        if (_methodCache != null) _methodCache.clear();
+    }
+
+    @Override
     public Object call(Context context, Object[] args) {
         return JsNumber.getObject(context, args);
+    }
+
+    private static boolean isNumberConstant(String n) {
+        return switch (n) {
+            case "EPSILON", "MAX_VALUE", "MIN_VALUE",
+                 "MAX_SAFE_INTEGER", "MIN_SAFE_INTEGER",
+                 "POSITIVE_INFINITY", "NEGATIVE_INFINITY", "NaN" -> true;
+            default -> false;
+        };
+    }
+
+    private static boolean isNumberMethod(String n) {
+        return switch (n) {
+            case "isFinite", "isInteger", "isNaN", "isSafeInteger" -> true;
+            default -> false;
+        };
     }
 
     // Static methods
