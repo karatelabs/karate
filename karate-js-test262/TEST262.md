@@ -1003,19 +1003,21 @@ Action list — start at the top. Ordered by core-engine confidence
 score impact (a one-fix harness unblock beats ten one-test patches).
 Re-probe with the relevant `--only` glob before scoping a session.
 
-Current state baseline (2026-04, post Number constructor wrap +
-singleton-reset infra + assignment-target negative-test pass +
-built-in intrinsic attribute attribution + Math wrap):
+Current state baseline (2026-04, post full constructor-singleton wrap
+sweep — Math + Number + Object + Array + String + Date + BigInt +
+Function + Map + Set — on top of singleton-reset infra +
+assignment-target negative-test pass + per-property attribute
+enforcement):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
 | `test/language/**` | 4265 | 3798 | 15582 | 23645 |
 | `test/built-ins/Math/**` | 293 | 33 | 1 | 327 |
 | `test/built-ins/Number/**` | 215 | 113 | 12 | 340 |
-| `test/built-ins/String/**` | 357 | 782 | 84 | 1223 |
-| `test/built-ins/Array/**` | 1127 | 1773 | 181 | 3081 |
-| `test/built-ins/Object/**` | 1804 | 1476 | 131 | 3411 |
-| `test/built-ins/Date/**` | 474 | 50 | 70 | 594 |
+| `test/built-ins/String/**` | 363 | 776 | 84 | 1223 |
+| `test/built-ins/Array/**` | 1137 | 1763 | 181 | 3081 |
+| `test/built-ins/Object/**` | 1893 | 1387 | 131 | 3411 |
+| `test/built-ins/Date/**` | 477 | 47 | 70 | 594 |
 | `test/built-ins/Function/**` | 215 | 166 | 128 | 509 |
 
 ### Tier 1 — core-engine parser/expression gaps
@@ -1031,31 +1033,14 @@ off opportunistically.)*
 
 ### Tier 2 — built-in attribute attribution rollout (residual)
 
-The first wave landed: `getOwnAttrs` infrastructure on JsObject,
-JsFunction defaults for length/name/prototype/constructor, Math
-methods/constants wired, descriptor reads now consult
-`hasOwnIntrinsic` + `getOwnAttrs`. Singleton-reset infra
-(`JsObject.ENGINE_RESET_LIST` + `clearEngineState()`) is in place,
-all nine constructor singletons (Array / BigInt / Date / Function /
-Map / Number / Object / Set / String) register themselves, and
-Number is now wrapped (see Recently completed). Remaining work is
-opportunistic.
-
-The Math wrap (`karate-js/src/main/java/io/karatelabs/js/JsMath.java`)
-plus the Number wrap (`JsNumberConstructor.java`) are the canonical
-templates — `_methodCache`, `resolveMember`, `hasOwnIntrinsic`,
-`getOwnAttrs`, `clearEngineState` override. Copy the shape; the only
-per-class changes are the lists of method and constant names. The
-infra commit `6104205f9` already plumbs the per-Engine reset for
-every constructor singleton, so subsequent wraps just touch one file
-each.
-
-- **Other constructor wraps.** Object / Array / String / Date /
-  Function / BigInt / Map / Set still resolve their static methods
-  as raw `JsCallable` lambdas — wrap each in `JsBuiltinMethod` +
-  declare `hasOwnIntrinsic` / `getOwnAttrs` like JsNumberConstructor.
-  Per-constructor delta is in the +5–30 PASS range each based on
-  Number's experience; sweep them as discrete commits.
+The constructor side is fully landed: `getOwnAttrs` infrastructure on
+JsObject, JsFunction defaults for length/name/prototype/constructor,
+Math + all nine constructor singletons (Array / BigInt / Date /
+Function / Map / Number / Object / Set / String) wrapped with
+`JsBuiltinMethod` + `_methodCache` + `hasOwnIntrinsic` +
+`getOwnAttrs`. Singleton-reset infra (`JsObject.ENGINE_RESET_LIST` +
+`clearEngineState()`) plumbs per-Engine reset for all of them.
+Remaining work is the **prototype** side and `JsArray.length`.
 
 - **`Prototype` per-method attributes.** Built-in prototype methods
   (`Array.prototype.push`, `String.prototype.charAt`,
@@ -1160,28 +1145,48 @@ Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
 
-- **Number constructor wrap.** Sequel to the singleton-reset infra
-  below. `JsNumberConstructor` now follows the JsMath pattern: the
-  four static methods (`isFinite` / `isInteger` / `isNaN` /
-  `isSafeInteger`) are wrapped in `JsBuiltinMethod` with spec
-  `length` / `name`, cached per-Engine in `_methodCache` so identity
-  holds and tombstones stick, with `clearEngineState()` overridden to
-  wipe the cache. `hasOwnIntrinsic` declares the methods, the eight
-  constants, and `prototype`; `getOwnAttrs` returns
-  `WRITABLE | CONFIGURABLE` for methods, all-false for constants and
-  for the `prototype` slot (overriding JsFunction's user-function
-  default of `WRITABLE`).
+- **Constructor-singleton wrap sweep (Number → Object → Array →
+  String → Function/BigInt/Map/Set/Date).** Five commits, one per
+  cluster, applying the JsMath template across every built-in
+  constructor singleton. Each constructor's static methods are now
+  wrapped in `JsBuiltinMethod` with spec `length` and `name`, cached
+  per-Engine in `_methodCache` (cleared via `clearEngineState`), and
+  declared via `hasOwnIntrinsic` + `getOwnAttrs` so descriptor probes
+  report the correct attribute bits. The `prototype` slot on every
+  built-in constructor reports all-false attrs (overriding
+  JsFunction's user-function default of `WRITABLE`).
 
-  | `--only` glob | Before | After | Δ pass |
+  | `--only` glob | Before sweep | After sweep | Δ pass |
   |---|---|---|---|
+  | `test/built-ins/Object/**` | 1798 / 1482 / 131 | **1893** / 1387 / 131 | **+95** |
   | `test/built-ins/Number/**` | 187 / 141 / 12 | **215** / 113 / 12 | **+28** |
-  | `test/built-ins/Object/**` | 1798 / 1482 / 131 | **1804** / 1476 / 131 | **+6** |
+  | `test/built-ins/Array/**` | 1127 / 1773 / 181 | **1137** / 1763 / 181 | **+10** |
+  | `test/built-ins/String/**` | 357 / 782 / 84 | **363** / 776 / 84 | **+6** |
+  | `test/built-ins/Date/**` | 474 / 50 / 70 | **477** / 47 / 70 | **+3** |
 
-  Net **+34 PASS**. Number landed in the predicted +18–30 band; Object
-  picked up incidental wins from `Object.getOwnPropertyDescriptor(Number, 'X')`
-  now returning the right shape. Math / Array / Date / Function /
-  String / language slices unchanged. Same wrap pattern still to roll
-  out across the other constructors — see Tier 2 above.
+  Net **+142 PASS** across the sweep. Object dominates because the
+  slice carries a propertyHelper-style probe (`length.js`,
+  `name.js`, `prop-desc.js`) for *each* of its 22 static methods —
+  one wrap pattern lights up dozens of tests. Function / Map / Set /
+  BigInt unchanged in their own slices: their static-method
+  population is small (or zero) and the `prototype`-attr fix for
+  built-in constructors isn't probed there directly. The cumulative
+  Object win includes incidental gains from the cross-cutting
+  `getOwnPropertyDescriptor(Date|Number|…, 'X')` paths now reading
+  the right shape. Math / Function / language slices unchanged.
+
+  Per-commit breakdown:
+  - `5b7f9efa0` Number — +28 Number, +6 Object
+  - `a0b4cf47f` Object — +81 Object
+  - `5d8d4e25a` Array + String — +10 Array, +6 String
+  - `589a6f03b` Function / BigInt / Map / Set / Date — +3 Date,
+    +8 Object (incidental from Date's descriptor fix)
+
+  Residual: the **prototype** side is still raw `JsCallable`
+  lambdas — `Array.prototype.push.length` etc. won't read correctly
+  yet, and `delete Array.prototype.push` is a silent no-op. See the
+  Tier 2 "Prototype per-method attributes" item above for the next
+  step (needs Prototype tombstones plus per-method wraps).
 
 - **Per-Engine reset for built-in constructor singletons.** Mirror of
   `Prototype.ALL` / `clearAllUserProps` on the JsObject side. New
