@@ -70,7 +70,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      * stored here under the canonical string-form key ({@code "0"}, …);
      * {@link #getIndexedValue} consults this map first for indexed reads.
      */
-    private Map<String, Slot> namedProps;
+    private Map<String, PropertySlot> namedProps;
     /**
      * Writable bit for the {@code "length"} property. Spec invariant: length is
      * always non-enumerable and non-configurable; only the writable bit can be
@@ -113,7 +113,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     public Object getMember(String name) {
         // 1. Check named properties first (stored in namedProps)
         if (namedProps != null) {
-            Slot s = namedProps.get(name);
+            PropertySlot s = namedProps.get(name);
             if (s != null) return s.value;
         }
         // 2. Special case: length property
@@ -200,7 +200,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         }
         // Per-property writable=false: silently ignore (lenient mode — strict-mode
         // TypeError flip lives elsewhere). Mirrors JsObject.putMember's check.
-        Slot existing = namedProps == null ? null : namedProps.get(name);
+        PropertySlot existing = namedProps == null ? null : namedProps.get(name);
         if (existing != null && !existing.isWritable()) {
             return;
         }
@@ -225,7 +225,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             if (namedProps == null) {
                 namedProps = new LinkedHashMap<>();
             }
-            namedProps.put(name, new Slot(name, value));
+            namedProps.put(name, new DataSlot(name, value));
         }
     }
 
@@ -271,11 +271,11 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             else list.add(value);
             // Attrs only stick when non-default — otherwise the absence of a
             // namedProps entry leaves the index at ATTRS_DEFAULT.
-            if (attrs != Slot.ATTRS_DEFAULT) {
+            if (attrs != PropertySlot.ATTRS_DEFAULT) {
                 if (namedProps == null) {
                     namedProps = new LinkedHashMap<>();
                 }
-                Slot s = new Slot(name, value);
+                PropertySlot s = new DataSlot(name, value);
                 s.attrs = attrs;
                 namedProps.put(name, s);
             }
@@ -283,9 +283,9 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             if (namedProps == null) {
                 namedProps = new LinkedHashMap<>();
             }
-            Slot s = namedProps.get(name);
+            PropertySlot s = namedProps.get(name);
             if (s == null) {
-                s = new Slot(name, value);
+                s = new DataSlot(name, value);
                 namedProps.put(name, s);
             } else {
                 s.value = value;
@@ -301,8 +301,8 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      * {@code seal} / {@code freeze}. Mirrors {@link JsObject#getAttrs(String)}.
      */
     byte getAttrs(String name) {
-        Slot s = namedProps == null ? null : namedProps.get(name);
-        return s == null ? Slot.ATTRS_DEFAULT : s.attrs;
+        PropertySlot s = namedProps == null ? null : namedProps.get(name);
+        return s == null ? PropertySlot.ATTRS_DEFAULT : s.attrs;
     }
 
     /** Stores the attribute byte for {@code name} on its slot. The
@@ -312,10 +312,10 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      *  attrs is a no-op (nothing to attach attrs to without a value override). */
     void setAttrs(String name, byte attrs) {
         if ("length".equals(name)) {
-            lengthWritable = (attrs & Slot.WRITABLE) != 0;
+            lengthWritable = (attrs & PropertySlot.WRITABLE) != 0;
             return;
         }
-        Slot s = namedProps == null ? null : namedProps.get(name);
+        PropertySlot s = namedProps == null ? null : namedProps.get(name);
         if (s != null) {
             s.attrs = attrs;
         }
@@ -449,7 +449,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     }
 
     private boolean isIndexConfigurable(int i) {
-        Slot s = namedProps == null ? null : namedProps.get(Integer.toString(i));
+        PropertySlot s = namedProps == null ? null : namedProps.get(Integer.toString(i));
         return s == null || s.isConfigurable();
     }
 
@@ -467,7 +467,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         // carry no value override).
         if (namedProps == null || namedProps.isEmpty()) return Collections.emptyMap();
         Map<String, Object> view = new LinkedHashMap<>(namedProps.size());
-        for (Slot s : namedProps.values()) {
+        for (PropertySlot s : namedProps.values()) {
             view.put(s.name, s.value);
         }
         return view;
@@ -629,7 +629,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      */
     Object getIndexedValue(int index) {
         if (namedProps != null && index >= 0) {
-            Slot s = namedProps.get(Integer.toString(index));
+            PropertySlot s = namedProps.get(Integer.toString(index));
             if (s != null) return s.value;
         }
         return getElement(index);
@@ -690,7 +690,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      */
     public byte getOwnAttrs(String name) {
         if ("length".equals(name)) {
-            return lengthWritable ? Slot.WRITABLE : 0;
+            return lengthWritable ? PropertySlot.WRITABLE : 0;
         }
         return getAttrs(name);
     }

@@ -31,80 +31,36 @@ import java.util.Map;
 /**
  * JavaScript Array constructor function.
  * <p>
- * Static methods are wrapped in {@link JsBuiltinMethod} (per the JsMath /
- * JsNumberConstructor template) so they expose spec {@code length} and
- * {@code name}; method instances are cached per-Engine in {@code methodCache}.
- * {@link #hasOwnIntrinsic} / {@link #getOwnAttrs} declare each method plus
- * the {@code prototype} slot per spec.
+ * Singleton; static methods + the {@code prototype} slot are eagerly
+ * installed at construction time as own properties with spec attrs:
+ * methods are {@code W | C} (non-enumerable), {@code prototype} is
+ * all-false. {@link #clearEngineState} re-runs the install on per-Engine
+ * reset so user mutations from a prior session don't leak.
  */
 class JsArrayConstructor extends JsFunction {
 
     static final JsArrayConstructor INSTANCE = new JsArrayConstructor();
 
-    private java.util.Map<String, JsBuiltinMethod> methodCache;
+    private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
 
     private JsArrayConstructor() {
         this.name = "Array";
         this.length = 1;
+        installIntrinsics();
         registerForEngineReset();
     }
 
-    @Override
-    public Object getMember(String name) {
-        if (isTombstoned(name) || ownContainsKey(name)) {
-            return super.getMember(name);
-        }
-        if (methodCache != null) {
-            JsBuiltinMethod cached = methodCache.get(name);
-            if (cached != null) return cached;
-        }
-        Object result = resolveMember(name);
-        if (result instanceof JsBuiltinMethod jbm) {
-            if (methodCache == null) {
-                methodCache = new java.util.HashMap<>();
-            }
-            methodCache.put(name, jbm);
-        }
-        return result;
-    }
-
-    private Object resolveMember(String name) {
-        return switch (name) {
-            case "from" -> method(name, 1, this::from);
-            case "isArray" -> method(name, 1, (JsInvokable) this::isArray);
-            case "of" -> method(name, 0, (JsInvokable) this::of);
-            case "prototype" -> JsArrayPrototype.INSTANCE;
-            default -> super.getMember(name);
-        };
-    }
-
-    @Override
-    public boolean hasOwnIntrinsic(String name) {
-        return isArrayMethod(name) || super.hasOwnIntrinsic(name);
-    }
-
-    @Override
-    public byte getOwnAttrs(String name) {
-        if (isArrayMethod(name)) {
-            return WRITABLE | CONFIGURABLE;
-        }
-        if ("prototype".equals(name)) {
-            return 0;
-        }
-        return super.getOwnAttrs(name);
+    private void installIntrinsics() {
+        defineOwn("from", new JsBuiltinMethod("from", 1, this::from), METHOD_ATTRS);
+        defineOwn("isArray", new JsBuiltinMethod("isArray", 1, (JsInvokable) this::isArray), METHOD_ATTRS);
+        defineOwn("of", new JsBuiltinMethod("of", 0, (JsInvokable) this::of), METHOD_ATTRS);
+        defineOwn("prototype", JsArrayPrototype.INSTANCE, PropertySlot.INTRINSIC);
     }
 
     @Override
     protected void clearEngineState() {
         super.clearEngineState();
-        if (methodCache != null) methodCache.clear();
-    }
-
-    private static boolean isArrayMethod(String n) {
-        return switch (n) {
-            case "from", "isArray", "of" -> true;
-            default -> false;
-        };
+        installIntrinsics();
     }
 
     @Override

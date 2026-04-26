@@ -28,7 +28,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * JavaScript Object — own properties live in a single {@code props}
- * {@code Map<String, Slot>} where each {@link Slot} carries value, attribute
+ * {@code Map<String, PropertySlot>} where each {@link Slot} carries value, attribute
  * byte (writable / enumerable / configurable), and tombstone flag.
  * <p>
  * Property lookup order:
@@ -43,10 +43,10 @@ class JsObject implements ObjectLike, Map<String, Object> {
 
     /** Re-exported from {@link Slot} for callers that historically referenced
      *  {@code JsObject.WRITABLE}. */
-    static final byte WRITABLE = Slot.WRITABLE;
-    static final byte ENUMERABLE = Slot.ENUMERABLE;
-    static final byte CONFIGURABLE = Slot.CONFIGURABLE;
-    static final byte ATTRS_DEFAULT = Slot.ATTRS_DEFAULT;
+    static final byte WRITABLE = PropertySlot.WRITABLE;
+    static final byte ENUMERABLE = PropertySlot.ENUMERABLE;
+    static final byte CONFIGURABLE = PropertySlot.CONFIGURABLE;
+    static final byte ATTRS_DEFAULT = PropertySlot.ATTRS_DEFAULT;
 
     /**
      * JVM-wide singletons that must reset their per-Engine mutable state when a
@@ -73,7 +73,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
      * its attribute byte and tombstone flag. Lazily allocated — empty objects
      * pay no map overhead.
      */
-    private Map<String, Slot> props;
+    private Map<String, PropertySlot> props;
     private ObjectLike __proto__;
     /** Object-wide extensibility flags. Per-property attributes live on each
      *  Slot's {@code attrs} byte. The per-object flags double as fast-path
@@ -96,7 +96,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
         if (seed != null && !seed.isEmpty()) {
             this.props = new LinkedHashMap<>(seed.size());
             for (Map.Entry<String, Object> e : seed.entrySet()) {
-                this.props.put(e.getKey(), new Slot(e.getKey(), e.getValue()));
+                this.props.put(e.getKey(), new DataSlot(e.getKey(), e.getValue()));
             }
         }
     }
@@ -142,7 +142,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
 
     @Override
     public Object getMember(String name) {
-        Slot s = props == null ? null : props.get(name);
+        PropertySlot s = props == null ? null : props.get(name);
         if (s != null) {
             // Tombstoned: a previously-existing intrinsic was deleted. Skip
             // both the slot's stale value and subclass intrinsic resolution
@@ -171,7 +171,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
      * semantics; raw {@code props.containsKey} would include tombstones.
      */
     public boolean isOwnProperty(String name) {
-        Slot s = props == null ? null : props.get(name);
+        PropertySlot s = props == null ? null : props.get(name);
         if (s != null) {
             return !s.tombstoned;
         }
@@ -179,14 +179,14 @@ class JsObject implements ObjectLike, Map<String, Object> {
     }
 
     boolean isTombstoned(String name) {
-        Slot s = props == null ? null : props.get(name);
+        PropertySlot s = props == null ? null : props.get(name);
         return s != null && s.tombstoned;
     }
 
     /** Removes the tombstone for {@code name} if any. Subclasses use this when
      *  a write reanimates a previously-deleted entry. */
     void clearTombstone(String name) {
-        Slot s = props == null ? null : props.get(name);
+        PropertySlot s = props == null ? null : props.get(name);
         if (s != null && s.tombstoned) {
             props.remove(name);
         }
@@ -194,7 +194,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
 
     /** True iff {@code name} has a non-tombstoned own slot (excludes intrinsics). */
     boolean ownContainsKey(String name) {
-        Slot s = props == null ? null : props.get(name);
+        PropertySlot s = props == null ? null : props.get(name);
         return s != null && !s.tombstoned;
     }
 
@@ -215,7 +215,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
         if (frozen) {
             return;
         }
-        Slot s = props == null ? null : props.get(name);
+        PropertySlot s = props == null ? null : props.get(name);
         boolean keyExists = s != null && !s.tombstoned;
         // Intrinsic-backed properties (built-in length / name / Math.E …) need
         // to honor their spec attributes on [[Set]] too. Treat them as "exists"
@@ -239,7 +239,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
             if (props == null) {
                 props = new LinkedHashMap<>();
             }
-            props.put(name, new Slot(name, value));
+            props.put(name, new DataSlot(name, value));
         } else {
             // Reuse the slot — clears any tombstone, preserves attrs.
             s.value = value;
@@ -254,7 +254,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
      * {@code freeze}.
      */
     byte getAttrs(String name) {
-        Slot s = props == null ? null : props.get(name);
+        PropertySlot s = props == null ? null : props.get(name);
         return s == null ? ATTRS_DEFAULT : s.attrs;
     }
 
@@ -280,7 +280,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
      *  {@code seal} / {@code freeze} touched it). Subclasses use this to decide
      *  whether to honor the stored attrs vs. apply a class-default. */
     boolean hasExplicitAttrs(String name) {
-        Slot s = props == null ? null : props.get(name);
+        PropertySlot s = props == null ? null : props.get(name);
         return s != null && s.attrs != ATTRS_DEFAULT;
     }
 
@@ -288,13 +288,13 @@ class JsObject implements ObjectLike, Map<String, Object> {
      *  if absent (rare — defineProperty path uses {@link #defineOwn} which sets
      *  both value and attrs). */
     void setAttrs(String name, byte attrs) {
-        Slot s = props == null ? null : props.get(name);
+        PropertySlot s = props == null ? null : props.get(name);
         if (s == null) {
             if (attrs == ATTRS_DEFAULT) return;
             if (props == null) {
                 props = new LinkedHashMap<>();
             }
-            s = new Slot(name);
+            s = new DataSlot(name);
             props.put(name, s);
         }
         s.attrs = attrs;
@@ -328,9 +328,9 @@ class JsObject implements ObjectLike, Map<String, Object> {
         if (props == null) {
             props = new LinkedHashMap<>();
         }
-        Slot s = props.get(name);
+        PropertySlot s = props.get(name);
         if (s == null) {
-            s = new Slot(name);
+            s = new DataSlot(name);
             props.put(name, s);
         }
         s.value = value;
@@ -362,7 +362,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
         // is the fast-path early exit on writes/removes; clearing the bit on
         // each slot is for the attribute readers.
         if (props != null) {
-            for (Slot s : props.values()) {
+            for (PropertySlot s : props.values()) {
                 if (!s.tombstoned) {
                     s.attrs &= ~CONFIGURABLE;
                 }
@@ -375,7 +375,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
         this.sealed = true;
         this.frozen = true;
         if (props != null) {
-            for (Slot s : props.values()) {
+            for (PropertySlot s : props.values()) {
                 if (s.tombstoned) continue;
                 s.attrs &= ~CONFIGURABLE;
                 // writable is N/A for accessor properties — only clear on data slots.
@@ -410,6 +410,12 @@ class JsObject implements ObjectLike, Map<String, Object> {
         nonExtensible = false;
         sealed = false;
         frozen = false;
+        // Subclasses with eager-installed intrinsics override and call
+        // {@code super.clearEngineState()} first, then re-run their
+        // {@code installIntrinsics()} routine — the install code is the
+        // single source of truth for what gets restored. The {@link
+        // PropertySlot#INTRINSIC} bit stays informational (strict-mode
+        // checks, introspection) rather than reset-controlling.
     }
 
     /**
@@ -426,7 +432,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
 
     @Override
     public void removeMember(String name) {
-        Slot s = props == null ? null : props.get(name);
+        PropertySlot s = props == null ? null : props.get(name);
         // Already tombstoned — nothing to do.
         if (s != null && s.tombstoned) {
             return;
@@ -454,7 +460,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
                 if (props == null) {
                     props = new LinkedHashMap<>();
                 }
-                s = new Slot(name);
+                s = new DataSlot(name);
                 props.put(name, s);
             }
             s.value = null;
@@ -472,7 +478,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
         // callers iterating heavily should cache the result. (jsEntries reads
         // props directly to avoid the rebuild.)
         Map<String, Object> view = new LinkedHashMap<>(props.size());
-        for (Slot s : props.values()) {
+        for (PropertySlot s : props.values()) {
             if (!s.tombstoned) {
                 view.put(s.name, s.value);
             }
@@ -488,7 +494,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
     public int size() {
         if (props == null) return 0;
         int n = 0;
-        for (Slot s : props.values()) {
+        for (PropertySlot s : props.values()) {
             if (!s.tombstoned) n++;
         }
         return n;
@@ -508,7 +514,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
     @Override
     public boolean containsValue(Object value) {
         if (props == null) return false;
-        for (Slot s : props.values()) {
+        for (PropertySlot s : props.values()) {
             if (s.tombstoned) continue;
             Object unwrapped = Engine.toJava(s.value);
             if (Objects.equals(unwrapped, value)) {
@@ -521,7 +527,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
     @Override
     public Object get(Object key) {
         // Map.get() — auto-unwrap, own properties only (no prototype chain).
-        Slot s = props == null || !(key instanceof String name) ? null : props.get(name);
+        PropertySlot s = props == null || !(key instanceof String name) ? null : props.get(name);
         if (s == null || s.tombstoned) return null;
         return Engine.toJava(s.value);
     }
@@ -531,10 +537,10 @@ class JsObject implements ObjectLike, Map<String, Object> {
         if (props == null) {
             props = new LinkedHashMap<>();
         }
-        Slot s = props.get(key);
+        PropertySlot s = props.get(key);
         Object previous = null;
         if (s == null) {
-            props.put(key, new Slot(key, value));
+            props.put(key, new DataSlot(key, value));
         } else {
             previous = s.tombstoned ? null : s.value;
             s.value = value;
@@ -546,7 +552,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
     @Override
     public Object remove(Object key) {
         if (props == null || !(key instanceof String name)) return null;
-        Slot s = props.remove(name);
+        PropertySlot s = props.remove(name);
         if (s == null || s.tombstoned) return null;
         return Engine.toJava(s.value);
     }
@@ -572,7 +578,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
     public Set<String> keySet() {
         if (props == null || props.isEmpty()) return Collections.emptySet();
         Set<String> keys = new LinkedHashSet<>(props.size());
-        for (Slot s : props.values()) {
+        for (PropertySlot s : props.values()) {
             if (!s.tombstoned) keys.add(s.name);
         }
         return keys;
@@ -582,7 +588,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
     public Collection<Object> values() {
         if (props == null || props.isEmpty()) return Collections.emptyList();
         List<Object> unwrapped = new ArrayList<>(props.size());
-        for (Slot s : props.values()) {
+        for (PropertySlot s : props.values()) {
             if (!s.tombstoned) unwrapped.add(Engine.toJava(s.value));
         }
         return unwrapped;
@@ -592,7 +598,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
     public Set<Entry<String, Object>> entrySet() {
         if (props == null || props.isEmpty()) return Collections.emptySet();
         Set<Entry<String, Object>> out = new LinkedHashSet<>(props.size());
-        for (Slot s : props.values()) {
+        for (PropertySlot s : props.values()) {
             if (s.tombstoned) continue;
             out.add(new AbstractMap.SimpleEntry<>(s.name, Engine.toJava(s.value)));
         }
@@ -626,15 +632,15 @@ class JsObject implements ObjectLike, Map<String, Object> {
      */
     public Iterable<KeyValue> jsEntries() {
         return () -> new Iterator<>() {
-            final Iterator<Slot> source = props == null
-                    ? Collections.<Slot>emptyIterator()
+            final Iterator<PropertySlot> source = props == null
+                    ? Collections.<PropertySlot>emptyIterator()
                     : props.values().iterator();
             int index = 0;
-            Slot peeked = null;
+            PropertySlot peeked = null;
 
             private boolean advance() {
                 while (source.hasNext()) {
-                    Slot s = source.next();
+                    PropertySlot s = source.next();
                     if (s.tombstoned) continue;
                     if (isEnumerable(s.name)) {
                         peeked = s;
@@ -655,7 +661,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
                 if (peeked == null && !advance()) {
                     throw new NoSuchElementException();
                 }
-                Slot s = peeked;
+                PropertySlot s = peeked;
                 peeked = null;
                 // Read s.value at yield time so callback-driven mutations
                 // before the next next() call propagate.

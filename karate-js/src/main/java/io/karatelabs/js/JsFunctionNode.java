@@ -44,7 +44,7 @@ class JsFunctionNode extends JsFunction {
     final List<Node> argNodes;
     final int argCount;
     final CoreContext declaredContext;
-    final Map<String, Slot> capturedBindings; // References to Slots at creation time
+    final Map<String, BindingSlot> capturedBindings; // References to Slots at creation time
 
     public JsFunctionNode(boolean arrow, Node node, List<Node> argNodes, Node body, CoreContext declaredContext) {
         this.arrow = arrow;
@@ -62,13 +62,13 @@ class JsFunctionNode extends JsFunction {
         this.capturedBindings = captureBindings(declaredContext);
     }
 
-    private static Map<String, Slot> captureBindings(CoreContext context) {
+    private static Map<String, BindingSlot> captureBindings(CoreContext context) {
         if (context.bindings == null) {
             return null;
         }
-        Map<String, Slot> snapshot = null;
+        Map<String, BindingSlot> snapshot = null;
         for (String key : context.bindings.keys()) {
-            Slot s = context.bindings.getSlot(key);
+            BindingSlot s = context.bindings.getSlot(key);
             if (s != null && s.scope != null) { // Only capture let/const bindings
                 if (snapshot == null) {
                     snapshot = new HashMap<>(4); // Typically few captured vars

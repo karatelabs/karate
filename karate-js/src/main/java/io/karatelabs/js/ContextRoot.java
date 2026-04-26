@@ -89,8 +89,8 @@ class ContextRoot implements Context {
      * and returns its newly-cached Slot. Returns {@code null} if the name
      * is neither user-bound nor a recognized built-in.
      */
-    Slot resolveOrInit(String key) {
-        Slot s = bindings.getSlot(key);
+    BindingSlot resolveOrInit(String key) {
+        BindingSlot s = bindings.getSlot(key);
         if (s != null) {
             return s;
         }
@@ -109,7 +109,7 @@ class ContextRoot implements Context {
      * {@link #resolveOrInit} with Supplier-unwrap and undefined fallback.
      */
     Object get(String key) {
-        Slot s = resolveOrInit(key);
+        BindingSlot s = resolveOrInit(key);
         if (s == null) {
             return Terms.UNDEFINED;
         }

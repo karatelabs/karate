@@ -1320,7 +1320,7 @@ class Interpreter {
         if (context.callArgs != null && "arguments".equals(varName)) {
             return Arrays.asList(context.callArgs);
         }
-        Slot s = context.resolve(varName);
+        BindingSlot s = context.resolve(varName);
         if (s == null) {
             throw JsErrorException.referenceError(varName + " is not defined");
         }

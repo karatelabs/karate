@@ -41,7 +41,7 @@ import java.util.Map;
  */
 class BindingsStore {
 
-    private final Map<String, Slot> map;
+    private final Map<String, BindingSlot> map;
 
     BindingsStore() {
         this.map = new HashMap<>();
@@ -52,7 +52,7 @@ class BindingsStore {
         this.map = new HashMap<>();
         if (source != null) {
             for (Map.Entry<String, Object> e : source.entrySet()) {
-                map.put(e.getKey(), new Slot(e.getKey(), e.getValue()));
+                map.put(e.getKey(), new BindingSlot(e.getKey(), e.getValue()));
             }
         }
     }
@@ -63,15 +63,15 @@ class BindingsStore {
      */
     BindingsStore(BindingsStore other) {
         this.map = new HashMap<>();
-        for (Map.Entry<String, Slot> e : other.map.entrySet()) {
-            map.put(e.getKey(), new Slot(e.getValue()));
+        for (Map.Entry<String, BindingSlot> e : other.map.entrySet()) {
+            map.put(e.getKey(), new BindingSlot(e.getValue()));
         }
     }
 
     //=== raw read =====================================================================================================
 
     Object getMember(String key) {
-        Slot s = map.get(key);
+        BindingSlot s = map.get(key);
         return s != null ? s.value : null;
     }
 
@@ -80,12 +80,12 @@ class BindingsStore {
     }
 
     /** Slot accessor for TDZ checks, scope inspection, evalId stamping, etc. */
-    Slot getSlot(String key) {
+    BindingSlot getSlot(String key) {
         return map.get(key);
     }
 
     boolean isHidden(String key) {
-        Slot s = map.get(key);
+        BindingSlot s = map.get(key);
         return s != null && s.hidden;
     }
 
@@ -97,7 +97,7 @@ class BindingsStore {
      */
     Map<String, Object> getRawMap() {
         Map<String, Object> result = new HashMap<>(map.size());
-        for (Map.Entry<String, Slot> e : map.entrySet()) {
+        for (Map.Entry<String, BindingSlot> e : map.entrySet()) {
             result.put(e.getKey(), e.getValue().value);
         }
         return result;
@@ -111,7 +111,7 @@ class BindingsStore {
      */
     Map<String, Object> getRawMap(boolean hidden) {
         Map<String, Object> result = new HashMap<>(map.size());
-        for (Map.Entry<String, Slot> e : map.entrySet()) {
+        for (Map.Entry<String, BindingSlot> e : map.entrySet()) {
             if (e.getValue().hidden == hidden) {
                 result.put(e.getKey(), e.getValue().value);
             }
@@ -129,7 +129,7 @@ class BindingsStore {
     /** Write with optional let/const scope. Updates an existing entry's value
      * (and scope, if provided), or inserts a fresh Slot. */
     void putMember(String key, Object value, BindScope scope, boolean initialized) {
-        Slot existing = map.get(key);
+        BindingSlot existing = map.get(key);
         if (existing != null) {
             existing.value = value;
             if (scope != null) {
@@ -137,9 +137,9 @@ class BindingsStore {
                 existing.initialized = initialized;
             }
         } else if (scope != null) {
-            map.put(key, new Slot(key, value, scope, initialized));
+            map.put(key, new BindingSlot(key, value, scope, initialized));
         } else {
-            map.put(key, new Slot(key, value));
+            map.put(key, new BindingSlot(key, value));
         }
     }
 
@@ -149,12 +149,12 @@ class BindingsStore {
      * and by {@link ContextRoot}'s lazy built-in cache.
      */
     void putHidden(String key, Object value) {
-        Slot existing = map.get(key);
+        BindingSlot existing = map.get(key);
         if (existing != null) {
             existing.value = value;
             existing.hidden = true;
         } else {
-            Slot s = new Slot(key, value);
+            BindingSlot s = new BindingSlot(key, value);
             s.hidden = true;
             map.put(key, s);
         }
@@ -167,7 +167,7 @@ class BindingsStore {
     /** Reset binding metadata so a let/const re-declaration in the same loop
      * iteration re-initializes cleanly. */
     void clearBindingScope(String key) {
-        Slot s = map.get(key);
+        BindingSlot s = map.get(key);
         if (s != null) {
             s.scope = null;
             s.initialized = true;
@@ -179,24 +179,24 @@ class BindingsStore {
     /** Push a binding at {@code level}, linking any existing binding as the
      * shadowed previous-of-this-name. */
     void pushBinding(String key, Object value, BindScope scope, int level) {
-        Slot existing = map.get(key);
-        Slot newSlot = new Slot(key, value, scope, true, level, existing);
+        BindingSlot existing = map.get(key);
+        BindingSlot newSlot = new BindingSlot(key, value, scope, true, level, existing);
         map.put(key, newSlot);
     }
 
     /** Push a binding with explicit initialized state (TDZ-aware paths). */
     void pushBinding(String key, Object value, BindScope scope, int level, boolean initialized) {
-        Slot existing = map.get(key);
-        Slot newSlot = new Slot(key, value, scope, initialized, level, existing);
+        BindingSlot existing = map.get(key);
+        BindingSlot newSlot = new BindingSlot(key, value, scope, initialized, level, existing);
         map.put(key, newSlot);
     }
 
     /** Drop every binding at {@code level}, restoring shadowed predecessors. */
     void popLevel(int level) {
-        Iterator<Map.Entry<String, Slot>> it = map.entrySet().iterator();
+        Iterator<Map.Entry<String, BindingSlot>> it = map.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<String, Slot> e = it.next();
-            Slot s = e.getValue();
+            Map.Entry<String, BindingSlot> e = it.next();
+            BindingSlot s = e.getValue();
             if (s.level == level) {
                 if (s.previous != null) {
                     e.setValue(s.previous);

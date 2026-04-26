@@ -61,7 +61,7 @@ class CoreContext implements Context {
     List<ScopeEntry> scopeStack; // Lazy - created on first enterScope
 
     // Captured bindings for closures (references to Slots from function creation time)
-    final Map<String, Slot> capturedBindings;
+    final Map<String, BindingSlot> capturedBindings;
 
 
     CoreContext(ContextRoot root, CoreContext parent, int depth, Node node, ContextScope scope, BindingsStore bindings) {
@@ -85,7 +85,7 @@ class CoreContext implements Context {
 
     // Unified constructor for child contexts (function calls)
     CoreContext(CoreContext parent, Node node, Object[] functionArgs,
-                CoreContext outer, Map<String, Slot> captured) {
+                CoreContext outer, Map<String, BindingSlot> captured) {
         this.root = parent.root;
         this.parent = parent;
         this.depth = parent.depth + 1;
@@ -224,15 +224,15 @@ class CoreContext implements Context {
     // Chain order: own bindings (local) → captured (closure snapshot) →
     // outer (lexical parent for function contexts; dynamic parent
     // otherwise — see issue #2802) → root (with lazy built-in init).
-    Slot resolve(String key) {
+    BindingSlot resolve(String key) {
         if (bindings != null) {
-            Slot s = bindings.getSlot(key);
+            BindingSlot s = bindings.getSlot(key);
             if (s != null) {
                 return s;
             }
         }
         if (capturedBindings != null) {
-            Slot s = capturedBindings.get(key);
+            BindingSlot s = capturedBindings.get(key);
             if (s != null) {
                 return s;
             }
@@ -244,12 +244,12 @@ class CoreContext implements Context {
         // caller's parameter name used to shadow the callee's closure-
         // captured `var` / parameter of the same name.
         if (outer != null) {
-            Slot s = outer.resolve(key);
+            BindingSlot s = outer.resolve(key);
             if (s != null) {
                 return s;
             }
         } else if (parent != null) {
-            Slot s = parent.resolve(key);
+            BindingSlot s = parent.resolve(key);
             if (s != null) {
                 return s;
             }
@@ -264,7 +264,7 @@ class CoreContext implements Context {
         if (callArgs != null && "arguments".equals(key)) {
             return Arrays.asList(callArgs);
         }
-        Slot s = resolve(key);
+        BindingSlot s = resolve(key);
         if (s == null) {
             return Terms.UNDEFINED;
         }
@@ -273,7 +273,7 @@ class CoreContext implements Context {
 
     /** Apply TDZ check + Supplier-unwrap to a resolved Slot. Shared between
      *  {@link #get} and {@link Interpreter#evalRefExpr}'s single-walk path. */
-    Object readSlot(Slot s, String key) {
+    Object readSlot(BindingSlot s, String key) {
         if (s.scope != null && !s.initialized) {
             throw JsErrorException.referenceError("cannot access '" + key + "' before initialization");
         }
@@ -303,7 +303,7 @@ class CoreContext implements Context {
             fn.name = key;
         }
         if (scope != null) { // let or const
-            Slot existing = bindings == null ? null : bindings.getSlot(key);
+            BindingSlot existing = bindings == null ? null : bindings.getSlot(key);
             if (existing != null && existing.scope != null && existing.level == currentLevel) {
                 ContextScope currentScope = getCurrentScope();
                 if (currentScope == ContextScope.LOOP_INIT || currentScope == ContextScope.LOOP_BODY) {
@@ -335,7 +335,7 @@ class CoreContext implements Context {
             if (bindings == null) {
                 bindings = new BindingsStore();
             }
-            Slot existing = bindings.getSlot(key);
+            BindingSlot existing = bindings.getSlot(key);
             if (existing != null && existing.level <= functionLevel) {
                 existing.value = value;
             } else {
@@ -349,7 +349,7 @@ class CoreContext implements Context {
     }
 
     void update(String key, Object value, Node node) {
-        Slot s = resolve(key);
+        BindingSlot s = resolve(key);
         if (s == null) {
             assignImplicitGlobal(key, value, node);
             return;
