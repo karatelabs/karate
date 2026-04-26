@@ -29,13 +29,12 @@ import java.util.*;
  * Singleton prototype for Array instances. Contains instance methods like map,
  * filter, reduce, push, pop, etc. Inherits from JsObjectPrototype.
  * <p>
- * Built-in methods are wrapped in {@link JsBuiltinMethod} so each method exposes
- * spec {@code length} and {@code name} as own properties (read by test262 via
- * {@code Array.prototype.push.length === 1} etc.). Method instances are cached
- * per-Engine in {@code _methodCache} so identity holds across reads
- * ({@code Array.prototype.push === Array.prototype.push}) and tombstones from
- * {@code delete Array.prototype.push} apply to a stable instance. The cache
- * resets per-Engine via {@link #clearSubclassState()}.
+ * Built-in methods are wrapped via {@link Prototype#method(String, int, JsCallable)}
+ * so each exposes spec {@code length}+{@code name} as own properties (read by
+ * test262 via {@code Array.prototype.push.length === 1} etc.); the base
+ * {@code Prototype} caches the wrapped instances per-Engine so identity holds
+ * and tombstones from {@code delete Array.prototype.push} apply to a stable
+ * instance.
  */
 class JsArrayPrototype extends Prototype {
 
@@ -50,77 +49,52 @@ class JsArrayPrototype extends Prototype {
     static final JsCallable DEFAULT_TO_STRING =
             (context, args) -> INSTANCE.join(context, new Object[0]);
 
-    private java.util.Map<String, JsBuiltinMethod> _methodCache;
-
     private JsArrayPrototype() {
         super(JsObjectPrototype.INSTANCE);
     }
 
     @Override
     protected Object getBuiltinProperty(String name) {
-        if (_methodCache != null) {
-            JsBuiltinMethod cached = _methodCache.get(name);
-            if (cached != null) return cached;
-        }
-        Object result = resolveBuiltinProperty(name);
-        if (result instanceof JsBuiltinMethod jbm) {
-            if (_methodCache == null) {
-                _methodCache = new java.util.HashMap<>();
-            }
-            _methodCache.put(name, jbm);
-        }
-        return result;
-    }
-
-    private Object resolveBuiltinProperty(String name) {
+        // toString uses DEFAULT_TO_STRING for identity-by-reference detection
+        // (JsConsole compares against it); it stays unwrapped.
+        if ("toString".equals(name)) return DEFAULT_TO_STRING;
         return switch (name) {
-            // toString uses DEFAULT_TO_STRING for identity-by-reference detection;
-            // it stays unwrapped. Length 0 / name "toString" are reported by the
-            // raw lambda's intrinsic defaults via JsBuiltinMethod for any code that
-            // probes via Array.prototype.toString.length (which would default to 0
-            // since it's not a JsFunction at all — fine for now).
-            case "toString" -> DEFAULT_TO_STRING;
-            case "map" -> new JsBuiltinMethod("map", 1, this::map);
-            case "filter" -> new JsBuiltinMethod("filter", 1, this::filter);
-            case "join" -> new JsBuiltinMethod("join", 1, this::join);
-            case "find" -> new JsBuiltinMethod("find", 1, this::find);
-            case "findIndex" -> new JsBuiltinMethod("findIndex", 1, this::findIndex);
-            case "push" -> new JsBuiltinMethod("push", 1, this::push);
-            case "reverse" -> new JsBuiltinMethod("reverse", 0, this::reverse);
-            case "includes" -> new JsBuiltinMethod("includes", 1, this::includes);
-            case "indexOf" -> new JsBuiltinMethod("indexOf", 1, this::indexOf);
-            case "slice" -> new JsBuiltinMethod("slice", 2, this::slice);
-            case "forEach" -> new JsBuiltinMethod("forEach", 1, this::forEach);
-            case "concat" -> new JsBuiltinMethod("concat", 1, this::concat);
-            case "every" -> new JsBuiltinMethod("every", 1, this::every);
-            case "some" -> new JsBuiltinMethod("some", 1, this::some);
-            case "reduce" -> new JsBuiltinMethod("reduce", 1, this::reduce);
-            case "reduceRight" -> new JsBuiltinMethod("reduceRight", 1, this::reduceRight);
-            case "flat" -> new JsBuiltinMethod("flat", 0, this::flat);
-            case "flatMap" -> new JsBuiltinMethod("flatMap", 1, this::flatMap);
-            case "sort" -> new JsBuiltinMethod("sort", 1, this::sort);
-            case "fill" -> new JsBuiltinMethod("fill", 1, this::fill);
-            case "splice" -> new JsBuiltinMethod("splice", 2, this::splice);
-            case "shift" -> new JsBuiltinMethod("shift", 0, this::shift);
-            case "unshift" -> new JsBuiltinMethod("unshift", 1, this::unshift);
-            case "lastIndexOf" -> new JsBuiltinMethod("lastIndexOf", 1, this::lastIndexOf);
-            case "pop" -> new JsBuiltinMethod("pop", 0, this::pop);
-            case "at" -> new JsBuiltinMethod("at", 1, this::at);
-            case "copyWithin" -> new JsBuiltinMethod("copyWithin", 2, this::copyWithin);
-            case "keys" -> new JsBuiltinMethod("keys", 0, this::keys);
-            case "values" -> new JsBuiltinMethod("values", 0, this::values);
-            case "entries" -> new JsBuiltinMethod("entries", 0, this::entries);
-            case "findLast" -> new JsBuiltinMethod("findLast", 1, this::findLast);
-            case "findLastIndex" -> new JsBuiltinMethod("findLastIndex", 1, this::findLastIndex);
-            case "with" -> new JsBuiltinMethod("with", 2, this::withMethod);
-            case "group" -> new JsBuiltinMethod("group", 1, this::group);
+            case "map" -> method(name, 1, this::map);
+            case "filter" -> method(name, 1, this::filter);
+            case "join" -> method(name, 1, this::join);
+            case "find" -> method(name, 1, this::find);
+            case "findIndex" -> method(name, 1, this::findIndex);
+            case "push" -> method(name, 1, this::push);
+            case "reverse" -> method(name, 0, this::reverse);
+            case "includes" -> method(name, 1, this::includes);
+            case "indexOf" -> method(name, 1, this::indexOf);
+            case "slice" -> method(name, 2, this::slice);
+            case "forEach" -> method(name, 1, this::forEach);
+            case "concat" -> method(name, 1, this::concat);
+            case "every" -> method(name, 1, this::every);
+            case "some" -> method(name, 1, this::some);
+            case "reduce" -> method(name, 1, this::reduce);
+            case "reduceRight" -> method(name, 1, this::reduceRight);
+            case "flat" -> method(name, 0, this::flat);
+            case "flatMap" -> method(name, 1, this::flatMap);
+            case "sort" -> method(name, 1, this::sort);
+            case "fill" -> method(name, 1, this::fill);
+            case "splice" -> method(name, 2, this::splice);
+            case "shift" -> method(name, 0, this::shift);
+            case "unshift" -> method(name, 1, this::unshift);
+            case "lastIndexOf" -> method(name, 1, this::lastIndexOf);
+            case "pop" -> method(name, 0, this::pop);
+            case "at" -> method(name, 1, this::at);
+            case "copyWithin" -> method(name, 2, this::copyWithin);
+            case "keys" -> method(name, 0, this::keys);
+            case "values" -> method(name, 0, this::values);
+            case "entries" -> method(name, 0, this::entries);
+            case "findLast" -> method(name, 1, this::findLast);
+            case "findLastIndex" -> method(name, 1, this::findLastIndex);
+            case "with" -> method(name, 2, this::withMethod);
+            case "group" -> method(name, 1, this::group);
             default -> null;
         };
-    }
-
-    @Override
-    protected void clearSubclassState() {
-        if (_methodCache != null) _methodCache.clear();
     }
 
     // Helper methods

@@ -30,14 +30,14 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * Singleton prototype for String instances. Methods wrapped in
- * {@link JsBuiltinMethod} for spec {@code length}+{@code name}; cached per-Engine.
+ * Singleton prototype for String instances. Methods wrapped via
+ * {@link Prototype#method(String, int, JsCallable)} for spec
+ * {@code length}+{@code name}; the base class caches wrapped instances
+ * per-Engine.
  */
 class JsStringPrototype extends Prototype {
 
     static final JsStringPrototype INSTANCE = new JsStringPrototype();
-
-    private java.util.Map<String, JsBuiltinMethod> _methodCache;
 
     private JsStringPrototype() {
         super(JsObjectPrototype.INSTANCE);
@@ -45,64 +45,46 @@ class JsStringPrototype extends Prototype {
 
     @Override
     protected Object getBuiltinProperty(String name) {
-        if (_methodCache != null) {
-            JsBuiltinMethod cached = _methodCache.get(name);
-            if (cached != null) return cached;
-        }
-        Object result = resolveBuiltinProperty(name);
-        if (result instanceof JsBuiltinMethod jbm) {
-            if (_methodCache == null) {
-                _methodCache = new java.util.HashMap<>();
-            }
-            _methodCache.put(name, jbm);
-        }
-        return result;
-    }
-
-    private Object resolveBuiltinProperty(String name) {
         return switch (name) {
-            case "indexOf" -> new JsBuiltinMethod("indexOf", 1, this::indexOf);
-            case "startsWith" -> new JsBuiltinMethod("startsWith", 1, this::startsWith);
-            case "getBytes" -> new JsBuiltinMethod("getBytes", 0, this::getBytes);
-            case "split" -> new JsBuiltinMethod("split", 2, this::split);
-            case "charAt" -> new JsBuiltinMethod("charAt", 1, this::charAt);
-            case "charCodeAt" -> new JsBuiltinMethod("charCodeAt", 1, this::charCodeAt);
-            case "codePointAt" -> new JsBuiltinMethod("codePointAt", 1, this::codePointAt);
-            case "concat" -> new JsBuiltinMethod("concat", 1, this::concat);
-            case "endsWith" -> new JsBuiltinMethod("endsWith", 1, this::endsWith);
-            case "includes" -> new JsBuiltinMethod("includes", 1, this::includes);
-            case "lastIndexOf" -> new JsBuiltinMethod("lastIndexOf", 1, this::lastIndexOf);
-            case "padEnd" -> new JsBuiltinMethod("padEnd", 1, this::padEnd);
-            case "padStart" -> new JsBuiltinMethod("padStart", 1, this::padStart);
-            case "repeat" -> new JsBuiltinMethod("repeat", 1, this::repeat);
-            case "slice" -> new JsBuiltinMethod("slice", 2, this::slice);
-            case "substring" -> new JsBuiltinMethod("substring", 2, this::substring);
-            case "toLowerCase" -> new JsBuiltinMethod("toLowerCase", 0, this::toLowerCase);
-            case "toUpperCase" -> new JsBuiltinMethod("toUpperCase", 0, this::toUpperCase);
-            case "trim" -> new JsBuiltinMethod("trim", 0, this::trim);
-            case "trimStart" -> new JsBuiltinMethod("trimStart", 0, this::trimStart);
-            case "trimLeft" -> new JsBuiltinMethod("trimLeft", 0, this::trimStart);
-            case "trimEnd" -> new JsBuiltinMethod("trimEnd", 0, this::trimEnd);
-            case "trimRight" -> new JsBuiltinMethod("trimRight", 0, this::trimEnd);
-            case "replace" -> new JsBuiltinMethod("replace", 2, this::replace);
-            case "replaceAll" -> new JsBuiltinMethod("replaceAll", 2, this::replaceAll);
-            case "match" -> new JsBuiltinMethod("match", 1, this::match);
-            case "matchAll" -> new JsBuiltinMethod("matchAll", 1, this::matchAll);
-            case "search" -> new JsBuiltinMethod("search", 1, this::search);
-            case "valueOf" -> new JsBuiltinMethod("valueOf", 0, this::valueOf);
-            case "toLocaleLowerCase" -> new JsBuiltinMethod("toLocaleLowerCase", 0, this::toLowerCase);
-            case "toLocaleUpperCase" -> new JsBuiltinMethod("toLocaleUpperCase", 0, this::toUpperCase);
-            case "at" -> new JsBuiltinMethod("at", 1, this::at);
-            case "toString" -> new JsBuiltinMethod("toString", 0, this::valueOf);
-            case "normalize" -> new JsBuiltinMethod("normalize", 0, this::normalize);
-            case "localeCompare" -> new JsBuiltinMethod("localeCompare", 1, this::localeCompare);
+            case "indexOf" -> method(name, 1, this::indexOf);
+            case "startsWith" -> method(name, 1, this::startsWith);
+            case "getBytes" -> method(name, 0, this::getBytes);
+            case "split" -> method(name, 2, this::split);
+            case "charAt" -> method(name, 1, this::charAt);
+            case "charCodeAt" -> method(name, 1, this::charCodeAt);
+            case "codePointAt" -> method(name, 1, this::codePointAt);
+            case "concat" -> method(name, 1, this::concat);
+            case "endsWith" -> method(name, 1, this::endsWith);
+            case "includes" -> method(name, 1, this::includes);
+            case "lastIndexOf" -> method(name, 1, this::lastIndexOf);
+            case "padEnd" -> method(name, 1, this::padEnd);
+            case "padStart" -> method(name, 1, this::padStart);
+            case "repeat" -> method(name, 1, this::repeat);
+            case "slice" -> method(name, 2, this::slice);
+            case "substring" -> method(name, 2, this::substring);
+            case "toLowerCase" -> method(name, 0, this::toLowerCase);
+            case "toUpperCase" -> method(name, 0, this::toUpperCase);
+            case "trim" -> method(name, 0, this::trim);
+            // trimLeft / trimRight are spec aliases of trimStart / trimEnd, but
+            // each must report its own name (see name.js tests).
+            case "trimStart" -> method(name, 0, this::trimStart);
+            case "trimLeft" -> method(name, 0, this::trimStart);
+            case "trimEnd" -> method(name, 0, this::trimEnd);
+            case "trimRight" -> method(name, 0, this::trimEnd);
+            case "replace" -> method(name, 2, this::replace);
+            case "replaceAll" -> method(name, 2, this::replaceAll);
+            case "match" -> method(name, 1, this::match);
+            case "matchAll" -> method(name, 1, this::matchAll);
+            case "search" -> method(name, 1, this::search);
+            case "valueOf" -> method(name, 0, this::valueOf);
+            case "toLocaleLowerCase" -> method(name, 0, this::toLowerCase);
+            case "toLocaleUpperCase" -> method(name, 0, this::toUpperCase);
+            case "at" -> method(name, 1, this::at);
+            case "toString" -> method(name, 0, this::valueOf);
+            case "normalize" -> method(name, 0, this::normalize);
+            case "localeCompare" -> method(name, 1, this::localeCompare);
             default -> null;
         };
-    }
-
-    @Override
-    protected void clearSubclassState() {
-        if (_methodCache != null) _methodCache.clear();
     }
 
     // Helper method to get string from this context

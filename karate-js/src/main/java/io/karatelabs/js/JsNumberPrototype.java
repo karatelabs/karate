@@ -29,15 +29,14 @@ import java.text.DecimalFormat;
 import java.util.Map;
 
 /**
- * Singleton prototype for Number instances. Methods are wrapped in
- * {@link JsBuiltinMethod} so spec {@code length}+{@code name} resolve as own
- * properties; instances are cached per-Engine in {@code _methodCache}.
+ * Singleton prototype for Number instances. Methods wrapped via
+ * {@link Prototype#method(String, int, JsCallable)} for spec
+ * {@code length}+{@code name}; the base class caches wrapped instances
+ * per-Engine.
  */
 class JsNumberPrototype extends Prototype {
 
     static final JsNumberPrototype INSTANCE = new JsNumberPrototype();
-
-    private java.util.Map<String, JsBuiltinMethod> _methodCache;
 
     private JsNumberPrototype() {
         super(JsObjectPrototype.INSTANCE);
@@ -45,34 +44,14 @@ class JsNumberPrototype extends Prototype {
 
     @Override
     protected Object getBuiltinProperty(String name) {
-        if (_methodCache != null) {
-            JsBuiltinMethod cached = _methodCache.get(name);
-            if (cached != null) return cached;
-        }
-        Object result = resolveBuiltinProperty(name);
-        if (result instanceof JsBuiltinMethod jbm) {
-            if (_methodCache == null) {
-                _methodCache = new java.util.HashMap<>();
-            }
-            _methodCache.put(name, jbm);
-        }
-        return result;
-    }
-
-    private Object resolveBuiltinProperty(String name) {
         return switch (name) {
-            case "toFixed" -> new JsBuiltinMethod("toFixed", 1, this::toFixed);
-            case "toPrecision" -> new JsBuiltinMethod("toPrecision", 1, this::toPrecision);
-            case "toLocaleString" -> new JsBuiltinMethod("toLocaleString", 0, this::toLocaleString);
-            case "toString" -> new JsBuiltinMethod("toString", 1, this::toStringMethod);
-            case "valueOf" -> new JsBuiltinMethod("valueOf", 0, this::valueOf);
+            case "toFixed" -> method(name, 1, this::toFixed);
+            case "toPrecision" -> method(name, 1, this::toPrecision);
+            case "toLocaleString" -> method(name, 0, this::toLocaleString);
+            case "toString" -> method(name, 1, this::toStringMethod);
+            case "valueOf" -> method(name, 0, this::valueOf);
             default -> null;
         };
-    }
-
-    @Override
-    protected void clearSubclassState() {
-        if (_methodCache != null) _methodCache.clear();
     }
 
     private Object toStringMethod(Context context, Object[] args) {

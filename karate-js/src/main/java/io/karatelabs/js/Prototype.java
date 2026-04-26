@@ -73,17 +73,10 @@ abstract class Prototype implements ObjectLike {
             if (p.tombstones != null) {
                 p.tombstones.clear();
             }
-            p.clearSubclassState();
+            if (p._methodCache != null) {
+                p._methodCache.clear();
+            }
         }
-    }
-
-    /**
-     * Subclass hook for clearing per-Engine caches (e.g. a {@code _methodCache}
-     * holding wrapped {@link JsBuiltinMethod} instances). Default no-op; called
-     * from {@link #clearAllUserProps()} at the start of each {@link Engine}
-     * session.
-     */
-    protected void clearSubclassState() {
     }
 
     private final Prototype __proto__;
@@ -98,6 +91,15 @@ abstract class Prototype implements ObjectLike {
      * {@link #putMember} clears the tombstone.
      */
     private Set<String> tombstones;
+    /**
+     * Per-Engine cache of {@link JsBuiltinMethod} instances returned by
+     * {@link #getBuiltinProperty(String)}. Caches keep
+     * {@code Foo.prototype.bar === Foo.prototype.bar} stable within a session
+     * and let tombstones target the same instance reads return. Cleared per
+     * Engine via {@link #clearAllUserProps()}; allocated on first method
+     * resolution so prototypes that expose only data slots stay zero-cost.
+     */
+    private Map<String, JsBuiltinMethod> _methodCache;
 
     Prototype(Prototype __proto__) {
         this.__proto__ = __proto__;
@@ -167,7 +169,7 @@ abstract class Prototype implements ObjectLike {
         // entirely when tombstoned (a `delete Foo.prototype.x` should not be
         // silently undone by re-resolving the built-in).
         if (tombstones == null || !tombstones.contains(name)) {
-            Object result = getBuiltinProperty(name);
+            Object result = lookupBuiltin(name);
             if (result != null) {
                 return result;
             }
@@ -177,6 +179,38 @@ abstract class Prototype implements ObjectLike {
             return __proto__.getMember(name);
         }
         return null;
+    }
+
+    /**
+     * Cache-aware wrapper for {@link #getBuiltinProperty(String)}. Returns the
+     * cached {@link JsBuiltinMethod} for {@code name} if present; otherwise calls
+     * the subclass's {@code getBuiltinProperty} and caches the result if it's a
+     * wrapped method. Non-method returns (data slots like {@code constructor}
+     * pointers) bypass the cache and are re-resolved each call.
+     */
+    private Object lookupBuiltin(String name) {
+        if (_methodCache != null) {
+            JsBuiltinMethod cached = _methodCache.get(name);
+            if (cached != null) return cached;
+        }
+        Object result = getBuiltinProperty(name);
+        if (result instanceof JsBuiltinMethod jbm) {
+            if (_methodCache == null) {
+                _methodCache = new LinkedHashMap<>();
+            }
+            _methodCache.put(name, jbm);
+        }
+        return result;
+    }
+
+    /**
+     * Sugar for the canonical {@code new JsBuiltinMethod(name, length, delegate)}
+     * call used by {@link #getBuiltinProperty(String)} subclasses. Lets each
+     * case in the dispatch switch read like
+     * {@code case "push" -> method(name, 1, this::push)}.
+     */
+    protected JsBuiltinMethod method(String methodName, int length, JsCallable delegate) {
+        return new JsBuiltinMethod(methodName, length, delegate);
     }
 
     /**
