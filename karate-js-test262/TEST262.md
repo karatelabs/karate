@@ -177,8 +177,8 @@ Action list — start at the top. Ordered by core-engine confidence
 cross-multiplied by score impact. Re-probe with the relevant `--only` glob
 before scoping a session.
 
-**Current state baseline** (last sampled 2026-04-26, post partial Symbol
-expansion + Date.@@toPrimitive):
+**Current state baseline** (last sampled 2026-04-26, post JsArray indexed-
+accessor enforcement + structured `EngineException.getJsMessage`):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
@@ -186,8 +186,8 @@ expansion + Date.@@toPrimitive):
 | `test/built-ins/Math/**` | 293 | 33 | 1 | 327 |
 | `test/built-ins/Number/**` | 232 | 96 | 12 | 340 |
 | `test/built-ins/String/**` | 456 | 717 | 50 | 1223 |
-| `test/built-ins/Array/**` | 1203 | 1698 | 180 | 3081 |
-| `test/built-ins/Object/**` | 2005 | 1281 | 125 | 3411 |
+| `test/built-ins/Array/**` | 1242 | 1659 | 180 | 3081 |
+| `test/built-ins/Object/**` | 2014 | 1272 | 125 | 3411 |
 | `test/built-ins/Date/**` | 500 | 52 | 42 | 594 |
 | `test/built-ins/Function/**` | 229 | 152 | 128 | 509 |
 | `test/built-ins/Symbol/**` | 2 | 47 | 49 | 98 |
@@ -213,24 +213,23 @@ expansion + Date.@@toPrimitive):
    work. Re-probe before scoping with `test/built-ins/Symbol/**` to size
    per-feature cluster.
 
-2. **`compareArray.js` un-skip.** Gated on accessor enforcement on JsArray
-   indices (~5 fails today on numeric-index-vs-accessor coexistence). Many
-   `compareArray.js` users lean on `Object.defineProperty` get/set —
-   without enforcement, iteration-protocol tests that throw via accessor
-   getters loop forever. Once accessor descriptors on `JsArray.getMember(numeric)`
-   dispatch through the JsAccessor map, un-skipping it lights up many tests.
+2. **JsArray indexed-accessor + descriptor coexistence (residual).** Layer-1
+   landed 2026-04-26: `Object.defineProperty(arr, i, {get/set: ...})` now
+   dispatches through the JsAccessor map for both reads and writes —
+   `JsArray.getIndexedSlot(i)` consults `namedProps` first, then falls back
+   to the dense list; `PropertyAccess.getByIndex/setByIndex` invoke the
+   accessor when the slot resolves to one; `JsArrayPrototype.rawList` /
+   `jsEntries` take the slow snapshot path when `arr.hasAnyDescriptor()`.
+   Net delta: **+39 Array, +9 Object PASS** (≈ +48 total) with no JUnit
+   regressions. Residual is the bigger spec piece: `arr.length = N` does
+   not truncate the dense list (so `every` / `with` accessor-mid-iteration
+   tests fail at the *iteration semantics* layer, not the accessor layer);
+   `Object.defineProperty(arr, "5", ...)` on `[1,2,3]` doesn't bump
+   `length` to 6 either. Both gate the next ~30-50 Array-prototype tests
+   and need a `JsArray.setLength(int)` plus length-bump in
+   `applyDefine`'s array branch.
 
-3. **`EngineException` JS-message exposure (residual).** The doubled
-   `Test262Error: Test262Error: …` prefix is fixed (engine-side
-   `JsError.toString` now skips the redundant `name + ': '` prepend). Still
-   open: the host-side `js failed: / ========== / Code: / Error: ...`
-   frame around runtime errors. Runner strips it in
-   `ErrorUtils.unwrapFraming`, but JS-side fixtures that inspect `.message`
-   via `assert.throws` still see the framed text. Reserve the frame for
-   host-side logging; expose the raw JS message on `EngineException`
-   directly. Per the *errors must look like JavaScript* maxim.
-
-4. **`JsArray.length` descriptor + Tier-1 expression residuals.** Surgical
+3. **`JsArray.length` descriptor + Tier-1 expression residuals.** Surgical
    wins worth picking off opportunistically:
    - **`JsArray.length` descriptor** — spec is `{writable: true, enumerable:
      false, configurable: false}`. Override `getOwnAttrs("length")` on
@@ -372,6 +371,11 @@ prose lives in [JS_ENGINE.md § Spec Invariants](../docs/JS_ENGINE.md#spec-invar
   (`IndexOutOfBoundsException`/`ArithmeticException` → RangeError; NPE/CCE/NFE → TypeError)
 - `JsError.constructor` populated at JS try/catch wrapping
 - Error position framing leads with the message (`at <path>:<line>:<col>`)
+- `EngineException` exposes a structured `getJsMessage()` (the unframed
+  JS-side `.message` value, no `<Name>:` prefix, no host `js failed:` frame)
+  alongside `getMessage()` (framed for logging) and `getJsErrorName()`. Host
+  callers building a JS-facing surface should prefer `getJsMessage()` —
+  no message-string parsing needed.
 
 **typeof & callable identity**
 - `typeof` reports `"function"` on every callable surface (JsInvokable,
@@ -434,6 +438,15 @@ prose lives in [JS_ENGINE.md § Spec Invariants](../docs/JS_ENGINE.md#spec-invar
   `.length` + indexed snapshot
 - `JsArray.getMember` resolves canonical numeric-index keys (rejects `"01"`,
   `"+1"`, `"1.0"`)
+- `JsArray` indexed-accessor enforcement: descriptors installed via
+  `Object.defineProperty(arr, i, {get/set/value: ...})` land in `namedProps`
+  under the canonical string-form key and take precedence over the dense
+  list backing store. Reads dispatch via `JsArray.getIndexedSlot(i)` (hot
+  path: single null-check on `namedProps`); writes route through the
+  named-key path when `hasIndexedDescriptor(i)` so accessor setters fire.
+  `rawList` / `jsEntries` take the per-index snapshot path when
+  `arr.hasAnyDescriptor()` so `Array.prototype.*` callbacks see resolved
+  values, not the JsAccessor wrapper.
 - `Function.prototype.bind` returns a new JsFunction with bound `thisObject`
   + pre-bound args
 

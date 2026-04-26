@@ -525,7 +525,12 @@ class PropertyAccess {
                 throw JsErrorException.typeError("cannot read properties of " + object + " (reading '[" + i + "]')");
             }
             if (object instanceof JsArray array) {
-                return array.getElement(i);
+                Object slot = array.getIndexedSlot(i);
+                if (slot instanceof JsAccessor acc) {
+                    return acc.getter == null ? Terms.UNDEFINED
+                            : Interpreter.invokeGetter(acc.getter, object, context);
+                }
+                return slot;
             }
             if (object instanceof List<?> list) {
                 if (i < 0 || i >= list.size()) return Terms.UNDEFINED;
@@ -541,7 +546,12 @@ class PropertyAccess {
             }
             ObjectLike converted = Terms.toObjectLike(object);
             if (converted instanceof JsArray jsArray) {
-                return jsArray.getElement(i);
+                Object slot = jsArray.getIndexedSlot(i);
+                if (slot instanceof JsAccessor acc) {
+                    return acc.getter == null ? Terms.UNDEFINED
+                            : Interpreter.invokeGetter(acc.getter, jsArray, context);
+                }
+                return slot;
             }
             if (object instanceof Map || object instanceof ObjectLike) {
                 return getByName(object, String.valueOf(index), optional, context, functionCall);
@@ -622,6 +632,15 @@ class PropertyAccess {
     private static void setByIndex(Object object, Object index, Object value, CoreContext context, Node trackingNode) {
         if (index instanceof Number n) {
             int i = n.intValue();
+            // JsArray with a descriptor at this index (accessor or attributed
+            // data property installed via Object.defineProperty) takes the slow
+            // path through setByName, which honors JsAccessor setters and
+            // future writable=false enforcement. The hot path (no descriptor)
+            // skips the check via JsArray.hasIndexedDescriptor's null guard.
+            if (object instanceof JsArray array && array.hasIndexedDescriptor(i)) {
+                setByName(object, String.valueOf(i), value, context, trackingNode);
+                return;
+            }
             if (object instanceof List) {
                 List<Object> list = (List<Object>) object;
                 Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;

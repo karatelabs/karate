@@ -103,9 +103,28 @@ class JsArrayPrototype extends Prototype {
     private static List<Object> rawList(Context context) {
         Object thisObj = context.getThisObject();
         if (thisObj instanceof JsArray arr) {
-            // Use toList() instead of arr.list to support subclasses like JsUint8Array
-            // which override toList() to provide values from their internal storage
-            return arr.toList();
+            // Fast path: plain array with no descriptors installed via
+            // Object.defineProperty. toList() is shared with JsUint8Array etc.
+            // whose subclass overrides provide alternate storage.
+            if (!arr.hasAnyDescriptor()) {
+                return arr.toList();
+            }
+            // Slow path: snapshot via getIndexedSlot so accessor descriptors
+            // installed at any index dispatch through the getter (matching the
+            // ObjectLike branch below for non-array array-likes).
+            CoreContext cc = context instanceof CoreContext cx ? cx : null;
+            int len = arr.size();
+            List<Object> snapshot = new ArrayList<>(len);
+            for (int i = 0; i < len; i++) {
+                Object v = arr.getIndexedSlot(i);
+                if (v instanceof JsAccessor acc) {
+                    v = acc.getter == null || cc == null
+                            ? Terms.UNDEFINED
+                            : Interpreter.invokeGetter(acc.getter, arr, cc);
+                }
+                snapshot.add(v == null ? Terms.UNDEFINED : v);
+            }
+            return snapshot;
         }
         if (thisObj instanceof List<?> list) {
             return (List<Object>) list;
@@ -149,16 +168,18 @@ class JsArrayPrototype extends Prototype {
 
     private static Iterable<KeyValue> jsEntries(Context context) {
         Object thisObj = context.getThisObject();
-        if (thisObj instanceof JsArray arr) {
+        if (thisObj instanceof JsArray arr && !arr.hasAnyDescriptor()) {
             return arr.jsEntries();
         }
         // Handle raw Java arrays (String[], int[], Object[], etc.) and byte[] via toObjectLike
         // Note: toJsArray excludes byte[], but toObjectLike handles it via JsUint8Array
         ObjectLike ol = Terms.toObjectLike(thisObj);
-        if (ol instanceof JsArray arr) {
+        if (ol instanceof JsArray arr && !arr.hasAnyDescriptor()) {
             return arr.jsEntries();
         }
-        // Falls through to the array-like snapshot in rawList for ObjectLike with .length.
+        // Falls through to the array-like snapshot in rawList for ObjectLike with .length —
+        // including JsArrays whose indices carry accessor descriptors, so the snapshot
+        // resolves the getters with the right `this`.
         List<Object> list = rawList(context);
         return () -> new Iterator<>() {
             int index = 0;

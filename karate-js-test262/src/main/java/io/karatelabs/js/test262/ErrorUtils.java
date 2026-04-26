@@ -129,6 +129,34 @@ public final class ErrorUtils {
     }
 
     /**
+     * Throwable-aware variant — uses {@link EngineException#getJsMessage()} when
+     * available (no parsing of host-side framing), otherwise falls back to the
+     * string-based path. Prefer this in new call sites; the string-only forms
+     * remain for callers that only have a {@code String} in hand.
+     */
+    public static String firstLine(Throwable t, String type, int maxLen) {
+        if (t instanceof EngineException ee && ee.getJsMessage() != null) {
+            return trimMessage(ee.getJsMessage(), type, maxLen);
+        }
+        return firstLine(t == null ? null : t.getMessage(), type, maxLen);
+    }
+
+    private static String trimMessage(String body, String type, int maxLen) {
+        if (body == null) return null;
+        int nl = body.indexOf('\n');
+        String line = nl < 0 ? body : body.substring(0, nl);
+        line = line.strip();
+        if (type != null) {
+            String prefix = type + ":";
+            if (line.startsWith(prefix)) {
+                line = line.substring(prefix.length()).stripLeading();
+            }
+        }
+        if (line.length() > maxLen) line = line.substring(0, maxLen - 1) + "…";
+        return line;
+    }
+
+    /**
      * Strips karate-js's standard {@code "js failed: / ========== / ... / Error: <body>"}
      * framing to return just the error body. Unchanged if no framing is detected.
      */

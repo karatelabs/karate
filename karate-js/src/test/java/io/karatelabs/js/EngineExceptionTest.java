@@ -164,6 +164,29 @@ class EngineExceptionTest {
     }
 
     @Test
+    void testGetJsMessageReturnsUnframedJsSideMessage() {
+        // getMessage() carries the host-facing "js failed: / Code: / Error: ..." frame
+        // for logs; getJsMessage() exposes the raw JS-side message that JS code would
+        // see via `e.message` inside a catch. Lets host callers (e.g. the test262
+        // runner's ErrorUtils.firstLine) skip the framing-parse step.
+        EngineException ex = assertThrowsEngineException("throw new TypeError('bad arg')");
+        assertEquals("bad arg", ex.getJsMessage());
+        assertTrue(ex.getMessage().contains("TypeError"), ex.getMessage());
+    }
+
+    @Test
+    void testGetJsMessageForEngineProducedRuntimeError() {
+        // Engine-emitted TypeError (calling a non-function) — JsError payload's
+        // message is the unframed body without the "TypeError: " prefix.
+        EngineException ex = assertThrowsEngineException("var x = 1; x()");
+        assertNotNull(ex.getJsMessage());
+        assertTrue(ex.getJsMessage().contains("not a function"), ex.getJsMessage());
+        // Must not carry the host frame in the JS-side surface.
+        assertFalse(ex.getJsMessage().contains("=========="), ex.getJsMessage());
+        assertFalse(ex.getJsMessage().contains("js failed"), ex.getJsMessage());
+    }
+
+    @Test
     void testJsErrorExceptionFactoriesCarryStructuredPayload() {
         // JsErrorException is the Java carrier engine code uses to throw JS errors.
         // Each factory produces a JsError payload with the right .name, and the

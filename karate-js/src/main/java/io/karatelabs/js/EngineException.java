@@ -26,9 +26,10 @@ package io.karatelabs.js;
 public class EngineException extends RuntimeException {
 
     private final String jsErrorName;
+    private final String jsMessage;
 
     public EngineException(String message, Throwable cause) {
-        this(message, cause, null);
+        this(message, cause, null, null);
     }
 
     /**
@@ -37,8 +38,21 @@ public class EngineException extends RuntimeException {
      *                     "URIError" | "EvalError" | "Error" | null if non-JS origin)
      */
     public EngineException(String message, Throwable cause, String jsErrorName) {
+        this(message, cause, jsErrorName, null);
+    }
+
+    /**
+     * @param jsErrorName canonical JS error constructor name (see above)
+     * @param jsMessage   the raw JS-side {@code .message} value — what {@code e.message}
+     *                    inside a JS {@code catch} would observe. Distinct from
+     *                    {@link #getMessage()}, which carries the host-facing
+     *                    {@code "js failed: / Code: / Error: ..."} frame for logs.
+     *                    Pass {@code null} when no JS-origin message is available.
+     */
+    public EngineException(String message, Throwable cause, String jsErrorName, String jsMessage) {
         super(message, cause);
         this.jsErrorName = jsErrorName;
+        this.jsMessage = jsMessage;
     }
 
     /**
@@ -48,6 +62,17 @@ public class EngineException extends RuntimeException {
      */
     public String getJsErrorName() {
         return jsErrorName;
+    }
+
+    /**
+     * @return the unframed JS-side message (what {@code e.message} would be inside
+     *         a JS {@code catch}), or {@code null} when the exception has no
+     *         JS-origin message. Callers building a JS-facing surface should
+     *         prefer this over {@link #getMessage()}, which intentionally carries
+     *         host-side framing (file/line/column) for logging.
+     */
+    public String getJsMessage() {
+        return jsMessage;
     }
 
 }

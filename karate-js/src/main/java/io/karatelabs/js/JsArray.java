@@ -301,6 +301,44 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         return list.get(index);  // Raw value
     }
 
+    /**
+     * Indexed read that honors descriptors installed via
+     * {@code Object.defineProperty(arr, i, {...})}. Such descriptors land in
+     * {@link #namedProps} under the canonical string-form key (e.g. {@code "0"})
+     * and take precedence over the dense {@link #list} backing store. Returns
+     * the raw stored value — including a {@link JsAccessor} when one was
+     * installed; the caller invokes the getter. Falls back to
+     * {@link #getElement(int)} (which returns {@link Terms#UNDEFINED} for
+     * out-of-bounds) when no descriptor is present.
+     * <p>
+     * Hot path: {@code namedProps == null} for plain arrays — single null
+     * check, no allocation, then the existing fast path.
+     */
+    Object getIndexedSlot(int index) {
+        if (namedProps != null && index >= 0) {
+            Object slot = namedProps.get(Integer.toString(index));
+            if (slot != null) return slot;
+        }
+        return getElement(index);
+    }
+
+    /** True iff a descriptor is installed at index {@code index} via {@link #namedProps}. */
+    boolean hasIndexedDescriptor(int index) {
+        return namedProps != null && index >= 0
+                && namedProps.containsKey(Integer.toString(index));
+    }
+
+    /**
+     * True iff any descriptor (numeric or otherwise) was installed via
+     * {@code Object.defineProperty} or a named-prop write. Lets bulk
+     * iterators (e.g. {@code Array.prototype.*}) skip the per-index slow
+     * path on plain arrays while still routing through accessor dispatch
+     * on the rare arrays that need it.
+     */
+    boolean hasAnyDescriptor() {
+        return namedProps != null && !namedProps.isEmpty();
+    }
+
     public void setElement(int index, Object value) {
         list.set(index, value);
     }

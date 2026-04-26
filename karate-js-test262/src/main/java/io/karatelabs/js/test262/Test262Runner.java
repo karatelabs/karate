@@ -457,9 +457,10 @@ public final class Test262Runner {
             return classifyNegative(path, neg, "parse", "SyntaxError", pe);
         } catch (RuntimeException re) {
             String type = ErrorUtils.classify(re);
-            // Strip the leading "<type>: " prefix from message so it's not
-            // doubled when the runner displays "<error_type>: <message>".
-            String msg = ErrorUtils.firstLine(re.getMessage(), type, 200);
+            // Prefer the structured EngineException.getJsMessage() surface (no
+            // host-side framing to parse). Falls back to the message-string path
+            // for non-EngineException throwables (parser errors and host exceptions).
+            String msg = ErrorUtils.firstLine(re, type, 200);
             if (neg != null) {
                 if (!"parse".equals(neg.phase())
                         && (neg.type() == null || neg.type().equals(type) || type == null)) {
@@ -481,7 +482,7 @@ public final class Test262Runner {
 
     private static ResultRecord classifyNegative(String path, Test262Metadata.Negative neg,
                                                  String actualPhase, String actualType, RuntimeException re) {
-        String msg = ErrorUtils.firstLine(re.getMessage(), actualType, 200);
+        String msg = ErrorUtils.firstLine(re, actualType, 200);
         if (neg != null && actualPhase.equals(neg.phase())
                 && (neg.type() == null || neg.type().equals(actualType))) {
             return ResultRecord.pass(path);

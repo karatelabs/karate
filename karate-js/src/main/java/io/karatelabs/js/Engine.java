@@ -213,10 +213,13 @@ public class Engine {
             if (relPath != null && !message.endsWith(relPath)) {
                 message = message + "\n" + relPath;
             }
-            // Preserve structured jsErrorName when we already have an EngineException
-            // (e.g., from Interpreter.evalProgram for uncaught JS throws).
+            // Preserve structured jsErrorName + jsMessage when we already have an
+            // EngineException (e.g., from Interpreter.evalProgram for uncaught JS
+            // throws). The outer host-facing message gets relPath appended for logs;
+            // the JS-side message stays unframed so callers don't have to parse.
             String jsErrorName = e instanceof EngineException ee ? ee.getJsErrorName() : null;
-            throw new EngineException(message, e, jsErrorName);
+            String jsMessage = e instanceof EngineException ee ? ee.getJsMessage() : null;
+            throw new EngineException(message, e, jsErrorName, jsMessage);
         }
     }
 

@@ -1269,14 +1269,21 @@ class Interpreter {
                         errorName = ctorName;
                     }
                 }
-                String rawMessage = errorMessage == null ? errorThrown.toString() : errorMessage;
-                // Keep a readable prefix in the message for logging, but the structured
-                // errorName is what callers (like the test262 runner) should consult.
+                // jsMessage is the unframed JS-side surface — what `e.message` in a
+                // JS catch would see. Prefer the structured payload .message; fall
+                // back to errorThrown.toString() for non-Error throws (`throw 42`,
+                // `throw "x"`). No "<Name>: " prefix here — that's a getMessage()
+                // logging convenience, not the JS-side .message contract.
+                String jsMessage = errorMessage == null ? errorThrown.toString() : errorMessage;
+                String rawMessage = jsMessage;
+                // Keep a readable prefix in the host-facing message for logging,
+                // but the structured errorName is what callers (like the test262
+                // runner) should consult.
                 if (errorName != null && !rawMessage.startsWith(errorName + ":")) {
                     rawMessage = errorName + ": " + rawMessage;
                 }
                 String message = child.toStringError(rawMessage);
-                throw new EngineException(message, null, errorName);
+                throw new EngineException(message, null, errorName, jsMessage);
             }
         }
         return anyNonDecl ? progResult : lastFnDecl;
@@ -1386,15 +1393,18 @@ class Interpreter {
             // Carry engine-origin JS error identity across the boundary so
             // `EngineException.getJsErrorName()` works without re-parsing the message.
             String jsErrorName = null;
+            String jsMessage = null;
             JsErrorException jex = findJsErrorException(e);
             if (jex != null) {
                 jsErrorName = jex.payload.getName();
+                jsMessage = jex.payload.getMessageString();
             } else {
                 // Map raw Java exceptions to a JS error constructor name so host
                 // callers never see "IndexOutOfBoundsException" leak through. The
                 // message body stays the JVM text (still informative), but the
                 // structured jsErrorName + prefix make classification JS-native.
                 jsErrorName = classifyJavaException(e);
+                jsMessage = e.getMessage();
             }
             String body = e.getMessage();
             if (jsErrorName != null && body != null && !body.startsWith(jsErrorName + ":")) {
@@ -1415,7 +1425,7 @@ class Interpreter {
             if (first.getResource().isFile()) {
                 System.err.println("file://" + first.getResource().getUri().getPath() + ":" + first.getPositionDisplay() + " " + e);
             }
-            throw new EngineException(sb.toString(), e, jsErrorName);
+            throw new EngineException(sb.toString(), e, jsErrorName, jsMessage);
         }
     }
 
