@@ -102,11 +102,28 @@ public final class ErrorUtils {
      * the actual error body.
      */
     public static String firstLine(String message, int maxLen) {
+        return firstLine(message, null, maxLen);
+    }
+
+    /**
+     * As {@link #firstLine(String, int)} but additionally strips a leading
+     * {@code <type>: } prefix when the body starts with one — avoids
+     * doubling the type when the runner's display format is
+     * {@code "<error_type>: <message>"} and the engine has already injected
+     * the type as a prefix on the message at {@code Interpreter.evalProgram}.
+     */
+    public static String firstLine(String message, String type, int maxLen) {
         if (message == null) return null;
         String body = unwrapFraming(message);
         int nl = body.indexOf('\n');
         String line = nl < 0 ? body : body.substring(0, nl);
         line = line.strip();
+        if (type != null) {
+            String prefix = type + ":";
+            if (line.startsWith(prefix)) {
+                line = line.substring(prefix.length()).stripLeading();
+            }
+        }
         if (line.length() > maxLen) line = line.substring(0, maxLen - 1) + "…";
         return line;
     }

@@ -38,13 +38,13 @@ karate-js is a lightweight JavaScript engine implemented in Java, designed for:
 public sealed interface JsValue permits JsUndefined, JsPrimitive, JsDateValue, JsBinaryValue {
     Object getJavaValue();              // For external use (e.g., JsDate → Date)
 
-    default Object getJsValue() {       // For internal operations (e.g., JsDate → Long millis)
+    default Object getJsValue() {       // For internal operations (e.g., JsDate → double timeValue)
         return getJavaValue();
     }
 }
 
 // Sub-hierarchies (all sealed)
-sealed interface JsPrimitive extends JsValue permits JsNumber, JsString, JsBoolean {}
+sealed interface JsPrimitive extends JsValue permits JsNumber, JsString, JsBoolean, JsBigInt {}
 sealed interface JsDateValue extends JsValue permits JsDate {}
 sealed interface JsBinaryValue extends JsValue permits JsUint8Array {}
 
@@ -95,10 +95,13 @@ public interface JavaInvokable extends JavaCallable {
 | Number | JsNumber | Number | JsPrimitive → JsValue |
 | String | JsString | String | JsPrimitive → JsValue |
 | Boolean | JsBoolean | Boolean | JsPrimitive → JsValue |
+| BigInt | JsBigInt | BigInteger | JsPrimitive → JsValue |
 | Date | JsDate | Date | JsDateValue → JsValue |
 | RegExp | JsRegex | Pattern | - |
 | Array | JsArray | List | **List\<Object\>** |
 | Object | JsObject | Map | **Map\<String, Object\>** |
+| Map | JsMap | Map | extends JsObject |
+| Set | JsSet | Set | extends JsObject |
 | Uint8Array | JsUint8Array | byte[] | JsBinaryValue → JsValue |
 
 ### Prototype System Architecture
@@ -106,35 +109,47 @@ public interface JavaInvokable extends JavaCallable {
 The engine uses singleton prototype objects for method inheritance, matching JavaScript's prototype chain:
 
 ```
-Singleton Prototypes (shared across all instances):
-    JsObjectPrototype.INSTANCE  ← null (root of chain)
-    JsArrayPrototype.INSTANCE   ← JsObjectPrototype.INSTANCE
-    JsStringPrototype.INSTANCE  ← JsObjectPrototype.INSTANCE
-    JsNumberPrototype.INSTANCE  ← JsObjectPrototype.INSTANCE
-    JsDatePrototype.INSTANCE    ← JsObjectPrototype.INSTANCE
-    JsFunctionPrototype.INSTANCE← JsObjectPrototype.INSTANCE
-    JsRegexPrototype.INSTANCE   ← JsObjectPrototype.INSTANCE
+Singleton Prototypes (shared JVM-wide; userProps reset per Engine):
+    JsObjectPrototype.INSTANCE   ← null (root of chain)
+    JsArrayPrototype.INSTANCE    ← JsObjectPrototype.INSTANCE
+    JsStringPrototype.INSTANCE   ← JsObjectPrototype.INSTANCE
+    JsNumberPrototype.INSTANCE   ← JsObjectPrototype.INSTANCE
+    JsBooleanPrototype.INSTANCE  ← JsObjectPrototype.INSTANCE
+    JsBigIntPrototype.INSTANCE   ← JsObjectPrototype.INSTANCE
+    JsDatePrototype.INSTANCE     ← JsObjectPrototype.INSTANCE
+    JsFunctionPrototype.INSTANCE ← JsObjectPrototype.INSTANCE
+    JsRegexPrototype.INSTANCE    ← JsObjectPrototype.INSTANCE
+    JsMapPrototype.INSTANCE      ← JsObjectPrototype.INSTANCE
+    JsSetPrototype.INSTANCE      ← JsObjectPrototype.INSTANCE
     (JsError uses JsObjectPrototype directly)
 
-Constructor Functions (for static methods like Array.isArray):
-    JsObjectConstructor.INSTANCE  → prototype: JsObjectPrototype.INSTANCE
-    JsArrayConstructor.INSTANCE   → prototype: JsArrayPrototype.INSTANCE
-    JsStringConstructor.INSTANCE  → prototype: JsStringPrototype.INSTANCE
-    JsNumberConstructor.INSTANCE  → prototype: JsNumberPrototype.INSTANCE
-    JsDateConstructor.INSTANCE    → prototype: JsDatePrototype.INSTANCE
+Constructor Functions (for static methods like Array.isArray, Date.UTC):
+    JsObjectConstructor.INSTANCE   → prototype: JsObjectPrototype.INSTANCE
+    JsArrayConstructor.INSTANCE    → prototype: JsArrayPrototype.INSTANCE
+    JsStringConstructor.INSTANCE   → prototype: JsStringPrototype.INSTANCE
+    JsNumberConstructor.INSTANCE   → prototype: JsNumberPrototype.INSTANCE
+    JsBigIntConstructor.INSTANCE   → prototype: JsBigIntPrototype.INSTANCE
+    JsDateConstructor.INSTANCE     → prototype: JsDatePrototype.INSTANCE
+    JsFunctionConstructor.INSTANCE → prototype: JsFunctionPrototype.INSTANCE
+    JsMapConstructor.INSTANCE      → prototype: JsMapPrototype.INSTANCE
+    JsSetConstructor.INSTANCE      → prototype: JsSetPrototype.INSTANCE
+    (JsBoolean has a prototype but no constructor wrapper class — the
+     Boolean global is registered directly as a callable in ContextRoot.)
 ```
 
-**Built-in prototypes are immutable.** Unlike standard JavaScript, the engine does not allow modifying built-in prototypes:
+**Built-in prototypes accept user-added properties** per spec — `Array.prototype`
+methods are configurable + writable, so `Array.prototype.foo = ...` works and
+overrides on lookup. The `Prototype` base class carries a `userProps` map for
+this; the built-in methods themselves are immutable (cannot be removed via
+`removeMember` unless tombstoned-on-delete per the
+[Spec Invariants § Property attributes](#property-attributes) rules).
 
-```javascript
-Array.prototype.customMethod = function() {};  // TypeError: Cannot add property to immutable built-in prototype
-String.prototype.foo = "bar";                  // TypeError
-```
-
-This design decision provides:
-- **Thread safety** - Singleton prototypes can be safely shared across Engine instances
-- **Security** - Prevents prototype pollution attacks
-- **Simplicity** - No need for per-engine prototype copies
+**Per-Engine isolation.** The prototypes are JVM-wide singletons but their
+`userProps` reset on every `new Engine()` via `Prototype.clearAllUserProps()`
++ `JsObject.clearAllEngineState()` — otherwise a previous test that did
+`Map.prototype.set = function() { throw ... }` would poison the next session.
+See [Spec Invariants § Prototype machinery](#prototype-machinery) for the
+full mechanism.
 
 User-created objects, arrays, and functions remain fully mutable:
 ```javascript
@@ -144,28 +159,45 @@ function f() {}; f.meta = "data";        // OK
 ```
 
 **Property lookup order** (implemented in `Prototype.getMember()`):
-1. Built-in properties (`getBuiltinProperty()`)
-2. Delegate to `__proto__` chain
+1. `userProps` map (user-added properties win per spec)
+2. Built-in properties via `lookupBuiltin()` (skipped if tombstoned)
+3. Delegate to `__proto__` chain
 
 ```java
-// Base class for built-in prototype objects (immutable singletons)
+// Base class for built-in prototype objects
 abstract class Prototype implements ObjectLike {
     private final Prototype __proto__;
+    private Map<String, Object> userProps;        // user-added properties (lazy)
+    private Set<String> tombstones;               // intrinsics user has deleted (lazy)
+    final Map<String, JsBuiltinMethod> _methodCache; // wrapped built-in methods (per-Engine)
 
-    public Object getMember(String name) {
-        Object builtin = getBuiltinProperty(name);
-        if (builtin != null) return builtin;
+    public final Object getMember(String name) {
+        // 1. User-added properties win over built-ins
+        if (userProps != null && userProps.containsKey(name)) {
+            return userProps.get(name);
+        }
+        // 2. Built-in properties (skip if tombstoned)
+        if (tombstones == null || !tombstones.contains(name)) {
+            Object result = lookupBuiltin(name);   // uses _methodCache
+            if (result != null) return result;
+        }
+        // 3. Delegate to __proto__ chain
         return __proto__ != null ? __proto__.getMember(name) : null;
     }
 
     public void putMember(String name, Object value) {
-        throw new RuntimeException("TypeError: Cannot add property to immutable built-in prototype");
+        // Built-in methods can't be replaced; user props go in userProps
+        if (userProps == null) userProps = new LinkedHashMap<>();
+        userProps.put(name, value);
+        if (tombstones != null) tombstones.remove(name);   // re-introduces a deleted intrinsic
     }
 
     protected abstract Object getBuiltinProperty(String name);
 }
 
-// Example: JsArrayPrototype provides array methods (package-private singleton)
+// Example: JsArrayPrototype provides array methods (package-private singleton).
+// Each method is wrapped in JsBuiltinMethod via the `method()` helper so
+// arr.push.length / arr.push.name read correctly.
 class JsArrayPrototype extends Prototype {
     static final JsArrayPrototype INSTANCE = new JsArrayPrototype();
 
@@ -176,9 +208,9 @@ class JsArrayPrototype extends Prototype {
     @Override
     protected Object getBuiltinProperty(String name) {
         return switch (name) {
-            case "map" -> (JsCallable) this::map;
-            case "filter" -> (JsCallable) this::filter;
-            case "push" -> (JsCallable) this::push;
+            case "push"   -> method(name, 1, this::push);
+            case "map"    -> method(name, 1, this::map);
+            case "filter" -> method(name, 1, this::filter);
             // ... other array methods
             default -> null;  // Delegate to __proto__ (JsObjectPrototype)
         };
@@ -188,10 +220,12 @@ class JsArrayPrototype extends Prototype {
 
 **Benefits:**
 - Single instance per type (memory efficient)
-- Thread-safe sharing across Engine instances
+- Spec-conformant: `Array.prototype.foo = ...` polyfill patterns work
+- Per-Engine reset prevents cross-session pollution
 - Clean separation of constructor vs prototype
 - Methods inherited via standard prototype chain
 - `ObjectLike.getPrototype()` enables uniform chain walking
+- `JsBuiltinMethod` wrap gives every built-in method correct `length` / `name`
 
 ### Boxed Primitives
 
@@ -219,21 +253,22 @@ The engine uses `CallInfo` to track invocation context:
 ### Bidirectional Pattern
 
 ```
-┌─────────────────┐      Java → JS       ┌─────────────┐
-│  java.util.Date │ ──────────────────►  │             │
-│  Instant        │ ──────────────────►  │   JsDate    │
-│  LocalDateTime  │ ──────────────────►  │  (internal  │
-│  LocalDate      │ ──────────────────►  │   millis)   │
-│  ZonedDateTime  │ ──────────────────►  │             │
-└─────────────────┘                      └──────┬──────┘
-                                               │
-                        JS → Java              │
-                   ◄───────────────────────────┘
+┌─────────────────┐      Java → JS       ┌─────────────────┐
+│  java.util.Date │ ──────────────────►  │                 │
+│  Instant        │ ──────────────────►  │     JsDate      │
+│  LocalDateTime  │ ──────────────────►  │  (internal      │
+│  LocalDate      │ ──────────────────►  │   timeValue:    │
+│  ZonedDateTime  │ ──────────────────►  │   double, NaN = │
+└─────────────────┘                      │   Invalid Date) │
+                                         └────────┬────────┘
+                                                  │
+                        JS → Java                 │
+                   ◄──────────────────────────────┘
                    │
                    ▼
-           ┌───────────────┐
+           ┌────────────────┐
            │ java.util.Date │
-           └───────────────┘
+           └────────────────┘
 ```
 
 ### Lazy Input Conversion
@@ -307,15 +342,29 @@ class JsArray implements List<Object>, ObjectLike, JsCallable {
 // JsObject implements Map<String, Object>
 class JsObject implements Map<String, Object>, ObjectLike {
     private Map<String, Object> _map;
-    private ObjectLike __proto__ = JsObjectPrototype.INSTANCE;  // Prototype chain
+    private Map<String, Byte> _attrs;        // sparse {writable, enumerable, configurable} byte map
+    private Set<String> _tombstones;          // intrinsics user has deleted
+    private ObjectLike __proto__ = JsObjectPrototype.INSTANCE;
 
-    // JS internal - raw values, prototype chain
+    // JS internal - raw values, prototype chain.
+    // (Simplified — see Spec Invariants § Property attributes for the
+    //  intrinsic / tombstone / accessor pipeline.)
     public Object getMember(String name) {
-        // Own property first, then prototype chain
+        if (_tombstones != null && _tombstones.contains(name)) {
+            return __proto__ != null ? __proto__.getMember(name) : null;
+        }
         if (_map != null && _map.containsKey(name)) {
             return _map.get(name);
         }
+        // Subclass intrinsic-field fallback (e.g. JsFunction's name/length/prototype/constructor)
         return __proto__ != null ? __proto__.getMember(name) : null;
+    }
+
+    // Canonical own-key check — see Spec Invariants
+    public boolean isOwnProperty(String name) {
+        if (_tombstones != null && _tombstones.contains(name)) return false;
+        if (_map != null && _map.containsKey(name)) return true;
+        return hasOwnIntrinsic(name);   // subclass-declared own intrinsics
     }
 
     // Java interface - auto-unwrap, own properties only
@@ -424,35 +473,48 @@ static ObjectLike toObjectLike(Object o) {
 
 ## JsDate Implementation
 
-Internal representation uses `long millis` with `java.time` for operations:
+Internal representation is `double timeValue` (NaN sentinel for Invalid Date —
+matches the spec's `[[DateValue]]`). Java's `(long) NaN == 0` would silently
+collapse Invalid Date to epoch, so `long` storage is unsafe.
 
 ```java
-class JsDate extends JsObject implements JavaMirror {
-    private long millis;
+class JsDate extends JsObject implements JsDateValue {
+    private double timeValue;                         // [[DateValue]]; NaN = Invalid Date
 
-    // Getters use ZonedDateTime
-    public int getFullYear() {
-        return toZonedDateTime().getYear();
+    JsDate(double timeValue) {
+        this.timeValue = timeClip(timeValue);         // spec TimeClip
     }
+    JsDate(java.util.Date d) {
+        this(d == null ? Double.NaN : (double) d.getTime());
+    }
+    // (Instant / LocalDateTime / LocalDate / ZonedDateTime overloads also)
 
-    // Setters use java.time for overflow handling
-    public void setDate(int day) {
-        ZonedDateTime zdt = toZonedDateTime().withDayOfMonth(day);
-        this.millis = zdt.toInstant().toEpochMilli();
-    }
+    boolean isInvalid() { return Double.isNaN(timeValue); }
+    double  getTimeValue() { return timeValue; }
+    long    getTime() { return (long) timeValue; }    // caller checks isInvalid first
 
     @Override
-    public Object getJavaValue() { return new Date(millis); }
-
+    public Object getJavaValue() { return new java.util.Date((long) timeValue); }
     @Override
-    public Object getInternalValue() { return millis; }  // For numeric operations
+    public Object getJsValue() { return timeValue; }  // For numeric operations
 }
 ```
 
+Constructor and prototype share spec algorithms via pure helpers on
+`JsDate`: `makeDay` / `makeTime` / `makeDate` / `timeClip` / `localToUtc` /
+`utcToLocal` / `parseToTimeValue`. `LocalTZA` is truncated to integer minutes
+so historical zones with sub-minute offsets round-trip through
+`getTimezoneOffset()` (which the spec defines as integer minutes).
+
+See [Spec Invariants § Date](#date) for the load-bearing details: setters
+read `[[DateValue]]` *before* coercing args (preserves observable side
+effects from `valueOf`); coerce all args even when captured value is NaN
+(spec ordering); bail without writing back when captured value was NaN.
+
 **Benefits:**
+- Spec-correct Invalid-Date semantics (NaN propagates through arithmetic)
 - Thread-safe formatting (DateTimeFormatter)
-- Modern API (java.time vs Calendar)
-- Consistent internal representation
+- Constructor and prototype share helpers — no duplicated date math
 
 ---
 
@@ -520,6 +582,330 @@ new TypeError('bad').name             // 'TypeError' — constructor name is pre
 ### Error-message preservation through reflection
 
 `JavaUtils.invoke` and `JavaUtils.invokeStatic` separate "method not found" (TypeError with `"TypeError: .foo is not a function"`) from "method threw" (unwraps `InvocationTargetException`, rethrows the underlying `RuntimeException` with its original message). Before this change, reflective invocation failures were all collapsed into a generic `TypeError: .<name> is not a function`, masking real exception messages.
+
+---
+
+## Spec Invariants (test262-driven)
+
+Engine rules established by test262 conformance work. Treat as load-bearing —
+if a session needs to violate one, the rule goes up for review explicitly.
+[`karate-js-test262/TEST262.md`](../karate-js-test262/TEST262.md#engine-guarantees-test262-driven)
+keeps a one-liner index pointing back here.
+
+### Error routing & shape
+
+**Engine-emitted errors route through registered constructors.** Engine sites
+(`PropertyAccess`, `Interpreter`, `CoreContext` TDZ/const-reassign/redeclare,
+`JsJson`, `JsJava`, `JavaUtils`) emit `"<Name>: ..."` prefixes.
+`Interpreter.evalTryStmt` parses the prefix into a structured `JsError` with
+linked `.constructor`; `Interpreter.evalStatement` stamps
+`EngineException.getJsErrorName()`. Result: `e instanceof TypeError`, `e.name`,
+`e.constructor.name` all work for engine-originated errors. Low-traffic
+internal-invariant sites (`JsArrayPrototype` / `JsRegex` / `JsStringPrototype`,
+"finally block threw error") still throw plain `RuntimeException` — convert
+the same way as needed.
+
+**`Test262Error` / user-defined error classes** are classified via
+`constructor.name` fallback in `Interpreter.evalProgram` when the thrown
+`JsObject` has no `.name` on its prototype. Function-name inference in
+`CoreContext.declare` fires only when the function's name is empty (so a
+named function passed as a parameter doesn't get permanently renamed).
+
+**`ErrorUtils.classify` scans embedded `<Name>:`** as a fallback for wrapper
+messages where the type isn't a prefix. Wrappers preserve the cause chain so
+the structured `JsErrorException` name propagates first; the embedded-name
+scan is the safety net.
+
+**JVM exception → JS error mapping** at `Interpreter.evalStatement` catch via
+`classifyJavaException`: `IndexOutOfBoundsException` / `ArithmeticException`
+→ `RangeError`; `NullPointerException` / `ClassCastException` /
+`NumberFormatException` → `TypeError`. Name is stamped on
+`EngineException.jsErrorName` and prefixed to the message.
+
+**`JsError.constructor` populated** at the JS try/catch wrapping site
+(`Interpreter.evalTryStmt`) by resolving the registered global for the error's
+`.name`, so `assert.throws(Ctor, fn)` reading `thrown.constructor.name` works.
+
+**Error position framing leads with the message.** `Node.toStringError`
+appends `    at <path>:<line>:<col>` (JS-stack-frame-style) instead of the
+engine-internal `<line>:<col> <NodeType>` prefix.
+
+### typeof and callable identity
+
+**`typeof` reports `"function"` on all callable surfaces.** `Terms.typeOf`
+returns `"function"` for `JsInvokable`, `JsFunction`, built-in constructor
+singletons (via `JsObject.isJsFunction()` — `Boolean` / `RegExp` / error
+globals), and `JsCallable` method refs (`[1].map`, `'x'.charAt`). The
+`!(value instanceof ObjectLike)` guard keeps `JsObject` / `JsArray` reporting
+`"object"`.
+
+### Globals
+
+**`eval` is a global** registered in `ContextRoot.initGlobal` with indirect-
+eval semantics (parses/evaluates in engine root scope; non-string args pass
+through). Direct-eval scope capture is out of scope.
+
+### Iteration
+
+**Iteration goes through `IterUtils.getIterator`.** Built-ins (JsArray,
+JsString, List, native arrays) take fast paths; user-defined `ObjectLike` with
+`@@iterator` go through the spec dance. `for-of` on null/undefined TypeErrors
+(was silently iterating zero times — non-spec). `for-in` keeps
+`Terms.toIterable` (key enumeration over objects, silent zero on
+null/undefined per spec). JS-side errors during user iteration propagate via
+`context.error` rather than Java exceptions.
+
+**Minimal `Symbol` global.** `ContextRoot.initGlobal` exposes `Symbol.iterator`
+/ `Symbol.asyncIterator` as their well-known string keys (`"@@iterator"` /
+`"@@asyncIterator"`). No `Symbol(...)` constructor, no unique-symbol identity
+— tests needing those still skip via `feature: Symbol`.
+
+### Optional chaining
+
+**Optional chaining sentinel propagation.** `PropertyAccess.SHORT_CIRCUITED`
+(distinct identity from `Terms.UNDEFINED`) propagates through chain steps;
+`Interpreter.chainStepResult` converts to UNDEFINED only at the chain root.
+The "distinct from UNDEFINED" detail is load-bearing — `obj?.a.b` where
+`obj.a == null` still throws TypeError per spec. Optional-chain early errors
+are validated post-parse in a single walk
+(`JsParser.validateOptionalChainEarlyErrors`), not interleaved into the hot
+eval loop.
+
+### Object literals & destructuring
+
+**Reserved words as object-literal keys.** `T_OBJECT_ELEM` /
+`T_ACCESSOR_KEY_START` are built at class-init from every TokenType with
+`keyword == true`, so `{break: x}`, `{default: 1}`, `{class: foo}` parse as
+object literals and destructuring LHS patterns.
+
+**Destructuring uses `ObjectLike.getMember`, not `Map.get`.**
+`Interpreter.destructurePattern` reads object-source properties via
+`ObjectLike.getMember`, falling back to `Map.containsKey` on the
+own-properties map to disambiguate absent vs. present-but-undefined. Defaults
+fire only on literal `undefined`, not on `null`. Array-source destructuring
+routes through `IterUtils.getIterator` and TypeErrors on non-iterable sources
+(per spec 13.3.3.5). `evalLitArray` / `evalLitObject` are pure literal
+construction — destructuring binds via the unified `destructurePattern` /
+`bindTarget` / `bindLeaf` helpers, which recurse on nested patterns and share
+between assignment and `var` / `let` / `const` paths.
+
+### Numeric / coercion
+
+**Spec ToString unified** via `Terms.toStringCoerce(Object, CoreContext)`;
+`JsObjectPrototype` / `JsArrayPrototype` / `JsBooleanPrototype` /
+`JsNumberPrototype` use the spec-correct `toString`. Use
+`StringUtils.formatJson` directly for JSON display, not the legacy formatter.
+
+**`Terms.toPrimitive` is the spec ToPrimitive boundary.** Object → primitive
+coercion (used by `BigInt()`, `Number()`, radix args of `toString`, `ToIndex`
+on `asIntN` / `asUintN`) goes through `Terms.toPrimitive(value, hint,
+context)`. Hint `"number"` (default) tries `valueOf` then `toString`; hint
+`"string"` reverses. Each callable runs in a sub-context so its errors flow
+through `context.updateFrom(...)` rather than wrapping as Java exceptions —
+same propagation pattern as `toStringCoerce`. Boxed primitives
+(`JsNumber` / `JsString` / `JsBoolean` / `JsBigInt`) unwrap directly to their
+`getJavaValue()` rather than dispatching through valueOf; cheaper and
+equivalent. Both methods returning objects → TypeError. `Symbol.toPrimitive`
+is *not* dispatched (matches our minimal Symbol surface).
+
+**`Terms.narrow()` checks both ends.** Pre-existing bug: `if (d <=
+Integer.MAX_VALUE) return (int) d` cast any negative value past
+`Integer.MIN_VALUE` to an overflowed int. Fix: both bounds (`d >=
+Integer.MIN_VALUE && d <= Integer.MAX_VALUE`) on the int and long collapses.
+The collapse rule itself is unchanged for in-range values.
+
+### BigInt
+
+**BigInt rides on `java.math.BigInteger` with type-tested dispatch.**
+`BigInteger extends Number`, so it flows through `Terms.objectToNumber`
+unchanged. Each arithmetic op in `Terms` (`add`, `mul`, `div`, `mod`, `exp`,
+`min`, bit-ops) checks `lhs instanceof BigInteger || rhs instanceof BigInteger`
+*before* the existing `doubleValue()` fast path; mixing BigInt with non-BigInt
+throws TypeError per spec via `requireBothBigInt`. The branch is paid only by
+code that exercises BigInt — plain Number arithmetic stays unchanged. Property
+access wraps via `Terms.toJsValue` → `JsBigInt` (sealed primitive, like
+`JsNumber` / `JsString` / `JsBoolean`); the `BigInteger` case must be listed
+*before* `Number n` because `BigInteger` is a `Number`. Increment/decrement
+uses `Terms.incDecStep(operand)` which returns `BigInteger.ONE` for BigInt
+operands so `i++` doesn't TypeError on type mixing. `JSON.stringify` pre-walks
+for BigInt and throws TypeError; unary `+1n` is a TypeError, unary `-1n`
+negates.
+
+**Numeric separators sit on the rare-path lexer rule.** `JsLexer.scanNumber`
+uses tight digit loops on the common (separator-free) path; only after the
+fast loop terminates does it test `peek() == '_'` and call
+`scanDigitsWithSeparators` / `scanHexDigitsWithSeparators` (rare path). The
+rare-path scanner enforces "between two digits" by consuming the `_`, then
+asserting the next char is a digit; doubled separators error out by the same
+check. `Terms.toNumber` strips `_` only when `text.indexOf('_') >= 0` (no
+allocation on the common case).
+
+### Property attributes
+
+**Per-property attributes on `JsObject` use a sparse byte map.** `_attrs:
+Map<String, Byte>` next to the per-object `nonExtensible` / `sealed` /
+`frozen` flags. Bit 0 = writable, bit 1 = enumerable, bit 2 = configurable;
+absent key means all-true (the new-property default for plain `obj.x = ...`).
+`defineProperty` writes attrs explicitly and uses the spec's "missing fields
+default to false on new keys, preserve on existing" rule (different from
+`[[Set]]`'s all-true default — this distinction is load-bearing). Per-object
+flags `frozen` / `nonExtensible` are kept as fast-path early-exits on
+`putMember` / `removeMember` so frozen objects don't have to consult `_attrs`
+per write. Read paths: `getOwnPropertyDescriptor` reads `_attrs` (or the
+all-true default); `JsObject.jsEntries()` — the back-end for `for...in` /
+`Object.keys` / `Object.values` / `Object.entries` / `Object.assign` via
+`Terms.toIterable` — filters out non-enumerable keys but is bypassed entirely
+when `_attrs == null`. `Object.getOwnPropertyNames` / `hasOwn` go through
+`toMap()` directly and are unaffected. `propertyIsEnumerable` consults
+`isEnumerable(name)`. Configurability rules enforced on defineProperty:
+TypeError on flipping configurable false→true, changing enumerable, switching
+data↔accessor shape, or changing a non-writable value — with the spec-allowed
+exceptions (writable true→false on data, no-op same-value redefine) passing
+through.
+
+**`Object.prototype.hasOwnProperty` is prototype-aware and intrinsic-aware.**
+When the receiver is a `Prototype` singleton (`Date.prototype`,
+`Array.prototype`, etc.) it consults `Prototype.hasOwnMember` (built-in
+methods + userProps); when the receiver is a `JsObject` it consults
+`JsObject.hasOwnIntrinsic` alongside the `_map` lookup so built-in
+constructors report their intrinsic statics (`Date.prototype`, `Date.now`,
+`Date.UTC`, etc.) as own. Subclasses (`JsFunction` exposes `prototype` /
+`name` / `length` / `constructor`; `JsDateConstructor` adds `now` / `parse` /
+`UTC`) override `hasOwnIntrinsic` to declare the names their `getMember`
+resolves directly. Required for the `S15.9.5_A*` and `S15.9.4_A*` test
+clusters and analogous tests under other built-ins.
+
+**Intrinsic-attribute pipeline.** Built-in own properties resolved via
+subclass `getMember` switches (not via `_map`) declare themselves as own
+through `hasOwnIntrinsic(name)` and report attribute bits through
+`getOwnAttrs(name)`. `JsFunction` returns spec defaults for its four
+intrinsics (`length` / `name`: configurable-only; `prototype`: writable;
+`constructor`: writable + configurable); subclasses (`JsMath`, etc.) cover
+their own methods/constants. The descriptor read pipeline
+(`Object.getOwnPropertyDescriptor`, `propertyIsEnumerable`, `Object.keys` /
+`for...in` enumerable filter) consults this rather than the all-true default.
+New attribute slots on `_attrs` (set by `Object.defineProperty`) win over the
+intrinsic defaults so user override is still possible.
+
+**Tombstone-on-delete for intrinsic properties.** `_tombstones: Set<String>`
+(lazy) records intrinsic own properties that the user has deleted (`delete
+obj.foo`). `getMember` short-circuits tombstoned names to the prototype chain
+(skipping subclass intrinsic field fallback); `isOwnProperty` returns false;
+`removeMember` populates the set when the intrinsic is configurable;
+`putMember` clears the tombstone on a successful write so reassignment revives
+the property. Matters for `propertyHelper.verifyProperty`'s destructive
+`isConfigurable()` check, which tries `delete obj[name]` and asserts
+`!hasOwnProperty(obj, name)`.
+
+**`JsObject.isOwnProperty(name)` is the canonical own-key check.** Returns
+true iff `name` is in `_map` OR `hasOwnIntrinsic(name)` AND not tombstoned.
+Replaces the previous mix of `toMap().containsKey + hasOwnIntrinsic` checks at
+three call sites (`JsObjectConstructor.isOwnKey`,
+`JsObjectPrototype.hasOwnProperty`, `propertyIsEnumerable`). Anything that
+wants spec-level "is this an own property" goes through here.
+
+### Prototype machinery
+
+**Built-in prototypes accept user-added properties.** `Prototype` has a
+`userProps` map; user-added properties win over built-ins on lookup
+(configurable: true / writable: true per spec). Built-in methods themselves
+can't be deleted via `removeMember`. Required for `Array.prototype.foo = ...`
+polyfill patterns and for spec-conformant test262 behavior.
+
+**Per-Engine prototype isolation.** Built-in prototypes are JVM-wide
+singletons (e.g. `JsArrayPrototype.INSTANCE`), but their `userProps` must
+reset each time a new `Engine` is constructed — otherwise a previous test
+that did `Map.prototype.set = function() { throw ... }` poisons the next
+session. `Prototype` constructor registers each singleton in a static `ALL`
+list; `Engine()` calls `Prototype.clearAllUserProps()` which walks the list
+and clears each `userProps` map. Spec-compliant for sequential single-Engine
+usage (the realistic case); concurrent Engines in the same JVM still share
+the underlying singleton during overlapping windows. Performance impact:
+invisible — the loop is ~10 entries with usually-empty maps, lost in noise at
+script-eval scale.
+
+The same pattern holds on the constructor side via `JsObject.ENGINE_RESET_LIST`
++ `clearEngineState()`. All nine built-in constructor singletons (Array /
+BigInt / Date / Function / Map / Number / Object / Set / String) register
+themselves; `Engine.<init>` invokes `JsObject.clearAllEngineState()` right
+after `Prototype.clearAllUserProps()`. Default `clearEngineState()` wipes
+`_map` / `_attrs` / `_tombstones` / extensibility flags; subclasses with
+caches override and `super.clearEngineState()` first.
+
+**Function declarations hoist** at the start of the enclosing program / block
+scope. `Interpreter.hoistFunctionDeclarations` walks immediate `STATEMENT >
+FN_EXPR` children, evaluates each — binding the name. The main loop in
+`evalProgram` / `evalBlock` then *skips* the FN_EXPR statement (re-evaluating
+would replace the hoisted binding with a fresh `JsFunctionNode` and drop any
+property assignments made on the hoisted function, e.g. `foo.prototype = X`
+before `function foo(){}`). Per spec FunctionDeclaration's completion is
+empty (the previous value carries through); we additionally fall back to the
+last hoisted function as the completion when a script contains *only*
+declarations, so host callers loading a script that's just `function fn()
+{...}` still get `fn` back from `eval`.
+
+**`Array.prototype.*` are generic over array-like `this`.**
+`JsArrayPrototype.rawList` falls back to a `0..length-1` snapshot via
+`getMember(String.valueOf(i))` for any ObjectLike with a numeric `.length` —
+so `Array.prototype.every.call(date, fn)` and the
+`Array.prototype.X.call(obj, ...)` test262 pattern work. Mutating methods on
+a non-array operate on the snapshot list and don't write back (would need
+spec ToObject + index-write semantics; not yet modeled).
+
+**`JsArray.getMember` resolves canonical numeric-index keys.**
+`Array.prototype` lookup includes `String.valueOf(i)` reads (e.g. inside
+`rawList`'s array-like fallback). `JsArray.getMember("3")` returns
+`list.get(3)` rather than delegating to the prototype chain. Strict canonical
+parse (rejects `"01"`, `"+1"`, `"1.0"`) so non-canonical string keys still go
+to namedProps / proto chain.
+
+**`Function.prototype.bind`** in `JsFunctionPrototype.bindMethod`: returns a
+new `JsFunction` whose `call(ctx, args)` sets `ctx.thisObject = boundThis`
+and prepends pre-bound args to the caller's args. `length` / `name` of the
+bound function are approximate (name is `"bound " + target.name`); call
+semantics are what matters.
+
+### Date
+
+**Date stores `[[DateValue]]` as `double` with NaN = Invalid Date.** `JsDate`
+no longer uses `long millis`; the spec representation is a Number that may be
+NaN, and Java's `(long) NaN == 0` would silently collapse Invalid Date to
+epoch. Methods route through pure helpers (`JsDate.makeDay` / `makeTime` /
+`makeDate` / `timeClip` / `localToUtc` / `utcToLocal` / `parseToTimeValue`)
+so the Constructor and Prototype share spec algorithms. `localTzaMs` is
+truncated to integer minutes so historical zones with sub-minute offsets
+round-trip through `getTimezoneOffset()` (which spec defines as integer
+minutes). `requireDate(context)` TypeErrors on non-Date `this` (Spec
+thisTimeValue). Setters read `[[DateValue]]` *before* coercing args, coerce
+all args even when the captured value is NaN (preserves observable side
+effects from `valueOf`), then bail without writing back when the captured
+value was NaN — the date might have been mutated to a valid value during
+coercion and must not be clobbered.
+
+### Templates
+
+**Tagged-template AST shape.** `FN_TAGGED_TEMPLATE_EXPR` is `[<callable>,
+LIT_TEMPLATE]`. The `LIT_TEMPLATE` child holds paired cooked/raw string
+segments and substitution expressions; for N substitution expressions there
+are always N+1 string slots (possibly empty). The `strings` JsArray passed to
+the tag has its `raw` array attached via `putMember("raw", raw)`. `new
+tag\`x\`` evaluates the tagged template first (MemberExpression semantics)
+then constructs with no args. `${obj}` interpolations dispatch through the
+prototype chain (so user `toString` throws propagate with constructor
+identity intact). Template-literal lexing is depth-tracked for nested `{}`
+inside `${...}`.
+
+### Object.prototype.toString
+
+**`Object.prototype.toString` dispatches on the host wrapper class.**
+`JsObjectPrototype.DEFAULT_TO_STRING` returns `"[object <Tag>]"` where the
+tag is derived from the receiver type — `Array` for `JsArray` / `List`,
+`Date` for `JsDate` / `java.util.Date`, `RegExp` / `Map` / `Set` / `Error` /
+`Boolean` / `Number` / `String` / `Function`, and `Object` as the fallback.
+`JsObject` implements `JsCallable` (host-side artifact) so the `Function`
+branch must exclude plain `JsObject` instances — only `JsFunction` (and
+`JsObject` whose `isJsFunction()` returns true) qualifies. Substitute for the
+spec's `@@toStringTag` until Symbol expansion.
 
 ---
 
@@ -969,7 +1355,7 @@ public sealed interface JsValue permits JsUndefined, JsPrimitive, JsDateValue, J
 }
 
 // Sub-hierarchies (all sealed)
-sealed interface JsPrimitive extends JsValue permits JsNumber, JsString, JsBoolean {}
+sealed interface JsPrimitive extends JsValue permits JsNumber, JsString, JsBoolean, JsBigInt {}
 sealed interface JsDateValue extends JsValue permits JsDate {}
 sealed interface JsBinaryValue extends JsValue permits JsUint8Array {}
 
@@ -992,16 +1378,17 @@ public final class JsUndefined implements JsValue {
 - Cleaner type hierarchy with compiler-enforced exhaustive handling
 - Single `instanceof JsValue` check replaces scattered type checks
 - `getJsValue()` provides uniform unwrapping for internal operations
-- Thread-safe immutable prototypes shared across Engine instances
+- Singleton prototypes shared across Engine instances (`userProps` reset per
+  Engine — see [Spec Invariants § Prototype machinery](#prototype-machinery))
 
 ---
 
 ### 2. Future TODO Items
 
-> For the full prioritized roadmap (including test-count deltas and
-> skip-list-retirement plan) see
-> [karate-js-test262/TEST262.md § What remains](../karate-js-test262/TEST262.md#recommended-next-session-ordering).
-> The items below are the architectural shape only.
+> The prioritized work list lives in
+> [karate-js-test262/TEST262.md § Active priorities](../karate-js-test262/TEST262.md#active-priorities)
+> and [§ Deferred TODOs](../karate-js-test262/TEST262.md#deferred-todos). The
+> items below are the architectural shape only.
 
 **JavaScript Stack Traces for Errors**
 - Single-frame position is done: `Node.toStringError` now appends
@@ -1015,14 +1402,24 @@ public final class JsUndefined implements JsValue {
 - Engine is synchronous; no event loop or microtask queue. LLMs write
   `async`/`await` reflexively, so the current full-skip of
   `feature: Promise` / `feature: async-functions` / `flag: async` in
-  `etc/expectations.yaml` rejects a large fraction of modern JS.
-- Recommended path (per TEST262.md item #2): **synchronous subset
-  first** — `Promise` as an eagerly-resolving thenable, `async
-  function` runs synchronously and wraps its result in
-  `Promise.resolve`, `await expr` synchronously unwraps a thenable.
-  Breaks genuinely-concurrent workloads but handles the ~80% of LLM
-  glue where `async`/`await` is shape not parallelism, and matches
-  the surrounding Java code's execution model in karate's
-  test/workflow runner. Escalate to a full microtask-queue runtime
-  only when a real workload needs timer-driven scheduling.
-- Priority: high (promoted from "Future").
+  `etc/expectations.yaml` rejects a large fraction of modern JS. See
+  [TEST262.md § Deferred TODOs](../karate-js-test262/TEST262.md#deferred-todos)
+  for the deferred-design notes (smooth Java interop, graceful degradation
+  when async is decorative, simple multi-threading for real async I/O).
+- One viable path: **synchronous subset first** — `Promise` as an eagerly-
+  resolving thenable, `async function` runs synchronously and wraps its
+  result in `Promise.resolve`, `await expr` synchronously unwraps a
+  thenable. Breaks genuinely-concurrent workloads but handles the ~80% of
+  LLM glue where `async`/`await` is shape not parallelism. Escalate to a
+  full microtask-queue runtime only when a real workload needs timer-
+  driven scheduling.
+- Priority: deferred until a real workload demands it.
+
+**Class Syntax (ES6)**
+- Engine has prototype machinery + `new` but no parser support for
+  `class` / `extends` / `super` / method-definition. Currently fails
+  loudly at parse time with `SyntaxError` — the right shape (code that
+  uses `class` should fail loudly, not silently produce wrong behavior).
+- LLMs writing glue / test code default to function + prototype style;
+  pick up only if a real workload demands. See
+  [TEST262.md § Deferred TODOs](../karate-js-test262/TEST262.md#deferred-todos).

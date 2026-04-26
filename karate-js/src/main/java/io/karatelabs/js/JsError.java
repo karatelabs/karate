@@ -130,7 +130,15 @@ class JsError extends JsObject {
         if (message == null || message.isEmpty()) {
             return name;
         }
-        return name + ": " + message;
+        // Avoid doubling the name prefix when the message already carries it.
+        // Common when the engine has injected the "<Name>: " prefix at
+        // Interpreter.evalProgram, or when sta.js's Test262Error.prototype.toString
+        // has already been called on the receiver.
+        String prefix = name + ": ";
+        if (message.startsWith(prefix)) {
+            return message;
+        }
+        return prefix + message;
     }
 
     @Override

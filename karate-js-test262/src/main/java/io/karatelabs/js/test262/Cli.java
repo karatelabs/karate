@@ -13,14 +13,15 @@ public final class Cli {
 
     public Path expectations = Paths.get("etc/expectations.yaml");
     public Path test262 = Paths.get("test262");
-    public Path results = Paths.get("target/test262/results.jsonl");
-    public Path runMeta = Paths.get("target/test262/run-meta.json");
+    /** Run output dir. {@code null} means "Test262Runner picks a fresh
+     *  {@code target/test262/run-<timestamp>/} dir." Required for
+     *  {@link Test262Report}. */
+    public Path runDir;
     public long timeoutMs = 10_000L;
     public long maxDurationMs = 0L; // 0 = unlimited
     public String only;         // glob; null = no restriction
     public String single;       // relative path to one test262 file; null = full suite
     public int verbose;         // 0, 1, 2
-    public boolean resume;
     public final List<String> rawArgs = new ArrayList<>();
 
     public static Cli parse(String[] args) {
@@ -34,8 +35,7 @@ public final class Cli {
                 switch (a) {
                     case "--expectations"  -> c.expectations = Paths.get(v);
                     case "--test262"       -> c.test262 = Paths.get(v);
-                    case "--results"       -> c.results = Paths.get(v);
-                    case "--run-meta"      -> c.runMeta = Paths.get(v);
+                    case "--run-dir"       -> c.runDir = Paths.get(v);
                     case "--timeout-ms"    -> c.timeoutMs = Long.parseLong(v);
                     case "--max-duration"  -> c.maxDurationMs = Long.parseLong(v);
                     case "--only"          -> c.only = v;
@@ -45,7 +45,6 @@ public final class Cli {
                 continue;
             }
             switch (a) {
-                case "--resume"     -> c.resume = true;
                 case "-v"           -> c.verbose = Math.max(c.verbose, 1);
                 case "-vv"          -> c.verbose = 2;
                 case "-h", "--help" -> { printHelp(); System.exit(0); }
@@ -63,7 +62,7 @@ public final class Cli {
 
     private static boolean needsValue(String flag) {
         return switch (flag) {
-            case "--expectations", "--test262", "--results", "--run-meta",
+            case "--expectations", "--test262", "--run-dir",
                  "--timeout-ms", "--max-duration", "--only", "--single" -> true;
             default -> false;
         };
@@ -78,14 +77,16 @@ public final class Cli {
             Flags:
               --expectations <path>    YAML skip list (default: etc/expectations.yaml)
               --test262 <path>         test262 clone root (default: test262)
-              --results <path>         output JSONL path (default: target/test262/results.jsonl)
-              --run-meta <path>        output metadata JSON (default: target/test262/run-meta.json)
+              --run-dir <path>         output directory for this run (default:
+                                       target/test262/run-<timestamp>/).
+                                       Test262Runner prints the resolved path
+                                       on completion; pass it to Test262Report
+                                       --run-dir to render the HTML report.
               --timeout-ms <n>         per-test watchdog (default: 10000)
               --max-duration <ms>      overall wall-clock cap; writes partial results on hit (default: 0 = unlimited)
               --only <glob>            restrict to tests matching a path glob, e.g. 'test/language/**'
               --single <path>          run exactly one test (no file writes); use -vv to trace
               -v | -vv                 verbose output (--single mode only)
-              --resume                 skip tests already present in the existing target/test262/results.jsonl
               -h | --help              show this help
 
             Prerequisite: ./fetch-test262.sh (one-time)

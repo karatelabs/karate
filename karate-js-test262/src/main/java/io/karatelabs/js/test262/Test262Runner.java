@@ -5,61 +5,93 @@ import io.karatelabs.parser.ParserException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
  * test262 conformance runner for karate-js.
  * <p>
- * Sequential, fresh {@link Engine} per test, per-test watchdog timeout.
- * During a run, each result is appended (flushed) to
- * {@code target/test262/results.jsonl.partial} — this is the live tap for
- * {@code tail -f} and also survives an abrupt JVM exit. At end-of-run the
- * lines are sorted by path and atomically renamed into the canonical
- * {@code target/test262/results.jsonl}; the partial is deleted on a clean
- * exit and kept on abort. A single {@code target/test262/progress.log} is
- * overwritten per run and captures the startup banner, periodic
- * {@code [progress]} lines, and the final {@code Summary} / {@code Aborted}
- * line — FAIL metadata lives in the JSONL, not the log.
+ * Sequential, fresh {@link Engine} per test, per-test watchdog timeout. Every
+ * run writes a fresh, self-contained {@code target/test262/run-<timestamp>/}
+ * directory containing:
+ * <ul>
+ *   <li>{@code results.jsonl} — canonical, sorted-by-path, atomic-written at
+ *       end-of-run.</li>
+ *   <li>{@code results.jsonl.partial} — appended/flushed per test in run order;
+ *       {@code tail -f} sees rows live; deleted on clean exit, kept on abort.</li>
+ *   <li>{@code run-meta.json} — per-run context (test262 SHA, karate-js version
+ *       + git SHA, JDK, OS, started/ended, counts, args).</li>
+ *   <li>{@code progress.log} — startup banner, periodic {@code [progress]}
+ *       lines, final {@code Summary} / {@code Aborted} line. FAIL detail
+ *       lives only in {@code results.jsonl}; mirroring it here would
+ *       duplicate without new signal.</li>
+ * </ul>
+ * The runner prints the resolved run-dir path on completion so the user (or
+ * {@code etc/run.sh}) can pass it to {@code Test262Report --run-dir <path>}.
  * <p>
  * See {@code karate-js-test262/TEST262.md} for full docs.
  */
 public final class Test262Runner {
 
-    private static final Logger logger = LoggerFactory.getLogger(Test262Runner.class);
+    /** Lazily initialized so Logback's appender configuration runs AFTER
+     *  {@link #RUN_DIR_PROP} is set in {@link #main}; a static-field
+     *  initializer would trigger Logback before main() can set the
+     *  property, leaving progress.log in the fallback location. */
+    private static volatile Logger LOGGER;
+
+    private static Logger logger() {
+        Logger l = LOGGER;
+        if (l == null) {
+            l = LoggerFactory.getLogger(Test262Runner.class);
+            LOGGER = l;
+        }
+        return l;
+    }
 
     /** Periodic progress line cadence: every N tests OR every M seconds, whichever first. */
     private static final int PROGRESS_EVERY_N_TESTS = 500;
     private static final long PROGRESS_EVERY_MS = 5_000L;
 
+    /** Logback file appender reads this system property; see logback.xml. Set
+     *  before the first SLF4J log call so the appender is configured against
+     *  the actual run dir, not the fallback default. */
+    static final String RUN_DIR_PROP = "test262.run.dir";
+
+    /** Pattern matching the {@code at <path>:<line>:<col>} suffix that
+     *  {@code Node.toStringError} appends to engine error messages. */
+    private static final Pattern AT_LINE_COL = Pattern.compile(
+            "\\bat\\s+([^\\s:]+):(\\d+):(\\d+)\\b");
+
     /**
      * Print a progress / banner / summary line to stdout AND mirror it into
-     * the log file ({@code target/test262/progress.log}). Per-test FAIL
-     * lines do NOT go through here — they print directly to stdout and
-     * their full detail lives in {@code results.jsonl.partial}, so
-     * duplicating them into the log would add noise without new signal.
+     * the log file ({@code <run-dir>/progress.log}). Per-test FAIL lines do
+     * NOT go through here — they print directly to stdout and their full
+     * detail lives in {@code results.jsonl}, so duplicating them into the
+     * log would add noise without new signal.
      */
     private static void sayProgress(String line) {
         System.out.println(line);
-        logger.info(line);
+        logger().info(line);
     }
 
     public static void main(String[] args) throws Exception {
@@ -79,16 +111,32 @@ public final class Test262Runner {
         HarnessLoader harness = new HarnessLoader(cli.test262);
 
         if (cli.single != null) {
+            // --single does no file writes; skip run-dir setup entirely.
             runSingle(cli, expectations, harness);
             return;
         }
 
-        runSuite(cli, expectations, harness);
+        // Pick run dir BEFORE the first SLF4J log call — Logback's file
+        // appender resolves ${test262.run.dir} at appender init, which
+        // happens on first log call.
+        Path runDir = cli.runDir != null
+                ? cli.runDir
+                : Paths.get("target/test262/run-" + timestamp());
+        Files.createDirectories(runDir);
+        System.setProperty(RUN_DIR_PROP, runDir.toString());
+
+        runSuite(cli, expectations, harness, runDir);
+    }
+
+    private static String timestamp() {
+        return DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss")
+                .format(LocalDateTime.now());
     }
 
     /* ------------------------------- full suite ------------------------------- */
 
-    private static void runSuite(Cli cli, Expectations expectations, HarnessLoader harness) throws Exception {
+    private static void runSuite(Cli cli, Expectations expectations, HarnessLoader harness,
+                                 Path runDir) throws Exception {
         Path testRoot = cli.test262.resolve("test");
         if (!Files.isDirectory(testRoot)) {
             System.err.println("test262 'test/' directory not found: " + testRoot);
@@ -106,12 +154,15 @@ public final class Test262Runner {
         }
 
         Pattern onlyRe = cli.only == null ? null : globToRegex(cli.only);
-        Set<String> resumeDone = cli.resume ? loadExistingPaths(cli.results) : Set.of();
+
+        Path results = runDir.resolve("results.jsonl");
+        Path partial = runDir.resolve("results.jsonl.partial");
+        Path runMeta = runDir.resolve("run-meta.json");
 
         // Startup banner — file appender only; the console already gets its own
         // startup context via Maven's stderr and the runner's output.
-        logger.info("test262 runner starting  args={} only={} timeout-ms={} max-duration-ms={} resume={}",
-                cli.rawArgs, cli.only == null ? "-" : cli.only, cli.timeoutMs, cli.maxDurationMs, cli.resume);
+        logger().info("test262 runner starting  args={} only={} timeout-ms={} max-duration-ms={}  run-dir={}",
+                cli.rawArgs, cli.only == null ? "-" : cli.only, cli.timeoutMs, cli.maxDurationMs, runDir);
 
         Instant started = Instant.now();
         long startedNanos = System.nanoTime();
@@ -130,12 +181,7 @@ public final class Test262Runner {
 
         // Live partial file: each result is appended and flushed as it is produced,
         // in submission order (NOT sorted). `tail -f` sees records as they arrive,
-        // and on abrupt exit the file remains as forensics. This is the ONLY store
-        // of results during the run — the in-memory list was removed because it
-        // scaled linearly with suite size and duplicated what the file already had.
-        Path partial = cli.results.resolveSibling(cli.results.getFileName() + ".partial");
-        Path partialParent = partial.getParent();
-        if (partialParent != null) Files.createDirectories(partialParent);
+        // and on abrupt exit the file remains as forensics.
         BufferedWriter partialWriter = Files.newBufferedWriter(partial, StandardCharsets.UTF_8,
                 java.nio.file.StandardOpenOption.CREATE,
                 java.nio.file.StandardOpenOption.TRUNCATE_EXISTING,
@@ -145,7 +191,6 @@ public final class Test262Runner {
             for (Path abs : all) {
                 String rel = cli.test262.relativize(abs).toString().replace('\\', '/');
                 if (onlyRe != null && !onlyRe.matcher(rel).matches()) continue;
-                if (resumeDone.contains(rel)) continue;
 
                 if (System.nanoTime() - startedNanos > maxDurationNanos) {
                     aborted = true;
@@ -229,12 +274,13 @@ public final class Test262Runner {
 
         Instant ended = Instant.now();
 
-        // End-of-run: read the partial (new records, run order), merge with any
-        // existing sorted results.jsonl entries that --resume preserved, sort all
-        // lines (JSONL starts with {"path":"X",... so lex sort == path sort), and
-        // atomic-write the canonical results.jsonl.
-        List<String> merged = mergePartialWithExisting(partial, cli.results, cli.resume);
-        ResultWriter.sortAndWrite(cli.results, merged);
+        // End-of-run: read the partial (run order) and atomic-write the
+        // canonical results.jsonl sorted by path. JSONL starts with
+        // {"path":"X",..., so lex sort == path sort.
+        List<String> rows = Files.isRegularFile(partial)
+                ? Files.readAllLines(partial, StandardCharsets.UTF_8)
+                : new ArrayList<>();
+        ResultWriter.sortAndWrite(results, rows);
 
         // Canonical file is in place; the live tap is redundant. Keep it on abort
         // so the stop point is forensically visible.
@@ -244,22 +290,22 @@ public final class Test262Runner {
 
         RunMeta meta = new RunMeta(
                 readTest262Sha(cli.test262),
-                System.getProperty("karate.js.version", ""),
+                readKarateJsVersion(),
                 readHeadSha(cli.test262.getParent() == null ? Path.of(".") : cli.test262.getParent().getParent()),
                 RunMeta.detectJdk(),
                 RunMeta.detectOs(),
                 started, ended,
                 new RunMeta.Counts(pass, fail, skip, pass + fail + skip),
                 cli.rawArgs);
-        meta.writeTo(cli.runMeta);
+        meta.writeTo(runMeta);
 
         sayProgress("");
         sayProgress(String.format("%s: %d pass / %d fail / %d skip / %d total in %s",
                 aborted ? "Aborted" : "Summary",
                 pass, fail, skip, pass + fail + skip,
                 formatDuration(java.time.Duration.between(started, ended))));
-        sayProgress("Results: " + cli.results.toAbsolutePath());
-        sayProgress("Report:  java io.karatelabs.js.test262.Test262Report");
+        sayProgress("Run dir: " + runDir.toAbsolutePath());
+        sayProgress("Report:  java io.karatelabs.js.test262.Test262Report --run-dir " + runDir);
     }
 
     /**
@@ -278,43 +324,6 @@ public final class Test262Runner {
                 processed, pass, fail, skip, rate,
                 formatDuration(java.time.Duration.ofMillis(elapsedMs))));
         return nowNanos;
-    }
-
-    /**
-     * Read the partial file (new records in run order) and merge with any rows
-     * from the existing canonical results.jsonl whose path was NOT re-run this
-     * session (only meaningful when --resume was used). Returns the combined
-     * list of raw JSONL lines, ready to be sorted + atomic-written.
-     */
-    private static List<String> mergePartialWithExisting(Path partial, Path canonical, boolean resume) throws IOException {
-        List<String> newLines = Files.isRegularFile(partial)
-                ? Files.readAllLines(partial, StandardCharsets.UTF_8)
-                : new ArrayList<>();
-        if (!resume || !Files.isRegularFile(canonical)) {
-            return newLines;
-        }
-        Set<String> newPaths = new HashSet<>();
-        for (String line : newLines) {
-            String p = extractPath(line);
-            if (p != null) newPaths.add(p);
-        }
-        List<String> oldLines = Files.readAllLines(canonical, StandardCharsets.UTF_8);
-        List<String> merged = new ArrayList<>(newLines.size() + oldLines.size());
-        merged.addAll(newLines);
-        for (String line : oldLines) {
-            String p = extractPath(line);
-            if (p != null && !newPaths.contains(p)) merged.add(line);
-        }
-        return merged;
-    }
-
-    /** Pull the value of the leading {@code "path":"…"} field out of a JSONL line. */
-    private static String extractPath(String jsonLine) {
-        int i = jsonLine.indexOf("\"path\":\"");
-        if (i < 0) return null;
-        int s = i + "\"path\":\"".length();
-        int e = jsonLine.indexOf('"', s);
-        return e > s ? jsonLine.substring(s, e) : null;
     }
 
     private static ExecutorService newInnerExec() {
@@ -364,7 +373,11 @@ public final class Test262Runner {
             ResultRecord r = runOne(tc, harness, exec, cli.timeoutMs);
             System.out.println("status:      " + r.status()
                     + (r.errorType() == null ? "" : " [" + r.errorType() + "]"));
-            if (r.message() != null) System.out.println("message:     " + r.message());
+            if (r.message() != null) {
+                System.out.println("message:     " + r.message());
+                String loc = extractSourceLocation(r.message());
+                if (loc != null) System.out.println("location:    " + loc);
+            }
             if (cli.verbose >= 2) {
                 System.out.println();
                 System.out.println("--- source ---");
@@ -373,6 +386,18 @@ public final class Test262Runner {
         } finally {
             exec.shutdownNow();
         }
+    }
+
+    /**
+     * Pull the {@code at <path>:<line>:<col>} suffix from a FAIL message,
+     * if present. The engine appends this via {@code Node.toStringError};
+     * surfacing it in {@code --single -vv} gives the user a single-frame
+     * locator without re-reading the source.
+     */
+    static String extractSourceLocation(String message) {
+        if (message == null) return null;
+        Matcher m = AT_LINE_COL.matcher(message);
+        return m.find() ? m.group(1) + ":" + m.group(2) + ":" + m.group(3) : null;
     }
 
     /* --------------------------- per-test execution --------------------------- */
@@ -432,7 +457,9 @@ public final class Test262Runner {
             return classifyNegative(path, neg, "parse", "SyntaxError", pe);
         } catch (RuntimeException re) {
             String type = ErrorUtils.classify(re);
-            String msg = ErrorUtils.firstLine(re.getMessage(), 200);
+            // Strip the leading "<type>: " prefix from message so it's not
+            // doubled when the runner displays "<error_type>: <message>".
+            String msg = ErrorUtils.firstLine(re.getMessage(), type, 200);
             if (neg != null) {
                 if (!"parse".equals(neg.phase())
                         && (neg.type() == null || neg.type().equals(type) || type == null)) {
@@ -454,7 +481,7 @@ public final class Test262Runner {
 
     private static ResultRecord classifyNegative(String path, Test262Metadata.Negative neg,
                                                  String actualPhase, String actualType, RuntimeException re) {
-        String msg = ErrorUtils.firstLine(re.getMessage(), 200);
+        String msg = ErrorUtils.firstLine(re.getMessage(), actualType, 200);
         if (neg != null && actualPhase.equals(neg.phase())
                 && (neg.type() == null || neg.type().equals(actualType))) {
             return ResultRecord.pass(path);
@@ -531,24 +558,6 @@ public final class Test262Runner {
         return Pattern.compile(sb.toString());
     }
 
-    private static Set<String> loadExistingPaths(Path jsonl) {
-        if (!Files.isRegularFile(jsonl)) return Set.of();
-        Set<String> out = new HashSet<>();
-        try (BufferedReader br = Files.newBufferedReader(jsonl, StandardCharsets.UTF_8)) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                int idx = line.indexOf("\"path\":\"");
-                if (idx < 0) continue;
-                int start = idx + "\"path\":\"".length();
-                int end = line.indexOf('"', start);
-                if (end > start) out.add(line.substring(start, end));
-            }
-        } catch (IOException e) {
-            return Set.of();
-        }
-        return out;
-    }
-
     private static String readTest262Sha(Path test262Root) {
         Path head = test262Root.resolve(".git/HEAD");
         try {
@@ -573,6 +582,29 @@ public final class Test262Runner {
                 if (Files.isRegularFile(refFile)) return Files.readString(refFile).strip().substring(0, 10);
             }
             return h.length() >= 10 ? h.substring(0, 10) : h;
+        } catch (IOException e) {
+            return "";
+        }
+    }
+
+    /**
+     * Read {@code karate-js}'s Maven version from its
+     * {@code META-INF/maven/io.karatelabs/karate-js/pom.properties} resource on
+     * the classpath. Maven writes this file into every JAR it builds, so the
+     * value is reliably present when the runner picks up karate-js as an
+     * installed dependency. Empty string when running from a build that
+     * hasn't packaged karate-js (rare; shouldn't happen for normal use).
+     */
+    private static String readKarateJsVersion() {
+        // Allow a system-property override for testing / overrides.
+        String prop = System.getProperty("karate.js.version", "").trim();
+        if (!prop.isEmpty()) return prop;
+        try (InputStream in = Test262Runner.class.getResourceAsStream(
+                "/META-INF/maven/io.karatelabs/karate-js/pom.properties")) {
+            if (in == null) return "";
+            Properties p = new Properties();
+            p.load(in);
+            return p.getProperty("version", "").trim();
         } catch (IOException e) {
             return "";
         }

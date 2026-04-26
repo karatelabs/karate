@@ -45,10 +45,21 @@ jobs:
       - name: Build reactor (karate-js + test262 harness)
         run: mvn -B -ntp -pl karate-js-test262 -am install -DskipTests
 
+      # Compute a per-run output directory ONCE so the runner and the report
+      # write into the same self-contained dir. Mirrors etc/run.sh's behavior.
+      - name: Compute run-dir
+        id: rundir
+        working-directory: karate-js-test262
+        run: |
+          RUN_DIR="target/test262/run-$(date -u +%Y-%m-%d-%H%M%S)"
+          echo "path=$RUN_DIR" >> "$GITHUB_OUTPUT"
+          echo "Run dir: $RUN_DIR"
+
       - name: Run test262 suite
         working-directory: karate-js-test262
         env:
           EXEC_ARGS: >-
+            --run-dir ${{ steps.rundir.outputs.path }}
             ${{ github.event.inputs.only != '' && format('--only {0}', github.event.inputs.only) || '' }}
             --timeout-ms ${{ github.event.inputs.timeout_ms }}
         run: mvn -B -ntp -f ../pom.xml -pl karate-js-test262 -o exec:java -Dexec.args="$EXEC_ARGS"
@@ -58,10 +69,11 @@ jobs:
         run: >
           mvn -B -ntp -f ../pom.xml -pl karate-js-test262 -o exec:java
           -Dexec.mainClass=io.karatelabs.js.test262.Test262Report
+          -Dexec.args="--run-dir ${{ steps.rundir.outputs.path }}"
 
-      # All runner outputs (results.jsonl, run-meta.json, session log, and the
-      # generated html/ dashboard) land under target/test262/ — one artifact
-      # covers the whole session. GitHub zips the uploaded tree automatically.
+      # The per-run dir contains everything (results.jsonl, run-meta.json,
+      # progress.log, html/). The artifact uploads the entire target/test262/
+      # parent so old runs (if any) come along too — typically there's just one.
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -72,8 +84,9 @@ jobs:
 
       - name: Print summary
         if: always()
+        working-directory: karate-js-test262
         run: |
-          META=karate-js-test262/target/test262/run-meta.json
+          META="${{ steps.rundir.outputs.path }}/run-meta.json"
           if [ -f "$META" ]; then
             echo "### test262 summary" >> "$GITHUB_STEP_SUMMARY"
             echo '```json' >> "$GITHUB_STEP_SUMMARY"

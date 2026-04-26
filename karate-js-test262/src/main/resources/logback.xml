@@ -1,22 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Logging config for the test262 runner.
+  Logging config for the test262 runner + report.
 
-  A single file `target/test262/progress.log` is overwritten per run and
-  captures the startup banner, periodic [progress] lines, and the final
+  Writes `<run-dir>/progress.log` where <run-dir> is the per-run directory
+  resolved by Test262Runner / Test262Report (system property
+  `test262.run.dir`, set before the first SLF4J call). When the property
+  isn't set (e.g. a stray invocation outside the runner), the log lands
+  under `target/test262/progress.log` as a fallback.
+
+  Captures the startup banner, periodic [progress] lines, and the final
   Summary / Aborted line. FAIL lines and per-test metadata go to stdout
-  only — that data already lives (with full fidelity) in
-  target/test262/results.jsonl and results.jsonl.partial, and mirroring
-  it into the log would just be duplication without a new signal.
+  only — that data lives (with full fidelity) in
+  <run-dir>/results.jsonl(.partial), and mirroring it into the log would
+  just be duplication without a new signal.
 
-  Progress.log is meant for `tail -f` during a run and for post-hoc
-  "what pace did it go at / when did it abort" forensics. Anything
-  beyond that should come from the JSONL files.
+  `<append>true</append>` is critical: Test262Report runs in a separate
+  JVM after Test262Runner, and a truncating appender would wipe the
+  runner's banner+summary on first report log call.
 -->
 <configuration>
     <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>target/test262/progress.log</file>
-        <append>false</append>
+        <file>${test262.run.dir:-target/test262}/progress.log</file>
+        <append>true</append>
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} %msg%n</pattern>
         </encoder>
@@ -28,8 +33,8 @@
         </encoder>
     </appender>
 
-    <!-- Runner traffic goes only to the file; the runner also writes to stdout
-         directly, so we don't want the logger to double-print. -->
+    <!-- Runner / report traffic goes only to the file; the runner also writes to
+         stdout directly, so we don't want the logger to double-print. -->
     <logger name="io.karatelabs.js.test262" level="INFO" additivity="false">
         <appender-ref ref="FILE"/>
     </logger>

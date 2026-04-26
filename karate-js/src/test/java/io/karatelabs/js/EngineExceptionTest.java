@@ -187,6 +187,21 @@ class EngineExceptionTest {
     }
 
     @Test
+    void testJsErrorToStringDoesNotDoublePrefixWhenMessageStartsWithName() {
+        // Regression: JsError.toString must not produce "Error: Error: x" when
+        // the message already carries the "Error: " prefix. This happens both
+        // when the engine has injected the prefix at evalProgram, and when
+        // sta.js's Test262Error.prototype.toString has run on the receiver.
+        Engine engine = new Engine();
+        Object plain = engine.eval("'' + new Error('plain message')");
+        assertEquals("Error: plain message", plain);
+        Object preFixed = engine.eval("'' + new Error('Error: already prefixed')");
+        assertEquals("Error: already prefixed", preFixed);
+        Object typeErr = engine.eval("'' + new TypeError('TypeError: x')");
+        assertEquals("TypeError: x", typeErr);
+    }
+
+    @Test
     void testNonJsJavaExceptionCaughtAsGenericError() {
         // When a raw Java exception (not JsErrorException) escapes host code and
         // is caught by JS try/catch, it surfaces as a generic Error with the
