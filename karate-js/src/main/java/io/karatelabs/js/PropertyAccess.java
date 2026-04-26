@@ -534,7 +534,12 @@ class PropertyAccess {
             }
             if (object instanceof List<?> list) {
                 if (i < 0 || i >= list.size()) return Terms.UNDEFINED;
-                return list.get(i);
+                Object v = list.get(i);
+                // Translate JsArray.HOLE → undefined so callers reading from
+                // a raw List that was sourced from a sparse JsArray (e.g.
+                // Array.prototype.* methods that return rawList directly)
+                // never see the sentinel.
+                return v == JsArray.HOLE ? Terms.UNDEFINED : v;
             }
             if (object instanceof String s) {
                 if (i < 0 || i >= s.length()) return Terms.UNDEFINED;

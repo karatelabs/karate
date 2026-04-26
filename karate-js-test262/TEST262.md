@@ -177,17 +177,17 @@ Action list — start at the top. Ordered by core-engine confidence
 cross-multiplied by score impact. Re-probe with the relevant `--only` glob
 before scoping a session.
 
-**Current state baseline** (last sampled 2026-04-26, post JsArray indexed-
-accessor enforcement + structured `EngineException.getJsMessage`):
+**Current state baseline** (last sampled 2026-04-26, post JsArray hole
+sentinel + length truncation + length descriptor):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
-| `test/language/**` | 4290 | 3813 | 15542 | 23645 |
+| `test/language/**` | 4311 | 3792 | 15542 | 23645 |
 | `test/built-ins/Math/**` | 293 | 33 | 1 | 327 |
 | `test/built-ins/Number/**` | 232 | 96 | 12 | 340 |
 | `test/built-ins/String/**` | 456 | 717 | 50 | 1223 |
-| `test/built-ins/Array/**` | 1242 | 1659 | 180 | 3081 |
-| `test/built-ins/Object/**` | 2014 | 1272 | 125 | 3411 |
+| `test/built-ins/Array/**` | 1256 | 1645 | 180 | 3081 |
+| `test/built-ins/Object/**` | 2035 | 1251 | 125 | 3411 |
 | `test/built-ins/Date/**` | 500 | 52 | 42 | 594 |
 | `test/built-ins/Function/**` | 229 | 152 | 128 | 509 |
 | `test/built-ins/Symbol/**` | 2 | 47 | 49 | 98 |
@@ -213,33 +213,29 @@ accessor enforcement + structured `EngineException.getJsMessage`):
    work. Re-probe before scoping with `test/built-ins/Symbol/**` to size
    per-feature cluster.
 
-2. **JsArray indexed-accessor + descriptor coexistence (residual).** Layer-1
-   landed 2026-04-26: `Object.defineProperty(arr, i, {get/set: ...})` now
-   dispatches through the JsAccessor map for both reads and writes —
-   `JsArray.getIndexedSlot(i)` consults `namedProps` first, then falls back
-   to the dense list; `PropertyAccess.getByIndex/setByIndex` invoke the
-   accessor when the slot resolves to one; `JsArrayPrototype.rawList` /
-   `jsEntries` take the slow snapshot path when `arr.hasAnyDescriptor()`.
-   Net delta: **+39 Array, +9 Object PASS** (≈ +48 total) with no JUnit
-   regressions. Residual is the bigger spec piece: `arr.length = N` does
-   not truncate the dense list (so `every` / `with` accessor-mid-iteration
-   tests fail at the *iteration semantics* layer, not the accessor layer);
-   `Object.defineProperty(arr, "5", ...)` on `[1,2,3]` doesn't bump
-   `length` to 6 either. Both gate the next ~30-50 Array-prototype tests
-   and need a `JsArray.setLength(int)` plus length-bump in
-   `applyDefine`'s array branch.
+2. **`this = 1` / `import.meta = 1` / `eval = 1` NPE.** Tier-1 negative-test
+   stragglers. `this` lexes as IDENT; `import.meta` parses as a normal
+   `REF_DOT_EXPR`; `eval = 1` hits a pre-existing NPE in the engine's
+   host-bindings setup (`Cannot read field "listener" because "this.root"
+   is null`). 5 fails total in `expressions/assignmenttargettype/**`.
 
-3. **`JsArray.length` descriptor + Tier-1 expression residuals.** Surgical
-   wins worth picking off opportunistically:
-   - **`JsArray.length` descriptor** — spec is `{writable: true, enumerable:
-     false, configurable: false}`. Override `getOwnAttrs("length")` on
-     JsArray. ~10 tests across `Array.prototype.*` and `Array/length/**`.
-     Independent commit.
-   - **`this = 1` / `import.meta = 1` / `eval = 1` NPE** — Tier-1 negative-
-     test stragglers. `this` lexes as IDENT; `import.meta` parses as a normal
-     `REF_DOT_EXPR`; `eval = 1` hits a pre-existing NPE in the engine's
-     host-bindings setup (`Cannot read field "listener" because "this.root"
-     is null`). 5 fails total in `expressions/assignmenttargettype/**`.
+3. **JsArray per-index attribute tracking (residual).** Layer-2 landed
+   2026-04-26: `JsArray.HOLE` sentinel distinguishes sparse holes from
+   `null`/`undefined`; `arr.length = N` truncates / extends with HOLE per
+   §10.4.2.4 ArraySetLength; `Object.defineProperty(arr, "length", {value:
+   N})` routes through the same `setLength` path; `arr[i] = x` for `i >=
+   size` extends with HOLE-padding; `length` reports its spec descriptor
+   `{writable: true, enumerable: false, configurable: false}`; `hasOwn` /
+   `Object.keys` / `Object.getOwnPropertyDescriptor` honor own-vs-hole
+   semantics; `JsArray.jsEntries` and `IterUtils.listIterator` translate
+   HOLE for hole-skipping (forEach/map/filter) vs hole-as-undefined
+   (for-of/spread) per spec. Net delta vs prior baseline: **+14 Array,
+   +21 Object, +21 language ≈ +57 PASS**, no JUnit regressions.
+   Residual is per-index attributes: `defineProperty(arr, "0",
+   {writable: false, value: x})` writes to the dense list and loses the
+   `writable: false` bit (no parallel `_attrs` map on JsArray). Adding
+   one mirrors what `JsObject._attrs` already does and would unblock the
+   `Array/prototype/*-target-array-with-non-writable-property` cluster.
 
 ### Background
 
@@ -447,6 +443,28 @@ prose lives in [JS_ENGINE.md § Spec Invariants](../docs/JS_ENGINE.md#spec-invar
   `rawList` / `jsEntries` take the per-index snapshot path when
   `arr.hasAnyDescriptor()` so `Array.prototype.*` callbacks see resolved
   values, not the JsAccessor wrapper.
+- `JsArray.HOLE` sentinel marks sparse slots distinct from `null` /
+  `undefined`. `[0,,2]` writes HOLE at index 1 (not null), so
+  `arr.hasOwnProperty(1) === false` while `[0,null,2].hasOwnProperty(1)
+  === true`. Read seams translate HOLE to `undefined` (`getElement`,
+  `List.get`, `PropertyAccess.getByIndex` for raw List, `IterUtils`
+  iterator) so user code never observes the sentinel; iteration helpers
+  that the spec says skip holes (`Array.prototype.{forEach, map, filter,
+  every, some, find, findIndex, reduce, reduceRight}`) do so via
+  `JsArray.jsEntries` which skips HOLE entries.
+- `arr.length = N` truncates the dense list when N < current size or
+  pads with HOLE when N > current size, per §10.4.2.4 ArraySetLength.
+  `arr[i] = x` for `i >= size` extends with HOLE-padding to grow the
+  array in one shot. `Object.defineProperty(arr, "length", {value: N})`
+  routes through the same `setLength` path. `length` exposes its spec
+  descriptor `{writable: true, enumerable: false, configurable: false}`
+  via `JsArray.getOwnAttrs`.
+- `JsArray.isOwnProperty` is the canonical own-key check for arrays —
+  covers `length`, `namedProps` entries (descriptors / named props), and
+  canonical numeric indices in range that are not HOLE. Wired through
+  `Object.hasOwn`, `arr.hasOwnProperty`, `Object.getOwnPropertyDescriptor`,
+  and the `ownKeys` helper that backs `Object.keys` /
+  `Object.getOwnPropertyNames`.
 - `Function.prototype.bind` returns a new JsFunction with bound `thisObject`
   + pre-bound args
 

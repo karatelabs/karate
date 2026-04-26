@@ -144,7 +144,11 @@ public class IterUtils {
                 if (i >= list.size()) {
                     throw new NoSuchElementException();
                 }
-                return list.get(i++);
+                Object v = list.get(i++);
+                // for-of / spread / destructuring read holes as undefined per spec
+                // (`[...[1,,3]]` → `[1, undefined, 3]`). HOLE is JsArray's
+                // sparse-slot sentinel; translate at the iterator boundary.
+                return v == JsArray.HOLE ? Terms.UNDEFINED : v;
             }
         };
     }

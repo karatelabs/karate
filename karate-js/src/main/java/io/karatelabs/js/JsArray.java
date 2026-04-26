@@ -40,6 +40,24 @@ import java.util.*;
  */
 class JsArray implements ObjectLike, JsCallable, List<Object> {
 
+    /**
+     * Sparse-hole sentinel. Distinct from {@code null} (an explicit JS
+     * {@code null} value) and {@link Terms#UNDEFINED} (an explicit
+     * {@code undefined} value) — sparse array literals like {@code [0,,2]}
+     * write this value at the hole positions, and {@code arr.length = 5} on
+     * an empty array fills the new slots with it. The runtime translates
+     * {@code HOLE} back to {@code undefined} at every read seam so user
+     * code never observes the sentinel; {@link #isOwnProperty(String)} and
+     * the spec-skipping iteration helpers ({@link #jsEntries()},
+     * {@code Array.prototype.{forEach,map,filter,every,some,find,...}})
+     * use it to distinguish holes from set-to-undefined slots — per spec,
+     * {@code [,].hasOwnProperty(0) === false} but
+     * {@code [undefined].hasOwnProperty(0) === true}.
+     */
+    static final Object HOLE = new Object() {
+        @Override public String toString() { return "<<hole>>"; }
+    };
+
     final List<Object> list;
     private Map<String, Object> namedProps;
     private ObjectLike __proto__ = JsArrayPrototype.INSTANCE;
@@ -148,10 +166,53 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             }
             return;
         }
+        // arr.length = N — truncate (N < size) or extend with HOLE (N > size)
+        // per §10.4.2.4 ArraySetLength. Numeric coercion via Terms.objectToNumber
+        // matches what `arr.length = "5"` and `arr.length = 5.0` do in JS.
+        if ("length".equals(name)) {
+            Number n = Terms.objectToNumber(value);
+            if (n != null) {
+                setLength(n.intValue());
+            }
+            return;
+        }
+        // Numeric index write — write into the dense list (and pad with HOLE if
+        // the index is past size, growing length per array-exotic semantics).
+        // Two slow-path exits land in namedProps instead:
+        //   - Descriptors: a JsAccessor value is a defineProperty install,
+        //     which must shadow the dense slot (PropertyAccess reads consult
+        //     namedProps first via getIndexedSlot).
+        //   - Existing namedProps entry at this index: keep the override
+        //     active so the descriptor isn't silently lost.
+        int i = parseIndex(name);
+        boolean hasNamedAtIndex = namedProps != null && namedProps.containsKey(name);
+        if (i >= 0 && !hasNamedAtIndex && !(value instanceof JsAccessor)) {
+            while (list.size() < i) list.add(HOLE);
+            if (i < list.size()) list.set(i, value);
+            else list.add(value);
+            return;
+        }
         if (namedProps == null) {
             namedProps = new LinkedHashMap<>();
         }
         namedProps.put(name, value);
+    }
+
+    /**
+     * Sets {@code length} per §10.4.2.4 ArraySetLength: shrinking truncates
+     * the dense list (loses values past the new length); growing pads with
+     * {@link #HOLE} so the new slots are sparse, not set-to-undefined.
+     * Negative or NaN coercions are ignored (caller validates per spec).
+     */
+    void setLength(int newLength) {
+        if (newLength < 0) return;
+        int cur = list.size();
+        if (newLength < cur) {
+            // sublist().clear() removes the tail in one shot
+            list.subList(newLength, cur).clear();
+        } else {
+            while (list.size() < newLength) list.add(HOLE);
+        }
     }
 
     @Override
@@ -243,8 +304,13 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     @Override
     public Object get(int index) {
-        // List.get() auto-unwraps for Java consumers (converts undefined to null, unwraps JsValue types)
-        return Engine.toJava(list.get(index));
+        // List.get() auto-unwraps for Java consumers (converts undefined to null,
+        // unwraps JsValue types). Also translates HOLE→null so sparse slots
+        // surface as Java null (the closest representation of JS undefined for
+        // a List consumer; matches what Engine.toJava does for Terms.UNDEFINED).
+        Object v = list.get(index);
+        if (v == HOLE) return null;
+        return Engine.toJava(v);
     }
 
     @Override
@@ -293,12 +359,14 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     /**
      * JS internal access - returns raw value, UNDEFINED for out of bounds
+     * or for sparse holes (so callers never observe {@link #HOLE}).
      */
     public Object getElement(int index) {
         if (index < 0 || index >= list.size()) {
             return Terms.UNDEFINED;  // JS semantics
         }
-        return list.get(index);  // Raw value
+        Object v = list.get(index);
+        return v == HOLE ? Terms.UNDEFINED : v;
     }
 
     /**
@@ -339,6 +407,36 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         return namedProps != null && !namedProps.isEmpty();
     }
 
+    /**
+     * True iff {@code name} is an own property on this array — covers
+     * {@code length} (always own), any user-set entry in {@link #namedProps}
+     * (descriptors installed via {@code Object.defineProperty}, named
+     * properties), and canonical numeric indices that are not holes
+     * (i.e. {@code list.get(i) != HOLE}). Mirrors
+     * {@link JsObject#isOwnProperty(String)}.
+     */
+    public boolean isOwnProperty(String name) {
+        if ("length".equals(name)) return true;
+        if (namedProps != null && namedProps.containsKey(name)) return true;
+        int i = parseIndex(name);
+        return i >= 0 && i < list.size() && list.get(i) != HOLE;
+    }
+
+    /**
+     * Spec-correct attribute byte for an own property of this array.
+     * {@code length} is {@code {writable: true, enumerable: false,
+     * configurable: false}} per §10.4.2 ArrayCreate. Other keys default to
+     * all-true (per-key attribute tracking matching {@link JsObject#_attrs}
+     * is a follow-up).
+     */
+    public byte getOwnAttrs(String name) {
+        if ("length".equals(name)) {
+            // writable only — not enumerable, not configurable.
+            return JsObject.WRITABLE;
+        }
+        return JsObject.ATTRS_DEFAULT;
+    }
+
     public void setElement(int index, Object value) {
         list.set(index, value);
     }
@@ -364,6 +462,12 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     /**
      * Returns an iterable for JS for-in/for-of iteration with KeyValue pairs.
+     * Skips sparse holes per spec: {@code Array.prototype.{forEach,map,filter,
+     * every,some,find,findIndex,reduce,reduceRight}} and {@code for...in} all
+     * skip indices whose own property is absent. ({@code for...of} reads
+     * each index via {@code Get(O, k)} which returns {@code undefined} for
+     * holes — different code path; this iterator is for the hole-skipping
+     * built-ins.)
      */
     public Iterable<KeyValue> jsEntries() {
         return () -> new Iterator<>() {
@@ -371,11 +475,15 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
             @Override
             public boolean hasNext() {
+                while (index < list.size() && list.get(index) == HOLE) {
+                    index++;
+                }
                 return index < list.size();
             }
 
             @Override
             public KeyValue next() {
+                if (!hasNext()) throw new NoSuchElementException();
                 int i = index++;
                 return new KeyValue(JsArray.this, i, i + "", list.get(i));
             }

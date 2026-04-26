@@ -146,6 +146,9 @@ class JsObjectPrototype extends Prototype {
         if (thisObj instanceof JsObject jo) {
             return jo.isOwnProperty(prop);
         }
+        if (thisObj instanceof JsArray ja) {
+            return ja.isOwnProperty(prop);
+        }
         if (thisObj instanceof ObjectLike ol) {
             return ol.toMap().containsKey(prop);
         }

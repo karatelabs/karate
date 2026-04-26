@@ -886,7 +886,7 @@ class Interpreter {
                     list.add(iter.next());
                 }
             } else if (exprNode.token.type == COMMA) { // sparse hole
-                list.add(null);
+                list.add(JsArray.HOLE);
             } else {
                 list.add(evalExpr(exprNode, context));
             }

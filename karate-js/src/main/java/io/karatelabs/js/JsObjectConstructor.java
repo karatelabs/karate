@@ -314,7 +314,7 @@ class JsObjectConstructor extends JsFunction {
             return false;
         }
         String prop = args[1].toString();
-        return ownKeys(args[0]).contains(prop);
+        return isOwnKey(args[0], prop);
     }
 
     private Object getOwnPropertyNames(Object[] args) {
@@ -379,6 +379,7 @@ class JsObjectConstructor extends JsFunction {
 
     private static boolean isOwnKey(Object obj, String key) {
         if (obj instanceof JsObject jo) return jo.isOwnProperty(key);
+        if (obj instanceof JsArray ja) return ja.isOwnProperty(key);
         if (obj instanceof Prototype p) return p.hasOwnMember(key);
         if (ownKeys(obj).contains(key)) return true;
         return false;
@@ -577,6 +578,7 @@ class JsObjectConstructor extends JsFunction {
 
     private static byte ownAttrs(Object obj, String key) {
         if (obj instanceof JsObject jo) return jo.getOwnAttrs(key);
+        if (obj instanceof JsArray ja) return ja.getOwnAttrs(key);
         if (obj instanceof Prototype p) return p.getOwnAttrs(key);
         return JsObject.ATTRS_DEFAULT;
     }
@@ -606,6 +608,25 @@ class JsObjectConstructor extends JsFunction {
 
     @SuppressWarnings("unchecked")
     private static java.util.Set<String> ownKeys(Object obj) {
+        if (obj instanceof JsArray ja) {
+            // Spec ordering: integer indices ascending, then string keys in
+            // insertion order, then "length". Matches what V8/SpiderMonkey
+            // expose to Object.keys / getOwnPropertyNames / Reflect.ownKeys.
+            // Spec ordering: integer indices ascending (skipping holes so
+            // [0,,2] reports ["0","2"] — JsArray.HOLE marks sparse slots),
+            // then string keys in toMap insertion order, then "length".
+            java.util.LinkedHashSet<String> keys = new java.util.LinkedHashSet<>();
+            for (int i = 0, n = ja.size(); i < n; i++) {
+                if (ja.isOwnProperty(Integer.toString(i))) {
+                    keys.add(Integer.toString(i));
+                }
+            }
+            for (String k : ja.toMap().keySet()) {
+                keys.add(k);
+            }
+            keys.add("length");
+            return keys;
+        }
         if (obj instanceof ObjectLike ol) return ol.toMap().keySet();
         if (obj instanceof Map<?, ?> m) return ((Map<String, Object>) m).keySet();
         return java.util.Collections.emptySet();
@@ -621,6 +642,12 @@ class JsObjectConstructor extends JsFunction {
             Map<String, Object> m = ol.toMap();
             if (m.containsKey(key)) return m.get(key);
             if (obj instanceof JsObject jo && jo.hasOwnIntrinsic(key)) {
+                return ol.getMember(key);
+            }
+            // JsArray's intrinsics (length + canonical numeric indices) likewise
+            // resolve via getMember, not toMap. isOwnProperty is the gate so we
+            // only fall through for actual array indices in range / "length".
+            if (obj instanceof JsArray ja && ja.isOwnProperty(key)) {
                 return ol.getMember(key);
             }
             // Prototype's built-in methods (e.g. Array.prototype.push) similarly
