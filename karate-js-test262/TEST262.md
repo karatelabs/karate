@@ -14,6 +14,9 @@ idiomatic code is the goal — not spec-lawyer compliance for its own sake.
 > [../docs/JS_ENGINE.md](../docs/JS_ENGINE.md) — engine architecture, working
 > principles, code map, **spec invariants**, benchmarks ·
 > [../docs/DESIGN.md](../docs/DESIGN.md) — wider project design ·
+> [`~/Downloads/karate-js-followup-refactors.md`](~/Downloads/karate-js-followup-refactors.md) —
+> engine refactor brief: landed work, conventions / gotchas (LazyRef cycles,
+> install pattern, sealed Slot family), and the prioritized remaining items ·
 > [test262 INTERPRETING.md](https://github.com/tc39/test262/blob/main/INTERPRETING.md)
 > — authoritative test-runner spec.
 
@@ -122,8 +125,8 @@ Each session that touches the engine should:
 1. Re-probe the slice with `--only` before scoping; record before/after
    pass counts in the commit message.
 2. **Unit tests:** all green. `mvn -f pom.xml -pl karate-js -o test` →
-   `Tests run: 924, Failures: 0, Errors: 0`. Update tests where the spec
-   disagrees with them; never delete coverage.
+   `Tests run: 956, Failures: 0, Errors: 0, Skipped: 2`. Update tests where
+   the spec disagrees with them; never delete coverage.
 3. **test262 built-ins probe:** `etc/run.sh --only 'test/built-ins/**'`.
    Diff against the previous run's `results.jsonl`. **Zero regressions
    (PASS → FAIL).** Net-positive is preferred but not required for a pure
@@ -138,7 +141,11 @@ Each session that touches the engine should:
 
 ## Slice baseline
 
-Numbers as of 2026-04-26 (`run-2026-04-26-190508`, post-Slot-unification):
+Numbers as of 2026-04-26 (`run-2026-04-26-190508`, post-Slot-unification).
+**Stale relative to the S2 sweep** (sealed Slot family + eager intrinsic
+install + BindingsStore captured + HOLE unwrap centralized + isOwnProperty
+on ObjectLike + unary `+` ToPrimitive fix — see `~/Downloads/karate-js-followup-refactors.md`).
+Re-probe at the start of the next session that runs the harness.
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
@@ -266,16 +273,38 @@ should be done when convenient.
 
 ### Engine cleanup
 
-- **Unify the read-side dot dispatch in `PropertyAccess`.** Write-side is
-  unified via `resolveWriteSite` + `AccessSite`; read-side
-  (`getRefDotExpr` / `getCallableRefDotExpr`) still has mirrored
-  bridge-fallback + `?.` logic. Defer until there's a third caller wanting
-  the same resolution shape.
+See [`~/Downloads/karate-js-followup-refactors.md`](~/Downloads/karate-js-followup-refactors.md)
+for the prioritized engine-refactor brief. Headlines:
 
-- **Thin `EngineException` once `JsError` goes public.** Carries a
-  `jsErrorName` string that duplicates the cause-chain's `JsErrorException`
-  payload. `JsError` is package-private. Drop the name field when a host
-  use case forces `JsError` public.
+- **PropertyAccess read-side unify + `JsAccessor` deletion** — the four
+  read paths (`getRefDotExpr` / `getCallableRefDotExpr` / `getByName` /
+  `getByIndex`) and 14 mirrored `instanceof JsAccessor` unwrap sites
+  collapse into one `resolveProperty(receiver, key, optional, ctx)` entry
+  with polymorphic `slot.read(...)`. Sealed `PropertySlot { DataSlot,
+  AccessorSlot }` already in place; needs the storage-side migration
+  (accessor descriptors → `AccessorSlot` instances) + read-seam call-site
+  updates. Estimated 5–7 h.
+
+- **Strict mode plumbing** — parse `"use strict"` directive prologue
+  (program top + each function body), thread `strictMode` flag via
+  `CoreContext`, flip ~7 lenient sites (frozen-write / writable=false /
+  read-only / set-only-accessor / non-extensible-add /
+  non-configurable-delete) through one `failSilentOrThrow` helper.
+  `AccessorSlot.write` already accepts a `strict` arg from S2 wiring.
+  Estimated 3–4 h.
+
+Items previously listed here that have since landed or been determined
+misguided:
+
+- ~~Unify the read-side dot dispatch in `PropertyAccess`~~ — still pending,
+  see brief.
+- ~~Thin `EngineException` once `JsError` goes public.~~ Determined
+  misguided in S2: the engine's error model is already structural
+  (`JsErrorException.payload`, `EngineException.jsErrorName/jsMessage` set
+  at throw time — no regex parsing). The string-prefix scan is in the
+  `karate-js-test262/.../ErrorUtils.java` harness as a fallback for
+  legacy raw-throw sites. Making `JsError` public would expand API
+  surface without enabling new use cases.
 
 ---
 
