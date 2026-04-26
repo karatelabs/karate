@@ -44,7 +44,7 @@ class JsFunctionNode extends JsFunction {
     final List<Node> argNodes;
     final int argCount;
     final CoreContext declaredContext;
-    final Map<String, BindingSlot> capturedBindings; // References to Slots at creation time
+    final BindingsStore capturedBindings; // References to Slots at creation time, frozen-shape
 
     public JsFunctionNode(boolean arrow, Node node, List<Node> argNodes, Node body, CoreContext declaredContext) {
         this.arrow = arrow;
@@ -62,7 +62,7 @@ class JsFunctionNode extends JsFunction {
         this.capturedBindings = captureBindings(declaredContext);
     }
 
-    private static Map<String, BindingSlot> captureBindings(CoreContext context) {
+    private static BindingsStore captureBindings(CoreContext context) {
         if (context.bindings == null) {
             return null;
         }
@@ -76,7 +76,7 @@ class JsFunctionNode extends JsFunction {
                 snapshot.put(key, s); // Store reference, not copy
             }
         }
-        return snapshot;
+        return snapshot == null ? null : BindingsStore.captured(snapshot);
     }
 
     @Override

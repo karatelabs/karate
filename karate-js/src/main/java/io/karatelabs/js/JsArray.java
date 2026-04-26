@@ -603,6 +603,16 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     // =================================================================================================
 
     /**
+     * Translate the {@link #HOLE} sentinel to {@link Terms#UNDEFINED} so
+     * external callers never observe the internal marker. Single canonical
+     * unwrap site reused by {@link #getElement}, {@link IterUtils}, and
+     * {@link PropertyAccess} indexed reads.
+     */
+    static Object unwrapHole(Object v) {
+        return v == HOLE ? Terms.UNDEFINED : v;
+    }
+
+    /**
      * JS internal access - returns raw value, UNDEFINED for out of bounds
      * or for sparse holes (so callers never observe {@link #HOLE}).
      */
@@ -610,8 +620,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         if (index < 0 || index >= list.size()) {
             return Terms.UNDEFINED;  // JS semantics
         }
-        Object v = list.get(index);
-        return v == HOLE ? Terms.UNDEFINED : v;
+        return unwrapHole(list.get(index));
     }
 
     /**

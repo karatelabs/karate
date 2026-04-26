@@ -60,8 +60,11 @@ class CoreContext implements Context {
     int currentLevel = 0;
     List<ScopeEntry> scopeStack; // Lazy - created on first enterScope
 
-    // Captured bindings for closures (references to Slots from function creation time)
-    final Map<String, BindingSlot> capturedBindings;
+    // Captured bindings for closures (references to Slots from function creation time).
+    // Stored as an immutable BindingsStore so resolve() walks one chain shape; structural
+    // mutation through the captured handle is a no-op (sibling closures still see value
+    // updates through the existing-key fast path).
+    final BindingsStore capturedBindings;
 
 
     CoreContext(ContextRoot root, CoreContext parent, int depth, Node node, ContextScope scope, BindingsStore bindings) {
@@ -85,7 +88,7 @@ class CoreContext implements Context {
 
     // Unified constructor for child contexts (function calls)
     CoreContext(CoreContext parent, Node node, Object[] functionArgs,
-                CoreContext outer, Map<String, BindingSlot> captured) {
+                CoreContext outer, BindingsStore captured) {
         this.root = parent.root;
         this.parent = parent;
         this.depth = parent.depth + 1;
@@ -232,7 +235,7 @@ class CoreContext implements Context {
             }
         }
         if (capturedBindings != null) {
-            BindingSlot s = capturedBindings.get(key);
+            BindingSlot s = capturedBindings.getSlot(key);
             if (s != null) {
                 return s;
             }

@@ -42,14 +42,22 @@ import java.util.Map;
 class BindingsStore {
 
     private final Map<String, BindingSlot> map;
+    /** When true, structural mutation (push/pop/putNew/remove) is a no-op.
+     *  Used by closure-captured stores: the function-creation snapshot freezes
+     *  the set of names; cell value updates still flow through (mutation of
+     *  {@code BindingSlot.value} is not gated). See
+     *  {@link #captured(java.util.Map)}. */
+    private final boolean immutable;
 
     BindingsStore() {
         this.map = new HashMap<>();
+        this.immutable = false;
     }
 
     /** Copy entries from a host-supplied Map (evalWith local vars). */
     BindingsStore(Map<String, Object> source) {
         this.map = new HashMap<>();
+        this.immutable = false;
         if (source != null) {
             for (Map.Entry<String, Object> e : source.entrySet()) {
                 map.put(e.getKey(), new BindingSlot(e.getKey(), e.getValue()));
@@ -63,9 +71,26 @@ class BindingsStore {
      */
     BindingsStore(BindingsStore other) {
         this.map = new HashMap<>();
+        this.immutable = false;
         for (Map.Entry<String, BindingSlot> e : other.map.entrySet()) {
             map.put(e.getKey(), new BindingSlot(e.getValue()));
         }
+    }
+
+    private BindingsStore(Map<String, BindingSlot> map, boolean immutable) {
+        this.map = map;
+        this.immutable = immutable;
+    }
+
+    /**
+     * Closure-capture snapshot: a {@link BindingsStore} that wraps a
+     * pre-built name → {@link BindingSlot} map and refuses structural
+     * mutation. Cell-value updates via existing-key {@code putMember}
+     * still propagate to the original Slots — sibling closures sharing
+     * the snapshot see writes (the spec-correct closure semantic).
+     */
+    static BindingsStore captured(Map<String, BindingSlot> snapshot) {
+        return new BindingsStore(snapshot, true);
     }
 
     //=== raw read =====================================================================================================
@@ -127,7 +152,11 @@ class BindingsStore {
     }
 
     /** Write with optional let/const scope. Updates an existing entry's value
-     * (and scope, if provided), or inserts a fresh Slot. */
+     * (and scope, if provided), or inserts a fresh Slot.
+     *
+     * <p>On an immutable (closure-captured) store: existing-key value updates
+     * still propagate (sibling closures must observe writes); structural
+     * adds are silently ignored. */
     void putMember(String key, Object value, BindScope scope, boolean initialized) {
         BindingSlot existing = map.get(key);
         if (existing != null) {
@@ -136,6 +165,8 @@ class BindingsStore {
                 existing.scope = scope;
                 existing.initialized = initialized;
             }
+        } else if (immutable) {
+            return;
         } else if (scope != null) {
             map.put(key, new BindingSlot(key, value, scope, initialized));
         } else {
@@ -149,6 +180,7 @@ class BindingsStore {
      * and by {@link ContextRoot}'s lazy built-in cache.
      */
     void putHidden(String key, Object value) {
+        if (immutable) return;
         BindingSlot existing = map.get(key);
         if (existing != null) {
             existing.value = value;
@@ -161,6 +193,7 @@ class BindingsStore {
     }
 
     void remove(String key) {
+        if (immutable) return;
         map.remove(key);
     }
 
@@ -177,8 +210,9 @@ class BindingsStore {
     //=== level-aware =================================================================================================
 
     /** Push a binding at {@code level}, linking any existing binding as the
-     * shadowed previous-of-this-name. */
+     * shadowed previous-of-this-name. No-op on immutable stores. */
     void pushBinding(String key, Object value, BindScope scope, int level) {
+        if (immutable) return;
         BindingSlot existing = map.get(key);
         BindingSlot newSlot = new BindingSlot(key, value, scope, true, level, existing);
         map.put(key, newSlot);
@@ -186,6 +220,7 @@ class BindingsStore {
 
     /** Push a binding with explicit initialized state (TDZ-aware paths). */
     void pushBinding(String key, Object value, BindScope scope, int level, boolean initialized) {
+        if (immutable) return;
         BindingSlot existing = map.get(key);
         BindingSlot newSlot = new BindingSlot(key, value, scope, initialized, level, existing);
         map.put(key, newSlot);
@@ -193,6 +228,7 @@ class BindingsStore {
 
     /** Drop every binding at {@code level}, restoring shadowed predecessors. */
     void popLevel(int level) {
+        if (immutable) return;
         Iterator<Map.Entry<String, BindingSlot>> it = map.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<String, BindingSlot> e = it.next();
