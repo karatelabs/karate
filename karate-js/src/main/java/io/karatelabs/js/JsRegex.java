@@ -212,13 +212,7 @@ public class JsRegex extends JsObject implements JsCallable {
     }
 
     @Override
-    public Object getMember(String name) {
-        // Check own properties first
-        Object own = super.getMember(name);
-        if (own != null) {
-            return own;
-        }
-        // Regex instance properties
+    protected Object resolveOwnIntrinsic(String name) {
         return switch (name) {
             case "source" -> pattern;
             case "flags" -> flags;

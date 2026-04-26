@@ -42,13 +42,15 @@ class JsSet extends JsObject {
         super(null, JsSetPrototype.INSTANCE);
     }
 
-    /** See {@link JsMap#getMember(String)} — same accessor-getter workaround for {@code size}. */
+    /** See {@link JsMap#resolveOwnIntrinsic(String)} — same accessor-getter
+     *  workaround for {@code size}. Surfaces as an own intrinsic so the live
+     *  count is read regardless of whether props ever held a slot for it. */
     @Override
-    public Object getMember(String name) {
+    protected Object resolveOwnIntrinsic(String name) {
         if ("size".equals(name)) {
             return elements.size();
         }
-        return super.getMember(name);
+        return null;
     }
 
     private static final Object NOT_FOUND = new Object();

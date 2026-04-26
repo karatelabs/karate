@@ -96,24 +96,34 @@ class JsError extends JsObject implements JsCallable {
     }
 
     @Override
-    public Object getMember(String key) {
-        // Check own properties first (super walks props then __proto__ chain)
-        Object own = super.getMember(key);
-        if (own != null) {
-            // Spec: Error.prototype.toString shadows Object.prototype.toString.
-            // Now matters because Terms.toPrimitive (and binary + via Terms.add) routes
-            // through getMember("toString"); previously masked by Java string concat.
-            if ("toString".equals(key) && own == JsObjectPrototype.DEFAULT_TO_STRING) {
-                return (JsCallable) (ctx, args) -> toString();
-            }
-            return own;
-        }
+    protected Object resolveOwnIntrinsic(String key) {
         return switch (key) {
             case "message" -> message;
             case "name" -> name;
             case "constructor" -> constructor;
             default -> null;
         };
+    }
+
+    @Override
+    public Object getMember(String key) {
+        Object own = super.getMember(key);
+        // Spec: Error.prototype.toString shadows Object.prototype.toString.
+        // Matters because Terms.toPrimitive (and binary + via Terms.add) routes
+        // through getMember("toString"); previously masked by Java string concat.
+        if ("toString".equals(key) && own == JsObjectPrototype.DEFAULT_TO_STRING) {
+            return (JsCallable) (ctx, args) -> toString();
+        }
+        return own;
+    }
+
+    @Override
+    public Object getMember(String key, Object receiver, CoreContext ctx) {
+        Object own = super.getMember(key, receiver, ctx);
+        if ("toString".equals(key) && own == JsObjectPrototype.DEFAULT_TO_STRING) {
+            return (JsCallable) (c, args) -> toString();
+        }
+        return own;
     }
 
     @Override

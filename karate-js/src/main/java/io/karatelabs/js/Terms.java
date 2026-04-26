@@ -670,31 +670,43 @@ public class Terms {
         return jsValue instanceof ObjectLike ol ? ol : null;
     }
 
-    @SuppressWarnings("unchecked")
     static Iterable<KeyValue> toIterable(Object o) {
+        return toIterable(o, null);
+    }
+
+    /**
+     * Spec-correct iteration variant — when {@code ctx} is non-null, accessor
+     * descriptors invoke their getters during iteration. Used by
+     * {@code Object.keys / values / entries / assign} so an accessor entry
+     * surfaces its evaluated value (not {@code null}) in the resulting list.
+     * Java-interop callers pass {@code null} (or use the no-arg overload) to
+     * keep accessors as null at the host boundary.
+     */
+    @SuppressWarnings("unchecked")
+    static Iterable<KeyValue> toIterable(Object o, CoreContext ctx) {
         // TODO strictly Objects are not iterable
         // Check JsArray first - it implements List but has its own jsEntries
         if (o instanceof JsArray jsArray) {
-            return jsArray.jsEntries();
+            return jsArray.jsEntries(ctx);
         }
         if (o instanceof JsObject jsObject) {
-            return jsObject.jsEntries();
+            return jsObject.jsEntries(ctx);
         }
         if (o instanceof List) {
-            return new JsArray((List<Object>) o).jsEntries();
+            return new JsArray((List<Object>) o).jsEntries(ctx);
         }
         // Java native arrays (String[], int[], Object[], etc.)
         JsArray jsArray = toJsArray(o);
         if (jsArray != null) {
-            return jsArray.jsEntries();
+            return jsArray.jsEntries(ctx);
         }
         if (o instanceof Map) {
-            return new JsObject((Map<String, Object>) o).jsEntries();
+            return new JsObject((Map<String, Object>) o).jsEntries(ctx);
         }
         if (o instanceof String) {
-            return new JsString((String) o).jsEntries();
+            return new JsString((String) o).jsEntries(ctx);
         }
-        return new JsObject().jsEntries();
+        return new JsObject().jsEntries(ctx);
     }
 
     public static boolean isTruthy(Object value) {

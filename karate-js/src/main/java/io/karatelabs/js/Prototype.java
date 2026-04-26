@@ -24,11 +24,9 @@
 package io.karatelabs.js;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 
@@ -42,9 +40,11 @@ import java.util.function.Supplier;
  *       (re-built only on first class-load); no per-Engine reset needed.</li>
  *   <li>{@link #userProps} — user-added entries via {@code putMember}; cleared
  *       per-Engine via {@link #clearAllUserProps}. Wins over {@link #builtins}
- *       per spec ({@code Array.prototype} methods are configurable + writable).</li>
- *   <li>{@link #tombstones} — names the user has deleted via
- *       {@code delete Foo.prototype.bar}; suppress {@link #builtins} lookup.</li>
+ *       per spec ({@code Array.prototype} methods are configurable + writable).
+ *       Each entry is a {@link PropertySlot} ({@link DataSlot} for plain values,
+ *       {@link AccessorSlot} for accessor descriptors); the slot's
+ *       {@link PropertySlot#tombstoned} flag shadows a built-in deleted via
+ *       {@code delete Foo.prototype.bar}.</li>
  * </ul>
  * <p>
  * Method identity ({@code Foo.prototype.bar === Foo.prototype.bar}) follows
@@ -56,9 +56,8 @@ abstract class Prototype implements ObjectLike {
     /**
      * Built-in prototype singletons register themselves here at construction.
      * {@link Engine#Engine()} walks this list to clear each one's user-side
-     * state ({@link #userProps} + {@link #tombstones}) so prototype mutations
-     * inside one Engine instance don't bleed into the next. Required for
-     * test262 isolation.
+     * state ({@link #userProps}) so prototype mutations inside one Engine
+     * instance don't bleed into the next. Required for test262 isolation.
      */
     private static final List<Prototype> ALL = new CopyOnWriteArrayList<>();
 
@@ -67,15 +66,11 @@ abstract class Prototype implements ObjectLike {
             if (p.userProps != null) {
                 p.userProps.clear();
             }
-            if (p.tombstones != null) {
-                p.tombstones.clear();
-            }
         }
     }
 
     private final Prototype __proto__;
-    private Map<String, Object> userProps;
-    private Set<String> tombstones;
+    private Map<String, PropertySlot> userProps;
     /** Install-time built-in members. Populated by subclass constructors via
      *  {@link #install} helpers. Treated as immutable post-construction —
      *  user mutations land in {@link #userProps} and shadow these. */
@@ -96,18 +91,23 @@ abstract class Prototype implements ObjectLike {
         if (userProps == null) {
             userProps = new LinkedHashMap<>();
         }
-        userProps.put(name, value);
-        if (tombstones != null) {
-            tombstones.remove(name);
+        PropertySlot existing = userProps.get(name);
+        if (existing instanceof DataSlot ds) {
+            ds.value = value;
+            ds.tombstoned = false;
+        } else {
+            // Replace any prior accessor / tombstone slot with a fresh data slot.
+            userProps.put(name, new DataSlot(name, value));
         }
     }
 
     @Override
     public void removeMember(String name) {
-        if (tombstones != null && tombstones.contains(name)) {
+        PropertySlot existing = userProps == null ? null : userProps.get(name);
+        if (existing != null && existing.tombstoned) {
             return;
         }
-        boolean inUser = userProps != null && userProps.containsKey(name);
+        boolean inUser = existing != null;
         boolean isBuiltin = !inUser && builtins.containsKey(name);
         if (!inUser && !isBuiltin) {
             return;
@@ -115,88 +115,89 @@ abstract class Prototype implements ObjectLike {
         if (isBuiltin && (getOwnAttrs(name) & JsObject.CONFIGURABLE) == 0) {
             return;
         }
-        if (inUser) {
-            userProps.remove(name);
-        }
-        if (isBuiltin) {
-            if (tombstones == null) {
-                tombstones = new HashSet<>();
+        if (isBuiltin && (existing == null || !(existing instanceof DataSlot))) {
+            // Tombstone shadows the built-in: a fresh DataSlot marked
+            // {@code tombstoned} replaces any prior accessor and prevents
+            // future {@link #getMember} / {@link #isOwnProperty} from reaching
+            // the install map.
+            if (userProps == null) {
+                userProps = new LinkedHashMap<>();
             }
-            tombstones.add(name);
+            DataSlot ts = new DataSlot(name);
+            ts.tombstoned = true;
+            userProps.put(name, ts);
+        } else if (isBuiltin) {
+            // Existing data slot — repurpose it as the tombstone.
+            ((DataSlot) existing).value = null;
+            existing.tombstoned = true;
+        } else {
+            // No built-in to shadow; just drop the user slot entirely.
+            userProps.remove(name);
         }
     }
 
     @Override
     public Map<String, Object> toMap() {
-        return userProps == null ? Collections.emptyMap() : userProps;
+        if (userProps == null || userProps.isEmpty()) return Collections.emptyMap();
+        Map<String, Object> view = new LinkedHashMap<>(userProps.size());
+        for (PropertySlot s : userProps.values()) {
+            if (s.tombstoned) continue;
+            view.put(s.name, s instanceof DataSlot ds ? ds.value : null);
+        }
+        return view;
     }
 
     @Override
     public final Object getMember(String name) {
-        if (userProps != null && userProps.containsKey(name)) {
-            Object v = userProps.get(name);
-            // Accessor descriptors stored via Object.defineProperty on a
-            // prototype surface as AccessorSlot in userProps. Raw-value
-            // semantics: callers without a receiver/ctx see null;
-            // {@link #getMember(String, Object, CoreContext)} resolves
-            // the getter.
-            return v instanceof AccessorSlot ? null : v;
+        PropertySlot s = userProps == null ? null : userProps.get(name);
+        if (s != null) {
+            if (s.tombstoned) return walkProto(name);
+            return s instanceof DataSlot ds ? ds.value : null;
         }
-        if (tombstones == null || !tombstones.contains(name)) {
-            Object result = builtins.get(name);
-            if (result instanceof LazyRef lr) {
-                // Cross-reference (e.g. `constructor` → JsXxxConstructor.INSTANCE)
-                // — resolved on first access since both singletons must exist
-                // by then. Cache the resolution to drop the indirection.
-                result = lr.supplier.get();
-                builtins.put(name, result);
-            }
-            if (result != null) {
-                return result;
-            }
-        }
-        if (__proto__ != null) {
-            return __proto__.getMember(name);
-        }
-        return null;
+        Object builtin = resolveBuiltin(name);
+        if (builtin != null) return builtin;
+        return walkProto(name);
     }
 
     @Override
     public Object getMember(String name, Object receiver, CoreContext ctx) {
-        if (userProps != null && userProps.containsKey(name)) {
-            Object v = userProps.get(name);
-            if (v instanceof AccessorSlot acc) {
-                return acc.read(receiver, ctx);
+        PropertySlot s = userProps == null ? null : userProps.get(name);
+        if (s != null) {
+            if (s.tombstoned) {
+                return __proto__ == null ? null : __proto__.getMember(name, receiver, ctx);
             }
-            return v;
+            return s.read(receiver, ctx);
         }
-        if (tombstones == null || !tombstones.contains(name)) {
-            Object result = builtins.get(name);
-            if (result instanceof LazyRef lr) {
-                result = lr.supplier.get();
-                builtins.put(name, result);
-            }
-            if (result != null) {
-                return result;
-            }
+        Object builtin = resolveBuiltin(name);
+        if (builtin != null) return builtin;
+        return __proto__ == null ? null : __proto__.getMember(name, receiver, ctx);
+    }
+
+    private Object walkProto(String name) {
+        return __proto__ == null ? null : __proto__.getMember(name);
+    }
+
+    private Object resolveBuiltin(String name) {
+        Object result = builtins.get(name);
+        if (result instanceof LazyRef lr) {
+            // Cross-reference (e.g. `constructor` → JsXxxConstructor.INSTANCE)
+            // — resolved on first access since both singletons must exist
+            // by then. Cache the resolution to drop the indirection.
+            result = lr.supplier.get();
+            builtins.put(name, result);
         }
-        if (__proto__ != null) {
-            return __proto__.getMember(name, receiver, ctx);
-        }
-        return null;
+        return result;
     }
 
     /** Installs (or updates) an accessor descriptor at {@code name} in
-     *  {@link #userProps}. Stored as the {@link AccessorSlot} itself —
-     *  {@link #getMember(String, Object, CoreContext)} detects the slot
-     *  and routes through {@link AccessorSlot#read}. Used by
-     *  {@code Object.defineProperty} when the target is a prototype
-     *  (e.g. {@code Object.defineProperty(String.prototype, "x", {get: …})}). */
+     *  {@link #userProps}. Used by {@code Object.defineProperty} when the
+     *  target is a prototype (e.g.
+     *  {@code Object.defineProperty(String.prototype, "x", {get: …})}). */
     final void defineOwnAccessor(String name, JsCallable getter, JsCallable setter, byte attrs) {
         if (userProps == null) {
             userProps = new LinkedHashMap<>();
         }
-        Object existing = userProps.get(name);
+        PropertySlot existing = userProps.get(name);
         AccessorSlot s;
         if (existing instanceof AccessorSlot as) {
             s = as;
@@ -207,21 +208,19 @@ abstract class Prototype implements ObjectLike {
         s.getter = getter;
         s.setter = setter;
         s.attrs = attrs;
-        if (tombstones != null) {
-            tombstones.remove(name);
-        }
+        s.tombstoned = false;
     }
 
-    /** Returns the {@link AccessorSlot} at {@code name} when one is
-     *  installed via {@link #defineOwnAccessor}, otherwise {@code null}.
-     *  Used by descriptor-inspection paths
-     *  ({@link JsObjectConstructor#getOwnPropertyDescriptor}) and the
-     *  prototype-chain accessor walk in
-     *  {@link PropertyAccess#findAccessorInChain}. */
-    final AccessorSlot getOwnAccessorSlot(String name) {
+    /** Returns the own slot at {@code name} (data or accessor) when one is
+     *  installed via {@link #defineOwnAccessor} / {@link #putMember}, or
+     *  {@code null} when absent or tombstoned. Mirrors
+     *  {@link JsObject#getOwnSlot(String)} / {@link JsArray#getOwnSlot(String)}
+     *  so {@link PropertyAccess#findAccessorInChain} and descriptor-inspection
+     *  paths can use a single signature across all three storage shapes. */
+    final PropertySlot getOwnSlot(String name) {
         if (userProps == null) return null;
-        Object v = userProps.get(name);
-        return v instanceof AccessorSlot acc ? acc : null;
+        PropertySlot s = userProps.get(name);
+        return s == null || s.tombstoned ? null : s;
     }
 
     /** Install a built-in method. The {@link JsBuiltinMethod} wrapper is
@@ -254,12 +253,25 @@ abstract class Prototype implements ObjectLike {
     }
 
     /**
-     * Spec attribute byte for an own property. Built-in methods on every
-     * standard prototype carry {@code {writable: true, enumerable: false,
-     * configurable: true}} — the default returned here. Subclasses with
-     * intrinsic data slots requiring tighter attrs override.
+     * Spec attribute byte for an own property. Reads the per-property attrs
+     * stored on the slot when one exists in {@link #userProps}; otherwise
+     * falls back to the class default returned by {@link #defaultAttrs(String)}
+     * (built-in methods carry {@code {writable: true, enumerable: false,
+     * configurable: true}} on every standard prototype).
      */
-    public byte getOwnAttrs(String name) {
+    public final byte getOwnAttrs(String name) {
+        PropertySlot s = userProps == null ? null : userProps.get(name);
+        if (s != null && !s.tombstoned) {
+            return s.attrs;
+        }
+        return defaultAttrs(name);
+    }
+
+    /** Class-default attribute byte for built-in members (those installed via
+     *  {@link #install}). Default {@code W | C} matches the spec for built-in
+     *  methods on every standard prototype; subclasses with intrinsic data
+     *  slots requiring tighter attrs override. */
+    protected byte defaultAttrs(String name) {
         return JsObject.WRITABLE | JsObject.CONFIGURABLE;
     }
 
@@ -270,11 +282,9 @@ abstract class Prototype implements ObjectLike {
      */
     @Override
     public boolean isOwnProperty(String name) {
-        if (tombstones != null && tombstones.contains(name)) {
-            return false;
-        }
-        if (userProps != null && userProps.containsKey(name)) {
-            return true;
+        PropertySlot s = userProps == null ? null : userProps.get(name);
+        if (s != null) {
+            return !s.tombstoned;
         }
         return builtins.containsKey(name);
     }

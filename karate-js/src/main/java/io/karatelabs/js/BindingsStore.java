@@ -197,6 +197,35 @@ class BindingsStore {
         map.remove(key);
     }
 
+    /** Tombstone a binding so {@link JsGlobalThis} reads skip it (preventing
+     *  lazy re-resurrection of a built-in via {@code initGlobal} after
+     *  {@code delete globalThis.X}). Creates an empty slot if absent so the
+     *  tombstone exists even when the underlying built-in was never realized. */
+    void tombstone(String key) {
+        if (immutable) return;
+        BindingSlot s = map.get(key);
+        if (s == null) {
+            s = new BindingSlot(key);
+            map.put(key, s);
+        }
+        s.value = null;
+        s.tombstoned = true;
+    }
+
+    /** True iff {@code key} is present and tombstoned. */
+    boolean isTombstoned(String key) {
+        BindingSlot s = map.get(key);
+        return s != null && s.tombstoned;
+    }
+
+    /** Clear any tombstone on {@code key}. No-op if absent or not tombstoned. */
+    void clearTombstone(String key) {
+        BindingSlot s = map.get(key);
+        if (s != null && s.tombstoned) {
+            s.tombstoned = false;
+        }
+    }
+
     /** Reset binding metadata so a let/const re-declaration in the same loop
      * iteration re-initializes cleanly. */
     void clearBindingScope(String key) {

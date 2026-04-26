@@ -54,6 +54,24 @@ final class BindingSlot {
      *  lookup chain (used by lazy built-in cache and
      *  {@link Engine#putRootBinding}). */
     boolean hidden;
+    /** Attribute byte for the binding when surfaced as a {@code globalThis}
+     *  property. Default is {@link PropertySlot#ATTRS_DEFAULT}; per ES spec,
+     *  {@code globalThis} props are non-enumerable by default ({@code W | C}),
+     *  which {@link JsGlobalThis#getOwnAttrs(String)} returns when
+     *  {@link #attrsExplicit} is false. {@code Object.defineProperty(globalThis,
+     *  …)} sets {@link #attrsExplicit} so the stored byte is honored verbatim. */
+    byte attrs = PropertySlot.ATTRS_DEFAULT;
+    /** When true, {@link #attrs} was explicitly set (via {@code defineProperty})
+     *  rather than left at its default. Lets {@code globalThis.x} property
+     *  metadata distinguish "user defined this with an attrs descriptor" from
+     *  "plain assignment, apply the global default". */
+    boolean attrsExplicit;
+    /** Tombstone flag for {@code delete globalThis.X} on a binding that
+     *  shadows a lazy-realized built-in (the built-in would otherwise
+     *  re-resurrect on the next read via {@code initGlobal}). The slot stays
+     *  in the store; structural removal via {@link BindingsStore#remove} is
+     *  used for plain user bindings that have no underlying built-in. */
+    boolean tombstoned;
 
     BindingSlot(String name) {
         this.name = name;
@@ -90,6 +108,9 @@ final class BindingSlot {
         this.previous = other.previous;
         this.evalId = other.evalId;
         this.hidden = other.hidden;
+        this.attrs = other.attrs;
+        this.attrsExplicit = other.attrsExplicit;
+        this.tombstoned = other.tombstoned;
     }
 
     @Override

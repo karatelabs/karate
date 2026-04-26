@@ -79,6 +79,12 @@ non-sealed class JsUint8Array extends JsArray implements JsBinaryValue {
     }
 
     @Override
+    public Iterable<KeyValue> jsEntries(CoreContext ctx) {
+        // Fixed byte buffer — no descriptor overrides possible.
+        return jsEntries();
+    }
+
+    @Override
     public List<Object> toList() {
         ArrayList<Object> list = new ArrayList<>(buffer.length);
         for (KeyValue kv : jsEntries()) {
@@ -293,13 +299,13 @@ non-sealed class JsUint8Array extends JsArray implements JsBinaryValue {
     // =================================================================================================
 
     @Override
-    public Object getMember(String name) {
-        // Uint8Array specific: length from buffer (must check BEFORE super to avoid returning 0 from empty list)
+    protected Object resolveOwnIntrinsic(String name) {
+        // Uint8Array length lives on the byte[] buffer, not the dense list
+        // (which is empty). Override before delegating to JsArray's intrinsics.
         if ("length".equals(name)) {
             return buffer.length;
         }
-        // Delegate to parent for prototype chain (array methods)
-        return super.getMember(name);
+        return super.resolveOwnIntrinsic(name);
     }
 
     @Override

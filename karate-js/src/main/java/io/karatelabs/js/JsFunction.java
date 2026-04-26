@@ -130,41 +130,20 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
     }
 
     @Override
-    public Object getMember(String name) {
-        // Tombstoned intrinsic (post `delete fn.length` / `delete fn.name`):
-        // skip the field fallback entirely. JsObject.getMember already walks
-        // the prototype chain for tombstoned names, which is the correct
-        // resolution (no own → up the chain).
-        if (isTombstoned(name)) {
-            return super.getMember(name);
-        }
-        // For functions, "prototype" returns the function's prototype object
-        // Check own props first to allow "Foo.prototype = ..." assignments
-        if ("prototype".equals(name)) {
-            Object fromSuper = super.getMember(name);
-            // If explicitly set on own props (not inherited from prototype chain), use that value.
-            // We check `!(fromSuper instanceof JsFunction)` rather than `JsCallable` because
-            // assigning a built-in function singleton (e.g. Foo.prototype = SomeBuiltin) is
-            // legitimate and should be returned as-is — only the auto-created Function
-            // prototype object is what we override here.
-            if (fromSuper != null && !(fromSuper instanceof JsFunction)) {
-                // Prototype was explicitly set via assignment
-                return fromSuper;
-            }
-            return getFunctionPrototype();
-        }
-        // Special cases: name + length are own intrinsics on every function.
-        if ("name".equals(name)) {
-            return this.name;
-        }
-        if ("length".equals(name)) {
-            return this.length;
-        }
-        // `constructor` is inherited from Function.prototype, not an own property —
-        // super.getMember walks the prototype chain to JsFunctionPrototype, where
-        // it resolves to the Function global. Returning `this` here would make
-        // `f.constructor === f`, which breaks `f.constructor === Function`.
-        return super.getMember(name);
+    protected Object resolveOwnIntrinsic(String name) {
+        // `prototype` is special: an explicit own data slot (set via
+        // `Foo.prototype = X`) wins over the auto-allocated prototype object —
+        // but the JsObject.getMember caller already returned that own-slot
+        // value before consulting this hook. So at this point, no explicit
+        // assignment exists; surface the auto-allocated prototype.
+        return switch (name) {
+            case "prototype" -> getFunctionPrototype();
+            case "name" -> this.name;
+            case "length" -> this.length;
+            // `constructor` is inherited from Function.prototype, not an own
+            // intrinsic — fall through to the proto chain.
+            default -> null;
+        };
     }
 
 }

@@ -31,13 +31,7 @@ import java.nio.charset.StandardCharsets;
 class JsTextDecoder extends JsObject implements JsCallable {
 
     @Override
-    public Object getMember(String name) {
-        // Check own properties first
-        Object own = super.getMember(name);
-        if (own != null) {
-            return own;
-        }
-        // TextDecoder built-in properties and methods
+    protected Object resolveOwnIntrinsic(String name) {
         return switch (name) {
             case "encoding" -> "utf-8";
             case "decode" -> (JsInvokable) args -> {

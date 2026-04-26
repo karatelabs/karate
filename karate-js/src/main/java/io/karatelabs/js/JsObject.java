@@ -160,6 +160,8 @@ class JsObject implements ObjectLike, Map<String, Object> {
         if ("__proto__".equals(name)) {
             return __proto__;
         }
+        Object intrinsic = resolveOwnIntrinsic(name);
+        if (intrinsic != null) return intrinsic;
         if (__proto__ != null) {
             return __proto__.getMember(name);
         }
@@ -178,19 +180,31 @@ class JsObject implements ObjectLike, Map<String, Object> {
         if ("__proto__".equals(name)) {
             return __proto__;
         }
-        // Virtual 1-arg dispatch lets subclasses (JsFunction, JsString,
-        // JsRegex, …) surface their intrinsic resolution (prototype / name /
-        // length / built-in methods) before the prototype walk. 1-arg returns
-        // null for any accessor descriptor encountered up the chain (raw-value
-        // semantic) — fall through to the 3-arg proto walk so accessors on a
-        // built-in constructor's prototype (e.g. via
-        // {@code Object.defineProperty(String.prototype, …)}) resolve via
-        // {@link AccessorSlot#read}.
-        Object viaSubclass = this.getMember(name);
-        if (viaSubclass != null) return viaSubclass;
+        Object intrinsic = resolveOwnIntrinsic(name);
+        if (intrinsic != null) return intrinsic;
         if (__proto__ != null) {
             return __proto__.getMember(name, receiver, ctx);
         }
+        return null;
+    }
+
+    /**
+     * Subclass extension hook for "own" intrinsic members that are not stored
+     * in {@link #props} — e.g. {@code JsString.length}, {@code JsRegex.source},
+     * {@code JsFunction.name} / {@code length} / {@code prototype}. Returns
+     * the intrinsic value at this level only (no prototype walk); {@code null}
+     * means "not an own intrinsic", letting the caller fall through to the
+     * prototype chain.
+     * <p>
+     * Replaces the historical pattern where each subclass overrode the 1-arg
+     * {@link #getMember(String)} and prefixed its body with
+     * {@code Object own = super.getMember(name); if (own != null) return own;}.
+     * Centralizing the intrinsic resolution here lets the 3-arg getMember
+     * single-pass through (own slot → intrinsic hook → proto chain) and avoids
+     * the double prototype walk that the 1-arg fallback caused for accessor
+     * descriptors on the chain.
+     */
+    protected Object resolveOwnIntrinsic(String name) {
         return null;
     }
 
@@ -728,8 +742,26 @@ class JsObject implements ObjectLike, Map<String, Object> {
      * Routes through {@link #isEnumerable} so subclass {@code getOwnAttrs}
      * overrides (e.g. JsMath returning {@code WRITABLE | CONFIGURABLE} — no
      * enumerable bit — for its built-in methods) win.
+     * <p>
+     * The no-arg form is the Java-interop seam — accessor properties have no
+     * extractable raw value here and surface as {@code null}. The
+     * {@link #jsEntries(CoreContext)} overload is the spec-correct iteration
+     * for {@code Object.keys/values/entries/assign} (invokes accessor getters
+     * via {@link PropertySlot#read}).
      */
     public Iterable<KeyValue> jsEntries() {
+        return jsEntries(null);
+    }
+
+    /**
+     * JS-semantic iteration variant — accessor descriptors invoke their
+     * getters with {@code ctx} when {@code ctx != null}; otherwise behaves as
+     * the no-arg {@link #jsEntries()} (raw values, accessors → null). This is
+     * the back-end called from {@code Object.keys / values / entries / assign}
+     * via {@link Terms#toIterable(Object, CoreContext)} so accessor
+     * descriptors observe their spec invocation.
+     */
+    public Iterable<KeyValue> jsEntries(CoreContext ctx) {
         return () -> new Iterator<>() {
             final Iterator<PropertySlot> source = props == null
                     ? Collections.<PropertySlot>emptyIterator()
@@ -763,12 +795,12 @@ class JsObject implements ObjectLike, Map<String, Object> {
                 PropertySlot s = peeked;
                 peeked = null;
                 // Read at yield time so callback-driven mutations before
-                // the next next() call propagate. Accessor slots surface
-                // null at this seam (no context to invoke the getter).
-                // Spec-correct {Object.keys/values/entries} on accessor
-                // properties would need a ctx-aware iteration variant;
-                // a separate concern.
-                Object v = s instanceof DataSlot ds ? ds.value : null;
+                // the next next() call propagate. With ctx, accessor slots
+                // resolve via getter invocation; without ctx, they surface
+                // as null (Java-interop semantic).
+                Object v = ctx != null
+                        ? s.read(JsObject.this, ctx)
+                        : s instanceof DataSlot ds ? ds.value : null;
                 return new KeyValue(JsObject.this, index++, s.name, v);
             }
         };

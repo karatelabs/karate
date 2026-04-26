@@ -807,15 +807,7 @@ class PropertyAccess {
     private static AccessorSlot findAccessorInChain(ObjectLike obj, String name) {
         ObjectLike current = obj;
         while (current != null) {
-            PropertySlot s = null;
-            if (current instanceof JsObject jo) {
-                s = jo.getOwnSlot(name);
-            } else if (current instanceof JsArray ja) {
-                s = ja.getOwnSlot(name);
-            } else if (current instanceof Prototype p) {
-                AccessorSlot acc = p.getOwnAccessorSlot(name);
-                if (acc != null) return acc;
-            }
+            PropertySlot s = JsObjectConstructor.ownSlot(current, name);
             if (s instanceof AccessorSlot acc) return acc;
             if (s != null) return null; // own data slot — accessor lookup stops here
             current = current.getPrototype();

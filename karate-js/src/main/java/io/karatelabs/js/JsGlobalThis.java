@@ -31,30 +31,24 @@ import java.util.NoSuchElementException;
 /**
  * Top-level {@code this} — the karate-js stand-in for spec {@code globalThis}.
  * <p>
- * Pure façade over the engine's single {@link BindingsStore}. Reads / writes
- * go through that one store; the {@code hidden} flag on individual entries
- * preserves the contract that {@link Engine#putRootBinding} injections and
- * lazy-cached built-ins are invisible to {@link Engine#getBindings()}, but
- * fully visible here (so {@code Object.getOwnPropertyDescriptor(this, "Math")}
- * etc. work).
+ * Pure façade over the engine's single {@link BindingsStore}. Every observable
+ * piece of state — values, attribute bytes, tombstones — lives on the
+ * {@link BindingSlot} for that name; {@link JsObject#props} is unused (the
+ * inherited {@code JsObject} machinery is only reached for {@code __proto__}
+ * and the {@link Map} interface defaults that we override below).
  * <p>
- * Tombstones (inherited from {@link JsObject}) make {@code delete this.Math}
+ * The {@code hidden} flag on individual entries preserves the contract that
+ * {@link Engine#putRootBinding} injections and lazy-cached built-ins are
+ * invisible to {@link Engine#getBindings()}, but fully visible here (so
+ * {@code Object.getOwnPropertyDescriptor(this, "Math")} etc. work).
+ * <p>
+ * Tombstones (on the {@link BindingSlot}) make {@code delete this.Math}
  * stick — without one, the next read would re-trigger {@code initGlobal} via
  * {@code root.get(name)} and resurrect the global.
  */
 final class JsGlobalThis extends JsObject {
 
     private final ContextRoot root;
-
-    /**
-     * Names whose attrs were explicitly written by {@code defineProperty} (or
-     * accessed-once internal calls). The inherited {@code Slot} attrs default
-     * to {@link Slot#ATTRS_DEFAULT} (W|E|C) — fine for a normal JsObject
-     * (default == fresh assignment), but globalThis's default ({@code W | C},
-     * no E) differs, so we need a separate signal to know whether to apply the
-     * global default or honor the stored attrs.
-     */
-    private java.util.Set<String> explicit;
 
     JsGlobalThis(ContextRoot root) {
         this.root = root;
@@ -66,14 +60,12 @@ final class JsGlobalThis extends JsObject {
 
     @Override
     public Object getMember(String name) {
-        if (isTombstoned(name)) {
-            // Skip own resolution but still walk the prototype chain — matches
-            // JsObject.getMember's tombstone branch.
+        if ("__proto__".equals(name)) return getPrototype();
+        BindingsStore b = bindings();
+        if (b.isTombstoned(name)) {
             ObjectLike proto = getPrototype();
             return proto != null ? proto.getMember(name) : null;
         }
-        if ("__proto__".equals(name)) return getPrototype();
-        BindingsStore b = bindings();
         if (b.hasMember(name)) return b.getMember(name);
         // Triggers lazy initGlobal for built-ins and caches them as hidden.
         if (root.hasKey(name)) return root.get(name);
@@ -85,19 +77,15 @@ final class JsGlobalThis extends JsObject {
 
     @Override
     public Object getMember(String name, Object receiver, CoreContext ctx) {
-        // JsGlobalThis splits state across the unified BindingsStore (values)
-        // and {@link JsObject#props} (attrs-only slots created by
-        // {@link #defineOwn} / {@link #setAttrs}). The inherited 3-arg
-        // {@code JsObject.getMember} would find the attrs-only DataSlot with
-        // {@code value=null} and return null — short-circuiting the bindings
-        // lookup. Mirror the 1-arg path: bindings first, then root, then
-        // proto chain.
-        if (isTombstoned(name)) {
+        // Single-store reads: no AccessorSlot on globalThis bindings (they live
+        // on the BindingSlot which is data-only), so this collapses to the
+        // 1-arg shape modulo the proto walk's ctx-threading.
+        if ("__proto__".equals(name)) return getPrototype();
+        BindingsStore b = bindings();
+        if (b.isTombstoned(name)) {
             ObjectLike proto = getPrototype();
             return proto != null ? proto.getMember(name, receiver, ctx) : null;
         }
-        if ("__proto__".equals(name)) return getPrototype();
-        BindingsStore b = bindings();
         if (b.hasMember(name)) return b.getMember(name);
         if (root.hasKey(name)) return root.get(name);
         ObjectLike proto = getPrototype();
@@ -112,79 +100,97 @@ final class JsGlobalThis extends JsObject {
         }
         // Honor writable=false from a previous defineProperty call (lenient
         // mode silently drops the write; strict-mode TypeError flip is a
-        // separate concern). Without this, propertyHelper's isWritable probe
-        // reports writable=true on a defined-as-non-writable global.
-        if ((getOwnAttrs(name) & WRITABLE) == 0
-                && bindings().hasMember(name)) {
+        // separate concern).
+        BindingSlot s = bindings().getSlot(name);
+        if (s != null && s.attrsExplicit && (s.attrs & WRITABLE) == 0) {
             return;
         }
-        // Writing reanimates a tombstone.
-        clearTombstone(name);
-        // `this.foo = 1` is observable; it has to land where `foo` (free
-        // variable) and `Engine.getBindings().get("foo")` will see it. The
-        // unified store handles that — we just write a non-hidden entry.
+        bindings().clearTombstone(name);
         bindings().putMember(name, value);
     }
 
     @Override
     void defineOwn(String name, Object value, byte attrs) {
-        // Object.defineProperty(globalThis, name, ...) routes here. Value goes
-        // to the unified bindings (so plain `name` lookup sees it); attrs go
-        // to the inherited Slot AND `explicit` so getOwnAttrs honors them even
-        // when they happen to equal ATTRS_DEFAULT (which setAttrs skips for
-        // a missing slot, since absent == default in the normal-object world).
-        clearTombstone(name);
-        bindings().putMember(name, value);
-        setAttrs(name, attrs);
-        if (explicit == null) explicit = new java.util.HashSet<>();
-        explicit.add(name);
+        // Object.defineProperty(globalThis, name, ...) routes here. Value +
+        // attrs both land on the BindingSlot — no separate state to keep in
+        // sync. attrsExplicit drives getOwnAttrs to honor the byte verbatim
+        // even when it equals ATTRS_DEFAULT (which is observably distinct
+        // from the global default of W|C).
+        BindingsStore b = bindings();
+        b.clearTombstone(name);
+        b.putMember(name, value);
+        BindingSlot s = b.getSlot(name);
+        s.attrs = attrs;
+        s.attrsExplicit = true;
     }
 
     @Override
     public void removeMember(String name) {
-        bindings().remove(name);
-        if (explicit != null) explicit.remove(name);
-        // super applies the configurability check + tombstones the slot so
-        // the next read doesn't re-resurrect a built-in via initGlobal.
-        super.removeMember(name);
+        BindingsStore b = bindings();
+        BindingSlot s = b.getSlot(name);
+        if (s == null) {
+            // Possibly a built-in not yet realized — tombstone in case the
+            // next read would lazy-resurrect via initGlobal.
+            if (root.hasKey(name)) {
+                b.tombstone(name);
+            }
+            return;
+        }
+        // Configurability check: defineProperty-style descriptors block delete
+        // when configurable=false; default attrs (W|C) allow it.
+        byte attrs = s.attrsExplicit ? s.attrs : (byte) (WRITABLE | CONFIGURABLE);
+        if ((attrs & CONFIGURABLE) == 0) {
+            return;
+        }
+        if (root.hasKey(name)) {
+            // Built-in shadow: tombstone in place so the next read doesn't
+            // re-resurrect via initGlobal.
+            b.tombstone(name);
+        } else {
+            b.remove(name);
+        }
     }
 
     @Override
     public boolean isOwnProperty(String name) {
-        if (isTombstoned(name)) return false;
-        return bindings().hasMember(name) || root.hasKey(name);
+        BindingsStore b = bindings();
+        if (b.isTombstoned(name)) return false;
+        return b.hasMember(name) || root.hasKey(name);
     }
 
     @Override
     public boolean hasOwnIntrinsic(String name) {
-        if (isTombstoned(name)) return false;
-        return bindings().hasMember(name) || root.hasKey(name);
+        return isOwnProperty(name);
     }
 
     @Override
     public byte getOwnAttrs(String name) {
-        // defineProperty on globalThis is the only path that should bypass
-        // the global-default attrs. explicit tracks those explicitly even
-        // when their stored byte equals ATTRS_DEFAULT (in which case the
-        // inherited setAttrs leaves no slot, since absent == default).
-        if (explicit != null && explicit.contains(name)) {
-            return super.getOwnAttrs(name);
+        BindingSlot s = bindings().getSlot(name);
+        if (s != null && !s.tombstoned && s.attrsExplicit) {
+            return s.attrs;
         }
         // Per ES spec §10.2 / §19.1: every non-essential global is
         // { writable: true, enumerable: false, configurable: true }.
         // (Essentials like NaN / Infinity / undefined are non-writable but
         // not distinguished here — fix when test262 surfaces a fail.)
-        if (bindings().hasMember(name) || root.hasKey(name)) {
+        if ((s != null && !s.tombstoned) || root.hasKey(name)) {
             return WRITABLE | CONFIGURABLE;
         }
         return super.getOwnAttrs(name);
     }
 
+    @Override
+    public Iterable<KeyValue> jsEntries(CoreContext ctx) {
+        // BindingSlot is data-only — no accessor descriptors on globalThis
+        // (yet). Same iteration regardless of ctx.
+        return jsEntries();
+    }
+
     /**
      * For-in / Object.keys / etc. iterate the unified bindings store, not
-     * {@link JsObject#props} (which only carries tombstones for globalThis).
-     * Filters via {@link #isEnumerable} so non-explicit globals (default
-     * {@code W | C}) are skipped.
+     * {@link JsObject#props} (which is unused for globalThis). Filters via
+     * {@link #isEnumerable} so non-explicit globals (default {@code W | C})
+     * are skipped.
      */
     @Override
     public Iterable<KeyValue> jsEntries() {
@@ -197,7 +203,7 @@ final class JsGlobalThis extends JsObject {
             private boolean advance() {
                 while (source.hasNext()) {
                     Map.Entry<String, Object> e = source.next();
-                    if (isTombstoned(e.getKey())) continue;
+                    if (bindings().isTombstoned(e.getKey())) continue;
                     if (isEnumerable(e.getKey())) {
                         peeked = e;
                         return true;
@@ -236,8 +242,8 @@ final class JsGlobalThis extends JsObject {
     }
 
     // Map<String, Object> overrides — JsObject's defaults check `props` (always
-    // empty here for non-tombstoned slots). Forward to the unified store so
-    // Java consumers (e.g. iteration over globalThis) see the real state.
+    // empty for globalThis). Forward to the unified store so Java consumers
+    // (e.g. iteration over globalThis) see the real state.
 
     @Override
     public int size() {
@@ -251,14 +257,17 @@ final class JsGlobalThis extends JsObject {
 
     @Override
     public boolean containsKey(Object key) {
-        return key instanceof String s && !isTombstoned(s)
-                && (bindings().hasMember(s) || root.hasKey(s));
+        if (!(key instanceof String s)) return false;
+        BindingsStore b = bindings();
+        if (b.isTombstoned(s)) return false;
+        return b.hasMember(s) || root.hasKey(s);
     }
 
     @Override
     public Object get(Object key) {
-        if (!(key instanceof String s) || isTombstoned(s)) return null;
+        if (!(key instanceof String s)) return null;
         BindingsStore b = bindings();
+        if (b.isTombstoned(s)) return null;
         if (b.hasMember(s)) return b.getMember(s);
         return root.hasKey(s) ? root.get(s) : null;
     }

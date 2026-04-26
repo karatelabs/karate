@@ -119,44 +119,11 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             PropertySlot s = namedProps.get(name);
             if (s != null) return s instanceof DataSlot ds ? ds.value : null;
         }
-        // 2. Special case: length property
-        if ("length".equals(name)) {
-            return list.size();
-        }
-        // 3. Special case for __proto__ property access
         if ("__proto__".equals(name)) {
             return __proto__;
         }
-        // 4. Numeric index access — supports prototype-chain reads where the JsArray
-        // sits as `this` (e.g. f.[i] when `f.__proto__ === [1,2,3]`). Plain
-        // `arr[i]` goes through PropertyAccess.getByIndex's fast path; this handles
-        // the chained / generic getMember route.
-        if (!name.isEmpty()) {
-            char c0 = name.charAt(0);
-            if (c0 >= '0' && c0 <= '9') {
-                int i = parseIndex(name);
-                if (i >= 0 && i < list.size()) {
-                    return list.get(i);
-                }
-            }
-        }
-        // 5. @@iterator: stand-in for Symbol.iterator until real Symbol support lands.
-        // Returns a callable that, given `this = array`, builds the spec-shaped iterator
-        // object ({next() -> {value, done}}). Built-in fast path bypasses this seam;
-        // only user code reading `arr[Symbol.iterator]()` lands here.
-        if (IterUtils.SYMBOL_ITERATOR.equals(name)) {
-            return (JsCallable) (ctx, args) -> {
-                Object thisObj = ctx.getThisObject();
-                JsIterator iter;
-                if (thisObj instanceof JsArray arr) {
-                    iter = IterUtils.getIterator(arr, ctx);
-                } else {
-                    iter = IterUtils.getIterator(JsArray.this, ctx);
-                }
-                return IterUtils.toIteratorObject(iter);
-            };
-        }
-        // 6. Delegate to prototype chain
+        Object intrinsic = resolveOwnIntrinsic(name);
+        if (intrinsic != null) return intrinsic;
         if (__proto__ != null) {
             return __proto__.getMember(name);
         }
@@ -169,14 +136,51 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             PropertySlot s = namedProps.get(name);
             if (s != null) return s.read(receiver, ctx);
         }
-        // Virtual 1-arg dispatch — lets subclasses (e.g. JsUint8Array's
-        // {@code length}) surface their own intrinsics. 1-arg returns null
-        // for accessor descriptors on the prototype chain (raw-value
-        // semantic); fall through to the 3-arg proto walk to resolve.
-        Object viaSubclass = this.getMember(name);
-        if (viaSubclass != null) return viaSubclass;
+        if ("__proto__".equals(name)) {
+            return __proto__;
+        }
+        Object intrinsic = resolveOwnIntrinsic(name);
+        if (intrinsic != null) return intrinsic;
         if (__proto__ != null) {
             return __proto__.getMember(name, receiver, ctx);
+        }
+        return null;
+    }
+
+    /**
+     * Array intrinsics: {@code length} (live from dense list), numeric-index
+     * reads when the array sits in a prototype chain (so a child
+     * {@code __proto__ === [1,2,3]} resolves {@code child[0]} via getMember
+     * here — direct {@code arr[i]} skips this and hits
+     * {@link PropertyAccess#getByIndex}'s fast path), and the
+     * {@link IterUtils#SYMBOL_ITERATOR @@iterator} stand-in. Subclasses
+     * ({@link JsUint8Array}) override and call {@code super.resolveOwnIntrinsic}
+     * to inherit these.
+     */
+    protected Object resolveOwnIntrinsic(String name) {
+        if ("length".equals(name)) {
+            return list.size();
+        }
+        if (!name.isEmpty()) {
+            char c0 = name.charAt(0);
+            if (c0 >= '0' && c0 <= '9') {
+                int i = parseIndex(name);
+                if (i >= 0 && i < list.size()) {
+                    return list.get(i);
+                }
+            }
+        }
+        if (IterUtils.SYMBOL_ITERATOR.equals(name)) {
+            return (JsCallable) (ctx, args) -> {
+                Object thisObj = ctx.getThisObject();
+                JsIterator iter;
+                if (thisObj instanceof JsArray arr) {
+                    iter = IterUtils.getIterator(arr, ctx);
+                } else {
+                    iter = IterUtils.getIterator(JsArray.this, ctx);
+                }
+                return IterUtils.toIteratorObject(iter);
+            };
         }
         return null;
     }
@@ -795,6 +799,18 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      * built-ins.)
      */
     public Iterable<KeyValue> jsEntries() {
+        return jsEntries(null);
+    }
+
+    /**
+     * JS-semantic iteration variant — when {@code ctx != null}, accessor
+     * descriptors at numeric indices (installed via
+     * {@code Object.defineProperty(arr, i, {get: …})}) invoke their getter
+     * via {@link PropertySlot#read}; otherwise behaves as
+     * {@link #jsEntries()}. Hot path: {@code namedProps == null} for plain
+     * arrays — single null check, then the existing dense-list iteration.
+     */
+    public Iterable<KeyValue> jsEntries(CoreContext ctx) {
         return () -> new Iterator<>() {
             int index = 0;
 
@@ -810,7 +826,14 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             public KeyValue next() {
                 if (!hasNext()) throw new NoSuchElementException();
                 int i = index++;
-                return new KeyValue(JsArray.this, i, i + "", list.get(i));
+                Object v;
+                if (ctx != null && namedProps != null) {
+                    PropertySlot s = namedProps.get(Integer.toString(i));
+                    v = s != null ? s.read(JsArray.this, ctx) : list.get(i);
+                } else {
+                    v = list.get(i);
+                }
+                return new KeyValue(JsArray.this, i, i + "", v);
             }
         };
     }

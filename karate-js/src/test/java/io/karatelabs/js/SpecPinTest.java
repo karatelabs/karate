@@ -97,6 +97,28 @@ class SpecPinTest extends EvalBase {
     }
 
     // -------------------------------------------------------------------------
+    // Spec-correct iteration — Object.values/entries on accessor descriptors
+    // must invoke the getter, not surface as null. Pins refactor E's
+    // ctx-aware {@link JsObject#jsEntries(CoreContext)} variant.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void objectValues_invokesAccessorGetter() {
+        assertEquals(42, eval(
+                "var o = {}; Object.defineProperty(o, 'x',"
+                        + " {get: function(){return 42;}, enumerable: true});"
+                        + " Object.values(o)[0]"));
+    }
+
+    @Test
+    void objectEntries_invokesAccessorGetter() {
+        assertEquals(7, eval(
+                "var o = {}; Object.defineProperty(o, 'a',"
+                        + " {get: function(){return 7;}, enumerable: true});"
+                        + " Object.entries(o)[0][1]"));
+    }
+
+    // -------------------------------------------------------------------------
     // Method identity — eager intrinsic install must preserve `===` across
     // repeated reads. Critical for mega-commit 1C.
     // -------------------------------------------------------------------------

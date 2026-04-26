@@ -52,13 +52,7 @@ non-sealed class JsString extends JsObject implements JsPrimitive, JsCallable {
     }
 
     @Override
-    public Object getMember(String name) {
-        // Check own properties first
-        Object own = super.getMember(name);
-        if (own != null) {
-            return own;
-        }
-        // Special case: length property
+    protected Object resolveOwnIntrinsic(String name) {
         if ("length".equals(name)) {
             return text.length();
         }
@@ -80,6 +74,7 @@ non-sealed class JsString extends JsObject implements JsPrimitive, JsCallable {
         return null;
     }
 
+    @Override
     public Iterable<KeyValue> jsEntries() {
         return () -> new Iterator<>() {
             int index = 0;
@@ -96,6 +91,13 @@ non-sealed class JsString extends JsObject implements JsPrimitive, JsCallable {
                 return new KeyValue(JsString.this, i, i + "", c);
             }
         };
+    }
+
+    @Override
+    public Iterable<KeyValue> jsEntries(CoreContext ctx) {
+        // Strings expose their characters by index — no accessor descriptors
+        // possible at this level; ctx-aware variant has no extra work.
+        return jsEntries();
     }
 
     @Override

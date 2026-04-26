@@ -34,11 +34,7 @@ import java.util.List;
 class JsReflect extends JsObject {
 
     @Override
-    public Object getMember(String name) {
-        Object own = super.getMember(name);
-        if (own != null) {
-            return own;
-        }
+    protected Object resolveOwnIntrinsic(String name) {
         return switch (name) {
             case "construct" -> (JsCallable) this::construct;
             case "apply" -> (JsCallable) this::apply;

@@ -54,10 +54,10 @@ class JsObjectConstructor extends JsFunction {
     }
 
     private void installIntrinsics() {
-        defineOwn("keys", new JsBuiltinMethod("keys", 1, (JsInvokable) this::keys), METHOD_ATTRS);
-        defineOwn("values", new JsBuiltinMethod("values", 1, (JsInvokable) this::values), METHOD_ATTRS);
-        defineOwn("entries", new JsBuiltinMethod("entries", 1, (JsInvokable) this::entries), METHOD_ATTRS);
-        defineOwn("assign", new JsBuiltinMethod("assign", 2, (JsInvokable) this::assign), METHOD_ATTRS);
+        defineOwn("keys", new JsBuiltinMethod("keys", 1, (JsCallable) this::keys), METHOD_ATTRS);
+        defineOwn("values", new JsBuiltinMethod("values", 1, (JsCallable) this::values), METHOD_ATTRS);
+        defineOwn("entries", new JsBuiltinMethod("entries", 1, (JsCallable) this::entries), METHOD_ATTRS);
+        defineOwn("assign", new JsBuiltinMethod("assign", 2, (JsCallable) this::assign), METHOD_ATTRS);
         defineOwn("fromEntries", new JsBuiltinMethod("fromEntries", 1, (JsInvokable) this::fromEntries), METHOD_ATTRS);
         defineOwn("is", new JsBuiltinMethod("is", 2, (JsInvokable) this::is), METHOD_ATTRS);
         defineOwn("create", new JsBuiltinMethod("create", 2, (JsCallable) this::create), METHOD_ATTRS);
@@ -157,25 +157,28 @@ class JsObjectConstructor extends JsFunction {
 
     // Static methods
 
-    private Object keys(Object[] args) {
+    private Object keys(Context context, Object[] args) {
+        CoreContext cc = context instanceof CoreContext c ? c : null;
         List<Object> result = new ArrayList<>();
-        for (KeyValue kv : Terms.toIterable(args[0])) {
+        for (KeyValue kv : Terms.toIterable(args[0], cc)) {
             result.add(kv.key());
         }
         return result;
     }
 
-    private Object values(Object[] args) {
+    private Object values(Context context, Object[] args) {
+        CoreContext cc = context instanceof CoreContext c ? c : null;
         List<Object> result = new ArrayList<>();
-        for (KeyValue kv : Terms.toIterable(args[0])) {
+        for (KeyValue kv : Terms.toIterable(args[0], cc)) {
             result.add(kv.value());
         }
         return result;
     }
 
-    private Object entries(Object[] args) {
+    private Object entries(Context context, Object[] args) {
+        CoreContext cc = context instanceof CoreContext c ? c : null;
         List<Object> result = new ArrayList<>();
-        for (KeyValue kv : Terms.toIterable(args[0])) {
+        for (KeyValue kv : Terms.toIterable(args[0], cc)) {
             List<Object> entry = new ArrayList<>();
             entry.add(kv.key());
             entry.add(kv.value());
@@ -184,19 +187,20 @@ class JsObjectConstructor extends JsFunction {
         return result;
     }
 
-    private Object assign(Object[] args) {
+    private Object assign(Context context, Object[] args) {
         if (args.length == 0) {
             return new LinkedHashMap<>();
         }
         if (args[0] == null || args[0] == Terms.UNDEFINED) {
             throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
+        CoreContext cc = context instanceof CoreContext c ? c : null;
         Map<String, Object> result = new LinkedHashMap<>();
-        for (KeyValue kv : Terms.toIterable(args[0])) {
+        for (KeyValue kv : Terms.toIterable(args[0], cc)) {
             result.put(kv.key(), kv.value());
         }
         for (int i = 1; i < args.length; i++) {
-            for (KeyValue kv : Terms.toIterable(args[i])) {
+            for (KeyValue kv : Terms.toIterable(args[i], cc)) {
                 result.put(kv.key(), kv.value());
             }
         }
@@ -380,15 +384,18 @@ class JsObjectConstructor extends JsFunction {
      *  type). Mirrors {@link PropertyAccess#findAccessorInChain} but
      *  scoped to own properties only. */
     private static AccessorSlot ownAccessorSlot(Object obj, String key) {
-        PropertySlot s = null;
-        if (obj instanceof JsObject jo) {
-            s = jo.getOwnSlot(key);
-        } else if (obj instanceof JsArray ja) {
-            s = ja.getOwnSlot(key);
-        } else if (obj instanceof Prototype p) {
-            return p.getOwnAccessorSlot(key);
-        }
+        PropertySlot s = ownSlot(obj, key);
         return s instanceof AccessorSlot acc ? acc : null;
+    }
+
+    /** Single-signature own-slot lookup across the three slot-bearing
+     *  storage shapes. Returns {@code null} for absent / tombstoned keys
+     *  and for hosts without a slot store (raw Maps, Java-bridge objects). */
+    static PropertySlot ownSlot(Object obj, String key) {
+        if (obj instanceof JsObject jo) return jo.getOwnSlot(key);
+        if (obj instanceof JsArray ja) return ja.getOwnSlot(key);
+        if (obj instanceof Prototype p) return p.getOwnSlot(key);
+        return null;
     }
 
     @SuppressWarnings("unchecked")

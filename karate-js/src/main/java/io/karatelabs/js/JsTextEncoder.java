@@ -31,13 +31,7 @@ import java.nio.charset.StandardCharsets;
 class JsTextEncoder extends JsObject implements JsCallable {
 
     @Override
-    public Object getMember(String name) {
-        // Check own properties first
-        Object own = super.getMember(name);
-        if (own != null) {
-            return own;
-        }
-        // TextEncoder built-in methods
+    protected Object resolveOwnIntrinsic(String name) {
         if ("encode".equals(name)) {
             return (JsInvokable) args -> {
                 String text = args[0].toString();

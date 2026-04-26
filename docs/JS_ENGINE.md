@@ -104,6 +104,52 @@ public interface JavaInvokable extends JavaCallable {
 | Set | JsSet | Set | extends JsObject |
 | Uint8Array | JsUint8Array | byte[] | JsBinaryValue → JsValue |
 
+### Slot family — property descriptors and bindings
+
+```java
+sealed abstract class PropertySlot permits DataSlot, AccessorSlot {
+    final String name;
+    byte attrs = ATTRS_DEFAULT;        // W|E|C plus an INTRINSIC bit
+    boolean tombstoned;                // shadows an intrinsic / proto entry on delete
+
+    abstract Object read(Object receiver, CoreContext ctx);
+    abstract void   write(Object receiver, Object newValue, CoreContext ctx, boolean strict);
+}
+
+final class DataSlot extends PropertySlot { Object value; }
+final class AccessorSlot extends PropertySlot { JsCallable getter, setter; }
+
+final class BindingSlot {                       // separate root, not under PropertySlot
+    final String name; Object value;
+    BindScope scope; boolean initialized = true;
+    int level; BindingSlot previous; short evalId; boolean hidden;
+    byte attrs; boolean attrsExplicit;          // for JsGlobalThis surface
+    boolean tombstoned;                         // for delete on lazy-realized built-ins
+}
+```
+
+Two distinct families:
+
+- **`PropertySlot`** is the storage primitive for own properties on
+  `JsObject` / `JsArray` / `Prototype`. Sealed with two concrete shapes
+  matching ES 6.2.5 PropertyDescriptor (data vs. accessor). The polymorphic
+  `read` / `write` seam is what `getMember(receiver, ctx)` and
+  `PropertyAccess.setByName` dispatch through — no `instanceof JsAccessor`
+  unwrap sites in the hot path.
+- **`BindingSlot`** is the storage primitive for variable bindings (lexical-
+  scope cells in a `BindingsStore`). Independent from `PropertySlot` because
+  bindings carry scope metadata (TDZ, level chain, eval-id, hidden flag)
+  that property descriptors don't. Refactor C (post-S4) added the
+  `attrs` / `attrsExplicit` / `tombstoned` fields so `JsGlobalThis` can
+  surface every observable globalThis state from a single store.
+
+The `INTRINSIC` bit on `attrs` lets per-Engine reset (`clearEngineState()`)
+distinguish install-time intrinsics (preserve across engine reuse) from
+user-set entries (clear on reset). The `WRITABLE` bit is meaningless for
+accessors and not consulted by `AccessorSlot`; the spec's "omit `writable`
+from descriptor output for accessors" is handled in
+`JsObjectConstructor.buildDescriptor` by branching on the slot family.
+
 ### Prototype System Architecture
 
 The engine uses singleton prototype objects for method inheritance, matching JavaScript's prototype chain:
@@ -159,40 +205,57 @@ function f() {}; f.meta = "data";        // OK
 ```
 
 **Property lookup order** (implemented in `Prototype.getMember()`):
-1. `userProps` map (user-added properties win per spec)
-2. Built-in properties via `lookupBuiltin()` (skipped if tombstoned)
+1. `userProps` slot (user-added properties win per spec; tombstone short-
+   circuits to the proto chain)
+2. Built-in properties via `resolveBuiltin(name)` (lazy `LazyRef` wrap
+   resolved + cached on first access)
 3. Delegate to `__proto__` chain
 
 ```java
 // Base class for built-in prototype objects
 abstract class Prototype implements ObjectLike {
     private final Prototype __proto__;
-    private Map<String, Object> userProps;        // user-added properties (lazy)
-    private Set<String> tombstones;               // intrinsics user has deleted (lazy)
-    final Map<String, JsBuiltinMethod> _methodCache; // wrapped built-in methods (per-Engine)
+    // Each entry is a PropertySlot — DataSlot for user-added values,
+    // AccessorSlot for accessor descriptors installed via
+    // Object.defineProperty(Foo.prototype, "x", {get: ...}). The slot's
+    // tombstoned flag shadows a built-in deleted via
+    // delete Foo.prototype.bar (was a separate Set<String> pre-refactor B).
+    private Map<String, PropertySlot> userProps;
+    // Install-time built-in members; immutable post-construction. User
+    // mutations land in userProps and shadow these.
+    private final Map<String, Object> builtins = new LinkedHashMap<>();
 
     public final Object getMember(String name) {
-        // 1. User-added properties win over built-ins
-        if (userProps != null && userProps.containsKey(name)) {
-            return userProps.get(name);
+        // 1. User slot wins (data, accessor, or tombstone)
+        PropertySlot s = userProps == null ? null : userProps.get(name);
+        if (s != null) {
+            if (s.tombstoned) return walkProto(name);
+            return s instanceof DataSlot ds ? ds.value : null; // accessor → null at this seam
         }
-        // 2. Built-in properties (skip if tombstoned)
-        if (tombstones == null || !tombstones.contains(name)) {
-            Object result = lookupBuiltin(name);   // uses _methodCache
-            if (result != null) return result;
-        }
+        // 2. Built-in lookup (resolves + caches LazyRef on first access)
+        Object builtin = resolveBuiltin(name);
+        if (builtin != null) return builtin;
         // 3. Delegate to __proto__ chain
-        return __proto__ != null ? __proto__.getMember(name) : null;
+        return walkProto(name);
     }
+
+    // 3-arg overload invokes accessor getters via slot.read(receiver, ctx)
+    public Object getMember(String name, Object receiver, CoreContext ctx) { ... }
 
     public void putMember(String name, Object value) {
-        // Built-in methods can't be replaced; user props go in userProps
         if (userProps == null) userProps = new LinkedHashMap<>();
-        userProps.put(name, value);
-        if (tombstones != null) tombstones.remove(name);   // re-introduces a deleted intrinsic
+        PropertySlot existing = userProps.get(name);
+        if (existing instanceof DataSlot ds) {
+            ds.value = value;
+            ds.tombstoned = false;
+        } else {
+            userProps.put(name, new DataSlot(name, value)); // also clears any prior accessor / tombstone
+        }
     }
 
-    protected abstract Object getBuiltinProperty(String name);
+    // Mirrors JsObject / JsArray — single-signature own-slot lookup so
+    // PropertyAccess.findAccessorInChain can dispatch uniformly.
+    final PropertySlot getOwnSlot(String name) { ... }
 }
 
 // Example: JsArrayPrototype provides array methods (package-private singleton).
@@ -341,25 +404,35 @@ class JsArray implements List<Object>, ObjectLike, JsCallable {
 
 // JsObject implements Map<String, Object>
 class JsObject implements Map<String, Object>, ObjectLike {
-    private Map<String, Slot> props;          // unified: value + attrs byte + tombstone flag per name
+    // Each entry is a sealed PropertySlot — DataSlot (value + attrs +
+    // tombstone) or AccessorSlot (getter/setter callables + attrs).
+    private Map<String, PropertySlot> props;
     private ObjectLike __proto__ = JsObjectPrototype.INSTANCE;
 
-    // JS internal - raw values, prototype chain.
-    // (Simplified — see Spec Invariants § Property attributes for the
-    //  intrinsic / tombstone / accessor pipeline.)
+    // JS internal — raw values, prototype chain. (Simplified — see Spec
+    // Invariants § Property attributes for the intrinsic / tombstone /
+    // accessor pipeline.)
     public Object getMember(String name) {
-        Slot s = props == null ? null : props.get(name);
+        PropertySlot s = props == null ? null : props.get(name);
         if (s != null) {
             if (s.tombstoned) return __proto__ != null ? __proto__.getMember(name) : null;
-            return s.value;
+            return s instanceof DataSlot ds ? ds.value : null; // accessor → null at this seam
         }
-        // Subclass intrinsic-field fallback (e.g. JsFunction's name/length/prototype/constructor)
+        if ("__proto__".equals(name)) return __proto__;
+        // Subclass intrinsic hook — e.g. JsFunction's name / length /
+        // prototype, JsString.length, JsRegex.source. See § resolveOwnIntrinsic.
+        Object intrinsic = resolveOwnIntrinsic(name);
+        if (intrinsic != null) return intrinsic;
         return __proto__ != null ? __proto__.getMember(name) : null;
     }
 
+    // 3-arg overload invokes accessor getters via slot.read(receiver, ctx).
+    // Single-pass post-refactor A: own slot → intrinsic hook → proto chain.
+    public Object getMember(String name, Object receiver, CoreContext ctx) { ... }
+
     // Canonical own-key check — see Spec Invariants
     public boolean isOwnProperty(String name) {
-        Slot s = props == null ? null : props.get(name);
+        PropertySlot s = props == null ? null : props.get(name);
         if (s != null) return !s.tombstoned;
         return hasOwnIntrinsic(name);   // subclass-declared own intrinsics
     }
@@ -367,9 +440,9 @@ class JsObject implements Map<String, Object>, ObjectLike {
     // Java interface - auto-unwrap, own properties only
     @Override
     public Object get(Object key) {
-        Slot s = props == null || !(key instanceof String n) ? null : props.get(n);
-        Object raw = s == null || s.tombstoned ? null : s.value;
-        return Engine.toJava(raw);  // undefined→null, JsDate→Date
+        PropertySlot s = props == null || !(key instanceof String n) ? null : props.get(n);
+        if (s == null || s.tombstoned) return null;
+        return s instanceof DataSlot ds ? Engine.toJava(ds.value) : null; // accessors → null at Java seam
     }
 }
 ```
@@ -378,11 +451,14 @@ class JsObject implements Map<String, Object>, ObjectLike {
 
 To avoid collision with `Map.get(Object)`, ObjectLike uses distinct method names:
 
-| Old Name | New Name | Purpose |
-|----------|----------|---------|
-| `get(String)` | `getMember(String)` | JS property access with prototype chain |
-| `put(String, Object)` | `putMember(String, Object)` | JS property assignment |
-| `remove(String)` | `removeMember(String)` | JS property deletion |
+| Method | Purpose |
+|--------|---------|
+| `getMember(String)` | **Raw-value** read with prototype chain. AccessorSlot surfaces as `null` (no extractable raw value). Used by Java-interop, internal fallbacks, and subclass `super.getMember(name)` chains. |
+| `getMember(String, Object receiver, CoreContext ctx)` | **JS-semantic resolved** read. AccessorSlot invokes its getter via `slot.read(receiver, ctx)`. `receiver` is the object the property is being read on (may differ from `this` when walking a prototype chain); `ctx` threads through to the getter call. Default delegates to 1-arg; `JsObject` / `JsArray` / `Prototype` / `JsGlobalThis` override. |
+| `putMember(String, Object)` | JS property assignment. |
+| `removeMember(String)` | JS property deletion. |
+| `isOwnProperty(String)` | Canonical own-key check. Default reads `toMap()`; `JsObject` / `JsArray` / `Prototype` override with tighter implementations distinguishing tombstones from absent keys and intrinsic-installed entries. |
+| `getPrototype()` | Returns the prototype (`__proto__`) for chain walking. |
 
 ### Conversion at Boundaries
 
@@ -392,6 +468,39 @@ Conversion happens at specific boundaries:
 2. **`List.get()` / `Map.get()`** - Elements unwrapped lazily on access
 3. **JavaCallable args** - Arguments converted before external Java method call
 4. **Iteration** - Iterator unwraps values lazily
+
+### `resolveOwnIntrinsic` — subclass intrinsic hook
+
+```java
+// JsObject — default implementation
+protected Object resolveOwnIntrinsic(String name) {
+    return null;
+}
+```
+
+Subclasses with intrinsic members not stored in `props` — `JsString.length`,
+`JsRegex.source` / `flags` / `lastIndex`, `JsFunction.prototype` / `name` /
+`length`, `JsArray.length` and numeric-index reads, `JsError.message` / `name`
+/ `constructor`, `JsMap.size`, `JsSet.size`, `JsReflect.construct` /
+`apply`, `JsTextEncoder.encode`, `JsTextDecoder.decode` / `encoding`,
+`JsUint8Array.length` — return the value at *this level only*, no prototype
+walk. `JsObject.getMember` (both arities) consults the hook after the own-slot
+miss and before the proto walk, so the dispatch is single-pass.
+
+This replaces the historical pattern where each subclass overrode the 1-arg
+`getMember` and prefixed its body with
+`Object own = super.getMember(name); if (own != null) return own;`.
+That pattern caused a *double* prototype walk on accessor descriptors: the
+1-arg returned `null` for accessors at every level (raw-value semantic), the
+subclass fell through, and the 3-arg ended up walking the chain a second
+time. Centralizing intrinsic resolution lets the 3-arg path single-pass
+through (own slot → intrinsic hook → proto chain) and lets the 1-arg
+overrides shrink or vanish in most subclasses (refactor A, post-S4).
+
+Subclasses chain via `super.resolveOwnIntrinsic(name)` when extending the
+parent's intrinsic surface — e.g. `JsUint8Array` overrides to return its
+byte-buffer length, then delegates to `super` for the rest of the JsArray
+intrinsic surface.
 
 ### Example: Dual Access
 
@@ -585,50 +694,10 @@ new TypeError('bad').name             // 'TypeError' — constructor name is pre
 
 ## Engine-compliance work
 
-Operating-mode maxims for the test262 conformance loop. Treat as load-bearing.
-[`karate-js-test262/TEST262.md`](../karate-js-test262/TEST262.md) holds the
-forward-looking roadmap; the principles + code map live here.
-
-### Working principles
-
-1. **Real-world JS first; test262 is the scorecard, spec is ground truth.** A
-   fix that unblocks 500 idiomatic tests beats one that tightens a rare spec
-   corner. `test/language/**` failures tell you the parser can't read common
-   code; `test/built-ins/AggregateError` failures tell you a rarely-used
-   constructor is missing — same FAIL count, very different signal. Existing
-   JUnit tests can be wrong: when the spec disagrees, the spec wins — fix the
-   test along with the engine.
-
-2. **Fix friction before moving on.** Bad error messages in `results.jsonl`,
-   parse-vs-runtime classification gaps, missing report fields, `--single -vv`
-   not showing what you need — stop and fix the tooling rather than working
-   around it. The `ContextListener` / `Event` / `BindEvent` surface is fair
-   game for testability; not a load-bearing API guarantee.
-
-3. **Errors must look like JavaScript, not Java.** Stronger form of #2: the
-   engine's user-visible error surface is its own contract. Any raw Java
-   exception escaping `Engine.eval(...)` is a correctness bug. See
-   [§ Exception Handling](#exception-handling) and [§ Spec Invariants — Error
-   routing & shape](#error-routing--shape).
-
-4. **Protect the hot path — pay edge-case cost on the edge case.** New
-   features dispatch via fast-path-then-fallback: sentinels over thrown
-   signals, type-check rare cases after the common-case miss, parse-time
-   analysis over inner-loop checks. After any non-trivial engine change, run
-   `EngineBenchmark profile` and compare against
-   [§ Performance Benchmarks](#performance-benchmarks).
-
-5. **Refactor toward elegance — fix inline or write it down, never carry the
-   smell forward.** Spot near-duplicate dispatch or wrong-layer workarounds:
-   either fix it now (cheapest moment is the session that just touched the
-   area) or file a Deferred TODO with concrete pointers (file, method, what
-   the unification looks like). Vague "this could be cleaner" notes are
-   worthless. A workaround is a clue that the layer below is wrong.
-
-6. **Batched commits are fine if the message enumerates the changes.** A
-   single commit covering several related fixes from one session is preferred
-   over the ceremony of splitting hunks across files. What matters is that
-   the commit message lets a future bisect attribute regressions.
+The operating-mode maxims for the test262 conformance loop now live in
+[`karate-js-test262/TEST262.md` § Working principles](../karate-js-test262/TEST262.md#working-principles)
+— treat that section as load-bearing. The engine code map below is the
+muscle-memory pointer for "where does this fix go."
 
 ### Engine code map
 
@@ -738,7 +807,7 @@ through). Direct-eval scope capture is out of scope.
 binding at every scope: top-level `var` / `let` / `const`, implicit globals,
 `Engine.put`-injected host state, `Engine.putRootBinding`-injected resources,
 and the lazy-cached built-ins from `ContextRoot.initGlobal`. Per-entry
-`hidden` flag on `Slot` distinguishes the last two so
+`hidden` flag on `BindingSlot` distinguishes the last two so
 `Engine.getBindings()` (a thin auto-unwrapping `Bindings` wrapper) filters
 them out of host inspection while the engine's lookup chain sees one
 unified set. `Engine.getRootBindings()` exposes the hidden subset to hosts
@@ -747,23 +816,30 @@ that need to inherit it across scenarios.
 **Name resolution is a single chain walk.** `CoreContext.resolve(name)` walks
 own bindings → captured (closure snapshot) → `outer` (lexical parent for
 function contexts; dynamic `parent` otherwise — see issue #2802) → root
-(with lazy built-in init) and returns the matching `Slot` or null. `get`,
-`hasKey`, `update` all compose over a single `resolve` call (was: five
+(with lazy built-in init) and returns the matching `BindingSlot` or null.
+`get`, `hasKey`, `update` all compose over a single `resolve` call (was: five
 separate chain walks with subtly different shapes). Spec mapping:
 ResolveBinding (ES 8.1.2.1).
 
 **Top-level `this` is a `JsGlobalThis` stand-in for `globalThis`.**
 `ContextRoot` constructs one and assigns it to `thisObject`; child contexts
-inherit it until a function call rebinds. Reads / writes go through the
-single shared `BindingsStore`, so `this.foo = 1; foo` and
-`foo = 1; this.foo` see the same value (no divergence). Lazy built-ins
-land hidden via `bindings.putHidden`, so `Object.keys(globalThis)` only
-sees user-visible state. `getOwnAttrs` reports
-`{ writable: true, enumerable: false, configurable: true }` per spec
-default for built-ins; `defineProperty(globalThis, …)` overrides via the
-inherited Slot's attrs byte plus an `explicit` set (the global default
-differs from `ATTRS_DEFAULT`'s `W|E|C`, so explicit-equals-`ATTRS_DEFAULT`
-writes need a separate marker).
+inherit it until a function call rebinds. Refactor C (post-S4) collapsed
+the prior split storage (values in `BindingsStore`, attrs in
+`JsObject.props`) into a single store: `BindingSlot` carries `attrs` /
+`attrsExplicit` / `tombstoned` fields directly. `JsGlobalThis` no longer
+uses the inherited `JsObject.props` map at all — every observable property,
+attribute, and tombstone lives on the `BindingSlot`.
+
+So `this.foo = 1; foo` and `foo = 1; this.foo` see the same value (no
+divergence — same store). Lazy built-ins land hidden via
+`bindings.putHidden`, so `Object.keys(globalThis)` only sees user-visible
+state. `getOwnAttrs` reports `{ writable: true, enumerable: false,
+configurable: true }` per spec default for built-ins;
+`defineProperty(globalThis, …)` flips `attrsExplicit` to honor the stored
+byte verbatim (the global default `W|C` differs from `ATTRS_DEFAULT`'s
+`W|E|C`, so explicit-equals-`ATTRS_DEFAULT` writes still need the explicit
+marker). `delete globalThis.X` tombstones the slot so a lazy-realized
+built-in can't re-resurrect via `initGlobal`.
 
 **`this` binding follows spec OrdinaryCallBindThis.** Every regular call
 site routes through `Interpreter.bindThisForCall(receiver, context)`,
@@ -870,76 +946,106 @@ allocation on the common case).
 
 ### Property attributes
 
-**Per-property attributes live on each `Slot`.** Own properties on `JsObject`
-are stored as `props: Map<String, Slot>`; each `Slot` carries `value`,
-`attrs` (bit 0 = writable, bit 1 = enumerable, bit 2 = configurable), and
-the `tombstoned` flag. New slots default to `ATTRS_DEFAULT` (W|E|C) — the
-new-property default for plain `obj.x = ...`. `defineProperty` writes attrs
-explicitly and uses the spec's "missing fields default to false on new keys,
-preserve on existing" rule (different from `[[Set]]`'s all-true default —
-this distinction is load-bearing). Per-object flags `frozen` / `nonExtensible`
-are kept as fast-path early-exits on `putMember` / `removeMember` so frozen
-objects don't have to consult per-slot bits per write. Read paths:
-`getOwnPropertyDescriptor` reads the slot's attrs byte (or all-true default
-for a missing slot); `JsObject.jsEntries()` — the back-end for `for...in` /
-`Object.keys` / `Object.values` / `Object.entries` / `Object.assign` via
-`Terms.toIterable` — iterates `toMap()` (so subclass overrides like
-`JsGlobalThis` participate) and filters by `isEnumerable(name)` so subclass
-`getOwnAttrs` overrides win. `Object.getOwnPropertyNames` / `hasOwn` go
-through `toMap()` directly. `propertyIsEnumerable` consults
+**Per-property attributes live on each `PropertySlot`.** Own properties on
+`JsObject` are stored as `props: Map<String, PropertySlot>`; each slot is a
+sealed `DataSlot` (carries `value` + attrs byte + tombstone) or
+`AccessorSlot` (carries `getter` / `setter` callables + attrs byte +
+tombstone). The attrs byte encodes bit 0 = writable, bit 1 = enumerable,
+bit 2 = configurable, bit 3 = INTRINSIC. New slots default to
+`ATTRS_DEFAULT` (W|E|C) — the new-property default for plain
+`obj.x = ...`. `defineProperty` writes attrs explicitly and uses the spec's
+"missing fields default to false on new keys, preserve on existing" rule
+(different from `[[Set]]`'s all-true default — this distinction is
+load-bearing). Per-object flags `frozen` / `nonExtensible` are kept as
+fast-path early-exits on `putMember` / `removeMember` so frozen objects
+don't have to consult per-slot bits per write.
+
+**Polymorphic read / write seam.** `PropertySlot.read(receiver, ctx)` and
+`write(receiver, value, ctx, strict)` are the dispatch point. `DataSlot.read`
+returns `value` directly; `AccessorSlot.read` invokes the getter via
+`Interpreter.invokeGetter(getter, receiver, ctx)`. `DataSlot.write` honors
+the writable bit (silent ignore in lenient mode, TypeError in strict);
+`AccessorSlot.write` invokes the setter (silent / TypeError on get-only).
+`PropertyAccess.findAccessorInChain(obj, name)` walks the prototype chain
+via the unified `getOwnSlot` (defined on `JsObject`, `JsArray`, `Prototype`)
+and returns the first AccessorSlot. `setByName` invokes
+`acc.write(receiver, value, ctx, false)` rather than `objectLike.putMember(...)`
+when an accessor is in chain — preserves the descriptor and threads the
+live ctx so setters that read other properties see the correct call frame.
+
+**Read paths.** `getOwnPropertyDescriptor` reads the slot's attrs byte (or
+all-true default for a missing slot); `JsObject.jsEntries(ctx)` — the
+back-end for `for...in` / `Object.keys` / `Object.values` / `Object.entries`
+/ `Object.assign` via `Terms.toIterable(o, ctx)` — iterates `props`
+directly (so subclass overrides like `JsGlobalThis` participate via
+`@Override`), filters by `isEnumerable(name)` so subclass `getOwnAttrs`
+overrides win, and resolves accessor descriptors via `slot.read(this, ctx)`
+when `ctx != null`. The no-arg `jsEntries()` keeps the Java-interop
+semantic (accessors → null at the host boundary). `Object.getOwnPropertyNames` /
+`hasOwn` go through `toMap()` directly. `propertyIsEnumerable` consults
 `isEnumerable(name)`. Configurability rules enforced on defineProperty:
-TypeError on flipping configurable false→true, changing enumerable, switching
-data↔accessor shape, or changing a non-writable value — with the spec-allowed
-exceptions (writable true→false on data, no-op same-value redefine) passing
-through.
+TypeError on flipping configurable false→true, changing enumerable,
+switching data↔accessor shape, or changing a non-writable value — with the
+spec-allowed exceptions (writable true→false on data, no-op same-value
+redefine) passing through.
 
 **`Object.prototype.hasOwnProperty` is prototype-aware and intrinsic-aware.**
 When the receiver is a `Prototype` singleton (`Date.prototype`,
-`Array.prototype`, etc.) it consults `Prototype.hasOwnMember` (built-in
+`Array.prototype`, etc.) it consults `Prototype.isOwnProperty` (built-in
 methods + userProps); when the receiver is a `JsObject` it consults
-`JsObject.hasOwnIntrinsic` alongside the `_map` lookup so built-in
+`JsObject.hasOwnIntrinsic` alongside the `props` lookup so built-in
 constructors report their intrinsic statics (`Date.prototype`, `Date.now`,
 `Date.UTC`, etc.) as own. Subclasses (`JsFunction` exposes `prototype` /
 `name` / `length` / `constructor`; `JsDateConstructor` adds `now` / `parse` /
-`UTC`) override `hasOwnIntrinsic` to declare the names their `getMember`
-resolves directly. Required for the `S15.9.5_A*` and `S15.9.4_A*` test
-clusters and analogous tests under other built-ins.
+`UTC`) override `hasOwnIntrinsic` to declare the names their
+`resolveOwnIntrinsic` resolves directly. Required for the `S15.9.5_A*` and
+`S15.9.4_A*` test clusters and analogous tests under other built-ins.
 
 **Intrinsic-attribute pipeline.** Built-in own properties resolved via
-subclass `getMember` switches (not via `props`) declare themselves as own
-through `hasOwnIntrinsic(name)` and report attribute bits through
+`resolveOwnIntrinsic` (not via `props`) declare themselves as own through
+`hasOwnIntrinsic(name)` and report attribute bits through
 `getOwnAttrs(name)`. `JsFunction` returns spec defaults for its four
 intrinsics (`length` / `name`: configurable-only; `prototype`: writable;
 `constructor`: writable + configurable); subclasses (`JsMath`, etc.) cover
-their own methods/constants. The descriptor read pipeline
-(`Object.getOwnPropertyDescriptor`, `propertyIsEnumerable`, `Object.keys` /
-`for...in` enumerable filter) consults this rather than the all-true default.
-A user-set Slot's attrs (set by `Object.defineProperty`) win over the
-intrinsic defaults so user override is still possible.
+their own methods / constants via `defineOwn` with explicit attrs. The
+descriptor read pipeline (`Object.getOwnPropertyDescriptor`,
+`propertyIsEnumerable`, `Object.keys` / `for...in` enumerable filter)
+consults this rather than the all-true default. A user-set slot's attrs
+(set by `Object.defineProperty`) win over the intrinsic defaults so user
+override is still possible. (TODO: `hasOwnIntrinsic` could be derived from
+`resolveOwnIntrinsic(name) != null` to drop one source of truth — see
+[TEST262.md § Engine cleanup](../karate-js-test262/TEST262.md#engine--cleanup).)
 
-**Tombstone-on-delete for intrinsic properties.** Each `Slot` carries a
-`tombstoned` flag (was: a separate `_tombstones: Set<String>`); set true by
-`removeMember` when the deleted name had a backing intrinsic, cleared by
-`putMember` on a successful re-write. `getMember` short-circuits tombstoned
-slots to the prototype chain (skipping subclass intrinsic field fallback);
-`isOwnProperty` returns false. Matters for `propertyHelper.verifyProperty`'s
-destructive `isConfigurable()` check, which tries `delete obj[name]` and
-asserts `!hasOwnProperty(obj, name)`.
+**Tombstone-on-delete for intrinsic properties.** Each `PropertySlot`
+carries a `tombstoned` flag; set true by `removeMember` when the deleted
+name had a backing intrinsic, cleared by `putMember` on a successful
+re-write. `getMember` short-circuits tombstoned slots to the prototype
+chain (skipping the `resolveOwnIntrinsic` hook); `isOwnProperty` returns
+false. Matters for `propertyHelper.verifyProperty`'s destructive
+`isConfigurable()` check, which tries `delete obj[name]` and asserts
+`!hasOwnProperty(obj, name)`. `Prototype` shares the same flag for
+`delete Foo.prototype.bar` (the prior separate `Set<String> tombstones`
+was migrated into `PropertySlot.tombstoned` in refactor B, post-S4).
 
 **`JsObject.isOwnProperty(name)` is the canonical own-key check.** Returns
 true iff there's a non-tombstoned slot for `name` OR `hasOwnIntrinsic(name)`.
-Replaces the previous mix of `toMap().containsKey + hasOwnIntrinsic` checks at
-three call sites (`JsObjectConstructor.isOwnKey`,
+Replaces the previous mix of `toMap().containsKey + hasOwnIntrinsic` checks
+at three call sites (`JsObjectConstructor.isOwnKey`,
 `JsObjectPrototype.hasOwnProperty`, `propertyIsEnumerable`). Anything that
 wants spec-level "is this an own property" goes through here.
 
 ### Prototype machinery
 
 **Built-in prototypes accept user-added properties.** `Prototype` has a
-`userProps` map; user-added properties win over built-ins on lookup
-(configurable: true / writable: true per spec). Built-in methods themselves
-can't be deleted via `removeMember`. Required for `Array.prototype.foo = ...`
-polyfill patterns and for spec-conformant test262 behavior.
+`userProps: Map<String, PropertySlot>` map; user-added properties win over
+built-ins on lookup (configurable: true / writable: true per spec). Built-in
+methods themselves can't be deleted via `removeMember` — instead, the
+delete tombstones the slot in place so future reads skip the install map and
+fall through to the proto chain. Required for `Array.prototype.foo = ...`
+polyfill patterns and for spec-conformant test262 behavior. Storage is
+unified post-refactor B: data writes install `DataSlot`, accessor descriptors
+install `AccessorSlot`, both surfaces through the shared `getOwnSlot`
+signature that mirrors `JsObject` / `JsArray`.
 
 **Per-Engine prototype isolation.** Built-in prototypes are JVM-wide
 singletons (e.g. `JsArrayPrototype.INSTANCE`), but their `userProps` must
@@ -958,8 +1064,11 @@ The same pattern holds on the constructor side via `JsObject.ENGINE_RESET_LIST`
 BigInt / Date / Function / Map / Number / Object / Set / String) register
 themselves; `Engine.<init>` invokes `JsObject.clearAllEngineState()` right
 after `Prototype.clearAllUserProps()`. Default `clearEngineState()` wipes
-`props` / extensibility flags; subclasses with caches override and call
-`super.clearEngineState()` first.
+`props` / extensibility flags; subclasses with intrinsic install routines
+override, call `super.clearEngineState()` first, then re-run
+`installIntrinsics()` (the install code is the single source of truth for
+what gets restored). The `INTRINSIC` bit on the slot's attrs byte is
+informational — it doesn't gate reset behavior.
 
 **Function declarations hoist** at the start of the enclosing program / block
 scope. `Interpreter.hoistFunctionDeclarations` walks immediate `STATEMENT >
@@ -1477,6 +1586,14 @@ If you need strict semantics, run your code in an engine that supports
 them; karate-js is a pragmatic embedded engine tuned for LLM-written and
 hand-written idiomatic JS, not for spec-lawyer strict-mode enforcement.
 
+> **Aspirational TODO.** Adding strict-mode plumbing — parse the directive
+> prologue, thread `strictMode` via `CoreContext`, flip ~7 lenient sites
+> through one `failSilentOrThrow` helper — is tracked in
+> [TEST262.md § Engine — feature gaps](../karate-js-test262/TEST262.md#engine--feature-gaps).
+> The infrastructure is partly in place: `AccessorSlot.write` already accepts
+> a `strict` flag from S2 wiring. The risk is parser regressions on
+> `flags: [noStrict]` test262 paths if the directive parsing is over-eager.
+
 ---
 
 ## File References
@@ -1490,7 +1607,12 @@ hand-written idiomatic JS, not for spec-lawyer strict-mode enforcement.
 | JsUndefined | `karate-js/src/main/java/io/karatelabs/js/JsUndefined.java` |
 | JsPrimitive | `karate-js/src/main/java/io/karatelabs/js/JsPrimitive.java` |
 | Bindings | `karate-js/src/main/java/io/karatelabs/js/Bindings.java` |
-| Slot (binding + property entry) | `karate-js/src/main/java/io/karatelabs/js/Slot.java` |
+| PropertySlot (sealed) | `karate-js/src/main/java/io/karatelabs/js/PropertySlot.java` |
+| DataSlot | `karate-js/src/main/java/io/karatelabs/js/DataSlot.java` |
+| AccessorSlot | `karate-js/src/main/java/io/karatelabs/js/AccessorSlot.java` |
+| BindingSlot | `karate-js/src/main/java/io/karatelabs/js/BindingSlot.java` |
+| BindingsStore | `karate-js/src/main/java/io/karatelabs/js/BindingsStore.java` |
+| PropertyAccess (read/write dispatch) | `karate-js/src/main/java/io/karatelabs/js/PropertyAccess.java` |
 | JsCallable | `karate-js/src/main/java/io/karatelabs/js/JsCallable.java` |
 | JavaCallable | `karate-js/src/main/java/io/karatelabs/js/JavaCallable.java` |
 | JsError | `karate-js/src/main/java/io/karatelabs/js/JsError.java` |
@@ -1537,10 +1659,27 @@ java -cp ... io.karatelabs.parser.EngineBenchmark profile
 |---|---|---|---|
 | `28d020b87` — benchmark introduced (2026-01-22) | 2.06 ms | 0.84 ms | 10,294 |
 | `60b6fde76` — pre-Slot HEAD (2026-04-22) | 1.32 ms | 0.50 ms | 16,397 |
-| post-Slot unification (2026-04-26) | **1.36 ms** | **0.53 ms** | **15,824** |
+| post-Slot unification (2026-04-26) | 1.36 ms | 0.53 ms | 15,824 |
+| post-S4 + refactors A/B/C/E (2026-04-26) | **1.36 ms** | **0.53 ms** | **15,824** |
 | Speedup vs. 2026-01-22 baseline | **1.51×** | **1.58×** | **1.54×** |
 
-Engine instantiation is essentially unchanged (~0.4–0.6 µs median in both). Cumulative gains come from earlier perf work: tighter `Node` allocation and pre-sized child arrays, static `PropertyAccess`, level-keyed bindings replacing per-scope contexts, EnumSet token lookups in the parser, and lazy ArrayList init on token-only nodes. The 2026-04-26 row reflects the `Slot` unification (R4 + S1) — every JsObject property now allocates a `Slot` (vs. the prior plain `Map.Entry<String, Object>`); the +3% / +6% delta is the predicted memory-pressure cost, well within the ±10% / ±15% session budget.
+Engine instantiation is essentially unchanged (~0.4–0.6 µs median in both).
+Cumulative gains come from earlier perf work: tighter `Node` allocation and
+pre-sized child arrays, static `PropertyAccess`, level-keyed bindings
+replacing per-scope contexts, EnumSet token lookups in the parser, and lazy
+ArrayList init on token-only nodes. Post-S4 refactors (subclass intrinsic
+hook, Prototype storage uniformity, JsGlobalThis split-storage cleanup,
+ctx-aware accessor iteration) net out within ±5% — the new virtual
+`resolveOwnIntrinsic` call is offset by removing the 3-arg double-walk on
+accessor descriptors and by collapsing the prior split storage in
+`JsGlobalThis`.
+
+> **Note on absolute numbers.** The reference machine values (1.32 / 0.50 ms)
+> are the M1 Pro baseline. Other hardware will see different absolute
+> numbers — the 2x ratios you may see locally are normal. What matters for
+> session-to-session comparison is the **relative delta** on the same
+> machine across pre/post commits. Re-baseline locally when starting a
+> session before judging a refactor's perf impact.
 
 ### Notes on interpretation
 
@@ -1583,8 +1722,8 @@ public final class JsUndefined implements JsValue {
 
 **Additional changes in this refactor:**
 - `Terms.UNDEFINED` now uses `JsUndefined.INSTANCE` (singleton for identity comparison)
-- `Bindings` class using `Map<String, Slot>` for scope storage with auto-unwrapping at Java boundaries
-- `Slot` is the unified entry primitive for both variable bindings (binding name, value, scope, initialized state, evalId, hidden) and JsObject own properties (value, attribute byte, tombstone flag) — see § Property attributes
+- `Bindings` class using `Map<String, BindingSlot>` for scope storage with auto-unwrapping at Java boundaries
+- Sealed `PropertySlot` family (`DataSlot` / `AccessorSlot`) for property descriptors and a separate `BindingSlot` root for variable bindings — see [§ Slot family](#slot-family--property-descriptors-and-bindings) and [§ Property attributes](#property-attributes)
 - `JsFunctionWrapper` for auto-converting function return values
 - Removed `JsErrorPrototype` (JsError now uses JsObjectPrototype directly)
 - Made all prototype helper methods static (`asString`, `asNumber`, `asDate`, etc.)
@@ -1603,8 +1742,8 @@ public final class JsUndefined implements JsValue {
 
 > The prioritized work list lives in
 > [karate-js-test262/TEST262.md § Active priorities](../karate-js-test262/TEST262.md#active-priorities)
-> and [§ Deferred TODOs](../karate-js-test262/TEST262.md#deferred-todos). The
-> items below are the architectural shape only.
+> and [§ Deferred TODOs](../karate-js-test262/TEST262.md#deferred-todos). One
+> architectural-shape item lives here because it's not yet covered there:
 
 **JavaScript Stack Traces for Errors**
 - Single-frame position is done: `Node.toStringError` now appends
@@ -1613,29 +1752,3 @@ public final class JsUndefined implements JsValue {
 - Multi-frame call stack still TODO — would track function entry/exit
   in `Interpreter.evalFnCall`, stash name + source on `CoreContext`,
   and capture the chain on throw. Priority: medium.
-
-**Async/Await + Promises**
-- Engine is synchronous; no event loop or microtask queue. LLMs write
-  `async`/`await` reflexively, so the current full-skip of
-  `feature: Promise` / `feature: async-functions` / `flag: async` in
-  `etc/expectations.yaml` rejects a large fraction of modern JS. See
-  [TEST262.md § Deferred TODOs](../karate-js-test262/TEST262.md#deferred-todos)
-  for the deferred-design notes (smooth Java interop, graceful degradation
-  when async is decorative, simple multi-threading for real async I/O).
-- One viable path: **synchronous subset first** — `Promise` as an eagerly-
-  resolving thenable, `async function` runs synchronously and wraps its
-  result in `Promise.resolve`, `await expr` synchronously unwraps a
-  thenable. Breaks genuinely-concurrent workloads but handles the ~80% of
-  LLM glue where `async`/`await` is shape not parallelism. Escalate to a
-  full microtask-queue runtime only when a real workload needs timer-
-  driven scheduling.
-- Priority: deferred until a real workload demands it.
-
-**Class Syntax (ES6)**
-- Engine has prototype machinery + `new` but no parser support for
-  `class` / `extends` / `super` / method-definition. Currently fails
-  loudly at parse time with `SyntaxError` — the right shape (code that
-  uses `class` should fail loudly, not silently produce wrong behavior).
-- LLMs writing glue / test code default to function + prototype style;
-  pick up only if a real workload demands. See
-  [TEST262.md § Deferred TODOs](../karate-js-test262/TEST262.md#deferred-todos).

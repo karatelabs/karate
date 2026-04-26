@@ -48,17 +48,17 @@ class JsMap extends JsObject {
     }
 
     /**
-     * Spec: {@code Map.prototype.size} is a getter accessor. We don't model accessor
-     * descriptors yet, so we intercept {@code size} lookup directly on the instance
-     * and return the live entry count. All other names route through the prototype
-     * chain in the usual way.
+     * Spec: {@code Map.prototype.size} is a getter accessor. We don't model
+     * accessor descriptors yet, so we surface {@code size} as an own intrinsic
+     * returning the live entry count. All other names route through the
+     * prototype chain in the usual way.
      */
     @Override
-    public Object getMember(String name) {
+    protected Object resolveOwnIntrinsic(String name) {
         if ("size".equals(name)) {
             return entries.size();
         }
-        return super.getMember(name);
+        return null;
     }
 
     /**
