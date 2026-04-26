@@ -585,12 +585,89 @@ new TypeError('bad').name             // 'TypeError' — constructor name is pre
 
 ---
 
+## Engine-compliance work
+
+Operating-mode maxims for the test262 conformance loop. Treat as load-bearing.
+[`karate-js-test262/TEST262.md`](../karate-js-test262/TEST262.md) holds the
+forward-looking roadmap; the principles + code map live here.
+
+### Working principles
+
+1. **Real-world JS first; test262 is the scorecard, spec is ground truth.** A
+   fix that unblocks 500 idiomatic tests beats one that tightens a rare spec
+   corner. `test/language/**` failures tell you the parser can't read common
+   code; `test/built-ins/AggregateError` failures tell you a rarely-used
+   constructor is missing — same FAIL count, very different signal. Existing
+   JUnit tests can be wrong: when the spec disagrees, the spec wins — fix the
+   test along with the engine.
+
+2. **Fix friction before moving on.** Bad error messages in `results.jsonl`,
+   parse-vs-runtime classification gaps, missing report fields, `--single -vv`
+   not showing what you need — stop and fix the tooling rather than working
+   around it. The `ContextListener` / `Event` / `BindEvent` surface is fair
+   game for testability; not a load-bearing API guarantee.
+
+3. **Errors must look like JavaScript, not Java.** Stronger form of #2: the
+   engine's user-visible error surface is its own contract. Any raw Java
+   exception escaping `Engine.eval(...)` is a correctness bug. See
+   [§ Exception Handling](#exception-handling) and [§ Spec Invariants — Error
+   routing & shape](#error-routing--shape).
+
+4. **Protect the hot path — pay edge-case cost on the edge case.** New
+   features dispatch via fast-path-then-fallback: sentinels over thrown
+   signals, type-check rare cases after the common-case miss, parse-time
+   analysis over inner-loop checks. After any non-trivial engine change, run
+   `EngineBenchmark profile` and compare against
+   [§ Performance Benchmarks](#performance-benchmarks).
+
+5. **Refactor toward elegance — fix inline or write it down, never carry the
+   smell forward.** Spot near-duplicate dispatch or wrong-layer workarounds:
+   either fix it now (cheapest moment is the session that just touched the
+   area) or file a Deferred TODO with concrete pointers (file, method, what
+   the unification looks like). Vague "this could be cleaner" notes are
+   worthless. A workaround is a clue that the layer below is wrong.
+
+6. **Batched commits are fine if the message enumerates the changes.** A
+   single commit covering several related fixes from one session is preferred
+   over the ceremony of splitting hunks across files. What matters is that
+   the commit message lets a future bisect attribute regressions.
+
+### Engine code map
+
+When test262 surfaces a fix, this table is the muscle-memory pointer.
+
+| Concern | Engine source | JUnit test | test262 path |
+|---|---|---|---|
+| Lexer (tokenization) | `karate-js/.../parser/JsLexer.java`, `BaseLexer.java`, `TokenType.java`, `Token.java` | `JsLexerTest`, `LexerBenchmark` | `test/language/literals/**` (syntax-level) |
+| Parser (AST build) | `karate-js/.../parser/JsParser.java`, `BaseParser.java`, `NodeType.java`, `Node.java` | `JsParserTest`, `ParserExceptionTest`, `TermsTest` | `test/language/expressions/**`, `statements/**`, `types/**` (parse-level) |
+| Parse errors | `karate-js/.../parser/ParserException.java`, `SyntaxError.java` | `ParserExceptionTest` | parse-phase negative tests |
+| Interpreter (eval) | `karate-js/.../js/Interpreter.java`, `CoreContext.java`, `ContextRoot.java` | `EvalTest` (language-semantics catch-all) | `test/language/expressions/**`, `statements/**`, `types/**` (runtime) |
+| Built-ins / types | `karate-js/.../js/JsObject.java`, `JsArray.java`, `JsString.java`, `JsError.java`, `JsFunction.java`, prototype classes (`JsArrayPrototype` etc.), `Terms.java` (operators/coercion) | `JsArrayTest`, `JsStringTest`, `JsObjectTest`, `JsMathTest`, `JsNumberTest`, `JsJsonTest`, `JsDateTest`, `JsRegexTest`, `JsFunctionTest`, `JsBooleanTest` | `test/built-ins/Array/**`, `String/**`, `Object/**`, `Math/**`, `Number/**`, `JSON/**`, `Date/**`, `RegExp/**`, `Function/**`, `Boolean/**` |
+| Runtime exceptions | `karate-js/.../js/EngineException.java` | `EngineExceptionTest` | error-propagation regressions |
+| Performance regression | — | `EngineBenchmark` | (gut-check after engine change) |
+
+Guidance:
+- **Pure tokenization change** → `JsLexer` + `JsLexerTest`.
+- **Grammar change** → `JsParser` + `JsParserTest` (AST shape) + `EvalTest`
+  (runtime semantics).
+- **Semantics-only change** → `Interpreter.java` or the relevant
+  `Js*Prototype`; test in `EvalTest` or the matching `Js*Test`.
+- `NodeType` and `TokenType` are small enums — consult them before inventing
+  new node/token kinds; many "feels like I need a new node" fixes turn out
+  to be wiring an existing one to a new call site.
+- **`EngineTest` is *not* a test262 sink.** It covers the engine's
+  integration surface: `ContextListener` events, `BindEvent`, `Engine.put`
+  lifecycle, Java↔JS exception boundary, `$BUILTIN`/prototype immutability.
+- **When to split a `Js*Test`:** don't pre-emptively. If a cluster inside
+  `EvalTest` grows to ~10+ tests on one feature (destructuring, TDZ,
+  template literals), spin it out — let the split follow the evidence.
+
+---
+
 ## Spec Invariants (test262-driven)
 
 Engine rules established by test262 conformance work. Treat as load-bearing —
 if a session needs to violate one, the rule goes up for review explicitly.
-[`karate-js-test262/TEST262.md`](../karate-js-test262/TEST262.md#engine-guarantees-test262-driven)
-keeps a one-liner index pointing back here.
 
 ### Error routing & shape
 
@@ -654,6 +731,20 @@ globals), and `JsCallable` method refs (`[1].map`, `'x'.charAt`). The
 **`eval` is a global** registered in `ContextRoot.initGlobal` with indirect-
 eval semantics (parses/evaluates in engine root scope; non-string args pass
 through). Direct-eval scope capture is out of scope.
+
+**Top-level `this` is a `JsGlobalThis` stand-in for `globalThis`.**
+`ContextRoot` constructs one and assigns it to `thisObject`; child contexts
+inherit it until a function call rebinds. Reads route through
+`ContextRoot.get`, so a built-in is the same instance whether reached as
+`Math` or `this.Math`. `hasOwnIntrinsic` delegates to `ContextRoot.hasKey`
+(hardcoded built-in name list + cached `_bindings`); `getOwnAttrs` reports
+`{ writable: true, enumerable: false, configurable: true }` per spec
+defaults. `Function.prototype.call` / `.apply` substitute `globalThis` when
+`thisArg` is null/undefined (spec §10.3 OrdinaryCallBindThis non-strict);
+without that, `Function("this.x=...").call(null)` would never reach the
+global object. Writes via `this.foo = ...` land in the JsGlobalThis own map
+and do **not** back-propagate to root bindings, so `this.foo = 1; foo`
+diverges — fix when a real test exercises it.
 
 ### Iteration
 

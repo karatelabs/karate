@@ -1,77 +1,21 @@
 # karate-js-test262
 
 ECMAScript [test262](https://github.com/tc39/test262) conformance harness for
-karate-js — the **living document** for evolving karate-js toward spec
-compliance: a reproducible pass/fail matrix across the whole ES surface area,
-plus the roadmap for which work to tackle in which order. **Not** published to
-Maven Central — internal testing/reporting harness.
+karate-js. Reproducible pass/fail matrix across the ES surface area, declarative
+skip list ([`etc/expectations.yaml`](etc/expectations.yaml)), and the roadmap
+for what to tackle next. **Not** published to Maven Central.
 
-> **See also (start a fresh session here):**
-> [../karate-js/README.md](../karate-js/README.md) for what karate-js is ·
-> [../docs/JS_ENGINE.md](../docs/JS_ENGINE.md) for engine architecture
-> (types, prototype system, exception model, **spec invariants**, benchmarks) ·
-> [../docs/DESIGN.md](../docs/DESIGN.md) for the wider project design ·
+The bar is *can karate-js run real-world JavaScript written in the wild,
+especially by LLMs?* test262 is the scorecard; pragmatic ES6 coverage of
+idiomatic code is the goal — not spec-lawyer compliance for its own sake.
+
+> **See also:**
+> [../karate-js/README.md](../karate-js/README.md) — what karate-js is ·
+> [../docs/JS_ENGINE.md](../docs/JS_ENGINE.md) — engine architecture, working
+> principles, code map, **spec invariants**, benchmarks ·
+> [../docs/DESIGN.md](../docs/DESIGN.md) — wider project design ·
 > [test262 INTERPRETING.md](https://github.com/tc39/test262/blob/main/INTERPRETING.md)
-> for the authoritative test-runner spec.
-
----
-
-## Why this exists
-
-karate-js is a lightweight JavaScript engine. Hand-written JUnit tests in
-`karate-js/src/test/java/` cover behaviors we care about but tell us nothing
-about **spec compliance**. Running tc39/test262 gives us ground truth — and
-the module's committed skip list
-([`etc/expectations.yaml`](etc/expectations.yaml)) becomes the declarative
-statement of "what karate-js deliberately does not support."
-
-The **real bar** is not spec-lawyer compliance — it is *can karate-js run
-real-world JavaScript written in the wild, especially by LLMs?* test262 is the
-scorecard; pragmatic ES6 coverage of idiomatic code is the goal.
-
----
-
-## Working principles
-
-Operating-mode maxims for engine-compliance work. Treat as load-bearing.
-
-1. **Real-world JS first; test262 is the scorecard, spec is ground truth.** A
-   fix that unblocks 500 idiomatic tests beats one that tightens a rare
-   spec corner. `test/language/**` failures tell you the parser can't read
-   common code; `test/built-ins/AggregateError` failures tell you a rarely-used
-   constructor is missing — same FAIL count, very different signal. Existing
-   JUnit tests can be wrong: when the spec disagrees, the spec wins — fix the
-   test along with the engine.
-
-2. **Fix friction before moving on.** Bad error messages in `results.jsonl`,
-   parse-vs-runtime classification gaps, missing report fields, `--single -vv`
-   not showing what you need — stop and fix the tooling rather than working
-   around it. The `ContextListener` / `Event` / `BindEvent` surface is fair
-   game for testability; not a load-bearing API guarantee.
-
-3. **Errors must look like JavaScript, not Java.** Stronger form of #2: the
-   engine's user-visible error surface is its own contract. Any raw Java
-   exception escaping `Engine.eval(...)` is a correctness bug. See
-   [JS_ENGINE.md § Exception Handling](../docs/JS_ENGINE.md#exception-handling).
-
-4. **Protect the hot path — pay edge-case cost on the edge case.** New
-   features dispatch via fast-path-then-fallback: sentinels over thrown
-   signals, type-check rare cases after the common-case miss, parse-time
-   analysis over inner-loop checks. After any non-trivial engine change, run
-   `EngineBenchmark profile` and compare against
-   [JS_ENGINE.md § Performance Benchmarks](../docs/JS_ENGINE.md#performance-benchmarks).
-
-5. **Refactor toward elegance — fix inline or write it down, never carry the
-   smell forward.** Spot near-duplicate dispatch or wrong-layer workarounds:
-   either fix it now (cheapest moment is the session that just touched the
-   area) or file a Deferred TODO with concrete pointers (file, method, what
-   the unification looks like). Vague "this could be cleaner" notes are
-   worthless. A workaround is a clue that the layer below is wrong.
-
-6. **Batched commits are fine if the message enumerates the changes.** A
-   single commit covering several related fixes from one session is preferred
-   over the ceremony of splitting hunks across files. What matters is that
-   the commit message lets a future bisect attribute regressions.
+> — authoritative test-runner spec.
 
 ---
 
@@ -173,44 +117,27 @@ stream stdout and tail the most recent line without waiting for the run.
 
 ## Roadmap
 
-Committed slice order for the next several sessions. Picked for feedback-loop
-speed: small, contained slices first surface ergonomic gaps in the harness
-and harden type-coercion + error-propagation foundations that the bigger
-sweeps (Object/Array/Symbol) lean on. Symbol is **last**, not first — a
-2026-04-26 survey confirmed Math/Number/Date are independent of Symbol
-and only ~13% of String fails touch it (regex protocol + iterator).
+Committed slice order. Picked for feedback-loop speed: small, contained slices
+first surface ergonomic gaps in the harness and harden type-coercion +
+error-propagation foundations that the bigger sweeps (Object/Array/Symbol)
+lean on. Symbol is **last**, not first — Math/Number/Date are independent of
+Symbol and only ~13% of String fails touch it (regex protocol + iterator).
 
 | # | Slice | Fail size | What's likely in scope |
 |---|---|---|---|
-| 1 | `test/built-ins/Math/**` | ~~33~~ → 1 | **Done (2026-04-26):** `min`/`max`/`hypot` made variadic with spec coercion order; `round` follows half-toward-+∞ (not half-away-zero) and short-circuits integers; `asinh`/`atanh` special-vals; `clz32` ToUint32; `sign(NaN)`; `Math()` throws TypeError. `f16round`/`sumPrecise`/`Symbol.toStringTag` skipped via feature gate. Residual: `prop-desc.js` (top-level `this !== globalThis`) |
-| 2 | `test/built-ins/Number/**` | ~96 | `parseInt`/`parseFloat` edge cases; `toFixed`/`toPrecision`/`toExponential` rounding; `Number.isInteger` / `isSafeInteger` / `isFinite` / `isNaN` distinctions |
-| 3 | `test/built-ins/JSON/**` | TBD probe | `stringify` replacer-fn / array-filter / nested `toJSON` dispatch; `parse` reviver hooks; circular detection |
-| 4 | Error constructors | broad cascade | `RangeError` / `ReferenceError` (and likely `EvalError` / `URIError`) not registered as globals — fixes `assert.throws(RangeError, ...)` cascades suite-wide |
-| 5 | `test/built-ins/Date/**` | ~52 | `Date.parse` ISO format edges; UTC vs local hour math; invalid-date propagation |
-| 6 | `test/built-ins/RegExp/**` | TBD probe | Constructor + `.source` / `.flags` / `.lastIndex`; `exec` / `test` semantics; flag-set validation; non-Symbol `String.prototype.{match,replace,search,split}` integration |
-| 7 | `test/built-ins/String/**` | ~625 (Symbol-free) | `padStart`/`padEnd`, `trimStart`/`trimEnd`, `normalize`, `repeat`, `raw`, `fromCodePoint`; non-`@@`-protocol regex methods |
-| 8 | `test/built-ins/Object/**` | ~1245 | Big sweep — `assign` / `keys` / `values` / `entries` corners; `Object.fromEntries`; descriptor-handling residuals |
-| 9 | `test/built-ins/Array/**` | ~1625 | Bulk methods using `CreateDataPropertyOrThrow` + `Symbol.species`; iterator-result objects; remaining length-cluster residuals (Uint32 representation, spec-precise pop/shift interleaving — see [JS_ENGINE.md § JsArray length semantics](../docs/JS_ENGINE.md#prototype-machinery)); `Object.freeze(arr)` is a no-op today |
-| 10 | `test/built-ins/Symbol/**` + cascades | ~580 SKIPs | Full Symbol primitive: `typeof === "symbol"`, unique identity, `Symbol.for` / `keyFor` registry, `description`, `Object.getOwnPropertySymbols`, `Reflect.ownKeys`. Touches `Terms.typeOf` / `eq` / coercion; property-key abstraction across `JsObject._map` / `_attrs` / `_tombstones` / `isOwnProperty`. 2–4 sessions. Unblocks the Array/Symbol.species cluster from #9 |
+| 1 | `test/built-ins/Number/**` | ~95 | `parseInt`/`parseFloat` edge cases; `toFixed`/`toPrecision`/`toExponential` rounding; `Number.isInteger` / `isSafeInteger` / `isFinite` / `isNaN` distinctions |
+| 2 | `test/built-ins/JSON/**` | TBD probe | `stringify` replacer-fn / array-filter / nested `toJSON` dispatch; `parse` reviver hooks; circular detection |
+| 3 | Error constructors | broad cascade | `RangeError` / `ReferenceError` (and likely `EvalError` / `URIError`) not registered as globals — fixes `assert.throws(RangeError, ...)` cascades suite-wide |
+| 4 | `test/built-ins/Date/**` | ~52 | `Date.parse` ISO format edges; UTC vs local hour math; invalid-date propagation |
+| 5 | `test/built-ins/RegExp/**` | TBD probe | Constructor + `.source` / `.flags` / `.lastIndex`; `exec` / `test` semantics; flag-set validation; non-Symbol `String.prototype.{match,replace,search,split}` integration |
+| 6 | `test/built-ins/String/**` | ~716 (Symbol-free) | `padStart`/`padEnd`, `trimStart`/`trimEnd`, `normalize`, `repeat`, `raw`, `fromCodePoint`; non-`@@`-protocol regex methods |
+| 7 | `test/built-ins/Object/**` | ~1105 | `assign` / `keys` / `values` / `entries` corners; `Object.fromEntries`; descriptor-handling residuals |
+| 8 | `test/built-ins/Array/**` | ~1620 | Bulk methods using `CreateDataPropertyOrThrow` + `Symbol.species`; iterator-result objects; remaining length-cluster residuals (Uint32 representation, spec-precise pop/shift interleaving — see [JS_ENGINE.md § JsArray length semantics](../docs/JS_ENGINE.md#prototype-machinery)); `Object.freeze(arr)` is a no-op today |
+| 9 | `test/built-ins/Symbol/**` + cascades | ~580 SKIPs | Full Symbol primitive: `typeof === "symbol"`, unique identity, `Symbol.for` / `keyFor` registry, `description`, `Object.getOwnPropertySymbols`, `Reflect.ownKeys`. Touches `Terms.typeOf` / `eq` / coercion; property-key abstraction across `JsObject._map` / `_attrs` / `_tombstones` / `isOwnProperty`. 2–4 sessions. Unblocks the Array/Symbol.species cluster from #8 |
 
 **Per-session ritual:** re-probe the slice with `--only` before scoping;
 record before/after pass counts in the commit message; check
-`EngineBenchmark profile` if changes touch the hot path; update the slice
-row in the baseline table below if it shifts.
-
-### Current state baseline (sampled 2026-04-26)
-
-| Slice | Pass | Fail | Skip | Total |
-|---|---|---|---|---|
-| `test/language/**` | 4327 | 3776 | 15542 | 23645 |
-| `test/built-ins/Math/**` | 310 | 1 | 16 | 327 |
-| `test/built-ins/Number/**` | 232 | 96 | 12 | 340 |
-| `test/built-ins/String/**` | 456 | 717 | 50 | 1223 |
-| `test/built-ins/Array/**` | 1276 | 1625 | 180 | 3081 |
-| `test/built-ins/Object/**` | 2041 | 1245 | 125 | 3411 |
-| `test/built-ins/Date/**` | 500 | 52 | 42 | 594 |
-| `test/built-ins/Function/**` | 229 | 152 | 128 | 509 |
-| `test/built-ins/Symbol/**` | 2 | 47 | 49 | 98 |
+`EngineBenchmark profile` if changes touch the hot path.
 
 ### Background sweeps
 
@@ -234,6 +161,11 @@ Picked off opportunistically when nearby — not session-sized on their own.
 
 - **Cleanup residuals.** Occasional `"null"` NPE paths, `IllegalName` JDK
   lambda leak, `Java heap space` OOM in array-slice paths. Grab while nearby.
+
+- **`this.x = ...` write-through to global bindings.** `JsGlobalThis`
+  putMember stores in its own `_map`; doesn't back-propagate to
+  `ContextRoot._bindings`, so `this.foo = 1; foo` returns undefined. See
+  [JS_ENGINE.md § Globals](../docs/JS_ENGINE.md#globals).
 
 ---
 
@@ -313,51 +245,6 @@ should be done when convenient.
 
 ---
 
-## Engine guarantees
-
-Spec invariants and engine architecture decisions live in
-[**JS_ENGINE.md § Spec Invariants**](../docs/JS_ENGINE.md#spec-invariants-test262-driven)
-— treat as load-bearing; sessions that need to violate one bring the rule
-up for review explicitly. The runner depends on `ParserException`
-propagation (parse-phase classification), `EngineException` wrapping
-(runtime), and the structured `getJsErrorName()` / `getJsMessage()`
-surface — `ErrorUtils` reads those directly rather than parsing message
-strings.
-
----
-
-## Engine code map
-
-When test262 surfaces a fix, this table is the muscle-memory pointer.
-
-| Concern | Engine source | JUnit test | test262 path |
-|---|---|---|---|
-| Lexer (tokenization) | `karate-js/.../parser/JsLexer.java`, `BaseLexer.java`, `TokenType.java`, `Token.java` | `JsLexerTest`, `LexerBenchmark` | `test/language/literals/**` (syntax-level) |
-| Parser (AST build) | `karate-js/.../parser/JsParser.java`, `BaseParser.java`, `NodeType.java`, `Node.java` | `JsParserTest`, `ParserExceptionTest`, `TermsTest` | `test/language/expressions/**`, `statements/**`, `types/**` (parse-level) |
-| Parse errors | `karate-js/.../parser/ParserException.java`, `SyntaxError.java` | `ParserExceptionTest` | parse-phase negative tests |
-| Interpreter (eval) | `karate-js/.../js/Interpreter.java`, `CoreContext.java`, `ContextRoot.java` | `EvalTest` (language-semantics catch-all) | `test/language/expressions/**`, `statements/**`, `types/**` (runtime) |
-| Built-ins / types | `karate-js/.../js/JsObject.java`, `JsArray.java`, `JsString.java`, `JsError.java`, `JsFunction.java`, prototype classes (`JsArrayPrototype` etc.), `Terms.java` (operators/coercion) | `JsArrayTest`, `JsStringTest`, `JsObjectTest`, `JsMathTest`, `JsNumberTest`, `JsJsonTest`, `JsDateTest`, `JsRegexTest`, `JsFunctionTest`, `JsBooleanTest` | `test/built-ins/Array/**`, `String/**`, `Object/**`, `Math/**`, `Number/**`, `JSON/**`, `Date/**`, `RegExp/**`, `Function/**`, `Boolean/**` |
-| Runtime exceptions | `karate-js/.../js/EngineException.java` | `EngineExceptionTest` | error-propagation regressions |
-| Performance regression | — | `EngineBenchmark` | (gut-check after engine change) |
-
-Guidance:
-- **Pure tokenization change** → `JsLexer` + `JsLexerTest`.
-- **Grammar change** → `JsParser` + `JsParserTest` (AST shape) + `EvalTest`
-  (runtime semantics).
-- **Semantics-only change** → `Interpreter.java` or the relevant
-  `Js*Prototype`; test in `EvalTest` or the matching `Js*Test`.
-- `NodeType` and `TokenType` are small enums — consult them before inventing
-  new node/token kinds; many "feels like I need a new node" fixes turn out
-  to be wiring an existing one to a new call site.
-- **`EngineTest` is *not* a test262 sink.** It covers the engine's
-  integration surface: `ContextListener` events, `BindEvent`, `Engine.put`
-  lifecycle, Java↔JS exception boundary, `$BUILTIN`/prototype immutability.
-- **When to split a `Js*Test`:** don't pre-emptively. If a cluster inside
-  `EvalTest` grows to ~10+ tests on one feature (destructuring, TDZ,
-  template literals), spin it out — let the split follow the evidence.
-
----
-
 ## Skip list
 
 There is only one concept: **SKIP**. A test matching any rule in
@@ -386,12 +273,12 @@ glob, debug failures with `--single -vv`.
 
 Two JSONL files during a run:
 
-- **`target/test262/results.jsonl.partial`** — appended per test as results
+- **`<run-dir>/results.jsonl.partial`** — appended per test as results
   arrive, flushed per write. **Run order, not sorted.** Deleted on clean
   exit; preserved on abort (`--max-duration` hit, Ctrl-C, JVM kill).
-- **`target/test262/results.jsonl`** — canonical output, **sorted
-  alphabetically by path**, atomically written at end-of-run (tmp + rename).
-  This is what tooling reads and what `--resume` skips-seen against.
+- **`<run-dir>/results.jsonl`** — canonical output, **sorted alphabetically
+  by path**, atomically written at end-of-run (tmp + rename). This is what
+  tooling reads and what `--resume` skips-seen against.
 
 Example line shape (same in both):
 
@@ -468,7 +355,7 @@ evolves.
 | Engine change has no effect on test262 output | Forgot `mvn ... -pl karate-js -o install -DskipTests`. The runner uses the local Maven repo jar, not the reactor classpath. |
 | `Test262Report` says `--run-dir <path> is required` | Pass the path the runner printed on completion: `--run-dir target/test262/run-<ts>`. `etc/run.sh` does this for you. |
 | Where's my report? | The runner prints `Run dir: <path>` on completion. Look in `<path>/html/index.html`. Each invocation creates a fresh `run-<timestamp>/` dir; nothing is overwritten. |
-| `ReferenceError: <name> is not defined` on common classes (`ReferenceError`/`RangeError`) | Known first-order gap — those constructors are not registered globals yet. |
+| `ReferenceError: <name> is not defined` on common classes (`ReferenceError`/`RangeError`) | Known first-order gap — those constructors are not registered globals yet (slice 3 above). |
 | Suite hangs on one test | Infinite loop; watchdog kicks in at `--timeout-ms`. The inner executor is retired and replaced; a genuine hang leaks one daemon thread and keeps going. Bisect with `--only`, or add `--max-duration` as a safety net. |
 | Driving from a script that must not block | Pass `--max-duration <ms>`. On hit, partial results written and `Aborted:` replaces `Summary:`. |
 | Tests that used to pass now fail | Run `EngineBenchmark` too — perf regression sometimes manifests as timeouts before correctness. |
@@ -526,6 +413,6 @@ Maven Central.
 
 - [tc39/test262](https://github.com/tc39/test262) — the suite
 - [test262 INTERPRETING.md](https://github.com/tc39/test262/blob/main/INTERPRETING.md) — authoritative runner spec
-- [../docs/JS_ENGINE.md](../docs/JS_ENGINE.md) — engine architecture, type system, exception model, **spec invariants**, benchmarks
+- [../docs/JS_ENGINE.md](../docs/JS_ENGINE.md) — engine architecture, working principles, code map, **spec invariants**, benchmarks
 - [../karate-js/README.md](../karate-js/README.md) — what karate-js is and isn't
 - [../docs/DESIGN.md](../docs/DESIGN.md) — wider project design principles
