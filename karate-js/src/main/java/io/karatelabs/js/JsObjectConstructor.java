@@ -79,15 +79,15 @@ class JsObjectConstructor extends JsFunction {
             case "assign" -> method(name, 2, (JsInvokable) this::assign);
             case "fromEntries" -> method(name, 1, (JsInvokable) this::fromEntries);
             case "is" -> method(name, 2, (JsInvokable) this::is);
-            case "create" -> method(name, 2, (JsInvokable) this::create);
+            case "create" -> method(name, 2, (JsCallable) this::create);
             case "getPrototypeOf" -> method(name, 1, (JsInvokable) this::getPrototypeOf);
             case "setPrototypeOf" -> method(name, 2, (JsInvokable) this::setPrototypeOf);
             case "hasOwn" -> method(name, 2, (JsInvokable) this::hasOwn);
             case "getOwnPropertyNames" -> method(name, 1, (JsInvokable) this::getOwnPropertyNames);
             case "getOwnPropertyDescriptor" -> method(name, 2, (JsInvokable) this::getOwnPropertyDescriptor);
             case "getOwnPropertyDescriptors" -> method(name, 1, (JsInvokable) this::getOwnPropertyDescriptors);
-            case "defineProperty" -> method(name, 3, (JsInvokable) this::defineProperty);
-            case "defineProperties" -> method(name, 2, (JsInvokable) this::defineProperties);
+            case "defineProperty" -> method(name, 3, (JsCallable) this::defineProperty);
+            case "defineProperties" -> method(name, 2, (JsCallable) this::defineProperties);
             case "isExtensible" -> method(name, 1, (JsInvokable) this::isExtensible);
             case "preventExtensions" -> method(name, 1, (JsInvokable) this::preventExtensions);
             case "isSealed" -> method(name, 1, (JsInvokable) this::isSealed);
@@ -264,14 +264,14 @@ class JsObjectConstructor extends JsFunction {
         return Terms.eq(args[0], args[1], true);
     }
 
-    private Object create(Object[] args) {
+    private Object create(Context context, Object[] args) {
         JsObject newObj = new JsObject();
         if (args.length > 0 && args[0] instanceof ObjectLike proto) {
             newObj.setPrototype(proto);
         }
         // Second argument: property descriptors (same shape as Object.defineProperties).
         if (args.length > 1 && args[1] != null && args[1] != Terms.UNDEFINED) {
-            defineProperties(new Object[]{newObj, args[1]});
+            defineProperties(context, new Object[]{newObj, args[1]});
         }
         return newObj;
     }
@@ -406,7 +406,7 @@ class JsObjectConstructor extends JsFunction {
     }
 
     @SuppressWarnings("unchecked")
-    private Object defineProperty(Object[] args) {
+    private Object defineProperty(Context context, Object[] args) {
         if (args.length < 1 || !(args[0] instanceof ObjectLike || args[0] instanceof Map)) {
             throw JsErrorException.typeError("Object.defineProperty called on non-object");
         }
@@ -426,6 +426,7 @@ class JsObjectConstructor extends JsFunction {
         } else {
             throw JsErrorException.typeError("Property descriptor must be an object");
         }
+        CoreContext cc = context instanceof CoreContext c ? c : null;
         boolean hasGet = descMap.containsKey("get");
         boolean hasSet = descMap.containsKey("set");
         boolean hasValue = descMap.containsKey("value");
@@ -469,6 +470,19 @@ class JsObjectConstructor extends JsFunction {
                     newSetter = c;
                 }
             }
+        }
+
+        // Spec ArraySetLength preface: when target is an Array and prop is
+        // "length" with a value present, ToUint32 + ToNumber + RangeError run
+        // BEFORE descriptor validation (test262 define-own-prop-length-overflow-
+        // order.js asserts RangeError beats TypeError). The double valueOf
+        // dispatch is observable (define-own-prop-length-coercion-order.js
+        // expects valueOfCalls === 2) and may mutate the array's own length
+        // descriptor — re-fetch oldAttrs / existing afterward.
+        boolean isArrayLength = target instanceof JsArray && "length".equals(prop) && hasValue;
+        Long coercedLength = null;
+        if (isArrayLength) {
+            coercedLength = JsArray.coerceToUint32(descMap.get("value"), cc);
         }
 
         Object existing = keyExists ? ownGet(target, prop) : null;
@@ -528,7 +542,7 @@ class JsObjectConstructor extends JsFunction {
                 }
                 // If !writable, value cannot change.
                 if (!oldWritable && hasValue) {
-                    Object newValue = descMap.get("value");
+                    Object newValue = isArrayLength ? coercedLength : descMap.get("value");
                     if (!Terms.eq(existing, newValue, true)) {
                         throw JsErrorException.typeError("Cannot redefine property: " + prop);
                     }
@@ -548,6 +562,16 @@ class JsObjectConstructor extends JsFunction {
                 if (!hasSet) setter = exAcc.setter;
             }
             applyDefine(target, prop, new JsAccessor(getter, setter), newAttrs);
+        } else if (isArrayLength) {
+            // Skip the generic applyDefine path — defineLength bypasses the
+            // re-coercion that handleLengthAssign would run, since coercedLength
+            // already encodes the spec-validated Uint32.
+            boolean ok = ((JsArray) target).defineLength(coercedLength.intValue(), newAttrs);
+            if (!ok) {
+                // Non-configurable index in truncate range blocked the rest;
+                // partial-truncate already applied — report TypeError per spec.
+                throw JsErrorException.typeError("Cannot redefine property: length");
+            }
         } else if (hasValue) {
             applyDefine(target, prop, descMap.get("value"), newAttrs);
         } else if (!keyExists) {
@@ -586,7 +610,7 @@ class JsObjectConstructor extends JsFunction {
     }
 
     @SuppressWarnings("unchecked")
-    private Object defineProperties(Object[] args) {
+    private Object defineProperties(Context context, Object[] args) {
         if (args.length < 1 || !(args[0] instanceof ObjectLike || args[0] instanceof Map)) {
             throw JsErrorException.typeError("Object.defineProperties called on non-object");
         }
@@ -603,7 +627,7 @@ class JsObjectConstructor extends JsFunction {
             throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
         for (Map.Entry<String, Object> e : descs.entrySet()) {
-            defineProperty(new Object[]{args[0], e.getKey(), e.getValue()});
+            defineProperty(context, new Object[]{args[0], e.getKey(), e.getValue()});
         }
         return args[0];
     }

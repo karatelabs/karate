@@ -679,6 +679,17 @@ class PropertyAccess {
         if (object == null) {
             context.update(name, value, trackingNode);
         } else if (object instanceof ObjectLike objectLike) {
+            // Spec ArraySetLength dispatch needs context for valueOf/toString
+            // coercion; route through the JsArray-specific entry point.
+            // Throws RangeError on invalid Uint32; silently ignores writable=false
+            // and partial-truncate failures (lenient mode — strict-mode TypeError
+            // flip lives elsewhere).
+            if (objectLike instanceof JsArray ja && "length".equals(name)) {
+                Object oldLen = ja.size();
+                ja.handleLengthAssign(value, context);
+                firePropertySet(context, name, ja.size(), oldLen, object, trackingNode);
+                return;
+            }
             Object oldValue = objectLike.getMember(name);
             // If the existing slot is an accessor, invoke the setter (keeping the
             // JsAccessor in place) instead of overwriting the descriptor.

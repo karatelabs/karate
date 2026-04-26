@@ -170,14 +170,14 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             }
             return;
         }
-        // arr.length = N — truncate (N < size) or extend with HOLE (N > size)
-        // per §10.4.2.4 ArraySetLength. Numeric coercion via Terms.objectToNumber
-        // matches what `arr.length = "5"` and `arr.length = 5.0` do in JS.
+        // arr.length = N — primitives only on this path. Object values with
+        // valueOf/toString must route through {@link #handleLengthAssign} from
+        // a context-bearing call site (PropertyAccess.setByName special-cases).
+        // Throws RangeError on invalid Uint32 per §10.4.2.4 step 5; silently
+        // ignores when length is non-writable (lenient mode — strict-mode flip
+        // happens at the [[Set]] caller).
         if ("length".equals(name)) {
-            Number n = Terms.objectToNumber(value);
-            if (n != null) {
-                setLength(n.intValue());
-            }
+            handleLengthAssign(value, null);
             return;
         }
         // Per-property writable=false: silently ignore (lenient mode — strict-mode
@@ -222,8 +222,23 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      * accessor descriptors and named (non-index) keys land in {@link #namedProps}
      * — getIndexedSlot consults namedProps first, so an accessor at index 0
      * correctly shadows any dense value at the same slot.
+     * <p>
+     * The {@code length} key routes through ArraySetLength: validates the value
+     * as Uint32 (RangeError on invalid), truncates/extends accordingly, then
+     * stores the writable bit. Spec invariants (length is non-enum, non-config)
+     * are enforced upstream in {@link JsObjectConstructor#defineProperty}.
      */
     void defineOwn(String name, Object value, byte attrs) {
+        if ("length".equals(name)) {
+            // The caller (Object.defineProperty) is expected to route length
+            // through {@link #defineLength} after running ToUint32 — but
+            // tolerate direct callers (e.g. the literal-object init path on
+             // arrays, which is currently unused) by going through
+             // handleLengthAssign with no context.
+            handleLengthAssign(value, null);
+            setAttrs("length", attrs);
+            return;
+        }
         int i = parseIndex(name);
         if (i >= 0 && !(value instanceof JsAccessor)) {
             // Data descriptor at an array index: write into the dense list and
@@ -271,19 +286,144 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     }
 
     /**
-     * Sets {@code length} per §10.4.2.4 ArraySetLength: shrinking truncates
-     * the dense list (loses values past the new length); growing pads with
-     * {@link #HOLE} so the new slots are sparse, not set-to-undefined.
-     * Negative or NaN coercions are ignored (caller validates per spec).
+     * Spec §10.4.2.4 ArraySetLength entry point — used by {@code arr.length = X}
+     * (via {@link #putMember(String, Object)} from {@link PropertyAccess#setByName})
+     * and by {@code Object.defineProperty(arr, "length", ...)} (via {@link #defineOwn}).
+     * <p>
+     * Behavior:
+     * <ul>
+     *   <li>Coerces {@code value} to Uint32 (calls {@code valueOf}/{@code toString}
+     *       via {@link Terms#toPrimitive} when {@code context} is non-null).
+     *       Throws {@code RangeError} when the result is not a valid Uint32 —
+     *       NaN, Infinity, negative, fractional, or {@code > 2^32-1} (spec
+     *       step 5: "If newLen ≠ numberLen, throw a RangeError"). The
+     *       RangeError is unconditional, not gated by strictness.</li>
+     *   <li>Returns {@code false} when length's stored writable bit is false —
+     *       caller decides whether to throw {@code TypeError} (spec [[Set]]
+     *       with {@code Throw=true}, used by pop/shift/unshift/push and by
+     *       strict-mode direct assignment) or silently ignore (lenient).</li>
+     *   <li>When shrinking, partial-truncates above any non-configurable index
+     *       in {@code [newLen, oldLen)} and returns {@code false} — same
+     *       caller-throws rule.</li>
+     *   <li>Returns {@code true} on full success.</li>
+     * </ul>
+     * <p>
+     * Note: our backing store is bounded by {@link Integer#MAX_VALUE} so values
+     * in {@code (Integer.MAX_VALUE, 2^32-1]} are rejected as RangeError today
+     * (spec considers them valid). See TEST262.md "Deferred TODOs" for the
+     * widening to a {@code long} length representation that would lift this
+     * limit and cover {@code arr.length = 4294967295}.
      */
-    void setLength(int newLength) {
-        if (newLength < 0) return;
-        int cur = list.size();
-        if (newLength < cur) {
-            // sublist().clear() removes the tail in one shot
-            list.subList(newLength, cur).clear();
+    boolean handleLengthAssign(Object value, CoreContext context) {
+        long u32 = toValidUint32(value, context);
+        return applySetLength((int) u32);
+    }
+
+    /**
+     * Post-coercion entry for {@code Object.defineProperty(arr, "length", desc)} —
+     * caller has already run {@link #toValidUint32} (so that spec-prescribed
+     * double valueOf invocation is observable in test262 timing) and validated
+     * the writable transition. Applies the length truncate/extend and stores
+     * the new attribute byte; returns the same true/false partial-truncate
+     * signal as {@link #handleLengthAssign} for the non-configurable case.
+     */
+    boolean defineLength(int newLen, byte attrs) {
+        boolean ok = applySetLength(newLen);
+        setAttrs("length", attrs);
+        return ok;
+    }
+
+    /**
+     * Public helper exposing spec ArraySetLength steps 3-5: ToUint32 + ToNumber
+     * + RangeError on mismatch. {@code Object.defineProperty} runs this before
+     * the descriptor validation block so RangeError fires before any TypeError
+     * (per {@code define-own-prop-length-overflow-order.js}). Caller passes the
+     * resulting Uint32 to {@link #defineLength}.
+     */
+    static long coerceToUint32(Object value, CoreContext context) {
+        return toValidUint32(value, context);
+    }
+
+    private static long toValidUint32(Object value, CoreContext context) {
+        // Spec: ToUint32 calls ToNumber once; ArraySetLength then calls ToNumber
+        // again for the equality check (steps 3 and 4). Two valueOf invocations
+        // are observable — see test262 define-own-prop-length-coercion-order.js
+        // which asserts valueOfCalls === 2.
+        Object first = value instanceof ObjectLike && context != null
+                ? Terms.toPrimitive(value, "number", context) : value;
+        Number n1 = Terms.objectToNumber(first);
+        double d1 = n1 == null ? Double.NaN : n1.doubleValue();
+        long u32;
+        if (Double.isNaN(d1) || Double.isInfinite(d1)) {
+            u32 = 0;
         } else {
-            while (list.size() < newLength) list.add(HOLE);
+            double truncated = d1 < 0 ? -Math.floor(-d1) : Math.floor(d1);
+            long modded = (long) (truncated - Math.floor(truncated / 4294967296.0) * 4294967296.0);
+            if (modded < 0) modded += 4294967296L;
+            u32 = modded;
+        }
+        Object second = value instanceof ObjectLike && context != null
+                ? Terms.toPrimitive(value, "number", context) : value;
+        Number n2 = Terms.objectToNumber(second);
+        double d2 = n2 == null ? Double.NaN : n2.doubleValue();
+        // NaN != anything (including itself) — naturally caught by the inequality.
+        if (d2 != (double) u32) {
+            throw JsErrorException.rangeError("Invalid array length");
+        }
+        if (u32 > Integer.MAX_VALUE) {
+            // Bounded by our int-backed list; widening tracked in TEST262.md.
+            throw JsErrorException.rangeError("Invalid array length");
+        }
+        return u32;
+    }
+
+    private boolean applySetLength(int newLen) {
+        if ((getOwnAttrs("length") & JsObject.WRITABLE) == 0) {
+            return false;
+        }
+        int oldLen = list.size();
+        if (newLen >= oldLen) {
+            while (list.size() < newLen) list.add(HOLE);
+            return true;
+        }
+        // Walk the truncate range high-to-low looking for a non-configurable
+        // index that blocks the rest of the truncation (spec partial-truncate).
+        int blockingIndex = -1;
+        for (int i = oldLen - 1; i >= newLen; i--) {
+            if (!isIndexConfigurable(i)) {
+                blockingIndex = i;
+                break;
+            }
+        }
+        if (blockingIndex >= 0) {
+            int retainTo = blockingIndex + 1;
+            if (retainTo < list.size()) {
+                list.subList(retainTo, list.size()).clear();
+                removeAttrsRange(retainTo, oldLen);
+                if (namedProps != null) {
+                    for (int i = retainTo; i < oldLen; i++) namedProps.remove(Integer.toString(i));
+                }
+            }
+            return false;
+        }
+        list.subList(newLen, oldLen).clear();
+        removeAttrsRange(newLen, oldLen);
+        if (namedProps != null) {
+            for (int i = newLen; i < oldLen; i++) namedProps.remove(Integer.toString(i));
+        }
+        return true;
+    }
+
+    private boolean isIndexConfigurable(int i) {
+        if (_attrs == null) return true;
+        Byte b = _attrs.get(Integer.toString(i));
+        return b == null || (b & JsObject.CONFIGURABLE) != 0;
+    }
+
+    private void removeAttrsRange(int from, int to) {
+        if (_attrs == null) return;
+        for (int i = from; i < to; i++) {
+            _attrs.remove(Integer.toString(i));
         }
     }
 
@@ -504,15 +644,27 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     /**
      * Spec-correct attribute byte for an own property of this array.
-     * {@code length} is {@code {writable: true, enumerable: false,
-     * configurable: false}} per §10.4.2 ArrayCreate. Other keys consult
-     * {@link #_attrs} — entries installed via {@code Object.defineProperty}
-     * (or via the indexed-descriptor path on {@link #defineOwn}) deviate from
-     * the all-true default; absent keys are all-true.
+     * {@code length} starts out {@code {writable: true, enumerable: false,
+     * configurable: false}} per §10.4.2 ArrayCreate; the writable bit may
+     * later be cleared by {@code Object.defineProperty(arr, "length",
+     * {writable: false})} or {@code Object.freeze(arr)} — that override is
+     * stored in {@link #_attrs} and consulted here. Length is always
+     * non-enumerable and non-configurable; the stored byte's other bits are
+     * ignored by this getter.
+     * <p>
+     * Other keys consult {@link #_attrs} — entries installed via
+     * {@code Object.defineProperty} (or via the indexed-descriptor path on
+     * {@link #defineOwn}) deviate from the all-true default; absent keys are
+     * all-true.
      */
     public byte getOwnAttrs(String name) {
         if ("length".equals(name)) {
-            // writable only — not enumerable, not configurable.
+            if (_attrs != null) {
+                Byte b = _attrs.get("length");
+                if (b != null) {
+                    return (byte) (b & JsObject.WRITABLE);
+                }
+            }
             return JsObject.WRITABLE;
         }
         return getAttrs(name);
@@ -608,14 +760,26 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     /**
      * ES6: Both Array() and new Array() return an Array object.
-     * Array(n) creates array with n empty slots, Array(a,b,c) creates [a,b,c].
+     * Array(n) creates a sparse array of length n (HOLE-filled, per spec —
+     * {@code new Array(3).hasOwnProperty(0) === false}); Array(a,b,c) creates
+     * [a,b,c]. Throws RangeError when the single-numeric form's argument is
+     * not a valid Uint32 — covers {@code new Array(-1)} /
+     * {@code new Array(4294967296)} / {@code new Array(1.5)}.
      */
     static JsArray create(Object[] args) {
         if (args.length == 1 && args[0] instanceof Number n) {
-            int count = n.intValue();
-            List<Object> list = new ArrayList<>();
+            double d = n.doubleValue();
+            if (Double.isNaN(d) || Double.isInfinite(d) || d < 0
+                    || d > 4294967295.0 || d != Math.floor(d)) {
+                throw JsErrorException.rangeError("Invalid array length");
+            }
+            if (d > Integer.MAX_VALUE) {
+                throw JsErrorException.rangeError("Invalid array length");
+            }
+            int count = (int) d;
+            List<Object> list = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
-                list.add(null);
+                list.add(HOLE);
             }
             return new JsArray(list);
         }

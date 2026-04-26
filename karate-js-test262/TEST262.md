@@ -185,7 +185,7 @@ before scoping a session.
 | `test/built-ins/Math/**` | 293 | 33 | 1 | 327 |
 | `test/built-ins/Number/**` | 232 | 96 | 12 | 340 |
 | `test/built-ins/String/**` | 456 | 717 | 50 | 1223 |
-| `test/built-ins/Array/**` | 1256 | 1645 | 180 | 3081 |
+| `test/built-ins/Array/**` | 1276 | 1625 | 180 | 3081 |
 | `test/built-ins/Object/**` | 2041 | 1245 | 125 | 3411 |
 | `test/built-ins/Date/**` | 500 | 52 | 42 | 594 |
 | `test/built-ins/Function/**` | 229 | 152 | 128 | 509 |
@@ -221,14 +221,26 @@ before scoping a session.
    or `[generators]`, so re-probe with `--only test/built-ins/Array/
    prototype/**` to size the actually-runnable subset.
 
-3. **Array length truncation across non-configurable indices
-   (§10.4.2.4).** `defineProperty(arr, "1", {configurable: false}); arr.
-   length = 1` should TypeError; today `setLength` truncates silently.
-   Same for `arr.pop()` / `shift()` when an index in the truncated range
-   is non-configurable. The `Array/length/define-own-prop-length-*` and
-   `Array/prototype/{pop,shift,unshift,push}/set-length-*-non-writable`
-   clusters depend on this. Discoverable now that `_attrs` carries the
-   configurable bit per index.
+3. **Array length residuals — Uint32 representation + spec-precise interleaving.**
+   The ArraySetLength validation (RangeError on bad value), non-writable
+   length (TypeError on direct assignment + on pop/shift/unshift/push),
+   non-configurable index truncate (partial truncate + TypeError), and the
+   defineProperty length path are all in place — see commit 8eb… (this
+   session). Two residuals remain in the same cluster:
+   * **Uint32 length representation.** `arr.length = 4294967295` is rejected
+     as RangeError today; the int-backed `JsArray.list` can't hold values
+     past `Integer.MAX_VALUE`. Switching length to a separate `long` field
+     decoupled from `list.size()` (storing length-beyond-list as sparse,
+     reads past list.size() return undefined) would fix
+     `Array/length/15.4.5.1-3.d-3.js`, `S15.4.2.2_A2.1_T1.js`,
+     `S15.4.5.2_A3_T4.js`, and the `clamps-to-integer-limit.js` cluster.
+   * **Spec-precise interleaving** (`set-length-array-length-is-non-writable.js`
+     etc.). Pop/shift/push/unshift do an upfront writable check; spec runs
+     get/delete BEFORE the length-set, so prototype-getter mutations to
+     length's writable bit aren't observed. The "getter call count" assertions
+     fail — a refactor to spec-correct ordering would fix the remaining
+     ~6 `set-length-array-length-is-non-writable.js` failures across the
+     four prototype methods.
 
 ### Background
 
@@ -256,6 +268,25 @@ Picked off opportunistically when nearby — not session-sized on their own.
 
 - **Cleanup residuals.** Occasional `"null"` NPE paths, `IllegalName` JDK
   lambda leak, `Java heap space` OOM in array-slice paths. Grab while nearby.
+
+- **`Object.freeze(arr)` for JsArray.** Currently a no-op (the constructor
+  guards `args[0] instanceof JsObject` and JsArray doesn't extend JsObject).
+  The `Array/prototype/{push,pop,shift,unshift}/set-length-array-is-frozen.js`
+  / `set-length-zero-array-is-frozen.js` cluster depends on freeze marking
+  length non-writable + all indices non-writable + non-configurable. Add a
+  parallel `nonExtensible` / `frozen` flag pair on JsArray (mirroring
+  JsObject's) and have `JsObjectConstructor.{freeze,seal,preventExtensions,
+  isFrozen,isSealed,isExtensible}` accept both targets.
+
+- **JsArray fast-path indexed read consults prototype on OOB / HOLE.**
+  `PropertyAccess.getByIndex → JsArray.getIndexedSlot → getElement` returns
+  UNDEFINED for out-of-bounds without falling back to the prototype chain.
+  `getMember(numericName)` does fall back, so the slow path is correct;
+  the fast path doesn't. Result: `Array.prototype[2] = 2; x = [0,1]; x[2]`
+  returns undefined instead of 2 — fails `Array/length/S15.4.5.1_A1.2_T3.js`
+  and `Array/prototype/pop/S15.4.4.6_A4_T*.js`. Single-site fix: when the
+  slot would be UNDEFINED (out-of-bounds or HOLE with no own descriptor),
+  delegate to `__proto__.getMember(Integer.toString(i))`.
 
 - **Directive prologue (`"use strict"`) flip.** Parser tolerates the string
   without activating strict-mode assertions. Skip triage is done (`flags:

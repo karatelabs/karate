@@ -195,6 +195,25 @@ class JsArrayPrototype extends Prototype {
         };
     }
 
+    /**
+     * Spec-required check at the end of mutating Array.prototype.* methods:
+     * the implicit {@code Set(O, "length", newLen, true)} (Throw=true) must
+     * TypeError when length is non-writable. Hoisted to an upfront check —
+     * the spec-precise interleaving (where get/delete steps run BEFORE the
+     * length-set throws, observable via prototype getter/setter call counts
+     * in tests like {@code set-length-array-length-is-non-writable.js}) is
+     * not yet modeled. Net effect: TypeError is thrown for the non-writable
+     * length case (most tests pass); the precise call-count assertion in
+     * the getter-mutation tests still fails — see TEST262.md.
+     */
+    private static void requireWritableLength(Object thisObj) {
+        if (thisObj instanceof JsArray arr
+                && (arr.getOwnAttrs("length") & JsObject.WRITABLE) == 0) {
+            throw JsErrorException.typeError(
+                    "Cannot assign to read only property 'length' of object '[object Array]'");
+        }
+    }
+
     private static final Object[] EMPTY_ARGS = new Object[0];
 
     private static JsCallable toCallable(Object[] args) {
@@ -284,6 +303,7 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object push(Context context, Object[] args) {
+        requireWritableLength(context.getThisObject());
         List<Object> thisArray = rawList(context);
         thisArray.addAll(Arrays.asList(args));
         return thisArray.size();
@@ -601,6 +621,7 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object shift(Context context, Object[] args) {
+        requireWritableLength(context.getThisObject());
         List<Object> thisArray = rawList(context);
         int size = thisArray.size();
         if (size == 0) {
@@ -618,6 +639,7 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object unshift(Context context, Object[] args) {
+        requireWritableLength(context.getThisObject());
         List<Object> thisArray = rawList(context);
         if (args.length == 0) {
             return thisArray.size();
@@ -664,6 +686,7 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object pop(Context context, Object[] args) {
+        requireWritableLength(context.getThisObject());
         List<Object> thisArray = rawList(context);
         int size = thisArray.size();
         if (size == 0) {
