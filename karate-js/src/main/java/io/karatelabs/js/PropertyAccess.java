@@ -346,7 +346,22 @@ class PropertyAccess {
         throw JsErrorException.referenceError(name + " is not defined");
     }
 
-    private static Object getRefDotExpr(Node node, CoreContext context, boolean functionCall) {
+    /**
+     * Shared {@code REF_DOT_EXPR} resolution for both the value-only
+     * ({@link #getRefDotExpr}) and call-site ({@link #getCallableRefDotExpr})
+     * paths. Captures every AST shape (named dot, optional dot, optional
+     * bracket, optional call), the external-bridge fallback on eval failure,
+     * and the {@code ?.} short-circuit propagation in one place.
+     * <p>
+     * When {@code outReceiver} is non-null, the resolved LHS object is
+     * written to {@code outReceiver[1]} on the property-projection paths
+     * ({@code obj.x} → {@code object}, {@code obj?.[expr]} → {@code object});
+     * left as null on short-circuit, bridge-forType wraps, and bare-object
+     * passthrough. Caller pre-allocates the array (no per-call record
+     * allocation on the hot value-read path; one Object[2] for the callable
+     * path matches the pre-unify cost).
+     */
+    private static Object resolveRefDot(Node node, CoreContext context, boolean functionCall, Object[] outReceiver) {
         String name;
         Object object;
         boolean optional;
@@ -387,6 +402,7 @@ class PropertyAccess {
                 // ?.[expr] fires here — index is not evaluated when short-circuiting.
                 if (object == null || object == Terms.UNDEFINED) return SHORT_CIRCUITED;
                 Object index = Interpreter.eval(node.get(1).get(2), context);
+                if (outReceiver != null) outReceiver[1] = object;
                 return getByIndex(object, index, false, context, functionCall);
             } else {
                 object = Interpreter.eval(node.getFirst(), context);
@@ -403,13 +419,26 @@ class PropertyAccess {
         }
 
         if (name == null) {
+            // ?.() / bare-object passthrough — receiver stays null since the
+            // dot didn't actually project a property.
             if (functionCall && context.root.bridge != null && object instanceof ExternalAccess ea) {
                 return (JsConstructor) (c, args) -> ea.construct(args);
             }
             return object;
         }
 
+        if (outReceiver != null) outReceiver[1] = object;
         return getByName(object, name, optional, context, functionCall);
+    }
+
+    private static Object getRefDotExpr(Node node, CoreContext context, boolean functionCall) {
+        return resolveRefDot(node, context, functionCall, null);
+    }
+
+    private static Object[] getCallableRefDotExpr(Node node, CoreContext context) {
+        Object[] result = new Object[2];
+        result[0] = resolveRefDot(node, context, true, result);
+        return result;
     }
 
     private static Object getRefBracketExpr(Node node, CoreContext context, boolean functionCall) {
@@ -417,68 +446,6 @@ class PropertyAccess {
         if (object == SHORT_CIRCUITED) return SHORT_CIRCUITED;
         Object index = Interpreter.eval(node.get(2), context);
         return getByIndex(object, index, false, context, functionCall);
-    }
-
-    private static Object[] getCallableRefDotExpr(Node node, CoreContext context) {
-        String name;
-        Object object;
-        boolean optional;
-
-        if (node.get(1).type == NodeType.TOKEN) {
-            optional = node.get(1).token.type == TokenType.QUES_DOT;
-            name = node.get(2).getText();
-            try {
-                object = Interpreter.eval(node.getFirst(), context);
-            } catch (Exception e) {
-                if (context.root.bridge != null) {
-                    String base = node.getFirst().getText();
-                    String path = base + "." + name;
-                    ExternalAccess ja = context.root.bridge.forType(path);
-                    if (ja != null) {
-                        return new Object[]{(JsConstructor) (c, args) -> ja.construct(args), null};
-                    }
-                    object = context.root.bridge.forType(base);
-                } else {
-                    object = null;
-                }
-                if (object == null) {
-                    throw new RuntimeException("expression: " + node.getFirst().getText() + " - " + e.getMessage(), e);
-                }
-            }
-            if (object == SHORT_CIRCUITED) return new Object[]{SHORT_CIRCUITED, null};
-            if (optional && (object == null || object == Terms.UNDEFINED)) {
-                return new Object[]{SHORT_CIRCUITED, null};
-            }
-        } else {
-            optional = true;
-            if (node.get(1).type == NodeType.REF_BRACKET_EXPR) {
-                object = Interpreter.eval(node.getFirst(), context);
-                if (object == SHORT_CIRCUITED) return new Object[]{SHORT_CIRCUITED, null};
-                if (object == null || object == Terms.UNDEFINED) {
-                    return new Object[]{SHORT_CIRCUITED, null};
-                }
-                Object index = Interpreter.eval(node.get(1).get(2), context);
-                return new Object[]{getByIndex(object, index, false, context, true), object};
-            } else {
-                object = Interpreter.eval(node.getFirst(), context);
-                if (object == SHORT_CIRCUITED) return new Object[]{SHORT_CIRCUITED, null};
-                name = null;
-            }
-        }
-
-        Object jsValue = Terms.toJsValue(object);
-        if (jsValue != null) {
-            object = jsValue;
-        }
-
-        if (name == null) {
-            if (context.root.bridge != null && object instanceof ExternalAccess ea) {
-                return new Object[]{(JsConstructor) (c, args) -> ea.construct(args), null};
-            }
-            return new Object[]{object, null};
-        }
-
-        return new Object[]{getByName(object, name, optional, context, true), object};
     }
 
     // Unwraps PAREN_EXPR -> [(, EXPR_LIST[EXPR[<inner>]], )] to preserve the
