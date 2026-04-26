@@ -60,6 +60,16 @@ class JsFunctionConstructor extends JsFunction {
     }
 
     @Override
+    public byte getOwnAttrs(String name) {
+        if ("prototype".equals(name)) {
+            // Built-in constructor prototype: all-false (overrides JsFunction's
+            // user-function default of WRITABLE).
+            return 0;
+        }
+        return super.getOwnAttrs(name);
+    }
+
+    @Override
     public Object call(Context context, Object[] args) {
         StringBuilder src = new StringBuilder("(function anonymous(");
         if (args.length == 0) {

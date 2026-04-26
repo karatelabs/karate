@@ -39,8 +39,28 @@ class JsDateConstructor extends JsFunction {
         registerForEngineReset();
     }
 
+    private java.util.Map<String, JsBuiltinMethod> _methodCache;
+
     @Override
     public Object getMember(String name) {
+        if (isTombstoned(name) || ownContainsKey(name)) {
+            return super.getMember(name);
+        }
+        if (_methodCache != null) {
+            JsBuiltinMethod cached = _methodCache.get(name);
+            if (cached != null) return cached;
+        }
+        Object result = resolveMember(name);
+        if (result instanceof JsBuiltinMethod jbm) {
+            if (_methodCache == null) {
+                _methodCache = new java.util.HashMap<>();
+            }
+            _methodCache.put(name, jbm);
+        }
+        return result;
+    }
+
+    private Object resolveMember(String name) {
         return switch (name) {
             case "now" -> new JsBuiltinMethod("now", 0, (JsInvokable) this::now);
             case "parse" -> new JsBuiltinMethod("parse", 1, (ctx, args) -> parse(args));
@@ -53,9 +73,30 @@ class JsDateConstructor extends JsFunction {
 
     @Override
     public boolean hasOwnIntrinsic(String name) {
-        return switch (name) {
+        return isDateMethod(name) || super.hasOwnIntrinsic(name);
+    }
+
+    @Override
+    public byte getOwnAttrs(String name) {
+        if (isDateMethod(name)) {
+            return WRITABLE | CONFIGURABLE;
+        }
+        if ("prototype".equals(name)) {
+            return 0;
+        }
+        return super.getOwnAttrs(name);
+    }
+
+    @Override
+    protected void clearEngineState() {
+        super.clearEngineState();
+        if (_methodCache != null) _methodCache.clear();
+    }
+
+    private static boolean isDateMethod(String n) {
+        return switch (n) {
             case "now", "parse", "UTC" -> true;
-            default -> super.hasOwnIntrinsic(name);
+            default -> false;
         };
     }
 

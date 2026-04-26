@@ -41,13 +41,62 @@ class JsBigIntConstructor extends JsFunction {
         registerForEngineReset();
     }
 
+    private java.util.Map<String, JsBuiltinMethod> _methodCache;
+
     @Override
     public Object getMember(String name) {
+        if (isTombstoned(name) || ownContainsKey(name)) {
+            return super.getMember(name);
+        }
+        if (_methodCache != null) {
+            JsBuiltinMethod cached = _methodCache.get(name);
+            if (cached != null) return cached;
+        }
+        Object result = resolveMember(name);
+        if (result instanceof JsBuiltinMethod jbm) {
+            if (_methodCache == null) {
+                _methodCache = new java.util.HashMap<>();
+            }
+            _methodCache.put(name, jbm);
+        }
+        return result;
+    }
+
+    private Object resolveMember(String name) {
         return switch (name) {
-            case "asIntN" -> (JsCallable) this::asIntN;
-            case "asUintN" -> (JsCallable) this::asUintN;
+            case "asIntN" -> new JsBuiltinMethod("asIntN", 2, this::asIntN);
+            case "asUintN" -> new JsBuiltinMethod("asUintN", 2, this::asUintN);
             case "prototype" -> JsBigIntPrototype.INSTANCE;
             default -> super.getMember(name);
+        };
+    }
+
+    @Override
+    public boolean hasOwnIntrinsic(String name) {
+        return isBigIntMethod(name) || super.hasOwnIntrinsic(name);
+    }
+
+    @Override
+    public byte getOwnAttrs(String name) {
+        if (isBigIntMethod(name)) {
+            return WRITABLE | CONFIGURABLE;
+        }
+        if ("prototype".equals(name)) {
+            return 0;
+        }
+        return super.getOwnAttrs(name);
+    }
+
+    @Override
+    protected void clearEngineState() {
+        super.clearEngineState();
+        if (_methodCache != null) _methodCache.clear();
+    }
+
+    private static boolean isBigIntMethod(String n) {
+        return switch (n) {
+            case "asIntN", "asUintN" -> true;
+            default -> false;
         };
     }
 

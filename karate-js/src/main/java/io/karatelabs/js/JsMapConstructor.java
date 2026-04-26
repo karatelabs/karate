@@ -50,6 +50,15 @@ class JsMapConstructor extends JsFunction {
     }
 
     @Override
+    public byte getOwnAttrs(String name) {
+        if ("prototype".equals(name)) {
+            // Built-in constructor prototype: all-false.
+            return 0;
+        }
+        return super.getOwnAttrs(name);
+    }
+
+    @Override
     public Object call(Context context, Object[] args) {
         CallInfo callInfo = context.getCallInfo();
         boolean isNew = callInfo != null && callInfo.constructor;
