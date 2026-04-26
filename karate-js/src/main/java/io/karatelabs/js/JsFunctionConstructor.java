@@ -42,6 +42,7 @@ class JsFunctionConstructor extends JsFunction {
     private JsFunctionConstructor() {
         this.name = "Function";
         this.length = 1;
+        registerForEngineReset();
     }
 
     @Override

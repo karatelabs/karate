@@ -36,6 +36,7 @@ class JsSetConstructor extends JsFunction {
     private JsSetConstructor() {
         this.name = "Set";
         // length=0 — Set() takes optional iterable; spec arity is 0.
+        registerForEngineReset();
     }
 
     @Override

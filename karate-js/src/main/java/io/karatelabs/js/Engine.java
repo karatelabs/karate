@@ -46,6 +46,12 @@ public class Engine {
         // user-added properties across the JVM's lifetime. Reset them per Engine so test
         // harnesses that overwrite e.g. Map.prototype.set don't poison the next session.
         Prototype.clearAllUserProps();
+        // Same problem on the JsObject side: built-in constructor singletons
+        // (JsNumberConstructor.INSTANCE, JsObjectConstructor.INSTANCE, …) accumulate
+        // user-set properties / attribute overrides / tombstones from `delete Number.x`
+        // across the JVM. Reset their per-Engine mutable state so propertyHelper-style
+        // destructive probes don't leak to subsequent tests.
+        JsObject.clearAllEngineState();
     }
 
     public Object eval(Node program) {

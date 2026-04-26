@@ -38,6 +38,7 @@ class JsNumberConstructor extends JsFunction {
     private JsNumberConstructor() {
         this.name = "Number";
         this.length = 1;
+        registerForEngineReset();
     }
 
     @Override

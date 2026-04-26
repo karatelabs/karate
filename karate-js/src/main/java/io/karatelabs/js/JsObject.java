@@ -24,6 +24,7 @@
 package io.karatelabs.js;
 
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * JavaScript Object implementation with unified prototype chain.
@@ -44,6 +45,28 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
     static final byte ENUMERABLE = 0b010;
     static final byte CONFIGURABLE = 0b100;
     static final byte ATTRS_DEFAULT = WRITABLE | ENUMERABLE | CONFIGURABLE;
+
+    /**
+     * JVM-wide singletons that must reset their per-Engine mutable state when a
+     * fresh {@link Engine} is constructed. Built-in constructor instances
+     * ({@code JsNumberConstructor.INSTANCE}, {@code JsObjectConstructor.INSTANCE},
+     * etc.) call {@link #registerForEngineReset()} to enroll themselves; the
+     * {@link Engine} constructor walks this list and invokes
+     * {@link #clearEngineState()} on each entry. Mirrors {@code Prototype.ALL} but
+     * for the JsObject hierarchy, where state is {@code _map} / {@code _attrs} /
+     * {@code _tombstones} (plus subclass caches).
+     * <p>
+     * Per-Engine instances ({@code JsMath}, allocated fresh in
+     * {@code ContextRoot.initGlobal}) are GC'd with their owning Engine and must
+     * NOT register here.
+     */
+    private static final List<JsObject> ENGINE_RESET_LIST = new CopyOnWriteArrayList<>();
+
+    static void clearAllEngineState() {
+        for (JsObject o : ENGINE_RESET_LIST) {
+            o.clearEngineState();
+        }
+    }
 
     private Map<String, Object> _map;
     private ObjectLike __proto__;
@@ -338,6 +361,34 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
                 setAttrs(e.getKey(), cur);
             }
         }
+    }
+
+    /**
+     * Enroll this JsObject in {@link #ENGINE_RESET_LIST} — call from a singleton
+     * constructor whose lifetime exceeds a single {@link Engine} session (typically
+     * {@code <Constructor>.INSTANCE} fields referenced from
+     * {@code ContextRoot.initGlobal}). See {@link #ENGINE_RESET_LIST} for the
+     * criteria; per-Engine instances must not register.
+     */
+    protected final void registerForEngineReset() {
+        ENGINE_RESET_LIST.add(this);
+    }
+
+    /**
+     * Reset per-Engine mutable state on this singleton so user-set properties /
+     * tombstones / extensibility flips from one test don't bleed into the next.
+     * Default clears {@code _map}, {@code _attrs}, {@code _tombstones}, and the
+     * three extensibility flags. Subclasses with additional caches (e.g. a
+     * {@code _methodCache} of wrapped {@link JsBuiltinMethod} instances) should
+     * override and call {@code super.clearEngineState()} first.
+     */
+    protected void clearEngineState() {
+        if (_map != null) _map.clear();
+        if (_attrs != null) _attrs.clear();
+        if (_tombstones != null) _tombstones.clear();
+        nonExtensible = false;
+        sealed = false;
+        frozen = false;
     }
 
     @Override

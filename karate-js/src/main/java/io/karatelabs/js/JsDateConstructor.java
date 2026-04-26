@@ -36,6 +36,7 @@ class JsDateConstructor extends JsFunction {
     private JsDateConstructor() {
         this.name = "Date";
         this.length = 7;
+        registerForEngineReset();
     }
 
     @Override
