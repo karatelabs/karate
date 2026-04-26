@@ -1003,12 +1003,12 @@ Action list — start at the top. Ordered by core-engine confidence
 score impact (a one-fix harness unblock beats ten one-test patches).
 Re-probe with the relevant `--only` glob before scoping a session.
 
-Current state baseline (2026-04, post built-in intrinsic attribute attribution
-+ tombstone-on-delete + Math methods wrapped):
+Current state baseline (2026-04, post assignment-target negative-test pass
++ built-in intrinsic attribute attribution + tombstone-on-delete + Math wrap):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
-| `test/language/**` | 4003 | 4060 | 15582 | 23645 |
+| `test/language/**` | 4264 | 3799 | 15582 | 23645 |
 | `test/built-ins/Math/**` | 293 | 33 | 1 | 327 |
 | `test/built-ins/Number/**` | 187 | 141 | 12 | 340 |
 | `test/built-ins/String/**` | 357 | 782 | 84 | 1223 |
@@ -1023,14 +1023,10 @@ These are the items that most directly answer "does the engine read
 plain JS correctly?" — and they live in `test/language/expressions/**`
 where every fix shows up on the scorecard for the right reason.
 
-- **Negative-test strictness pass.** ~236 tests in
-  `expressions/assignmenttargettype/**` are negative tests where the
-  spec mandates a SyntaxError on patterns like `(a + b) = 1`,
-  `a + b => c`, etc., and the engine silently accepts them. Same
-  shape across the cluster — single recursive "is this a valid
-  assignment target?" walk on the parsed AST. Score impact is
-  bounded but the cluster otherwise stays a source of "engine too
-  lenient" noise.
+*(The negative-test strictness pass for assignment targets shipped —
+see Recently completed. Open Tier 1 residuals: `this = 1`,
+`import.meta = 1`, and a stray NPE on `eval = 1` — small wins, pick
+off opportunistically.)*
 
 ### Tier 2 — built-in attribute attribution rollout (residual)
 
@@ -1211,6 +1207,54 @@ Smaller items, picked off when nearby. Not session-sized on their own.
 Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
+
+- **Assignment-target negative-test pass (IsValidSimpleAssignmentTarget).**
+  Folded into the existing post-parse early-error walk in
+  `JsParser.validateEarlyErrors`. At every `ASSIGN_EXPR` /
+  `MATH_PRE_EXPR(++/--)` / `MATH_POST_EXPR` node the LHS / operand is
+  classified per spec: bare identifier and `x.y` / `x[k]` (including
+  over a CallExpression head) are valid simple targets;
+  `[a,b]`/`{a,b}` *at the top of the LHS* refines to a destructuring
+  AssignmentPattern; everything else (binary expressions, unary
+  operators, literals, function/arrow expressions, comma expressions,
+  parenthesized destructuring patterns, nested assignments,
+  tagged-template heads, `new`-expressions) throws
+  `ParserException` so the test262 runner classifies it as
+  `phase: parse`. The optional-chain checks already in the walk were
+  re-folded into the same visit; the walk now runs unconditionally
+  (it's O(N) and assignments are common enough that gating doesn't
+  pay).
+
+  | `--only` glob | Before | After | Δ pass |
+  |---|---|---|---|
+  | `test/language/expressions/assignmenttargettype/**` | 63 / 243 / 18 | **301** / 5 / 18 | **+238** |
+  | `test/language/**` | 4003 / 4060 / 15582 | **4264** / 3799 / 15582 | **+261** |
+
+  Net **+261 PASS** in `test/language/**` (no SKIP delta — every
+  conversion was FAIL → PASS). Built-in slices unchanged
+  (`test/built-ins/Object/**` still 1798/1482/131, `Array/**` still
+  1127/1773/181). Profile-mode `EngineBenchmark`: 1.38 ms array /
+  0.52 ms object — within the ±5 % thermal-noise band of the prior
+  reference (1.32 / 0.50).
+
+  Spec carve-outs deliberately not enforced (these tests stay FAIL
+  or stay SKIP, by design):
+  - **Web-compat `f() = 1` / `f() += 1` / `++f()`.** The spec
+    permits `CallExpression = ...` in non-strict mode (returns
+    `~web-compat~`); the corresponding test262 cases are flagged
+    `onlyStrict` and skipped by the harness. The engine has no
+    separate strict mode, so non-strict is permanent — no rejection
+    needed.
+  - **`this = 1` / `parenthesized this`.** `this` lexes as IDENT
+    (per JsLexer's keyword-set policy); rejecting requires a text
+    check on the identifier. 2 fails in this slice.
+  - **`import.meta = 1`** parses as a normal `REF_DOT_EXPR` over an
+    `import` identifier; we'd have to special-case the literal
+    `import.meta` form. 2 fails.
+  - **`eval = 1`** (`simple-basic-identifierreference-eval.js`) —
+    pre-existing NPE in the engine's host-bindings setup
+    (`Cannot read field "listener" because "this.root" is null`),
+    unrelated to assignment-target validation.
 
 - **Built-in intrinsic attribute attribution + tombstone-on-delete +
   Math wrap.** Follow-up to the per-property attribute enforcement

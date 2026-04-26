@@ -122,45 +122,69 @@ public class JsParser extends BaseParser {
             error("cannot parse statement");
         }
         exit();
-        // Only walk for early-error validation if the parse actually saw a `?.`
-        // — the walk is O(AST size) and would otherwise tax every parse for a
-        // feature most files don't use. Per Working Principle #5: pay edge-case
-        // cost on the edge case.
-        if (!errorRecoveryEnabled && sawOptionalChain) {
-            validateOptionalChainEarlyErrors(ast);
+        // Spec early errors: assignment-target validity (always) plus the
+        // optional-chain rules (only when `?.` was actually seen — that
+        // subtree-walk is otherwise pure dead weight).
+        if (!errorRecoveryEnabled) {
+            validateEarlyErrors(ast);
         }
         return ast;
     }
 
     /**
-     * Spec early errors involving optional chaining: an OptionalExpression cannot be
-     * an assignment target, the operand of {@code ++}/{@code --}, or the head of a
-     * tagged template literal. Walked once over the parsed tree; throws
-     * {@link ParserException} so the test262 runner classifies the failure as
+     * Spec early errors walked once over the parsed tree:
+     * <ul>
+     *   <li>IsValidSimpleAssignmentTarget: the LHS of {@code =} / compound assignment
+     *       and the operand of {@code ++}/{@code --} must be a simple reference
+     *       (identifier, member access) or a destructuring pattern. Patterns like
+     *       {@code (a + b) = 1}, {@code () => {} = 1}, {@code 1 = 1}, {@code ++f()},
+     *       {@code (x = y) = 1} are SyntaxErrors at parse phase.</li>
+     *   <li>Optional-chain restrictions: an OptionalExpression cannot be an
+     *       assignment target, the operand of {@code ++}/{@code --}, or the head of
+     *       a tagged template literal.</li>
+     * </ul>
+     * Throws {@link ParserException} so the test262 runner classifies the failure as
      * {@code phase: parse}.
      */
-    private void validateOptionalChainEarlyErrors(Node node) {
+    private void validateEarlyErrors(Node node) {
         if (node == null) return;
         switch (node.type) {
             case ASSIGN_EXPR -> {
-                if (node.size() > 0 && subtreeContainsOptionalChain(node.getFirst())) {
-                    throw new ParserException("optional chain is not a valid assignment target");
+                if (node.size() > 0) {
+                    Node lhs = node.getFirst();
+                    if (sawOptionalChain && subtreeContainsOptionalChain(lhs)) {
+                        throw new ParserException("optional chain is not a valid assignment target");
+                    }
+                    checkSimpleAssignmentTarget(lhs, "assignment target");
                 }
             }
             case MATH_POST_EXPR -> {
                 // children: [operand, ++/--]
-                if (node.size() > 0 && subtreeContainsOptionalChain(node.getFirst())) {
-                    throw new ParserException("optional chain cannot be the operand of postfix ++/--");
+                if (node.size() > 0) {
+                    Node operand = node.getFirst();
+                    if (sawOptionalChain && subtreeContainsOptionalChain(operand)) {
+                        throw new ParserException("optional chain cannot be the operand of postfix ++/--");
+                    }
+                    checkSimpleAssignmentTarget(operand, "operand of postfix update");
                 }
             }
             case MATH_PRE_EXPR -> {
-                // children: [op, operand]
-                if (node.size() > 1 && subtreeContainsOptionalChain(node.get(1))) {
-                    throw new ParserException("optional chain cannot be the operand of prefix ++/--");
+                // children: [op, operand] — only ++/-- need a valid update target;
+                // unary +/- have no assignment side and parse the same shape.
+                if (node.size() > 1) {
+                    Node op = node.getFirst();
+                    if (op.isToken() && (op.token.type == PLUS_PLUS || op.token.type == MINUS_MINUS)) {
+                        Node operand = node.get(1);
+                        if (sawOptionalChain && subtreeContainsOptionalChain(operand)) {
+                            throw new ParserException("optional chain cannot be the operand of prefix ++/--");
+                        }
+                        checkSimpleAssignmentTarget(operand, "operand of prefix update");
+                    }
                 }
             }
             case FN_TAGGED_TEMPLATE_EXPR -> {
-                if (node.size() > 0 && subtreeContainsOptionalChain(node.getFirst())) {
+                if (sawOptionalChain && node.size() > 0
+                        && subtreeContainsOptionalChain(node.getFirst())) {
                     throw new ParserException("tagged template literal cannot follow an optional chain");
                 }
             }
@@ -170,9 +194,102 @@ public class JsParser extends BaseParser {
         for (int i = 0, n = node.size(); i < n; i++) {
             Node child = node.get(i);
             if (!child.isToken()) {
-                validateOptionalChainEarlyErrors(child);
+                validateEarlyErrors(child);
             }
         }
+    }
+
+    /**
+     * Per spec ({@code IsValidSimpleAssignmentTarget} / {@code AssignmentTargetType}),
+     * the LHS of an assignment or update expression must be either:
+     * <ul>
+     *   <li>An IdentifierReference (bare identifier),</li>
+     *   <li>A MemberExpression of the form {@code x.y} or {@code x[k]} (including over
+     *       a CallExpression head, e.g. {@code f().x = 1}),</li>
+     *   <li>An ObjectLiteral or ArrayLiteral at the top of the LHS — refined into a
+     *       destructuring AssignmentPattern.</li>
+     * </ul>
+     * Anything else (binary expressions, unary operators, literals, function/arrow
+     * expressions, comma expressions, parenthesized destructuring patterns, nested
+     * assignment expressions, etc.) is a SyntaxError at parse phase.
+     * <p>
+     * {@code f() = 1} is the one notable exception: the spec's web-compat carve-out
+     * allows it in non-strict mode (returns {@code ~web-compat~}, not {@code invalid}).
+     * The engine has no separate strict mode so non-strict is permanent; the
+     * corresponding test262 cases are flagged {@code onlyStrict} and skipped by the
+     * harness.
+     */
+    private static void checkSimpleAssignmentTarget(Node lhs, String siteName) {
+        Node n = stripExprWrappers(lhs);
+        if (n == null) {
+            // Defensive — empty LHS only happens in error-recovery edge cases.
+            return;
+        }
+        // Top-level Object/Array literal refines into a destructuring pattern.
+        if (n.type == NodeType.LIT_EXPR && n.size() >= 1) {
+            NodeType lit = n.getFirst().type;
+            if (lit == NodeType.LIT_ARRAY || lit == NodeType.LIT_OBJECT) {
+                return;
+            }
+        }
+        // Peel any layers of parens. Per spec, a ParenthesizedExpression around an
+        // ObjectLiteral or ArrayLiteral does NOT refine to a destructuring pattern,
+        // so it becomes invalid; everything else falls through to the simple check.
+        while (n.type == NodeType.PAREN_EXPR) {
+            // PAREN_EXPR shape: [(, body, )]
+            Node body = n.size() >= 2 ? n.get(1) : null;
+            if (body == null) {
+                throw new ParserException("invalid " + siteName);
+            }
+            if (body.type == NodeType.EXPR_LIST && body.size() != 1) {
+                throw new ParserException("invalid " + siteName + ": comma expression");
+            }
+            Node inner = stripExprWrappers(body);
+            if (inner == null) {
+                throw new ParserException("invalid " + siteName);
+            }
+            if (inner.type == NodeType.LIT_EXPR && inner.size() >= 1) {
+                NodeType lit = inner.getFirst().type;
+                if (lit == NodeType.LIT_ARRAY || lit == NodeType.LIT_OBJECT) {
+                    throw new ParserException("invalid " + siteName + ": parenthesized destructuring pattern");
+                }
+            }
+            n = inner;
+        }
+        switch (n.type) {
+            case REF_EXPR -> {
+                // REF_EXPR is single-arg arrow `x => ...` when its first child is an
+                // FN_ARROW_EXPR rather than the IDENT token; that form is invalid.
+                if (n.size() >= 1 && !n.getFirst().isToken()
+                        && n.getFirst().type == NodeType.FN_ARROW_EXPR) {
+                    throw new ParserException("invalid " + siteName + ": arrow function");
+                }
+            }
+            case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
+                // Plain member access; a `?.` would have been caught earlier by
+                // the optional-chain branch above with a more specific message.
+            }
+            case FN_CALL_EXPR -> {
+                // Web-compat carve-out: see method javadoc.
+            }
+            default ->
+                    throw new ParserException("invalid " + siteName + ": "
+                            + n.type.name() + " is not a valid assignment target");
+        }
+    }
+
+    /**
+     * Strip thin {@code EXPR} / {@code EXPR_LIST} single-child wrappers introduced
+     * by the parser so that callers can inspect the underlying expression shape.
+     * Returns the node unchanged once the wrappers run out or the node has more
+     * than one child.
+     */
+    private static Node stripExprWrappers(Node n) {
+        while (n != null && n.size() == 1
+                && (n.type == NodeType.EXPR || n.type == NodeType.EXPR_LIST)) {
+            n = n.get(0);
+        }
+        return n;
     }
 
     /**
