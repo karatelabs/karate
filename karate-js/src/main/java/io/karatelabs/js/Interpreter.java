@@ -1177,7 +1177,7 @@ class Interpreter {
 
     private static Object evalMathAddExpr(Node node, CoreContext context) {
         return switch (node.get(1).token.type) {
-            case PLUS -> Terms.add(eval(node.get(0), context), eval(node.get(2), context));
+            case PLUS -> Terms.add(eval(node.get(0), context), eval(node.get(2), context), context);
             case MINUS -> terms(node, context).min();
             default -> throw new RuntimeException("unexpected operator: " + node.get(1));
         };

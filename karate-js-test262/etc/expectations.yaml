@@ -46,15 +46,16 @@ skip:
   # Tests whose YAML frontmatter contains any of these `features:` values.
   features:
     - feature: Symbol
-      reason: Symbol not supported
+      reason: Symbol primitive type / unique identity / Symbol() constructor not supported
     - feature: Symbol.asyncIterator
-      reason: Symbol not supported
-    - feature: Symbol.toPrimitive
-      reason: Symbol.toPrimitive dispatch not modeled (no real Symbol identity)
+      reason: async iteration not supported
     # Symbol.iterator un-skipped: karate-js exposes @@iterator (string-keyed
     # stand-in) on JsArray / JsString and routes for-of / spread / destructuring /
-    # Array.from through IterUtils.getIterator. Tests that rely on real Symbol
-    # construction still skip via `feature: Symbol`.
+    # Array.from through IterUtils.getIterator.
+    # Symbol.toPrimitive un-skipped: dispatch now routes through obj["@@toPrimitive"]
+    # (Terms.toPrimitive + Terms.add). Tests that ALSO need the Symbol primitive
+    # (e.g. `typeof Symbol.toPrimitive === "symbol"`) still skip via `feature: Symbol`.
+    # Tests using only the well-known stand-in pass on the new dispatch.
     # BigInt un-skipped: lexer recognizes the `n` literal suffix, runtime is backed
     # by java.math.BigInteger, arithmetic dispatches through Terms with TypeError on
     # mixing with Number, JSON.stringify throws TypeError per spec.

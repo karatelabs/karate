@@ -212,10 +212,26 @@ class ContextRoot extends CoreContext {
             // string-keyed stand-ins ("@@iterator" etc.). No Symbol() constructor,
             // no unique-symbol identity — tests that need real Symbol stay gated by
             // `feature: Symbol`. Lets `arr[Symbol.iterator]` resolve to `arr["@@iterator"]`.
+            // Currently consumed by the engine: @@iterator (IterUtils.getIterator),
+            // @@toPrimitive (Terms.toPrimitive), @@toStringTag (JsObjectPrototype).
+            // The remainder are exposed so user code that *reads* them (e.g.
+            // `obj[Symbol.species]`) sees a stable string key rather than undefined,
+            // unblocking tests that just check existence or use the key as a property.
             case "Symbol" -> {
                 JsObject sym = new JsObject();
                 sym.putMember("iterator", IterUtils.SYMBOL_ITERATOR);
                 sym.putMember("asyncIterator", "@@asyncIterator");
+                sym.putMember("toPrimitive", "@@toPrimitive");
+                sym.putMember("toStringTag", "@@toStringTag");
+                sym.putMember("hasInstance", "@@hasInstance");
+                sym.putMember("isConcatSpreadable", "@@isConcatSpreadable");
+                sym.putMember("species", "@@species");
+                sym.putMember("match", "@@match");
+                sym.putMember("matchAll", "@@matchAll");
+                sym.putMember("replace", "@@replace");
+                sym.putMember("search", "@@search");
+                sym.putMember("split", "@@split");
+                sym.putMember("unscopables", "@@unscopables");
                 yield sym;
             }
             default -> null;

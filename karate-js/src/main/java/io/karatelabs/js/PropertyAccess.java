@@ -243,7 +243,7 @@ class PropertyAccess {
             case REF_EXPR -> {
                 String name = node.getText();
                 Object oldValue = context.get(name);
-                Object newValue = applyOperator(oldValue, operator, operand);
+                Object newValue = applyOperator(oldValue, operator, operand, context);
                 context.update(name, newValue, trackingNode);
                 yield newValue;
             }
@@ -267,7 +267,7 @@ class PropertyAccess {
                 String name = node.getText();
                 Object oldValue = context.get(name);
                 Object step = Terms.incDecStep(oldValue);
-                Object newValue = isIncrement ? Terms.add(oldValue, step) : new Terms(oldValue, step).min();
+                Object newValue = isIncrement ? Terms.add(oldValue, step, context) : new Terms(oldValue, step).min();
                 context.update(name, newValue);
                 yield oldValue;
             }
@@ -296,7 +296,7 @@ class PropertyAccess {
                 String name = node.getText();
                 Object oldValue = context.get(name);
                 Object step = Terms.incDecStep(oldValue);
-                Object newValue = isIncrement ? Terms.add(oldValue, step) : new Terms(oldValue, step).min();
+                Object newValue = isIncrement ? Terms.add(oldValue, step, context) : new Terms(oldValue, step).min();
                 context.update(name, newValue);
                 yield newValue;
             }
@@ -704,7 +704,7 @@ class PropertyAccess {
             if (object instanceof List) {
                 List<Object> list = (List<Object>) object;
                 Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
-                Object newValue = applyOperator(oldValue, operator, operand);
+                Object newValue = applyOperator(oldValue, operator, operand, context);
                 list.set(i, newValue);
                 firePropertySet(context, String.valueOf(i), newValue, oldValue, object, trackingNode);
                 return newValue;
@@ -715,7 +715,7 @@ class PropertyAccess {
 
     private static Object compoundByName(Object object, String name, TokenType operator, Object operand, CoreContext context, Node trackingNode) {
         Object oldValue = getByName(object, name, false, context, false);
-        Object newValue = applyOperator(oldValue, operator, operand);
+        Object newValue = applyOperator(oldValue, operator, operand, context);
         setByName(object, name, newValue, context, trackingNode);
         return newValue;
     }
@@ -727,7 +727,7 @@ class PropertyAccess {
                 List<Object> list = (List<Object>) object;
                 Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
                 Object step = Terms.incDecStep(oldValue);
-                Object newValue = isIncrement ? Terms.add(oldValue, step) : new Terms(oldValue, step).min();
+                Object newValue = isIncrement ? Terms.add(oldValue, step, context) : new Terms(oldValue, step).min();
                 list.set(i, newValue);
                 firePropertySet(context, String.valueOf(i), newValue, oldValue, object, null);
                 return oldValue;
@@ -739,7 +739,7 @@ class PropertyAccess {
     private static Object postIncDecByName(Object object, String name, boolean isIncrement, CoreContext context) {
         Object oldValue = getByName(object, name, false, context, false);
         Object step = Terms.incDecStep(oldValue);
-        Object newValue = isIncrement ? Terms.add(oldValue, step) : new Terms(oldValue, step).min();
+        Object newValue = isIncrement ? Terms.add(oldValue, step, context) : new Terms(oldValue, step).min();
         setByName(object, name, newValue, context, null);
         return oldValue;
     }
@@ -751,7 +751,7 @@ class PropertyAccess {
                 List<Object> list = (List<Object>) object;
                 Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
                 Object step = Terms.incDecStep(oldValue);
-                Object newValue = isIncrement ? Terms.add(oldValue, step) : new Terms(oldValue, step).min();
+                Object newValue = isIncrement ? Terms.add(oldValue, step, context) : new Terms(oldValue, step).min();
                 list.set(i, newValue);
                 firePropertySet(context, String.valueOf(i), newValue, oldValue, object, null);
                 return newValue;
@@ -763,7 +763,7 @@ class PropertyAccess {
     private static Object preIncDecByName(Object object, String name, boolean isIncrement, CoreContext context) {
         Object oldValue = getByName(object, name, false, context, false);
         Object step = Terms.incDecStep(oldValue);
-        Object newValue = isIncrement ? Terms.add(oldValue, step) : new Terms(oldValue, step).min();
+        Object newValue = isIncrement ? Terms.add(oldValue, step, context) : new Terms(oldValue, step).min();
         setByName(object, name, newValue, context, null);
         return newValue;
     }
@@ -792,9 +792,9 @@ class PropertyAccess {
 
     //=== Helper methods ===
 
-    private static Object applyOperator(Object oldValue, TokenType operator, Object operand) {
+    private static Object applyOperator(Object oldValue, TokenType operator, Object operand, CoreContext context) {
         return switch (operator) {
-            case PLUS_EQ -> Terms.add(oldValue, operand);
+            case PLUS_EQ -> Terms.add(oldValue, operand, context);
             case MINUS_EQ -> new Terms(oldValue, operand).min();
             case STAR_EQ -> new Terms(oldValue, operand).mul();
             case SLASH_EQ -> new Terms(oldValue, operand).div();

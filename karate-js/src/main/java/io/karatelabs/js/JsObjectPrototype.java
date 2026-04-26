@@ -39,15 +39,21 @@ class JsObjectPrototype extends Prototype {
      * pretty-printers (e.g. {@link JsConsole}) can detect a user-overridden
      * {@code toString} vs the default by reference identity.
      * <p>
-     * Returns {@code "[object <Tag>]"} where {@code <Tag>} is derived from the
-     * receiver type — {@code Array}/{@code Date}/{@code RegExp}/{@code Error}/
-     * {@code Map}/{@code Set}/{@code Boolean}/{@code Number}/{@code String}/
-     * {@code Function}/{@code Null}/{@code Undefined}, or {@code Object} for plain
-     * objects. Spec uses {@code @@toStringTag} for the user-visible tag; this is
-     * a pragmatic fixed-table substitute keyed by the host wrapper class.
+     * Returns {@code "[object <Tag>]"} where {@code <Tag>} is — in spec order —
+     * the value of {@code @@toStringTag} on the receiver (or its prototype chain)
+     * if a string, otherwise the host-class-derived tag from {@link #builtinTag}:
+     * {@code Array}/{@code Date}/{@code RegExp}/{@code Error}/{@code Map}/{@code Set}/
+     * {@code Boolean}/{@code Number}/{@code String}/{@code Function}/{@code Null}/
+     * {@code Undefined}, or {@code Object} for plain objects.
      */
     static final JsCallable DEFAULT_TO_STRING = (context, args) -> {
         Object o = context.getThisObject();
+        if (o instanceof ObjectLike ol) {
+            Object tag = ol.getMember("@@toStringTag");
+            if (tag instanceof String s) {
+                return "[object " + s + "]";
+            }
+        }
         return "[object " + builtinTag(o) + "]";
     };
 

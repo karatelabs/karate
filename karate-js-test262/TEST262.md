@@ -177,36 +177,41 @@ Action list — start at the top. Ordered by core-engine confidence
 cross-multiplied by score impact. Re-probe with the relevant `--only` glob
 before scoping a session.
 
-**Current state baseline** (last sampled 2026-04-25, post full prototype wrap
-sweep):
+**Current state baseline** (last sampled 2026-04-26, post partial Symbol
+expansion + Date.@@toPrimitive):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
-| `test/language/**` | 4265 | 3798 | 15582 | 23645 |
+| `test/language/**` | 4290 | 3813 | 15542 | 23645 |
 | `test/built-ins/Math/**` | 293 | 33 | 1 | 327 |
 | `test/built-ins/Number/**` | 232 | 96 | 12 | 340 |
-| `test/built-ins/String/**` | 456 | 683 | 84 | 1223 |
-| `test/built-ins/Array/**` | 1203 | 1697 | 181 | 3081 |
-| `test/built-ins/Object/**` | 2004 | 1276 | 131 | 3411 |
-| `test/built-ins/Date/**` | 477 | 47 | 70 | 594 |
-| `test/built-ins/Function/**` | 228 | 153 | 128 | 509 |
+| `test/built-ins/String/**` | 456 | 717 | 50 | 1223 |
+| `test/built-ins/Array/**` | 1203 | 1698 | 180 | 3081 |
+| `test/built-ins/Object/**` | 2005 | 1281 | 125 | 3411 |
+| `test/built-ins/Date/**` | 500 | 52 | 42 | 594 |
+| `test/built-ins/Function/**` | 229 | 152 | 128 | 509 |
+| `test/built-ins/Symbol/**` | 2 | 47 | 49 | 98 |
 
 ### Top items
 
-1. **Partial Symbol expansion — well-known symbols only.** Wire
-   `Terms.toPrimitive` to dispatch through `obj["@@toPrimitive"]`; expose
-   `Symbol.species` / `@@toStringTag` / `@@hasInstance` /
-   `@@isConcatSpreadable` / `@@matchAll` / `@@replace` / `@@search` /
-   `@@split` as string-keyed stand-ins on the existing Symbol global; route
-   `Object.prototype.toString.call(x)` through `obj["@@toStringTag"]`.
-   Symbol-gated tests cluster across every core type (~580 SKIP today):
-   Object 58, Symbol-itself 47, String 40, Array 35, Map 34, Date 30, RegExp
-   29, WeakMap 27. Even a partial expansion unblocks a measurable fraction
-   without a full primitive type. Full `Symbol()` constructor with unique
-   identity / `Symbol.for` / `keyFor` / global registry / `typeof === "symbol"`
-   stays gated. Probe before scoping: count SKIP-by-feature in the latest
-   `test/built-ins/**` results.jsonl and group by which Symbol features
-   cluster where.
+1. **Full Symbol primitive (layer 2 — promoted from former #1's "deferred"
+   tail).** Partial expansion shipped 2026-04-26: well-known symbols are
+   exposed as string-keyed stand-ins, `@@toPrimitive` dispatches via
+   `Terms.toPrimitive` (and now `Terms.add` — binary + / +=), `@@toStringTag`
+   overrides `Object.prototype.toString`, `Date.prototype[@@toPrimitive]`
+   landed (default→string per spec). Net delta vs prior baseline: **+25
+   language, +23 Date, +2 Symbol, +1 Object/Function each ≈ +52 PASS**, with
+   ~109 fewer SKIPs. Residual is the *Symbol-as-primitive* tests:
+   `typeof Symbol.X === "symbol"`, `Symbol()` constructor with unique
+   identity, `Symbol.for` / `keyFor` global registry, `symbol.description`,
+   `Object.getOwnPropertySymbols`, `Reflect.ownKeys` returning symbol keys.
+   Touches: new primitive type in `Terms.typeOf` / `eq` / coercion sites;
+   property-key abstraction so `JsObject._map` (currently `Map<String,Object>`)
+   can carry symbol keys distinct from string keys; `_attrs` / `_tombstones`
+   / `isOwnProperty` / intrinsic-attribute pipeline all key by `String` and
+   need parallel symbol storage. ~580 SKIPs today; 2-4 sessions of focused
+   work. Re-probe before scoping with `test/built-ins/Symbol/**` to size
+   per-feature cluster.
 
 2. **`compareArray.js` un-skip.** Gated on accessor enforcement on JsArray
    indices (~5 fails today on numeric-index-vs-accessor coexistence). Many
@@ -378,8 +383,11 @@ prose lives in [JS_ENGINE.md § Spec Invariants](../docs/JS_ENGINE.md#spec-invar
 **Iteration**
 - Iteration goes through `IterUtils.getIterator`; `for-of` on null/undefined
   is TypeError, `for-in` keeps `Terms.toIterable`
-- Minimal `Symbol` global — `Symbol.iterator` / `Symbol.asyncIterator` as
-  string keys; no constructor / no unique identity
+- Partial `Symbol` global — well-known symbols exposed as string-keyed
+  stand-ins (`@@iterator`, `@@asyncIterator`, `@@toPrimitive`, `@@toStringTag`,
+  `@@hasInstance`, `@@isConcatSpreadable`, `@@species`, `@@match`, `@@matchAll`,
+  `@@replace`, `@@search`, `@@split`, `@@unscopables`); no constructor / no
+  unique identity / no `typeof === "symbol"`
 
 **Optional chaining**
 - `PropertyAccess.SHORT_CIRCUITED` sentinel propagation (distinct from
@@ -392,8 +400,12 @@ prose lives in [JS_ENGINE.md § Spec Invariants](../docs/JS_ENGINE.md#spec-invar
 
 **Numeric / coercion**
 - Spec ToString unified via `Terms.toStringCoerce`
-- `Terms.toPrimitive` is the spec ToPrimitive boundary (valueOf/toString
-  dispatch with sub-context error propagation)
+- `Terms.toPrimitive` is the spec ToPrimitive boundary — checks `obj["@@toPrimitive"]`
+  first (set-but-not-callable is TypeError; result must be primitive), then
+  falls back to `Terms.ordinaryToPrimitive` (valueOf/toString dispatch with
+  sub-context error propagation)
+- `Terms.add` (binary `+` / `+=`) ToPrimitive's ObjectLike operands first per
+  spec — gained a `CoreContext` parameter for that
 - `Terms.narrow()` checks both ends (overflow fix on negative-past-MIN_VALUE)
 
 **BigInt**
@@ -432,15 +444,24 @@ prose lives in [JS_ENGINE.md § Spec Invariants](../docs/JS_ENGINE.md#spec-invar
 - LocalTZA truncated to integer minutes (per spec `getTimezoneOffset`)
 - Setters read `[[DateValue]]` *before* coercing args (preserves observable
   side effects from valueOf)
+- `Date.prototype[@@toPrimitive]` overrides "default" hint to "string" per
+  §21.4.4.45 — `date + ""` and `date + date` string-concat instead of
+  timestamp-add. Calls `Terms.ordinaryToPrimitive` to avoid re-entering the
+  @@toPrimitive lookup.
 
 **Templates**
 - Tagged-template AST shape — `FN_TAGGED_TEMPLATE_EXPR` is `[<callable>,
   LIT_TEMPLATE]`; N substitutions ⇒ N+1 string slots; `strings.raw` attached
 
 **Object.prototype.toString**
-- Dispatches on host wrapper class (`[object Date]` / `Array` / `Map` /
-  `RegExp` / `Set` / `Error` / `Boolean` / `Number` / `String` / `Function` /
-  `Object`); substitute for `@@toStringTag` until Symbol expansion
+- Consults `obj.getMember("@@toStringTag")` first; if a string, uses it as
+  the tag. Otherwise dispatches on host wrapper class (`[object Date]` /
+  `Array` / `Map` / `RegExp` / `Set` / `Error` / `Boolean` / `Number` /
+  `String` / `Function` / `Object`)
+- `Error.prototype.toString` shadows `Object.prototype.toString` in
+  `JsError.getMember` (returns `name + ": " + message` per spec) — exposed
+  as a latent bug when `Terms.add` started routing ObjectLike operands
+  through `Terms.toPrimitive`
 
 **Engine ↔ runner contract**
 - Runner depends on `ParserException` propagation (parse-phase classification),

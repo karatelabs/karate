@@ -77,6 +77,10 @@ class JsDatePrototype extends Prototype {
             case "getTime" -> method(name, 0, this::getTime);
             case "valueOf" -> method(name, 0, this::getTime);
             case "toString" -> method(name, 0, this::toStringMethod);
+            // Spec §21.4.4.45: Date.prototype[@@toPrimitive] treats hint "default"
+            // as "string" (so `date + ""` and `date + date` string-concat), and
+            // "number" as ToNumber. Length is 1 (the hint argument).
+            case "@@toPrimitive" -> method("[Symbol.toPrimitive]", 1, this::toPrimitive);
             case "toISOString" -> method(name, 0, this::toISOString);
             case "toUTCString" -> method(name, 0, this::toUTCString);
             case "toGMTString" -> method(name, 0, this::toUTCString);
@@ -161,6 +165,31 @@ class JsDatePrototype extends Prototype {
 
     private Object toStringMethod(Context context, Object[] args) {
         return requireDate(context).toString();
+    }
+
+    /**
+     * Spec §21.4.4.45 Date.prototype[@@toPrimitive](hint).
+     * - "string" / "default" → OrdinaryToPrimitive(this, "string")
+     * - "number"             → OrdinaryToPrimitive(this, "number")
+     * - anything else        → TypeError
+     * The "default" → "string" override is the whole point of Date having its own
+     * @@toPrimitive: it makes `new Date() + ""` string-concat instead of timestamp-add.
+     */
+    private Object toPrimitive(Context context, Object[] args) {
+        Object hint = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        String h;
+        if ("string".equals(hint) || "default".equals(hint)) {
+            h = "string";
+        } else if ("number".equals(hint)) {
+            h = "number";
+        } else {
+            throw JsErrorException.typeError("invalid hint to Symbol.toPrimitive: " + hint);
+        }
+        Object thisObj = context.getThisObject();
+        if (!(thisObj instanceof ObjectLike ol)) {
+            throw JsErrorException.typeError("Date.prototype[@@toPrimitive] called on non-object");
+        }
+        return Terms.ordinaryToPrimitive(ol, h, (CoreContext) context);
     }
 
     private Object toISOString(Context context, Object[] args) {

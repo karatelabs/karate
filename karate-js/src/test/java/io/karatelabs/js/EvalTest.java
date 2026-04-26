@@ -1414,6 +1414,83 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testSymbolWellKnownKeys() {
+        // Well-known symbols are exposed as string-keyed stand-ins on the Symbol global.
+        // No primitive symbol type — these are the literal "@@<name>" strings the engine
+        // uses internally as property keys.
+        assertEquals("@@iterator", eval("Symbol.iterator"));
+        assertEquals("@@asyncIterator", eval("Symbol.asyncIterator"));
+        assertEquals("@@toPrimitive", eval("Symbol.toPrimitive"));
+        assertEquals("@@toStringTag", eval("Symbol.toStringTag"));
+        assertEquals("@@hasInstance", eval("Symbol.hasInstance"));
+        assertEquals("@@isConcatSpreadable", eval("Symbol.isConcatSpreadable"));
+        assertEquals("@@species", eval("Symbol.species"));
+        assertEquals("@@match", eval("Symbol.match"));
+        assertEquals("@@matchAll", eval("Symbol.matchAll"));
+        assertEquals("@@replace", eval("Symbol.replace"));
+        assertEquals("@@search", eval("Symbol.search"));
+        assertEquals("@@split", eval("Symbol.split"));
+        assertEquals("@@unscopables", eval("Symbol.unscopables"));
+    }
+
+    @Test
+    void testSymbolToPrimitiveDispatch() {
+        // @@toPrimitive overrides valueOf/toString in ToPrimitive. Spec hints:
+        //   binary +  → "default"   numeric ops → "number"   String() → "string"
+        // Binary + with hint "default": numeric branch
+        assertEquals(11, eval(
+                "var o = { [Symbol.toPrimitive]: function(h){ return h === 'default' ? 10 : -1; } };"
+                        + "o + 1"));
+        // Binary + with hint "default": string branch (returning a string makes + concatenate)
+        assertEquals("hi1", eval(
+                "var o = { [Symbol.toPrimitive]: function(h){ return h === 'default' ? 'hi' : 'x'; } };"
+                        + "o + 1"));
+        // @@toPrimitive takes precedence over valueOf/toString
+        assertEquals(99, eval(
+                "var o = { valueOf: function(){ return 1; }, toString: function(){ return '2'; },"
+                        + "  [Symbol.toPrimitive]: function(){ return 99; } };"
+                        + "o + 0"));
+        // Returning a non-primitive must throw TypeError per spec
+        assertThrows(Exception.class, () -> eval(
+                "var o = { [Symbol.toPrimitive]: function(){ return {}; } }; o + 0"));
+        // Set-but-not-callable @@toPrimitive must TypeError (spec GetMethod)
+        assertThrows(Exception.class, () -> eval(
+                "var o = { [Symbol.toPrimitive]: 1 }; o + 0"));
+    }
+
+    @Test
+    void testDateToPrimitive() {
+        // Date.prototype[@@toPrimitive] treats hint "default" as "string", so binary +
+        // string-concatenates Dates instead of adding their timestamps. Spec §21.4.4.45.
+        assertEquals(true, eval("var d = new Date(0); (d + d) === (d.toString() + d.toString())"));
+        // Hint "number" still routes to valueOf (the timestamp)
+        assertEquals(true, eval("var d = new Date(0); +d === d.getTime()"));
+        // Invalid hint TypeErrors
+        assertThrows(Exception.class, () -> eval(
+                "new Date()[Symbol.toPrimitive]('bogus')"));
+    }
+
+    @Test
+    void testSymbolToStringTag() {
+        // @@toStringTag (string) overrides the host-class-derived tag
+        assertEquals("[object Foo]", eval(
+                "var o = { [Symbol.toStringTag]: 'Foo' };"
+                        + "Object.prototype.toString.call(o)"));
+        // Non-string @@toStringTag is ignored — falls through to builtinTag
+        assertEquals("[object Object]", eval(
+                "var o = { [Symbol.toStringTag]: 42 };"
+                        + "Object.prototype.toString.call(o)"));
+        // Built-in tags still work when @@toStringTag is absent
+        assertEquals("[object Array]", eval("Object.prototype.toString.call([])"));
+        assertEquals("[object Object]", eval("Object.prototype.toString.call({})"));
+        // @@toStringTag inherited via prototype chain — set on parent, read on child
+        assertEquals("[object Bar]", eval(
+                "var parent = { [Symbol.toStringTag]: 'Bar' };"
+                        + "var child = Object.create(parent);"
+                        + "Object.prototype.toString.call(child)"));
+    }
+
+    @Test
     void testDestructuringDefaultUndefinedVsNull() {
         // Present-with-undefined: default fires
         assertEquals(1, eval("var x; ({ x = 1 } = { x: undefined }); x"));

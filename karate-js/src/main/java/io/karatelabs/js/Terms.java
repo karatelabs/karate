@@ -534,7 +534,18 @@ public class Terms {
         return narrow(result);
     }
 
-    static Object add(Object lhs, Object rhs) {
+    static Object add(Object lhs, Object rhs, CoreContext context) {
+        // Spec evaluation of binary +: ToPrimitive both operands first (default hint),
+        // then string-or-number dispatch on the *primitives*. ObjectLike on either side
+        // is the rare case — primitives short-circuit through the existing fast path.
+        if (lhs instanceof ObjectLike) {
+            lhs = toPrimitive(lhs, "default", context);
+            if (context != null && context.isError()) return UNDEFINED;
+        }
+        if (rhs instanceof ObjectLike) {
+            rhs = toPrimitive(rhs, "default", context);
+            if (context != null && context.isError()) return UNDEFINED;
+        }
         if (lhs instanceof String || rhs instanceof String) {
             return lhs + "" + rhs;
         }
@@ -832,6 +843,39 @@ public class Terms {
             // No prototype dispatch possible — return as-is and let the caller cope.
             return value;
         }
+        // Spec: @@toPrimitive (the well-known Symbol.toPrimitive method) takes precedence
+        // over OrdinaryToPrimitive's valueOf/toString dispatch. Hint passed verbatim
+        // ("string" | "number" | "default"). Result must be a primitive; an object result
+        // is a TypeError per spec. Set-but-not-callable is also a TypeError (GetMethod).
+        Object exotic = ol.getMember("@@toPrimitive");
+        if (exotic != null && exotic != UNDEFINED) {
+            if (!(exotic instanceof JsCallable jsc)) {
+                throw JsErrorException.typeError("Symbol.toPrimitive method is not callable");
+            }
+            CoreContext callCtx = new CoreContext(context, null, null);
+            callCtx.thisObject = ol;
+            String hintArg = hint == null ? "default" : hint;
+            Object r = jsc.call(callCtx, new Object[]{hintArg});
+            if (callCtx.isError()) {
+                context.updateFrom(callCtx);
+                return UNDEFINED;
+            }
+            if (r == null || r == UNDEFINED || isPrimitive(r) || r instanceof BigInteger) {
+                return r;
+            }
+            throw JsErrorException.typeError("Cannot convert object to primitive value");
+        }
+        return ordinaryToPrimitive(ol, hint, context);
+    }
+
+    /**
+     * Spec §7.1.1.1 OrdinaryToPrimitive — the valueOf/toString-only dispatch
+     * without the @@toPrimitive check. Used by {@link #toPrimitive} as the
+     * fallback path, and by built-in @@toPrimitive methods (e.g. Date) that
+     * need to invoke OrdinaryToPrimitive on themselves without re-entering
+     * the @@toPrimitive lookup.
+     */
+    static Object ordinaryToPrimitive(ObjectLike ol, String hint, CoreContext context) {
         String[] order = "string".equals(hint)
                 ? new String[]{"toString", "valueOf"}
                 : new String[]{"valueOf", "toString"};

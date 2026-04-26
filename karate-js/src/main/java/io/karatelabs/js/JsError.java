@@ -97,16 +97,21 @@ class JsError extends JsObject {
 
     @Override
     public Object getMember(String key) {
-        // Check own properties first
+        // Check own properties first (super walks _map then __proto__ chain)
         Object own = super.getMember(key);
         if (own != null) {
+            // Spec: Error.prototype.toString shadows Object.prototype.toString.
+            // Now matters because Terms.toPrimitive (and binary + via Terms.add) routes
+            // through getMember("toString"); previously masked by Java string concat.
+            if ("toString".equals(key) && own == JsObjectPrototype.DEFAULT_TO_STRING) {
+                return (JsCallable) (ctx, args) -> toString();
+            }
             return own;
         }
         return switch (key) {
             case "message" -> message;
             case "name" -> name;
             case "constructor" -> constructor;
-            case "toString" -> (JsCallable) (ctx, args) -> toString();
             default -> null;
         };
     }
