@@ -260,17 +260,13 @@ public class IterUtils {
 
     /** Reads a slot, invoking an accessor getter if present (so user iterators with
      *  `get value() { ... }` semantics — common in spec tests — surface their getter
-     *  errors at iteration time rather than spinning on the raw {@link JsAccessor}). */
+     *  errors at iteration time). Routes through the receiver-aware
+     *  {@link ObjectLike#getMember(String, Object, CoreContext)}; a non-CoreContext
+     *  context yields {@code undefined} for accessor descriptors (no thread for
+     *  thisObject swap). */
     private static Object readMember(ObjectLike obj, String name, Context context) {
-        Object raw = obj.getMember(name);
-        if (raw instanceof JsAccessor acc) {
-            if (acc.getter == null) return Terms.UNDEFINED;
-            if (context instanceof CoreContext cc) {
-                return Interpreter.invokeGetter(acc.getter, obj, cc);
-            }
-            return acc.getter.call(context, EMPTY_ARGS);
-        }
-        return raw;
+        CoreContext cc = context instanceof CoreContext c ? c : null;
+        return obj.getMember(name, obj, cc);
     }
 
     private static String describe(Object source) {

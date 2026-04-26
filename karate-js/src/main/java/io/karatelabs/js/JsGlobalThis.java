@@ -84,6 +84,27 @@ final class JsGlobalThis extends JsObject {
     }
 
     @Override
+    public Object getMember(String name, Object receiver, CoreContext ctx) {
+        // JsGlobalThis splits state across the unified BindingsStore (values)
+        // and {@link JsObject#props} (attrs-only slots created by
+        // {@link #defineOwn} / {@link #setAttrs}). The inherited 3-arg
+        // {@code JsObject.getMember} would find the attrs-only DataSlot with
+        // {@code value=null} and return null — short-circuiting the bindings
+        // lookup. Mirror the 1-arg path: bindings first, then root, then
+        // proto chain.
+        if (isTombstoned(name)) {
+            ObjectLike proto = getPrototype();
+            return proto != null ? proto.getMember(name, receiver, ctx) : null;
+        }
+        if ("__proto__".equals(name)) return getPrototype();
+        BindingsStore b = bindings();
+        if (b.hasMember(name)) return b.getMember(name);
+        if (root.hasKey(name)) return root.get(name);
+        ObjectLike proto = getPrototype();
+        return proto != null ? proto.getMember(name, receiver, ctx) : null;
+    }
+
+    @Override
     public void putMember(String name, Object value) {
         if ("__proto__".equals(name)) {
             super.putMember(name, value);

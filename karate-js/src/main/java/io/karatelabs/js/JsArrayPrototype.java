@@ -121,12 +121,7 @@ class JsArrayPrototype extends Prototype {
             int len = arr.size();
             List<Object> snapshot = new ArrayList<>(len);
             for (int i = 0; i < len; i++) {
-                Object v = arr.getIndexedValue(i);
-                if (v instanceof JsAccessor acc) {
-                    v = acc.getter == null || cc == null
-                            ? Terms.UNDEFINED
-                            : Interpreter.invokeGetter(acc.getter, arr, cc);
-                }
+                Object v = arr.getIndexedValue(i, arr, cc);
                 snapshot.add(v == null ? Terms.UNDEFINED : v);
             }
             return snapshot;
@@ -153,16 +148,10 @@ class JsArrayPrototype extends Prototype {
                 List<Object> snapshot = new ArrayList<>(len);
                 CoreContext cc = context instanceof CoreContext cx ? cx : null;
                 for (int i = 0; i < len; i++) {
-                    Object v = ol.getMember(String.valueOf(i));
-                    // Accessor descriptors installed via Object.defineProperty
-                    // sit in the map as JsAccessor instances. Resolve through
-                    // the getter so callbacks see real values, not the
-                    // accessor wrapper. Setter-only accessors yield undefined.
-                    if (v instanceof JsAccessor acc) {
-                        v = acc.getter == null || cc == null
-                                ? Terms.UNDEFINED
-                                : Interpreter.invokeGetter(acc.getter, ol, cc);
-                    }
+                    // Accessor descriptors at any index resolve via the
+                    // receiver-aware getMember. Setter-only / no-ctx
+                    // accessors yield undefined.
+                    Object v = ol.getMember(String.valueOf(i), ol, cc);
                     snapshot.add(v == null ? Terms.UNDEFINED : v);
                 }
                 return snapshot;

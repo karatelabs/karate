@@ -29,12 +29,15 @@ package io.karatelabs.js;
  */
 final class DataSlot extends PropertySlot {
 
+    Object value;
+
     DataSlot(String name) {
         super(name);
     }
 
     DataSlot(String name, Object value) {
-        super(name, value);
+        super(name);
+        this.value = value;
     }
 
     @Override
@@ -57,6 +60,11 @@ final class DataSlot extends PropertySlot {
             return;
         }
         this.value = newValue;
+    }
+
+    @Override
+    public String toString() {
+        return name + "=" + value;
     }
 
 }

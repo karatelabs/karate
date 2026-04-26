@@ -525,12 +525,7 @@ class PropertyAccess {
                 throw JsErrorException.typeError("cannot read properties of " + object + " (reading '[" + i + "]')");
             }
             if (object instanceof JsArray array) {
-                Object slot = array.getIndexedValue(i);
-                if (slot instanceof JsAccessor acc) {
-                    return acc.getter == null ? Terms.UNDEFINED
-                            : Interpreter.invokeGetter(acc.getter, object, context);
-                }
-                return slot;
+                return array.getIndexedValue(i, array, context);
             }
             if (object instanceof List<?> list) {
                 if (i < 0 || i >= list.size()) return Terms.UNDEFINED;
@@ -550,12 +545,7 @@ class PropertyAccess {
             }
             ObjectLike converted = Terms.toObjectLike(object);
             if (converted instanceof JsArray jsArray) {
-                Object slot = jsArray.getIndexedValue(i);
-                if (slot instanceof JsAccessor acc) {
-                    return acc.getter == null ? Terms.UNDEFINED
-                            : Interpreter.invokeGetter(acc.getter, jsArray, context);
-                }
-                return slot;
+                return jsArray.getIndexedValue(i, jsArray, context);
             }
             if (object instanceof Map || object instanceof ObjectLike) {
                 return getByName(object, String.valueOf(index), optional, context, functionCall);
@@ -581,42 +571,33 @@ class PropertyAccess {
 
         if (object instanceof JsObject jsObj) {
             if (jsObj.containsKey(name)) {
-                Object result = jsObj.getMember(name);
-                if (result instanceof JsAccessor acc) {
-                    return acc.getter == null ? Terms.UNDEFINED
-                            : Interpreter.invokeGetter(acc.getter, object, context);
-                }
-                return result;
+                return jsObj.getMember(name, object, context);
             }
-            Object result = jsObj.getMember(name);
-            if (result instanceof JsAccessor acc) {
-                return acc.getter == null ? Terms.UNDEFINED
-                        : Interpreter.invokeGetter(acc.getter, object, context);
-            }
+            Object result = jsObj.getMember(name, object, context);
             if (isFound(result)) return result;
             return Terms.UNDEFINED;
         } else if (object instanceof JsArray jsArr) {
-            Object result = jsArr.getMember(name);
+            Object result = jsArr.getMember(name, object, context);
             if (isFound(result)) return result;
             return Terms.UNDEFINED;
         } else if (object instanceof ObjectLike ol) {
-            Object result = ol.getMember(name);
+            Object result = ol.getMember(name, object, context);
             if (isFound(result)) return result;
         } else if (object instanceof Map) {
             Map<String, Object> map = (Map<String, Object>) object;
             if (map.containsKey(name)) return map.get(name);
-            Object result = new JsObject(map).getMember(name);
+            Object result = new JsObject(map).getMember(name, object, context);
             if (result != null) return result;
         } else if (object instanceof List) {
             ObjectLike ol = Terms.toObjectLike(object);
             if (ol != null) {
-                Object result = ol.getMember(name);
+                Object result = ol.getMember(name, object, context);
                 if (isFound(result)) return result;
             }
         } else {
             ObjectLike ol = Terms.toObjectLike(object);
             if (ol != null) {
-                Object result = ol.getMember(name);
+                Object result = ol.getMember(name, object, context);
                 if (isFound(result)) return result;
             }
         }
@@ -638,7 +619,7 @@ class PropertyAccess {
             int i = n.intValue();
             // JsArray with a descriptor at this index (accessor or attributed
             // data property installed via Object.defineProperty) takes the slow
-            // path through setByName, which honors JsAccessor setters and
+            // path through setByName, which honors AccessorSlot setters and
             // future writable=false enforcement. The hot path (no descriptor)
             // skips the check via JsArray.hasIndexedDescriptor's null guard.
             if (object instanceof JsArray array && array.hasIndexedDescriptor(i)) {
@@ -689,16 +670,18 @@ class PropertyAccess {
                 firePropertySet(context, name, ja.size(), oldLen, object, trackingNode);
                 return;
             }
-            Object oldValue = objectLike.getMember(name);
-            // If the existing slot is an accessor, invoke the setter (keeping the
-            // JsAccessor in place) instead of overwriting the descriptor.
-            if (oldValue instanceof JsAccessor acc) {
-                if (acc.setter != null) {
-                    Interpreter.invokeSetter(acc.setter, object, value, context);
-                }
-                // No setter: silently ignored (matches lenient-mode JS).
+            // If an accessor descriptor lives at `name` anywhere in the
+            // prototype chain, invoke its setter via slot.write —
+            // bypassing putMember preserves the descriptor and threads
+            // the live ctx so setters that read other properties or throw
+            // see the correct call frame. Lenient: a get-only accessor
+            // silently drops the write.
+            AccessorSlot accSlot = findAccessorInChain(objectLike, name);
+            if (accSlot != null) {
+                accSlot.write(object, value, context, false);
                 return;
             }
+            Object oldValue = objectLike.getMember(name);
             objectLike.putMember(name, value);
             firePropertySet(context, name, value, oldValue, object, trackingNode);
         } else if (object instanceof Map) {
@@ -846,6 +829,31 @@ class PropertyAccess {
 
     private static boolean isFound(Object result) {
         return result != null && result != Terms.UNDEFINED;
+    }
+
+    /** Walks the prototype chain looking for an accessor slot at
+     *  {@code name}. Returns the first {@link AccessorSlot} found, or
+     *  {@code null} (no accessor in chain — write proceeds as a normal
+     *  data put on the receiver). Stops at the first own slot at each
+     *  level, even if it's a data slot — matches spec
+     *  OrdinarySetWithOwnDescriptor semantics. */
+    private static AccessorSlot findAccessorInChain(ObjectLike obj, String name) {
+        ObjectLike current = obj;
+        while (current != null) {
+            PropertySlot s = null;
+            if (current instanceof JsObject jo) {
+                s = jo.getOwnSlot(name);
+            } else if (current instanceof JsArray ja) {
+                s = ja.getOwnSlot(name);
+            } else if (current instanceof Prototype p) {
+                AccessorSlot acc = p.getOwnAccessorSlot(name);
+                if (acc != null) return acc;
+            }
+            if (s instanceof AccessorSlot acc) return acc;
+            if (s != null) return null; // own data slot — accessor lookup stops here
+            current = current.getPrototype();
+        }
+        return null;
     }
 
     private static Object accessViaBridge(Object object, String name, CoreContext context, boolean functionCall) {

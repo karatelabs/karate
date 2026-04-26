@@ -27,7 +27,29 @@ import java.util.Map;
 
 public interface ObjectLike {
 
+    /**
+     * Raw-value accessor — returns the stored data value, or {@code null}
+     * for accessor descriptors (which have no extractable raw value).
+     * Internal map / Java-interop callers (toMap, Map.get, jsEntries) and
+     * subclass {@code super.getMember(name)} chains use this.
+     * <p>
+     * For JS-semantic reads that must invoke an accessor's getter, use
+     * {@link #getMember(String, Object, CoreContext)} instead.
+     */
     Object getMember(String name);
+
+    /**
+     * JS-semantic resolved read. For data descriptors returns the value;
+     * for accessor descriptors invokes the getter with {@code receiver}
+     * bound as {@code this}. {@code receiver} is the object the property
+     * is being read on (may differ from {@code this} when walking a
+     * prototype chain). {@code ctx} threads through to the getter call.
+     * Default delegates to {@link #getMember(String)} — implementations
+     * with accessor storage ({@link JsObject}, {@link JsArray}) override.
+     */
+    default Object getMember(String name, Object receiver, CoreContext ctx) {
+        return getMember(name);
+    }
 
     void putMember(String name, Object value);
 

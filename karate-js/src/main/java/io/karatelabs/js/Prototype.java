@@ -134,7 +134,13 @@ abstract class Prototype implements ObjectLike {
     @Override
     public final Object getMember(String name) {
         if (userProps != null && userProps.containsKey(name)) {
-            return userProps.get(name);
+            Object v = userProps.get(name);
+            // Accessor descriptors stored via Object.defineProperty on a
+            // prototype surface as AccessorSlot in userProps. Raw-value
+            // semantics: callers without a receiver/ctx see null;
+            // {@link #getMember(String, Object, CoreContext)} resolves
+            // the getter.
+            return v instanceof AccessorSlot ? null : v;
         }
         if (tombstones == null || !tombstones.contains(name)) {
             Object result = builtins.get(name);
@@ -153,6 +159,69 @@ abstract class Prototype implements ObjectLike {
             return __proto__.getMember(name);
         }
         return null;
+    }
+
+    @Override
+    public Object getMember(String name, Object receiver, CoreContext ctx) {
+        if (userProps != null && userProps.containsKey(name)) {
+            Object v = userProps.get(name);
+            if (v instanceof AccessorSlot acc) {
+                return acc.read(receiver, ctx);
+            }
+            return v;
+        }
+        if (tombstones == null || !tombstones.contains(name)) {
+            Object result = builtins.get(name);
+            if (result instanceof LazyRef lr) {
+                result = lr.supplier.get();
+                builtins.put(name, result);
+            }
+            if (result != null) {
+                return result;
+            }
+        }
+        if (__proto__ != null) {
+            return __proto__.getMember(name, receiver, ctx);
+        }
+        return null;
+    }
+
+    /** Installs (or updates) an accessor descriptor at {@code name} in
+     *  {@link #userProps}. Stored as the {@link AccessorSlot} itself —
+     *  {@link #getMember(String, Object, CoreContext)} detects the slot
+     *  and routes through {@link AccessorSlot#read}. Used by
+     *  {@code Object.defineProperty} when the target is a prototype
+     *  (e.g. {@code Object.defineProperty(String.prototype, "x", {get: …})}). */
+    final void defineOwnAccessor(String name, JsCallable getter, JsCallable setter, byte attrs) {
+        if (userProps == null) {
+            userProps = new LinkedHashMap<>();
+        }
+        Object existing = userProps.get(name);
+        AccessorSlot s;
+        if (existing instanceof AccessorSlot as) {
+            s = as;
+        } else {
+            s = new AccessorSlot(name);
+            userProps.put(name, s);
+        }
+        s.getter = getter;
+        s.setter = setter;
+        s.attrs = attrs;
+        if (tombstones != null) {
+            tombstones.remove(name);
+        }
+    }
+
+    /** Returns the {@link AccessorSlot} at {@code name} when one is
+     *  installed via {@link #defineOwnAccessor}, otherwise {@code null}.
+     *  Used by descriptor-inspection paths
+     *  ({@link JsObjectConstructor#getOwnPropertyDescriptor}) and the
+     *  prototype-chain accessor walk in
+     *  {@link PropertyAccess#findAccessorInChain}. */
+    final AccessorSlot getOwnAccessorSlot(String name) {
+        if (userProps == null) return null;
+        Object v = userProps.get(name);
+        return v instanceof AccessorSlot acc ? acc : null;
     }
 
     /** Install a built-in method. The {@link JsBuiltinMethod} wrapper is

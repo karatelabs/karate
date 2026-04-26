@@ -25,15 +25,9 @@ package io.karatelabs.js;
 
 /**
  * Accessor PropertyDescriptor — ES 6.2.5.1. Holds {@link #getter} and
- * {@link #setter} callables; {@link Slot#value} is unused. {@link #read}
- * invokes the getter (or returns {@code undefined} if get-only is missing);
- * {@link #write} invokes the setter (or fails per strict-mode policy if
- * set-only is missing).
- *
- * <p>Used in the Slot storage layer once {@code JsAccessor} is removed
- * (mega-commit 2H — PropertyAccess unify). Until then, accessor descriptors
- * remain stored as {@code DataSlot.value = JsAccessor(...)} for
- * compatibility with existing read seams in {@code PropertyAccess.java}.
+ * {@link #setter} callables. {@link #read} invokes the getter (or returns
+ * {@code undefined} if get-only is missing); {@link #write} invokes the
+ * setter (or fails per strict-mode policy if set-only is missing).
  */
 final class AccessorSlot extends PropertySlot {
 
@@ -57,7 +51,7 @@ final class AccessorSlot extends PropertySlot {
 
     @Override
     Object read(Object receiver, CoreContext ctx) {
-        if (getter == null) {
+        if (getter == null || ctx == null) {
             return Terms.UNDEFINED;
         }
         return Interpreter.invokeGetter(getter, receiver, ctx);
@@ -72,7 +66,14 @@ final class AccessorSlot extends PropertySlot {
             }
             return;
         }
-        Interpreter.invokeSetter(setter, receiver, newValue, ctx);
+        if (ctx != null) {
+            Interpreter.invokeSetter(setter, receiver, newValue, ctx);
+        }
+    }
+
+    @Override
+    public String toString() {
+        return name + "={get=" + getter + ", set=" + setter + "}";
     }
 
 }

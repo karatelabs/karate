@@ -111,10 +111,13 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     @Override
     public Object getMember(String name) {
-        // 1. Check named properties first (stored in namedProps)
+        // 1. Check named properties first (stored in namedProps).
+        //    Accessor slots have no extractable raw value at this seam —
+        //    surface as null. JS-semantic reads (PropertyAccess) use the
+        //    receiver-aware overload, which routes through slot.read.
         if (namedProps != null) {
             PropertySlot s = namedProps.get(name);
-            if (s != null) return s.value;
+            if (s != null) return s instanceof DataSlot ds ? ds.value : null;
         }
         // 2. Special case: length property
         if ("length".equals(name)) {
@@ -160,6 +163,31 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         return null;
     }
 
+    @Override
+    public Object getMember(String name, Object receiver, CoreContext ctx) {
+        if (namedProps != null) {
+            PropertySlot s = namedProps.get(name);
+            if (s != null) return s.read(receiver, ctx);
+        }
+        // Virtual 1-arg dispatch — lets subclasses (e.g. JsUint8Array's
+        // {@code length}) surface their own intrinsics. 1-arg returns null
+        // for accessor descriptors on the prototype chain (raw-value
+        // semantic); fall through to the 3-arg proto walk to resolve.
+        Object viaSubclass = this.getMember(name);
+        if (viaSubclass != null) return viaSubclass;
+        if (__proto__ != null) {
+            return __proto__.getMember(name, receiver, ctx);
+        }
+        return null;
+    }
+
+    /** Returns the own slot for {@code name} in {@link #namedProps}, or
+     *  {@code null} if absent. Package-private — used by descriptor
+     *  inspection paths that need slot identity. */
+    PropertySlot getOwnSlot(String name) {
+        return namedProps == null ? null : namedProps.get(name);
+    }
+
     private static int parseIndex(String s) {
         // Strict canonical-integer parse: rejects "01", "+1", "-1", "1.0".
         // Spec: an array index is a String whose value is a CanonicalNumericIndexString
@@ -198,29 +226,32 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             handleLengthAssign(value, null);
             return;
         }
+        // Existing accessor: invoke the setter (lenient — get-only accessors
+        // silently drop the write). No ctx on this entry point — reach the
+        // ctx-aware path via PropertyAccess.setByName for live setters.
+        PropertySlot existing = namedProps == null ? null : namedProps.get(name);
+        if (existing instanceof AccessorSlot acc) {
+            acc.write(this, value, null, false);
+            return;
+        }
         // Per-property writable=false: silently ignore (lenient mode — strict-mode
         // TypeError flip lives elsewhere). Mirrors JsObject.putMember's check.
-        PropertySlot existing = namedProps == null ? null : namedProps.get(name);
         if (existing != null && !existing.isWritable()) {
             return;
         }
-        // Numeric index write — write into the dense list (and pad with HOLE if
-        // the index is past size, growing length per array-exotic semantics).
-        // Two slow-path exits land in namedProps instead:
-        //   - Descriptors: a JsAccessor value is a defineProperty install,
-        //     which must shadow the dense slot (PropertyAccess reads consult
-        //     namedProps first via getIndexedValue).
-        //   - Existing namedProps entry at this index: keep the override
-        //     active so the descriptor isn't silently lost.
+        // Numeric index write — fast path into the dense list (and pad with
+        // HOLE if past size, growing length per array-exotic semantics). Slow
+        // path (existing namedProps entry at this index) keeps the override
+        // active so a non-default attrs byte isn't silently lost.
         int i = parseIndex(name);
-        if (i >= 0 && existing == null && !(value instanceof JsAccessor)) {
+        if (i >= 0 && existing == null) {
             while (list.size() < i) list.add(HOLE);
             if (i < list.size()) list.set(i, value);
             else list.add(value);
             return;
         }
-        if (existing != null) {
-            existing.value = value;
+        if (existing instanceof DataSlot ds) {
+            ds.value = value;
         } else {
             if (namedProps == null) {
                 namedProps = new LinkedHashMap<>();
@@ -230,17 +261,17 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     }
 
     /**
-     * Low-level descriptor write used by {@code Object.defineProperty}. Bypasses
-     * the {@code [[Set]]} writable check (defineProperty is allowed to mutate
-     * non-writable data props subject to its own configurable rules, which the
-     * caller already validated). Stores the descriptor's writable / enumerable /
-     * configurable bits on the {@link Slot}'s {@code attrs} byte so subsequent
-     * reads via {@link #getOwnAttrs(String)} see them.
+     * Low-level data-descriptor write used by {@code Object.defineProperty}.
+     * Bypasses the {@code [[Set]]} writable check (defineProperty is
+     * allowed to mutate non-writable data props subject to its own
+     * configurable rules, which the caller already validated). Stores the
+     * descriptor's writable / enumerable / configurable bits on the
+     * {@link PropertySlot}'s {@code attrs} byte so subsequent reads via
+     * {@link #getOwnAttrs(String)} see them.
      * <p>
-     * Data descriptors at a numeric index land in the dense {@link #list};
-     * accessor descriptors and named (non-index) keys land in {@link #namedProps}
-     * — {@link #getIndexedValue} consults namedProps first, so an accessor at
-     * index 0 correctly shadows any dense value at the same slot.
+     * Data descriptors at a numeric index land in the dense {@link #list}
+     * (and reflect their attrs into {@link #namedProps} only when non-default).
+     * Named (non-index) keys live in {@link #namedProps}.
      * <p>
      * The {@code length} key routes through ArraySetLength: validates the value
      * as Uint32 (RangeError on invalid), truncates/extends accordingly, then
@@ -259,10 +290,11 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             return;
         }
         int i = parseIndex(name);
-        if (i >= 0 && !(value instanceof JsAccessor)) {
-            // Data descriptor at an array index: write into the dense list and
-            // clear any prior namedProps entry so the dense slot is the
-            // authoritative source on read. Pad past-end with HOLE to grow length.
+        if (i >= 0) {
+            // Data descriptor at an array index: write into the dense list
+            // and clear any prior namedProps entry so the dense slot is the
+            // authoritative source on read. Pad past-end with HOLE to grow
+            // length.
             if (namedProps != null) {
                 namedProps.remove(name);
             }
@@ -275,7 +307,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
                 if (namedProps == null) {
                     namedProps = new LinkedHashMap<>();
                 }
-                PropertySlot s = new DataSlot(name, value);
+                DataSlot s = new DataSlot(name, value);
                 s.attrs = attrs;
                 namedProps.put(name, s);
             }
@@ -283,15 +315,40 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             if (namedProps == null) {
                 namedProps = new LinkedHashMap<>();
             }
-            PropertySlot s = namedProps.get(name);
-            if (s == null) {
-                s = new DataSlot(name, value);
-                namedProps.put(name, s);
+            PropertySlot existing = namedProps.get(name);
+            DataSlot s;
+            if (existing instanceof DataSlot ds) {
+                s = ds;
             } else {
-                s.value = value;
+                s = new DataSlot(name);
+                namedProps.put(name, s);
             }
+            s.value = value;
             s.attrs = attrs;
         }
+    }
+
+    /**
+     * Low-level accessor-descriptor write. Installs (or updates) an
+     * {@link AccessorSlot} in {@link #namedProps} — accessor slots always
+     * shadow the dense list, so the canonical-string-form key works for
+     * both index and named keys.
+     */
+    void defineOwnAccessor(String name, JsCallable getter, JsCallable setter, byte attrs) {
+        if (namedProps == null) {
+            namedProps = new LinkedHashMap<>();
+        }
+        PropertySlot existing = namedProps.get(name);
+        AccessorSlot s;
+        if (existing instanceof AccessorSlot as) {
+            s = as;
+        } else {
+            s = new AccessorSlot(name);
+            namedProps.put(name, s);
+        }
+        s.getter = getter;
+        s.setter = setter;
+        s.attrs = attrs;
     }
 
     /**
@@ -464,11 +521,12 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     public Map<String, Object> toMap() {
         // Arrays don't typically convert to maps; surface namedProps' values
         // (the value-side of each Slot, excluding any pure-attrs slots that
-        // carry no value override).
+        // carry no value override). Accessor slots have no extractable raw
+        // value at this Java-interop boundary; surface as null.
         if (namedProps == null || namedProps.isEmpty()) return Collections.emptyMap();
         Map<String, Object> view = new LinkedHashMap<>(namedProps.size());
         for (PropertySlot s : namedProps.values()) {
-            view.put(s.name, s.value);
+            view.put(s.name, s instanceof DataSlot ds ? ds.value : null);
         }
         return view;
     }
@@ -626,20 +684,20 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     /**
      * Indexed read that honors descriptors installed via
      * {@code Object.defineProperty(arr, i, {...})}. Such descriptors land in
-     * {@link #namedProps} under the canonical string-form key (e.g. {@code "0"})
-     * and take precedence over the dense {@link #list} backing store. Returns
-     * the raw stored value — including a {@link JsAccessor} when one was
-     * installed; the caller invokes the getter. Falls back to
+     * {@link #namedProps} under the canonical string-form key (e.g.
+     * {@code "0"}) and take precedence over the dense {@link #list} backing
+     * store. Resolves accessor descriptors via {@link PropertySlot#read}
+     * with {@code receiver} bound as {@code this}. Falls back to
      * {@link #getElement(int)} (which returns {@link Terms#UNDEFINED} for
      * out-of-bounds) when no descriptor is present.
      * <p>
      * Hot path: {@code namedProps == null} for plain arrays — single null
      * check, no allocation, then the existing fast path.
      */
-    Object getIndexedValue(int index) {
+    Object getIndexedValue(int index, Object receiver, CoreContext ctx) {
         if (namedProps != null && index >= 0) {
             PropertySlot s = namedProps.get(Integer.toString(index));
-            if (s != null) return s.value;
+            if (s != null) return s.read(receiver, ctx);
         }
         return getElement(index);
     }

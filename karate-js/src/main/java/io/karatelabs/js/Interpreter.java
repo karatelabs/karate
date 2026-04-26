@@ -916,7 +916,7 @@ class Interpreter {
 
     private static Object evalLitObject(Node node, CoreContext context) {
         int last = node.size() - 1;
-        Map<String, Object> result = new JsObject(new LinkedHashMap<>(last - 1));
+        JsObject result = new JsObject(new LinkedHashMap<>(last - 1));
         for (int i = 1; i < last; i++) {
             Node elem = node.get(i);
             Node keyNode = elem.getFirst();
@@ -1009,7 +1009,7 @@ class Interpreter {
         return -1;
     }
 
-    private static void evalAccessorElem(Node elem, String kind, CoreContext context, Map<String, Object> result) {
+    private static void evalAccessorElem(Node elem, String kind, CoreContext context, JsObject target) {
         int fnPos = accessorFnExprPosition(elem);
         // Key is at position 1 (IDENT/STRING/NUMBER) or [L_BRACKET, EXPR, R_BRACKET]
         // starting at position 1.
@@ -1028,16 +1028,21 @@ class Interpreter {
         if (!(fn instanceof JsCallable callable)) {
             return; // defensive; evalFnExpr always returns a JsFunctionNode
         }
-        Object existing = result.get(key);
-        JsAccessor acc = existing instanceof JsAccessor ea
-                ? ea
-                : new JsAccessor(null, null);
+        // Merge with any existing accessor at this key — {get foo(){...},
+        // set foo(v){...}} keeps both halves on the same AccessorSlot.
+        // Object-literal accessors are non-writable per spec; use E|C only.
+        PropertySlot existing = target.getOwnSlot(key);
+        JsCallable getter = existing instanceof AccessorSlot ea ? ea.getter : null;
+        JsCallable setter = existing instanceof AccessorSlot ea ? ea.setter : null;
         if ("get".equals(kind)) {
-            acc.getter = callable;
+            getter = callable;
         } else {
-            acc.setter = callable;
+            setter = callable;
         }
-        result.put(key, acc);
+        target.defineOwnAccessor(key,
+                getter,
+                setter,
+                (byte) (PropertySlot.ENUMERABLE | PropertySlot.CONFIGURABLE));
     }
 
     private static String evalLitTemplate(Node node, CoreContext context) {

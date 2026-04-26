@@ -305,7 +305,7 @@ class JsObjectConstructor extends JsFunction {
         if (!isOwnKey(args[0], prop)) {
             return Terms.UNDEFINED;
         }
-        return buildDescriptor(ownGet(args[0], prop), ownAttrs(args[0], prop));
+        return buildDescriptor(args[0], prop, ownAttrs(args[0], prop));
     }
 
     private Object getOwnPropertyDescriptors(Object[] args) {
@@ -329,7 +329,7 @@ class JsObjectConstructor extends JsFunction {
             }
         }
         for (String key : keys) {
-            result.put(key, buildDescriptor(ownGet(args[0], key), ownAttrs(args[0], key)));
+            result.put(key, buildDescriptor(args[0], key, ownAttrs(args[0], key)));
         }
         return result;
     }
@@ -355,22 +355,40 @@ class JsObjectConstructor extends JsFunction {
 
     /**
      * Build the descriptor object returned by {@code getOwnPropertyDescriptor}.
-     * If the slot holds a {@link JsAccessor}, return the accessor shape
-     * ({@code get / set / enumerable / configurable}); otherwise return the
-     * data shape ({@code value / writable / enumerable / configurable}).
+     * Routes through {@link #ownAccessorSlot} — if an accessor descriptor
+     * lives at {@code key}, return the accessor shape ({@code get / set /
+     * enumerable / configurable}); otherwise return the data shape
+     * ({@code value / writable / enumerable / configurable}).
      */
-    private static Map<String, Object> buildDescriptor(Object value, byte attrs) {
+    private static Map<String, Object> buildDescriptor(Object obj, String key, byte attrs) {
         Map<String, Object> desc = new LinkedHashMap<>();
-        if (value instanceof JsAccessor acc) {
+        AccessorSlot acc = ownAccessorSlot(obj, key);
+        if (acc != null) {
             desc.put("get", acc.getter == null ? Terms.UNDEFINED : acc.getter);
             desc.put("set", acc.setter == null ? Terms.UNDEFINED : acc.setter);
         } else {
-            desc.put("value", value);
+            desc.put("value", ownGet(obj, key));
             desc.put("writable", (attrs & JsObject.WRITABLE) != 0);
         }
         desc.put("enumerable", (attrs & JsObject.ENUMERABLE) != 0);
         desc.put("configurable", (attrs & JsObject.CONFIGURABLE) != 0);
         return desc;
+    }
+
+    /** Returns the own {@link AccessorSlot} at {@code key} when one exists,
+     *  {@code null} otherwise (own data property, missing, or unsupported
+     *  type). Mirrors {@link PropertyAccess#findAccessorInChain} but
+     *  scoped to own properties only. */
+    private static AccessorSlot ownAccessorSlot(Object obj, String key) {
+        PropertySlot s = null;
+        if (obj instanceof JsObject jo) {
+            s = jo.getOwnSlot(key);
+        } else if (obj instanceof JsArray ja) {
+            s = ja.getOwnSlot(key);
+        } else if (obj instanceof Prototype p) {
+            return p.getOwnAccessorSlot(key);
+        }
+        return s instanceof AccessorSlot acc ? acc : null;
     }
 
     @SuppressWarnings("unchecked")
@@ -386,15 +404,25 @@ class JsObjectConstructor extends JsFunction {
         }
         String prop = args[1].toString();
         Object desc = args[2];
+        ObjectLike descObj;
         Map<String, Object> descMap;
         if (desc instanceof ObjectLike ol) {
+            descObj = ol;
             descMap = ol.toMap();
         } else if (desc instanceof Map) {
+            descObj = null;
             descMap = (Map<String, Object>) desc;
         } else {
             throw JsErrorException.typeError("Property descriptor must be an object");
         }
         CoreContext cc = context instanceof CoreContext c ? c : null;
+        // Spec ToPropertyDescriptor reads each field via [[Get]] — for an
+        // ObjectLike descriptor, that resolves accessor entries (e.g.
+        // {get enumerable(){return true}}). The toMap snapshot above
+        // surfaces accessor slots as null; presence-checks via containsKey
+        // remain valid. Read field values via {@link #descRead}, which
+        // routes through the receiver-aware getMember when the descriptor
+        // is an ObjectLike.
         boolean hasGet = descMap.containsKey("get");
         boolean hasSet = descMap.containsKey("set");
         boolean hasValue = descMap.containsKey("value");
@@ -421,7 +449,7 @@ class JsObjectConstructor extends JsFunction {
         JsCallable newSetter = null;
         if (isAccessor) {
             if (hasGet) {
-                Object g = descMap.get("get");
+                Object g = descRead(descObj, descMap, "get", cc);
                 if (g != null && g != Terms.UNDEFINED) {
                     if (!(g instanceof JsCallable c)) {
                         throw JsErrorException.typeError("Getter must be a function");
@@ -430,7 +458,7 @@ class JsObjectConstructor extends JsFunction {
                 }
             }
             if (hasSet) {
-                Object s = descMap.get("set");
+                Object s = descRead(descObj, descMap, "set", cc);
                 if (s != null && s != Terms.UNDEFINED) {
                     if (!(s instanceof JsCallable c)) {
                         throw JsErrorException.typeError("Setter must be a function");
@@ -450,11 +478,12 @@ class JsObjectConstructor extends JsFunction {
         boolean isArrayLength = target instanceof JsArray && "length".equals(prop) && hasValue;
         Long coercedLength = null;
         if (isArrayLength) {
-            coercedLength = JsArray.coerceToUint32(descMap.get("value"), cc);
+            coercedLength = JsArray.coerceToUint32(descRead(descObj, descMap, "value", cc), cc);
         }
 
         Object existing = keyExists ? ownGet(target, prop) : null;
-        boolean existingIsAccessor = existing instanceof JsAccessor;
+        AccessorSlot existingAcc = keyExists ? ownAccessorSlot(target, prop) : null;
+        boolean existingIsAccessor = existingAcc != null;
         byte oldAttrs = ownAttrs(target, prop);
 
         // Compute new attribute byte. New keys default to all-false per spec
@@ -462,13 +491,13 @@ class JsObjectConstructor extends JsFunction {
         // from [[Set]]'s all-true defaults). Existing keys preserve missing fields.
         byte newAttrs = keyExists ? oldAttrs : 0;
         if (hasWritable) {
-            newAttrs = setBit(newAttrs, JsObject.WRITABLE, Terms.isTruthy(descMap.get("writable")));
+            newAttrs = setBit(newAttrs, JsObject.WRITABLE, Terms.isTruthy(descRead(descObj, descMap, "writable", cc)));
         }
         if (hasEnumerable) {
-            newAttrs = setBit(newAttrs, JsObject.ENUMERABLE, Terms.isTruthy(descMap.get("enumerable")));
+            newAttrs = setBit(newAttrs, JsObject.ENUMERABLE, Terms.isTruthy(descRead(descObj, descMap, "enumerable", cc)));
         }
         if (hasConfigurable) {
-            newAttrs = setBit(newAttrs, JsObject.CONFIGURABLE, Terms.isTruthy(descMap.get("configurable")));
+            newAttrs = setBit(newAttrs, JsObject.CONFIGURABLE, Terms.isTruthy(descRead(descObj, descMap, "configurable", cc)));
         }
         // Accessor descriptors carry no writable bit; clear it so the stored byte
         // reflects "not applicable" rather than a stale write/preserved truth.
@@ -495,10 +524,9 @@ class JsObjectConstructor extends JsFunction {
             }
             if (existingIsAccessor && isAccessor) {
                 // Accessor→accessor: get / set cannot change unless they match the existing.
-                JsAccessor exAcc = (JsAccessor) existing;
-                JsCallable mergedGet = hasGet ? newGetter : exAcc.getter;
-                JsCallable mergedSet = hasSet ? newSetter : exAcc.setter;
-                if (mergedGet != exAcc.getter || mergedSet != exAcc.setter) {
+                JsCallable mergedGet = hasGet ? newGetter : existingAcc.getter;
+                JsCallable mergedSet = hasSet ? newSetter : existingAcc.setter;
+                if (mergedGet != existingAcc.getter || mergedSet != existingAcc.setter) {
                     throw JsErrorException.typeError("Cannot redefine property: " + prop);
                 }
             } else if (!existingIsAccessor && isData) {
@@ -510,7 +538,7 @@ class JsObjectConstructor extends JsFunction {
                 }
                 // If !writable, value cannot change.
                 if (!oldWritable && hasValue) {
-                    Object newValue = isArrayLength ? coercedLength : descMap.get("value");
+                    Object newValue = isArrayLength ? coercedLength : descRead(descObj, descMap, "value", cc);
                     if (!Terms.eq(existing, newValue, true)) {
                         throw JsErrorException.typeError("Cannot redefine property: " + prop);
                     }
@@ -525,11 +553,10 @@ class JsObjectConstructor extends JsFunction {
             JsCallable getter = newGetter;
             JsCallable setter = newSetter;
             if (existingIsAccessor) {
-                JsAccessor exAcc = (JsAccessor) existing;
-                if (!hasGet) getter = exAcc.getter;
-                if (!hasSet) setter = exAcc.setter;
+                if (!hasGet) getter = existingAcc.getter;
+                if (!hasSet) setter = existingAcc.setter;
             }
-            applyDefine(target, prop, new JsAccessor(getter, setter), newAttrs);
+            applyDefineAccessor(target, prop, getter, setter, newAttrs);
         } else if (isArrayLength) {
             // Skip the generic applyDefine path — defineLength bypasses the
             // re-coercion that handleLengthAssign would run, since coercedLength
@@ -541,7 +568,7 @@ class JsObjectConstructor extends JsFunction {
                 throw JsErrorException.typeError("Cannot redefine property: length");
             }
         } else if (hasValue) {
-            applyDefine(target, prop, descMap.get("value"), newAttrs);
+            applyDefine(target, prop, descRead(descObj, descMap, "value", cc), newAttrs);
         } else if (!keyExists) {
             // New key created via attribute-only descriptor: spec says value defaults
             // to undefined.
@@ -560,6 +587,17 @@ class JsObjectConstructor extends JsFunction {
         return on ? (byte) (attrs | mask) : (byte) (attrs & ~mask);
     }
 
+    /** Spec ToPropertyDescriptor reads each field via [[Get]]. For an
+     *  ObjectLike descriptor, route through the receiver-aware getMember
+     *  so accessor descriptors on the descriptor itself dispatch through
+     *  their getter. For plain Java Maps, the snapshot is authoritative. */
+    private static Object descRead(ObjectLike descObj, Map<String, Object> descMap, String name, CoreContext ctx) {
+        if (descObj != null) {
+            return descObj.getMember(name, descObj, ctx);
+        }
+        return descMap.get(name);
+    }
+
     private static void applyDefine(Object target, String key, Object value, byte attrs) {
         if (target instanceof JsObject jo) {
             jo.defineOwn(key, value, attrs);
@@ -568,6 +606,22 @@ class JsObjectConstructor extends JsFunction {
         } else {
             ownPut(target, key, value);
         }
+    }
+
+    private static void applyDefineAccessor(Object target, String key, JsCallable getter, JsCallable setter, byte attrs) {
+        if (target instanceof JsObject jo) {
+            jo.defineOwnAccessor(key, getter, setter, attrs);
+        } else if (target instanceof JsArray ja) {
+            ja.defineOwnAccessor(key, getter, setter, attrs);
+        } else if (target instanceof Prototype p) {
+            // Prototype surface (e.g. String.prototype, Array.prototype) needs
+            // accessor support so {@code Object.defineProperty(Foo.prototype,
+            // "x", {get: …})} works — instances inheriting from the prototype
+            // resolve the accessor via the chain walk in PropertyAccess.
+            p.defineOwnAccessor(key, getter, setter, attrs);
+        }
+        // Other ObjectLikes (Map, raw List, etc.) don't model accessor
+        // descriptors. No reachable test path exercises that today.
     }
 
     private static byte ownAttrs(Object obj, String key) {

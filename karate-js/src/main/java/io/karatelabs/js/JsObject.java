@@ -152,7 +152,10 @@ class JsObject implements ObjectLike, Map<String, Object> {
             if (s.tombstoned) {
                 return __proto__ != null ? __proto__.getMember(name) : null;
             }
-            return s.value;
+            // Raw-value semantic: AccessorSlot has no extractable value.
+            // JS-semantic reads (PropertyAccess) use the receiver-aware
+            // overload, which routes through slot.read.
+            return s instanceof DataSlot ds ? ds.value : null;
         }
         if ("__proto__".equals(name)) {
             return __proto__;
@@ -161,6 +164,44 @@ class JsObject implements ObjectLike, Map<String, Object> {
             return __proto__.getMember(name);
         }
         return null;
+    }
+
+    @Override
+    public Object getMember(String name, Object receiver, CoreContext ctx) {
+        PropertySlot s = props == null ? null : props.get(name);
+        if (s != null) {
+            if (s.tombstoned) {
+                return __proto__ != null ? __proto__.getMember(name, receiver, ctx) : null;
+            }
+            return s.read(receiver, ctx);
+        }
+        if ("__proto__".equals(name)) {
+            return __proto__;
+        }
+        // Virtual 1-arg dispatch lets subclasses (JsFunction, JsString,
+        // JsRegex, …) surface their intrinsic resolution (prototype / name /
+        // length / built-in methods) before the prototype walk. 1-arg returns
+        // null for any accessor descriptor encountered up the chain (raw-value
+        // semantic) — fall through to the 3-arg proto walk so accessors on a
+        // built-in constructor's prototype (e.g. via
+        // {@code Object.defineProperty(String.prototype, …)}) resolve via
+        // {@link AccessorSlot#read}.
+        Object viaSubclass = this.getMember(name);
+        if (viaSubclass != null) return viaSubclass;
+        if (__proto__ != null) {
+            return __proto__.getMember(name, receiver, ctx);
+        }
+        return null;
+    }
+
+    /** Returns the own slot for {@code name}, or {@code null} when absent or
+     *  tombstoned. Package-private — callers (defineProperty, the literal-
+     *  accessor merge in {@link Interpreter}) need slot identity to inspect
+     *  or mutate the descriptor in place. */
+    PropertySlot getOwnSlot(String name) {
+        PropertySlot s = props == null ? null : props.get(name);
+        if (s == null || s.tombstoned) return null;
+        return s;
     }
 
     /**
@@ -227,6 +268,15 @@ class JsObject implements ObjectLike, Map<String, Object> {
         if (nonExtensible && !keyExists && !intrinsic) {
             return;
         }
+        // Existing accessor descriptor: invoke the setter (lenient — get-only
+        // accessors silently drop the write; strict-mode TypeError flip lives
+        // elsewhere). No context available on this entry point — accessor
+        // setters that need ctx must be reached via the receiver-aware path
+        // in {@link PropertyAccess#setByName}, which threads it.
+        if (keyExists && s instanceof AccessorSlot acc) {
+            acc.write(this, value, null, false);
+            return;
+        }
         // Per-property writable=false: silently ignore the [[Set]]. Spec says
         // throw under strict; we're non-strict by default.
         if (keyExists && !s.isWritable()) {
@@ -242,7 +292,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
             props.put(name, new DataSlot(name, value));
         } else {
             // Reuse the slot — clears any tombstone, preserves attrs.
-            s.value = value;
+            ((DataSlot) s).value = value;
             s.tombstoned = false;
         }
     }
@@ -284,9 +334,10 @@ class JsObject implements ObjectLike, Map<String, Object> {
         return s != null && s.attrs != ATTRS_DEFAULT;
     }
 
-    /** Stores the attribute byte for {@code name} on its slot. Creates a slot
-     *  if absent (rare — defineProperty path uses {@link #defineOwn} which sets
-     *  both value and attrs). */
+    /** Stores the attribute byte for {@code name} on its slot. Creates a
+     *  data slot if absent (rare — defineProperty path uses
+     *  {@link #defineOwn} / {@link #defineOwnAccessor} which set both value
+     *  and attrs). */
     void setAttrs(String name, byte attrs) {
         PropertySlot s = props == null ? null : props.get(name);
         if (s == null) {
@@ -318,22 +369,53 @@ class JsObject implements ObjectLike, Map<String, Object> {
     }
 
     /**
-     * Low-level descriptor write used by {@code Object.defineProperty}. Bypasses
-     * the {@code [[Set]]} writable check (defineProperty is allowed to mutate
-     * non-writable data props subject to its own configurable rules, which the
-     * caller already validated). Caller is responsible for extensibility +
-     * configurability checks.
+     * Low-level data-descriptor write used by {@code Object.defineProperty}.
+     * Bypasses the {@code [[Set]]} writable check (defineProperty is allowed
+     * to mutate non-writable data props subject to its own configurable
+     * rules, which the caller already validated). Caller is responsible for
+     * extensibility + configurability checks.
+     * <p>
+     * Replaces any prior accessor slot at this name with a fresh
+     * {@link DataSlot} — switching descriptor shape is the caller's
+     * responsibility (configurability is enforced upstream).
      */
     void defineOwn(String name, Object value, byte attrs) {
         if (props == null) {
             props = new LinkedHashMap<>();
         }
-        PropertySlot s = props.get(name);
-        if (s == null) {
+        PropertySlot existing = props.get(name);
+        DataSlot s;
+        if (existing instanceof DataSlot ds) {
+            s = ds;
+        } else {
             s = new DataSlot(name);
             props.put(name, s);
         }
         s.value = value;
+        s.attrs = attrs;
+        s.tombstoned = false;
+    }
+
+    /**
+     * Low-level accessor-descriptor write. Installs (or updates) an
+     * {@link AccessorSlot} at {@code name}. Replaces any prior data slot —
+     * configurability is enforced upstream by
+     * {@code Object.defineProperty}.
+     */
+    void defineOwnAccessor(String name, JsCallable getter, JsCallable setter, byte attrs) {
+        if (props == null) {
+            props = new LinkedHashMap<>();
+        }
+        PropertySlot existing = props.get(name);
+        AccessorSlot s;
+        if (existing instanceof AccessorSlot as) {
+            s = as;
+        } else {
+            s = new AccessorSlot(name);
+            props.put(name, s);
+        }
+        s.getter = getter;
+        s.setter = setter;
         s.attrs = attrs;
         s.tombstoned = false;
     }
@@ -379,7 +461,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
                 if (s.tombstoned) continue;
                 s.attrs &= ~CONFIGURABLE;
                 // writable is N/A for accessor properties — only clear on data slots.
-                if (!(s.value instanceof JsAccessor)) {
+                if (s instanceof DataSlot) {
                     s.attrs &= ~WRITABLE;
                 }
             }
@@ -456,16 +538,19 @@ class JsObject implements ObjectLike, Map<String, Object> {
             // "shine through" and `hasOwnProperty` would incorrectly report it
             // as own. The tombstone shadows the intrinsic; a later assignment
             // (`Math.abs = Y`) clears the tombstone in putMember.
-            if (s == null) {
+            DataSlot ds;
+            if (s instanceof DataSlot existing) {
+                ds = existing;
+            } else {
                 if (props == null) {
                     props = new LinkedHashMap<>();
                 }
-                s = new DataSlot(name);
-                props.put(name, s);
+                ds = new DataSlot(name);
+                props.put(name, ds);
             }
-            s.value = null;
-            s.attrs = ATTRS_DEFAULT;
-            s.tombstoned = true;
+            ds.value = null;
+            ds.attrs = ATTRS_DEFAULT;
+            ds.tombstoned = true;
         } else {
             props.remove(name);
         }
@@ -476,11 +561,13 @@ class JsObject implements ObjectLike, Map<String, Object> {
         if (props == null || props.isEmpty()) return Collections.emptyMap();
         // Surface non-tombstoned slots as a name → value map. Built fresh —
         // callers iterating heavily should cache the result. (jsEntries reads
-        // props directly to avoid the rebuild.)
+        // props directly to avoid the rebuild.) Accessor slots have no
+        // extractable raw value at this Java-interop boundary; surface them
+        // as null entries.
         Map<String, Object> view = new LinkedHashMap<>(props.size());
         for (PropertySlot s : props.values()) {
             if (!s.tombstoned) {
-                view.put(s.name, s.value);
+                view.put(s.name, s instanceof DataSlot ds ? ds.value : null);
             }
         }
         return view;
@@ -516,7 +603,10 @@ class JsObject implements ObjectLike, Map<String, Object> {
         if (props == null) return false;
         for (PropertySlot s : props.values()) {
             if (s.tombstoned) continue;
-            Object unwrapped = Engine.toJava(s.value);
+            // Accessor slots have no raw value at the Java-interop boundary
+            // — they're skipped (matches null-ish containsValue semantics).
+            if (!(s instanceof DataSlot ds)) continue;
+            Object unwrapped = Engine.toJava(ds.value);
             if (Objects.equals(unwrapped, value)) {
                 return true;
             }
@@ -527,9 +617,10 @@ class JsObject implements ObjectLike, Map<String, Object> {
     @Override
     public Object get(Object key) {
         // Map.get() — auto-unwrap, own properties only (no prototype chain).
+        // Accessor slots have no raw value; surface as null.
         PropertySlot s = props == null || !(key instanceof String name) ? null : props.get(name);
         if (s == null || s.tombstoned) return null;
-        return Engine.toJava(s.value);
+        return s instanceof DataSlot ds ? Engine.toJava(ds.value) : null;
     }
 
     @Override
@@ -539,12 +630,18 @@ class JsObject implements ObjectLike, Map<String, Object> {
         }
         PropertySlot s = props.get(key);
         Object previous = null;
-        if (s == null) {
-            props.put(key, new DataSlot(key, value));
+        if (s instanceof DataSlot ds && !ds.tombstoned) {
+            previous = ds.value;
+        }
+        if (s instanceof DataSlot ds) {
+            ds.value = value;
+            ds.tombstoned = false;
         } else {
-            previous = s.tombstoned ? null : s.value;
-            s.value = value;
-            s.tombstoned = false;
+            // Replace any prior accessor slot (or absent slot) with a fresh
+            // data slot. Configurability checks belong to defineProperty;
+            // this path is the Map-interface back door, used by user-side
+            // Java code and by the literal-object init path.
+            props.put(key, new DataSlot(key, value));
         }
         return Engine.toJava(previous);
     }
@@ -554,7 +651,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
         if (props == null || !(key instanceof String name)) return null;
         PropertySlot s = props.remove(name);
         if (s == null || s.tombstoned) return null;
-        return Engine.toJava(s.value);
+        return s instanceof DataSlot ds ? Engine.toJava(ds.value) : null;
     }
 
     @Override
@@ -589,7 +686,8 @@ class JsObject implements ObjectLike, Map<String, Object> {
         if (props == null || props.isEmpty()) return Collections.emptyList();
         List<Object> unwrapped = new ArrayList<>(props.size());
         for (PropertySlot s : props.values()) {
-            if (!s.tombstoned) unwrapped.add(Engine.toJava(s.value));
+            if (s.tombstoned) continue;
+            unwrapped.add(s instanceof DataSlot ds ? Engine.toJava(ds.value) : null);
         }
         return unwrapped;
     }
@@ -600,7 +698,8 @@ class JsObject implements ObjectLike, Map<String, Object> {
         Set<Entry<String, Object>> out = new LinkedHashSet<>(props.size());
         for (PropertySlot s : props.values()) {
             if (s.tombstoned) continue;
-            out.add(new AbstractMap.SimpleEntry<>(s.name, Engine.toJava(s.value)));
+            Object v = s instanceof DataSlot ds ? Engine.toJava(ds.value) : null;
+            out.add(new AbstractMap.SimpleEntry<>(s.name, v));
         }
         return out;
     }
@@ -663,9 +762,14 @@ class JsObject implements ObjectLike, Map<String, Object> {
                 }
                 PropertySlot s = peeked;
                 peeked = null;
-                // Read s.value at yield time so callback-driven mutations
-                // before the next next() call propagate.
-                return new KeyValue(JsObject.this, index++, s.name, s.value);
+                // Read at yield time so callback-driven mutations before
+                // the next next() call propagate. Accessor slots surface
+                // null at this seam (no context to invoke the getter).
+                // Spec-correct {Object.keys/values/entries} on accessor
+                // properties would need a ctx-aware iteration variant;
+                // a separate concern.
+                Object v = s instanceof DataSlot ds ? ds.value : null;
+                return new KeyValue(JsObject.this, index++, s.name, v);
             }
         };
     }
