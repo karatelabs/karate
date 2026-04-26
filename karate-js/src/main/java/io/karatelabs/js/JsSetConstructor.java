@@ -36,24 +36,18 @@ class JsSetConstructor extends JsFunction {
     private JsSetConstructor() {
         this.name = "Set";
         // length=0 — Set() takes optional iterable; spec arity is 0.
+        installIntrinsics();
         registerForEngineReset();
     }
 
-    @Override
-    public Object getMember(String name) {
-        return switch (name) {
-            case "prototype" -> JsSetPrototype.INSTANCE;
-            default -> super.getMember(name);
-        };
+    private void installIntrinsics() {
+        defineOwn("prototype", JsSetPrototype.INSTANCE, PropertySlot.INTRINSIC);
     }
 
     @Override
-    public byte getOwnAttrs(String name) {
-        if ("prototype".equals(name)) {
-            // Built-in constructor prototype: all-false.
-            return 0;
-        }
-        return super.getOwnAttrs(name);
+    protected void clearEngineState() {
+        super.clearEngineState();
+        installIntrinsics();
     }
 
     @Override

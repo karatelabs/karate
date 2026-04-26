@@ -42,31 +42,18 @@ class JsFunctionConstructor extends JsFunction {
     private JsFunctionConstructor() {
         this.name = "Function";
         this.length = 1;
+        installIntrinsics();
         registerForEngineReset();
     }
 
-    @Override
-    public Object getMember(String name) {
-        return switch (name) {
-            case "prototype" -> JsFunctionPrototype.INSTANCE;
-            default -> super.getMember(name);
-        };
+    private void installIntrinsics() {
+        defineOwn("prototype", JsFunctionPrototype.INSTANCE, PropertySlot.INTRINSIC);
     }
 
     @Override
-    public boolean hasOwnIntrinsic(String name) {
-        // Function.prototype / .length / .name are all own intrinsics
-        return super.hasOwnIntrinsic(name);
-    }
-
-    @Override
-    public byte getOwnAttrs(String name) {
-        if ("prototype".equals(name)) {
-            // Built-in constructor prototype: all-false (overrides JsFunction's
-            // user-function default of WRITABLE).
-            return 0;
-        }
-        return super.getOwnAttrs(name);
+    protected void clearEngineState() {
+        super.clearEngineState();
+        installIntrinsics();
     }
 
     @Override

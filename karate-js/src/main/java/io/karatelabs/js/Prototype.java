@@ -30,38 +30,35 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Supplier;
 
 /**
- * Base class for JS prototype chains. Implements property lookup with inheritance.
- * <p>
- * Property resolution order in {@link #getMember(String)}:
- * <ol>
- *   <li>User-added properties ({@code userProps} map) — wins over built-ins per spec
- *       (Array.prototype methods are configurable: true, writable: true, so
- *       {@code Array.prototype.map = customFn} legitimately overrides)</li>
- *   <li>Call {@link #getBuiltinProperty(String)} - subclass-defined built-in properties</li>
- *   <li>If {@code getBuiltinProperty} returns {@code null}, delegate to {@code __proto__}</li>
- * </ol>
- * <p>
- * Subclasses override {@link #getBuiltinProperty(String)} and return:
+ * Base class for JS prototype chains. Implements property lookup with
+ * inheritance over a two-tier storage layout:
  * <ul>
- *   <li>A value - to handle the property at this level</li>
- *   <li>{@code null} - to delegate lookup to the parent prototype (__proto__)</li>
+ *   <li>{@link #builtins} — install-time map populated by the subclass
+ *       constructor via {@link #install(String, int, JsCallable)} /
+ *       {@link #install(String, Object)}. Survives across Engine sessions
+ *       (re-built only on first class-load); no per-Engine reset needed.</li>
+ *   <li>{@link #userProps} — user-added entries via {@code putMember}; cleared
+ *       per-Engine via {@link #clearAllUserProps}. Wins over {@link #builtins}
+ *       per spec ({@code Array.prototype} methods are configurable + writable).</li>
+ *   <li>{@link #tombstones} — names the user has deleted via
+ *       {@code delete Foo.prototype.bar}; suppress {@link #builtins} lookup.</li>
  * </ul>
  * <p>
- * Built-in prototypes are singletons but not frozen — user code may extend them
- * ({@code Array.prototype.myMethod = ...}) and the override will be visible to
- * all instances via prototype lookup. {@code removeMember} only removes from
- * {@code userProps}; built-in methods cannot be deleted.
+ * Method identity ({@code Foo.prototype.bar === Foo.prototype.bar}) follows
+ * naturally from the install map: each lookup returns the same wrapped
+ * {@link JsBuiltinMethod} instance.
  */
 abstract class Prototype implements ObjectLike {
 
     /**
-     * Built-in prototype singletons register themselves here at construction time.
-     * {@link Engine#Engine()} walks this list and clears each one's {@code userProps}
-     * so that prototype mutations (e.g. {@code Map.prototype.set = function() { throw ... }})
-     * inside one Engine instance don't bleed into the next. Required for test262 isolation —
-     * tests routinely overwrite built-in methods to probe construction internals.
+     * Built-in prototype singletons register themselves here at construction.
+     * {@link Engine#Engine()} walks this list to clear each one's user-side
+     * state ({@link #userProps} + {@link #tombstones}) so prototype mutations
+     * inside one Engine instance don't bleed into the next. Required for
+     * test262 isolation.
      */
     private static final List<Prototype> ALL = new CopyOnWriteArrayList<>();
 
@@ -73,34 +70,16 @@ abstract class Prototype implements ObjectLike {
             if (p.tombstones != null) {
                 p.tombstones.clear();
             }
-            if (p.methodCache != null) {
-                p.methodCache.clear();
-            }
         }
     }
 
     private final Prototype __proto__;
     private Map<String, Object> userProps;
-    /**
-     * Tombstones for built-in properties that the user has deleted via
-     * {@code delete Foo.prototype.bar}. Mirrors the {@code Slot.tombstoned}
-     * flag in {@link JsObject}: the underlying built-in resolution lives in
-     * subclass switches and has
-     * nothing for {@link #removeMember} to take out of {@link #userProps}, so we
-     * record the deletion here and have {@link #getMember} skip the built-in
-     * lookup when the name is tombstoned. A successful re-assignment via
-     * {@link #putMember} clears the tombstone.
-     */
     private Set<String> tombstones;
-    /**
-     * Per-Engine cache of {@link JsBuiltinMethod} instances returned by
-     * {@link #getBuiltinProperty(String)}. Caches keep
-     * {@code Foo.prototype.bar === Foo.prototype.bar} stable within a session
-     * and let tombstones target the same instance reads return. Cleared per
-     * Engine via {@link #clearAllUserProps()}; allocated on first method
-     * resolution so prototypes that expose only data slots stay zero-cost.
-     */
-    private Map<String, JsBuiltinMethod> methodCache;
+    /** Install-time built-in members. Populated by subclass constructors via
+     *  {@link #install} helpers. Treated as immutable post-construction —
+     *  user mutations land in {@link #userProps} and shadow these. */
+    private final Map<String, Object> builtins = new LinkedHashMap<>();
 
     Prototype(Prototype __proto__) {
         this.__proto__ = __proto__;
@@ -118,8 +97,6 @@ abstract class Prototype implements ObjectLike {
             userProps = new LinkedHashMap<>();
         }
         userProps.put(name, value);
-        // A successful write clears any tombstone — the key now exists again,
-        // mirroring JsObject.putMember.
         if (tombstones != null) {
             tombstones.remove(name);
         }
@@ -128,25 +105,19 @@ abstract class Prototype implements ObjectLike {
     @Override
     public void removeMember(String name) {
         if (tombstones != null && tombstones.contains(name)) {
-            return; // already gone
+            return;
         }
         boolean inUser = userProps != null && userProps.containsKey(name);
-        boolean isBuiltin = !inUser && getBuiltinProperty(name) != null;
+        boolean isBuiltin = !inUser && builtins.containsKey(name);
         if (!inUser && !isBuiltin) {
             return;
         }
-        // Spec built-in prototype methods are { configurable: true } — every
-        // built-in resolved here is configurable unless the subclass tightens
-        // it via getOwnAttrs. Honor that bit.
         if (isBuiltin && (getOwnAttrs(name) & JsObject.CONFIGURABLE) == 0) {
             return;
         }
         if (inUser) {
             userProps.remove(name);
         }
-        // Tombstone if there's an underlying built-in to shadow; without this,
-        // a subsequent `Array.prototype.push` lookup would re-resolve the
-        // built-in and `hasOwnProperty` would incorrectly report it as own.
         if (isBuiltin) {
             if (tombstones == null) {
                 tombstones = new HashSet<>();
@@ -162,84 +133,71 @@ abstract class Prototype implements ObjectLike {
 
     @Override
     public final Object getMember(String name) {
-        // 1. User-added properties win over built-ins (configurable: true per spec)
         if (userProps != null && userProps.containsKey(name)) {
             return userProps.get(name);
         }
-        // 2. Built-in properties defined by this prototype — but skip the lookup
-        // entirely when tombstoned (a `delete Foo.prototype.x` should not be
-        // silently undone by re-resolving the built-in).
         if (tombstones == null || !tombstones.contains(name)) {
-            Object result = lookupBuiltin(name);
+            Object result = builtins.get(name);
+            if (result instanceof LazyRef lr) {
+                // Cross-reference (e.g. `constructor` → JsXxxConstructor.INSTANCE)
+                // — resolved on first access since both singletons must exist
+                // by then. Cache the resolution to drop the indirection.
+                result = lr.supplier.get();
+                builtins.put(name, result);
+            }
             if (result != null) {
                 return result;
             }
         }
-        // 3. Delegate to __proto__ chain
         if (__proto__ != null) {
             return __proto__.getMember(name);
         }
         return null;
     }
 
-    /**
-     * Cache-aware wrapper for {@link #getBuiltinProperty(String)}. Returns the
-     * cached {@link JsBuiltinMethod} for {@code name} if present; otherwise calls
-     * the subclass's {@code getBuiltinProperty} and caches the result if it's a
-     * wrapped method. Non-method returns (data slots like {@code constructor}
-     * pointers) bypass the cache and are re-resolved each call.
-     */
-    private Object lookupBuiltin(String name) {
-        if (methodCache != null) {
-            JsBuiltinMethod cached = methodCache.get(name);
-            if (cached != null) return cached;
-        }
-        Object result = getBuiltinProperty(name);
-        if (result instanceof JsBuiltinMethod jbm) {
-            if (methodCache == null) {
-                methodCache = new LinkedHashMap<>();
-            }
-            methodCache.put(name, jbm);
-        }
-        return result;
+    /** Install a built-in method. The {@link JsBuiltinMethod} wrapper is
+     *  allocated lazily on first access (via {@link LazyRef}) — eager
+     *  allocation here would deadlock the static-init cycle between
+     *  {@link JsObjectPrototype} (which installs methods whose proto chain
+     *  walks through {@link JsFunctionPrototype}) and
+     *  {@link JsFunctionPrototype} (which extends Object.prototype). The
+     *  lazy resolution caches the wrapped instance in {@link #builtins} on
+     *  first read, so identity is preserved across subsequent reads. */
+    protected final void install(String name, int length, JsCallable delegate) {
+        builtins.put(name, new LazyRef(() -> new JsBuiltinMethod(name, length, delegate)));
+    }
+
+    /** Install a built-in data slot (e.g. {@code constructor} pointer). */
+    protected final void install(String name, Object value) {
+        builtins.put(name, value);
+    }
+
+    /** Install a built-in data slot whose value is resolved lazily on first
+     *  access. Use for cross-references between prototypes and constructors
+     *  (e.g. {@code Function.prototype.constructor} → {@code JsFunctionConstructor.INSTANCE})
+     *  where the {@code INSTANCE} field is still being initialized at the
+     *  moment of install but will be live by the time JS code reads it. */
+    protected final void installLazy(String name, Supplier<Object> resolver) {
+        builtins.put(name, new LazyRef(resolver));
+    }
+
+    private record LazyRef(Supplier<Object> supplier) {
     }
 
     /**
-     * Sugar for the canonical {@code new JsBuiltinMethod(name, length, delegate)}
-     * call used by {@link #getBuiltinProperty(String)} subclasses. Lets each
-     * case in the dispatch switch read like
-     * {@code case "push" -> method(name, 1, this::push)}.
-     */
-    protected JsBuiltinMethod method(String methodName, int length, JsCallable delegate) {
-        return new JsBuiltinMethod(methodName, length, delegate);
-    }
-
-    /**
-     * Spec attribute byte for an own property of this prototype. Built-in
-     * methods on every standard prototype carry
-     * {@code {writable: true, enumerable: false, configurable: true}}
-     * unless otherwise noted; this default returns
-     * {@code WRITABLE | CONFIGURABLE}. Subclasses with intrinsic data slots
-     * (e.g. {@code Math.PI}-style constants on a future prototype) override.
+     * Spec attribute byte for an own property. Built-in methods on every
+     * standard prototype carry {@code {writable: true, enumerable: false,
+     * configurable: true}} — the default returned here. Subclasses with
+     * intrinsic data slots requiring tighter attrs override.
      */
     public byte getOwnAttrs(String name) {
         return JsObject.WRITABLE | JsObject.CONFIGURABLE;
     }
 
     /**
-     * Returns the value for a built-in property, or {@code null} to delegate to parent prototype.
-     * Subclasses override this to provide their built-in methods and properties.
-     *
-     * @param name the property name
-     * @return the property value, or {@code null} to continue lookup in __proto__
-     */
-    protected abstract Object getBuiltinProperty(String name);
-
-    /**
-     * True iff {@code name} is an "own" property on this prototype itself (user-added or
-     * built-in). Used by {@code Object.prototype.hasOwnProperty} when the receiver is the
-     * prototype object — spec-required for {@code Date.prototype.hasOwnProperty('toString')}
-     * etc. to return true. Does NOT walk {@code __proto__}.
+     * True iff {@code name} is an "own" property on this prototype (user-added
+     * or built-in). Used by {@code Object.prototype.hasOwnProperty} when the
+     * receiver is the prototype object itself. Does NOT walk {@code __proto__}.
      */
     boolean hasOwnMember(String name) {
         if (tombstones != null && tombstones.contains(name)) {
@@ -248,7 +206,7 @@ abstract class Prototype implements ObjectLike {
         if (userProps != null && userProps.containsKey(name)) {
             return true;
         }
-        return getBuiltinProperty(name) != null;
+        return builtins.containsKey(name);
     }
 
 }

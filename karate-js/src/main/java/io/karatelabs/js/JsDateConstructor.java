@@ -33,71 +33,27 @@ class JsDateConstructor extends JsFunction {
 
     static final JsDateConstructor INSTANCE = new JsDateConstructor();
 
+    private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
+
     private JsDateConstructor() {
         this.name = "Date";
         this.length = 7;
+        installIntrinsics();
         registerForEngineReset();
     }
 
-    private java.util.Map<String, JsBuiltinMethod> methodCache;
-
-    @Override
-    public Object getMember(String name) {
-        if (isTombstoned(name) || ownContainsKey(name)) {
-            return super.getMember(name);
-        }
-        if (methodCache != null) {
-            JsBuiltinMethod cached = methodCache.get(name);
-            if (cached != null) return cached;
-        }
-        Object result = resolveMember(name);
-        if (result instanceof JsBuiltinMethod jbm) {
-            if (methodCache == null) {
-                methodCache = new java.util.HashMap<>();
-            }
-            methodCache.put(name, jbm);
-        }
-        return result;
-    }
-
-    private Object resolveMember(String name) {
-        return switch (name) {
-            case "now" -> method(name, 0, (JsInvokable) this::now);
-            case "parse" -> method(name, 1, (ctx, args) -> parse(args));
-            case "UTC" -> method(name, 7, (ctx, args) ->
-                    utcWithContext(ctx instanceof CoreContext c ? c : null, args));
-            case "prototype" -> JsDatePrototype.INSTANCE;
-            default -> super.getMember(name);
-        };
-    }
-
-    @Override
-    public boolean hasOwnIntrinsic(String name) {
-        return isDateMethod(name) || super.hasOwnIntrinsic(name);
-    }
-
-    @Override
-    public byte getOwnAttrs(String name) {
-        if (isDateMethod(name)) {
-            return WRITABLE | CONFIGURABLE;
-        }
-        if ("prototype".equals(name)) {
-            return 0;
-        }
-        return super.getOwnAttrs(name);
+    private void installIntrinsics() {
+        defineOwn("now", new JsBuiltinMethod("now", 0, (JsInvokable) this::now), METHOD_ATTRS);
+        defineOwn("parse", new JsBuiltinMethod("parse", 1, (JsCallable) (ctx, args) -> parse(args)), METHOD_ATTRS);
+        defineOwn("UTC", new JsBuiltinMethod("UTC", 7, (JsCallable) (ctx, args) ->
+                utcWithContext(ctx instanceof CoreContext c ? c : null, args)), METHOD_ATTRS);
+        defineOwn("prototype", JsDatePrototype.INSTANCE, PropertySlot.INTRINSIC);
     }
 
     @Override
     protected void clearEngineState() {
         super.clearEngineState();
-        if (methodCache != null) methodCache.clear();
-    }
-
-    private static boolean isDateMethod(String n) {
-        return switch (n) {
-            case "now", "parse", "UTC" -> true;
-            default -> false;
-        };
+        installIntrinsics();
     }
 
     @Override

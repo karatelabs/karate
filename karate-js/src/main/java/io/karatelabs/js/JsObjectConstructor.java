@@ -44,12 +44,38 @@ class JsObjectConstructor extends JsFunction {
 
     static final JsObjectConstructor INSTANCE = new JsObjectConstructor();
 
-    private java.util.Map<String, JsBuiltinMethod> methodCache;
+    private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
 
     private JsObjectConstructor() {
         this.name = "Object";
         this.length = 1;
+        installIntrinsics();
         registerForEngineReset();
+    }
+
+    private void installIntrinsics() {
+        defineOwn("keys", new JsBuiltinMethod("keys", 1, (JsInvokable) this::keys), METHOD_ATTRS);
+        defineOwn("values", new JsBuiltinMethod("values", 1, (JsInvokable) this::values), METHOD_ATTRS);
+        defineOwn("entries", new JsBuiltinMethod("entries", 1, (JsInvokable) this::entries), METHOD_ATTRS);
+        defineOwn("assign", new JsBuiltinMethod("assign", 2, (JsInvokable) this::assign), METHOD_ATTRS);
+        defineOwn("fromEntries", new JsBuiltinMethod("fromEntries", 1, (JsInvokable) this::fromEntries), METHOD_ATTRS);
+        defineOwn("is", new JsBuiltinMethod("is", 2, (JsInvokable) this::is), METHOD_ATTRS);
+        defineOwn("create", new JsBuiltinMethod("create", 2, (JsCallable) this::create), METHOD_ATTRS);
+        defineOwn("getPrototypeOf", new JsBuiltinMethod("getPrototypeOf", 1, (JsInvokable) this::getPrototypeOf), METHOD_ATTRS);
+        defineOwn("setPrototypeOf", new JsBuiltinMethod("setPrototypeOf", 2, (JsInvokable) this::setPrototypeOf), METHOD_ATTRS);
+        defineOwn("hasOwn", new JsBuiltinMethod("hasOwn", 2, (JsInvokable) this::hasOwn), METHOD_ATTRS);
+        defineOwn("getOwnPropertyNames", new JsBuiltinMethod("getOwnPropertyNames", 1, (JsInvokable) this::getOwnPropertyNames), METHOD_ATTRS);
+        defineOwn("getOwnPropertyDescriptor", new JsBuiltinMethod("getOwnPropertyDescriptor", 2, (JsInvokable) this::getOwnPropertyDescriptor), METHOD_ATTRS);
+        defineOwn("getOwnPropertyDescriptors", new JsBuiltinMethod("getOwnPropertyDescriptors", 1, (JsInvokable) this::getOwnPropertyDescriptors), METHOD_ATTRS);
+        defineOwn("defineProperty", new JsBuiltinMethod("defineProperty", 3, (JsCallable) this::defineProperty), METHOD_ATTRS);
+        defineOwn("defineProperties", new JsBuiltinMethod("defineProperties", 2, (JsCallable) this::defineProperties), METHOD_ATTRS);
+        defineOwn("isExtensible", new JsBuiltinMethod("isExtensible", 1, (JsInvokable) this::isExtensible), METHOD_ATTRS);
+        defineOwn("preventExtensions", new JsBuiltinMethod("preventExtensions", 1, (JsInvokable) this::preventExtensions), METHOD_ATTRS);
+        defineOwn("isSealed", new JsBuiltinMethod("isSealed", 1, (JsInvokable) this::isSealed), METHOD_ATTRS);
+        defineOwn("seal", new JsBuiltinMethod("seal", 1, (JsInvokable) this::seal), METHOD_ATTRS);
+        defineOwn("isFrozen", new JsBuiltinMethod("isFrozen", 1, (JsInvokable) this::isFrozen), METHOD_ATTRS);
+        defineOwn("freeze", new JsBuiltinMethod("freeze", 1, (JsInvokable) this::freeze), METHOD_ATTRS);
+        defineOwn("prototype", JsObjectPrototype.INSTANCE, PropertySlot.INTRINSIC);
     }
 
     @Override
@@ -74,86 +100,9 @@ class JsObjectConstructor extends JsFunction {
     }
 
     @Override
-    public Object getMember(String name) {
-        if (isTombstoned(name) || ownContainsKey(name)) {
-            return super.getMember(name);
-        }
-        if (methodCache != null) {
-            JsBuiltinMethod cached = methodCache.get(name);
-            if (cached != null) return cached;
-        }
-        Object result = resolveMember(name);
-        if (result instanceof JsBuiltinMethod jbm) {
-            if (methodCache == null) {
-                methodCache = new java.util.HashMap<>();
-            }
-            methodCache.put(name, jbm);
-        }
-        return result;
-    }
-
-    private Object resolveMember(String name) {
-        return switch (name) {
-            case "keys" -> method(name, 1, (JsInvokable) this::keys);
-            case "values" -> method(name, 1, (JsInvokable) this::values);
-            case "entries" -> method(name, 1, (JsInvokable) this::entries);
-            case "assign" -> method(name, 2, (JsInvokable) this::assign);
-            case "fromEntries" -> method(name, 1, (JsInvokable) this::fromEntries);
-            case "is" -> method(name, 2, (JsInvokable) this::is);
-            case "create" -> method(name, 2, (JsCallable) this::create);
-            case "getPrototypeOf" -> method(name, 1, (JsInvokable) this::getPrototypeOf);
-            case "setPrototypeOf" -> method(name, 2, (JsInvokable) this::setPrototypeOf);
-            case "hasOwn" -> method(name, 2, (JsInvokable) this::hasOwn);
-            case "getOwnPropertyNames" -> method(name, 1, (JsInvokable) this::getOwnPropertyNames);
-            case "getOwnPropertyDescriptor" -> method(name, 2, (JsInvokable) this::getOwnPropertyDescriptor);
-            case "getOwnPropertyDescriptors" -> method(name, 1, (JsInvokable) this::getOwnPropertyDescriptors);
-            case "defineProperty" -> method(name, 3, (JsCallable) this::defineProperty);
-            case "defineProperties" -> method(name, 2, (JsCallable) this::defineProperties);
-            case "isExtensible" -> method(name, 1, (JsInvokable) this::isExtensible);
-            case "preventExtensions" -> method(name, 1, (JsInvokable) this::preventExtensions);
-            case "isSealed" -> method(name, 1, (JsInvokable) this::isSealed);
-            case "seal" -> method(name, 1, (JsInvokable) this::seal);
-            case "isFrozen" -> method(name, 1, (JsInvokable) this::isFrozen);
-            case "freeze" -> method(name, 1, (JsInvokable) this::freeze);
-            case "prototype" -> JsObjectPrototype.INSTANCE;
-            default -> super.getMember(name);
-        };
-    }
-
-    @Override
-    public boolean hasOwnIntrinsic(String name) {
-        return isObjectMethod(name) || super.hasOwnIntrinsic(name);
-    }
-
-    @Override
-    public byte getOwnAttrs(String name) {
-        if (isObjectMethod(name)) {
-            return WRITABLE | CONFIGURABLE;
-        }
-        if ("prototype".equals(name)) {
-            // Built-in constructor prototype: all-false (overrides JsFunction's
-            // user-function default of WRITABLE).
-            return 0;
-        }
-        return super.getOwnAttrs(name);
-    }
-
-    @Override
     protected void clearEngineState() {
         super.clearEngineState();
-        if (methodCache != null) methodCache.clear();
-    }
-
-    private static boolean isObjectMethod(String n) {
-        return switch (n) {
-            case "keys", "values", "entries", "assign", "fromEntries",
-                 "is", "create", "getPrototypeOf", "setPrototypeOf", "hasOwn",
-                 "getOwnPropertyNames", "getOwnPropertyDescriptor",
-                 "getOwnPropertyDescriptors", "defineProperty", "defineProperties",
-                 "isExtensible", "preventExtensions", "isSealed", "seal",
-                 "isFrozen", "freeze" -> true;
-            default -> false;
-        };
+        installIntrinsics();
     }
 
     // -------------------------------------------------------------------------

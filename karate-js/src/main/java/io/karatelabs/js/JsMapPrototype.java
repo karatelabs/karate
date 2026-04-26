@@ -38,32 +38,22 @@ class JsMapPrototype extends Prototype {
 
     private JsMapPrototype() {
         super(JsObjectPrototype.INSTANCE);
-    }
-
-    @Override
-    protected Object getBuiltinProperty(String name) {
         // Note: `size` is an accessor on the spec prototype, not a method. JsMap.getMember
         // intercepts `m.size` directly (returning the live count) so we don't expose it
         // here as a JsCallable — that would shape-mismatch real spec consumers.
-        return switch (name) {
-            case "get" -> method(name, 1, this::get);
-            case "set" -> method(name, 2, this::set);
-            case "has" -> method(name, 1, this::has);
-            case "delete" -> method(name, 1, this::delete);
-            case "clear" -> method(name, 0, this::clear);
-            case "forEach" -> method(name, 1, this::forEach);
-            case "keys" -> method(name, 0, this::keys);
-            case "values" -> method(name, 0, this::values);
-            case "entries" -> method(name, 0, this::entriesMethod);
-            default -> {
-                if (IterUtils.SYMBOL_ITERATOR.equals(name)) {
-                    // Spec @@iterator on Map.prototype === Map.prototype.entries — same
-                    // wrapped instance keeps identity.
-                    yield method("entries", 0, this::entriesMethod);
-                }
-                yield null;
-            }
-        };
+        install("get", 1, this::get);
+        install("set", 2, this::set);
+        install("has", 1, this::has);
+        install("delete", 1, this::delete);
+        install("clear", 0, this::clear);
+        install("forEach", 1, this::forEach);
+        install("keys", 0, this::keys);
+        install("values", 0, this::values);
+        JsBuiltinMethod entries = new JsBuiltinMethod("entries", 0, this::entriesMethod);
+        install("entries", entries);
+        // Spec @@iterator on Map.prototype === Map.prototype.entries — same
+        // wrapped instance keeps identity.
+        install(IterUtils.SYMBOL_ITERATOR, entries);
     }
 
     private static JsMap asMap(Context context) {

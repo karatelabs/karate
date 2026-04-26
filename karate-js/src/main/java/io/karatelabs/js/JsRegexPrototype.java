@@ -34,16 +34,9 @@ class JsRegexPrototype extends Prototype {
 
     private JsRegexPrototype() {
         super(JsObjectPrototype.INSTANCE);
-    }
-
-    @Override
-    protected Object getBuiltinProperty(String name) {
-        return switch (name) {
-            case "test" -> method(name, 1, this::test);
-            case "exec" -> method(name, 1, this::exec);
-            case "toString" -> method(name, 0, this::toStringMethod);
-            default -> null;
-        };
+        install("test", 1, this::test);
+        install("exec", 1, this::exec);
+        install("toString", 0, this::toStringMethod);
     }
 
     // Helper to get JsRegex from this context

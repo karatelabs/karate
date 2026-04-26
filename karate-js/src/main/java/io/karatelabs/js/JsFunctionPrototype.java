@@ -38,18 +38,11 @@ class JsFunctionPrototype extends Prototype {
 
     private JsFunctionPrototype() {
         super(JsObjectPrototype.INSTANCE);
-    }
-
-    @Override
-    protected Object getBuiltinProperty(String name) {
-        return switch (name) {
-            case "call" -> method(name, 1, this::callMethod);
-            case "apply" -> method(name, 2, this::applyMethod);
-            case "bind" -> method(name, 1, this::bindMethod);
-            case "toString" -> method(name, 0, this::toStringMethod);
-            case "constructor" -> JsFunctionConstructor.INSTANCE;
-            default -> null;
-        };
+        install("call", 1, this::callMethod);
+        install("apply", 2, this::applyMethod);
+        install("bind", 1, this::bindMethod);
+        install("toString", 0, this::toStringMethod);
+        installLazy("constructor", () -> JsFunctionConstructor.INSTANCE);
     }
 
     // Helper to get JsCallable from this context (accepts both JsFunction and JsCallable)

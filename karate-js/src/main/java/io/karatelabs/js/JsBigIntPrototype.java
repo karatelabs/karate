@@ -36,16 +36,9 @@ class JsBigIntPrototype extends Prototype {
 
     private JsBigIntPrototype() {
         super(JsObjectPrototype.INSTANCE);
-    }
-
-    @Override
-    protected Object getBuiltinProperty(String name) {
-        return switch (name) {
-            case "toString" -> method(name, 0, this::toStringMethod);
-            case "valueOf" -> method(name, 0, this::valueOf);
-            case "toLocaleString" -> method(name, 0, this::toStringMethod);
-            default -> null;
-        };
+        install("toString", 0, this::toStringMethod);
+        install("valueOf", 0, this::valueOf);
+        install("toLocaleString", 0, this::toStringMethod);
     }
 
     private Object toStringMethod(Context context, Object[] args) {

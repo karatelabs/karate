@@ -37,28 +37,18 @@ class JsSetPrototype extends Prototype {
 
     private JsSetPrototype() {
         super(JsObjectPrototype.INSTANCE);
-    }
-
-    @Override
-    protected Object getBuiltinProperty(String name) {
-        return switch (name) {
-            case "add" -> method(name, 1, this::add);
-            case "has" -> method(name, 1, this::has);
-            case "delete" -> method(name, 1, this::delete);
-            case "clear" -> method(name, 0, this::clear);
-            case "forEach" -> method(name, 1, this::forEach);
-            // Set.prototype.keys / values / @@iterator all share the same impl;
-            // each must report its own name (see name.js tests).
-            case "keys" -> method(name, 0, this::values);
-            case "values" -> method(name, 0, this::values);
-            case "entries" -> method(name, 0, this::entriesMethod);
-            default -> {
-                if (IterUtils.SYMBOL_ITERATOR.equals(name)) {
-                    yield method("values", 0, this::values);
-                }
-                yield null;
-            }
-        };
+        install("add", 1, this::add);
+        install("has", 1, this::has);
+        install("delete", 1, this::delete);
+        install("clear", 0, this::clear);
+        install("forEach", 1, this::forEach);
+        // Set.prototype.keys / values / @@iterator all share the same impl;
+        // each must report its own name (see name.js tests).
+        install("keys", 0, this::values);
+        JsBuiltinMethod values = new JsBuiltinMethod("values", 0, this::values);
+        install("values", values);
+        install("entries", 0, this::entriesMethod);
+        install(IterUtils.SYMBOL_ITERATOR, values);
     }
 
     private static JsSet asSet(Context context) {

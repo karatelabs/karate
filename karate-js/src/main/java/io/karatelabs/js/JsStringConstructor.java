@@ -36,69 +36,25 @@ class JsStringConstructor extends JsFunction {
 
     static final JsStringConstructor INSTANCE = new JsStringConstructor();
 
-    private java.util.Map<String, JsBuiltinMethod> methodCache;
+    private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
 
     private JsStringConstructor() {
         this.name = "String";
         this.length = 1;
+        installIntrinsics();
         registerForEngineReset();
     }
 
-    @Override
-    public Object getMember(String name) {
-        if (isTombstoned(name) || ownContainsKey(name)) {
-            return super.getMember(name);
-        }
-        if (methodCache != null) {
-            JsBuiltinMethod cached = methodCache.get(name);
-            if (cached != null) return cached;
-        }
-        Object result = resolveMember(name);
-        if (result instanceof JsBuiltinMethod jbm) {
-            if (methodCache == null) {
-                methodCache = new java.util.HashMap<>();
-            }
-            methodCache.put(name, jbm);
-        }
-        return result;
-    }
-
-    private Object resolveMember(String name) {
-        return switch (name) {
-            case "fromCharCode" -> method(name, 1, (JsInvokable) this::fromCharCode);
-            case "fromCodePoint" -> method(name, 1, (JsInvokable) this::fromCodePoint);
-            case "prototype" -> JsStringPrototype.INSTANCE;
-            default -> super.getMember(name);
-        };
-    }
-
-    @Override
-    public boolean hasOwnIntrinsic(String name) {
-        return isStringMethod(name) || super.hasOwnIntrinsic(name);
-    }
-
-    @Override
-    public byte getOwnAttrs(String name) {
-        if (isStringMethod(name)) {
-            return WRITABLE | CONFIGURABLE;
-        }
-        if ("prototype".equals(name)) {
-            return 0;
-        }
-        return super.getOwnAttrs(name);
+    private void installIntrinsics() {
+        defineOwn("fromCharCode", new JsBuiltinMethod("fromCharCode", 1, (JsInvokable) this::fromCharCode), METHOD_ATTRS);
+        defineOwn("fromCodePoint", new JsBuiltinMethod("fromCodePoint", 1, (JsInvokable) this::fromCodePoint), METHOD_ATTRS);
+        defineOwn("prototype", JsStringPrototype.INSTANCE, PropertySlot.INTRINSIC);
     }
 
     @Override
     protected void clearEngineState() {
         super.clearEngineState();
-        if (methodCache != null) methodCache.clear();
-    }
-
-    private static boolean isStringMethod(String n) {
-        return switch (n) {
-            case "fromCharCode", "fromCodePoint" -> true;
-            default -> false;
-        };
+        installIntrinsics();
     }
 
     @Override

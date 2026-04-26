@@ -35,69 +35,25 @@ class JsBigIntConstructor extends JsFunction {
 
     static final JsBigIntConstructor INSTANCE = new JsBigIntConstructor();
 
+    private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
+
     private JsBigIntConstructor() {
         this.name = "BigInt";
         this.length = 1;
+        installIntrinsics();
         registerForEngineReset();
     }
 
-    private java.util.Map<String, JsBuiltinMethod> methodCache;
-
-    @Override
-    public Object getMember(String name) {
-        if (isTombstoned(name) || ownContainsKey(name)) {
-            return super.getMember(name);
-        }
-        if (methodCache != null) {
-            JsBuiltinMethod cached = methodCache.get(name);
-            if (cached != null) return cached;
-        }
-        Object result = resolveMember(name);
-        if (result instanceof JsBuiltinMethod jbm) {
-            if (methodCache == null) {
-                methodCache = new java.util.HashMap<>();
-            }
-            methodCache.put(name, jbm);
-        }
-        return result;
-    }
-
-    private Object resolveMember(String name) {
-        return switch (name) {
-            case "asIntN" -> method(name, 2, this::asIntN);
-            case "asUintN" -> method(name, 2, this::asUintN);
-            case "prototype" -> JsBigIntPrototype.INSTANCE;
-            default -> super.getMember(name);
-        };
-    }
-
-    @Override
-    public boolean hasOwnIntrinsic(String name) {
-        return isBigIntMethod(name) || super.hasOwnIntrinsic(name);
-    }
-
-    @Override
-    public byte getOwnAttrs(String name) {
-        if (isBigIntMethod(name)) {
-            return WRITABLE | CONFIGURABLE;
-        }
-        if ("prototype".equals(name)) {
-            return 0;
-        }
-        return super.getOwnAttrs(name);
+    private void installIntrinsics() {
+        defineOwn("asIntN", new JsBuiltinMethod("asIntN", 2, this::asIntN), METHOD_ATTRS);
+        defineOwn("asUintN", new JsBuiltinMethod("asUintN", 2, this::asUintN), METHOD_ATTRS);
+        defineOwn("prototype", JsBigIntPrototype.INSTANCE, PropertySlot.INTRINSIC);
     }
 
     @Override
     protected void clearEngineState() {
         super.clearEngineState();
-        if (methodCache != null) methodCache.clear();
-    }
-
-    private static boolean isBigIntMethod(String n) {
-        return switch (n) {
-            case "asIntN", "asUintN" -> true;
-            default -> false;
-        };
+        installIntrinsics();
     }
 
     @Override

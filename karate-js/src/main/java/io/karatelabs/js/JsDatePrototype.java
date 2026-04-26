@@ -66,66 +66,59 @@ class JsDatePrototype extends Prototype {
 
     private JsDatePrototype() {
         super(JsObjectPrototype.INSTANCE);
-    }
-
-    @Override
-    protected Object getBuiltinProperty(String name) {
         // Spec lengths from §21.4.4: most getters and toFoo helpers take 0,
         // setters take their own arity (setMilliseconds=1, setMinutes=3, etc.).
-        return switch (name) {
-            case "constructor" -> JsDateConstructor.INSTANCE;
-            case "getTime" -> method(name, 0, this::getTime);
-            case "valueOf" -> method(name, 0, this::getTime);
-            case "toString" -> method(name, 0, this::toStringMethod);
-            // Spec §21.4.4.45: Date.prototype[@@toPrimitive] treats hint "default"
-            // as "string" (so `date + ""` and `date + date` string-concat), and
-            // "number" as ToNumber. Length is 1 (the hint argument).
-            case "@@toPrimitive" -> method("[Symbol.toPrimitive]", 1, this::toPrimitive);
-            case "toISOString" -> method(name, 0, this::toISOString);
-            case "toUTCString" -> method(name, 0, this::toUTCString);
-            case "toGMTString" -> method(name, 0, this::toUTCString);
-            case "getFullYear" -> method(name, 0, this::getFullYear);
-            case "getMonth" -> method(name, 0, this::getMonth);
-            case "getDate" -> method(name, 0, this::getDate);
-            case "getDay" -> method(name, 0, this::getDay);
-            case "getHours" -> method(name, 0, this::getHours);
-            case "getMinutes" -> method(name, 0, this::getMinutes);
-            case "getSeconds" -> method(name, 0, this::getSeconds);
-            case "getMilliseconds" -> method(name, 0, this::getMilliseconds);
-            case "getYear" -> method(name, 0, this::getYear);
-            case "setDate" -> method(name, 1, this::setDate);
-            case "setMonth" -> method(name, 2, this::setMonth);
-            case "setFullYear" -> method(name, 3, this::setFullYear);
-            case "setHours" -> method(name, 4, this::setHours);
-            case "setMinutes" -> method(name, 3, this::setMinutes);
-            case "setSeconds" -> method(name, 2, this::setSeconds);
-            case "setMilliseconds" -> method(name, 1, this::setMilliseconds);
-            case "setTime" -> method(name, 1, this::setTime);
-            case "setYear" -> method(name, 1, this::setYear);
-            case "setUTCDate" -> method(name, 1, this::setUTCDate);
-            case "setUTCMonth" -> method(name, 2, this::setUTCMonth);
-            case "setUTCFullYear" -> method(name, 3, this::setUTCFullYear);
-            case "setUTCHours" -> method(name, 4, this::setUTCHours);
-            case "setUTCMinutes" -> method(name, 3, this::setUTCMinutes);
-            case "setUTCSeconds" -> method(name, 2, this::setUTCSeconds);
-            case "setUTCMilliseconds" -> method(name, 1, this::setUTCMilliseconds);
-            case "toLocaleDateString" -> method(name, 0, this::toLocaleDateString);
-            case "toLocaleTimeString" -> method(name, 0, this::toLocaleTimeString);
-            case "toLocaleString" -> method(name, 0, this::toLocaleString);
-            case "toDateString" -> method(name, 0, this::toDateString);
-            case "toTimeString" -> method(name, 0, this::toTimeString);
-            case "toJSON" -> method(name, 1, this::toJSON);
-            case "getTimezoneOffset" -> method(name, 0, this::getTimezoneOffset);
-            case "getUTCFullYear" -> method(name, 0, this::getUTCFullYear);
-            case "getUTCMonth" -> method(name, 0, this::getUTCMonth);
-            case "getUTCDate" -> method(name, 0, this::getUTCDate);
-            case "getUTCDay" -> method(name, 0, this::getUTCDay);
-            case "getUTCHours" -> method(name, 0, this::getUTCHours);
-            case "getUTCMinutes" -> method(name, 0, this::getUTCMinutes);
-            case "getUTCSeconds" -> method(name, 0, this::getUTCSeconds);
-            case "getUTCMilliseconds" -> method(name, 0, this::getUTCMilliseconds);
-            default -> null;
-        };
+        installLazy("constructor", () -> JsDateConstructor.INSTANCE);
+        install("getTime", 0, this::getTime);
+        install("valueOf", 0, this::getTime);
+        install("toString", 0, this::toStringMethod);
+        // Spec §21.4.4.45: Date.prototype[@@toPrimitive] treats hint "default"
+        // as "string" (so `date + ""` and `date + date` string-concat), and
+        // "number" as ToNumber. Length is 1 (the hint argument).
+        install("@@toPrimitive", new JsBuiltinMethod("[Symbol.toPrimitive]", 1, this::toPrimitive));
+        install("toISOString", 0, this::toISOString);
+        install("toUTCString", 0, this::toUTCString);
+        install("toGMTString", 0, this::toUTCString);
+        install("getFullYear", 0, this::getFullYear);
+        install("getMonth", 0, this::getMonth);
+        install("getDate", 0, this::getDate);
+        install("getDay", 0, this::getDay);
+        install("getHours", 0, this::getHours);
+        install("getMinutes", 0, this::getMinutes);
+        install("getSeconds", 0, this::getSeconds);
+        install("getMilliseconds", 0, this::getMilliseconds);
+        install("getYear", 0, this::getYear);
+        install("setDate", 1, this::setDate);
+        install("setMonth", 2, this::setMonth);
+        install("setFullYear", 3, this::setFullYear);
+        install("setHours", 4, this::setHours);
+        install("setMinutes", 3, this::setMinutes);
+        install("setSeconds", 2, this::setSeconds);
+        install("setMilliseconds", 1, this::setMilliseconds);
+        install("setTime", 1, this::setTime);
+        install("setYear", 1, this::setYear);
+        install("setUTCDate", 1, this::setUTCDate);
+        install("setUTCMonth", 2, this::setUTCMonth);
+        install("setUTCFullYear", 3, this::setUTCFullYear);
+        install("setUTCHours", 4, this::setUTCHours);
+        install("setUTCMinutes", 3, this::setUTCMinutes);
+        install("setUTCSeconds", 2, this::setUTCSeconds);
+        install("setUTCMilliseconds", 1, this::setUTCMilliseconds);
+        install("toLocaleDateString", 0, this::toLocaleDateString);
+        install("toLocaleTimeString", 0, this::toLocaleTimeString);
+        install("toLocaleString", 0, this::toLocaleString);
+        install("toDateString", 0, this::toDateString);
+        install("toTimeString", 0, this::toTimeString);
+        install("toJSON", 1, this::toJSON);
+        install("getTimezoneOffset", 0, this::getTimezoneOffset);
+        install("getUTCFullYear", 0, this::getUTCFullYear);
+        install("getUTCMonth", 0, this::getUTCMonth);
+        install("getUTCDate", 0, this::getUTCDate);
+        install("getUTCDay", 0, this::getUTCDay);
+        install("getUTCHours", 0, this::getUTCHours);
+        install("getUTCMinutes", 0, this::getUTCMinutes);
+        install("getUTCSeconds", 0, this::getUTCSeconds);
+        install("getUTCMilliseconds", 0, this::getUTCMilliseconds);
     }
 
     /**

@@ -48,103 +48,41 @@ class JsNumberConstructor extends JsFunction {
     private static final long MAX_SAFE_INTEGER = 9007199254740991L;
     private static final long MIN_SAFE_INTEGER = -9007199254740991L;
 
-    private java.util.Map<String, JsBuiltinMethod> methodCache;
+    private static final byte CONSTANT_ATTRS = PropertySlot.INTRINSIC;
+    private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
 
     private JsNumberConstructor() {
         this.name = "Number";
         this.length = 1;
+        installIntrinsics();
         registerForEngineReset();
     }
 
-    @Override
-    public Object getMember(String name) {
-        // User-set values + tombstones take precedence over intrinsic resolution.
-        if (isTombstoned(name) || ownContainsKey(name)) {
-            return super.getMember(name);
-        }
-        // Cache hit: stable identity for the wrapped method instance.
-        if (methodCache != null) {
-            JsBuiltinMethod cached = methodCache.get(name);
-            if (cached != null) return cached;
-        }
-        Object result = resolveMember(name);
-        if (result instanceof JsBuiltinMethod jbm) {
-            if (methodCache == null) {
-                methodCache = new java.util.HashMap<>();
-            }
-            methodCache.put(name, jbm);
-        }
-        return result;
-    }
-
-    private Object resolveMember(String name) {
-        return switch (name) {
-            case "isFinite" -> method(name, 1, (JsInvokable) this::isFinite);
-            case "isInteger" -> method(name, 1, (JsInvokable) this::isInteger);
-            case "isNaN" -> method(name, 1, (JsInvokable) this::isNaN);
-            case "isSafeInteger" -> method(name, 1, (JsInvokable) this::isSafeInteger);
-            case "EPSILON" -> Math.ulp(1.0);
-            case "MAX_VALUE" -> Double.MAX_VALUE;
-            case "MIN_VALUE" -> Double.MIN_VALUE;
-            case "MAX_SAFE_INTEGER" -> MAX_SAFE_INTEGER;
-            case "MIN_SAFE_INTEGER" -> MIN_SAFE_INTEGER;
-            case "POSITIVE_INFINITY" -> Double.POSITIVE_INFINITY;
-            case "NEGATIVE_INFINITY" -> Double.NEGATIVE_INFINITY;
-            case "NaN" -> Double.NaN;
-            case "prototype" -> JsNumberPrototype.INSTANCE;
-            default -> super.getMember(name);
-        };
-    }
-
-    @Override
-    public boolean hasOwnIntrinsic(String name) {
-        return isNumberMethod(name) || isNumberConstant(name)
-                || super.hasOwnIntrinsic(name); // length / name / prototype / constructor
-    }
-
-    @Override
-    public byte getOwnAttrs(String name) {
-        if (isNumberConstant(name)) {
-            // Constants: { writable: false, enumerable: false, configurable: false }
-            return 0;
-        }
-        if (isNumberMethod(name)) {
-            // Methods: { writable: true, enumerable: false, configurable: true }
-            return WRITABLE | CONFIGURABLE;
-        }
-        if ("prototype".equals(name)) {
-            // Built-in constructor prototype: all-false (overrides JsFunction's
-            // user-function default of WRITABLE).
-            return 0;
-        }
-        return super.getOwnAttrs(name);
+    private void installIntrinsics() {
+        defineOwn("EPSILON", Math.ulp(1.0), CONSTANT_ATTRS);
+        defineOwn("MAX_VALUE", Double.MAX_VALUE, CONSTANT_ATTRS);
+        defineOwn("MIN_VALUE", Double.MIN_VALUE, CONSTANT_ATTRS);
+        defineOwn("MAX_SAFE_INTEGER", MAX_SAFE_INTEGER, CONSTANT_ATTRS);
+        defineOwn("MIN_SAFE_INTEGER", MIN_SAFE_INTEGER, CONSTANT_ATTRS);
+        defineOwn("POSITIVE_INFINITY", Double.POSITIVE_INFINITY, CONSTANT_ATTRS);
+        defineOwn("NEGATIVE_INFINITY", Double.NEGATIVE_INFINITY, CONSTANT_ATTRS);
+        defineOwn("NaN", Double.NaN, CONSTANT_ATTRS);
+        defineOwn("isFinite", new JsBuiltinMethod("isFinite", 1, (JsInvokable) this::isFinite), METHOD_ATTRS);
+        defineOwn("isInteger", new JsBuiltinMethod("isInteger", 1, (JsInvokable) this::isInteger), METHOD_ATTRS);
+        defineOwn("isNaN", new JsBuiltinMethod("isNaN", 1, (JsInvokable) this::isNaN), METHOD_ATTRS);
+        defineOwn("isSafeInteger", new JsBuiltinMethod("isSafeInteger", 1, (JsInvokable) this::isSafeInteger), METHOD_ATTRS);
+        defineOwn("prototype", JsNumberPrototype.INSTANCE, PropertySlot.INTRINSIC);
     }
 
     @Override
     protected void clearEngineState() {
         super.clearEngineState();
-        if (methodCache != null) methodCache.clear();
+        installIntrinsics();
     }
 
     @Override
     public Object call(Context context, Object[] args) {
         return JsNumber.getObject(context, args);
-    }
-
-    private static boolean isNumberConstant(String n) {
-        return switch (n) {
-            case "EPSILON", "MAX_VALUE", "MIN_VALUE",
-                 "MAX_SAFE_INTEGER", "MIN_SAFE_INTEGER",
-                 "POSITIVE_INFINITY", "NEGATIVE_INFINITY", "NaN" -> true;
-            default -> false;
-        };
-    }
-
-    private static boolean isNumberMethod(String n) {
-        return switch (n) {
-            case "isFinite", "isInteger", "isNaN", "isSafeInteger" -> true;
-            default -> false;
-        };
     }
 
     // Static methods

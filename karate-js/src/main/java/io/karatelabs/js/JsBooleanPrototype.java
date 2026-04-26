@@ -33,15 +33,8 @@ class JsBooleanPrototype extends Prototype {
 
     private JsBooleanPrototype() {
         super(JsObjectPrototype.INSTANCE);
-    }
-
-    @Override
-    protected Object getBuiltinProperty(String name) {
-        return switch (name) {
-            case "toString" -> method(name, 0, JsBooleanPrototype::toStringMethod);
-            case "valueOf" -> method(name, 0, JsBooleanPrototype::valueOfMethod);
-            default -> null;
-        };
+        install("toString", 0, JsBooleanPrototype::toStringMethod);
+        install("valueOf", 0, JsBooleanPrototype::valueOfMethod);
     }
 
     private static boolean asBoolean(Context context) {

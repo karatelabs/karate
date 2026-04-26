@@ -41,50 +41,43 @@ class JsStringPrototype extends Prototype {
 
     private JsStringPrototype() {
         super(JsObjectPrototype.INSTANCE);
-    }
-
-    @Override
-    protected Object getBuiltinProperty(String name) {
-        return switch (name) {
-            case "indexOf" -> method(name, 1, this::indexOf);
-            case "startsWith" -> method(name, 1, this::startsWith);
-            case "getBytes" -> method(name, 0, this::getBytes);
-            case "split" -> method(name, 2, this::split);
-            case "charAt" -> method(name, 1, this::charAt);
-            case "charCodeAt" -> method(name, 1, this::charCodeAt);
-            case "codePointAt" -> method(name, 1, this::codePointAt);
-            case "concat" -> method(name, 1, this::concat);
-            case "endsWith" -> method(name, 1, this::endsWith);
-            case "includes" -> method(name, 1, this::includes);
-            case "lastIndexOf" -> method(name, 1, this::lastIndexOf);
-            case "padEnd" -> method(name, 1, this::padEnd);
-            case "padStart" -> method(name, 1, this::padStart);
-            case "repeat" -> method(name, 1, this::repeat);
-            case "slice" -> method(name, 2, this::slice);
-            case "substring" -> method(name, 2, this::substring);
-            case "toLowerCase" -> method(name, 0, this::toLowerCase);
-            case "toUpperCase" -> method(name, 0, this::toUpperCase);
-            case "trim" -> method(name, 0, this::trim);
-            // trimLeft / trimRight are spec aliases of trimStart / trimEnd, but
-            // each must report its own name (see name.js tests).
-            case "trimStart" -> method(name, 0, this::trimStart);
-            case "trimLeft" -> method(name, 0, this::trimStart);
-            case "trimEnd" -> method(name, 0, this::trimEnd);
-            case "trimRight" -> method(name, 0, this::trimEnd);
-            case "replace" -> method(name, 2, this::replace);
-            case "replaceAll" -> method(name, 2, this::replaceAll);
-            case "match" -> method(name, 1, this::match);
-            case "matchAll" -> method(name, 1, this::matchAll);
-            case "search" -> method(name, 1, this::search);
-            case "valueOf" -> method(name, 0, this::valueOf);
-            case "toLocaleLowerCase" -> method(name, 0, this::toLowerCase);
-            case "toLocaleUpperCase" -> method(name, 0, this::toUpperCase);
-            case "at" -> method(name, 1, this::at);
-            case "toString" -> method(name, 0, this::valueOf);
-            case "normalize" -> method(name, 0, this::normalize);
-            case "localeCompare" -> method(name, 1, this::localeCompare);
-            default -> null;
-        };
+        install("indexOf", 1, this::indexOf);
+        install("startsWith", 1, this::startsWith);
+        install("getBytes", 0, this::getBytes);
+        install("split", 2, this::split);
+        install("charAt", 1, this::charAt);
+        install("charCodeAt", 1, this::charCodeAt);
+        install("codePointAt", 1, this::codePointAt);
+        install("concat", 1, this::concat);
+        install("endsWith", 1, this::endsWith);
+        install("includes", 1, this::includes);
+        install("lastIndexOf", 1, this::lastIndexOf);
+        install("padEnd", 1, this::padEnd);
+        install("padStart", 1, this::padStart);
+        install("repeat", 1, this::repeat);
+        install("slice", 2, this::slice);
+        install("substring", 2, this::substring);
+        install("toLowerCase", 0, this::toLowerCase);
+        install("toUpperCase", 0, this::toUpperCase);
+        install("trim", 0, this::trim);
+        // trimLeft / trimRight are spec aliases of trimStart / trimEnd, but
+        // each must report its own name (see name.js tests).
+        install("trimStart", 0, this::trimStart);
+        install("trimLeft", 0, this::trimStart);
+        install("trimEnd", 0, this::trimEnd);
+        install("trimRight", 0, this::trimEnd);
+        install("replace", 2, this::replace);
+        install("replaceAll", 2, this::replaceAll);
+        install("match", 1, this::match);
+        install("matchAll", 1, this::matchAll);
+        install("search", 1, this::search);
+        install("valueOf", 0, this::valueOf);
+        install("toLocaleLowerCase", 0, this::toLowerCase);
+        install("toLocaleUpperCase", 0, this::toUpperCase);
+        install("at", 1, this::at);
+        install("toString", 0, this::valueOf);
+        install("normalize", 0, this::normalize);
+        install("localeCompare", 1, this::localeCompare);
     }
 
     // Helper method to get string from this context

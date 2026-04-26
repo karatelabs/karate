@@ -40,18 +40,11 @@ class JsNumberPrototype extends Prototype {
 
     private JsNumberPrototype() {
         super(JsObjectPrototype.INSTANCE);
-    }
-
-    @Override
-    protected Object getBuiltinProperty(String name) {
-        return switch (name) {
-            case "toFixed" -> method(name, 1, this::toFixed);
-            case "toPrecision" -> method(name, 1, this::toPrecision);
-            case "toLocaleString" -> method(name, 0, this::toLocaleString);
-            case "toString" -> method(name, 1, this::toStringMethod);
-            case "valueOf" -> method(name, 0, this::valueOf);
-            default -> null;
-        };
+        install("toFixed", 1, this::toFixed);
+        install("toPrecision", 1, this::toPrecision);
+        install("toLocaleString", 0, this::toLocaleString);
+        install("toString", 1, this::toStringMethod);
+        install("valueOf", 0, this::valueOf);
     }
 
     private Object toStringMethod(Context context, Object[] args) {

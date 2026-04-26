@@ -32,8 +32,6 @@ import java.util.Map;
  */
 class JsObjectPrototype extends Prototype {
 
-    static final JsObjectPrototype INSTANCE = new JsObjectPrototype();
-
     /**
      * The default {@code Object.prototype.toString} implementation. Exposed so
      * pretty-printers (e.g. {@link JsConsole}) can detect a user-overridden
@@ -45,6 +43,9 @@ class JsObjectPrototype extends Prototype {
      * {@code Array}/{@code Date}/{@code RegExp}/{@code Error}/{@code Map}/{@code Set}/
      * {@code Boolean}/{@code Number}/{@code String}/{@code Function}/{@code Null}/
      * {@code Undefined}, or {@code Object} for plain objects.
+     * <p>
+     * Declared BEFORE {@link #INSTANCE} so static-init order initializes it
+     * first — the constructor reads it via {@code install("toString", DEFAULT_TO_STRING)}.
      */
     static final JsCallable DEFAULT_TO_STRING = (context, args) -> {
         Object o = context.getThisObject();
@@ -56,6 +57,8 @@ class JsObjectPrototype extends Prototype {
         }
         return "[object " + builtinTag(o) + "]";
     };
+
+    static final JsObjectPrototype INSTANCE = new JsObjectPrototype();
 
     private static String builtinTag(Object o) {
         if (o == null) return "Null";
@@ -82,20 +85,13 @@ class JsObjectPrototype extends Prototype {
 
     private JsObjectPrototype() {
         super(null); // Object.prototype.__proto__ === null
-    }
-
-    @Override
-    protected Object getBuiltinProperty(String name) {
-        return switch (name) {
-            // toString stays unwrapped — JsConsole compares against DEFAULT_TO_STRING
-            // by reference identity to detect a user-overridden toString.
-            case "toString" -> DEFAULT_TO_STRING;
-            case "valueOf" -> method(name, 0, (context, args) -> context.getThisObject());
-            case "hasOwnProperty" -> method(name, 1, this::hasOwnProperty);
-            case "isPrototypeOf" -> method(name, 1, this::isPrototypeOf);
-            case "propertyIsEnumerable" -> method(name, 1, this::propertyIsEnumerable);
-            default -> null;
-        };
+        // toString stays unwrapped — JsConsole compares against DEFAULT_TO_STRING
+        // by reference identity to detect a user-overridden toString.
+        install("toString", DEFAULT_TO_STRING);
+        install("valueOf", 0, (context, args) -> context.getThisObject());
+        install("hasOwnProperty", 1, this::hasOwnProperty);
+        install("isPrototypeOf", 1, this::isPrototypeOf);
+        install("propertyIsEnumerable", 1, this::propertyIsEnumerable);
     }
 
     private Object isPrototypeOf(Context context, Object[] args) {

@@ -45,56 +45,61 @@ class JsArrayPrototype extends Prototype {
      * Exposed so pretty-printers (e.g. {@link JsConsole}) can detect a user-overridden
      * {@code toString} vs the default by reference identity. Stand-alone identity
      * (not wrapped in a JsBuiltinMethod) since identity-comparison is the contract.
+     * <p>
+     * Declared AFTER {@link #INSTANCE} because the lambda references {@code INSTANCE.join}
+     * (forward-reference rules forbid the inverse). The constructor's
+     * {@code install("toString", DEFAULT_TO_STRING)} therefore stores null, which the
+     * post-construction fixup below replaces with the live lambda.
      */
     static final JsCallable DEFAULT_TO_STRING =
             (context, args) -> INSTANCE.join(context, new Object[0]);
 
-    private JsArrayPrototype() {
-        super(JsObjectPrototype.INSTANCE);
+    // Post-static-init fixup: the constructor ran with DEFAULT_TO_STRING still null
+    // (declared after INSTANCE). Replace the null toString slot with the live lambda
+    // now that all static fields are assigned.
+    static {
+        INSTANCE.install("toString", DEFAULT_TO_STRING);
     }
 
-    @Override
-    protected Object getBuiltinProperty(String name) {
+    private JsArrayPrototype() {
+        super(JsObjectPrototype.INSTANCE);
         // toString uses DEFAULT_TO_STRING for identity-by-reference detection
         // (JsConsole compares against it); it stays unwrapped.
-        if ("toString".equals(name)) return DEFAULT_TO_STRING;
-        return switch (name) {
-            case "map" -> method(name, 1, this::map);
-            case "filter" -> method(name, 1, this::filter);
-            case "join" -> method(name, 1, this::join);
-            case "find" -> method(name, 1, this::find);
-            case "findIndex" -> method(name, 1, this::findIndex);
-            case "push" -> method(name, 1, this::push);
-            case "reverse" -> method(name, 0, this::reverse);
-            case "includes" -> method(name, 1, this::includes);
-            case "indexOf" -> method(name, 1, this::indexOf);
-            case "slice" -> method(name, 2, this::slice);
-            case "forEach" -> method(name, 1, this::forEach);
-            case "concat" -> method(name, 1, this::concat);
-            case "every" -> method(name, 1, this::every);
-            case "some" -> method(name, 1, this::some);
-            case "reduce" -> method(name, 1, this::reduce);
-            case "reduceRight" -> method(name, 1, this::reduceRight);
-            case "flat" -> method(name, 0, this::flat);
-            case "flatMap" -> method(name, 1, this::flatMap);
-            case "sort" -> method(name, 1, this::sort);
-            case "fill" -> method(name, 1, this::fill);
-            case "splice" -> method(name, 2, this::splice);
-            case "shift" -> method(name, 0, this::shift);
-            case "unshift" -> method(name, 1, this::unshift);
-            case "lastIndexOf" -> method(name, 1, this::lastIndexOf);
-            case "pop" -> method(name, 0, this::pop);
-            case "at" -> method(name, 1, this::at);
-            case "copyWithin" -> method(name, 2, this::copyWithin);
-            case "keys" -> method(name, 0, this::keys);
-            case "values" -> method(name, 0, this::values);
-            case "entries" -> method(name, 0, this::entries);
-            case "findLast" -> method(name, 1, this::findLast);
-            case "findLastIndex" -> method(name, 1, this::findLastIndex);
-            case "with" -> method(name, 2, this::withMethod);
-            case "group" -> method(name, 1, this::group);
-            default -> null;
-        };
+        install("toString", DEFAULT_TO_STRING);
+        install("map", 1, this::map);
+        install("filter", 1, this::filter);
+        install("join", 1, this::join);
+        install("find", 1, this::find);
+        install("findIndex", 1, this::findIndex);
+        install("push", 1, this::push);
+        install("reverse", 0, this::reverse);
+        install("includes", 1, this::includes);
+        install("indexOf", 1, this::indexOf);
+        install("slice", 2, this::slice);
+        install("forEach", 1, this::forEach);
+        install("concat", 1, this::concat);
+        install("every", 1, this::every);
+        install("some", 1, this::some);
+        install("reduce", 1, this::reduce);
+        install("reduceRight", 1, this::reduceRight);
+        install("flat", 0, this::flat);
+        install("flatMap", 1, this::flatMap);
+        install("sort", 1, this::sort);
+        install("fill", 1, this::fill);
+        install("splice", 2, this::splice);
+        install("shift", 0, this::shift);
+        install("unshift", 1, this::unshift);
+        install("lastIndexOf", 1, this::lastIndexOf);
+        install("pop", 0, this::pop);
+        install("at", 1, this::at);
+        install("copyWithin", 2, this::copyWithin);
+        install("keys", 0, this::keys);
+        install("values", 0, this::values);
+        install("entries", 0, this::entries);
+        install("findLast", 1, this::findLast);
+        install("findLastIndex", 1, this::findLastIndex);
+        install("with", 2, this::withMethod);
+        install("group", 1, this::group);
     }
 
     // Helper methods
