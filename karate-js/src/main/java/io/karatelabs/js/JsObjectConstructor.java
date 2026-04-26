@@ -379,6 +379,7 @@ class JsObjectConstructor extends JsFunction {
 
     private static boolean isOwnKey(Object obj, String key) {
         if (obj instanceof JsObject jo) return jo.isOwnProperty(key);
+        if (obj instanceof Prototype p) return p.hasOwnMember(key);
         if (ownKeys(obj).contains(key)) return true;
         return false;
     }
@@ -576,6 +577,7 @@ class JsObjectConstructor extends JsFunction {
 
     private static byte ownAttrs(Object obj, String key) {
         if (obj instanceof JsObject jo) return jo.getOwnAttrs(key);
+        if (obj instanceof Prototype p) return p.getOwnAttrs(key);
         return JsObject.ATTRS_DEFAULT;
     }
 
@@ -619,6 +621,12 @@ class JsObjectConstructor extends JsFunction {
             Map<String, Object> m = ol.toMap();
             if (m.containsKey(key)) return m.get(key);
             if (obj instanceof JsObject jo && jo.hasOwnIntrinsic(key)) {
+                return ol.getMember(key);
+            }
+            // Prototype's built-in methods (e.g. Array.prototype.push) similarly
+            // live in subclass getBuiltinProperty switches — route through
+            // getMember so descriptor reads pick them up.
+            if (obj instanceof Prototype p && p.hasOwnMember(key)) {
                 return ol.getMember(key);
             }
             return Terms.UNDEFINED;

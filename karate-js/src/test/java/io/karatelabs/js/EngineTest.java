@@ -1050,4 +1050,24 @@ class EngineTest {
         assertEquals(true, e2.eval("Number.isFinite(1)"));
     }
 
+    @Test
+    void testBuiltinPrototypeStateResetBetweenEngines() {
+        // Built-in prototype singletons (JsArrayPrototype.INSTANCE etc.) likewise live
+        // for the JVM. propertyHelper-style probes do
+        // `verifyProperty(Array.prototype, "push", {...})` which destructively deletes
+        // and re-tests; a tombstone left behind would leak to the next engine.
+        Engine e1 = new Engine();
+        // Override a built-in: should be visible in e1, gone in e2.
+        e1.eval("Array.prototype.foo = 'bar'");
+        // Delete a built-in: tombstone hides the resolved method in e1, but e2 must
+        // see the method again.
+        e1.eval("delete Array.prototype.push");
+        assertEquals(Terms.UNDEFINED, e1.evalRaw("[].push"));
+
+        Engine e2 = new Engine();
+        assertEquals(Terms.UNDEFINED, e2.evalRaw("Array.prototype.foo"));
+        // push is back — actually call it to prove the resolution path is restored.
+        assertEquals(3.0, ((Number) e2.eval("var a = [1,2]; a.push(3); a.length")).doubleValue());
+    }
+
 }

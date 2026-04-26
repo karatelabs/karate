@@ -24,9 +24,11 @@
 package io.karatelabs.js;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -68,11 +70,34 @@ abstract class Prototype implements ObjectLike {
             if (p.userProps != null) {
                 p.userProps.clear();
             }
+            if (p.tombstones != null) {
+                p.tombstones.clear();
+            }
+            p.clearSubclassState();
         }
+    }
+
+    /**
+     * Subclass hook for clearing per-Engine caches (e.g. a {@code _methodCache}
+     * holding wrapped {@link JsBuiltinMethod} instances). Default no-op; called
+     * from {@link #clearAllUserProps()} at the start of each {@link Engine}
+     * session.
+     */
+    protected void clearSubclassState() {
     }
 
     private final Prototype __proto__;
     private Map<String, Object> userProps;
+    /**
+     * Tombstones for built-in properties that the user has deleted via
+     * {@code delete Foo.prototype.bar}. Mirror of {@link JsObject#_tombstones}:
+     * the underlying built-in resolution lives in subclass switches and has
+     * nothing for {@link #removeMember} to take out of {@link #userProps}, so we
+     * record the deletion here and have {@link #getMember} skip the built-in
+     * lookup when the name is tombstoned. A successful re-assignment via
+     * {@link #putMember} clears the tombstone.
+     */
+    private Set<String> tombstones;
 
     Prototype(Prototype __proto__) {
         this.__proto__ = __proto__;
@@ -90,13 +115,40 @@ abstract class Prototype implements ObjectLike {
             userProps = new LinkedHashMap<>();
         }
         userProps.put(name, value);
+        // A successful write clears any tombstone — the key now exists again,
+        // mirroring JsObject.putMember.
+        if (tombstones != null) {
+            tombstones.remove(name);
+        }
     }
 
     @Override
     public void removeMember(String name) {
-        // Only user-added properties are removable; built-in methods stay.
-        if (userProps != null) {
+        if (tombstones != null && tombstones.contains(name)) {
+            return; // already gone
+        }
+        boolean inUser = userProps != null && userProps.containsKey(name);
+        boolean isBuiltin = !inUser && getBuiltinProperty(name) != null;
+        if (!inUser && !isBuiltin) {
+            return;
+        }
+        // Spec built-in prototype methods are { configurable: true } — every
+        // built-in resolved here is configurable unless the subclass tightens
+        // it via getOwnAttrs. Honor that bit.
+        if (isBuiltin && (getOwnAttrs(name) & JsObject.CONFIGURABLE) == 0) {
+            return;
+        }
+        if (inUser) {
             userProps.remove(name);
+        }
+        // Tombstone if there's an underlying built-in to shadow; without this,
+        // a subsequent `Array.prototype.push` lookup would re-resolve the
+        // built-in and `hasOwnProperty` would incorrectly report it as own.
+        if (isBuiltin) {
+            if (tombstones == null) {
+                tombstones = new HashSet<>();
+            }
+            tombstones.add(name);
         }
     }
 
@@ -111,16 +163,32 @@ abstract class Prototype implements ObjectLike {
         if (userProps != null && userProps.containsKey(name)) {
             return userProps.get(name);
         }
-        // 2. Built-in properties defined by this prototype
-        Object result = getBuiltinProperty(name);
-        if (result != null) {
-            return result;
+        // 2. Built-in properties defined by this prototype — but skip the lookup
+        // entirely when tombstoned (a `delete Foo.prototype.x` should not be
+        // silently undone by re-resolving the built-in).
+        if (tombstones == null || !tombstones.contains(name)) {
+            Object result = getBuiltinProperty(name);
+            if (result != null) {
+                return result;
+            }
         }
         // 3. Delegate to __proto__ chain
         if (__proto__ != null) {
             return __proto__.getMember(name);
         }
         return null;
+    }
+
+    /**
+     * Spec attribute byte for an own property of this prototype. Built-in
+     * methods on every standard prototype carry
+     * {@code {writable: true, enumerable: false, configurable: true}}
+     * unless otherwise noted; this default returns
+     * {@code WRITABLE | CONFIGURABLE}. Subclasses with intrinsic data slots
+     * (e.g. {@code Math.PI}-style constants on a future prototype) override.
+     */
+    public byte getOwnAttrs(String name) {
+        return JsObject.WRITABLE | JsObject.CONFIGURABLE;
     }
 
     /**
@@ -139,6 +207,9 @@ abstract class Prototype implements ObjectLike {
      * etc. to return true. Does NOT walk {@code __proto__}.
      */
     boolean hasOwnMember(String name) {
+        if (tombstones != null && tombstones.contains(name)) {
+            return false;
+        }
         if (userProps != null && userProps.containsKey(name)) {
             return true;
         }
