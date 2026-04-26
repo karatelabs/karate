@@ -43,10 +43,10 @@ class JsFunctionPrototype extends Prototype {
     @Override
     protected Object getBuiltinProperty(String name) {
         return switch (name) {
-            case "call" -> (JsCallable) this::callMethod;
-            case "apply" -> (JsCallable) this::applyMethod;
-            case "bind" -> (JsCallable) this::bindMethod;
-            case "toString" -> (JsCallable) this::toStringMethod;
+            case "call" -> method(name, 1, this::callMethod);
+            case "apply" -> method(name, 2, this::applyMethod);
+            case "bind" -> method(name, 1, this::bindMethod);
+            case "toString" -> method(name, 0, this::toStringMethod);
             case "constructor" -> JsFunctionConstructor.INSTANCE;
             default -> null;
         };

@@ -39,9 +39,9 @@ class JsRegexPrototype extends Prototype {
     @Override
     protected Object getBuiltinProperty(String name) {
         return switch (name) {
-            case "test" -> (JsCallable) this::test;
-            case "exec" -> (JsCallable) this::exec;
-            case "toString" -> (JsCallable) this::toStringMethod;
+            case "test" -> method(name, 1, this::test);
+            case "exec" -> method(name, 1, this::exec);
+            case "toString" -> method(name, 0, this::toStringMethod);
             default -> null;
         };
     }

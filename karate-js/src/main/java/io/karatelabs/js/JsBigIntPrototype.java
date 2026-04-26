@@ -41,9 +41,9 @@ class JsBigIntPrototype extends Prototype {
     @Override
     protected Object getBuiltinProperty(String name) {
         return switch (name) {
-            case "toString" -> (JsCallable) this::toStringMethod;
-            case "valueOf" -> (JsCallable) this::valueOf;
-            case "toLocaleString" -> (JsCallable) this::toStringMethod;
+            case "toString" -> method(name, 0, this::toStringMethod);
+            case "valueOf" -> method(name, 0, this::valueOf);
+            case "toLocaleString" -> method(name, 0, this::toStringMethod);
             default -> null;
         };
     }

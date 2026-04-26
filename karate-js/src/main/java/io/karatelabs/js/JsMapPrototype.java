@@ -46,18 +46,20 @@ class JsMapPrototype extends Prototype {
         // intercepts `m.size` directly (returning the live count) so we don't expose it
         // here as a JsCallable — that would shape-mismatch real spec consumers.
         return switch (name) {
-            case "get" -> (JsCallable) this::get;
-            case "set" -> (JsCallable) this::set;
-            case "has" -> (JsCallable) this::has;
-            case "delete" -> (JsCallable) this::delete;
-            case "clear" -> (JsCallable) this::clear;
-            case "forEach" -> (JsCallable) this::forEach;
-            case "keys" -> (JsCallable) this::keys;
-            case "values" -> (JsCallable) this::values;
-            case "entries" -> (JsCallable) this::entriesMethod;
+            case "get" -> method(name, 1, this::get);
+            case "set" -> method(name, 2, this::set);
+            case "has" -> method(name, 1, this::has);
+            case "delete" -> method(name, 1, this::delete);
+            case "clear" -> method(name, 0, this::clear);
+            case "forEach" -> method(name, 1, this::forEach);
+            case "keys" -> method(name, 0, this::keys);
+            case "values" -> method(name, 0, this::values);
+            case "entries" -> method(name, 0, this::entriesMethod);
             default -> {
                 if (IterUtils.SYMBOL_ITERATOR.equals(name)) {
-                    yield (JsCallable) this::entriesMethod;
+                    // Spec @@iterator on Map.prototype === Map.prototype.entries — same
+                    // wrapped instance keeps identity.
+                    yield method("entries", 0, this::entriesMethod);
                 }
                 yield null;
             }

@@ -42,16 +42,19 @@ class JsSetPrototype extends Prototype {
     @Override
     protected Object getBuiltinProperty(String name) {
         return switch (name) {
-            case "add" -> (JsCallable) this::add;
-            case "has" -> (JsCallable) this::has;
-            case "delete" -> (JsCallable) this::delete;
-            case "clear" -> (JsCallable) this::clear;
-            case "forEach" -> (JsCallable) this::forEach;
-            case "keys", "values" -> (JsCallable) this::values;
-            case "entries" -> (JsCallable) this::entriesMethod;
+            case "add" -> method(name, 1, this::add);
+            case "has" -> method(name, 1, this::has);
+            case "delete" -> method(name, 1, this::delete);
+            case "clear" -> method(name, 0, this::clear);
+            case "forEach" -> method(name, 1, this::forEach);
+            // Set.prototype.keys / values / @@iterator all share the same impl;
+            // each must report its own name (see name.js tests).
+            case "keys" -> method(name, 0, this::values);
+            case "values" -> method(name, 0, this::values);
+            case "entries" -> method(name, 0, this::entriesMethod);
             default -> {
                 if (IterUtils.SYMBOL_ITERATOR.equals(name)) {
-                    yield (JsCallable) this::values;
+                    yield method("values", 0, this::values);
                 }
                 yield null;
             }

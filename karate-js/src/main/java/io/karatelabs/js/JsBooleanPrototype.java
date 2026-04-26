@@ -38,8 +38,8 @@ class JsBooleanPrototype extends Prototype {
     @Override
     protected Object getBuiltinProperty(String name) {
         return switch (name) {
-            case "toString" -> (JsCallable) JsBooleanPrototype::toStringMethod;
-            case "valueOf" -> (JsCallable) JsBooleanPrototype::valueOfMethod;
+            case "toString" -> method(name, 0, JsBooleanPrototype::toStringMethod);
+            case "valueOf" -> method(name, 0, JsBooleanPrototype::valueOfMethod);
             default -> null;
         };
     }

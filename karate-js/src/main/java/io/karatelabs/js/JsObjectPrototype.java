@@ -78,11 +78,13 @@ class JsObjectPrototype extends Prototype {
     @Override
     protected Object getBuiltinProperty(String name) {
         return switch (name) {
+            // toString stays unwrapped — JsConsole compares against DEFAULT_TO_STRING
+            // by reference identity to detect a user-overridden toString.
             case "toString" -> DEFAULT_TO_STRING;
-            case "valueOf" -> (JsCallable) (context, args) -> context.getThisObject();
-            case "hasOwnProperty" -> (JsCallable) this::hasOwnProperty;
-            case "isPrototypeOf" -> (JsCallable) this::isPrototypeOf;
-            case "propertyIsEnumerable" -> (JsCallable) this::propertyIsEnumerable;
+            case "valueOf" -> method(name, 0, (context, args) -> context.getThisObject());
+            case "hasOwnProperty" -> method(name, 1, this::hasOwnProperty);
+            case "isPrototypeOf" -> method(name, 1, this::isPrototypeOf);
+            case "propertyIsEnumerable" -> method(name, 1, this::propertyIsEnumerable);
             default -> null;
         };
     }
