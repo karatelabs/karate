@@ -38,6 +38,10 @@ class BindValue {
     BindScope scope;  // null for var, LET/CONST for let/const
     boolean initialized;
     short evalId;               // tracks which eval() declared this binding
+    // Hidden entries are visible to the engine (initGlobal cache, putRootBinding
+    // host injections) but filtered from Engine.getBindings()/getRawBindings()
+    // so user-visible inspection only sees explicit user state.
+    boolean hidden;
 
     BindValue(String name, Object value) {
         this.name = name;
@@ -75,6 +79,7 @@ class BindValue {
         this.value = other.value;
         this.scope = other.scope;
         this.initialized = other.initialized;
+        this.hidden = other.hidden;
     }
 
     @Override

@@ -272,11 +272,10 @@ class CoreContext implements Context {
             }
             pushBinding(key, value, scope, initialized);
             if (depth == 0) {
+                // Stamp evalId on top-level let/const so cross-eval (REPL)
+                // re-declaration semantics in declare() can detect "this was
+                // declared in a previous eval, so re-declaring is allowed."
                 _bindings.getBindValue(key).evalId = root.evalId;
-            }
-            // for top-level declarations, also store in root to persist across evals
-            if (depth == 0 && root != null && parent == root) {
-                root.addBinding(key, scope);
             }
         } else { // hoist var to function level
             int functionLevel = findFunctionLevel();
@@ -339,12 +338,10 @@ class CoreContext implements Context {
     }
 
     private void assignImplicitGlobal(String key, Object value, Node node) {
-        // implicit global: assign to global scope (ES6 non-strict behavior)
-        CoreContext globalContext = this;
-        while (globalContext.depth > 0) {
-            globalContext = globalContext.parent;
-        }
-        globalContext.putBinding(key, value, null, true);
+        // ES6 non-strict implicit global: writes go straight to the engine's
+        // single shared Bindings (root and script context point at the same
+        // instance). No parent walk needed.
+        root._bindings.putMember(key, value, null, true);
         if (root.listener != null) {
             root.listener.onBind(BindEvent.declare(key, value, BindScope.VAR, this, node));
         }
@@ -397,10 +394,6 @@ class CoreContext implements Context {
             if (bv != null && bv.scope != null) {
                 return bv;
             }
-        }
-        // check root for top-level const/let declarations from previous evals (only at depth 0)
-        if (depth == 0 && root != null && parent == root) {
-            return root.getBindValue(key);
         }
         return null;
     }

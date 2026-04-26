@@ -37,16 +37,16 @@ public class Engine {
 
     public static boolean DEBUG = false;
 
-    private final ContextRoot root = new ContextRoot(this);
-
-    // The user-visible global store. Engine.put / Engine.get / Engine.getBindings
-    // all operate on this. Used as the script-level _bindings (passed in via
-    // evalInternal), so top-level `var x = 1` and implicit globals
-    // (`assignImplicitGlobal`) write here too. Distinct from
-    // `ContextRoot._bindings` (hidden — putRootBinding + lazy built-in cache).
-    // Package-private so ContextRoot/JsGlobalThis can read it for the global
-    // lookup chain. See {@link JsGlobalThis} for the unified read view.
+    // Single global store. Holds user-visible bindings (Engine.put / top-level
+    // var / implicit globals) AND hidden entries (putRootBinding-injected
+    // resources, lazy-cached built-ins from initGlobal). The hidden flag on
+    // BindValue distinguishes them; Engine.getBindings() filters hidden out for
+    // host inspection. Used as the script-level _bindings (passed in via
+    // evalInternal) and as the root's binding store — same instance.
+    // Package-private so ContextRoot/JsGlobalThis can read/write directly.
     final Bindings bindings = new Bindings();
+
+    private final ContextRoot root = new ContextRoot(this);
 
     public Engine() {
         // Built-in prototype singletons (JsArrayPrototype, JsMapPrototype, …) accumulate
@@ -98,7 +98,7 @@ public class Engine {
     }
 
     public void putRootBinding(String name, Object value) {
-        root.put(name, value);
+        bindings.putHidden(name, value);
     }
 
     public void remove(String name) {
@@ -110,19 +110,21 @@ public class Engine {
     }
 
     /**
-     * Returns the bindings as an auto-unwrapping Map.
+     * Returns the user-visible bindings as an auto-unwrapping Map.
      * Values retrieved via get() are automatically converted (JsDate → Date, undefined → null, etc.).
+     * Hidden entries (putRootBinding-injected, lazy built-ins) are filtered out.
      */
     public Map<String, Object> getBindings() {
         return bindings;
     }
 
     /**
-     * Returns the raw bindings map without auto-unwrapping.
-     * Use this for internal engine operations that need raw JS values.
+     * Returns the raw user-visible bindings map without auto-unwrapping.
+     * Hidden entries are filtered out. Used for internal engine operations
+     * that need raw JS values.
      */
     public Map<String, Object> getRawBindings() {
-        return bindings.getRawMap();
+        return bindings.getRawMap(false);
     }
 
     public Context getRootContext() {
@@ -130,13 +132,12 @@ public class Engine {
     }
 
     /**
-     * Returns the root context bindings as an auto-unwrapping Map.
+     * Returns the hidden ("root") bindings — the entries injected via
+     * {@link #putRootBinding} plus the lazy built-in cache. Used by hosts
+     * (e.g. Karate's ScenarioRuntime) to inherit hidden state into a callee.
      */
     public Map<String, Object> getRootBindings() {
-        if (root._bindings != null) {
-            return root._bindings;
-        }
-        return java.util.Collections.emptyMap();
+        return bindings.getRawMap(true);
     }
 
     public void setListener(ContextListener listener) {

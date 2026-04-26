@@ -115,6 +115,32 @@ public class Bindings implements Map<String, Object> {
     }
 
     /**
+     * Put a hidden entry — visible to the engine (lookup chain sees it) but
+     * filtered out of {@link Engine#getBindings()} / {@link Engine#getRawBindings()}.
+     * Used by {@link Engine#putRootBinding} for host-injected resources and by
+     * {@code ContextRoot.initGlobal} for the lazy built-in cache.
+     */
+    public void putHidden(String key, Object value) {
+        BindValue existing = map.get(key);
+        if (existing != null) {
+            existing.value = value;
+            existing.hidden = true;
+        } else {
+            BindValue bv = new BindValue(key, value);
+            bv.hidden = true;
+            map.put(key, bv);
+        }
+    }
+
+    /**
+     * Returns true if the binding for {@code key} is marked hidden.
+     */
+    public boolean isHidden(String key) {
+        BindValue bv = map.get(key);
+        return bv != null && bv.hidden;
+    }
+
+    /**
      * Get BindValue for a key (for TDZ checks).
      */
     public BindValue getBindValue(String key) {
@@ -172,6 +198,8 @@ public class Bindings implements Map<String, Object> {
 
     /**
      * Returns a raw Map view of the bindings without auto-unwrapping.
+     * Includes all entries — hidden and visible. Engine internals use this;
+     * host-facing callers should go through {@link #getRawMap(boolean)}.
      */
     public Map<String, Object> getRawMap() {
         Map<String, Object> result = new HashMap<>(map.size());
@@ -181,26 +209,57 @@ public class Bindings implements Map<String, Object> {
         return result;
     }
 
+    /**
+     * Raw map filtered by hidden flag.
+     *
+     * @param hidden if true, return only hidden entries (used by
+     *               {@link Engine#getRootBindings()}); if false, return only
+     *               visible entries (used by {@link Engine#getRawBindings()}).
+     */
+    public Map<String, Object> getRawMap(boolean hidden) {
+        Map<String, Object> result = new HashMap<>(map.size());
+        for (Entry<String, BindValue> e : map.entrySet()) {
+            if (e.getValue().hidden == hidden) {
+                result.put(e.getKey(), e.getValue().value);
+            }
+        }
+        return result;
+    }
+
     //=== Map interface (auto-unwrapping for Java consumers) ===
+    //
+    // The host-facing Map view filters out hidden entries — preserves the
+    // contract that putRootBinding-injected resources and lazy-cached built-ins
+    // are invisible to Engine.getBindings() inspection.
 
     @Override
     public int size() {
-        return map.size();
+        int count = 0;
+        for (BindValue bv : map.values()) {
+            if (!bv.hidden) count++;
+        }
+        return count;
     }
 
     @Override
     public boolean isEmpty() {
-        return map.isEmpty();
+        for (BindValue bv : map.values()) {
+            if (!bv.hidden) return false;
+        }
+        return true;
     }
 
     @Override
     public boolean containsKey(Object key) {
-        return map.containsKey(key);
+        if (!(key instanceof String s)) return false;
+        BindValue bv = map.get(s);
+        return bv != null && !bv.hidden;
     }
 
     @Override
     public boolean containsValue(Object value) {
         for (BindValue bv : map.values()) {
+            if (bv.hidden) continue;
             if (Objects.equals(Engine.toJava(bv.value), value)) {
                 return true;
             }
@@ -211,7 +270,8 @@ public class Bindings implements Map<String, Object> {
     @Override
     public Object get(Object key) {
         if (key instanceof String s) {
-            return Engine.toJava(getMember(s));
+            BindValue bv = map.get(s);
+            if (bv != null && !bv.hidden) return Engine.toJava(bv.value);
         }
         return null;
     }
@@ -246,13 +306,18 @@ public class Bindings implements Map<String, Object> {
 
     @Override
     public Set<String> keySet() {
-        return map.keySet();
+        Set<String> result = new LinkedHashSet<>();
+        for (Entry<String, BindValue> e : map.entrySet()) {
+            if (!e.getValue().hidden) result.add(e.getKey());
+        }
+        return result;
     }
 
     @Override
     public Collection<Object> values() {
         List<Object> list = new ArrayList<>(map.size());
         for (BindValue bv : map.values()) {
+            if (bv.hidden) continue;
             list.add(Engine.toJava(bv.value));
         }
         return list;
@@ -262,6 +327,7 @@ public class Bindings implements Map<String, Object> {
     public Set<Entry<String, Object>> entrySet() {
         Map<String, Object> result = new LinkedHashMap<>(map.size());
         for (Entry<String, BindValue> e : map.entrySet()) {
+            if (e.getValue().hidden) continue;
             result.put(e.getKey(), e.getValue().value);
         }
         return JsObject.getEntries(result);

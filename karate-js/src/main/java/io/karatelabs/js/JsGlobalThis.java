@@ -24,28 +24,21 @@
 package io.karatelabs.js;
 
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * Top-level {@code this} — the karate-js stand-in for spec {@code globalThis}.
  * <p>
- * Pure façade: holds no own data. The two existing global stores stay
- * separate (so {@link Engine#putRootBinding} can keep its hidden-from-host
- * contract), but JsGlobalThis presents them as one global object:
- * <ul>
- *   <li>{@link Engine#bindings} — user-visible store. Reads observed first;
- *       writes always land here. Same instance as the script-level
- *       {@code _bindings}, so {@code this.foo = 1; foo} and
- *       {@code foo = 1; this.foo} go through one store.</li>
- *   <li>{@link ContextRoot#_bindings} — hidden store. Lazy-cached built-ins
- *       ({@code initGlobal}) and {@link Engine#putRootBinding} land here.
- *       Reads observed only after a miss in Engine.bindings; writes never
- *       touch it (would defeat the hidden-from-host contract).</li>
- * </ul>
+ * Pure façade over the engine's single {@link Bindings} store. Reads / writes
+ * go through that one store; the {@code hidden} flag on individual entries
+ * preserves the contract that {@link Engine#putRootBinding} injections and
+ * lazy-cached built-ins are invisible to {@link Engine#getBindings()}, but
+ * fully visible here (so {@code Object.getOwnPropertyDescriptor(this, "Math")}
+ * etc. work).
+ * <p>
  * Tombstones (inherited from {@link JsObject}) make {@code delete this.Math}
- * stick — without one, the next read would re-trigger {@code initGlobal} and
- * resurrect the global.
+ * stick — without one, the next read would re-trigger {@code initGlobal} via
+ * {@code root.get(name)} and resurrect the global.
  */
 final class JsGlobalThis extends JsObject {
 
@@ -53,12 +46,11 @@ final class JsGlobalThis extends JsObject {
 
     /**
      * Names whose attrs were explicitly written by {@code defineProperty} (or
-     * accessed-once internal calls). The inherited {@code _attrs} map drops
-     * entries whose value equals {@link JsObject#ATTRS_DEFAULT} (W|E|C) — for
-     * a normal JsObject that's the right call (default == fresh assignment),
-     * but for globalThis the global default ({@code W | C}) differs from the
-     * data-property default, so we need a separate signal to know whether to
-     * apply the global-default attrs or the stored attrs.
+     * accessed-once internal calls). The inherited {@code _attrs} map prunes
+     * entries equal to {@link JsObject#ATTRS_DEFAULT} (W|E|C) — fine for a
+     * normal JsObject (default == fresh assignment), but globalThis's default
+     * ({@code W | C}, no E) differs, so we need a separate signal to know
+     * whether to apply the global default or honor the stored attrs.
      */
     private java.util.Set<String> _explicit;
 
@@ -66,8 +58,7 @@ final class JsGlobalThis extends JsObject {
         this.root = root;
     }
 
-    /** User-visible bindings (Engine.bindings); script-level _bindings. */
-    private Bindings userBindings() {
+    private Bindings bindings() {
         return ((Engine) root.getEngine()).bindings;
     }
 
@@ -80,8 +71,9 @@ final class JsGlobalThis extends JsObject {
             return proto != null ? proto.getMember(name) : null;
         }
         if ("__proto__".equals(name)) return getPrototype();
-        Bindings user = userBindings();
-        if (user.hasMember(name)) return user.getMember(name);
+        Bindings b = bindings();
+        if (b.hasMember(name)) return b.getMember(name);
+        // Triggers lazy initGlobal for built-ins and caches them as hidden.
         if (root.hasKey(name)) return root.get(name);
         // Walk the prototype chain — JsObject defaults to JsObjectPrototype.INSTANCE,
         // which is where `propertyIsEnumerable`, `hasOwnProperty`, `toString` etc. live.
@@ -100,26 +92,26 @@ final class JsGlobalThis extends JsObject {
         // separate concern). Without this, propertyHelper's isWritable probe
         // reports writable=true on a defined-as-non-writable global.
         if ((getOwnAttrs(name) & WRITABLE) == 0
-                && (_explicit != null && _explicit.contains(name))) {
+                && bindings().hasMember(name)) {
             return;
         }
         // Writing reanimates a tombstone.
         clearTombstone(name);
-        // Always write to the user-visible store, never the root's hidden one
-        // — `this.foo = 1` is observable; it has to land where `foo` (free
-        // variable) and `Engine.getBindings().get("foo")` will see it.
-        userBindings().putMember(name, value);
+        // `this.foo = 1` is observable; it has to land where `foo` (free
+        // variable) and `Engine.getBindings().get("foo")` will see it. The
+        // unified store handles that — we just write a non-hidden entry.
+        bindings().putMember(name, value);
     }
 
     @Override
     void defineOwn(String name, Object value, byte attrs) {
-        // Object.defineProperty(globalThis, name, ...) routes here. Value
-        // goes to userBindings (so plain `name` lookup sees it); attrs go
-        // to the inherited _attrs map AND _explicit so getOwnAttrs honors
-        // the explicit attrs even when they happen to equal ATTRS_DEFAULT
+        // Object.defineProperty(globalThis, name, ...) routes here. Value goes
+        // to the unified bindings (so plain `name` lookup sees it); attrs go
+        // to the inherited _attrs map AND _explicit so getOwnAttrs honors the
+        // explicit attrs even when they happen to equal ATTRS_DEFAULT
         // (which setAttrs would otherwise prune as redundant).
         clearTombstone(name);
-        userBindings().putMember(name, value);
+        bindings().putMember(name, value);
         setAttrs(name, attrs);
         if (_explicit == null) _explicit = new java.util.HashSet<>();
         _explicit.add(name);
@@ -127,9 +119,7 @@ final class JsGlobalThis extends JsObject {
 
     @Override
     public void removeMember(String name) {
-        Bindings user = userBindings();
-        if (user.hasMember(name)) user.remove(name);
-        if (root._bindings != null) root._bindings.remove(name);
+        bindings().remove(name);
         if (_explicit != null) _explicit.remove(name);
         // super applies the configurability check + tombstones the slot so
         // the next read doesn't re-resurrect a built-in via initGlobal.
@@ -139,13 +129,13 @@ final class JsGlobalThis extends JsObject {
     @Override
     public boolean isOwnProperty(String name) {
         if (isTombstoned(name)) return false;
-        return userBindings().hasMember(name) || root.hasKey(name);
+        return bindings().hasMember(name) || root.hasKey(name);
     }
 
     @Override
     public boolean hasOwnIntrinsic(String name) {
         if (isTombstoned(name)) return false;
-        return userBindings().hasMember(name) || root.hasKey(name);
+        return bindings().hasMember(name) || root.hasKey(name);
     }
 
     @Override
@@ -153,7 +143,7 @@ final class JsGlobalThis extends JsObject {
         // defineProperty on globalThis is the only path that should bypass
         // the global-default attrs. _explicit tracks those explicitly even
         // when their stored byte equals ATTRS_DEFAULT (in which case _attrs
-        // wouldn't carry them).
+        // wouldn't carry them, since setAttrs prunes the default).
         if (_explicit != null && _explicit.contains(name)) {
             return super.getOwnAttrs(name);
         }
@@ -161,7 +151,7 @@ final class JsGlobalThis extends JsObject {
         // { writable: true, enumerable: false, configurable: true }.
         // (Essentials like NaN / Infinity / undefined are non-writable but
         // not distinguished here — fix when test262 surfaces a fail.)
-        if (userBindings().hasMember(name) || root.hasKey(name)) {
+        if (bindings().hasMember(name) || root.hasKey(name)) {
             return WRITABLE | CONFIGURABLE;
         }
         return super.getOwnAttrs(name);
@@ -169,24 +159,16 @@ final class JsGlobalThis extends JsObject {
 
     @Override
     public Map<String, Object> toMap() {
-        Bindings user = userBindings();
-        if ((root._bindings == null || root._bindings.isEmpty()) && user.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        // Merged view of raw values: user bindings win on key collision (same
-        // priority as getMember). Use getRawMap (NOT entrySet) — entrySet
-        // auto-unwraps via Engine.toJava, which wraps JsFunction in
-        // JsFunctionWrapper and breaks identity for descriptor lookups.
+        // Raw view of the unified store — both visible and hidden entries.
         // Built-ins not yet lazy-cached aren't here; Object.keys(globalThis)
-        // only sees realized entries.
-        Map<String, Object> merged = new LinkedHashMap<>();
-        if (root._bindings != null) merged.putAll(root._bindings.getRawMap());
-        merged.putAll(user.getRawMap());
-        return merged;
+        // only sees realized entries (and gets filtered down further by
+        // enumerability via getOwnAttrs above).
+        Map<String, Object> raw = bindings().getRawMap();
+        return raw.isEmpty() ? Collections.emptyMap() : raw;
     }
 
     // Map<String, Object> overrides — JsObject's defaults check _map (always
-    // empty here). Forward to the unified view so Java consumers
+    // empty here). Forward to the unified store so Java consumers
     // (e.g. iteration over globalThis) see the real state.
 
     @Override
@@ -196,20 +178,20 @@ final class JsGlobalThis extends JsObject {
 
     @Override
     public boolean isEmpty() {
-        return userBindings().isEmpty() && (root._bindings == null || root._bindings.isEmpty());
+        return toMap().isEmpty();
     }
 
     @Override
     public boolean containsKey(Object key) {
         return key instanceof String s && !isTombstoned(s)
-                && (userBindings().hasMember(s) || root.hasKey(s));
+                && (bindings().hasMember(s) || root.hasKey(s));
     }
 
     @Override
     public Object get(Object key) {
         if (!(key instanceof String s) || isTombstoned(s)) return null;
-        Bindings user = userBindings();
-        if (user.hasMember(s)) return user.getMember(s);
+        Bindings b = bindings();
+        if (b.hasMember(s)) return b.getMember(s);
         return root.hasKey(s) ? root.get(s) : null;
     }
 
