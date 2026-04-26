@@ -182,7 +182,7 @@ and only ~13% of String fails touch it (regex protocol + iterator).
 
 | # | Slice | Fail size | What's likely in scope |
 |---|---|---|---|
-| 1 | `test/built-ins/Math/**` | ~33 | Missing constants, signed-zero, edge-case rounding (`fround`/`hypot`/`cbrt`/`expm1`/`log1p`/`atanh`); `Math.min/max` empty-args |
+| 1 | `test/built-ins/Math/**` | ~~33~~ → 1 | **Done (2026-04-26):** `min`/`max`/`hypot` made variadic with spec coercion order; `round` follows half-toward-+∞ (not half-away-zero) and short-circuits integers; `asinh`/`atanh` special-vals; `clz32` ToUint32; `sign(NaN)`; `Math()` throws TypeError. `f16round`/`sumPrecise`/`Symbol.toStringTag` skipped via feature gate. Residual: `prop-desc.js` (top-level `this !== globalThis`) |
 | 2 | `test/built-ins/Number/**` | ~96 | `parseInt`/`parseFloat` edge cases; `toFixed`/`toPrecision`/`toExponential` rounding; `Number.isInteger` / `isSafeInteger` / `isFinite` / `isNaN` distinctions |
 | 3 | `test/built-ins/JSON/**` | TBD probe | `stringify` replacer-fn / array-filter / nested `toJSON` dispatch; `parse` reviver hooks; circular detection |
 | 4 | Error constructors | broad cascade | `RangeError` / `ReferenceError` (and likely `EvalError` / `URIError`) not registered as globals — fixes `assert.throws(RangeError, ...)` cascades suite-wide |
@@ -203,7 +203,7 @@ row in the baseline table below if it shifts.
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
 | `test/language/**` | 4327 | 3776 | 15542 | 23645 |
-| `test/built-ins/Math/**` | 293 | 33 | 1 | 327 |
+| `test/built-ins/Math/**` | 310 | 1 | 16 | 327 |
 | `test/built-ins/Number/**` | 232 | 96 | 12 | 340 |
 | `test/built-ins/String/**` | 456 | 717 | 50 | 1223 |
 | `test/built-ins/Array/**` | 1276 | 1625 | 180 | 3081 |

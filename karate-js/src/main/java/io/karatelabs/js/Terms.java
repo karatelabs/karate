@@ -199,6 +199,22 @@ public class Terms {
         };
     }
 
+    /**
+     * Spec ToNumber for built-ins that must invoke a host object's
+     * {@code @@toPrimitive} / {@code valueOf} / {@code toString} (e.g. every
+     * Math.* method that takes a number arg, per spec). Errors raised by those
+     * dispatches propagate via {@code context.isError()} — callers must check
+     * and bail with {@link #UNDEFINED} so the surrounding call frame can pick
+     * the abrupt completion up.
+     */
+    static Number toNumberCoerce(Object o, CoreContext context) {
+        Object prim = toPrimitive(o, "number", context);
+        if (context != null && context.isError()) {
+            return Double.NaN;
+        }
+        return objectToNumber(prim);
+    }
+
     public static Number toNumber(String text) {
         if (text.isEmpty()) {
             return 0;

@@ -47,6 +47,8 @@ skip:
   features:
     - feature: Symbol
       reason: Symbol primitive type / unique identity / Symbol() constructor not supported
+    - feature: Symbol.toStringTag
+      reason: requires Symbol primitive (well-known @@toStringTag tested via Symbol[])
     - feature: Symbol.asyncIterator
       reason: async iteration not supported
     # Symbol.iterator un-skipped: karate-js exposes @@iterator (string-keyed
@@ -85,6 +87,8 @@ skip:
       reason: Temporal proposal not implemented
     - feature: TypedArray
       reason: only Uint8Array is supported
+    - feature: Float16Array
+      reason: Float16Array (ES2025) not implemented; Math.f16round depends on it
     - feature: ArrayBuffer
       reason: ArrayBuffer semantics not implemented
     - feature: SharedArrayBuffer
@@ -126,6 +130,8 @@ skip:
     # separators are early errors.
     - feature: tail-call-optimization
       reason: tail-call optimization not guaranteed
+    - feature: Math.sumPrecise
+      reason: Math.sumPrecise (ES2025 stage 3+) not implemented
     # destructuring-binding is INTENTIONALLY NOT skipped — LLM-written JS uses
     # `const { a, b } = obj` constantly; we want to surface real breakage here.
     # If engine support proves too incomplete, re-add with a specific reason.

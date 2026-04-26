@@ -49,6 +49,15 @@ class JsMath extends JsObject {
     private java.util.Map<String, JsBuiltinMethod> _methodCache;
 
     @Override
+    public Object call(Context context, Object[] args) {
+        // Spec §21.3.1: the Math object has no [[Call]] internal method —
+        // `Math()` must throw TypeError. JsObject's default `call()` returns a
+        // new empty object (the Object-constructor stand-in), which would let
+        // `Math()` succeed silently.
+        throw JsErrorException.typeError("Math is not a function");
+    }
+
+    @Override
     public Object getMember(String name) {
         // User-set values + tombstones take precedence over intrinsic resolution.
         // (`Math.cos = 5` and `delete Math.cos` need to win.)
@@ -90,20 +99,35 @@ class JsMath extends JsObject {
                 return Math.log(x + Math.sqrt(x * x - 1));
             }));
             case "asin" -> wrap("asin", 1, math(Math::asin));
-            case "asinh" -> wrap("asinh", 1, math(x -> Math.log(x + Math.sqrt(x * x + 1))));
+            case "asinh" -> wrap("asinh", 1, math(x -> {
+                // Spec §21.3.2.5: ±0 / ±Inf / NaN return the argument unchanged.
+                // The naive `log(x + sqrt(x*x + 1))` form yields NaN for -Inf
+                // (Inf + (-Inf)) and loses the sign of zero.
+                if (Double.isNaN(x) || x == 0 || Double.isInfinite(x)) return x;
+                return Math.log(x + Math.sqrt(x * x + 1));
+            }));
             case "atan" -> wrap("atan", 1, math(Math::atan));
             case "atan2" -> wrap("atan2", 2, math(Math::atan2));
             case "atanh" -> wrap("atanh", 1, math(x -> {
-                if (x <= -1 || x >= 1) {
-                    throw JsErrorException.rangeError("value must be between -1 and 1 (exclusive)");
-                }
+                // Spec §21.3.2.7: ±1 → ±Infinity; |x| > 1 → NaN; ±0 preserved.
+                if (Double.isNaN(x)) return Double.NaN;
+                if (x > 1 || x < -1) return Double.NaN;
+                if (x == 1) return Double.POSITIVE_INFINITY;
+                if (x == -1) return Double.NEGATIVE_INFINITY;
+                if (x == 0) return x;
                 return 0.5 * Math.log((1 + x) / (1 - x));
             }));
             case "cbrt" -> wrap("cbrt", 1, math(Math::cbrt));
             case "ceil" -> wrap("ceil", 1, math(Math::ceil));
             case "clz32" -> wrap("clz32", 1, (JsInvokable) args -> {
-                Number x = Terms.objectToNumber(args[0]);
-                return Integer.numberOfLeadingZeros(x.intValue());
+                Number x = Terms.objectToNumber(args.length == 0 ? Terms.UNDEFINED : args[0]);
+                double d = x.doubleValue();
+                // Spec §21.3.2.11 ToUint32: NaN, ±0, ±Infinity all map to +0.
+                if (Double.isNaN(d) || Double.isInfinite(d) || d == 0) return 32;
+                double t = (d < 0) ? Math.ceil(d) : Math.floor(d);
+                double mod = t - Math.floor(t / 4294967296.0) * 4294967296.0;
+                int n = (int) (long) mod;
+                return Integer.numberOfLeadingZeros(n);
             });
             case "cos" -> wrap("cos", 1, math(Math::cos));
             case "cosh" -> wrap("cosh", 1, math(Math::cosh));
@@ -115,7 +139,31 @@ class JsMath extends JsObject {
                 float y = (float) x.doubleValue();
                 return (double) y;
             });
-            case "hypot" -> wrap("hypot", 2, math(Math::hypot));
+            case "hypot" -> wrap("hypot", 2, (JsCallable) (context, args) -> {
+                // Spec §21.3.2.18: coerce ALL args left-to-right via ToNumber
+                // before scanning (so an Infinity later in the list cannot
+                // short-circuit a valueOf abrupt-completion earlier in the list).
+                CoreContext cc = (CoreContext) context;
+                double[] coerced = new double[args.length];
+                for (int i = 0; i < args.length; i++) {
+                    Number n = Terms.toNumberCoerce(args[i], cc);
+                    if (cc != null && cc.isError()) return Terms.UNDEFINED;
+                    coerced[i] = n.doubleValue();
+                }
+                boolean hasNaN = false;
+                for (double d : coerced) {
+                    if (Double.isInfinite(d)) return Double.POSITIVE_INFINITY;
+                    if (Double.isNaN(d)) hasNaN = true;
+                }
+                if (hasNaN) return Double.NaN;
+                if (coerced.length == 0) return 0;
+                if (coerced.length == 1) return Terms.narrow(Math.abs(coerced[0]));
+                double r = Math.hypot(coerced[0], coerced[1]);
+                for (int i = 2; i < coerced.length; i++) {
+                    r = Math.hypot(r, coerced[i]);
+                }
+                return Terms.narrow(r);
+            });
             case "imul" -> wrap("imul", 2, (JsInvokable) args -> {
                 Number x = Terms.objectToNumber(args[0]);
                 Number y = Terms.objectToNumber(args[1]);
@@ -125,30 +173,62 @@ class JsMath extends JsObject {
             case "log10" -> wrap("log10", 1, math(Math::log10));
             case "log1p" -> wrap("log1p", 1, math(Math::log1p));
             case "log2" -> wrap("log2", 1, math(x -> Math.log(x) / Math.log(2)));
-            case "max" -> wrap("max", 2, math(Math::max));
-            case "min" -> wrap("min", 2, math(Math::min));
+            case "max" -> wrap("max", 2, (JsCallable) (context, args) -> {
+                // Spec §21.3.2.24: empty -> -Infinity; coerce all args first
+                // (so a later valueOf abrupt completion isn't lost), then
+                // reduce. Java's Math.max already treats -0 < +0 per spec.
+                CoreContext cc = (CoreContext) context;
+                if (args.length == 0) return Double.NEGATIVE_INFINITY;
+                double[] coerced = new double[args.length];
+                for (int i = 0; i < args.length; i++) {
+                    Number n = Terms.toNumberCoerce(args[i], cc);
+                    if (cc != null && cc.isError()) return Terms.UNDEFINED;
+                    coerced[i] = n.doubleValue();
+                }
+                double r = Double.NEGATIVE_INFINITY;
+                for (double d : coerced) {
+                    if (Double.isNaN(d)) return Double.NaN;
+                    r = Math.max(r, d);
+                }
+                return Terms.narrow(r);
+            });
+            case "min" -> wrap("min", 2, (JsCallable) (context, args) -> {
+                // Spec §21.3.2.25: empty -> +Infinity; mirror of max.
+                CoreContext cc = (CoreContext) context;
+                if (args.length == 0) return Double.POSITIVE_INFINITY;
+                double[] coerced = new double[args.length];
+                for (int i = 0; i < args.length; i++) {
+                    Number n = Terms.toNumberCoerce(args[i], cc);
+                    if (cc != null && cc.isError()) return Terms.UNDEFINED;
+                    coerced[i] = n.doubleValue();
+                }
+                double r = Double.POSITIVE_INFINITY;
+                for (double d : coerced) {
+                    if (Double.isNaN(d)) return Double.NaN;
+                    r = Math.min(r, d);
+                }
+                return Terms.narrow(r);
+            });
             case "pow" -> wrap("pow", 2, math(Math::pow));
             case "random" -> wrap("random", 0, (JsInvokable) args -> Math.random());
-            case "round" -> wrap("round", 1, (JsInvokable) args -> {
-                Number x = Terms.objectToNumber(args[0]);
-                double value = x.doubleValue();
-                // js Math.round is "half-away from zero"
-                if (value < 0) {
-                    return Terms.narrow(Math.ceil(value - 0.5));
-                } else {
-                    return Terms.narrow(Math.floor(value + 0.5));
-                }
-            });
-            case "sign" -> wrap("sign", 1, (JsInvokable) args -> {
-                Number x = Terms.objectToNumber(args[0]);
-                if (Terms.NEGATIVE_ZERO.equals(x)) {
-                    return Terms.NEGATIVE_ZERO;
-                }
-                if (Terms.POSITIVE_ZERO.equals(x)) {
-                    return Terms.POSITIVE_ZERO;
-                }
-                return x.doubleValue() > 0 ? 1 : -1;
-            });
+            case "round" -> wrap("round", 1, math(x -> {
+                // Spec §21.3.2.28: NaN/±Inf/±0/integer unchanged; (0, 0.5) -> +0;
+                // [-0.5, 0) -> -0; otherwise floor(x + 0.5). Note this is
+                // "round half toward +Infinity", NOT "round half away from zero":
+                // Math.round(-1.5) === -1, NOT -2. The integer short-circuit is
+                // load-bearing near MAX_SAFE_INTEGER (ulp ≥ 1), where x + 0.5
+                // rounds to a different integer than x.
+                if (Double.isNaN(x) || Double.isInfinite(x) || x == 0) return x;
+                if (x == Math.floor(x)) return x;
+                if (x > 0 && x < 0.5) return 0.0;
+                if (x < 0 && x >= -0.5) return -0.0;
+                return Math.floor(x + 0.5);
+            }));
+            case "sign" -> wrap("sign", 1, math(x -> {
+                if (Double.isNaN(x)) return Double.NaN;
+                if (x == 0) return x; // ±0 preserved
+                return x > 0 ? 1.0 : -1.0;
+            }));
             case "sin" -> wrap("sin", 1, math(Math::sin));
             case "sinh" -> wrap("sinh", 1, math(Math::sinh));
             case "sqrt" -> wrap("sqrt", 1, math(Math::sqrt));

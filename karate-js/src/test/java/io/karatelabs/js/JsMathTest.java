@@ -96,16 +96,17 @@ class JsMathTest extends EvalBase {
         assertEquals(18, eval("Math.round(18.4)"));
         assertEquals(19, eval("Math.round(18.6)"));
 
-        // Test rounding with negative numbers
-        assertEquals(-19, eval("Math.round(-18.5)"));
+        // Test rounding with negative numbers — spec is "round half toward +Infinity",
+        // NOT "round half away from zero", so Math.round(-x.5) === -x (not -(x+1)).
+        assertEquals(-18, eval("Math.round(-18.5)"));
         assertEquals(-18, eval("Math.round(-18.4)"));
         assertEquals(-19, eval("Math.round(-18.6)"));
 
         // Test edge cases with 0.5
-        assertEquals(3, eval("Math.round(2.5)"));  // rounds to 3 (away from 0)
-        assertEquals(4, eval("Math.round(3.5)"));  // rounds to 4 (away from 0)
-        assertEquals(-3, eval("Math.round(-2.5)")); // rounds to -3 (away from 0) - THIS IS CORRECT!
-        assertEquals(-4, eval("Math.round(-3.5)")); // rounds to -4 (away from 0)
+        assertEquals(3, eval("Math.round(2.5)"));   // halfway -> +∞: 3
+        assertEquals(4, eval("Math.round(3.5)"));   // halfway -> +∞: 4
+        assertEquals(-2, eval("Math.round(-2.5)")); // halfway -> +∞: -2 (NOT -3)
+        assertEquals(-3, eval("Math.round(-3.5)")); // halfway -> +∞: -3 (NOT -4)
 
         // Test Math.floor behavior
         assertEquals(18, eval("Math.floor(18.865)"));
@@ -121,11 +122,12 @@ class JsMathTest extends EvalBase {
         assertEquals(-18, eval("Math.ceil(-18.1)"));
         assertEquals(-18, eval("Math.ceil(-18.5)"));
 
-        // Test special floating point cases
-        assertEquals(0, eval("Math.round(0.4999999999999999)"));  // Actually less than 0.5 (15 9s)
-        assertEquals(1, eval("Math.round(0.49999999999999994)"));  // This becomes 0.5 due to float precision (16 9s)
-        assertEquals(1, eval("Math.round(0.5)"));  // Exactly 0.5
-        assertEquals(1, eval("Math.round(0.50000000000000001)"));  // Just over 0.5 (actually equals 0.5 in double)
+        // Test special floating point cases — spec §21.3.2.28 step 3 short-circuits
+        // any (0, 0.5) value to +0 BEFORE the floor(x+0.5) path.
+        assertEquals(0, eval("Math.round(0.4999999999999999)"));   // < 0.5 -> +0
+        assertEquals(0, eval("Math.round(0.49999999999999994)"));  // largest double < 0.5 -> +0
+        assertEquals(1, eval("Math.round(0.5)"));                  // exactly 0.5 -> 1
+        assertEquals(1, eval("Math.round(0.50000000000000001)"));  // parses as 0.5 -> 1
 
         // Test with very small numbers
         assertEquals(0, eval("Math.round(Number.EPSILON)"));
