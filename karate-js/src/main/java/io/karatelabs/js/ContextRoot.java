@@ -298,7 +298,13 @@ class ContextRoot implements Context {
             // `obj[Symbol.species]`) sees a stable string key rather than undefined,
             // unblocking tests that just check existence or use the key as a property.
             case "Symbol" -> {
-                JsObject sym = new JsObject();
+                // `Symbol(...)` is callable — returns a fresh JsObject as a
+                // stand-in for a unique symbol value. We don't model real
+                // symbols (no unique identity, `typeof === "symbol"`, etc.);
+                // tests that need that are gated via `feature: Symbol`. This
+                // keeps `Symbol()` from throwing when used as a placeholder
+                // "non-function value" by tests of *other* features.
+                JsObject sym = new SymbolStandIn();
                 sym.putMember("iterator", IterUtils.SYMBOL_ITERATOR);
                 sym.putMember("asyncIterator", "@@asyncIterator");
                 sym.putMember("toPrimitive", "@@toPrimitive");
@@ -316,6 +322,20 @@ class ContextRoot implements Context {
             }
             default -> null;
         };
+    }
+
+    /**
+     * Minimal callable stand-in for {@code Symbol}. Lets tests that exist
+     * outside the {@code feature: Symbol} skip list (e.g. ones that pass
+     * {@code Symbol()} as a "non-callable value" probe) construct a unique
+     * placeholder without {@code Symbol(...)} throwing. Real symbol identity /
+     * {@code typeof === "symbol"} stay out of scope.
+     */
+    private static final class SymbolStandIn extends JsObject implements JsCallable {
+        @Override
+        public Object call(Context context, Object[] args) {
+            return new JsObject();
+        }
     }
 
 }

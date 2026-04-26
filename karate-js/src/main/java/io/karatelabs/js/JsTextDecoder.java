@@ -28,7 +28,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * JavaScript TextDecoder for decoding byte arrays to strings.
  */
-class JsTextDecoder extends JsObject {
+class JsTextDecoder extends JsObject implements JsCallable {
 
     @Override
     public Object getMember(String name) {

@@ -1004,13 +1004,17 @@ class EvalTest extends EvalBase {
 
     @Test
     void testThrowFunction() {
+        // Per spec OrdinaryCallBindThis: a free call `a(...)` (no receiver, no
+        // `new`) gets `this = globalThis`, not `this = a`. The assignment to
+        // `this.bar` lands on globalThis; we verify the side effect happened
+        // before the inner throw by reading `bar` as a free variable
+        // (globalThis property) afterwards.
         try {
             eval("function a(b){ this.bar = 'baz'; b() }; a(function(){ throw new Error('foo') })");
             fail("error expected");
         } catch (Exception e) {
             assertTrue(e.getMessage().contains("foo"));
-            JsFunction fn = (JsFunction) get("a");
-            assertEquals("baz", fn.getMember("bar"));
+            assertEquals("baz", engine.get("bar"));
         }
     }
 

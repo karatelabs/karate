@@ -32,7 +32,7 @@ import java.util.regex.PatternSyntaxException;
 /**
  * JavaScript RegExp wrapper that provides RegExp prototype methods.
  */
-public class JsRegex extends JsObject {
+public class JsRegex extends JsObject implements JsCallable {
 
     public final String pattern;
     public final String flags;

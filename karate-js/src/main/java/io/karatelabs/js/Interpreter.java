@@ -38,6 +38,25 @@ class Interpreter {
 
     static final Logger logger = LoggerFactory.getLogger(Interpreter.class);
 
+    /**
+     * Spec §10.2.1.2 OrdinaryCallBindThis (non-strict): a regular function
+     * called as {@code f()} (no receiver, no {@code f.call(...)}, no
+     * {@code new}) gets {@code this = globalThis}. We don't model strict-mode
+     * separately, so always do the substitution.
+     * <p>
+     * Used by every regular-call dispatch site (FN_CALL_EXPR + tagged
+     * template) and by {@link JsFunctionPrototype}'s {@code call}/{@code apply}
+     * implementations. The {@code new}-keyword paths handle their own
+     * {@code this} binding (newInstance for user fns, callable singleton for
+     * built-ins) and don't go through here.
+     */
+    static Object bindThisForCall(Object receiver, CoreContext context) {
+        if (receiver == null || receiver == Terms.UNDEFINED) {
+            return context.root.thisObject;
+        }
+        return receiver;
+    }
+
     private static List<Node> fnArgs(Node fnArgs) {
         List<Node> list = new ArrayList<>(fnArgs.size() - 2);
         for (int i = 0, n = fnArgs.size(); i < n; i++) {
@@ -446,8 +465,9 @@ class Interpreter {
                     }
                     callContext.thisObject = newInstance;
                 } else if (!jsFunc.arrow) {
-                    // Regular functions get their own 'this', arrow functions inherit from parent
-                    callContext.thisObject = receiver == null ? callable : receiver;
+                    // Regular functions get their own 'this'; arrow functions inherit from
+                    // parent. Spec substitution (null/undefined → globalThis) lives in the helper.
+                    callContext.thisObject = bindThisForCall(receiver, context);
                 }
                 callContext.event(EventType.CONTEXT_ENTER, node);
                 // bindArgsAndExecute handles error propagation internally
@@ -460,7 +480,7 @@ class Interpreter {
                     // Built-in constructors handle their own construction
                     callContext.thisObject = callable;
                 } else {
-                    callContext.thisObject = receiver == null ? callable : receiver;
+                    callContext.thisObject = bindThisForCall(receiver, context);
                 }
                 callContext.event(EventType.CONTEXT_ENTER, node);
                 result = callable.call(callContext, args);
@@ -615,13 +635,13 @@ class Interpreter {
         if (callable instanceof JsFunctionNode jsFunc) {
             callContext = new CoreContext(context, node, args, jsFunc.declaredContext, jsFunc.capturedBindings);
             if (!jsFunc.arrow) {
-                callContext.thisObject = receiver == null ? callable : receiver;
+                callContext.thisObject = bindThisForCall(receiver, context);
             }
             callContext.event(EventType.CONTEXT_ENTER, node);
             result = jsFunc.bindArgsAndExecute(callContext, context, args);
         } else {
             callContext = new CoreContext(context, node, args);
-            callContext.thisObject = receiver == null ? callable : receiver;
+            callContext.thisObject = bindThisForCall(receiver, context);
             callContext.event(EventType.CONTEXT_ENTER, node);
             result = callable.call(callContext, args);
             context.updateFrom(callContext);

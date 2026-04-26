@@ -49,15 +49,6 @@ class JsMath extends JsObject {
     private java.util.Map<String, JsBuiltinMethod> _methodCache;
 
     @Override
-    public Object call(Context context, Object[] args) {
-        // Spec §21.3.1: the Math object has no [[Call]] internal method —
-        // `Math()` must throw TypeError. JsObject's default `call()` returns a
-        // new empty object (the Object-constructor stand-in), which would let
-        // `Math()` succeed silently.
-        throw JsErrorException.typeError("Math is not a function");
-    }
-
-    @Override
     public Object getMember(String name) {
         // User-set values + tombstones take precedence over intrinsic resolution.
         // (`Math.cos = 5` and `delete Math.cos` need to win.)

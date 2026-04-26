@@ -142,8 +142,11 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
         // Check _map first to allow "Foo.prototype = ..." assignments
         if ("prototype".equals(name)) {
             Object fromSuper = super.getMember(name);
-            // If explicitly set in _map (not inherited from prototype chain), use that value
-            // Note: Can't use `!(fromSuper instanceof JsCallable)` because JsObject implements JsCallable
+            // If explicitly set in _map (not inherited from prototype chain), use that value.
+            // We check `!(fromSuper instanceof JsFunction)` rather than `JsCallable` because
+            // assigning a built-in function singleton (e.g. Foo.prototype = SomeBuiltin) is
+            // legitimate and should be returned as-is — only the auto-created Function
+            // prototype object is what we override here.
             if (fromSuper != null && !(fromSuper instanceof JsFunction)) {
                 // Prototype was explicitly set via assignment
                 return fromSuper;

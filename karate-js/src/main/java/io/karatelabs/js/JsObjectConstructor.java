@@ -53,6 +53,27 @@ class JsObjectConstructor extends JsFunction {
     }
 
     @Override
+    public Object call(Context context, Object... args) {
+        // Spec §20.1.1.1 Object(value): if value is null/undefined, return a fresh
+        // empty object; otherwise return ToObject(value). We don't model boxed
+        // primitives precisely — pass through anything that's already an object
+        // (ObjectLike), and return a fresh JsObject for null/undefined.
+        if (args.length == 0 || args[0] == null || args[0] == Terms.UNDEFINED) {
+            return new JsObject();
+        }
+        Object v = args[0];
+        if (v instanceof ObjectLike) {
+            return v;
+        }
+        return new JsObject();
+    }
+
+    @Override
+    public boolean isConstructable() {
+        return true;
+    }
+
+    @Override
     public Object getMember(String name) {
         if (isTombstoned(name) || ownContainsKey(name)) {
             return super.getMember(name);

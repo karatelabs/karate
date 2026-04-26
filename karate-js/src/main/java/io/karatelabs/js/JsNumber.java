@@ -26,7 +26,7 @@ package io.karatelabs.js;
 /**
  * JavaScript Number wrapper that provides Number prototype methods.
  */
-non-sealed class JsNumber extends JsObject implements JsPrimitive {
+non-sealed class JsNumber extends JsObject implements JsPrimitive, JsCallable {
 
     final Number value;
 

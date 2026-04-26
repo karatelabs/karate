@@ -35,7 +35,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *   <li>Prototype chain ({@code __proto__})</li>
  * </ol>
  */
-class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
+class JsObject implements ObjectLike, Map<String, Object> {
 
     // Per-property attribute bits stored in a single byte. Sparse: a key is only
     // present in {@code _attrs} if its triplet *deviates* from the all-true default,
@@ -620,11 +620,6 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
                 return new KeyValue(JsObject.this, index++, entry.getKey(), entry.getValue());
             }
         };
-    }
-
-    @Override
-    public Object call(Context context, Object[] args) {
-        return new JsObject();
     }
 
     // Use identity-based hashCode/equals to avoid infinite recursion

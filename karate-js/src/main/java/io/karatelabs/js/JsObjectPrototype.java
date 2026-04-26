@@ -69,10 +69,13 @@ class JsObjectPrototype extends Prototype {
         if (o instanceof JsBoolean || o instanceof Boolean) return "Boolean";
         if (o instanceof JsString || o instanceof String) return "String";
         if (o instanceof JsNumber || o instanceof Number) return "Number";
-        // Function tag only applies to actual function objects, NOT plain JsObjects
-        // (which also implement JsCallable as a side-effect of the host hierarchy).
         if (o instanceof JsFunction) return "Function";
         if (o instanceof JsObject jo && jo.isJsFunction()) return "Function";
+        // Bare JsCallable (e.g. JsInvokable lambdas in initGlobal) — not an
+        // ObjectLike, so the spec's [[Call]] check applies. After R2 this also
+        // wouldn't catch the JsString/JsNumber/JsBoolean/etc. wrappers (they
+        // implement JsCallable AND ObjectLike), but they're already tagged
+        // by the typed branches above.
         if (!(o instanceof ObjectLike) && o instanceof JsCallable) return "Function";
         return "Object";
     }

@@ -29,7 +29,7 @@ import java.util.Map;
 /**
  * JavaScript Error wrapper that provides Error prototype methods.
  */
-class JsError extends JsObject {
+class JsError extends JsObject implements JsCallable {
 
     private final String message;
     private final String name;

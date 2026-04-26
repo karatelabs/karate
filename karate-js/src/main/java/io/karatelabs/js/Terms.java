@@ -744,9 +744,10 @@ public class Terms {
             return "function";
         }
         // Raw JsCallable method refs exposed by Prototype.getBuiltinProperty
-        // ((JsCallable) this::map, etc.). JsObject / JsArray also implement
-        // JsCallable but are excluded here by the ObjectLike guard, so they
-        // fall through to "object" below.
+        // ((JsCallable) this::map, etc.). After R2, plain JsObject is no longer
+        // JsCallable; JsArray and the boxed primitive wrappers (JsString /
+        // JsNumber / JsBoolean) still are, but they're handled by the
+        // primitive/object-ish branches around this one.
         if (value instanceof JsCallable && !(value instanceof ObjectLike)) {
             return "function";
         }

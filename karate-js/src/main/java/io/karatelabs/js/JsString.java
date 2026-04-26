@@ -28,7 +28,7 @@ import java.util.Iterator;
 /**
  * JavaScript String wrapper that provides String prototype methods.
  */
-non-sealed class JsString extends JsObject implements JsPrimitive {
+non-sealed class JsString extends JsObject implements JsPrimitive, JsCallable {
 
     final String text;
 
