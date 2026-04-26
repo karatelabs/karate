@@ -882,12 +882,41 @@ while `for...of` / spread / destructuring read holes as `undefined` (the
 listIterator path).
 
 **`JsArray` length semantics (§10.4.2.4 ArraySetLength).** `arr.length = N`
-truncates the dense list when `N < size` or pads with `HOLE` when `N >
-size`, via `JsArray.setLength(int)`. `arr[i] = x` for `i >= size` extends
-with HOLE-padding to grow in one shot. `Object.defineProperty(arr,
-"length", {value: N})` routes through the same `setLength` path.
-`length` exposes its spec descriptor `{writable: true, enumerable: false,
-configurable: false}` via `JsArray.getOwnAttrs`.
+and `Object.defineProperty(arr, "length", {value: N})` both route through
+`JsArray.handleLengthAssign(value, context)` → `applySetLength(int)`.
+Three spec checks land in order:
+
+1. **ToUint32 + ToNumber + RangeError on mismatch** (steps 3–5). NaN,
+   Infinity, negative, fractional, and `> 2^32-1` values all throw
+   `RangeError("Invalid array length")` — *unconditionally*, not gated by
+   strictness. The double-coercion is observable: when the value is an
+   `ObjectLike`, `Terms.toPrimitive(value, "number", context)` is called
+   twice (test262 `define-own-prop-length-coercion-order.js` asserts
+   `valueOfCalls === 2`). `new Array(N)` runs the same validation in
+   `JsArray.create`. Bounded by `Integer.MAX_VALUE` today — the larger
+   Uint32 range (up to `4294967295`) needs a separate `long` length field
+   decoupled from `list.size()` (deferred).
+2. **Length writable check** (step 12). Returns `false` when length's
+   stored writable bit is clear; caller decides whether to throw
+   `TypeError`. The four mutating prototype methods
+   (`pop`/`shift`/`unshift`/`push`) check upfront via
+   `JsArrayPrototype.requireWritableLength` and throw `TypeError` —
+   matches the spec's `Set(O, "length", newLen, true)` Throw=true
+   semantics. Direct `arr.length = X` silently no-ops on writable=false
+   in lenient mode (strict-mode TypeError flip is a separate project).
+3. **Partial truncate when an index in `[newLen, oldLen)` is
+   non-configurable.** Walks the truncate range high-to-low; on a blocking
+   index, truncates above it, returns `false`. `Object.defineProperty`
+   surfaces the `false` as `TypeError("Cannot redefine property: length")`.
+   `_attrs` and `namedProps` entries for cleared indices are removed.
+
+`length`'s descriptor starts `{writable: true, enumerable: false,
+configurable: false}` (`JsArray.getOwnAttrs` consults `_attrs["length"]`
+for the writable override; the other two bits are always non-spec-
+configurable). The spec-precise interleaving where a prototype getter on
+the deleted index mutates `length`'s writable bit *during* pop/shift —
+asserted via call-count in `set-length-array-length-is-non-writable.js` —
+is not yet modeled (upfront check vs. spec's get → delete → set ordering).
 
 **`JsArray` indexed-accessor enforcement.** Descriptors installed via
 `Object.defineProperty(arr, i, {get/set/value: ...})` land in `namedProps`
@@ -912,9 +941,11 @@ iteration semantics are preserved) and records the attribute byte in
 `_attrs["0"]`. Subsequent `arr[0] = y` is silently ignored: `putMember`
 checks `_attrs` for writable=false, and `hasIndexedDescriptor(i)` returns
 true when `_attrs` has an entry, routing the indexed-write through
-`setByName` so the check fires. `getOwnAttrs` consults `_attrs` for non-
-`length` keys; `length` keeps its spec-fixed `{writable, !enumerable,
-!configurable}` byte. `Object.defineProperty` dispatches to
+`setByName` so the check fires. `getOwnAttrs` consults `_attrs` for all
+keys including `"length"` — defineProperty can flip length's writable bit
+to false (the only mutable spec bit; enumerable/configurable are masked
+out on read since length is permanently non-enumerable + non-configurable).
+`Object.defineProperty` dispatches to
 `JsArray.defineOwn(name, value, attrs)` via `applyDefine`; data descriptors
 at numeric indices clear any prior `namedProps` entry (the dense slot
 becomes the authoritative read) while accessor descriptors land in

@@ -171,13 +171,34 @@ stream stdout and tail the most recent line without waiting for the run.
 
 ---
 
-## Active priorities
+## Roadmap
 
-Action list — start at the top. Ordered by core-engine confidence
-cross-multiplied by score impact. Re-probe with the relevant `--only` glob
-before scoping a session.
+Committed slice order for the next several sessions. Picked for feedback-loop
+speed: small, contained slices first surface ergonomic gaps in the harness
+and harden type-coercion + error-propagation foundations that the bigger
+sweeps (Object/Array/Symbol) lean on. Symbol is **last**, not first — a
+2026-04-26 survey confirmed Math/Number/Date are independent of Symbol
+and only ~13% of String fails touch it (regex protocol + iterator).
 
-**Current state baseline** (last sampled 2026-04-26):
+| # | Slice | Fail size | What's likely in scope |
+|---|---|---|---|
+| 1 | `test/built-ins/Math/**` | ~33 | Missing constants, signed-zero, edge-case rounding (`fround`/`hypot`/`cbrt`/`expm1`/`log1p`/`atanh`); `Math.min/max` empty-args |
+| 2 | `test/built-ins/Number/**` | ~96 | `parseInt`/`parseFloat` edge cases; `toFixed`/`toPrecision`/`toExponential` rounding; `Number.isInteger` / `isSafeInteger` / `isFinite` / `isNaN` distinctions |
+| 3 | `test/built-ins/JSON/**` | TBD probe | `stringify` replacer-fn / array-filter / nested `toJSON` dispatch; `parse` reviver hooks; circular detection |
+| 4 | Error constructors | broad cascade | `RangeError` / `ReferenceError` (and likely `EvalError` / `URIError`) not registered as globals — fixes `assert.throws(RangeError, ...)` cascades suite-wide |
+| 5 | `test/built-ins/Date/**` | ~52 | `Date.parse` ISO format edges; UTC vs local hour math; invalid-date propagation |
+| 6 | `test/built-ins/RegExp/**` | TBD probe | Constructor + `.source` / `.flags` / `.lastIndex`; `exec` / `test` semantics; flag-set validation; non-Symbol `String.prototype.{match,replace,search,split}` integration |
+| 7 | `test/built-ins/String/**` | ~625 (Symbol-free) | `padStart`/`padEnd`, `trimStart`/`trimEnd`, `normalize`, `repeat`, `raw`, `fromCodePoint`; non-`@@`-protocol regex methods |
+| 8 | `test/built-ins/Object/**` | ~1245 | Big sweep — `assign` / `keys` / `values` / `entries` corners; `Object.fromEntries`; descriptor-handling residuals |
+| 9 | `test/built-ins/Array/**` | ~1625 | Bulk methods using `CreateDataPropertyOrThrow` + `Symbol.species`; iterator-result objects; remaining length-cluster residuals (Uint32 representation, spec-precise pop/shift interleaving — see [JS_ENGINE.md § JsArray length semantics](../docs/JS_ENGINE.md#prototype-machinery)); `Object.freeze(arr)` is a no-op today |
+| 10 | `test/built-ins/Symbol/**` + cascades | ~580 SKIPs | Full Symbol primitive: `typeof === "symbol"`, unique identity, `Symbol.for` / `keyFor` registry, `description`, `Object.getOwnPropertySymbols`, `Reflect.ownKeys`. Touches `Terms.typeOf` / `eq` / coercion; property-key abstraction across `JsObject._map` / `_attrs` / `_tombstones` / `isOwnProperty`. 2–4 sessions. Unblocks the Array/Symbol.species cluster from #9 |
+
+**Per-session ritual:** re-probe the slice with `--only` before scoping;
+record before/after pass counts in the commit message; check
+`EngineBenchmark profile` if changes touch the hot path; update the slice
+row in the baseline table below if it shifts.
+
+### Current state baseline (sampled 2026-04-26)
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
@@ -191,186 +212,104 @@ before scoping a session.
 | `test/built-ins/Function/**` | 229 | 152 | 128 | 509 |
 | `test/built-ins/Symbol/**` | 2 | 47 | 49 | 98 |
 
-### Top items
-
-1. **Full Symbol primitive (layer 2).** Well-known symbols already exposed
-   as string-keyed stand-ins (see [JS_ENGINE.md § Iteration](../docs/JS_ENGINE.md#iteration)).
-   Residual is *Symbol-as-primitive*: `typeof Symbol.X === "symbol"`,
-   `Symbol()` constructor with unique identity, `Symbol.for` / `keyFor`
-   global registry, `symbol.description`, `Object.getOwnPropertySymbols`,
-   `Reflect.ownKeys` returning symbol keys. Touches: new primitive type
-   in `Terms.typeOf` / `eq` / coercion sites; property-key abstraction so
-   `JsObject._map` (currently `Map<String,Object>`) can carry symbol
-   keys distinct from string keys; `_attrs` / `_tombstones` /
-   `isOwnProperty` / intrinsic-attribute pipeline all key by `String` and
-   need parallel symbol storage. ~580 SKIPs today; 2-4 sessions of
-   focused work. Re-probe before scoping with `test/built-ins/Symbol/**`
-   to size per-feature cluster.
-
-2. **Array methods using `CreateDataPropertyOrThrow` + `Symbol.species`.**
-   `JsArray._attrs` per-index tracking is in place (see [JS_ENGINE.md
-   § Property attributes](../docs/JS_ENGINE.md#property-attributes)), but
-   the `Array/prototype/*-target-array-with-non-writable-property` cluster
-   stays red because the prototype methods (splice / concat / filter /
-   slice / flat / from) don't honor `arr.constructor[Symbol.species]` and
-   write results via `[[Set]]` instead of `CreateDataPropertyOrThrow`
-   (defineProperty-style, all-true attrs that overwrite a non-writable
-   slot). Two changes that wedge together: species lookup on the result-
-   array allocation site, and a `defineOwn` write path in the bulk
-   methods. Most affected tests also have `features: [Symbol.species]`
-   or `[generators]`, so re-probe with `--only test/built-ins/Array/
-   prototype/**` to size the actually-runnable subset.
-
-3. **Array length residuals — Uint32 representation + spec-precise interleaving.**
-   The ArraySetLength validation (RangeError on bad value), non-writable
-   length (TypeError on direct assignment + on pop/shift/unshift/push),
-   non-configurable index truncate (partial truncate + TypeError), and the
-   defineProperty length path are all in place — see commit 8eb… (this
-   session). Two residuals remain in the same cluster:
-   * **Uint32 length representation.** `arr.length = 4294967295` is rejected
-     as RangeError today; the int-backed `JsArray.list` can't hold values
-     past `Integer.MAX_VALUE`. Switching length to a separate `long` field
-     decoupled from `list.size()` (storing length-beyond-list as sparse,
-     reads past list.size() return undefined) would fix
-     `Array/length/15.4.5.1-3.d-3.js`, `S15.4.2.2_A2.1_T1.js`,
-     `S15.4.5.2_A3_T4.js`, and the `clamps-to-integer-limit.js` cluster.
-   * **Spec-precise interleaving** (`set-length-array-length-is-non-writable.js`
-     etc.). Pop/shift/push/unshift do an upfront writable check; spec runs
-     get/delete BEFORE the length-set, so prototype-getter mutations to
-     length's writable bit aren't observed. The "getter call count" assertions
-     fail — a refactor to spec-correct ordering would fix the remaining
-     ~6 `set-length-array-length-is-non-writable.js` failures across the
-     four prototype methods.
-
-### Background
+### Background sweeps
 
 Picked off opportunistically when nearby — not session-sized on their own.
 
 - **Map / Set residuals.** `Map.prototype.{groupBy, getOrInsert,
   getOrInsertComputed}` (ES2024+). `Set.prototype.{difference, intersection,
   union, isDisjointFrom, isSubsetOf, isSupersetOf, symmetricDifference}`
-  (ES2025; some test cases use `with` blocks). `Object.getPrototypeOf(Map.
-  prototype)` returns `JsObjectPrototype.INSTANCE` (singleton) where tests
-  compare against `Object.prototype` (the global) — needs identity sharing.
-  Same for `Set.prototype`.
+  (ES2025). `Object.getPrototypeOf(Map.prototype)` returns
+  `JsObjectPrototype.INSTANCE` (singleton) where tests compare against
+  `Object.prototype` (the global) — needs identity sharing. Same for
+  `Set.prototype`.
 
 - **`.length` / `.name` rollout to remaining prototypes.** `JsBuiltinMethod`
-  infra is in place. Incremental wins are small — most residual `length.js`
-  fails are array-instance length semantics, most `name.js` fails are
-  Symbol-gated. Treat as background cleanup.
+  infra is in place; incremental wins are small. Most residual `name.js`
+  fails are Symbol-gated. Treat as background cleanup.
 
-- **Utility-method residual sweep.** Pick off remaining built-in gaps as
-  triage surfaces them.
-
-- **Destructuring residuals.** Bulk works; the long tail is low-leverage —
-  lexer identifier-escape support, TDZ / init-order corners, negative parse
-  tests needing pattern-vs-literal two-mode parsing.
+- **Destructuring residuals.** Bulk works; long tail is lexer identifier-
+  escape support, TDZ / init-order corners, negative parse tests needing
+  pattern-vs-literal two-mode parsing.
 
 - **Cleanup residuals.** Occasional `"null"` NPE paths, `IllegalName` JDK
   lambda leak, `Java heap space` OOM in array-slice paths. Grab while nearby.
-
-- **`Object.freeze(arr)` for JsArray.** Currently a no-op (the constructor
-  guards `args[0] instanceof JsObject` and JsArray doesn't extend JsObject).
-  The `Array/prototype/{push,pop,shift,unshift}/set-length-array-is-frozen.js`
-  / `set-length-zero-array-is-frozen.js` cluster depends on freeze marking
-  length non-writable + all indices non-writable + non-configurable. Add a
-  parallel `nonExtensible` / `frozen` flag pair on JsArray (mirroring
-  JsObject's) and have `JsObjectConstructor.{freeze,seal,preventExtensions,
-  isFrozen,isSealed,isExtensible}` accept both targets.
-
-- **JsArray fast-path indexed read consults prototype on OOB / HOLE.**
-  `PropertyAccess.getByIndex → JsArray.getIndexedSlot → getElement` returns
-  UNDEFINED for out-of-bounds without falling back to the prototype chain.
-  `getMember(numericName)` does fall back, so the slow path is correct;
-  the fast path doesn't. Result: `Array.prototype[2] = 2; x = [0,1]; x[2]`
-  returns undefined instead of 2 — fails `Array/length/S15.4.5.1_A1.2_T3.js`
-  and `Array/prototype/pop/S15.4.4.6_A4_T*.js`. Single-site fix: when the
-  slot would be UNDEFINED (out-of-bounds or HOLE with no own descriptor),
-  delegate to `__proto__.getMember(Integer.toString(i))`.
-
-- **Directive prologue (`"use strict"`) flip.** Parser tolerates the string
-  without activating strict-mode assertions. Skip triage is done (`flags:
-  [onlyStrict]` entry in `expectations.yaml`). Real strict-mode implementation
-  (with / duplicate-params / eval-assign / octal-literal negative checks) is
-  a separate, larger project; revisit only if a meaningful test cluster
-  outside `onlyStrict` depends on it.
 
 ---
 
 ## Deferred TODOs
 
-Items left for later; un-scheduled but tracked.
+Un-scheduled but tracked. Two flavors: large feature gaps that are intentional
+non-goals today, and small harness-quality fixes that don't gate work but
+should be done when convenient.
 
-- **Promises + async/await + setTimeout.** All skipped today (`feature:
-  Promise`, `feature: async-functions`, `flag: async`, `feature:
-  Symbol.asyncIterator`, `include: promiseHelper.js`). karate-js is
-  synchronous — no event loop, no microtask queue, no timers. When eventually
-  scheduled: smooth Java interop with `CompletableFuture` / callback APIs;
-  graceful degradation when async/await is decorative; simple multi-threading
-  for real async I/O (websockets, Kafka, gRPC). Microtask model / thread
-  strategy / `setTimeout` backing belong in the implementation session.
+### Large feature gaps (intentional non-goals)
 
-- **Class syntax (ES6).** All skipped (`feature: class`, `class-fields-public`,
-  `class-fields-private`, `class-methods-private`, `class-static-fields-public`,
-  `class-static-methods-private`). Engine has prototype machinery + `new`
-  but no parser support for `class` / `extends` / `super` /
-  method-definition. LLMs writing glue/test code default to function +
-  prototype style; pick up only if real workload demands. Currently fails
-  loudly at parse time with `SyntaxError` — the right shape.
+- **Promises + async/await + setTimeout.** Skipped (`feature: Promise`,
+  `async-functions`, `Symbol.asyncIterator`, `include: promiseHelper.js`).
+  karate-js is synchronous. When eventually scheduled: Java interop via
+  `CompletableFuture`, microtask model, `setTimeout` backing — all design
+  decisions belong in the implementation session.
 
-- **Unify the read-side dot dispatch in `PropertyAccess`.** Write-side is
-  unified through `resolveWriteSite` + `AccessSite` (10 near-duplicate
-  dispatch wrappers collapsed). Read-side (`getRefDotExpr`,
-  `getCallableRefDotExpr`) still has mirrored bridge-fallback + `?.` logic
-  with slightly different return shapes. Defer until there's a third caller
-  that wants the same resolution shape.
+- **Class syntax (ES6).** Skipped (`feature: class` and friends). Engine has
+  prototype machinery + `new` but no parser support for `class` / `extends` /
+  `super` / method-definition. LLMs default to function+prototype style;
+  parse currently fails loudly with `SyntaxError` — the right shape until
+  real workload demands it.
 
-- **Replace hand-rolled YAML parser with SnakeYAML.** `Expectations.java` and
-  `Test262Metadata.java` are hand-rolled to avoid the dep. They break on `#`
-  in quoted reasons, block-scalar (`|`, `>`) `description:` fields, and
-  block-form list values. Add SnakeYAML when we next touch either file.
+- **Directive prologue / strict-mode.** Parser tolerates `"use strict"`
+  without activating strict-mode assertions. Skip triage is done; full
+  implementation is a separate project.
 
-- **Make `--resume` refresh stale records.** Currently echoes back records
-  for tests that no longer exist or are now SKIP'd. Either gate on
-  test-still-exists + not-in-skip-list, or rename to `--resume-crash-only`.
+### Harness quality
+
+- **Replace hand-rolled YAML parser with SnakeYAML.** `Expectations.java` /
+  `Test262Metadata.java` break on `#` in quoted reasons, block-scalar
+  `description:` fields, and block-form list values. Swap when next touched.
+
+- **`--resume` refreshes stale records.** Currently echoes records for tests
+  that no longer exist or are now SKIP'd. Gate on test-still-exists +
+  not-in-skip-list, or rename to `--resume-crash-only`.
 
 - **Cache parsed harness ASTs, not source text.** `HarnessLoader` re-parses
-  `assert.js`, `sta.js`, and each test's `includes:` on every test;
-  ~50k re-parses per full-suite run is a measurable chunk of wall time.
-
-- **`phase: resolution` (module-resolution) negative tests.** Currently
-  conflated with `runtime`. Modules are globally skipped via `flags:
-  [module]`, so this is latent.
-
-- **Structured `$262` surface.** `AbstractModuleSource`, `IsHTMLDDA`,
-  `agent.broadcast/getReport/sleep/monotonicNow` are absent — all
-  feature-gated, unreachable today. Add stubs when a feature comes off the
-  skip list.
-
-- **`readHeadSha` path fragility.** `Test262Runner.readHeadSha` walks up
-  `cli.test262.getParent().getParent()` to find the karate repo. Prefer a
-  `git rev-parse HEAD` subprocess, or a `--karate-sha` flag.
+  `assert.js`, `sta.js`, and per-test `includes:` on every test; ~50k
+  re-parses per full-suite run.
 
 - **Surface per-test console capture in `ResultRecord`.** `evaluate(...)`
-  already wires `Engine.setOnConsoleLog(...)` to a per-test sink (discarded
-  today). Plumb it into `ResultRecord` for FAIL rows so `--single -vv` and
-  the HTML drill-down can show what the test printed.
+  already wires `Engine.setOnConsoleLog(...)` to a per-test sink (discarded);
+  plumb into `ResultRecord` for `--single -vv` and the HTML drill-down.
 
-- **Parallel execution.** Prior attempts showed no speedup on moderate slices
-  (thread context-switch overhead beat the 1ms per-test eval cost) and the
-  engine doesn't poll `Thread.interrupt()`. Revisit when per-test cost grows
-  enough that 8× parallelism clearly wins, or when the engine learns to
-  cooperatively abort.
+- **`phase: resolution` (module-resolution) negative tests.** Conflated with
+  `runtime` today. Modules are globally skipped, so latent.
 
-- **Commit `target/test262/results.jsonl` once stable.** Currently gitignored
-  (too noisy in git while engine iterates). Re-evaluate when the engine is
-  stable enough that diffs are meaningful.
+- **Structured `$262` surface.** `AbstractModuleSource`, `IsHTMLDDA`,
+  `agent.broadcast/getReport/sleep/monotonicNow` absent; all feature-gated,
+  unreachable today. Add stubs when a feature comes off the skip list.
 
-- **Thin `EngineException` once `JsError` goes public.** `EngineException`
-  carries a `jsErrorName` string that duplicates what's in the cause-chain's
-  `JsErrorException` payload. `JsError` is package-private, so we can't just
-  expose the payload. Once a host use case forces `JsError` public, drop the
-  name field.
+- **Parallel execution.** Prior attempts showed no speedup (thread
+  context-switch beat the ~1 ms per-test cost) and the engine doesn't
+  poll `Thread.interrupt()`. Revisit when per-test cost grows or the
+  engine learns cooperative abort.
+
+- **`readHeadSha` path fragility.** `Test262Runner.readHeadSha` walks up
+  `cli.test262.getParent().getParent()`. Prefer `git rev-parse HEAD` or
+  `--karate-sha`.
+
+- **Commit `target/test262/results.jsonl` once stable.** Gitignored today;
+  re-evaluate when engine churn slows.
+
+### Engine cleanup
+
+- **Unify the read-side dot dispatch in `PropertyAccess`.** Write-side is
+  unified via `resolveWriteSite` + `AccessSite`; read-side
+  (`getRefDotExpr` / `getCallableRefDotExpr`) still has mirrored
+  bridge-fallback + `?.` logic. Defer until there's a third caller wanting
+  the same resolution shape.
+
+- **Thin `EngineException` once `JsError` goes public.** Carries a
+  `jsErrorName` string that duplicates the cause-chain's `JsErrorException`
+  payload. `JsError` is package-private. Drop the name field when a host
+  use case forces `JsError` public.
 
 ---
 
