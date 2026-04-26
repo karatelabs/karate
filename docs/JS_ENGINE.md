@@ -722,9 +722,13 @@ over parsing the framed message string.
 **`typeof` reports `"function"` on all callable surfaces.** `Terms.typeOf`
 returns `"function"` for `JsInvokable`, `JsFunction`, built-in constructor
 singletons (via `JsObject.isJsFunction()` — `Boolean` / `RegExp` / error
-globals), and `JsCallable` method refs (`[1].map`, `'x'.charAt`). The
-`!(value instanceof ObjectLike)` guard keeps `JsObject` / `JsArray` reporting
-`"object"`.
+globals), and `JsCallable` method refs (`[1].map`, `'x'.charAt`). Plain
+`JsObject` is **not** `JsCallable`; only subclasses that explicitly opt in
+(`JsString` / `JsNumber` / `JsBoolean` / `JsRegex` / `JsError` /
+`JsTextEncoder` / `JsTextDecoder` and `JsFunction` via `JavaCallable`) are.
+This is the structural reason `JSON()` / `Math()` / `Reflect()` throw
+`TypeError` — they fail the `instanceof JsCallable` check at the call site,
+not via per-class `call` overrides.
 
 ### Globals
 
@@ -732,19 +736,36 @@ globals), and `JsCallable` method refs (`[1].map`, `'x'.charAt`). The
 eval semantics (parses/evaluates in engine root scope; non-string args pass
 through). Direct-eval scope capture is out of scope.
 
+**Single bindings store.** `Engine.bindings` (a `BindingsStore`) holds every
+binding at every scope: top-level `var` / `let` / `const`, implicit globals,
+`Engine.put`-injected host state, `Engine.putRootBinding`-injected resources,
+and the lazy-cached built-ins from `ContextRoot.initGlobal`. Per-entry
+`hidden` flag on `BindValue` distinguishes the last two so
+`Engine.getBindings()` (a thin auto-unwrapping `Bindings` wrapper) filters
+them out of host inspection while the engine's lookup chain sees one
+unified set. `Engine.getRootBindings()` exposes the hidden subset to hosts
+that need to inherit it across scenarios.
+
 **Top-level `this` is a `JsGlobalThis` stand-in for `globalThis`.**
 `ContextRoot` constructs one and assigns it to `thisObject`; child contexts
-inherit it until a function call rebinds. Reads route through
-`ContextRoot.get`, so a built-in is the same instance whether reached as
-`Math` or `this.Math`. `hasOwnIntrinsic` delegates to `ContextRoot.hasKey`
-(hardcoded built-in name list + cached `_bindings`); `getOwnAttrs` reports
+inherit it until a function call rebinds. Reads / writes go through the
+single shared `BindingsStore`, so `this.foo = 1; foo` and
+`foo = 1; this.foo` see the same value (no divergence). Lazy built-ins
+land hidden via `_bindings.putHidden`, so `Object.keys(globalThis)` only
+sees user-visible state. `getOwnAttrs` reports
 `{ writable: true, enumerable: false, configurable: true }` per spec
-defaults. `Function.prototype.call` / `.apply` substitute `globalThis` when
-`thisArg` is null/undefined (spec §10.3 OrdinaryCallBindThis non-strict);
-without that, `Function("this.x=...").call(null)` would never reach the
-global object. Writes via `this.foo = ...` land in the JsGlobalThis own map
-and do **not** back-propagate to root bindings, so `this.foo = 1; foo`
-diverges — fix when a real test exercises it.
+default for built-ins; `defineProperty(globalThis, …)` overrides via the
+inherited `_attrs` map plus an `_explicit` set (the global default differs
+from `ATTRS_DEFAULT`'s `W|E|C`, so explicit-equals-`ATTRS_DEFAULT` writes
+need a separate marker).
+
+**`this` binding follows spec OrdinaryCallBindThis.** Every regular call
+site routes through `Interpreter.bindThisForCall(receiver, context)`,
+which substitutes `globalThis` for null/undefined receivers (sloppy-mode
+non-strict). `f()` (no receiver) gets `this = globalThis`, not
+`this = f`. `Function.prototype.call` / `.apply` use the same helper. The
+`new`-keyword paths bind `this` separately (newInstance for user fns,
+constructor singleton for built-ins) and don't go through the helper.
 
 ### Iteration
 
