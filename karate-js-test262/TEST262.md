@@ -166,7 +166,7 @@ After each session lands, before commit:
 |---|---|---|---|---|---|
 | R1 | Engine state consolidation (issues 1 + 2 + 3 + 10) | done | 2026-04-26 | 586d0b54f + 505dd3c05 | bindings unified, `_topLevelBindings` deleted, `JsGlobalThis` collapsed, `extends CoreContext` dropped; zero test262 deltas vs `run-2026-04-26-150841` baseline |
 | R2 | Unify call-site `this` binding; drop `JsObject implements JsCallable` (issues 4 + 5) | done | 2026-04-26 | 38a817e20 | one `bindThisForCall` helper for the spec OrdinaryCallBindThis substitution; plain JsObjects no longer callable; +43 PASS / 0 regressions vs R1 baseline (run-2026-04-26-171909) |
-| R3 | Split raw bindings store from auto-unwrapping host view (issues 6 + 9) | not started | — | — | — |
+| R3 | Split raw bindings store from auto-unwrapping host view (issues 6 + 9) | done | 2026-04-26 | TBD | new internal `BindingsStore` for raw ops; public `Bindings` is now a thin Map wrapper that auto-unwraps via Engine.toJava on read; `JsGlobalThis.toMap` is a clean `getRawMap()` delegation; pure refactor — 0 deltas vs R2 baseline (run-2026-04-26-172118) |
 | R4 | EnvironmentRecord-shaped name resolution (issue 7) | optional | — | — | gate on appetite at end of R3 |
 | S1 | Fast-path-bypass sweep (issue 8) | not started | — | — | 30-min sweep, can run between sessions |
 

@@ -35,7 +35,7 @@ class CoreContext implements Context {
     Object thisObject = Terms.UNDEFINED;
     CallInfo callInfo;
 
-    Bindings _bindings;
+    BindingsStore _bindings;
 
     // Function context fields (non-null indicates this is a function context)
     final Object[] callArgs;
@@ -49,7 +49,7 @@ class CoreContext implements Context {
     final Map<String, BindValue> capturedBindings;
 
 
-    CoreContext(ContextRoot root, CoreContext parent, int depth, Node node, ContextScope scope, Map<String, Object> bindings) {
+    CoreContext(ContextRoot root, CoreContext parent, int depth, Node node, ContextScope scope, BindingsStore bindings) {
         this.root = root;
         this.parent = parent;
         this.depth = depth;
@@ -58,9 +58,7 @@ class CoreContext implements Context {
         this.callArgs = null;
         this.closureContext = null;
         this.capturedBindings = null;
-        if (bindings != null) {
-            this._bindings = bindings instanceof Bindings b ? b : new Bindings(bindings);
-        }
+        this._bindings = bindings;
         // Inherit `this` from the parent CoreContext, or from the root when
         // we're a script-level (or evalWith-ghost) context with no parent.
         if (parent != null) {
@@ -287,7 +285,7 @@ class CoreContext implements Context {
         } else { // hoist var to function level
             int functionLevel = findFunctionLevel();
             if (_bindings == null) {
-                _bindings = new Bindings();
+                _bindings = new BindingsStore();
             }
             // Check if var already exists at or below function level
             BindValue existing = _bindings.getBindValue(key);
@@ -356,14 +354,14 @@ class CoreContext implements Context {
 
     private void putBinding(String key, Object value, BindScope scope, boolean initialized) {
         if (_bindings == null) {
-            _bindings = new Bindings();
+            _bindings = new BindingsStore();
         }
         _bindings.putMember(key, value, scope, initialized);
     }
 
     private void pushBinding(String key, Object value, BindScope scope, boolean initialized) {
         if (_bindings == null) {
-            _bindings = new Bindings();
+            _bindings = new BindingsStore();
         }
         _bindings.pushBinding(key, value, scope, currentLevel, initialized);
     }

@@ -44,7 +44,11 @@ public class Engine {
     // host inspection. Used as the script-level _bindings (passed in via
     // evalInternal) and as the root's binding store — same instance.
     // Package-private so ContextRoot/JsGlobalThis can read/write directly.
-    final Bindings bindings = new Bindings();
+    final BindingsStore bindings = new BindingsStore();
+
+    // Cached host-facing wrapper. Returned by getBindings() — same instance per
+    // Engine so identity comparisons and external caching work.
+    private final Bindings bindingsView = new Bindings(bindings);
 
     private final ContextRoot root = new ContextRoot(this);
 
@@ -90,7 +94,7 @@ public class Engine {
     }
 
     public Object get(String name) {
-        return toJava(bindings.getRaw(name));
+        return toJava(bindings.getMember(name));
     }
 
     public void put(String name, Object value) {
@@ -115,7 +119,7 @@ public class Engine {
      * Hidden entries (putRootBinding-injected, lazy built-ins) are filtered out.
      */
     public Map<String, Object> getBindings() {
-        return bindings;
+        return bindingsView;
     }
 
     /**
@@ -197,7 +201,7 @@ public class Engine {
                 context = new CoreContext(root, null, 0, program, ContextScope.GLOBAL, bindings);
             } else {
                 CoreContext parent = new CoreContext(root, null, -1, new Node(NodeType.ROOT), ContextScope.GLOBAL, bindings);
-                context = new CoreContext(root, parent, 0, program, ContextScope.GLOBAL, new Bindings(localVars));
+                context = new CoreContext(root, parent, 0, program, ContextScope.GLOBAL, new BindingsStore(localVars));
             }
             context.event(EventType.CONTEXT_ENTER, program);
             Object result = Interpreter.eval(program, context);

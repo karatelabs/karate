@@ -175,185 +175,164 @@ class BindingsTest {
         // getRawBindings() returns root context bindings
     }
 
-    //=== Tests for array-based storage and BindValue integration ===
+    //=== Tests for the raw BindingsStore (storage layer) =============================================================
 
     @Test
-    void testSmallMapModeBasicOperations() {
-        Bindings bindings = new Bindings();
+    void testStoreBasicOperations() {
+        BindingsStore store = new BindingsStore();
+        store.putMember("x", 1);
+        store.putMember("y", 2);
+        store.putMember("z", 3);
 
-        // Put and get
-        bindings.putMember("x", 1);
-        bindings.putMember("y", 2);
-        bindings.putMember("z", 3);
+        assertEquals(1, store.getMember("x"));
+        assertEquals(2, store.getMember("y"));
+        assertEquals(3, store.getMember("z"));
 
-        assertEquals(1, bindings.getMember("x"));
-        assertEquals(2, bindings.getMember("y"));
-        assertEquals(3, bindings.getMember("z"));
+        assertTrue(store.hasMember("x"));
+        assertFalse(store.hasMember("w"));
 
-        // hasMember
-        assertTrue(bindings.hasMember("x"));
-        assertFalse(bindings.hasMember("w"));
-
-        // size
-        assertEquals(3, bindings.size());
+        assertEquals(3, store.getRawMap().size());
     }
 
     @Test
-    void testSmallMapModeWithNullValues() {
-        Bindings bindings = new Bindings();
+    void testStoreNullValues() {
+        BindingsStore store = new BindingsStore();
+        store.putMember("x", null);
 
-        bindings.putMember("x", null);
-
-        // Should be able to distinguish null from missing
-        assertTrue(bindings.hasMember("x"));
-        assertNull(bindings.getMember("x"));
-        assertFalse(bindings.hasMember("y"));
+        assertTrue(store.hasMember("x"));
+        assertNull(store.getMember("x"));
+        assertFalse(store.hasMember("y"));
     }
 
     @Test
-    void testSmallMapModeGrowsArrays() {
-        Bindings bindings = new Bindings();
-
-        // Add more than initial capacity (4)
+    void testStoreSmallSize() {
+        BindingsStore store = new BindingsStore();
         for (int i = 0; i < 6; i++) {
-            bindings.putMember("key" + i, i);
+            store.putMember("key" + i, i);
         }
-
-        assertEquals(6, bindings.size());
+        assertEquals(6, store.getRawMap().size());
         for (int i = 0; i < 6; i++) {
-            assertEquals(i, bindings.getMember("key" + i));
+            assertEquals(i, store.getMember("key" + i));
         }
     }
 
     @Test
-    void testManyBindings() {
-        Bindings bindings = new Bindings();
-
-        // Add many bindings
+    void testStoreManyBindings() {
+        BindingsStore store = new BindingsStore();
         for (int i = 0; i < 20; i++) {
-            bindings.putMember("key" + i, i);
+            store.putMember("key" + i, i);
         }
-
-        assertEquals(20, bindings.size());
+        assertEquals(20, store.getRawMap().size());
         for (int i = 0; i < 20; i++) {
-            assertEquals(i, bindings.getMember("key" + i));
+            assertEquals(i, store.getMember("key" + i));
         }
     }
 
     @Test
-    void testBindValueStorage() {
-        Bindings bindings = new Bindings();
+    void testStoreBindValueScope() {
+        BindingsStore store = new BindingsStore();
+        store.putMember("x", 42, BindScope.CONST, true);
+        store.putMember("y", "hello", BindScope.LET, true);
+        store.putMember("z", 100);
 
-        // const binding
-        bindings.putMember("x", 42, BindScope.CONST, true);
-
-        // let binding
-        bindings.putMember("y", "hello", BindScope.LET, true);
-
-        // var binding (no scope)
-        bindings.putMember("z", 100);
-
-        // Get BindValue
-        assertEquals(BindScope.CONST, bindings.getBindValue("x").scope);
-        assertEquals(BindScope.LET, bindings.getBindValue("y").scope);
-        assertNull(bindings.getBindValue("z").scope);  // var has no binding scope
+        assertEquals(BindScope.CONST, store.getBindValue("x").scope);
+        assertEquals(BindScope.LET, store.getBindValue("y").scope);
+        assertNull(store.getBindValue("z").scope);
     }
 
     @Test
-    void testClearBindingScope() {
-        Bindings bindings = new Bindings();
+    void testStoreClearBindingScope() {
+        BindingsStore store = new BindingsStore();
+        store.putMember("x", 1, BindScope.LET, true);
+        assertNotNull(store.getBindValue("x").scope);
 
-        bindings.putMember("x", 1, BindScope.LET, true);
-
-        assertNotNull(bindings.getBindValue("x").scope);
-
-        bindings.clearBindingScope("x");
-
-        assertNull(bindings.getBindValue("x").scope);
-        assertEquals(1, bindings.getMember("x"));  // value still there
+        store.clearBindingScope("x");
+        assertNull(store.getBindValue("x").scope);
+        assertEquals(1, store.getMember("x"));
     }
 
     @Test
-    void testCopyConstructorCopiesValuesAndBindValues() {
-        Bindings original = new Bindings();
-
+    void testStoreCopyConstructor() {
+        BindingsStore original = new BindingsStore();
         original.putMember("x", 1, BindScope.LET, true);
         original.putMember("y", 2);
 
-        Bindings copy = new Bindings(original);
-
-        // Values copied
+        BindingsStore copy = new BindingsStore(original);
         assertEquals(1, copy.getMember("x"));
         assertEquals(2, copy.getMember("y"));
-
-        // BindValue copied
         assertNotNull(copy.getBindValue("x"));
         assertEquals(BindScope.LET, copy.getBindValue("x").scope);
 
-        // Changes to copy don't affect original
         copy.putMember("x", 100);
         assertEquals(1, original.getMember("x"));
     }
 
     @Test
-    void testMapInterfaceRemove() {
-        Bindings bindings = new Bindings();
-        bindings.putMember("x", 1);
-        bindings.putMember("y", 2);
-        bindings.putMember("z", 3);
+    void testStoreRemove() {
+        BindingsStore store = new BindingsStore();
+        store.putMember("x", 1);
+        store.putMember("y", 2);
+        store.putMember("z", 3);
 
-        bindings.remove("y");
-
-        assertEquals(2, bindings.size());
-        assertFalse(bindings.hasMember("y"));
-        assertTrue(bindings.hasMember("x"));
-        assertTrue(bindings.hasMember("z"));
+        store.remove("y");
+        assertEquals(2, store.getRawMap().size());
+        assertFalse(store.hasMember("y"));
+        assertTrue(store.hasMember("x"));
+        assertTrue(store.hasMember("z"));
     }
 
     @Test
-    void testMapInterfaceClear() {
-        Bindings bindings = new Bindings();
-        bindings.putMember("x", 1);
-        bindings.putMember("y", 2);
+    void testStoreClear() {
+        BindingsStore store = new BindingsStore();
+        store.putMember("x", 1);
+        store.putMember("y", 2);
 
-        bindings.clear();
-
-        assertEquals(0, bindings.size());
-        assertTrue(bindings.isEmpty());
+        store.clear();
+        assertTrue(store.isEmpty());
     }
 
     @Test
-    void testMapInterfaceKeySet() {
-        Bindings bindings = new Bindings();
-        bindings.putMember("x", 1);
-        bindings.putMember("y", 2);
+    void testStoreUpdate() {
+        BindingsStore store = new BindingsStore();
+        store.putMember("x", 1);
+        assertEquals(1, store.getMember("x"));
 
-        assertEquals(2, bindings.keySet().size());
-        assertTrue(bindings.keySet().contains("x"));
-        assertTrue(bindings.keySet().contains("y"));
+        store.putMember("x", 2);
+        assertEquals(2, store.getMember("x"));
+        assertEquals(1, store.getRawMap().size());
     }
 
     @Test
-    void testUpdateExistingKey() {
-        Bindings bindings = new Bindings();
-        bindings.putMember("x", 1);
-        assertEquals(1, bindings.getMember("x"));
+    void testStoreUpdateAddsBindingScope() {
+        BindingsStore store = new BindingsStore();
+        store.putMember("x", 1);
+        store.putMember("x", 2, BindScope.CONST, true);
 
-        bindings.putMember("x", 2);
-        assertEquals(2, bindings.getMember("x"));
-        assertEquals(1, bindings.size());  // still one entry
+        assertEquals(2, store.getMember("x"));
+        assertEquals(BindScope.CONST, store.getBindValue("x").scope);
     }
 
     @Test
-    void testUpdateExistingKeyWithBindingScope() {
-        Bindings bindings = new Bindings();
-        bindings.putMember("x", 1);
+    void testStoreHiddenFiltersOutOfRawMap() {
+        BindingsStore store = new BindingsStore();
+        store.putMember("user", 1);
+        store.putHidden("internal", 2);
 
-        bindings.putMember("x", 2, BindScope.CONST, true);
+        // Raw map (all entries) sees both
+        assertEquals(2, store.getRawMap().size());
 
-        assertEquals(2, bindings.getMember("x"));
-        assertNotNull(bindings.getBindValue("x").scope);
-        assertEquals(BindScope.CONST, bindings.getBindValue("x").scope);
+        // Visible-only filter sees only the user entry
+        Map<String, Object> visible = store.getRawMap(false);
+        assertEquals(1, visible.size());
+        assertTrue(visible.containsKey("user"));
+
+        // Hidden-only filter sees only the internal entry
+        Map<String, Object> hidden = store.getRawMap(true);
+        assertEquals(1, hidden.size());
+        assertTrue(hidden.containsKey("internal"));
+
+        assertTrue(store.isHidden("internal"));
+        assertFalse(store.isHidden("user"));
     }
 
 }

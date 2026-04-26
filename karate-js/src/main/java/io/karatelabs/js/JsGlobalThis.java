@@ -29,7 +29,7 @@ import java.util.Map;
 /**
  * Top-level {@code this} — the karate-js stand-in for spec {@code globalThis}.
  * <p>
- * Pure façade over the engine's single {@link Bindings} store. Reads / writes
+ * Pure façade over the engine's single {@link BindingsStore}. Reads / writes
  * go through that one store; the {@code hidden} flag on individual entries
  * preserves the contract that {@link Engine#putRootBinding} injections and
  * lazy-cached built-ins are invisible to {@link Engine#getBindings()}, but
@@ -58,8 +58,8 @@ final class JsGlobalThis extends JsObject {
         this.root = root;
     }
 
-    private Bindings bindings() {
-        return ((Engine) root.getEngine()).bindings;
+    private BindingsStore bindings() {
+        return root.getEngine().bindings;
     }
 
     @Override
@@ -71,7 +71,7 @@ final class JsGlobalThis extends JsObject {
             return proto != null ? proto.getMember(name) : null;
         }
         if ("__proto__".equals(name)) return getPrototype();
-        Bindings b = bindings();
+        BindingsStore b = bindings();
         if (b.hasMember(name)) return b.getMember(name);
         // Triggers lazy initGlobal for built-ins and caches them as hidden.
         if (root.hasKey(name)) return root.get(name);
@@ -159,10 +159,11 @@ final class JsGlobalThis extends JsObject {
 
     @Override
     public Map<String, Object> toMap() {
-        // Raw view of the unified store — both visible and hidden entries.
-        // Built-ins not yet lazy-cached aren't here; Object.keys(globalThis)
-        // only sees realized entries (and gets filtered down further by
-        // enumerability via getOwnAttrs above).
+        // Raw view of the unified store — both visible and hidden entries,
+        // identity preserved (no JsFunction → JsFunctionWrapper). Built-ins
+        // not yet lazy-cached aren't here; Object.keys(globalThis) only sees
+        // realized entries (and gets filtered down further by enumerability
+        // via getOwnAttrs above).
         Map<String, Object> raw = bindings().getRawMap();
         return raw.isEmpty() ? Collections.emptyMap() : raw;
     }
@@ -190,7 +191,7 @@ final class JsGlobalThis extends JsObject {
     @Override
     public Object get(Object key) {
         if (!(key instanceof String s) || isTombstoned(s)) return null;
-        Bindings b = bindings();
+        BindingsStore b = bindings();
         if (b.hasMember(s)) return b.getMember(s);
         return root.hasKey(s) ? root.get(s) : null;
     }

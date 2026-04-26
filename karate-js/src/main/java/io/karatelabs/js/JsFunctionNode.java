@@ -67,7 +67,7 @@ class JsFunctionNode extends JsFunction {
             return null;
         }
         Map<String, BindValue> snapshot = null;
-        for (String key : context._bindings.keySet()) {
+        for (String key : context._bindings.keys()) {
             BindValue bv = context._bindings.getBindValue(key);
             if (bv != null && bv.scope != null) { // Only capture let/const bindings
                 if (snapshot == null) {

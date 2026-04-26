@@ -26,241 +26,48 @@ package io.karatelabs.js;
 import java.util.*;
 
 /**
- * Map for JS engine bindings with integrated let/const metadata.
+ * Host-facing {@link Map} view over an internal {@link BindingsStore}.
  * <p>
- * Uses {@link BindValue} entries to store both values and binding type info.
- * Implements Map interface with auto-unwrapping for Java consumers.
+ * Auto-unwraps values on read (JS types → Java types via {@link Engine#toJava})
+ * and filters out {@code hidden} entries — preserves the contract that
+ * {@link Engine#putRootBinding}-injected resources and lazy-cached built-ins
+ * stay invisible to host inspection.
+ * <p>
+ * Engine internals don't go through this class; they read and write the
+ * {@link BindingsStore} directly to keep value identity intact.
  */
 public class Bindings implements Map<String, Object> {
 
-    private final Map<String, BindValue> map;
+    private final BindingsStore store;
 
-    /**
-     * Creates empty Bindings.
-     */
-    public Bindings() {
-        this.map = new HashMap<>();
+    Bindings(BindingsStore store) {
+        this.store = store;
     }
 
-    /**
-     * Creates Bindings by copying entries from the given map.
-     */
-    public Bindings(Map<String, Object> source) {
-        this.map = new HashMap<>();
-        if (source != null) {
-            for (Entry<String, Object> e : source.entrySet()) {
-                map.put(e.getKey(), new BindValue(e.getKey(), e.getValue()));
-            }
-        }
+    BindingsStore getStore() {
+        return store;
     }
-
-    /**
-     * Copy constructor - creates a deep copy of BindValues.
-     * Used for loop iterations to capture closure state.
-     */
-    public Bindings(Bindings other) {
-        this.map = new HashMap<>();
-        for (Entry<String, BindValue> e : other.map.entrySet()) {
-            map.put(e.getKey(), new BindValue(e.getValue()));
-        }
-    }
-
-    //=== JS-native internal methods (no auto-unwrapping) ===
-
-    /**
-     * Raw get - returns JS value without unwrapping.
-     */
-    public Object getMember(String key) {
-        BindValue bv = map.get(key);
-        return bv != null ? bv.value : null;
-    }
-
-    /**
-     * Raw existence check.
-     */
-    public boolean hasMember(String key) {
-        return map.containsKey(key);
-    }
-
-    /**
-     * Returns the raw (non-unwrapped) value for a key.
-     */
-    public Object getRaw(String key) {
-        return getMember(key);
-    }
-
-    /**
-     * Raw put with optional binding scope (for let/const declarations).
-     */
-    public void putMember(String key, Object value, BindScope scope, boolean initialized) {
-        BindValue existing = map.get(key);
-        if (existing != null) {
-            existing.value = value;
-            if (scope != null) {
-                existing.scope = scope;
-                existing.initialized = initialized;
-            }
-        } else if (scope != null) {
-            map.put(key, new BindValue(key, value, scope, initialized));
-        } else {
-            map.put(key, new BindValue(key, value));
-        }
-    }
-
-    /**
-     * Raw put without binding type (for var declarations).
-     */
-    public void putMember(String key, Object value) {
-        putMember(key, value, null, true);
-    }
-
-    /**
-     * Put a hidden entry — visible to the engine (lookup chain sees it) but
-     * filtered out of {@link Engine#getBindings()} / {@link Engine#getRawBindings()}.
-     * Used by {@link Engine#putRootBinding} for host-injected resources and by
-     * {@code ContextRoot.initGlobal} for the lazy built-in cache.
-     */
-    public void putHidden(String key, Object value) {
-        BindValue existing = map.get(key);
-        if (existing != null) {
-            existing.value = value;
-            existing.hidden = true;
-        } else {
-            BindValue bv = new BindValue(key, value);
-            bv.hidden = true;
-            map.put(key, bv);
-        }
-    }
-
-    /**
-     * Returns true if the binding for {@code key} is marked hidden.
-     */
-    public boolean isHidden(String key) {
-        BindValue bv = map.get(key);
-        return bv != null && bv.hidden;
-    }
-
-    /**
-     * Get BindValue for a key (for TDZ checks).
-     */
-    public BindValue getBindValue(String key) {
-        return map.get(key);
-    }
-
-    /**
-     * Clear binding scope for a key (for loop re-declaration).
-     */
-    public void clearBindingScope(String key) {
-        BindValue bv = map.get(key);
-        if (bv != null) {
-            bv.scope = null;
-            bv.initialized = true;
-        }
-    }
-
-    //=== Level-aware operations for scope management ===
-
-    /**
-     * Push a binding at the specified level, linking to any existing binding as shadowed.
-     */
-    public void pushBinding(String key, Object value, BindScope scope, int level) {
-        BindValue existing = map.get(key);
-        BindValue newBv = new BindValue(key, value, scope, true, level, existing);
-        map.put(key, newBv);
-    }
-
-    /**
-     * Push a binding at the specified level with explicit initialized state.
-     */
-    public void pushBinding(String key, Object value, BindScope scope, int level, boolean initialized) {
-        BindValue existing = map.get(key);
-        BindValue newBv = new BindValue(key, value, scope, initialized, level, existing);
-        map.put(key, newBv);
-    }
-
-    /**
-     * Remove all bindings at the specified level, restoring previous (shadowed) bindings.
-     */
-    public void popLevel(int level) {
-        Iterator<Entry<String, BindValue>> it = map.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, BindValue> e = it.next();
-            BindValue bv = e.getValue();
-            if (bv.level == level) {
-                if (bv.previous != null) {
-                    e.setValue(bv.previous);
-                } else {
-                    it.remove();
-                }
-            }
-        }
-    }
-
-    /**
-     * Returns a raw Map view of the bindings without auto-unwrapping.
-     * Includes all entries — hidden and visible. Engine internals use this;
-     * host-facing callers should go through {@link #getRawMap(boolean)}.
-     */
-    public Map<String, Object> getRawMap() {
-        Map<String, Object> result = new HashMap<>(map.size());
-        for (Entry<String, BindValue> e : map.entrySet()) {
-            result.put(e.getKey(), e.getValue().value);
-        }
-        return result;
-    }
-
-    /**
-     * Raw map filtered by hidden flag.
-     *
-     * @param hidden if true, return only hidden entries (used by
-     *               {@link Engine#getRootBindings()}); if false, return only
-     *               visible entries (used by {@link Engine#getRawBindings()}).
-     */
-    public Map<String, Object> getRawMap(boolean hidden) {
-        Map<String, Object> result = new HashMap<>(map.size());
-        for (Entry<String, BindValue> e : map.entrySet()) {
-            if (e.getValue().hidden == hidden) {
-                result.put(e.getKey(), e.getValue().value);
-            }
-        }
-        return result;
-    }
-
-    //=== Map interface (auto-unwrapping for Java consumers) ===
-    //
-    // The host-facing Map view filters out hidden entries — preserves the
-    // contract that putRootBinding-injected resources and lazy-cached built-ins
-    // are invisible to Engine.getBindings() inspection.
 
     @Override
     public int size() {
-        int count = 0;
-        for (BindValue bv : map.values()) {
-            if (!bv.hidden) count++;
-        }
-        return count;
+        return store.getRawMap(false).size();
     }
 
     @Override
     public boolean isEmpty() {
-        for (BindValue bv : map.values()) {
-            if (!bv.hidden) return false;
-        }
-        return true;
+        return size() == 0;
     }
 
     @Override
     public boolean containsKey(Object key) {
         if (!(key instanceof String s)) return false;
-        BindValue bv = map.get(s);
-        return bv != null && !bv.hidden;
+        return store.hasMember(s) && !store.isHidden(s);
     }
 
     @Override
     public boolean containsValue(Object value) {
-        for (BindValue bv : map.values()) {
-            if (bv.hidden) continue;
-            if (Objects.equals(Engine.toJava(bv.value), value)) {
+        for (Map.Entry<String, Object> e : store.getRawMap(false).entrySet()) {
+            if (Objects.equals(Engine.toJava(e.getValue()), value)) {
                 return true;
             }
         }
@@ -269,68 +76,61 @@ public class Bindings implements Map<String, Object> {
 
     @Override
     public Object get(Object key) {
-        if (key instanceof String s) {
-            BindValue bv = map.get(s);
-            if (bv != null && !bv.hidden) return Engine.toJava(bv.value);
-        }
-        return null;
+        if (!(key instanceof String s)) return null;
+        if (!store.hasMember(s) || store.isHidden(s)) return null;
+        return Engine.toJava(store.getMember(s));
     }
 
     @Override
     public Object put(String key, Object value) {
-        Object previous = getMember(key);
-        putMember(key, value);
-        return Engine.toJava(previous);
+        Object previous = store.hasMember(key) && !store.isHidden(key)
+                ? Engine.toJava(store.getMember(key))
+                : null;
+        store.putMember(key, value);
+        return previous;
     }
 
     @Override
     public Object remove(Object key) {
-        if (key instanceof String s) {
-            BindValue removed = map.remove(s);
-            return removed != null ? Engine.toJava(removed.value) : null;
-        }
-        return null;
+        if (!(key instanceof String s)) return null;
+        if (!store.hasMember(s) || store.isHidden(s)) return null;
+        Object previous = Engine.toJava(store.getMember(s));
+        store.remove(s);
+        return previous;
     }
 
     @Override
     public void putAll(Map<? extends String, ?> m) {
-        for (Entry<? extends String, ?> entry : m.entrySet()) {
-            putMember(entry.getKey(), entry.getValue());
+        for (Map.Entry<? extends String, ?> e : m.entrySet()) {
+            store.putMember(e.getKey(), e.getValue());
         }
     }
 
     @Override
     public void clear() {
-        map.clear();
+        store.clear();
     }
 
     @Override
     public Set<String> keySet() {
-        Set<String> result = new LinkedHashSet<>();
-        for (Entry<String, BindValue> e : map.entrySet()) {
-            if (!e.getValue().hidden) result.add(e.getKey());
-        }
-        return result;
+        return store.getRawMap(false).keySet();
     }
 
     @Override
     public Collection<Object> values() {
-        List<Object> list = new ArrayList<>(map.size());
-        for (BindValue bv : map.values()) {
-            if (bv.hidden) continue;
-            list.add(Engine.toJava(bv.value));
+        Map<String, Object> raw = store.getRawMap(false);
+        List<Object> list = new ArrayList<>(raw.size());
+        for (Object v : raw.values()) {
+            list.add(Engine.toJava(v));
         }
         return list;
     }
 
     @Override
     public Set<Entry<String, Object>> entrySet() {
-        Map<String, Object> result = new LinkedHashMap<>(map.size());
-        for (Entry<String, BindValue> e : map.entrySet()) {
-            if (e.getValue().hidden) continue;
-            result.put(e.getKey(), e.getValue().value);
-        }
-        return JsObject.getEntries(result);
+        // JsObject.getEntries auto-unwraps each value via Engine.toJava, so
+        // entrySet iteration matches the spot-lookup contract on get().
+        return JsObject.getEntries(store.getRawMap(false));
     }
 
     @Override
@@ -345,14 +145,7 @@ public class Bindings implements Map<String, Object> {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder("{");
-        boolean first = true;
-        for (BindValue bv : map.values()) {
-            if (!first) sb.append(", ");
-            first = false;
-            sb.append(bv.name).append("=").append(bv.value);
-        }
-        return sb.append("}").toString();
+        return store.getRawMap(false).toString();
     }
 
 }

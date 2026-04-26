@@ -53,7 +53,7 @@ class ContextRoot implements Context {
      * Held here so engine internals can write through {@code root._bindings}
      * symmetrically with how script-level CoreContexts use {@code _bindings}.
      */
-    final Bindings _bindings;
+    final BindingsStore _bindings;
 
     /**
      * Top-level {@code this} — globalThis stand-in. Reflects built-in globals
