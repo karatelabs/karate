@@ -70,9 +70,9 @@ class JsArrayConstructor extends JsFunction {
 
     private Object resolveMember(String name) {
         return switch (name) {
-            case "from" -> new JsBuiltinMethod("from", 1, this::from);
-            case "isArray" -> new JsBuiltinMethod("isArray", 1, (JsInvokable) this::isArray);
-            case "of" -> new JsBuiltinMethod("of", 0, (JsInvokable) this::of);
+            case "from" -> method(name, 1, this::from);
+            case "isArray" -> method(name, 1, (JsInvokable) this::isArray);
+            case "of" -> method(name, 0, (JsInvokable) this::of);
             case "prototype" -> JsArrayPrototype.INSTANCE;
             default -> super.getMember(name);
         };

@@ -65,8 +65,8 @@ class JsStringConstructor extends JsFunction {
 
     private Object resolveMember(String name) {
         return switch (name) {
-            case "fromCharCode" -> new JsBuiltinMethod("fromCharCode", 1, (JsInvokable) this::fromCharCode);
-            case "fromCodePoint" -> new JsBuiltinMethod("fromCodePoint", 1, (JsInvokable) this::fromCodePoint);
+            case "fromCharCode" -> method(name, 1, (JsInvokable) this::fromCharCode);
+            case "fromCodePoint" -> method(name, 1, (JsInvokable) this::fromCodePoint);
             case "prototype" -> JsStringPrototype.INSTANCE;
             default -> super.getMember(name);
         };

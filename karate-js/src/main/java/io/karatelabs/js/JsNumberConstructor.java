@@ -79,10 +79,10 @@ class JsNumberConstructor extends JsFunction {
 
     private Object resolveMember(String name) {
         return switch (name) {
-            case "isFinite" -> new JsBuiltinMethod("isFinite", 1, (JsInvokable) this::isFinite);
-            case "isInteger" -> new JsBuiltinMethod("isInteger", 1, (JsInvokable) this::isInteger);
-            case "isNaN" -> new JsBuiltinMethod("isNaN", 1, (JsInvokable) this::isNaN);
-            case "isSafeInteger" -> new JsBuiltinMethod("isSafeInteger", 1, (JsInvokable) this::isSafeInteger);
+            case "isFinite" -> method(name, 1, (JsInvokable) this::isFinite);
+            case "isInteger" -> method(name, 1, (JsInvokable) this::isInteger);
+            case "isNaN" -> method(name, 1, (JsInvokable) this::isNaN);
+            case "isSafeInteger" -> method(name, 1, (JsInvokable) this::isSafeInteger);
             case "EPSILON" -> Math.ulp(1.0);
             case "MAX_VALUE" -> Double.MAX_VALUE;
             case "MIN_VALUE" -> Double.MIN_VALUE;

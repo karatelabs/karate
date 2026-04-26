@@ -391,6 +391,18 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
         frozen = false;
     }
 
+    /**
+     * Sugar for the canonical {@code new JsBuiltinMethod(name, length, delegate)}
+     * call used by built-in constructor singletons in their {@code resolveMember}
+     * switches. Same shape as {@link Prototype#method(String, int, JsCallable)}
+     * — written so that each switch case reads
+     * {@code case "isFinite" -> method(name, 1, (JsInvokable) this::isFinite)}
+     * with the case label value flowing into the wrap as a single source of truth.
+     */
+    protected static JsBuiltinMethod method(String methodName, int length, JsCallable delegate) {
+        return new JsBuiltinMethod(methodName, length, delegate);
+    }
+
     @Override
     public void removeMember(String name) {
         // Already tombstoned — nothing to do.

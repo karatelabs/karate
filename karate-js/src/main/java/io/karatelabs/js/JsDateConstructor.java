@@ -62,9 +62,9 @@ class JsDateConstructor extends JsFunction {
 
     private Object resolveMember(String name) {
         return switch (name) {
-            case "now" -> new JsBuiltinMethod("now", 0, (JsInvokable) this::now);
-            case "parse" -> new JsBuiltinMethod("parse", 1, (ctx, args) -> parse(args));
-            case "UTC" -> new JsBuiltinMethod("UTC", 7, (ctx, args) ->
+            case "now" -> method(name, 0, (JsInvokable) this::now);
+            case "parse" -> method(name, 1, (ctx, args) -> parse(args));
+            case "UTC" -> method(name, 7, (ctx, args) ->
                     utcWithContext(ctx instanceof CoreContext c ? c : null, args));
             case "prototype" -> JsDatePrototype.INSTANCE;
             default -> super.getMember(name);

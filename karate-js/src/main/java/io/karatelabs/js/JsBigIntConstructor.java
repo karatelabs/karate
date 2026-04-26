@@ -64,8 +64,8 @@ class JsBigIntConstructor extends JsFunction {
 
     private Object resolveMember(String name) {
         return switch (name) {
-            case "asIntN" -> new JsBuiltinMethod("asIntN", 2, this::asIntN);
-            case "asUintN" -> new JsBuiltinMethod("asUintN", 2, this::asUintN);
+            case "asIntN" -> method(name, 2, this::asIntN);
+            case "asUintN" -> method(name, 2, this::asUintN);
             case "prototype" -> JsBigIntPrototype.INSTANCE;
             default -> super.getMember(name);
         };

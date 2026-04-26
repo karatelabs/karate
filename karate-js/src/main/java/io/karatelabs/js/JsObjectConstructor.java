@@ -73,27 +73,27 @@ class JsObjectConstructor extends JsFunction {
 
     private Object resolveMember(String name) {
         return switch (name) {
-            case "keys" -> new JsBuiltinMethod("keys", 1, (JsInvokable) this::keys);
-            case "values" -> new JsBuiltinMethod("values", 1, (JsInvokable) this::values);
-            case "entries" -> new JsBuiltinMethod("entries", 1, (JsInvokable) this::entries);
-            case "assign" -> new JsBuiltinMethod("assign", 2, (JsInvokable) this::assign);
-            case "fromEntries" -> new JsBuiltinMethod("fromEntries", 1, (JsInvokable) this::fromEntries);
-            case "is" -> new JsBuiltinMethod("is", 2, (JsInvokable) this::is);
-            case "create" -> new JsBuiltinMethod("create", 2, (JsInvokable) this::create);
-            case "getPrototypeOf" -> new JsBuiltinMethod("getPrototypeOf", 1, (JsInvokable) this::getPrototypeOf);
-            case "setPrototypeOf" -> new JsBuiltinMethod("setPrototypeOf", 2, (JsInvokable) this::setPrototypeOf);
-            case "hasOwn" -> new JsBuiltinMethod("hasOwn", 2, (JsInvokable) this::hasOwn);
-            case "getOwnPropertyNames" -> new JsBuiltinMethod("getOwnPropertyNames", 1, (JsInvokable) this::getOwnPropertyNames);
-            case "getOwnPropertyDescriptor" -> new JsBuiltinMethod("getOwnPropertyDescriptor", 2, (JsInvokable) this::getOwnPropertyDescriptor);
-            case "getOwnPropertyDescriptors" -> new JsBuiltinMethod("getOwnPropertyDescriptors", 1, (JsInvokable) this::getOwnPropertyDescriptors);
-            case "defineProperty" -> new JsBuiltinMethod("defineProperty", 3, (JsInvokable) this::defineProperty);
-            case "defineProperties" -> new JsBuiltinMethod("defineProperties", 2, (JsInvokable) this::defineProperties);
-            case "isExtensible" -> new JsBuiltinMethod("isExtensible", 1, (JsInvokable) this::isExtensible);
-            case "preventExtensions" -> new JsBuiltinMethod("preventExtensions", 1, (JsInvokable) this::preventExtensions);
-            case "isSealed" -> new JsBuiltinMethod("isSealed", 1, (JsInvokable) this::isSealed);
-            case "seal" -> new JsBuiltinMethod("seal", 1, (JsInvokable) this::seal);
-            case "isFrozen" -> new JsBuiltinMethod("isFrozen", 1, (JsInvokable) this::isFrozen);
-            case "freeze" -> new JsBuiltinMethod("freeze", 1, (JsInvokable) this::freeze);
+            case "keys" -> method(name, 1, (JsInvokable) this::keys);
+            case "values" -> method(name, 1, (JsInvokable) this::values);
+            case "entries" -> method(name, 1, (JsInvokable) this::entries);
+            case "assign" -> method(name, 2, (JsInvokable) this::assign);
+            case "fromEntries" -> method(name, 1, (JsInvokable) this::fromEntries);
+            case "is" -> method(name, 2, (JsInvokable) this::is);
+            case "create" -> method(name, 2, (JsInvokable) this::create);
+            case "getPrototypeOf" -> method(name, 1, (JsInvokable) this::getPrototypeOf);
+            case "setPrototypeOf" -> method(name, 2, (JsInvokable) this::setPrototypeOf);
+            case "hasOwn" -> method(name, 2, (JsInvokable) this::hasOwn);
+            case "getOwnPropertyNames" -> method(name, 1, (JsInvokable) this::getOwnPropertyNames);
+            case "getOwnPropertyDescriptor" -> method(name, 2, (JsInvokable) this::getOwnPropertyDescriptor);
+            case "getOwnPropertyDescriptors" -> method(name, 1, (JsInvokable) this::getOwnPropertyDescriptors);
+            case "defineProperty" -> method(name, 3, (JsInvokable) this::defineProperty);
+            case "defineProperties" -> method(name, 2, (JsInvokable) this::defineProperties);
+            case "isExtensible" -> method(name, 1, (JsInvokable) this::isExtensible);
+            case "preventExtensions" -> method(name, 1, (JsInvokable) this::preventExtensions);
+            case "isSealed" -> method(name, 1, (JsInvokable) this::isSealed);
+            case "seal" -> method(name, 1, (JsInvokable) this::seal);
+            case "isFrozen" -> method(name, 1, (JsInvokable) this::isFrozen);
+            case "freeze" -> method(name, 1, (JsInvokable) this::freeze);
             case "prototype" -> JsObjectPrototype.INSTANCE;
             default -> super.getMember(name);
         };
