@@ -25,11 +25,18 @@ package io.karatelabs.js;
 
 /**
  * JavaScript String constructor function.
- * Provides static methods like String.fromCharCode, String.fromCodePoint, etc.
+ * <p>
+ * Static methods are wrapped in {@link JsBuiltinMethod} (per the JsMath /
+ * JsNumberConstructor template) so they expose spec {@code length} and
+ * {@code name}; method instances are cached per-Engine in {@code _methodCache}.
+ * {@link #hasOwnIntrinsic} / {@link #getOwnAttrs} declare each method plus
+ * the {@code prototype} slot per spec.
  */
 class JsStringConstructor extends JsFunction {
 
     static final JsStringConstructor INSTANCE = new JsStringConstructor();
+
+    private java.util.Map<String, JsBuiltinMethod> _methodCache;
 
     private JsStringConstructor() {
         this.name = "String";
@@ -39,11 +46,58 @@ class JsStringConstructor extends JsFunction {
 
     @Override
     public Object getMember(String name) {
+        if (isTombstoned(name) || ownContainsKey(name)) {
+            return super.getMember(name);
+        }
+        if (_methodCache != null) {
+            JsBuiltinMethod cached = _methodCache.get(name);
+            if (cached != null) return cached;
+        }
+        Object result = resolveMember(name);
+        if (result instanceof JsBuiltinMethod jbm) {
+            if (_methodCache == null) {
+                _methodCache = new java.util.HashMap<>();
+            }
+            _methodCache.put(name, jbm);
+        }
+        return result;
+    }
+
+    private Object resolveMember(String name) {
         return switch (name) {
-            case "fromCharCode" -> (JsInvokable) this::fromCharCode;
-            case "fromCodePoint" -> (JsInvokable) this::fromCodePoint;
+            case "fromCharCode" -> new JsBuiltinMethod("fromCharCode", 1, (JsInvokable) this::fromCharCode);
+            case "fromCodePoint" -> new JsBuiltinMethod("fromCodePoint", 1, (JsInvokable) this::fromCodePoint);
             case "prototype" -> JsStringPrototype.INSTANCE;
             default -> super.getMember(name);
+        };
+    }
+
+    @Override
+    public boolean hasOwnIntrinsic(String name) {
+        return isStringMethod(name) || super.hasOwnIntrinsic(name);
+    }
+
+    @Override
+    public byte getOwnAttrs(String name) {
+        if (isStringMethod(name)) {
+            return WRITABLE | CONFIGURABLE;
+        }
+        if ("prototype".equals(name)) {
+            return 0;
+        }
+        return super.getOwnAttrs(name);
+    }
+
+    @Override
+    protected void clearEngineState() {
+        super.clearEngineState();
+        if (_methodCache != null) _methodCache.clear();
+    }
+
+    private static boolean isStringMethod(String n) {
+        return switch (n) {
+            case "fromCharCode", "fromCodePoint" -> true;
+            default -> false;
         };
     }
 

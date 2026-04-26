@@ -30,11 +30,18 @@ import java.util.Map;
 
 /**
  * JavaScript Array constructor function.
- * Provides static methods like Array.from, Array.isArray, Array.of, etc.
+ * <p>
+ * Static methods are wrapped in {@link JsBuiltinMethod} (per the JsMath /
+ * JsNumberConstructor template) so they expose spec {@code length} and
+ * {@code name}; method instances are cached per-Engine in {@code _methodCache}.
+ * {@link #hasOwnIntrinsic} / {@link #getOwnAttrs} declare each method plus
+ * the {@code prototype} slot per spec.
  */
 class JsArrayConstructor extends JsFunction {
 
     static final JsArrayConstructor INSTANCE = new JsArrayConstructor();
+
+    private java.util.Map<String, JsBuiltinMethod> _methodCache;
 
     private JsArrayConstructor() {
         this.name = "Array";
@@ -44,12 +51,59 @@ class JsArrayConstructor extends JsFunction {
 
     @Override
     public Object getMember(String name) {
+        if (isTombstoned(name) || ownContainsKey(name)) {
+            return super.getMember(name);
+        }
+        if (_methodCache != null) {
+            JsBuiltinMethod cached = _methodCache.get(name);
+            if (cached != null) return cached;
+        }
+        Object result = resolveMember(name);
+        if (result instanceof JsBuiltinMethod jbm) {
+            if (_methodCache == null) {
+                _methodCache = new java.util.HashMap<>();
+            }
+            _methodCache.put(name, jbm);
+        }
+        return result;
+    }
+
+    private Object resolveMember(String name) {
         return switch (name) {
-            case "from" -> (JsCallable) this::from;
-            case "isArray" -> (JsInvokable) this::isArray;
-            case "of" -> (JsInvokable) this::of;
+            case "from" -> new JsBuiltinMethod("from", 1, this::from);
+            case "isArray" -> new JsBuiltinMethod("isArray", 1, (JsInvokable) this::isArray);
+            case "of" -> new JsBuiltinMethod("of", 0, (JsInvokable) this::of);
             case "prototype" -> JsArrayPrototype.INSTANCE;
             default -> super.getMember(name);
+        };
+    }
+
+    @Override
+    public boolean hasOwnIntrinsic(String name) {
+        return isArrayMethod(name) || super.hasOwnIntrinsic(name);
+    }
+
+    @Override
+    public byte getOwnAttrs(String name) {
+        if (isArrayMethod(name)) {
+            return WRITABLE | CONFIGURABLE;
+        }
+        if ("prototype".equals(name)) {
+            return 0;
+        }
+        return super.getOwnAttrs(name);
+    }
+
+    @Override
+    protected void clearEngineState() {
+        super.clearEngineState();
+        if (_methodCache != null) _methodCache.clear();
+    }
+
+    private static boolean isArrayMethod(String n) {
+        return switch (n) {
+            case "from", "isArray", "of" -> true;
+            default -> false;
         };
     }
 
