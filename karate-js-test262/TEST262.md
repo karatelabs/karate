@@ -181,12 +181,12 @@ before scoping a session.
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
-| `test/language/**` | 4311 | 3792 | 15542 | 23645 |
+| `test/language/**` | 4327 | 3776 | 15542 | 23645 |
 | `test/built-ins/Math/**` | 293 | 33 | 1 | 327 |
 | `test/built-ins/Number/**` | 232 | 96 | 12 | 340 |
 | `test/built-ins/String/**` | 456 | 717 | 50 | 1223 |
 | `test/built-ins/Array/**` | 1256 | 1645 | 180 | 3081 |
-| `test/built-ins/Object/**` | 2035 | 1251 | 125 | 3411 |
+| `test/built-ins/Object/**` | 2041 | 1245 | 125 | 3411 |
 | `test/built-ins/Date/**` | 500 | 52 | 42 | 594 |
 | `test/built-ins/Function/**` | 229 | 152 | 128 | 509 |
 | `test/built-ins/Symbol/**` | 2 | 47 | 49 | 98 |
@@ -207,19 +207,28 @@ before scoping a session.
    focused work. Re-probe before scoping with `test/built-ins/Symbol/**`
    to size per-feature cluster.
 
-2. **`this = 1` / `import.meta = 1` / `eval = 1` NPE.** Tier-1 negative-
-   test stragglers. `this` lexes as IDENT; `import.meta` parses as a
-   normal `REF_DOT_EXPR`; `eval = 1` hits a pre-existing NPE in the
-   engine's host-bindings setup (`Cannot read field "listener" because
-   "this.root" is null`). 5 fails total in
-   `expressions/assignmenttargettype/**`.
+2. **Array methods using `CreateDataPropertyOrThrow` + `Symbol.species`.**
+   `JsArray._attrs` per-index tracking is in place (see [JS_ENGINE.md
+   § Property attributes](../docs/JS_ENGINE.md#property-attributes)), but
+   the `Array/prototype/*-target-array-with-non-writable-property` cluster
+   stays red because the prototype methods (splice / concat / filter /
+   slice / flat / from) don't honor `arr.constructor[Symbol.species]` and
+   write results via `[[Set]]` instead of `CreateDataPropertyOrThrow`
+   (defineProperty-style, all-true attrs that overwrite a non-writable
+   slot). Two changes that wedge together: species lookup on the result-
+   array allocation site, and a `defineOwn` write path in the bulk
+   methods. Most affected tests also have `features: [Symbol.species]`
+   or `[generators]`, so re-probe with `--only test/built-ins/Array/
+   prototype/**` to size the actually-runnable subset.
 
-3. **JsArray per-index attribute tracking.** `defineProperty(arr, "0",
-   {writable: false, value: x})` writes to the dense list and silently
-   loses the `writable: false` bit — there's no parallel `_attrs` map on
-   `JsArray` (one exists on `JsObject`). Adding one mirrors the
-   `JsObject._attrs` design and would unblock the
-   `Array/prototype/*-target-array-with-non-writable-property` cluster.
+3. **Array length truncation across non-configurable indices
+   (§10.4.2.4).** `defineProperty(arr, "1", {configurable: false}); arr.
+   length = 1` should TypeError; today `setLength` truncates silently.
+   Same for `arr.pop()` / `shift()` when an index in the truncated range
+   is non-configurable. The `Array/length/define-own-prop-length-*` and
+   `Array/prototype/{pop,shift,unshift,push}/set-length-*-non-writable`
+   clusters depend on this. Discoverable now that `_attrs` carries the
+   configurable bit per index.
 
 ### Background
 

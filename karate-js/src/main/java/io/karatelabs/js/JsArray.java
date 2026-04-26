@@ -60,6 +60,10 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     final List<Object> list;
     private Map<String, Object> namedProps;
+    // Per-property attribute bits, keyed by canonical name (numeric indices use
+    // their string form, e.g. "0"). Sparse — absent keys use {@link JsObject#ATTRS_DEFAULT}.
+    // Mirrors {@link JsObject#_attrs}; see that field for the bit layout rationale.
+    private Map<String, Byte> _attrs;
     private ObjectLike __proto__ = JsArrayPrototype.INSTANCE;
 
     public JsArray(List<Object> list) {
@@ -176,6 +180,14 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             }
             return;
         }
+        // Per-property writable=false: silently ignore (lenient mode — strict-mode
+        // TypeError flip lives elsewhere). Mirrors JsObject.putMember's check.
+        if (_attrs != null) {
+            Byte b = _attrs.get(name);
+            if (b != null && (b & JsObject.WRITABLE) == 0) {
+                return;
+            }
+        }
         // Numeric index write — write into the dense list (and pad with HOLE if
         // the index is past size, growing length per array-exotic semantics).
         // Two slow-path exits land in namedProps instead:
@@ -196,6 +208,66 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             namedProps = new LinkedHashMap<>();
         }
         namedProps.put(name, value);
+    }
+
+    /**
+     * Low-level descriptor write used by {@code Object.defineProperty}. Bypasses
+     * the {@code [[Set]]} writable check (defineProperty is allowed to mutate
+     * non-writable data props subject to its own configurable rules, which the
+     * caller already validated). Stores {@code attrs} in {@link #_attrs} so the
+     * descriptor's writable/enumerable/configurable bits survive subsequent
+     * reads via {@link #getOwnAttrs(String)}.
+     * <p>
+     * Data descriptors at a numeric index land in the dense {@link #list};
+     * accessor descriptors and named (non-index) keys land in {@link #namedProps}
+     * — getIndexedSlot consults namedProps first, so an accessor at index 0
+     * correctly shadows any dense value at the same slot.
+     */
+    void defineOwn(String name, Object value, byte attrs) {
+        int i = parseIndex(name);
+        if (i >= 0 && !(value instanceof JsAccessor)) {
+            // Data descriptor at an array index: write into the dense list and
+            // clear any prior namedProps entry so the dense slot is the
+            // authoritative source on read. Pad past-end with HOLE to grow length.
+            if (namedProps != null) {
+                namedProps.remove(name);
+            }
+            while (list.size() < i) list.add(HOLE);
+            if (i < list.size()) list.set(i, value);
+            else list.add(value);
+        } else {
+            if (namedProps == null) {
+                namedProps = new LinkedHashMap<>();
+            }
+            namedProps.put(name, value);
+        }
+        setAttrs(name, attrs);
+    }
+
+    /**
+     * Returns the attribute byte for {@code name}: bit-OR of {@link JsObject#WRITABLE},
+     * {@link JsObject#ENUMERABLE}, {@link JsObject#CONFIGURABLE}. Defaults to
+     * all-true when the key has never been touched by {@code defineProperty} /
+     * {@code seal} / {@code freeze}. Mirrors {@link JsObject#getAttrs(String)}.
+     */
+    byte getAttrs(String name) {
+        if (_attrs == null) return JsObject.ATTRS_DEFAULT;
+        Byte b = _attrs.get(name);
+        return b == null ? JsObject.ATTRS_DEFAULT : b;
+    }
+
+    /** Stores the attribute byte for {@code name}; absence means all-true. */
+    void setAttrs(String name, byte attrs) {
+        if (attrs == JsObject.ATTRS_DEFAULT) {
+            if (_attrs != null) {
+                _attrs.remove(name);
+            }
+            return;
+        }
+        if (_attrs == null) {
+            _attrs = new LinkedHashMap<>();
+        }
+        _attrs.put(name, attrs);
     }
 
     /**
@@ -390,10 +462,18 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         return getElement(index);
     }
 
-    /** True iff a descriptor is installed at index {@code index} via {@link #namedProps}. */
+    /**
+     * True iff a descriptor is installed at index {@code index} — either an
+     * accessor / overridden value in {@link #namedProps}, or a per-index
+     * attribute entry in {@link #_attrs} (e.g. {@code writable: false}). Routes
+     * the indexed-write fast path through {@code setByName} so writable=false
+     * is honored.
+     */
     boolean hasIndexedDescriptor(int index) {
-        return namedProps != null && index >= 0
-                && namedProps.containsKey(Integer.toString(index));
+        if (index < 0) return false;
+        String key = Integer.toString(index);
+        return (namedProps != null && namedProps.containsKey(key))
+                || (_attrs != null && _attrs.containsKey(key));
     }
 
     /**
@@ -425,16 +505,17 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     /**
      * Spec-correct attribute byte for an own property of this array.
      * {@code length} is {@code {writable: true, enumerable: false,
-     * configurable: false}} per §10.4.2 ArrayCreate. Other keys default to
-     * all-true (per-key attribute tracking matching {@link JsObject#_attrs}
-     * is a follow-up).
+     * configurable: false}} per §10.4.2 ArrayCreate. Other keys consult
+     * {@link #_attrs} — entries installed via {@code Object.defineProperty}
+     * (or via the indexed-descriptor path on {@link #defineOwn}) deviate from
+     * the all-true default; absent keys are all-true.
      */
     public byte getOwnAttrs(String name) {
         if ("length".equals(name)) {
             // writable only — not enumerable, not configurable.
             return JsObject.WRITABLE;
         }
-        return JsObject.ATTRS_DEFAULT;
+        return getAttrs(name);
     }
 
     public void setElement(int index, Object value) {

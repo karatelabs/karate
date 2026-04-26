@@ -51,6 +51,7 @@ class ContextRoot extends CoreContext {
 
     ContextRoot(Engine engine) {
         super(null, null, -1, null, ContextScope.ROOT, null);
+        this.root = this;
         this.engine = engine;
     }
 

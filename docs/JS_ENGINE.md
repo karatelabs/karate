@@ -899,6 +899,27 @@ null-check on `namedProps`); writes route through the named-key path when
 when `arr.hasAnyDescriptor()` so callbacks see resolved values, not the
 accessor wrapper.
 
+**`JsArray._attrs` mirrors `JsObject._attrs`.** Per-property attribute byte
+map (sparse `Map<String, Byte>`) keyed by canonical name — numeric indices
+use their string form (`"0"`, `"1"`, ...). Bit layout matches `JsObject`
+(writable / enumerable / configurable). Three storage layers cooperate:
+`list` holds default-attr data values at numeric indices, `namedProps` holds
+accessor descriptors and non-index keys, `_attrs` holds the attribute byte
+for any key whose triplet deviates from the all-true default. Plain
+`arr[i] = x` doesn't allocate `_attrs`; `defineProperty(arr, "0",
+{writable: false, value: x})` writes the value to the dense list (so
+iteration semantics are preserved) and records the attribute byte in
+`_attrs["0"]`. Subsequent `arr[0] = y` is silently ignored: `putMember`
+checks `_attrs` for writable=false, and `hasIndexedDescriptor(i)` returns
+true when `_attrs` has an entry, routing the indexed-write through
+`setByName` so the check fires. `getOwnAttrs` consults `_attrs` for non-
+`length` keys; `length` keeps its spec-fixed `{writable, !enumerable,
+!configurable}` byte. `Object.defineProperty` dispatches to
+`JsArray.defineOwn(name, value, attrs)` via `applyDefine`; data descriptors
+at numeric indices clear any prior `namedProps` entry (the dense slot
+becomes the authoritative read) while accessor descriptors land in
+`namedProps` as before.
+
 **`JsArray.isOwnProperty` is the canonical own-key check for arrays.**
 Returns true iff `name` is `"length"`, in `namedProps` (descriptors / named
 properties), or a canonical numeric index in range with `list.get(i) !=

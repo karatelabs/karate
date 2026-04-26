@@ -30,7 +30,7 @@ import java.util.function.Supplier;
 
 class CoreContext implements Context {
 
-    final ContextRoot root;
+    ContextRoot root;
 
     Object thisObject = Terms.UNDEFINED;
     CallInfo callInfo;

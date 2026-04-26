@@ -571,6 +571,8 @@ class JsObjectConstructor extends JsFunction {
     private static void applyDefine(Object target, String key, Object value, byte attrs) {
         if (target instanceof JsObject jo) {
             jo.defineOwn(key, value, attrs);
+        } else if (target instanceof JsArray ja) {
+            ja.defineOwn(key, value, attrs);
         } else {
             ownPut(target, key, value);
         }

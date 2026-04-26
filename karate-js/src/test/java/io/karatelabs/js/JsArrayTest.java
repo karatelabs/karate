@@ -357,4 +357,31 @@ class JsArrayTest extends EvalBase {
         assertEquals(3, engine.eval("bytes.indexOf(255)"));
     }
 
+    @Test
+    void testDefinePropertyIndexedAttrs() {
+        // defineProperty with writable: false at a numeric index — subsequent
+        // [[Set]] is silently ignored, value persists.
+        assertEquals(1, eval(
+                "var a = [];"
+                        + " Object.defineProperty(a, '0', {value: 1, writable: false, configurable: true});"
+                        + " a[0] = 99;"
+                        + " a[0]"));
+        // Descriptor reads back the recorded attributes (writable=false here).
+        assertEquals(false, eval(
+                "var a = [];"
+                        + " Object.defineProperty(a, '0', {value: 1, writable: false, configurable: true});"
+                        + " Object.getOwnPropertyDescriptor(a, '0').writable"));
+        // Default-attrs writes (plain `arr[i] = x`) keep writable=true.
+        assertEquals(true, eval(
+                "var a = [10];"
+                        + " Object.getOwnPropertyDescriptor(a, '0').writable"));
+        // Re-defining the index with default attrs (CreateDataPropertyOrThrow shape:
+        // all-true) overwrites a prior writable=false entry.
+        assertEquals(99, eval(
+                "var a = [];"
+                        + " Object.defineProperty(a, '0', {value: 1, writable: false, configurable: true});"
+                        + " Object.defineProperty(a, '0', {value: 99, writable: true, enumerable: true, configurable: true});"
+                        + " a[0]"));
+    }
+
 }

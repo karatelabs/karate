@@ -264,10 +264,23 @@ public class JsParser extends BaseParser {
                         && n.getFirst().type == NodeType.FN_ARROW_EXPR) {
                     throw new ParserException("invalid " + siteName + ": arrow function");
                 }
+                // `this` lexes as IDENT (see JsLexer.keywordOrIdent) but per spec
+                // the ThisExpression has AssignmentTargetType=invalid.
+                if (n.size() >= 1 && n.getFirst().isToken()
+                        && n.getFirst().token.type == IDENT
+                        && "this".equals(n.getFirst().getText())) {
+                    throw new ParserException("invalid " + siteName + ": this");
+                }
             }
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 // Plain member access; a `?.` would have been caught earlier by
                 // the optional-chain branch above with a more specific message.
+                // `import.meta` is a meta-property whose AssignmentTargetType is
+                // invalid; `import` is not a reserved word in our lexer so it
+                // parses as a normal REF_DOT_EXPR — flag the literal shape here.
+                if (n.type == NodeType.REF_DOT_EXPR && isImportMeta(n)) {
+                    throw new ParserException("invalid " + siteName + ": import.meta");
+                }
             }
             case FN_CALL_EXPR -> {
                 // Web-compat carve-out: see method javadoc.
@@ -290,6 +303,28 @@ public class JsParser extends BaseParser {
             n = n.get(0);
         }
         return n;
+    }
+
+    /**
+     * True iff {@code node} is the literal shape {@code import.meta}: a
+     * {@code REF_DOT_EXPR} whose head is a bare {@code REF_EXPR(IDENT('import'))}
+     * and whose property is the IDENT {@code meta}.
+     */
+    private static boolean isImportMeta(Node node) {
+        if (node.type != NodeType.REF_DOT_EXPR || node.size() < 3) {
+            return false;
+        }
+        Node head = node.getFirst();
+        if (head.type != NodeType.REF_EXPR || head.size() != 1) {
+            return false;
+        }
+        Node headIdent = head.getFirst();
+        if (!headIdent.isToken() || headIdent.token.type != IDENT
+                || !"import".equals(headIdent.getText())) {
+            return false;
+        }
+        Node prop = node.get(2);
+        return prop.isToken() && prop.token.type == IDENT && "meta".equals(prop.getText());
     }
 
     /**
