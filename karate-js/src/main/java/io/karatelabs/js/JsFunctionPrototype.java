@@ -97,7 +97,7 @@ class JsFunctionPrototype extends Prototype {
         }
         ThisArgs thisArgs = new ThisArgs(args, false);
         if (context instanceof CoreContext cc) {
-            cc.thisObject = thisArgs.thisObject;
+            cc.thisObject = coerceThisArg(thisArgs.thisObject, cc);
         }
         return callable.call(context, thisArgs.args.toArray(new Object[0]));
     }
@@ -109,9 +109,21 @@ class JsFunctionPrototype extends Prototype {
         }
         ThisArgs thisArgs = new ThisArgs(args, true);
         if (context instanceof CoreContext cc) {
-            cc.thisObject = thisArgs.thisObject;
+            cc.thisObject = coerceThisArg(thisArgs.thisObject, cc);
         }
         return callable.call(context, thisArgs.args.toArray(new Object[0]));
+    }
+
+    /**
+     * Spec §10.3 OrdinaryCallBindThis (non-strict): when thisArg is null or
+     * undefined, the function gets globalThis as its `this`. We don't model
+     * strict-mode separately, so always do the substitution.
+     */
+    private static Object coerceThisArg(Object thisArg, CoreContext cc) {
+        if (thisArg == null || thisArg == Terms.UNDEFINED) {
+            return cc.root.thisObject;
+        }
+        return thisArg;
     }
 
     // Spec: Function.prototype.bind(thisArg, ...preBound) returns a new callable
