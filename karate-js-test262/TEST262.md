@@ -1003,20 +1003,19 @@ Action list — start at the top. Ordered by core-engine confidence
 score impact (a one-fix harness unblock beats ten one-test patches).
 Re-probe with the relevant `--only` glob before scoping a session.
 
-Current state baseline (2026-04, post full constructor-singleton wrap
-sweep — Math + Number + Object + Array + String + Date + BigInt +
-Function + Map + Set — on top of singleton-reset infra +
-assignment-target negative-test pass + per-property attribute
-enforcement):
+Current state baseline (2026-04, post Array.prototype wrap +
+Prototype tombstones/getOwnAttrs, on top of the full
+constructor-singleton wrap sweep — Math + Number + Object + Array +
+String + Date + BigInt + Function + Map + Set):
 
 | Slice | Pass | Fail | Skip | Total |
 |---|---|---|---|---|
 | `test/language/**` | 4265 | 3798 | 15582 | 23645 |
 | `test/built-ins/Math/**` | 293 | 33 | 1 | 327 |
-| `test/built-ins/Number/**` | 215 | 113 | 12 | 340 |
+| `test/built-ins/Number/**` | 216 | 112 | 12 | 340 |
 | `test/built-ins/String/**` | 363 | 776 | 84 | 1223 |
-| `test/built-ins/Array/**` | 1137 | 1763 | 181 | 3081 |
-| `test/built-ins/Object/**` | 1893 | 1387 | 131 | 3411 |
+| `test/built-ins/Array/**` | 1203 | 1697 | 181 | 3081 |
+| `test/built-ins/Object/**` | 1918 | 1362 | 131 | 3411 |
 | `test/built-ins/Date/**` | 477 | 47 | 70 | 594 |
 | `test/built-ins/Function/**` | 215 | 166 | 128 | 509 |
 
@@ -1042,20 +1041,18 @@ Function / Map / Number / Object / Set / String) wrapped with
 `clearEngineState()`) plumbs per-Engine reset for all of them.
 Remaining work is the **prototype** side and `JsArray.length`.
 
-- **`Prototype` per-method attributes.** Built-in prototype methods
-  (`Array.prototype.push`, `String.prototype.charAt`,
-  `Number.prototype.toFixed`, etc.) are resolved by
-  `Prototype.getBuiltinProperty` switches as raw `JsCallable` lambdas
-  — no `length`/`name` own properties, no attribute slots, and
-  `delete Array.prototype.push` is currently a silent no-op
-  (Prototype.removeMember only touches `userProps`). Two pieces of
-  work needed (separate from the constructor wraps): wrap each
-  method in `JsBuiltinMethod` (for `length`/`name`), and add
-  delete-with-tombstone support to Prototype so propertyHelper's
-  `isConfigurable()` (which asserts `delete obj[name]` actually
-  removes) reports correctly. The earlier note that "no new infra
-  needed for the prototypes" understated this — Prototype does need
-  its own tombstone slot or a Map-style override.
+- **`Prototype` per-method wraps (residual).** Array.prototype is
+  done (see Recently completed) — Prototype now has tombstones,
+  `getOwnAttrs`, and a `clearSubclassState` cache hook, and
+  `JsObjectConstructor.isOwnKey` / `ownAttrs` / `ownGet` route
+  through Prototype for descriptor reads. JsArrayPrototype's 35
+  built-in methods are wrapped in `JsBuiltinMethod` with spec
+  length+name. Same one-file template still to roll out across
+  JsObjectPrototype, JsStringPrototype, JsNumberPrototype,
+  JsDatePrototype, JsBooleanPrototype, JsBigIntPrototype,
+  JsFunctionPrototype, JsMapPrototype, JsSetPrototype,
+  JsRegExpPrototype, JsErrorPrototype. Per-prototype delta in
+  the +5–60 PASS range based on Array's experience.
 
 - **`JsArray.length` descriptor.** Spec: `{writable: true,
   enumerable: false, configurable: false}`. Currently
@@ -1144,6 +1141,37 @@ Smaller items, picked off when nearby. Not session-sized on their own.
 Not action items — retrospective notes on areas that just shipped, with
 their residual fails enumerated for opportunistic pickup. Read for
 context; the action list is above.
+
+- **Array.prototype wrap + Prototype tombstones / `getOwnAttrs`.**
+  First step on the prototype side, after the constructor sweep.
+  Prototype.java grew the spec-correct delete + descriptor machinery
+  it was missing: a tombstone Set so `delete Array.prototype.push`
+  actually removes the built-in (was a silent no-op),
+  `getOwnAttrs(name)` returning `{writable: true, enumerable: false,
+  configurable: true}` by default for built-in methods, a
+  `clearSubclassState()` hook called per-Engine for
+  `_methodCache` reset. `JsObjectConstructor.isOwnKey` /
+  `ownAttrs` / `ownGet` now route through `Prototype.hasOwnMember` /
+  `getOwnAttrs` / `getMember` so `getOwnPropertyDescriptor(Array.
+  prototype, 'push')` reports the right shape (was returning
+  `undefined`). JsArrayPrototype wraps each of its 35 built-in
+  methods in `JsBuiltinMethod`; toString stays as the
+  `DEFAULT_TO_STRING` lambda so JsConsole's identity-by-reference
+  override detection keeps working.
+
+  | `--only` glob | Before | After | Δ pass |
+  |---|---|---|---|
+  | `test/built-ins/Array/**` | 1137 / 1763 / 181 | **1203** / 1697 / 181 | **+66** |
+  | `test/built-ins/Object/**` | 1893 / 1387 / 131 | **1918** / 1362 / 131 | **+25** |
+  | `test/language/**` | 4265 / 3798 / 15582 | **4266** / 3797 / 15582 | **+1** |
+
+  Net **+92 PASS**. Array's wins concentrate on the 38 `name.js` +
+  38 `length.js` + 35 `prop-desc.js` tests across its 35 methods —
+  one wrap pattern lights up most of them. Object incidentals come
+  from `Object.getOwnPropertyDescriptor(Array.prototype, ...)` paths
+  that previously returned `undefined` for every key. Same template
+  still to roll out across the other 11 prototypes — see the
+  Tier 2 residual above.
 
 - **Constructor-singleton wrap sweep (Number → Object → Array →
   String → Function/BigInt/Map/Set/Date).** Five commits, one per
