@@ -156,11 +156,15 @@ class JsFunctionPrototype extends Prototype {
 
     private Object toStringMethod(Context context, Object[] args) {
         Object thisObj = context.getThisObject();
-        if (thisObj instanceof JsFunctionNode fn) {
-            // User-defined function: return actual source
-            return fn.node.getTextIncludingWhitespace();
-        } else if (thisObj instanceof JsFunction fn) {
-            // Built-in function: return [native code]
+        if (thisObj instanceof JsFunction fn) {
+            // getSource() is virtual: JsFunctionNode returns the user source,
+            // JsFunctionWrapper delegates to its inner JsFunction, built-ins
+            // return null. Routing through it (vs. an `instanceof JsFunctionNode`
+            // branch) keeps wrapped user functions stringifying as source.
+            String source = fn.getSource();
+            if (source != null) {
+                return source;
+            }
             String fnName = fn.name != null ? fn.name : "";
             return "function " + fnName + "() { [native code] }";
         }
