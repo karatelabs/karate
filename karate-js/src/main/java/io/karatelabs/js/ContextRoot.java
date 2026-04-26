@@ -31,9 +31,37 @@ import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-class ContextRoot extends CoreContext {
+/**
+ * Engine-state holder. Sits above the script-level {@link CoreContext} as the
+ * terminal link in every name-resolution chain — when a {@link CoreContext}
+ * reaches the end of its parent walk without finding a binding, it falls
+ * through to {@link #hasKey} / {@link #get} here to resolve built-ins
+ * (Math, JSON, …) lazily and to read the unified bindings store.
+ * <p>
+ * Shares the engine's single {@link Bindings} instance with every CoreContext
+ * that runs through this engine — top-level {@code var}, implicit globals,
+ * lazy-cached built-ins, and {@link Engine#putRootBinding}-injected resources
+ * all live there. The {@code hidden} flag on individual entries keeps the
+ * latter two out of {@link Engine#getBindings()} inspection.
+ */
+class ContextRoot implements Context {
 
     private final Engine engine;
+
+    /**
+     * Single shared bindings store — same instance as {@link Engine#bindings}.
+     * Held here so engine internals can write through {@code root._bindings}
+     * symmetrically with how script-level CoreContexts use {@code _bindings}.
+     */
+    final Bindings _bindings;
+
+    /**
+     * Top-level {@code this} — globalThis stand-in. Reflects built-in globals
+     * + user-visible bindings as own properties (so
+     * {@code Object.getOwnPropertyDescriptor(this, "Math")} etc. work). Child
+     * contexts inherit this until a function call rebinds {@code thisObject}.
+     */
+    final Object thisObject;
 
     Consumer<String> onConsoleLog;
 
@@ -45,35 +73,20 @@ class ContextRoot extends CoreContext {
     short evalId;
 
     ContextRoot(Engine engine) {
-        // Share the engine's single Bindings instance — root, script context,
-        // and JsGlobalThis all read/write through the same store. Hidden flag
-        // on BindValue distinguishes built-in cache + putRootBinding entries
-        // from user state.
-        super(null, null, -1, null, ContextScope.ROOT, engine.bindings);
-        this.root = this;
         this.engine = engine;
-        // Top-level `this` is a globalThis stand-in that reflects the built-in
-        // globals + user-visible bindings as own properties (so
-        // `Object.getOwnPropertyDescriptor(this, "Math")` etc. work). Child
-        // contexts inherit this until a function call rebinds `thisObject`.
+        this._bindings = engine.bindings;
         this.thisObject = new JsGlobalThis(this);
-    }
-
-    @Override
-    public Engine getEngine() {
-        return engine;
-    }
-
-    @Override
-    public String toString() {
-        return "ROOT";
     }
 
     void setOnConsoleLog(Consumer<String> onConsoleLog) {
         this.onConsoleLog = onConsoleLog;
     }
 
-    @Override
+    /**
+     * Lookup chain entry point — script-level CoreContext falls through here
+     * after exhausting its parent walk. Reads the unified store; if that misses,
+     * triggers lazy initGlobal for built-ins.
+     */
     Object get(String key) {
         if (_bindings.hasMember(key)) {
             Object result = _bindings.getMember(key);
@@ -92,7 +105,11 @@ class ContextRoot extends CoreContext {
         return Terms.UNDEFINED;
     }
 
-    @Override
+    /**
+     * True if {@code key} resolves at the global level — either it's already
+     * in the unified store, or it's a recognized built-in name that
+     * {@link #initGlobal} can lazily produce.
+     */
     boolean hasKey(String key) {
         if (_bindings.hasMember(key)) {
             return true;
@@ -107,6 +124,80 @@ class ContextRoot extends CoreContext {
             default -> false;
         };
     }
+
+    //=== Context interface =============================================================================================
+
+    @Override
+    public Engine getEngine() {
+        return engine;
+    }
+
+    @Override
+    public Context getParent() {
+        return null;
+    }
+
+    @Override
+    public ContextScope getScope() {
+        return ContextScope.ROOT;
+    }
+
+    @Override
+    public int getDepth() {
+        return -1;
+    }
+
+    @Override
+    public Node getNode() {
+        return null;
+    }
+
+    @Override
+    public String getPath() {
+        return "ROOT";
+    }
+
+    @Override
+    public int getIteration() {
+        return -1;
+    }
+
+    @Override
+    public Object getThisObject() {
+        return thisObject;
+    }
+
+    @Override
+    public CallInfo getCallInfo() {
+        return null;
+    }
+
+    @Override
+    public Object[] getCallArgs() {
+        return null;
+    }
+
+    @Override
+    public Object getReturnValue() {
+        return null;
+    }
+
+    @Override
+    public Object getErrorThrown() {
+        return null;
+    }
+
+    @Override
+    public ExitType getExitType() {
+        return null;
+    }
+
+    @Override
+    public String toString() {
+        return "ROOT";
+    }
+
+    //=== Built-in globals ==============================================================================================
 
     private Object initGlobal(String key) {
         return switch (key) {

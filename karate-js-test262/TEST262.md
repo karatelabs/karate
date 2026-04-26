@@ -164,7 +164,7 @@ After each session lands, before commit:
 
 | # | Title | Status | Date | Commit | Notes |
 |---|---|---|---|---|---|
-| R1 | Engine state consolidation (issues 1 + 2 + 3 + 10) | in progress | 2026-04-26 | — | bindings unified, `_topLevelBindings` deleted, `JsGlobalThis` collapsed; `extends CoreContext` drop deferred to a follow-up commit |
+| R1 | Engine state consolidation (issues 1 + 2 + 3 + 10) | done | 2026-04-26 | 586d0b54f + step9 | bindings unified, `_topLevelBindings` deleted, `JsGlobalThis` collapsed, `extends CoreContext` dropped; zero test262 deltas vs `run-2026-04-26-150841` baseline |
 | R2 | Unify call-site `this` binding; drop `JsObject implements JsCallable` (issues 4 + 5) | not started | — | — | — |
 | R3 | Split raw bindings store from auto-unwrapping host view (issues 6 + 9) | not started | — | — | — |
 | R4 | EnvironmentRecord-shaped name resolution (issue 7) | optional | — | — | gate on appetite at end of R3 |

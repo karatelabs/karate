@@ -61,8 +61,12 @@ class CoreContext implements Context {
         if (bindings != null) {
             this._bindings = bindings instanceof Bindings b ? b : new Bindings(bindings);
         }
+        // Inherit `this` from the parent CoreContext, or from the root when
+        // we're a script-level (or evalWith-ghost) context with no parent.
         if (parent != null) {
             thisObject = parent.thisObject;
+        } else if (root != null) {
+            thisObject = root.thisObject;
         }
     }
 
@@ -106,7 +110,10 @@ class CoreContext implements Context {
 
     @Override
     public Context getParent() {
-        return parent;
+        // Internally `parent == null` at the script level (where lookup falls
+        // through to `root` directly). Host inspection still expects to walk
+        // up to the root via getParent(), so surface the root here.
+        return parent != null ? parent : root;
     }
 
     @Override

@@ -180,7 +180,7 @@ public class Engine {
     protected Object evalRaw(String text) {
         JsParser parser = new JsParser(Resource.text(text));
         Node program = parser.parse();
-        CoreContext context = new CoreContext(root, root, 0, program, ContextScope.GLOBAL, bindings);
+        CoreContext context = new CoreContext(root, null, 0, program, ContextScope.GLOBAL, bindings);
         return Interpreter.eval(program, context);
     }
 
@@ -194,7 +194,7 @@ public class Engine {
             root.evalId++;
             CoreContext context;
             if (localVars == null) {
-                context = new CoreContext(root, root, 0, program, ContextScope.GLOBAL, bindings);
+                context = new CoreContext(root, null, 0, program, ContextScope.GLOBAL, bindings);
             } else {
                 CoreContext parent = new CoreContext(root, null, -1, new Node(NodeType.ROOT), ContextScope.GLOBAL, bindings);
                 context = new CoreContext(root, parent, 0, program, ContextScope.GLOBAL, new Bindings(localVars));
