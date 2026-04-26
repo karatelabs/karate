@@ -54,9 +54,9 @@ class ContextRoot extends CoreContext {
         this.root = this;
         this.engine = engine;
         // Top-level `this` is a globalThis stand-in that reflects the built-in
-        // globals as own properties (so `Object.getOwnPropertyDescriptor(this,
-        // "Math")` etc. work). Child contexts inherit this until a function
-        // call explicitly rebinds `thisObject`.
+        // globals + user-visible bindings as own properties (so
+        // `Object.getOwnPropertyDescriptor(this, "Math")` etc. work). Child
+        // contexts inherit this until a function call rebinds `thisObject`.
         this.thisObject = new JsGlobalThis(this);
     }
 

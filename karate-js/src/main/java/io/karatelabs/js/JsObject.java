@@ -184,6 +184,14 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
         return _tombstones != null && _tombstones.contains(name);
     }
 
+    /** Removes the tombstone for {@code name} if any. Subclasses use this when
+     * a write reanimates a previously-deleted entry. */
+    void clearTombstone(String name) {
+        if (_tombstones != null) {
+            _tombstones.remove(name);
+        }
+    }
+
     /** True iff {@code name} is in the own-property map (excluding intrinsics and tombstones). */
     boolean ownContainsKey(String name) {
         return _map != null && _map.containsKey(name);
@@ -267,6 +275,14 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
      */
     public byte getOwnAttrs(String name) {
         return getAttrs(name);
+    }
+
+    /** True iff explicit per-property attrs have been recorded for {@code name}
+     * (i.e. {@code defineProperty} / {@code seal} / {@code freeze} touched it).
+     * Subclasses use this to decide whether to honor the stored attrs vs. apply
+     * a class-default. */
+    boolean hasExplicitAttrs(String name) {
+        return _attrs != null && _attrs.containsKey(name);
     }
 
     /** Stores the attribute byte for {@code name}; absence means all-true. */
@@ -575,8 +591,12 @@ class JsObject implements ObjectLike, JsCallable, Map<String, Object> {
             private boolean advance() {
                 while (entries.hasNext()) {
                     Map.Entry<String, Object> e = entries.next();
-                    // Fast path: no _attrs map means every key is enumerable.
-                    if (_attrs == null || isEnumerable(e.getKey())) {
+                    // Always route through isEnumerable so subclass getOwnAttrs
+                    // overrides (e.g. JsGlobalThis returning WRITABLE |
+                    // CONFIGURABLE — no enumerable bit — for built-in globals)
+                    // win. The previous `_attrs == null` fast-path skipped the
+                    // override and treated every intrinsic as enumerable.
+                    if (isEnumerable(e.getKey())) {
                         peeked = e;
                         return true;
                     }

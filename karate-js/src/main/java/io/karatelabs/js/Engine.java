@@ -39,7 +39,14 @@ public class Engine {
 
     private final ContextRoot root = new ContextRoot(this);
 
-    private final Bindings bindings = new Bindings();
+    // The user-visible global store. Engine.put / Engine.get / Engine.getBindings
+    // all operate on this. Used as the script-level _bindings (passed in via
+    // evalInternal), so top-level `var x = 1` and implicit globals
+    // (`assignImplicitGlobal`) write here too. Distinct from
+    // `ContextRoot._bindings` (hidden — putRootBinding + lazy built-in cache).
+    // Package-private so ContextRoot/JsGlobalThis can read it for the global
+    // lookup chain. See {@link JsGlobalThis} for the unified read view.
+    final Bindings bindings = new Bindings();
 
     public Engine() {
         // Built-in prototype singletons (JsArrayPrototype, JsMapPrototype, …) accumulate
