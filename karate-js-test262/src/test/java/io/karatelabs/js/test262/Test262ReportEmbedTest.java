@@ -2,7 +2,6 @@ package io.karatelabs.js.test262;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.regex.Matcher;
@@ -15,14 +14,18 @@ import static org.junit.jupiter.api.Assertions.*;
  * {@code <script type="application/json">} gets HTML-entity-escaped, making it
  * unparseable by {@code JSON.parse} in the browser (entities aren't decoded
  * inside that tag). Verifies the JSON survives embed→extract round-trip.
+ * Both index.html and details.html embed the same run-meta block.
  */
 class Test262ReportEmbedTest {
 
     @Test
     void testRunMetaEmbedIsJsonParseable(@org.junit.jupiter.api.io.TempDir Path tmp) throws Exception {
-        Path results = tmp.resolve("results.jsonl");
-        Path runMeta = tmp.resolve("run-meta.json");
-        Path out = tmp.resolve("html");
+        // Test262Report writes outputs into <run-dir>/html/, and reads
+        // <run-dir>/results.jsonl + <run-dir>/run-meta.json. Use tmp as the
+        // run-dir directly.
+        Path runDir = tmp;
+        Path results = runDir.resolve("results.jsonl");
+        Path runMeta = runDir.resolve("run-meta.json");
 
         // minimal but realistic fixture
         Files.writeString(results,
@@ -39,33 +42,31 @@ class Test262ReportEmbedTest {
             """;
         Files.writeString(runMeta, meta);
 
-        Test262Report.main(new String[] {
-                "--results", results.toString(),
-                "--run-meta", runMeta.toString(),
-                "--test262", tmp.toString(),
-                "--out", out.toString()
-        });
+        Test262Report.main(new String[] { "--run-dir", runDir.toString() });
 
-        String html = Files.readString(out.resolve("index.html"));
-        // The page must not have been terminated early by the sneaky </script>.
-        assertTrue(html.contains("<script id=\"run-meta\" type=\"application/json\">"), html);
-        // The literal </script> in JSON must have been neutralized (backslash-escaped).
-        assertTrue(html.contains("<\\/script>"), "expected neutralized </script> in embed");
-        // And the JSON inside must not contain HTML entities.
-        Matcher m = Pattern.compile(
-                "<script id=\"run-meta\"[^>]*>(.*?)</script>", Pattern.DOTALL).matcher(html);
-        assertTrue(m.find(), "could not locate embed");
-        String embedded = m.group(1).strip();
-        assertFalse(embedded.contains("&quot;"), "JSON must not be HTML-escaped: " + embedded);
-        assertFalse(embedded.contains("&amp;"), "JSON must not be HTML-escaped");
+        // Both pages embed the same run-meta block — assert on both.
+        for (String page : new String[] { "index.html", "details.html" }) {
+            String html = Files.readString(runDir.resolve("html").resolve(page));
+            // The page must not have been terminated early by the sneaky </script>.
+            assertTrue(html.contains("<script id=\"run-meta\" type=\"application/json\">"),
+                    page + ": missing run-meta script");
+            // The literal </script> in JSON must have been neutralized (backslash-escaped).
+            assertTrue(html.contains("<\\/script>"),
+                    page + ": expected neutralized </script> in embed");
+            // The JSON inside must not contain HTML entities.
+            Matcher m = Pattern.compile(
+                    "<script id=\"run-meta\"[^>]*>(.*?)</script>", Pattern.DOTALL).matcher(html);
+            assertTrue(m.find(), page + ": could not locate embed");
+            String embedded = m.group(1).strip();
+            assertFalse(embedded.contains("&quot;"),
+                    page + ": JSON must not be HTML-escaped: " + embedded);
+            assertFalse(embedded.contains("&amp;"), page + ": JSON must not be HTML-escaped");
 
-        // The embed should JSON-decode cleanly after reversing the </script> neutralization.
-        // Browsers do NOT reverse HTML entities inside <script type="application/json">; they
-        // DO see the raw bytes. We wrote "<\/script" which is a valid JSON escape for "</script".
-        String decoded = embedded.replace("<\\/", "</");
-        // Smoke-test: the decoded string starts with '{' and contains expected keys.
-        assertTrue(decoded.trim().startsWith("{"), decoded);
-        assertTrue(decoded.contains("\"test262_sha\""), decoded);
-        assertTrue(decoded.contains("\"abc123\""), decoded);
+            // The embed should JSON-decode cleanly after reversing the </script> neutralization.
+            String decoded = embedded.replace("<\\/", "</");
+            assertTrue(decoded.trim().startsWith("{"), page + ": " + decoded);
+            assertTrue(decoded.contains("\"test262_sha\""), page + ": " + decoded);
+            assertTrue(decoded.contains("\"abc123\""), page + ": " + decoded);
+        }
     }
 }
