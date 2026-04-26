@@ -29,13 +29,15 @@ import java.text.DecimalFormat;
 import java.util.Map;
 
 /**
- * Singleton prototype for Number instances.
- * Contains instance methods like toFixed, toPrecision, toLocaleString.
- * Inherits from JsObjectPrototype.
+ * Singleton prototype for Number instances. Methods are wrapped in
+ * {@link JsBuiltinMethod} so spec {@code length}+{@code name} resolve as own
+ * properties; instances are cached per-Engine in {@code _methodCache}.
  */
 class JsNumberPrototype extends Prototype {
 
     static final JsNumberPrototype INSTANCE = new JsNumberPrototype();
+
+    private java.util.Map<String, JsBuiltinMethod> _methodCache;
 
     private JsNumberPrototype() {
         super(JsObjectPrototype.INSTANCE);
@@ -43,14 +45,34 @@ class JsNumberPrototype extends Prototype {
 
     @Override
     protected Object getBuiltinProperty(String name) {
+        if (_methodCache != null) {
+            JsBuiltinMethod cached = _methodCache.get(name);
+            if (cached != null) return cached;
+        }
+        Object result = resolveBuiltinProperty(name);
+        if (result instanceof JsBuiltinMethod jbm) {
+            if (_methodCache == null) {
+                _methodCache = new java.util.HashMap<>();
+            }
+            _methodCache.put(name, jbm);
+        }
+        return result;
+    }
+
+    private Object resolveBuiltinProperty(String name) {
         return switch (name) {
-            case "toFixed" -> (JsCallable) this::toFixed;
-            case "toPrecision" -> (JsCallable) this::toPrecision;
-            case "toLocaleString" -> (JsCallable) this::toLocaleString;
-            case "toString" -> (JsCallable) this::toStringMethod;
-            case "valueOf" -> (JsCallable) this::valueOf;
+            case "toFixed" -> new JsBuiltinMethod("toFixed", 1, this::toFixed);
+            case "toPrecision" -> new JsBuiltinMethod("toPrecision", 1, this::toPrecision);
+            case "toLocaleString" -> new JsBuiltinMethod("toLocaleString", 0, this::toLocaleString);
+            case "toString" -> new JsBuiltinMethod("toString", 1, this::toStringMethod);
+            case "valueOf" -> new JsBuiltinMethod("valueOf", 0, this::valueOf);
             default -> null;
         };
+    }
+
+    @Override
+    protected void clearSubclassState() {
+        if (_methodCache != null) _methodCache.clear();
     }
 
     private Object toStringMethod(Context context, Object[] args) {
