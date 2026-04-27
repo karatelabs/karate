@@ -42,6 +42,13 @@ class JsReflect extends JsObject {
         };
     }
 
+    private static final List<String> INTRINSIC_NAMES = List.of("construct", "apply");
+
+    @Override
+    protected Iterable<String> ownIntrinsicNames() {
+        return INTRINSIC_NAMES;
+    }
+
     // Reflect.construct(target, argumentsList[, newTarget])
     // Spec §28.1.2: throws TypeError if target or newTarget is not a constructor;
     // dispatches Construct(target, args, newTarget). For our minimal version,

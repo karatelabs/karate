@@ -23,6 +23,8 @@
  */
 package io.karatelabs.js;
 
+import java.util.List;
+
 /**
  * Base class for JavaScript function objects.
  * <p>
@@ -142,6 +144,13 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
             // intrinsic — fall through to the proto chain.
             default -> null;
         };
+    }
+
+    private static final List<String> INTRINSIC_NAMES = List.of("prototype", "name", "length");
+
+    @Override
+    protected Iterable<String> ownIntrinsicNames() {
+        return INTRINSIC_NAMES;
     }
 
 }

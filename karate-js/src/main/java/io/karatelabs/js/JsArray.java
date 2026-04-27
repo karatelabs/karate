@@ -216,6 +216,13 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             }
             return;
         }
+        // Frozen: silently ignore all writes (lenient mode — strict-mode
+        // TypeError flip lives elsewhere). Mirrors JsObject.putMember's
+        // frozen early exit. Non-extensible / sealed are checked downstream
+        // per-write so existing-index updates still flow.
+        if (frozen) {
+            return;
+        }
         // arr.length = N — primitives only on this path. Object values with
         // valueOf/toString must route through {@link #handleLengthAssign} from
         // a context-bearing call site (PropertyAccess.setByName special-cases).
@@ -242,12 +249,23 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         // Numeric index write — fast path into the dense list (and pad with
         // HOLE if past size, growing length per array-exotic semantics). Slow
         // path (existing namedProps entry at this index) keeps the override
-        // active so a non-default attrs byte isn't silently lost.
+        // active so a non-default attrs byte isn't silently lost. Sentinel
+        // HOLE positions count as "key absent" — overwriting one with a value
+        // creates a new own property, so non-extensible blocks them too.
         int i = parseIndex(name);
         if (i >= 0 && existing == null) {
+            boolean indexExists = i < list.size() && list.get(i) != HOLE;
+            if (nonExtensible && !indexExists) {
+                return;
+            }
             while (list.size() < i) list.add(HOLE);
             if (i < list.size()) list.set(i, value);
             else list.add(value);
+            return;
+        }
+        // Named-prop path: non-extensible blocks creation of new keys; existing
+        // (non-tombstoned) slots are still writable.
+        if (existing == null && nonExtensible) {
             return;
         }
         if (existing instanceof DataSlot ds) {
@@ -652,14 +670,34 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      * here. Length is always non-enumerable and non-configurable; the stored
      * byte's other bits are ignored by this getter.
      * <p>
-     * Other keys consult {@link #namedProps} via {@link #getAttrs} — slots
-     * installed via {@code Object.defineProperty} (or via the indexed-descriptor
-     * path on {@link #defineOwn}) carry the override; absent keys default to
-     * all-true.
+     * Dense-list indices (no namedProps override) report all-true by default;
+     * a sealed array clears their {@code configurable} bit and a frozen array
+     * also clears {@code writable}. Mirrors what {@link #seal} / {@link #freeze}
+     * already do for {@link #namedProps} slots — without this derived view,
+     * {@code Object.getOwnPropertyDescriptor(frozenArr, 0)} would still
+     * report all-true on the dense slots and {@code defineProperty}'s
+     * configurable check wouldn't fire.
+     * <p>
+     * Other named keys consult {@link #namedProps} via {@link #getAttrs} —
+     * slots installed via {@code Object.defineProperty} (or via the indexed-
+     * descriptor path on {@link #defineOwn}) carry the override; absent keys
+     * default to all-true.
      */
     public byte getOwnAttrs(String name) {
         if ("length".equals(name)) {
             return lengthWritable ? PropertySlot.WRITABLE : 0;
+        }
+        // Dense-list indices without a namedProps override: derive the attribute
+        // byte from the array's integrity-level flags so descriptors / defineProperty
+        // see frozen/sealed correctly.
+        if (namedProps == null || !namedProps.containsKey(name)) {
+            int i = parseIndex(name);
+            if (i >= 0 && i < list.size() && list.get(i) != HOLE) {
+                byte attrs = PropertySlot.ATTRS_DEFAULT;
+                if (frozen) attrs &= ~(PropertySlot.WRITABLE | PropertySlot.CONFIGURABLE);
+                else if (sealed) attrs &= ~PropertySlot.CONFIGURABLE;
+                return attrs;
+            }
         }
         return getAttrs(name);
     }
@@ -919,8 +957,9 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
          * Apply a coerced new length: HOLE-pad to extend, walk the truncate
          * range high-to-low looking for a non-configurable index that blocks
          * the rest (partial-truncate), drop matching {@code namedProps}
-         * entries. Returns {@code false} for length-non-writable or partial-
-         * truncate; caller decides TypeError vs lenient.
+         * entries. Returns {@code false} for length-non-writable, length-
+         * extension on a non-extensible array, or partial-truncate; caller
+         * decides TypeError vs lenient.
          */
         static boolean applySet(JsArray arr, int newLen) {
             if ((arr.getOwnAttrs("length") & JsObject.WRITABLE) == 0) {
@@ -928,6 +967,11 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             }
             int oldLen = arr.list.size();
             if (newLen >= oldLen) {
+                // Extending the array adds new HOLE-filled own indices —
+                // non-extensible blocks creation of any new own property.
+                if (newLen > oldLen && arr.nonExtensible) {
+                    return false;
+                }
                 while (arr.list.size() < newLen) arr.list.add(HOLE);
                 return true;
             }
@@ -965,28 +1009,34 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     // -------------------------------------------------------------------------
     // Extensibility state. Mirrors {@link JsObject}'s API so
     // {@code Object.freeze} / {@code seal} / {@code preventExtensions} +
-    // their predicates can dispatch on JsArray. Indexed-write enforcement is
-    // deferred — see TEST262.md "Object.freeze(arr) is a no-op for indexed
-    // access".
+    // their predicates dispatch through the unified {@link ObjectLike} hook
+    // and don't need a per-type {@code instanceof} fork.
     // -------------------------------------------------------------------------
 
-    boolean isExtensible() {
+    @Override
+    public boolean isExtensible() {
         return !nonExtensible;
     }
 
-    boolean isSealed() {
+    @Override
+    public boolean isSealed() {
         return sealed || frozen;
     }
 
-    boolean isFrozen() {
+    @Override
+    public boolean isFrozen() {
         return frozen;
     }
 
-    void preventExtensions() {
+    @Override
+    public void setExtensible(boolean extensible) {
+        if (extensible) return;
         this.nonExtensible = true;
     }
 
-    void seal() {
+    @Override
+    public void setSealed(boolean sealed) {
+        if (!sealed) return;
         this.nonExtensible = true;
         this.sealed = true;
         if (namedProps != null) {
@@ -998,7 +1048,9 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         }
     }
 
-    void freeze() {
+    @Override
+    public void setFrozen(boolean frozen) {
+        if (!frozen) return;
         this.nonExtensible = true;
         this.sealed = true;
         this.frozen = true;

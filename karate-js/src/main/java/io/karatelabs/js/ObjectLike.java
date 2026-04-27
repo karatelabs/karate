@@ -76,4 +76,42 @@ public interface ObjectLike {
         return toMap().containsKey(name);
     }
 
+    // -------------------------------------------------------------------------
+    // Extensibility API — Object.{isExtensible, isSealed, isFrozen,
+    // preventExtensions, seal, freeze} dispatch through these is/setX pairs.
+    // Defaults treat an ObjectLike that doesn't model state (plain Map host
+    // bridges, etc.) as perpetually extensible: {@code isExtensible == true},
+    // {@code isSealed == false}, {@code isFrozen == false}, mutators are
+    // no-ops. {@link JsObject} and {@link JsArray} carry the three-bit state
+    // and override.
+    // <p>
+    // Per spec, integrity levels are monotonic — once non-extensible, sealed,
+    // or frozen, you can't reverse it. The setters honor the direction that
+    // makes the object more constrained ({@code setExtensible(false)},
+    // {@code setSealed(true)}, {@code setFrozen(true)}); the other direction
+    // is a silent no-op (lenient mode — strict-mode TypeError flip lives
+    // elsewhere if it ever lands).
+    // -------------------------------------------------------------------------
+
+    default boolean isExtensible() {
+        return true;
+    }
+
+    default boolean isSealed() {
+        return false;
+    }
+
+    default boolean isFrozen() {
+        return false;
+    }
+
+    default void setExtensible(boolean extensible) {
+    }
+
+    default void setSealed(boolean sealed) {
+    }
+
+    default void setFrozen(boolean frozen) {
+    }
+
 }

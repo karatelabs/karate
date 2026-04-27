@@ -24,6 +24,7 @@
 package io.karatelabs.js;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 
 /**
  * JavaScript Map instance: ordered key→value collection keyed by SameValueZero.
@@ -59,6 +60,13 @@ class JsMap extends JsObject {
             return entries.size();
         }
         return null;
+    }
+
+    private static final List<String> INTRINSIC_NAMES = List.of("size");
+
+    @Override
+    protected Iterable<String> ownIntrinsicNames() {
+        return INTRINSIC_NAMES;
     }
 
     /**

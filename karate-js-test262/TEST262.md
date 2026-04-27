@@ -115,7 +115,7 @@ only ~13% of String fails touch it (regex protocol + iterator).
 | 3 | `test/built-ins/String/**` | `padStart` / `padEnd`, `trimStart` / `trimEnd`, `normalize`, `repeat`, `raw`, `fromCodePoint`; non-`@@`-protocol regex methods. **Why third:** LLMs write string manipulation constantly; high real-world signal. |
 | 4 | `test/built-ins/RegExp/**` | Constructor + `.source` / `.flags` / `.lastIndex`; `exec` / `test` semantics; flag-set validation; non-Symbol `String.prototype.{match, replace, search, split}` integration. **Why fourth:** LLMs use regex constantly; depends on the String slice landing first. |
 | 5 | `test/built-ins/Object/**` | `assign` / `keys` / `values` / `entries` corners; `Object.fromEntries`; descriptor-handling residuals. Refactor E (ctx-aware iteration) just landed — re-probe to capture wins. |
-| 6 | `test/built-ins/Array/**` | Bulk methods using `CreateDataPropertyOrThrow` + `Symbol.species`; iterator-result objects; remaining length-cluster residuals (Uint32 representation, spec-precise pop/shift interleaving — see [JS_ENGINE.md § JsArray length semantics](../docs/JS_ENGINE.md#prototype-machinery)); `Object.freeze(arr)` is currently a no-op. **Why last:** biggest slice, leans on every slice above. |
+| 6 | `test/built-ins/Array/**` | Bulk methods using `CreateDataPropertyOrThrow` + `Symbol.species`; iterator-result objects; remaining length-cluster residuals (Uint32 representation, spec-precise pop/shift interleaving — see [JS_ENGINE.md § JsArray length semantics](../docs/JS_ENGINE.md#prototype-machinery)). **Why last:** biggest slice, leans on every slice above. |
 | 7 | `test/built-ins/Symbol/**` + cascades | Full Symbol primitive: `typeof === "symbol"`, unique identity, `Symbol.for` / `keyFor` registry, `description`, `Object.getOwnPropertySymbols`, `Reflect.ownKeys`. Touches `Terms.typeOf` / `eq` / coercion; property-key abstraction across `JsObject.props` / `isOwnProperty` storage. 2–4 sessions. Unblocks the Array/Symbol.species cluster from #6. |
 
 ### Background sweeps
@@ -208,7 +208,9 @@ other work.
   co-locates the length pipeline; the remaining work is the
   `set-length-array-length-is-non-writable.js` cluster — get/delete
   steps must run BEFORE the length-set throws so prototype getter/setter
-  call counts match. Estimated 3–4 h.
+  call counts match. Also the partial-truncate remainder of the
+  freeze-enforcement work (see [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes)
+  for what landed). Estimated 3–4 h.
 
 - **`PropertyKey` abstraction.** Symbol prep. Deferred to the Symbol slice
   itself — introducing `PropertyKey` ahead of a concrete consumer is YAGNI.
@@ -234,32 +236,6 @@ other work.
   `Error.prototype.X = Y` for setup, plus the wider Error-instanceof
   cleanup (the `JsCallable && !JsFunction` hack in `Terms.eq` line ~801
   drops a case once Error is a proper constructor). Estimated 2–4 h.
-
-- **`Object.freeze(arr)` indexed-write enforcement.** State plumbing
-  landed (Object slice work 2026-04-27): `JsArray` carries
-  `nonExtensible / sealed / frozen` flags, `JsObjectConstructor.freeze`
-  /seal/etc. dispatch on `JsArray`. Remaining: gate the dense
-  `list`-backed indexed-write path on the frozen flag (currently only
-  `namedProps` overrides are honored), block extension of `length`,
-  and implement partial-truncate behavior when later indices are
-  non-configurable. Pair with the spec-precise pop/shift TODO.
-  Estimated 2–3 h.
-
-- **DRY extensibility API across `JsObject` / `JsArray`.** Both classes
-  carry the same `nonExtensible / sealed / frozen` state and methods;
-  `JsObjectConstructor` dispatches per-type via `instanceof`. Extracting
-  to an `ObjectLike` default (with no-op for ObjectLikes that don't
-  model it) would collapse the dispatch and onboard new ObjectLikes
-  (e.g. a future `JsArguments` exotic object) for free. Estimated
-  30 min — defer until a third implementor needs the same API.
-
-- **`INTRINSIC_PROBE_NAMES` should be subclass-supplied.** The fixed list
-  in `JsObjectConstructor.getOwnPropertyDescriptors` (`length`/`name`/
-  `prototype`/`constructor`) discovers intrinsics that don't materialize
-  in `toMap()`. Hand-maintained — easy to drift when a built-in adds an
-  intrinsic. Better: each subclass exposes
-  `Iterable<String> ownIntrinsicNames()` (default empty) and the
-  constructor unions them. Estimated 30 min.
 
 - **`Terms.toPropertyKey` rollout.** Helper landed for the Object slice
   (`getOwnPropertyDescriptor` / `hasOwn` / `defineProperty`).
@@ -292,13 +268,6 @@ slice priority. Pick up when the relevant slice surfaces them.
   partial-truncate"; only `defineLength` consumes it. The direct
   `arr.length = X` path silently no-ops on writable=false. Spec wants
   TypeError under strict. Surface to the strict-mode plumbing TODO above.
-
-- **`Object.freeze(arr)` is a no-op for indexed access.** *(Partially
-  addressed 2026-04-27: state plumbing landed — see "Engine — cleanup"
-  for the indexed-write enforcement remainder.)* The dense `list`-backed
-  path doesn't consult per-slot `attrs` for plain numeric writes (only
-  `namedProps` overrides do). Freezing populates the slots but writes
-  still succeed. Fix as part of slice #6 (Array).
 
 - **`ToObject` coercion for primitive descriptor sources.**
   `Object.defineProperties(obj, "hello")` should ToObject-coerce the
@@ -333,6 +302,22 @@ slice priority. Pick up when the relevant slice surfaces them.
 - **`Array.prototype.*` writeback on non-array ObjectLike.** Mutating
   methods on a non-array operate on a snapshot list and don't write back.
   Spec needs ToObject + index-write on the receiver. Pick up in slice #6.
+
+- **`PropertyAccess.setByIndex` past-end fill uses `UNDEFINED`, not
+  `HOLE`.** Internal divergence — `JsArray.putMember`, `applySet`, and
+  `JsArray.create(n)` all pad with `HOLE`; only `setByIndex`'s extending
+  path uses `Terms.UNDEFINED`. Observable: `[].hasOwnProperty(0)` is
+  `true` after `arr[5]='x'`; spec says `false`. One-line fix in
+  `setByIndex` `list.add(...)` loop. Estimated 15 min.
+
+- **`JsArray.removeMember` doesn't honor configurable / sealed / frozen,
+  and ignores dense-list indices.** Currently `namedProps.remove(name)` —
+  `delete arr[0]` is a no-op on the dense list (value survives) and
+  `delete sealedArr.foo` succeeds despite cleared configurable. Mirror
+  `JsObject.removeMember` (consult slot attrs / integrity flags) and for
+  numeric indices set the dense slot to `HOLE`. Pair with parser `in`
+  support + the `HOLE → tombstone` sparse-storage rework so the deleted
+  index is observably absent. Estimated 1 h.
 
 - **`Symbol.toPrimitive` is not dispatched.** Matches our minimal Symbol
   surface. Fix as part of slice #7 (Symbol).

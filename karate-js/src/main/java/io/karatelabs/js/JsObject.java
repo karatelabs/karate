@@ -223,6 +223,25 @@ class JsObject implements ObjectLike, Map<String, Object> {
         return null;
     }
 
+    /**
+     * Names this subclass exposes as own intrinsics — the discovery seam used
+     * by {@code Object.getOwnPropertyDescriptors} (and any future caller that
+     * needs to enumerate intrinsics not materialized in {@link #toMap()}).
+     * Default returns nothing; subclasses with a {@link #resolveOwnIntrinsic}
+     * override return the closed name set they resolve.
+     * <p>
+     * Each subclass returns its own complete list (no chaining via
+     * {@code super}) — matches the structure of {@link #resolveOwnIntrinsic},
+     * which any subclass that resolves intrinsics already overrides
+     * end-to-end. Built-in constructors install their methods as actual own
+     * slots via {@code defineOwn} (so they surface through {@code toMap()}
+     * directly) and inherit the {@link JsFunction} list for the
+     * {@code prototype} / {@code name} / {@code length} surface.
+     */
+    protected Iterable<String> ownIntrinsicNames() {
+        return Collections.emptyList();
+    }
+
     /** Returns the own slot for {@code name}, or {@code null} when absent or
      *  tombstoned. Package-private — callers (defineProperty, the literal-
      *  accessor merge in {@link Interpreter}) need slot identity to inspect
@@ -449,23 +468,31 @@ class JsObject implements ObjectLike, Map<String, Object> {
         s.tombstoned = false;
     }
 
-    boolean isExtensible() {
+    @Override
+    public boolean isExtensible() {
         return !nonExtensible;
     }
 
-    boolean isSealed() {
+    @Override
+    public boolean isSealed() {
         return sealed || frozen;
     }
 
-    boolean isFrozen() {
+    @Override
+    public boolean isFrozen() {
         return frozen;
     }
 
-    void preventExtensions() {
+    @Override
+    public void setExtensible(boolean extensible) {
+        // Monotonic — only the false direction does anything.
+        if (extensible) return;
         this.nonExtensible = true;
     }
 
-    void seal() {
+    @Override
+    public void setSealed(boolean sealed) {
+        if (!sealed) return;
         this.nonExtensible = true;
         this.sealed = true;
         // Mark every existing key as non-configurable so that
@@ -481,7 +508,9 @@ class JsObject implements ObjectLike, Map<String, Object> {
         }
     }
 
-    void freeze() {
+    @Override
+    public void setFrozen(boolean frozen) {
+        if (!frozen) return;
         this.nonExtensible = true;
         this.sealed = true;
         this.frozen = true;

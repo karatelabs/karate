@@ -61,6 +61,13 @@ non-sealed class JsString extends JsObject implements JsPrimitive, JsCallable {
         return null;
     }
 
+    private static final java.util.List<String> INTRINSIC_NAMES = java.util.List.of("length");
+
+    @Override
+    protected Iterable<String> ownIntrinsicNames() {
+        return INTRINSIC_NAMES;
+    }
+
     @Override
     public Iterable<KeyValue> jsEntries() {
         return () -> new Iterator<>() {

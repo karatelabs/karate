@@ -24,6 +24,7 @@
 package io.karatelabs.js;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 
 /**
  * JavaScript Set instance: ordered unique-element collection keyed by SameValueZero.
@@ -51,6 +52,13 @@ class JsSet extends JsObject {
             return elements.size();
         }
         return null;
+    }
+
+    private static final List<String> INTRINSIC_NAMES = List.of("size");
+
+    @Override
+    protected Iterable<String> ownIntrinsicNames() {
+        return INTRINSIC_NAMES;
     }
 
     private static final Object NOT_FOUND = new Object();

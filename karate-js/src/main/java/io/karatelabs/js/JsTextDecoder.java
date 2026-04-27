@@ -24,6 +24,7 @@
 package io.karatelabs.js;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * JavaScript TextDecoder for decoding byte arrays to strings.
@@ -45,6 +46,13 @@ class JsTextDecoder extends JsObject implements JsCallable {
             };
             default -> null;
         };
+    }
+
+    private static final List<String> INTRINSIC_NAMES = List.of("encoding", "decode");
+
+    @Override
+    protected Iterable<String> ownIntrinsicNames() {
+        return INTRINSIC_NAMES;
     }
 
     @Override

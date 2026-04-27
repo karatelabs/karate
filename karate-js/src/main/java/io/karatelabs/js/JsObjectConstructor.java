@@ -114,59 +114,52 @@ class JsObjectConstructor extends JsFunction {
     // true for non-objects (a primitive cannot be extended/sealed/frozen
     // further than it already is).
     //
-    // Dispatch covers both {@link JsObject} and {@link JsArray} — they carry
-    // independent state but share the same API surface. JsArray's enforcement
-    // is currently state-only (see TEST262.md Array.freeze TODO); the
-    // predicates report the bit faithfully either way.
+    // Dispatch routes through {@link ObjectLike} — both {@link JsObject} and
+    // {@link JsArray} override the defaults to enforce the three-bit state.
+    // Other ObjectLikes (raw Map host bridges) inherit the no-op defaults.
     // -------------------------------------------------------------------------
 
     private Object isExtensible(Object[] args) {
         if (args.length == 0) return false;
         Object v = args[0];
-        if (v instanceof JsObject jo) return jo.isExtensible();
-        if (v instanceof JsArray ja) return ja.isExtensible();
+        if (v instanceof ObjectLike ol) return ol.isExtensible();
         return false;
     }
 
     private Object preventExtensions(Object[] args) {
         if (args.length == 0) return Terms.UNDEFINED;
         Object v = args[0];
-        if (v instanceof JsObject jo) jo.preventExtensions();
-        else if (v instanceof JsArray ja) ja.preventExtensions();
+        if (v instanceof ObjectLike ol) ol.setExtensible(false);
         return v;
     }
 
     private Object isSealed(Object[] args) {
         if (args.length == 0) return true;
         Object v = args[0];
-        if (v instanceof JsObject jo) return jo.isSealed();
-        if (v instanceof JsArray ja) return ja.isSealed();
+        if (v instanceof ObjectLike ol) return ol.isSealed();
         // Per spec: non-objects are considered sealed (and frozen) since they
         // have no extensibility/configurability that could change.
-        return !(v instanceof ObjectLike);
+        return true;
     }
 
     private Object seal(Object[] args) {
         if (args.length == 0) return Terms.UNDEFINED;
         Object v = args[0];
-        if (v instanceof JsObject jo) jo.seal();
-        else if (v instanceof JsArray ja) ja.seal();
+        if (v instanceof ObjectLike ol) ol.setSealed(true);
         return v;
     }
 
     private Object isFrozen(Object[] args) {
         if (args.length == 0) return true;
         Object v = args[0];
-        if (v instanceof JsObject jo) return jo.isFrozen();
-        if (v instanceof JsArray ja) return ja.isFrozen();
-        return !(v instanceof ObjectLike);
+        if (v instanceof ObjectLike ol) return ol.isFrozen();
+        return true;
     }
 
     private Object freeze(Object[] args) {
         if (args.length == 0) return Terms.UNDEFINED;
         Object v = args[0];
-        if (v instanceof JsObject jo) jo.freeze();
-        else if (v instanceof JsArray ja) ja.freeze();
+        if (v instanceof ObjectLike ol) ol.setFrozen(true);
         return v;
     }
 
@@ -332,16 +325,13 @@ class JsObjectConstructor extends JsFunction {
             throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
         Map<String, Object> result = new LinkedHashMap<>();
-        // toMap() entries plus any intrinsic keys that are reachable but not in toMap.
+        // toMap() entries plus any intrinsic keys that are reachable but not
+        // in toMap. Built-in constructors / prototypes report their
+        // intrinsic name set via {@link JsObject#ownIntrinsicNames()} —
+        // single source of truth, no static probe list to drift.
         java.util.LinkedHashSet<String> keys = new java.util.LinkedHashSet<>(ownKeys(args[0]));
-        // Built-in constructors / prototypes report their intrinsics via
-        // hasOwnIntrinsic. These don't appear in toMap() — discover them by
-        // probing a fixed set of well-known names. The set is the union of
-        // intrinsic names known to the JsFunction hierarchy plus what built-in
-        // constructors typically declare; subclasses are responsible for
-        // returning true from hasOwnIntrinsic for names they expose.
         if (args[0] instanceof JsObject jo) {
-            for (String name : INTRINSIC_PROBE_NAMES) {
+            for (String name : jo.ownIntrinsicNames()) {
                 if (!keys.contains(name) && jo.hasOwnIntrinsic(name)) {
                     keys.add(name);
                 }
@@ -352,19 +342,6 @@ class JsObjectConstructor extends JsFunction {
         }
         return result;
     }
-
-    /**
-     * Names probed by {@link #getOwnPropertyDescriptors} when discovering
-     * intrinsic-only keys (those not in {@code toMap()}). Keep this list short
-     * — it's used to enumerate descriptors for built-in constructors /
-     * prototypes that don't materialize their intrinsic entries as own
-     * Slots. The single-property {@code getOwnPropertyDescriptor} path
-     * does not use this list (it consults {@code hasOwnIntrinsic} for the
-     * given name directly).
-     */
-    private static final String[] INTRINSIC_PROBE_NAMES = {
-            "length", "name", "prototype", "constructor"
-    };
 
     private static boolean isOwnKey(Object obj, String key) {
         if (obj instanceof ObjectLike ol) return ol.isOwnProperty(key);
@@ -451,8 +428,9 @@ class JsObjectConstructor extends JsFunction {
         Object target = args[0];
         boolean keyExists = ownKeys(target).contains(prop);
 
-        // Extensibility check — only on JsObject (Maps and other ObjectLikes don't model it).
-        if (!keyExists && target instanceof JsObject jo && !jo.isExtensible()) {
+        // Extensibility check — ObjectLikes that don't model state inherit
+        // the perpetually-extensible default and pass through.
+        if (!keyExists && target instanceof ObjectLike ol && !ol.isExtensible()) {
             throw JsErrorException.typeError("Cannot define property " + prop + ", object is not extensible");
         }
 

@@ -366,4 +366,76 @@ class SpecPinTest extends EvalBase {
                         + " delete o.x;"
                         + " o.hasOwnProperty('x')"));
     }
+
+    // -------------------------------------------------------------------------
+    // Object.freeze / seal / preventExtensions on JsArray — indexed-write
+    // enforcement that the dense `list` backing store also honors (the
+    // namedProps overrides honored attrs all along; the dense list path
+    // didn't until the freeze-enforcement work landed).
+    // -------------------------------------------------------------------------
+
+    @Test
+    void lenient_writeToFrozenArrayIndexIsSilent() {
+        assertEquals(1, eval(
+                "var a = [1, 2, 3]; Object.freeze(a); a[0] = 99; a[0]"));
+    }
+
+    @Test
+    void lenient_extendFrozenArrayIsSilent() {
+        assertEquals(3, eval(
+                "var a = [1, 2, 3]; Object.freeze(a); a[5] = 'x'; a.length"));
+    }
+
+    @Test
+    void frozenArrayDescriptorReportsNonWritableNonConfigurable() {
+        assertEquals(false, eval(
+                "var a = [1]; Object.freeze(a);"
+                        + " Object.getOwnPropertyDescriptor(a, 0).writable"));
+        assertEquals(false, eval(
+                "var a = [1]; Object.freeze(a);"
+                        + " Object.getOwnPropertyDescriptor(a, 0).configurable"));
+    }
+
+    @Test
+    void sealedArrayAllowsExistingIndexWriteButBlocksNewIndex() {
+        // Sealed: existing-index modification still allowed (writable=true);
+        // adding a new index is blocked (non-extensible).
+        assertEquals(99, eval(
+                "var a = [1, 2, 3]; Object.seal(a); a[0] = 99; a[0]"));
+        assertEquals(3, eval(
+                "var a = [1, 2, 3]; Object.seal(a); a[5] = 'x'; a.length"));
+    }
+
+    @Test
+    void sealedArrayDescriptorReportsNonConfigurableButWritable() {
+        assertEquals(true, eval(
+                "var a = [1]; Object.seal(a);"
+                        + " Object.getOwnPropertyDescriptor(a, 0).writable"));
+        assertEquals(false, eval(
+                "var a = [1]; Object.seal(a);"
+                        + " Object.getOwnPropertyDescriptor(a, 0).configurable"));
+    }
+
+    @Test
+    void nonExtensibleArrayBlocksNewIndexButAllowsExisting() {
+        assertEquals(99, eval(
+                "var a = [1, 2, 3]; Object.preventExtensions(a); a[0] = 99; a[0]"));
+        assertEquals(3, eval(
+                "var a = [1, 2, 3]; Object.preventExtensions(a); a[5] = 'x'; a.length"));
+    }
+
+    @Test
+    void nonExtensibleArrayBlocksLengthExtension() {
+        assertEquals(3, eval(
+                "var a = [1, 2, 3]; Object.preventExtensions(a); a.length = 10; a.length"));
+    }
+
+    @Test
+    void frozenArrayBlocksHoleFill() {
+        // Filling a HOLE creates a new own property — frozen blocks it.
+        // Use [1,,3] not [,,,] because the implementation reads list[i] for
+        // hole detection; HOLE positions count as "key absent".
+        assertEquals(false, eval(
+                "var a = [1,,3]; Object.freeze(a); a[1] = 2; a.hasOwnProperty(1)"));
+    }
 }

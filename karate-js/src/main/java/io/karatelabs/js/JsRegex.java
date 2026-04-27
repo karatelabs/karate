@@ -212,4 +212,12 @@ public class JsRegex extends JsObject {
         };
     }
 
+    private static final List<String> INTRINSIC_NAMES = List.of(
+            "source", "flags", "lastIndex", "global", "ignoreCase", "multiline", "dotAll");
+
+    @Override
+    protected Iterable<String> ownIntrinsicNames() {
+        return INTRINSIC_NAMES;
+    }
+
 }

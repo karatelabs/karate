@@ -587,9 +587,17 @@ class PropertyAccess {
             // JsArray with a descriptor at this index (accessor or attributed
             // data property installed via Object.defineProperty) takes the slow
             // path through setByName, which honors AccessorSlot setters and
-            // future writable=false enforcement. The hot path (no descriptor)
-            // skips the check via JsArray.hasIndexedDescriptor's null guard.
-            if (object instanceof JsArray array && array.hasIndexedDescriptor(i)) {
+            // writable=false enforcement. The hot path (no descriptor) skips
+            // the check via JsArray.hasIndexedDescriptor's null guard.
+            // <p>
+            // Non-extensible / sealed / frozen arrays also route through
+            // setByName so {@link JsArray#putMember} can enforce the integrity
+            // bits — the dense {@code list.set(i, value)} path below would
+            // otherwise silently overwrite a frozen index or extend a sealed
+            // array. Hot path stays branch-light: {@code isExtensible()} is a
+            // single boolean read.
+            if (object instanceof JsArray array
+                    && (array.hasIndexedDescriptor(i) || !array.isExtensible())) {
                 setByName(object, String.valueOf(i), value, context, trackingNode);
                 return;
             }

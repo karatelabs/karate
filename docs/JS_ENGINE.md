@@ -956,9 +956,55 @@ bit 2 = configurable, bit 3 = INTRINSIC. New slots default to
 `obj.x = ...`. `defineProperty` writes attrs explicitly and uses the spec's
 "missing fields default to false on new keys, preserve on existing" rule
 (different from `[[Set]]`'s all-true default — this distinction is
-load-bearing). Per-object flags `frozen` / `nonExtensible` are kept as
-fast-path early-exits on `putMember` / `removeMember` so frozen objects
-don't have to consult per-slot bits per write.
+load-bearing). Per-object flags `frozen` / `sealed` / `nonExtensible` are
+kept as fast-path early-exits on `putMember` / `removeMember` so frozen
+objects don't have to consult per-slot bits per write.
+
+**Extensibility / integrity-level API is `ObjectLike` bean-style.**
+`isExtensible() / isSealed() / isFrozen()` predicates pair with mutators
+`setExtensible(boolean) / setSealed(boolean) / setFrozen(boolean)`. The
+mutators are *monotonic*: only the spec-allowed direction does anything
+(`setExtensible(false)`, `setSealed(true)`, `setFrozen(true)`); the other
+direction is a silent no-op (lenient mode — strict-mode TypeError flip
+lives elsewhere). `JsObject` and `JsArray` carry the three-bit state and
+override; other `ObjectLike` implementors (raw `Map` host bridges) inherit
+the perpetually-extensible defaults. `JsObjectConstructor.{
+preventExtensions, seal, freeze, isExtensible, isSealed, isFrozen}`
+dispatch through the unified API — no per-type `instanceof` fork —
+so any future `ObjectLike` (e.g. a spec-shaped `JsArguments`) participates
+automatically.
+
+**`Object.freeze(arr)` enforcement on JsArray.** Three layers cooperate
+so the dense `list` backing store honors integrity bits:
+
+1. **`JsArray.putMember`** silently drops all writes when `frozen`; for
+   non-extensible / sealed it blocks creation of new own keys (out-of-
+   bounds index, named key, or HOLE fill — `HOLE` positions count as
+   "key absent") while letting existing-index modification proceed on
+   sealed arrays.
+2. **`JsArray.ArrayLength.applySet`** blocks length-extension on
+   non-extensible arrays (extending populates new HOLE indices, which
+   would create new own properties). Length truncation still works.
+3. **`JsArray.getOwnAttrs`** derives the spec-correct attribute byte for
+   dense-list indices from the `frozen` / `sealed` flags so
+   `Object.getOwnPropertyDescriptor(frozenArr, 0)` reports
+   `{writable: false, configurable: false}` without having to
+   materialize a `namedProps` slot per index. `defineProperty`'s
+   configurable check then fires correctly on indexed redefines.
+
+The hot-path indexed-write fast path in `PropertyAccess.setByIndex`
+routes through `setByName` (and thus through `JsArray.putMember`)
+whenever `!array.isExtensible()` — single source of truth, single
+boolean read for the common-case branch. `SpecPinTest.{lenient_writeToFrozenArrayIndexIsSilent,
+lenient_extendFrozenArrayIsSilent, frozenArrayDescriptorReportsNonWritableNonConfigurable,
+sealedArrayAllowsExistingIndexWriteButBlocksNewIndex,
+sealedArrayDescriptorReportsNonConfigurableButWritable,
+nonExtensibleArrayBlocksNewIndexButAllowsExisting,
+nonExtensibleArrayBlocksLengthExtension, frozenArrayBlocksHoleFill}`
+pin these. The remaining spec-precise piece is partial-truncate timing
+on `set-length-array-length-is-non-writable.js` — get/delete must run
+before the length-set throws so prototype getter/setter call counts
+match (TODO in TEST262.md).
 
 **Polymorphic read / write seam.** `PropertySlot.read(receiver, ctx)` and
 `write(receiver, value, ctx, strict)` are the dispatch point. `DataSlot.read`
@@ -1009,6 +1055,24 @@ override but not in `resolveOwnIntrinsic` (causing
 anonymous-function `name` reporting: `(function(){}).name === ""` and
 `hasOwnProperty('name') === true` per spec, since
 `resolveOwnIntrinsic("name")` defaults `null`-named functions to `""`.
+
+**`ownIntrinsicNames` is the discovery seam for descriptor enumeration.**
+`Object.getOwnPropertyDescriptors` needs to enumerate keys that don't
+materialize in `toMap()` — built-in constructors / wrappers expose
+intrinsics via `resolveOwnIntrinsic` rather than as own slots. Each
+subclass that overrides `resolveOwnIntrinsic` returns its closed name
+set from `ownIntrinsicNames()` (default empty); the constructor unions
+those names with `toMap()` keys. Replaces a previous static
+`INTRINSIC_PROBE_NAMES = {length, name, prototype, constructor}` list
+that was hand-maintained on `JsObjectConstructor` and easy to drift.
+Current implementors: `JsFunction` (`prototype`/`name`/`length`),
+`JsString` (`length`), `JsRegex` (`source`/`flags`/`lastIndex`/`global`/
+`ignoreCase`/`multiline`/`dotAll`), `JsError` (`message`/`name`/
+`constructor`), `JsMap` / `JsSet` (`size`), `JsTextEncoder` (`encode`),
+`JsTextDecoder` (`encoding`/`decode`), `JsReflect` (`construct`/
+`apply`). Built-in constructors (`JsObjectConstructor`, etc.) install
+their methods via `defineOwn` so they surface through `toMap()` directly
+and inherit the `JsFunction` list for the function-shape intrinsics.
 
 **Intrinsic-attribute pipeline.** Built-in own properties resolved via
 `resolveOwnIntrinsic` (not via `props`) declare themselves as own through

@@ -24,6 +24,7 @@
 package io.karatelabs.js;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -103,6 +104,13 @@ class JsError extends JsObject implements JsCallable {
             case "constructor" -> constructor;
             default -> null;
         };
+    }
+
+    private static final List<String> INTRINSIC_NAMES = List.of("message", "name", "constructor");
+
+    @Override
+    protected Iterable<String> ownIntrinsicNames() {
+        return INTRINSIC_NAMES;
     }
 
     @Override
