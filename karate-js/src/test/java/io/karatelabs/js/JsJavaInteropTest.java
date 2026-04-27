@@ -559,14 +559,20 @@ class JsJavaInteropTest {
     void testArrayFromWithUndefined() {
         // Array.from() with undefined elements
         Engine engine = new Engine();
-        List<Object> list = (List<Object>) engine.eval(
+        // Spec §23.1.2.1 returns an Array (JsArray) — pre-2026-04-27 we
+        // returned a raw {@code List<Object>}; the JsArray return runs the
+        // {@code .constructor === Array} / {@code instanceof Array} test262
+        // tests. {@link JsArray#get(int)} unwraps undefined → null for the
+        // Java-bridge, so use {@link JsArray#getElement(int)} to inspect
+        // the raw element identity.
+        JsArray list = (JsArray) engine.eval(
                 "Array.from({length: 3})");
 
         assertEquals(3, list.size());
         // Array.from({length: 3}) creates [undefined, undefined, undefined]
-        assertSame(Terms.UNDEFINED, list.get(0));
-        assertSame(Terms.UNDEFINED, list.get(1));
-        assertSame(Terms.UNDEFINED, list.get(2));
+        assertSame(Terms.UNDEFINED, list.getElement(0));
+        assertSame(Terms.UNDEFINED, list.getElement(1));
+        assertSame(Terms.UNDEFINED, list.getElement(2));
     }
 
     @Test

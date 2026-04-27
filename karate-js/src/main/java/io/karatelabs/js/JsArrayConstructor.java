@@ -89,7 +89,10 @@ class JsArrayConstructor extends JsFunction {
                 results.add(mapped);
                 index++;
             }
-            return results;
+            // Spec §23.1.2.1 returns an Array exotic — wrap so
+            // `Array.from(...).constructor === Array` and
+            // `Array.from(...) instanceof Array` hold.
+            return new JsArray(results);
         }
         // Array-like fallback: map-of-string-keys with `length` (e.g. {0: 'a', 1: 'b', length: 2}).
         if (source instanceof Map) {
@@ -100,7 +103,7 @@ class JsArrayConstructor extends JsFunction {
                 results.add(mapped);
                 index++;
             }
-            return results;
+            return new JsArray(results);
         }
         throw JsErrorException.typeError(source + " is not iterable");
     }
@@ -110,7 +113,13 @@ class JsArrayConstructor extends JsFunction {
     }
 
     private Object of(Object[] args) {
-        return Arrays.asList(args);
+        // Spec §23.1.2.3 — return an Array. Wrap in JsArray (mutable copy)
+        // so callers can {@code push}/{@code pop} and so
+        // {@code Array.of(...).constructor === Array} holds; the bare
+        // {@code Arrays.asList} would be a fixed-size Java List.
+        List<Object> list = new ArrayList<>(args.length);
+        for (Object arg : args) list.add(arg);
+        return new JsArray(list);
     }
 
 }

@@ -88,10 +88,40 @@ class JsObjectPrototype extends Prototype {
         // toString stays unwrapped — JsConsole compares against DEFAULT_TO_STRING
         // by reference identity to detect a user-overridden toString.
         install("toString", DEFAULT_TO_STRING);
-        install("valueOf", 0, (context, args) -> context.getThisObject());
+        // Spec §20.1.3.7 valueOf step 1: ToObject(this). Also §20.1.3.{2,4,7}
+        // hasOwnProperty / propertyIsEnumerable / isPrototypeOf — all start
+        // with O = ToObject(this), which throws on null/undefined per the
+        // ToObject definition. Threaded uniformly via the small lambda
+        // preamble below; the error message is the same as
+        // Terms.requireObjectCoercible's so debug output is consistent.
+        install("valueOf", 0, (context, args) -> {
+            Object thisObj = context.getThisObject();
+            Terms.requireObjectCoercible(thisObj, "Object.prototype.valueOf");
+            return thisObj;
+        });
         install("hasOwnProperty", 1, this::hasOwnProperty);
         install("isPrototypeOf", 1, this::isPrototypeOf);
         install("propertyIsEnumerable", 1, this::propertyIsEnumerable);
+        install("toLocaleString", 0, this::toLocaleString);
+    }
+
+    // Spec §20.1.3.5 — toLocaleString defers to the receiver's own toString.
+    // Default behavior on plain objects: invoke this.toString(). Throws
+    // TypeError if `this` is null/undefined per the ToObject step.
+    private Object toLocaleString(Context context, Object[] args) {
+        Object thisObj = context.getThisObject();
+        Terms.requireObjectCoercible(thisObj, "Object.prototype.toLocaleString");
+        if (thisObj instanceof ObjectLike ol) {
+            Object fn = ol.getMember("toString");
+            if (fn instanceof JsCallable jsc) {
+                CoreContext cc = context instanceof CoreContext c ? c : null;
+                if (cc != null) {
+                    return Interpreter.invokeGetter(jsc, ol, cc);
+                }
+                return jsc.call(context, new Object[0]);
+            }
+        }
+        return DEFAULT_TO_STRING.call(context, args);
     }
 
     private Object isPrototypeOf(Context context, Object[] args) {
@@ -113,11 +143,16 @@ class JsObjectPrototype extends Prototype {
     }
 
     private Object propertyIsEnumerable(Context context, Object[] args) {
-        if (args.length == 0 || args[0] == null) {
-            return false;
+        // Spec §20.1.3.4 step 1: ToPropertyKey(V) BEFORE the ToObject(this)
+        // step — the property-key coercion can throw too. step 2 is the
+        // O = ToObject(this) gate that rejects null/undefined receivers.
+        if (args.length == 0) {
+            // The ToPropertyKey gate runs even with no arg — undefined → "undefined".
+            // Continue with the spec preamble below before bailing on absence.
         }
-        String prop = args[0].toString();
+        String prop = args.length == 0 ? "undefined" : Terms.toPropertyKey(args[0]);
         Object thisObj = context.getThisObject();
+        Terms.requireObjectCoercible(thisObj, "Object.prototype.propertyIsEnumerable");
         // Reuse hasOwnProperty's own-key check, then layer the enumerable bit on top.
         // Returns false for non-own keys (including missing) and for own keys
         // whose attribute byte has ENUMERABLE cleared.
@@ -142,11 +177,11 @@ class JsObjectPrototype extends Prototype {
     }
 
     private Object hasOwnProperty(Context context, Object[] args) {
-        if (args.length == 0 || args[0] == null) {
-            return false;
-        }
-        String prop = args[0].toString();
+        // Spec §20.1.3.2 step 1: ToPropertyKey(V); step 2: ToObject(this).
+        // Both can throw — keep the coercion order.
+        String prop = args.length == 0 ? "undefined" : Terms.toPropertyKey(args[0]);
         Object thisObj = context.getThisObject();
+        Terms.requireObjectCoercible(thisObj, "Object.prototype.hasOwnProperty");
         // Single dispatch through ObjectLike.isOwnProperty — JsObject /
         // JsArray / Prototype each override with the storage-specific check
         // (own-slot non-tombstoned, intrinsic-installed, or numeric-index

@@ -835,16 +835,21 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             public boolean hasNext() {
                 while (index < list.size()) {
                     Object v = list.get(index);
-                    if (v == HOLE) {
+                    PropertySlot s = namedProps == null ? null : namedProps.get(Integer.toString(index));
+                    // HOLE in the dense list normally means "no own property"
+                    // — skip. But an accessor descriptor installed via
+                    // {@code Object.defineProperty(arr, i, {get, enumerable:true})}
+                    // also lives at a HOLE position (the ".define-only"
+                    // path doesn't fill the dense list). In that case the
+                    // accessor IS the own property; yield it. A tombstoned
+                    // slot is still treated as absent.
+                    if (v == HOLE && (s == null || s.tombstoned)) {
                         index++;
                         continue;
                     }
-                    if (namedProps != null) {
-                        PropertySlot s = namedProps.get(Integer.toString(index));
-                        if (s != null && (s.attrs & PropertySlot.ENUMERABLE) == 0) {
-                            index++;
-                            continue;
-                        }
+                    if (s != null && !s.tombstoned && (s.attrs & PropertySlot.ENUMERABLE) == 0) {
+                        index++;
+                        continue;
                     }
                     return true;
                 }
@@ -856,9 +861,13 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
                 if (!hasNext()) throw new NoSuchElementException();
                 int i = index++;
                 Object v;
-                if (ctx != null && namedProps != null) {
-                    PropertySlot s = namedProps.get(Integer.toString(i));
-                    v = s != null ? s.read(JsArray.this, ctx) : list.get(i);
+                PropertySlot s = namedProps == null ? null : namedProps.get(Integer.toString(i));
+                if (s != null && !s.tombstoned) {
+                    // Accessor or per-index data descriptor — read through
+                    // the slot when ctx is available (so getters fire);
+                    // fall back to the slot's raw value field otherwise.
+                    v = ctx != null ? s.read(JsArray.this, ctx)
+                            : (s instanceof DataSlot ds ? ds.value : null);
                 } else {
                     v = list.get(i);
                 }

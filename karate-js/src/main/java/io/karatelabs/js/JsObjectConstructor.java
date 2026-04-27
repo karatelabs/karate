@@ -81,9 +81,11 @@ class JsObjectConstructor extends JsFunction {
     @Override
     public Object call(Context context, Object... args) {
         // Spec §20.1.1.1 Object(value): if value is null/undefined, return a fresh
-        // empty object; otherwise return ToObject(value). We don't model boxed
-        // primitives precisely — pass through anything that's already an object
-        // (ObjectLike), and return a fresh JsObject for null/undefined.
+        // empty object; otherwise return ToObject(value). Pass through
+        // anything that's already an object (ObjectLike); for primitives,
+        // route through the matching wrapper so e.g.
+        // {@code Object("abc").length === 3}, {@code typeof Object("abc") === "object"},
+        // and downstream {@code ToString} dispatch sees the right prototype.
         if (args.length == 0 || args[0] == null || args[0] == Terms.UNDEFINED) {
             return new JsObject();
         }
@@ -91,6 +93,12 @@ class JsObjectConstructor extends JsFunction {
         if (v instanceof ObjectLike) {
             return v;
         }
+        // Primitive boxing — ES §7.1.18 ToObject. The wrappers' .length /
+        // .toString / valueOf chain ensures regex / String.prototype.* see
+        // the boxed primitive correctly when used as a `this` or `arg`.
+        if (v instanceof String s) return new JsString(s);
+        if (v instanceof Boolean b) return new JsBoolean(b);
+        if (v instanceof Number n) return new JsNumber(n);
         return new JsObject();
     }
 

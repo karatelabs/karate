@@ -295,6 +295,30 @@ public class JsRegex extends JsObject {
         return "lastIndex".equals(name) ? lastIndex : null;
     }
 
+    // Spec §22.2.7.1: {@code lastIndex} is a writable own data property.
+    // Without this override, {@code re.lastIndex = 12} would land in
+    // {@link JsObject#props} (a fresh DataSlot) while {@link #exec}
+    // continues to read the {@code lastIndex} field — so global-flag exec
+    // ignores user-set positions. Route through {@link Terms#objectToNumber}
+    // to coerce non-Number assignments per spec ToInteger semantics.
+    @Override
+    public void putMember(String name, Object value) {
+        if ("lastIndex".equals(name)) {
+            double d = Terms.objectToNumber(value).doubleValue();
+            if (Double.isNaN(d)) {
+                this.lastIndex = 0;
+            } else if (d > Integer.MAX_VALUE) {
+                this.lastIndex = Integer.MAX_VALUE;
+            } else if (d < Integer.MIN_VALUE) {
+                this.lastIndex = Integer.MIN_VALUE;
+            } else {
+                this.lastIndex = (int) d;
+            }
+            return;
+        }
+        super.putMember(name, value);
+    }
+
     private static final List<String> INTRINSIC_NAMES = List.of("lastIndex");
 
     @Override

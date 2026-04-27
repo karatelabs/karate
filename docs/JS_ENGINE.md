@@ -1535,11 +1535,108 @@ inside `${...}`.
 `JsObjectPrototype.DEFAULT_TO_STRING` returns `"[object <Tag>]"` where the
 tag is derived from the receiver type — `Array` for `JsArray` / `List`,
 `Date` for `JsDate` / `java.util.Date`, `RegExp` / `Map` / `Set` / `Error` /
-`Boolean` / `Number` / `String` / `Function`, and `Object` as the fallback.
-`JsObject` implements `JsCallable` (host-side artifact) so the `Function`
-branch must exclude plain `JsObject` instances — only `JsFunction` (and
-`JsObject` whose `isJsFunction()` returns true) qualifies. Substitute for the
-spec's `@@toStringTag` until Symbol expansion.
+`Boolean` / `Number` / `String` / `Function`, `Null` / `Undefined` for the
+unguarded receivers, and `Object` as the fallback. `JsObject` implements
+`JsCallable` (host-side artifact) so the `Function` branch must exclude plain
+`JsObject` instances — only `JsFunction` (and `JsObject` whose
+`isJsFunction()` returns true) qualifies. Substitute for the spec's
+`@@toStringTag` until Symbol expansion.
+
+### Spec preamble at built-in entry points
+
+**Every `String.prototype.*` and most `Object.prototype.*` methods open
+with a fixed two-step preamble** — spec `RequireObjectCoercible(this)`
+(§7.2.1) followed by `ToString(this)` / `ToObject(this)` as appropriate.
+The shared helpers live on `Terms`: `requireObjectCoercible(value, name)`
+throws `TypeError` on null / undefined with the method name woven into the
+message; `toStringCoerce(value, ctx)` runs the full ToPrimitive →
+ToString pipeline so a host with a JS `toString` returns the user's value
+instead of `"[object Object]"`. `JsStringPrototype.thisString(ctx, name)`
++ `argString(args, idx, ctx)` + `argInt(args, idx, default)` thread the
+preamble uniformly across all 30 String methods — no ad-hoc casts, no
+silent `ClassCastException` on a Boolean / Object / String argument.
+
+**Built-in functions receive raw `thisArg` from `Function.prototype.call`
+/ `apply`.** Spec `OrdinaryCallBindThis` (§9.2.1.2) substitutes
+null / undefined → globalThis only for sloppy-mode user-defined
+functions. `JsBuiltinMethod` instances skip the substitution so e.g.
+`Object.prototype.toString.call(null) === "[object Null]"` and the
+`RequireObjectCoercible` gate on `Object.prototype.{valueOf,
+hasOwnProperty, propertyIsEnumerable, toLocaleString}` actually fires
+on null / undefined receivers. The branch lives in
+`JsFunctionPrototype.bindForCall`; user `JsFunction` instances still go
+through `Interpreter.bindThisForCall` (lenient sloppy substitution).
+
+### Built-in accessor descriptors on prototypes
+
+**Spec accessor getters live in `Prototype.builtins` so they survive
+per-Engine reset.** ECMA-262 declares
+`RegExp.prototype.{source, flags, global, ignoreCase, multiline, dotAll,
+sticky, unicode}` as accessor descriptors on the prototype, NOT as own
+properties of instances — `Object.getOwnPropertyDescriptor(RegExp.prototype,
+'source').get` must be a function with `.length === 0` and the proto-self
+sentinel branch (`get.call(RegExp.prototype) === "(?:)"`). User-installed
+accessors via `Object.defineProperty` go through `defineOwnAccessor`
+into `userProps` and shadow these (consistent with the data-slot
+shadowing rule); built-in accessors go through `installAccessor` into
+`builtins`, which is NOT cleared by `Prototype.clearAllUserProps`. The
+read seam `Prototype.getMember(name, receiver, ctx)` walks userProps →
+builtins (with `AccessorSlot.read` dispatch) → proto chain;
+`getOwnSlot` and `getOwnAttrs` mirror the precedence so descriptor
+inspection (`hasOwnProperty`, `getOwnPropertyDescriptor`,
+`propertyIsEnumerable`) sees the same view.
+
+Each getter follows the spec receiver triage: `this === RegExp.prototype`
+→ sentinel (`"(?:)"` for `source`, `""` for `flags`, `undefined` for the
+flag bits); `this instanceof JsRegex` → field; otherwise TypeError. The
+shared helper is `JsRegexPrototype.installFlagAccessor(name,
+protoSentinel, extractor)`.
+
+### `JsRegex.replace` — JS substitution template
+
+**Java's `Matcher.appendReplacement` interprets `$<n>` differently from
+JS and throws `IllegalArgumentException` ("Illegal group reference") on
+unrecognized patterns.** `JsRegex.replace` does its own walk per spec
+§22.1.3.18 GetSubstitution: `$$` → `$`, `$&` → match, `` $` `` →
+prefix, `$'` → suffix, `$<name>` → named group, `$1`–`$99` →
+positional groups (two-digit form only when the resulting index is in
+range; falls back to single-digit otherwise). Unrecognized `$X` lands as
+the literal two characters — the test262 conformance contract differs
+from Java's regex error mode. Callback replacements (when `args[1]` is a
+`JsCallable`) live in `JsStringPrototype.regexReplace` so `JsRegex`
+doesn't need to depend on `JsCallable` / `Context`; the callback
+receives `(match, ...captures, offset, string)` per spec.
+
+### `JsRegex.lastIndex` is a writable field
+
+**Spec §22.2.7.1 makes `lastIndex` a writable own data property of the
+instance.** Reads route through `resolveOwnIntrinsic` to the `int`
+field; writes route through an overridden `JsRegex.putMember` that
+coerces via `Terms.objectToNumber` and updates the field. Without the
+override, `re.lastIndex = 12` would land in the side `props` map and
+the `int` field that `exec` consults would stay stale — global-flag
+exec ignores user-set positions.
+
+### `String.prototype.{trim, trimStart, trimEnd}` whitespace
+
+**JS WhiteSpace per §11.2 includes a wider set than Java's `\s`.**
+`JsStringPrototype.isJsWhitespace` covers explicit code points (TAB, VT,
+FF, SP, NBSP, ZWNBSP, LF, CR, LS, PS) plus the Unicode
+`Space_Separator` block (U+1680, U+2000–U+200A, U+202F, U+205F,
+U+3000). U+180E is **not** included — reclassified out of `Zs` in
+Unicode 6.3 (test262 `u180e.js` pins this). The trimmer walks
+codepoints rather than `String.trim()` / `replaceAll("\\s+$", "")`
+which would miss the wider set.
+
+### `Object("primitive")` boxing
+
+**`Object(value)` boxes primitives per spec ToObject (§7.1.18) — for
+String / Boolean / Number it returns the matching wrapper instance
+(`JsString` / `JsBoolean` / `JsNumber`).** Without this,
+`new Object("abc")` would return an empty `JsObject` with no
+`toString` short-circuit, and downstream `ToString` dispatch (e.g.
+`/regex/.exec(new Object("abc"))`) would land on the `[object Object]`
+fallback instead of the boxed string's "abc".
 
 ---
 
