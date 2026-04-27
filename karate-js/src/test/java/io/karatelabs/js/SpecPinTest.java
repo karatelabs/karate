@@ -438,4 +438,51 @@ class SpecPinTest extends EvalBase {
         assertEquals(false, eval(
                 "var a = [1,,3]; Object.freeze(a); a[1] = 2; a.hasOwnProperty(1)"));
     }
+
+    @Test
+    void pastEndIndexedWritePadsWithHoles() {
+        // Spec: arr[i] = x for i >= length extends length and leaves
+        // [oldLen, i) as absent indices (sparse holes), not as explicit
+        // undefined. So hasOwnProperty must report false for the gap.
+        assertEquals(false, eval("var a = []; a[5] = 'x'; a.hasOwnProperty(0)"));
+        assertEquals(false, eval("var a = []; a[5] = 'x'; a.hasOwnProperty(4)"));
+        assertEquals(true, eval("var a = []; a[5] = 'x'; a.hasOwnProperty(5)"));
+        assertEquals(6, eval("var a = []; a[5] = 'x'; a.length"));
+        // The gap reads as undefined per JS semantics — same as a literal
+        // hole. typeof of a hole is "undefined".
+        assertEquals("undefined", eval("var a = []; a[5] = 'x'; typeof a[0]"));
+    }
+
+    @Test
+    void joinEmitsEmptyForHoles() {
+        // Spec §23.1.3.18: join walks 0..length-1, holes contribute "".
+        // Pre-rewrite, join used the hole-skipping {@code jsEntries} which
+        // produced "0,3" — wrong. Locked down so a future "use jsEntries
+        // for join" simplification doesn't regress.
+        assertEquals("0,,,3", eval("[0,,,3].join()"));
+        assertEquals("0,,,3", eval("var x=[]; x[0]=0; x[3]=3; x.join()"));
+        assertEquals(",,,", eval("[,,,,].join()")); // 4 holes → 3 commas
+    }
+
+    @Test
+    void toStringEmitsEmptyForHoles() {
+        // Array.prototype.toString delegates to join — same hole semantics.
+        assertEquals("0,,,3", eval("[0,,,3].toString()"));
+    }
+
+    @Test
+    void popInvokesPrototypeGetterForHoleAtLastIndex() {
+        // Spec: Array.prototype.pop step 4d Get(O, ToString(len-1)) walks
+        // the proto chain when the index is a hole (own property absent).
+        // A getter installed on Array.prototype["0"] for [<hole>] fires
+        // exactly once during pop. Pre-rewrite never invoked the getter.
+        assertEquals(1, eval(
+                "var a = new Array(1); var calls = 0;"
+                        + " Object.defineProperty(Array.prototype, '0',"
+                        + "   {get: function(){ calls++; }, configurable: true});"
+                        + " try { a.pop(); } catch (e) {}"
+                        + " var c = calls;"
+                        + " delete Array.prototype['0'];"
+                        + " c"));
+    }
 }

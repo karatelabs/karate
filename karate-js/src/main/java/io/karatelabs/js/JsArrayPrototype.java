@@ -190,22 +190,25 @@ class JsArrayPrototype extends Prototype {
         };
     }
 
+    private static final String LENGTH_NON_WRITABLE =
+            "Cannot assign to read only property 'length' of object '[object Array]'";
+
     /**
-     * Spec-required check at the end of mutating Array.prototype.* methods:
-     * the implicit {@code Set(O, "length", newLen, true)} (Throw=true) must
-     * TypeError when length is non-writable. Hoisted to an upfront check —
-     * the spec-precise interleaving (where get/delete steps run BEFORE the
-     * length-set throws, observable via prototype getter/setter call counts
-     * in tests like {@code set-length-array-length-is-non-writable.js}) is
-     * not yet modeled. Net effect: TypeError is thrown for the non-writable
-     * length case (most tests pass); the precise call-count assertion in
-     * the getter-mutation tests still fails — see TEST262.md.
+     * Spec-shape {@code Set(O, "length", newLen, true)} for the four mutating
+     * methods (pop/shift/push/unshift). Routes through
+     * {@link JsArray#handleLengthAssign} so {@link JsArray.ArrayLength#applySet}
+     * applies the truncate / extend (and HOLE-pad as needed); throws TypeError
+     * when length is non-writable per the spec's {@code Throw=true} contract.
+     * <p>
+     * Critically called <em>after</em> the spec's Get / Delete / Set
+     * per-element steps so prototype getter/setter side-effects observable
+     * via call-count assertions ({@code set-length-array-length-is-non-writable.js}
+     * cluster) match — a getter that flips length to non-writable still has
+     * fired exactly once before the throw.
      */
-    private static void requireWritableLength(Object thisObj) {
-        if (thisObj instanceof JsArray arr
-                && (arr.getOwnAttrs("length") & JsObject.WRITABLE) == 0) {
-            throw JsErrorException.typeError(
-                    "Cannot assign to read only property 'length' of object '[object Array]'");
+    private static void setLengthOrThrow(JsArray arr, int newLen, CoreContext ctx) {
+        if (!arr.handleLengthAssign(newLen, ctx)) {
+            throw JsErrorException.typeError(LENGTH_NON_WRITABLE);
         }
     }
 
@@ -260,15 +263,25 @@ class JsArrayPrototype extends Prototype {
         if (args.length > 0 && args[0] != null && args[0] != Terms.UNDEFINED) {
             delimiter = Terms.toStringCoerce(args[0], cc);
         }
-        boolean first = true;
-        for (KeyValue kv : jsEntries(context)) {
-            if (!first) {
+        // Spec §23.1.3.18: walks 0..length-1 reading each via [[Get]]; holes
+        // contribute the empty string (per spec they read as undefined and
+        // undefined → ""). The hole-skipping {@link #jsEntries} would
+        // produce {@code [0,,,3].join() === "0,3"} which is wrong —
+        // {@code "0,,,3"} is the spec answer. Use the dense {@code rawList}
+        // snapshot (which already translates HOLE → UNDEFINED at the seam)
+        // so the index walk respects length without the hole-skip filter.
+        List<Object> snapshot = rawList(context);
+        for (int i = 0, n = snapshot.size(); i < n; i++) {
+            if (i > 0) {
                 sb.append(delimiter);
             }
-            first = false;
-            Object v = kv.value();
-            // Spec: null / undefined elements contribute the empty string in join
-            if (v != null && v != Terms.UNDEFINED) {
+            Object v = snapshot.get(i);
+            // Spec: null / undefined / hole elements contribute the empty
+            // string. JsArray.unwrapHole already mapped HOLE → UNDEFINED
+            // before snapshot; the rawList fast-path on a plain JsArray
+            // returns toList() directly, which still carries HOLE — so
+            // check for both.
+            if (v != null && v != Terms.UNDEFINED && v != JsArray.HOLE) {
                 sb.append(Terms.toStringCoerce(v, cc));
             }
         }
@@ -298,7 +311,26 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object push(Context context, Object[] args) {
-        requireWritableLength(context.getThisObject());
+        Object thisObj = context.getThisObject();
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        if (thisObj instanceof JsArray arr) {
+            // Spec §23.1.3.21 Array.prototype.push:
+            //   5. For each item E: Set(O, ToString(len), E, true); len += 1.
+            //   6. Set(O, "length", len, true).
+            // Per-item Set walks the proto chain so a setter installed on
+            // Array.prototype["0"] fires (test262 set-length-array-length-
+            // is-non-writable.js push variant). The proto setter accepting
+            // the value means no own property is created — matches the
+            // assertion !arr.hasOwnProperty(0).
+            int len = arr.size();
+            for (int i = 0; i < args.length; i++) {
+                PropertyAccess.setByName(arr, String.valueOf(len + i), args[i], cc, null);
+            }
+            int newLen = len + args.length;
+            setLengthOrThrow(arr, newLen, cc);
+            return arr.size();
+        }
+        // Generic array-like fallback.
         List<Object> thisArray = rawList(context);
         thisArray.addAll(Arrays.asList(args));
         return thisArray.size();
@@ -616,7 +648,32 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object shift(Context context, Object[] args) {
-        requireWritableLength(context.getThisObject());
+        Object thisObj = context.getThisObject();
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        if (thisObj instanceof JsArray arr) {
+            // Spec §23.1.3.27 Array.prototype.shift:
+            //   3. If len = 0: Set(O, "length", 0, true); return undefined.
+            //   4. first = Get(O, "0").
+            //   5-7. Move loop + final delete.
+            //   8. Set(O, "length", len-1, true).
+            // Get(O, "0") walks proto for HOLE — same call-count semantics
+            // as pop. The intermediate move-loop's per-element Set/Delete
+            // proto-dispatch is not modeled (separate spec-alignment item);
+            // the in-place shuffle below preserves the data outcome.
+            int len = arr.size();
+            if (len == 0) {
+                setLengthOrThrow(arr, 0, cc);
+                return Terms.UNDEFINED;
+            }
+            Object first = arr.getMember("0", arr, cc);
+            if (first == null) first = Terms.UNDEFINED;
+            for (int k = 1; k < len; k++) {
+                arr.list.set(k - 1, arr.list.get(k));
+            }
+            setLengthOrThrow(arr, len - 1, cc);
+            return first;
+        }
+        // Generic array-like fallback.
         List<Object> thisArray = rawList(context);
         int size = thisArray.size();
         if (size == 0) {
@@ -627,14 +684,41 @@ class JsArrayPrototype extends Prototype {
         for (int i = 1; i < size; i++) {
             newList.add(thisArray.get(i));
         }
-        // update original array
         thisArray.clear();
         thisArray.addAll(newList);
         return firstElement;
     }
 
     private Object unshift(Context context, Object[] args) {
-        requireWritableLength(context.getThisObject());
+        Object thisObj = context.getThisObject();
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        if (thisObj instanceof JsArray arr) {
+            // Spec §23.1.3.32 Array.prototype.unshift:
+            //   4. If argCount > 0: move existing items right by argCount,
+            //      then Set(O, ToString(j), items[j], true) for each.
+            //   5. Set(O, "length", len + argCount, true).
+            // Per-item insert Set walks proto setters (test262 set-length-
+            // array-length-is-non-writable.js unshift variant). The move
+            // loop's per-element Get/Set/Delete proto-dispatch is not
+            // modeled (separate spec-alignment item) — the in-place shuffle
+            // preserves the data outcome.
+            int len = arr.size();
+            int argCount = args.length;
+            if (argCount > 0) {
+                for (int k = len - 1; k >= 0; k--) {
+                    int toIdx = k + argCount;
+                    while (arr.list.size() <= toIdx) arr.list.add(JsArray.HOLE);
+                    arr.list.set(toIdx, arr.list.get(k));
+                }
+                for (int j = 0; j < argCount; j++) {
+                    PropertyAccess.setByName(arr, String.valueOf(j), args[j], cc, null);
+                }
+            }
+            int newLen = len + argCount;
+            setLengthOrThrow(arr, newLen, cc);
+            return arr.size();
+        }
+        // Generic array-like fallback.
         List<Object> thisArray = rawList(context);
         if (args.length == 0) {
             return thisArray.size();
@@ -642,7 +726,6 @@ class JsArrayPrototype extends Prototype {
         List<Object> newList = new ArrayList<>(thisArray.size() + args.length);
         newList.addAll(Arrays.asList(args));
         newList.addAll(thisArray);
-        // update original array
         thisArray.clear();
         thisArray.addAll(newList);
         return thisArray.size();
@@ -681,7 +764,38 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object pop(Context context, Object[] args) {
-        requireWritableLength(context.getThisObject());
+        Object thisObj = context.getThisObject();
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        if (thisObj instanceof JsArray arr) {
+            // Spec §23.1.3.20 Array.prototype.pop:
+            //   3. If len = 0: Set(O, "length", +0, true); return undefined.
+            //   4. Else: element = Get(O, ToString(len-1)); DeletePropertyOrThrow(...);
+            //      Set(O, "length", len-1, true); return element.
+            // The Get walks the proto chain when the index is a hole — proto-
+            // installed accessors (Array.prototype["last"] = {get:…}) fire
+            // during pop, observable via call-count assertions in
+            // set-length-array-length-is-non-writable.js. The length-set
+            // happens AFTER the Get / Delete, so a getter side-effect that
+            // makes length non-writable still throws at the spec-correct step.
+            int len = arr.size();
+            if (len == 0) {
+                setLengthOrThrow(arr, 0, cc);
+                return Terms.UNDEFINED;
+            }
+            int newLen = len - 1;
+            String index = String.valueOf(newLen);
+            Object element = arr.getMember(index, arr, cc);
+            if (element == null) element = Terms.UNDEFINED;
+            // DeletePropertyOrThrow(O, index) — the per-element delete is
+            // implicit in {@link JsArray.ArrayLength#applySet}'s truncate
+            // when length is writable, so omitted here. (When length is
+            // non-writable, the spec leaves the array in an inconsistent
+            // intermediate state — the test cluster doesn't observe it.)
+            setLengthOrThrow(arr, newLen, cc);
+            return element;
+        }
+        // Generic array-like fallback (Array.prototype.pop.call(obj))
+        // — best-effort snapshot manipulation; doesn't write back to source.
         List<Object> thisArray = rawList(context);
         int size = thisArray.size();
         if (size == 0) {
@@ -692,7 +806,6 @@ class JsArrayPrototype extends Prototype {
         for (int i = 0; i < size - 1; i++) {
             newList.add(thisArray.get(i));
         }
-        // update original array
         thisArray.clear();
         thisArray.addAll(newList);
         return lastElement;

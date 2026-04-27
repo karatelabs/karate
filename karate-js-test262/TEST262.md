@@ -115,7 +115,7 @@ only ~13% of String fails touch it (regex protocol + iterator).
 | 3 | `test/built-ins/String/**` | `padStart` / `padEnd`, `trimStart` / `trimEnd`, `normalize`, `repeat`, `raw`, `fromCodePoint`; non-`@@`-protocol regex methods. **Why third:** LLMs write string manipulation constantly; high real-world signal. |
 | 4 | `test/built-ins/RegExp/**` | Constructor + `.source` / `.flags` / `.lastIndex`; `exec` / `test` semantics; flag-set validation; non-Symbol `String.prototype.{match, replace, search, split}` integration. **Why fourth:** LLMs use regex constantly; depends on the String slice landing first. |
 | 5 | `test/built-ins/Object/**` | `assign` / `keys` / `values` / `entries` corners; `Object.fromEntries`; descriptor-handling residuals. Refactor E (ctx-aware iteration) just landed — re-probe to capture wins. |
-| 6 | `test/built-ins/Array/**` | Bulk methods using `CreateDataPropertyOrThrow` + `Symbol.species`; iterator-result objects; remaining length-cluster residuals (Uint32 representation, spec-precise pop/shift interleaving — see [JS_ENGINE.md § JsArray length semantics](../docs/JS_ENGINE.md#prototype-machinery)). **Why last:** biggest slice, leans on every slice above. |
+| 6 | `test/built-ins/Array/**` | Bulk methods using `CreateDataPropertyOrThrow` + `Symbol.species`; iterator-result objects; remaining length-cluster residuals (Uint32 representation, spec-shape shift/unshift move loop — see [JS_ENGINE.md § Prototype machinery](../docs/JS_ENGINE.md#prototype-machinery)). **Why last:** biggest slice, leans on every slice above. |
 | 7 | `test/built-ins/Symbol/**` + cascades | Full Symbol primitive: `typeof === "symbol"`, unique identity, `Symbol.for` / `keyFor` registry, `description`, `Object.getOwnPropertySymbols`, `Reflect.ownKeys`. Touches `Terms.typeOf` / `eq` / coercion; property-key abstraction across `JsObject.props` / `isOwnProperty` storage. 2–4 sessions. Unblocks the Array/Symbol.species cluster from #6. |
 
 ### Background sweeps
@@ -204,13 +204,16 @@ other work.
   `hasOwnProperty` instead). Pair with parser `in` support as one
   coordinated session. Estimated 6–8 h.
 
-- **Spec-precise pop/shift length interleaving.** `JsArray.ArrayLength`
-  co-locates the length pipeline; the remaining work is the
-  `set-length-array-length-is-non-writable.js` cluster — get/delete
-  steps must run BEFORE the length-set throws so prototype getter/setter
-  call counts match. Also the partial-truncate remainder of the
-  freeze-enforcement work (see [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes)
-  for what landed). Estimated 3–4 h.
+- **Spec-shape `Array.prototype.{shift, unshift}` move loop.** Pop/shift/
+  push/unshift now follow spec sequencing for length-set timing (see
+  [JS_ENGINE.md § Prototype machinery](../docs/JS_ENGINE.md#prototype-machinery)
+  for what landed). The remaining piece: shift's per-element move loop
+  + final delete and unshift's move loop should dispatch through
+  `[[Get]]` / `[[Set]]` / `[[Delete]]` so prototype accessors at the
+  intermediate indices fire (test262 has variants under
+  `shift/length-decreased-during-iteration*` etc.). The current in-place
+  shuffle preserves the data outcome but skips the per-element proto
+  dispatch. Estimated 2–3 h.
 
 - **`PropertyKey` abstraction.** Symbol prep. Deferred to the Symbol slice
   itself — introducing `PropertyKey` ahead of a concrete consumer is YAGNI.
@@ -302,13 +305,6 @@ slice priority. Pick up when the relevant slice surfaces them.
 - **`Array.prototype.*` writeback on non-array ObjectLike.** Mutating
   methods on a non-array operate on a snapshot list and don't write back.
   Spec needs ToObject + index-write on the receiver. Pick up in slice #6.
-
-- **`PropertyAccess.setByIndex` past-end fill uses `UNDEFINED`, not
-  `HOLE`.** Internal divergence — `JsArray.putMember`, `applySet`, and
-  `JsArray.create(n)` all pad with `HOLE`; only `setByIndex`'s extending
-  path uses `Terms.UNDEFINED`. Observable: `[].hasOwnProperty(0)` is
-  `true` after `arr[5]='x'`; spec says `false`. One-line fix in
-  `setByIndex` `list.add(...)` loop. Estimated 15 min.
 
 - **`JsArray.removeMember` doesn't honor configurable / sealed / frozen,
   and ignores dense-list indices.** Currently `namedProps.remove(name)` —

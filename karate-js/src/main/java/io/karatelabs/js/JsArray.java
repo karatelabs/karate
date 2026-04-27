@@ -164,6 +164,15 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      * ({@link JsUint8Array}) override and call {@code super.resolveOwnIntrinsic}
      * to inherit these. The {@link IterUtils#SYMBOL_ITERATOR @@iterator}
      * stand-in is installed on {@link JsArrayPrototype} per spec, not here.
+     * <p>
+     * {@link #HOLE} positions return {@code null} (not the sentinel) so that
+     * the caller falls through to the prototype chain — per spec, a hole is
+     * an absent own property and {@code [[Get]]} walks the proto. The
+     * spec-shape {@code Array.prototype.{pop, shift}} rely on this so the
+     * {@code Get(O, idx)} step invokes a prototype getter installed via
+     * {@code Object.defineProperty(Array.prototype, idx, {get: …})} —
+     * asserted by the test262 {@code set-length-array-length-is-non-writable.js}
+     * cluster's getter call-count assertions.
      */
     protected Object resolveOwnIntrinsic(String name) {
         if ("length".equals(name)) {
@@ -174,7 +183,8 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             if (c0 >= '0' && c0 <= '9') {
                 int i = parseIndex(name);
                 if (i >= 0 && i < list.size()) {
-                    return list.get(i);
+                    Object v = list.get(i);
+                    return v == HOLE ? null : v;
                 }
             }
         }

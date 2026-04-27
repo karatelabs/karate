@@ -1001,10 +1001,7 @@ sealedArrayAllowsExistingIndexWriteButBlocksNewIndex,
 sealedArrayDescriptorReportsNonConfigurableButWritable,
 nonExtensibleArrayBlocksNewIndexButAllowsExisting,
 nonExtensibleArrayBlocksLengthExtension, frozenArrayBlocksHoleFill}`
-pin these. The remaining spec-precise piece is partial-truncate timing
-on `set-length-array-length-is-non-writable.js` — get/delete must run
-before the length-set throws so prototype getter/setter call counts
-match (TODO in TEST262.md).
+pin these.
 
 **Polymorphic read / write seam.** `PropertySlot.read(receiver, ctx)` and
 `write(receiver, value, ctx, strict)` are the dispatch point. `DataSlot.read`
@@ -1197,7 +1194,34 @@ user code never observes the sentinel. `JsArray.jsEntries` *skips* `HOLE`
 entries — the spec says `Array.prototype.{forEach, map, filter, every,
 some, find, findIndex, reduce, reduceRight}` and `for...in` skip holes,
 while `for...of` / spread / destructuring read holes as `undefined` (the
-listIterator path).
+listIterator path). `Array.prototype.{join, toString}` are NOT
+hole-skipping per spec: they walk `0..length-1` and emit `""` for
+holes (and for `undefined` / `null` elements). They use `rawList`
++ a length-walk filter rather than `jsEntries` to honor that contract;
+pinned by `SpecPinTest.{joinEmitsEmptyForHoles, toStringEmitsEmptyForHoles}`.
+
+**Past-end indexed write pads with `HOLE`.** `arr[5] = 'x'` on an empty
+array extends `arr.list` with `HOLE` (not `Terms.UNDEFINED`) at
+positions 0..4 so `arr.hasOwnProperty(0) === false` (spec). The pad
+sentinel is gated on `instanceof JsArray` in
+`PropertyAccess.setByIndex` — raw `List` host bridges keep
+`UNDEFINED` since they don't model holes. `JsArray.putMember`,
+`JsArray.create(n)`, and `JsArray.ArrayLength.applySet` use the same
+sentinel for symmetry.
+
+**`JsArray.resolveOwnIntrinsic` returns `null` for hole positions.**
+Spec semantic: a hole at index `i` means the own property at `"i"` is
+absent, so `[[Get]]` walks the proto chain. With `null` (not the
+`HOLE` sentinel) returned from `resolveOwnIntrinsic`, `getMember`
+falls through to `__proto__.getMember(name, ...)` and a getter
+installed on `Array.prototype["i"]` fires — required by the spec-shape
+`Array.prototype.{pop, shift}` machinery and the
+`set-length-array-length-is-non-writable.js` cluster's call-count
+assertions. The plain `arr[i]` user-facing read goes through
+`getElement` (not `resolveOwnIntrinsic`), which translates `HOLE` →
+`UNDEFINED` directly — no proto walk on the hot path. The discrepancy
+is intentional: only the spec-shape callers that route through
+`getMember` need the proto walk.
 
 **`JsArray` length semantics (§10.4.2.4 ArraySetLength).** `arr.length = N`
 and `Object.defineProperty(arr, "length", {value: N})` both route through
@@ -1217,8 +1241,8 @@ Three spec checks land in order:
 2. **Length writable check** (step 12). Returns `false` when length's
    stored writable bit is clear; caller decides whether to throw
    `TypeError`. The four mutating prototype methods
-   (`pop`/`shift`/`unshift`/`push`) check upfront via
-   `JsArrayPrototype.requireWritableLength` and throw `TypeError` —
+   (`pop`/`shift`/`unshift`/`push`) call `setLengthOrThrow` which
+   wraps `handleLengthAssign` and throws `TypeError` on `false` —
    matches the spec's `Set(O, "length", newLen, true)` Throw=true
    semantics. Direct `arr.length = X` silently no-ops on writable=false
    in lenient mode (strict-mode TypeError flip is a separate project).
@@ -1233,11 +1257,35 @@ configurable: false}`. Length's writable bit is stored in a dedicated
 `lengthWritable` boolean rather than a Slot (length's value lives in
 `list.size()`, so a Slot would either need an attrs-only marker or
 shadow the dense length with a null value). `defineProperty` can flip
-that bit; the other two are spec-fixed. The spec-precise interleaving
-where a prototype getter on the deleted index mutates `length`'s
-writable bit *during* pop/shift — asserted via call-count in
-`set-length-array-length-is-non-writable.js` — is not yet modeled
-(upfront check vs. spec's get → delete → set ordering).
+that bit; the other two are spec-fixed.
+
+**Spec-shape `Array.prototype.{pop, shift, push, unshift}`.** Each
+follows the spec's Get → (Delete) → Set length sequence so prototype
+getter/setter side-effects observable via call-count assertions match:
+
+- `pop` reads the last element via `arr.getMember(idx, arr, ctx)`
+  before calling `setLengthOrThrow(arr, len-1)`. Because
+  `JsArray.resolveOwnIntrinsic` returns `null` (not the `HOLE`
+  sentinel) for hole positions, `getMember` falls through to the
+  proto chain and a getter installed on
+  `Array.prototype[ToString(len-1)]` fires exactly once — pinned by
+  `set-length-array-length-is-non-writable.js`.
+- `shift` reads index 0 the same way, then does the in-place move
+  (proto-getter dispatch on intermediate moves is a separate item),
+  then `setLengthOrThrow(arr, len-1)`.
+- `push` calls `PropertyAccess.setByName(arr, ToString(len+i), item, ctx, null)`
+  per item so a setter installed on `Array.prototype[ToString(len)]`
+  fires; the proto setter accepting the value means no own property
+  is created (matches the test's `!arr.hasOwnProperty(0)` assertion).
+  Final `setLengthOrThrow(arr, len + items.length)`.
+- `unshift` does the move loop in-place, then per-item insert via
+  `setByName`, then final `setLengthOrThrow`.
+
+Outstanding remainder: shift/unshift's per-element move-loop currently
+shuffles `arr.list` directly rather than dispatching through `[[Get]]`
+/ `[[Set]]` / `[[Delete]]` for each k. Test variants like
+`shift/length-decreased-during-iteration*` exercise this; tracked in
+TEST262.md.
 
 **`JsArray` indexed-accessor enforcement.** Descriptors installed via
 `Object.defineProperty(arr, i, {get/set/value: ...})` land in `namedProps`

@@ -607,9 +607,16 @@ class PropertyAccess {
                 if (i < list.size()) {
                     list.set(i, value);
                 } else {
-                    // JS semantics: arr[i] = x for i >= length extends the array with holes
+                    // JS semantics: arr[i] = x for i >= length extends the
+                    // array with holes (sparse positions whose own property
+                    // is absent). JsArray distinguishes HOLE from explicit
+                    // undefined via the dedicated sentinel — use it here so
+                    // hasOwnProperty(intermediate) === false. Raw List hosts
+                    // (Java ArrayList passed in by the user) don't model
+                    // holes; UNDEFINED is the closest representable value.
+                    Object pad = object instanceof JsArray ? JsArray.HOLE : Terms.UNDEFINED;
                     while (list.size() < i) {
-                        list.add(Terms.UNDEFINED);
+                        list.add(pad);
                     }
                     list.add(value);
                 }
@@ -627,7 +634,16 @@ class PropertyAccess {
         setByName(object, String.valueOf(index), value, context, trackingNode);
     }
 
-    private static void setByName(Object object, String name, Object value, CoreContext context, Node trackingNode) {
+    /**
+     * Spec-shape {@code [[Set]]} entry — walks the prototype chain for accessor
+     * descriptors (so a setter installed on {@code Array.prototype["0"]} fires
+     * when {@code Array.prototype.{push, unshift}} stores at index 0), routes
+     * {@code length} through {@code JsArray.handleLengthAssign} for the spec
+     * Uint32 + writable + partial-truncate dance, and otherwise falls through
+     * to {@code putMember}. Package-private so {@code JsArrayPrototype.{push,
+     * unshift}} can do per-item Set in the spec sequence.
+     */
+    static void setByName(Object object, String name, Object value, CoreContext context, Node trackingNode) {
         if (name == null) {
             throw JsErrorException.typeError("unexpected set [null]:" + value + " on: " + object);
         }
