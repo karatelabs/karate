@@ -1169,13 +1169,39 @@ last hoisted function as the completion when a script contains *only*
 declarations, so host callers loading a script that's just `function fn()
 {...}` still get `fn` back from `eval`.
 
-**`Array.prototype.*` are generic over array-like `this`.**
-`JsArrayPrototype.rawList` falls back to a `0..length-1` snapshot via
-`getMember(String.valueOf(i))` for any ObjectLike with a numeric `.length` —
-so `Array.prototype.every.call(date, fn)` and the
-`Array.prototype.X.call(obj, ...)` test262 pattern work. Mutating methods on
-a non-array operate on the snapshot list and don't write back (would need
-spec ToObject + index-write semantics; not yet modeled).
+**`Array.prototype.*` are generic over array-like `this`.** Built-in
+methods treat `this` as an ObjectLike with a numeric `.length` and indexed
+properties; `Array.prototype.shift.call(obj)` works on a plain `JsObject`
+the same way it works on a `JsArray`. The split inside `JsArrayPrototype`:
+
+- *Read-only / new-array-returning methods* (`slice` / `concat` / `flat` /
+  `join` / `at` / `keys` / `values` / `entries` / `with` / `group`) build a
+  `0..length-1` snapshot via `rawList` + `getMember(String.valueOf(i))`.
+- *Iterating methods* (`every` / `some` / `forEach` / `map` / `filter` /
+  `reduce` / `reduceRight` / `find` / `findIndex` / `findLast` /
+  `findLastIndex` / `includes` / `indexOf` / `lastIndexOf` / `flat` /
+  `flatMap`) dispatch through `specIterate` — length-bounded `HasProperty`
+  + `Get`, proto-chain aware, with a clean-JsArray fast path that reads
+  the dense `list` directly.
+- *Mutating methods* (`push` / `pop` / `shift` / `unshift` / `sort` /
+  `splice` / `reverse` / `fill` / `copyWithin`) dispatch per-index through
+  one set of spec primitives on the `ObjectLike` receiver, so writes
+  propagate back to a non-array `this` (test262 `S15.4.4.{8,9,11,12,13}_A2_*`
+  clusters).
+
+The shared spec-primitive contract for the mutating path:
+
+| Primitive | Spec name | Maps to |
+|---|---|---|
+| `specGet(O, k)` | `Get(O, k)` | `O.getMember(k, O, ctx)` (proto-walking, accessor-aware) |
+| `specSet(O, k, v)` | `Set(O, k, v, true)` | `PropertyAccess.setByName` (proto-walks setters; routes JsArray length through `handleLengthAssign`) |
+| `specDelete(O, k)` | `DeletePropertyOrThrow` | `O.removeMember(k)` (lenient on configurable today; strict-mode flip deferred) |
+| `hasPropertyChain(O, k)` | `HasProperty(O, k)` | own + `__proto__` walk |
+| `lengthOf(O)` | `ToLength(? Get(O, "length"))` | `arr.size()` for `JsArray`; otherwise `Terms.toNumberCoerce` (so `length: {valueOf(){…}}` resolves and `valueOf` abrupt-completion propagates via `ctx.isError()`) |
+| `setLength(O, n)` | `Set(O, "length", n, true)` | `JsArray.handleLengthAssign` for arrays (TypeError on writable=false), `setByName` otherwise |
+
+Length is clamped to `Integer.MAX_VALUE` — the spec's full Uint53 range
+needs a long-typed length field, deferred.
 
 **`JsArray.getMember` resolves canonical numeric-index keys.**
 `Array.prototype` lookup includes `String.valueOf(i)` reads (e.g. inside

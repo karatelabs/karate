@@ -138,10 +138,12 @@ class JsArrayPrototype extends Prototype {
         }
         // Spec: Array.prototype.* are intentionally generic — they treat `this` as an
         // array-like object with a `.length` and indexed properties. Snapshot 0..len-1
-        // for read-only operations. Mutating methods (push/pop/sort/...) on non-arrays
-        // mutate this snapshot, which doesn't propagate back to the source — non-spec,
-        // but better than crashing. Real spec ToObject + property writes would need
-        // descriptor infrastructure we don't yet have.
+        // for the read-only / new-array-returning methods (slice / concat / flat /
+        // join / at / keys / values / entries / withMethod / group). Mutating
+        // methods (push / pop / shift / unshift / sort / splice / reverse / fill /
+        // copyWithin) bypass this and dispatch per-index through specGet / specSet /
+        // specDelete on the receiver so writes propagate back to a non-array
+        // ObjectLike `this`.
         if (ol != null) {
             Object lenObj = ol.getMember("length");
             if (lenObj instanceof Number n) {
@@ -194,11 +196,15 @@ class JsArrayPrototype extends Prototype {
             "Cannot assign to read only property 'length' of object '[object Array]'";
 
     /**
-     * Spec-shape {@code Set(O, "length", newLen, true)} for the four mutating
-     * methods (pop/shift/push/unshift). Routes through
-     * {@link JsArray#handleLengthAssign} so {@link JsArray.ArrayLength#applySet}
-     * applies the truncate / extend (and HOLE-pad as needed); throws TypeError
-     * when length is non-writable per the spec's {@code Throw=true} contract.
+     * Spec-shape {@code Set(O, "length", newLen, true)} for every mutating
+     * method (pop/shift/push/unshift/sort/splice/reverse/fill/copyWithin).
+     * On a {@link JsArray} routes through {@link JsArray#handleLengthAssign}
+     * so {@link JsArray.ArrayLength#applySet} applies the truncate / extend
+     * (and HOLE-pad as needed); throws TypeError when length is non-writable
+     * per the spec's {@code Throw=true} contract. On a generic {@code ObjectLike}
+     * receiver (the {@code obj.shift = Array.prototype.shift; obj.shift()}
+     * pattern) writes via {@link PropertyAccess#setByName} so a setter
+     * installed at {@code length} on the proto chain fires.
      * <p>
      * Critically called <em>after</em> the spec's Get / Delete / Set
      * per-element steps so prototype getter/setter side-effects observable
@@ -206,10 +212,49 @@ class JsArrayPrototype extends Prototype {
      * cluster) match — a getter that flips length to non-writable still has
      * fired exactly once before the throw.
      */
-    private static void setLengthOrThrow(JsArray arr, int newLen, CoreContext ctx) {
-        if (!arr.handleLengthAssign(newLen, ctx)) {
-            throw JsErrorException.typeError(LENGTH_NON_WRITABLE);
+    private static void setLength(ObjectLike target, int newLen, CoreContext ctx) {
+        if (target instanceof JsArray arr) {
+            if (!arr.handleLengthAssign(newLen, ctx)) {
+                throw JsErrorException.typeError(LENGTH_NON_WRITABLE);
+            }
+            return;
         }
+        PropertyAccess.setByName(target, "length", newLen, ctx, null);
+    }
+
+    /**
+     * Spec-shape {@code Get(O, name)} — proto-walking via the receiver-aware
+     * {@link ObjectLike#getMember(String, Object, CoreContext)} so accessor
+     * descriptors installed anywhere in the chain dispatch with the right
+     * {@code this}. Returns {@link Terms#UNDEFINED} when the chain bottoms
+     * out so callers don't have to null-coalesce.
+     */
+    private static Object specGet(ObjectLike target, String name, CoreContext ctx) {
+        Object v = target.getMember(name, target, ctx);
+        return v == null ? Terms.UNDEFINED : v;
+    }
+
+    /**
+     * Spec-shape {@code Set(O, name, value, true)} — routes through
+     * {@link PropertyAccess#setByName} so accessor-setters installed on the
+     * proto chain fire (test262 {@code set-length-array-length-is-non-writable.js}
+     * cluster) and JsArray length writes route through
+     * {@link JsArray#handleLengthAssign}.
+     */
+    private static void specSet(ObjectLike target, String name, Object value, CoreContext ctx) {
+        PropertyAccess.setByName(target, name, value, ctx, null);
+    }
+
+    /**
+     * Spec-shape {@code DeletePropertyOrThrow(O, name)} — JsArray tombstones
+     * the dense slot with {@link JsArray#HOLE} (so {@code hasOwnProperty(idx)}
+     * reads false after); generic ObjectLike removes the entry from
+     * {@code props} via {@link ObjectLike#removeMember}. Lenient on the spec's
+     * configurable check; strict-mode TypeError flip tracked under the
+     * JsArray.removeMember TODO.
+     */
+    private static void specDelete(ObjectLike target, String name) {
+        target.removeMember(name);
     }
 
     /**
@@ -337,19 +382,41 @@ class JsArrayPrototype extends Prototype {
         return visitor.visit(k, v);
     }
 
-    /** Resolve the spec {@code length} of an array-like receiver. JsArray
-     *  uses the dense {@code list.size()} (already a clamped int); other
-     *  ObjectLike receivers read {@code .length} via {@code getMember} and
-     *  clamp to {@code [0, Integer.MAX_VALUE]}. The full Uint32 range
-     *  (2^32-1) needs a long-typed length field — deferred. */
-    private static int lengthOf(ObjectLike target, CoreContext cc) {
+    /** Resolve the spec {@code ToLength(? Get(O, "length"))} of an array-like
+     *  receiver. {@link JsArray} uses the dense {@code list.size()} (already
+     *  a clamped int). Generic ObjectLike receivers read {@code .length} via
+     *  {@code getMember}, then route through {@link Terms#toNumberCoerce} so
+     *  a {@code length: {valueOf(){return N}}} object resolves N via the
+     *  spec-prescribed valueOf invocation (test262 {@code S15.4.4.{9,13}_A2_T5}
+     *  cluster); valueOf abrupt-completion propagates via {@code ctx.isError()}
+     *  — caller checks and bails. NaN / -Infinity / negative / undefined map
+     *  to 0 per ToLength's clamp; result is further clamped to
+     *  {@code [0, Integer.MAX_VALUE]}. The full Uint53 spec range needs a
+     *  long-typed length field — deferred. */
+    private static int lengthOf(ObjectLike target, CoreContext ctx) {
         if (target instanceof JsArray arr) return arr.size();
-        Object lenObj = target.getMember("length", target, cc);
-        if (lenObj instanceof Number n) {
-            int v = n.intValue();
-            return v < 0 ? 0 : v;
-        }
-        return 0;
+        Object lenObj = target.getMember("length", target, ctx);
+        if (lenObj == null || lenObj == Terms.UNDEFINED) return 0;
+        Number n = lenObj instanceof ObjectLike
+                ? Terms.toNumberCoerce(lenObj, ctx)
+                : Terms.objectToNumber(lenObj);
+        if (ctx != null && ctx.isError()) return 0;
+        double d = n == null ? Double.NaN : n.doubleValue();
+        if (Double.isNaN(d) || d <= 0) return 0;
+        if (d >= Integer.MAX_VALUE) return Integer.MAX_VALUE;
+        return (int) d;
+    }
+
+    /** Spec-shape {@code O = ? ToObject(this value)}. Returns the receiver
+     *  unchanged when it's already an {@link ObjectLike}; wraps raw Java
+     *  Lists / arrays via {@link Terms#toObjectLike} (so a Java
+     *  {@link java.util.ArrayList} surfaces as a {@link JsArray} sharing the
+     *  underlying list — mutations propagate). Returns {@code null} for
+     *  uncoercible values (raw {@code null} / {@code undefined}); spec wants
+     *  TypeError, current callers bail with a no-op pending the strict-mode
+     *  plumbing TODO. */
+    private static ObjectLike toReceiver(Object thisObj) {
+        return thisObj instanceof ObjectLike o ? o : Terms.toObjectLike(thisObj);
     }
 
     private static final Object[] EMPTY_ARGS = new Object[0];
@@ -482,39 +549,74 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object push(Context context, Object[] args) {
-        Object thisObj = context.getThisObject();
+        // Spec §23.1.3.21 Array.prototype.push:
+        //   1. O = ToObject(this).  2. len = ToLength(Get(O, "length")).
+        //   5. For each E: Set(O, ToString(len), E, true); len += 1.
+        //   6. Set(O, "length", len, true).
+        // Per-item Set walks the proto chain so a setter installed on
+        // Array.prototype["0"] fires (test262
+        // set-length-array-length-is-non-writable.js push variant). On a
+        // generic ObjectLike receiver (obj.push = Array.prototype.push) the
+        // same Set / length-Set steps write back to obj — the snapshot path
+        // we used to take here was non-spec.
         CoreContext cc = context instanceof CoreContext cx ? cx : null;
-        if (thisObj instanceof JsArray arr) {
-            // Spec §23.1.3.21 Array.prototype.push:
-            //   5. For each item E: Set(O, ToString(len), E, true); len += 1.
-            //   6. Set(O, "length", len, true).
-            // Per-item Set walks the proto chain so a setter installed on
-            // Array.prototype["0"] fires (test262 set-length-array-length-
-            // is-non-writable.js push variant). The proto setter accepting
-            // the value means no own property is created — matches the
-            // assertion !arr.hasOwnProperty(0).
-            int len = arr.size();
-            for (int i = 0; i < args.length; i++) {
-                PropertyAccess.setByName(arr, String.valueOf(len + i), args[i], cc, null);
-            }
-            int newLen = len + args.length;
-            setLengthOrThrow(arr, newLen, cc);
-            return arr.size();
+        ObjectLike target = toReceiver(context.getThisObject());
+        if (target == null) return 0;
+        int len = lengthOf(target, cc);
+        if (cc != null && cc.isError()) return Terms.UNDEFINED;
+        for (int i = 0; i < args.length; i++) {
+            specSet(target, String.valueOf(len + i), args[i], cc);
         }
-        // Generic array-like fallback.
-        List<Object> thisArray = rawList(context);
-        thisArray.addAll(Arrays.asList(args));
-        return thisArray.size();
+        int newLen = len + args.length;
+        setLength(target, newLen, cc);
+        return newLen;
     }
 
     private Object reverse(Context context, Object[] args) {
-        List<Object> thisArray = rawList(context);
-        int size = thisArray.size();
-        List<Object> result = new ArrayList<>();
-        for (int i = size; i > 0; i--) {
-            result.add(thisArray.get(i - 1));
+        // Spec §23.1.3.26 Array.prototype.reverse:
+        //   1. O = ToObject(this).  2. len = ToLength(Get(O, "length")).
+        //   3. middle = floor(len / 2).
+        //   4. For lower in [0, middle): upper = len - lower - 1
+        //      (lowerHas, lowerVal) = HasProperty(O, lowerKey) ? (T, Get) : (F, _)
+        //      (upperHas, upperVal) = HasProperty(O, upperKey) ? (T, Get) : (F, _)
+        //      If both: Set lowerKey = upperVal; Set upperKey = lowerVal
+        //      Else if upperHas only: Set lowerKey = upperVal; Delete upperKey
+        //      Else if lowerHas only: Delete lowerKey; Set upperKey = lowerVal
+        //      Else: do nothing
+        //   5. Return O.
+        // Per-pair HasProperty/Get/Set/Delete dispatches through the proto
+        // chain — required for test262 S15.4.4.8_A2_T1 cluster (generic
+        // ObjectLike with sparse holes; reverse must mutate `this` and
+        // return it, deleting moved-from-hole positions on the destination
+        // side). The previous implementation returned a fresh list and
+        // didn't mutate the receiver — non-spec for both array and
+        // ObjectLike receivers.
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        ObjectLike target = toReceiver(context.getThisObject());
+        if (target == null) return Terms.UNDEFINED;
+        int len = lengthOf(target, cc);
+        if (cc != null && cc.isError()) return Terms.UNDEFINED;
+        int middle = len >>> 1;
+        for (int lower = 0; lower < middle; lower++) {
+            int upper = len - lower - 1;
+            String lowerKey = String.valueOf(lower);
+            String upperKey = String.valueOf(upper);
+            boolean lowerHas = hasPropertyChain(target, lowerKey);
+            boolean upperHas = hasPropertyChain(target, upperKey);
+            Object lowerVal = lowerHas ? specGet(target, lowerKey, cc) : null;
+            Object upperVal = upperHas ? specGet(target, upperKey, cc) : null;
+            if (lowerHas && upperHas) {
+                specSet(target, lowerKey, upperVal, cc);
+                specSet(target, upperKey, lowerVal, cc);
+            } else if (upperHas) {
+                specSet(target, lowerKey, upperVal, cc);
+                specDelete(target, upperKey);
+            } else if (lowerHas) {
+                specDelete(target, lowerKey);
+                specSet(target, upperKey, lowerVal, cc);
+            }
         }
-        return result;
+        return target;
     }
 
     private Object includes(Context context, Object[] args) {
@@ -731,226 +833,259 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object sort(Context context, Object[] args) {
-        List<Object> thisArray = rawList(context);
-        List<Object> list = new ArrayList<>(thisArray);
-        if (list.isEmpty()) {
-            return list;
-        }
-        if (args.length > 0 && args[0] instanceof JsCallable) {
-            JsCallable callable = toCallable(args);
-            list.sort((a, b) -> {
-                Object result = callable.call(context, new Object[]{a, b});
-                if (result instanceof Number) {
-                    return ((Number) result).intValue();
-                }
-                return 0;
-            });
-        } else {
-            list.sort((a, b) -> {
-                String strA = a != null ? a.toString() : "";
-                String strB = b != null ? b.toString() : "";
-                return strA.compareTo(strB);
-            });
-        }
-        // in js, sort modifies the original array and returns it
-        for (int i = 0; i < list.size(); i++) {
-            if (i < thisArray.size()) {
-                thisArray.set(i, list.get(i));
-            } else {
-                thisArray.add(list.get(i));
+        // Spec §23.1.3.30 Array.prototype.sort:
+        //   1. O = ToObject(this).  2. len = ToLength(Get(O, "length")).
+        //   Gather present items: items = [Get(O, k) for k in [0,len) if
+        //     HasProperty(O, k)]. holeCount = len - items.length.
+        //   Sort items via SortCompare (comparator if provided; else default
+        //     ToString-based comparison; undefined entries always sort last).
+        //   Write back: Set(O, k, items[k]) for k in [0, items.length);
+        //     DeletePropertyOrThrow(O, k) for k in [items.length, len).
+        //   Return O.
+        // Default comparator uses ToString order (test262 S15.4.4.11_A3_T1
+        // expects `[1, true, "a"].sort()` → ["1","a",true] by string order).
+        // Generic ObjectLike receivers (test262 S15.4.4.11_A3_* cluster:
+        // alphabetR.sort = Array.prototype.sort) must mutate `this` directly
+        // and return it — the previous snapshot-and-replace path didn't.
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        ObjectLike target = toReceiver(context.getThisObject());
+        if (target == null) return Terms.UNDEFINED;
+        int len = lengthOf(target, cc);
+        if (cc != null && cc.isError()) return Terms.UNDEFINED;
+        List<Object> items = new ArrayList<>(len);
+        for (int k = 0; k < len; k++) {
+            String key = String.valueOf(k);
+            if (hasPropertyChain(target, key)) {
+                items.add(specGet(target, key, cc));
             }
         }
-        return thisArray;
+        JsCallable comparator = (args.length > 0 && args[0] instanceof JsCallable jc) ? jc : null;
+        items.sort((a, b) -> {
+            // Spec SortCompare: undefined sorts last. Both undefined → 0.
+            boolean aUndef = a == null || a == Terms.UNDEFINED;
+            boolean bUndef = b == null || b == Terms.UNDEFINED;
+            if (aUndef && bUndef) return 0;
+            if (aUndef) return 1;
+            if (bUndef) return -1;
+            if (comparator != null) {
+                Object r = comparator.call(context, new Object[]{a, b});
+                if (r instanceof Number n) {
+                    double d = n.doubleValue();
+                    if (Double.isNaN(d)) return 0;
+                    return d < 0 ? -1 : (d > 0 ? 1 : 0);
+                }
+                return 0;
+            }
+            String sa = Terms.toStringCoerce(a, cc);
+            String sb = Terms.toStringCoerce(b, cc);
+            return sa.compareTo(sb);
+        });
+        for (int k = 0; k < items.size(); k++) {
+            specSet(target, String.valueOf(k), items.get(k), cc);
+        }
+        for (int k = items.size(); k < len; k++) {
+            specDelete(target, String.valueOf(k));
+        }
+        return target;
     }
 
     private Object fill(Context context, Object[] args) {
-        if (args.length == 0) {
-            return context.getThisObject();
-        }
-        List<Object> thisArray = rawList(context);
-        int size = thisArray.size();
-        if (size == 0) {
-            return thisArray;
-        }
-        Object value = args[0];
+        // Spec §23.1.3.7 Array.prototype.fill:
+        //   1. O = ToObject(this).  2. len = ToLength(Get(O, "length")).
+        //   3-9. actualStart, actualEnd via relative-index clamp.
+        //   10. For k in [actualStart, actualEnd): Set(O, ToString(k), value, true).
+        //   11. Return O.
+        // Per-index Set means a generic ObjectLike receiver
+        // (obj.fill = Array.prototype.fill; obj.length = N) is filled in
+        // place — the previous snapshot-and-set path didn't write back.
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        ObjectLike target = toReceiver(context.getThisObject());
+        if (target == null) return Terms.UNDEFINED;
+        int len = lengthOf(target, cc);
+        if (cc != null && cc.isError()) return Terms.UNDEFINED;
+        Object value = args.length > 0 ? args[0] : Terms.UNDEFINED;
         int start = 0;
-        int end = size;
+        int end = len;
         if (args.length > 1 && args[1] != null) {
-            start = Terms.objectToNumber(args[1]).intValue();
-            if (start < 0) {
-                start = Math.max(size + start, 0);
-            }
+            int rel = Terms.objectToNumber(args[1]).intValue();
+            start = rel < 0 ? Math.max(len + rel, 0) : Math.min(rel, len);
         }
         if (args.length > 2 && args[2] != null) {
-            end = Terms.objectToNumber(args[2]).intValue();
-            if (end < 0) {
-                end = Math.max(size + end, 0);
-            }
+            int rel = Terms.objectToNumber(args[2]).intValue();
+            end = rel < 0 ? Math.max(len + rel, 0) : Math.min(rel, len);
         }
-        start = Math.min(start, size);
-        end = Math.min(end, size);
-        for (int i = start; i < end; i++) {
-            thisArray.set(i, value);
+        for (int k = start; k < end; k++) {
+            specSet(target, String.valueOf(k), value, cc);
         }
-        return thisArray;
+        return target;
     }
 
     private Object splice(Context context, Object[] args) {
+        // Spec §23.1.3.29 Array.prototype.splice:
+        //   1. O = ToObject(this).  2. len = ToLength(Get(O, "length")).
+        //   3-7. actualStart, actualDeleteCount, itemCount = ...
+        //   9-10. Build result A: for k in [0, actualDeleteCount):
+        //         from = ToString(actualStart + k); if HasProperty(O, from):
+        //         CreateDataPropertyOrThrow(A, ToString(k), Get(O, from)).
+        //   11-15. Move tail to make room (or close gap) via per-index
+        //          HasProperty / Get / Set / Delete in the spec-mandated
+        //          direction (high→low for itemCount>actualDeleteCount,
+        //          low→high for itemCount<actualDeleteCount) so overlap is
+        //          handled correctly.
+        //   16-17. Write items at actualStart; Set(O, "length", len -
+        //          actualDeleteCount + itemCount).
+        // Generic ObjectLike receivers (test262 S15.4.4.12_A2_* cluster:
+        // obj.splice = Array.prototype.splice) need this per-index dispatch
+        // — the previous snapshot-and-replace path didn't write back.
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        ObjectLike target = toReceiver(context.getThisObject());
+        if (target == null) return new ArrayList<>();
+        int len = lengthOf(target, cc);
+        if (cc != null && cc.isError()) return Terms.UNDEFINED;
+        int actualStart;
+        if (args.length == 0 || args[0] == null) {
+            actualStart = 0;
+        } else {
+            int relativeStart = Terms.objectToNumber(args[0]).intValue();
+            actualStart = relativeStart < 0
+                    ? Math.max(len + relativeStart, 0)
+                    : Math.min(relativeStart, len);
+        }
+        int actualDeleteCount;
+        int itemCount;
         if (args.length == 0) {
-            return new ArrayList<>();
+            actualDeleteCount = 0;
+            itemCount = 0;
+        } else if (args.length == 1) {
+            actualDeleteCount = len - actualStart;
+            itemCount = 0;
+        } else {
+            int dc = args[1] == null ? 0 : Terms.objectToNumber(args[1]).intValue();
+            actualDeleteCount = Math.min(Math.max(dc, 0), len - actualStart);
+            itemCount = Math.max(args.length - 2, 0);
         }
-        List<Object> thisArray = rawList(context);
-        int size = thisArray.size();
-        if (size == 0) {
-            return new ArrayList<>();
+        List<Object> removed = new ArrayList<>(actualDeleteCount);
+        for (int k = 0; k < actualDeleteCount; k++) {
+            String from = String.valueOf(actualStart + k);
+            removed.add(hasPropertyChain(target, from)
+                    ? specGet(target, from, cc) : Terms.UNDEFINED);
         }
-        int start = 0;
-        if (args[0] != null) {
-            start = Terms.objectToNumber(args[0]).intValue();
-            if (start < 0) {
-                start = Math.max(size + start, 0);
+        // Move tail to close (low→high) or open (high→low) the gap.
+        if (itemCount < actualDeleteCount) {
+            for (int k = actualStart; k < len - actualDeleteCount; k++) {
+                String from = String.valueOf(k + actualDeleteCount);
+                String to = String.valueOf(k + itemCount);
+                if (hasPropertyChain(target, from)) {
+                    specSet(target, to, specGet(target, from, cc), cc);
+                } else {
+                    specDelete(target, to);
+                }
+            }
+            for (int k = len; k > len - actualDeleteCount + itemCount; k--) {
+                specDelete(target, String.valueOf(k - 1));
+            }
+        } else if (itemCount > actualDeleteCount) {
+            for (int k = len - actualDeleteCount; k > actualStart; k--) {
+                String from = String.valueOf(k + actualDeleteCount - 1);
+                String to = String.valueOf(k + itemCount - 1);
+                if (hasPropertyChain(target, from)) {
+                    specSet(target, to, specGet(target, from, cc), cc);
+                } else {
+                    specDelete(target, to);
+                }
             }
         }
-        start = Math.min(start, size);
-        int deleteCount = size - start;
-        if (args.length > 1 && args[1] != null) {
-            deleteCount = Terms.objectToNumber(args[1]).intValue();
-            deleteCount = Math.min(Math.max(deleteCount, 0), size - start);
+        for (int k = 0; k < itemCount; k++) {
+            specSet(target, String.valueOf(actualStart + k), args[k + 2], cc);
         }
-        List<Object> elementsToAdd = new ArrayList<>();
-        if (args.length > 2) {
-            for (int i = 2; i < args.length; i++) {
-                elementsToAdd.add(args[i]);
-            }
-        }
-        List<Object> removedElements = new ArrayList<>();
-        for (int i = start; i < start + deleteCount; i++) {
-            removedElements.add(thisArray.get(i));
-        }
-        int newSize = size - deleteCount + elementsToAdd.size();
-        List<Object> newList = new ArrayList<>(newSize);
-        for (int i = 0; i < start; i++) {
-            newList.add(thisArray.get(i));
-        }
-        newList.addAll(elementsToAdd);
-        for (int i = start + deleteCount; i < size; i++) {
-            newList.add(thisArray.get(i));
-        }
-        // update original array
-        thisArray.clear();
-        thisArray.addAll(newList);
-        return removedElements;
+        setLength(target, len - actualDeleteCount + itemCount, cc);
+        return removed;
     }
 
     private Object shift(Context context, Object[] args) {
-        Object thisObj = context.getThisObject();
+        // Spec §23.1.3.27 Array.prototype.shift:
+        //   1. O = ToObject(this).  2. len = ToLength(Get(O, "length")).
+        //   3. If len = 0: Set(O, "length", 0, true); return undefined.
+        //   4. first = Get(O, "0").
+        //   5-7. Repeat for k = 1 to len-1:
+        //          fromKey = ToString(k); toKey = ToString(k-1)
+        //          if HasProperty(O, fromKey): Set(O, toKey, Get(O, fromKey), true)
+        //          else:                       DeletePropertyOrThrow(O, toKey)
+        //   8. DeletePropertyOrThrow(O, ToString(len-1)).
+        //   9. Set(O, "length", len-1, true).
+        // Get/Set/Delete walk the proto chain so accessors / inherited indices
+        // (Array.prototype[i] = …) fire at the spec-correct steps — covers
+        // test262 S15.4.4.9_A4_T1 / A4_T2 (inherited proto value surfaces at
+        // toKey when fromKey is a hole). On a generic ObjectLike receiver
+        // (test262 S15.4.4.9_A2_* cluster: obj.shift = Array.prototype.shift)
+        // the same per-index Set / Delete writes back to the receiver — the
+        // snapshot path we used to take here was non-spec.
         CoreContext cc = context instanceof CoreContext cx ? cx : null;
-        if (thisObj instanceof JsArray arr) {
-            // Spec §23.1.3.27 Array.prototype.shift:
-            //   3. If len = 0: Set(O, "length", 0, true); return undefined.
-            //   4. first = Get(O, "0").
-            //   5-7. Repeat for k = 1 to len-1:
-            //          fromKey = ToString(k); toKey = ToString(k-1)
-            //          if HasProperty(O, fromKey): Set(O, toKey, Get(O, fromKey), true)
-            //          else:                       DeletePropertyOrThrow(O, toKey)
-            //   8. DeletePropertyOrThrow(O, ToString(len-1)).
-            //   9. Set(O, "length", len-1, true).
-            // Get/Set/Delete walk the proto chain so accessors / inherited
-            // indices (Array.prototype[i] = …) fire at the spec-correct steps —
-            // covers test262 S15.4.4.9_A4_T1 / A4_T2 (inherited proto value
-            // surfaces at toKey when fromKey is a hole). The final delete
-            // (step 8) is implicit in {@link JsArray.ArrayLength#applySet}'s
-            // truncate when length is writable; same pragmatic simplification
-            // as pop. Strict-mode flip on Set/Delete failure → deferred TODO.
-            int len = arr.size();
-            if (len == 0) {
-                setLengthOrThrow(arr, 0, cc);
-                return Terms.UNDEFINED;
-            }
-            Object first = arr.getMember("0", arr, cc);
-            if (first == null) first = Terms.UNDEFINED;
-            for (int k = 1; k < len; k++) {
-                String fromKey = String.valueOf(k);
-                String toKey = String.valueOf(k - 1);
-                if (hasPropertyChain(arr, fromKey)) {
-                    Object fromVal = arr.getMember(fromKey, arr, cc);
-                    if (fromVal == null) fromVal = Terms.UNDEFINED;
-                    PropertyAccess.setByName(arr, toKey, fromVal, cc, null);
-                } else {
-                    arr.removeMember(toKey);
-                }
-            }
-            setLengthOrThrow(arr, len - 1, cc);
-            return first;
-        }
-        // Generic array-like fallback.
-        List<Object> thisArray = rawList(context);
-        int size = thisArray.size();
-        if (size == 0) {
+        ObjectLike target = toReceiver(context.getThisObject());
+        if (target == null) return Terms.UNDEFINED;
+        int len = lengthOf(target, cc);
+        if (cc != null && cc.isError()) return Terms.UNDEFINED;
+        if (len == 0) {
+            setLength(target, 0, cc);
             return Terms.UNDEFINED;
         }
-        Object firstElement = thisArray.getFirst();
-        List<Object> newList = new ArrayList<>(size - 1);
-        for (int i = 1; i < size; i++) {
-            newList.add(thisArray.get(i));
+        Object first = specGet(target, "0", cc);
+        for (int k = 1; k < len; k++) {
+            String fromKey = String.valueOf(k);
+            String toKey = String.valueOf(k - 1);
+            if (hasPropertyChain(target, fromKey)) {
+                specSet(target, toKey, specGet(target, fromKey, cc), cc);
+            } else {
+                specDelete(target, toKey);
+            }
         }
-        thisArray.clear();
-        thisArray.addAll(newList);
-        return firstElement;
+        specDelete(target, String.valueOf(len - 1));
+        setLength(target, len - 1, cc);
+        return first;
     }
 
     private Object unshift(Context context, Object[] args) {
-        Object thisObj = context.getThisObject();
+        // Spec §23.1.3.32 Array.prototype.unshift:
+        //   1. O = ToObject(this).  2. len = ToLength(Get(O, "length")).
+        //   4. If argCount > 0:
+        //      Repeat for k = len down to 1:
+        //        from = ToString(k-1); to = ToString(k+argCount-1)
+        //        if HasProperty(O, from): Set(O, to, Get(O, from), true)
+        //        else:                    DeletePropertyOrThrow(O, to)
+        //      Repeat for j = 0 to argCount-1: Set(O, ToString(j), items[j], true)
+        //   5. Set(O, "length", len + argCount, true).
+        // Move loop dispatches through Get/Set/Delete so a proto-installed
+        // accessor at an intermediate index fires at the spec-correct step
+        // (test262 S15.4.4.13_A4_T2: inherited index surfaces at the moved-to
+        // slot when the source slot is a hole). Per-arg Set walks proto
+        // setters so a setter installed on Array.prototype["0"] fires
+        // (set-length-array-length-is-non-writable.js unshift variant). On a
+        // generic ObjectLike receiver (test262 S15.4.4.13_A2_* cluster: obj.
+        // unshift = Array.prototype.unshift) the same Set / Delete writes
+        // back to the receiver.
         CoreContext cc = context instanceof CoreContext cx ? cx : null;
-        if (thisObj instanceof JsArray arr) {
-            // Spec §23.1.3.32 Array.prototype.unshift:
-            //   4. If argCount > 0:
-            //      Repeat for k = len down to 1:
-            //        from = ToString(k-1); to = ToString(k+argCount-1)
-            //        if HasProperty(O, from): Set(O, to, Get(O, from), true)
-            //        else:                    DeletePropertyOrThrow(O, to)
-            //      Repeat for j = 0 to argCount-1: Set(O, ToString(j), items[j], true)
-            //   5. Set(O, "length", len + argCount, true).
-            // Move loop dispatches through Get/Set/Delete so a proto-installed
-            // accessor at an intermediate index fires at the spec-correct
-            // step (test262 S15.4.4.13_A4_T2: inherited index surfaces at
-            // the moved-to slot when the source slot is a hole). Per-arg Set
-            // walks proto setters so a setter installed on Array.prototype["0"]
-            // fires (set-length-array-length-is-non-writable.js unshift
-            // variant). Strict-mode flip on Set/Delete failure → deferred TODO.
-            int len = arr.size();
-            int argCount = args.length;
-            if (argCount > 0) {
-                for (int k = len - 1; k >= 0; k--) {
-                    String fromKey = String.valueOf(k);
-                    String toKey = String.valueOf(k + argCount);
-                    if (hasPropertyChain(arr, fromKey)) {
-                        Object fromVal = arr.getMember(fromKey, arr, cc);
-                        if (fromVal == null) fromVal = Terms.UNDEFINED;
-                        PropertyAccess.setByName(arr, toKey, fromVal, cc, null);
-                    } else {
-                        arr.removeMember(toKey);
-                    }
-                }
-                for (int j = 0; j < argCount; j++) {
-                    PropertyAccess.setByName(arr, String.valueOf(j), args[j], cc, null);
+        ObjectLike target = toReceiver(context.getThisObject());
+        if (target == null) return 0;
+        int len = lengthOf(target, cc);
+        if (cc != null && cc.isError()) return Terms.UNDEFINED;
+        int argCount = args.length;
+        if (argCount > 0) {
+            for (int k = len - 1; k >= 0; k--) {
+                String fromKey = String.valueOf(k);
+                String toKey = String.valueOf(k + argCount);
+                if (hasPropertyChain(target, fromKey)) {
+                    specSet(target, toKey, specGet(target, fromKey, cc), cc);
+                } else {
+                    specDelete(target, toKey);
                 }
             }
-            int newLen = len + argCount;
-            setLengthOrThrow(arr, newLen, cc);
-            return arr.size();
+            for (int j = 0; j < argCount; j++) {
+                specSet(target, String.valueOf(j), args[j], cc);
+            }
         }
-        // Generic array-like fallback.
-        List<Object> thisArray = rawList(context);
-        if (args.length == 0) {
-            return thisArray.size();
-        }
-        List<Object> newList = new ArrayList<>(thisArray.size() + args.length);
-        newList.addAll(Arrays.asList(args));
-        newList.addAll(thisArray);
-        thisArray.clear();
-        thisArray.addAll(newList);
-        return thisArray.size();
+        int newLen = len + argCount;
+        setLength(target, newLen, cc);
+        return newLen;
     }
 
     private Object lastIndexOf(Context context, Object[] args) {
@@ -986,51 +1121,36 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object pop(Context context, Object[] args) {
-        Object thisObj = context.getThisObject();
+        // Spec §23.1.3.20 Array.prototype.pop:
+        //   1. O = ToObject(this).  2. len = ToLength(Get(O, "length")).
+        //   3. If len = 0: Set(O, "length", +0, true); return undefined.
+        //   4. Else: element = Get(O, ToString(len-1));
+        //            DeletePropertyOrThrow(O, ToString(len-1));
+        //            Set(O, "length", len-1, true); return element.
+        // The Get walks the proto chain when the index is a hole — proto-
+        // installed accessors (Array.prototype["last"] = {get:…}) fire
+        // during pop, observable via call-count assertions in
+        // set-length-array-length-is-non-writable.js. The length-set happens
+        // AFTER the Get / Delete, so a getter side-effect that makes length
+        // non-writable still throws at the spec-correct step. On JsArray the
+        // explicit Delete is redundant with {@link JsArray.ArrayLength#applySet}'s
+        // truncate (which removes trailing entries), but kept for spec-shape
+        // uniformity — a no-op when truncate succeeds.
         CoreContext cc = context instanceof CoreContext cx ? cx : null;
-        if (thisObj instanceof JsArray arr) {
-            // Spec §23.1.3.20 Array.prototype.pop:
-            //   3. If len = 0: Set(O, "length", +0, true); return undefined.
-            //   4. Else: element = Get(O, ToString(len-1)); DeletePropertyOrThrow(...);
-            //      Set(O, "length", len-1, true); return element.
-            // The Get walks the proto chain when the index is a hole — proto-
-            // installed accessors (Array.prototype["last"] = {get:…}) fire
-            // during pop, observable via call-count assertions in
-            // set-length-array-length-is-non-writable.js. The length-set
-            // happens AFTER the Get / Delete, so a getter side-effect that
-            // makes length non-writable still throws at the spec-correct step.
-            int len = arr.size();
-            if (len == 0) {
-                setLengthOrThrow(arr, 0, cc);
-                return Terms.UNDEFINED;
-            }
-            int newLen = len - 1;
-            String index = String.valueOf(newLen);
-            Object element = arr.getMember(index, arr, cc);
-            if (element == null) element = Terms.UNDEFINED;
-            // DeletePropertyOrThrow(O, index) — the per-element delete is
-            // implicit in {@link JsArray.ArrayLength#applySet}'s truncate
-            // when length is writable, so omitted here. (When length is
-            // non-writable, the spec leaves the array in an inconsistent
-            // intermediate state — the test cluster doesn't observe it.)
-            setLengthOrThrow(arr, newLen, cc);
-            return element;
-        }
-        // Generic array-like fallback (Array.prototype.pop.call(obj))
-        // — best-effort snapshot manipulation; doesn't write back to source.
-        List<Object> thisArray = rawList(context);
-        int size = thisArray.size();
-        if (size == 0) {
+        ObjectLike target = toReceiver(context.getThisObject());
+        if (target == null) return Terms.UNDEFINED;
+        int len = lengthOf(target, cc);
+        if (cc != null && cc.isError()) return Terms.UNDEFINED;
+        if (len == 0) {
+            setLength(target, 0, cc);
             return Terms.UNDEFINED;
         }
-        Object lastElement = thisArray.get(size - 1);
-        List<Object> newList = new ArrayList<>(size - 1);
-        for (int i = 0; i < size - 1; i++) {
-            newList.add(thisArray.get(i));
-        }
-        thisArray.clear();
-        thisArray.addAll(newList);
-        return lastElement;
+        int newLen = len - 1;
+        String index = String.valueOf(newLen);
+        Object element = specGet(target, index, cc);
+        specDelete(target, index);
+        setLength(target, newLen, cc);
+        return element;
     }
 
     private Object at(Context context, Object[] args) {
@@ -1050,50 +1170,59 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object copyWithin(Context context, Object[] args) {
-        List<Object> thisArray = rawList(context);
-        int size = thisArray.size();
-        if (size == 0 || args.length == 0) {
-            return thisArray;
+        // Spec §23.1.3.4 Array.prototype.copyWithin:
+        //   1. O = ToObject(this).  2. len = ToLength(Get(O, "length")).
+        //   3-10. to, from, finalEnd, count via relative-index clamps.
+        //   11. direction = (from < to && to < from + count) ? -1 : 1
+        //       (high→low when source range overlaps destination start).
+        //   12. While count > 0: HasProperty(O, fromKey) ? Set(O, toKey, Get)
+        //       : DeletePropertyOrThrow(O, toKey). Step from/to by direction.
+        //   13. Return O.
+        // Per-index dispatch threads accessor descriptors and supports
+        // generic ObjectLike receivers — the previous snapshot-and-replace
+        // path didn't write back to a non-array `this`.
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        ObjectLike receiver = toReceiver(context.getThisObject());
+        if (receiver == null) return Terms.UNDEFINED;
+        int len = lengthOf(receiver, cc);
+        if (cc != null && cc.isError()) return Terms.UNDEFINED;
+        int to = 0;
+        if (args.length > 0 && args[0] != null) {
+            int rel = Terms.objectToNumber(args[0]).intValue();
+            to = rel < 0 ? Math.max(len + rel, 0) : Math.min(rel, len);
         }
-        int target = Terms.objectToNumber(args[0]).intValue();
-        if (target < 0) {
-            target = Math.max(size + target, 0);
-        }
-        int start = 0;
+        int from = 0;
         if (args.length > 1 && args[1] != null) {
-            start = Terms.objectToNumber(args[1]).intValue();
-            if (start < 0) {
-                start = Math.max(size + start, 0);
-            }
+            int rel = Terms.objectToNumber(args[1]).intValue();
+            from = rel < 0 ? Math.max(len + rel, 0) : Math.min(rel, len);
         }
-        int end = size;
+        int finalEnd = len;
         if (args.length > 2 && args[2] != null) {
-            end = Terms.objectToNumber(args[2]).intValue();
-            if (end < 0) {
-                end = Math.max(size + end, 0);
+            int rel = Terms.objectToNumber(args[2]).intValue();
+            finalEnd = rel < 0 ? Math.max(len + rel, 0) : Math.min(rel, len);
+        }
+        int count = Math.min(finalEnd - from, len - to);
+        int direction;
+        if (from < to && to < from + count) {
+            direction = -1;
+            from += count - 1;
+            to += count - 1;
+        } else {
+            direction = 1;
+        }
+        while (count > 0) {
+            String fromKey = String.valueOf(from);
+            String toKey = String.valueOf(to);
+            if (hasPropertyChain(receiver, fromKey)) {
+                specSet(receiver, toKey, specGet(receiver, fromKey, cc), cc);
+            } else {
+                specDelete(receiver, toKey);
             }
+            from += direction;
+            to += direction;
+            count--;
         }
-        start = Math.min(start, size);
-        end = Math.min(end, size);
-        target = Math.min(target, size);
-        List<Object> toCopy = new ArrayList<>();
-        for (int i = start; i < end; i++) {
-            toCopy.add(thisArray.get(i));
-        }
-        if (toCopy.isEmpty()) {
-            return thisArray;
-        }
-        // avoid concurrent modification issues
-        List<Object> list = new ArrayList<>(thisArray);
-        // copy elements over
-        int copyCount = 0;
-        for (int i = target; i < size && copyCount < toCopy.size(); i++) {
-            list.set(i, toCopy.get(copyCount++));
-        }
-        // update original array
-        thisArray.clear();
-        thisArray.addAll(list);
-        return thisArray;
+        return receiver;
     }
 
     private Object keys(Context context, Object[] args) {

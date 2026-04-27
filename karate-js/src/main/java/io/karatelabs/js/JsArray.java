@@ -457,24 +457,28 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     @Override
     public void removeMember(String name) {
-        if (namedProps != null) {
-            namedProps.remove(name);
-        }
-        // Numeric index: tombstone the dense slot with HOLE so the own
-        // property is absent ({@link #isOwnProperty} / hasOwnProperty report
-        // false; {@link #resolveOwnIntrinsic} returns null and the read walks
-        // the proto chain). Without this, {@code delete arr[i]} silently
-        // preserves the value and {@link JsArrayPrototype#shift} /
-        // {@link JsArrayPrototype#unshift}'s move-loop "DeletePropertyOrThrow"
-        // branch is a no-op on dense indices. List length is left unchanged
-        // (delete doesn't shrink the array — the spec uses [[Delete]] +
-        // separate length-set). Configurable / sealed / frozen enforcement
-        // is a separate deferred TODO; this lenient path matches today's
-        // namedProps behavior.
+        // Configurability check (mirrors JsObject.removeMember): per-slot attrs
+        // win when {@link #namedProps} has an entry; otherwise dense-slot attrs
+        // come from {@link #getOwnAttrs} which already folds in sealed / frozen
+        // integrity flags. Lenient mode — a non-configurable target is a
+        // silent no-op; strict-mode TypeError flip lives at the [[Delete]]
+        // caller (deferred).
+        PropertySlot s = namedProps == null ? null : namedProps.get(name);
         int i = parseIndex(name);
-        if (i >= 0 && i < list.size()) {
-            list.set(i, HOLE);
-        }
+        boolean denseSlot = i >= 0 && i < list.size() && list.get(i) != HOLE;
+        if (s == null && !denseSlot) return;
+        byte attrs = s != null ? s.attrs : getOwnAttrs(name);
+        if ((attrs & JsObject.CONFIGURABLE) == 0) return;
+        if (s != null) namedProps.remove(name);
+        // Dense-list HOLE-write: own property reads false via
+        // {@link #isOwnProperty} / hasOwnProperty after; {@link #resolveOwnIntrinsic}
+        // returns null and the read walks the proto chain. Without this,
+        // {@code delete arr[i]} silently preserves the value and the
+        // {@link JsArrayPrototype#shift} / {@link JsArrayPrototype#unshift}
+        // move-loop "DeletePropertyOrThrow" branch is a no-op on dense indices.
+        // List length is left unchanged — delete doesn't shrink the array,
+        // the spec uses [[Delete]] + separate length-set.
+        if (denseSlot) list.set(i, HOLE);
     }
 
     @Override

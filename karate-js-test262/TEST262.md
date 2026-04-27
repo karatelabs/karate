@@ -204,23 +204,6 @@ other work.
   `hasOwnProperty` instead). Pair with parser `in` support as one
   coordinated session. Estimated 6–8 h.
 
-- **Generic ObjectLike receiver writeback for mutating
-  `Array.prototype.*` methods.** Read-side iteration is now spec-shape
-  via `JsArrayPrototype.specIterate` (length-bounded HasProperty + Get,
-  proto-chain aware) — covers `every` / `forEach` / `map` / `some` /
-  `filter` / `reduce` / `reduceRight` / `find` / `findIndex` /
-  `findLast` / `findLastIndex` / `includes` / `indexOf` / `lastIndexOf` /
-  `flatMap` and the secondary `flat` recursion. The remaining gap:
-  mutating methods (`push` / `pop` / `shift` / `unshift` / `sort` /
-  `splice` / `reverse`) still operate on a snapshot list (`rawList`)
-  when `this` is a non-array ObjectLike (`obj.shift =
-  Array.prototype.shift; obj.shift()` doesn't write back to `obj`).
-  Pinned by `S15.4.4.{9,13}_A2_*` cluster across pop / shift / unshift —
-  ~30-40 test262 fails. Fix is per-index Set / Delete via
-  `PropertyAccess.setByName` + `removeMember` on the receiver instead of
-  snapshot-then-replace. Estimated 1-2 sessions; pair with the
-  larger Array slice (#6).
-
 - **`PropertyKey` abstraction.** Symbol prep. Deferred to the Symbol slice
   itself — introducing `PropertyKey` ahead of a concrete consumer is YAGNI.
 
@@ -307,19 +290,6 @@ slice priority. Pick up when the relevant slice surfaces them.
   another. Either extend `BindingSlot` to carry an `AccessorSlot`
   side-table, or commit to a unified two-store contract with a single
   authoritative read seam. Estimated 2 h.
-
-- **`Array.prototype.*` writeback on non-array ObjectLike.** Mutating
-  methods on a non-array operate on a snapshot list and don't write back.
-  Spec needs ToObject + index-write on the receiver. Pick up in slice #6.
-
-- **`JsArray.removeMember` doesn't honor configurable / sealed / frozen.**
-  Dense-list HOLE-write landed 2026-04-27 (so `delete arr[0]` now
-  tombstones the dense slot — `hasOwnProperty(0) === false` after, and
-  the spec-shape `shift` / `unshift` move loop's `DeletePropertyOrThrow`
-  branch is observable). Still missing: configurability check (mirror
-  `JsObject.removeMember`'s slot-attrs / integrity-flags consult), so
-  `delete sealedArr.foo` currently succeeds despite the cleared
-  configurable bit. Estimated 30 min.
 
 - **`Symbol.toPrimitive` is not dispatched.** Matches our minimal Symbol
   surface. Fix as part of slice #7 (Symbol).
