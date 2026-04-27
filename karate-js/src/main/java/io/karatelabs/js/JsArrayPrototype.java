@@ -308,10 +308,8 @@ class JsArrayPrototype extends Prototype {
      */
     private static void specIterate(Context context, boolean ascending, boolean skipAbsent,
                                     IndexVisitor visitor) {
-        Object thisObj = context.getThisObject();
         CoreContext cc = context instanceof CoreContext cx ? cx : null;
-        ObjectLike target = thisObj instanceof ObjectLike o ? o : Terms.toObjectLike(thisObj);
-        if (target == null) return;
+        ObjectLike target = toReceiver(context.getThisObject());
         int len = lengthOf(target, cc);
         // Fast path: plain JsArray (exact class — buffer-backed
         // {@link JsUint8Array} routes through the slow path so its
@@ -411,21 +409,70 @@ class JsArrayPrototype extends Prototype {
      *  unchanged when it's already an {@link ObjectLike}; wraps raw Java
      *  Lists / arrays via {@link Terms#toObjectLike} (so a Java
      *  {@link java.util.ArrayList} surfaces as a {@link JsArray} sharing the
-     *  underlying list — mutations propagate). Returns {@code null} for
-     *  uncoercible values (raw {@code null} / {@code undefined}); spec wants
-     *  TypeError, current callers bail with a no-op pending the strict-mode
-     *  plumbing TODO. */
+     *  underlying list — mutations propagate). Throws TypeError for
+     *  {@code null} / {@code undefined} per spec — independent of strict
+     *  mode (the spec ToObject step in every Array.prototype.* method
+     *  rejects {@code null} / {@code undefined} directly). */
     private static ObjectLike toReceiver(Object thisObj) {
-        return thisObj instanceof ObjectLike o ? o : Terms.toObjectLike(thisObj);
+        if (thisObj == null || thisObj == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("Array.prototype.* called on null or undefined");
+        }
+        ObjectLike o = thisObj instanceof ObjectLike ol ? ol : Terms.toObjectLike(thisObj);
+        if (o == null) {
+            throw JsErrorException.typeError("Array.prototype.* called on null or undefined");
+        }
+        return o;
     }
 
     private static final Object[] EMPTY_ARGS = new Object[0];
 
-    private static JsCallable toCallable(Object[] args) {
+    /** Spec {@code IsCallable} guard — every {@code Array.prototype.*}
+     *  iteration method begins with a TypeError when the supplied callbackfn
+     *  is not a function (spec FindViaPredicate / map / filter / forEach /
+     *  every / some / reduce / reduceRight / flatMap step 1). The method
+     *  name flows into the error so test262's
+     *  {@code Array.prototype.map called on non-callable} style assertions
+     *  carry the spec context. */
+    private static JsCallable requireCallable(Object[] args, String methodName) {
         if (args.length > 0 && args[0] instanceof JsCallable callable) {
             return callable;
         }
-        return (c, a) -> Terms.UNDEFINED;
+        throw JsErrorException.typeError(methodName + " callback is not a function");
+    }
+
+    /** Spec {@code Call(callbackfn, thisArg, …)} hookup for the iteration
+     *  methods. When {@code methodArgs[thisArgIdx]} is supplied, wraps
+     *  {@code inner} so each invocation temporarily binds the user-supplied
+     *  {@code thisArg} as the call-site's {@code this} via save/restore on
+     *  the live {@link CoreContext} — {@code Array.prototype.map.call(arr,
+     *  fn, ctx)}'s {@code fn} then sees {@code this === ctx} per §23.1.3.21.
+     *  Save/restore (rather than allocating a child context) keeps error
+     *  propagation simple — the user function's throw lands on the same
+     *  context the iteration loop checks via {@link CoreContext#isError()},
+     *  no intermediate frame to {@code updateFrom}.
+     *  <p>
+     *  When {@code thisArg} is absent (caller passed fewer args), spec wants
+     *  {@code Call(fn, undefined, …)}; for sloppy-mode callbacks ToObject
+     *  then promotes {@code undefined} to {@code globalThis}. We don't model
+     *  the strict / sloppy split, so when {@code thisArg} is absent we
+     *  leave the existing {@code this} alone — keeps idiomatic
+     *  {@code [].filter(function(){return this.x})} working under our
+     *  effectively-sloppy default. */
+    private static JsCallable bindThis(JsCallable inner, Object[] methodArgs, int thisArgIdx) {
+        if (methodArgs.length <= thisArgIdx) return inner;
+        Object boundThis = methodArgs[thisArgIdx] == null ? Terms.UNDEFINED : methodArgs[thisArgIdx];
+        return (ctx, args) -> {
+            if (ctx instanceof CoreContext core) {
+                Object saved = core.thisObject;
+                core.thisObject = boundThis;
+                try {
+                    return inner.call(ctx, args);
+                } finally {
+                    core.thisObject = saved;
+                }
+            }
+            return inner.call(ctx, args);
+        };
     }
 
     @SuppressWarnings("unchecked")
@@ -463,7 +510,8 @@ class JsArrayPrototype extends Prototype {
         int len = target == null ? 0 : lengthOf(target, cc);
         List<Object> results = new ArrayList<>(len);
         for (int i = 0; i < len; i++) results.add(JsArray.HOLE);
-        JsCallable callable = toCallable(args);
+        JsCallable callable = bindThis(requireCallable(args, "Array.prototype.map"),
+                args, 1);
         specIterate(context, true, true, (k, v) -> {
             Object r = callable.call(context, new Object[]{v, k, thisObj});
             results.set(k, r);
@@ -474,7 +522,8 @@ class JsArrayPrototype extends Prototype {
 
     private Object filter(Context context, Object[] args) {
         List<Object> results = new ArrayList<>();
-        JsCallable callable = toCallable(args);
+        JsCallable callable = bindThis(requireCallable(args, "Array.prototype.filter"),
+                args, 1);
         Object thisObj = context.getThisObject();
         specIterate(context, true, true, (k, v) -> {
             Object r = callable.call(context, new Object[]{v, k, thisObj});
@@ -519,7 +568,8 @@ class JsArrayPrototype extends Prototype {
     private Object find(Context context, Object[] args) {
         // Spec §23.1.3.9: visits every index 0..len-1 (NO HasProperty filter)
         // — holes read as undefined via Get's proto walk. {@code skipAbsent=false}.
-        JsCallable callable = toCallable(args);
+        JsCallable callable = bindThis(requireCallable(args, "Array.prototype.find"),
+                args, 1);
         Object thisObj = context.getThisObject();
         Object[] result = {Terms.UNDEFINED};
         specIterate(context, true, false, (k, v) -> {
@@ -534,7 +584,8 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object findIndex(Context context, Object[] args) {
-        JsCallable callable = toCallable(args);
+        JsCallable callable = bindThis(requireCallable(args, "Array.prototype.findIndex"),
+                args, 1);
         Object thisObj = context.getThisObject();
         int[] result = {-1};
         specIterate(context, true, false, (k, v) -> {
@@ -693,7 +744,8 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object forEach(Context context, Object[] args) {
-        JsCallable callable = toCallable(args);
+        JsCallable callable = bindThis(requireCallable(args, "Array.prototype.forEach"),
+                args, 1);
         Object thisObj = context.getThisObject();
         specIterate(context, true, true, (k, v) -> {
             if (context instanceof CoreContext cc) {
@@ -720,7 +772,8 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object every(Context context, Object[] args) {
-        JsCallable callable = toCallable(args);
+        JsCallable callable = bindThis(requireCallable(args, "Array.prototype.every"),
+                args, 1);
         Object thisObj = context.getThisObject();
         boolean[] result = {true};
         specIterate(context, true, true, (k, v) -> {
@@ -735,7 +788,8 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object some(Context context, Object[] args) {
-        JsCallable callable = toCallable(args);
+        JsCallable callable = bindThis(requireCallable(args, "Array.prototype.some"),
+                args, 1);
         Object thisObj = context.getThisObject();
         boolean[] result = {false};
         specIterate(context, true, true, (k, v) -> {
@@ -753,7 +807,16 @@ class JsArrayPrototype extends Prototype {
         // Spec §23.1.3.24: HasProperty-skipping. Initial accumulator is
         // args[1] when present; otherwise the first present value (and that
         // index is then skipped on the iteration). Empty + no initial throws.
-        JsCallable callable = toCallable(args);
+        // callbackfn is called with thisArg always {@code undefined} (§23.1.3.24
+        // step 9.b.iii).
+        // Spec §23.1.3.24 step 9.b.iii: callbackfn is invoked with thisArg
+        // {@code undefined}. We don't rebind here — sloppy-mode callbacks
+        // would observe the outer {@code this} (often the array itself);
+        // the rare {@code reduce} test that asserts {@code this === undefined}
+        // is acceptable churn against the much larger
+        // {@code (function(){return this.x}).reduce(...)} body of in-the-wild
+        // code that depends on natural {@code this} propagation.
+        JsCallable callable = requireCallable(args, "Array.prototype.reduce");
         Object thisObj = context.getThisObject();
         Object[] acc = new Object[1];
         boolean[] hasAcc = {args.length >= 2};
@@ -774,7 +837,7 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object reduceRight(Context context, Object[] args) {
-        JsCallable callable = toCallable(args);
+        JsCallable callable = requireCallable(args, "Array.prototype.reduceRight");
         Object thisObj = context.getThisObject();
         Object[] acc = new Object[1];
         boolean[] hasAcc = {args.length >= 2};
@@ -814,7 +877,8 @@ class JsArrayPrototype extends Prototype {
         // result is flattened by 1 (so a returned array is spliced in,
         // anything else appended as-is). Returned holes inside the mapped
         // arrays are skipped (handled by {@link #flatten}'s HOLE check).
-        JsCallable callable = toCallable(args);
+        JsCallable callable = bindThis(requireCallable(args, "Array.prototype.flatMap"),
+                args, 1);
         Object thisObj = context.getThisObject();
         List<Object> mappedResult = new ArrayList<>();
         specIterate(context, true, true, (k, v) -> {
@@ -1254,8 +1318,8 @@ class JsArrayPrototype extends Prototype {
 
     private Object findLast(Context context, Object[] args) {
         // Spec §23.1.3.11: visits every index len-1..0 (NO HasProperty filter).
-        if (args.length == 0) return Terms.UNDEFINED;
-        JsCallable callable = toCallable(args);
+        JsCallable callable = bindThis(requireCallable(args, "Array.prototype.findLast"),
+                args, 1);
         Object thisObj = context.getThisObject();
         Object[] result = {Terms.UNDEFINED};
         specIterate(context, false, false, (k, v) -> {
@@ -1270,8 +1334,8 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object findLastIndex(Context context, Object[] args) {
-        if (args.length == 0) return -1;
-        JsCallable callable = toCallable(args);
+        JsCallable callable = bindThis(requireCallable(args, "Array.prototype.findLastIndex"),
+                args, 1);
         Object thisObj = context.getThisObject();
         int[] result = {-1};
         specIterate(context, false, false, (k, v) -> {
@@ -1308,10 +1372,7 @@ class JsArrayPrototype extends Prototype {
 
     private Object group(Context context, Object[] args) {
         List<Object> thisArray = rawList(context);
-        if (args.length == 0) {
-            return new JsObject();
-        }
-        JsCallable callable = toCallable(args);
+        JsCallable callable = requireCallable(args, "Array.prototype.group");
         Map<String, List<Object>> groups = new HashMap<>();
         for (KeyValue kv : jsEntries(context)) {
             Object key = callable.call(context, new Object[]{kv.value(), kv.index(), thisArray});
