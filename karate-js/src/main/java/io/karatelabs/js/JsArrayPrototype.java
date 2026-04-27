@@ -517,7 +517,7 @@ class JsArrayPrototype extends Prototype {
             results.set(k, r);
             return true;
         });
-        return results;
+        return new JsArray(results);
     }
 
     private Object filter(Context context, Object[] args) {
@@ -530,7 +530,7 @@ class JsArrayPrototype extends Prototype {
             if (Terms.isTruthy(r)) results.add(v);
             return true;
         });
-        return results;
+        return new JsArray(results);
     }
 
     private Object join(Context context, Object[] args) {
@@ -740,7 +740,7 @@ class JsArrayPrototype extends Prototype {
         for (int i = start; i < end; i++) {
             result.add(thisArray.get(i));
         }
-        return result;
+        return new JsArray(result);
     }
 
     private Object forEach(Context context, Object[] args) {
@@ -768,7 +768,7 @@ class JsArrayPrototype extends Prototype {
                 result.add(arg);
             }
         }
-        return result;
+        return new JsArray(result);
     }
 
     private Object every(Context context, Object[] args) {
@@ -868,7 +868,7 @@ class JsArrayPrototype extends Prototype {
         }
         List<Object> result = new ArrayList<>();
         flatten(thisArray, result, depth);
-        return result;
+        return new JsArray(result);
     }
 
     @SuppressWarnings("unchecked")
@@ -893,7 +893,7 @@ class JsArrayPrototype extends Prototype {
             }
             return true;
         });
-        return mappedResult;
+        return new JsArray(mappedResult);
     }
 
     private Object sort(Context context, Object[] args) {
@@ -1003,7 +1003,6 @@ class JsArrayPrototype extends Prototype {
         // — the previous snapshot-and-replace path didn't write back.
         CoreContext cc = context instanceof CoreContext cx ? cx : null;
         ObjectLike target = toReceiver(context.getThisObject());
-        if (target == null) return new ArrayList<>();
         int len = lengthOf(target, cc);
         if (cc != null && cc.isError()) return Terms.UNDEFINED;
         int actualStart;
@@ -1063,7 +1062,7 @@ class JsArrayPrototype extends Prototype {
             specSet(target, String.valueOf(actualStart + k), args[k + 2], cc);
         }
         setLength(target, len - actualDeleteCount + itemCount, cc);
-        return removed;
+        return new JsArray(removed);
     }
 
     private Object shift(Context context, Object[] args) {
@@ -1353,21 +1352,21 @@ class JsArrayPrototype extends Prototype {
         List<Object> thisArray = rawList(context);
         int size = thisArray.size();
         if (size == 0 || args.length < 2) {
-            return thisArray;
+            return new JsArray(new ArrayList<>(thisArray));
         }
         int index = Terms.objectToNumber(args[0]).intValue();
         if (index < 0) {
             index = size + index;
         }
         if (index < 0 || index >= size) {
-            return thisArray; // If index is out of bounds, return a copy of the array
+            return new JsArray(new ArrayList<>(thisArray));
         }
         Object value = args[1];
         // Create a copy of the original array
         List<Object> result = new ArrayList<>(thisArray);
         // Replace the value at the specified index
         result.set(index, value);
-        return result;
+        return new JsArray(result);
     }
 
     private Object group(Context context, Object[] args) {

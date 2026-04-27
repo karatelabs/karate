@@ -57,7 +57,10 @@ class JsArrayTest extends EvalBase {
 
     @Test
     void testArraySparse() {
-        matchEval("[,]", "[null]");
+        // `[,]` is a sparse array with one HOLE; spec reads the absent slot as
+        // `undefined`. NodeUtils.match now compares against the raw element
+        // value (was previously seeing `null` via the auto-unwrap on List.get).
+        matchEval("[,]", "[undefined]");
     }
 
     @Test
@@ -298,7 +301,8 @@ class JsArrayTest extends EvalBase {
     @Test
     void testArrayConstructor() {
         match(eval("new Array(1, 2, 3)"), "[1, 2, 3]");
-        match(eval("new Array(3)"), "[null, null, null]");
+        // new Array(n) produces n HOLE slots; spec reads each as undefined.
+        match(eval("new Array(3)"), "[undefined, undefined, undefined]");
     }
 
     @Test

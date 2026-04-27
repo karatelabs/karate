@@ -80,11 +80,12 @@ class JsObjectTest extends EvalBase {
 
     @Test
     void testArraySingleNumericArgument() {
-        // Array(n) and new Array(n) create array with n empty slots
+        // Array(n) and new Array(n) create array with n empty slots — spec
+        // reads each absent slot as undefined.
         assertEquals(3, eval("new Array(3).length"));
         assertEquals(3, eval("Array(3).length"));
-        matchEval("new Array(3)", "[null, null, null]");
-        matchEval("Array(3)", "[null, null, null]");
+        matchEval("new Array(3)", "[undefined, undefined, undefined]");
+        matchEval("Array(3)", "[undefined, undefined, undefined]");
     }
 
     @Test

@@ -473,13 +473,14 @@ class JsJavaInteropTest {
     void testArrayMapReturningUndefined() {
         // map() callback explicitly returns undefined
         Engine engine = new Engine();
-        List<Object> list = (List<Object>) engine.eval(
+        JsArray list = (JsArray) engine.eval(
                 "[1, 2, 3].map(function(x) { return undefined; })");
 
         assertEquals(3, list.size());
-        assertSame(Terms.UNDEFINED, list.get(0), "map returning undefined should preserve raw undefined");
-        assertSame(Terms.UNDEFINED, list.get(1));
-        assertSame(Terms.UNDEFINED, list.get(2));
+        // getElement() returns raw values; List.get() auto-unwraps Terms.UNDEFINED to null.
+        assertSame(Terms.UNDEFINED, list.getElement(0), "map returning undefined should preserve raw undefined");
+        assertSame(Terms.UNDEFINED, list.getElement(1));
+        assertSame(Terms.UNDEFINED, list.getElement(2));
     }
 
     @Test
@@ -502,13 +503,13 @@ class JsJavaInteropTest {
     void testArrayMapOnUndefinedElements() {
         // map() over array containing undefined - callback receives undefined
         Engine engine = new Engine();
-        List<Object> list = (List<Object>) engine.eval(
+        JsArray list = (JsArray) engine.eval(
                 "[1, undefined, 3].map(function(x) { return x; })");
 
         assertEquals(3, list.size());
-        assertEquals(1, list.get(0));
-        assertSame(Terms.UNDEFINED, list.get(1), "undefined element passed through map should stay undefined");
-        assertEquals(3, list.get(2));
+        assertEquals(1, list.getElement(0));
+        assertSame(Terms.UNDEFINED, list.getElement(1), "undefined element passed through map should stay undefined");
+        assertEquals(3, list.getElement(2));
     }
 
     @Test
@@ -544,14 +545,14 @@ class JsJavaInteropTest {
     void testArrayFlatMapWithUndefined() {
         // flatMap() returning arrays with undefined
         Engine engine = new Engine();
-        List<Object> list = (List<Object>) engine.eval(
+        JsArray list = (JsArray) engine.eval(
                 "[1, 2].flatMap(function(x) { return [x, undefined]; })");
 
         assertEquals(4, list.size());
-        assertEquals(1, list.get(0));
-        assertSame(Terms.UNDEFINED, list.get(1), "undefined in flatMap result should be preserved");
-        assertEquals(2, list.get(2));
-        assertSame(Terms.UNDEFINED, list.get(3));
+        assertEquals(1, list.getElement(0));
+        assertSame(Terms.UNDEFINED, list.getElement(1), "undefined in flatMap result should be preserved");
+        assertEquals(2, list.getElement(2));
+        assertSame(Terms.UNDEFINED, list.getElement(3));
     }
 
     @Test
@@ -618,13 +619,13 @@ class JsJavaInteropTest {
     void testArrayConcatWithUndefined() {
         // concat() preserves undefined
         Engine engine = new Engine();
-        List<Object> list = (List<Object>) engine.eval(
+        JsArray list = (JsArray) engine.eval(
                 "[undefined].concat([1, undefined])");
 
         assertEquals(3, list.size());
-        assertSame(Terms.UNDEFINED, list.get(0));
-        assertEquals(1, list.get(1));
-        assertSame(Terms.UNDEFINED, list.get(2));
+        assertSame(Terms.UNDEFINED, list.getElement(0));
+        assertEquals(1, list.getElement(1));
+        assertSame(Terms.UNDEFINED, list.getElement(2));
     }
 
     // =================================================================================================================
@@ -678,37 +679,37 @@ class JsJavaInteropTest {
     void testArrayMapWithCallOnPrototype() {
         // Array.prototype.map.call() on array-like object
         Engine engine = new Engine();
-        List<Object> list = (List<Object>) engine.eval(
+        JsArray list = (JsArray) engine.eval(
                 "[].map.call([1, undefined, 3], function(x) { return x; })");
 
         assertEquals(3, list.size());
-        assertEquals(1, list.get(0));
-        assertSame(Terms.UNDEFINED, list.get(1), "undefined preserved through map.call");
-        assertEquals(3, list.get(2));
+        assertEquals(1, list.getElement(0));
+        assertSame(Terms.UNDEFINED, list.getElement(1), "undefined preserved through map.call");
+        assertEquals(3, list.getElement(2));
     }
 
     @Test
     void testArraySliceWithUndefined() {
         // slice() preserves undefined elements
         Engine engine = new Engine();
-        List<Object> list = (List<Object>) engine.eval(
+        JsArray list = (JsArray) engine.eval(
                 "[1, undefined, 3, undefined, 5].slice(1, 4)");
 
         assertEquals(3, list.size());
-        assertSame(Terms.UNDEFINED, list.get(0));
-        assertEquals(3, list.get(1));
-        assertSame(Terms.UNDEFINED, list.get(2));
+        assertSame(Terms.UNDEFINED, list.getElement(0));
+        assertEquals(3, list.getElement(1));
+        assertSame(Terms.UNDEFINED, list.getElement(2));
     }
 
     @Test
     void testArraySpliceReturnsUndefined() {
         // splice() return value contains undefined
         Engine engine = new Engine();
-        List<Object> removed = (List<Object>) engine.eval(
+        JsArray removed = (JsArray) engine.eval(
                 "var arr = [1, undefined, 3]; arr.splice(1, 1)");
 
         assertEquals(1, removed.size());
-        assertSame(Terms.UNDEFINED, removed.get(0), "splice should return raw undefined");
+        assertSame(Terms.UNDEFINED, removed.getElement(0), "splice should return raw undefined");
     }
 
     // =================================================================================================================
@@ -776,14 +777,14 @@ class JsJavaInteropTest {
     void testArrayMapProducingWrappers() {
         // map() producing wrapper objects
         Engine engine = new Engine();
-        List<Object> list = (List<Object>) engine.eval(
+        JsArray list = (JsArray) engine.eval(
                 "[1, 2, 3].map(function(x) { return new Date(x * 1000); })");
 
         assertEquals(3, list.size());
         // Each element should be a JsDate (raw, not converted to java.util.Date)
-        assertInstanceOf(JsDate.class, list.get(0));
-        assertInstanceOf(JsDate.class, list.get(1));
-        assertInstanceOf(JsDate.class, list.get(2));
+        assertInstanceOf(JsDate.class, list.getElement(0));
+        assertInstanceOf(JsDate.class, list.getElement(1));
+        assertInstanceOf(JsDate.class, list.getElement(2));
     }
 
     @Test
@@ -850,11 +851,11 @@ class JsJavaInteropTest {
     void testArrayConcatWithWrappers() {
         // concat() with wrapper types
         Engine engine = new Engine();
-        List<Object> list = (List<Object>) engine.eval(
+        JsArray list = (JsArray) engine.eval(
                 "[new Date(0)].concat([new Boolean(true), new Number(42)])");
 
         assertEquals(3, list.size());
-        assertInstanceOf(JsDate.class, list.get(0));
+        assertInstanceOf(JsDate.class, list.getElement(0));
     }
 
     @Test
@@ -878,12 +879,12 @@ class JsJavaInteropTest {
     void testFilterWithWrappers() {
         // filter() preserving wrapper types
         Engine engine = new Engine();
-        List<Object> list = (List<Object>) engine.eval(
+        JsArray list = (JsArray) engine.eval(
                 "[new Date(0), null, new Date(1000), undefined].filter(function(x) { return x instanceof Date; })");
 
         assertEquals(2, list.size());
-        assertInstanceOf(JsDate.class, list.get(0));
-        assertInstanceOf(JsDate.class, list.get(1));
+        assertInstanceOf(JsDate.class, list.getElement(0));
+        assertInstanceOf(JsDate.class, list.getElement(1));
     }
 
     @Test

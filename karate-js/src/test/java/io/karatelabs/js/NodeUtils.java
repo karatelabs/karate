@@ -41,8 +41,11 @@ public class NodeUtils {
                         Assertions.fail("List size mismatch: " + actList.size() + " - " + expList.size());
                     }
                     int count = expList.size();
+                    // Use getElement on JsArray so Terms.UNDEFINED is preserved —
+                    // the List.get override unwraps to Java null for Java-interop
+                    // ergonomics, but harness comparisons want raw JS values.
                     for (int i = 0; i < count; i++) {
-                        Object actItem = actList.get(i);
+                        Object actItem = actual instanceof JsArray ja ? ja.getElement(i) : actList.get(i);
                         Object expItem = expList.get(i);
                         boolean result = isEqualTo(actItem, expItem);
                         if (!result) {
