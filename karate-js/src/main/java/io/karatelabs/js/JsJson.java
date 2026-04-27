@@ -31,19 +31,27 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class JsJson implements SimpleObject {
+/**
+ * The {@code JSON} global — allocated per-Engine via
+ * {@code ContextRoot.initGlobal}. {@code stringify} and {@code parse} are
+ * installed at construction time as own properties with the standard
+ * built-in attributes ({@code WRITABLE | CONFIGURABLE}, non-enumerable),
+ * so user code can read / overwrite them and {@code defineProperties}
+ * walks them via the spec [[OwnPropertyKeys]] surface (slice JSON keys
+ * via {@code Object.defineProperties(target, JSON)} where the test setup
+ * stores arbitrary user keys on the JSON global).
+ */
+public class JsJson extends JsObject {
 
-    @Override
-    public Object jsGet(String name) {
-        return switch (name) {
-            case "stringify" -> stringify();
-            case "parse" -> parse();
-            default -> throw JsErrorException.typeError("no such api on JSON: " + name);
-        };
+    private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
+
+    public JsJson() {
+        defineOwn("stringify", new JsBuiltinMethod("stringify", 3, stringify()), METHOD_ATTRS);
+        defineOwn("parse", new JsBuiltinMethod("parse", 2, parse()), METHOD_ATTRS);
     }
 
     @SuppressWarnings("unchecked")
-    JsInvokable stringify() {
+    private static JsInvokable stringify() {
         return args -> {
             Object value = args[0];
             Object replacer = args.length > 1 ? args[1] : null;
@@ -121,7 +129,7 @@ public class JsJson implements SimpleObject {
     }
 
     @SuppressWarnings("unchecked")
-    private Object applyReplacerFunction(JsCallable replacerFunc, String key, Object value) {
+    private static Object applyReplacerFunction(JsCallable replacerFunc, String key, Object value) {
         // First, call the replacer function for this key-value pair
         Object transformed;
         try {
@@ -161,7 +169,7 @@ public class JsJson implements SimpleObject {
         return transformed;
     }
 
-    JsInvokable parse() {
+    private static JsInvokable parse() {
         return args -> JSONValue.parseKeepingOrder((String) args[0]);
     }
 

@@ -243,7 +243,7 @@ class JsObjectConstructor extends JsFunction {
         if (args.length < 2) {
             return false;
         }
-        return Terms.eq(args[0], args[1], true);
+        return Terms.sameValue(args[0], args[1]);
     }
 
     private Object create(Context context, Object[] args) {
@@ -405,19 +405,19 @@ class JsObjectConstructor extends JsFunction {
             throw JsErrorException.typeError("Property descriptor must be an object");
         }
         CoreContext cc = context instanceof CoreContext c ? c : null;
-        // Spec ToPropertyDescriptor reads each field via [[Get]] — for an
-        // ObjectLike descriptor, that resolves accessor entries (e.g.
-        // {get enumerable(){return true}}). The toMap snapshot above
-        // surfaces accessor slots as null; presence-checks via containsKey
-        // remain valid. Read field values via {@link #descRead}, which
-        // routes through the receiver-aware getMember when the descriptor
-        // is an ObjectLike.
-        boolean hasGet = descMap.containsKey("get");
-        boolean hasSet = descMap.containsKey("set");
-        boolean hasValue = descMap.containsKey("value");
-        boolean hasWritable = descMap.containsKey("writable");
-        boolean hasEnumerable = descMap.containsKey("enumerable");
-        boolean hasConfigurable = descMap.containsKey("configurable");
+        // Spec ToPropertyDescriptor (§6.2.5.5) checks each field via spec
+        // HasProperty, which chain-walks the descriptor's prototype, then
+        // reads the value via [[Get]]. For ObjectLike descriptors,
+        // {@link #descHas} walks the prototype chain so a descriptor like
+        // {@code Object.create({writable: true})} is recognised as having
+        // a {@code writable} field. Raw Java Maps have no proto — fall
+        // back to {@code containsKey}.
+        boolean hasGet = descHas(descObj, descMap, "get");
+        boolean hasSet = descHas(descObj, descMap, "set");
+        boolean hasValue = descHas(descObj, descMap, "value");
+        boolean hasWritable = descHas(descObj, descMap, "writable");
+        boolean hasEnumerable = descHas(descObj, descMap, "enumerable");
+        boolean hasConfigurable = descHas(descObj, descMap, "configurable");
         boolean isAccessor = hasGet || hasSet;
         boolean isData = hasValue || hasWritable;
         if (isAccessor && isData) {
@@ -526,10 +526,12 @@ class JsObjectConstructor extends JsFunction {
                 if (!oldWritable && newWritable) {
                     throw JsErrorException.typeError("Cannot redefine property: " + prop);
                 }
-                // If !writable, value cannot change.
+                // If !writable, value cannot change. Spec uses SameValue —
+                // {@code +0} and {@code -0} are *not* the same value here,
+                // even though they are {@code ===}-equal.
                 if (!oldWritable && hasValue) {
                     Object newValue = isArrayLength ? coercedLength : descRead(descObj, descMap, "value", cc);
-                    if (!Terms.eq(existing, newValue, true)) {
+                    if (!Terms.sameValue(existing, newValue)) {
                         throw JsErrorException.typeError("Cannot redefine property: " + prop);
                     }
                 }
@@ -588,6 +590,21 @@ class JsObjectConstructor extends JsFunction {
         return descMap.get(name);
     }
 
+    /** Spec {@code HasProperty} on the descriptor (§6.2.5.5 step 2 etc.).
+     *  Walks the prototype chain via {@link ObjectLike#getPrototype()} so
+     *  descriptors built via {@code Object.create(parentDesc)} or class
+     *  inheritance see fields installed on the parent. Raw Java Maps have
+     *  no proto — own-key {@code containsKey} is authoritative. */
+    private static boolean descHas(ObjectLike descObj, Map<String, Object> descMap, String name) {
+        if (descObj != null) {
+            for (ObjectLike o = descObj; o != null; o = o.getPrototype()) {
+                if (o.isOwnProperty(name)) return true;
+            }
+            return false;
+        }
+        return descMap.containsKey(name);
+    }
+
     private static void applyDefine(Object target, String key, Object value, byte attrs) {
         if (target instanceof JsObject jo) {
             jo.defineOwn(key, value, attrs);
@@ -626,13 +643,19 @@ class JsObjectConstructor extends JsFunction {
             throw JsErrorException.typeError("Object.defineProperties called on non-object");
         }
         Object source = args.length < 2 ? null : args[1];
-        if (source == null || source == Terms.UNDEFINED
-                || !(source instanceof ObjectLike || source instanceof Map)) {
-            // Spec ToObject would coerce a primitive (e.g. "hello") into a String
-            // wrapper here. We don't model the wrapper coercion at this seam yet —
-            // throwing TypeError matches the spec outcome for primitive sources
-            // and avoids silently iterating nothing.
+        if (source == null || source == Terms.UNDEFINED) {
             throw JsErrorException.typeError("Cannot convert undefined or null to object");
+        }
+        // Spec ToObject(primitive) yields a wrapper. Boolean / number / empty
+        // string wrappers have no enumerable own keys, so the loop iterates
+        // nothing and returns the target — {@code ownKeys} below returns an
+        // empty set for those. A non-empty string wrapper exposes indexed
+        // characters as own properties; reading the first character and
+        // running ToPropertyDescriptor on it lands on TypeError ("Property
+        // descriptor must be an object"). Short-circuit that here rather
+        // than wiring full wrapper iteration.
+        if (source instanceof String s && !s.isEmpty()) {
+            throw JsErrorException.typeError("Property descriptor must be an object");
         }
         // Spec §20.1.2.3 walks enumerable own keys via [[OwnPropertyKeys]] +
         // [[GetOwnProperty]], reading each descriptor via [[Get]] so accessor

@@ -279,6 +279,27 @@ public class Terms {
         return null;
     }
 
+    /**
+     * Spec {@code SameValue} (§7.2.10) — like {@code ===} except
+     * {@code SameValue(NaN, NaN) === true} and
+     * {@code SameValue(+0, -0) === false}. Used by descriptor-redefinition
+     * checks ({@code [[DefineOwnProperty]]} on a non-configurable
+     * non-writable data property must SameValue-match the existing value
+     * to avoid TypeError) and by {@code Object.is}.
+     */
+    public static boolean sameValue(Object lhs, Object rhs) {
+        if (lhs instanceof Number ln && rhs instanceof Number rn
+                && !(lhs instanceof BigInteger) && !(rhs instanceof BigInteger)) {
+            double a = ln.doubleValue();
+            double b = rn.doubleValue();
+            if (Double.isNaN(a) && Double.isNaN(b)) return true;
+            // +0 / -0 distinguished via raw bit pattern.
+            if (a == 0 && b == 0) return Double.doubleToRawLongBits(a) == Double.doubleToRawLongBits(b);
+            return a == b;
+        }
+        return eq(lhs, rhs, true);
+    }
+
     static boolean eq(Object lhs, Object rhs, boolean strict) {
         if (lhs == null) {
             return rhs == null || !strict && rhs == UNDEFINED;
@@ -955,12 +976,31 @@ public class Terms {
         if (Double.isNaN(d)) return "NaN";
         if (d == 0) return "0";
         if (Double.isInfinite(d)) return d > 0 ? "Infinity" : "-Infinity";
-        // Integer-valued double in long range: format without trailing ".0".
-        if (d == Math.floor(d) && Math.abs(d) < 1e21) {
-            long l = (long) d;
-            if ((double) l == d) return Long.toString(l);
+        double abs = Math.abs(d);
+        // Plain decimal range per spec Number::toString (§6.1.6.1.13):
+        // 1e-6 <= |d| < 1e21 emits without exponential notation.
+        if (abs < 1e21 && abs >= 1e-6) {
+            if (d == Math.floor(d)) {
+                // Integer-valued: drop fractional part. Long fits up to 2^63;
+                // BigDecimal handles the [2^63, 1e21) tail (where (long) d
+                // saturates and Double.toString switches to "1.0E20").
+                long l = (long) d;
+                if ((double) l == d) return Long.toString(l);
+                return java.math.BigDecimal.valueOf(d).toBigInteger().toString();
+            }
+            return java.math.BigDecimal.valueOf(d).toPlainString();
         }
-        return Double.toString(d);
+        // Exponential range: ES form is <mantissa>e<sign><exp>. Java's
+        // Double.toString uses 'E', no '+' sign, and a trailing ".0" on
+        // integer-valued mantissas — reshape to spec form.
+        String s = Double.toString(d);
+        int eIdx = s.indexOf('E');
+        if (eIdx < 0) return s;
+        String mantissa = s.substring(0, eIdx);
+        String exp = s.substring(eIdx + 1);
+        if (mantissa.endsWith(".0")) mantissa = mantissa.substring(0, mantissa.length() - 2);
+        if (exp.charAt(0) != '+' && exp.charAt(0) != '-') exp = "+" + exp;
+        return mantissa + "e" + exp;
     }
 
     public static String toStringCoerce(Object o, CoreContext context) {
