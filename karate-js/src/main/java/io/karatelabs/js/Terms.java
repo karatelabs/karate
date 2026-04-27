@@ -850,15 +850,11 @@ public class Terms {
         if (rhs instanceof JsArray && lhs instanceof JsArray) {
             return true;
         }
-        // Error hierarchy: all NativeError types (TypeError, RangeError, ...) share the
-        // JsError Java class but differ by .name. Compare names, with "Error" as the
-        // implicit base class so `new RangeError() instanceof Error` is true.
-        if (lhs instanceof JsError lhsErr && rhs instanceof JsError rhsErr) {
-            String rhsName = rhsErr.getName();
-            return "Error".equals(rhsName) || rhsName.equals(lhsErr.getName());
-        }
-        // For other built-in types that implement JsCallable (JsRegex, JsDate, etc.)
-        // Check if lhs is the same type as rhs constructor
+        // For built-in types that implement JsCallable but aren't JsFunction
+        // (JsRegex, JsDate — registered globals that double as instances).
+        // Same-class comparison covers `new RegExp() instanceof RegExp` etc.
+        // Error types no longer hit this — JsErrorConstructor IS a JsFunction
+        // and instances walk the prototype chain at the bottom of this method.
         if (rhs instanceof JsCallable && !(rhs instanceof JsFunction)) {
             if (lhs != null && lhs.getClass().equals(rhs.getClass())) {
                 return true;

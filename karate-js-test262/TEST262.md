@@ -100,7 +100,7 @@ Math/Number/Date/String are independent of Symbol.
 | 2 | `test/built-ins/Date/**` | `Date.parse` ISO format edges, UTC vs local hour math, invalid-date propagation. See [JS_ENGINE.md § Date](../docs/JS_ENGINE.md#date). |
 | 3 | `test/built-ins/String/**` | `padStart`/`padEnd`, `trimStart`/`trimEnd`, `normalize`, `repeat`, `raw`, `fromCodePoint`; non-`@@`-protocol regex methods. High real-world signal. |
 | 4 | `test/built-ins/RegExp/**` | Constructor + `.source` / `.flags` / `.lastIndex`; `exec` / `test` semantics; flag validation; non-Symbol `String.prototype.{match, replace, search, split}` integration. Depends on String. |
-| 5 | `test/built-ins/Object/**` | Descriptor pipeline now spec-shape (2026-04-27, +168 PASS — 2762/3411). Remaining: `defineProperty` TypeError edges, `prototype` for-in semantics on accessor-descriptor indices, `seal` (TypedArray-feature-gated), `groupBy` (ES2024), Symbol-gated tail. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
+| 5 | `test/built-ins/Object/**` | 2026-04-27: 2785/3411 (+191 cumulative — descriptor pipeline + Error.prototype now real, lifting the `defineProperty` cluster that wrote through `Error.prototype.X = Y`). Remaining: `defineProperty` TypeError edges, `prototype` for-in semantics on accessor-descriptor indices, `seal` (TypedArray-feature-gated), `groupBy` (ES2024), Symbol-gated tail. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
 | 6 | `test/built-ins/Array/**` | 2026-04-27: 2257/3081 (+328 cumulative — iteration spec-shape, `JsArray` result allocation, ES2023 immutables). Remaining: `splice`/`concat` `Symbol.species` residuals (slice #7), parser-blocked async/generator paths, harness-feature-gated (Int8Array). See [JS_ENGINE.md § Prototype machinery](../docs/JS_ENGINE.md#prototype-machinery). |
 | 7 | `test/built-ins/Symbol/**` + cascades | Full Symbol primitive: `typeof === "symbol"`, unique identity, `Symbol.for`/`keyFor`/`description`, `Object.getOwnPropertySymbols`, `Reflect.ownKeys`. Touches `Terms.typeOf` / `eq` / coercion; `PropertyKey` abstraction across `JsObject.props` / `isOwnProperty`. 2–4 sessions. Unblocks the Array/String/RegExp Symbol-gated tail. |
 
@@ -181,23 +181,6 @@ and the per-section anchors.
 
 - **`PropertyKey` abstraction.** Symbol prep. Defer to slice #7 itself —
   introducing `PropertyKey` ahead of a concrete consumer is YAGNI.
-
-- **`JsErrorPrototype` for the `toString` shadow.** `JsError` instances
-  inherit from `JsObjectPrototype` directly; the spec-mandated
-  `Error.prototype.toString` shadow is implemented via a `getMember`
-  override. Build a real `JsErrorPrototype` (per `JsArrayPrototype` /
-  `JsStringPrototype` pattern). ~1 h. See
-  [JS_ENGINE.md § Prototype System Architecture](../docs/JS_ENGINE.md#prototype-system-architecture).
-
-- **`JsErrorConstructor` refactor (cross-cutting).** Each error type
-  (`Error` / `TypeError` / `RangeError` / `SyntaxError` / `URIError` /
-  `EvalError` / `ReferenceError`) is currently a `JsError` instance with
-  `constructor == null` as the constructor-vs-thrown-instance marker.
-  Spec shape: each is a dedicated `JsFunction` subclass (singleton)
-  exposing `prototype` as own intrinsic. Pair with `JsErrorPrototype`
-  TODO above. Unblocks ~6 `Object/defineProperty` test262 fails using
-  `Error.prototype.X = Y`, plus the `JsCallable && !JsFunction` hack in
-  `Terms.eq` line ~801. ~2–4 h.
 
 - **`Terms.toPropertyKey` rollout to remaining sites.** Helper landed for
   the Object slice and the integer-string formatter for `[1e16, 1e21)` /

@@ -24,164 +24,68 @@
 package io.karatelabs.js;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
- * JavaScript Error wrapper that provides Error prototype methods.
+ * JavaScript Error instance. Slim wrapper: {@code name} / {@code constructor}
+ * live on the bound {@link JsErrorPrototype}; {@code message} / {@code cause} /
+ * {@code errors} are installed as own data properties only when explicitly
+ * passed to the constructor (per spec §20.5.1.1 / §20.5.7.1).
+ * <p>
+ * The Java {@code cause} field is preserved separately so the host's
+ * {@link JsErrorException} can chain it through {@link Throwable#getCause()}
+ * for IDE-hyperlinkable stack traces — distinct from the JS-visible
+ * {@code .cause} own property (which carries whatever the user passed,
+ * possibly nothing).
  */
-class JsError extends JsObject implements JsCallable {
+class JsError extends JsObject {
 
-    private final String message;
-    private final String name;
-    private final Throwable cause;
-    // ref to the global constructor this instance was produced from
-    // (Error, TypeError, RangeError, ...) — null for the global instances themselves
-    private JsError constructor;
+    private final Throwable javaCause;
 
-    public JsError(String message) {
-        this(message, "Error", null);
+    JsError(JsErrorPrototype prototype) {
+        super(null, prototype);
+        this.javaCause = null;
     }
 
-    public JsError(String message, Throwable cause) {
-        this(message, "Error", cause);
+    JsError(JsErrorPrototype prototype, Throwable javaCause) {
+        super(null, prototype);
+        this.javaCause = javaCause;
     }
 
-    public JsError(String message, String name, Throwable cause) {
-        super(null, JsObjectPrototype.INSTANCE);
-        this.message = message;
-        this.name = name;
-        this.cause = cause;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    String getMessageString() {
-        return message;
-    }
-
-    JsError getConstructor() {
-        return constructor;
-    }
-
-    /**
-     * Wire the {@code .constructor} property so JS-side identity checks
-     * ({@code e.constructor === TypeError}, {@code thrown.constructor.name})
-     * match the registered global. Called at the JS-catch boundary for errors
-     * that originate outside {@link #call} (e.g., engine-thrown
-     * {@link JsErrorException}).
-     */
-    void setConstructor(JsError constructor) {
-        this.constructor = constructor;
-    }
-
-    public Throwable getCause() {
-        return cause;
-    }
-
-    @Override
-    boolean isJsFunction() {
-        // Registered globals (Error, TypeError, RangeError, ...) have
-        // constructor == null; thrown instances point their .constructor at
-        // the registered global. Only the former should report "function".
-        return constructor == null;
-    }
-
-    @Override
-    public boolean isConstructable() {
-        // Same rule as isJsFunction(): only the registered global instances
-        // are constructors; thrown instances are plain error objects.
-        return constructor == null;
-    }
-
-    @Override
-    protected Object resolveOwnIntrinsic(String key) {
-        return switch (key) {
-            case "message" -> message;
-            case "name" -> name;
-            case "constructor" -> constructor;
-            default -> null;
-        };
-    }
-
-    private static final List<String> INTRINSIC_NAMES = List.of("message", "name", "constructor");
-
-    @Override
-    protected Iterable<String> ownIntrinsicNames() {
-        return INTRINSIC_NAMES;
-    }
-
-    @Override
-    public Object getMember(String key) {
-        return shadowDefaultToString(key, super.getMember(key));
-    }
-
-    @Override
-    public Object getMember(String key, Object receiver, CoreContext ctx) {
-        return shadowDefaultToString(key, super.getMember(key, receiver, ctx));
-    }
-
-    /**
-     * Spec: {@code Error.prototype.toString} shadows
-     * {@code Object.prototype.toString}. Without a {@code JsErrorPrototype}
-     * intermediate (one's worth of refactor on its own), we detect the
-     * default at proto-chain resolution time and swap in our JS-flavored
-     * stringifier.
-     * <p>
-     * This is a deliberate proto-chain override, NOT an own intrinsic — it
-     * does not appear in {@code resolveOwnIntrinsic} (otherwise
-     * {@code e.hasOwnProperty('toString') === true}, which is wrong per spec
-     * — toString lives on the prototype). The override is what binary
-     * {@code +} / {@code Terms.toPrimitive} routes through, so masking it
-     * is observable beyond explicit {@code e.toString()} calls.
-     */
-    private Object shadowDefaultToString(String key, Object resolved) {
-        if ("toString".equals(key) && resolved == JsObjectPrototype.DEFAULT_TO_STRING) {
-            return (JsCallable) (c, args) -> toString();
-        }
-        return resolved;
-    }
-
-    @Override
-    public Map<String, Object> toMap() {
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("name", name);
-        result.put("message", message);
-        // include any user-set own properties last
-        Map<String, Object> own = super.toMap();
-        if (own != null) {
-            result.putAll(own);
-        }
-        return result;
+    Throwable getJavaCause() {
+        return javaCause;
     }
 
     @Override
     public String toString() {
-        // matches JS: '' + new Error('foo') === 'Error: foo'
-        if (message == null || message.isEmpty()) {
-            return name;
-        }
-        // Avoid doubling the name prefix when the message already carries it.
-        // Common when the engine has injected the "<Name>: " prefix at
-        // Interpreter.evalProgram, or when sta.js's Test262Error.prototype.toString
-        // has already been called on the receiver.
-        String prefix = name + ": ";
-        if (message.startsWith(prefix)) {
-            return message;
-        }
-        return prefix + message;
+        // Spec Error.prototype.toString shape — mirrored for Java/IntelliJ logging.
+        Object nameVal = getMember("name");
+        String name = (nameVal == null || nameVal == Terms.UNDEFINED) ? "Error" : nameVal.toString();
+        Object msgVal = getMember("message");
+        String msg = (msgVal == null || msgVal == Terms.UNDEFINED) ? "" : msgVal.toString();
+        if (msg.isEmpty()) return name;
+        return name + ": " + msg;
     }
 
     @Override
-    public Object call(Context context, Object[] args) {
-        // ES6: Error('foo') and new Error('foo') both return an Error instance.
-        // Preserve the constructor's name so subclasses (TypeError, etc.) carry it through.
-        String msg = (args.length > 0 && args[0] != null && args[0] != Terms.UNDEFINED) ? args[0] + "" : null;
-        JsError instance = new JsError(msg, this.name, null);
-        instance.constructor = this;
-        return instance;
+    public Map<String, Object> toMap() {
+        // Host inspection: surface the spec-visible identity (name from proto, message
+        // own when set) plus any user-added own properties.
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("name", getMember("name"));
+        Object msg = getMember("message");
+        if (msg != null && msg != Terms.UNDEFINED) {
+            result.put("message", msg);
+        }
+        Map<String, Object> own = super.toMap();
+        if (own != null && !own.isEmpty()) {
+            for (Map.Entry<String, Object> e : own.entrySet()) {
+                if (!result.containsKey(e.getKey())) {
+                    result.put(e.getKey(), e.getValue());
+                }
+            }
+        }
+        return result;
     }
 
 }

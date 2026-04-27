@@ -188,40 +188,38 @@ class EngineExceptionTest {
 
     @Test
     void testJsErrorExceptionFactoriesCarryStructuredPayload() {
-        // JsErrorException is the Java carrier engine code uses to throw JS errors.
-        // Each factory produces a JsError payload with the right .name, and the
-        // exception's own Java-side message uses the "<name>: <msg>" form.
+        // Each factory produces a JsError payload stamped with the right
+        // JsErrorPrototype; .name resolves through the prototype chain.
         JsErrorException type = JsErrorException.typeError("bad arg");
-        assertEquals("TypeError", type.payload.getName());
-        assertEquals("bad arg", type.payload.getMessageString());
+        assertEquals("TypeError", type.payload.getMember("name"));
+        assertEquals("bad arg", type.payload.getMember("message"));
         assertEquals("TypeError: bad arg", type.getMessage());
 
         JsErrorException ref = JsErrorException.referenceError("x is not defined");
-        assertEquals("ReferenceError", ref.payload.getName());
+        assertEquals("ReferenceError", ref.payload.getMember("name"));
 
         JsErrorException range = JsErrorException.rangeError("out of range");
-        assertEquals("RangeError", range.payload.getName());
+        assertEquals("RangeError", range.payload.getMember("name"));
 
         JsErrorException syntax = JsErrorException.syntaxError("bad token");
-        assertEquals("SyntaxError", syntax.payload.getName());
+        assertEquals("SyntaxError", syntax.payload.getMember("name"));
 
         JsErrorException generic = JsErrorException.error("oops");
-        assertEquals("Error", generic.payload.getName());
+        assertEquals("Error", generic.payload.getMember("name"));
     }
 
     @Test
-    void testJsErrorToStringDoesNotDoublePrefixWhenMessageStartsWithName() {
-        // Regression: JsError.toString must not produce "Error: Error: x" when
-        // the message already carries the "Error: " prefix. This happens both
-        // when the engine has injected the prefix at evalProgram, and when
-        // sta.js's Test262Error.prototype.toString has run on the receiver.
+    void testJsErrorToStringConcatenatesPerSpec() {
+        // Spec §20.5.3.4: Error.prototype.toString is "<name>: <message>"
+        // verbatim. No prefix dedup (the prior engine-side dedup was non-spec
+        // and dropped alongside the JsErrorPrototype refactor).
         Engine engine = new Engine();
         Object plain = engine.eval("'' + new Error('plain message')");
         assertEquals("Error: plain message", plain);
         Object preFixed = engine.eval("'' + new Error('Error: already prefixed')");
-        assertEquals("Error: already prefixed", preFixed);
+        assertEquals("Error: Error: already prefixed", preFixed);
         Object typeErr = engine.eval("'' + new TypeError('TypeError: x')");
-        assertEquals("TypeError: x", typeErr);
+        assertEquals("TypeError: TypeError: x", typeErr);
     }
 
     @Test

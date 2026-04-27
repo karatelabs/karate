@@ -1423,26 +1423,22 @@ class Interpreter {
                 throw (RuntimeException) e;
             }
             Token first = node.getFirstToken();
-            // Carry engine-origin JS error identity across the boundary so
-            // `EngineException.getJsErrorName()` works without re-parsing the message.
+            // Carry engine-origin JS error identity across the host boundary
+            // so EngineException.getJsErrorName() works without re-parsing the
+            // message. Non-JsErrorException Java throwables intentionally
+            // surface as-is (jsErrorName=null) — leaked Java exceptions are
+            // engine bugs, not JS errors, and the unwrapped message + Java
+            // cause chain preserves the IDE-hyperlinkable stack trace.
             String jsErrorName = null;
             String jsMessage = null;
             JsErrorException jex = findJsErrorException(e);
             if (jex != null) {
-                jsErrorName = jex.payload.getName();
-                jsMessage = jex.payload.getMessageString();
-            } else {
-                // Map raw Java exceptions to a JS error constructor name so host
-                // callers never see "IndexOutOfBoundsException" leak through. The
-                // message body stays the JVM text (still informative), but the
-                // structured jsErrorName + prefix make classification JS-native.
-                jsErrorName = classifyJavaException(e);
-                jsMessage = e.getMessage();
+                Object nameVal = jex.payload.getMember("name");
+                Object msgVal = jex.payload.getMember("message");
+                jsErrorName = nameVal == null ? null : nameVal.toString();
+                jsMessage = (msgVal == null || msgVal == Terms.UNDEFINED) ? null : msgVal.toString();
             }
             String body = e.getMessage();
-            if (jsErrorName != null && body != null && !body.startsWith(jsErrorName + ":")) {
-                body = jsErrorName + ": " + body;
-            }
             StringBuilder sb = new StringBuilder();
             sb.append("js failed:\n");
             sb.append("==========\n");
@@ -1520,30 +1516,14 @@ class Interpreter {
     }
 
     /**
-     * Map raw Java exceptions to the JS error constructor name callers should
-     * see. Walks the cause chain so wrapping (e.g. reflection's
-     * {@code InvocationTargetException}) doesn't hide the real origin. Returns
-     * {@code null} if nothing maps — callers then leave jsErrorName unset.
-     */
-    private static String classifyJavaException(Throwable t) {
-        Throwable cur = t;
-        while (cur != null) {
-            if (cur instanceof IndexOutOfBoundsException) return "RangeError";
-            if (cur instanceof ArithmeticException) return "RangeError";
-            if (cur instanceof NullPointerException) return "TypeError";
-            if (cur instanceof ClassCastException) return "TypeError";
-            if (cur instanceof NumberFormatException) return "TypeError";
-            Throwable next = cur.getCause();
-            if (next == null || next == cur) return null;
-            cur = next;
-        }
-        return null;
-    }
-
-    /**
      * Build the {@link JsError} that JS code observes in a {@code catch} clause.
-     * Prefers a structured {@link JsErrorException} payload from the cause chain;
-     * falls back to a generic {@code Error} built from the deepest cause's message.
+     * Prefers a structured {@link JsErrorException} payload from the cause
+     * chain; otherwise wraps the throwable as a generic {@code Error} via
+     * {@link JsErrorException#wrap(Throwable)} so the JS-visible value carries
+     * a real {@link JsErrorPrototype#ERROR} prototype (and thus an inheritable
+     * {@code .constructor}, spec-shape {@code instanceof Error}, etc.) while
+     * the original Java throwable is preserved as the cause for IDE
+     * stack-trace hyperlinks.
      */
     private static JsError buildCaughtError(Throwable e) {
         JsErrorException jex = findJsErrorException(e);
@@ -1552,26 +1532,7 @@ class Interpreter {
         while (cause instanceof EngineException && cause.getCause() != null) {
             cause = cause.getCause();
         }
-        String msg = cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName();
-        return new JsError(msg, cause);
-    }
-
-    /**
-     * Wire {@code errObj.constructor} to the registered global matching its
-     * {@code .name} (or {@code Error} as a fallback) so that JS-side identity
-     * checks — {@code e.constructor === TypeError}, {@code e.constructor.name} —
-     * behave the same whether the error was produced by a JS {@code throw} or by
-     * engine code.
-     */
-    private static void wireErrorConstructor(JsError errObj, CoreContext context) {
-        if (errObj.getConstructor() != null || errObj.getName() == null) return;
-        Object ctor = context.root.get(errObj.getName());
-        if (!(ctor instanceof JsError)) {
-            ctor = context.root.get("Error");
-        }
-        if (ctor instanceof JsError ctorErr) {
-            errObj.setConstructor(ctorErr);
-        }
+        return JsErrorException.wrap(cause).payload;
     }
 
     private static Object evalTryStmt(Node node, CoreContext context) {
@@ -1584,7 +1545,6 @@ class Interpreter {
                 throw e;
             }
             JsError errObj = buildCaughtError(e);
-            wireErrorConstructor(errObj, context);
             context.stopAndThrow(errObj);
             tryValue = null;
         }

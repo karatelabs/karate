@@ -167,7 +167,9 @@ Singleton Prototypes (shared JVM-wide; userProps reset per Engine):
     JsRegexPrototype.INSTANCE    ← JsObjectPrototype.INSTANCE
     JsMapPrototype.INSTANCE      ← JsObjectPrototype.INSTANCE
     JsSetPrototype.INSTANCE      ← JsObjectPrototype.INSTANCE
-    (JsError uses JsObjectPrototype directly)
+    JsErrorPrototype.ERROR       ← JsObjectPrototype.INSTANCE
+    JsErrorPrototype.{TYPE,RANGE,SYNTAX,REFERENCE,URI,EVAL,AGGREGATE}_ERROR
+                                 ← JsErrorPrototype.ERROR
 
 Constructor Functions (for static methods like Array.isArray, Date.UTC):
     JsObjectConstructor.INSTANCE   → prototype: JsObjectPrototype.INSTANCE
@@ -179,6 +181,9 @@ Constructor Functions (for static methods like Array.isArray, Date.UTC):
     JsFunctionConstructor.INSTANCE → prototype: JsFunctionPrototype.INSTANCE
     JsMapConstructor.INSTANCE      → prototype: JsMapPrototype.INSTANCE
     JsSetConstructor.INSTANCE      → prototype: JsSetPrototype.INSTANCE
+    JsErrorConstructor.{ERROR,TYPE_ERROR,RANGE_ERROR,SYNTAX_ERROR,
+        REFERENCE_ERROR,URI_ERROR,EVAL_ERROR,AGGREGATE_ERROR}
+                                   → prototype: matching JsErrorPrototype.*
     (JsBoolean has a prototype but no constructor wrapper class — the
      Boolean global is registered directly as a callable in ContextRoot.)
 ```
@@ -670,21 +675,50 @@ Guidance for host code:
 
 ### JsError shape
 
-`JsError` extends `JsObject` and exposes:
-- `name` — defaults to `"Error"`. `new TypeError('x')` sets it to `"TypeError"`.
-- `message` — original exception message (or `null` if none).
-- `toString()` — matches ES6: `"Error: <message>"`, or just `"Error"` when no message.
-- `getCause()` (Java-only) — the original `Throwable` for debugging. Not exposed to JS.
+Error and its native subclasses follow the standard constructor + prototype
+spec shape.
 
-Constructors `Error`, `TypeError` behave ES6-compliant:
+- **`JsErrorConstructor extends JsFunction`** — one parameterized singleton
+  per error type (`Error`, `TypeError`, `RangeError`, `SyntaxError`,
+  `ReferenceError`, `URIError`, `EvalError`, `AggregateError`). Each carries
+  its own `JsErrorPrototype` as the `prototype` own intrinsic
+  (non-writable, non-enumerable, non-configurable per spec). `length` is 1
+  (Error and friends) or 2 (AggregateError, signature
+  `(errors, message?, options?)`). Both `Error("x")` and `new Error("x")`
+  route through the same `call` and return a fresh `JsError`.
+- **`JsErrorPrototype extends Prototype`** — one singleton per error type,
+  chained `TypeError.prototype → Error.prototype → Object.prototype`.
+  Carries `name` (own data), `constructor` (lazy ref to the matching
+  `JsErrorConstructor`), and (only on `Error.prototype`) `message: ""` and
+  the spec `toString` method; subtype prototypes inherit those last two
+  through the chain.
+- **`JsError extends JsObject`** — slim instance class. `__proto__` is set
+  by the constructor; `name` reads through the prototype chain (no own
+  field). `message`, `cause` (ES2022), and `errors` (AggregateError) are
+  installed as own data properties only when the corresponding argument
+  was supplied — per spec, `new Error()` produces an instance with NO
+  own `message`. A separate Java-only `javaCause: Throwable` field carries
+  the underlying Java exception (when wrapping a Java throwable via
+  `JsErrorException.wrap`) so `JsErrorException.getCause()` can chain it
+  for IDE-hyperlinkable stack traces — distinct from the JS-visible
+  `.cause` own property.
+
+Spec behaviors:
 
 ```javascript
-new Error('boom').message             // 'boom'
-new Error('boom').name                // 'Error'
-Error('boom').message                 // 'boom' — without `new` also works
-new TypeError('bad').name             // 'TypeError' — constructor name is preserved
-'' + new Error('x')                   // 'Error: x'
+new Error('boom').message             // 'boom' — own data property
+new Error().hasOwnProperty('message') // false — message lives on the prototype
+new TypeError('x').name               // 'TypeError' — read from TypeError.prototype.name
+new Error('x', { cause: 42 }).cause   // 42 — own when options.cause is present
+new TypeError() instanceof Error      // true — proto-chain walk
+Error.prototype.constructor === Error // true — lazy ref resolved on first read
+'' + new Error('x')                   // 'Error: x' — Error.prototype.toString
 ```
+
+The `.constructor` is no longer wired post-hoc by the catch boundary — it
+flows naturally through the prototype chain. `Terms.instanceOf` no longer
+special-cases the JsError class; the proto-chain walk at the bottom of the
+method covers `instanceof TypeError` / `instanceof Error` / etc. uniformly.
 
 ### Error-message preservation through reflection
 
@@ -738,16 +772,27 @@ if a session needs to violate one, the rule goes up for review explicitly.
 
 ### Error routing & shape
 
-**Engine-emitted errors route through registered constructors.** Engine sites
-(`PropertyAccess`, `Interpreter`, `CoreContext` TDZ/const-reassign/redeclare,
-`JsJson`, `JsJava`, `JavaUtils`) emit `"<Name>: ..."` prefixes.
-`Interpreter.evalTryStmt` parses the prefix into a structured `JsError` with
-linked `.constructor`; `Interpreter.evalStatement` stamps
-`EngineException.getJsErrorName()`. Result: `e instanceof TypeError`, `e.name`,
-`e.constructor.name` all work for engine-originated errors. Low-traffic
-internal-invariant sites (`JsArrayPrototype` / `JsRegex` / `JsStringPrototype`,
-"finally block threw error") still throw plain `RuntimeException` — convert
-the same way as needed.
+**Engine-emitted errors route through `JsErrorException` factories.** Engine
+sites throw via `JsErrorException.typeError("...")` (and `rangeError` /
+`syntaxError` / `referenceError` / `error`); each factory stamps the right
+`JsErrorPrototype` on the payload. The catch boundaries
+(`Interpreter.evalTryStmt` for JS `catch`, `Interpreter.evalStatement` /
+`Engine.eval` for the host) read the `JsError` payload directly — name and
+constructor flow through the prototype chain, no post-hoc wiring. The
+previous `wireErrorConstructor` and embedded-name prefix-parsing rituals
+are gone.
+
+**Java-throwable wrap path.** A non-`JsErrorException` Java throwable
+escaping into a JS `catch` is funnelled through
+`JsErrorException.wrap(throwable)` — the payload becomes a generic `Error`
+(spec `Error.prototype` chain, so `e instanceof Error` holds) and the
+underlying `Throwable` is preserved as the Java cause for IDE
+stack-trace hyperlinks. There is **no** Java-class → JS-name classifier:
+`NullPointerException` no longer pretends to be a `TypeError`. Engine code
+that wants a typed JS error must say so explicitly via the factories;
+unexpected Java leaks surface as generic `Error` + an IDE-clickable cause
+chain in the host log, treating principle 2 ("errors must look like JS,
+not Java") as a bug-finding signal rather than papering over it.
 
 **`Test262Error` / user-defined error classes** are classified via
 `constructor.name` fallback in `Interpreter.evalProgram` when the thrown
@@ -755,20 +800,13 @@ the same way as needed.
 `CoreContext.declare` fires only when the function's name is empty (so a
 named function passed as a parameter doesn't get permanently renamed).
 
-**`ErrorUtils.classify` scans embedded `<Name>:`** as a fallback for wrapper
-messages where the type isn't a prefix. Wrappers preserve the cause chain so
-the structured `JsErrorException` name propagates first; the embedded-name
-scan is the safety net.
-
-**JVM exception → JS error mapping** at `Interpreter.evalStatement` catch via
-`classifyJavaException`: `IndexOutOfBoundsException` / `ArithmeticException`
-→ `RangeError`; `NullPointerException` / `ClassCastException` /
-`NumberFormatException` → `TypeError`. Name is stamped on
-`EngineException.jsErrorName` and prefixed to the message.
-
-**`JsError.constructor` populated** at the JS try/catch wrapping site
-(`Interpreter.evalTryStmt`) by resolving the registered global for the error's
-`.name`, so `assert.throws(Ctor, fn)` reading `thrown.constructor.name` works.
+**Host-boundary identity.** `Interpreter.evalStatement` catches at the
+script-level boundary; `JsErrorException` payloads surface `name` /
+`message` (read via the prototype chain / own-property) into
+`EngineException.getJsErrorName()` / `getJsMessage()` so the host gets
+structured info without re-parsing prefix strings. Non-`JsErrorException`
+Java throwables flow through with `jsErrorName=null` and the unwrapped
+message — bugs, not pseudo-JS.
 
 **Error position framing leads with the message.** `Node.toStringError`
 appends `    at <path>:<line>:<col>` (JS-stack-frame-style) instead of the
@@ -1139,16 +1177,6 @@ per-instance via `resolveOwnIntrinsic`. Spec-correct
 holds across instances, and `hasOwnIntrinsic` doesn't pay a per-call lambda
 allocation. Future Symbol primitive work replaces the string key with the
 real `Symbol.iterator` value.
-
-**Proto-chain shadows that are NOT own intrinsics.** `JsError` overrides
-`getMember` to detect `Object.prototype.toString` resolved through the
-chain and swap in a JS-flavored stringifier (`shadowDefaultToString`).
-This is a deliberate proto-chain shadow — moving it into
-`resolveOwnIntrinsic` would make `e.hasOwnProperty('toString') === true`,
-which is wrong per spec (toString lives on the prototype). The clean fix
-is a `JsErrorPrototype` with its own `toString` install; until then, the
-shadow lives in the `getMember` override with a doc comment explaining
-the constraint.
 
 **Tombstone-on-delete for intrinsic properties.** Each `PropertySlot`
 carries a `tombstoned` flag; set true by `removeMember` when the deleted
@@ -2007,7 +2035,6 @@ public final class JsUndefined implements JsValue {
 - `Bindings` class using `Map<String, BindingSlot>` for scope storage with auto-unwrapping at Java boundaries
 - Sealed `PropertySlot` family (`DataSlot` / `AccessorSlot`) for property descriptors and a separate `BindingSlot` root for variable bindings — see [§ Slot family](#slot-family--property-descriptors-and-bindings) and [§ Property attributes](#property-attributes)
 - `JsFunctionWrapper` for auto-converting function return values
-- Removed `JsErrorPrototype` (JsError now uses JsObjectPrototype directly)
 - Made all prototype helper methods static (`asString`, `asNumber`, `asDate`, etc.)
 - Identity-based `equals/hashCode` on `JsObject`, `JsArray`, `Bindings` to prevent circular reference issues
 

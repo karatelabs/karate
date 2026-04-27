@@ -146,7 +146,8 @@ class ContextRoot implements Context {
                  "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Function",
                  "Infinity", "Java", "JSON", "Map", "Math", "NaN", "Number", "BigInt", "Boolean",
                  "Object", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
-                 "SyntaxError", "URIError", "EvalError", "TextEncoder", "TextDecoder", "Uint8Array",
+                 "SyntaxError", "URIError", "EvalError", "AggregateError",
+                 "TextEncoder", "TextDecoder", "Uint8Array",
                  "isNaN", "isFinite", "eval", "Symbol", "Reflect" -> true;
             default -> false;
         };
@@ -280,7 +281,7 @@ class ContextRoot implements Context {
             case "Array" -> JsArrayConstructor.INSTANCE;
             case "Date" -> JsDateConstructor.INSTANCE;
             case "Function" -> JsFunctionConstructor.INSTANCE;
-            case "Error" -> new JsError(null, "Error", null);
+            case "Error" -> JsErrorConstructor.ERROR;
             case "Infinity" -> Double.POSITIVE_INFINITY;
             case "Java" -> new JsJava(bridge);
             case "JSON" -> new JsJson();
@@ -294,12 +295,13 @@ class ContextRoot implements Context {
             case "RegExp" -> JsRegexConstructor.INSTANCE;
             case "Set" -> JsSetConstructor.INSTANCE;
             case "String" -> JsStringConstructor.INSTANCE;
-            case "TypeError" -> new JsError(null, "TypeError", null);
-            case "ReferenceError" -> new JsError(null, "ReferenceError", null);
-            case "RangeError" -> new JsError(null, "RangeError", null);
-            case "SyntaxError" -> new JsError(null, "SyntaxError", null);
-            case "URIError" -> new JsError(null, "URIError", null);
-            case "EvalError" -> new JsError(null, "EvalError", null);
+            case "TypeError" -> JsErrorConstructor.TYPE_ERROR;
+            case "ReferenceError" -> JsErrorConstructor.REFERENCE_ERROR;
+            case "RangeError" -> JsErrorConstructor.RANGE_ERROR;
+            case "SyntaxError" -> JsErrorConstructor.SYNTAX_ERROR;
+            case "URIError" -> JsErrorConstructor.URI_ERROR;
+            case "EvalError" -> JsErrorConstructor.EVAL_ERROR;
+            case "AggregateError" -> JsErrorConstructor.AGGREGATE_ERROR;
             case "TextDecoder" -> new JsTextDecoder();
             case "TextEncoder" -> new JsTextEncoder();
             case "Uint8Array" -> new JsUint8Array(0);
