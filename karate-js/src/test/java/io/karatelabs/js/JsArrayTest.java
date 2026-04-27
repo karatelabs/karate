@@ -104,7 +104,11 @@ class JsArrayTest extends EvalBase {
         match(eval("[].map.call([1, 2, 3], String)"), "['1', '2', '3']");
         match(eval("[1, 2, 3].join()"), "1,2,3");
         match(eval("[1, 2, 3].join(', ')"), "1, 2, 3");
-        match(eval("[].map.call({0:'a',1:'b'}, (x, i) => x + i)"), "['a0','b1']");
+        // Spec §23.1.3.21: map iterates 0..length-1; an object literal with
+        // no `length` property has length=0, so map returns an empty array
+        // (test262 `15.4.4.19-8-8.js` pins this for `{0:11, 1:12, length:0}`).
+        // Add `length: 2` to opt into iteration.
+        match(eval("[].map.call({0:'a',1:'b',length:2}, (x, i) => x + i)"), "['a0','b1']");
         match(eval("Array.from([1, 2, 3])"), "[1, 2, 3]");
         match(eval("Array.from([1, 2, 3], x => x * 2)"), "[2, 4, 6]");
         match(eval("Array.from({ length: 3 }, (v, i) => i)"), "[0, 1, 2]");

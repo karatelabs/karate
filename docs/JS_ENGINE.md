@@ -1298,6 +1298,58 @@ the JsArray paths now PASS; the generic ObjectLike receiver path
 (`obj.shift = Array.prototype.shift; obj.shift()`) still fails on
 writeback semantics tracked in TEST262.md.
 
+**Spec-correct length-bounded iteration helper
+(`JsArrayPrototype.specIterate`).** `every` / `forEach` / `map` /
+`filter` / `some` / `reduce` / `reduceRight` / `find` / `findIndex` /
+`findLast` / `findLastIndex` / `includes` / `indexOf` / `lastIndexOf` /
+`flatMap` all route through `specIterate(ctx, ascending, skipAbsent,
+visitor)`. The helper walks `0..len-1` (or in reverse) once at start,
+then per-index does HasProperty + Get with the visitor short-circuiting
+on `false` return. Two iteration shapes per spec:
+
+- **HasProperty-skipping** (`skipAbsent=true`): every / forEach / map /
+  filter / some / reduce / reduceRight / indexOf / lastIndexOf / flatMap.
+  Skips holes — `[1,2,,4].forEach(cb)` calls `cb` 3 times.
+- **No-skip** (`skipAbsent=false`): find / findIndex / findLast /
+  findLastIndex / includes. Treats holes as `undefined` via Get's
+  proto walk — `[1,2,,4].includes(undefined) === true`.
+
+Hot path: when the receiver is a plain `JsArray` (exact class — buffer-
+backed `JsUint8Array` routes through the slow path so its
+`hasOwnIndexedSlot` override fires), no descriptors are installed,
+`__proto__ === JsArrayPrototype.INSTANCE`, and no canonical-numeric key
+was ever installed on a prototype's userProps in this Engine
+(`Prototype.isNumericPropPolluted == false`), HasProperty reduces to an
+in-bounds non-HOLE check on the dense list — no per-element
+`String.valueOf` or chain walk. The `numericPropPolluted` bit flips on
+the first `Array.prototype[i] = …` / `Object.prototype[i] = …` write in
+the session and resets per-Engine in `Prototype.clearAllUserProps`. Slow
+path (proto pollution, custom proto, descriptors, generic ObjectLike
+receiver) walks `hasPropertyChain` and `getMember` per index.
+
+`len` is captured once at the start of the helper, then `list.size()` is
+re-checked per step — callbacks can shrink (`arr.length = N`) or extend
+(`arr.push(…)`) the array mid-iteration, and the per-step OOR check
+treats moved-out indices as absent (HasProperty false) per spec.
+
+`JsArray.hasOwnIndexedSlot(int)` is the unified
+"is this index an own data slot" check used by `isOwnProperty`,
+`getIndexedValue`, and the spec-iteration slow path. Plain `JsArray`:
+in-bounds and non-HOLE. Buffer-backed `JsUint8Array` overrides for
+`buffer.length` bounds — every in-buffer index is present (no hole
+concept on byte storage). `JsString` exposes indexed character access
+via `resolveOwnIntrinsic` so
+`Array.prototype.forEach.call(new String("abc"), cb)` iterates the chars
+per the spec exotic-string-object semantics (test262 `15.4.4.18-1-8.js`
+cluster).
+
+`JsArray.defineOwnAccessor` extends `length` to `idx + 1` when the key
+is an array index >= length, mirroring the data-slot path in
+`defineOwn` — required so
+`Object.defineProperty(arr, "20", {get: …})` extends a length-3 array
+to length 21 and the accessor's side effects fire during iteration
+(test262 `lastIndexOf/15.4.4.15-8-a-14.js`).
+
 **`JsArray` indexed-accessor enforcement.** Descriptors installed via
 `Object.defineProperty(arr, i, {get/set/value: ...})` land in `namedProps`
 under the canonical string-form key and take precedence over the dense

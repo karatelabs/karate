@@ -182,9 +182,11 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             char c0 = name.charAt(0);
             if (c0 >= '0' && c0 <= '9') {
                 int i = parseIndex(name);
-                if (i >= 0 && i < list.size()) {
-                    Object v = list.get(i);
-                    return v == HOLE ? null : v;
+                // {@link #hasOwnIndexedSlot} / {@link #getElement} are
+                // virtual so buffer-backed subclasses ({@link JsUint8Array})
+                // surface their own indexed values here too.
+                if (hasOwnIndexedSlot(i)) {
+                    return getElement(i);
                 }
             }
         }
@@ -363,6 +365,19 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      * both index and named keys.
      */
     void defineOwnAccessor(String name, JsCallable getter, JsCallable setter, byte attrs) {
+        // Spec §10.4.2.1 ArrayDefineOwnProperty: defining a property at an
+        // index >= length extends length to {@code idx + 1}. The data-slot
+        // path in {@link #defineOwn} already does this via its HOLE-pad loop;
+        // mirror it for accessor descriptors so {@code Array.prototype.*}
+        // iteration helpers see the extended length (test262
+        // {@code lastIndexOf/15.4.4.15-8-a-14.js}: an accessor at index 20
+        // must extend a length-3 array to length 21 so the iterator visits
+        // index 20 first and the getter's side-effect — deleting
+        // {@code Array.prototype[1]} — runs before the index-1 read).
+        int i = parseIndex(name);
+        if (i >= 0) {
+            while (list.size() <= i) list.add(HOLE);
+        }
         if (namedProps == null) {
             namedProps = new LinkedHashMap<>();
         }
@@ -651,9 +666,8 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             PropertySlot s = namedProps.get(Integer.toString(index));
             if (s != null) return s.read(receiver, ctx);
         }
-        if (index >= 0 && index < list.size()) {
-            Object v = list.get(index);
-            if (v != HOLE) return v;
+        if (hasOwnIndexedSlot(index)) {
+            return getElement(index);
         }
         if (__proto__ != null && index >= 0) {
             Object inherited = __proto__.getMember(Integer.toString(index), receiver, ctx);
@@ -689,15 +703,26 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      * True iff {@code name} is an own property on this array — covers
      * {@code length} (always own), any user-set entry in {@link #namedProps}
      * (descriptors installed via {@code Object.defineProperty}, named
-     * properties), and canonical numeric indices that are not holes
-     * (i.e. {@code list.get(i) != HOLE}). Mirrors
-     * {@link JsObject#isOwnProperty(String)}.
+     * properties), and canonical numeric indices via
+     * {@link #hasOwnIndexedSlot}. Mirrors {@link JsObject#isOwnProperty(String)}.
      */
     public boolean isOwnProperty(String name) {
         if ("length".equals(name)) return true;
         if (namedProps != null && namedProps.containsKey(name)) return true;
-        int i = parseIndex(name);
-        return i >= 0 && i < list.size() && list.get(i) != HOLE;
+        return hasOwnIndexedSlot(parseIndex(name));
+    }
+
+    /**
+     * True iff {@code index} resolves to an own data slot at the dense
+     * storage layer (post-{@link #namedProps}). Plain {@link JsArray}:
+     * in-bounds and non-{@link #HOLE}. Buffer-backed subclasses
+     * ({@link JsUint8Array}) override for {@code buffer.length} bounds —
+     * every in-buffer index is present (no hole concept). Used by
+     * {@link #isOwnProperty} and {@link #getIndexedValue} so spec
+     * HasProperty + Get work uniformly across storage shapes.
+     */
+    boolean hasOwnIndexedSlot(int index) {
+        return index >= 0 && index < list.size() && list.get(index) != HOLE;
     }
 
     /**

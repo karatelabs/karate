@@ -231,6 +231,127 @@ class JsArrayPrototype extends Prototype {
         return false;
     }
 
+    /** Visitor for {@link #specIterate}; return false to short-circuit. */
+    @FunctionalInterface
+    private interface IndexVisitor {
+        boolean visit(int index, Object value);
+    }
+
+    /**
+     * Spec-correct length-bounded iteration for the
+     * {@code Array.prototype.{every, some, forEach, map, filter, reduce,
+     * reduceRight, find, findIndex, findLast, findLastIndex, includes,
+     * indexOf, lastIndexOf, flat, flatMap}} family. Walks 0..len-1 (or
+     * in reverse), invoking {@code visitor} for each index — with
+     * {@code skipAbsent} true (every / some / forEach / map / filter /
+     * reduce / indexOf / etc.) the visitor is skipped when
+     * {@code HasProperty(O, ToString(k))} is false; with {@code skipAbsent}
+     * false (find / findIndex / findLast / includes) every index is
+     * visited and a hole reads as {@code undefined} via {@code Get}'s
+     * proto walk.
+     * <p>
+     * Hot path: when {@code thisObj} is a plain {@link JsArray} with no
+     * descriptors, its prototype is the standard {@code JsArrayPrototype}
+     * singleton, and no canonical-numeric key was ever installed on a
+     * prototype's userProps in this Engine
+     * ({@link Prototype#isNumericPropPolluted} returns false), HasProperty
+     * reduces to "own non-HOLE" — the loop reads dense {@code list} entries
+     * directly, no per-element {@code String.valueOf} or chain walk. Slow
+     * path (proto pollution, custom proto, descriptors, generic ObjectLike
+     * receiver) walks {@link #hasPropertyChain} and {@link ObjectLike#getMember}
+     * per index.
+     */
+    private static void specIterate(Context context, boolean ascending, boolean skipAbsent,
+                                    IndexVisitor visitor) {
+        Object thisObj = context.getThisObject();
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        ObjectLike target = thisObj instanceof ObjectLike o ? o : Terms.toObjectLike(thisObj);
+        if (target == null) return;
+        int len = lengthOf(target, cc);
+        // Fast path: plain JsArray (exact class — buffer-backed
+        // {@link JsUint8Array} routes through the slow path so its
+        // {@link JsArray#hasOwnIndexedSlot} override fires), no descriptors,
+        // standard {@code Array.prototype}, no proto pollution. Hot loop
+        // reads dense {@code list} entries directly — the spec HasProperty
+        // reduces to an in-bounds non-HOLE check, no per-element
+        // {@code String.valueOf} or chain walk.
+        boolean clean = target.getClass() == JsArray.class
+                && !((JsArray) target).hasAnyDescriptor()
+                && ((JsArray) target).getPrototype() == JsArrayPrototype.INSTANCE
+                && !Prototype.isNumericPropPolluted();
+        if (clean) {
+            JsArray arr = (JsArray) target;
+            List<Object> list = arr.list;
+            // {@code len} is captured at start (spec semantics); the underlying
+            // list may shrink ({@code arr.length = N} in callback) or grow
+            // ({@code arr.push(…)}) mid-iteration. Re-check {@code list.size()}
+            // per step so OOR positions are treated as absent (HasProperty
+            // false), matching the slow path.
+            if (ascending) {
+                for (int k = 0; k < len; k++) {
+                    Object v = k < list.size() ? list.get(k) : JsArray.HOLE;
+                    if (v == JsArray.HOLE) {
+                        if (skipAbsent) continue;
+                        v = Terms.UNDEFINED;
+                    }
+                    if (!visitor.visit(k, v)) return;
+                }
+            } else {
+                for (int k = len - 1; k >= 0; k--) {
+                    Object v = k < list.size() ? list.get(k) : JsArray.HOLE;
+                    if (v == JsArray.HOLE) {
+                        if (skipAbsent) continue;
+                        v = Terms.UNDEFINED;
+                    }
+                    if (!visitor.visit(k, v)) return;
+                }
+            }
+            return;
+        }
+        if (ascending) {
+            for (int k = 0; k < len; k++) {
+                if (!visitOneSlow(target, k, skipAbsent, cc, visitor)) return;
+            }
+        } else {
+            for (int k = len - 1; k >= 0; k--) {
+                if (!visitOneSlow(target, k, skipAbsent, cc, visitor)) return;
+            }
+        }
+    }
+
+    /** Slow-path single-index step for {@link #specIterate}. Returns false
+     *  to short-circuit (visitor said stop), true to continue (including
+     *  the skipped-absent case). Spec semantics: a present index reads via
+     *  proto-walking {@link ObjectLike#getMember}; an absent index either
+     *  skips or visits with undefined (per {@code skipAbsent}). */
+    private static boolean visitOneSlow(ObjectLike target, int k, boolean skipAbsent,
+                                        CoreContext cc, IndexVisitor visitor) {
+        String key = String.valueOf(k);
+        boolean present = hasPropertyChain(target, key);
+        if (!present) {
+            if (skipAbsent) return true;
+            return visitor.visit(k, Terms.UNDEFINED);
+        }
+        Object v = target.getMember(key, target, cc);
+        if (v == null) v = Terms.UNDEFINED;
+        return visitor.visit(k, v);
+    }
+
+    /** Resolve the spec {@code length} of an array-like receiver. JsArray
+     *  uses the dense {@code list.size()} (already a clamped int); other
+     *  ObjectLike receivers read {@code .length} via {@code getMember} and
+     *  clamp to {@code [0, Integer.MAX_VALUE]}. The full Uint32 range
+     *  (2^32-1) needs a long-typed length field — deferred. */
+    private static int lengthOf(ObjectLike target, CoreContext cc) {
+        if (target instanceof JsArray arr) return arr.size();
+        Object lenObj = target.getMember("length", target, cc);
+        if (lenObj instanceof Number n) {
+            int v = n.intValue();
+            return v < 0 ? 0 : v;
+        }
+        return 0;
+    }
+
     private static final Object[] EMPTY_ARGS = new Object[0];
 
     private static JsCallable toCallable(Object[] args) {
@@ -243,6 +364,10 @@ class JsArrayPrototype extends Prototype {
     @SuppressWarnings("unchecked")
     private static void flatten(List<Object> source, List<Object> result, int depth) {
         for (Object item : source) {
+            // Spec FlattenIntoArray skips holes (HasProperty-skipping); the
+            // raw List walk would otherwise add HOLE sentinels to the result
+            // (visible to user code as the marker object).
+            if (item == JsArray.HOLE) continue;
             if (depth > 0 && item instanceof List<?> list) {
                 flatten((List<Object>) list, result, depth - 1);
             } else {
@@ -254,24 +379,41 @@ class JsArrayPrototype extends Prototype {
     // Instance methods
 
     private Object map(Context context, Object[] args) {
-        List<Object> results = new ArrayList<>();
+        // Spec §23.1.3.21: result is a fresh Array of length=len. For each
+        // k where HasProperty(O, k): result[k] = callback(Get(O, k), k, O).
+        // Indices where HasProperty is false stay HOLE in the result so
+        // {@code result.length} matches source length and sparse positions
+        // round-trip (test262 `15.4.4.19-8-6.js` expects this).
+        // Returns a plain {@code ArrayList} so {@link JsArray#get(int)}'s
+        // toJava unwrap doesn't strip {@code Terms.UNDEFINED} / {@link JsDate}
+        // wrappers (Java-interop callers in {@code JsJavaInteropTest} expect
+        // raw values via {@code list.get(i)}); JS-side reads still go through
+        // {@link Terms#toObjectLike} which wraps as {@link JsArray} for
+        // chained {@code .filter} / {@code .length} access.
+        Object thisObj = context.getThisObject();
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        ObjectLike target = thisObj instanceof ObjectLike o ? o : Terms.toObjectLike(thisObj);
+        int len = target == null ? 0 : lengthOf(target, cc);
+        List<Object> results = new ArrayList<>(len);
+        for (int i = 0; i < len; i++) results.add(JsArray.HOLE);
         JsCallable callable = toCallable(args);
-        for (KeyValue kv : Terms.toIterable(context.getThisObject())) {
-            Object result = callable.call(context, new Object[]{kv.value(), kv.index()});
-            results.add(result);
-        }
+        specIterate(context, true, true, (k, v) -> {
+            Object r = callable.call(context, new Object[]{v, k, thisObj});
+            results.set(k, r);
+            return true;
+        });
         return results;
     }
 
     private Object filter(Context context, Object[] args) {
         List<Object> results = new ArrayList<>();
         JsCallable callable = toCallable(args);
-        for (KeyValue kv : jsEntries(context)) {
-            Object result = callable.call(context, new Object[]{kv.value(), kv.index()});
-            if (Terms.isTruthy(result)) {
-                results.add(kv.value());
-            }
-        }
+        Object thisObj = context.getThisObject();
+        specIterate(context, true, true, (k, v) -> {
+            Object r = callable.call(context, new Object[]{v, k, thisObj});
+            if (Terms.isTruthy(r)) results.add(v);
+            return true;
+        });
         return results;
     }
 
@@ -308,25 +450,35 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object find(Context context, Object[] args) {
+        // Spec §23.1.3.9: visits every index 0..len-1 (NO HasProperty filter)
+        // — holes read as undefined via Get's proto walk. {@code skipAbsent=false}.
         JsCallable callable = toCallable(args);
-        for (KeyValue kv : jsEntries(context)) {
-            Object result = callable.call(context, new Object[]{kv.value(), kv.index()});
-            if (Terms.isTruthy(result)) {
-                return kv.value();
+        Object thisObj = context.getThisObject();
+        Object[] result = {Terms.UNDEFINED};
+        specIterate(context, true, false, (k, v) -> {
+            Object r = callable.call(context, new Object[]{v, k, thisObj});
+            if (Terms.isTruthy(r)) {
+                result[0] = v;
+                return false;
             }
-        }
-        return Terms.UNDEFINED;
+            return true;
+        });
+        return result[0];
     }
 
     private Object findIndex(Context context, Object[] args) {
         JsCallable callable = toCallable(args);
-        for (KeyValue kv : jsEntries(context)) {
-            Object result = callable.call(context, new Object[]{kv.value(), kv.index()});
-            if (Terms.isTruthy(result)) {
-                return kv.index();
+        Object thisObj = context.getThisObject();
+        int[] result = {-1};
+        specIterate(context, true, false, (k, v) -> {
+            Object r = callable.call(context, new Object[]{v, k, thisObj});
+            if (Terms.isTruthy(r)) {
+                result[0] = k;
+                return false;
             }
-        }
-        return -1;
+            return true;
+        });
+        return result[0];
     }
 
     private Object push(Context context, Object[] args) {
@@ -366,37 +518,50 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object includes(Context context, Object[] args) {
-        for (KeyValue kv : jsEntries(context)) {
-            if (Terms.eq(kv.value(), args[0], false)) {
-                return true;
+        // Spec §23.1.3.13: visits every index 0..len-1 (NO HasProperty filter)
+        // — `[1,2,,4].includes(undefined) === true` because the hole reads as
+        // undefined via Get's proto walk. SameValueZero comparison.
+        Object searchElement = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        boolean[] found = {false};
+        specIterate(context, true, false, (k, v) -> {
+            if (Terms.eq(v, searchElement, false)) {
+                found[0] = true;
+                return false;
             }
-        }
-        return false;
+            return true;
+        });
+        return found[0];
     }
 
     private Object indexOf(Context context, Object[] args) {
-        List<Object> thisArray = rawList(context);
-        int size = thisArray.size();
-        if (size == 0 || args.length == 0) {
-            return -1;
-        }
+        // Spec §23.1.3.16: HasProperty-skipping (holes contribute nothing —
+        // never compared, never returned). The sparse-skip is observable:
+        // `[,1].indexOf(undefined) === -1`, but
+        // `[undefined,1].indexOf(undefined) === 0`.
+        if (args.length == 0) return -1;
         Object searchElement = args[0];
+        Object thisObj = context.getThisObject();
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        ObjectLike target = thisObj instanceof ObjectLike o ? o : Terms.toObjectLike(thisObj);
+        int len = target == null ? 0 : lengthOf(target, cc);
+        if (len == 0) return -1;
         int fromIndex = 0;
         if (args.length > 1 && args[1] != null) {
             fromIndex = Terms.objectToNumber(args[1]).intValue();
-            if (fromIndex < 0) {
-                fromIndex = Math.max(size + fromIndex, 0);
+            if (fromIndex < 0) fromIndex = Math.max(len + fromIndex, 0);
+        }
+        if (fromIndex >= len) return -1;
+        int[] result = {-1};
+        int from = fromIndex;
+        specIterate(context, true, true, (k, v) -> {
+            if (k < from) return true;
+            if (Terms.eq(v, searchElement, false)) {
+                result[0] = k;
+                return false;
             }
-        }
-        if (fromIndex >= size) {
-            return -1;
-        }
-        for (int i = fromIndex; i < size; i++) {
-            if (Terms.eq(thisArray.get(i), searchElement, false)) {
-                return i;
-            }
-        }
-        return -1;
+            return true;
+        });
+        return result[0];
     }
 
     private Object slice(Context context, Object[] args) {
@@ -427,12 +592,14 @@ class JsArrayPrototype extends Prototype {
 
     private Object forEach(Context context, Object[] args) {
         JsCallable callable = toCallable(args);
-        for (KeyValue kv : jsEntries(context)) {
+        Object thisObj = context.getThisObject();
+        specIterate(context, true, true, (k, v) -> {
             if (context instanceof CoreContext cc) {
-                cc.iteration = kv.index();
+                cc.iteration = k;
             }
-            callable.call(context, new Object[]{kv.value(), kv.index(), context.getThisObject()});
-        }
+            callable.call(context, new Object[]{v, k, thisObj});
+            return true;
+        });
         return Terms.UNDEFINED;
     }
 
@@ -451,75 +618,78 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object every(Context context, Object[] args) {
-        List<Object> thisArray = rawList(context);
-        if (thisArray.isEmpty()) {
-            return true;
-        }
         JsCallable callable = toCallable(args);
-        for (KeyValue kv : jsEntries(context)) {
-            Object result = callable.call(context, new Object[]{kv.value(), kv.index(), thisArray});
-            if (!Terms.isTruthy(result)) {
+        Object thisObj = context.getThisObject();
+        boolean[] result = {true};
+        specIterate(context, true, true, (k, v) -> {
+            Object r = callable.call(context, new Object[]{v, k, thisObj});
+            if (!Terms.isTruthy(r)) {
+                result[0] = false;
                 return false;
             }
-        }
-        return true;
+            return true;
+        });
+        return result[0];
     }
 
     private Object some(Context context, Object[] args) {
-        List<Object> thisArray = rawList(context);
-        if (thisArray.isEmpty()) {
-            return false;
-        }
         JsCallable callable = toCallable(args);
-        for (KeyValue kv : jsEntries(context)) {
-            Object result = callable.call(context, new Object[]{kv.value(), kv.index(), thisArray});
-            if (Terms.isTruthy(result)) {
-                return true;
+        Object thisObj = context.getThisObject();
+        boolean[] result = {false};
+        specIterate(context, true, true, (k, v) -> {
+            Object r = callable.call(context, new Object[]{v, k, thisObj});
+            if (Terms.isTruthy(r)) {
+                result[0] = true;
+                return false;
             }
-        }
-        return false;
+            return true;
+        });
+        return result[0];
     }
 
     private Object reduce(Context context, Object[] args) {
-        List<Object> thisArray = rawList(context);
+        // Spec §23.1.3.24: HasProperty-skipping. Initial accumulator is
+        // args[1] when present; otherwise the first present value (and that
+        // index is then skipped on the iteration). Empty + no initial throws.
         JsCallable callable = toCallable(args);
-        if (thisArray.isEmpty() && args.length < 2) {
+        Object thisObj = context.getThisObject();
+        Object[] acc = new Object[1];
+        boolean[] hasAcc = {args.length >= 2};
+        if (hasAcc[0]) acc[0] = args[1];
+        specIterate(context, true, true, (k, v) -> {
+            if (!hasAcc[0]) {
+                acc[0] = v;
+                hasAcc[0] = true;
+                return true;
+            }
+            acc[0] = callable.call(context, new Object[]{acc[0], v, k, thisObj});
+            return true;
+        });
+        if (!hasAcc[0]) {
             throw JsErrorException.typeError("Reduce of empty array with no initial value");
         }
-        int startIndex = 0;
-        Object accumulator;
-        if (args.length >= 2) {
-            accumulator = args[1];
-        } else {
-            accumulator = thisArray.getFirst();
-            startIndex = 1;
-        }
-        for (int i = startIndex; i < thisArray.size(); i++) {
-            Object currentValue = thisArray.get(i);
-            accumulator = callable.call(context, new Object[]{accumulator, currentValue, i, thisArray});
-        }
-        return accumulator;
+        return acc[0];
     }
 
     private Object reduceRight(Context context, Object[] args) {
-        List<Object> thisArray = rawList(context);
         JsCallable callable = toCallable(args);
-        if (thisArray.isEmpty() && args.length < 2) {
+        Object thisObj = context.getThisObject();
+        Object[] acc = new Object[1];
+        boolean[] hasAcc = {args.length >= 2};
+        if (hasAcc[0]) acc[0] = args[1];
+        specIterate(context, false, true, (k, v) -> {
+            if (!hasAcc[0]) {
+                acc[0] = v;
+                hasAcc[0] = true;
+                return true;
+            }
+            acc[0] = callable.call(context, new Object[]{acc[0], v, k, thisObj});
+            return true;
+        });
+        if (!hasAcc[0]) {
             throw JsErrorException.typeError("Reduce of empty array with no initial value");
         }
-        int startIndex = thisArray.size() - 1;
-        Object accumulator;
-        if (args.length >= 2) {
-            accumulator = args[1];
-        } else {
-            accumulator = thisArray.get(startIndex);
-            startIndex--;
-        }
-        for (int i = startIndex; i >= 0; i--) {
-            Object currentValue = thisArray.get(i);
-            accumulator = callable.call(context, new Object[]{accumulator, currentValue, i, thisArray});
-        }
-        return accumulator;
+        return acc[0];
     }
 
     private Object flat(Context context, Object[] args) {
@@ -538,19 +708,25 @@ class JsArrayPrototype extends Prototype {
 
     @SuppressWarnings("unchecked")
     private Object flatMap(Context context, Object[] args) {
-        List<Object> thisArray = rawList(context);
+        // Spec §23.1.3.11: HasProperty-skipping at the source level; mapper
+        // result is flattened by 1 (so a returned array is spliced in,
+        // anything else appended as-is). Returned holes inside the mapped
+        // arrays are skipped (handled by {@link #flatten}'s HOLE check).
         JsCallable callable = toCallable(args);
+        Object thisObj = context.getThisObject();
         List<Object> mappedResult = new ArrayList<>();
-        int index = 0;
-        for (Object item : thisArray) {
-            Object mapped = callable.call(context, new Object[]{item, index, thisArray});
+        specIterate(context, true, true, (k, v) -> {
+            Object mapped = callable.call(context, new Object[]{v, k, thisObj});
             if (mapped instanceof List<?> list) {
-                mappedResult.addAll((List<Object>) list);
+                for (Object item : list) {
+                    if (item == JsArray.HOLE) continue;
+                    mappedResult.add(item);
+                }
             } else {
                 mappedResult.add(mapped);
             }
-            index++;
-        }
+            return true;
+        });
         return mappedResult;
     }
 
@@ -778,35 +954,35 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object lastIndexOf(Context context, Object[] args) {
-        List<Object> thisArray = rawList(context);
-        int size = thisArray.size();
-        if (size == 0 || args.length == 0) {
-            return -1;
-        }
+        // Spec §23.1.3.18: HasProperty-skipping reverse search.
+        if (args.length == 0) return -1;
         Object searchElement = args[0];
-        int fromIndex = size - 1;
+        Object thisObj = context.getThisObject();
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        ObjectLike target = thisObj instanceof ObjectLike o ? o : Terms.toObjectLike(thisObj);
+        int len = target == null ? 0 : lengthOf(target, cc);
+        if (len == 0) return -1;
+        int fromIndex = len - 1;
         if (args.length > 1 && args[1] != null) {
             Number n = Terms.objectToNumber(args[1]);
-            if (Double.isNaN(n.doubleValue())) {
-                fromIndex = size - 1;
-            } else {
+            if (!Double.isNaN(n.doubleValue())) {
                 fromIndex = n.intValue();
-                if (fromIndex < 0) {
-                    fromIndex = size + fromIndex;
-                } else if (fromIndex >= size) {
-                    fromIndex = size - 1;
-                }
+                if (fromIndex < 0) fromIndex = len + fromIndex;
+                else if (fromIndex >= len) fromIndex = len - 1;
             }
         }
-        if (fromIndex < 0) {
-            return -1;
-        }
-        for (int i = fromIndex; i >= 0; i--) {
-            if (Terms.eq(thisArray.get(i), searchElement, false)) {
-                return i;
+        if (fromIndex < 0) return -1;
+        int[] result = {-1};
+        int from = fromIndex;
+        specIterate(context, false, true, (k, v) -> {
+            if (k > from) return true;
+            if (Terms.eq(v, searchElement, false)) {
+                result[0] = k;
+                return false;
             }
-        }
-        return -1;
+            return true;
+        });
+        return result[0];
     }
 
     private Object pop(Context context, Object[] args) {
@@ -948,37 +1124,36 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object findLast(Context context, Object[] args) {
-        List<Object> thisArray = rawList(context);
-        int size = thisArray.size();
-        if (size == 0 || args.length == 0) {
-            return Terms.UNDEFINED;
-        }
+        // Spec §23.1.3.11: visits every index len-1..0 (NO HasProperty filter).
+        if (args.length == 0) return Terms.UNDEFINED;
         JsCallable callable = toCallable(args);
-        for (int i = size - 1; i >= 0; i--) {
-            Object value = thisArray.get(i);
-            Object result = callable.call(context, new Object[]{value, i, thisArray});
-            if (Terms.isTruthy(result)) {
-                return value;
+        Object thisObj = context.getThisObject();
+        Object[] result = {Terms.UNDEFINED};
+        specIterate(context, false, false, (k, v) -> {
+            Object r = callable.call(context, new Object[]{v, k, thisObj});
+            if (Terms.isTruthy(r)) {
+                result[0] = v;
+                return false;
             }
-        }
-        return Terms.UNDEFINED;
+            return true;
+        });
+        return result[0];
     }
 
     private Object findLastIndex(Context context, Object[] args) {
-        List<Object> thisArray = rawList(context);
-        int size = thisArray.size();
-        if (size == 0 || args.length == 0) {
-            return -1;
-        }
+        if (args.length == 0) return -1;
         JsCallable callable = toCallable(args);
-        for (int i = size - 1; i >= 0; i--) {
-            Object value = thisArray.get(i);
-            Object result = callable.call(context, new Object[]{value, i, thisArray});
-            if (Terms.isTruthy(result)) {
-                return i;
+        Object thisObj = context.getThisObject();
+        int[] result = {-1};
+        specIterate(context, false, false, (k, v) -> {
+            Object r = callable.call(context, new Object[]{v, k, thisObj});
+            if (Terms.isTruthy(r)) {
+                result[0] = k;
+                return false;
             }
-        }
-        return -1;
+            return true;
+        });
+        return result[0];
     }
 
     private Object withMethod(Context context, Object[] args) {

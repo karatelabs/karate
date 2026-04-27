@@ -204,21 +204,22 @@ other work.
   `hasOwnProperty` instead). Pair with parser `in` support as one
   coordinated session. Estimated 6–8 h.
 
-- **`Array.prototype.*` iteration methods don't consult proto for HOLE
-  positions.** `every` / `forEach` / `map` / `some` / `filter` / `reduce` /
-  `reduceRight` / `find` / `findIndex` / `lastIndexOf` route through
-  `jsEntries`, which iterates own non-HOLE values only. Spec says iterate
-  by length with `HasProperty(O, idx)` + `Get(O, idx)`, falling back to
-  the proto chain when the own slot is a hole. Surfaced 2026-04-27 when
-  `removeMember` started tombstoning dense slots: 5 test262 fails appeared
-  (`every/15.4.4.16-7-6.js`, `forEach/15.4.4.18-7-5.js`,
-  `lastIndexOf/15.4.4.15-8-a-14.js`, `map/15.4.4.19-8-6.js`,
-  `some/15.4.4.17-7-6.js`) — all of the form "delete arr[i] in callback
-  expects a later index to surface its proto-installed value". Fix is a
-  shared length-bounded iterator helper that does HasProperty + Get; the
-  9 callers above swap their `for (kv : jsEntries(ctx))` for the new
-  helper. Pair with the broader writeback-on-non-array Array TODO below
-  (slice #6) — both are spec-shape iteration changes. Estimated 1–2 h.
+- **Generic ObjectLike receiver writeback for mutating
+  `Array.prototype.*` methods.** Read-side iteration is now spec-shape
+  via `JsArrayPrototype.specIterate` (length-bounded HasProperty + Get,
+  proto-chain aware) — covers `every` / `forEach` / `map` / `some` /
+  `filter` / `reduce` / `reduceRight` / `find` / `findIndex` /
+  `findLast` / `findLastIndex` / `includes` / `indexOf` / `lastIndexOf` /
+  `flatMap` and the secondary `flat` recursion. The remaining gap:
+  mutating methods (`push` / `pop` / `shift` / `unshift` / `sort` /
+  `splice` / `reverse`) still operate on a snapshot list (`rawList`)
+  when `this` is a non-array ObjectLike (`obj.shift =
+  Array.prototype.shift; obj.shift()` doesn't write back to `obj`).
+  Pinned by `S15.4.4.{9,13}_A2_*` cluster across pop / shift / unshift —
+  ~30-40 test262 fails. Fix is per-index Set / Delete via
+  `PropertyAccess.setByName` + `removeMember` on the receiver instead of
+  snapshot-then-replace. Estimated 1-2 sessions; pair with the
+  larger Array slice (#6).
 
 - **`PropertyKey` abstraction.** Symbol prep. Deferred to the Symbol slice
   itself — introducing `PropertyKey` ahead of a concrete consumer is YAGNI.

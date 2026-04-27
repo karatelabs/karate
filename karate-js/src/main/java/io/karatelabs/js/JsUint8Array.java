@@ -53,6 +53,14 @@ non-sealed class JsUint8Array extends JsArray implements JsBinaryValue {
         return Terms.UNDEFINED;
     }
 
+    /** Buffer-backed indexed presence: every in-buffer index is an own data
+     *  slot (no HOLE concept on byte storage), so HasProperty / iteration
+     *  helpers see the full byte array. */
+    @Override
+    boolean hasOwnIndexedSlot(int index) {
+        return index >= 0 && index < buffer.length;
+    }
+
     @Override
     public void setElement(int index, Object value) {
         if (index >= 0 && index < buffer.length && value instanceof Number v) {

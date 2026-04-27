@@ -56,9 +56,33 @@ non-sealed class JsString extends JsObject implements JsPrimitive, JsCallable {
         if ("length".equals(name)) {
             return text.length();
         }
-        // @@iterator stand-in lives on {@link JsStringPrototype} per spec —
-        // not an own intrinsic of each JsString instance.
+        // Spec: exotic string objects expose indexed character access as own
+        // properties — `HasProperty(strObj, "0")` is true and
+        // `Get(strObj, "0")` returns the char. Required for
+        // {@code Array.prototype.{forEach, every, …}.call(strObj, …)} to
+        // iterate the characters via the spec HasProperty + Get loop
+        // (test262 `15.4.4.18-1-8.js` and the cluster of -1-8 tests).
+        int i = parseIndex(name);
+        if (i >= 0 && i < text.length()) {
+            return String.valueOf(text.charAt(i));
+        }
         return null;
+    }
+
+    /** Strict canonical-integer parse for the indexed-char fast path —
+     *  rejects {@code "01"}, {@code "+1"}, {@code "1.0"}; accepts
+     *  {@code "0"} through 10-digit integers. Mirrors {@code JsArray.parseIndex}. */
+    private static int parseIndex(String s) {
+        int n = s.length();
+        if (n == 0 || n > 10) return -1;
+        int v = 0;
+        for (int i = 0; i < n; i++) {
+            char c = s.charAt(i);
+            if (c < '0' || c > '9') return -1;
+            v = v * 10 + (c - '0');
+        }
+        if (n > 1 && s.charAt(0) == '0') return -1;
+        return v;
     }
 
     private static final java.util.List<String> INTRINSIC_NAMES = java.util.List.of("length");

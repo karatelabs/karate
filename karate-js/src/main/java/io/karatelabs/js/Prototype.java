@@ -61,12 +61,50 @@ abstract class Prototype implements ObjectLike {
      */
     private static final List<Prototype> ALL = new CopyOnWriteArrayList<>();
 
+    /**
+     * Per-Engine flag: set when a canonical numeric property is installed on
+     * any prototype's userProps via {@link #putMember} or
+     * {@link #defineOwnAccessor}. Lets {@code Array.prototype.*} iteration
+     * helpers ({@code every} / {@code map} / {@code forEach} / …) skip the
+     * full HasProperty proto-walk per element on the hot path: when this is
+     * false (the common case — no user code did
+     * {@code Array.prototype[i] = …} or {@code Object.prototype[i] = …}),
+     * the spec's HasProperty reduces to an own-only check.
+     * <p>
+     * Monotonic within an Engine (we don't track when it stops being polluted
+     * — once true, fast path is bypassed for the remainder of the session).
+     * Reset to false in {@link #clearAllUserProps} so the next Engine starts
+     * clean — required for test262 isolation.
+     */
+    private static volatile boolean numericPropPolluted = false;
+
+    /** True iff any user code installed a canonical numeric key on a prototype
+     *  in this Engine session. See {@link #numericPropPolluted}. */
+    static boolean isNumericPropPolluted() {
+        return numericPropPolluted;
+    }
+
     static void clearAllUserProps() {
         for (Prototype p : ALL) {
             if (p.userProps != null) {
                 p.userProps.clear();
             }
         }
+        numericPropPolluted = false;
+    }
+
+    /** Canonical-integer key check for the {@link #numericPropPolluted}
+     *  trigger. Mirrors {@code JsArray.parseIndex}'s strictness: rejects
+     *  {@code "01"}, {@code "+1"}, {@code "-1"}, {@code "1.0"}; accepts
+     *  {@code "0"} through 10-digit integers. */
+    private static boolean isCanonicalNumericKey(String name) {
+        int n = name.length();
+        if (n == 0 || n > 10) return false;
+        for (int i = 0; i < n; i++) {
+            char c = name.charAt(i);
+            if (c < '0' || c > '9') return false;
+        }
+        return n == 1 || name.charAt(0) != '0';
     }
 
     private final Prototype __proto__;
@@ -91,6 +129,7 @@ abstract class Prototype implements ObjectLike {
         if (userProps == null) {
             userProps = new LinkedHashMap<>();
         }
+        if (isCanonicalNumericKey(name)) numericPropPolluted = true;
         PropertySlot existing = userProps.get(name);
         if (existing instanceof DataSlot ds) {
             ds.value = value;
@@ -197,6 +236,7 @@ abstract class Prototype implements ObjectLike {
         if (userProps == null) {
             userProps = new LinkedHashMap<>();
         }
+        if (isCanonicalNumericKey(name)) numericPropPolluted = true;
         PropertySlot existing = userProps.get(name);
         AccessorSlot s;
         if (existing instanceof AccessorSlot as) {
