@@ -204,16 +204,21 @@ other work.
   `hasOwnProperty` instead). Pair with parser `in` support as one
   coordinated session. Estimated 6–8 h.
 
-- **Spec-shape `Array.prototype.{shift, unshift}` move loop.** Pop/shift/
-  push/unshift now follow spec sequencing for length-set timing (see
-  [JS_ENGINE.md § Prototype machinery](../docs/JS_ENGINE.md#prototype-machinery)
-  for what landed). The remaining piece: shift's per-element move loop
-  + final delete and unshift's move loop should dispatch through
-  `[[Get]]` / `[[Set]]` / `[[Delete]]` so prototype accessors at the
-  intermediate indices fire (test262 has variants under
-  `shift/length-decreased-during-iteration*` etc.). The current in-place
-  shuffle preserves the data outcome but skips the per-element proto
-  dispatch. Estimated 2–3 h.
+- **`Array.prototype.*` iteration methods don't consult proto for HOLE
+  positions.** `every` / `forEach` / `map` / `some` / `filter` / `reduce` /
+  `reduceRight` / `find` / `findIndex` / `lastIndexOf` route through
+  `jsEntries`, which iterates own non-HOLE values only. Spec says iterate
+  by length with `HasProperty(O, idx)` + `Get(O, idx)`, falling back to
+  the proto chain when the own slot is a hole. Surfaced 2026-04-27 when
+  `removeMember` started tombstoning dense slots: 5 test262 fails appeared
+  (`every/15.4.4.16-7-6.js`, `forEach/15.4.4.18-7-5.js`,
+  `lastIndexOf/15.4.4.15-8-a-14.js`, `map/15.4.4.19-8-6.js`,
+  `some/15.4.4.17-7-6.js`) — all of the form "delete arr[i] in callback
+  expects a later index to surface its proto-installed value". Fix is a
+  shared length-bounded iterator helper that does HasProperty + Get; the
+  9 callers above swap their `for (kv : jsEntries(ctx))` for the new
+  helper. Pair with the broader writeback-on-non-array Array TODO below
+  (slice #6) — both are spec-shape iteration changes. Estimated 1–2 h.
 
 - **`PropertyKey` abstraction.** Symbol prep. Deferred to the Symbol slice
   itself — introducing `PropertyKey` ahead of a concrete consumer is YAGNI.
@@ -306,14 +311,14 @@ slice priority. Pick up when the relevant slice surfaces them.
   methods on a non-array operate on a snapshot list and don't write back.
   Spec needs ToObject + index-write on the receiver. Pick up in slice #6.
 
-- **`JsArray.removeMember` doesn't honor configurable / sealed / frozen,
-  and ignores dense-list indices.** Currently `namedProps.remove(name)` —
-  `delete arr[0]` is a no-op on the dense list (value survives) and
-  `delete sealedArr.foo` succeeds despite cleared configurable. Mirror
-  `JsObject.removeMember` (consult slot attrs / integrity flags) and for
-  numeric indices set the dense slot to `HOLE`. Pair with parser `in`
-  support + the `HOLE → tombstone` sparse-storage rework so the deleted
-  index is observably absent. Estimated 1 h.
+- **`JsArray.removeMember` doesn't honor configurable / sealed / frozen.**
+  Dense-list HOLE-write landed 2026-04-27 (so `delete arr[0]` now
+  tombstones the dense slot — `hasOwnProperty(0) === false` after, and
+  the spec-shape `shift` / `unshift` move loop's `DeletePropertyOrThrow`
+  branch is observable). Still missing: configurability check (mirror
+  `JsObject.removeMember`'s slot-attrs / integrity-flags consult), so
+  `delete sealedArr.foo` currently succeeds despite the cleared
+  configurable bit. Estimated 30 min.
 
 - **`Symbol.toPrimitive` is not dispatched.** Matches our minimal Symbol
   surface. Fix as part of slice #7 (Symbol).

@@ -1218,10 +1218,12 @@ installed on `Array.prototype["i"]` fires — required by the spec-shape
 `Array.prototype.{pop, shift}` machinery and the
 `set-length-array-length-is-non-writable.js` cluster's call-count
 assertions. The plain `arr[i]` user-facing read goes through
-`getElement` (not `resolveOwnIntrinsic`), which translates `HOLE` →
-`UNDEFINED` directly — no proto walk on the hot path. The discrepancy
-is intentional: only the spec-shape callers that route through
-`getMember` need the proto walk.
+`getIndexedValue` which mirrors the same chain walk: out-of-bounds and
+HOLE both fall through to `__proto__.getMember(idx, ...)` so an
+inherited indexed property surfaces (test262 `S15.4.4.9_A4_T1` /
+`S15.4.4.13_A4_T2` read inherited indices via plain `arr[i]` after a
+mutating call). Hot path stays branch-light: in-bounds non-HOLE returns
+the dense value with two range checks and one HOLE compare.
 
 **`JsArray` length semantics (§10.4.2.4 ArraySetLength).** `arr.length = N`
 and `Object.defineProperty(arr, "length", {value: N})` both route through
@@ -1270,22 +1272,31 @@ getter/setter side-effects observable via call-count assertions match:
   proto chain and a getter installed on
   `Array.prototype[ToString(len-1)]` fires exactly once — pinned by
   `set-length-array-length-is-non-writable.js`.
-- `shift` reads index 0 the same way, then does the in-place move
-  (proto-getter dispatch on intermediate moves is a separate item),
-  then `setLengthOrThrow(arr, len-1)`.
+- `shift` reads index 0 the same way, then runs the spec move loop
+  for k = 1..len-1: HasProperty walks the proto chain (own non-HOLE +
+  proto's `isOwnProperty`); if true, `Get` + `setByName` so a proto
+  getter at `fromKey` and a proto setter at `toKey` both fire; if
+  false, `removeMember(toKey)` tombstones the dense slot. Final
+  `setLengthOrThrow(arr, len-1)` truncates (the spec's terminal
+  `DeletePropertyOrThrow(O, ToString(len-1))` is implicit in the
+  truncate, same simplification as `pop`).
 - `push` calls `PropertyAccess.setByName(arr, ToString(len+i), item, ctx, null)`
   per item so a setter installed on `Array.prototype[ToString(len)]`
   fires; the proto setter accepting the value means no own property
   is created (matches the test's `!arr.hasOwnProperty(0)` assertion).
   Final `setLengthOrThrow(arr, len + items.length)`.
-- `unshift` does the move loop in-place, then per-item insert via
-  `setByName`, then final `setLengthOrThrow`.
+- `unshift` runs the same spec move loop in reverse (k = len-1..0,
+  toKey = k + argCount), then per-arg `setByName` for the leading
+  inserts, then final `setLengthOrThrow`.
 
-Outstanding remainder: shift/unshift's per-element move-loop currently
-shuffles `arr.list` directly rather than dispatching through `[[Get]]`
-/ `[[Set]]` / `[[Delete]]` for each k. Test variants like
-`shift/length-decreased-during-iteration*` exercise this; tracked in
-TEST262.md.
+The shared `hasPropertyChain(ObjectLike, name)` helper in
+`JsArrayPrototype` walks `getPrototype()` so an inherited
+`Array.prototype[i] = …` (or an accessor higher up the chain) drives
+the move loop's "Set inherited value at toKey" branch. Pinned by
+test262 `S15.4.4.9_A4_T*` (shift) and `S15.4.4.13_A4_T*` (unshift) —
+the JsArray paths now PASS; the generic ObjectLike receiver path
+(`obj.shift = Array.prototype.shift; obj.shift()`) still fails on
+writeback semantics tracked in TEST262.md.
 
 **`JsArray` indexed-accessor enforcement.** Descriptors installed via
 `Object.defineProperty(arr, i, {get/set/value: ...})` land in `namedProps`

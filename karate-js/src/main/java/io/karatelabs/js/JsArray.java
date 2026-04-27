@@ -445,6 +445,21 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         if (namedProps != null) {
             namedProps.remove(name);
         }
+        // Numeric index: tombstone the dense slot with HOLE so the own
+        // property is absent ({@link #isOwnProperty} / hasOwnProperty report
+        // false; {@link #resolveOwnIntrinsic} returns null and the read walks
+        // the proto chain). Without this, {@code delete arr[i]} silently
+        // preserves the value and {@link JsArrayPrototype#shift} /
+        // {@link JsArrayPrototype#unshift}'s move-loop "DeletePropertyOrThrow"
+        // branch is a no-op on dense indices. List length is left unchanged
+        // (delete doesn't shrink the array — the spec uses [[Delete]] +
+        // separate length-set). Configurable / sealed / frozen enforcement
+        // is a separate deferred TODO; this lenient path matches today's
+        // namedProps behavior.
+        int i = parseIndex(name);
+        if (i >= 0 && i < list.size()) {
+            list.set(i, HOLE);
+        }
     }
 
     @Override
@@ -617,19 +632,34 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      * {@link #namedProps} under the canonical string-form key (e.g.
      * {@code "0"}) and take precedence over the dense {@link #list} backing
      * store. Resolves accessor descriptors via {@link PropertySlot#read}
-     * with {@code receiver} bound as {@code this}. Falls back to
-     * {@link #getElement(int)} (which returns {@link Terms#UNDEFINED} for
-     * out-of-bounds) when no descriptor is present.
+     * with {@code receiver} bound as {@code this}.
      * <p>
-     * Hot path: {@code namedProps == null} for plain arrays — single null
-     * check, no allocation, then the existing fast path.
+     * When the index is out-of-bounds or lands on a {@link #HOLE} (own
+     * property absent), walks the {@code __proto__} chain so
+     * {@code Array.prototype[i] = …} or an accessor installed on a
+     * prototype surfaces through {@code arr[i]} — matching the behavior of
+     * {@link #getMember(String, Object, CoreContext)} (test262
+     * S15.4.4.9_A4_T1 / S15.4.4.13_A4_T2 read inherited indices after a
+     * mutating call). Returns {@link Terms#UNDEFINED} when the chain has no
+     * matching entry.
+     * <p>
+     * Hot path: {@code namedProps == null} and the index is in-bounds with
+     * a non-HOLE value — single null check, two range checks, dense read.
      */
     Object getIndexedValue(int index, Object receiver, CoreContext ctx) {
         if (namedProps != null && index >= 0) {
             PropertySlot s = namedProps.get(Integer.toString(index));
             if (s != null) return s.read(receiver, ctx);
         }
-        return getElement(index);
+        if (index >= 0 && index < list.size()) {
+            Object v = list.get(index);
+            if (v != HOLE) return v;
+        }
+        if (__proto__ != null && index >= 0) {
+            Object inherited = __proto__.getMember(Integer.toString(index), receiver, ctx);
+            if (inherited != null) return inherited;
+        }
+        return Terms.UNDEFINED;
     }
 
     /**

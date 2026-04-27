@@ -212,6 +212,25 @@ class JsArrayPrototype extends Prototype {
         }
     }
 
+    /**
+     * Spec-shape {@code HasProperty(O, name)} — own ({@link ObjectLike#isOwnProperty})
+     * plus a walk of the {@code __proto__} chain. Used by shift/unshift's
+     * move loop to distinguish "Set inherited value at the moved-to slot"
+     * (fromPresent true; spec step Set(O, toKey, Get(O, fromKey), true))
+     * from "delete the moved-to slot" (fromPresent false; spec step
+     * DeletePropertyOrThrow(O, toKey)). Walks via {@link ObjectLike#getPrototype}
+     * so {@code Array.prototype[i] = …} or accessor descriptors installed
+     * higher up the chain are observed. Cycle-safe in practice (constructor
+     * graphs have no proto cycles); a defensive depth-cap could be added if
+     * a hostile bridge ever introduces one.
+     */
+    private static boolean hasPropertyChain(ObjectLike obj, String name) {
+        for (ObjectLike o = obj; o != null; o = o.getPrototype()) {
+            if (o.isOwnProperty(name)) return true;
+        }
+        return false;
+    }
+
     private static final Object[] EMPTY_ARGS = new Object[0];
 
     private static JsCallable toCallable(Object[] args) {
@@ -654,12 +673,19 @@ class JsArrayPrototype extends Prototype {
             // Spec §23.1.3.27 Array.prototype.shift:
             //   3. If len = 0: Set(O, "length", 0, true); return undefined.
             //   4. first = Get(O, "0").
-            //   5-7. Move loop + final delete.
-            //   8. Set(O, "length", len-1, true).
-            // Get(O, "0") walks proto for HOLE — same call-count semantics
-            // as pop. The intermediate move-loop's per-element Set/Delete
-            // proto-dispatch is not modeled (separate spec-alignment item);
-            // the in-place shuffle below preserves the data outcome.
+            //   5-7. Repeat for k = 1 to len-1:
+            //          fromKey = ToString(k); toKey = ToString(k-1)
+            //          if HasProperty(O, fromKey): Set(O, toKey, Get(O, fromKey), true)
+            //          else:                       DeletePropertyOrThrow(O, toKey)
+            //   8. DeletePropertyOrThrow(O, ToString(len-1)).
+            //   9. Set(O, "length", len-1, true).
+            // Get/Set/Delete walk the proto chain so accessors / inherited
+            // indices (Array.prototype[i] = …) fire at the spec-correct steps —
+            // covers test262 S15.4.4.9_A4_T1 / A4_T2 (inherited proto value
+            // surfaces at toKey when fromKey is a hole). The final delete
+            // (step 8) is implicit in {@link JsArray.ArrayLength#applySet}'s
+            // truncate when length is writable; same pragmatic simplification
+            // as pop. Strict-mode flip on Set/Delete failure → deferred TODO.
             int len = arr.size();
             if (len == 0) {
                 setLengthOrThrow(arr, 0, cc);
@@ -668,7 +694,15 @@ class JsArrayPrototype extends Prototype {
             Object first = arr.getMember("0", arr, cc);
             if (first == null) first = Terms.UNDEFINED;
             for (int k = 1; k < len; k++) {
-                arr.list.set(k - 1, arr.list.get(k));
+                String fromKey = String.valueOf(k);
+                String toKey = String.valueOf(k - 1);
+                if (hasPropertyChain(arr, fromKey)) {
+                    Object fromVal = arr.getMember(fromKey, arr, cc);
+                    if (fromVal == null) fromVal = Terms.UNDEFINED;
+                    PropertyAccess.setByName(arr, toKey, fromVal, cc, null);
+                } else {
+                    arr.removeMember(toKey);
+                }
             }
             setLengthOrThrow(arr, len - 1, cc);
             return first;
@@ -694,21 +728,33 @@ class JsArrayPrototype extends Prototype {
         CoreContext cc = context instanceof CoreContext cx ? cx : null;
         if (thisObj instanceof JsArray arr) {
             // Spec §23.1.3.32 Array.prototype.unshift:
-            //   4. If argCount > 0: move existing items right by argCount,
-            //      then Set(O, ToString(j), items[j], true) for each.
+            //   4. If argCount > 0:
+            //      Repeat for k = len down to 1:
+            //        from = ToString(k-1); to = ToString(k+argCount-1)
+            //        if HasProperty(O, from): Set(O, to, Get(O, from), true)
+            //        else:                    DeletePropertyOrThrow(O, to)
+            //      Repeat for j = 0 to argCount-1: Set(O, ToString(j), items[j], true)
             //   5. Set(O, "length", len + argCount, true).
-            // Per-item insert Set walks proto setters (test262 set-length-
-            // array-length-is-non-writable.js unshift variant). The move
-            // loop's per-element Get/Set/Delete proto-dispatch is not
-            // modeled (separate spec-alignment item) — the in-place shuffle
-            // preserves the data outcome.
+            // Move loop dispatches through Get/Set/Delete so a proto-installed
+            // accessor at an intermediate index fires at the spec-correct
+            // step (test262 S15.4.4.13_A4_T2: inherited index surfaces at
+            // the moved-to slot when the source slot is a hole). Per-arg Set
+            // walks proto setters so a setter installed on Array.prototype["0"]
+            // fires (set-length-array-length-is-non-writable.js unshift
+            // variant). Strict-mode flip on Set/Delete failure → deferred TODO.
             int len = arr.size();
             int argCount = args.length;
             if (argCount > 0) {
                 for (int k = len - 1; k >= 0; k--) {
-                    int toIdx = k + argCount;
-                    while (arr.list.size() <= toIdx) arr.list.add(JsArray.HOLE);
-                    arr.list.set(toIdx, arr.list.get(k));
+                    String fromKey = String.valueOf(k);
+                    String toKey = String.valueOf(k + argCount);
+                    if (hasPropertyChain(arr, fromKey)) {
+                        Object fromVal = arr.getMember(fromKey, arr, cc);
+                        if (fromVal == null) fromVal = Terms.UNDEFINED;
+                        PropertyAccess.setByName(arr, toKey, fromVal, cc, null);
+                    } else {
+                        arr.removeMember(toKey);
+                    }
                 }
                 for (int j = 0; j < argCount; j++) {
                     PropertyAccess.setByName(arr, String.valueOf(j), args[j], cc, null);
