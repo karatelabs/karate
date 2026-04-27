@@ -100,6 +100,7 @@ class JsArrayPrototype extends Prototype {
         install("findLastIndex", 1, this::findLastIndex);
         install("with", 2, this::withMethod);
         install("group", 1, this::group);
+        install(IterUtils.SYMBOL_ITERATOR, 0, IterUtils.SYMBOL_ITERATOR_METHOD);
     }
 
     // Helper methods

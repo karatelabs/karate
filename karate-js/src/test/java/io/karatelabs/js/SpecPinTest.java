@@ -131,6 +131,19 @@ class SpecPinTest extends EvalBase {
     }
 
     @Test
+    void userPrototypeAssignment_winsOverIntrinsic() {
+        // Foo.prototype = X must surface X verbatim — even when X is itself a
+        // function. The auto-allocated prototype is the fallback for
+        // un-assigned functions; explicit own-slot writes must win. (Locked
+        // down to prevent regression of the old "fromSuper instanceof JsFunction"
+        // carve-out that silently discarded function-valued assignments.)
+        assertEquals(true, eval(
+                "function Foo() {} function Bar() {} Foo.prototype = Bar; Foo.prototype === Bar"));
+        assertEquals(true, eval(
+                "function Foo() {} var p = {x: 1}; Foo.prototype = p; Foo.prototype === p"));
+    }
+
+    @Test
     void instanceMethodLookup_identityStable() {
         // arr.push and (same arr).push resolve to the same function via prototype chain.
         assertEquals(true, eval("var a = []; a.push === a.push"));

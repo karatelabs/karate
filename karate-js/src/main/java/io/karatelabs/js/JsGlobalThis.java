@@ -158,10 +158,12 @@ final class JsGlobalThis extends JsObject {
         return b.hasMember(name) || root.hasKey(name);
     }
 
-    @Override
-    public boolean hasOwnIntrinsic(String name) {
-        return isOwnProperty(name);
-    }
+    // hasOwnIntrinsic is unreachable on globalThis: putMember / removeMember /
+    // isOwnProperty are all overridden to consult bindings directly, and the
+    // INTRINSIC_PROBE_NAMES discovery probe in JsObjectConstructor.getOwn-
+    // PropertyDescriptors checks names ("length"/"name"/"prototype"/"constructor")
+    // that are never bindings on globalThis. Inherits the JsObject default
+    // (resolveOwnIntrinsic-derived) which returns false here — same answer.
 
     @Override
     public byte getOwnAttrs(String name) {

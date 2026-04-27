@@ -148,14 +148,14 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     }
 
     /**
-     * Array intrinsics: {@code length} (live from dense list), numeric-index
+     * Array intrinsics: {@code length} (live from dense list) and numeric-index
      * reads when the array sits in a prototype chain (so a child
      * {@code __proto__ === [1,2,3]} resolves {@code child[0]} via getMember
      * here — direct {@code arr[i]} skips this and hits
-     * {@link PropertyAccess#getByIndex}'s fast path), and the
-     * {@link IterUtils#SYMBOL_ITERATOR @@iterator} stand-in. Subclasses
+     * {@link PropertyAccess#getByIndex}'s fast path). Subclasses
      * ({@link JsUint8Array}) override and call {@code super.resolveOwnIntrinsic}
-     * to inherit these.
+     * to inherit these. The {@link IterUtils#SYMBOL_ITERATOR @@iterator}
+     * stand-in is installed on {@link JsArrayPrototype} per spec, not here.
      */
     protected Object resolveOwnIntrinsic(String name) {
         if ("length".equals(name)) {
@@ -169,18 +169,6 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
                     return list.get(i);
                 }
             }
-        }
-        if (IterUtils.SYMBOL_ITERATOR.equals(name)) {
-            return (JsCallable) (ctx, args) -> {
-                Object thisObj = ctx.getThisObject();
-                JsIterator iter;
-                if (thisObj instanceof JsArray arr) {
-                    iter = IterUtils.getIterator(arr, ctx);
-                } else {
-                    iter = IterUtils.getIterator(JsArray.this, ctx);
-                }
-                return IterUtils.toIteratorObject(iter);
-            };
         }
         return null;
     }
@@ -287,9 +275,9 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             // The caller (Object.defineProperty) is expected to route length
             // through {@link #defineLength} after running ToUint32 — but
             // tolerate direct callers (e.g. the literal-object init path on
-             // arrays, which is currently unused) by going through
-             // handleLengthAssign with no context.
-            handleLengthAssign(value, null);
+            // arrays, which is currently unused) by going through
+            // ArrayLength.handleAssign with no context.
+            ArrayLength.handleAssign(this, value, null);
             setAttrs("length", attrs);
             return;
         }
@@ -385,49 +373,24 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     /**
      * Spec §10.4.2.4 ArraySetLength entry point — used by {@code arr.length = X}
      * (via {@link #putMember(String, Object)} from {@link PropertyAccess#setByName})
-     * and by {@code Object.defineProperty(arr, "length", ...)} (via {@link #defineOwn}).
-     * <p>
-     * Behavior:
-     * <ul>
-     *   <li>Coerces {@code value} to Uint32 (calls {@code valueOf}/{@code toString}
-     *       via {@link Terms#toPrimitive} when {@code context} is non-null).
-     *       Throws {@code RangeError} when the result is not a valid Uint32 —
-     *       NaN, Infinity, negative, fractional, or {@code > 2^32-1} (spec
-     *       step 5: "If newLen ≠ numberLen, throw a RangeError"). The
-     *       RangeError is unconditional, not gated by strictness.</li>
-     *   <li>Returns {@code false} when length's stored writable bit is false —
-     *       caller decides whether to throw {@code TypeError} (spec [[Set]]
-     *       with {@code Throw=true}, used by pop/shift/unshift/push and by
-     *       strict-mode direct assignment) or silently ignore (lenient).</li>
-     *   <li>When shrinking, partial-truncates above any non-configurable index
-     *       in {@code [newLen, oldLen)} and returns {@code false} — same
-     *       caller-throws rule.</li>
-     *   <li>Returns {@code true} on full success.</li>
-     * </ul>
-     * <p>
-     * Note: our backing store is bounded by {@link Integer#MAX_VALUE} so values
-     * in {@code (Integer.MAX_VALUE, 2^32-1]} are rejected as RangeError today
-     * (spec considers them valid). See TEST262.md "Deferred TODOs" for the
-     * widening to a {@code long} length representation that would lift this
-     * limit and cover {@code arr.length = 4294967295}.
+     * and by {@code Object.defineProperty(arr, "length", ...)} (via
+     * {@link #defineOwn}). See {@link ArrayLength#handleAssign} for the full
+     * coerce-then-apply contract; this is the JsArray-instance entry.
      */
     boolean handleLengthAssign(Object value, CoreContext context) {
-        long u32 = toValidUint32(value, context);
-        return applySetLength((int) u32);
+        return ArrayLength.handleAssign(this, value, context);
     }
 
     /**
      * Post-coercion entry for {@code Object.defineProperty(arr, "length", desc)} —
-     * caller has already run {@link #toValidUint32} (so that spec-prescribed
+     * caller has already run {@link #coerceToUint32} (so that spec-prescribed
      * double valueOf invocation is observable in test262 timing) and validated
      * the writable transition. Applies the length truncate/extend and stores
      * the new attribute byte; returns the same true/false partial-truncate
      * signal as {@link #handleLengthAssign} for the non-configurable case.
      */
     boolean defineLength(int newLen, byte attrs) {
-        boolean ok = applySetLength(newLen);
-        setAttrs("length", attrs);
-        return ok;
+        return ArrayLength.defineProperty(this, newLen, attrs);
     }
 
     /**
@@ -438,80 +401,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      * resulting Uint32 to {@link #defineLength}.
      */
     static long coerceToUint32(Object value, CoreContext context) {
-        return toValidUint32(value, context);
-    }
-
-    private static long toValidUint32(Object value, CoreContext context) {
-        // Spec: ToUint32 calls ToNumber once; ArraySetLength then calls ToNumber
-        // again for the equality check (steps 3 and 4). Two valueOf invocations
-        // are observable — see test262 define-own-prop-length-coercion-order.js
-        // which asserts valueOfCalls === 2.
-        Object first = value instanceof ObjectLike && context != null
-                ? Terms.toPrimitive(value, "number", context) : value;
-        Number n1 = Terms.objectToNumber(first);
-        double d1 = n1 == null ? Double.NaN : n1.doubleValue();
-        long u32;
-        if (Double.isNaN(d1) || Double.isInfinite(d1)) {
-            u32 = 0;
-        } else {
-            double truncated = d1 < 0 ? -Math.floor(-d1) : Math.floor(d1);
-            long modded = (long) (truncated - Math.floor(truncated / 4294967296.0) * 4294967296.0);
-            if (modded < 0) modded += 4294967296L;
-            u32 = modded;
-        }
-        Object second = value instanceof ObjectLike && context != null
-                ? Terms.toPrimitive(value, "number", context) : value;
-        Number n2 = Terms.objectToNumber(second);
-        double d2 = n2 == null ? Double.NaN : n2.doubleValue();
-        // NaN != anything (including itself) — naturally caught by the inequality.
-        if (d2 != (double) u32) {
-            throw JsErrorException.rangeError("Invalid array length");
-        }
-        if (u32 > Integer.MAX_VALUE) {
-            // Bounded by our int-backed list; widening tracked in TEST262.md.
-            throw JsErrorException.rangeError("Invalid array length");
-        }
-        return u32;
-    }
-
-    private boolean applySetLength(int newLen) {
-        if ((getOwnAttrs("length") & JsObject.WRITABLE) == 0) {
-            return false;
-        }
-        int oldLen = list.size();
-        if (newLen >= oldLen) {
-            while (list.size() < newLen) list.add(HOLE);
-            return true;
-        }
-        // Walk the truncate range high-to-low looking for a non-configurable
-        // index that blocks the rest of the truncation (spec partial-truncate).
-        int blockingIndex = -1;
-        for (int i = oldLen - 1; i >= newLen; i--) {
-            if (!isIndexConfigurable(i)) {
-                blockingIndex = i;
-                break;
-            }
-        }
-        if (blockingIndex >= 0) {
-            int retainTo = blockingIndex + 1;
-            if (retainTo < list.size()) {
-                list.subList(retainTo, list.size()).clear();
-                if (namedProps != null) {
-                    for (int i = retainTo; i < oldLen; i++) namedProps.remove(Integer.toString(i));
-                }
-            }
-            return false;
-        }
-        list.subList(newLen, oldLen).clear();
-        if (namedProps != null) {
-            for (int i = newLen; i < oldLen; i++) namedProps.remove(Integer.toString(i));
-        }
-        return true;
-    }
-
-    private boolean isIndexConfigurable(int i) {
-        PropertySlot s = namedProps == null ? null : namedProps.get(Integer.toString(i));
-        return s == null || s.isConfigurable();
+        return ArrayLength.coerceToUint32(value, context);
     }
 
     @Override
@@ -911,6 +801,133 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     @Override
     public boolean equals(Object obj) {
         return this == obj;
+    }
+
+    /**
+     * Spec §10.4.2.4 ArraySetLength + the supporting coercion / partial-truncate
+     * machinery, co-located so the six entry points on {@link JsArray}
+     * ({@code defineOwn(name="length")}, {@link #setAttrs(String, byte)},
+     * {@link #handleLengthAssign}, {@link #defineLength},
+     * {@link #coerceToUint32}, {@link #putMember(String, Object)}'s length
+     * branch) share one implementation site.
+     * <p>
+     * Pure code-locality refactor — no behavior change. The deferred
+     * spec-precise pop/shift interleaving fix
+     * ({@code set-length-array-length-is-non-writable.js} cluster) lives here
+     * when it lands, since the partial-truncate walk in {@link #applySet} is
+     * where the get/delete-before-throw timing has to be modeled.
+     */
+    static final class ArrayLength {
+
+        private ArrayLength() {
+        }
+
+        /**
+         * Spec ArraySetLength entry — coerces {@code value} to Uint32, then
+         * applies. Throws {@link JsErrorException} (RangeError) for invalid
+         * Uint32; returns {@code false} on length-non-writable / partial-
+         * truncate (caller decides whether to throw TypeError); {@code true}
+         * on full success.
+         */
+        static boolean handleAssign(JsArray arr, Object value, CoreContext context) {
+            long u32 = coerceToUint32(value, context);
+            return applySet(arr, (int) u32);
+        }
+
+        /**
+         * Post-coercion entry — caller already ran {@link #coerceToUint32}
+         * (used by {@code Object.defineProperty(arr, "length", desc)} so the
+         * spec-prescribed double {@code valueOf} fires before descriptor
+         * validation). Applies the length and stores the writable bit.
+         */
+        static boolean defineProperty(JsArray arr, int newLen, byte attrs) {
+            boolean ok = applySet(arr, newLen);
+            arr.setAttrs("length", attrs);
+            return ok;
+        }
+
+        /**
+         * Spec ArraySetLength steps 3-5: ToUint32 + ToNumber + RangeError on
+         * mismatch. Two {@code valueOf} invocations are observable per spec
+         * — {@code define-own-prop-length-coercion-order.js} asserts
+         * {@code valueOfCalls === 2}. The current backing store is bounded
+         * by {@link Integer#MAX_VALUE}; values in
+         * {@code (Integer.MAX_VALUE, 2^32-1]} surface as RangeError today
+         * (spec considers them valid — widening tracked in TEST262.md).
+         */
+        static long coerceToUint32(Object value, CoreContext context) {
+            Object first = value instanceof ObjectLike && context != null
+                    ? Terms.toPrimitive(value, "number", context) : value;
+            Number n1 = Terms.objectToNumber(first);
+            double d1 = n1 == null ? Double.NaN : n1.doubleValue();
+            long u32;
+            if (Double.isNaN(d1) || Double.isInfinite(d1)) {
+                u32 = 0;
+            } else {
+                double truncated = d1 < 0 ? -Math.floor(-d1) : Math.floor(d1);
+                long modded = (long) (truncated - Math.floor(truncated / 4294967296.0) * 4294967296.0);
+                if (modded < 0) modded += 4294967296L;
+                u32 = modded;
+            }
+            Object second = value instanceof ObjectLike && context != null
+                    ? Terms.toPrimitive(value, "number", context) : value;
+            Number n2 = Terms.objectToNumber(second);
+            double d2 = n2 == null ? Double.NaN : n2.doubleValue();
+            // NaN != anything (including itself) — naturally caught by the inequality.
+            if (d2 != (double) u32) {
+                throw JsErrorException.rangeError("Invalid array length");
+            }
+            if (u32 > Integer.MAX_VALUE) {
+                throw JsErrorException.rangeError("Invalid array length");
+            }
+            return u32;
+        }
+
+        /**
+         * Apply a coerced new length: HOLE-pad to extend, walk the truncate
+         * range high-to-low looking for a non-configurable index that blocks
+         * the rest (partial-truncate), drop matching {@code namedProps}
+         * entries. Returns {@code false} for length-non-writable or partial-
+         * truncate; caller decides TypeError vs lenient.
+         */
+        static boolean applySet(JsArray arr, int newLen) {
+            if ((arr.getOwnAttrs("length") & JsObject.WRITABLE) == 0) {
+                return false;
+            }
+            int oldLen = arr.list.size();
+            if (newLen >= oldLen) {
+                while (arr.list.size() < newLen) arr.list.add(HOLE);
+                return true;
+            }
+            int blockingIndex = -1;
+            for (int i = oldLen - 1; i >= newLen; i--) {
+                if (!isIndexConfigurable(arr, i)) {
+                    blockingIndex = i;
+                    break;
+                }
+            }
+            if (blockingIndex >= 0) {
+                int retainTo = blockingIndex + 1;
+                if (retainTo < arr.list.size()) {
+                    arr.list.subList(retainTo, arr.list.size()).clear();
+                    if (arr.namedProps != null) {
+                        for (int i = retainTo; i < oldLen; i++) arr.namedProps.remove(Integer.toString(i));
+                    }
+                }
+                return false;
+            }
+            arr.list.subList(newLen, oldLen).clear();
+            if (arr.namedProps != null) {
+                for (int i = newLen; i < oldLen; i++) arr.namedProps.remove(Integer.toString(i));
+            }
+            return true;
+        }
+
+        private static boolean isIndexConfigurable(JsArray arr, int i) {
+            PropertySlot s = arr.namedProps == null ? null : arr.namedProps.get(Integer.toString(i));
+            return s == null || s.isConfigurable();
+        }
+
     }
 
 }

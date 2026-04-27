@@ -76,7 +76,7 @@ Each session that touches the engine should:
    numbers in this file go stale fast — record fresh before/after pass counts
    in the commit message and pin the run-dir so the next session diffs cleanly.
 2. **Unit tests:** all green. `mvn -f pom.xml -pl karate-js -o test` →
-   `Tests run: 958, Failures: 0, Errors: 0, Skipped: 2` (count grows as
+   `Tests run: 959, Failures: 0, Errors: 0, Skipped: 2` (count grows as
    `SpecPinTest` accretes invariants). Update tests where the spec disagrees
    with them; never delete coverage.
 3. **test262 built-ins probe:** `etc/run.sh --only 'test/built-ins/**'`.
@@ -185,47 +185,8 @@ that need a dedicated session, and harness-quality fixes.
 
 ### Engine — cleanup
 
-Surfaced during the post-S4 (A/B/C/E) refactor sweep. Touch-when-nearby
-unless flagged otherwise.
-
-- **`hasOwnIntrinsic` / `resolveOwnIntrinsic` redundancy.** After refactor A
-  every subclass that exposes own intrinsics declares the same name set
-  twice — once in `resolveOwnIntrinsic` (returns the value) and once in
-  `hasOwnIntrinsic` (returns `true`). Two sources of truth are guaranteed
-  to drift. Replace `hasOwnIntrinsic(name)` with the derived
-  `resolveOwnIntrinsic(name) != null`. Tradeoff: slightly hotter path on
-  `hasOwn` checks, but the savings of dropping a parallel switch outweigh
-  it. Estimated 1 h.
-
-- **`JsFunction` prototype-as-`JsFunction` carve-out.** `JsFunction.getMember`
-  has a vestigial `if (fromSuper instanceof JsFunction) return
-  getFunctionPrototype()` branch that silently discards
-  `Foo.prototype = SomeJsFunction` user assignments. The companion comment
-  contradicts the code (says "should be returned as-is") and no SpecPin
-  test exercises the case. Investigate; either delete (preferred — let
-  user assignment win) or move into a documented invariant. Estimated 30 min.
-
-- **`JsFunctionWrapper.getMember(3-arg)` not overridden.** `JsFunctionWrapper`
-  forwards 1-arg `getMember` to the delegate but inherits the JsFunction
-  3-arg implementation, so accessor descriptors on the wrapped function
-  surface as `null` instead of invoking the getter via `slot.read`. Add
-  the 3-arg override. Estimated 15 min.
-
-- **`JsObjectConstructor.ownSlot` lives in the wrong file.** It's a cross-
-  cutting helper used by `findAccessorInChain` (PropertyAccess) and the
-  `ownAccessorSlot` lookup. Move to `PropertyAccess` (or a new tiny
-  `Slots` utility). Estimated 15 min.
-
-- **`@@iterator` stand-in is duplicated.** Both `JsString` and `JsArray`
-  return identical `(JsCallable) (ctx, args) -> { … IterUtils.getIterator
-  / IterUtils.toIteratorObject }` lambdas via their `resolveOwnIntrinsic`.
-  Extract `IterUtils.symbolIteratorMethod(host)` and have both call sites
-  delegate. Estimated 30 min.
-
-- **`Object.prototype.hasOwnProperty` falls back to `toMap().containsKey`
-  for generic ObjectLike.** Now that `ObjectLike.isOwnProperty(name)` is on
-  the interface, the fallback should call it instead — drops a per-call
-  `toMap()` allocation. Estimated 15 min.
+Items needing a dedicated session — benchmark-gated or coordinated with
+other work.
 
 - **`Prototype.toMap()` rebuilds on every call.** Allocates a fresh
   `LinkedHashMap` per invocation; iteration paths (`Object.keys` on a
@@ -234,31 +195,31 @@ unless flagged otherwise.
   shape that doesn't materialize. Estimated 1 h. Defer until benchmark
   shows it matters.
 
-- **`HOLE` → tombstone full elimination.** Original plan §F. Centralization
-  fallback already landed; full elimination needs a sparse-array storage
-  rework (dense `list` only holds set values; sparse positions consult
-  `props` with tombstoned `DataSlot` entries). Risk: `in` operator +
-  `hasOwnProperty` correctness on sparse arrays — pinned in `SpecPinTest`.
-  The `in` operator isn't actually parsed today (sparse-array tests use
+- **`HOLE` → tombstone full elimination.** Centralization fallback already
+  landed; full elimination needs a sparse-array storage rework (dense
+  `list` only holds set values; sparse positions consult `props` with
+  tombstoned `DataSlot` entries). Risk: `in` operator + `hasOwnProperty`
+  correctness on sparse arrays — pinned in `SpecPinTest`. The `in`
+  operator isn't actually parsed today (sparse-array tests use
   `hasOwnProperty` instead). Pair with parser `in` support as one
   coordinated session. Estimated 6–8 h.
 
-- **`ArrayLength` extraction.** Extract `coerceToUint32` / `apply` /
-  `defineProperty` from the 6 `JsArray` length methods into a co-located
-  helper. Pure code-locality refactor with no behavior change; bundle with
-  the deferred spec-precise pop/shift interleaving fix
-  (`set-length-array-length-is-non-writable.js` cluster). Standalone:
-  1–2 h; bundled with interleaving fix: 4–5 h.
+- **Spec-precise pop/shift length interleaving.** `JsArray.ArrayLength`
+  co-locates the length pipeline; the remaining work is the
+  `set-length-array-length-is-non-writable.js` cluster — get/delete
+  steps must run BEFORE the length-set throws so prototype getter/setter
+  call counts match. Estimated 3–4 h.
 
 - **`PropertyKey` abstraction.** Symbol prep. Deferred to the Symbol slice
   itself — introducing `PropertyKey` ahead of a concrete consumer is YAGNI.
 
-- **Subclass `super.getMember(name)` lossy chains (post-A residual).** A
-  few subclasses still go `Object own = super.getMember(name); if (own !=
-  null) return own;` (e.g. `JsError` for the Error.prototype.toString
-  shadow). With refactor A the pattern is no longer load-bearing — the
-  override could move the special-case logic into `resolveOwnIntrinsic` or
-  delete the override entirely. Audit and simplify. Estimated 30 min.
+- **`JsErrorPrototype` for the `toString` shadow.** `JsError` instances
+  inherit from `JsObjectPrototype` directly (no Error.prototype layer);
+  the spec-mandated `Error.prototype.toString` shadow is implemented via
+  a `getMember` override that detects the default and swaps in a
+  JS-flavored stringifier. Build a real `JsErrorPrototype` (per the
+  `JsArrayPrototype` / `JsStringPrototype` pattern) and install
+  `toString` there. Estimated 1 h.
 
 ### Engine — spec alignment
 
@@ -275,14 +236,6 @@ slice priority. Pick up when the relevant slice surfaces them.
   `list`-backed path doesn't consult per-slot `attrs` for plain numeric
   writes (only `namedProps` overrides do). Freezing populates the slots
   but writes still succeed. Fix as part of slice #6 (Array).
-
-- **`Object.values({get x(){}})` vs Java-interop `Map.get`.** Refactor E
-  added a ctx-aware `jsEntries(ctx)` so `Object.values/entries/assign`
-  invoke accessors per spec. The Java-interop seams (`Map.get`,
-  `containsValue`, `values()`, `entrySet()`, `toMap()`) keep the null-for-
-  accessor semantic — accessors at the Java boundary should not have side
-  effects. Document this as intentional in the relevant javadocs (currently
-  inferred from the absence of ctx).
 
 - **`Array.prototype.*` writeback on non-array ObjectLike.** Mutating
   methods on a non-array operate on a snapshot list and don't write back.

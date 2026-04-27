@@ -381,21 +381,11 @@ class JsObjectConstructor extends JsFunction {
 
     /** Returns the own {@link AccessorSlot} at {@code key} when one exists,
      *  {@code null} otherwise (own data property, missing, or unsupported
-     *  type). Mirrors {@link PropertyAccess#findAccessorInChain} but
-     *  scoped to own properties only. */
+     *  type). Scoped to own properties only — for the chain-walking variant
+     *  see {@code PropertyAccess#findAccessorInChain}. */
     private static AccessorSlot ownAccessorSlot(Object obj, String key) {
-        PropertySlot s = ownSlot(obj, key);
+        PropertySlot s = PropertyAccess.ownSlot(obj, key);
         return s instanceof AccessorSlot acc ? acc : null;
-    }
-
-    /** Single-signature own-slot lookup across the three slot-bearing
-     *  storage shapes. Returns {@code null} for absent / tombstoned keys
-     *  and for hosts without a slot store (raw Maps, Java-bridge objects). */
-    static PropertySlot ownSlot(Object obj, String key) {
-        if (obj instanceof JsObject jo) return jo.getOwnSlot(key);
-        if (obj instanceof JsArray ja) return ja.getOwnSlot(key);
-        if (obj instanceof Prototype p) return p.getOwnSlot(key);
-        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -693,15 +683,13 @@ class JsObjectConstructor extends JsFunction {
             // toMap entries take precedence — user-set values shadow intrinsics.
             // For names absent from toMap but reported as own (intrinsics on
             // JsObject / JsArray indices+length / Prototype built-ins), route
-            // through getMember to surface the live value.
+            // through getMember to surface the live value. JsObject's
+            // isOwnProperty already covers the resolveOwnIntrinsic-derived
+            // surface (collapsed in S5+), so a single isOwnProperty check
+            // suffices across all subclasses.
             Map<String, Object> m = ol.toMap();
             if (m.containsKey(key)) return m.get(key);
             if (ol.isOwnProperty(key)) return ol.getMember(key);
-            // Special-case for JsObject's intrinsic surface that's neither in
-            // toMap nor reported by isOwnProperty's default impl.
-            if (obj instanceof JsObject jo && jo.hasOwnIntrinsic(key)) {
-                return ol.getMember(key);
-            }
             return Terms.UNDEFINED;
         }
         if (obj instanceof Map<?, ?> m) return ((Map<String, Object>) m).get(key);

@@ -107,23 +107,33 @@ class JsError extends JsObject implements JsCallable {
 
     @Override
     public Object getMember(String key) {
-        Object own = super.getMember(key);
-        // Spec: Error.prototype.toString shadows Object.prototype.toString.
-        // Matters because Terms.toPrimitive (and binary + via Terms.add) routes
-        // through getMember("toString"); previously masked by Java string concat.
-        if ("toString".equals(key) && own == JsObjectPrototype.DEFAULT_TO_STRING) {
-            return (JsCallable) (ctx, args) -> toString();
-        }
-        return own;
+        return shadowDefaultToString(key, super.getMember(key));
     }
 
     @Override
     public Object getMember(String key, Object receiver, CoreContext ctx) {
-        Object own = super.getMember(key, receiver, ctx);
-        if ("toString".equals(key) && own == JsObjectPrototype.DEFAULT_TO_STRING) {
+        return shadowDefaultToString(key, super.getMember(key, receiver, ctx));
+    }
+
+    /**
+     * Spec: {@code Error.prototype.toString} shadows
+     * {@code Object.prototype.toString}. Without a {@code JsErrorPrototype}
+     * intermediate (one's worth of refactor on its own), we detect the
+     * default at proto-chain resolution time and swap in our JS-flavored
+     * stringifier.
+     * <p>
+     * This is a deliberate proto-chain override, NOT an own intrinsic — it
+     * does not appear in {@code resolveOwnIntrinsic} (otherwise
+     * {@code e.hasOwnProperty('toString') === true}, which is wrong per spec
+     * — toString lives on the prototype). The override is what binary
+     * {@code +} / {@code Terms.toPrimitive} routes through, so masking it
+     * is observable beyond explicit {@code e.toString()} calls.
+     */
+    private Object shadowDefaultToString(String key, Object resolved) {
+        if ("toString".equals(key) && resolved == JsObjectPrototype.DEFAULT_TO_STRING) {
             return (JsCallable) (c, args) -> toString();
         }
-        return own;
+        return resolved;
     }
 
     @Override

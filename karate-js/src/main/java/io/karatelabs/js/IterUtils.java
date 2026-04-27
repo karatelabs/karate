@@ -45,6 +45,25 @@ public class IterUtils {
     /** Stand-in for {@code Symbol.iterator} until real Symbol support lands. */
     public static final String SYMBOL_ITERATOR = "@@iterator";
 
+    /**
+     * Shared {@code @@iterator} stand-in installed on built-in iterable
+     * prototypes ({@link JsArrayPrototype}, {@link JsStringPrototype}). Per
+     * spec, {@code Symbol.iterator} lives on the prototype rather than each
+     * instance — installing once means {@code arr.hasOwnProperty('@@iterator')
+     * === false} (correct: it's inherited) and identity holds across instances.
+     * <p>
+     * Reads {@code this} from the call context, resolves it via {@link
+     * #getIterator}, and wraps in the spec iterator-result shape. A
+     * non-iterable {@code this} surfaces as a TypeError from {@code getIterator}
+     * — same behavior as spec's {@code Array.prototype[Symbol.iterator]} when
+     * detached from an iterable receiver.
+     */
+    public static final JsCallable SYMBOL_ITERATOR_METHOD = (ctx, args) -> {
+        Object thisObj = ctx.getThisObject();
+        JsIterator iter = getIterator(thisObj, ctx);
+        return toIteratorObject(iter);
+    };
+
     private IterUtils() {
     }
 

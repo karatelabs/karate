@@ -34,8 +34,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * Property lookup order:
  * <ol>
  *   <li>Own properties ({@code props}, skipping tombstoned slots)</li>
- *   <li>Subclass intrinsic resolution ({@link #hasOwnIntrinsic} / virtual
- *       {@link #getMember} switches)</li>
+ *   <li>Subclass intrinsic resolution via {@link #resolveOwnIntrinsic(String)}
+ *       — single source of truth for "names this subclass exposes as own
+ *       without storing them in {@code props}". {@link #hasOwnIntrinsic} is
+ *       a derived existence check.</li>
  *   <li>Prototype chain ({@code __proto__})</li>
  * </ol>
  */
@@ -128,16 +130,29 @@ class JsObject implements ObjectLike, Map<String, Object> {
 
     /**
      * True iff this object exposes {@code name} as an "own" intrinsic property
-     * (e.g. {@code Date.prototype}, {@code Date.now}, {@code Date.UTC}). Default:
-     * false — only user-added entries in {@link #props} count as own.
+     * (e.g. {@code Date.prototype}, {@code Date.now}, {@code Date.UTC}).
+     * Derived directly from {@link #resolveOwnIntrinsic(String)} — a non-null
+     * resolution is, by definition, an own intrinsic; a null resolution means
+     * the name is not on this object. Single source of truth eliminates the
+     * old "subclass declares the name set twice" drift risk
+     * (concretely: {@code JsFunction.constructor} once appeared in the
+     * boolean override but not the value resolver, so
+     * {@code f.hasOwnProperty('constructor')} reported true even though
+     * {@code constructor} lives on {@code Function.prototype}, not on each
+     * function instance).
      * <p>
-     * Subclasses (especially built-in constructors) override to declare which
-     * names their {@link #getMember} resolves directly without delegating to
-     * {@code __proto__}. Used by {@code Object.prototype.hasOwnProperty} so that
-     * {@code Date.hasOwnProperty('UTC') === true} per spec.
+     * Subclasses with non-resolveOwnIntrinsic-based storage
+     * ({@link JsGlobalThis} bindings, {@link JsArray} numeric indices) override
+     * {@link #isOwnProperty(String)} directly and bypass this hook.
+     * <p>
+     * Hot-path note: callers that only need an existence check pay the cost
+     * of building the resolved value. Subclasses whose {@code resolveOwnIntrinsic}
+     * allocates per call (built-in method lambdas, etc.) should install
+     * those on the prototype instead — the prototype's {@code builtins} map
+     * caches a single instance.
      */
     public boolean hasOwnIntrinsic(String name) {
-        return false;
+        return resolveOwnIntrinsic(name) != null;
     }
 
     @Override
@@ -570,14 +585,23 @@ class JsObject implements ObjectLike, Map<String, Object> {
         }
     }
 
+    /**
+     * Java-interop snapshot of own data. Accessor descriptors surface as
+     * {@code null} entries — this is the no-side-effects boundary where the
+     * absence of a {@link CoreContext} would force getters to silently fail
+     * anyway. {@link Map#get}, {@link #values()}, {@link #containsValue},
+     * {@link #entrySet} and the no-arg {@link #jsEntries()} all follow the
+     * same rule for the same reason.
+     * <p>
+     * Spec-correct iteration that <em>must</em> invoke accessor getters
+     * ({@code Object.keys / values / entries / assign}) goes through
+     * {@link #jsEntries(CoreContext)} — Refactor E carved that out as the
+     * single ctx-aware seam. If you find yourself reaching for {@code toMap}
+     * from JS-semantic code, you probably want {@code jsEntries(ctx)} instead.
+     */
     @Override
     public Map<String, Object> toMap() {
         if (props == null || props.isEmpty()) return Collections.emptyMap();
-        // Surface non-tombstoned slots as a name → value map. Built fresh —
-        // callers iterating heavily should cache the result. (jsEntries reads
-        // props directly to avoid the rebuild.) Accessor slots have no
-        // extractable raw value at this Java-interop boundary; surface them
-        // as null entries.
         Map<String, Object> view = new LinkedHashMap<>(props.size());
         for (PropertySlot s : props.values()) {
             if (!s.tombstoned) {

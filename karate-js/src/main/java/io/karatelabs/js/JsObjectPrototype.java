@@ -136,20 +136,13 @@ class JsObjectPrototype extends Prototype {
         }
         String prop = args[0].toString();
         Object thisObj = context.getThisObject();
-        // Built-in prototype itself: include own built-in methods (e.g.
-        // Date.prototype.hasOwnProperty('toString') === true). Walks neither
-        // userProps via toMap() nor the __proto__ chain.
-        if (thisObj instanceof Prototype proto) {
-            return proto.isOwnProperty(prop);
-        }
-        if (thisObj instanceof JsObject jo) {
-            return jo.isOwnProperty(prop);
-        }
-        if (thisObj instanceof JsArray ja) {
-            return ja.isOwnProperty(prop);
-        }
+        // Single dispatch through ObjectLike.isOwnProperty — JsObject /
+        // JsArray / Prototype each override with the storage-specific check
+        // (own-slot non-tombstoned, intrinsic-installed, or numeric-index
+        // non-HOLE), and the interface default falls back to toMap for any
+        // future ObjectLike. Raw Java Maps fall through to the Map branch.
         if (thisObj instanceof ObjectLike ol) {
-            return ol.toMap().containsKey(prop);
+            return ol.isOwnProperty(prop);
         }
         if (thisObj instanceof Map<?, ?> map) {
             return map.containsKey(prop);

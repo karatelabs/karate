@@ -434,7 +434,7 @@ class JsObject implements Map<String, Object>, ObjectLike {
     public boolean isOwnProperty(String name) {
         PropertySlot s = props == null ? null : props.get(name);
         if (s != null) return !s.tombstoned;
-        return hasOwnIntrinsic(name);   // subclass-declared own intrinsics
+        return hasOwnIntrinsic(name);   // = resolveOwnIntrinsic(name) != null
     }
 
     // Java interface - auto-unwrap, own properties only
@@ -990,31 +990,57 @@ spec-allowed exceptions (writable true→false on data, no-op same-value
 redefine) passing through.
 
 **`Object.prototype.hasOwnProperty` is prototype-aware and intrinsic-aware.**
-When the receiver is a `Prototype` singleton (`Date.prototype`,
-`Array.prototype`, etc.) it consults `Prototype.isOwnProperty` (built-in
-methods + userProps); when the receiver is a `JsObject` it consults
-`JsObject.hasOwnIntrinsic` alongside the `props` lookup so built-in
-constructors report their intrinsic statics (`Date.prototype`, `Date.now`,
-`Date.UTC`, etc.) as own. Subclasses (`JsFunction` exposes `prototype` /
-`name` / `length` / `constructor`; `JsDateConstructor` adds `now` / `parse` /
-`UTC`) override `hasOwnIntrinsic` to declare the names their
-`resolveOwnIntrinsic` resolves directly. Required for the `S15.9.5_A*` and
-`S15.9.4_A*` test clusters and analogous tests under other built-ins.
+Single dispatch through `ObjectLike.isOwnProperty` covers all storage
+shapes: `Prototype.isOwnProperty` (built-in methods + userProps),
+`JsObject.isOwnProperty` (props + `hasOwnIntrinsic`), `JsArray.isOwnProperty`
+(length / namedProps / non-HOLE indices), `JsGlobalThis.isOwnProperty`
+(bindings + lazy globals). Required for the `S15.9.5_A*` / `S15.9.4_A*`
+test clusters and analogous tests under other built-ins.
+
+**`hasOwnIntrinsic` is derived from `resolveOwnIntrinsic`.** The base
+`JsObject.hasOwnIntrinsic(name)` returns `resolveOwnIntrinsic(name) != null`
+— a single source of truth for the subclass-declared own-intrinsic surface.
+Subclasses override `resolveOwnIntrinsic` to return the value (or `null`);
+the existence check derives. Eliminates the previous drift risk where
+`JsFunction` declared `constructor` in its boolean `hasOwnIntrinsic`
+override but not in `resolveOwnIntrinsic` (causing
+`f.hasOwnProperty('constructor') === true`, which is wrong per spec —
+`constructor` lives on `Function.prototype`). The collapse also fixed
+anonymous-function `name` reporting: `(function(){}).name === ""` and
+`hasOwnProperty('name') === true` per spec, since
+`resolveOwnIntrinsic("name")` defaults `null`-named functions to `""`.
 
 **Intrinsic-attribute pipeline.** Built-in own properties resolved via
 `resolveOwnIntrinsic` (not via `props`) declare themselves as own through
-`hasOwnIntrinsic(name)` and report attribute bits through
-`getOwnAttrs(name)`. `JsFunction` returns spec defaults for its four
-intrinsics (`length` / `name`: configurable-only; `prototype`: writable;
-`constructor`: writable + configurable); subclasses (`JsMath`, etc.) cover
-their own methods / constants via `defineOwn` with explicit attrs. The
-descriptor read pipeline (`Object.getOwnPropertyDescriptor`,
-`propertyIsEnumerable`, `Object.keys` / `for...in` enumerable filter)
-consults this rather than the all-true default. A user-set slot's attrs
-(set by `Object.defineProperty`) win over the intrinsic defaults so user
-override is still possible. (TODO: `hasOwnIntrinsic` could be derived from
-`resolveOwnIntrinsic(name) != null` to drop one source of truth — see
-[TEST262.md § Engine cleanup](../karate-js-test262/TEST262.md#engine--cleanup).)
+the derived `hasOwnIntrinsic(name)` and report attribute bits through
+`getOwnAttrs(name)`. `JsFunction` returns spec defaults for its three
+intrinsics (`length` / `name`: configurable-only; `prototype`: writable);
+`constructor` is inherited from `Function.prototype` and intentionally not
+own. Subclasses (`JsMath`, etc.) cover their own methods / constants via
+`defineOwn` with explicit attrs. The descriptor read pipeline
+(`Object.getOwnPropertyDescriptor`, `propertyIsEnumerable`, `Object.keys`
+/ `for...in` enumerable filter) consults this rather than the all-true
+default. A user-set slot's attrs (set by `Object.defineProperty`) win over
+the intrinsic defaults so user override is still possible.
+
+**`@@iterator` lives on the prototype, not the instance.** The
+`Symbol.iterator` stand-in (`IterUtils.SYMBOL_ITERATOR_METHOD`) is installed
+once on `JsArrayPrototype` and `JsStringPrototype` rather than allocated
+per-instance via `resolveOwnIntrinsic`. Spec-correct
+(`arr.hasOwnProperty('@@iterator') === false` — it's inherited), identity
+holds across instances, and `hasOwnIntrinsic` doesn't pay a per-call lambda
+allocation. Future Symbol primitive work replaces the string key with the
+real `Symbol.iterator` value.
+
+**Proto-chain shadows that are NOT own intrinsics.** `JsError` overrides
+`getMember` to detect `Object.prototype.toString` resolved through the
+chain and swap in a JS-flavored stringifier (`shadowDefaultToString`).
+This is a deliberate proto-chain shadow — moving it into
+`resolveOwnIntrinsic` would make `e.hasOwnProperty('toString') === true`,
+which is wrong per spec (toString lives on the prototype). The clean fix
+is a `JsErrorPrototype` with its own `toString` install; until then, the
+shadow lives in the `getMember` override with a doc comment explaining
+the constraint.
 
 **Tombstone-on-delete for intrinsic properties.** Each `PropertySlot`
 carries a `tombstoned` flag; set true by `removeMember` when the deleted

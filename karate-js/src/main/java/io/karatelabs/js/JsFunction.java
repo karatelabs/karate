@@ -123,22 +123,20 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
     }
 
     @Override
-    public boolean hasOwnIntrinsic(String name) {
-        // Every function exposes prototype, name, length, and constructor as own.
-        return "prototype".equals(name) || "name".equals(name)
-                || "length".equals(name) || "constructor".equals(name);
-    }
-
-    @Override
     protected Object resolveOwnIntrinsic(String name) {
         // `prototype` is special: an explicit own data slot (set via
         // `Foo.prototype = X`) wins over the auto-allocated prototype object —
         // but the JsObject.getMember caller already returned that own-slot
         // value before consulting this hook. So at this point, no explicit
         // assignment exists; surface the auto-allocated prototype.
+        // <p>
+        // `name` defaults to "" rather than null so anonymous functions still
+        // surface a non-null own intrinsic — both per spec (every function
+        // has a {@code .name} of at least "") and so the derived
+        // {@link JsObject#hasOwnIntrinsic} returns true.
         return switch (name) {
             case "prototype" -> getFunctionPrototype();
-            case "name" -> this.name;
+            case "name" -> this.name == null ? "" : this.name;
             case "length" -> this.length;
             // `constructor` is inherited from Function.prototype, not an own
             // intrinsic — fall through to the proto chain.

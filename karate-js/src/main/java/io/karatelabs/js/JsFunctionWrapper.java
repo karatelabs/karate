@@ -55,6 +55,25 @@ public class JsFunctionWrapper extends JsFunction {
     }
 
     @Override
+    public Object getMember(String name, Object receiver, CoreContext ctx) {
+        // Symmetric with the 1-arg forward — without this, accessor
+        // descriptors installed on the wrapped function (rare, but reachable
+        // via {@code Object.defineProperty(fn, key, {get: …})} when the
+        // JS-side reference is a wrapper) would surface as {@code null}
+        // because the inherited JsObject path can't see the delegate's slots.
+        return delegate.getMember(name, receiver, ctx);
+    }
+
+    @Override
+    protected Object resolveOwnIntrinsic(String name) {
+        // Forward intrinsic resolution to the delegate so the wrapper's
+        // hasOwnIntrinsic / isOwnProperty / getOwnPropertyDescriptor reflect
+        // the wrapped function's surface (its name / length / prototype),
+        // not the wrapper's empty-by-default JsFunction state.
+        return delegate.resolveOwnIntrinsic(name);
+    }
+
+    @Override
     public void putMember(String name, Object value) {
         delegate.putMember(name, value);
     }

@@ -807,11 +807,24 @@ class PropertyAccess {
     private static AccessorSlot findAccessorInChain(ObjectLike obj, String name) {
         ObjectLike current = obj;
         while (current != null) {
-            PropertySlot s = JsObjectConstructor.ownSlot(current, name);
+            PropertySlot s = ownSlot(current, name);
             if (s instanceof AccessorSlot acc) return acc;
             if (s != null) return null; // own data slot — accessor lookup stops here
             current = current.getPrototype();
         }
+        return null;
+    }
+
+    /** Single-signature own-slot lookup across the three slot-bearing
+     *  storage shapes ({@link JsObject}, {@link JsArray}, {@link Prototype}).
+     *  Returns {@code null} for absent / tombstoned keys and for hosts
+     *  without a slot store (raw Maps, Java-bridge objects). Cross-cutting
+     *  helper for {@link #findAccessorInChain} and
+     *  {@code Object.getOwnPropertyDescriptor}'s accessor-shape probe. */
+    static PropertySlot ownSlot(Object obj, String key) {
+        if (obj instanceof JsObject jo) return jo.getOwnSlot(key);
+        if (obj instanceof JsArray ja) return ja.getOwnSlot(key);
+        if (obj instanceof Prototype p) return p.getOwnSlot(key);
         return null;
     }
 

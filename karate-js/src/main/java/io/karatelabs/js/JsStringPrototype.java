@@ -78,6 +78,7 @@ class JsStringPrototype extends Prototype {
         install("toString", 0, this::valueOf);
         install("normalize", 0, this::normalize);
         install("localeCompare", 1, this::localeCompare);
+        install(IterUtils.SYMBOL_ITERATOR, 0, IterUtils.SYMBOL_ITERATOR_METHOD);
     }
 
     // Helper method to get string from this context
