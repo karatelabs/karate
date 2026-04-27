@@ -23,6 +23,7 @@
  */
 package io.karatelabs.js;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -103,6 +104,60 @@ class JsObjectPrototype extends Prototype {
         install("isPrototypeOf", 1, this::isPrototypeOf);
         install("propertyIsEnumerable", 1, this::propertyIsEnumerable);
         install("toLocaleString", 0, this::toLocaleString);
+        // Annex B.2.2 legacy accessor methods. Web-compat-mandated; thin
+        // wrappers over Object.defineProperty (define*) and the prototype
+        // chain walk (lookup*). Spec ordering: ToObject(this) gates first
+        // (throws on null/undefined before any other side effects), then
+        // IsCallable(getter/setter) on define*, then ToPropertyKey(P).
+        install("__defineGetter__", 2, (ctx, args) -> defineAccessor(ctx, args, true));
+        install("__defineSetter__", 2, (ctx, args) -> defineAccessor(ctx, args, false));
+        install("__lookupGetter__", 1, (ctx, args) -> lookupAccessor(ctx, args, true));
+        install("__lookupSetter__", 1, (ctx, args) -> lookupAccessor(ctx, args, false));
+    }
+
+    private static Object defineAccessor(Context context, Object[] args, boolean isGetter) {
+        String label = isGetter
+                ? "Object.prototype.__defineGetter__"
+                : "Object.prototype.__defineSetter__";
+        Object thisObj = context.getThisObject();
+        Terms.requireObjectCoercible(thisObj, label);
+        Object fn = args.length < 2 ? Terms.UNDEFINED : args[1];
+        if (!(fn instanceof JsCallable callable)) {
+            throw JsErrorException.typeError(label + ": Expecting function");
+        }
+        // ToPropertyKey runs AFTER IsCallable per spec — the getter-non-callable
+        // test asserts the key's toString is never called when the function
+        // arg is rejected.
+        String key = args.length == 0 ? "undefined" : Terms.toPropertyKey(args[0]);
+        Map<String, Object> desc = new LinkedHashMap<>();
+        desc.put(isGetter ? "get" : "set", callable);
+        desc.put("enumerable", true);
+        desc.put("configurable", true);
+        JsObjectConstructor.INSTANCE.defineProperty(context, new Object[]{thisObj, key, desc});
+        return Terms.UNDEFINED;
+    }
+
+    private static Object lookupAccessor(Context context, Object[] args, boolean isGetter) {
+        String label = isGetter
+                ? "Object.prototype.__lookupGetter__"
+                : "Object.prototype.__lookupSetter__";
+        Object thisObj = context.getThisObject();
+        Terms.requireObjectCoercible(thisObj, label);
+        String key = args.length == 0 ? "undefined" : Terms.toPropertyKey(args[0]);
+        ObjectLike start = thisObj instanceof ObjectLike ol ? ol : Terms.toObjectLike(thisObj);
+        // Spec walk: at each level inspect the OWN slot. Accessor → return
+        // its getter/setter (or undefined when the slot lacks that half).
+        // Data own slot → return undefined (lookup terminates without
+        // continuing up the chain). Absent → continue to __proto__.
+        for (ObjectLike current = start; current != null; current = current.getPrototype()) {
+            PropertySlot slot = PropertyAccess.ownSlot(current, key);
+            if (slot instanceof AccessorSlot acc) {
+                JsCallable fn = isGetter ? acc.getter : acc.setter;
+                return fn == null ? Terms.UNDEFINED : fn;
+            }
+            if (slot != null) return Terms.UNDEFINED;
+        }
+        return Terms.UNDEFINED;
     }
 
     // Spec §20.1.3.5 — toLocaleString defers to the receiver's own toString.

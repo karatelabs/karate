@@ -147,28 +147,36 @@ abstract class Prototype implements ObjectLike {
             return;
         }
         boolean inUser = existing != null;
-        boolean isBuiltin = !inUser && builtins.containsKey(name);
-        if (!inUser && !isBuiltin) {
+        // shadowsBuiltin is independent of inUser: even when a user slot
+        // exists, the builtin underneath survives in {@link #builtins} and
+        // would re-emerge through {@link #getMember} / {@link #isOwnProperty}
+        // unless we tombstone the user slot rather than just dropping it.
+        // Pre-fix bug: write-then-delete (e.g. {@code Number.prototype.toString
+        // = 'foo'; delete Number.prototype.toString}) silently restored the
+        // built-in and broke ~155 test262 prop-desc tests through
+        // propertyHelper.isConfigurable's delete + !hasOwn check.
+        boolean shadowsBuiltin = builtins.containsKey(name);
+        if (!inUser && !shadowsBuiltin) {
             return;
         }
-        if (isBuiltin && (getOwnAttrs(name) & JsObject.CONFIGURABLE) == 0) {
+        if (shadowsBuiltin && (getOwnAttrs(name) & JsObject.CONFIGURABLE) == 0) {
             return;
         }
-        if (isBuiltin && (existing == null || !(existing instanceof DataSlot))) {
-            // Tombstone shadows the built-in: a fresh DataSlot marked
-            // {@code tombstoned} replaces any prior accessor and prevents
-            // future {@link #getMember} / {@link #isOwnProperty} from reaching
-            // the install map.
-            if (userProps == null) {
-                userProps = new LinkedHashMap<>();
+        if (shadowsBuiltin) {
+            // Tombstone needed so the builtin doesn't re-emerge. Reuse an
+            // existing DataSlot; otherwise (no user slot, or user slot is an
+            // accessor) install a fresh tombstone DataSlot that replaces it.
+            if (existing instanceof DataSlot ds) {
+                ds.value = null;
+                ds.tombstoned = true;
+            } else {
+                if (userProps == null) {
+                    userProps = new LinkedHashMap<>();
+                }
+                DataSlot ts = new DataSlot(name);
+                ts.tombstoned = true;
+                userProps.put(name, ts);
             }
-            DataSlot ts = new DataSlot(name);
-            ts.tombstoned = true;
-            userProps.put(name, ts);
-        } else if (isBuiltin) {
-            // Existing data slot — repurpose it as the tombstone.
-            ((DataSlot) existing).value = null;
-            existing.tombstoned = true;
         } else {
             // No built-in to shadow; just drop the user slot entirely.
             userProps.remove(name);

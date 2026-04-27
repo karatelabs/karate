@@ -389,7 +389,7 @@ class JsObjectConstructor extends JsFunction {
     }
 
     @SuppressWarnings("unchecked")
-    private Object defineProperty(Context context, Object[] args) {
+    Object defineProperty(Context context, Object[] args) {
         if (args.length < 1 || !(args[0] instanceof ObjectLike || args[0] instanceof Map)) {
             throw JsErrorException.typeError("Object.defineProperty called on non-object");
         }

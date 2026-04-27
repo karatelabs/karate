@@ -326,7 +326,7 @@ class PropertyAccess {
                     yield false;
                 }
                 if (site == null) yield false;
-                yield deleteByKey(site.target, String.valueOf(site.key), context, node);
+                yield deleteByKey(site.target, Terms.toPropertyKey(site.key), context, node);
             }
             default -> false;
         };
@@ -515,11 +515,11 @@ class PropertyAccess {
                 return jsArray.getIndexedValue(i, jsArray, context);
             }
             if (object instanceof Map || object instanceof ObjectLike) {
-                return getByName(object, String.valueOf(index), optional, context, functionCall);
+                return getByName(object, Terms.toPropertyKey(index), optional, context, functionCall);
             }
             throw JsErrorException.typeError("get by index [" + i + "] for non-array: " + object);
         }
-        return getByName(object, String.valueOf(index), optional, context, functionCall);
+        return getByName(object, Terms.toPropertyKey(index), optional, context, functionCall);
     }
 
     private static Object getByName(Object object, String name, boolean optional,
@@ -631,7 +631,7 @@ class PropertyAccess {
                 return;
             }
         }
-        setByName(object, String.valueOf(index), value, context, trackingNode);
+        setByName(object, Terms.toPropertyKey(index), value, context, trackingNode);
     }
 
     /**
@@ -718,7 +718,7 @@ class PropertyAccess {
                 return newValue;
             }
         }
-        return compoundByName(object, String.valueOf(index), operator, operand, context, trackingNode);
+        return compoundByName(object, Terms.toPropertyKey(index), operator, operand, context, trackingNode);
     }
 
     private static Object compoundByName(Object object, String name, TokenType operator, Object operand, CoreContext context, Node trackingNode) {
@@ -741,7 +741,7 @@ class PropertyAccess {
                 return oldValue;
             }
         }
-        return postIncDecByName(object, String.valueOf(index), isIncrement, context);
+        return postIncDecByName(object, Terms.toPropertyKey(index), isIncrement, context);
     }
 
     private static Object postIncDecByName(Object object, String name, boolean isIncrement, CoreContext context) {
@@ -765,7 +765,7 @@ class PropertyAccess {
                 return newValue;
             }
         }
-        return preIncDecByName(object, String.valueOf(index), isIncrement, context);
+        return preIncDecByName(object, Terms.toPropertyKey(index), isIncrement, context);
     }
 
     private static Object preIncDecByName(Object object, String name, boolean isIncrement, CoreContext context) {

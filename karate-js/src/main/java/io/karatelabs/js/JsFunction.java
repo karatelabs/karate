@@ -116,6 +116,15 @@ public abstract class JsFunction extends JsObject implements JavaCallable {
      */
     @Override
     public byte getOwnAttrs(String name) {
+        // Built-in constructors (Number, Array, Date, Map, …) install their
+        // {@code prototype} slot via {@code defineOwn(..., INTRINSIC)} so the
+        // descriptor must report all-false (writable=false, enumerable=false,
+        // configurable=false) per spec. Without honoring the explicit slot
+        // attrs here, the user-function default below would always return
+        // {@code WRITABLE} and the built-in's {@code prop-desc} test fails.
+        if (hasExplicitAttrs(name)) {
+            return getAttrs(name);
+        }
         return switch (name) {
             case "length", "name" -> CONFIGURABLE;
             case "prototype" -> WRITABLE;
