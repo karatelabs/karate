@@ -85,6 +85,15 @@ Each session that touches the engine should:
    mvn -f pom.xml -o test -pl karate-core
    ```
    Expect `Tests run: 1969, Failures: 0, Errors: 0, Skipped: 1`.
+6. **Update this file's TODOs in the same commit.** This is a roadmap,
+   not a changelog. For each item the commit addressed (active priority
+   bullet, background sweep, deferred TODO, or implicit assumption a bug
+   broke), strike or rewrite it here. If the work surfaced a new
+   architectural invariant — a contract that future code must respect —
+   push the *why* into [JS_ENGINE.md](../docs/JS_ENGINE.md) under the
+   relevant spec-invariant anchor, then leave a one-line pointer here
+   from any TODO that still depends on it. Yesterday's done work doesn't
+   belong in this file; the commit log is the audit trail.
 
 ---
 
@@ -96,11 +105,11 @@ Math/Number/Date/String are independent of Symbol.
 
 | # | Slice | What's left |
 |---|---|---|
-| 1 | `test/built-ins/Number/**` | `prop-desc.js` cluster (`Object.getOwnPropertyDescriptor` for `configurable: true` on prototype methods), `Object.prototype.toString.call(num)` `[object Number]` (Symbol-gated, slice #7), `MAX_VALUE` / `MIN_VALUE` literal-form parser edge. See [JS_ENGINE.md § Numeric / coercion](../docs/JS_ENGINE.md#numeric--coercion). |
+| 1 | `test/built-ins/Number/**` | `Object.prototype.toString.call(num)` `[object Number]` (Symbol-gated, slice #7), `MAX_VALUE` / `MIN_VALUE` literal-form parser edge. See [JS_ENGINE.md § Numeric / coercion](../docs/JS_ENGINE.md#numeric--coercion). |
 | 2 | `test/built-ins/Date/**` | `Date.parse` ISO format edges, UTC vs local hour math, invalid-date propagation. See [JS_ENGINE.md § Date](../docs/JS_ENGINE.md#date). |
 | 3 | `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` edge cases tied to ToInteger spec corners, parser-blocked tests, Symbol-gated tail. Spec preamble pattern + JS-spec whitespace + `replace` substitution doc'd in [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
 | 4 | `test/built-ins/RegExp/**` | `Symbol.{match,replace,search,split,matchAll}` (slice #7), `RegExp.escape` (ES2025), parser `R_PAREN` / Unicode-escape edges, `cross-realm` tests (multi-realm not modeled). See [JS_ENGINE.md § Built-in accessor descriptors on prototypes](../docs/JS_ENGINE.md#built-in-accessor-descriptors-on-prototypes) and [§ JsRegex.replace](../docs/JS_ENGINE.md#jsregexreplace--js-substitution-template). |
-| 5 | `test/built-ins/Object/**` | `defineProperty` TypeError edges, `seal` (TypedArray-feature-gated), `groupBy` (ES2024), `__lookupGetter__` / `__lookupSetter__` / `__defineGetter__` / `__defineSetter__` (legacy web-compat accessors on Object.prototype), Symbol-gated tail. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
+| 5 | `test/built-ins/Object/**` | `defineProperty` TypeError edges, `seal` (TypedArray-feature-gated), `groupBy` (ES2024), Symbol-gated tail. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
 | 6 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` residuals (slice #7), parser-blocked async / generator paths, harness-feature-gated (Int8Array). See [JS_ENGINE.md § Prototype machinery](../docs/JS_ENGINE.md#prototype-machinery). |
 | 7 | `test/built-ins/Symbol/**` + cascades | Full Symbol primitive: `typeof === "symbol"`, unique identity, `Symbol.for` / `keyFor` / `description`, `Object.getOwnPropertySymbols`, `Reflect.ownKeys`. Touches `Terms.typeOf` / `eq` / coercion; `PropertyKey` abstraction across `JsObject.props` / `isOwnProperty`. 2–4 sessions. Unblocks the Array / String / RegExp Symbol-gated tail. |
 
@@ -182,12 +191,6 @@ and the per-section anchors.
 - **`PropertyKey` abstraction.** Symbol prep. Defer to slice #7 itself —
   introducing `PropertyKey` ahead of a concrete consumer is YAGNI.
 
-- **`Terms.toPropertyKey` rollout to remaining sites.** Other
-  `args[k].toString()` sites in `PropertyAccess` / `JsArrayConstructor`
-  likely still have `-0` / large-integer / exponential-form bugs. Sweep
-  when adjacent. ~1 h. See
-  [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes).
-
 - **Arguments → spec exotic Arguments object.** Now a `JsArray` (cached
   per-call frame) — supports `arguments[i]` / `.length` / iteration /
   property writes. Not yet: `arguments.callee` (deprecated, strict-mode
@@ -244,13 +247,6 @@ priority. Pick up when the relevant slice surfaces them.
 
 - **`Symbol.toPrimitive` is not dispatched.** Matches our minimal
   Symbol surface. Fix as part of slice #7.
-
-- **Annex B legacy accessor methods on `Object.prototype`.**
-  `__lookupGetter__` / `__lookupSetter__` / `__defineGetter__` /
-  `__defineSetter__` not implemented. Web-compat-mandated even though
-  they're Annex B. ~42 fails in `Object/prototype/__*Getter__` /
-  `__*Setter__`. Implement as thin wrappers over the existing
-  `defineOwnAccessor` / `getOwnPropertyDescriptor` plumbing. ~1 h.
 
 - **`(0, fn)()` indirect call this-binding.**
   `(1, Object.prototype.valueOf)()` should pass undefined as `this`

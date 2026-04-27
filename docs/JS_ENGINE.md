@@ -1189,6 +1189,31 @@ false. Matters for `propertyHelper.verifyProperty`'s destructive
 `delete Foo.prototype.bar` (the prior separate `Set<String> tombstones`
 was migrated into `PropertySlot.tombstoned` in refactor B, post-S4).
 
+**Tombstone-on-shadow rule for `Prototype.removeMember`.** When a user
+slot exists in `userProps` AND the same name lives in `builtins` under
+it, `delete` must tombstone the user slot rather than drop it — else
+the underlying built-in re-emerges through `getMember` /
+`isOwnProperty`. This was the silent failure mode behind ~155 test262
+"should be configurable" prop-desc fails: `verifyProperty`'s pipeline
+runs `isWritable` (which writes a fresh `DataSlot` into `userProps`)
+before `isConfigurable` (which deletes). Pre-fix, the delete dropped
+the user slot, the built-in re-emerged, and `!hasOwnProperty` returned
+false. The shadowsBuiltin check is independent of `inUser` so the
+tombstone fires whether the user slot pre-existed (reuse it) or not
+(install a fresh tombstone).
+
+**`JsFunction.getOwnAttrs` honors explicit slot attrs before the
+function-default switch.** Built-in constructors install their
+`prototype` slot via `defineOwn(..., INTRINSIC)` for spec all-false
+(non-writable / non-enumerable / non-configurable). The user-function
+default for `prototype` is `WRITABLE`, which would mask the explicit
+INTRINSIC and report writable=true on `Object.getOwnPropertyDescriptor(
+Number, "prototype")` etc. Gating the switch on `!hasExplicitAttrs(name)`
+keeps the user-function default for plain `function f(){}` while letting
+built-in constructors override per spec. Same precedence applies to
+`length` / `name` / `constructor` overrides if a built-in ever needs to
+deviate.
+
 **`JsObject.isOwnProperty(name)` is the canonical own-key check.** Returns
 true iff there's a non-tombstoned slot for `name` OR `hasOwnIntrinsic(name)`.
 Replaces the previous mix of `toMap().containsKey + hasOwnIntrinsic` checks
@@ -1591,6 +1616,31 @@ Each getter follows the spec receiver triage: `this === RegExp.prototype`
 flag bits); `this instanceof JsRegex` → field; otherwise TypeError. The
 shared helper is `JsRegexPrototype.installFlagAccessor(name,
 protoSentinel, extractor)`.
+
+### Annex B legacy accessor methods on `Object.prototype`
+
+**`__defineGetter__` / `__defineSetter__` / `__lookupGetter__` /
+`__lookupSetter__`** are web-compat-mandated even though formally
+Annex B. Live on `JsObjectPrototype` as thin wrappers over the existing
+descriptor plumbing.
+
+The two `define*` methods build a fixed-shape descriptor
+(`{get|set: fn, enumerable: true, configurable: true}`) and dispatch
+through `JsObjectConstructor.defineProperty` — reusing the spec
+ToPropertyDescriptor + ValidateAndApplyPropertyDescriptor pipeline
+(notably the merge rule: defining only `get` preserves the existing
+setter). Spec ordering is load-bearing for `getter-non-callable` and
+`this-non-obj` tests: ToObject(this) gates first, then IsCallable on the
+function arg, then ToPropertyKey on the name — so the test's
+toString-side-effect counter stays at zero on a rejected receiver or
+non-callable function.
+
+The two `lookup*` methods walk the prototype chain via
+`PropertyAccess.ownSlot` at each level, returning the accessor's
+getter/setter (or `undefined` when the slot lacks that half) and
+terminating with `undefined` on the first own data slot — matches spec
+`OrdinaryGetOwnProperty` semantics, same shape as
+`PropertyAccess.findAccessorInChain`.
 
 ### `JsRegex.replace` — JS substitution template
 
