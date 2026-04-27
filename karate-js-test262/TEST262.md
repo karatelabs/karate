@@ -221,6 +221,67 @@ other work.
   `JsArrayPrototype` / `JsStringPrototype` pattern) and install
   `toString` there. Estimated 1 h.
 
+- **`JsErrorConstructor` refactor (cross-cutting).** Same dual-role pattern
+  the Boolean/RegExp refactor just untangled: each error type
+  (`Error` / `TypeError` / `RangeError` / `SyntaxError` / `URIError` /
+  `EvalError` / `ReferenceError`) is currently a `JsError` instance with
+  `constructor == null` as the constructor-vs-thrown-instance marker.
+  Spec shape: each is a dedicated `JsFunction` subclass (singleton) that
+  exposes `prototype` as an own intrinsic and inherits from
+  `Error.prototype` for the subclass case. Pair with the
+  `JsErrorPrototype` TODO above — the prototype layer is a prerequisite.
+  Unblocks ~6 `Object/defineProperty` test262 fails that use
+  `Error.prototype.X = Y` for setup, plus the wider Error-instanceof
+  cleanup (the `JsCallable && !JsFunction` hack in `Terms.eq` line ~801
+  drops a case once Error is a proper constructor). Estimated 2–4 h.
+
+- **`Object.freeze(arr)` indexed-write enforcement.** State plumbing
+  landed (Object slice work 2026-04-27): `JsArray` carries
+  `nonExtensible / sealed / frozen` flags, `JsObjectConstructor.freeze`
+  /seal/etc. dispatch on `JsArray`. Remaining: gate the dense
+  `list`-backed indexed-write path on the frozen flag (currently only
+  `namedProps` overrides are honored), block extension of `length`,
+  and implement partial-truncate behavior when later indices are
+  non-configurable. Pair with the spec-precise pop/shift TODO.
+  Estimated 2–3 h.
+
+- **DRY extensibility API across `JsObject` / `JsArray`.** Both classes
+  carry the same `nonExtensible / sealed / frozen` state and methods;
+  `JsObjectConstructor` dispatches per-type via `instanceof`. Extracting
+  to an `ObjectLike` default (with no-op for ObjectLikes that don't
+  model it) would collapse the dispatch and onboard new ObjectLikes
+  (e.g. a future `JsArguments` exotic object) for free. Estimated
+  30 min — defer until a third implementor needs the same API.
+
+- **`INTRINSIC_PROBE_NAMES` should be subclass-supplied.** The fixed list
+  in `JsObjectConstructor.getOwnPropertyDescriptors` (`length`/`name`/
+  `prototype`/`constructor`) discovers intrinsics that don't materialize
+  in `toMap()`. Hand-maintained — easy to drift when a built-in adds an
+  intrinsic. Better: each subclass exposes
+  `Iterable<String> ownIntrinsicNames()` (default empty) and the
+  constructor unions them. Estimated 30 min.
+
+- **`Terms.toPropertyKey` rollout.** Helper landed for the Object slice
+  (`getOwnPropertyDescriptor` / `hasOwn` / `defineProperty`).
+  Other `args[k].toString()` property-key sites in `PropertyAccess` /
+  `JsArrayConstructor` likely have the same `-0` / large-integer /
+  exponential-form bugs. Sweep when adjacent. The integer-string
+  formatter for `[1e16, 1e21)` — currently falls back to
+  `Double.toString` which uses exponential form, breaking property-key
+  comparisons like `obj["100000000000000000000"]` vs `obj[1e20]`
+  (~30 test262 fails in `Object/getOwnPropertyDescriptor`). Use
+  `BigDecimal.valueOf(d).toBigInteger().toString()` or equivalent.
+  Estimated 1–2 h.
+
+- **Arguments → spec exotic Arguments object.** Now a `JsArray` (cached
+  per-call frame) — supports `arguments[i]` / `.length` / iteration /
+  property writes. Not yet: `arguments.callee` (deprecated, strict-mode
+  TypeError), dynamic alias to formal parameters in non-strict mode
+  (`function f(x){ arguments[0]=2; return x }` → `2`),
+  `Object.prototype.toString.call(arguments) === "[object Arguments]"`.
+  Subclass `JsArguments extends JsArray` with the alias map + the
+  `Symbol.toStringTag` override when a real workload demands.
+
 ### Engine — spec alignment
 
 Cases where current behavior is observably non-spec but not yet a test262
@@ -232,10 +293,42 @@ slice priority. Pick up when the relevant slice surfaces them.
   `arr.length = X` path silently no-ops on writable=false. Spec wants
   TypeError under strict. Surface to the strict-mode plumbing TODO above.
 
-- **`Object.freeze(arr)` is a no-op for indexed access.** The dense
-  `list`-backed path doesn't consult per-slot `attrs` for plain numeric
-  writes (only `namedProps` overrides do). Freezing populates the slots
-  but writes still succeed. Fix as part of slice #6 (Array).
+- **`Object.freeze(arr)` is a no-op for indexed access.** *(Partially
+  addressed 2026-04-27: state plumbing landed — see "Engine — cleanup"
+  for the indexed-write enforcement remainder.)* The dense `list`-backed
+  path doesn't consult per-slot `attrs` for plain numeric writes (only
+  `namedProps` overrides do). Freezing populates the slots but writes
+  still succeed. Fix as part of slice #6 (Array).
+
+- **`ToObject` coercion for primitive descriptor sources.**
+  `Object.defineProperties(obj, "hello")` should ToObject-coerce the
+  string into a `JsString` wrapper and iterate its character indices as
+  potential descriptor sources (each character then fails
+  `ToPropertyDescriptor` with TypeError because chars aren't objects —
+  same observable outcome). Currently we throw TypeError eagerly at the
+  type check, which happens to match the spec-end-state but skips the
+  full coercion pipeline. Become spec-shaped when adjacent.
+
+- **`JsArray.jsEntries` vs `[[OwnPropertyKeys]]` semantics asymmetry.**
+  `jsEntries` yields indices only (correct for `Array.prototype.*` —
+  per-spec they iterate by `length`). For-in / `Object.keys` /
+  `defineProperties` want indices PLUS named non-index props.
+  `JsObjectConstructor` works around it via its own `ownKeys` helper
+  walking both stores, but the asymmetry means callers must pick the
+  right helper. Cleaner long-term: split into `arrayEntries(ctx)`
+  (indices) vs `ownEntries(ctx)` (spec [[OwnPropertyKeys]]) so the
+  intent is in the method name. Estimated 1 h once a fourth caller
+  surfaces the bug.
+
+- **`JsGlobalThis` two-store reads.** Data descriptors live on
+  `BindingsStore`, accessor descriptors on `JsObject.props` (because
+  `BindingSlot` is data-only). `getMember` / `isOwnProperty` / `toMap`
+  now consult both (Object slice work 2026-04-27), but the split is a
+  smell — `defineProperty(globalThis, name, {get: …})` writes to one
+  store and `defineProperty(globalThis, name, {value: …})` writes to
+  another. Either extend `BindingSlot` to carry an `AccessorSlot`
+  side-table, or commit to a unified two-store contract with a single
+  authoritative read seam. Estimated 2 h.
 
 - **`Array.prototype.*` writeback on non-array ObjectLike.** Mutating
   methods on a non-array operate on a snapshot list and don't write back.

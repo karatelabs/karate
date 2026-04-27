@@ -55,6 +55,10 @@ class CoreContext implements Context {
     // Function context fields (non-null indicates this is a function context)
     final Object[] callArgs;
     final CoreContext outer;
+    // Lazily allocated `arguments` object — one per call frame so successive
+    // references share identity (`arguments === arguments`) and writes
+    // (`arguments.x = …`) survive within the call.
+    private JsArray argumentsObject;
 
     // Scope management (level-keyed bindings)
     int currentLevel = 0;
@@ -265,13 +269,25 @@ class CoreContext implements Context {
             return thisObject;
         }
         if (callArgs != null && "arguments".equals(key)) {
-            return Arrays.asList(callArgs);
+            return getArgumentsObject();
         }
         BindingSlot s = resolve(key);
         if (s == null) {
             return Terms.UNDEFINED;
         }
         return readSlot(s, key);
+    }
+
+    /** Returns the `arguments` object for this function call, lazily wrapping
+     *  {@link #callArgs} in a {@link JsArray} so writes (named or by index)
+     *  land on a stable ObjectLike. Identity stays stable within the call. */
+    JsArray getArgumentsObject() {
+        if (argumentsObject == null) {
+            List<Object> list = new ArrayList<>(callArgs.length);
+            Collections.addAll(list, callArgs);
+            argumentsObject = new JsArray(list);
+        }
+        return argumentsObject;
     }
 
     /** Apply TDZ check + Supplier-unwrap to a resolved Slot. Shared between

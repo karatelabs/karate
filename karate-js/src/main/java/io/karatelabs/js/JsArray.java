@@ -81,6 +81,14 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      * shadow the dense length with the slot's null {@code value}.
      */
     private boolean lengthWritable = true;
+    // Extensibility state — mirrors {@link JsObject}'s flags. Currently
+    // state-only: {@link #isExtensible} / {@link #isSealed} / {@link #isFrozen}
+    // report it but the indexed-write path doesn't yet enforce. Full
+    // enforcement is the deferred Array slice TODO ({@code Object.freeze(arr)}
+    // is a no-op for indexed access).
+    private boolean nonExtensible;
+    private boolean sealed;
+    private boolean frozen;
     private ObjectLike __proto__ = JsArrayPrototype.INSTANCE;
 
     public JsArray(List<Object> list) {
@@ -656,6 +664,13 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         return getAttrs(name);
     }
 
+    /** Spec-correct enumerability check. Mirrors {@link JsObject#isEnumerable}
+     *  so {@code Object.prototype.propertyIsEnumerable} can dispatch on
+     *  arrays without falling through to a "true regardless" default. */
+    boolean isEnumerable(String name) {
+        return (getOwnAttrs(name) & PropertySlot.ENUMERABLE) != 0;
+    }
+
     public void setElement(int index, Object value) {
         list.set(index, value);
     }
@@ -699,6 +714,11 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      * via {@link PropertySlot#read}; otherwise behaves as
      * {@link #jsEntries()}. Hot path: {@code namedProps == null} for plain
      * arrays — single null check, then the existing dense-list iteration.
+     * <p>
+     * Skips non-enumerable indices: a descriptor installed via
+     * {@code Object.defineProperty(arr, i, {enumerable: false, …})} stores
+     * its attrs in {@link #namedProps}; consult that on each step so for-in /
+     * {@code Object.keys} match {@link JsObject#jsEntries(CoreContext)}.
      */
     public Iterable<KeyValue> jsEntries(CoreContext ctx) {
         return () -> new Iterator<>() {
@@ -706,10 +726,22 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
             @Override
             public boolean hasNext() {
-                while (index < list.size() && list.get(index) == HOLE) {
-                    index++;
+                while (index < list.size()) {
+                    Object v = list.get(index);
+                    if (v == HOLE) {
+                        index++;
+                        continue;
+                    }
+                    if (namedProps != null) {
+                        PropertySlot s = namedProps.get(Integer.toString(index));
+                        if (s != null && (s.attrs & PropertySlot.ENUMERABLE) == 0) {
+                            index++;
+                            continue;
+                        }
+                    }
+                    return true;
                 }
-                return index < list.size();
+                return false;
             }
 
             @Override
@@ -928,6 +960,58 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             return s == null || s.isConfigurable();
         }
 
+    }
+
+    // -------------------------------------------------------------------------
+    // Extensibility state. Mirrors {@link JsObject}'s API so
+    // {@code Object.freeze} / {@code seal} / {@code preventExtensions} +
+    // their predicates can dispatch on JsArray. Indexed-write enforcement is
+    // deferred — see TEST262.md "Object.freeze(arr) is a no-op for indexed
+    // access".
+    // -------------------------------------------------------------------------
+
+    boolean isExtensible() {
+        return !nonExtensible;
+    }
+
+    boolean isSealed() {
+        return sealed || frozen;
+    }
+
+    boolean isFrozen() {
+        return frozen;
+    }
+
+    void preventExtensions() {
+        this.nonExtensible = true;
+    }
+
+    void seal() {
+        this.nonExtensible = true;
+        this.sealed = true;
+        if (namedProps != null) {
+            for (PropertySlot s : namedProps.values()) {
+                if (!s.tombstoned) {
+                    s.attrs &= ~PropertySlot.CONFIGURABLE;
+                }
+            }
+        }
+    }
+
+    void freeze() {
+        this.nonExtensible = true;
+        this.sealed = true;
+        this.frozen = true;
+        this.lengthWritable = false;
+        if (namedProps != null) {
+            for (PropertySlot s : namedProps.values()) {
+                if (s.tombstoned) continue;
+                s.attrs &= ~PropertySlot.CONFIGURABLE;
+                if (s instanceof DataSlot) {
+                    s.attrs &= ~PropertySlot.WRITABLE;
+                }
+            }
+        }
     }
 
 }

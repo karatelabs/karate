@@ -113,46 +113,61 @@ class JsObjectConstructor extends JsFunction {
     // ES2015+ relaxed it — `Object.freeze(1) === 1`). The predicates return
     // true for non-objects (a primitive cannot be extended/sealed/frozen
     // further than it already is).
+    //
+    // Dispatch covers both {@link JsObject} and {@link JsArray} — they carry
+    // independent state but share the same API surface. JsArray's enforcement
+    // is currently state-only (see TEST262.md Array.freeze TODO); the
+    // predicates report the bit faithfully either way.
     // -------------------------------------------------------------------------
 
     private Object isExtensible(Object[] args) {
         if (args.length == 0) return false;
-        return args[0] instanceof JsObject jo && jo.isExtensible();
+        Object v = args[0];
+        if (v instanceof JsObject jo) return jo.isExtensible();
+        if (v instanceof JsArray ja) return ja.isExtensible();
+        return false;
     }
 
     private Object preventExtensions(Object[] args) {
-        if (args.length > 0 && args[0] instanceof JsObject jo) {
-            jo.preventExtensions();
-        }
-        return args.length > 0 ? args[0] : Terms.UNDEFINED;
+        if (args.length == 0) return Terms.UNDEFINED;
+        Object v = args[0];
+        if (v instanceof JsObject jo) jo.preventExtensions();
+        else if (v instanceof JsArray ja) ja.preventExtensions();
+        return v;
     }
 
     private Object isSealed(Object[] args) {
         if (args.length == 0) return true;
-        if (args[0] instanceof JsObject jo) return jo.isSealed();
+        Object v = args[0];
+        if (v instanceof JsObject jo) return jo.isSealed();
+        if (v instanceof JsArray ja) return ja.isSealed();
         // Per spec: non-objects are considered sealed (and frozen) since they
         // have no extensibility/configurability that could change.
-        return !(args[0] instanceof ObjectLike);
+        return !(v instanceof ObjectLike);
     }
 
     private Object seal(Object[] args) {
-        if (args.length > 0 && args[0] instanceof JsObject jo) {
-            jo.seal();
-        }
-        return args.length > 0 ? args[0] : Terms.UNDEFINED;
+        if (args.length == 0) return Terms.UNDEFINED;
+        Object v = args[0];
+        if (v instanceof JsObject jo) jo.seal();
+        else if (v instanceof JsArray ja) ja.seal();
+        return v;
     }
 
     private Object isFrozen(Object[] args) {
         if (args.length == 0) return true;
-        if (args[0] instanceof JsObject jo) return jo.isFrozen();
-        return !(args[0] instanceof ObjectLike);
+        Object v = args[0];
+        if (v instanceof JsObject jo) return jo.isFrozen();
+        if (v instanceof JsArray ja) return ja.isFrozen();
+        return !(v instanceof ObjectLike);
     }
 
     private Object freeze(Object[] args) {
-        if (args.length > 0 && args[0] instanceof JsObject jo) {
-            jo.freeze();
-        }
-        return args.length > 0 ? args[0] : Terms.UNDEFINED;
+        if (args.length == 0) return Terms.UNDEFINED;
+        Object v = args[0];
+        if (v instanceof JsObject jo) jo.freeze();
+        else if (v instanceof JsArray ja) ja.freeze();
+        return v;
     }
 
     // Static methods
@@ -284,10 +299,10 @@ class JsObjectConstructor extends JsFunction {
         if (args.length < 1 || args[0] == null || args[0] == Terms.UNDEFINED) {
             throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
-        if (args.length < 2 || args[1] == null) {
+        if (args.length < 2) {
             return false;
         }
-        String prop = args[1].toString();
+        String prop = Terms.toPropertyKey(args[1]);
         return isOwnKey(args[0], prop);
     }
 
@@ -302,10 +317,10 @@ class JsObjectConstructor extends JsFunction {
         if (args.length < 1 || args[0] == null || args[0] == Terms.UNDEFINED) {
             throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
-        if (args.length < 2 || args[1] == null) {
+        if (args.length < 2) {
             return Terms.UNDEFINED;
         }
-        String prop = args[1].toString();
+        String prop = Terms.toPropertyKey(args[1]);
         if (!isOwnKey(args[0], prop)) {
             return Terms.UNDEFINED;
         }
@@ -393,13 +408,13 @@ class JsObjectConstructor extends JsFunction {
         if (args.length < 1 || !(args[0] instanceof ObjectLike || args[0] instanceof Map)) {
             throw JsErrorException.typeError("Object.defineProperty called on non-object");
         }
-        if (args.length < 2 || args[1] == null) {
+        if (args.length < 2) {
             throw JsErrorException.typeError("property key is null");
         }
         if (args.length < 3 || args[2] == null || args[2] == Terms.UNDEFINED) {
             throw JsErrorException.typeError("Property descriptor must be an object");
         }
-        String prop = args[1].toString();
+        String prop = Terms.toPropertyKey(args[1]);
         Object desc = args[2];
         ObjectLike descObj;
         Map<String, Object> descMap;
@@ -628,27 +643,48 @@ class JsObjectConstructor extends JsFunction {
         return JsObject.ATTRS_DEFAULT;
     }
 
-    @SuppressWarnings("unchecked")
     private Object defineProperties(Context context, Object[] args) {
         if (args.length < 1 || !(args[0] instanceof ObjectLike || args[0] instanceof Map)) {
             throw JsErrorException.typeError("Object.defineProperties called on non-object");
         }
-        if (args.length < 2 || args[1] == null || args[1] == Terms.UNDEFINED) {
+        Object source = args.length < 2 ? null : args[1];
+        if (source == null || source == Terms.UNDEFINED
+                || !(source instanceof ObjectLike || source instanceof Map)) {
+            // Spec ToObject would coerce a primitive (e.g. "hello") into a String
+            // wrapper here. We don't model the wrapper coercion at this seam yet —
+            // throwing TypeError matches the spec outcome for primitive sources
+            // and avoids silently iterating nothing.
             throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
-        Object descsObj = args[1];
-        Map<String, Object> descs;
-        if (descsObj instanceof ObjectLike ol) {
-            descs = ol.toMap();
-        } else if (descsObj instanceof Map) {
-            descs = (Map<String, Object>) descsObj;
-        } else {
-            throw JsErrorException.typeError("Cannot convert undefined or null to object");
-        }
-        for (Map.Entry<String, Object> e : descs.entrySet()) {
-            defineProperty(context, new Object[]{args[0], e.getKey(), e.getValue()});
+        // Spec §20.1.2.3 walks enumerable own keys via [[OwnPropertyKeys]] +
+        // [[GetOwnProperty]], reading each descriptor via [[Get]] so accessor
+        // descriptors on the source dispatch through their getter. ownKeys
+        // covers the full key set for arrays / globalThis / boxed primitives
+        // (where {@code jsEntries} is array-style index-only); the explicit
+        // enumerable filter + receiver-aware getMember below is the single
+        // source of truth here.
+        CoreContext cc = context instanceof CoreContext c ? c : null;
+        for (String key : ownKeys(source)) {
+            if (!isEnumerableOwn(source, key)) continue;
+            Object value = source instanceof ObjectLike ol
+                    ? ol.getMember(key, ol, cc)
+                    : ((Map<?, ?>) source).get(key);
+            defineProperty(context, new Object[]{args[0], key, value});
         }
         return args[0];
+    }
+
+    /** Spec {@code IsEnumerableOwn}: own + enumerable. Dispatches through
+     *  the storage-specific {@code getOwnAttrs} so JsObject / JsArray /
+     *  Prototype subclass overrides (e.g. {@link JsMath} stripping the
+     *  enumerable bit on its built-in methods) apply uniformly. */
+    private static boolean isEnumerableOwn(Object obj, String key) {
+        byte attrs;
+        if (obj instanceof JsObject jo) attrs = jo.getOwnAttrs(key);
+        else if (obj instanceof JsArray ja) attrs = ja.getOwnAttrs(key);
+        else if (obj instanceof Prototype p) attrs = p.getOwnAttrs(key);
+        else return true; // raw Java Map / external — best-effort enumerable
+        return (attrs & JsObject.ENUMERABLE) != 0;
     }
 
     @SuppressWarnings("unchecked")

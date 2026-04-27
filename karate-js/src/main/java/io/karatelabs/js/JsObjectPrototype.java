@@ -127,6 +127,9 @@ class JsObjectPrototype extends Prototype {
         if (thisObj instanceof JsObject jo) {
             return jo.isEnumerable(prop);
         }
+        if (thisObj instanceof JsArray ja) {
+            return ja.isEnumerable(prop);
+        }
         return true;
     }
 

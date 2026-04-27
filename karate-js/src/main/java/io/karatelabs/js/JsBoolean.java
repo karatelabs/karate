@@ -23,13 +23,13 @@
  */
 package io.karatelabs.js;
 
-public non-sealed class JsBoolean extends JsObject implements JsPrimitive, JsCallable {
+/**
+ * Boxed-primitive instance produced by {@code new Boolean(x)}. The global
+ * {@code Boolean} constructor lives on {@link JsBooleanConstructor}.
+ */
+public non-sealed class JsBoolean extends JsObject implements JsPrimitive {
 
     final boolean value;
-    // true only for the single instance registered as the global `Boolean` in
-    // ContextRoot — marks this as the constructor-role object so typeof reports
-    // "function". Regular `new Boolean(x)` instances leave this false.
-    boolean builtinConstructor;
 
     JsBoolean() {
         this(false);
@@ -43,29 +43,6 @@ public non-sealed class JsBoolean extends JsObject implements JsPrimitive, JsCal
     @Override
     public Object getJavaValue() {
         return value;
-    }
-
-    @Override
-    boolean isJsFunction() {
-        return builtinConstructor;
-    }
-
-    @Override
-    public boolean isConstructable() {
-        return builtinConstructor;
-    }
-
-    @Override
-    public Object call(Context context, Object[] args) {
-        boolean temp = false;
-        if (args.length > 0) {
-            temp = Terms.isTruthy(args[0]);
-        }
-        CallInfo callInfo = context.getCallInfo();
-        if (callInfo != null && callInfo.constructor) {
-            return new JsBoolean(temp);
-        }
-        return temp;
     }
 
 }

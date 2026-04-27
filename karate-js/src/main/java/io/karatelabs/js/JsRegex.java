@@ -30,31 +30,18 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 /**
- * JavaScript RegExp wrapper that provides RegExp prototype methods.
+ * Instance type for RegExp values — produced by {@code /foo/} literals,
+ * {@code new RegExp(pattern, flags)}, and the {@code RegExp(...)} call form.
+ * The global {@code RegExp} constructor lives on {@link JsRegexConstructor}.
  */
-public class JsRegex extends JsObject implements JsCallable {
+public class JsRegex extends JsObject {
 
     public final String pattern;
     public final String flags;
     public final Pattern javaPattern;
     public final boolean global;
-    // true only for the single instance registered as the global `RegExp` in
-    // ContextRoot — marks this as the constructor-role object so typeof reports
-    // "function". Regular /foo/ literals and `new RegExp(...)` instances leave
-    // this false.
-    boolean builtinConstructor;
 
     private int lastIndex = 0;
-
-    @Override
-    boolean isJsFunction() {
-        return builtinConstructor;
-    }
-
-    @Override
-    public boolean isConstructable() {
-        return builtinConstructor;
-    }
 
     JsRegex() {
         this("(?:)");
@@ -223,16 +210,6 @@ public class JsRegex extends JsObject implements JsCallable {
             case "dotAll" -> flags.contains("s");
             default -> null;
         };
-    }
-
-    @Override
-    public Object call(Context context, Object[] args) {
-        if (args.length == 0) {
-            return new JsRegex(); // empty regex in JS
-        }
-        String patternStr = args[0].toString();
-        String flagsStr = args.length > 1 ? args[1].toString() : "";
-        return new JsRegex(patternStr, flagsStr);
     }
 
 }

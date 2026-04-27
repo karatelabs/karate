@@ -279,17 +279,9 @@ class ContextRoot implements Context {
             case "NaN" -> Double.NaN;
             case "Number" -> JsNumberConstructor.INSTANCE;
             case "BigInt" -> JsBigIntConstructor.INSTANCE;
-            case "Boolean" -> {
-                JsBoolean b = new JsBoolean();
-                b.builtinConstructor = true;
-                yield b;
-            }
+            case "Boolean" -> JsBooleanConstructor.INSTANCE;
             case "Object" -> JsObjectConstructor.INSTANCE;
-            case "RegExp" -> {
-                JsRegex r = new JsRegex();
-                r.builtinConstructor = true;
-                yield r;
-            }
+            case "RegExp" -> JsRegexConstructor.INSTANCE;
             case "Set" -> JsSetConstructor.INSTANCE;
             case "String" -> JsStringConstructor.INSTANCE;
             case "TypeError" -> new JsError(null, "TypeError", null);

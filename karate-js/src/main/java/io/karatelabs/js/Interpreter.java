@@ -1325,7 +1325,7 @@ class Interpreter {
             return context.getThisObject();
         }
         if (context.callArgs != null && "arguments".equals(varName)) {
-            return Arrays.asList(context.callArgs);
+            return context.getArgumentsObject();
         }
         BindingSlot s = context.resolve(varName);
         if (s == null) {

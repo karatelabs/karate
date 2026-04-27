@@ -25,6 +25,7 @@ package io.karatelabs.js;
 
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
@@ -69,17 +70,17 @@ final class JsGlobalThis extends JsObject {
         if (b.hasMember(name)) return b.getMember(name);
         // Triggers lazy initGlobal for built-ins and caches them as hidden.
         if (root.hasKey(name)) return root.get(name);
-        // Walk the prototype chain — JsObject defaults to JsObjectPrototype.INSTANCE,
-        // which is where `propertyIsEnumerable`, `hasOwnProperty`, `toString` etc. live.
+        // Accessor descriptors installed via Object.defineProperty(this, …)
+        // land on {@link JsObject#props} (BindingSlot is data-only) — consult
+        // super before walking the prototype chain so they're reachable.
+        Object own = super.getMember(name);
+        if (own != null) return own;
         ObjectLike proto = getPrototype();
         return proto != null ? proto.getMember(name) : null;
     }
 
     @Override
     public Object getMember(String name, Object receiver, CoreContext ctx) {
-        // Single-store reads: no AccessorSlot on globalThis bindings (they live
-        // on the BindingSlot which is data-only), so this collapses to the
-        // 1-arg shape modulo the proto walk's ctx-threading.
         if ("__proto__".equals(name)) return getPrototype();
         BindingsStore b = bindings();
         if (b.isTombstoned(name)) {
@@ -88,8 +89,19 @@ final class JsGlobalThis extends JsObject {
         }
         if (b.hasMember(name)) return b.getMember(name);
         if (root.hasKey(name)) return root.get(name);
+        Object own = super.getMember(name, receiver, ctx);
+        if (own != null) return own;
         ObjectLike proto = getPrototype();
         return proto != null ? proto.getMember(name, receiver, ctx) : null;
+    }
+
+    @Override
+    public boolean isOwnProperty(String name) {
+        BindingsStore b = bindings();
+        if (b.isTombstoned(name)) return false;
+        if (b.hasMember(name) || root.hasKey(name)) return true;
+        // Accessor descriptors installed on {@link JsObject#props}.
+        return super.isOwnProperty(name);
     }
 
     @Override
@@ -149,13 +161,6 @@ final class JsGlobalThis extends JsObject {
         } else {
             b.remove(name);
         }
-    }
-
-    @Override
-    public boolean isOwnProperty(String name) {
-        BindingsStore b = bindings();
-        if (b.isTombstoned(name)) return false;
-        return b.hasMember(name) || root.hasKey(name);
     }
 
     // hasOwnIntrinsic is unreachable on globalThis: putMember / removeMember /
@@ -238,9 +243,18 @@ final class JsGlobalThis extends JsObject {
         // identity preserved (no JsFunction → JsFunctionWrapper). Built-ins
         // not yet lazy-cached aren't here; Object.keys(globalThis) only sees
         // realized entries (and gets filtered down further by enumerability
-        // via getOwnAttrs above).
+        // via getOwnAttrs above). Merge in any JsObject.props entries — those
+        // hold accessor descriptors installed via Object.defineProperty(this, …)
+        // (BindingSlot is data-only).
         Map<String, Object> raw = bindings().getRawMap();
-        return raw.isEmpty() ? Collections.emptyMap() : raw;
+        Map<String, Object> propsMap = super.toMap();
+        if (propsMap.isEmpty()) {
+            return raw.isEmpty() ? Collections.emptyMap() : raw;
+        }
+        Map<String, Object> merged = new LinkedHashMap<>(raw.size() + propsMap.size());
+        merged.putAll(raw);
+        merged.putAll(propsMap);
+        return merged;
     }
 
     // Map<String, Object> overrides — JsObject's defaults check `props` (always

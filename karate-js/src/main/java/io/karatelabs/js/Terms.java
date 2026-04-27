@@ -748,17 +748,15 @@ public class Terms {
         if (value instanceof JsInvokable) {
             return "function";
         }
-        // JsFunction + built-in constructor singletons (Boolean/RegExp/Error
-        // globals) self-report via isJsFunction() override. Must come before
-        // the JsPrimitive check because JsBoolean is both primitive AND the
-        // global Boolean constructor — the latter sets builtinConstructor=true.
+        // JsFunction + built-in constructor singletons (Error / TypeError /
+        // … globals) self-report via isJsFunction() override.
         if (value instanceof JsObject jo && jo.isJsFunction()) {
             return "function";
         }
         // Raw JsCallable method refs exposed by Prototype.getBuiltinProperty
         // ((JsCallable) this::map, etc.). After R2, plain JsObject is no longer
         // JsCallable; JsArray and the boxed primitive wrappers (JsString /
-        // JsNumber / JsBoolean) still are, but they're handled by the
+        // JsNumber) still are, but they're handled by the
         // primitive/object-ish branches around this one.
         if (value instanceof JsCallable && !(value instanceof ObjectLike)) {
             return "function";
@@ -926,6 +924,43 @@ public class Terms {
             }
         }
         throw JsErrorException.typeError("Cannot convert object to primitive value");
+    }
+
+    /**
+     * Spec {@code ToPropertyKey} (§7.1.18) — converts an arbitrary value to
+     * the canonical string form used as a property name. Most callers pass
+     * an already-string key, so the common path is a single instanceof.
+     * The number cases follow {@code Number::toString} (§6.1.6.1.13):
+     * {@code -0} → {@code "0"}, {@code NaN} → {@code "NaN"}, infinities,
+     * and integer-valued doubles drop the {@code ".0"} (so
+     * {@code Double.toString(30.0)}'s {@code "30.0"} doesn't leak into
+     * property-key comparisons).
+     * <p>
+     * {@code BigInt} keys, accessor-descriptor receivers, and
+     * {@code Symbol.toPrimitive} are out of scope here — symbol keys are
+     * the broader Slice #7 work.
+     */
+    public static String toPropertyKey(Object o) {
+        if (o == null) return "null";
+        if (o instanceof String s) return s;
+        if (o == UNDEFINED) return "undefined";
+        if (o instanceof JsString js) return js.toString();
+        if (o instanceof Number n) return numberToPropertyKey(n);
+        return o.toString();
+    }
+
+    private static String numberToPropertyKey(Number n) {
+        if (n instanceof BigInteger bi) return bi.toString();
+        double d = n.doubleValue();
+        if (Double.isNaN(d)) return "NaN";
+        if (d == 0) return "0";
+        if (Double.isInfinite(d)) return d > 0 ? "Infinity" : "-Infinity";
+        // Integer-valued double in long range: format without trailing ".0".
+        if (d == Math.floor(d) && Math.abs(d) < 1e21) {
+            long l = (long) d;
+            if ((double) l == d) return Long.toString(l);
+        }
+        return Double.toString(d);
     }
 
     public static String toStringCoerce(Object o, CoreContext context) {
