@@ -34,9 +34,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class Terms {
 
@@ -770,6 +774,88 @@ public class Terms {
             return new JsString((String) o).jsEntries(ctx);
         }
         return new JsObject().jsEntries(ctx);
+    }
+
+    /**
+     * Spec §14.7.5.6 EnumerateObjectProperties — back-end of {@code for...in}.
+     * Walks the {@code [[GetPrototypeOf]]} chain rooted at {@code o},
+     * yielding each enumerable own string key once, dedup'd by name (closer
+     * receiver wins). Receiver-level entries carry their resolved value (so
+     * existing for-in callers that read the {@code KeyValue#value()} keep
+     * working); inherited entries carry {@code null} since for-in binds
+     * keys only.
+     * <p>
+     * Distinct from {@link #toIterable}, which yields own enumerable
+     * properties only — the back-end of {@code Object.keys / values /
+     * entries / assign}. Only for-in walks the chain.
+     * <p>
+     * Limitation vs spec: a non-enumerable own key at a closer level does
+     * not currently shadow a same-named inherited enumerable key. None of
+     * the test262 paths exercising for-in over inherited properties reach
+     * this edge case today; revisit when one surfaces.
+     */
+    static Iterable<KeyValue> forInIterable(Object o, CoreContext ctx) {
+        if (o == null || o == UNDEFINED) {
+            return Collections.emptyList();
+        }
+        return () -> {
+            List<KeyValue> out = new ArrayList<>();
+            Set<String> seen = new HashSet<>();
+            int yieldCount = 0;
+            // Receiver-level: full toIterable so values resolve via the
+            // existing seam (accessor getters fire when ctx is non-null).
+            for (KeyValue kv : toIterable(o, ctx)) {
+                if (seen.add(kv.key())) {
+                    out.add(new KeyValue(o, yieldCount++, kv.key(), kv.value()));
+                }
+            }
+            // Inherited levels: keys only. Walks ObjectLike.getPrototype
+            // chain — terminates at null (top of Object.prototype chain or
+            // a null-proto object made via Object.create(null)).
+            ObjectLike cur = (o instanceof ObjectLike ol) ? ol.getPrototype() : null;
+            while (cur != null) {
+                for (String key : enumerableOwnKeysAtLevel(cur)) {
+                    if (seen.add(key)) {
+                        out.add(new KeyValue(o, yieldCount++, key, null));
+                    }
+                }
+                cur = cur.getPrototype();
+            }
+            return out.iterator();
+        };
+    }
+
+    /** Enumerable own string keys at a single chain level — used by
+     *  {@link #forInIterable} during the inherited-level walk where values
+     *  aren't needed. JsObject / JsArray reuse their {@code jsEntries}
+     *  iteration (already filtered + spec-ordered);
+     *  {@link Prototype} consults {@code userProps} via the enumerable bit
+     *  on {@link Prototype#getOwnAttrs}. */
+    private static Iterable<String> enumerableOwnKeysAtLevel(ObjectLike ol) {
+        if (ol instanceof JsArray ja) {
+            Set<String> out = new LinkedHashSet<>();
+            for (KeyValue kv : ja.jsEntries(null)) out.add(kv.key());
+            return out;
+        }
+        if (ol instanceof JsObject jo) {
+            Set<String> out = new LinkedHashSet<>();
+            for (KeyValue kv : jo.jsEntries(null)) out.add(kv.key());
+            return out;
+        }
+        if (ol instanceof Prototype p) {
+            Set<String> out = new LinkedHashSet<>();
+            // Prototype.toMap surfaces userProps; built-in methods aren't in
+            // toMap and default to non-enumerable, so they're correctly
+            // excluded. Userland defineProperty entries with enumerable:true
+            // surface here.
+            for (String name : p.toMap().keySet()) {
+                if ((p.getOwnAttrs(name) & PropertySlot.ENUMERABLE) != 0) {
+                    out.add(name);
+                }
+            }
+            return out;
+        }
+        return Collections.emptyList();
     }
 
     public static boolean isTruthy(Object value) {

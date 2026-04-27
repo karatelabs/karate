@@ -804,12 +804,15 @@ class Interpreter {
                 }
                 boolean isLetOrConst = bindScope == BindScope.LET || bindScope == BindScope.CONST;
                 // for-in keeps key-enumeration semantics (Object.keys-equivalent; null/undefined
-                // sources are silently iterated zero times per spec).
+                // sources are silently iterated zero times per spec). Walks the
+                // [[GetPrototypeOf]] chain via {@link Terms#forInIterable} so
+                // inherited enumerable string keys are yielded too — spec
+                // §14.7.5.6 EnumerateObjectProperties.
                 // for-of takes the spec iteration protocol: GetIterator(value) — TypeError on
                 // null/undefined or any non-iterable, value-only enumeration.
                 if (in) {
                     int index = -1;
-                    for (KeyValue kv : Terms.toIterable(forObject)) {
+                    for (KeyValue kv : Terms.forInIterable(forObject, context)) {
                         index++;
                         context.iteration = index;
                         if (isLetOrConst) {
@@ -874,7 +877,22 @@ class Interpreter {
     }
 
     private static Object evalIfStmt(Node node, CoreContext context) {
-        if (Terms.isTruthy(eval(node.get(2), context))) {
+        // Spec §14.6 IfStatement: the test expression's abrupt completion
+        // (a thrown exception bubbled up via {@code context.stopAndThrow})
+        // must skip both branches so the surrounding evalBlock observes
+        // the stop and propagates. Without the {@code isStopped} guard the
+        // condition's thrown error returns {@code undefined}, which the
+        // truthy check reads as falsy, and the else-branch silently runs
+        // — swallowing the throw to a downstream try/catch (test262
+        // {@code defineProperty/15.2.3.6-4-{116,124,…}}'s
+        // {@code propertyHelper.verifyProperty} flow exposed this:
+        // {@code isWritable}'s spec-required RangeError gets eaten and the
+        // failure is reported as "should be writable" instead).
+        Object condition = eval(node.get(2), context);
+        if (context.isStopped()) {
+            return null;
+        }
+        if (Terms.isTruthy(condition)) {
             return eval(node.get(4), context);
         } else {
             if (node.size() > 5) {

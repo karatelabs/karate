@@ -109,7 +109,7 @@ Math/Number/Date/String are independent of Symbol.
 | 2 | `test/built-ins/Date/**` | `Date.parse` ISO format edges, UTC vs local hour math, invalid-date propagation. See [JS_ENGINE.md § Date](../docs/JS_ENGINE.md#date). |
 | 3 | `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` edge cases tied to ToInteger spec corners, parser-blocked tests, Symbol-gated tail. Spec preamble pattern + JS-spec whitespace + `replace` substitution doc'd in [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
 | 4 | `test/built-ins/RegExp/**` | `Symbol.{match,replace,search,split,matchAll}` (slice #7), `RegExp.escape` (ES2025), parser `R_PAREN` / Unicode-escape edges, `cross-realm` tests (multi-realm not modeled). See [JS_ENGINE.md § Built-in accessor descriptors on prototypes](../docs/JS_ENGINE.md#built-in-accessor-descriptors-on-prototypes) and [§ JsRegex.replace](../docs/JS_ENGINE.md#jsregexreplace--js-substitution-template). |
-| 5 | `test/built-ins/Object/**` | `defineProperty` length-descriptor / array-length cluster (~30 fails), `seal` (TypedArray-feature-gated), Symbol-gated tail. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes) and [§ Own-key ordering](../docs/JS_ENGINE.md#own-key-ordering). |
+| 5 | `test/built-ins/Object/**` | `defineProperty` length-descriptor / array-length cluster (~10 fails post-Apr-27 fixes), `seal` (TypedArray-feature-gated), Annex-B `arguments` parameter-map aliasing (deferred — see Engine cleanup), Symbol-gated tail. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes) and [§ Own-key ordering](../docs/JS_ENGINE.md#own-key-ordering). |
 | 6 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` residuals (slice #7), parser-blocked async / generator paths, harness-feature-gated (Int8Array). See [JS_ENGINE.md § Prototype machinery](../docs/JS_ENGINE.md#prototype-machinery). |
 | 7 | `test/built-ins/Symbol/**` + cascades | Full Symbol primitive: `typeof === "symbol"`, unique identity, `Symbol.for` / `keyFor` / `description`, `Object.getOwnPropertySymbols`, `Reflect.ownKeys`. Touches `Terms.typeOf` / `eq` / coercion; `PropertyKey` abstraction across `JsObject.props` / `isOwnProperty`. 2–4 sessions. Unblocks the Array / String / RegExp Symbol-gated tail. |
 
@@ -204,6 +204,30 @@ and the per-section anchors.
   tombstoned `DataSlot` entries). Pair with parser `in` support.
   Pinned in `SpecPinTest`. ~6–8 h.
 
+- **HOLE leak audit at JsArray Java-interop seams.** `iterator()`,
+  `toArray()`, `toArray(T[])`, `subList(int,int)`, `contains(Object)`,
+  `indexOf(Object)`, `lastIndexOf(Object)` route to `list.foo()` raw —
+  HOLE escapes to Java consumers. `get(int)` already translates HOLE→null;
+  the rest don't. Centralize on a single unwrap helper (or wrap
+  `list.iterator()` in a translating `Iterator`). No test262 wins
+  expected (these are Java-interop seams), but spec-shape pinning in
+  `SpecPinTest`. Pairs with the full HOLE elimination above. ~30 min.
+
+- **Abrupt-completion gap in non-`if` control-flow statements.**
+  `Interpreter.evalIfStmt` now checks `context.isStopped()` after
+  evaluating the test expression so a thrown error in the condition
+  skips both branches (was: condition's throw returned undefined, the
+  truthy check read it as falsy, the else-branch ran silently — pinned
+  in `SpecPinTest.ifConditionThrowPropagatesToCatch` /
+  `…ThrowInOrChain_propagates`). The same gap exists at
+  `evalWhileStmt` / `evalDoWhileStmt` / `evalForStmt` (loop-test
+  expressions), `evalSwitchStmt` (switch discriminant + per-case),
+  `evalTernary` (?: test), and `evalLogicalExpr` (`&&` / `||` short-
+  circuit). The engine uses `context.stopAndThrow` sentinels rather
+  than Java exceptions, so each control-flow site that consumes a
+  sub-expression must check `isStopped()` before acting on the result.
+  Audit and fix in one pass with pins. ~1 h.
+
 - **`PropertyKey` abstraction.** Symbol prep. Defer to slice #7 itself —
   introducing `PropertyKey` ahead of a concrete consumer is YAGNI.
 
@@ -264,11 +288,14 @@ priority. Pick up when the relevant slice surfaces them.
   e.g. index 100 on an empty array (via `defineProperty(arr, "100",
   {get, enumerable:true})`) is missed by both — Phase 1's bound, Phase 2's
   `parseIndex >= 0` skip. Spec §9.4.2 [[OwnPropertyKeys]] says
-  ALL integer-index keys ascend first. Fix: track integer-index entries
-  in `namedProps` and merge into Phase 1's ascending walk (or extend
-  Phase 1's bound to include the max integer-index key in `namedProps`).
-  Surfaces in residual `Object/defineProperties` and `Object/defineProperty`
-  array-index fails.
+  ALL integer-index keys ascend first. The `defineOwnAccessor` HOLE-pad
+  loop is the current workaround (extends `list` to `idx + 1` so Phase 1
+  reaches the slot), but it allocates `idx` HOLE entries — wasteful at
+  large indices and a correctness liability if a later spec-shape change
+  drops the pad. Real fix: track integer-index entries in `namedProps`
+  and merge into Phase 1's ascending walk (or extend Phase 1's bound
+  to include the max integer-index key in `namedProps`). Pair with the
+  HOLE elimination above.
 
 - **`JsGlobalThis` two-store reads.** Data descriptors live on
   `BindingsStore`, accessor descriptors on `JsObject.props` (because

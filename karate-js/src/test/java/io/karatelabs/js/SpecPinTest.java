@@ -591,4 +591,181 @@ class SpecPinTest extends EvalBase {
                         + " delete Array.prototype['0'];"
                         + " c"));
     }
+
+    // -------------------------------------------------------------------------
+    // Abrupt completion from an if-statement test expression.
+    //
+    // The engine propagates errors via {@code context.stopAndThrow} (a
+    // sentinel-style mechanism) rather than Java exceptions, so each
+    // control-flow site that evaluates a sub-expression must check
+    // {@code isStopped()} before acting on the result. {@link
+    // Interpreter#evalIfStmt} previously ignored the stop signal; a thrown
+    // error inside the condition surfaced as an undefined return, the
+    // truthy check read it as falsy, and the else-branch silently ran. The
+    // pending throw was eaten before reaching the surrounding try/catch.
+    //
+    // Pinned because a regression here is silent in production code (a
+    // catch block runs with the wrong message or the throw never surfaces
+    // at all) and was the root cause of ~10 test262 length-descriptor
+    // verifyProperty failures whose isWritable RangeError got swallowed by
+    // the inner if.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void ifConditionThrowPropagatesToCatch() {
+        // Spec: a thrown exception in the if condition skips both branches
+        // and propagates to the surrounding catch.
+        assertEquals("caught:boom", eval(
+                "function thrower(){ throw new Error('boom'); }"
+                        + " var msg = 'no-catch';"
+                        + " try { if (thrower()) msg='if-true'; else msg='if-false'; }"
+                        + " catch (e) { msg = 'caught:' + e.message; }"
+                        + " msg"));
+    }
+
+    @Test
+    void ifConditionThrowInOrChain_propagates() {
+        // Same invariant exercised through a complex condition (||, !==).
+        // Mirrors {@code propertyHelper.verifyProperty}'s
+        // {@code desc.writable !== isWritable(obj, name)} call shape.
+        assertEquals("caught:boom", eval(
+                "function thrower(){ throw new Error('boom'); }"
+                        + " var msg = 'no-catch';"
+                        + " try { if (false || true !== thrower()) msg='if-true'; else msg='if-false'; }"
+                        + " catch (e) { msg = 'caught:' + e.message; }"
+                        + " msg"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Generic descriptor preserves existing accessor type.
+    //
+    // Spec ValidateAndApplyPropertyDescriptor §10.1.6.3: when the new
+    // descriptor specifies neither value/writable nor get/set, the existing
+    // descriptor's *type* is preserved — only the attribute byte changes.
+    // Pre-fix {@link JsObjectConstructor#defineProperty} clobbered an
+    // existing AccessorSlot with a fresh DataSlot carrying undefined when
+    // the new descriptor had only enumerable/configurable fields.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void genericDescriptor_onAccessor_preservesGetSet() {
+        assertEquals("data", eval(
+                "var obj = {}; obj.v = 'data';"
+                        + " Object.defineProperty(obj, '0',"
+                        + "   {get: function(){ return obj.v; },"
+                        + "    set: function(x){ obj.v = x; },"
+                        + "    enumerable: true, configurable: true});"
+                        + " Object.defineProperty(obj, '0', {enumerable: false});"
+                        + " obj['0']"));
+    }
+
+    @Test
+    void genericDescriptor_onAccessor_preservesShape() {
+        assertEquals(true, eval(
+                "var obj = {};"
+                        + " Object.defineProperty(obj, 'x', {get: function(){ return 7; }, configurable: true});"
+                        + " Object.defineProperty(obj, 'x', {enumerable: false});"
+                        + " var d = Object.getOwnPropertyDescriptor(obj, 'x');"
+                        + " typeof d.get === 'function' && d.value === undefined"));
+    }
+
+    // -------------------------------------------------------------------------
+    // for-in walks the prototype chain for enumerable string keys.
+    //
+    // Spec §14.7.5.6 EnumerateObjectProperties yields enumerable own string
+    // keys at every chain level, dedup'd. {@link Terms#forInIterable} is
+    // the back-end. Earlier toIterable-only path yielded own properties
+    // only — silent miss for the inherited case (test262
+    // {@code defineProperty/15.2.3.6-4-{404,414,419,580,585,590,595}}).
+    // -------------------------------------------------------------------------
+
+    @Test
+    void forIn_walksPrototypeChain_yieldsInheritedEnumerable() {
+        assertEquals(true, eval(
+                "Object.defineProperty(Function.prototype, 'p',"
+                        + "   {value: 1, writable: true, enumerable: true, configurable: true});"
+                        + " var fn = function(){};"
+                        + " var found = false;"
+                        + " for (var k in fn) { if (k === 'p') found = true; }"
+                        + " delete Function.prototype.p;"
+                        + " found"));
+    }
+
+    @Test
+    void forIn_skipsInheritedNonEnumerable() {
+        assertEquals(false, eval(
+                "Object.defineProperty(Function.prototype, 'p',"
+                        + "   {value: 1, writable: true, enumerable: false, configurable: true});"
+                        + " var fn = function(){};"
+                        + " var found = false;"
+                        + " for (var k in fn) { if (k === 'p') found = true; }"
+                        + " delete Function.prototype.p;"
+                        + " found"));
+    }
+
+    // -------------------------------------------------------------------------
+    // defineProperty on a Prototype with a data descriptor stores the attrs.
+    //
+    // {@link JsObjectConstructor#applyDefine} previously fell through to
+    // {@code putMember} for Prototype targets, dropping the descriptor's
+    // attribute byte. {@link Prototype#defineOwn} carries it now so that
+    // the for-in enumerable filter (above) and getOwnPropertyDescriptor
+    // both see the spec-correct attrs.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void defineProperty_onPrototype_dataDescriptor_storesAttrs() {
+        assertEquals(false, eval(
+                "Object.defineProperty(Function.prototype, 'p',"
+                        + "   {value: 1, writable: true, enumerable: false, configurable: true});"
+                        + " var d = Object.getOwnPropertyDescriptor(Function.prototype, 'p');"
+                        + " var enumerable = d.enumerable;"
+                        + " delete Function.prototype.p;"
+                        + " enumerable"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Reading a literal-null own value on a JsArray surfaces as null,
+    // not undefined.
+    //
+    // {@link PropertyAccess#getByName}'s {@code isFound} fallback wrongly
+    // converted a found-but-null result to undefined when the receiver was
+    // a JsArray (the JsObject branch already had a containsKey-first
+    // bypass; the JsArray branch did not). Test262
+    // {@code defineProperty/15.2.3.6-4-216} writes
+    // {@code defineProperty(arr, "0", {value: null})} and reads back —
+    // {@code arr[0] === null} must hold.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void jsArray_definePropertyValueNull_readsAsNull() {
+        assertEquals(true, eval(
+                "var a = []; Object.defineProperty(a, '0', {value: null});"
+                        + " a[0] === null"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Object.defineProperty rejects a non-callable, non-undefined getter or
+    // setter with TypeError. Per spec ToPropertyDescriptor §6.2.5.5: the
+    // get/set field must be undefined or callable; null is non-callable
+    // non-undefined → TypeError. Pre-fix our engine accepted null silently.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void definePropertyNullGetter_throwsTypeError() {
+        assertEquals(true, eval(
+                "var threw = false;"
+                        + " try { Object.defineProperty({}, 'x', {get: null}); }"
+                        + " catch (e) { threw = e instanceof TypeError; }"
+                        + " threw"));
+    }
+
+    @Test
+    void definePropertyNullSetter_throwsTypeError() {
+        assertEquals(true, eval(
+                "var threw = false;"
+                        + " try { Object.defineProperty({}, 'x', {set: null}); }"
+                        + " catch (e) { threw = e instanceof TypeError; }"
+                        + " threw"));
+    }
 }

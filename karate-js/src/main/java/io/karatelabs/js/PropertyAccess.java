@@ -544,6 +544,16 @@ class PropertyAccess {
             if (isFound(result)) return result;
             return Terms.UNDEFINED;
         } else if (object instanceof JsArray jsArr) {
+            // Own properties pass through raw — preserves a literal {@code null}
+            // value at an index/named key (test262
+            // {@code defineProperty/15.2.3.6-4-{207,208,216,312}} install a
+            // value of {@code null} via {@code defineProperty(arr, "0",
+            // {value: null})} and then read {@code arr[0]}; without the
+            // own-check the {@link #isFound} fallback wrongly converts
+            // {@code null} → {@code undefined}).
+            if (jsArr.isOwnProperty(name)) {
+                return jsArr.getMember(name, object, context);
+            }
             Object result = jsArr.getMember(name, object, context);
             if (isFound(result)) return result;
             return Terms.UNDEFINED;

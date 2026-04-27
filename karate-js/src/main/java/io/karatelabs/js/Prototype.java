@@ -241,6 +241,35 @@ abstract class Prototype implements ObjectLike {
         return result;
     }
 
+    /** Installs (or updates) a data descriptor at {@code name} in
+     *  {@link #userProps}. Used by {@code Object.defineProperty} when the
+     *  target is a prototype with a data descriptor (e.g.
+     *  {@code Object.defineProperty(Function.prototype, "prop",
+     *  {value: 1001, enumerable: false, configurable: true})} — the attrs
+     *  byte must persist so {@link #getOwnAttrs} reports the spec values
+     *  for descriptor reads and the for-in / {@code Object.keys} enumerable
+     *  filter applies). Without this seam {@code applyDefine} would fall
+     *  through to {@link #putMember} which carries no attrs and leaves the
+     *  slot at {@link PropertySlot#ATTRS_DEFAULT} (W|E|C). */
+    final void defineOwn(String name, Object value, byte attrs) {
+        if (userProps == null) {
+            userProps = new LinkedHashMap<>();
+        }
+        if (isCanonicalNumericKey(name)) numericPropPolluted = true;
+        PropertySlot existing = userProps.get(name);
+        DataSlot s;
+        if (existing instanceof DataSlot ds) {
+            s = ds;
+        } else {
+            // Replace any prior accessor / tombstone slot with a fresh data slot.
+            s = new DataSlot(name);
+            userProps.put(name, s);
+        }
+        s.value = value;
+        s.attrs = attrs;
+        s.tombstoned = false;
+    }
+
     /** Installs (or updates) an accessor descriptor at {@code name} in
      *  {@link #userProps}. Used by {@code Object.defineProperty} when the
      *  target is a prototype (e.g.

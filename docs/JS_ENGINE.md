@@ -659,6 +659,23 @@ try {
 
 The call-site path (`Interpreter.evalFnCall`) is intentionally left as plain Java throw/propagate. This preserves the existing behavior for **uncaught** exceptions: they continue to bubble up through the expression chain, pick up the helpful `expression: <code> - <message>` framing at `PropertyAccess.getRefDotExpr`, and finally become the usual `js failed:` wrapper at the statement boundary. Only entering a `try` block changes the outcome.
 
+### Abrupt completions in control-flow tests
+
+**Errors propagate via `context.stopAndThrow`, not via Java
+exceptions** — every control-flow eval site that consumes a
+sub-expression result must check `context.isStopped()` before acting
+on it. `Interpreter.evalIfStmt` does so post-condition: if the test
+expression sets the stop signal, both branches are skipped so the
+surrounding `evalBlock` (which already checks `isStopped`) propagates
+up to the nearest `try` boundary. Without this guard the throw
+returns `undefined`, the truthy check reads it as falsy, and the
+else-branch runs silently before the throw is observed — eating the
+exception in inner contexts. Pinned in
+`SpecPinTest.ifConditionThrowPropagatesToCatch` /
+`…ThrowInOrChain_propagates`. **Same gap is open at `evalWhileStmt` /
+`evalDoWhileStmt` / `evalForStmt` / `evalSwitchStmt` / `evalTernary` /
+`evalLogicalExpr` — see TEST262.md "Abrupt-completion gap" TODO.**
+
 ### Exceptions that bypass JS catch
 
 Some exceptions represent control flow rather than errors and must never be caught by scripts. They are marked with the `FlowControlSignal` interface and propagate through both `evalTryStmt` and `Engine.eval` unchanged:
@@ -931,13 +948,40 @@ dense list (Phase 1) plus a Phase 2 walk over `namedProps` for
 non-index enumerable entries (test262 `Object/keys/15.2.3.14-5-12.js`
 installs an accessor named `"prop"` on an array). Mirrors §9.4.2
 [[OwnPropertyKeys]] for Array exotics. **Hole**: integer-index
-accessors beyond `list.size()` (e.g. `defineProperty([], "100",
-{get,enumerable})`) are missed by both phases — see the
+accessors beyond `list.size()` — currently worked around by
+`defineOwnAccessor`'s HOLE-pad loop extending `list` to `idx + 1` so
+Phase 1 reaches the slot (allocates `idx` HOLE entries; correctness-
+brittle if a later spec-shape change drops the pad). Real fix tracks
+them in `namedProps` and merges into Phase 1 ordering — see the
 `JsArray.jsEntries` TODO in TEST262.md.
 
 **Future contract.** Code that surfaces own keys for a JsObject must
 go through `jsEntries(ctx)` or `JsObject.orderedOwnKeys(...)` — never
 read `props.keySet()` / `toMap().keySet()` raw.
+
+**`for-in` walks the prototype chain.** `Terms.forInIterable(o, ctx)`
+is the back-end (distinct from `toIterable`, which yields own
+properties only — used by `Object.keys / values / entries / assign`).
+The walker collects enumerable own string keys at every level via
+`getPrototype`, dedup'd by name (closer-receiver wins). `Prototype`
+singletons participate via `userProps` + `getOwnAttrs` enumerable
+filter. Spec mapping: §14.7.5.6 EnumerateObjectProperties. Limitation:
+non-enumerable own keys at a closer level don't currently shadow
+inherited same-named enumerable keys — none of the test262 paths
+exercising for-in over inherited properties surface this edge case
+today; revisit when one does. Pinned in
+`SpecPinTest.forIn_walksPrototypeChain_yieldsInheritedEnumerable` /
+`forIn_skipsInheritedNonEnumerable`.
+
+**`Prototype.defineOwn(name, value, attrs)` carries the descriptor's
+attribute byte.** `JsObjectConstructor.applyDefine` previously fell
+through to `putMember` for `Prototype` targets, dropping the
+descriptor's attrs (defaulted to W|E|C). The new seam stores them so
+`getOwnPropertyDescriptor` and the for-in enumerable filter both see
+spec-correct attrs after
+`Object.defineProperty(Function.prototype, "p", { value:1,
+enumerable:false, … })`. Pinned in
+`SpecPinTest.defineProperty_onPrototype_dataDescriptor_storesAttrs`.
 
 **`Object.keys / values / entries / getOwnPropertyNames` return Array
 exotics, not raw `ArrayList`.** Test262 (and idiomatic JS) calls
@@ -1104,6 +1148,27 @@ bit 2 = configurable, bit 3 = INTRINSIC. New slots default to
 load-bearing). Per-object flags `frozen` / `sealed` / `nonExtensible` are
 kept as fast-path early-exits on `putMember` / `removeMember` so frozen
 objects don't have to consult per-slot bits per write.
+
+**Generic descriptors preserve the existing slot's type.** Spec
+ValidateAndApplyPropertyDescriptor §10.1.6.3: a descriptor that
+specifies neither value/writable nor get/set is *generic* — it only
+flips enumerable / configurable bits, never the descriptor shape.
+`JsObjectConstructor.defineProperty` routes the generic-on-accessor
+case through `applyAttrsOnly` (mutate `slot.attrs` in place) instead
+of falling through to `applyDefine` (which would clobber the
+AccessorSlot with a fresh DataSlot carrying undefined). The existing-
+accessor → data-descriptor path (writable-only on an accessor) still
+switches shape with undefined value per spec. Pinned in
+`SpecPinTest.genericDescriptor_onAccessor_preservesGetSet` /
+`genericDescriptor_onAccessor_preservesShape`.
+
+**Accessor descriptor's `get` / `set` field rejects non-callable
+non-undefined.** Spec ToPropertyDescriptor §6.2.5.5 step 7.b/8.b:
+TypeError when get/set is present and not undefined and not callable.
+`null` is non-callable non-undefined → TypeError. Pre-fix our engine
+silently accepted `null`. Pinned in
+`SpecPinTest.definePropertyNullGetter_throwsTypeError` /
+`definePropertyNullSetter_throwsTypeError`.
 
 **Extensibility / integrity-level API is `ObjectLike` bean-style.**
 `isExtensible() / isSealed() / isFrozen()` predicates pair with mutators

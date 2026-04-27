@@ -460,6 +460,13 @@ class JsObjectConstructor extends JsFunction {
         boolean hasConfigurable = descHas(descObj, descMap, "configurable");
         boolean isAccessor = hasGet || hasSet;
         boolean isData = hasValue || hasWritable;
+        // Generic descriptor — none of get/set/value/writable specified.
+        // Per spec ValidateAndApplyPropertyDescriptor: a generic descriptor
+        // preserves the descriptor *type* of the existing slot. The
+        // accessor → data overwrite (which clobbers the get/set fields) only
+        // fires when the new descriptor is itself a data descriptor; for a
+        // generic descriptor, only the attribute byte changes.
+        boolean isGeneric = !isAccessor && !isData;
         if (isAccessor && isData) {
             throw JsErrorException.typeError(
                     "Invalid property descriptor. Cannot both specify accessors and a value or writable attribute");
@@ -475,12 +482,17 @@ class JsObjectConstructor extends JsFunction {
         }
 
         // Validate accessor shapes early so we can fall through to the unified write below.
+        // Spec ToPropertyDescriptor §6.2.5.5: if Get/Set is present but not
+        // {@code undefined} AND not callable, throw TypeError. {@code null}
+        // is a non-callable non-undefined value — must throw (test262
+        // {@code defineProperty/15.2.3.6-3-{8,13}}). Only literal undefined
+        // is the spec-permitted "absent" sentinel.
         JsCallable newGetter = null;
         JsCallable newSetter = null;
         if (isAccessor) {
             if (hasGet) {
                 Object g = descRead(descObj, descMap, "get", cc);
-                if (g != null && g != Terms.UNDEFINED) {
+                if (g != Terms.UNDEFINED) {
                     if (!(g instanceof JsCallable c)) {
                         throw JsErrorException.typeError("Getter must be a function");
                     }
@@ -489,7 +501,7 @@ class JsObjectConstructor extends JsFunction {
             }
             if (hasSet) {
                 Object s = descRead(descObj, descMap, "set", cc);
-                if (s != null && s != Terms.UNDEFINED) {
+                if (s != Terms.UNDEFINED) {
                     if (!(s instanceof JsCallable c)) {
                         throw JsErrorException.typeError("Setter must be a function");
                     }
@@ -599,20 +611,44 @@ class JsObjectConstructor extends JsFunction {
                 // partial-truncate already applied — report TypeError per spec.
                 throw JsErrorException.typeError("Cannot redefine property: length");
             }
+        } else if (isGeneric && existingIsAccessor) {
+            // Generic descriptor on existing accessor: spec preserves the
+            // accessor descriptor and only updates the attribute byte. Going
+            // through applyDefine here would clobber the AccessorSlot with a
+            // fresh DataSlot carrying undefined (test262
+            // {@code defineProperty/15.2.3.6-4-{59,82-7..24,272}}).
+            applyAttrsOnly(target, prop, newAttrs);
         } else if (hasValue) {
             applyDefine(target, prop, descRead(descObj, descMap, "value", cc), newAttrs);
         } else if (!keyExists) {
             // New key created via attribute-only descriptor: spec says value defaults
             // to undefined.
             applyDefine(target, prop, Terms.UNDEFINED, newAttrs);
-        } else if (existingIsAccessor && !isAccessor) {
-            // Switching accessor → data with no value specified: spec defaults value to undefined.
+        } else if (existingIsAccessor) {
+            // Data descriptor (writable-only, no value) replacing an accessor:
+            // spec switches shape; value defaults to undefined.
             applyDefine(target, prop, Terms.UNDEFINED, newAttrs);
         } else {
             // Existing data key, only attribute changes — preserve existing value.
             applyDefine(target, prop, existing, newAttrs);
         }
         return target;
+    }
+
+    /** Generic-descriptor seam — update only the attribute byte on the
+     *  existing own slot (preserving accessor get/set or data value). Used
+     *  when the descriptor specifies neither value/writable nor get/set,
+     *  so the spec ValidateAndApplyPropertyDescriptor "Generic" branch
+     *  applies. Lookup goes through {@link PropertyAccess#ownSlot} so the
+     *  same code path serves all three slot-bearing storage shapes
+     *  ({@link JsObject}, {@link JsArray}, {@link Prototype}). A null slot
+     *  (raw Map host bridge) is a no-op — those types don't model
+     *  attributes. */
+    private static void applyAttrsOnly(Object target, String key, byte attrs) {
+        PropertySlot s = PropertyAccess.ownSlot(target, key);
+        if (s != null) {
+            s.attrs = attrs;
+        }
     }
 
     private static byte setBit(byte attrs, byte mask, boolean on) {
@@ -650,6 +686,13 @@ class JsObjectConstructor extends JsFunction {
             jo.defineOwn(key, value, attrs);
         } else if (target instanceof JsArray ja) {
             ja.defineOwn(key, value, attrs);
+        } else if (target instanceof Prototype p) {
+            // Prototype data descriptors carry attrs (test262
+            // {@code defineProperty/15.2.3.6-4-{406,411,421}} install
+            // non-enumerable properties on built-in prototypes; the for-in
+            // chain walk needs the attrs to filter correctly). Without
+            // this branch, the descriptor's attrs are silently dropped.
+            p.defineOwn(key, value, attrs);
         } else {
             ownPut(target, key, value);
         }
