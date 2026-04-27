@@ -101,9 +101,9 @@ class JsNumberTest extends EvalBase {
         assertEquals("0.00012", eval("(0.0001234).toPrecision(2)"));
         assertEquals("0.00012340", eval("(0.0001234).toPrecision(5)"));
 
-        // zero handling
+        // zero handling — spec §21.1.3.4: precision p produces 1 leading 0 + (p-1) trailing zeros after the decimal
         assertEquals("0", eval("(0).toPrecision(1)"));
-        assertEquals("0", eval("(0).toPrecision(3)"));
+        assertEquals("0.00", eval("(0).toPrecision(3)"));
 
         // negative numbers
         assertEquals("-123", eval("(-123.456).toPrecision(3)"));

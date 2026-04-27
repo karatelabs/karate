@@ -46,6 +46,16 @@ import java.util.function.Supplier;
  */
 class ContextRoot implements Context {
 
+    static final JsBuiltinMethod PARSE_INT = new JsBuiltinMethod("parseInt", 2, (ctx, args) -> {
+        if (args.length == 0) return Double.NaN;
+        int radix = args.length > 1 && args[1] != Terms.UNDEFINED
+                ? Terms.objectToNumber(args[1]).intValue() : 0;
+        return Terms.parseInt(args[0] + "", radix);
+    });
+
+    static final JsBuiltinMethod PARSE_FLOAT = new JsBuiltinMethod("parseFloat", 1, (ctx, args) ->
+            args.length == 0 ? Double.NaN : Terms.parseFloat(args[0] + "", false));
+
     private final Engine engine;
 
     /**
@@ -219,11 +229,11 @@ class ContextRoot implements Context {
     private Object initGlobal(String key) {
         return switch (key) {
             case "console" -> new JsConsole(this);
-            case "parseInt" -> (JsInvokable) args -> {
-                int radix = args.length > 1 ? Terms.objectToNumber(args[1]).intValue() : 0;
-                return Terms.parseInt(args[0] + "", radix);
-            };
-            case "parseFloat" -> (JsInvokable) args -> Terms.parseFloat(args[0] + "", false);
+            // Shared with Number.parseInt / Number.parseFloat so spec identity
+            // (Number.parseInt === parseInt) holds. Wrapped via JsBuiltinMethod
+            // so .name / .length are observable per spec and isConstructor returns false.
+            case "parseInt" -> PARSE_INT;
+            case "parseFloat" -> PARSE_FLOAT;
             case "isNaN" -> (JsInvokable) args -> {
                 if (args.length == 0 || args[0] == null || args[0] == Terms.UNDEFINED) return true;
                 Number n = Terms.objectToNumber(args[0]);

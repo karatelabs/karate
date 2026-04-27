@@ -192,7 +192,7 @@ public class Terms {
             case Number n -> n;
             case Boolean b -> b ? 1 : 0;
             case Date d -> d.getTime();
-            case String s -> toNumber(s.trim());
+            case String s -> stringToNumber(s);
             case null -> 0;
             // includes undefined
             default -> Double.NaN;
@@ -219,11 +219,6 @@ public class Terms {
         if (text.isEmpty()) {
             return 0;
         }
-        // Rare path: numeric separators in literal text. Lexer-validated form (no leading,
-        // trailing, or doubled `_`), so a plain replace is safe. Skips allocation when no `_`.
-        if (text.indexOf('_') >= 0) {
-            text = text.replace("_", "");
-        }
         try {
             return narrow(Double.parseDouble(text));
         } catch (Exception e) {
@@ -232,13 +227,56 @@ public class Terms {
         }
     }
 
+    /**
+     * Spec ToNumber for string runtime input (StringNumericLiteral §7.1.4.1.1).
+     * Strips spec whitespace (StrWhiteSpace + LineTerminator), rejects numeric
+     * separators (`_`), accepts `0b`/`0o`/`0x` radix prefixes, returns NaN on
+     * malformed input — never throws. The lexer's literal path uses
+     * {@link #literalToNumber(String)} which permits `_`.
+     */
+    public static Number stringToNumber(String text) {
+        text = stripJsWhiteSpace(text);
+        if (text.isEmpty()) {
+            return 0;
+        }
+        // `_` is a literal-only separator; spec StringNumericLiteral rejects it.
+        if (text.indexOf('_') >= 0) {
+            return Double.NaN;
+        }
+        return toNumber(text);
+    }
+
+    static Number literalToNumber(String text) {
+        // Lexer-validated NUMBER token: no leading/trailing/doubled `_`. Strip
+        // separators only when present (skips allocation in the common case).
+        if (text.indexOf('_') >= 0) {
+            text = text.replace("_", "");
+        }
+        return toNumber(text);
+    }
+
+    private static String stripJsWhiteSpace(String s) {
+        int len = s.length();
+        int start = 0;
+        while (start < len && isJsWhiteSpace(s.charAt(start))) start++;
+        int end = len;
+        while (end > start && isJsWhiteSpace(s.charAt(end - 1))) end--;
+        return (start == 0 && end == len) ? s : s.substring(start, end);
+    }
+
+    private static boolean isJsWhiteSpace(char c) {
+        // Spec WhiteSpace + LineTerminator: ES §12.2 / §12.3.
+        // Java's Character.isWhitespace excludes NBSP and ZWNBSP/BOM.
+        return Character.isWhitespace(c) || c == ' ' || c == '﻿';
+    }
+
     public static Object literalValue(Token token) {
         return switch (token.type) {
             case S_STRING, D_STRING -> {
                 String text = token.getText();
                 yield text.substring(1, text.length() - 1);
             }
-            case NUMBER -> toNumber(token.getText());
+            case NUMBER -> literalToNumber(token.getText());
             case BIGINT -> toBigInt(token.getText());
             case TRUE -> true;
             case FALSE -> false;
@@ -273,7 +311,11 @@ public class Terms {
                     : (p == 'b' || p == 'B') ? 2
                     : (p == 'o' || p == 'O') ? 8 : 0;
             if (radix != 0) {
-                return narrow(Long.parseLong(text.substring(2), radix));
+                try {
+                    return narrow(Long.parseLong(text.substring(2), radix));
+                } catch (NumberFormatException nfe) {
+                    return Double.NaN;
+                }
             }
         }
         return null;

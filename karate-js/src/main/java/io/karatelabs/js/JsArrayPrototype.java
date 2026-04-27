@@ -99,6 +99,9 @@ class JsArrayPrototype extends Prototype {
         install("findLast", 1, this::findLast);
         install("findLastIndex", 1, this::findLastIndex);
         install("with", 2, this::withMethod);
+        install("toReversed", 0, this::toReversed);
+        install("toSorted", 1, this::toSorted);
+        install("toSpliced", 2, this::toSpliced);
         install("group", 1, this::group);
         install(IterUtils.SYMBOL_ITERATOR, 0, IterUtils.SYMBOL_ITERATOR_METHOD);
     }
@@ -1063,6 +1066,113 @@ class JsArrayPrototype extends Prototype {
         }
         setLength(target, len - actualDeleteCount + itemCount, cc);
         return new JsArray(removed);
+    }
+
+    /**
+     * Spec §23.1.3.34 Array.prototype.toReversed (ES2023). Allocates a fresh
+     * array; reads source via Get (NOT HasProperty), so holes surface as
+     * undefined or proto-chain values rather than propagating.
+     */
+    private Object toReversed(Context context, Object[] args) {
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        ObjectLike target = toReceiver(context.getThisObject());
+        if (target == null) return Terms.UNDEFINED;
+        int len = lengthOf(target, cc);
+        if (cc != null && cc.isError()) return Terms.UNDEFINED;
+        List<Object> result = new ArrayList<>(len);
+        for (int k = 0; k < len; k++) {
+            result.add(specGet(target, String.valueOf(len - k - 1), cc));
+        }
+        return new JsArray(result);
+    }
+
+    /**
+     * Spec §23.1.3.35 Array.prototype.toSorted (ES2023). Same SortCompare as
+     * {@link #sort} but writes to a fresh array; source is untouched. Holes
+     * are read through the proto chain (treated as undefined for the sort).
+     */
+    private Object toSorted(Context context, Object[] args) {
+        if (args.length > 0 && args[0] != Terms.UNDEFINED && args[0] != null
+                && !(args[0] instanceof JsCallable)) {
+            throw JsErrorException.typeError("toSorted comparator must be a function");
+        }
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        ObjectLike target = toReceiver(context.getThisObject());
+        if (target == null) return Terms.UNDEFINED;
+        int len = lengthOf(target, cc);
+        if (cc != null && cc.isError()) return Terms.UNDEFINED;
+        List<Object> items = new ArrayList<>(len);
+        for (int k = 0; k < len; k++) {
+            items.add(specGet(target, String.valueOf(k), cc));
+        }
+        JsCallable comparator = (args.length > 0 && args[0] instanceof JsCallable jc) ? jc : null;
+        items.sort((a, b) -> {
+            boolean aUndef = a == null || a == Terms.UNDEFINED;
+            boolean bUndef = b == null || b == Terms.UNDEFINED;
+            if (aUndef && bUndef) return 0;
+            if (aUndef) return 1;
+            if (bUndef) return -1;
+            if (comparator != null) {
+                Object r = comparator.call(context, new Object[]{a, b});
+                if (r instanceof Number n) {
+                    double d = n.doubleValue();
+                    if (Double.isNaN(d)) return 0;
+                    return d < 0 ? -1 : (d > 0 ? 1 : 0);
+                }
+                return 0;
+            }
+            String sa = Terms.toStringCoerce(a, cc);
+            String sb = Terms.toStringCoerce(b, cc);
+            return sa.compareTo(sb);
+        });
+        return new JsArray(items);
+    }
+
+    /**
+     * Spec §23.1.3.36 Array.prototype.toSpliced (ES2023). Builds a fresh array
+     * with the same edit semantics as {@link #splice}, but never mutates the
+     * receiver. Reads via Get (holes surface as undefined / proto-chain).
+     */
+    private Object toSpliced(Context context, Object[] args) {
+        CoreContext cc = context instanceof CoreContext cx ? cx : null;
+        ObjectLike target = toReceiver(context.getThisObject());
+        if (target == null) return Terms.UNDEFINED;
+        int len = lengthOf(target, cc);
+        if (cc != null && cc.isError()) return Terms.UNDEFINED;
+        int actualStart;
+        if (args.length == 0 || args[0] == null) {
+            actualStart = 0;
+        } else {
+            int relativeStart = Terms.objectToNumber(args[0]).intValue();
+            actualStart = relativeStart < 0
+                    ? Math.max(len + relativeStart, 0)
+                    : Math.min(relativeStart, len);
+        }
+        int actualSkipCount;
+        int itemCount;
+        if (args.length == 0) {
+            actualSkipCount = 0;
+            itemCount = 0;
+        } else if (args.length == 1) {
+            actualSkipCount = len - actualStart;
+            itemCount = 0;
+        } else {
+            int sc = args[1] == null ? 0 : Terms.objectToNumber(args[1]).intValue();
+            actualSkipCount = Math.min(Math.max(sc, 0), len - actualStart);
+            itemCount = Math.max(args.length - 2, 0);
+        }
+        int newLen = len - actualSkipCount + itemCount;
+        List<Object> result = new ArrayList<>(newLen);
+        for (int i = 0; i < actualStart; i++) {
+            result.add(specGet(target, String.valueOf(i), cc));
+        }
+        for (int i = 0; i < itemCount; i++) {
+            result.add(args[i + 2]);
+        }
+        for (int i = actualStart + actualSkipCount; i < len; i++) {
+            result.add(specGet(target, String.valueOf(i), cc));
+        }
+        return new JsArray(result);
     }
 
     private Object shift(Context context, Object[] args) {

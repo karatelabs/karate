@@ -941,8 +941,55 @@ fast loop terminates does it test `peek() == '_'` and call
 `scanDigitsWithSeparators` / `scanHexDigitsWithSeparators` (rare path). The
 rare-path scanner enforces "between two digits" by consuming the `_`, then
 asserting the next char is a digit; doubled separators error out by the same
-check. `Terms.toNumber` strips `_` only when `text.indexOf('_') >= 0` (no
-allocation on the common case).
+check.
+
+**`Terms` splits literal-path and runtime-path String → Number.** Spec
+StringNumericLiteral §7.1.4.1.1 rejects `_` separators (those are valid only
+inside source-text NumericLiterals, lexer-territory). Two methods carry the
+two contracts: `literalToNumber(text)` is called from `Terms.literalValue`
+for NUMBER tokens — strips `_` first since the lexer already validated
+placement. `stringToNumber(text)` is the runtime String → Number coercion
+called from `Terms.objectToNumber(String)` — strips spec WhiteSpace +
+LineTerminator (`Character.isWhitespace` + NBSP ` ` + ZWNBSP `﻿`),
+returns NaN on `_` (separators are literal-only), and accepts `0b`/`0o`/`0x`
+radix prefixes via `fromRadixPrefix`. `fromRadixPrefix` catches
+`NumberFormatException` (e.g. `Number("0o8")`) and returns NaN rather than
+leaking a Java exception.
+
+**`Number.prototype.*` use spec `thisNumberValue` (§21.1.3).** Unwrap
+`JsNumber`, accept primitive `Number`, route `JsNumberPrototype.INSTANCE`
+itself to `+0` (the prototype object is a Number exotic with internal
+`[[NumberData]]` of zero per spec). Anything else throws TypeError —
+`Number.prototype.toString.call(true)` no longer silently coerces to 0.
+`numberToString(d)` canonicalizes special values (`NaN`, `Infinity`,
+`-Infinity`) before falling back to `Number.toString`.
+
+**Number digits args dispatch through ToPrimitive.** `toFixed` /
+`toPrecision` / `toExponential` route the digits/precision argument through
+`Terms.toNumberCoerce(arg, ctx)` (via `JsNumberPrototype.toIntegerArg`) so
+ObjectLike inputs invoke `valueOf` / `toString`. `[2].toExponential(...)`
+becomes `(123.456).toExponential(2)` per spec. NaN-on-coerce → 0 (spec
+ToInteger of NaN). BigInt args throw TypeError before any coercion (spec
+§21.1.3.3). `toFixed` falls back to `numberToString` for `|x| ≥ 1e21` —
+`BigDecimal` of such doubles produces a noisy decimal expansion that doesn't
+match the spec's `1e+21` ToString form. Range checks are `[0, 100]` per spec
+(was unchecked); non-finite receivers short-circuit before the range check
+(§21.1.3.4 step 6 — NaN/Infinity precede the precision-range error).
+`toPrecision(undefined)` / no-arg returns `numberToString(d)` (spec §21.1.3.4
+step 1). `(0).toPrecision(p)` and `(-0).toPrecision(p)` both produce a
+sign-elided `"0[.0...]"` mantissa (Number::toString strips the negative-zero
+sign per §6.1.6.1.13). `toExponential` with no/undefined fractionDigits emits
+the minimum digits that round-trip to the receiver — Java's `%.15e` then
+trim trailing fractional zeros. Both `toExponential` and `toPrecision`
+canonicalize Java's `1.0e+01` exponent shape to the spec's `1.0e+1` form.
+
+**`Number.parseInt === parseInt` and `Number.parseFloat === parseFloat`.**
+Per spec the constructor static and the global function are the same object.
+`ContextRoot.PARSE_INT` / `ContextRoot.PARSE_FLOAT` are static
+`JsBuiltinMethod` singletons; both `initGlobal("parseInt")` and
+`JsNumberConstructor.installIntrinsics` reference the same instances so
+identity holds. `JsBuiltinMethod` reports `isConstructable() === false`
+which clears the test262 `not-a-constructor.js` cluster.
 
 ### Property attributes
 
@@ -1188,6 +1235,14 @@ the same way it works on a `JsArray`. The split inside `JsArrayPrototype`:
   one set of spec primitives on the `ObjectLike` receiver, so writes
   propagate back to a non-array `this` (test262 `S15.4.4.{8,9,11,12,13}_A2_*`
   clusters).
+- *ES2023 immutables* (`toReversed` / `toSorted` / `toSpliced` — `with` was
+  already there) read source via `specGet` (NOT `HasProperty` + `Get`) so
+  holes surface as `undefined` / proto-chain values, build a fresh `JsArray`
+  result, and never mutate the receiver. Standalone implementations rather
+  than wrappers around `*InPlace` helpers extracted from `sort` / `splice` /
+  `reverse` — the per-index spec primitives are cheap and the duplication
+  is small enough that a mutate-then-clone round-trip would lose more than
+  it saved.
 
 The shared spec-primitive contract for the mutating path:
 

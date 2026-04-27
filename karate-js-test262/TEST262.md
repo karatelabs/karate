@@ -96,12 +96,12 @@ Math/Number/Date/String are independent of Symbol.
 
 | # | Slice | What's left |
 |---|---|---|
-| 1 | `test/built-ins/Number/**` | `parseInt` / `parseFloat` edges, rounding (`toFixed`/`toPrecision`/`toExponential`), `isInteger` / `isSafeInteger` / `isFinite` / `isNaN`. **Foundational** — hardens coercion every later slice leans on. |
+| 1 | `test/built-ins/Number/**` | 2026-04-27: 301/340 (+69 — `Number(string)` literal/runtime split, `thisNumberValue`, `toFixed`/`toPrecision`/`toExponential`, `Number.parseInt`/`parseFloat` identity). Remaining: `prop-desc.js` cluster (`Object.getOwnPropertyDescriptor` for `configurable: true` on prototype methods), `Object.prototype.toString.call(num)` `[object Number]` (Symbol-gated, slice #7), `MAX_VALUE`/`MIN_VALUE` literal-form parser edge. See [JS_ENGINE.md § Numeric / coercion](../docs/JS_ENGINE.md#numeric--coercion). |
 | 2 | `test/built-ins/Date/**` | `Date.parse` ISO format edges, UTC vs local hour math, invalid-date propagation. See [JS_ENGINE.md § Date](../docs/JS_ENGINE.md#date). |
 | 3 | `test/built-ins/String/**` | `padStart`/`padEnd`, `trimStart`/`trimEnd`, `normalize`, `repeat`, `raw`, `fromCodePoint`; non-`@@`-protocol regex methods. High real-world signal. |
 | 4 | `test/built-ins/RegExp/**` | Constructor + `.source` / `.flags` / `.lastIndex`; `exec` / `test` semantics; flag validation; non-Symbol `String.prototype.{match, replace, search, split}` integration. Depends on String. |
 | 5 | `test/built-ins/Object/**` | Descriptor pipeline now spec-shape (2026-04-27, +168 PASS — 2762/3411). Remaining: `defineProperty` TypeError edges, `prototype` for-in semantics on accessor-descriptor indices, `seal` (TypedArray-feature-gated), `groupBy` (ES2024), Symbol-gated tail. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
-| 6 | `test/built-ins/Array/**` | Iteration spec-shape + `JsArray` result allocation landed (2026-04-27, +276 PASS — 2205/3081). Remaining: ES2023 immutables (`toSpliced`/`toSorted`/`toReversed`), `splice`/`concat` `Symbol.species` residuals, parser-blocked async/generator paths, harness-feature-gated (Int8Array). See [JS_ENGINE.md § Prototype machinery](../docs/JS_ENGINE.md#prototype-machinery). |
+| 6 | `test/built-ins/Array/**` | 2026-04-27: 2257/3081 (+328 cumulative — iteration spec-shape, `JsArray` result allocation, ES2023 immutables). Remaining: `splice`/`concat` `Symbol.species` residuals (slice #7), parser-blocked async/generator paths, harness-feature-gated (Int8Array). See [JS_ENGINE.md § Prototype machinery](../docs/JS_ENGINE.md#prototype-machinery). |
 | 7 | `test/built-ins/Symbol/**` + cascades | Full Symbol primitive: `typeof === "symbol"`, unique identity, `Symbol.for`/`keyFor`/`description`, `Object.getOwnPropertySymbols`, `Reflect.ownKeys`. Touches `Terms.typeOf` / `eq` / coercion; `PropertyKey` abstraction across `JsObject.props` / `isOwnProperty`. 2–4 sessions. Unblocks the Array/String/RegExp Symbol-gated tail. |
 
 ### Background sweeps
@@ -221,12 +221,6 @@ and the per-section anchors.
   (depends on `Symbol.species` — slice #7) and
   `CreateDataPropertyOrThrow(A, k, v)` per element. Defer until Symbol
   lands; current shape passes ~all non-Symbol-gated tests.
-
-- **ES2023 immutable `Array.prototype` methods.** `toSpliced`, `toSorted`,
-  `toReversed` not implemented (fail with `is not a function`); `with`
-  is. Pattern: extract `*InPlace` mutating-body helpers from `splice` /
-  `sort` / `reverse`; the immutable builds a clone and applies. ~2 h
-  once the helpers are extracted.
 
 ### Engine — spec alignment
 

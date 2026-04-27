@@ -71,6 +71,10 @@ class JsNumberConstructor extends JsFunction {
         defineOwn("isInteger", new JsBuiltinMethod("isInteger", 1, (JsInvokable) this::isInteger), METHOD_ATTRS);
         defineOwn("isNaN", new JsBuiltinMethod("isNaN", 1, (JsInvokable) this::isNaN), METHOD_ATTRS);
         defineOwn("isSafeInteger", new JsBuiltinMethod("isSafeInteger", 1, (JsInvokable) this::isSafeInteger), METHOD_ATTRS);
+        // Spec: Number.parseInt === parseInt and Number.parseFloat === parseFloat.
+        // Share the singleton with ContextRoot so identity holds.
+        defineOwn("parseInt", ContextRoot.PARSE_INT, METHOD_ATTRS);
+        defineOwn("parseFloat", ContextRoot.PARSE_FLOAT, METHOD_ATTRS);
         defineOwn("prototype", JsNumberPrototype.INSTANCE, PropertySlot.INTRINSIC);
     }
 
