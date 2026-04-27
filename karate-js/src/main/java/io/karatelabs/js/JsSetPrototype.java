@@ -25,6 +25,7 @@ package io.karatelabs.js;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -49,6 +50,18 @@ class JsSetPrototype extends Prototype {
         install("values", values);
         install("entries", 0, this::entriesMethod);
         install(IterUtils.SYMBOL_ITERATOR, values);
+        // ES2025 set-methods — spec §24.2.4. All seven take a single set-like
+        // arg and route through GetSetRecord (read size/has/keys, coerce size
+        // to integer, validate callability). Result-bearing methods build a
+        // fresh JsSet by populating elements directly (spec bypasses
+        // Set.prototype.add — verified by add-not-called.js test262).
+        install("union", 1, this::union);
+        install("intersection", 1, this::intersection);
+        install("difference", 1, this::difference);
+        install("symmetricDifference", 1, this::symmetricDifference);
+        install("isSubsetOf", 1, this::isSubsetOf);
+        install("isSupersetOf", 1, this::isSupersetOf);
+        install("isDisjointFrom", 1, this::isDisjointFrom);
     }
 
     private static JsSet asSet(Context context) {
@@ -116,6 +129,268 @@ class JsSetPrototype extends Prototype {
     private Object entriesMethod(Context context, Object[] args) {
         JsSet s = asSet(context);
         return IterUtils.toIteratorObject(setIterator(s, true));
+    }
+
+    // -------------------------------------------------------------------------
+    // ES2025 set-methods (§24.2.4)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Spec §24.2.1.2 GetSetRecord(obj). Reads {@code size}, coerces to integer
+     * (throwing on NaN), then reads {@code has}/{@code keys} and validates
+     * callability. The result is the input to all seven set-methods.
+     */
+    private static final class SetRecord {
+        final ObjectLike setObj;
+        final long intSize;
+        final JsCallable has;
+        final JsCallable keys;
+
+        SetRecord(ObjectLike setObj, long intSize, JsCallable has, JsCallable keys) {
+            this.setObj = setObj;
+            this.intSize = intSize;
+            this.has = has;
+            this.keys = keys;
+        }
+    }
+
+    private static SetRecord getSetRecord(Object other, Context context) {
+        if (!(other instanceof ObjectLike obj)) {
+            throw JsErrorException.typeError("Set.prototype method called with non-object");
+        }
+        CoreContext cc = context instanceof CoreContext c ? c : null;
+        Object rawSize = obj.getMember("size", obj, cc);
+        Number numSize = Terms.toNumberCoerce(rawSize, cc);
+        double d = numSize.doubleValue();
+        if (Double.isNaN(d)) {
+            throw JsErrorException.typeError("Set-like object's size is not a number");
+        }
+        // ToIntegerOrInfinity, then RangeError on negative — spec step 7.
+        long intSize;
+        if (Double.isInfinite(d)) {
+            intSize = d > 0 ? Long.MAX_VALUE : Long.MIN_VALUE;
+        } else {
+            intSize = (long) d;
+        }
+        if (intSize < 0) {
+            throw JsErrorException.rangeError("Set-like object's size is negative");
+        }
+        Object hasFn = obj.getMember("has", obj, cc);
+        if (!(hasFn instanceof JsCallable has)) {
+            throw JsErrorException.typeError("Set-like object's 'has' is not callable");
+        }
+        Object keysFn = obj.getMember("keys", obj, cc);
+        if (!(keysFn instanceof JsCallable keys)) {
+            throw JsErrorException.typeError("Set-like object's 'keys' is not callable");
+        }
+        return new SetRecord(obj, intSize, has, keys);
+    }
+
+    private static JsIterator keysIter(SetRecord rec, Context ctx) {
+        return IterUtils.iteratorFromCallable(rec.keys, rec.setObj, ctx);
+    }
+
+    /** Spec normalize: -0 → +0 on values pulled from a foreign keys() iteration. */
+    private static Object normalize(Object v) {
+        return JsMap.normalizeKey(v);
+    }
+
+    /** Direct-populate a JsSet, bypassing Set.prototype.add per spec. */
+    private static void rawAdd(JsSet s, Object value) {
+        Object normalized = normalize(value);
+        // Linear-scan match for cross-Java-numeric-type SameValueZero, mirroring
+        // JsSet.has's findStoredValue logic.
+        for (Object existing : s.elements.keySet()) {
+            if (Terms.eq(existing, normalized, true)) return;
+        }
+        s.elements.put(normalized, Boolean.TRUE);
+    }
+
+    /** Invoke {@code rec.has(value)} with {@code rec.setObj} as this. */
+    private static boolean otherHas(SetRecord rec, Object value, Context ctx) {
+        CoreContext cc = ctx instanceof CoreContext c ? c : null;
+        Object savedThis = cc != null ? cc.thisObject : null;
+        try {
+            if (cc != null) cc.thisObject = rec.setObj;
+            Object r = rec.has.call(ctx, new Object[]{value});
+            return Terms.isTruthy(r);
+        } finally {
+            if (cc != null) cc.thisObject = savedThis;
+        }
+    }
+
+    private Object union(Context ctx, Object[] args) {
+        JsSet thisSet = asSet(ctx);
+        Object other = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        SetRecord rec = getSetRecord(other, ctx);
+        JsSet result = new JsSet();
+        // Spec step 5: copy this's elements into result, preserving order.
+        for (Object v : thisSet.elements.keySet()) {
+            result.elements.put(v, Boolean.TRUE);
+        }
+        JsIterator it = keysIter(rec, ctx);
+        while (it.hasNext()) {
+            Object next = normalize(it.next());
+            rawAdd(result, next);
+        }
+        return result;
+    }
+
+    private Object intersection(Context ctx, Object[] args) {
+        JsSet thisSet = asSet(ctx);
+        Object other = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        SetRecord rec = getSetRecord(other, ctx);
+        JsSet result = new JsSet();
+        if (thisSet.elements.size() <= rec.intSize) {
+            // Spec step 5: walk this; keep elements present in other (via other.has).
+            // Snapshot to avoid concurrent modification when has() mutates this.
+            List<Object> snapshot = new ArrayList<>(thisSet.elements.keySet());
+            for (Object e : snapshot) {
+                if (!thisSet.elements.containsKey(e)) continue; // deleted by has()
+                if (otherHas(rec, e, ctx)) {
+                    result.elements.put(e, Boolean.TRUE);
+                }
+            }
+        } else {
+            // Spec step 6: walk other.keys(); keep elements present in this.
+            // Order is `other`'s iteration order (per result-order.js).
+            JsIterator it = keysIter(rec, ctx);
+            LinkedHashSet<Object> seen = new LinkedHashSet<>();
+            while (it.hasNext()) {
+                Object next = normalize(it.next());
+                if (seen.contains(next)) continue;
+                seen.add(next);
+                if (thisSet.has(next)) {
+                    rawAdd(result, next);
+                }
+            }
+        }
+        return result;
+    }
+
+    private Object difference(Context ctx, Object[] args) {
+        JsSet thisSet = asSet(ctx);
+        Object other = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        SetRecord rec = getSetRecord(other, ctx);
+        JsSet result = new JsSet();
+        // Step 4: copy this into result.
+        for (Object v : thisSet.elements.keySet()) {
+            result.elements.put(v, Boolean.TRUE);
+        }
+        if (thisSet.elements.size() <= rec.intSize) {
+            // Step 5: iterate this; remove entries that other.has() reports.
+            // Snapshot — has() may mutate this concurrently (set-like-class-mutation.js).
+            List<Object> snapshot = new ArrayList<>(thisSet.elements.keySet());
+            for (Object e : snapshot) {
+                if (!result.elements.containsKey(e)) continue;
+                if (otherHas(rec, e, ctx)) {
+                    result.elements.remove(e);
+                }
+            }
+        } else {
+            // Step 6: iterate other.keys(); remove matches from result.
+            JsIterator it = keysIter(rec, ctx);
+            while (it.hasNext()) {
+                Object next = normalize(it.next());
+                // Find via SameValueZero (cross-Java-numeric-type).
+                Object stored = null;
+                if (result.elements.containsKey(next)) {
+                    stored = next;
+                } else if (next instanceof Number) {
+                    for (Object k : result.elements.keySet()) {
+                        if (Terms.eq(k, next, true)) {
+                            stored = k;
+                            break;
+                        }
+                    }
+                }
+                if (stored != null) result.elements.remove(stored);
+            }
+        }
+        return result;
+    }
+
+    private Object symmetricDifference(Context ctx, Object[] args) {
+        JsSet thisSet = asSet(ctx);
+        Object other = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        SetRecord rec = getSetRecord(other, ctx);
+        JsSet result = new JsSet();
+        // Step 5: copy this into result.
+        for (Object v : thisSet.elements.keySet()) {
+            result.elements.put(v, Boolean.TRUE);
+        }
+        // Step 7: for each value from other.keys(), remove from result if present
+        // (toggle-out), else append (toggle-in). Cross-Java-numeric-type lookup.
+        JsIterator it = keysIter(rec, ctx);
+        while (it.hasNext()) {
+            Object next = normalize(it.next());
+            Object stored = null;
+            if (result.elements.containsKey(next)) {
+                stored = next;
+            } else if (next instanceof Number) {
+                for (Object k : result.elements.keySet()) {
+                    if (Terms.eq(k, next, true)) {
+                        stored = k;
+                        break;
+                    }
+                }
+            }
+            if (stored != null) {
+                result.elements.remove(stored);
+            } else {
+                result.elements.put(next, Boolean.TRUE);
+            }
+        }
+        return result;
+    }
+
+    private Object isSubsetOf(Context ctx, Object[] args) {
+        JsSet thisSet = asSet(ctx);
+        Object other = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        SetRecord rec = getSetRecord(other, ctx);
+        // Quick exit per spec: if this has more elements, can't be subset.
+        if (thisSet.elements.size() > rec.intSize) return false;
+        // Walk this; every elt must be in other.
+        List<Object> snapshot = new ArrayList<>(thisSet.elements.keySet());
+        for (Object e : snapshot) {
+            if (!otherHas(rec, e, ctx)) return false;
+        }
+        return true;
+    }
+
+    private Object isSupersetOf(Context ctx, Object[] args) {
+        JsSet thisSet = asSet(ctx);
+        Object other = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        SetRecord rec = getSetRecord(other, ctx);
+        // Quick exit: if other has more elements, can't be superset.
+        if (thisSet.elements.size() < rec.intSize) return false;
+        // Walk other.keys(); every elt must be in this.
+        JsIterator it = keysIter(rec, ctx);
+        while (it.hasNext()) {
+            Object next = normalize(it.next());
+            if (!thisSet.has(next)) return false;
+        }
+        return true;
+    }
+
+    private Object isDisjointFrom(Context ctx, Object[] args) {
+        JsSet thisSet = asSet(ctx);
+        Object other = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        SetRecord rec = getSetRecord(other, ctx);
+        if (thisSet.elements.size() <= rec.intSize) {
+            // Walk this; if any elt is in other, not disjoint.
+            List<Object> snapshot = new ArrayList<>(thisSet.elements.keySet());
+            for (Object e : snapshot) {
+                if (otherHas(rec, e, ctx)) return false;
+            }
+        } else {
+            JsIterator it = keysIter(rec, ctx);
+            while (it.hasNext()) {
+                Object next = normalize(it.next());
+                if (thisSet.has(next)) return false;
+            }
+        }
+        return true;
     }
 
     /**

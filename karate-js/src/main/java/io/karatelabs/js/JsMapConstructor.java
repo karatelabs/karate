@@ -42,8 +42,20 @@ class JsMapConstructor extends JsFunction {
         registerForEngineReset();
     }
 
+    private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
+
     private void installIntrinsics() {
         defineOwn("prototype", JsMapPrototype.INSTANCE, PropertySlot.INTRINSIC);
+        defineOwn("groupBy", new JsBuiltinMethod("groupBy", 2, (JsCallable) this::groupBy), METHOD_ATTRS);
+    }
+
+    private Object groupBy(Context context, Object[] args) {
+        Object items = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        Object callback = args.length > 1 ? args[1] : Terms.UNDEFINED;
+        // Spec: result is a fresh Map; keys carry -0 → +0 normalization (zero
+        // coercion mode) — verified by negativeZero.js.
+        return GroupByImpl.toMap(
+                GroupByImpl.run(items, callback, /* propertyMode= */ false, context));
     }
 
     @Override

@@ -1234,6 +1234,17 @@ unified post-refactor B: data writes install `DataSlot`, accessor descriptors
 install `AccessorSlot`, both surfaces through the shared `getOwnSlot`
 signature that mirrors `JsObject` / `JsArray`.
 
+**`Object.getPrototypeOf` dispatches via `ObjectLike.getPrototype()`.** All
+three storage shapes (`JsObject`, `JsArray`, `Prototype` singleton) implement
+`ObjectLike#getPrototype`; the constructor's introspector branches on
+`instanceof ObjectLike` rather than the historical
+`instanceof JsObject || JsArray`, so
+`Object.getPrototypeOf(Set.prototype) === Object.prototype` (and same for
+`Map.prototype`, `Array.prototype`, etc. — all `Prototype` singletons). The
+old narrower dispatch returned `null` for any `Prototype` receiver and broke
+properties-of-the-X-prototype-object.js tests across Map / Set / Array /
+RegExp / Error / Date / Function / Number / Boolean / String / BigInt.
+
 **Per-Engine prototype isolation.** Built-in prototypes are JVM-wide
 singletons (e.g. `JsArrayPrototype.INSTANCE`), but their `userProps` must
 reset each time a new `Engine` is constructed — otherwise a previous test

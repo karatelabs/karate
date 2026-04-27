@@ -54,6 +54,9 @@ class JsMapPrototype extends Prototype {
         // Spec @@iterator on Map.prototype === Map.prototype.entries — same
         // wrapped instance keeps identity.
         install(IterUtils.SYMBOL_ITERATOR, entries);
+        // ES2025 upsert proposal — Map.prototype.{getOrInsert, getOrInsertComputed}.
+        install("getOrInsert", 2, this::getOrInsert);
+        install("getOrInsertComputed", 2, this::getOrInsertComputed);
     }
 
     private static JsMap asMap(Context context) {
@@ -122,6 +125,61 @@ class JsMapPrototype extends Prototype {
     private Object entriesMethod(Context context, Object[] args) {
         JsMap m = asMap(context);
         return IterUtils.toIteratorObject(mapIterator(m, MapIteratorKind.KEY_VALUE));
+    }
+
+    /**
+     * Spec ES2025 upsert §24.1.3.x:
+     * {@code Map.prototype.getOrInsert(key, value)} — returns the existing
+     * value if the key is already present (under SameValueZero with -0
+     * normalization), otherwise stores {@code value} and returns it.
+     */
+    private Object getOrInsert(Context context, Object[] args) {
+        JsMap m = asMap(context);
+        Object key = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        Object value = args.length > 1 ? args[1] : Terms.UNDEFINED;
+        if (m.hasKey(key)) {
+            return m.getValue(key);
+        }
+        m.setValue(key, value);
+        return value;
+    }
+
+    /**
+     * Spec ES2025 upsert: {@code getOrInsertComputed(key, callbackfn)}. If the
+     * key is present, returns the existing value WITHOUT invoking the callback
+     * (does-not-evaluate-callbackfn-if-key-present.js). Otherwise calls
+     * {@code callbackfn(canonicalKey)} (canonical-key-passed-to-callback.js)
+     * and stores the result. Re-checks key presence after the callback returns
+     * so a callback that mutates the map can't leave a stale insert
+     * (overwrites-mutation-from-callbackfn.js).
+     */
+    private Object getOrInsertComputed(Context context, Object[] args) {
+        JsMap m = asMap(context);
+        Object key = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        Object cb = args.length > 1 ? args[1] : Terms.UNDEFINED;
+        if (!(cb instanceof JsCallable callable)) {
+            throw JsErrorException.typeError("Map.prototype.getOrInsertComputed: callback is not a function");
+        }
+        if (m.hasKey(key)) {
+            return m.getValue(key);
+        }
+        // Canonical key: spec normalizes -0 to +0 before invoking callback.
+        Object canonicalKey = JsMap.normalizeKey(key);
+        Object value = callable.call(context, new Object[]{canonicalKey});
+        // Spec: a callback that threw stops the operation. The engine signals
+        // throws via {@code cc.error}; bail without inserting so post-throw
+        // {@code map.has(key) === false} (check-state-after-callback-fn-throws.js).
+        CoreContext cc = context instanceof CoreContext c ? c : null;
+        if (cc != null && cc.isError()) {
+            return Terms.UNDEFINED;
+        }
+        // Java-null callback returns surface to JS as undefined. Re-checking
+        // map state after the callback returned: per spec, OVERWRITE any
+        // entry the callback inserted at the same key
+        // (overwrites-mutation-from-callbackfn.js).
+        if (value == null) value = Terms.UNDEFINED;
+        m.setValue(canonicalKey, value);
+        return value;
     }
 
     private enum MapIteratorKind { KEY, VALUE, KEY_VALUE }

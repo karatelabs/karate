@@ -75,7 +75,18 @@ class JsObjectConstructor extends JsFunction {
         defineOwn("seal", new JsBuiltinMethod("seal", 1, (JsInvokable) this::seal), METHOD_ATTRS);
         defineOwn("isFrozen", new JsBuiltinMethod("isFrozen", 1, (JsInvokable) this::isFrozen), METHOD_ATTRS);
         defineOwn("freeze", new JsBuiltinMethod("freeze", 1, (JsInvokable) this::freeze), METHOD_ATTRS);
+        defineOwn("groupBy", new JsBuiltinMethod("groupBy", 2, (JsCallable) this::groupBy), METHOD_ATTRS);
         defineOwn("prototype", JsObjectPrototype.INSTANCE, PropertySlot.INTRINSIC);
+    }
+
+    private Object groupBy(Context context, Object[] args) {
+        Object items = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        Object callback = args.length > 1 ? args[1] : Terms.UNDEFINED;
+        // Spec: result is OrdinaryObjectCreate(null) — no inherited
+        // Object.prototype methods (null-prototype.js asserts
+        // {@code obj.hasOwnProperty === undefined}).
+        return GroupByImpl.toNullProtoObject(
+                GroupByImpl.run(items, callback, /* propertyMode= */ true, context));
     }
 
     @Override
@@ -267,13 +278,14 @@ class JsObjectConstructor extends JsFunction {
     }
 
     private Object getPrototypeOf(Object[] args) {
-        if (args.length > 0) {
-            if (args[0] instanceof JsObject obj) {
-                return obj.getPrototype();
-            }
-            if (args[0] instanceof JsArray arr) {
-                return arr.getPrototype();
-            }
+        // Spec §20.1.2.12 ToObject(O); for ObjectLike receivers (JsObject,
+        // JsArray, Prototype singletons like Map.prototype / Set.prototype /
+        // Array.prototype), dispatch through the unified getter so all three
+        // storage shapes report the spec-correct __proto__. Without the
+        // Prototype branch, {@code Object.getPrototypeOf(Set.prototype)}
+        // wrongly returned null instead of Object.prototype.
+        if (args.length > 0 && args[0] instanceof ObjectLike ol) {
+            return ol.getPrototype();
         }
         return null;
     }

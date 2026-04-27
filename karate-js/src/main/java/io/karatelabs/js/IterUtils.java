@@ -120,6 +120,114 @@ public class IterUtils {
     }
 
     /**
+     * Spec {@code GetIteratorFromMethod}: invoke {@code factory} with {@code receiver}
+     * as {@code this} (no args) and walk the returned iterator. Used by
+     * Set.prototype.{union/difference/...}'s GetKeysIterator step (call the
+     * set-like's {@code keys} property).
+     * <p>
+     * Lenient on the call result: spec demands an iterator Object with
+     * {@code .next()}, but built-ins inside karate-js sometimes return raw
+     * Lists / JsArrays (e.g. {@code Array.prototype.values()} currently
+     * returns the underlying list). When the result lacks a {@code .next}
+     * member, fall through to {@link #getIterator(Object, Context)} so those
+     * shortcuts still iterate correctly. test262 tests like
+     * {@code converts-negative-zero.js} construct set-likes that return
+     * {@code [-0].values()} from {@code keys} expecting iteration to work.
+     */
+    public static JsIterator iteratorFromCallable(JsCallable factory, ObjectLike receiver, Context context) {
+        Object result;
+        if (context instanceof CoreContext cc) {
+            Object savedThis = cc.thisObject;
+            cc.thisObject = receiver;
+            try {
+                result = factory.call(cc, EMPTY_ARGS);
+            } finally {
+                cc.thisObject = savedThis;
+            }
+        } else {
+            result = factory.call(context, EMPTY_ARGS);
+        }
+        if (result == null || result == Terms.UNDEFINED) {
+            throw JsErrorException.typeError("Result of iterator method is not an object");
+        }
+        // Spec-shaped iterator object: ObjectLike with a callable .next.
+        if (result instanceof ObjectLike obj) {
+            Object nextFn = obj.getMember("next");
+            if (nextFn instanceof JsCallable) {
+                return iteratorObjectWalker(obj, context);
+            }
+        }
+        // Fallback: engine-internal shortcut returned a List / JsArray /
+        // String / iterable ObjectLike — getIterator's tryGetIterator covers
+        // all of those.
+        return getIterator(result, context);
+    }
+
+    /**
+     * Walk an already-constructed iterator object's {@code .next()} method to
+     * produce a {@link JsIterator}. Shared by {@link #userIterator} (which
+     * first invokes {@code @@iterator}) and the spec-shaped branch of
+     * {@link #iteratorFromCallable}.
+     */
+    private static JsIterator iteratorObjectWalker(ObjectLike iterObj, Context context) {
+        return new JsIterator() {
+            Object pending;
+            boolean fetched;
+            boolean done;
+
+            private void fetch() {
+                if (fetched || done) return;
+                Object nextFn = iterObj.getMember("next");
+                if (!(nextFn instanceof JsCallable nextCallable)) {
+                    throw JsErrorException.typeError("iterator.next is not a function");
+                }
+                Object step;
+                if (context instanceof CoreContext cc) {
+                    Object savedThis = cc.thisObject;
+                    cc.thisObject = iterObj;
+                    try {
+                        step = nextCallable.call(cc, EMPTY_ARGS);
+                    } finally {
+                        cc.thisObject = savedThis;
+                    }
+                } else {
+                    step = nextCallable.call(context, EMPTY_ARGS);
+                }
+                if (isJsErrored(context)) { done = true; return; }
+                if (!(step instanceof ObjectLike stepObj)) {
+                    throw JsErrorException.typeError("iterator result is not an object");
+                }
+                if (Terms.isTruthy(readMember(stepObj, "done", context))) {
+                    done = true;
+                    return;
+                }
+                if (isJsErrored(context)) { done = true; return; }
+                pending = readMember(stepObj, "value", context);
+                if (isJsErrored(context)) { done = true; return; }
+                fetched = true;
+            }
+
+            @Override
+            public boolean hasNext() {
+                fetch();
+                return !done;
+            }
+
+            @Override
+            public Object next() {
+                fetch();
+                if (done) {
+                    throw new NoSuchElementException();
+                }
+                fetched = false;
+                Object v = pending;
+                pending = null;
+                return v;
+            }
+        };
+    }
+
+    /**
      * Wraps a {@link JsIterator} as the user-visible iterator object: a
      * {@link JsObject} with a {@code next} method returning {@code {value, done}}.
      * Used by built-in {@code @@iterator} factories ({@link JsArray}, {@link JsString})

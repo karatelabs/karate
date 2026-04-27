@@ -1000,11 +1000,28 @@ public class Terms {
      * the broader Slice #7 work.
      */
     public static String toPropertyKey(Object o) {
+        return toPropertyKey(o, null);
+    }
+
+    /**
+     * Context-aware {@code ToPropertyKey} (§7.1.19). Adds the spec's
+     * {@code ToPrimitive(hint=string) → ToString} dispatch for {@link ObjectLike}
+     * receivers — so a callback that returns {@code {toString(){return 1}}}
+     * coerces to {@code "1"}, and a {@code toString} that throws propagates the
+     * error via {@code ctx.error} (matching IfAbruptCloseIterator semantics).
+     * Without ctx, ObjectLike values fall back to {@link Object#toString} as
+     * before.
+     */
+    public static String toPropertyKey(Object o, CoreContext ctx) {
         if (o == null) return "null";
         if (o instanceof String s) return s;
         if (o == UNDEFINED) return "undefined";
         if (o instanceof JsString js) return js.toString();
         if (o instanceof Number n) return numberToPropertyKey(n);
+        if (o instanceof Boolean) return o.toString();
+        if (o instanceof ObjectLike && ctx != null) {
+            return toStringCoerce(o, ctx);
+        }
         return o.toString();
     }
 

@@ -470,6 +470,112 @@ class SpecPinTest extends EvalBase {
         assertEquals("0,,,3", eval("[0,,,3].toString()"));
     }
 
+    // -------------------------------------------------------------------------
+    // Object.getPrototypeOf dispatches via ObjectLike for all three storage
+    // shapes — JsObject, JsArray, and Prototype singletons. Without the
+    // unified ObjectLike branch, Set.prototype / Map.prototype etc. wrongly
+    // returned null. See JS_ENGINE.md § Prototype machinery.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getPrototypeOf_setPrototype_returnsObjectPrototype() {
+        assertEquals(true, eval("Object.getPrototypeOf(Set.prototype) === Object.prototype"));
+        assertEquals(true, eval("Object.getPrototypeOf(Map.prototype) === Object.prototype"));
+        assertEquals(true, eval("Object.getPrototypeOf(Array.prototype) === Object.prototype"));
+    }
+
+    // -------------------------------------------------------------------------
+    // ES2025 Set.prototype set-algebra (§24.2.4) — bypasses Set.prototype.add
+    // (verified by test262 add-not-called.js); honors size-based ordering;
+    // normalizes -0 to +0 on values pulled from foreign keys() iteration.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void setUnion_combinesSetsPreservingOrder() {
+        assertEquals("1,2,3", eval(
+                "Array.from(new Set([1,2]).union(new Set([2,3]))).join(',')"));
+    }
+
+    @Test
+    void setIntersection_orderFollowsSmallerOperand() {
+        // this.size <= other.size: order from this.
+        assertEquals("1,3", eval(
+                "Array.from(new Set([1,3,5]).intersection(new Set([3,2,1]))).join(',')"));
+        // this.size > other.size: order from other.
+        assertEquals("1,3", eval(
+                "Array.from(new Set([3,2,1,0]).intersection(new Set([1,3,5]))).join(',')"));
+    }
+
+    @Test
+    void setDifferenceAndSymDiff_basics() {
+        assertEquals("1", eval(
+                "Array.from(new Set([1,2]).difference(new Set([2,3]))).join(',')"));
+        assertEquals("1,3", eval(
+                "Array.from(new Set([1,2]).symmetricDifference(new Set([2,3]))).join(',')"));
+    }
+
+    @Test
+    void setSubsetSupersetDisjoint_basics() {
+        assertEquals(true, eval("new Set([1,2]).isSubsetOf(new Set([1,2,3]))"));
+        assertEquals(false, eval("new Set([1,2]).isSubsetOf(new Set([2,3]))"));
+        assertEquals(true, eval("new Set([1,2,3]).isSupersetOf(new Set([1,2]))"));
+        assertEquals(true, eval("new Set([1,2]).isDisjointFrom(new Set([3,4]))"));
+        assertEquals(false, eval("new Set([1,2]).isDisjointFrom(new Set([2,3]))"));
+    }
+
+    // -------------------------------------------------------------------------
+    // ES2024 grouping — Object.groupBy returns a null-prototype object;
+    // Map.groupBy returns a fresh Map with -0 → +0 key normalization.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void objectGroupBy_returnsNullPrototype() {
+        assertEquals(true, eval(
+                "var o = Object.groupBy([1,2,3], i => i % 2 ? 'odd' : 'even');"
+                        + " Object.getPrototypeOf(o) === null"));
+        assertEquals("undefined", eval(
+                "typeof Object.groupBy([1], () => 'k').hasOwnProperty"));
+    }
+
+    @Test
+    void mapGroupBy_normalizesNegativeZero() {
+        // -0 and +0 collapse into a single Map key after spec normalization.
+        assertEquals(1, eval(
+                "var m = Map.groupBy([-0, +0], i => i); m.size"));
+        assertEquals(2, eval(
+                "var m = Map.groupBy([-0, +0], i => i); m.get(0).length"));
+    }
+
+    // -------------------------------------------------------------------------
+    // ES2025 upsert: Map.prototype.{getOrInsert, getOrInsertComputed}.
+    // getOrInsertComputed must NOT invoke the callback when the key is
+    // already present, and must surface Java-null callback returns as
+    // undefined (no `null` leaking into JS land).
+    // -------------------------------------------------------------------------
+
+    @Test
+    void mapGetOrInsert_returnsExistingValueWithoutOverwrite() {
+        assertEquals("a", eval("var m = new Map([[1,'a']]); m.getOrInsert(1, 'b')"));
+        assertEquals("a", eval("var m = new Map([[1,'a']]); m.getOrInsert(1, 'b'); m.get(1)"));
+    }
+
+    @Test
+    void mapGetOrInsertComputed_callbackSkippedWhenKeyPresent() {
+        assertEquals(false, eval(
+                "var called = false;"
+                        + " var m = new Map([[1,'a']]);"
+                        + " m.getOrInsertComputed(1, () => { called = true; return 'b'; });"
+                        + " called"));
+    }
+
+    @Test
+    void mapGetOrInsertComputed_voidReturnSurfacesAsUndefined() {
+        assertEquals("undefined", eval(
+                "var m = new Map();"
+                        + " m.getOrInsertComputed(1, () => {});"
+                        + " typeof m.get(1)"));
+    }
+
     @Test
     void popInvokesPrototypeGetterForHoleAtLastIndex() {
         // Spec: Array.prototype.pop step 4d Get(O, ToString(len-1)) walks
