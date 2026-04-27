@@ -208,6 +208,11 @@ abstract class Prototype implements ObjectLike {
             return s.read(receiver, ctx);
         }
         Object builtin = resolveBuiltin(name);
+        // Built-in accessor slot (installed via {@link #installAccessor}) —
+        // dispatch through {@link AccessorSlot#read} so the getter sees the
+        // user receiver and the prototype-self sentinel branch fires for
+        // {@code RegExp.prototype.source} / {@code .flags} / etc.
+        if (builtin instanceof AccessorSlot acc) return acc.read(receiver, ctx);
         if (builtin != null) return builtin;
         return __proto__ == null ? null : __proto__.getMember(name, receiver, ctx);
     }
@@ -252,15 +257,21 @@ abstract class Prototype implements ObjectLike {
     }
 
     /** Returns the own slot at {@code name} (data or accessor) when one is
-     *  installed via {@link #defineOwnAccessor} / {@link #putMember}, or
-     *  {@code null} when absent or tombstoned. Mirrors
+     *  installed via {@link #defineOwnAccessor} / {@link #putMember} or
+     *  via the install-time {@link #installAccessor}, or {@code null}
+     *  when absent or tombstoned. User slots in {@link #userProps} shadow
+     *  built-in slots in {@link #builtins} — same precedence as
+     *  {@link #getMember}. Mirrors
      *  {@link JsObject#getOwnSlot(String)} / {@link JsArray#getOwnSlot(String)}
      *  so {@link PropertyAccess#findAccessorInChain} and descriptor-inspection
      *  paths can use a single signature across all three storage shapes. */
     final PropertySlot getOwnSlot(String name) {
-        if (userProps == null) return null;
-        PropertySlot s = userProps.get(name);
-        return s == null || s.tombstoned ? null : s;
+        if (userProps != null) {
+            PropertySlot s = userProps.get(name);
+            if (s != null) return s.tombstoned ? null : s;
+        }
+        Object builtin = builtins.get(name);
+        return builtin instanceof AccessorSlot acc ? acc : null;
     }
 
     /** Install a built-in method. The {@link JsBuiltinMethod} wrapper is
@@ -289,6 +300,25 @@ abstract class Prototype implements ObjectLike {
         builtins.put(name, new LazyRef(resolver));
     }
 
+    /** Install a built-in accessor descriptor at {@code name}. Spec
+     *  prototype getters (e.g. {@code RegExp.prototype.source},
+     *  {@code Map.prototype.size}) live here; user-defined accessors via
+     *  {@code Object.defineProperty} go through {@link #defineOwnAccessor}
+     *  into {@link #userProps} instead. {@link #builtins} survives
+     *  per-Engine reset, which is required so the spec accessors don't
+     *  vanish between {@code new Engine()} cycles. The
+     *  {@link AccessorSlot} is materialized eagerly because lambdas / the
+     *  spec sentinel closures don't need the static-init deferral that
+     *  {@link #install(String, int, JsCallable)}'s LazyRef pattern protects
+     *  against. */
+    protected final void installAccessor(String name, JsCallable getter, JsCallable setter, byte attrs) {
+        AccessorSlot s = new AccessorSlot(name);
+        s.getter = getter;
+        s.setter = setter;
+        s.attrs = attrs;
+        builtins.put(name, s);
+    }
+
     private record LazyRef(Supplier<Object> supplier) {
     }
 
@@ -304,6 +334,11 @@ abstract class Prototype implements ObjectLike {
         if (s != null && !s.tombstoned) {
             return s.attrs;
         }
+        // Built-in accessor descriptors carry their own attrs (typically
+        // {@code C | INTRINSIC}). Plain built-in data members fall back to
+        // {@link #defaultAttrs}.
+        Object builtin = builtins.get(name);
+        if (builtin instanceof AccessorSlot acc) return acc.attrs;
         return defaultAttrs(name);
     }
 

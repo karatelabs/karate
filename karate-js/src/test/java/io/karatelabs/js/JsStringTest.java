@@ -80,7 +80,9 @@ class JsStringTest extends EvalBase {
         assertEquals("", eval("a = String()"));
         match(get("a"), "''");
         assertEquals("undefined", eval("String(undefined)"));
-        assertEquals("", eval("String(null)"));
+        // Spec §22.1.1.1: String(null) → "null". Pre-2026-04-27 we short-circuited
+        // null → "" (Java-leaning); ToStringCoerce now routes through the spec.
+        assertEquals("null", eval("String(null)"));
         assertEquals("42", eval("String(42)"));
         assertEquals("true", eval("String(true)"));
         assertEquals(true, eval("typeof String() === 'string'"));

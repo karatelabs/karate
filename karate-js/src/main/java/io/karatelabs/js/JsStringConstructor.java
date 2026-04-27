@@ -48,6 +48,7 @@ class JsStringConstructor extends JsFunction {
     private void installIntrinsics() {
         defineOwn("fromCharCode", new JsBuiltinMethod("fromCharCode", 1, (JsInvokable) this::fromCharCode), METHOD_ATTRS);
         defineOwn("fromCodePoint", new JsBuiltinMethod("fromCodePoint", 1, (JsInvokable) this::fromCodePoint), METHOD_ATTRS);
+        defineOwn("raw", new JsBuiltinMethod("raw", 1, this::raw), METHOD_ATTRS);
         defineOwn("prototype", JsStringPrototype.INSTANCE, PropertySlot.INTRINSIC);
     }
 
@@ -83,6 +84,41 @@ class JsStringConstructor extends JsFunction {
                     throw JsErrorException.rangeError("Invalid code point " + num);
                 }
                 sb.appendCodePoint(n);
+            }
+        }
+        return sb.toString();
+    }
+
+    // Spec §22.1.2.4 — String.raw(template, ...substitutions). Walks
+    // template.raw[k] for k in [0, length), interleaving substitutions[k] from
+    // the second arg onward. Coercion goes through the spec ToString helper so
+    // host objects with a JS toString return user-visible strings, and
+    // non-array-like raw values (length=NaN/0) fall through to the empty
+    // string per §22.1.2.4 step 6 / 8.
+    private Object raw(Context context, Object[] args) {
+        Object template = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        Terms.requireObjectCoercible(template, "String.raw");
+        if (!(template instanceof ObjectLike templateObj)) {
+            throw JsErrorException.typeError("String.raw template must be an object");
+        }
+        Object rawObj = templateObj.getMember("raw");
+        Terms.requireObjectCoercible(rawObj, "String.raw .raw");
+        if (!(rawObj instanceof ObjectLike raw)) {
+            throw JsErrorException.typeError("String.raw .raw must be an object");
+        }
+        CoreContext cc = context instanceof CoreContext c ? c : null;
+        // Spec ToLength(raw.length): NaN / negative / undefined → 0.
+        double rawLen = Terms.objectToNumber(raw.getMember("length")).doubleValue();
+        if (Double.isNaN(rawLen) || rawLen <= 0) return "";
+        long length = rawLen >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (long) rawLen;
+        StringBuilder sb = new StringBuilder();
+        for (long i = 0; i < length; i++) {
+            sb.append(Terms.toStringCoerce(raw.getMember(Long.toString(i)), cc));
+            if (i + 1 == length) break;
+            // substitutions are positional starting at args[1].
+            int subIdx = (int) (i + 1);
+            if (subIdx < args.length) {
+                sb.append(Terms.toStringCoerce(args[subIdx], cc));
             }
         }
         return sb.toString();

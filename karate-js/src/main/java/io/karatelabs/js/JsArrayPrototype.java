@@ -103,6 +103,10 @@ class JsArrayPrototype extends Prototype {
         install("toSorted", 1, this::toSorted);
         install("toSpliced", 2, this::toSpliced);
         install("group", 1, this::group);
+        // Spec §23.1.3.1: Array.prototype.constructor === Array. installLazy
+        // because JsArrayConstructor.INSTANCE may not be ready at static-init
+        // time of this prototype singleton (forward reference).
+        installLazy("constructor", () -> JsArrayConstructor.INSTANCE);
         install(IterUtils.SYMBOL_ITERATOR, 0, IterUtils.SYMBOL_ITERATOR_METHOD);
     }
 

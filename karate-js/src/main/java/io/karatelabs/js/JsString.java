@@ -124,9 +124,16 @@ non-sealed class JsString extends JsObject implements JsPrimitive, JsCallable {
     }
 
     static Object getObject(Context context, Object[] args) {
-        String temp = "";
-        if (args.length > 0 && args[0] != null) {
-            temp = args[0].toString();
+        String temp;
+        // Spec §22.1.1.1: String() with no args returns "", String(undefined) returns
+        // "undefined" (and constructor form wraps that), String(value) returns
+        // ToString(value). Route through Terms.toStringCoerce so a wrapper object
+        // with a JS toString returns the user's value, not "[object Object]".
+        if (args.length == 0) {
+            temp = "";
+        } else {
+            CoreContext cc = context instanceof CoreContext c ? c : null;
+            temp = Terms.toStringCoerce(args[0], cc);
         }
         CallInfo callInfo = context.getCallInfo();
         if (callInfo != null && callInfo.constructor) {

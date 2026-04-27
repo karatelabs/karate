@@ -1041,6 +1041,19 @@ public class Terms {
         return mantissa + "e" + exp;
     }
 
+    /**
+     * Spec {@code RequireObjectCoercible} (§7.2.1) — gate at the top of every
+     * built-in whose receiver feeds {@code ToObject} / {@code ToString} (e.g.
+     * {@code String.prototype.*}). null / undefined throw TypeError; everything
+     * else passes through. {@code methodName} is woven into the message so the
+     * thrown error reads like a JS engine's, not a generic NPE.
+     */
+    public static void requireObjectCoercible(Object value, String methodName) {
+        if (value == null || value == UNDEFINED) {
+            throw JsErrorException.typeError(methodName + " called on null or undefined");
+        }
+    }
+
     public static String toStringCoerce(Object o, CoreContext context) {
         if (o == null) {
             return "null";

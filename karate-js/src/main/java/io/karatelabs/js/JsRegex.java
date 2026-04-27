@@ -130,25 +130,110 @@ public class JsRegex extends JsObject {
     public String replace(String str, String replacement) {
         Matcher matcher = javaPattern.matcher(str);
         StringBuilder result = new StringBuilder();
+        int last = 0;
         while (matcher.find()) {
-            matcher.appendReplacement(result, replacement);
-            lastIndex = matcher.end();
+            result.append(str, last, matcher.start());
+            // Spec §22.1.3.18 GetSubstitution form — NOT Java's
+            // Matcher.appendReplacement form. JS treats $1..$99 / $& / $` /
+            // $' / $<name> / $$ specially; an unrecognized `$X` is the
+            // literal two chars. Java's appendReplacement throws
+            // "Illegal group reference" for the same input. Do the walk
+            // explicitly so Java semantics never leak through.
+            appendSubstitution(result, replacement, matcher, str);
+            last = matcher.end();
+            lastIndex = last;
             if (!global) {
                 break;
             }
         }
-        matcher.appendTail(result);
+        result.append(str, last, str.length());
         return result.toString();
     }
 
-    public List<String> match(String str) {
-        Matcher matcher = javaPattern.matcher(str);
-        List<String> matches = new ArrayList<>();
-        while (matcher.find()) {
-            matches.add(matcher.group(0));
+    // Spec §22.1.3.18 GetSubstitution. {@code matched}/{@code position}/
+    // {@code string} are derived from the matcher; {@code captures} are
+    // groups 1..N. Walks the replacement template and emits literal text
+    // mixed with substitution slices.
+    private static void appendSubstitution(StringBuilder out, String tmpl,
+                                            Matcher matcher, String input) {
+        int n = tmpl.length();
+        for (int i = 0; i < n; i++) {
+            char c = tmpl.charAt(i);
+            if (c != '$' || i + 1 >= n) {
+                out.append(c);
+                continue;
+            }
+            char next = tmpl.charAt(i + 1);
+            switch (next) {
+                case '$' -> { out.append('$'); i++; }
+                case '&' -> { out.append(matcher.group()); i++; }
+                case '`' -> { out.append(input, 0, matcher.start()); i++; }
+                case '\'' -> { out.append(input, matcher.end(), input.length()); i++; }
+                case '<' -> {
+                    int close = tmpl.indexOf('>', i + 2);
+                    if (close < 0) { out.append(c); continue; }
+                    String name = tmpl.substring(i + 2, close);
+                    String g;
+                    try {
+                        g = matcher.group(name);
+                    } catch (IllegalArgumentException | IllegalStateException ex) {
+                        // No such named group — spec says emit empty string.
+                        g = "";
+                    }
+                    if (g != null) out.append(g);
+                    i = close;
+                }
+                default -> {
+                    if (next < '0' || next > '9') {
+                        out.append(c);
+                        continue;
+                    }
+                    int total = matcher.groupCount();
+                    int idx = next - '0';
+                    int consumed = 1;
+                    // Try a two-digit reference if (a) the second char is a
+                    // digit AND (b) the resulting index is a valid group.
+                    // Otherwise fall back to the single-digit form. Spec
+                    // §22.1.3.18 step 11.
+                    if (i + 2 < n) {
+                        char nn = tmpl.charAt(i + 2);
+                        if (nn >= '0' && nn <= '9') {
+                            int two = idx * 10 + (nn - '0');
+                            if (two >= 1 && two <= total) {
+                                idx = two;
+                                consumed = 2;
+                            }
+                        }
+                    }
+                    if (idx == 0 || idx > total) {
+                        // $0 or out-of-range — JS leaves as literal.
+                        out.append(c);
+                        continue;
+                    }
+                    String g = matcher.group(idx);
+                    if (g != null) out.append(g);
+                    i += consumed;
+                }
+            }
         }
-        // ideally should return JsArray with extra properties
-        return matches;
+    }
+
+    // Spec §22.2.5.7 String.prototype.match dispatch:
+    //  - global: array of every match (group(0) per match), length-only;
+    //    null when no match.
+    //  - non-global: same shape as exec — array of [match, ...captures] with
+    //    {@code index} and {@code input} attached as named properties.
+    public Object match(String str) {
+        Matcher matcher = javaPattern.matcher(str);
+        if (global) {
+            List<Object> matches = new ArrayList<>();
+            while (matcher.find()) {
+                matches.add(matcher.group(0));
+            }
+            if (matches.isEmpty()) return null;
+            return new JsArray(matches);
+        }
+        return exec(str);
     }
 
     public int search(String str) {
@@ -181,10 +266,11 @@ public class JsRegex extends JsObject {
         // create result array with match and capture groups
         List<Object> matches = new ArrayList<>();
         matches.add(matcher.group(0)); // Full match
-        // add capture groups
+        // Spec §22.2.5.2.2: a capture group that didn't participate in the
+        // match resolves to {@code undefined}, not the empty string.
         for (int i = 1; i <= matcher.groupCount(); i++) {
             String group = matcher.group(i);
-            matches.add(group != null ? group : ""); // js returns "" for undefined groups, not null
+            matches.add(group != null ? group : Terms.UNDEFINED);
         }
         // Create array with index and input properties
         JsArray result = new JsArray(matches);
@@ -198,22 +284,18 @@ public class JsRegex extends JsObject {
         return "/" + pattern + "/" + flags;
     }
 
+    // Spec §22.2.6: source / flags / global / ignoreCase / multiline /
+    // dotAll / sticky / unicode are accessor getters on RegExp.prototype,
+    // NOT own properties of instances. Only {@code lastIndex} is an own
+    // data property of the instance per spec §22.2.7.1
+    // ({@code [[Writable]]: true, [[Enumerable]]: false,
+    // [[Configurable]]: false}).
     @Override
     protected Object resolveOwnIntrinsic(String name) {
-        return switch (name) {
-            case "source" -> pattern;
-            case "flags" -> flags;
-            case "lastIndex" -> lastIndex;
-            case "global" -> global;
-            case "ignoreCase" -> flags.contains("i");
-            case "multiline" -> flags.contains("m");
-            case "dotAll" -> flags.contains("s");
-            default -> null;
-        };
+        return "lastIndex".equals(name) ? lastIndex : null;
     }
 
-    private static final List<String> INTRINSIC_NAMES = List.of(
-            "source", "flags", "lastIndex", "global", "ignoreCase", "multiline", "dotAll");
+    private static final List<String> INTRINSIC_NAMES = List.of("lastIndex");
 
     @Override
     protected Iterable<String> ownIntrinsicNames() {

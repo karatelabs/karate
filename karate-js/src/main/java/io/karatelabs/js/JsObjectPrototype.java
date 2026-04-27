@@ -130,6 +130,14 @@ class JsObjectPrototype extends Prototype {
         if (thisObj instanceof JsArray ja) {
             return ja.isEnumerable(prop);
         }
+        if (thisObj instanceof Prototype p) {
+            // Prototype singletons (Array.prototype, RegExp.prototype, …) own
+            // built-in members whose attrs come from {@link Prototype#getOwnAttrs}.
+            // Without this branch, accessor descriptors installed via
+            // {@code installAccessor} (e.g. {@code RegExp.prototype.global})
+            // wrongly report enumerable when called on the prototype itself.
+            return (p.getOwnAttrs(prop) & PropertySlot.ENUMERABLE) != 0;
+        }
         return true;
     }
 
