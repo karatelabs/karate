@@ -185,33 +185,47 @@ class JsObjectConstructor extends JsFunction {
     // Static methods
 
     private Object keys(Context context, Object[] args) {
+        requireObjectCoercible(args, "Object.keys");
         CoreContext cc = context instanceof CoreContext c ? c : null;
         List<Object> result = new ArrayList<>();
         for (KeyValue kv : Terms.toIterable(args[0], cc)) {
             result.add(kv.key());
         }
-        return result;
+        // Spec: returns an Array exotic object — callers rely on
+        // hasOwnProperty(0) / instanceof Array / getOwnPropertyDescriptor(arr, "0").
+        return new JsArray(result);
     }
 
     private Object values(Context context, Object[] args) {
+        requireObjectCoercible(args, "Object.values");
         CoreContext cc = context instanceof CoreContext c ? c : null;
         List<Object> result = new ArrayList<>();
         for (KeyValue kv : Terms.toIterable(args[0], cc)) {
             result.add(kv.value());
         }
-        return result;
+        return new JsArray(result);
     }
 
     private Object entries(Context context, Object[] args) {
+        requireObjectCoercible(args, "Object.entries");
         CoreContext cc = context instanceof CoreContext c ? c : null;
         List<Object> result = new ArrayList<>();
         for (KeyValue kv : Terms.toIterable(args[0], cc)) {
             List<Object> entry = new ArrayList<>();
             entry.add(kv.key());
             entry.add(kv.value());
-            result.add(entry);
+            result.add(new JsArray(entry));
         }
-        return result;
+        return new JsArray(result);
+    }
+
+    /** Spec ToObject preamble: Object.keys/values/entries throw TypeError on
+     *  null/undefined ahead of any iteration (test262
+     *  Object/keys/15.2.3.14-1-4 and -1-5). */
+    private static void requireObjectCoercible(Object[] args, String op) {
+        if (args.length < 1 || args[0] == null || args[0] == Terms.UNDEFINED) {
+            throw JsErrorException.typeError(op + " called on null or undefined");
+        }
     }
 
     private Object assign(Context context, Object[] args) {
@@ -323,7 +337,8 @@ class JsObjectConstructor extends JsFunction {
         if (args.length < 1 || args[0] == null || args[0] == Terms.UNDEFINED) {
             throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
-        return new ArrayList<>(ownKeys(args[0]));
+        // Spec: returns an Array exotic object.
+        return new JsArray(new ArrayList<>(ownKeys(args[0])));
     }
 
     private Object getOwnPropertyDescriptor(Object[] args) {
@@ -411,7 +426,12 @@ class JsObjectConstructor extends JsFunction {
         if (args.length < 3 || args[2] == null || args[2] == Terms.UNDEFINED) {
             throw JsErrorException.typeError("Property descriptor must be an object");
         }
-        String prop = Terms.toPropertyKey(args[1]);
+        // Spec ToPropertyKey: pass ctx so ObjectLike keys dispatch through
+        // ToPrimitive(string) → ToString (test262 Object/defineProperty/
+        // 15.2.3.6-2-{20,24,25,39,41,43,44,45,46,47,48} pass arrays / boxed
+        // booleans / objects with overridden toString as the key arg).
+        CoreContext keyCtx = context instanceof CoreContext c ? c : null;
+        String prop = Terms.toPropertyKey(args[1], keyCtx);
         Object desc = args[2];
         ObjectLike descObj;
         Map<String, Object> descMap;
@@ -729,8 +749,11 @@ class JsObjectConstructor extends JsFunction {
             keys.add("length");
             return keys;
         }
-        if (obj instanceof ObjectLike ol) return ol.toMap().keySet();
-        if (obj instanceof Map<?, ?> m) return ((Map<String, Object>) m).keySet();
+        // §9.1.11.1 OrdinaryOwnPropertyKeys: integer indices ascending, then
+        // string keys insertion-order. Helper is a no-op when no integer-index
+        // keys are present (the common case for prototype/global surfaces).
+        if (obj instanceof ObjectLike ol) return JsObject.orderedOwnKeys(ol.toMap().keySet());
+        if (obj instanceof Map<?, ?> m) return JsObject.orderedOwnKeys(((Map<String, Object>) m).keySet());
         return java.util.Collections.emptySet();
     }
 

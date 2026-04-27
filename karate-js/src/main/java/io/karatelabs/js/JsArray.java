@@ -200,7 +200,11 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         return namedProps == null ? null : namedProps.get(name);
     }
 
-    private static int parseIndex(String s) {
+    /** Spec CanonicalNumericIndexString check (§7.1.21 narrowed to integers).
+     *  Returns the integer value if {@code s} is a canonical integer-index
+     *  string ("0", "1", "42"), or {@code -1} otherwise. Package-private so
+     *  {@link JsObject#orderedOwnKeys} can apply §9.1.11.1 ordering. */
+    static int parseIndex(String s) {
         // Strict canonical-integer parse: rejects "01", "+1", "-1", "1.0".
         // Spec: an array index is a String whose value is a CanonicalNumericIndexString
         // less than 2^32 - 1. We don't model the upper bound (in-range check by list.size).
@@ -830,9 +834,12 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     public Iterable<KeyValue> jsEntries(CoreContext ctx) {
         return () -> new Iterator<>() {
             int index = 0;
+            Iterator<PropertySlot> namedIter = null;
+            KeyValue peeked = null;
+            int yieldCount = 0;
 
-            @Override
-            public boolean hasNext() {
+            private boolean advance() {
+                // Phase 1 — dense list indices, ascending.
                 while (index < list.size()) {
                     Object v = list.get(index);
                     PropertySlot s = namedProps == null ? null : namedProps.get(Integer.toString(index));
@@ -851,27 +858,57 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
                         index++;
                         continue;
                     }
+                    int i = index++;
+                    Object val;
+                    if (s != null && !s.tombstoned) {
+                        val = ctx != null ? s.read(JsArray.this, ctx)
+                                : (s instanceof DataSlot ds ? ds.value : null);
+                    } else {
+                        val = v;
+                    }
+                    peeked = new KeyValue(JsArray.this, yieldCount++, i + "", val);
                     return true;
                 }
+                // Phase 2 — non-index named props in insertion order. Spec
+                // §9.4.2 [[OwnPropertyKeys]] for Array exotics: integer
+                // indices first, then string keys (excluding "length") in
+                // chronological order. test262
+                // Object/keys/15.2.3.14-5-12 installs an accessor named
+                // "prop" on an array and expects Object.keys to surface it.
+                if (namedIter == null) {
+                    namedIter = namedProps == null ? Collections.<PropertySlot>emptyIterator()
+                            : namedProps.values().iterator();
+                }
+                while (namedIter.hasNext()) {
+                    PropertySlot s = namedIter.next();
+                    if (s.tombstoned) continue;
+                    if ((s.attrs & PropertySlot.ENUMERABLE) == 0) continue;
+                    // "length" is not enumerable on Array exotics; if user
+                    // code makes it enumerable via defineProperty it still
+                    // belongs in phase 2 by spec ordering. Skip integer-index
+                    // names — already yielded in phase 1.
+                    if (parseIndex(s.name) >= 0) continue;
+                    if ("length".equals(s.name)) continue;
+                    Object val = ctx != null ? s.read(JsArray.this, ctx)
+                            : (s instanceof DataSlot ds ? ds.value : null);
+                    peeked = new KeyValue(JsArray.this, yieldCount++, s.name, val);
+                    return true;
+                }
+                peeked = null;
                 return false;
             }
 
             @Override
+            public boolean hasNext() {
+                return peeked != null || advance();
+            }
+
+            @Override
             public KeyValue next() {
-                if (!hasNext()) throw new NoSuchElementException();
-                int i = index++;
-                Object v;
-                PropertySlot s = namedProps == null ? null : namedProps.get(Integer.toString(i));
-                if (s != null && !s.tombstoned) {
-                    // Accessor or per-index data descriptor — read through
-                    // the slot when ctx is available (so getters fire);
-                    // fall back to the slot's raw value field otherwise.
-                    v = ctx != null ? s.read(JsArray.this, ctx)
-                            : (s instanceof DataSlot ds ? ds.value : null);
-                } else {
-                    v = list.get(i);
-                }
-                return new KeyValue(JsArray.this, i, i + "", v);
+                if (peeked == null && !advance()) throw new NoSuchElementException();
+                KeyValue kv = peeked;
+                peeked = null;
+                return kv;
             }
         };
     }

@@ -1019,8 +1019,15 @@ public class Terms {
         if (o instanceof JsString js) return js.toString();
         if (o instanceof Number n) return numberToPropertyKey(n);
         if (o instanceof Boolean) return o.toString();
-        if (o instanceof ObjectLike && ctx != null) {
-            return toStringCoerce(o, ctx);
+        if (ctx != null) {
+            // Spec §7.1.18 ToPropertyKey: ToPrimitive(hint string) → ToString.
+            // ordinaryToPrimitive tries toString then valueOf, throws TypeError
+            // when neither yields a primitive (test262
+            // Object/defineProperty/15.2.3.6-2-47). Recurse on the primitive so
+            // numbers/booleans go through their own spec-shaped string path.
+            Object prim = toPrimitive(o, "string", ctx);
+            if (ctx.isError()) return "";
+            if (prim != o) return toPropertyKey(prim, ctx);
         }
         return o.toString();
     }
@@ -1043,7 +1050,11 @@ public class Terms {
                 if ((double) l == d) return Long.toString(l);
                 return java.math.BigDecimal.valueOf(d).toBigInteger().toString();
             }
-            return java.math.BigDecimal.valueOf(d).toPlainString();
+            // stripTrailingZeros so e.g. 0.000001 yields "0.000001" rather
+            // than "0.0000010" (Double.toString → "1.0E-6" → BigDecimal scale 7
+            // with unscaled 10; trailing zero on the mantissa leaks through
+            // toPlainString without the strip).
+            return java.math.BigDecimal.valueOf(d).stripTrailingZeros().toPlainString();
         }
         // Exponential range: ES form is <mantissa>e<sign><exp>. Java's
         // Double.toString uses 'E', no '+' sign, and a trailing ".0" on

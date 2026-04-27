@@ -592,15 +592,16 @@ class JsJavaInteropTest {
 
     @Test
     void testObjectEntriesWithUndefined() {
-        // Object.entries() on object with undefined values
+        // Object.entries() on object with undefined values. Spec returns an
+        // Array exotic of Array exotics; raw element access via getElement
+        // (List.get unwraps undefined to null per the engine's interop seam).
         Engine engine = new Engine();
-        List<Object> entries = (List<Object>) engine.eval(
-                "Object.entries({a: undefined})");
+        JsArray entries = (JsArray) engine.eval("Object.entries({a: undefined})");
 
         assertEquals(1, entries.size());
-        List<Object> entry = (List<Object>) entries.get(0);
-        assertEquals("a", entry.get(0));
-        assertSame(Terms.UNDEFINED, entry.get(1), "entry value should be raw undefined");
+        JsArray entry = (JsArray) entries.getElement(0);
+        assertEquals("a", entry.getElement(0));
+        assertSame(Terms.UNDEFINED, entry.getElement(1), "entry value should be raw undefined");
     }
 
     @Test

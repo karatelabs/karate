@@ -109,23 +109,13 @@ Math/Number/Date/String are independent of Symbol.
 | 2 | `test/built-ins/Date/**` | `Date.parse` ISO format edges, UTC vs local hour math, invalid-date propagation. See [JS_ENGINE.md § Date](../docs/JS_ENGINE.md#date). |
 | 3 | `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` edge cases tied to ToInteger spec corners, parser-blocked tests, Symbol-gated tail. Spec preamble pattern + JS-spec whitespace + `replace` substitution doc'd in [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
 | 4 | `test/built-ins/RegExp/**` | `Symbol.{match,replace,search,split,matchAll}` (slice #7), `RegExp.escape` (ES2025), parser `R_PAREN` / Unicode-escape edges, `cross-realm` tests (multi-realm not modeled). See [JS_ENGINE.md § Built-in accessor descriptors on prototypes](../docs/JS_ENGINE.md#built-in-accessor-descriptors-on-prototypes) and [§ JsRegex.replace](../docs/JS_ENGINE.md#jsregexreplace--js-substitution-template). |
-| 5 | `test/built-ins/Object/**` | `defineProperty` TypeError edges, `seal` (TypedArray-feature-gated), Symbol-gated tail; `Object.keys` integer-index ordering (§9.1.11.1) — see background sweep. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
+| 5 | `test/built-ins/Object/**` | `defineProperty` length-descriptor / array-length cluster (~30 fails), `seal` (TypedArray-feature-gated), Symbol-gated tail. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes) and [§ Own-key ordering](../docs/JS_ENGINE.md#own-key-ordering). |
 | 6 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` residuals (slice #7), parser-blocked async / generator paths, harness-feature-gated (Int8Array). See [JS_ENGINE.md § Prototype machinery](../docs/JS_ENGINE.md#prototype-machinery). |
 | 7 | `test/built-ins/Symbol/**` + cascades | Full Symbol primitive: `typeof === "symbol"`, unique identity, `Symbol.for` / `keyFor` / `description`, `Object.getOwnPropertySymbols`, `Reflect.ownKeys`. Touches `Terms.typeOf` / `eq` / coercion; `PropertyKey` abstraction across `JsObject.props` / `isOwnProperty`. 2–4 sessions. Unblocks the Array / String / RegExp Symbol-gated tail. |
 
 ### Background sweeps
 
 Picked off opportunistically when nearby — not session-sized on their own.
-
-- **`Object.keys` / `getOwnPropertyNames` integer-index ordering
-  (§9.1.11.1).** Spec says integer-index keys come first in ascending
-  numeric order, then string keys in insertion order. Today `JsObject` /
-  null-prototype objects iterate insertion order only (JsArray already
-  applies the rule). Surfaces as `Object.groupBy(arr, i => i.length)` →
-  `Object.keys` returning insertion order instead of `["4", "5"]` per
-  test262 `groupBy/groupLength.js`. ~1 h fix in
-  `JsObjectConstructor.ownKeys` plus the `keys` / `values` / `entries`
-  helpers. Pair with the next Object slice pass.
 
 - **String iterator splits surrogate pairs.** `IterUtils.stringIterator`
   walks `charAt(i)` so `'🥰💩'` yields four iterations instead of two
@@ -257,20 +247,28 @@ priority. Pick up when the relevant slice surfaces them.
   `ownKeys` helper. Cleaner long-term: split into `arrayEntries(ctx)`
   vs `ownEntries(ctx)`. ~1 h once a fourth caller surfaces the bug.
 
-- **`ToPropertyKey` for ObjectLike values needs context.**
-  `Terms.toPropertyKey(Object)` falls through to Java `o.toString()` for
-  ObjectLike receivers, missing the spec ToPrimitive(hint=string) →
-  ToString dispatch. A context-aware overload was added
-  (`Terms.toPropertyKey(Object, CoreContext)`) so `groupBy`-style
-  callers can dispatch through JS `toString` and propagate throws via
-  `cc.error`. Audit other callers (defineProperty, Object.keys arg
-  coercion) and migrate where a context is naturally in flight.
+- **`ToPropertyKey` for ObjectLike — remaining no-ctx callers.**
+  `defineProperty` now passes ctx through and `toPropertyKey(o, ctx)`
+  routes ObjectLike receivers through spec ToPrimitive(string) →
+  ToString (throws TypeError when neither toString nor valueOf yields
+  a primitive). Still on the no-ctx `toPropertyKey(o)` path:
+  `JsObjectConstructor.hasOwn` and `getOwnPropertyDescriptor` (both
+  wired as `JsInvokable`, no Context arg). Migrate when a real workload
+  passes non-string keys to either; switching the wiring to
+  `JsCallable` is the mechanical part. See
+  [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes).
 
-- **For-in iteration of accessor-descriptor indices on JsArray.**
-  `Object.defineProperty(arr, "0", {get, enumerable:true})` installs an
-  accessor at index 0 but for-in / `Object.keys` skip it (the dense
-  list at index 0 is HOLE; `jsEntries`' index walk only yields list-set
-  positions). Surfaces in ~24 `Object/defineProperties` test262 fails.
+- **Integer-index accessors beyond `JsArray.list.size()`.**
+  `JsArray.jsEntries` Phase 1 walks `0..list.size()`, Phase 2 yields
+  non-index named props in insertion order. An accessor installed at
+  e.g. index 100 on an empty array (via `defineProperty(arr, "100",
+  {get, enumerable:true})`) is missed by both — Phase 1's bound, Phase 2's
+  `parseIndex >= 0` skip. Spec §9.4.2 [[OwnPropertyKeys]] says
+  ALL integer-index keys ascend first. Fix: track integer-index entries
+  in `namedProps` and merge into Phase 1's ascending walk (or extend
+  Phase 1's bound to include the max integer-index key in `namedProps`).
+  Surfaces in residual `Object/defineProperties` and `Object/defineProperty`
+  array-index fails.
 
 - **`JsGlobalThis` two-store reads.** Data descriptors live on
   `BindingsStore`, accessor descriptors on `JsObject.props` (because

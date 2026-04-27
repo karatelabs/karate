@@ -902,6 +902,52 @@ null/undefined per spec). JS-side errors during user iteration propagate via
 `"@@asyncIterator"`). No `Symbol(...)` constructor, no unique-symbol identity
 — tests needing those still skip via `feature: Symbol`.
 
+### Own-key ordering
+
+**Spec §9.1.11.1 OrdinaryOwnPropertyKeys ordering applied at the
+`JsObject` seam.** Integer-index string keys come first in ascending
+numeric order (per `JsArray.parseIndex` — the canonical
+CanonicalNumericIndexString check); remaining string keys keep
+insertion order. Single helper:
+`JsObject.orderedOwnKeys(Set<String> insertionOrder)` — a no-op when
+no integer-index keys are present (the common case for prototype /
+global surfaces, so prototype/Prototype-subclass iteration pays
+nothing). Two consumers route through it:
+
+- `JsObject.jsEntries(ctx)` — back-end of `Object.keys / values /
+  entries / assign` via `Terms.toIterable`. Pre-materializes a
+  spec-ordered slot list once (tombstone-skipped, enumerable filter
+  re-applied at yield time so a getter that mid-iteration flips a
+  not-yet-yielded slot's enumerable bit is observed — test262
+  `{entries,values}/getter-making-future-key-nonenumerable.js`).
+- `JsObjectConstructor.ownKeys` — back-end of
+  `Object.getOwnPropertyNames / getOwnPropertyDescriptors /
+  defineProperties`. Falls through to `orderedOwnKeys(toMap().keySet())`
+  for the generic `ObjectLike` branch (Prototype, JsGlobalThis,
+  raw Map).
+
+`JsArray` is exotic: it has its own integer-first iteration via the
+dense list (Phase 1) plus a Phase 2 walk over `namedProps` for
+non-index enumerable entries (test262 `Object/keys/15.2.3.14-5-12.js`
+installs an accessor named `"prop"` on an array). Mirrors §9.4.2
+[[OwnPropertyKeys]] for Array exotics. **Hole**: integer-index
+accessors beyond `list.size()` (e.g. `defineProperty([], "100",
+{get,enumerable})`) are missed by both phases — see the
+`JsArray.jsEntries` TODO in TEST262.md.
+
+**Future contract.** Code that surfaces own keys for a JsObject must
+go through `jsEntries(ctx)` or `JsObject.orderedOwnKeys(...)` — never
+read `props.keySet()` / `toMap().keySet()` raw.
+
+**`Object.keys / values / entries / getOwnPropertyNames` return Array
+exotics, not raw `ArrayList`.** Test262 (and idiomatic JS) calls
+`Object.keys(o).hasOwnProperty(0)`, `arr instanceof Array`,
+`Object.getOwnPropertyDescriptor(arr, "0")` on the result — all
+require a `JsArray`. `Object.entries` wraps both the outer list and
+each `[k, v]` pair. The Java-interop seam preserves: `JsArray.get(int)`
+unwraps `Terms.UNDEFINED` to `null`, `JsArray.iterator()` walks raw
+slots; raw element access via `.getElement(int)`.
+
 ### Optional chaining
 
 **Optional chaining sentinel propagation.** `PropertyAccess.SHORT_CIRCUITED`
@@ -955,6 +1001,20 @@ Integer.MAX_VALUE) return (int) d` cast any negative value past
 `Integer.MIN_VALUE` to an overflowed int. Fix: both bounds (`d >=
 Integer.MIN_VALUE && d <= Integer.MAX_VALUE`) on the int and long collapses.
 The collapse rule itself is unchanged for in-range values.
+
+**`Terms.toPropertyKey(o, ctx)` is spec ToPropertyKey (§7.1.18).** With
+ctx, ObjectLike receivers route through `toPrimitive(o, "string", ctx)`
+(toString first, then valueOf, TypeError when neither yields a
+primitive — matches `Object.defineProperty(obj, {toString:()=>{},
+valueOf:()=>{}}, ...)` per test262 `15.2.3.6-2-47`). Without ctx,
+falls back to Java `o.toString()` (legacy lenient path). The
+context-flowing call sites pass ctx — `defineProperty` is migrated;
+`hasOwn` / `getOwnPropertyDescriptor` are still on the no-ctx path
+(both wired as `JsInvokable`; switch the wiring when a real workload
+passes non-string keys). The numeric branch (`numberToPropertyKey`)
+is spec Number::toString-shaped: `0.000001` → `"0.000001"` (BigDecimal
+plain-string with `stripTrailingZeros()` so `Double.toString`'s
+`"1.0E-6"` round-trip doesn't leak a trailing zero through scale).
 
 ### BigInt
 

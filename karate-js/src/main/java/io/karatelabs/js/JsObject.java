@@ -807,29 +807,72 @@ class JsObject implements ObjectLike, Map<String, Object> {
     }
 
     /**
+     * Spec §9.1.11.1 OrdinaryOwnPropertyKeys ordering applied to an
+     * insertion-order key set: integer-index keys (per
+     * {@link JsArray#parseIndex}) move to the front in ascending numeric
+     * order, then remaining string keys keep their insertion order. Returns
+     * the input unchanged when no integer-index keys are present (the common
+     * case for plain object literals with named properties only).
+     * <p>
+     * Used at every spec seam that reports own keys for an ordinary object —
+     * {@link #jsEntries(CoreContext)} (drives {@code Object.keys / values /
+     * entries / assign}) and {@code JsObjectConstructor.ownKeys} (drives
+     * {@code Object.getOwnPropertyNames / getOwnPropertyDescriptors /
+     * defineProperties}). {@link JsArray} has its own integer-first iteration
+     * via the dense list; this helper is for plain {@code JsObject} /
+     * {@link ObjectLike} backed by an insertion-ordered prop map.
+     */
+    public static Set<String> orderedOwnKeys(Set<String> insertionOrder) {
+        if (insertionOrder == null || insertionOrder.size() < 2) return insertionOrder;
+        TreeMap<Integer, String> intKeys = null;
+        List<String> stringKeys = null;
+        for (String k : insertionOrder) {
+            int idx = JsArray.parseIndex(k);
+            if (idx >= 0) {
+                if (intKeys == null) intKeys = new TreeMap<>();
+                intKeys.put(idx, k);
+            } else {
+                if (stringKeys == null) stringKeys = new ArrayList<>(insertionOrder.size());
+                stringKeys.add(k);
+            }
+        }
+        if (intKeys == null) return insertionOrder;
+        LinkedHashSet<String> ordered = new LinkedHashSet<>(insertionOrder.size());
+        ordered.addAll(intKeys.values());
+        if (stringKeys != null) ordered.addAll(stringKeys);
+        return ordered;
+    }
+
+    /**
      * JS-semantic iteration variant — accessor descriptors invoke their
      * getters with {@code ctx} when {@code ctx != null}; otherwise behaves as
      * the no-arg {@link #jsEntries()} (raw values, accessors → null). This is
      * the back-end called from {@code Object.keys / values / entries / assign}
      * via {@link Terms#toIterable(Object, CoreContext)} so accessor
      * descriptors observe their spec invocation.
+     * <p>
+     * Yields entries in §9.1.11.1 OrdinaryOwnPropertyKeys order — integer
+     * indices ascending, then string keys insertion-order. Slots are
+     * partitioned in a single pre-pass; values are still re-read at yield
+     * time so callback-mutated values propagate.
      */
     public Iterable<KeyValue> jsEntries(CoreContext ctx) {
         return () -> new Iterator<>() {
-            final Iterator<PropertySlot> source = props == null
-                    ? Collections.<PropertySlot>emptyIterator()
-                    : props.values().iterator();
+            final Iterator<PropertySlot> source = orderedSlotsForIteration().iterator();
             int index = 0;
             PropertySlot peeked = null;
 
             private boolean advance() {
                 while (source.hasNext()) {
                     PropertySlot s = source.next();
+                    // Re-check at yield time so callbacks that flip
+                    // enumerable / tombstone a not-yet-yielded slot mid-
+                    // iteration are observed (test262
+                    // {entries,values}/getter-making-future-key-nonenumerable).
                     if (s.tombstoned) continue;
-                    if (isEnumerable(s.name)) {
-                        peeked = s;
-                        return true;
-                    }
+                    if (!isEnumerable(s.name)) continue;
+                    peeked = s;
+                    return true;
                 }
                 peeked = null;
                 return false;
@@ -857,6 +900,36 @@ class JsObject implements ObjectLike, Map<String, Object> {
                 return new KeyValue(JsObject.this, index++, s.name, v);
             }
         };
+    }
+
+    /** Non-tombstoned slots in §9.1.11.1 ordering — integer-index slots
+     *  ascending, then named slots in insertion order. Backs
+     *  {@link #jsEntries(CoreContext)}; the enumerable filter is applied at
+     *  yield time, not here, so a callback that mid-iteration flips a future
+     *  slot to non-enumerable is observed. */
+    private List<PropertySlot> orderedSlotsForIteration() {
+        if (props == null || props.isEmpty()) return Collections.emptyList();
+        TreeMap<Integer, PropertySlot> intSlots = null;
+        List<PropertySlot> stringSlots = null;
+        for (PropertySlot s : props.values()) {
+            if (s.tombstoned) continue;
+            int idx = JsArray.parseIndex(s.name);
+            if (idx >= 0) {
+                if (intSlots == null) intSlots = new TreeMap<>();
+                intSlots.put(idx, s);
+            } else {
+                if (stringSlots == null) stringSlots = new ArrayList<>();
+                stringSlots.add(s);
+            }
+        }
+        if (intSlots == null) {
+            return stringSlots != null ? stringSlots : Collections.emptyList();
+        }
+        List<PropertySlot> out = new ArrayList<>(
+                intSlots.size() + (stringSlots == null ? 0 : stringSlots.size()));
+        out.addAll(intSlots.values());
+        if (stringSlots != null) out.addAll(stringSlots);
+        return out;
     }
 
     // Identity-based hashCode/equals to avoid infinite recursion on circular
