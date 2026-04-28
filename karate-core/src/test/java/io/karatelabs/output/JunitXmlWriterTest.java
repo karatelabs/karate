@@ -206,11 +206,48 @@ class JunitXmlWriterTest {
         Path xmlPath = reportDir.resolve("junit-xml/tagged.xml");
         String xml = Files.readString(xmlPath);
 
-        // Verify tags are included as properties
+        // Plain tags are aggregated into a single <property name="tags" value="@a,@b"/>
+        // (Xray-style convention — see issue #2818). Feature-level tags are inherited.
         assertTrue(xml.contains("<properties>"));
-        assertTrue(xml.contains("<property name=\"tag\""));
-        assertTrue(xml.contains("@smoke"));
+        assertTrue(xml.contains("<property name=\"tags\" value=\"@feature-tag,@smoke,@api\"/>"));
         assertTrue(xml.contains("</properties>"));
+    }
+
+    @Test
+    void testJunitXmlKeyValueTagsAsNamedProperties() throws Exception {
+        // regression for https://github.com/karatelabs/karate/issues/2818
+        // Xray (and other CI tools) key on the property *name*, so `@key=v1,v2` must map to
+        // <property name="key" value="v1,v2"/> instead of the generic `name="tag"` form.
+        Path feature = tempDir.resolve("xray.feature");
+        Files.writeString(feature, """
+            Feature: Xray Compatible
+
+            @smoke
+            @requirements=REQ-1,REQ-2
+            @owner=alice
+            Scenario: Tagged scenario
+            * def a = 1
+            * match a == 1
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputJunitXml(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        Path xmlPath = reportDir.resolve("junit-xml/xray.xml");
+        String xml = Files.readString(xmlPath);
+
+        assertTrue(xml.contains("<property name=\"requirements\" value=\"REQ-1,REQ-2\"/>"),
+                "key=value tag should map to a named property (v1 parity for Xray)");
+        assertTrue(xml.contains("<property name=\"owner\" value=\"alice\"/>"),
+                "single-value key=value tag should also map to a named property");
+        assertTrue(xml.contains("<property name=\"tags\" value=\"@smoke\"/>"),
+                "plain tags should aggregate under name=\"tags\" (Xray convention)");
     }
 
     @Test

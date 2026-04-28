@@ -48,7 +48,8 @@ import java.util.Locale;
  * &lt;testsuite name="feature" tests="N" failures="N" time="secs"&gt;
  *   &lt;testcase name="scenario" classname="feature.path" time="secs"&gt;
  *     &lt;properties&gt;
- *       &lt;property name="tag" value="@smoke"/&gt;
+ *       &lt;property name="tags" value="@smoke,@api"/&gt;
+ *       &lt;property name="requirements" value="REQ-1,REQ-2"/&gt;
  *     &lt;/properties&gt;
  *     &lt;system-out&gt;step logs&lt;/system-out&gt;
  *     &lt;failure message="error"&gt;stacktrace&lt;/failure&gt;
@@ -136,14 +137,38 @@ public final class JunitXmlWriter {
         xml.append(" time=\"").append(formatter.format(sr.getDurationMillis() / 1000.0)).append("\"");
         xml.append(">");
 
-        // Properties for tags
+        // Properties for tags — Xray-style convention (#2818):
+        //   `@key=v1,v2` → <property name="key" value="v1,v2"/>  (v1 parity; Xray reads
+        //                  `requirements`, `requirement`, `test_key`, `test_id`,
+        //                  `test_summary`, `test_description`, `tr:<field>`, etc.)
+        //   plain `@a @b` → single <property name="tags" value="@a,@b"/>  (Xray reads `tags`
+        //                  as a comma-separated label list).
+        // Aggregating plain tags into one `tags` property (rather than one-per-tag) matches
+        // what Xray and the wider ecosystem expect — and recovers the plain-tag info v1 dropped.
         List<Tag> tags = sr.getScenario().getTagsEffective();
         if (tags != null && !tags.isEmpty()) {
-            xml.append("<properties>");
+            StringBuilder plain = new StringBuilder();
+            StringBuilder kv = new StringBuilder();
             for (Tag tag : tags) {
-                xml.append("<property name=\"tag\" value=\"").append(escape(tag.toString())).append("\"/>");
+                List<String> values = tag.getValues();
+                if (values != null && !values.isEmpty()) {
+                    kv.append("<property name=\"").append(escape(tag.getName())).append("\"")
+                            .append(" value=\"").append(escape(String.join(",", values))).append("\"/>");
+                } else {
+                    if (plain.length() > 0) {
+                        plain.append(',');
+                    }
+                    plain.append(tag.toString());
+                }
             }
-            xml.append("</properties>");
+            if (plain.length() > 0 || kv.length() > 0) {
+                xml.append("<properties>");
+                if (plain.length() > 0) {
+                    xml.append("<property name=\"tags\" value=\"").append(escape(plain.toString())).append("\"/>");
+                }
+                xml.append(kv);
+                xml.append("</properties>");
+            }
         }
 
         if (sr.isReportDisabled()) {
