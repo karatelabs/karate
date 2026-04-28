@@ -65,7 +65,7 @@ permissions: read-all
 
 jobs:
   release:
-    timeout-minutes: 45
+    timeout-minutes: 120
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -110,13 +110,16 @@ jobs:
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.dependency-check/data
-          key: nvd-db
+          key: nvd-db-${{ github.run_id }}
+          restore-keys: |
+            nvd-db-
 
       - name: OWASP dependency check
         if: github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled'
+        timeout-minutes: 60
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: mvn -B -ntp dependency-check:check -Pdepcheck -DnvdApiKey=${NVD_API_KEY} -DossIndexAnalyzerEnabled=false
+        run: mvn -B -ntp dependency-check:check -Pdepcheck -DnvdApiKey=${NVD_API_KEY} -DossIndexAnalyzerEnabled=false -DnvdValidForHours=144
 
       - name: Generate CVE & SBOM report
         if: always() && (github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled')
@@ -127,7 +130,7 @@ jobs:
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.dependency-check/data
-          key: nvd-db
+          key: nvd-db-${{ github.run_id }}
 
       - name: Upload CVE & SBOM report
         if: always() && (github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled')
