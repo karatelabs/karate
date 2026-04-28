@@ -65,7 +65,7 @@ permissions: read-all
 
 jobs:
   release:
-    timeout-minutes: 120
+    timeout-minutes: 180
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -116,7 +116,7 @@ jobs:
 
       - name: OWASP dependency check
         if: github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled'
-        timeout-minutes: 60
+        timeout-minutes: 120
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: mvn -B -ntp dependency-check:check -Pdepcheck -DnvdApiKey=${NVD_API_KEY} -DossIndexAnalyzerEnabled=false -DnvdValidForHours=144
