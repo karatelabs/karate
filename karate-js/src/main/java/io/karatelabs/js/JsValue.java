@@ -77,4 +77,22 @@ public sealed interface JsValue permits JsUndefined, JsPrimitive, JsDateValue, J
         return getJavaValue();
     }
 
+    /**
+     * Returns the original Java object this wrapper was constructed from,
+     * for fall-through to Java method dispatch when a property lookup misses on
+     * this wrapper's prototype. Returns {@code null} when no original is
+     * available (the wrapper was built from raw JS values, or the JsValue
+     * type doesn't carry an original-value concept).
+     * <p>
+     * For example, a {@link JsDate} built from a {@code ZonedDateTime} returns
+     * the original {@code ZonedDateTime} so {@code zdt.format(formatter)} can
+     * route to the Java method when {@code format} isn't on the JS Date
+     * prototype. See issue #2815.
+     * <p>
+     * Default returns {@code null} — opt in by overriding.
+     */
+    default Object getOriginalJavaValue() {
+        return null;
+    }
+
 }

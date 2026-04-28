@@ -58,35 +58,6 @@ class PropertyAccess {
     };
 
     /**
-     * True if the chain rooted at {@code node} contains any {@code ?.} marker.
-     * Walks down through chain types only — PAREN_EXPR or any non-chain node
-     * ends the walk (parens reset short-circuit scope per spec).
-     */
-    static boolean chainHasOptional(Node node) {
-        Node cur = node;
-        while (cur != null) {
-            if (cur.type == NodeType.REF_DOT_EXPR) {
-                Node second = cur.size() > 1 ? cur.get(1) : null;
-                if (second != null) {
-                    if (second.isToken() && second.token.type == TokenType.QUES_DOT) return true;
-                    if (!second.isToken() && second.size() > 0) {
-                        Node firstOfSecond = second.getFirst();
-                        if (firstOfSecond.isToken() && firstOfSecond.token.type == TokenType.QUES_DOT) return true;
-                    }
-                }
-                cur = cur.size() > 0 ? cur.getFirst() : null;
-            } else if (cur.type == NodeType.REF_BRACKET_EXPR
-                    || cur.type == NodeType.FN_CALL_EXPR
-                    || cur.type == NodeType.FN_TAGGED_TEMPLATE_EXPR) {
-                cur = cur.size() > 0 ? cur.getFirst() : null;
-            } else {
-                return false;
-            }
-        }
-        return false;
-    }
-
-    /**
      * True if {@code node} is the outermost chain step in its optional chain —
      * i.e., its parent is not a chain step that has {@code node} as its first
      * child. The chain root is where {@link #SHORT_CIRCUITED} is converted back
@@ -542,7 +513,16 @@ class PropertyAccess {
             }
             Object result = jsObj.getMember(name, object, context);
             if (isFound(result)) return result;
-            return Terms.UNDEFINED;
+            // JsValue wrappers may carry an original Java value (e.g. JsDate
+            // from a ZonedDateTime); route the missed lookup through it via
+            // the unified bridge fallback below so native methods like
+            // ZonedDateTime.format remain callable. A plain JsObject without
+            // an original returns UNDEFINED here — bridge access on a JS-only
+            // object would expose wrapper internals and shadow the
+            // intentionally-undefined property. See #2815.
+            if (!(object instanceof JsValue jv) || jv.getOriginalJavaValue() == null) {
+                return Terms.UNDEFINED;
+            }
         } else if (object instanceof JsArray jsArr) {
             // Own properties pass through raw — preserves a literal {@code null}
             // value at an index/named key (test262
@@ -588,7 +568,13 @@ class PropertyAccess {
             }.getMember(name);
         }
 
-        return accessViaBridge(object, name, context, functionCall);
+        // Unified bridge fallback. A JsValue wrapper exposing an original Java
+        // value (JsDate from a ZonedDateTime / Instant / LocalDate*, etc.)
+        // routes through it so native Java methods are reachable. Raw Java
+        // objects (Map, List, POJO) route through the object itself.
+        Object bridgeTarget = (object instanceof JsValue jv) ? jv.getOriginalJavaValue() : object;
+        if (bridgeTarget == null) return Terms.UNDEFINED;
+        return accessViaBridge(bridgeTarget, name, context, functionCall);
     }
 
     private static void setByIndex(Object object, Object index, Object value, CoreContext context, Node trackingNode) {

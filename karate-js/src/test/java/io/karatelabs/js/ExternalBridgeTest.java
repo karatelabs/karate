@@ -471,6 +471,66 @@ class ExternalBridgeTest extends EvalBase {
     }
 
     @Test
+    void testJavaTimeChainedFormat() {
+        // Issue #2815: chained java.time expressions should reach Java methods
+        // not on the JsDate prototype. ZonedDateTime.now(...) returns a ZDT
+        // that's wrapped in JsDate; .format(formatter) must fall through to
+        // the Java method on the original ZonedDateTime.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Object result = engine.eval(
+                "java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC)"
+                        + ".format(java.time.format.DateTimeFormatter.ofPattern(\"yyyy-MM-dd'T'HH:mm:ss'Z'\"))");
+        assertInstanceOf(String.class, result);
+        String s = (String) result;
+        assertTrue(s.contains("T"), "expected 'T' in: " + s);
+        assertTrue(s.endsWith("Z"), "expected 'Z' suffix in: " + s);
+    }
+
+    @Test
+    void testJavaTimeChainedFormatViaJavaType() {
+        // Same as above but using Java.type() pattern.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Object result = engine.eval(
+                "var ZonedDateTime = Java.type('java.time.ZonedDateTime');\n"
+                        + "var ZoneOffset = Java.type('java.time.ZoneOffset');\n"
+                        + "var DateTimeFormatter = Java.type('java.time.format.DateTimeFormatter');\n"
+                        + "ZonedDateTime.now(ZoneOffset.UTC)"
+                        + ".format(DateTimeFormatter.ofPattern(\"yyyy-MM-dd'T'HH:mm:ss'Z'\"))");
+        assertInstanceOf(String.class, result);
+        String s = (String) result;
+        assertTrue(s.contains("T"), "expected 'T' in: " + s);
+        assertTrue(s.endsWith("Z"), "expected 'Z' suffix in: " + s);
+    }
+
+    @Test
+    void testZonedDateTimeFormatStoredVar() {
+        // ZDT held in a variable, then formatted — confirms the host fall-through
+        // works regardless of whether the access is mid-chain or on a binding.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.eval("var zdt = java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC)");
+        Object result = engine.eval(
+                "zdt.format(java.time.format.DateTimeFormatter.ofPattern('yyyy-MM-dd'))");
+        assertInstanceOf(String.class, result);
+        assertTrue(((String) result).matches("\\d{4}-\\d{2}-\\d{2}"));
+    }
+
+    @Test
+    void testJavaTimeRoundTrip() {
+        // engine.put(zdt) → engine.get() should preserve the original Java
+        // type (no lossy round-trip through Date).
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        ZonedDateTime zdt = ZonedDateTime.of(2025, 12, 25, 14, 30, 0, 0, ZoneId.of("UTC"));
+        engine.put("zonedDT", zdt);
+        // Both Java Date prototype methods and round-trip work side by side:
+        assertEquals(zdt.toInstant().toEpochMilli(), engine.eval("zonedDT.getTime()"));
+        assertEquals(zdt, engine.get("zonedDT"));
+    }
+
+    @Test
     void testNestedMapConversion() {
         engine = new Engine();
         engine.setExternalBridge(bridge);

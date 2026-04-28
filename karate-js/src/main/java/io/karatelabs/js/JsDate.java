@@ -83,6 +83,20 @@ non-sealed class JsDate extends JsObject implements JsDateValue {
     /** [[DateValue]]. NaN means Invalid Date. Always represents the time in UTC. */
     private double timeValue;
 
+    /**
+     * Original Java date object (Date / Instant / LocalDate / LocalDateTime / ZonedDateTime)
+     * preserved when this JsDate was constructed from a Java host value. Enables:
+     * <ul>
+     *   <li>Method fall-through: {@code zdt.format(formatter)} routes to the
+     *       Java method when {@code format} isn't on the JsDate prototype.</li>
+     *   <li>Round-trip: {@code engine.put(zdt) → engine.get()} returns the
+     *       same {@code ZonedDateTime}, not a derived {@code Date}.</li>
+     * </ul>
+     * Cleared when the JsDate is mutated (setTime, setHours, etc.) since the
+     * source no longer matches the current time value.
+     */
+    private Object javaSource;
+
     JsDate() {
         super(null, JsDatePrototype.INSTANCE);
         this.timeValue = System.currentTimeMillis();
@@ -99,6 +113,7 @@ non-sealed class JsDate extends JsObject implements JsDateValue {
 
     JsDate(Date date) {
         this(date == null ? Double.NaN : (double) date.getTime());
+        this.javaSource = date;
     }
 
     JsDate(int year, int month, int date) {
@@ -115,18 +130,22 @@ non-sealed class JsDate extends JsObject implements JsDateValue {
 
     JsDate(Instant instant) {
         this(instant == null ? Double.NaN : (double) instant.toEpochMilli());
+        this.javaSource = instant;
     }
 
     JsDate(LocalDateTime ldt) {
         this(ldt == null ? Double.NaN : (double) ldt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+        this.javaSource = ldt;
     }
 
     JsDate(LocalDate ld) {
         this(ld == null ? Double.NaN : (double) ld.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli());
+        this.javaSource = ld;
     }
 
     JsDate(ZonedDateTime zdt) {
         this(zdt == null ? Double.NaN : (double) zdt.toInstant().toEpochMilli());
+        this.javaSource = zdt;
     }
 
     JsDate(String text) {
@@ -149,6 +168,20 @@ non-sealed class JsDate extends JsObject implements JsDateValue {
 
     void setTimeValue(double v) {
         this.timeValue = timeClip(v);
+        // Mutation invalidates the original Java source — the source no longer
+        // corresponds to this date's current time value.
+        this.javaSource = null;
+    }
+
+    /**
+     * Returns the original Java date object this JsDate was constructed from,
+     * or {@code null} if it wasn't (or has been mutated). Used by the property-
+     * access fall-through path so Java methods on the original type (e.g.
+     * {@code ZonedDateTime.format}) remain callable.
+     */
+    @Override
+    public Object getOriginalJavaValue() {
+        return javaSource;
     }
 
     @Override
@@ -170,6 +203,12 @@ non-sealed class JsDate extends JsObject implements JsDateValue {
     public Object getJavaValue() {
         if (isInvalid()) {
             return null;
+        }
+        // Round-trip preservation: if this JsDate wraps an Instant / LocalDate /
+        // LocalDateTime / ZonedDateTime / Date that hasn't been mutated, return
+        // the original so put-then-get yields the same Java type the caller put.
+        if (javaSource != null) {
+            return javaSource;
         }
         return new Date((long) timeValue);
     }
