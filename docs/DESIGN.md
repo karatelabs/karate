@@ -78,6 +78,7 @@ karate/
 | `@fail` | Expect failure (invert result) |
 | `@lock=name` | Named mutual exclusion (same name = sequential) |
 | `@lock=*` | Exclusive execution (no other scenarios run concurrently) |
+| `@report=false` | Scenario runs and counts toward suite totals, but its step detail is suppressed from HTML / Cucumber JSON / JUnit XML / JSONL outputs. Failures surface only a redacted message; full detail still hits runtime logs. Inherits into any features called from this scenario. Use for runs where step content (HTTP bodies, error messages) may include secrets that mustn't reach CI artifacts. |
 | `@skipped` | Synthetic — engine auto-adds in the result's tags when a scenario was aborted (via `karate.abort()` or suite abort). Informational only; surfaces in the HTML report's tag chips. `skippedCount` is additive — skipped scenarios still count as passed (no breaking change to existing counts). |
 
 ## Caching
@@ -259,17 +260,78 @@ SLF4J-based with category hierarchy — `karate.runtime`, `karate.http`, `karate
 
 Thread-local collector that captures all test output (print, karate.log, HTTP logs) for reports. Also collects embeds (HTML, images) via `LogContext.get().embed()`.
 
-### Log Levels
+### `configure logging`
 
-Controlled separately for reports vs runtime:
-- **Report:** `configure report = { logLevel: 'warn' }` or `--report-log-level warn`
-- **Runtime:** `--runtime-log-level debug` or logback.xml config
+Single bucket for all logging behavior. Deep-merges with parent values so a partial update (e.g., flipping just the level) preserves mask + pretty.
 
-### Log Masking
+```javascript
+configure logging = {
+  report:  'debug',         // threshold for report-buffer capture (default DEBUG)
+  console: 'info',          // threshold for SLF4J/console (default INFO; null = inherit logback.xml)
+  pretty:  true,            // pretty-print HTTP req/res JSON bodies (default true)
+  mask: {                   // HTTP-only redaction
+    headers:    ['Authorization', 'Cookie', 'X-Api-Key'],
+    jsonPaths:  ['$.password', '$..token'],
+    patterns:   [{ regex: '\\bBearer [A-Za-z0-9._-]+\\b', replacement: 'Bearer ***' }],
+    replacement: '***',
+    enableForUri: function(uri) { return uri.indexOf('/health') < 0 }
+  }
+}
+```
 
-Built-in presets: `PASSWORDS`, `CREDIT_CARDS`, `SSN`, `EMAILS`, `API_KEYS`, `BEARER_TOKENS`, `BASIC_AUTH`, `ALL_SENSITIVE`. Custom patterns via `LogMask.builder().pattern(regex, replacement)`.
+### Two Thresholds: report vs console
 
-**Source files:** `LogContext.java`, `LogLevel.java`, `LogMask.java`
+| Threshold | Knob | What it controls | CLI |
+|-----------|------|------------------|-----|
+| Report buffer | `logging.report` | What gets captured into HTML / JSONL / Cucumber JSON / JUnit XML | `--log-report <level>` |
+| SLF4J / console | `logging.console` | What hits stdout via Logback (also affects file appenders) | `--log-console <level>` |
+
+The `HttpLogger` always writes the **full** request/response (with bodies, headers) to the report buffer at INFO. The console emission is auto-tiered by SLF4J level: INFO = one-liner, DEBUG = +headers, TRACE = +body. The two knobs let you, e.g., capture full traces in reports for post-hoc debugging while keeping a parallel run's console quiet.
+
+### Mid-test level flips with auto-restore
+
+`* configure logging = { report: 'error' }` mid-flow takes effect immediately. At scenario end, the level is automatically snapshotted and restored, so the next scenario starts at whatever `karate-config.js` set. This automates the v1 pattern of manually reading/saving/resetting Logback's level via reflection.
+
+```gherkin
+Scenario: silence a noisy reusable
+  * configure logging = { report: 'error' }
+  * call read('classpath:noisy-warmup.feature')
+  # report level is restored to default at scenario end — no manual cleanup
+```
+
+### Pretty body formatting
+
+`logging.pretty` applies to both console and report bodies. With `pretty: true` (default), JSON bodies are re-parsed and pretty-printed (multi-line, 2-space indent); `pretty: false` collapses to single-line. Non-JSON bodies pass through unchanged. The pretty pass also runs after `mask` so masked values stay masked.
+
+### Mask scope
+
+`mask` applies **only** to HTTP request/response logging. It does NOT scan `* print` or `karate.log` output — those are user-controlled channels. If a scenario's body could leak via prints, raise `logging.report: 'warn'` to drop INFO captures, or tag it `@report=false`.
+
+### Log Masking — declarative
+
+The `mask` object replaces v1's `HttpLogModifier` Java interface. Compiled once per `configure logging` call into a `LogMask` instance stored on the thread-local `LogContext`. Each `HttpLogger.logRequest/logResponse` reads the current mask and applies:
+
+1. `headers` — case-insensitive header-name set; matching headers' values become `replacement`.
+2. `jsonPaths` — `$.x.y` (descend) and `$..x` (recursive) keys; matched values become `replacement`.
+3. `patterns` — regex/replacement pairs applied last, so they catch anything header / JSON-path didn't.
+4. `enableForUri(uri)` — optional JS predicate; when it returns falsy, no masking applies for that URL (useful for excluding `/health` so debugging stays easy).
+
+```javascript
+configure logging = {
+  mask: {
+    headers:    ['Authorization', 'Cookie'],
+    jsonPaths:  ['$.password', '$..token'],
+    patterns:   [{ regex: '\\b\\d{16}\\b', replacement: '****-****-****-****' }],
+    replacement: '***'
+  }
+}
+```
+
+### Migration from v1 logging keys
+
+The v1 keys (`logPrettyRequest`, `logPrettyResponse`, `printEnabled`, `lowerCaseResponseHeaders`, `logModifier`) are silent no-ops in v2 with deprecation warnings pointing at the new shape. `configure report = { logLevel }` is **hard-removed** in 2.0.6 — it now throws with a migration error. See [MIGRATION_GUIDE.md § Logging](./MIGRATION_GUIDE.md#logging).
+
+**Source files:** `LogContext.java`, `LogLevel.java`, `LogMask.java`, `HttpLogger.java`, `KarateConfig.configureLogging`
 
 ---
 

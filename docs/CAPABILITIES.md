@@ -2,7 +2,7 @@
 
 Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
-> **Generated:** 2026-04-22 from `CAPABILITIES.yaml`
+> **Generated:** 2026-04-28 from `CAPABILITIES.yaml`
 >
 > See also: [Design Principles](./PRINCIPLES.md) | [Roadmap](./ROADMAP.md)
 
@@ -21,16 +21,16 @@ Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
 ## Summary
 
-**Total capabilities: 373**
+**Total capabilities: 375**
 
 | Category | Count |
 |----------|-------|
-| v1 features ported to v2 | 131 |
+| v1 features ported to v2 | 133 |
 | v1 features pending | 8 |
-| New in v2 (implemented) | 50 |
+| New in v2 (implemented) | 52 |
 | New in v2 (in progress) | 1 |
 | Planned | 19 |
-| Future / Wish list | 164 |
+| Future / Wish list | 162 |
 
 ## Categories
 
@@ -163,7 +163,7 @@ HTTP and protocol-level API testing
   - `[ ]` HTTP/2 support
   - `[v2]` Declarative auth (Basic, Bearer, OAuth2)
   - `[1.x ✓]` NTLM authentication
-  - `[1.x ✓]` HttpLogModifier for sensitive data masking
+  - `[1.x ✓]` Declarative log masking (configure logging = { mask })
   - `[v2]` cURL export
   - `[-]` Large file streaming (memory-efficient)
   - `[-]` Operations on huge data (match, sort)
@@ -340,8 +340,10 @@ Tools and workflows for test development
   - `[1.x ✓]` Structured logging (SLF4J)
   - `[1.x ✓]` Request/response logging
   - `[1.x ✓]` Log masking for sensitive data
-  - `[-]` Selective logging control
-  - `[-]` HTML report without console logs
+  - `[v2]` Unified configure logging bucket
+  - `[v2]` Selective logging control (mid-test level flips)
+  - `[1.x ✓]` HTML report without console logs (@report=false)
+  - `[1.x ✓]` Pretty-print HTTP bodies in reports
   - `[v2]` ANSI colored console output
   - `[ ]` LLM-friendly output mode
 

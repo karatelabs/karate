@@ -162,16 +162,18 @@ public class RunCommand implements Callable<Integer> {
     boolean noPom;
 
     @Option(
-            names = {"--report-log-level"},
-            description = "Minimum log level for HTML reports: trace, debug, info, warn, error (default: info)"
+            names = {"--log-report"},
+            description = "Threshold for what gets captured into reports (HTML/JSONL/etc): "
+                    + "trace, debug, info, warn, error (default: debug)"
     )
-    String reportLogLevel;
+    String logReport;
 
     @Option(
-            names = {"--runtime-log-level"},
-            description = "Runtime log level for console/JVM output: trace, debug, info, warn, error"
+            names = {"--log-console"},
+            description = "Threshold for SLF4J/console output via Logback: "
+                    + "trace, debug, info, warn, error (default: info)"
     )
-    String runtimeLogLevel;
+    String logConsole;
 
     @Option(
             names = {"-f", "--format"},
@@ -202,9 +204,9 @@ public class RunCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        // Set runtime log level early (before any logging)
-        if (runtimeLogLevel != null) {
-            LogContext.setRuntimeLogLevel(runtimeLogLevel);
+        // Set console (SLF4J) log level early so Logback respects it for any subsequent logging.
+        if (logConsole != null) {
+            LogContext.setRuntimeLogLevel(logConsole);
         }
 
         // Load pom file (unless --no-pom)
@@ -282,10 +284,14 @@ public class RunCommand implements Callable<Integer> {
 
             builder.backupOutputDir(effectiveBackup);
 
-            // Log level
-            String effectiveLogLevel = resolveLogLevel();
-            if (effectiveLogLevel != null) {
-                builder.logLevel(effectiveLogLevel);
+            // Log levels (CLI overrides pom)
+            String effectiveLogReport = resolveLogReport();
+            if (effectiveLogReport != null) {
+                builder.logLevel(effectiveLogReport);
+            }
+            String effectiveLogConsole = resolveLogConsole();
+            if (effectiveLogConsole != null) {
+                builder.consoleLevel(effectiveLogConsole);
             }
 
             // Output formats (HTML is default on, others default off)
@@ -423,14 +429,24 @@ public class RunCommand implements Callable<Integer> {
         return true;
     }
 
-    private String resolveLogLevel() {
-        if (reportLogLevel != null) {
-            return reportLogLevel;
+    private String resolveLogReport() {
+        if (logReport != null) {
+            return logReport;
         }
-        if (pom != null && pom.getOutput().getLogLevel() != null) {
-            return pom.getOutput().getLogLevel();
+        if (pom != null && pom.getLogging() != null && pom.getLogging().getReport() != null) {
+            return pom.getLogging().getReport();
         }
-        return null; // Use default (INFO)
+        return null; // Use default (DEBUG)
+    }
+
+    private String resolveLogConsole() {
+        if (logConsole != null) {
+            return logConsole;
+        }
+        if (pom != null && pom.getLogging() != null && pom.getLogging().getConsole() != null) {
+            return pom.getLogging().getConsole();
+        }
+        return null; // Inherit from logback.xml (typically INFO)
     }
 
     private List<String> resolveListeners() {
@@ -574,8 +590,12 @@ public class RunCommand implements Callable<Integer> {
         return formats;
     }
 
-    public String getReportLogLevel() {
-        return reportLogLevel;
+    public String getLogReport() {
+        return logReport;
+    }
+
+    public String getLogConsole() {
+        return logConsole;
     }
 
 }

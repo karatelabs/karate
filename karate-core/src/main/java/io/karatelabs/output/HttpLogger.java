@@ -47,7 +47,22 @@ public class HttpLogger {
         this.logger = logger;
     }
 
+    private LogMask activeMask(String uri) {
+        LogMask m = LogContext.get().getMask();
+        if (m == null) return null;
+        return m.enabledForUri(uri) ? m : null;
+    }
+
+    private boolean isPretty() {
+        return LogContext.get().isPretty();
+    }
+
     public static void logHeaders(StringBuilder sb, int num, String prefix, Map<String, List<String>> headers) {
+        logHeaders(sb, num, prefix, headers, null);
+    }
+
+    public static void logHeaders(StringBuilder sb, int num, String prefix,
+                                  Map<String, List<String>> headers, LogMask mask) {
         if (headers == null || headers.isEmpty()) {
             return;
         }
@@ -56,19 +71,37 @@ public class HttpLogger {
                 sb.append(Console.DIM).append(num).append(prefix).append(Console.RESET);
                 sb.append(Console.CYAN).append(k).append(Console.RESET);
                 sb.append(": ");
-                sb.append(value);
+                sb.append(mask == null ? value : mask.maskHeader(k, value));
                 sb.append('\n');
             }
         });
     }
 
     public void logBody(StringBuilder sb, byte[] body, ResourceType rt) {
+        logBody(sb, body, rt, null);
+    }
+
+    public void logBody(StringBuilder sb, byte[] body, ResourceType rt, LogMask mask) {
         if (body == null) {
             return;
         }
         String text = FileUtils.toString(body);
+        if (mask != null) {
+            text = mask.maskBody(text);
+        }
         if (rt == ResourceType.JSON && StringUtils.looksLikeJson(text)) {
-            sb.append(AnsiJson.colorize(text));
+            // Re-parse so we control the format. pretty=true expands to indented multi-line;
+            // pretty=false collapses to a single line. Then colorize for ANSI rendering
+            // (colorize is a no-op when colors are disabled).
+            try {
+                Object parsed = io.karatelabs.common.Json.parseLenient(text);
+                String formatted = isPretty()
+                        ? StringUtils.formatJson(parsed, true, false, false)
+                        : io.karatelabs.common.Json.stringifyStrict(parsed);
+                sb.append(AnsiJson.colorize(formatted));
+            } catch (Exception e) {
+                sb.append(text);
+            }
         } else {
             sb.append(text);
         }
@@ -86,6 +119,7 @@ public class HttpLogger {
 
     public void logRequest(HttpRequest request) {
         requestCount++;
+        LogMask m = activeMask(request.getUrlAndPath());
         // Report buffer always gets the full version (headers + text body) so
         // HTML reports stay rich regardless of SLF4J level. Console gets a
         // tier-appropriate line: INFO=one-liner, DEBUG=+headers, TRACE=+body.
@@ -94,7 +128,7 @@ public class HttpLogger {
         full.append(Console.DIM).append(requestCount).append(" > ").append(Console.RESET);
         full.append(Console.CYAN).append(Console.BOLD).append(request.getMethod()).append(Console.RESET);
         full.append(' ').append(request.getUrlAndPath()).append('\n');
-        logHeaders(full, requestCount, " > ", request.getHeaders());
+        logHeaders(full, requestCount, " > ", request.getHeaders(), m);
         int headersEnd = full.length();
         ResourceType rt = ResourceType.fromContentType(request.getContentType());
         if (rt != null && !rt.isBinary()) {
@@ -104,7 +138,7 @@ public class HttpLogger {
             } else {
                 body = request.getBody();
             }
-            logBody(full, body, rt);
+            logBody(full, body, rt, m);
         }
         LogContext.get().log(LogLevel.INFO, full.toString());
         if (logger.isTraceEnabled()) {
@@ -122,6 +156,7 @@ public class HttpLogger {
 
     public void logResponse(HttpResponse response) {
         HttpRequest request = response.getRequest();
+        LogMask m = activeMask(request.getUrlAndPath());
         StringBuilder full = new StringBuilder();
         full.append(Console.DIM).append("response time in milliseconds: ")
                 .append(response.getResponseTime()).append(Console.RESET).append('\n');
@@ -129,11 +164,11 @@ public class HttpLogger {
         full.append(colorStatus(response.getStatus())).append(' ');
         full.append(Console.CYAN).append(request.getMethod()).append(Console.RESET);
         full.append(' ').append(request.getUrlAndPath()).append('\n');
-        logHeaders(full, requestCount, " < ", response.getHeaders());
+        logHeaders(full, requestCount, " < ", response.getHeaders(), m);
         int headersEnd = full.length();
         ResourceType rt = response.getResourceType();
         if (rt != null && !rt.isBinary()) {
-            logBody(full, response.getBodyBytes(), rt);
+            logBody(full, response.getBodyBytes(), rt, m);
         }
         LogContext.get().log(LogLevel.INFO, full.toString());
         if (logger.isTraceEnabled()) {

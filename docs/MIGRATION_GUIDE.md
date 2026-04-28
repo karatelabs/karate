@@ -316,16 +316,72 @@ The DSL methods (`karateProtocol`, `karateFeature`, `karateSet`, `uri`) are the 
 
 Without it the simulation crashes on startup with `IllegalAccessException: module java.base does not open java.lang to unnamed module`.
 
-## Deprecated Configure Options
+## Logging
 
-These configure options now produce a warning and have no effect:
+V2 unifies the v1 logging knobs (`logPrettyRequest`, `logPrettyResponse`, `printEnabled`, `lowerCaseResponseHeaders`, `logModifier`) under a single `configure logging` bucket. The shape:
 
-- `logPrettyRequest` / `logPrettyResponse`
-- `printEnabled`
-- `lowerCaseResponseHeaders`
-- `logModifier`
+```javascript
+configure logging = {
+  report:  'debug',         // threshold for report-buffer capture (default DEBUG)
+  console: 'info',          // threshold for SLF4J/console output (default INFO)
+  pretty:  true,            // pretty-print HTTP JSON bodies (default true)
+  mask: {                   // HTTP-only redaction (replaces v1 HttpLogModifier)
+    headers:    ['Authorization', 'Cookie'],
+    jsonPaths:  ['$.password', '$..token'],
+    patterns:   [{ regex: '\\bBearer [A-Za-z0-9._-]+\\b', replacement: 'Bearer ***' }],
+    replacement: '***',
+    enableForUri: function(uri) { return uri.indexOf('/health') < 0 }
+  }
+}
+```
 
-Your tests will still pass - these are just no-ops now.
+See [DESIGN.md § Logging](./DESIGN.md#logging) for the full shape and semantics.
+
+### V1 → V2 mapping
+
+| V1                                                      | V2 equivalent                                                                                       |
+|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| `configure logPrettyRequest = true/false`               | `configure logging = { pretty: true/false }` — single boolean for both directions                   |
+| `configure logPrettyResponse = true/false`              | `configure logging = { pretty: true/false }` — same single boolean                                  |
+| `configure printEnabled = false`                        | `configure logging = { report: 'warn' }` — raise threshold to drop INFO `print`/`karate.log` lines  |
+| `configure lowerCaseResponseHeaders = true`             | **Dropped.** `match header X-Foo` is already case-insensitive; use `karate.lowerCase(responseHeaders)` for direct map access |
+| `configure logModifier = MyImpl`                        | `configure logging = { mask: {...} }` — declarative map, no Java class needed                        |
+| `configure report = { logLevel: 'warn' }`               | **Hard-removed in 2.0.6** — use `configure logging = { report: 'warn' }`                            |
+| Manual `LoggerFactory.getLogger('com.intuit.karate').setLevel(...)` for mid-test silencing | `* configure logging = { console: 'error' }` — auto-restored at scenario end |
+
+The four v1 keys above (`logPrettyRequest`, `logPrettyResponse`, `printEnabled`, `lowerCaseResponseHeaders`) are silent no-ops with deprecation warnings — your tests still run, you just see a one-line WARN per process pointing at the new shape. `logModifier` likewise warns; rewrite the masking declaratively as shown above.
+
+### CLI flag rename (breaking)
+
+| V2 < 2.0.6           | V2 ≥ 2.0.6      |
+|----------------------|-----------------|
+| `--report-log-level` | `--log-report`  |
+| `--runtime-log-level`| `--log-console` |
+
+`karate-pom.json` `output.logLevel` is replaced by a top-level `logging` block — using the old key now raises a migration error:
+
+```json
+{
+  "logging": {
+    "report": "debug",
+    "console": "info"
+  }
+}
+```
+
+### `@report=false` is back
+
+Tag a scenario `@report=false` to keep it in the run (counts toward suite totals) but suppress its step detail from HTML / JUnit XML / Cucumber JSON / JSONL outputs. Use this for runs where step content (HTTP bodies, error messages) may include secrets that mustn't reach CI artifacts.
+
+- Failures still surface — but the error message is redacted to `output suppressed by @report=false (full detail in runtime logs)`.
+- Full failure detail still hits SLF4J / Logback (configurable via `--log-console`), so local debugging works.
+- Suppression propagates to features called from a `@report=false` scenario.
+
+```gherkin
+@report=false
+Scenario: warmup with sensitive credentials
+  * call read('classpath:auth/login.feature')
+```
 
 ---
 

@@ -65,6 +65,11 @@ public class LogContext {
 
     private final StringBuilder buffer = new StringBuilder();
     private List<StepResult.Embed> embeds;
+    // Per-thread HTTP logging config, set via `configure logging = { mask, pretty }`.
+    // HttpLogger reads these on each request so changes take effect immediately
+    // without needing to rebuild the HTTP client. Defaults: pretty=true, no mask.
+    private LogMask mask;
+    private boolean pretty = true;
 
     // ========== Thread-Local Access ==========
 
@@ -156,6 +161,82 @@ public class LogContext {
             RUNTIME_LOGGER.debug("Failed to set runtime log level: {}", e.getMessage());
             return false;
         }
+    }
+
+    /**
+     * Read the current Logback level on the "karate" logger as a lowercase string,
+     * or null if the level is unset (inherits from root) or Logback is not available.
+     * Used by {@link Snapshot} to capture state before a scenario runs so any mid-test
+     * {@code configure logging = { console: ... }} change can be restored on exit.
+     */
+    public static String getRuntimeLogLevel() {
+        try {
+            Object factory = LoggerFactory.getILoggerFactory();
+            if (!factory.getClass().getName().equals("ch.qos.logback.classic.LoggerContext")) {
+                return null;
+            }
+            Object logger = factory.getClass()
+                    .getMethod("getLogger", String.class)
+                    .invoke(factory, "karate");
+            Object level = logger.getClass().getMethod("getLevel").invoke(logger);
+            return level == null ? null : level.toString().toLowerCase();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Snapshot of the report-buffer threshold and the Logback "karate" logger level.
+     * Take one before a scenario runs and {@link #restore()} after, so any mid-test
+     * {@code configure logging = {...}} change does not leak across scenarios.
+     */
+    public static final class Snapshot {
+
+        private final LogLevel reportLevel;
+        private final String consoleLevel;
+        private final LogMask mask;
+        private final boolean pretty;
+
+        private Snapshot(LogLevel reportLevel, String consoleLevel, LogMask mask, boolean pretty) {
+            this.reportLevel = reportLevel;
+            this.consoleLevel = consoleLevel;
+            this.mask = mask;
+            this.pretty = pretty;
+        }
+
+        public void restore() {
+            LogContext.setLogLevel(reportLevel);
+            // setRuntimeLogLevel ignores null; if there was no level (inherited) we cannot
+            // distinguish "unset" from "DEBUG" via reflection, so the captured string is
+            // the best we can do. Tests using the default level rarely change it mid-flow.
+            if (consoleLevel != null) {
+                LogContext.setRuntimeLogLevel(consoleLevel);
+            }
+            LogContext ctx = get();
+            ctx.setMask(mask);
+            ctx.setPretty(pretty);
+        }
+    }
+
+    public static Snapshot snapshot() {
+        LogContext ctx = get();
+        return new Snapshot(getLogLevel(), getRuntimeLogLevel(), ctx.mask, ctx.pretty);
+    }
+
+    public LogMask getMask() {
+        return mask;
+    }
+
+    public void setMask(LogMask mask) {
+        this.mask = mask;
+    }
+
+    public boolean isPretty() {
+        return pretty;
+    }
+
+    public void setPretty(boolean pretty) {
+        this.pretty = pretty;
     }
 
     // ========== Logging ==========

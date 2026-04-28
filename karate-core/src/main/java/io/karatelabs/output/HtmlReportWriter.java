@@ -195,6 +195,9 @@ public final class HtmlReportWriter {
 
         Files.createDirectories(embedsDir);
         for (ScenarioResult sr : result.getScenarioResults()) {
+            // @report=false scenarios suppress all step detail in toJson(); skip
+            // embed extraction so screenshots / attachments don't leak to disk either.
+            if (sr.isReportDisabled()) continue;
             for (StepResult step : sr.getStepResults()) {
                 if (step.getEmbeds() == null) continue;
                 for (StepResult.Embed embed : step.getEmbeds()) {
@@ -551,6 +554,18 @@ public final class HtmlReportWriter {
             data.put("tags", tagNames);
         }
         data.put("skipped", sr.isSkipped());
+
+        // @report=false: render the scenario row with status + counts but suppress
+        // step detail entirely. Failures show only a redacted message so secrets
+        // don't leak into the inlined JSON of the published HTML report.
+        if (sr.isReportDisabled()) {
+            data.put("reportDisabled", true);
+            data.put("steps", new ArrayList<Map<String, Object>>());
+            if (sr.isFailed()) {
+                data.put("error", ScenarioResult.SUPPRESSED_FAILURE_MESSAGE);
+            }
+            return data;
+        }
 
         // Steps
         List<Map<String, Object>> steps = new ArrayList<>();

@@ -169,10 +169,26 @@ public final class CucumberJsonWriter {
             map.put("tags", tagsToList(tags, scenario.getLine()));
         }
 
-        // Steps
+        // Steps — @report=false: emit empty steps list so step text and logs don't
+        // leak into the JSON artifact. Failure status is preserved on each scenario
+        // entry via the steps' aggregate; we add a single redacted-failure marker.
         List<Map<String, Object>> steps = new ArrayList<>();
-        for (StepResult stepResult : sr.getStepResults()) {
-            steps.add(stepToMap(stepResult));
+        if (sr.isReportDisabled()) {
+            if (sr.isFailed()) {
+                Map<String, Object> redacted = new LinkedHashMap<>();
+                Map<String, Object> result = new LinkedHashMap<>();
+                result.put("status", "failed");
+                result.put("error_message", ScenarioResult.SUPPRESSED_FAILURE_MESSAGE);
+                redacted.put("keyword", "* ");
+                redacted.put("name", ScenarioResult.SUPPRESSED_FAILURE_MESSAGE);
+                redacted.put("line", scenario.getLine());
+                redacted.put("result", result);
+                steps.add(redacted);
+            }
+        } else {
+            for (StepResult stepResult : sr.getStepResults()) {
+                steps.add(stepToMap(stepResult));
+            }
         }
         map.put("steps", steps);
 

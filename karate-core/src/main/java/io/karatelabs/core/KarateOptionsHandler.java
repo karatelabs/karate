@@ -256,14 +256,18 @@ public final class KarateOptionsHandler {
             summary.add("formats=" + parsedFormats);
         }
 
-        // --- Report log level ---
-        if (parsed.getReportLogLevel() != null) {
+        // --- Log levels ---
+        if (parsed.getLogReport() != null) {
             try {
-                builder.setLogLevel(LogLevel.valueOf(parsed.getReportLogLevel().toUpperCase()));
-                summary.add("reportLogLevel=" + parsed.getReportLogLevel());
+                builder.setLogLevel(LogLevel.valueOf(parsed.getLogReport().toUpperCase()));
+                summary.add("logReport=" + parsed.getLogReport());
             } catch (IllegalArgumentException ex) {
-                logger.warn("invalid karate.options report-log-level ignored: {}", parsed.getReportLogLevel());
+                logger.warn("invalid karate.options log-report ignored: {}", parsed.getLogReport());
             }
+        }
+        if (parsed.getLogConsole() != null) {
+            io.karatelabs.output.LogContext.setRuntimeLogLevel(parsed.getLogConsole());
+            summary.add("logConsole=" + parsed.getLogConsole());
         }
 
         if (!summary.isEmpty()) {

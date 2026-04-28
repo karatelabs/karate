@@ -146,6 +146,18 @@ public final class JunitXmlWriter {
             xml.append("</properties>");
         }
 
+        if (sr.isReportDisabled()) {
+            // @report=false: don't leak step text or logs into the JUnit artifact (often
+            // uploaded to CI). Failures get a redacted message; passes get an empty body.
+            if (sr.isFailed()) {
+                xml.append("<failure message=\"")
+                        .append(escape(ScenarioResult.SUPPRESSED_FAILURE_MESSAGE))
+                        .append("\"/>");
+            }
+            xml.append("</testcase>\n");
+            return;
+        }
+
         // Step logs in system-out
         StringBuilder stepLogs = new StringBuilder();
         appendStepLogs(sr.getStepResults(), stepLogs);

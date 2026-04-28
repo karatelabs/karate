@@ -33,6 +33,7 @@ import io.karatelabs.driver.DriverApi;
 import io.karatelabs.gherkin.Feature;
 import io.karatelabs.gherkin.Scenario;
 import io.karatelabs.gherkin.Step;
+import io.karatelabs.gherkin.Tag;
 import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.js.JavaCallable;
 import io.karatelabs.output.LogContext;
@@ -69,6 +70,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     private Throwable error;
     private boolean hasIgnoredFailure;
     private Throwable firstIgnoredError;
+    // True when the scenario is tagged @report=false. Step detail is suppressed in
+    // HTML / Cucumber-JSON / JUnit-XML / JSONL outputs. Failures still count and
+    // surface a generic redacted error so sensitive content doesn't leak into
+    // CI artifacts. Full failure detail goes only to runtime logs.
+    private final boolean reportDisabled;
 
     // Signal/listen mechanism for async process integration
     private volatile Object listenResult;
@@ -100,6 +106,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         this.featureRuntime = featureRuntime;
         this.scenario = scenario;
+        // Propagate from the caller chain so a @report=false scenario hides any
+        // features it calls (matches v1's `reportDisabled` inheritance).
+        ScenarioRuntime callerScenario = featureRuntime != null ? featureRuntime.getCallerScenario() : null;
+        this.reportDisabled = isReportDisabledTag(scenario)
+                || (callerScenario != null && callerScenario.reportDisabled);
 
         // KarateJs owns the Engine and HTTP infrastructure
         Resource featureResource = scenario.getFeature().getResource();
@@ -110,6 +121,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
         this.executor = new StepExecutor(this);
         this.result = new ScenarioResult(scenario);
+        this.result.setReportDisabled(reportDisabled);
         this.config = new KarateConfig();
 
         // Initialize HTTP builder with default charset from config (V1 compatibility)
@@ -135,9 +147,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     public ScenarioRuntime(KarateJs karate, Scenario scenario) {
         this.featureRuntime = null;
         this.scenario = scenario;
+        this.reportDisabled = isReportDisabledTag(scenario);
         this.karate = karate;
         this.executor = new StepExecutor(this);
         this.result = new ScenarioResult(scenario);
+        this.result.setReportDisabled(reportDisabled);
         this.config = new KarateConfig();
 
         // Initialize HTTP builder with default charset from config (V1 compatibility)
@@ -199,6 +213,29 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // Set __num to the example index (0-based)
             karate.engine.putRootBinding("__num", scenario.getExampleIndex());
         }
+    }
+
+    /**
+     * Detect the {@code @report=false} tag at scenario construction time.
+     * The tag scopes to the scenario AND any features it calls (suppression
+     * propagates downward). Failures still surface a redacted message.
+     */
+    private static boolean isReportDisabledTag(Scenario scenario) {
+        List<Tag> tags = scenario.getTagsEffective();
+        if (tags == null || tags.isEmpty()) return false;
+        for (Tag tag : tags) {
+            if ("report".equals(tag.getName())) {
+                List<String> values = tag.getValues();
+                if (values != null && values.contains("false")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean isReportDisabled() {
+        return reportDisabled;
     }
 
     /**
@@ -814,6 +851,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     @Override
     public ScenarioResult call() {
         LogContext.set(new LogContext());
+        // Snapshot logging state BEFORE any mid-test `configure logging` mutations so we
+        // can restore in finally. The static report-buffer threshold and the Logback
+        // "karate" level are global, so without this the next scenario on this thread
+        // would inherit whatever this scenario's last `configure logging` left behind.
+        LogContext.Snapshot loggingSnapshot = LogContext.snapshot();
         result.setStartTime(System.currentTimeMillis());
         // Use lane name for timeline if available (parallel mode), otherwise use thread info
         Suite suite = featureRuntime != null ? featureRuntime.getSuite() : null;
@@ -837,6 +879,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             stopped = true;
             result.setAborted(true);
             result.setEndTime(System.currentTimeMillis());
+            loggingSnapshot.restore();
             LogContext.clear();
             return result;
         }
@@ -977,6 +1020,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                     && suite != null && featureRuntime.getCaller() == null) {
                 suite.abort();
             }
+            // Restore the global logging state we snapshotted at scenario entry so any
+            // mid-test `configure logging` change does not leak into the next scenario.
+            loggingSnapshot.restore();
             LogContext.clear();
         }
 

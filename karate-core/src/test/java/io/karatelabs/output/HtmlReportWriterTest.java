@@ -1077,4 +1077,513 @@ class HtmlReportWriterTest {
                 "hook step log must not contain body step log output: " + hookLog);
     }
 
+    // ========== configure logging + @report=false ==========
+    //
+    // Each test below writes an HTML report to a unique sub-directory under target/
+    // so you can open them side-by-side to visually compare cases:
+    //
+    //   target/karate-logging-tests/<test-name>/karate-summary.html
+    //
+    // Cases covered:
+    //   - testLoggingPrettyOn            : default, JSON bodies pretty-printed
+    //   - testLoggingPrettyOff           : `pretty: false`, bodies single-line
+    //   - testLoggingMaskHeaders         : Authorization redacted to ***
+    //   - testLoggingMaskJsonPaths       : $.password redacted in body
+    //   - testLoggingMaskRegex           : Bearer token regex redacted
+    //   - testLoggingMaskEnableForUri    : /health unmasked, /api/secret masked
+    //   - testLoggingReportLevelWarn     : INFO content (HTTP, print, karate.log) absent
+    //   - testReportTagFalsePassing      : tagged scenario hidden; counts preserved
+    //   - testReportTagFalseFailing      : tagged scenario shown with redacted message
+    //   - testLoggingMidTestFlipAndRestore : level flip auto-reverts at scenario end
+    //   - testLoggingDeepMerge           : Background mask survives mid-test level flip
+    //   - testLoggingV1KeyDeprecation    : old keys warn but do not fail
+    //   - testReportLogLevelHardRemoved  : `report.logLevel` raises a migration error
+
+    private static final Path LOGGING_TESTS_DIR = Path.of("target/karate-logging-tests");
+
+    private Path loggingTestDir(String name) {
+        return LOGGING_TESTS_DIR.resolve(name);
+    }
+
+    private Path writeFeatureCallingHarness(Path tempDir, String featureBody) throws Exception {
+        Path feature = tempDir.resolve("test.feature");
+        Files.writeString(feature, featureBody.replace("__PORT__", String.valueOf(harness.getPort())));
+        return feature;
+    }
+
+    @Test
+    void testLoggingPrettyOn(@TempDir Path tempDir) throws Exception {
+        Path feature = writeFeatureCallingHarness(tempDir, """
+                Feature: Pretty On (default)
+                Scenario: get users with default pretty bodies
+                * url 'http://127.0.0.1:__PORT__'
+                * path 'api/users'
+                * method get
+                * status 200
+                """);
+        Path reportDir = loggingTestDir("pretty-on");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+        assertTrue(result.isPassed());
+
+        String stepLog = extractFirstHttpStepLog(reportDir);
+        // Default pretty body: indented multi-line; the formatter uses 2-space indent
+        // and emits each key on its own line. The HTML inlines this captured log inside
+        // a JSON string so newlines round-trip as the literal escape sequence "\n".
+        assertTrue(stepLog.contains("\\n  \\\"users\\\":") || stepLog.contains("\\n    \\\"users\\\":"),
+                "default pretty-printed body should be multi-line, was: " + stepLog);
+    }
+
+    @Test
+    void testLoggingPrettyOff(@TempDir Path tempDir) throws Exception {
+        Path feature = writeFeatureCallingHarness(tempDir, """
+                Feature: Pretty Off
+                Background:
+                * configure logging = { pretty: false }
+                Scenario: get users with compact bodies
+                * url 'http://127.0.0.1:__PORT__'
+                * path 'api/users'
+                * method get
+                * status 200
+                """);
+        Path reportDir = loggingTestDir("pretty-off");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+        assertTrue(result.isPassed());
+
+        String stepLog = extractFirstHttpStepLog(reportDir);
+        // pretty:false collapses whitespace -> body has no key-newline pattern
+        assertFalse(stepLog.contains("\\n  \\\"users\\\":"),
+                "pretty:false body should not contain the multi-line indented form, was: " + stepLog);
+        // ...but the body must still be there (just compact)
+        assertTrue(stepLog.contains("\\\"users\\\":["),
+                "pretty:false should produce single-line JSON in the captured log, was: " + stepLog);
+    }
+
+    @Test
+    void testLoggingMaskHeaders(@TempDir Path tempDir) throws Exception {
+        // Use system properties for the secret values so they don't appear in the source
+        // text (which would also render in the report). Mask covers HTTP logs only — it
+        // doesn't, and shouldn't, redact values that appear in feature-file source.
+        Path feature = writeFeatureCallingHarness(tempDir, """
+                Feature: Mask Headers
+                Background:
+                * configure logging = { mask: { headers: ['Authorization', 'X-Secret'] } }
+                Scenario: auth header redacted in report
+                * def authToken = karate.properties['test.auth.token']
+                * def secretValue = karate.properties['test.secret.value']
+                * url 'http://127.0.0.1:__PORT__'
+                * path 'api/users'
+                * header Authorization = 'Bearer ' + authToken
+                * header X-Secret = secretValue
+                * header X-Visible = 'this-should-show'
+                * method get
+                * status 200
+                """);
+        Path reportDir = loggingTestDir("mask-headers");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .systemProperty("test.auth.token", "eyJhbGciOiJIUzI1NiJ9.SECRET.TOKEN")
+                .systemProperty("test.secret.value", "plain-secret-value")
+                .parallel(1);
+        assertTrue(result.isPassed());
+
+        String stepLog = extractFirstHttpStepLog(reportDir);
+        assertFalse(stepLog.contains("eyJhbGciOiJIUzI1NiJ9.SECRET.TOKEN"),
+                "raw bearer token must not appear in the captured HTTP log");
+        assertFalse(stepLog.contains("plain-secret-value"),
+                "X-Secret value must be redacted in the captured log");
+        assertTrue(stepLog.contains("this-should-show"),
+                "non-masked header value should pass through");
+        assertTrue(stepLog.contains("Authorization: ***"), "Authorization header should be masked");
+        assertTrue(stepLog.contains("X-Secret: ***"), "X-Secret header should be masked");
+    }
+
+    @Test
+    void testLoggingMaskJsonPaths(@TempDir Path tempDir) throws Exception {
+        Path feature = writeFeatureCallingHarness(tempDir, """
+                Feature: Mask JSON Paths
+                Background:
+                * configure logging = { mask: { jsonPaths: ['$.password', '$..token'] } }
+                Scenario: body fields redacted in report
+                * def pw = karate.properties['test.password']
+                * def tok = karate.properties['test.token']
+                * url 'http://127.0.0.1:__PORT__'
+                * path 'api/users'
+                * request { username: 'alice', password: '#(pw)', meta: { token: '#(tok)' } }
+                * method post
+                * status 201
+                """);
+        Path reportDir = loggingTestDir("mask-jsonpaths");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .systemProperty("test.password", "hunter2-secret")
+                .systemProperty("test.token", "shhh-secret")
+                .parallel(1);
+        assertTrue(result.isPassed());
+
+        String stepLog = extractFirstHttpStepLog(reportDir);
+        assertTrue(stepLog.contains("alice"), "non-masked username field should appear");
+        assertFalse(stepLog.contains("hunter2-secret"), "password value must not appear");
+        assertFalse(stepLog.contains("shhh-secret"), "nested token value must not appear");
+        assertTrue(stepLog.contains("\\\"password\\\": \\\"***\\\""),
+                "password should be redacted to *** in the JSON body");
+    }
+
+    @Test
+    void testLoggingMaskRegex(@TempDir Path tempDir) throws Exception {
+        Path feature = writeFeatureCallingHarness(tempDir, """
+                Feature: Mask Regex
+                Background:
+                * configure logging = { mask: { patterns: [{ regex: 'Bearer [A-Za-z0-9._-]+', replacement: 'Bearer ***' }] } }
+                Scenario: bearer pattern redacted in HTTP log
+                * def tok = karate.properties['test.bearer']
+                * url 'http://127.0.0.1:__PORT__'
+                * path 'api/users'
+                * header Authorization = 'Bearer ' + tok
+                * method get
+                """);
+        Path reportDir = loggingTestDir("mask-regex");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .systemProperty("test.bearer", "abc-def-ghi-token")
+                .parallel(1);
+        assertTrue(result.isPassed());
+
+        String stepLog = extractFirstHttpStepLog(reportDir);
+        assertFalse(stepLog.contains("Bearer abc-def-ghi-token"),
+                "raw bearer token must not appear in the captured HTTP log");
+        assertTrue(stepLog.contains("Bearer ***"), "regex replacement should appear");
+    }
+
+    @Test
+    void testLoggingMaskEnableForUri(@TempDir Path tempDir) throws Exception {
+        Path feature = writeFeatureCallingHarness(tempDir, """
+                Feature: Mask Enable For URI
+                Background:
+                * configure logging = { mask: { headers: ['Authorization'], enableForUri: function(uri){ return uri.indexOf('users') >= 0 } } }
+                Scenario: only /api/users masked, /api/status passes through
+                * def tokA = karate.properties['test.users.token']
+                * def tokB = karate.properties['test.status.token']
+                * url 'http://127.0.0.1:__PORT__'
+                * path 'api/users'
+                * header Authorization = 'Bearer ' + tokA
+                * method get
+                * url 'http://127.0.0.1:__PORT__'
+                * path 'api/status'
+                * header Authorization = 'Bearer ' + tokB
+                * method get
+                """);
+        Path reportDir = loggingTestDir("mask-enable-for-uri");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .systemProperty("test.users.token", "secret-for-users")
+                .systemProperty("test.status.token", "secret-for-status")
+                .parallel(1);
+        assertTrue(result.isPassed());
+
+        // Two HTTP method steps -> two captured logs. Concatenate them and check both.
+        String allLogs = extractAllHttpStepLogs(reportDir);
+        assertFalse(allLogs.contains("secret-for-users"),
+                "/api/users header value should be masked, was: " + allLogs);
+        assertTrue(allLogs.contains("secret-for-status"),
+                "/api/status header value should NOT be masked (filter excludes), was: " + allLogs);
+    }
+
+    @Test
+    void testLoggingReportLevelWarn(@TempDir Path tempDir) throws Exception {
+        Path feature = writeFeatureCallingHarness(tempDir, """
+                Feature: Report Level Warn Silences INFO
+                Background:
+                * configure logging = { report: 'warn' }
+                Scenario: INFO content filtered out
+                * print 'INFO_PRINT_LINE_should_be_filtered'
+                * karate.log('INFO_KARATE_LOG_LINE_should_be_filtered')
+                * karate.logger.warn('WARN_LINE_should_appear')
+                * url 'http://127.0.0.1:__PORT__'
+                * path 'api/users'
+                * method get
+                """);
+        Path reportDir = loggingTestDir("report-warn");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+        assertTrue(result.isPassed());
+
+        // Look at the captured per-step logs only — the original step text always appears
+        // in `text` and is NOT what `report` filters. report filters captured output
+        // (LogContext buffer entries written by print, karate.log, HTTP one-liners).
+        String allLogs = extractAllStepLogs(reportDir);
+        assertFalse(allLogs.contains("INFO_PRINT_LINE_should_be_filtered"),
+                "INFO print line must be filtered from captured log when report:'warn'");
+        assertFalse(allLogs.contains("INFO_KARATE_LOG_LINE_should_be_filtered"),
+                "INFO karate.log line must be filtered from captured log when report:'warn'");
+        assertTrue(allLogs.contains("WARN_LINE_should_appear"),
+                "WARN line should still be captured");
+        // HTTP request/response body (logged at INFO via LogContext.log) should ALSO be
+        // filtered from the captured log even though SLF4J still emits at INFO.
+        assertFalse(allLogs.contains("\\\"users\\\":["),
+                "HTTP body (INFO via LogContext) should be filtered when report:'warn'");
+    }
+
+    @Test
+    void testReportTagFalsePassing(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("report-false-pass.feature");
+        Files.writeString(feature, """
+                Feature: Report False - Passing
+                Scenario: visible
+                * def visibleVar = 'normal-step-text'
+                * match visibleVar == 'normal-step-text'
+
+                @report=false
+                Scenario: hidden warmup
+                * def secret = 'TOP_SECRET_VALUE'
+                * match secret == 'TOP_SECRET_VALUE'
+                """);
+        Path reportDir = loggingTestDir("report-false-passing");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+        assertTrue(result.isPassed());
+        // Both scenarios still count toward pass total
+        assertEquals(2, result.getScenarioPassedCount(),
+                "@report=false scenarios still count toward suite totals");
+
+        String html = readFeatureHtml(reportDir);
+        assertTrue(html.contains("normal-step-text"),
+                "the un-tagged scenario's steps should render normally");
+        assertFalse(html.contains("TOP_SECRET_VALUE"),
+                "@report=false scenario's step content must not appear in the HTML");
+        assertTrue(html.contains("\"reportDisabled\": true") || html.contains("\"reportDisabled\":true"),
+                "scenario row should carry the reportDisabled marker");
+
+        // JSONL must also redact step results
+        String jsonl = Files.readString(reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl"));
+        assertFalse(jsonl.contains("TOP_SECRET_VALUE"),
+                "JSONL must not leak step content for @report=false scenarios");
+    }
+
+    @Test
+    void testReportTagFalseFailing(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("report-false-fail.feature");
+        Files.writeString(feature, """
+                Feature: Report False - Failing
+                @report=false
+                Scenario: failing with sensitive content
+                * def token = 'sensitive-bearer-12345'
+                * match token == 'wrong-expected-value-99999'
+                """);
+        Path reportDir = loggingTestDir("report-false-failing");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+        assertFalse(result.isPassed(), "scenario must still fail");
+        assertEquals(1, result.getScenarioFailedCount(),
+                "@report=false failure must still count");
+
+        String html = readFeatureHtml(reportDir);
+        assertFalse(html.contains("sensitive-bearer-12345"),
+                "actual token value must not appear in HTML");
+        assertFalse(html.contains("wrong-expected-value-99999"),
+                "expected value (which can also leak context) must not appear");
+        assertTrue(html.contains("output suppressed by @report=false"),
+                "redacted error message should appear");
+
+        String jsonl = Files.readString(reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl"));
+        assertFalse(jsonl.contains("sensitive-bearer-12345"));
+        assertTrue(jsonl.contains("output suppressed by @report=false"));
+    }
+
+    @Test
+    void testLoggingMidTestFlipAndRestore(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("level-flip.feature");
+        Files.writeString(feature, """
+                Feature: Mid-Test Level Flip With Auto Restore
+                Scenario: A flips level mid-flow
+                * print 'AAA_BEFORE_FLIP_INFO'
+                * configure logging = { report: 'error' }
+                * print 'AAA_AFTER_FLIP_should_be_FILTERED'
+                * karate.logger.error('AAA_ERROR_passes_through')
+
+                Scenario: B starts with default level (auto-restored from A)
+                * print 'BBB_INFO_should_appear'
+                """);
+        Path reportDir = loggingTestDir("level-flip");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+        assertTrue(result.isPassed());
+
+        String allLogs = extractAllStepLogs(reportDir);
+        assertTrue(allLogs.contains("AAA_BEFORE_FLIP_INFO"),
+                "INFO before the flip should be captured");
+        assertFalse(allLogs.contains("AAA_AFTER_FLIP_should_be_FILTERED"),
+                "INFO after raising level to error should be filtered");
+        assertTrue(allLogs.contains("AAA_ERROR_passes_through"),
+                "ERROR-level log should always pass through");
+        assertTrue(allLogs.contains("BBB_INFO_should_appear"),
+                "scenario B should run at the restored (default) level, capturing INFO again");
+    }
+
+    @Test
+    void testLoggingDeepMerge(@TempDir Path tempDir) throws Exception {
+        Path feature = writeFeatureCallingHarness(tempDir, """
+                Feature: Deep Merge of `configure logging`
+                Background:
+                * configure logging = { mask: { headers: ['Authorization'] }, pretty: false }
+                Scenario: subsequent configure keeps mask + pretty
+                * def tok = karate.properties['test.merge.token']
+                * configure logging = { report: 'debug' }
+                * url 'http://127.0.0.1:__PORT__'
+                * path 'api/users'
+                * header Authorization = 'Bearer ' + tok
+                * method get
+                * status 200
+                """);
+        Path reportDir = loggingTestDir("deep-merge");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .systemProperty("test.merge.token", "to-be-redacted-merge")
+                .parallel(1);
+        assertTrue(result.isPassed());
+
+        String stepLog = extractFirstHttpStepLog(reportDir);
+        // Mask survived the second configure call
+        assertFalse(stepLog.contains("to-be-redacted-merge"),
+                "mask set in Background should survive a later partial `configure logging`");
+        assertTrue(stepLog.contains("Authorization: ***"),
+                "Authorization should still be masked after partial logging update");
+        // pretty:false also survived (compact body) — body has no multi-line indented form
+        assertFalse(stepLog.contains("\\n  \\\"users\\\":"),
+                "pretty:false set in Background should survive a later partial `configure logging`");
+    }
+
+    @Test
+    void testLoggingV1KeyDeprecation(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("v1-keys.feature");
+        Files.writeString(feature, """
+                Feature: V1 Deprecated Keys Are No-Op
+                Scenario: old keys produce a warn but do not fail
+                * configure logPrettyRequest = true
+                * configure logPrettyResponse = false
+                * configure printEnabled = false
+                * configure lowerCaseResponseHeaders = true
+                * def x = 1
+                * match x == 1
+                """);
+        Path reportDir = loggingTestDir("v1-keys");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+        assertTrue(result.isPassed(),
+                "deprecated v1 configure keys must remain no-ops, not throw");
+    }
+
+    @Test
+    void testReportLogLevelHardRemoved(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("report-loglevel-removed.feature");
+        Files.writeString(feature, """
+                Feature: Removed report.logLevel
+                Scenario: error message points at migration
+                * configure report = { logLevel: 'warn' }
+                * def x = 1
+                """);
+        Path reportDir = loggingTestDir("report-loglevel-removed");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+        // The configure step itself should fail with our migration error
+        assertFalse(result.isPassed(),
+                "configure report = { logLevel } must surface a migration error");
+        String errors = String.join("\n", result.getErrors());
+        assertTrue(errors.contains("'configure report = { logLevel: ... }' is no longer supported")
+                        || errors.contains("'configure logging = { report:"),
+                "error should mention the new `configure logging = { report: ... }` form, got: " + errors);
+    }
+
+    private static String readFeatureHtml(Path reportDir) throws Exception {
+        Path featuresDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
+        String[] featureFiles = featuresDir.toFile().list();
+        assertNotNull(featureFiles);
+        assertTrue(featureFiles.length > 0, "expected at least one per-feature HTML page");
+        return Files.readString(featuresDir.resolve(featureFiles[0]));
+    }
+
+    /**
+     * Concatenate every captured "logs" string from every step in the per-feature
+     * HTML's inlined data. Returned with the original JSON-string escaping intact
+     * (newlines as {@code \n}, quotes as {@code \"}) so tests can match exactly what
+     * lives inside the report buffer.
+     */
+    private static String extractAllStepLogs(Path reportDir) throws Exception {
+        String html = readFeatureHtml(reportDir);
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("\"logs\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"")
+                .matcher(html);
+        StringBuilder sb = new StringBuilder();
+        while (m.find()) {
+            sb.append(m.group(1)).append('\n');
+        }
+        return sb.toString();
+    }
+
+    /** Captured logs from the FIRST step in the report that has any (typically the HTTP method step). */
+    private static String extractFirstHttpStepLog(Path reportDir) throws Exception {
+        String html = readFeatureHtml(reportDir);
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("\"logs\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"")
+                .matcher(html);
+        if (!m.find()) {
+            throw new AssertionError("no captured step log found in: " + reportDir);
+        }
+        return m.group(1);
+    }
+
+    private static String extractAllHttpStepLogs(Path reportDir) throws Exception {
+        return extractAllStepLogs(reportDir);
+    }
+
 }

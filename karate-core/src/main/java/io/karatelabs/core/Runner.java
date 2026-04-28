@@ -171,7 +171,8 @@ public final class Runner {
         private boolean backupOutputDir = true;
         private boolean outputConsoleSummary = true;
         private Map<String, String> systemProperties;
-        private LogLevel logLevel = LogLevel.INFO;
+        private LogLevel logLevel = LogLevel.DEBUG;
+        private String consoleLevel; // SLF4J/Logback level; null = inherit (logback.xml default)
         private io.karatelabs.driver.DriverProvider driverProvider;
         private io.karatelabs.http.HttpClientFactory httpClientFactory;
         private boolean skipTagFiltering;
@@ -312,6 +313,17 @@ public final class Runner {
             if (level != null) {
                 this.logLevel = LogLevel.valueOf(level.toUpperCase());
             }
+            return this;
+        }
+
+        /**
+         * Set the SLF4J/console log level for the "karate" logger.
+         * Distinct from {@link #logLevel(String)} which is the report-buffer threshold.
+         * Valid values: trace, debug, info, warn, error.
+         * If null/unset the level is inherited from logback.xml (typically INFO).
+         */
+        public Builder consoleLevel(String level) {
+            this.consoleLevel = level;
             return this;
         }
 
@@ -655,8 +667,11 @@ public final class Runner {
                 effectiveThreads = KarateOptionsHandler.apply(this, threadCount);
             }
 
-            // Apply log level (may have been changed by sysprop)
+            // Apply log levels (may have been changed by sysprop)
             io.karatelabs.output.LogContext.setLogLevel(logLevel);
+            if (consoleLevel != null) {
+                io.karatelabs.output.LogContext.setRuntimeLogLevel(consoleLevel);
+            }
 
             // Check for IDE debug integration via system property
             // When -Dkarate.debug.port is set (e.g. by IntelliJ or VS Code),
@@ -745,8 +760,11 @@ public final class Runner {
          * Build the Suite with specified thread count without running it.
          */
         Suite buildSuite(int threadCount) {
-            // Apply log level (this is a global setting)
+            // Apply log levels (these are global settings)
             io.karatelabs.output.LogContext.setLogLevel(logLevel);
+            if (consoleLevel != null) {
+                io.karatelabs.output.LogContext.setRuntimeLogLevel(consoleLevel);
+            }
 
             return new Suite(this, Math.max(1, threadCount));
         }

@@ -385,7 +385,8 @@ categories:
             v1: true
             v2: implemented
             notes: "via configure auth = { type: 'ntlm' }"
-          - name: HttpLogModifier for sensitive data masking
+          - name: Declarative log masking (configure logging = { mask })
+            description: Replaces v1 HttpLogModifier Java interface with a JS-friendly declarative map (headers, jsonPaths, patterns, enableForUri)
             v1: true
             v2: implemented
           - name: cURL export
@@ -915,14 +916,25 @@ categories:
             v1: true
             v2: implemented
           - name: Log masking for sensitive data
+            description: "Declarative HTTP-only redaction via configure logging mask sub-object: headers, jsonPaths, patterns, enableForUri"
             v1: true
             v2: implemented
-          - name: Selective logging control
+          - name: Unified configure logging bucket
+            description: "Single configure key for pretty, report/console thresholds, and mask; deep-merges with parent values; mid-test changes auto-restore at scenario end"
             v1: false
-            v2: future
-          - name: HTML report without console logs
+            v2: implemented
+          - name: Selective logging control (mid-test level flips)
+            description: "configure logging report/console can be flipped mid-scenario; auto-snapshotted on scenario entry and restored on exit"
             v1: false
-            v2: future
+            v2: implemented
+          - name: HTML report without console logs (@report=false)
+            description: "Tag a scenario @report=false to keep it in the run and suite totals but suppress step detail from HTML/Cucumber/JUnit/JSONL; failures surface only a redacted message"
+            v1: true
+            v2: implemented
+          - name: Pretty-print HTTP bodies in reports
+            description: "configure logging pretty true/false — replaces v1 logPrettyRequest/logPrettyResponse with a single toggle"
+            v1: true
+            v2: implemented
           - name: ANSI colored console output
             v1: false
             v2: implemented

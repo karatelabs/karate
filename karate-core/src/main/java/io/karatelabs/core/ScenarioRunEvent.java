@@ -73,7 +73,11 @@ public record ScenarioRunEvent(
             map.put("skipped", result.isSkipped());
             map.put("durationMillis", result.getDurationMillis());
             if (result.isFailed()) {
-                map.put("error", result.getFailureMessage());
+                // @report=false: emit only the redacted message in the JSONL stream so
+                // CI artifacts uploaded from this run don't leak the underlying values.
+                map.put("error", result.isReportDisabled()
+                        ? ScenarioResult.SUPPRESSED_FAILURE_MESSAGE
+                        : result.getFailureMessage());
             }
         }
         return map;

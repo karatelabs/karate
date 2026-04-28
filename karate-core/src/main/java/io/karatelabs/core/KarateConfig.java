@@ -66,7 +66,7 @@ public class KarateConfig implements SimpleObject {
             // HTTP client settings
             "url", "readTimeout", "connectTimeout", "followRedirects", "localAddress", "charset",
             // Grouped settings (Maps)
-            "ssl", "proxy", "auth", "retry", "report", "callSingleCache",
+            "ssl", "proxy", "auth", "retry", "report", "logging", "callSingleCache",
             // Headers/Cookies
             "headers", "cookies",
             // HTTP retry
@@ -103,8 +103,19 @@ public class KarateConfig implements SimpleObject {
     // Retry: { interval, count }
     private Map<String, Object> retry = new HashMap<>(Map.of("interval", 3000, "count", 3));
 
-    // Report: { showLog, showAllSteps, logLevel }
+    // Report: { showLog, showAllSteps }
     private Map<String, Object> report = new HashMap<>(Map.of("showLog", true, "showAllSteps", true));
+
+    // Logging: { report, console, pretty, mask }
+    //   report  - threshold for what gets captured into the report buffer (default DEBUG)
+    //   console - threshold for SLF4J/console output (default INFO)
+    //   pretty  - pretty-print HTTP request/response JSON bodies (default true)
+    //   mask    - declarative HTTP redaction { headers, jsonPaths, patterns, replacement, enableForUri }
+    private Map<String, Object> logging = new HashMap<>(Map.of(
+            "report", "debug",
+            "console", "info",
+            "pretty", true
+    ));
 
     // CallSingleCache: { minutes, dir }
     private Map<String, Object> callSingleCache = new HashMap<>();
@@ -187,6 +198,8 @@ public class KarateConfig implements SimpleObject {
         this.auth = new HashMap<>(other.auth);
         this.retry = new HashMap<>(other.retry);
         this.report = new HashMap<>(other.report);
+        this.logging = new HashMap<>(other.logging);
+        // logging.mask is a LogMask (immutable from our perspective) — shallow copy is fine
         this.callSingleCache = new HashMap<>(other.callSingleCache);
         // Headers/Cookies (shallow copy - could be function refs)
         this.headers = other.headers;
@@ -298,6 +311,10 @@ public class KarateConfig implements SimpleObject {
                 configureReport(value);
                 yield false;
             }
+            case "logging" -> {
+                configureLogging(value);
+                yield false;
+            }
             case "callSingleCache" -> {
                 configureCallSingleCache(value);
                 yield false;
@@ -366,10 +383,25 @@ public class KarateConfig implements SimpleObject {
                 yield false;
             }
 
-            // Deprecated v1 options - no-op with warning
-            case "logPrettyRequest", "logPrettyResponse", "printEnabled",
-                 "lowerCaseResponseHeaders", "logModifier" -> {
-                logger.warn("configure '{}' is deprecated and has no effect in v2", key);
+            // Deprecated v1 options - no-op with one-line migration hint
+            case "logPrettyRequest", "logPrettyResponse" -> {
+                logger.warn("configure '{}' is deprecated; use 'configure logging = {{ pretty: true|false }}'", key);
+                yield false;
+            }
+            case "printEnabled" -> {
+                logger.warn("configure 'printEnabled' is deprecated; raise the log threshold with "
+                        + "'configure logging = {{ report: \"warn\" }}' to silence print/karate.log");
+                yield false;
+            }
+            case "lowerCaseResponseHeaders" -> {
+                logger.warn("configure 'lowerCaseResponseHeaders' is deprecated; "
+                        + "'match header X' is already case-insensitive and 'karate.lowerCase(responseHeaders)' "
+                        + "covers direct map access");
+                yield false;
+            }
+            case "logModifier" -> {
+                logger.warn("configure 'logModifier' is removed; "
+                        + "use the declarative form: 'configure logging = {{ mask: {{ headers: [...], jsonPaths: [...], patterns: [...] }} }}'");
                 yield false;
             }
 
@@ -520,17 +552,56 @@ public class KarateConfig implements SimpleObject {
             return;
         }
         if (value instanceof Map<?, ?> map) {
+            if (map.containsKey("logLevel")) {
+                throw new RuntimeException(
+                        "'configure report = { logLevel: ... }' is no longer supported; use "
+                                + "'configure logging = { report: \"info\" }' instead "
+                                + "(see docs/MIGRATION_GUIDE.md#logging)");
+            }
             if (map.containsKey("showLog")) {
                 this.report.put("showLog", toBoolean(map.get("showLog")));
             }
             if (map.containsKey("showAllSteps")) {
                 this.report.put("showAllSteps", toBoolean(map.get("showAllSteps")));
             }
-            if (map.containsKey("logLevel")) {
-                String levelStr = toString(map.get("logLevel"));
-                this.report.put("logLevel", levelStr);
-                LogLevel level = LogLevel.valueOf(levelStr.toUpperCase());
-                LogContext.setLogLevel(level);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void configureLogging(Object value) {
+        if (!(value instanceof Map<?, ?> raw)) {
+            throw new RuntimeException("configure 'logging' expects a map, got: "
+                    + (value == null ? "null" : value.getClass().getName()));
+        }
+        Map<String, Object> map = (Map<String, Object>) raw;
+        if (map.containsKey("report")) {
+            String levelStr = toString(map.get("report"));
+            this.logging.put("report", levelStr);
+            LogContext.setLogLevel(LogLevel.valueOf(levelStr.toUpperCase()));
+        }
+        if (map.containsKey("console")) {
+            String levelStr = toString(map.get("console"));
+            this.logging.put("console", levelStr);
+            LogContext.setRuntimeLogLevel(levelStr);
+        }
+        if (map.containsKey("pretty")) {
+            boolean pretty = toBoolean(map.get("pretty"));
+            this.logging.put("pretty", pretty);
+            LogContext.get().setPretty(pretty);
+        }
+        if (map.containsKey("mask")) {
+            Object maskValue = map.get("mask");
+            if (maskValue == null) {
+                this.logging.remove("mask");
+                LogContext.get().setMask(null);
+            } else if (maskValue instanceof Map<?, ?> maskMap) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> mm = (Map<String, Object>) maskMap;
+                io.karatelabs.output.LogMask compiled = io.karatelabs.output.LogMask.fromMap(mm);
+                this.logging.put("mask", mm);
+                LogContext.get().setMask(compiled);
+            } else {
+                throw new RuntimeException("configure 'logging.mask' expects a map, got: " + maskValue.getClass().getName());
             }
         }
     }
@@ -587,6 +658,7 @@ public class KarateConfig implements SimpleObject {
             case "auth" -> auth;
             case "retry" -> retry;
             case "report" -> report;
+            case "logging" -> logging;
             case "callSingleCache" -> callSingleCache;
             // Legacy accessors (for backward compatibility)
             case "sslEnabled" -> ssl.getOrDefault("enabled", false);
@@ -819,6 +891,24 @@ public class KarateConfig implements SimpleObject {
 
     public boolean isShowAllSteps() {
         return toBoolean(report.getOrDefault("showAllSteps", true));
+    }
+
+    // ===== Logging Getters =====
+
+    public Map<String, Object> getLogging() {
+        return logging;
+    }
+
+    public String getLoggingReportLevel() {
+        return toString(logging.getOrDefault("report", "debug"));
+    }
+
+    public String getLoggingConsoleLevel() {
+        return toString(logging.getOrDefault("console", "info"));
+    }
+
+    public boolean isLoggingPretty() {
+        return toBoolean(logging.getOrDefault("pretty", true));
     }
 
     // ===== CallSingleCache Getters =====

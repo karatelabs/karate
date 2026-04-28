@@ -54,8 +54,11 @@ import java.util.List;
  *     "html": true,
  *     "junitXml": false,
  *     "cucumberJson": false,
- *     "jsonLines": false,
- *     "logLevel": "info"
+ *     "jsonLines": false
+ *   },
+ *   "logging": {
+ *     "report": "debug",
+ *     "console": "info"
  *   },
  *   "listeners": ["com.example.MyListener"],
  *   "listenerFactories": ["com.example.MyListenerFactory"]
@@ -74,6 +77,7 @@ public class KaratePom {
     private boolean clean;
     private String workingDir;
     private OutputPom output = new OutputPom();
+    private LoggingPom logging;
     private List<String> listeners = new ArrayList<>();
     private List<String> listenerFactories = new ArrayList<>();
 
@@ -86,7 +90,6 @@ public class KaratePom {
         private boolean junitXml;
         private boolean cucumberJson;
         private boolean jsonLines;
-        private String logLevel;  // trace, debug, info, warn, error
 
         public String getDir() {
             return dir;
@@ -127,13 +130,30 @@ public class KaratePom {
         public void setJsonLines(boolean jsonLines) {
             this.jsonLines = jsonLines;
         }
+    }
 
-        public String getLogLevel() {
-            return logLevel;
+    /**
+     * Logging configuration nested object. Mirrors the in-feature
+     * {@code configure logging = { report: '...', console: '...' }} shape.
+     */
+    public static class LoggingPom {
+        private String report;   // trace, debug, info, warn, error
+        private String console;  // trace, debug, info, warn, error
+
+        public String getReport() {
+            return report;
         }
 
-        public void setLogLevel(String logLevel) {
-            this.logLevel = logLevel;
+        public void setReport(String report) {
+            this.report = report;
+        }
+
+        public String getConsole() {
+            return console;
+        }
+
+        public void setConsole(String console) {
+            this.console = console;
         }
     }
 
@@ -201,7 +221,22 @@ public class KaratePom {
             j.<Boolean>getOptional("output.junitXml").ifPresent(output::setJunitXml);
             j.<Boolean>getOptional("output.cucumberJson").ifPresent(output::setCucumberJson);
             j.<Boolean>getOptional("output.jsonLines").ifPresent(output::setJsonLines);
-            j.<String>getOptional("output.logLevel").ifPresent(output::setLogLevel);
+            // Hard-removed in 2.0.6: was previously the report-buffer threshold.
+            // Surface a clear migration error rather than silently ignoring.
+            if (j.pathExists("output.logLevel")) {
+                throw new RuntimeException(
+                        "'output.logLevel' is no longer supported in karate-pom.json; use "
+                                + "'logging.report' (and optionally 'logging.console') at the top level "
+                                + "(see docs/MIGRATION_GUIDE.md#logging)");
+            }
+        }
+
+        // Parse logging config
+        if (j.pathExists("logging")) {
+            LoggingPom logging = new LoggingPom();
+            j.<String>getOptional("logging.report").ifPresent(logging::setReport);
+            j.<String>getOptional("logging.console").ifPresent(logging::setConsole);
+            config.setLogging(logging);
         }
 
         // Parse listeners
@@ -245,8 +280,15 @@ public class KaratePom {
         builder.outputJunitXml(output.junitXml);
         builder.outputCucumberJson(output.cucumberJson);
         builder.outputJsonLines(output.jsonLines);
-        if (output.logLevel != null) {
-            builder.logLevel(output.logLevel);
+
+        // Logging settings (mirrors `configure logging` shape in feature files)
+        if (logging != null) {
+            if (logging.report != null) {
+                builder.logLevel(logging.report);
+            }
+            if (logging.console != null) {
+                builder.consoleLevel(logging.console);
+            }
         }
 
         // Listeners (applied via class name - handles both RunListener and RunListenerFactory)
@@ -340,6 +382,14 @@ public class KaratePom {
 
     public void setOutput(OutputPom output) {
         this.output = output != null ? output : new OutputPom();
+    }
+
+    public LoggingPom getLogging() {
+        return logging;
+    }
+
+    public void setLogging(LoggingPom logging) {
+        this.logging = logging;
     }
 
     public List<String> getListeners() {

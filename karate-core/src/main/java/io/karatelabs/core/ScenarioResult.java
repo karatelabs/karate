@@ -36,6 +36,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
 
     public static final String EXPECT_TEST_TO_FAIL_BECAUSE_OF_FAIL_TAG = "Expect test to fail because of @fail tag";
 
+    public static final String SUPPRESSED_FAILURE_MESSAGE =
+            "output suppressed by @report=false (full detail in runtime logs)";
+
     private final Scenario scenario;
     private final List<StepResult> stepResults = new ArrayList<>();
     private long startTime;
@@ -43,6 +46,10 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     private String threadName;
     private boolean failTagApplied;
     private boolean aborted;
+    // True when the scenario carried @report=false (or inherited it from a calling
+    // scenario). Step detail is suppressed in HTML/Cucumber-JSON/JUnit/JSONL writers;
+    // failures surface only a redacted message so secrets don't leak into CI artifacts.
+    private boolean reportDisabled;
 
     public ScenarioResult(Scenario scenario) {
         this.scenario = scenario;
@@ -66,6 +73,14 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
 
     public void setAborted(boolean aborted) {
         this.aborted = aborted;
+    }
+
+    public boolean isReportDisabled() {
+        return reportDisabled;
+    }
+
+    public void setReportDisabled(boolean reportDisabled) {
+        this.reportDisabled = reportDisabled;
     }
 
     public Scenario getScenario() {
@@ -281,7 +296,13 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         map.put("skipped", isSkipped());
         map.put("durationMillis", getDurationMillis());
         if (isFailed()) {
-            map.put("error", getFailureMessage());
+            // @report=false redacts the failure message so secrets don't leak into HTML /
+            // JUnit XML / JSONL artifacts (which often get uploaded to CI). Full detail
+            // still hits runtime logs via SLF4J for local debugging.
+            map.put("error", reportDisabled ? SUPPRESSED_FAILURE_MESSAGE : getFailureMessage());
+        }
+        if (reportDisabled) {
+            map.put("reportDisabled", true);
         }
 
         // RefId and outline info
@@ -314,10 +335,14 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             map.put("tags", tagNames);
         }
 
-        // Step results
+        // Step results — emit empty list when @report=false so HTML / Cucumber JSON /
+        // JsonLines all consistently show no step detail. Pass/fail status above is
+        // preserved so summary counts still reflect this scenario's outcome.
         List<Map<String, Object>> stepResultsList = new ArrayList<>();
-        for (StepResult sr : stepResults) {
-            stepResultsList.add(sr.toJson());
+        if (!reportDisabled) {
+            for (StepResult sr : stepResults) {
+                stepResultsList.add(sr.toJson());
+            }
         }
         map.put("stepResults", stepResultsList);
 

@@ -8,7 +8,6 @@ Scratch pad for tracking work across the project. See also [CAPABILITIES.yaml](.
 
 - [ ] HTTP/2 support
 - [ ] Response time validation
-- [ ] `@report=false` tag and `configure report = false` — v1 parity for excluding scenarios / called features from reports while still executing. Today `configure report` only stores `showLog` / `showAllSteps` but nothing consumes them; hook calls, called features, and tagged scenarios all surface unconditionally. When wired, `HtmlReportWriter.buildStepData` call-results emission (and the equivalent in Cucumber/JUnit writers) should gate on it, and lifecycle hooks will inherit the same suppression since their calls flow through the same `StepResult.callResults` chain.
 - [ ] Priority 7: JavaScript script execution (`*.karate.js` files)
 - [ ] Priority 9: `configure report = { showJsLineNumbers: true }`
 - [ ] Priority 9: `karate-base.js` (shared config from classpath JAR)

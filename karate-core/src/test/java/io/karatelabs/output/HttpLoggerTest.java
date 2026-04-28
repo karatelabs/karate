@@ -102,6 +102,8 @@ class HttpLoggerTest {
         return s.replaceAll("\u001B\\[[0-9;]*m", "");
     }
 
+    // The default `pretty: true` reformats JSON bodies — `"id": 42` (with a space)
+    // not `"id":42`. Tests assert against the spaced form.
     @Test
     void reportBufferAlwaysHasFullContentAtInfoLevel() {
         logbackLogger.setLevel(Level.INFO);
@@ -115,7 +117,7 @@ class HttpLoggerTest {
         assertTrue(reportBuffer.contains("Content-Type: application/json"), reportBuffer);
         assertTrue(reportBuffer.contains("buy milk"), reportBuffer);
         assertTrue(reportBuffer.contains("201 POST"), reportBuffer);
-        assertTrue(reportBuffer.contains("\"id\":42"), reportBuffer);
+        assertTrue(reportBuffer.contains("\"id\": 42"), reportBuffer);
         // Console (SLF4J) at INFO shows one-liner only — no headers, no body
         String console = strip(consoleOut.toString());
         assertTrue(console.contains("1 > POST http://example.com/api/todos"), console);
@@ -134,12 +136,12 @@ class HttpLoggerTest {
         httpLogger.logResponse(sampleResponse(request));
         String reportBuffer = strip(LogContext.get().peek());
         assertTrue(reportBuffer.contains("buy milk"), reportBuffer);
-        assertTrue(reportBuffer.contains("\"id\":42"), reportBuffer);
+        assertTrue(reportBuffer.contains("\"id\": 42"), reportBuffer);
         // Console (SLF4J) at DEBUG shows headers but not bodies
         String console = strip(consoleOut.toString());
         assertTrue(console.contains("Content-Type: application/json"), console);
         assertFalse(console.contains("buy milk"), console);
-        assertFalse(console.contains("\"id\":42"), console);
+        assertFalse(console.contains("\"id\": 42"), console);
     }
 
     @Test
@@ -151,11 +153,11 @@ class HttpLoggerTest {
         httpLogger.logResponse(sampleResponse(request));
         String reportBuffer = strip(LogContext.get().peek());
         assertTrue(reportBuffer.contains("buy milk"), reportBuffer);
-        assertTrue(reportBuffer.contains("\"id\":42"), reportBuffer);
+        assertTrue(reportBuffer.contains("\"id\": 42"), reportBuffer);
         // Console (SLF4J) at TRACE shows headers and bodies
         String console = strip(consoleOut.toString());
         assertTrue(console.contains("Content-Type: application/json"), console);
         assertTrue(console.contains("buy milk"), console);
-        assertTrue(console.contains("\"id\":42"), console);
+        assertTrue(console.contains("\"id\": 42"), console);
     }
 }

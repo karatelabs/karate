@@ -178,10 +178,9 @@ karate run -n "Parameterized check" tests/outline.feature:9
 | `-C, --clean` | Clean output directory before running |
 | `-D, --dryrun` | Skip step execution; @setup scenarios still run. See [Dry Run](#dry-run). |
 | `--no-color` | Disable colored output |
-| `--report-log-level <level>` | Minimum log level for HTML reports (default: info) |
-| `--runtime-log-level <level>` | SLF4J logger level for console output |
+| `--log-report <level>` | Threshold for what gets captured into reports (HTML/JSONL/Cucumber/JUnit). Default: `debug`. |
+| `--log-console <level>` | Threshold for SLF4J/console output via Logback. Default: `info` (inherited from logback.xml). |
 | `-f, --format <formats>` | Output formats (see below) |
-| `--log-mask <presets>` | Log masking presets (comma-separated) |
 | `--listener <classes>` | Comma-separated RunListener class names |
 | `--listener-factory <classes>` | Comma-separated RunListenerFactory class names |
 
@@ -214,31 +213,22 @@ karate run -f ~html,karate:jsonl features/
 
 ### Log Masking
 
-Mask sensitive data in logs using built-in presets:
+Log masking is configured per-scenario or globally via `configure logging = { mask: ... }` in feature files or `karate-config.js`. There is no CLI flag — masks are declarative and live with the test code that knows what's sensitive.
 
-```bash
-# Single preset
-karate run --log-mask PASSWORDS features/
-
-# Multiple presets
-karate run --log-mask PASSWORDS,CREDIT_CARDS features/
-
-# All sensitive data
-karate run --log-mask ALL_SENSITIVE features/
-```
-
-**Available presets:** `PASSWORDS`, `CREDIT_CARDS`, `SSN`, `EMAILS`, `API_KEYS`, `BEARER_TOKENS`, `BASIC_AUTH`, `ALL_SENSITIVE`
-
-For custom patterns, use `karate-pom.json`:
-```json
-{
-  "logMask": {
-    "patterns": [
-      {"regex": "secret[=:]([^\\s]+)", "replacement": "***"}
-    ]
+```javascript
+// karate-config.js — applies to all scenarios in this run
+configure logging = {
+  mask: {
+    headers:    ['Authorization', 'Cookie', 'X-Api-Key'],
+    jsonPaths:  ['$.password', '$..token'],
+    patterns:   [{ regex: '\\bBearer [A-Za-z0-9._-]+\\b', replacement: 'Bearer ***' }],
+    replacement: '***',
+    enableForUri: function(uri) { return uri.indexOf('/health') < 0 }
   }
 }
 ```
+
+See [DESIGN.md § Logging](./DESIGN.md#logging) for the full shape.
 
 ### Examples
 
@@ -294,12 +284,9 @@ The project file name is `karate-pom.json` (inspired by Maven's POM concept). Wh
     "cucumberJson": false,
     "jsonLines": false
   },
-  "logMask": {
-    "presets": ["PASSWORDS", "CREDIT_CARDS"],
-    "patterns": [
-      {"regex": "secret[=:]\\s*([^\\s]+)", "replacement": "***"}
-    ],
-    "headers": ["Authorization", "X-Api-Key"]
+  "logging": {
+    "report": "debug",
+    "console": "info"
   },
   "listeners": ["com.example.MyListener"],
   "listenerFactories": ["com.example.MyListenerFactory"]
@@ -348,7 +335,7 @@ The pom is always loaded if present, and CLI args override specific values. Use 
 
 | Sysprop | Env var fallback | Effect |
 |---------|------------------|--------|
-| `karate.options` | `KARATE_OPTIONS` | Full option string, parsed with the `karate run` grammar. Overrides paths, `-P`, tags, threads, env, name, configdir, output, dryrun, formats, report log level |
+| `karate.options` | `KARATE_OPTIONS` | Full option string, parsed with the `karate run` grammar. Overrides paths, `-P`, tags, threads, env, name, configdir, output, dryrun, formats, log levels |
 | `karate.env` | `KARATE_ENV` | Override karate environment |
 | `karate.config.dir` | `KARATE_CONFIG_DIR` | Override karate-config.js directory |
 | `karate.output.dir` | — | Override report output directory (honored via `FileUtils`) |
@@ -411,9 +398,10 @@ The option string uses the **same grammar as the `karate run` CLI**. Common flag
 | `-g, --configdir` | Directory containing `karate-config.js` |
 | `-f, --format` | Output formats (`html`, `cucumber:json`, `junit:xml`, `karate:jsonl`; prefix `~` to disable) |
 | `-D, --dryrun` | Dry-run |
-| `--report-log-level` | Minimum log level for HTML reports |
+| `--log-report` | Threshold for report buffer capture |
+| `--log-console` | Threshold for SLF4J/console output |
 
-CLI-lifecycle flags (`--no-pom`, `-p/--pom`, `-w/--workdir`, `-C/--clean`, `-B/--backup-reportdir`, `--runtime-log-level`, `--listener`, `--listener-factory`) are intentionally **ignored** when set via `karate.options` — they're orchestration concerns specific to invoking the CLI, not Builder state.
+CLI-lifecycle flags (`--no-pom`, `-p/--pom`, `-w/--workdir`, `-C/--clean`, `-B/--backup-reportdir`, `--listener`, `--listener-factory`) are intentionally **ignored** when set via `karate.options` — they're orchestration concerns specific to invoking the CLI, not Builder state.
 
 ### Paths with spaces
 
