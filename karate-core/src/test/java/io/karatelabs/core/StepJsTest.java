@@ -1176,7 +1176,7 @@ class StepJsTest {
             * def dbConfig = { url: 'jdbc:fake' }
             * def factory = function(config) { return { read: function() { return config.url } } }
             * def db = factory(dbConfig)
-            * def caller = read('classpath:io/karatelabs/core/issue2802-poll.js')
+            * def caller = read('classpath:io/karatelabs/core/closure-scope-callee.js')
             * def result = caller({ db: db })
             * match result == 'jdbc:fake'
             """);

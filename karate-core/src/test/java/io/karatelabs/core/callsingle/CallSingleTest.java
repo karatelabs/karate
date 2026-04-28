@@ -31,8 +31,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -604,6 +608,114 @@ class CallSingleTest {
                 .parallel(1);
 
         assertTrue(result.isPassed(), "callSingle with different tags should return different results: " + getFailureMessage(result));
+    }
+
+    // ========== karate.read() inside callSingle from karate-config.js ==========
+
+    @Test
+    void testCallSingleFromConfigInvokingKarateBaseWithDynamicRead() throws Exception {
+        // karate-config.js calls karate.callSingle on karate-base.js,
+        // which in turn builds a dynamic classpath path from karate.env and karate.read's a JSON file.
+        Path flagsJson = tempDir.resolve("feature-flags-staging.json");
+        Files.writeString(flagsJson, "{ \"flagA\": true, \"flagB\": false }");
+
+        Path baseJs = tempDir.resolve("karate-base.js");
+        Files.writeString(baseJs, """
+            function fn() {
+                var env = karate.env;
+                var featureFlags = karate.read('feature-flags-' + env + '.json');
+                return { featureFlags: featureFlags };
+            }
+            """);
+
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+            function fn() {
+                var base = karate.callSingle('karate-base.js');
+                return base;
+            }
+            """);
+
+        Path testFeature = tempDir.resolve("test.feature");
+        Files.writeString(testFeature, """
+            Feature: featureFlags from callSingle base
+            Scenario: featureFlags resolved from dynamic path
+            * match featureFlags == { flagA: true, flagB: false }
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(testFeature.toString())
+                .workingDir(tempDir)
+                .configDir(configJs.toString())
+                .karateEnv("staging")
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed(), "callSingle from config invoking karate-base.js with dynamic read should work: "
+                + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallSingleFromConfigWithJarBackedClasspath() throws Exception {
+        // Same flow as above, but karate-base.js, karate-config.js and the JSON live inside a JAR.
+        // jar: URIs are opaque so uri.getPath() returns null - Resource.getExtension() must handle that
+        // or karate.read('classpath:...json') NPEs once the JSON path is resolved against a jar fs.
+        Path jarPath = tempDir.resolve("config-bundle.jar");
+        try (JarOutputStream jos = new JarOutputStream(Files.newOutputStream(jarPath))) {
+            jos.putNextEntry(new JarEntry("karate-base.js"));
+            jos.write("""
+                function fn() {
+                    var env = karate.env;
+                    var featureFlags = karate.read('classpath:common/config/feature-flags-' + env + '.json');
+                    return { featureFlags: featureFlags };
+                }
+                """.getBytes());
+            jos.closeEntry();
+
+            jos.putNextEntry(new JarEntry("karate-config.js"));
+            jos.write("""
+                function fn() {
+                    var base = karate.callSingle('classpath:karate-base.js');
+                    return base;
+                }
+                """.getBytes());
+            jos.closeEntry();
+
+            jos.putNextEntry(new JarEntry("common/"));
+            jos.closeEntry();
+            jos.putNextEntry(new JarEntry("common/config/"));
+            jos.closeEntry();
+            jos.putNextEntry(new JarEntry("common/config/feature-flags-staging.json"));
+            jos.write("{ \"flagA\": true, \"flagB\": false }".getBytes());
+            jos.closeEntry();
+        }
+
+        // Caller feature lives on disk - it will load classpath: resources via the JAR-backed classloader.
+        Path callerFeature = tempDir.resolve("test.feature");
+        Files.writeString(callerFeature, """
+            Feature: featureFlags from JAR-backed classpath callSingle
+            Scenario: featureFlags resolved from JAR-backed classpath
+            * match featureFlags == { flagA: true, flagB: false }
+            """);
+
+        ClassLoader original = Thread.currentThread().getContextClassLoader();
+        try (URLClassLoader jarLoader = new URLClassLoader(new URL[]{jarPath.toUri().toURL()}, original)) {
+            Thread.currentThread().setContextClassLoader(jarLoader);
+            SuiteResult result = Runner.builder()
+                    .path(callerFeature.toString())
+                    .workingDir(tempDir)
+                    .karateEnv("staging")
+                    .outputConsoleSummary(false)
+                    .outputHtmlReport(false)
+                    .backupOutputDir(false)
+                    .parallel(1);
+            assertTrue(result.isPassed(), "callSingle resolving JAR-backed classpath JSON should work: "
+                    + getFailureMessage(result));
+        } finally {
+            Thread.currentThread().setContextClassLoader(original);
+        }
     }
 
     // ========== Tests for callSingleCache (disk caching) ==========

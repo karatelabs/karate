@@ -222,10 +222,15 @@ public interface Resource {
 
     default String getExtension() {
         URI uri = getUri();
-        if (uri == null) {
+        // jar: URIs are opaque so getPath() returns null — fall back to the relative path,
+        // which is always populated for in-memory and JAR-backed resources alike.
+        String path = uri != null ? uri.getPath() : null;
+        if (path == null) {
+            path = getRelativePath();
+        }
+        if (path == null || path.isEmpty()) {
             return "";
         }
-        String path = uri.getPath();
         int pos = path.lastIndexOf('.');
         if (pos == -1 || pos == path.length() - 1) {
             return "";
@@ -241,10 +246,12 @@ public interface Resource {
      */
     default String getSimpleName() {
         URI uri = getUri();
-        if (uri == null) {
-            return "";
+        // jar: URIs are opaque so getPath() returns null — fall back to the relative path,
+        // which is always populated for in-memory and JAR-backed resources alike.
+        String path = uri != null ? uri.getPath() : null;
+        if (path == null) {
+            path = getRelativePath();
         }
-        String path = uri.getPath();
         if (path == null || path.isEmpty()) {
             return "";
         }

@@ -1581,4 +1581,35 @@ class ResourceTest {
         }
     }
 
+    @Test
+    void testJarResourceGetExtension() throws Exception {
+        // Reproduces https://github.com/karatelabs/karate/issues/2811
+        // For JAR-backed PathResources, uri.getPath() is null because jar: URIs are opaque,
+        // which used to NPE inside Resource.getExtension().
+        Path jarPath = tempDir.resolve("ext.jar");
+        try (JarOutputStream jos = new JarOutputStream(Files.newOutputStream(jarPath))) {
+            jos.putNextEntry(new JarEntry("data.json"));
+            jos.write("{\"k\":1}".getBytes());
+            jos.closeEntry();
+            jos.putNextEntry(new JarEntry("setup.js"));
+            jos.write("function fn(){return {};}".getBytes());
+            jos.closeEntry();
+            jos.putNextEntry(new JarEntry("readme"));
+            jos.write("no extension".getBytes());
+            jos.closeEntry();
+        }
+        try (URLClassLoader classLoader = new URLClassLoader(new URL[]{jarPath.toUri().toURL()}, null)) {
+            Resource json = Resource.path("classpath:data.json", classLoader);
+            Resource js = Resource.path("classpath:setup.js", classLoader);
+            Resource none = Resource.path("classpath:readme", classLoader);
+            assertEquals("json", json.getExtension());
+            assertEquals("js", js.getExtension());
+            assertEquals("", none.getExtension());
+            // Same opaque-jar-URI hazard hits getSimpleName: previously returned "" silently.
+            assertEquals("data.json", json.getSimpleName());
+            assertEquals("setup.js", js.getSimpleName());
+            assertEquals("readme", none.getSimpleName());
+        }
+    }
+
 }
