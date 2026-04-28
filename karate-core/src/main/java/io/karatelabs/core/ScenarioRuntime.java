@@ -1493,11 +1493,15 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             return;
         }
 
-        // Don't release if this is a shared-scope called feature
-        // The driver will propagate back to the caller (V1-compatible behavior)
+        // Shared-scope called feature: propagate the driver up to the caller scenario
+        // immediately so sibling scenarios in this same called feature can inherit it
+        // via the normal inheritDriverFromCaller path. Without this, scenario N+1 in a
+        // multi-scenario called feature can't see scenario N's driver — it falls
+        // through to PooledDriverProvider.acquire() and deadlocks if the pool is full.
         if (featureRuntime != null && featureRuntime.isSharedScope()
                 && featureRuntime.getCallerScenario() != null) {
-            logger.debug("Keeping driver for caller propagation (shared scope)");
+            featureRuntime.getCallerScenario().setDriverFromCallee(this);
+            driver = null;
             return;
         }
 
