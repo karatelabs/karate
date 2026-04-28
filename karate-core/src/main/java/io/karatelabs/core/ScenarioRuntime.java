@@ -433,31 +433,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             }
         }
 
-        // Create nested FeatureRuntime with isolated scope (always isolated for karate.call())
-        FeatureRuntime nestedFr = new FeatureRuntime(
-                featureRuntime.getSuite(),
-                calledFeature,
-                featureRuntime,
-                this,
-                false,  // Isolated scope
-                callArg,
-                tagSelector
-        );
-
-        // Execute the called feature
-        FeatureResult nestedResult = nestedFr.call();
-
-        // Record the nested feature result so it surfaces in the report under the
-        // current step (or the synthetic step for a lifecycle hook wrapper).
-        if (nestedResult != null) {
-            executor.addCallResult(nestedResult);
-        }
-
-        // Return result variables from the last executed scenario
-        if (nestedFr.getLastExecuted() != null) {
-            return nestedFr.getLastExecuted().getAllVariables();
-        }
-        return new HashMap<>();
+        Map<String, Object> resultVars = executor.callFeatureSingle(calledFeature, callArg, tagSelector);
+        return resultVars != null ? resultVars : new HashMap<>();
     }
 
     /**

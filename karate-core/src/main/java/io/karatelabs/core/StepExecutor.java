@@ -416,28 +416,8 @@ public class StepExecutor {
         }
 
         // Single call
-        FeatureRuntime nestedFr = new FeatureRuntime(
-                fr != null ? fr.getSuite() : null,
-                calledFeature,
-                fr,
-                runtime,
-                false,  // Isolated scope - copy variables, don't share
-                call.arg,
-                call.tagSelector
-        );
-
-        // Execute the called feature
-        FeatureResult featureResult = nestedFr.call();
-
-        // Capture feature result for HTML report display (V1 style)
-        addCallResult(featureResult);
-
-        // Propagate failure from called feature to caller
-        checkFeatureResult(featureResult);
-
-        // Capture result variables from the last executed scenario (isolated scope)
-        if (nestedFr.getLastExecuted() != null) {
-            Map<String, Object> resultVars = nestedFr.getLastExecuted().getAllVariables();
+        Map<String, Object> resultVars = callFeatureSingle(calledFeature, call.arg, call.tagSelector);
+        if (resultVars != null) {
             runtime.setVariable(resultVar, resultVars);
         }
     }
@@ -488,6 +468,30 @@ public class StepExecutor {
     }
 
     /**
+     * Execute a single isolated-scope feature call. Shared by the `call` / `callonce`
+     * keyword paths and the `karate.call()` JS API. Returns the last scenario's
+     * variables, or null if no scenario was executed. Throws on called-feature failure.
+     */
+    Map<String, Object> callFeatureSingle(Feature calledFeature, Map<String, Object> callArg, String tagSelector) {
+        FeatureRuntime fr = runtime.getFeatureRuntime();
+        FeatureRuntime nestedFr = new FeatureRuntime(
+                fr != null ? fr.getSuite() : null,
+                calledFeature,
+                fr,
+                runtime,
+                false,  // Isolated scope - copy variables, don't share
+                callArg,
+                tagSelector
+        );
+        FeatureResult featureResult = nestedFr.call();
+        addCallResult(featureResult);
+        checkFeatureResult(featureResult);
+        return nestedFr.getLastExecuted() != null
+                ? nestedFr.getLastExecuted().getAllVariables()
+                : null;
+    }
+
+    /**
      * Execute an array-loop call - iterate argList, invoking calledFeature in isolated
      * scope once per element with __loop set to the iteration index. Shared by the
      * `call` / `callonce` keyword paths and the `karate.call()` JS API.
@@ -522,7 +526,7 @@ public class StepExecutor {
         return results;
     }
 
-    private void checkFeatureResult(FeatureResult featureResult) {
+    void checkFeatureResult(FeatureResult featureResult) {
         if (featureResult.isFailed()) {
             String msg = featureResult.getFailureMessage();
             throw new RuntimeException("called feature failed: "

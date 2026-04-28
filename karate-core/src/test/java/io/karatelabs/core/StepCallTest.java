@@ -1322,4 +1322,105 @@ class StepCallTest {
         assertFalse(result.isPassed(), "Parent should fail when called feature has match failure");
     }
 
+    // ========== Issue #2816: karate.call() must propagate failures from called feature ==========
+
+    @Test
+    void testKarateCallMatchFailureFailsCaller() throws Exception {
+        // https://github.com/karatelabs/karate/issues/2816
+        // karate.call(path) should propagate a match failure in the called feature
+        Path child = tempDir.resolve("child.feature");
+        Files.writeString(child, """
+            @ignore
+            Feature: Sub
+            Scenario:
+            * print '--- SUB: Before Match ---'
+            * match 1 == 2
+            * print '--- SUB: After Match ---'
+            """);
+
+        Path parent = tempDir.resolve("parent.feature");
+        Files.writeString(parent, """
+            Feature: Main
+            Scenario:
+            * print '--- MAIN: Starting Call ---'
+            * karate.call('child.feature')
+            * def shouldNotRun = true
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, parent.toString());
+
+        assertFalse(result.isPassed(), "Parent should fail when karate.call()ed feature has match failure");
+    }
+
+    @Test
+    void testKarateCallFailFailsCaller() throws Exception {
+        // karate.call(path) should propagate karate.fail() in the called feature
+        Path child = tempDir.resolve("child.feature");
+        Files.writeString(child, """
+            Feature: child
+            Scenario:
+            * karate.fail('child failure')
+            """);
+
+        Path parent = tempDir.resolve("parent.feature");
+        Files.writeString(parent, """
+            Feature: parent
+            Scenario:
+            * karate.call('child.feature')
+            * def shouldNotRun = true
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, parent.toString());
+
+        assertFalse(result.isPassed(), "Parent should fail when karate.call()ed feature fails");
+        String msg = getFailureMessage(result);
+        assertTrue(msg.contains("child failure"), "Failure message should contain child error: " + msg);
+    }
+
+    @Test
+    void testKarateCallWithResultFailedFeatureFailsCaller() throws Exception {
+        // def x = karate.call(path) should also propagate failure
+        Path child = tempDir.resolve("child.feature");
+        Files.writeString(child, """
+            Feature: child
+            Scenario:
+            * match 1 == 2
+            """);
+
+        Path parent = tempDir.resolve("parent.feature");
+        Files.writeString(parent, """
+            Feature: parent
+            Scenario:
+            * def response = karate.call('child.feature')
+            * def shouldNotRun = true
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, parent.toString());
+
+        assertFalse(result.isPassed(), "Parent should fail when karate.call() result is assigned");
+    }
+
+    @Test
+    void testKarateCallonceFailedFeatureFailsCaller() throws Exception {
+        // karate.callonce(path) should also propagate failures
+        Path child = tempDir.resolve("child.feature");
+        Files.writeString(child, """
+            Feature: child
+            Scenario:
+            * match 1 == 2
+            """);
+
+        Path parent = tempDir.resolve("parent.feature");
+        Files.writeString(parent, """
+            Feature: parent
+            Scenario:
+            * karate.callonce('child.feature')
+            * def shouldNotRun = true
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, parent.toString());
+
+        assertFalse(result.isPassed(), "Parent should fail when karate.callonce()ed feature fails");
+    }
+
 }
