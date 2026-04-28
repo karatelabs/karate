@@ -50,14 +50,14 @@ class UploadE2eTest {
 
             Scenario: pathMatches('/upload/excel')
               * def filePart = requestParts['myFile'][0]
-              * def response = { filename: filePart.filename, name: filePart.name, contentType: filePart.contentType }
+              * def response = ({ filename: filePart.filename, name: filePart.name, contentType: filePart.contentType })
 
             Scenario: pathMatches('/upload/excel/bytes')
               * def filePart = requestParts['myFile'][0]
               * def response = filePart.value
 
             Scenario: pathMatches('/upload/binary')
-              * def response = { size: requestBytes.length }
+              * def response = ({ size: requestBytes.length })
 
             Scenario: pathMatches('/multipart')
               * def response = { success: true }
@@ -69,7 +69,7 @@ class UploadE2eTest {
             Scenario: pathMatches('/multipart/mixed')
               * def textField = requestParams['textField'][0]
               * json jsonField = requestParams['jsonField'][0]
-              * def response = { text: textField, json: jsonField }
+              * def response = ({ text: textField, json: jsonField })
 
             # ===== Compression Scenarios =====
 

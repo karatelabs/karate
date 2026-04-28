@@ -107,7 +107,7 @@ class MockHandlerTest {
             Feature: Test Mock
 
             Scenario: pathMatches('/users/{id}')
-              * def response = { id: pathParams.id }
+              * def response = ({ id: pathParams.id })
             """);
 
         MockHandler handler = new MockHandler(feature);
@@ -173,7 +173,7 @@ class MockHandlerTest {
 
             Scenario: pathMatches('/increment')
               * counter.value = counter.value + 1
-              * def response = { count: counter.value }
+              * def response = ({ count: counter.value })
             """);
 
         MockHandler handler = new MockHandler(feature);
@@ -269,7 +269,7 @@ class MockHandlerTest {
             Feature: Test Mock
 
             Scenario: pathMatches('/echo')
-              * def response = { method: requestMethod, path: requestPath }
+              * def response = ({ method: requestMethod, path: requestPath })
             """);
 
         MockHandler handler = new MockHandler(feature);

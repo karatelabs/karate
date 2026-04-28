@@ -1113,11 +1113,11 @@ class StepCallTest {
         Files.writeString(callerFeature, """
             Feature: Function in object literal
             Scenario: Access function from object
-            * def foo = { bar: function(){ return 'baz' } }
+            * def foo = ({ bar: function(){ return 'baz' } })
             * def result = foo.bar()
             * match result == 'baz'
             Scenario: Chained access
-            * def foo = { bar: { baz: function(){ return 'deep' } } }
+            * def foo = ({ bar: { baz: function(){ return 'deep' } } })
             * def result = foo.bar.baz()
             * match result == 'deep'
             """);

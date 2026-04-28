@@ -387,9 +387,32 @@ Scenario: warmup with sensitive credentials
 
 ## Feature File Compatibility
 
-Most feature files work unchanged. The only known difference:
+Most feature files work unchanged. Known differences:
 
-- **Cookie domain assertions**: If testing cookie domains, note that RFC 6265 compliance means leading dots are stripped (`.example.com` → `example.com`)
+- **Cookie domain assertions**: If testing cookie domains, note that RFC 6265 compliance means leading dots are stripped (`.example.com` → `example.com`).
+- **Karate-JSON vs JavaScript on the RHS**: as in v1, any `def` / `set` / `configure` / `match` RHS that starts with `{` or `[` is parsed as Karate's relaxed JSON. To force JavaScript / ES6 semantics on the value side, wrap the literal in parens. See below.
+
+### Karate-JSON vs JavaScript on the right-hand side
+
+Anything on the right-hand side of `def` (or `set`, `configure`, `match`, …) that starts with `{` or `[` goes through Karate's relaxed JSON parser — hyphenated keys work, `#(expr)` is substituted, and a bare identifier on the value side is read as the **string** with that name. To get JavaScript / ES6 evaluation instead, wrap the literal in parens.
+
+```gherkin
+* def id = 123
+* def name = 'sample'
+
+# Karate JSON — #(...) substitution preserves types
+* def a = { "id": #(id), "name": "sample" }
+* def b = { id: '#(id)', name: 'sample' }       # equivalent
+
+# Hyphenated keys are fine
+* def headers = { Accept: 'application/json', Content-Type: 'application/json', Idempotency-Key: 'abc-123' }
+
+# Paren-wrap forces JavaScript evaluation
+* def c = ({ id, name })                        # ES6 shorthand
+* def d = ({ id: id, name: name })              # explicit reference
+```
+
+This matches v1 behavior — most v1 feature files work unchanged. The only thing to watch for is feature/test code that intentionally relied on JS semantics for an unwrapped literal (e.g., `* def response = { id: pathParams.id }`) — those need paren-wrapping (`* def response = ({ id: pathParams.id })`) or rewriting with `#(...)`.
 
 ---
 

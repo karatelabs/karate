@@ -107,11 +107,11 @@ class MockE2eTest {
 
             # Path params test
             Scenario: pathMatches('/users/{userId}/orders/{orderId}')
-              * def response = { userId: pathParams.userId, orderId: pathParams.orderId }
+              * def response = ({ userId: pathParams.userId, orderId: pathParams.orderId })
 
             # Headers test
             Scenario: pathMatches('/headers')
-              * def response = { auth: requestHeaders['Authorization'] ? requestHeaders['Authorization'][0] : null, custom: requestHeaders['X-Custom'] ? requestHeaders['X-Custom'][0] : null, headers: requestHeaders }
+              * def response = ({ auth: requestHeaders['Authorization'] ? requestHeaders['Authorization'][0] : null, custom: requestHeaders['X-Custom'] ? requestHeaders['X-Custom'][0] : null, headers: requestHeaders })
 
             # ===== Redirect scenarios =====
 
@@ -128,7 +128,7 @@ class MockE2eTest {
             # Check cookie was received
             Scenario: pathMatches('/check-cookie')
               * def cookieHeader = requestHeaders['Cookie'] ? requestHeaders['Cookie'][0] : ''
-              * def response = { cookie: cookieHeader }
+              * def response = ({ cookie: cookieHeader })
 
             # Target endpoint for redirects
             Scenario: pathMatches('/target')
@@ -149,7 +149,7 @@ class MockE2eTest {
 
             Scenario: pathMatches('/final')
               * def cookieHeader = requestHeaders['Cookie'] ? requestHeaders['Cookie'][0] : ''
-              * def response = { reached: true, cookies: cookieHeader }
+              * def response = ({ reached: true, cookies: cookieHeader })
 
             # ===== Cookie scenarios =====
 
@@ -161,13 +161,13 @@ class MockE2eTest {
             # Echo back received cookies (using raw Cookie header)
             Scenario: pathMatches('/echo-cookies')
               * def cookieHeader = requestHeaders['Cookie'] ? requestHeaders['Cookie'][0] : 'none'
-              * def response = { receivedCookies: cookieHeader }
+              * def response = ({ receivedCookies: cookieHeader })
 
             # Echo back cookies using requestCookies variable
             Scenario: pathMatches('/echo-cookies-parsed')
               * def session = requestCookies['session'] ? requestCookies['session'].value : 'none'
               * def user = requestCookies['user'] ? requestCookies['user'].value : 'none'
-              * def response = { session: session, user: user }
+              * def response = ({ session: session, user: user })
 
             # Set a quoted cookie (value wrapped in double quotes)
             Scenario: pathMatches('/set-cookie-quoted')
@@ -195,7 +195,7 @@ class MockE2eTest {
 
             Scenario: pathMatches('/counter')
               * retryCounter.value = retryCounter.value + 1
-              * def response = { id: retryCounter.value }
+              * def response = ({ id: retryCounter.value })
 
             # ===== Binary scenarios =====
 
@@ -205,7 +205,7 @@ class MockE2eTest {
 
             Scenario: pathMatches('/binary/upload')
               * def success = requestBytes.length == 12
-              * def response = { success: success, size: requestBytes.length }
+              * def response = ({ success: success, size: requestBytes.length })
 
             # ===== Encoding scenarios =====
 
@@ -213,7 +213,7 @@ class MockE2eTest {
               * def response = '<name>Müller</name>'
 
             Scenario: pathMatches('/encoding/{raw}')
-              * def response = { success: true, path: pathParams.raw }
+              * def response = ({ success: true, path: pathParams.raw })
 
             # ===== Whitespace scenarios =====
 
@@ -244,7 +244,7 @@ class MockE2eTest {
               * def jsonVal = requestParams.json ? requestParams.json[0] : null
               # Parse JSON string back to object
               * def jsonObj = jsonVal ? karate.fromJson(jsonVal) : null
-              * def response = { message: msgVal, json: jsonObj }
+              * def response = ({ message: msgVal, json: jsonObj })
 
             # ===== Empty/no-headers scenarios =====
 
@@ -262,37 +262,37 @@ class MockE2eTest {
 
             Scenario: pathMatches('/greeting') && paramExists('name')
               * def content = 'Hello ' + paramValue('name') + '!'
-              * def response = { message: content }
+              * def response = ({ message: content })
 
             Scenario: pathMatches('/greeting')
               * def response = { message: 'Hello stranger!' }
 
             Scenario: pathMatches('/search') && paramExists('q') && paramExists('limit')
-              * def response = { query: paramValue('q'), limit: paramValue('limit'), hasQuery: paramExists('q'), hasLimit: paramExists('limit') }
+              * def response = ({ query: paramValue('q'), limit: paramValue('limit'), hasQuery: paramExists('q'), hasLimit: paramExists('limit') })
 
             Scenario: pathMatches('/multi-param')
               * def vals = requestParams['tags']
-              * def response = { tags: vals, count: vals ? vals.length : 0 }
+              * def response = ({ tags: vals, count: vals ? vals.length : 0 })
 
             # ===== XML scenarios =====
 
             Scenario: pathMatches('/xml/echo')
               # Echo back XML request - request should be an XML Node
-              * def response = { name: karate.xmlPath(request, '/name') }
+              * def response = ({ name: karate.xmlPath(request, '/name') })
 
             Scenario: pathMatches('/soap')
               # SOAP-style endpoint - request should be XML Node, use XPath
               * def intA = karate.xmlPath(request, '/Add/intA')
               * def intB = karate.xmlPath(request, '/Add/intB')
               * def result = parseInt(intA) + parseInt(intB)
-              * def response = { result: result }
+              * def response = ({ result: result })
 
             # ===== Auth scenarios =====
 
             # Endpoint that checks Authorization header and returns what it received
             Scenario: pathMatches('/auth/check')
               * def authHeader = requestHeaders['Authorization'] ? requestHeaders['Authorization'][0] : null
-              * def response = { authorization: authHeader }
+              * def response = ({ authorization: authHeader })
 
             # OAuth2 token endpoint for client_credentials flow
             Scenario: pathMatches('/oauth/token') && methodIs('post')
@@ -1052,7 +1052,7 @@ class MockE2eTest {
               * configure afterScenario = function(){ requestCount.value++ }
 
             Scenario: pathMatches('/count')
-              * def response = { count: requestCount.value }
+              * def response = ({ count: requestCount.value })
             """)
             .port(0)
             .start();
@@ -1104,7 +1104,7 @@ class MockE2eTest {
               * configure beforeScenario = function(){ counter.value++ }
 
             Scenario: pathMatches('/hits')
-              * def response = { count: counter.value }
+              * def response = ({ count: counter.value })
             """)
             .port(0)
             .start();

@@ -78,7 +78,7 @@ class MockServerTest {
               * def responseStatus = 200
 
             Scenario: pathMatches('/echo')
-              * def response = { method: requestMethod, path: requestPath, params: requestParams }
+              * def response = ({ method: requestMethod, path: requestPath, params: requestParams })
 
             Scenario:
               * def responseStatus = 404

@@ -1618,6 +1618,18 @@ public class StepExecutor {
             return xpathResult == XPATH_NOT_PRESENT ? null : xpathResult;
         }
 
+        // V1 behavior: expressions starting with { or [ are parsed as Karate's
+        // relaxed JSON (with embedded-expression substitution), not JS. To force
+        // JS / ES6 evaluation, wrap in parens: ({ id: id }), ([a, b, c]).
+        if (StringUtils.looksLikeJson(expr)) {
+            try {
+                Object value = Json.of(expr).value();
+                return processEmbeddedExpressions(value);
+            } catch (Exception e) {
+                // Fall through to JS eval if JSON parsing fails (e.g., ES6 shorthand { id })
+            }
+        }
+
         // Default: evaluate as JS
         Object value = runtime.eval(wrapJsonLikeExpression(expr));
         if (value instanceof Map || value instanceof List) {

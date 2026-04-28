@@ -53,11 +53,11 @@ class JsMockProxyTest {
                   * def response = { source: 'backend', message: 'hello from backend' }
 
                 Scenario: pathMatches('/echo') && methodIs('post')
-                  * def response = { received: request, authHeader: requestHeaders['X-Auth'][0] }
+                  * def response = ({ received: request, authHeader: requestHeaders['X-Auth'][0] })
                   * def responseStatus = 201
 
                 Scenario: pathMatches('/host-echo')
-                  * def response = { host: requestHeaders['Host'][0] }
+                  * def response = ({ host: requestHeaders['Host'][0] })
 
                 Scenario: methodIs('get')
                   * def response = { original: true }

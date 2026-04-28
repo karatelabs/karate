@@ -378,7 +378,7 @@ class HtmlReportWriterTest {
                   @setup
                   Scenario:
                     * def tag = karate.dryRun ? 'dry' : 'live'
-                    * def rows = [{ name: tag + '-alpha' }, { name: tag + '-beta' }]
+                    * def rows = ([{ name: tag + '-alpha' }, { name: tag + '-beta' }])
 
                   Scenario: would fail for real
                     * url 'http://127.0.0.1:1'
@@ -1278,7 +1278,7 @@ class HtmlReportWriterTest {
         Path feature = writeFeatureCallingHarness(tempDir, """
                 Feature: Mask Enable For URI
                 Background:
-                * configure logging = { mask: { headers: ['Authorization'], enableForUri: function(uri){ return uri.indexOf('users') >= 0 } } }
+                * configure logging = ({ mask: { headers: ['Authorization'], enableForUri: function(uri){ return uri.indexOf('users') >= 0 } } })
                 Scenario: only /api/users masked, /api/status passes through
                 * def tokA = karate.properties['test.users.token']
                 * def tokB = karate.properties['test.status.token']

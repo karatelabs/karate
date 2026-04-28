@@ -243,7 +243,7 @@ public class OutlineTest {
             Feature: Outline with JSON
 
             Scenario Outline: JSON test <id>
-            * def data = { id: id, val: val }
+            * def data = ({ id: id, val: val })
             * match data.id == '<id>'
             * match data.val == <val>
 

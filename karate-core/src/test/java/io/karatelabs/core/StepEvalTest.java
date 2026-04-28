@@ -142,7 +142,7 @@ class StepEvalTest {
     void testDotNotationExpression() {
         // * foo.bar() - keyword "foo.bar" has punctuation, treated as JS
         ScenarioRuntime sr = run("""
-            * def foo = { bar: function(){ return 'baz' } }
+            * def foo = ({ bar: function(){ return 'baz' } })
             * def result = foo.bar()
             * match result == 'baz'
             """);
@@ -164,7 +164,7 @@ class StepEvalTest {
     void testChainedExpression() {
         // * foo.bar.baz() - chained method call, keyword is "foo.bar.baz"
         ScenarioRuntime sr = run("""
-            * def foo = { bar: { baz: function(){ return 'deep' } } }
+            * def foo = ({ bar: { baz: function(){ return 'deep' } } })
             * def result = foo.bar.baz()
             * match result == 'deep'
             """);

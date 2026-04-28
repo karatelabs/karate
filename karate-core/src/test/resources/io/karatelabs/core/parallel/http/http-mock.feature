@@ -21,4 +21,4 @@ Feature: Mock for parallel HTTP tests
     * def testId = testIdHeader ? testIdHeader[0] : 'none'
     # Extract cookie-id if present, otherwise use 'none'
     * def cookieId = requestCookies['cookie-id'] ? requestCookies['cookie-id'].value : 'none'
-    * def response = { id: pathParams.id, testId: testId, cookieId: cookieId }
+    * def response = ({ id: pathParams.id, testId: testId, cookieId: cookieId })

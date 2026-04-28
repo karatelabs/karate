@@ -443,4 +443,144 @@ class StepDataTypesTest {
         assertFailed(sr);
     }
 
+    // ========== Doc-String JSON with Embedded Expressions ==========
+    // V2 restores v1 behavior: anything starting with { or [ on the RHS of `def`
+    // is parsed by Karate's relaxed JSON parser (which accepts #(expr) tokens),
+    // not by the JS engine. To force JS / ES6 evaluation, wrap in parens.
+    // See issue #2813.
+
+    @Test
+    void testDocStringJsonUnquotedEmbeddedExpr() {
+        // The exact case from issue #2813 — works in v1, regressed in v2.0.5,
+        // restored here by routing { ... } through Karate's JSON parser first
+        ScenarioRuntime sr = run("""
+            * def id = 123
+            * def payload =
+            \"\"\"
+            {
+              "id": #(id),
+              "name": "sample"
+            }
+            \"\"\"
+            * match payload == { id: 123, name: 'sample' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testDocStringJsonQuotedEmbeddedExprWorks() {
+        // Workaround 1: quote the embedded expression — string value "#(id)"
+        // is post-processed to substitute the variable
+        ScenarioRuntime sr = run("""
+            * def id = 123
+            * def payload =
+            \"\"\"
+            {
+              "id": "#(id)",
+              "name": "sample"
+            }
+            \"\"\"
+            * match payload == { id: 123, name: 'sample' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testDocStringJsonShorthandProperty() {
+        // Workaround 2: ES6 shorthand — { id } is equivalent to { id: id }
+        ScenarioRuntime sr = run("""
+            * def id = 123
+            * def name = 'sample'
+            * def payload =
+            \"\"\"
+            { id, name }
+            \"\"\"
+            * match payload == { id: 123, name: 'sample' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testDocStringJsonExplicitReferenceParenWrapped() {
+        // Workaround 3: paren-wrap the body to force JS evaluation (def parses
+        // a leading { as Karate JSON by default, so a bare `id` would otherwise
+        // be read as the string "id")
+        ScenarioRuntime sr = run("""
+            * def id = 123
+            * def payload =
+            \"\"\"
+            ({ id: id, name: 'sample' })
+            \"\"\"
+            * match payload == { id: 123, name: 'sample' }
+            """);
+        assertPassed(sr);
+    }
+
+    // The same shorthand / paren-wrap forms also work in plain inline JSON
+    // (not just doc-strings) — useful any time you want an unquoted value without #(...)
+
+    @Test
+    void testDefInlineJsonShorthandProperty() {
+        // ES6 shorthand — { id, name } is not valid JSON so it falls through to JS
+        ScenarioRuntime sr = run("""
+            * def id = 123
+            * def name = 'sample'
+            * def payload = { id, name }
+            * match payload == { id: 123, name: 'sample' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testDefInlineJsonExplicitReferenceTreatedAsString() {
+        // GOTCHA: a bare `id` on the value side of a def JSON literal is read
+        // as the STRING "id" by Karate's relaxed JSON parser (v1 behavior).
+        // Use '#(id)', ES6 shorthand { id }, or paren-wrap to force JS.
+        ScenarioRuntime sr = run("""
+            * def id = 123
+            * def payload = { id: id, name: 'sample' }
+            * match payload == { id: 'id', name: 'sample' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testDefInlineJsonParenWrappedExplicitReference() {
+        // Paren-wrap forces JS evaluation
+        ScenarioRuntime sr = run("""
+            * def id = 123
+            * def payload = ({ id: id, name: 'sample' })
+            * match payload == { id: 123, name: 'sample' }
+            """);
+        assertPassed(sr);
+    }
+
+    // ========== Hyphenated Keys in Inline Maps (issue #2814) ==========
+    // V1's relaxed JSON parser accepted bare hyphenated keys like Content-Type.
+    // V2 < 2.0.6 evaluated as JS where `Content-Type` was parsed as subtraction.
+    // Fixed by routing { ... } through Karate's JSON parser first.
+
+    @Test
+    void testInlineMapWithHyphenatedKeys() {
+        // The exact case from issue #2814
+        ScenarioRuntime sr = run("""
+            * def headers = { Accept: 'application/json', Content-Type: 'application/json', Idempotency-Key: 'abc-123' }
+            * match headers['Content-Type'] == 'application/json'
+            * match headers['Idempotency-Key'] == 'abc-123'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testInlineMapWithHyphenatedKeysAndEmbeddedExpr() {
+        // Hyphenated keys with #(...) value substitution
+        ScenarioRuntime sr = run("""
+            * def contentType = 'application/json'
+            * def headers = { Accept: 'application/json', Content-Type: '#(contentType)', Idempotency-Key: 'abc-123' }
+            * match headers['Content-Type'] == 'application/json'
+            * match headers['Idempotency-Key'] == 'abc-123'
+            """);
+        assertPassed(sr);
+    }
+
 }

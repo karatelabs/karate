@@ -521,4 +521,72 @@ class StepMatchTest {
         assertPassed(sr);
     }
 
+    // ========== Embedded variables on the RHS of match (issue #2813) ==========
+    // V2 evaluates the RHS as JS, so the v1 trick of writing { id: #(id) } is a
+    // syntax error. The same alternatives that work for `def` also work here.
+
+    @Test
+    void testMatchRhsWithQuotedEmbeddedExpression() {
+        // Quoted embedded expression — closest to v1, still works
+        ScenarioRuntime sr = run("""
+            * def id = 123
+            * def payload = { id: 123, name: 'sample' }
+            * match payload == { id: '#(id)', name: 'sample' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchRhsWithShorthandProperty() {
+        // ES6 shorthand — { id, name } expands to { id: id, name: name }
+        ScenarioRuntime sr = run("""
+            * def id = 123
+            * def name = 'sample'
+            * def payload = { id: 123, name: 'sample' }
+            * match payload == { id, name }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchRhsExplicitVariableReferenceIsTreatedAsString() {
+        // GOTCHA: unlike `def`, the match RHS goes through Karate's relaxed JSON
+        // parser when it starts with `{`. A bare token `id` on the value side is
+        // treated as the string literal "id", not a variable reference.
+        // Use `'#(id)'`, ES6 shorthand `{ id }`, or wrap the whole RHS in parens
+        // to force JS evaluation: `({ id: id, ... })`
+        ScenarioRuntime sr = run("""
+            * def id = 123
+            * def payload = { id: 123, name: 'sample' }
+            * match payload == { id: id, name: 'sample' }
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testMatchRhsWithJsParenWrappedExplicitReference() {
+        // Workaround for the gotcha above — wrap in () to force JS evaluation
+        ScenarioRuntime sr = run("""
+            * def id = 123
+            * def payload = { id: 123, name: 'sample' }
+            * match payload == ({ id: id, name: 'sample' })
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchRhsDocStringWithShorthandProperty() {
+        // Same shorthand inside a match doc-string
+        ScenarioRuntime sr = run("""
+            * def id = 123
+            * def name = 'sample'
+            * def payload = { id: 123, name: 'sample' }
+            * match payload ==
+            \"\"\"
+            { id, name }
+            \"\"\"
+            """);
+        assertPassed(sr);
+    }
+
 }
