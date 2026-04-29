@@ -123,16 +123,34 @@
      */
     kjs._getShadowText = function(shadowRoot) {
         if (!shadowRoot) return '';
+        // Shadow-host visibility — descendants of a display:none / visibility:hidden /
+        // aria-hidden host don't render at all, so an invisible host should yield
+        // empty text. Same root-not-checked bug class as getVisibleText.
+        var host = shadowRoot.host;
+        if (host) {
+            if (host.getAttribute && host.getAttribute('aria-hidden') === 'true') return '';
+            var hostStyle = window.getComputedStyle(host);
+            if (hostStyle.display === 'none' || hostStyle.visibility === 'hidden') return '';
+        }
         var text = '';
         var walker = document.createTreeWalker(shadowRoot, NodeFilter.SHOW_TEXT, null, false);
         var node;
         while ((node = walker.nextNode())) {
+            // Walk the full ancestor chain inside the shadow tree, mirroring
+            // getVisibleText. parentElement returns null at the shadow-root
+            // boundary (shadowRoot is a DocumentFragment, not an Element), so
+            // the loop terminates naturally. Without this, a hidden ancestor
+            // above the immediate parent (e.g. <div hidden><span>X</span></div>)
+            // would leak its text.
             var parent = node.parentElement;
-            if (parent) {
+            var hidden = false;
+            while (parent) {
+                if (parent.getAttribute('aria-hidden') === 'true') { hidden = true; break; }
                 var style = window.getComputedStyle(parent);
-                if (style.display === 'none' || style.visibility === 'hidden') continue;
+                if (style.display === 'none' || style.visibility === 'hidden') { hidden = true; break; }
+                parent = parent.parentElement;
             }
-            text += node.textContent;
+            if (!hidden) text += node.textContent;
         }
         return text.trim().replace(/\s+/g, ' ');
     };
@@ -165,6 +183,15 @@
 
     kjs.getVisibleText = function(el) {
         if (!el) return '';
+        // Self-visibility — the walker below only inspects ancestors STRICTLY
+        // BETWEEN the text node and `el` (parent !== el is the loop guard), so
+        // `el` itself was never checked. A display:none `el` would leak all its
+        // text. Match the same triple of checks the walker performs on ancestors.
+        if (el.getAttribute && el.getAttribute('aria-hidden') === 'true') return '';
+        if (el.nodeType === 1) {
+            var selfStyle = window.getComputedStyle(el);
+            if (selfStyle.display === 'none' || selfStyle.visibility === 'hidden') return '';
+        }
         var text = '';
         var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
         var node;
