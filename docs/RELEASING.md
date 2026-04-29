@@ -24,6 +24,7 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
 ## 3. GitHub Release
 
 - [ ] Go to https://github.com/karatelabs/karate/releases/new and create tag `vX.Y.Z` on the release form (target: `main`) — this creates the tag as part of publishing the release
+- [ ] Set the **release title** to `vX.Y.Z` explicitly (must match the tag) — if left blank, the GitHub UI defaults the title to the most recent commit message
 - [ ] Write release notes:
   - Summary of important fixes / features
   - Link to the milestone: `https://github.com/karatelabs/karate/milestone/NN?closed=1`
