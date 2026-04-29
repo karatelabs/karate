@@ -4,7 +4,6 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
 
 ## 1. Prepare the Release
 
-- [ ] Manually close or defer each open issue on the `X.Y.Z` milestone via the GitHub UI (issues labeled `fixed` typically just need to be closed)
 - [ ] Verify `main` is green on CI
 - [ ] Update version in `pom.xml` (remove any `-SNAPSHOT` or `.RC*` suffix):
   ```bash
@@ -35,10 +34,11 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
   - `cve-sbom-report.html`
 - [ ] See [v2.0.1](https://github.com/karatelabs/karate/releases/tag/v2.0.1) for reference
 
-## 4. Close Milestone
+## 4. Close Issues and Milestone
 
-- [ ] Close the GitHub milestone for `X.Y.Z`
+- [ ] Close each fixed issue on the `X.Y.Z` milestone via the GitHub UI, leaving a comment `vX.Y.Z released` on each (issues labeled `fixed` typically just need to be closed)
 - [ ] Move any remaining open issues to the next milestone
+- [ ] Close the GitHub milestone for `X.Y.Z`
 
 ## 5. Update karate.sh CLI Manifest
 
