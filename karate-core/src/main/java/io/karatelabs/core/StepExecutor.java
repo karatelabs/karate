@@ -41,6 +41,7 @@ import io.karatelabs.http.HttpRequest;
 import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.http.HttpResponse;
 import io.karatelabs.gherkin.GherkinParser;
+import io.karatelabs.js.EngineException;
 import io.karatelabs.js.JavaCallable;
 import io.karatelabs.output.LogContext;
 import org.slf4j.Logger;
@@ -2993,7 +2994,7 @@ public class StepExecutor {
             } catch (Exception e) {
                 // For optional ##() expressions, treat undefined variables as null (remove)
                 // V1 compatibility: undefined variables in ##() should result in removal
-                if (e.getMessage() != null && e.getMessage().contains("is not defined")) {
+                if (e instanceof EngineException ee && "ReferenceError".equals(ee.getJsErrorName())) {
                     return REMOVE_MARKER;
                 }
                 throw e;
