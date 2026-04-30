@@ -356,35 +356,37 @@ public class StepExecutor {
         if (StepUtils.isLiteralFeatureRead(callExpr)) {
             // Fall through to standard feature call handling
         } else {
-            // Try to evaluate as a JS expression (handles variables, read('file.js'), etc.)
+            // Type-probe first token as JS to distinguish js function / feature ref / path string.
+            // Only the probe itself is wrapped — failures inside the call must propagate, not
+            // silently fall through and cause double-execution (issue #2821).
+            Object evaluated = null;
             try {
-                Object evaluated = runtime.eval(firstToken);
-                if (evaluated instanceof JavaCallable fn) {
-                    // It's a JS function - invoke it and store result
-                    Object arg = null;
-                    if (spaceIdx > 0) {
-                        String argExpr = callExpr.substring(spaceIdx + 1).trim();
-                        if (!argExpr.isEmpty()) {
-                            arg = runtime.eval(wrapJsonLikeExpression(argExpr));
-                            // V1 compatibility: process embedded expressions like #(var) in call arguments
-                            if (arg instanceof Map) {
-                                arg = processEmbeddedExpressions((Map<?, ?>) arg);
-                            }
-                        }
-                    }
-                    Object result = arg != null
-                            ? fn.call(null, new Object[]{arg})
-                            : fn.call(null, new Object[0]);
-                    runtime.setVariable(resultVar, result);
-                    return;
-                } else if (evaluated instanceof FeatureCall || evaluated instanceof Feature) {
-                    // It's a Feature or FeatureCall - call it with arguments
-                    String argExpr = spaceIdx > 0 ? callExpr.substring(spaceIdx + 1).trim() : null;
-                    executeFeatureCall(evaluated, argExpr, resultVar);
-                    return;
-                }
+                evaluated = runtime.eval(firstToken);
             } catch (Exception e) {
                 // Not a valid JS expression, fall through to feature call
+            }
+            if (evaluated instanceof JavaCallable fn) {
+                // It's a JS function - invoke it and store result
+                Object arg = null;
+                if (spaceIdx > 0) {
+                    String argExpr = callExpr.substring(spaceIdx + 1).trim();
+                    if (!argExpr.isEmpty()) {
+                        arg = runtime.eval(wrapJsonLikeExpression(argExpr));
+                        // V1 compatibility: process embedded expressions like #(var) in call arguments
+                        if (arg instanceof Map) {
+                            arg = processEmbeddedExpressions((Map<?, ?>) arg);
+                        }
+                    }
+                }
+                Object result = arg != null
+                        ? fn.call(null, new Object[]{arg})
+                        : fn.call(null, new Object[0]);
+                runtime.setVariable(resultVar, result);
+                return;
+            } else if (evaluated instanceof FeatureCall || evaluated instanceof Feature) {
+                String argExpr = spaceIdx > 0 ? callExpr.substring(spaceIdx + 1).trim() : null;
+                executeFeatureCall(evaluated, argExpr, resultVar);
+                return;
             }
         }
 
@@ -2383,37 +2385,39 @@ public class StepExecutor {
         if (StepUtils.isLiteralFeatureRead(text)) {
             // Fall through to standard feature call handling
         } else {
-            // Try to evaluate as a JS expression (handles variables, read('file.js'), etc.)
+            // Type-probe first token as JS to distinguish js function / feature ref / path string.
+            // Only the probe itself is wrapped — failures inside the call must propagate, not
+            // silently fall through and cause double-execution (issue #2821).
+            Object evaluated = null;
             try {
-                Object evaluated = runtime.eval(firstToken);
-                if (evaluated instanceof JavaCallable fn) {
-                    // It's a JS function - invoke it
-                    Object arg = null;
-                    if (spaceIdx > 0) {
-                        String argExpr = text.substring(spaceIdx + 1).trim();
-                        if (!argExpr.isEmpty()) {
-                            arg = runtime.eval(wrapJsonLikeExpression(argExpr));
-                        }
-                    }
-                    Object result = arg != null
-                            ? fn.call(null, arg)
-                            : fn.call(null);
-                    // V1 behavior: if result is a Map, spread all keys as shared scope variables
-                    if (result instanceof Map) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> map = (Map<String, Object>) result;
-                        for (Map.Entry<String, Object> entry : map.entrySet()) {
-                            runtime.setVariable(entry.getKey(), entry.getValue());
-                        }
-                    }
-                    return;
-                } else if (evaluated instanceof FeatureCall || evaluated instanceof Feature) {
-                    // It's a feature or feature call - handle below
-                    executeFeatureCall(evaluated, spaceIdx > 0 ? text.substring(spaceIdx + 1).trim() : null, null);
-                    return;
-                }
+                evaluated = runtime.eval(firstToken);
             } catch (Exception e) {
                 // Not a valid JS expression, fall through to feature call
+            }
+            if (evaluated instanceof JavaCallable fn) {
+                // It's a JS function - invoke it
+                Object arg = null;
+                if (spaceIdx > 0) {
+                    String argExpr = text.substring(spaceIdx + 1).trim();
+                    if (!argExpr.isEmpty()) {
+                        arg = runtime.eval(wrapJsonLikeExpression(argExpr));
+                    }
+                }
+                Object result = arg != null
+                        ? fn.call(null, arg)
+                        : fn.call(null);
+                // V1 behavior: if result is a Map, spread all keys as shared scope variables
+                if (result instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> map = (Map<String, Object>) result;
+                    for (Map.Entry<String, Object> entry : map.entrySet()) {
+                        runtime.setVariable(entry.getKey(), entry.getValue());
+                    }
+                }
+                return;
+            } else if (evaluated instanceof FeatureCall || evaluated instanceof Feature) {
+                executeFeatureCall(evaluated, spaceIdx > 0 ? text.substring(spaceIdx + 1).trim() : null, null);
+                return;
             }
         }
 

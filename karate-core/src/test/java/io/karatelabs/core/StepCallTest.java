@@ -1401,6 +1401,46 @@ class StepCallTest {
     }
 
     @Test
+    void testCallByTagDoesNotReExecuteOnFailure() throws Exception {
+        // Regression for https://github.com/karatelabs/karate/issues/2821
+        // `call read('file.feature@tag')` was executing the called scenario twice
+        // when it failed. The JS-eval probe in executeCall() caught FeatureCall
+        // execution failures and silently fell through to the standard call path,
+        // running the same scenario a second time and masking the original error.
+        Path called = tempDir.resolve("called.feature");
+        Files.writeString(called, """
+            Feature: called
+            @target
+            Scenario: fail after one step
+            * def x = 1
+            * match 1 == 2
+            """);
+
+        Path caller = tempDir.resolve("caller.feature");
+        Files.writeString(caller, """
+            Feature: caller
+            Scenario: call once
+            * call read('called.feature@target')
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, caller.toString());
+
+        assertTrue(result.isFailed(), "Suite should fail");
+
+        // Walk the failed step's call results: there must be exactly one feature
+        // call, not two. Two would indicate the swallowed-exception fall-through
+        // re-running the called scenario.
+        long calleeRuns = result.getFeatureResults().stream()
+                .flatMap(fr -> fr.getScenarioResults().stream())
+                .flatMap(sr -> sr.getStepResults().stream())
+                .filter(step -> step.getCallResults() != null)
+                .mapToLong(step -> step.getCallResults().size())
+                .sum();
+        assertEquals(1, calleeRuns,
+                "Called scenario should execute exactly once on failure (issue #2821), got " + calleeRuns);
+    }
+
+    @Test
     void testKarateCallonceFailedFeatureFailsCaller() throws Exception {
         // karate.callonce(path) should also propagate failures
         Path child = tempDir.resolve("child.feature");
