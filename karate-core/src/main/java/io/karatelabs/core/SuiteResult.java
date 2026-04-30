@@ -218,13 +218,10 @@ public class SuiteResult {
                         if (stepText != null) {
                             Console.println("      " + Console.cyan(stepText));
                         }
-                        // Show error message (truncate only very long messages)
+                        // Show full error message — match diffs and JS errors routinely
+                        // exceed any short cap, and truncating hides the actual diff (#2822)
                         if (sr.getFailureMessage() != null) {
-                            String msg = sr.getFailureMessage();
-                            if (msg.length() > 200) {
-                                msg = msg.substring(0, 197) + "...";
-                            }
-                            Console.println("      " + Console.yellow(msg));
+                            Console.println("      " + Console.yellow(sr.getFailureMessage()));
                         }
                     }
                 }

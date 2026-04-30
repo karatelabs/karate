@@ -169,6 +169,54 @@ class FailureReportingTest {
     }
 
     @Test
+    void testPrintSummaryShowsFullErrorMessageWithoutTruncation() throws Exception {
+        // Regression for #2822 — the failed-features console block used to truncate
+        // failure messages at 200 chars, hiding the actual diff. We want the full
+        // message printed, since match diffs and JS error stacks routinely exceed 200.
+        Path feature = tempDir.resolve("long-fail.feature");
+        // The body of the karate.fail() string is intentionally > 200 chars and
+        // contains a unique tail token so we can assert it survives end-to-end.
+        Files.writeString(feature, """
+                Feature: Long failure message
+
+                Scenario: long karate.fail message
+                * def longMessage = 'Expected [value-A] but got [value-B] — this is the actual diff the user needs to see, but in older builds it would get cut off well before reaching the end TAIL_TOKEN_END'
+                * eval karate.fail(longMessage)
+                """);
+
+        ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        Console.setOutput(new PrintStream(captured, true, "UTF-8"));
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(true)
+                .parallel(1);
+
+        assertTrue(result.isFailed());
+        String output = captured.toString("UTF-8");
+
+        // The full message survives — both the leading content and the tail token are visible.
+        assertTrue(output.contains("Expected [value-A] but got [value-B]"),
+                "expected leading diff content in summary output: " + output);
+        assertTrue(output.contains("TAIL_TOKEN_END"),
+                "expected tail of long message in summary output (regression for #2822): " + output);
+
+        // No truncation marker on the failure message line. We isolate the failed-features
+        // block to avoid false positives from unrelated "..." elsewhere in summary output.
+        int blockStart = output.indexOf("failed features:");
+        assertTrue(blockStart >= 0, "expected 'failed features:' block in output: " + output);
+        // End the block at the divider that precedes the summary stats.
+        int blockEnd = output.indexOf("\n----", blockStart);
+        if (blockEnd < 0) {
+            blockEnd = output.length();
+        }
+        String block = output.substring(blockStart, blockEnd);
+        assertFalse(block.contains("..."),
+                "failed-features block must not truncate the message with '...': " + block);
+    }
+
+    @Test
     void testPrintSummaryOrdersLocationSourceThenError() throws Exception {
         Path feature = tempDir.resolve("order.feature");
         Files.writeString(feature, """
