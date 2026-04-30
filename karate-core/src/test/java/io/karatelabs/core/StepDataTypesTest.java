@@ -125,6 +125,62 @@ class StepDataTypesTest {
         matchVar(sr, "foo", Map.of("a", 1));
     }
 
+    // ========== JsonPath wildcard for set / remove (issue #2819) ==========
+    // V1 routed any non-empty path after the variable through Jayway; v2's `set` / `remove`
+    // delegate to JS, so `[*]` / `..` / `[?(...)]` would hit the JS parser as syntax errors.
+    // The keyword now detects JsonPath constructs and falls back to Jayway.
+
+    @Test
+    void testSetWildcardAddsKeyToEachElement() {
+        ScenarioRuntime sr = run("""
+            * def body = [ { name: 'name1', value: true }, { name: 'name2', value: false } ]
+            * set body[*].parent = 'test'
+            * match each body == { name: '#string', value: '#boolean', parent: 'test' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testSetWildcardReplacesExistingKey() {
+        ScenarioRuntime sr = run("""
+            * def body = [ { a: 1, b: 2 }, { a: 3, b: 4 } ]
+            * set body[*].a = 99
+            * match body == [ { a: 99, b: 2 }, { a: 99, b: 4 } ]
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testRemoveWildcardDropsKeyFromEachElement() {
+        ScenarioRuntime sr = run("""
+            * def body = [ { name: 'name1', value: true }, { name: 'name2', value: false } ]
+            * remove body[*].value
+            * match each body == { name: '#string' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testSetWildcardOnNestedArray() {
+        ScenarioRuntime sr = run("""
+            * def root = { items: [ { id: 1 }, { id: 2 } ] }
+            * set root.items[*].flag = true
+            * match root == { items: [ { id: 1, flag: true }, { id: 2, flag: true } ] }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testRemoveRecursiveDescent() {
+        // `..` is the JsonPath recursive-descent operator — also can't be parsed as JS.
+        ScenarioRuntime sr = run("""
+            * def doc = { a: { secret: 1, keep: 2 }, b: { secret: 3, keep: 4 } }
+            * remove doc..secret
+            * match doc == { a: { keep: 2 }, b: { keep: 4 } }
+            """);
+        assertPassed(sr);
+    }
+
     @Test
     void testCopy() {
         ScenarioRuntime sr = run("""

@@ -606,6 +606,19 @@ public class StepExecutor {
                 }
                 return;
             }
+
+            // V1-compatible JsonPath wildcard support: e.g. * set body[*].parent = 'test'
+            // JS can't parse [*] / .. / [? — route these through Jayway.
+            if (StepUtils.containsJsonPathWildcard(leftPart)) {
+                StepUtils.VarAndPath vp = StepUtils.splitVarAndJsonPath(leftPart);
+                Object target = runtime.getVariable(vp.var);
+                if (target instanceof Map || target instanceof List) {
+                    String valueExpr = text.substring(eqIndex + 1).trim();
+                    Object value = evalValue(valueExpr);
+                    Json.of(target).set(vp.path, value);
+                    return;
+                }
+            }
         }
 
         // Default: evaluate as JS expression (e.g., "foo.b = 2", "arr[0] = 99")
@@ -878,19 +891,31 @@ public class StepExecutor {
 
             // Handle jsonpath removal
             if (path.startsWith("$")) {
-                // Extract the path after $ - e.g., "$.foo" -> "foo", "$['foo']" -> handle bracket notation
+                if (target instanceof Map || target instanceof List) {
+                    Json.of(target).remove(path);
+                    return;
+                }
+                // Fallback: traverse and remove for simple paths
                 String pathWithoutDollar = path.substring(1);
                 if (pathWithoutDollar.startsWith(".")) {
                     pathWithoutDollar = pathWithoutDollar.substring(1);
                 }
-
-                // For simple paths like "foo" or "foo.bar", traverse and remove
                 if (target instanceof Map) {
                     Map<String, Object> map = (Map<String, Object>) target;
                     StepUtils.removeAtPath(map, pathWithoutDollar);
                 }
             }
         } else {
+            // V1-compatible JsonPath wildcard support: e.g. * remove body[*].value
+            // JS can't parse [*] / .. / [? — route these through Jayway.
+            if (StepUtils.containsJsonPathWildcard(text)) {
+                StepUtils.VarAndPath vp = StepUtils.splitVarAndJsonPath(text);
+                Object target = runtime.getVariable(vp.var);
+                if (target instanceof Map || target instanceof List) {
+                    Json.of(target).remove(vp.path);
+                    return;
+                }
+            }
             // Check for dot notation: "varName.key" or just "varName"
             int dotIndex = text.indexOf('.');
             if (dotIndex < 0) {

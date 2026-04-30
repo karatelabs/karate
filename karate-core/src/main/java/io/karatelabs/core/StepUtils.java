@@ -333,4 +333,65 @@ public class StepUtils {
         }
     }
 
+    /**
+     * True when an LHS path uses a JsonPath construct that JS can't evaluate:
+     * {@code [*]} (array wildcard), {@code ..} (recursive descent), or {@code [?(...)]} (filter).
+     * Used by `set` / `remove` to fall back to Jayway when a step like
+     * {@code set body[*].parent = 'test'} would otherwise hit the JS parser. See issue #2819.
+     */
+    public static boolean containsJsonPathWildcard(String s) {
+        return s.contains("[*]") || s.contains("[?") || s.contains("..");
+    }
+
+    public static final class VarAndPath {
+        public final String var;
+        public final String path;
+
+        VarAndPath(String var, String path) {
+            this.var = var;
+            this.path = path;
+        }
+    }
+
+    /**
+     * Split an LHS like {@code body[*].parent} into variable {@code body} and JsonPath
+     * {@code $[*].parent}. Mirrors v1's {@code parseVariableAndPath}: variable is the leading
+     * identifier ({@code [A-Za-z_$][A-Za-z0-9_$]*}); the rest becomes the path, prefixed
+     * with {@code $} unless it already starts with one.
+     */
+    public static VarAndPath splitVarAndJsonPath(String lhs) {
+        lhs = lhs.trim();
+        int i = 0;
+        int n = lhs.length();
+        if (n == 0) {
+            return new VarAndPath("", "$");
+        }
+        char first = lhs.charAt(0);
+        if (!(Character.isLetter(first) || first == '_' || first == '$')) {
+            return new VarAndPath("", "$");
+        }
+        i = 1;
+        while (i < n) {
+            char c = lhs.charAt(i);
+            if (Character.isLetterOrDigit(c) || c == '_' || c == '$') {
+                i++;
+            } else {
+                break;
+            }
+        }
+        String var = lhs.substring(0, i);
+        String rest = lhs.substring(i).trim();
+        String path;
+        if (rest.isEmpty()) {
+            path = "$";
+        } else if (rest.charAt(0) == '$') {
+            path = rest;
+        } else if (rest.charAt(0) == '.' || rest.charAt(0) == '[') {
+            path = "$" + rest;
+        } else {
+            path = "$." + rest;
+        }
+        return new VarAndPath(var, path);
+    }
+
 }
