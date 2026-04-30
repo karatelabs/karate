@@ -521,6 +521,42 @@ class StepMatchTest {
         assertPassed(sr);
     }
 
+    // ========== Real null vs missing key (issue #2820) ==========
+
+    @Test
+    void testMatchRealNullField() {
+        // When a JSON property exists with the value null, `match x.y == null`
+        // should pass — the path exists, the value is null.
+        // https://github.com/karatelabs/karate/issues/2820
+        ScenarioRuntime sr = run("""
+            * def response = { status: 'ERROR_CREATING', user: null, settings: null }
+            * match response.status == 'ERROR_CREATING'
+            * match response.user == null
+            * match response.settings == null
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchMissingFieldStillNotPresent() {
+        // The complement: a key that genuinely doesn't exist must still surface
+        // as #notpresent so `== '#notpresent'` continues to pass and `== null` fails.
+        ScenarioRuntime sr = run("""
+            * def response = { foo: 'bar' }
+            * match response.missing == '#notpresent'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchMissingFieldNotEqualNull() {
+        ScenarioRuntime sr = run("""
+            * def response = { foo: 'bar' }
+            * match response.missing == null
+            """);
+        assertFailed(sr);
+    }
+
     // ========== Embedded variables on the RHS of match (issue #2813) ==========
     // V2 evaluates the RHS as JS, so the v1 trick of writing { id: #(id) } is a
     // syntax error. The same alternatives that work for `def` also work here.

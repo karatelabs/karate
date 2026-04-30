@@ -292,7 +292,7 @@ class MockE2eTest {
             # Endpoint that checks Authorization header and returns what it received
             Scenario: pathMatches('/auth/check')
               * def authHeader = requestHeaders['Authorization'] ? requestHeaders['Authorization'][0] : null
-              * def response = ({ authorization: authHeader })
+              * def response = authHeader == null ? ({}) : ({ authorization: authHeader })
 
             # OAuth2 token endpoint for client_credentials flow
             Scenario: pathMatches('/oauth/token') && methodIs('post')

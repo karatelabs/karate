@@ -172,8 +172,9 @@ abstract class KarateJsBase implements SimpleObject {
         info.put("scenarioName", s.getName());
         info.put("scenarioDescription", s.getDescription());
         ScenarioRuntime rt = getRuntime();
-        String errorMessage = rt != null && rt.getError() != null ? rt.getError().getMessage() : null;
-        info.put("errorMessage", errorMessage);
+        if (rt != null && rt.getError() != null) {
+            info.put("errorMessage", rt.getError().getMessage());
+        }
         return info;
     }
 

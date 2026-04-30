@@ -1372,14 +1372,20 @@ public class StepExecutor {
             if (lastDot > 0) {
                 String basePath = expr.substring(0, lastDot);
                 String propName = expr.substring(lastDot + 1);
-                // Use JS to check if property exists
+                // Resolve the base and check key presence directly. The JS `in`
+                // operator can misreport Java Map keys, so we cannot rely on it
+                // (issue #2820 — a real null property looked like #notpresent).
                 try {
-                    Object exists = runtime.eval("typeof " + basePath + " !== 'undefined' && " + basePath + " !== null && '" + propName + "' in " + basePath);
-                    if (Boolean.FALSE.equals(exists)) {
+                    Object base = runtime.eval(basePath);
+                    if (base instanceof Map<?, ?> baseMap) {
+                        if (!baseMap.containsKey(propName)) {
+                            return "#notpresent";
+                        }
+                        // key exists with a null value — return real null
+                    } else {
                         return "#notpresent";
                     }
                 } catch (Exception e) {
-                    // If check fails, treat as not present
                     return "#notpresent";
                 }
             }
