@@ -23,6 +23,7 @@
  */
 package io.karatelabs.http;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -43,8 +44,8 @@ public class InMemorySessionStore implements SessionStore {
     @Override
     public Session create(int expirySeconds) {
         cleanupExpiredIfNeeded();
-        long now = System.currentTimeMillis();
-        long expires = now + (expirySeconds * 1000L);
+        long now = Instant.now().getEpochSecond();
+        long expires = now + expirySeconds;
         String id = UUID.randomUUID().toString();
         Session session = new Session(id, new HashMap<>(), now, now, expires);
         sessions.put(id, session);
@@ -73,7 +74,7 @@ public class InMemorySessionStore implements SessionStore {
         if (session == null || session.getId() == null) {
             return;
         }
-        session.setUpdated(System.currentTimeMillis());
+        session.setUpdated(Instant.now().getEpochSecond());
         sessions.put(session.getId(), session);
     }
 
@@ -101,7 +102,7 @@ public class InMemorySessionStore implements SessionStore {
     }
 
     private boolean isExpired(Session session) {
-        return session.getExpires() > 0 && System.currentTimeMillis() > session.getExpires();
+        return session.getExpires() > 0 && Instant.now().getEpochSecond() > session.getExpires();
     }
 
     private void cleanupExpiredIfNeeded() {

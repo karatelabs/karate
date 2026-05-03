@@ -3,6 +3,8 @@ package io.karatelabs.http;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class SessionStoreTest {
@@ -121,17 +123,13 @@ class SessionStoreTest {
 
     @Test
     void testExpiredSessionNotReturned() {
-        // Create session with 1ms expiry
-        Session session = store.create(0);
+        // Force the session into the expired state (epoch seconds in the past).
+        // Don't rely on Thread.sleep — seconds-resolution would need a >1s pause.
+        Session session = store.create(60);
         String id = session.getId();
+        session.setExpires(Instant.now().getEpochSecond() - 1);
+        store.save(session);
 
-        // Wait for expiry
-        try {
-            Thread.sleep(50);
-        } catch (InterruptedException ignored) {
-        }
-
-        // Session should be expired and not returned
         Session retrieved = store.get(id);
         assertNull(retrieved);
     }
@@ -165,15 +163,50 @@ class SessionStoreTest {
     @Test
     void testExpiryCalculation() {
         int expirySeconds = 300; // 5 minutes
-        long before = System.currentTimeMillis();
+        long before = Instant.now().getEpochSecond();
         Session session = store.create(expirySeconds);
-        long after = System.currentTimeMillis();
+        long after = Instant.now().getEpochSecond();
 
-        long expectedMinExpiry = before + (expirySeconds * 1000L);
-        long expectedMaxExpiry = after + (expirySeconds * 1000L);
+        long expectedMinExpiry = before + expirySeconds;
+        long expectedMaxExpiry = after + expirySeconds;
 
         assertTrue(session.getExpires() >= expectedMinExpiry);
         assertTrue(session.getExpires() <= expectedMaxExpiry);
+    }
+
+    /**
+     * Locks in the framework's session-time unit contract: {@code created /
+     * updated / expires} are <b>epoch seconds</b>, not milliseconds. A
+     * regression to milliseconds would silently break any persistence layer
+     * relying on it as a TTL — most notably DynamoDB's
+     * {@code TimeToLiveSpecification}, which interprets the attribute as
+     * seconds and silently no-ops on millisecond values (treating them as
+     * dates ~58,000 years in the future).
+     *
+     * <p>This was the legacy karate-core 1.5.0 contract; the post-rewrite
+     * implementation initially regressed to milliseconds, which is what this
+     * test guards against.</p>
+     */
+    @Test
+    void testSessionTimesAreEpochSeconds() {
+        long nowSec = Instant.now().getEpochSecond();
+        Session session = store.create(600);
+
+        // Each field should be a 10-digit epoch-seconds value, not a 13-digit ms value.
+        // 1e11 = ~year 5138 in seconds, but only ~year 1973 in ms — so anything
+        // in the current decade is well below 1e11 if it's seconds, and well
+        // above if it's ms. This bound is robust through ~year 5000.
+        long secondsUpperBound = 100_000_000_000L; // 1e11
+        assertTrue(session.getCreated() < secondsUpperBound,
+                "getCreated() must be epoch seconds, not millis (got " + session.getCreated() + ")");
+        assertTrue(session.getUpdated() < secondsUpperBound,
+                "getUpdated() must be epoch seconds, not millis (got " + session.getUpdated() + ")");
+        assertTrue(session.getExpires() < secondsUpperBound,
+                "getExpires() must be epoch seconds, not millis (got " + session.getExpires() + ")");
+
+        // And the values should be consistent with "now" in seconds.
+        assertTrue(Math.abs(session.getCreated() - nowSec) <= 2);
+        assertEquals(session.getCreated() + 600, session.getExpires());
     }
 
 }

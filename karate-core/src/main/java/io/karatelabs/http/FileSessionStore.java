@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -61,8 +62,8 @@ public class FileSessionStore implements SessionStore {
     @Override
     public Session create(int expirySeconds) {
         cleanupExpiredIfNeeded();
-        long now = System.currentTimeMillis();
-        long expires = now + (expirySeconds * 1000L);
+        long now = Instant.now().getEpochSecond();
+        long expires = now + expirySeconds;
         String id = UUID.randomUUID().toString();
         Session session = new Session(id, new HashMap<>(), now, now, expires);
         writeToDisk(session);
@@ -91,7 +92,7 @@ public class FileSessionStore implements SessionStore {
         if (session == null || session.getId() == null) {
             return;
         }
-        session.setUpdated(System.currentTimeMillis());
+        session.setUpdated(Instant.now().getEpochSecond());
         writeToDisk(session);
     }
 
@@ -148,7 +149,7 @@ public class FileSessionStore implements SessionStore {
     }
 
     private boolean isExpired(Session session) {
-        return session.getExpires() > 0 && System.currentTimeMillis() > session.getExpires();
+        return session.getExpires() > 0 && Instant.now().getEpochSecond() > session.getExpires();
     }
 
     private void cleanupExpiredIfNeeded() {

@@ -198,6 +198,8 @@ HttpServer.start(8080, new RequestHandler(config, resolver));
 | `sessionStore(store)` | `null` | Session store (null = no sessions) |
 | `sessionExpirySeconds(sec)` | 600 | Session TTL |
 | `sessionCookieName(name)` | `karate.sid` | Session cookie name |
+
+> **Session-time unit:** `Session.getCreated() / getUpdated() / getExpires()` are **epoch seconds (UTC)**, not milliseconds. This makes the `expires` field directly usable as a DynamoDB `TimeToLiveSpecification` attribute — DDB only sweeps rows when the value is in seconds; ms values silently no-op (treated as ~year 58,200 AD). Custom `SessionStore` implementations must use `Instant.now().getEpochSecond()`, never `System.currentTimeMillis()`.
 | `apiPrefix(prefix)` | `/api/` | URL prefix for `.js` handlers |
 | `staticPrefix(prefix)` | `/pub/` | URL prefix for static files |
 | `csrfEnabled(bool)` | `true` | CSRF protection |

@@ -63,8 +63,8 @@ class FileSessionStoreTest {
         String id = session.getId();
         assertNotNull(store.get(id));
 
-        // Force expiry by modifying the session's expires field
-        session.setExpires(System.currentTimeMillis() - 1000);
+        // Force expiry by modifying the session's expires field (epoch seconds, in the past)
+        session.setExpires(java.time.Instant.now().getEpochSecond() - 1);
         store.save(session);
 
         assertNull(store.get(id));
