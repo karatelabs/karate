@@ -1210,6 +1210,59 @@ class HtmlReportWriterTest {
         assertTrue(stepLog.contains("X-Secret: ***"), "X-Secret header should be masked");
     }
 
+    // Repro for issue #2826 — mask configured via karate.configure() inside karate-config.js
+    // is silently dropped because ScenarioRuntime.call() resets LogContext to a fresh instance
+    // AFTER karate-config.js has already populated it during the constructor's initEngine().
+    @Test
+    void testIssue2826MaskInKarateConfigJs(@TempDir Path tempDir) throws Exception {
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+                function fn() {
+                  karate.configure('logging', {
+                    pretty: true,
+                    mask: {
+                      headers: ['Authorization', 'X-Secret'],
+                      jsonPaths: ['$..token'],
+                      patterns: [{ regex: 'Bearer [A-Za-z0-9._-]+', replacement: 'Bearer ***' }],
+                      replacement: '***'
+                    }
+                  });
+                  return {};
+                }
+                """);
+        Path feature = tempDir.resolve("test.feature");
+        Files.writeString(feature, ("""
+                Feature: Mask via karate-config.js
+                Scenario: secrets must still be masked
+                * def authToken = karate.properties['test.auth.token']
+                * url 'http://127.0.0.1:__PORT__'
+                * path 'api/users'
+                * header Authorization = 'Bearer ' + authToken
+                * header X-Secret = 'plain-secret-value'
+                * method get
+                * status 200
+                """).replace("__PORT__", String.valueOf(harness.getPort())));
+        Path reportDir = loggingTestDir("issue-2826-config-js");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .configDir(tempDir.toString())
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .systemProperty("test.auth.token", "eyJhbGciOiJIUzI1NiJ9.SECRET.TOKEN")
+                .parallel(1);
+        assertTrue(result.isPassed());
+
+        String stepLog = extractFirstHttpStepLog(reportDir);
+        assertFalse(stepLog.contains("eyJhbGciOiJIUzI1NiJ9.SECRET.TOKEN"),
+                "raw bearer token MUST NOT appear when mask is set in karate-config.js — "
+                        + "got log: " + stepLog);
+        assertFalse(stepLog.contains("plain-secret-value"),
+                "X-Secret value must be redacted in the captured log");
+        assertTrue(stepLog.contains("Authorization: ***"),
+                "Authorization header should be masked");
+    }
+
     @Test
     void testLoggingMaskJsonPaths(@TempDir Path tempDir) throws Exception {
         Path feature = writeFeatureCallingHarness(tempDir, """

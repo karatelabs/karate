@@ -288,6 +288,25 @@ configure logging = {
 
 The `HttpLogger` always writes the **full** request/response (with bodies, headers) to the report buffer at INFO. The console emission is auto-tiered by SLF4J level: INFO = one-liner, DEBUG = +headers, TRACE = +body. The two knobs let you, e.g., capture full traces in reports for post-hoc debugging while keeping a parallel run's console quiet.
 
+> **HTTP bodies show up in the HTML report by default — you do not need to crank console to TRACE.** Defaults are `report: 'debug'` (≥ INFO captured) and `console: 'info'` (one-liner on stdout). Bodies always land in the report buffer at INFO, so they appear in HTML / JSONL / Cucumber / JUnit regardless of the console level. Only set `console: 'trace'` if you specifically want bodies streaming to stdout — which is rarely what you want for a real test run. **v1 difference:** v1 emitted full bodies to console at DEBUG; v2 reserves DEBUG for headers and TRACE for body. If you used to set `karate.console.log.level=debug` to see bodies in your terminal, switch to looking at the HTML report (or set `console: 'trace'` if you really want it on stdout).
+
+### Where to put `configure logging`
+
+Both forms are supported and both stick across the scenario:
+
+```javascript
+// karate-config.js — applies to every scenario in the suite
+karate.configure('logging', { mask: { headers: ['Authorization'] }, pretty: true });
+```
+
+```gherkin
+# Background — applies to every scenario in this feature
+Background:
+* configure logging = { mask: { jsonPaths: ['$..token'] } }
+```
+
+`KarateConfig` is the source of truth — `LogContext` is a per-thread cache that `ScenarioRuntime.call()` repopulates from config at scenario entry. Mid-test `* configure logging` mutations are auto-snapshot/restored so they don't leak into the next scenario. Source: `KarateConfig.applyLoggingToContext`, `ScenarioRuntime.call()`.
+
 ### Mid-test level flips with auto-restore
 
 `* configure logging = { report: 'error' }` mid-flow takes effect immediately. At scenario end, the level is automatically snapshotted and restored, so the next scenario starts at whatever `karate-config.js` set. This automates the v1 pattern of manually reading/saving/resetting Logback's level via reflection.

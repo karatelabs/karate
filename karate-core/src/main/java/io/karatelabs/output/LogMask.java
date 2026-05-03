@@ -25,6 +25,7 @@ package io.karatelabs.output;
 
 import io.karatelabs.common.Json;
 import io.karatelabs.js.JavaCallable;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Declarative HTTP log masking. Applied by {@link HttpLogger} when formatting
@@ -50,6 +52,10 @@ import java.util.regex.Pattern;
  * </pre>
  */
 public class LogMask {
+
+    private static final Logger logger = LogContext.RUNTIME_LOGGER;
+    private static final Set<String> KNOWN_KEYS = Set.of(
+            "headers", "jsonPaths", "patterns", "replacement", "enableForUri");
 
     private static final String DEFAULT_REPLACEMENT = "***";
 
@@ -76,6 +82,11 @@ public class LogMask {
         if (map == null || map.isEmpty()) {
             return null;
         }
+        for (String key : map.keySet()) {
+            if (!KNOWN_KEYS.contains(key)) {
+                logger.warn("configure logging.mask: unknown key '{}' (known: {})", key, KNOWN_KEYS);
+            }
+        }
         String replacement = map.get("replacement") instanceof String s ? s : DEFAULT_REPLACEMENT;
         Set<String> headers = new LinkedHashSet<>();
         if (map.get("headers") instanceof List<?> list) {
@@ -95,21 +106,53 @@ public class LogMask {
         }
         List<PatternRule> patternRules = new ArrayList<>();
         if (map.get("patterns") instanceof List<?> list) {
+            int idx = 0;
             for (Object item : list) {
                 if (item instanceof Map<?, ?> pm) {
                     Object regex = pm.get("regex");
-                    if (regex == null) continue;
+                    if (regex == null) {
+                        logger.warn("configure logging.mask.patterns[{}] missing 'regex' — skipped", idx);
+                        idx++;
+                        continue;
+                    }
                     Object rep = pm.get("replacement");
                     String repStr = rep == null ? replacement : rep.toString();
-                    patternRules.add(new PatternRule(Pattern.compile(regex.toString()), repStr));
+                    try {
+                        patternRules.add(new PatternRule(Pattern.compile(regex.toString()), repStr));
+                    } catch (PatternSyntaxException e) {
+                        // Skip rather than fail-fast — a typo in one rule shouldn't blow up
+                        // the whole config-js eval. The warn names the entry so the user
+                        // can find it. Other rules in the same mask still apply.
+                        logger.warn("configure logging.mask.patterns[{}] invalid regex '{}': {} — skipped",
+                                idx, regex, e.getDescription());
+                    }
                 }
+                idx++;
             }
         }
         JavaCallable enableForUri = map.get("enableForUri") instanceof JavaCallable c ? c : null;
         if (headers.isEmpty() && jsonPaths.isEmpty() && patternRules.isEmpty()) {
+            // User provided a mask map but every rule list is empty / invalid. Without this
+            // warn the mask silently does nothing, which was hard to debug in #2826.
+            logger.warn("configure logging.mask: no usable rules — set at least one of "
+                    + "headers / jsonPaths / patterns. mask is OFF.");
             return null;
         }
         return new LogMask(headers, jsonPaths, patternRules, replacement, enableForUri);
+    }
+
+    /**
+     * One-line description of mask rule counts, e.g.
+     * {@code "3 headers, 2 jsonPaths, 1 pattern"}. Used by the per-scenario
+     * "mask active" debug log so users can verify their config compiled.
+     */
+    public String describe() {
+        int h = maskedHeadersLower.size();
+        int j = jsonPaths.size();
+        int p = patternRules.size();
+        return h + (h == 1 ? " header, " : " headers, ")
+                + j + (j == 1 ? " jsonPath, " : " jsonPaths, ")
+                + p + (p == 1 ? " pattern" : " patterns");
     }
 
     public boolean enabledForUri(String uri) {

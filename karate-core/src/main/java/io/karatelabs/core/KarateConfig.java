@@ -27,6 +27,7 @@ import io.karatelabs.js.SimpleObject;
 import org.slf4j.Logger;
 import io.karatelabs.output.LogContext;
 import io.karatelabs.output.LogLevel;
+import io.karatelabs.output.LogMask;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -116,6 +117,11 @@ public class KarateConfig implements SimpleObject {
             "console", "info",
             "pretty", true
     ));
+    // Compiled form of logging.mask. KarateConfig is the source of truth — LogContext is a
+    // per-thread cache that ScenarioRuntime.call() repopulates from this field at scenario
+    // entry. Keeps mask/pretty alive across the LogContext.set() reset done at call() entry,
+    // which previously dropped any mask set during karate-config.js (issue #2826).
+    private LogMask compiledMask;
 
     // CallSingleCache: { minutes, dir }
     private Map<String, Object> callSingleCache = new HashMap<>();
@@ -200,6 +206,7 @@ public class KarateConfig implements SimpleObject {
         this.report = new HashMap<>(other.report);
         this.logging = new HashMap<>(other.logging);
         // logging.mask is a LogMask (immutable from our perspective) — shallow copy is fine
+        this.compiledMask = other.compiledMask;
         this.callSingleCache = new HashMap<>(other.callSingleCache);
         // Headers/Cookies (shallow copy - could be function refs)
         this.headers = other.headers;
@@ -593,17 +600,40 @@ public class KarateConfig implements SimpleObject {
             Object maskValue = map.get("mask");
             if (maskValue == null) {
                 this.logging.remove("mask");
+                this.compiledMask = null;
                 LogContext.get().setMask(null);
             } else if (maskValue instanceof Map<?, ?> maskMap) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> mm = (Map<String, Object>) maskMap;
-                io.karatelabs.output.LogMask compiled = io.karatelabs.output.LogMask.fromMap(mm);
+                LogMask compiled = LogMask.fromMap(mm);
                 this.logging.put("mask", mm);
+                this.compiledMask = compiled;
                 LogContext.get().setMask(compiled);
             } else {
                 throw new RuntimeException("configure 'logging.mask' expects a map, got: " + maskValue.getClass().getName());
             }
         }
+    }
+
+    /**
+     * Push this config's logging settings into the given LogContext.
+     * Called by {@link ScenarioRuntime#call()} after it allocates a fresh thread-local
+     * LogContext, so any mask / pretty values set in karate-config.js (or a prior step)
+     * survive into the scenario's HTTP logging.
+     */
+    public void applyLoggingToContext(LogContext ctx) {
+        if (ctx == null) return;
+        ctx.setMask(compiledMask);
+        Object prettyVal = logging.get("pretty");
+        ctx.setPretty(prettyVal == null ? true : toBoolean(prettyVal));
+    }
+
+    /**
+     * Compiled HTTP log mask. Source of truth — {@link LogContext} mirrors this for
+     * per-thread reads by {@link io.karatelabs.output.HttpLogger}.
+     */
+    public LogMask getCompiledMask() {
+        return compiledMask;
     }
 
     private void configureCallSingleCache(Object value) {

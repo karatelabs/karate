@@ -337,6 +337,19 @@ configure logging = {
 
 See [DESIGN.md § Logging](./DESIGN.md#logging) for the full shape and semantics.
 
+### Where do HTTP bodies show up?
+
+Two channels, two thresholds. **The HTML report has full bodies by default — you do not need to set anything to see them.**
+
+| What you want | `report` | `console` | Notes |
+|---|---|---|---|
+| Bodies in HTML report, quiet console (**default**) | `'debug'` | `'info'` | One-liner per request on stdout, full headers + body in HTML / JSONL / JUnit / Cucumber. |
+| Bodies on console too | `'debug'` | `'trace'` | Streams full request + body to stdout. Noisy — use locally for debugging, not CI. |
+| Headers on console (no body), bodies in report | `'debug'` | `'debug'` | Useful when you want to see what URL/headers fired without dumping bodies on screen. |
+| Quiet report and console | `'warn'` | `'warn'` | HTTP request lines drop out of HTML too. Last resort for sensitive runs — see also `@report=false` below. |
+
+**Why this differs from v1.** v1 wired a single Logback level for everything, and emitted full bodies at DEBUG. v2 splits report-buffer threshold from console threshold, and the console is auto-tiered: `INFO` = one-liner, `DEBUG` = headers, `TRACE` = body. If your v1 muscle memory was "set DEBUG to see bodies in the terminal," in v2 just open `target/karate-reports/karate-summary.html` — the bodies are already there.
+
 ### V1 → V2 mapping
 
 | V1                                                      | V2 equivalent                                                                                       |

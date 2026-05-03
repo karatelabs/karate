@@ -828,6 +828,18 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     @Override
     public ScenarioResult call() {
         LogContext.set(new LogContext());
+        // Repopulate the fresh LogContext from this scenario's KarateConfig — which is
+        // the source of truth for mask + pretty. Without this, anything that
+        // karate-config.js (evaluated during the constructor's initEngine()) configured
+        // via `karate.configure('logging', {...})` would be silently dropped here, since
+        // the new LogContext starts with mask=null. See issue #2826.
+        config.applyLoggingToContext(LogContext.get());
+        if (config.getCompiledMask() != null && logger.isDebugEnabled()) {
+            // One-line confirmation per scenario so users can verify the mask compiled
+            // and is actually active. Visible only when karate.runtime is at DEBUG, so
+            // it stays out of the way for normal runs.
+            logger.debug("http log mask active: {}", config.getCompiledMask().describe());
+        }
         // Snapshot logging state BEFORE any mid-test `configure logging` mutations so we
         // can restore in finally. The static report-buffer threshold and the Logback
         // "karate" level are global, so without this the next scenario on this thread
