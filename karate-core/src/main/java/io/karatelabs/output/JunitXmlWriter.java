@@ -208,13 +208,25 @@ public final class JunitXmlWriter {
             return;
         }
         for (StepResult sr : stepResults) {
-            String prefix = sr.getStep().getPrefix();
-            String text = sr.getStep().getText();
-            sb.append(prefix).append(" ").append(text).append("\n");
+            // Synthetic step results (lifecycle hooks, @fail tag, scenario init failures)
+            // have a null Step — render a "* <hookName-or-message>" placeholder rather than
+            // NPE'ing and silently dropping the entire feature's XML. See issue #2827.
+            boolean syntheticLogIsDescription = false;
+            if (sr.getStep() != null) {
+                sb.append(sr.getStep().getPrefix()).append(" ").append(sr.getStep().getText()).append("\n");
+            } else if (sr.isHook()) {
+                sb.append("* ").append(sr.getHookName()).append("\n");
+            } else if (sr.getLog() != null && !sr.getLog().isEmpty()) {
+                // fakeSuccess / fakeFailure: the log IS the description — render once, skip dup
+                sb.append("* ").append(sr.getLog().trim()).append("\n");
+                syntheticLogIsDescription = true;
+            } else {
+                sb.append("*\n");
+            }
 
             // Include step log if present (strip ANSI escape codes — CI parsers choke on them)
             String stepLog = sr.getLog();
-            if (stepLog != null && !stepLog.isEmpty()) {
+            if (!syntheticLogIsDescription && stepLog != null && !stepLog.isEmpty()) {
                 sb.append(Console.stripAnsi(stepLog));
                 if (!stepLog.endsWith("\n")) {
                     sb.append("\n");

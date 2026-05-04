@@ -314,4 +314,43 @@ class JunitXmlWriterTest {
         assertTrue(xml.contains("</system-out>"), "XML should contain </system-out>");
     }
 
+    @Test
+    void testJunitXmlWithSyntheticStep() throws Exception {
+        // regression for https://github.com/karatelabs/karate/issues/2827
+        // synthetic step results (null Step) — produced by @fail tag, lifecycle hooks,
+        // and scenario init failures — used to NPE in appendStepLogs and silently drop
+        // the entire feature's XML file.
+        Path feature = tempDir.resolve("synthetic.feature");
+        Files.writeString(feature, """
+            Feature: Synthetic Step
+
+            @fail
+            Scenario: failing scenario expected to fail
+            * def a = 1
+            * match a == 999
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputJunitXml(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        // @fail flips: original FAIL becomes PASS at scenario level
+        assertTrue(result.isPassed());
+
+        Path xmlPath = reportDir.resolve("junit-xml/synthetic.xml");
+        assertTrue(Files.exists(xmlPath), "JUnit XML must still be written when synthetic steps are present");
+
+        String xml = Files.readString(xmlPath);
+        assertTrue(xml.contains("<testsuite"));
+        assertTrue(xml.contains("name=\"failing scenario expected to fail\""));
+        // synthetic step renders as "* <description>" — no NPE, no orphan empty-prefix lines
+        assertTrue(xml.toLowerCase().contains("expect test to fail"),
+                "synthetic step description should appear in system-out");
+    }
+
 }

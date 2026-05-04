@@ -344,6 +344,56 @@ class CucumberJsonWriterTest {
     }
 
     @Test
+    void testCucumberJsonWithSyntheticStep() throws Exception {
+        // regression for https://github.com/karatelabs/karate/issues/2827
+        // synthetic step results (null Step) — produced by @fail tag, lifecycle hooks,
+        // and scenario init failures — used to NPE in stepToMap and silently drop the
+        // entire feature's JSON file.
+        Path feature = tempDir.resolve("synthetic.feature");
+        Files.writeString(feature, """
+            Feature: Synthetic Step
+
+            @fail
+            Scenario: failing scenario expected to fail
+            * def a = 1
+            * match a == 999
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputCucumberJson(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        // @fail flips: original FAIL becomes PASS at scenario level
+        assertTrue(result.isPassed());
+
+        Path jsonPath = reportDir.resolve("cucumber-json/synthetic.json");
+        assertTrue(Files.exists(jsonPath), "Cucumber JSON must still be written when synthetic steps are present");
+
+        String jsonStr = Files.readString(jsonPath);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> features = (List<Map<String, Object>>) (List<?>) Json.of(jsonStr).asList();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> elements = (List<Map<String, Object>>) features.get(0).get("elements");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> steps = (List<Map<String, Object>>) elements.get(0).get("steps");
+
+        // Last step is the synthetic fakeSuccess marker
+        Map<String, Object> synthetic = steps.get(steps.size() - 1);
+        assertEquals("* ", synthetic.get("keyword"));
+        assertEquals(0, synthetic.get("line"));
+        assertTrue(synthetic.get("name").toString().toLowerCase().contains("fail"),
+                "synthetic step name should describe the @fail expectation");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> syntheticResult = (Map<String, Object>) synthetic.get("result");
+        assertEquals("passed", syntheticResult.get("status"));
+    }
+
+    @Test
     void testCucumberJsonWithDataTable() throws Exception {
         Path feature = tempDir.resolve("table.feature");
         Files.writeString(feature, """

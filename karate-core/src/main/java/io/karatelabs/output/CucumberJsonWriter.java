@@ -199,26 +199,41 @@ public final class CucumberJsonWriter {
         Map<String, Object> map = new LinkedHashMap<>();
         Step step = sr.getStep();
 
-        // Cucumber keyword format includes trailing space (e.g., "Given ")
-        String keyword = mapToCucumberKeyword(step.getPrefix());
-        map.put("keyword", keyword);
-        // Name includes both Karate keyword and text (e.g., "def a = 1" not just "a = 1")
-        String name = buildStepName(step);
-        map.put("name", name);
-        map.put("line", step.getLine());
+        // Synthetic step results (lifecycle hooks, @fail tag, scenario init failures)
+        // have a null Step — emit a "* <hookName-or-message>" placeholder so the writer
+        // doesn't NPE and so the artifact still records what happened. See issue #2827.
+        if (step == null) {
+            map.put("keyword", "* ");
+            String name;
+            if (sr.isHook()) {
+                name = sr.getHookName();
+            } else if (sr.getLog() != null && !sr.getLog().isEmpty()) {
+                name = sr.getLog().trim();
+            } else {
+                name = "";
+            }
+            map.put("name", name);
+            map.put("line", 0);
+        } else {
+            // Cucumber keyword format includes trailing space (e.g., "Given ")
+            map.put("keyword", mapToCucumberKeyword(step.getPrefix()));
+            // Name includes both Karate keyword and text (e.g., "def a = 1" not just "a = 1")
+            map.put("name", buildStepName(step));
+            map.put("line", step.getLine());
 
-        // Doc string
-        if (step.getDocString() != null) {
-            Map<String, Object> docString = new LinkedHashMap<>();
-            docString.put("value", step.getDocString());
-            docString.put("content_type", "");
-            docString.put("line", step.getLine() + 1);
-            map.put("doc_string", docString);
-        }
+            // Doc string
+            if (step.getDocString() != null) {
+                Map<String, Object> docString = new LinkedHashMap<>();
+                docString.put("value", step.getDocString());
+                docString.put("content_type", "");
+                docString.put("line", step.getLine() + 1);
+                map.put("doc_string", docString);
+            }
 
-        // Data table
-        if (step.getTable() != null) {
-            map.put("rows", tableToRows(step.getTable(), step.getLine()));
+            // Data table
+            if (step.getTable() != null) {
+                map.put("rows", tableToRows(step.getTable(), step.getLine()));
+            }
         }
 
         // Result
