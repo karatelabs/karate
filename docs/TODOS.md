@@ -70,6 +70,26 @@ Scratch pad for tracking work across the project. See also [CAPABILITIES.yaml](.
 ## Mocks
 
 - [ ] Expand JS mock documentation in MOCKS.md — more examples of `pathMatches`, session patterns, and comparison with feature-file mocks
+- [ ] **`context.synchronized(name, fn)` for JS-file mocks.** `MockHandler.apply()` wraps every Karate-feature mock request in a `requestLock`, so feature-file mocks serialize naturally and shared mutable state (singleton session, caches) "just works". `ServerRequestHandler` (the JS-file mock path) has no equivalent — concurrent requests race on shared state, and the races aren't fixable in user data structures alone: JS array ops (`push`, `splice`, `sort`, …) are non-atomic read-modify-write sequences in `JsArrayPrototype` itself. Two manifestations seen in repro: silent item loss (T2 reads stale `len`, `set(len, x)` overwrites T1's append) and `IndexOutOfBoundsException` / `ConcurrentModificationException` from `JsArray$ArrayLength.applySet` taking the truncate path on a list that grew under it. Auditing every Array.prototype/Object operation for atomicity isn't feasible (single-threaded execution is a JS-spec invariant — no engine promises this), so the right fix is to expose locking to user code.
+
+  **Decision**: ship `context.synchronized(name, fn)` on the JS-file-mock `context` namespace (matches the existing JS-mock idiom of `context.uuid()` etc.; avoids introducing a new `karate` binding for one method). Reentrant, named, callback-only (forces try/finally; no leaks). Lock registry is a `ConcurrentHashMap<String, ReentrantLock>` on `ServerConfig` so each server is isolated.
+
+  **Why not a global `serverConfig.singleThreadedJs(true)` knob**: punishes read-only / non-shared paths in the same app and turns parallel JS mocks back into the same single-threaded performance profile that feature-file mocks already have — power users want to be selective.
+
+  **Why not also bind on the test-scenario `karate` namespace today**: footgun risk. Easy to silently kill `parallel(N)` suite throughput, hides scenario-isolation problems, lock-name typos are different locks (silent), unbounded lock-map growth from per-id keys. Defer until real demand surfaces.
+
+  **Workaround in the meantime**: wrap the entire request handler in a `ReentrantLock` (mirrors what `MockHandler` does internally). One-liner in user code:
+
+  ```java
+  ReentrantLock lock = new ReentrantLock();
+  Function<HttpRequest, HttpResponse> inner = new ServerRequestHandler(config, resolver);
+  Function<HttpRequest, HttpResponse> serialized = req -> {
+      lock.lock();
+      try { return inner.apply(req); } finally { lock.unlock(); }
+  };
+  ```
+
+  See `karate-todo`'s `App.handler()` for a worked example.
 
 ## Docs / Quality
 
