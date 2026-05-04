@@ -45,7 +45,12 @@ class KaDialect extends AbstractProcessorDialect {
     @Override
     public Set<IProcessor> getProcessors(String dialectPrefix) {
         Set<IProcessor> ps = new HashSet<>();
-        ps.add(new KaScriptSrcProcessor(dialectPrefix, resolver, contextPath, serverMode));
+        // Two instances of KaScriptSrcProcessor — one fires on `src` (covers
+        // <script src>, <img src>, etc.), the other on `href` (covers <link href>,
+        // <a href> when carrying ka:nocache). The processor's body branches on the
+        // ka:* attributes present, so registering twice is sufficient.
+        ps.add(new KaScriptSrcProcessor(dialectPrefix, resolver, contextPath, serverMode, "src"));
+        ps.add(new KaScriptSrcProcessor(dialectPrefix, resolver, contextPath, serverMode, "href"));
         ps.add(new KaScriptProcessor(dialectPrefix));
         ps.add(new KaSetAttrProcessor(dialectPrefix));
         return ps;

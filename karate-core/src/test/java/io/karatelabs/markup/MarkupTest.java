@@ -73,6 +73,32 @@ class MarkupTest {
         assertTrue(rendered.contains("<script src=\"temp.js?ts=" + resource.getLastModified() + "\"></script>"));
     }
 
+    @Test
+    void testNoCacheLinkHref() {
+        // ka:nocache on <link href> must work the same as on <script src> — both
+        // get ?ts=<lastModified> appended and the ka:nocache attribute scrubbed.
+        Resource resource = Resource.path("classpath:markup/temp.css");
+        String rendered = render("nocache.html");
+        assertTrue(rendered.contains("href=\"temp.css?ts=" + resource.getLastModified() + "\""),
+                "link href should carry ?ts=<lastModified>: " + rendered);
+        assertFalse(rendered.contains("ka:nocache"),
+                "ka:nocache attribute must be removed from rendered output: " + rendered);
+    }
+
+    @Test
+    void testNoCacheInlineLink() {
+        // Same shape as testNoCacheLinkHref but via processString to lock down
+        // the contract for callers that don't load template files.
+        Resource resource = Resource.path("classpath:markup/temp.css");
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String rendered = markup.processString(
+                "<link href=\"temp.css\" rel=\"stylesheet\" ka:nocache=\"true\"/>", null);
+        assertTrue(rendered.contains("href=\"temp.css?ts=" + resource.getLastModified() + "\""),
+                "rendered: " + rendered);
+        assertFalse(rendered.contains("ka:nocache"), "rendered: " + rendered);
+    }
+
     static String MY_COLON = "my:";
 
     @Test

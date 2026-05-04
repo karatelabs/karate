@@ -33,6 +33,14 @@ import org.thymeleaf.processor.element.AbstractAttributeTagProcessor;
 import org.thymeleaf.processor.element.IElementTagStructureHandler;
 import org.thymeleaf.templatemode.TemplateMode;
 
+/**
+ * Resolves URL attributes on elements decorated with `ka:` markup — both
+ * `<script src>` (carries `ka:scope` for inline JS evaluation, plus `ka:nocache`
+ * for cache-busting) and `<link href>` (carries `ka:nocache` for stylesheets).
+ * Two instances are registered in {@link KaDialect}: one for the `src` attribute,
+ * one for `href`. The `ka:scope` branch only ever fires on `<script>`; the
+ * `ka:nocache` branch is path-attribute-agnostic.
+ */
 class KaScriptSrcProcessor extends AbstractAttributeTagProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(KaScriptSrcProcessor.class);
@@ -40,20 +48,22 @@ class KaScriptSrcProcessor extends AbstractAttributeTagProcessor {
     private final String hostContextPath;
     private final ResourceResolver resolver;
     private final boolean serverMode;
+    private final String urlAttr;
 
-    KaScriptSrcProcessor(String dialectPrefix, ResourceResolver resolver, String hostContextPath, boolean serverMode) {
-        super(TemplateMode.HTML, dialectPrefix, null, false, KaScriptProcessor.SRC, false, 1000, false);
+    KaScriptSrcProcessor(String dialectPrefix, ResourceResolver resolver, String hostContextPath, boolean serverMode, String urlAttr) {
+        super(TemplateMode.HTML, dialectPrefix, null, false, urlAttr, false, 1000, false);
         this.resolver = resolver;
         this.hostContextPath = hostContextPath;
         this.serverMode = serverMode;
+        this.urlAttr = urlAttr;
     }
 
     @Override
-    protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String src, IElementTagStructureHandler sh) {
+    protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag, AttributeName an, String urlValue, IElementTagStructureHandler sh) {
         String scope = tag.getAttributeValue(getDialectPrefix(), KaScriptProcessor.SCOPE);
         String noCache = tag.getAttributeValue(getDialectPrefix(), KaScriptProcessor.NOCACHE);
 
-        // For plain HTML mode (not server), skip resource resolution for static src attributes
+        // For plain HTML mode (not server), skip resource resolution for static URL attributes
         if (!serverMode && scope == null) {
             if (noCache != null) {
                 sh.removeAttribute(getDialectPrefix(), KaScriptProcessor.NOCACHE);
@@ -63,28 +73,28 @@ class KaScriptSrcProcessor extends AbstractAttributeTagProcessor {
 
         // Server mode or scope evaluation needed - resolve the resource
         if (scope == null && noCache == null) {
-            // Plain src attribute - just update with context path if needed
+            // Plain URL attribute - just update with context path if needed
             if (hostContextPath != null) {
-                src = hostContextPath + src;
-                sh.setAttribute(KaScriptProcessor.SRC, src);
+                urlValue = hostContextPath + urlValue;
+                sh.setAttribute(urlAttr, urlValue);
             }
             return;
         }
 
-        Resource srcResource = resolver.resolve(src, null);
+        Resource srcResource = resolver.resolve(urlValue, null);
         if (scope == null) { // no js evaluation, we just update the html for nocache
             if (hostContextPath != null) {
-                src = hostContextPath + src;
+                urlValue = hostContextPath + urlValue;
             }
             if (noCache != null) {
                 try {
-                    src = src + "?ts=" + srcResource.getLastModified();
+                    urlValue = urlValue + "?ts=" + srcResource.getLastModified();
                 } catch (Exception e) {
                     logger.warn("nocache failed: {}", e.getMessage());
                 }
                 sh.removeAttribute(getDialectPrefix(), KaScriptProcessor.NOCACHE);
             }
-            sh.setAttribute(KaScriptProcessor.SRC, src);
+            sh.setAttribute(urlAttr, urlValue);
         } else { // karate js evaluation
             String js = srcResource.getText();
             MarkupTemplateContext kec = (MarkupTemplateContext) ctx;

@@ -559,6 +559,25 @@ class DemoAppTest {
         assertEquals(404, response.getStatus());
     }
 
+    @Test
+    void testNoCacheRewritesScriptAndLink() {
+        // The shell layout has both <script src="/pub/app.js" ka:nocache> and
+        // <link href="/pub/app.css" ka:nocache>. Both should render with
+        // ?ts=<lastModified> appended and the ka:nocache attribute scrubbed.
+        // Pre-fix, only the <script src> path worked — <link href> leaked
+        // ka:nocache="true" into the rendered HTML and never got the cache-bust
+        // suffix.
+        HttpResponse response = get("/");
+        assertEquals(200, response.getStatus());
+        String body = response.getBodyString();
+        assertTrue(body.matches("(?s).*<script[^>]+src=\"/pub/app\\.js\\?ts=\\d+\"[^>]*></script>.*"),
+                "script src should carry ?ts=<lastModified>: " + body);
+        assertTrue(body.matches("(?s).*<link[^>]+href=\"/pub/app\\.css\\?ts=\\d+\"[^>]*/>.*"),
+                "link href should carry ?ts=<lastModified>: " + body);
+        assertFalse(body.contains("ka:nocache"),
+                "ka:nocache attribute must not leak into rendered HTML: " + body);
+    }
+
     // =================================================================================================================
     // AJAX/Partial Rendering Tests
     // =================================================================================================================
