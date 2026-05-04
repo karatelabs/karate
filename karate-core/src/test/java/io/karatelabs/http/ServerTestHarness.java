@@ -142,6 +142,16 @@ public class ServerTestHarness implements AutoCloseable {
     }
 
     public HttpResponse request(String method, String path, Object body) {
+        return request(method, path, body, null);
+    }
+
+    /**
+     * Request overload that accepts arbitrary headers — the typical use is to
+     * send a {@code Cookie} header so a test can exercise {@code request.cookies}
+     * in JS handlers / templates.
+     */
+    public HttpResponse request(String method, String path, Object body,
+                                Map<String, String> headers) {
         HttpRequestBuilder builder = new HttpRequestBuilder(client);
         builder.url(getBaseUrl());
 
@@ -157,6 +167,9 @@ public class ServerTestHarness implements AutoCloseable {
         builder.method(method);
         if (body != null) {
             builder.body(body);
+        }
+        if (headers != null) {
+            headers.forEach(builder::header);
         }
         return builder.invoke();
     }

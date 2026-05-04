@@ -275,7 +275,7 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
         if (!config.isDevMode() || sameSite == SameSite.NONE) {
             cookieValue += "; Secure";
         }
-        response.setHeader("Set-Cookie", cookieValue);
+        appendSetCookie(response, cookieValue);
     }
 
     /**
@@ -291,7 +291,26 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
         if (!config.isDevMode() || sameSite == SameSite.NONE) {
             cookieValue += "; Secure";
         }
-        response.setHeader("Set-Cookie", cookieValue);
+        appendSetCookie(response, cookieValue);
+    }
+
+    /**
+     * Append a {@code Set-Cookie} value while preserving any cookies a template
+     * already set during rendering. {@link HttpResponse#setHeader} replaces the
+     * existing list, so a naive {@code setHeader("Set-Cookie", sessionCookie)}
+     * would silently drop e.g. an SSO-bookmark cookie the page wrote. Two
+     * Set-Cookie headers are spec-compliant and standard.
+     */
+    private static void appendSetCookie(HttpResponse response, String cookieValue) {
+        java.util.Map<String, java.util.List<String>> headers = response.getHeaders();
+        java.util.List<String> existing = headers == null ? null : headers.get("Set-Cookie");
+        if (existing == null || existing.isEmpty()) {
+            response.setHeader("Set-Cookie", cookieValue);
+            return;
+        }
+        java.util.List<String> merged = new java.util.ArrayList<>(existing);
+        merged.add(cookieValue);
+        response.setHeader("Set-Cookie", merged);
     }
 
     private HttpResponse handleStatic(HttpRequest request, HttpResponse response) {

@@ -209,6 +209,38 @@ class DemoAppTest {
     // Session Object Tests
     // =================================================================================================================
 
+    // =================================================================================================================
+    // Request Cookies Tests
+    // =================================================================================================================
+
+    @Test
+    void testRequestCookiesEchoesNamedCookie() {
+        // /api/cookies.js reads request.cookies['<name>'].value and echoes it.
+        HttpResponse response = getWithCookie("/api/cookies?name=mySid", "mySid=abc123; theme=dark");
+        assertEquals(200, response.getStatus());
+        String body = response.getBodyString();
+        assertTrue(body.contains("\"name\":\"mySid\""), body);
+        assertTrue(body.contains("\"value\":\"abc123\""), body);
+    }
+
+    @Test
+    void testRequestCookiesAbsentReturnsNotFound() {
+        // No Cookie header at all → request.cookies is an empty map; lookup
+        // returns null, handler reports not-found cleanly.
+        HttpResponse response = get("/api/cookies?name=missing");
+        assertEquals(200, response.getStatus());
+        assertTrue(response.getBodyString().contains("\"found\":false"));
+    }
+
+    @Test
+    void testRequestCookiesIgnoresOtherCookies() {
+        // Cookie is sent but for a different name — handler still returns not-found
+        // for the requested name, doesn't get confused by the other entries.
+        HttpResponse response = getWithCookie("/api/cookies?name=missing",
+                "session=abc; theme=dark");
+        assertTrue(response.getBodyString().contains("\"found\":false"));
+    }
+
     @Test
     void testSessionInit() {
         HttpResponse response = get("/api/session?action=init");

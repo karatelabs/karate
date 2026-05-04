@@ -97,6 +97,36 @@ class ServerIntegrationTest {
     }
 
     @Test
+    void testJsEvalRequestCookies() {
+        // request.cookies returns Map<String, Map<String, String>> keyed by
+        // cookie name. JS reads a single value as request.cookies['name'].value.
+        harness.setHandler(ctx -> {
+            ctx.eval("var c = request.cookies['session']; "
+                   + "response.body = c ? c.value : 'none'");
+            return ctx.response();
+        });
+
+        HttpResponse response = harness.request("GET", "/test", null,
+                Map.of("Cookie", "session=abc123; theme=dark"));
+        assertEquals("abc123", response.getBodyString());
+    }
+
+    @Test
+    void testJsEvalRequestCookiesEmpty() {
+        // No Cookie header → request.cookies is an empty map; lookups return
+        // null/undefined cleanly. Guards in templates like
+        // `if (cookies && cookies['x'] && cookies['x'].value)` work as expected.
+        harness.setHandler(ctx -> {
+            ctx.eval("var c = request.cookies['absent']; "
+                   + "response.body = c ? c.value : 'none'");
+            return ctx.response();
+        });
+
+        HttpResponse response = harness.get("/test");
+        assertEquals("none", response.getBodyString());
+    }
+
+    @Test
     void testJsEvalSession() {
         harness.setHandler(ctx -> {
             ctx.eval("session.user = 'john'; response.body = 'user: ' + session.user");

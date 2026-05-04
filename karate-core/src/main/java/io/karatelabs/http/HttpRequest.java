@@ -644,6 +644,8 @@ public class HttpRequest implements SimpleObject {
                 return header();
             case "headerValues":
                 return headerValues();
+            case "cookies":
+                return getCookies();
             case "pathMatches":
                 return pathMatches();
             case "pathParams":

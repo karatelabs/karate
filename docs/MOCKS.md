@@ -346,9 +346,22 @@ Same as feature file mocks:
 
 | Object | Description |
 |--------|-------------|
-| `request` | HTTP request with `get`, `post`, `put`, `delete`, `pathMatches()`, `pathParams`, `body`, `param()`, `proceed()` |
+| `request` | HTTP request with `get`, `post`, `put`, `delete`, `pathMatches()`, `pathParams`, `body`, `param()`, `header()`, `cookies`, `proceed()` |
 | `response` | HTTP response with `status`, `body`, `headers` |
 | `session` | Persistent state across requests |
+
+`request.cookies` mirrors the feature-file `requestCookies` shape — a `Map<String, { name, value }>` keyed by cookie name. Read a single cookie's value as `request.cookies['name'].value`. Returns an empty map when the request had no `Cookie` header.
+
+```javascript
+// auth-checking JS mock
+var sid = request.cookies['session'];
+if (!sid || !sessions[sid.value]) {
+    response.status = 401;
+    response.body = { error: 'unauthorized' };
+} else {
+    response.body = { user: sessions[sid.value].userId };
+}
+```
 
 ### Proxy Mode in JS Files
 
