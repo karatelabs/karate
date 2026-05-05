@@ -65,7 +65,7 @@ permissions: read-all
 
 jobs:
   release:
-    timeout-minutes: 180
+    timeout-minutes: 240
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -116,7 +116,7 @@ jobs:
 
       - name: OWASP dependency check
         if: github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled'
-        timeout-minutes: 120
+        timeout-minutes: 180
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: mvn -B -ntp dependency-check:check -Pdepcheck -DnvdApiKey=${NVD_API_KEY} -DossIndexAnalyzerEnabled=false -DnvdValidForHours=144
@@ -125,8 +125,11 @@ jobs:
         if: always() && (github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled')
         run: python3 etc/generate-cve-report.py --version ${{ steps.version.outputs.version }}
 
+      # save only on success: an interrupted/timed-out NVD update produces a
+      # partial DB (visible as a cache far smaller than the typical 500MB-1GB
+      # and silently returns zero CVEs on every subsequent run)
       - name: Save NVD database cache
-        if: always() && (github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled')
+        if: success() && (github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled')
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.dependency-check/data
