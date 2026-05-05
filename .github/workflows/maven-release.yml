@@ -114,24 +114,24 @@ jobs:
           restore-keys: |
             nvd-db-
 
-      # Pin to 11.1.1 explicitly: the 12.x line has a CPE -> CVE lookup
-      # regression (CPE matches resolve fine but no CVEs are returned even
-      # for textbook cases like wire-schema CVE-2018-8909). 11.1.1 is the
-      # last 11.x with the working API/H2 ingestion pipeline. Bypassing
-      # the depcheck profile (which pins 12.2.1) so the version is fixed
-      # in CI rather than inherited from the pom.
+      # Pin dep-check version explicitly (rather than inheriting 12.2.1 from
+      # the depcheck profile in pom.xml), so CI is decoupled from pom drift.
+      # nvdApiResultsPerPage=1000 works around dep-check#8371 (NVD blocks
+      # requests where resultsPerPage>1000 with HTTP 404; plugin defaults
+      # to 2000 - "closed as not planned" upstream).
       - name: OWASP dependency check
         if: github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled'
         timeout-minutes: 180
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
-          mvn -B -ntp org.owasp:dependency-check-maven:11.1.1:check \
+          mvn -B -ntp org.owasp:dependency-check-maven:12.2.2:check \
             -DnvdApiKey=${NVD_API_KEY} \
             -DossIndexAnalyzerEnabled=false \
             -DskipProvidedScope=true \
             -DskipTestScope=true \
             -DnvdApiDelay=3000 \
+            -DnvdApiResultsPerPage=1000 \
             -DnvdValidForHours=144 \
             -Dformat=JSON
 
