@@ -1073,6 +1073,57 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     }
 
     /**
+     * Evaluate text as a Gherkin step against this runtime's variable / HTTP state.
+     * Accepts any Karate step prefix ({@code *}, {@code Given}, {@code When}, {@code Then},
+     * {@code And}, {@code But}) and prepends {@code "* "} when no prefix is present, so a
+     * plain expression like {@code "myFunc('input')"} works too. The synthesized step is
+     * marked fake ({@link Step#isFake()}) so listener and interceptor callbacks are
+     * skipped.
+     */
+    public StepResult evalAsStep(String text) {
+        long startTime = System.currentTimeMillis();
+        String trimmed = text == null ? "" : text.trim();
+        boolean hasPrefix = false;
+        for (String prefix : Step.PREFIXES) {
+            if (trimmed.startsWith(prefix)) {
+                hasPrefix = true;
+                break;
+            }
+        }
+        if (!hasPrefix) {
+            trimmed = "* " + trimmed;
+        }
+        Step parsed;
+        Scenario synthScenario;
+        try {
+            Resource resource = Resource.text("Feature:\nScenario:\n" + trimmed);
+            Feature feature = Feature.read(resource);
+            if (feature.getSections().isEmpty()) {
+                throw new RuntimeException("no step parsed");
+            }
+            synthScenario = feature.getSection(0).getScenario();
+            if (synthScenario == null || synthScenario.getSteps() == null || synthScenario.getSteps().isEmpty()) {
+                throw new RuntimeException("no step parsed");
+            }
+            parsed = synthScenario.getSteps().get(0);
+        } catch (Exception e) {
+            Step fakeStep = new Step(scenario, -1);
+            return StepResult.failed(fakeStep, startTime, 0, e);
+        }
+        Step fakeStep = new Step(synthScenario, -1);
+        fakeStep.setLine(parsed.getLine());
+        fakeStep.setEndLine(parsed.getEndLine());
+        fakeStep.setPrefix(parsed.getPrefix());
+        fakeStep.setKeyword(parsed.getKeyword());
+        fakeStep.setText(parsed.getText());
+        fakeStep.setDocString(parsed.getDocString());
+        fakeStep.setDocStringLine(parsed.getDocStringLine());
+        fakeStep.setTable(parsed.getTable());
+        fakeStep.setComments(parsed.getComments());
+        return executor.execute(fakeStep);
+    }
+
+    /**
      * Evaluate a JS docstring expression with debug source information.
      * Uses the docstring's actual content start line for precise line mapping.
      */

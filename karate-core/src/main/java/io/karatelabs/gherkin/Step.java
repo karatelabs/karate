@@ -23,11 +23,14 @@
  */
 package io.karatelabs.gherkin;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class Step {
+
+    public static final List<String> PREFIXES = Arrays.asList("*", "Given", "When", "Then", "And", "But");
 
     private final Feature feature;
     private final Scenario scenario; // can be  null for background !!

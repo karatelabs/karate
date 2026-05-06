@@ -109,8 +109,11 @@ public class StepExecutor {
         long startNanos = System.nanoTime();
         stepCallResults = null;  // Clear for this step
 
+        // Synthesized (fake) steps bypass listener events and the run interceptor.
+        boolean isFake = step.isFake();
+
         // Fire STEP_ENTER event
-        Suite suite = getSuite();
+        Suite suite = isFake ? null : getSuite();
         if (suite != null) {
             boolean proceed = suite.fireEvent(StepRunEvent.enter(step, runtime));
             if (!proceed) {
@@ -121,9 +124,9 @@ public class StepExecutor {
             }
         }
 
-        // Check interceptor for debug support
         @SuppressWarnings("unchecked")
-        io.karatelabs.js.RunInterceptor<Object> interceptor = (io.karatelabs.js.RunInterceptor<Object>) runtime.getInterceptor();
+        io.karatelabs.js.RunInterceptor<Object> interceptor = isFake ? null
+                : (io.karatelabs.js.RunInterceptor<Object>) runtime.getInterceptor();
         io.karatelabs.js.DebugPointFactory<Object> pointFactory = null;
         Object point = null;
         if (interceptor != null && runtime.getPointFactory() != null) {
