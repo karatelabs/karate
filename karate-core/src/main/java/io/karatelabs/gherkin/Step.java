@@ -23,6 +23,8 @@
  */
 package io.karatelabs.gherkin;
 
+import io.karatelabs.common.Resource;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +33,35 @@ import java.util.Map;
 public class Step {
 
     public static final List<String> PREFIXES = Arrays.asList("*", "Given", "When", "Then", "And", "But");
+
+    public void parseAndUpdateFrom(String text) {
+        final String stepText = text.trim();
+        boolean hasPrefix = PREFIXES.stream().anyMatch(stepText::startsWith);
+        if (!hasPrefix) {
+            text = "* " + stepText;
+        }
+        Resource resource = Resource.text("Feature:\nScenario:\n" + text);
+        Feature tempFeature = Feature.read(resource);
+        Step tempStep = null;
+        if (!tempFeature.getSections().isEmpty()) {
+            FeatureSection section = tempFeature.getSections().get(0);
+            if (!section.isOutline() && section.getScenario() != null) {
+                List<Step> steps = section.getScenario().getSteps();
+                if (steps != null && !steps.isEmpty()) {
+                    tempStep = steps.get(0);
+                }
+            }
+        }
+        if (tempStep == null) {
+            throw new RuntimeException("invalid expression: " + text);
+        }
+        this.prefix = tempStep.prefix;
+        this.keyword = tempStep.keyword;
+        this.text = tempStep.text;
+        this.docString = tempStep.docString;
+        this.docStringLine = tempStep.docStringLine;
+        this.table = tempStep.table;
+    }
 
     private final Feature feature;
     private final Scenario scenario; // can be  null for background !!

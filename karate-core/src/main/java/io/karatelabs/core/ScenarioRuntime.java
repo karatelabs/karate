@@ -1294,6 +1294,48 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         this.stopped = true;
     }
 
+    /**
+     * Re-reads the feature from disk and updates step text in place
+     * for any steps whose text changed. Returns true if at least one
+     * step was updated.
+     */
+    public boolean hotReload() {
+        if (steps == null) {
+            return false;
+        }
+        boolean success = false;
+        Feature feature = scenario.getFeature();
+        Resource resource = feature.getResource();
+        if (resource.getPath() == null) {
+            return false; // in-memory resource: nothing to reload from disk
+        }
+        Feature reloaded = Feature.read(Resource.from(resource.getPath()));
+        for (Step oldStep : steps) {
+            Step newStep = reloaded.findStepByLine(oldStep.getLine());
+            if (newStep == null) {
+                continue;
+            }
+            String oldText = canonicalStepText(oldStep);
+            String newText = canonicalStepText(newStep);
+            if (!oldText.equals(newText)) {
+                try {
+                    oldStep.parseAndUpdateFrom(newText);
+                    logger.info("hot reloaded line: {} - {}", newStep.getLine(), newText);
+                    success = true;
+                } catch (Exception e) {
+                    logger.warn("failed to hot reload step: {}", e.getMessage());
+                }
+            }
+        }
+        return success;
+    }
+
+    private static String canonicalStepText(Step step) {
+        String keyword = step.getKeyword();
+        String text = step.getText() == null ? "" : step.getText();
+        return keyword == null ? text : keyword + " " + text;
+    }
+
     // ========== Debug Step Navigation ==========
 
     /**
