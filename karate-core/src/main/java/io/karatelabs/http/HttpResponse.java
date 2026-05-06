@@ -31,8 +31,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -131,6 +134,19 @@ public class HttpResponse implements ObjectLike {
 
     public void setHeader(String name, String... values) {
         setHeader(name, Arrays.asList(values));
+    }
+
+    /**
+     * Remove a header by name. Case-insensitive match — same convention as
+     * {@link #getHeader(String)} / {@link #getHeaderValues(String)}. No-op if
+     * the header is absent or no headers have been set yet.
+     */
+    public void removeHeader(String name) {
+        if (headers == null) {
+            return;
+        }
+        // case-insensitive removal — keep symmetry with read paths
+        headers.entrySet().removeIf(e -> e.getKey() != null && e.getKey().equalsIgnoreCase(name));
     }
 
     @SuppressWarnings("unchecked")
@@ -267,13 +283,22 @@ public class HttpResponse implements ObjectLike {
         return status == 0;
     }
 
+    /**
+     * 1-arg form: {@code response.header('X')} — returns the last value (String) or null.
+     * 2-arg form: {@code response.header('X', 'v')} — sets the header. {@code null}
+     * value removes the header. {@code List} value sets all values.
+     */
     private JavaInvokable header() {
         return args -> {
-            if (args.length > 0) {
-                return getHeader(args[0] + "");
-            } else {
+            if (args.length == 0) {
                 throw new RuntimeException("missing argument for header()");
             }
+            String name = args[0] + "";
+            if (args.length == 1) {
+                return getHeader(name);
+            }
+            putHeaderValue(name, args[1]);
+            return null;
         };
     }
 
@@ -287,6 +312,63 @@ public class HttpResponse implements ObjectLike {
         };
     }
 
+    /**
+     * Coerce a JS value into the header storage shape ({@code List<String>}).
+     * Shared by {@code header(name, value)} and the {@code headers[name] = v}
+     * bracket-set path.
+     */
+    @SuppressWarnings("unchecked")
+    void putHeaderValue(String name, Object value) {
+        if (value == null) {
+            removeHeader(name);
+            return;
+        }
+        if (value instanceof List<?> list) {
+            List<String> strList = new ArrayList<>(list.size());
+            for (Object o : list) {
+                strList.add(o == null ? null : o.toString());
+            }
+            setHeader(name, strList);
+            return;
+        }
+        setHeader(name, value.toString());
+    }
+
+    /**
+     * ObjectLike view over {@link #headers} for JS-side {@code response.headers[...]}
+     * access. Reads return {@code List<String>} matching the historical raw-Map shape
+     * (so {@code response.headers['X-Multi']} stays array-typed). Writes route through
+     * {@link #putHeaderValue(String, Object)} so {@code String}, {@code List}, and
+     * {@code null} all coerce correctly — replacing the silent type-corruption that
+     * the old raw-Map exposure caused (see karate-skills PLAN K10).
+     */
+    private ObjectLike headersView() {
+        return new ObjectLike() {
+            @Override
+            public Object getMember(String name) {
+                return getHeaderValues(name);
+            }
+
+            @Override
+            public void putMember(String name, Object value) {
+                putHeaderValue(name, value);
+            }
+
+            @Override
+            public void removeMember(String name) {
+                removeHeader(name);
+            }
+
+            @Override
+            public Map<String, Object> toMap() {
+                if (headers == null) {
+                    return Collections.emptyMap();
+                }
+                return new LinkedHashMap<>(headers);
+            }
+        };
+    }
+
     @Override
     public Object getMember(String key) {
         return switch (key) {
@@ -294,7 +376,7 @@ public class HttpResponse implements ObjectLike {
             case "statusText" -> statusText;
             case "startTime" -> startTime;
             case "responseTime" -> responseTime;
-            case "headers" -> headers;
+            case "headers" -> headersView();
             case "header" -> header();
             case "headerValues" -> headerValues();
             case "body" -> getBodyConverted();

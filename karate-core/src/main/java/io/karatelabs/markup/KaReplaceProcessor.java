@@ -25,6 +25,7 @@ package io.karatelabs.markup;
 
 import org.thymeleaf.context.ITemplateContext;
 import org.thymeleaf.engine.AttributeName;
+import org.thymeleaf.exceptions.TemplateProcessingException;
 import org.thymeleaf.model.IProcessableElementTag;
 import org.thymeleaf.processor.element.IElementTagStructureHandler;
 import org.thymeleaf.standard.processor.AbstractStandardFragmentInsertionTagProcessor;
@@ -42,7 +43,12 @@ class KaReplaceProcessor extends AbstractStandardFragmentInsertionTagProcessor {
     @Override
     protected void doProcess(ITemplateContext context, IProcessableElementTag tag, AttributeName attributeName, String attributeValue, IElementTagStructureHandler structureHandler) {
         String fragmentExpr = attributeValue.startsWith("~{") ? attributeValue : "~{" + attributeValue + "}";
-        super.doProcess(context, tag, attributeName, fragmentExpr, structureHandler);
+        try {
+            super.doProcess(context, tag, attributeName, fragmentExpr, structureHandler);
+        } catch (TemplateProcessingException e) {
+            FragmentSupport.translateSignatureError(e);
+            throw e;
+        }
     }
 
 }

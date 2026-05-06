@@ -80,7 +80,50 @@ public class MarkupTemplateContext implements IEngineContext {
             localVars.put(name, getVariable(name));
         }
         localVars.put("_", vars);
-        return engine.evalWith(src, localVars);
+        // K12 — template expressions reference fragment-scope vars that the
+        // caller may not have passed (e.g. ~{file::chip} where chip reads
+        // `target` but no caller bound it). Strict JS throws ReferenceError;
+        // templates by convention resolve unset names to null. We catch only
+        // ReferenceError (via EngineException's typed JS-error-name accessor),
+        // bind the missing name as null, and retry under a small budget so
+        // chained misses can't loop.
+        int budget = 8;
+        while (true) {
+            try {
+                return engine.evalWith(src, localVars);
+            } catch (io.karatelabs.js.EngineException e) {
+                String missing = extractMissingName(e);
+                if (missing == null || localVars.containsKey(missing) || budget-- <= 0) {
+                    throw e;
+                }
+                localVars.put(missing, null);
+            }
+        }
+    }
+
+    // The unframed JS-side message for a ReferenceError is `<name> is not defined`
+    // (per spec). We only run this regex when getJsErrorName() == "ReferenceError",
+    // and we read getJsMessage() rather than getMessage() — no host-side framing
+    // to skip past, just the bare JS message.
+    private static final java.util.regex.Pattern NOT_DEFINED_PATTERN =
+            java.util.regex.Pattern.compile("([A-Za-z_$][\\w$]*) is not defined");
+
+    private static String extractMissingName(io.karatelabs.js.EngineException e) {
+        Throwable current = e;
+        while (current != null) {
+            if (current instanceof io.karatelabs.js.EngineException ee
+                    && "ReferenceError".equals(ee.getJsErrorName())) {
+                String jsMsg = ee.getJsMessage();
+                if (jsMsg != null) {
+                    java.util.regex.Matcher m = NOT_DEFINED_PATTERN.matcher(jsMsg);
+                    if (m.find()) {
+                        return m.group(1);
+                    }
+                }
+            }
+            current = current.getCause();
+        }
+        return null;
     }
 
     void setLocal(String name, Object value) {

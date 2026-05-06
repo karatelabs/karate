@@ -1,0 +1,4 @@
+<div th:fragment="optional">
+  <span th:if="target" th:text="target">Default</span>
+  <span th:unless="target">no-target</span>
+</div>

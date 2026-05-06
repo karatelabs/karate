@@ -528,12 +528,65 @@ public class HttpRequest implements SimpleObject {
         };
     }
 
+    /**
+     * 1-arg form: {@code request.header('X')} — returns the last value (String) or null.
+     * 2-arg form: {@code request.header('X', 'v')} — sets the header. {@code null}
+     * value removes the header. {@code List} value sets all values.
+     */
     private JavaInvokable header() {
         return args -> {
-            if (args.length > 0) {
-                return getHeader(args[0] + "");
-            } else {
+            if (args.length == 0) {
                 throw new RuntimeException("missing argument for header()");
+            }
+            String name = args[0] + "";
+            if (args.length == 1) {
+                return getHeader(name);
+            }
+            putHeaderValue(name, args[1]);
+            return null;
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    void putHeaderValue(String name, Object value) {
+        if (value == null) {
+            removeHeader(name);
+            return;
+        }
+        if (value instanceof List<?> list) {
+            List<String> strList = new ArrayList<>(list.size());
+            for (Object o : list) {
+                strList.add(o == null ? null : o.toString());
+            }
+            putHeader(name, strList);
+            return;
+        }
+        putHeader(name, value.toString());
+    }
+
+    private io.karatelabs.js.ObjectLike headersView() {
+        return new io.karatelabs.js.ObjectLike() {
+            @Override
+            public Object getMember(String key) {
+                return getHeaderValues(key);
+            }
+
+            @Override
+            public void putMember(String key, Object value) {
+                putHeaderValue(key, value);
+            }
+
+            @Override
+            public void removeMember(String key) {
+                removeHeader(key);
+            }
+
+            @Override
+            public Map<String, Object> toMap() {
+                if (headers == null) {
+                    return Collections.emptyMap();
+                }
+                return new LinkedHashMap<>(headers);
             }
         };
     }
@@ -639,7 +692,7 @@ public class HttpRequest implements SimpleObject {
             case "paramValues":
                 return paramValues();
             case "headers":
-                return headers;
+                return headersView();
             case "header":
                 return header();
             case "headerValues":

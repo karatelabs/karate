@@ -816,4 +816,99 @@ class MarkupTest {
         assertTrue(rendered.contains("no-model"), "JS length check should work: " + rendered);
     }
 
+    @Test
+    void testFragmentSignatureWithParamsThrowsFriendlyError() {
+        // K11 — karate-markup deliberately does not support param lists in
+        // th:fragment signatures. The convention is plain `th:fragment="name"`
+        // + th:with at the call site (with K12's unset-as-null lenient eval).
+        // If a developer accidentally writes `th:fragment="chip(label, count)"`,
+        // the engine surfaces a karate-flavoured error that points at the
+        // convention rather than at Thymeleaf's strict-matching internals.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+
+        String html = "<div th:insert=\"~{fragment-params :: chip}\"></div>";
+        RuntimeException thrown = assertThrows(RuntimeException.class,
+                () -> markup.processString(html, null),
+                "calling a fragment whose signature declares params must surface as an error");
+
+        // Walk the cause chain — karate-core wraps Thymeleaf's exception in its
+        // own RuntimeException for logging.
+        Throwable t = thrown;
+        boolean foundFriendlyMessage = false;
+        while (t != null) {
+            String msg = t.getMessage();
+            if (msg != null && msg.contains("karate-markup does not support param lists in th:fragment")
+                    && msg.contains("th:fragment=\"name\"")) {
+                foundFriendlyMessage = true;
+                break;
+            }
+            t = t.getCause();
+        }
+        assertTrue(foundFriendlyMessage,
+                "error must point at karate-markup convention; got: " + thrown.getMessage());
+    }
+
+    @Test
+    void testFragmentReadsUnsetThWithVarAsUndefined() {
+        // K12 — a fragment with no declared params (or a fragment-scope variable
+        // that the caller didn't bind via th:with) used to throw
+        // `ReferenceError: target is not defined` on every render. Match
+        // JS-everywhere semantics — unset reads in a template expression resolve
+        // to undefined so `th:if="target"` becomes a clean falsy branch.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+
+        // 1. Caller doesn't pass `target` at all. Fragment's th:if/th:unless
+        //    branches must work without the typeof-guard idiom.
+        String htmlNoTarget = "<div th:insert=\"~{fragment-no-params :: optional}\"></div>";
+        String renderedNoTarget = markup.processString(htmlNoTarget, null);
+        assertTrue(renderedNoTarget.contains("no-target"),
+                "th:unless='target' must run when target is unbound: " + renderedNoTarget);
+        assertFalse(renderedNoTarget.contains("Default"),
+                "th:if='target' branch must be suppressed when target is unbound: " + renderedNoTarget);
+
+        // 2. Caller passes target via th:with — fragment uses it.
+        String htmlWithTarget = "<div th:insert=\"~{fragment-no-params :: optional}\" th:with=\"target: 'hit'\"></div>";
+        String renderedWithTarget = markup.processString(htmlWithTarget, null);
+        assertTrue(renderedWithTarget.contains("hit"),
+                "th:if='target' branch must use the bound value: " + renderedWithTarget);
+        assertFalse(renderedWithTarget.contains("no-target"),
+                "th:unless='target' must be suppressed when target is bound: " + renderedWithTarget);
+    }
+
+    @Test
+    void testCommentHandling() {
+        // Documents Thymeleaf's three comment shapes as they apply to karate-markup.
+        // Use <!--/* */--> for documentation-only comments that must NOT ship to
+        // the browser. Plain <!-- --> deliberately passes through (HTML comments
+        // are sometimes semantic). The third <!--/*/ /*/--> "prototype-only"
+        // wrapper hides its content from a static-HTML preview but EXPOSES the
+        // content for template processing — useful for stub data in prototypes,
+        // not relevant for hiding doc-strings from production output.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+
+        String html = """
+            <div>
+              <!-- plain html comment, passes through -->
+              <!--/* parser-level comment, stripped */-->
+              <!--/*/ <span>prototype-only content, surfaces on render</span> /*/-->
+              <p>hello</p>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+
+        assertTrue(rendered.contains("plain html comment"),
+                "Plain <!-- --> comments must pass through untouched: " + rendered);
+        assertFalse(rendered.contains("parser-level comment"),
+                "Thymeleaf <!--/* */--> parser-level comments must be stripped: " + rendered);
+        assertTrue(rendered.contains("<span>prototype-only content"),
+                "Thymeleaf <!--/*/ /*/--> exposes its inner content during render: " + rendered);
+        assertFalse(rendered.contains("/*/"),
+                "Prototype-only markers must be stripped from render: " + rendered);
+        assertTrue(rendered.contains("<p>hello</p>"),
+                "Surrounding markup must render normally: " + rendered);
+    }
+
 }
