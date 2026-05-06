@@ -911,4 +911,53 @@ class MarkupTest {
                 "Surrounding markup must render normally: " + rendered);
     }
 
+    // ========== ka:dispatch (K4) ==========
+
+    @Test
+    void testKaDispatchEmitsOnClickWithDetail() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <script ka:scope="global">
+                _.userId = 'u-42';
+                _.roleStr = 'admin';
+            </script>
+            <button ka:dispatch="open-edit-user" ka:vals="userId:userId,role:roleStr">Edit</button>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("window.dispatchEvent(new CustomEvent("),
+                "rendered must call window.dispatchEvent: " + rendered);
+        assertTrue(rendered.contains("\"open-edit-user\""),
+                "event name must be inlined as a JS string literal: " + rendered);
+        assertTrue(rendered.contains("\"userId\":\"u-42\""),
+                "ka:vals expression must be evaluated server-side: " + rendered);
+        assertTrue(rendered.contains("\"role\":\"admin\""), rendered);
+        assertTrue(rendered.contains("bubbles: true, composed: true"),
+                "CustomEvent must bubble and pierce shadow DOM: " + rendered);
+        assertFalse(rendered.contains("ka:dispatch"),
+                "ka:dispatch attribute must be removed from rendered output: " + rendered);
+    }
+
+    @Test
+    void testKaDispatchWithoutValsHasEmptyDetail() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<button ka:dispatch=\"open-add-user\">Add</button>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("\"open-add-user\""), rendered);
+        assertTrue(rendered.contains("detail: {}"),
+                "missing ka:vals must produce an empty detail object: " + rendered);
+    }
+
+    @Test
+    void testKaDispatchEscapesEventName() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        // Hostile event name with embedded quote — must be JS-escaped, not break the attribute
+        String html = "<button ka:dispatch='evt\"x'>X</button>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("\\\"") || rendered.contains("&quot;"),
+                "double-quote in event name must be safely escaped: " + rendered);
+    }
+
 }

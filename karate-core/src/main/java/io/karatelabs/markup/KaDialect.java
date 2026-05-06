@@ -53,6 +53,7 @@ class KaDialect extends AbstractProcessorDialect {
         ps.add(new KaScriptSrcProcessor(dialectPrefix, resolver, contextPath, serverMode, "href"));
         ps.add(new KaScriptProcessor(dialectPrefix));
         ps.add(new KaSetAttrProcessor(dialectPrefix));
+        ps.add(new KaDispatchProcessor(dialectPrefix));
         return ps;
     }
 
