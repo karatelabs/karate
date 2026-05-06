@@ -343,6 +343,101 @@ public class StepUtils {
         return s.contains("[*]") || s.contains("[?") || s.contains("..");
     }
 
+    /**
+     * True if {@code lhs} is a "pure" JSON path expression: an identifier followed by
+     * zero or more path segments where every segment is one of
+     * {@code .ident}, {@code [int]}, {@code [int:int]}, {@code ['str']}, {@code ["str"]},
+     * {@code [*]}, {@code ..}, {@code [?(...)]}. JS-style dynamic indices (e.g. {@code [i]},
+     * {@code [i+1]}) deliberately fail this check so they continue to route through the
+     * JS engine. Used by `set` / `remove` to route LHS paths through Jayway, which mirrors
+     * v1 semantics — most importantly, auto-vivifying intermediate objects when the
+     * target path doesn't yet exist (see issue #2828).
+     */
+    public static boolean isPureJsonPath(String lhs) {
+        if (lhs == null) return false;
+        String s = lhs.trim();
+        int n = s.length();
+        if (n == 0) return false;
+        // leading identifier
+        char c0 = s.charAt(0);
+        if (!(Character.isLetter(c0) || c0 == '_' || c0 == '$')) return false;
+        int i = 1;
+        while (i < n) {
+            char c = s.charAt(i);
+            if (Character.isLetterOrDigit(c) || c == '_' || c == '$') i++;
+            else break;
+        }
+        boolean hasSegment = false;
+        while (i < n) {
+            char c = s.charAt(i);
+            if (c == '.') {
+                hasSegment = true;
+                i++;
+                if (i < n && s.charAt(i) == '.') { // recursive descent: `..`
+                    i++;
+                    if (i >= n) return false;
+                    char next = s.charAt(i);
+                    if (next == '[') continue; // `..[*]` etc. — let the next loop iter parse it
+                    if (!(Character.isLetter(next) || next == '_' || next == '$')) return false;
+                }
+                if (i >= n) return false;
+                char id = s.charAt(i);
+                if (!(Character.isLetter(id) || id == '_' || id == '$')) return false;
+                i++;
+                while (i < n) {
+                    char cc = s.charAt(i);
+                    if (Character.isLetterOrDigit(cc) || cc == '_' || cc == '$') i++;
+                    else break;
+                }
+            } else if (c == '[') {
+                hasSegment = true;
+                i++;
+                if (i >= n) return false;
+                char inner = s.charAt(i);
+                if (inner == '\'' || inner == '"') {
+                    char quote = inner;
+                    i++;
+                    while (i < n && s.charAt(i) != quote) {
+                        if (s.charAt(i) == '\\' && i + 1 < n) i++; // skip escape
+                        i++;
+                    }
+                    if (i >= n) return false;
+                    i++; // consume closing quote
+                } else if (inner == '*') {
+                    i++;
+                } else if (inner == '?') {
+                    int depth = 1;
+                    i++;
+                    while (i < n && depth > 0) {
+                        char cc = s.charAt(i);
+                        if (cc == '[') depth++;
+                        else if (cc == ']') {
+                            depth--;
+                            if (depth == 0) break;
+                        }
+                        i++;
+                    }
+                    if (i >= n) return false;
+                } else if (inner == '-' || Character.isDigit(inner)) {
+                    if (inner == '-') i++;
+                    while (i < n && Character.isDigit(s.charAt(i))) i++;
+                    if (i < n && s.charAt(i) == ':') {
+                        i++;
+                        if (i < n && s.charAt(i) == '-') i++;
+                        while (i < n && Character.isDigit(s.charAt(i))) i++;
+                    }
+                } else {
+                    return false; // [ident], [expr], ... — JS dynamic, not pure JsonPath
+                }
+                if (i >= n || s.charAt(i) != ']') return false;
+                i++;
+            } else {
+                return false;
+            }
+        }
+        return hasSegment;
+    }
+
     public static final class VarAndPath {
         public final String var;
         public final String path;

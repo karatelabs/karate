@@ -610,9 +610,14 @@ public class StepExecutor {
                 return;
             }
 
-            // V1-compatible JsonPath wildcard support: e.g. * set body[*].parent = 'test'
-            // JS can't parse [*] / .. / [? — route these through Jayway.
-            if (StepUtils.containsJsonPathWildcard(leftPart)) {
+            // V1-compatible: route LHS paths through Jayway. Covers JsonPath wildcards
+            // (`[*]`, `..`, `[?(...)]` — issue #2819) and auto-vivification of intermediate
+            // objects when an inner segment is undefined (e.g. `set foo.a.b = 1` where
+            // `foo.a` doesn't exist — issue #2828). JS-style dynamic indices like `arr[i]`
+            // fail `isPureJsonPath` and continue to route through the JS engine below.
+            // The v2-idiomatic alternative is a single `def` with an object literal;
+            // `set` is retained for v1 migration and XML xpath updates.
+            if (StepUtils.isPureJsonPath(leftPart)) {
                 StepUtils.VarAndPath vp = StepUtils.splitVarAndJsonPath(leftPart);
                 Object target = runtime.getVariable(vp.var);
                 if (target instanceof Map || target instanceof List) {

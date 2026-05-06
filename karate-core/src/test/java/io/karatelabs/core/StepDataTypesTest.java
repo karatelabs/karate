@@ -181,6 +181,65 @@ class StepDataTypesTest {
         assertPassed(sr);
     }
 
+    // ========== Issue #2828: nested set with auto-vivified intermediate paths ==========
+    // V1 always routed `set var.path = expr` through Jayway, which auto-creates
+    // intermediate objects. v2 had been delegating to JS, where `obj.foo.bar = x`
+    // throws TypeError when `obj.foo` is undefined. The fix re-routes any "pure"
+    // JsonPath LHS through Jayway (issue #2828). The v2-idiomatic alternative is
+    // to build the structure with a single `def` literal — `set` is mainly kept
+    // for v1 compatibility (and remains the way to set XML via xpath).
+
+    @Test
+    void testSetAutoVivifyIntermediatePaths() {
+        // https://github.com/karatelabs/karate/issues/2828
+        ScenarioRuntime sr = run("""
+            * def reqPayload = {}
+            * def short_id = 'ABC123'
+            * set reqPayload.organization.name = 'Test ' + short_id
+            * match reqPayload == { organization: { name: 'Test ABC123' } }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testSetAutoVivifyDeeplyNested() {
+        ScenarioRuntime sr = run("""
+            * def foo = {}
+            * set foo.a.b.c = 5
+            * match foo == { a: { b: { c: 5 } } }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testSetWithStringConcatenationRhs() {
+        // Original repro: parser used to fail with "MATH_ADD_EXPR is not a valid
+        // assignment target" in 2.0.7 when the RHS was a string concatenation.
+        // The parser fix landed earlier; this test guards both the parse and the
+        // auto-vivify behavior together.
+        ScenarioRuntime sr = run("""
+            * def reqPayload = { organization: {} }
+            * def short_id = 'ABC123'
+            * set reqPayload.organization.name = 'Test ' + short_id
+            * match reqPayload.organization.name == 'Test ABC123'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testSetDynamicIndexStillRoutesThroughJs() {
+        // Negative guard: a JS-style dynamic index (`arr[i]` where `i` is a runtime
+        // identifier, not a literal) is NOT pure JsonPath and must continue to route
+        // through the JS engine. Jayway can't resolve `i` to its value.
+        ScenarioRuntime sr = run("""
+            * def arr = [10, 20, 30]
+            * def i = 1
+            * set arr[i] = 99
+            * match arr == [10, 99, 30]
+            """);
+        assertPassed(sr);
+    }
+
     @Test
     void testCopy() {
         ScenarioRuntime sr = run("""
