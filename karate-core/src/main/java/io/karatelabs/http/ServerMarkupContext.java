@@ -79,6 +79,7 @@ public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
     private final Map<String, Object> flash = new HashMap<>();
     private final Map<String, Object> actions = new HashMap<>();
     private boolean actionDispatched = false;
+    private java.util.function.Consumer<String> eagerDispatchHook;
 
     public ServerMarkupContext(HttpRequest request, HttpResponse response, ServerConfig config) {
         this.request = request;
@@ -276,7 +277,7 @@ public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
             case "closed" -> isClosed();
             case "switched" -> switched;
             case "flash" -> flash;
-            case "actions" -> actions;
+            case "actions" -> actionsView();
             case "request" -> request;
             case "response" -> response;
             case "session" -> session;
@@ -376,6 +377,47 @@ public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
     @Override
     public void markActionDispatched() {
         this.actionDispatched = true;
+    }
+
+    @Override
+    public void setEagerDispatchHook(java.util.function.Consumer<String> hook) {
+        this.eagerDispatchHook = hook;
+    }
+
+    /**
+     * View over {@link #actions} that intercepts {@code context.actions[name] = fn}
+     * (and {@code context.actions.name = fn}). After the put, fires the engine's
+     * eager-dispatch hook so the matching handler runs immediately — before any
+     * state reads later in the same {@code ka:scope="global"} block. This matches
+     * the mental model of the legacy {@code if (request.post) {{ switch }}}}
+     * pattern, which runs mutations at the top of the script and lets subsequent
+     * reads see fresh data.
+     */
+    private io.karatelabs.js.ObjectLike actionsView() {
+        return new io.karatelabs.js.ObjectLike() {
+            @Override
+            public Object getMember(String name) {
+                return actions.get(name);
+            }
+
+            @Override
+            public void putMember(String name, Object value) {
+                actions.put(name, value);
+                if (eagerDispatchHook != null) {
+                    eagerDispatchHook.accept(name);
+                }
+            }
+
+            @Override
+            public void removeMember(String name) {
+                actions.remove(name);
+            }
+
+            @Override
+            public Map<String, Object> toMap() {
+                return new java.util.LinkedHashMap<>(actions);
+            }
+        };
     }
 
     /**

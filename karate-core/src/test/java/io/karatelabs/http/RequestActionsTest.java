@@ -92,6 +92,17 @@ class RequestActionsTest {
     }
 
     @Test
+    void testEagerDispatchSeenByLaterReads() {
+        // The handler sets session.flag; the script reads session.flag AFTER
+        // all action registrations and binds it into _.observed. With eager
+        // dispatch, the read must see the post-mutation value.
+        HttpResponse r = postForm("/actions", "action=mutateThenRead");
+        String body = r.getBodyString();
+        assertTrue(body.contains("<div id=\"observed\">set-by-handler</div>"),
+                "state read after action registrations must see post-dispatch mutation: " + body);
+    }
+
+    @Test
     void testBracketNotationStillWorksForNonIdentifierNames() {
         // The preferred style is dot notation (context.actions.foo = ...) but
         // bracket notation must still work for action names with hyphens,

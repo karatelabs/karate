@@ -57,6 +57,15 @@ public class MarkupTemplateContext implements IEngineContext {
         } else {
             this.engine.put("context", new SimpleMarkupContext(this, config.getResolver()));
         }
+        // K5 — install eager-dispatch hook on the actions registry. The host's
+        // context.actions view fires this on every put; if the put just
+        // registered the matching handler for the inbound POST, dispatch it
+        // immediately so any state reads later in the same script see
+        // post-mutation data. Plain templating contexts implement a default
+        // no-op hook, so this is a silent no-op outside server mode.
+        if (existingContext instanceof ActionDispatchHost host) {
+            host.setEagerDispatchHook(name -> maybeDispatchAction());
+        }
     }
 
     void evalGlobal(String src) {

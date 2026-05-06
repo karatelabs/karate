@@ -28,7 +28,21 @@
     context.actions['hyphen-action'] = function () {
         context.flash.success = 'Hyphen.';
     };
+
+    // Mutation handler — sets a session field. State reads AFTER this
+    // registration must observe the mutation (regression for the K5 eager-
+    // dispatch ordering: pre-fix, dispatch fired at end of script and any
+    // reads above were stale).
+    context.actions.mutateThenRead = function () {
+        session.flag = 'set-by-handler';
+    };
+
+    // Read AFTER all action registrations. With eager dispatch, this read
+    // observes session.flag = 'set-by-handler' when action=mutateThenRead.
+    _.observed = session.flag || 'pre-mutation';
 </script>
+
+<div id="observed" th:text="observed">empty</div>
 
 <section id="actions-page">
     <div th:if="context.flash.success" id="flash-success" th:text="context.flash.success">success</div>

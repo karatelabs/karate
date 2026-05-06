@@ -55,4 +55,15 @@ public interface ActionDispatchHost {
      */
     void markActionDispatched();
 
+    /**
+     * Hook installed by the template engine; invoked by the host's
+     * {@code context.actions} view every time a key is set. Lets the
+     * engine dispatch the matching handler eagerly — i.e. as soon as
+     * it is registered — so any state reads later in the same script
+     * block observe post-mutation data. No-op default keeps non-server
+     * (plain templating) contexts simple.
+     */
+    default void setEagerDispatchHook(java.util.function.Consumer<String> hook) {
+    }
+
 }
