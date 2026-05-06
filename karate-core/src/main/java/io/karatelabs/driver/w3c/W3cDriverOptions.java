@@ -42,7 +42,8 @@ import java.util.Map;
 public class W3cDriverOptions implements DriverOptions {
 
     private final W3cBrowserType browserType;
-    private final int timeout;
+    // mutable so Driver.timeout(int) can adjust mid-scenario (v1 parity)
+    private int timeout;
     private final int retryCount;
     private final int retryInterval;
     private final boolean headless;
@@ -133,6 +134,11 @@ public class W3cDriverOptions implements DriverOptions {
     @Override
     public int getTimeout() {
         return timeout;
+    }
+
+    @Override
+    public void setTimeout(int millis) {
+        this.timeout = millis;
     }
 
     @Override

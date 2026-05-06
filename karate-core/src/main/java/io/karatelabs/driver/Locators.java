@@ -335,11 +335,22 @@ public class Locators {
      * Generate JS to highlight an element.
      */
     public static String highlight(String locator, int millis) {
-        String fn = "function(e){ var old = e.getAttribute('style');" +
-                " e.setAttribute('style', 'background: yellow; border: 2px solid red;');" +
-                " setTimeout(function(){ e.setAttribute('style', old || '') }, " + millis + ") }";
+        String fn = highlightFn(millis);
         String js = "var e = " + selector(locator) + "; var fun = " + fn + "; fun(e)";
         return wrapInFunctionInvoke(js);
+    }
+
+    /**
+     * Generate JS to highlight all elements matching a locator.
+     */
+    public static String highlightAll(String locator, int millis) {
+        return scriptAllSelector(locator, highlightFn(millis));
+    }
+
+    private static String highlightFn(int millis) {
+        return "function(e){ var old = e.getAttribute('style');" +
+                " e.setAttribute('style', 'background: yellow; border: 2px solid red;');" +
+                " setTimeout(function(){ e.setAttribute('style', old || '') }, " + millis + ") }";
     }
 
     /**

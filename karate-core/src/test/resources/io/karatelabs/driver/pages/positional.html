@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Positional Finder Test</title>
+  <style>
+    body { margin: 40px; font-family: sans-serif; }
+    .row { display: flex; gap: 30px; margin-bottom: 40px; align-items: center; }
+    .label { font-weight: bold; min-width: 120px; }
+    input[type=text], input[type=email], input[type=password] {
+      padding: 8px; width: 180px; border: 1px solid #888;
+    }
+    button { padding: 6px 12px; }
+    .stack { display: flex; flex-direction: column; gap: 24px; align-items: flex-start; }
+  </style>
+</head>
+<body>
+  <h1 id="title">Positional Locators</h1>
+
+  <!-- Row 1: label LEFT-of input, button RIGHT-of input -->
+  <div class="row">
+    <span class="label" id="username-label">Username</span>
+    <input type="text" id="username-input" name="username" placeholder="Enter username"/>
+    <button id="username-btn" type="button">Go</button>
+  </div>
+
+  <!-- Row 2: another labelled field -->
+  <div class="row">
+    <span class="label" id="email-label">Email</span>
+    <input type="email" id="email-input" name="email" placeholder="Enter email"/>
+    <button id="email-btn" type="button">Send</button>
+  </div>
+
+  <!-- Row 3: same label text used twice — closest-by-distance test -->
+  <div class="row">
+    <span class="label" id="phone-label">Phone</span>
+    <input type="text" id="phone-input" name="phone"/>
+  </div>
+
+  <!-- Vertical stack — for ABOVE/BELOW -->
+  <div class="stack" style="margin-top: 60px;">
+    <span id="anchor-stack-top">Top of stack</span>
+    <input type="text" id="stack-input-1" value="middle"/>
+    <span id="anchor-stack-bottom">Bottom of stack</span>
+  </div>
+
+  <!-- Cluster for NEAR -->
+  <div style="position: relative; margin-top: 60px; height: 200px;">
+    <span id="cluster-anchor" style="position: absolute; left: 200px; top: 50px;">Anchor</span>
+    <span id="cluster-near" style="position: absolute; left: 230px; top: 60px;">Near</span>
+    <span id="cluster-far" style="position: absolute; left: 600px; top: 60px;">Far</span>
+  </div>
+</body>
+</html>

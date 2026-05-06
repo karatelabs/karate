@@ -342,6 +342,62 @@ Feature: Element Tests
     * def activeId = script('document.activeElement.id')
     * match activeId == 'email'
 
+  # ========== Highlight & HighlightAll ==========
+
+  Scenario: highlight() smoke (no exception, returns Element)
+    * def el = highlight('#username')
+    * match el.exists() == true
+
+  Scenario: highlight() honours custom millis duration
+    # 50ms = restore the original style almost immediately;
+    # we only assert the call is bound and chains correctly.
+    * def el = highlight('#username', 50)
+    * match el.exists() == true
+
+  Scenario: highlightAll() targets every match
+    # All <input> elements get the temporary highlight style
+    * highlightAll('input[type=text]')
+    # No assertion on persistent style — restoration is async, but the call
+    # must be bound at the JS root.
+
+  Scenario: highlightAll() with custom duration
+    * highlightAll('input', 50)
+
+  # ========== Property accessor (read JS property, not attribute) ==========
+
+  Scenario: property() reads a live JS property, not the attribute
+    * input('#username', 'live-value')
+    # value attribute stays empty in HTML, but property reflects current state
+    * match property('#username', 'value') == 'live-value'
+
+  Scenario: property() of a select element
+    # selectedIndex is a live property
+    * select('#country', 'us')
+    * def idx = property('#country', 'selectedIndex')
+    * assert idx >= 0
+
+  # ========== Input array form (mixed text + special keys) ==========
+
+  Scenario: input() accepts an array with literal text and Key.ENTER
+    * input('#username', ['hello', Key.ENTER])
+    * match value('#username') contains 'hello'
+
+  # ========== timeout() bare-keyword global ==========
+
+  Scenario: timeout() returns current value
+    * def t = timeout()
+    * assert t > 0
+
+  # ========== waitForAny() bare-keyword global ==========
+
+  Scenario: waitForAny matches whichever locator resolves first
+    * def el = waitForAny('#nonexistent', '#username')
+    * match el.exists() == true
+
+  Scenario: waitForAny accepts an array argument
+    * def el = waitForAny(['#nonexistent', '#email'])
+    * match el.exists() == true
+
   # ========== XPath and Wildcard Locators ==========
 
   Scenario: XPath locator

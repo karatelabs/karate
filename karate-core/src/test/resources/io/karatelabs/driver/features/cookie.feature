@@ -46,6 +46,18 @@ Feature: Cookie Tests
     * def c = cookie('nonexistent')
     * match c == null
 
+  Scenario: setCookies bulk-applies a list
+    * def list =
+    """
+    [
+      { name: 'bulk1', value: 'v1', domain: 'host.testcontainers.internal' },
+      { name: 'bulk2', value: 'v2', domain: 'host.testcontainers.internal' }
+    ]
+    """
+    * setCookies(list)
+    * match cookie('bulk1').value == 'v1'
+    * match cookie('bulk2').value == 'v2'
+
   Scenario: Cookie stress test - would cause parallel interference without @lock
     # This scenario clears cookies repeatedly. Without @lock=cookies at feature level,
     # this would interfere with other cookie tests running in parallel.

@@ -27,8 +27,10 @@ import io.karatelabs.js.JavaCallable;
 import io.karatelabs.js.SimpleObject;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -67,16 +69,47 @@ public interface Driver extends CoreDriver, SimpleObject {
             // Element actions (return Element for chaining)
             case DriverApi.CLICK -> (JavaCallable) (ctx, args) ->
                     click(String.valueOf(args[0]));
-            case DriverApi.INPUT -> (JavaCallable) (ctx, args) ->
-                    input(String.valueOf(args[0]), args.length > 1 ? String.valueOf(args[1]) : "");
+            case DriverApi.INPUT -> (JavaCallable) (ctx, args) -> {
+                String loc = String.valueOf(args[0]);
+                Object value = args.length > 1 ? args[1] : "";
+                int delay = args.length > 2 && args[2] instanceof Number n ? n.intValue() : 0;
+                if (value instanceof List<?> list) {
+                    String[] arr = list.stream().map(String::valueOf).toArray(String[]::new);
+                    return input(loc, arr, delay);
+                }
+                if (value != null && value.getClass().isArray()) {
+                    Object[] arr = (Object[]) value;
+                    String[] strs = new String[arr.length];
+                    for (int i = 0; i < arr.length; i++) {
+                        strs[i] = String.valueOf(arr[i]);
+                    }
+                    return input(loc, strs, delay);
+                }
+                String s = value == null ? "" : String.valueOf(value);
+                return delay > 0 ? input(loc, s, delay) : input(loc, s);
+            };
             case DriverApi.CLEAR -> (JavaCallable) (ctx, args) ->
                     clear(String.valueOf(args[0]));
             case DriverApi.FOCUS -> (JavaCallable) (ctx, args) ->
                     focus(String.valueOf(args[0]));
             case DriverApi.SCROLL -> (JavaCallable) (ctx, args) ->
                     scroll(String.valueOf(args[0]));
-            case DriverApi.HIGHLIGHT -> (JavaCallable) (ctx, args) ->
-                    highlight(String.valueOf(args[0]));
+            case DriverApi.HIGHLIGHT -> (JavaCallable) (ctx, args) -> {
+                String loc = String.valueOf(args[0]);
+                if (args.length > 1 && args[1] instanceof Number n) {
+                    return highlight(loc, n.intValue());
+                }
+                return highlight(loc);
+            };
+            case DriverApi.HIGHLIGHT_ALL -> (JavaCallable) (ctx, args) -> {
+                String loc = String.valueOf(args[0]);
+                if (args.length > 1 && args[1] instanceof Number n) {
+                    highlightAll(loc, n.intValue());
+                } else {
+                    highlightAll(loc);
+                }
+                return null;
+            };
             case DriverApi.SELECT -> (JavaCallable) (ctx, args) -> {
                 String locator = String.valueOf(args[0]);
                 Object value = args.length > 1 ? args[1] : null;
@@ -186,6 +219,10 @@ public interface Driver extends CoreDriver, SimpleObject {
                 refresh();
                 return null;
             };
+            case DriverApi.RELOAD -> (JavaCallable) (ctx, args) -> {
+                reload();
+                return null;
+            };
             case DriverApi.BACK -> (JavaCallable) (ctx, args) -> {
                 back();
                 return null;
@@ -195,14 +232,95 @@ public interface Driver extends CoreDriver, SimpleObject {
                 return null;
             };
 
+            // Window
+            case DriverApi.MAXIMIZE -> (JavaCallable) (ctx, args) -> {
+                maximize();
+                return null;
+            };
+            case DriverApi.MINIMIZE -> (JavaCallable) (ctx, args) -> {
+                minimize();
+                return null;
+            };
+            case DriverApi.FULLSCREEN -> (JavaCallable) (ctx, args) -> {
+                fullscreen();
+                return null;
+            };
+            case DriverApi.ACTIVATE -> (JavaCallable) (ctx, args) -> {
+                activate();
+                return null;
+            };
+
+            // Lifecycle
+            case DriverApi.CLOSE -> (JavaCallable) (ctx, args) -> {
+                close();
+                return null;
+            };
+            case DriverApi.QUIT -> (JavaCallable) (ctx, args) -> {
+                quit();
+                return null;
+            };
+
+            // PDF
+            case DriverApi.PDF -> (JavaCallable) (ctx, args) -> {
+                if (args.length > 0 && args[0] instanceof Map) {
+                    return pdf((Map<String, Object>) args[0]);
+                }
+                return pdf();
+            };
+
+            // Positional finders
+            case DriverApi.RIGHT_OF -> (JavaCallable) (ctx, args) ->
+                    rightOf(String.valueOf(args[0]));
+            case DriverApi.LEFT_OF -> (JavaCallable) (ctx, args) ->
+                    leftOf(String.valueOf(args[0]));
+            case DriverApi.ABOVE -> (JavaCallable) (ctx, args) ->
+                    above(String.valueOf(args[0]));
+            case DriverApi.BELOW -> (JavaCallable) (ctx, args) ->
+                    below(String.valueOf(args[0]));
+            case DriverApi.NEAR -> (JavaCallable) (ctx, args) ->
+                    near(String.valueOf(args[0]));
+
+            // waitForAny — accepts (loc1, loc2, ...) or a single array argument
+            case DriverApi.WAIT_FOR_ANY -> (JavaCallable) (ctx, args) -> {
+                if (args.length == 1 && args[0] instanceof List<?> list) {
+                    String[] arr = list.stream().map(String::valueOf).toArray(String[]::new);
+                    return waitForAny(arr);
+                }
+                if (args.length == 1 && args[0] != null && args[0].getClass().isArray()) {
+                    Object[] arr = (Object[]) args[0];
+                    String[] strs = new String[arr.length];
+                    for (int i = 0; i < arr.length; i++) strs[i] = String.valueOf(arr[i]);
+                    return waitForAny(strs);
+                }
+                String[] arr = new String[args.length];
+                for (int i = 0; i < args.length; i++) arr[i] = String.valueOf(args[i]);
+                return waitForAny(arr);
+            };
+
+            // timeout — get current (no args) or set (int millis), returns Driver for chaining
+            case DriverApi.TIMEOUT -> (JavaCallable) (ctx, args) -> {
+                if (args.length == 0) {
+                    return timeout();
+                }
+                return timeout(((Number) args[0]).intValue());
+            };
+
             // Screenshot — Gherkin/JS default is to embed into the report
             // (v1 behavior). The Java API's 0-arg screenshot() deliberately
             // returns bytes without embedding; here we call screenshot(true)
             // so that `* screenshot` from a feature file shows up in the HTML
             // report. See: https://github.com/karatelabs/karate/issues/2798
             case DriverApi.SCREENSHOT -> (JavaCallable) (ctx, args) -> {
-                if (args.length > 0 && args[0] instanceof Boolean b) {
+                if (args.length == 0) {
+                    return screenshot(true);
+                }
+                Object first = args[0];
+                if (first instanceof Boolean b) {
                     return screenshot(b);
+                }
+                if (first instanceof String s) {
+                    boolean embed = !(args.length > 1 && Boolean.FALSE.equals(args[1]));
+                    return screenshot(s, embed);
                 }
                 return screenshot(true);
             };
@@ -215,6 +333,13 @@ public interface Driver extends CoreDriver, SimpleObject {
                 } else if (arg instanceof Map) {
                     cookie((Map<String, Object>) arg);
                     return null;
+                }
+                return null;
+            };
+            case DriverApi.COOKIES_SET -> (JavaCallable) (ctx, args) -> {
+                Object arg = args[0];
+                if (arg instanceof List) {
+                    setCookies((List<Map<String, Object>>) arg);
                 }
                 return null;
             };
@@ -545,6 +670,23 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     byte[] screenshot(boolean embed);
 
+    /**
+     * Take a screenshot of a specific element (clipped to its bounding rect).
+     * Default impl falls back to full-page screenshot — backends may override
+     * for native element-clipped capture.
+     */
+    default byte[] screenshot(String locator) {
+        return screenshot(locator, true);
+    }
+
+    /**
+     * Take a screenshot of a specific element, optionally embed in report.
+     * Default impl falls back to full-page screenshot.
+     */
+    default byte[] screenshot(String locator, boolean embed) {
+        return screenshot(embed);
+    }
+
     // ========== Dialog Handling ==========
 
     /**
@@ -676,6 +818,56 @@ public interface Driver extends CoreDriver, SimpleObject {
     }
 
     /**
+     * Input a sequence of values (strings and/or special keys) into an element.
+     * Each value is sent in sequence — supports mixing literal text with {@code Key.ENTER},
+     * {@code Key.TAB} etc. so that an array form like
+     * {@code input('#search', ['hello', Key.ENTER])} matches v1.
+     */
+    default Element input(String locator, String[] values) {
+        return input(locator, values, 0);
+    }
+
+    /**
+     * Input characters one-by-one with a delay between each — useful for
+     * simulating slow human typing or bypassing race conditions in handlers
+     * that debounce keypresses.
+     */
+    default Element input(String locator, String chars, int delay) {
+        String[] array = new String[chars.length()];
+        for (int i = 0; i < array.length; i++) {
+            array[i] = Character.toString(chars.charAt(i));
+        }
+        return input(locator, array, delay);
+    }
+
+    /**
+     * Input an array of values with a delay between each.
+     */
+    default Element input(String locator, String[] values, int delay) {
+        focus(locator);
+        clear(locator);
+        Keys k = keys();
+        for (String value : values) {
+            if (delay > 0) {
+                try {
+                    Thread.sleep(delay);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            // WebDriver special-key constants live in U+E000..U+E03D — route
+            // those through press(), and send literal text via type()
+            if (value != null && value.length() == 1
+                    && value.charAt(0) >= 0xE000 && value.charAt(0) <= 0xE03D) {
+                k.press(value);
+            } else {
+                k.type(value);
+            }
+        }
+        return BaseElement.of(this, locator);
+    }
+
+    /**
      * Set the value of an input element directly.
      */
     default Element value(String locator, String value) {
@@ -716,8 +908,29 @@ public interface Driver extends CoreDriver, SimpleObject {
      * Highlight an element (for debugging).
      */
     default Element highlight(String locator) {
-        script(Locators.highlight(locator, getOptions().getHighlightDuration()));
+        return highlight(locator, getOptions().getHighlightDuration());
+    }
+
+    /**
+     * Highlight an element (for debugging) for a specific duration in millis.
+     */
+    default Element highlight(String locator, int millis) {
+        script(Locators.highlight(locator, millis));
         return BaseElement.of(this, locator);
+    }
+
+    /**
+     * Highlight all elements matching the locator (for debugging).
+     */
+    default void highlightAll(String locator) {
+        highlightAll(locator, getOptions().getHighlightDuration());
+    }
+
+    /**
+     * Highlight all elements matching the locator for a specific duration in millis.
+     */
+    default void highlightAll(String locator, int millis) {
+        script(Locators.highlightAll(locator, millis));
     }
 
     // ========== Element State (defaults delegate to script + Locators) ==========
@@ -810,6 +1023,37 @@ public interface Driver extends CoreDriver, SimpleObject {
      * Implementation requires driver-specific indexed locator support.
      */
     List<Element> locateAll(String locator);
+
+    /**
+     * Find all elements matching a locator and filter via the supplied predicate.
+     * Java-only convenience — useful for reporting/auditing where you need to
+     * narrow {@link #locateAll(String)} results without re-querying the DOM.
+     */
+    default List<Element> locateAll(String locator, Predicate<Element> predicate) {
+        List<Element> all = locateAll(locator);
+        List<Element> filtered = new ArrayList<>(all.size());
+        for (Element e : all) {
+            if (predicate.test(e)) {
+                filtered.add(e);
+            }
+        }
+        return filtered;
+    }
+
+    /**
+     * Run an element-bound JS expression on every match and filter the
+     * resulting values via the predicate. Java-only convenience.
+     */
+    default List<Object> scriptAll(String locator, Object expression, Predicate<Object> predicate) {
+        List<Object> all = scriptAll(locator, expression);
+        List<Object> filtered = new ArrayList<>(all.size());
+        for (Object o : all) {
+            if (predicate.test(o)) {
+                filtered.add(o);
+            }
+        }
+        return filtered;
+    }
 
     /**
      * Find an element that may not exist (optional).
@@ -916,6 +1160,19 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     List<Element> waitForResultCount(String locator, int count, Duration timeout);
 
+    /**
+     * Wait until {@link #scriptAll(String, Object)} returns exactly {@code count}
+     * results when run against the supplied JS expression on each matched
+     * element. Java-only convenience overload (v1 parity).
+     */
+    @SuppressWarnings("unchecked")
+    default List<Object> waitForResultCount(String locator, int count, String expression) {
+        return (List<Object>) waitUntil(() -> {
+            List<Object> list = scriptAll(locator, expression);
+            return list.size() == count ? list : null;
+        });
+    }
+
     // ========== Cookies ==========
 
     /**
@@ -942,6 +1199,20 @@ public interface Driver extends CoreDriver, SimpleObject {
      * Get all cookies.
      */
     List<Map<String, Object>> getCookies();
+
+    /**
+     * Bulk-set cookies — convenience over repeated {@link #cookie(Map)} calls.
+     * Mirrors v1's setCookies, where a JSON array could be loaded from a file
+     * and applied wholesale.
+     */
+    default void setCookies(List<Map<String, Object>> cookies) {
+        if (cookies == null) {
+            return;
+        }
+        for (Map<String, Object> c : cookies) {
+            cookie(c);
+        }
+    }
 
     // ========== Window Management ==========
 
@@ -1102,6 +1373,39 @@ public interface Driver extends CoreDriver, SimpleObject {
      */
     default Finder near(String locator) {
         return new Finder(this, locator, Finder.Position.NEAR);
+    }
+
+    // ========== Timing & Retry ==========
+
+    /**
+     * Set the operation timeout in milliseconds for this driver instance.
+     * Returns the driver for chaining (v1 parity, e.g. {@code timeout(5000).click(...)}).
+     */
+    default Driver timeout(int millis) {
+        getOptions().setTimeout(millis);
+        return this;
+    }
+
+    /**
+     * Get the current operation timeout in milliseconds.
+     */
+    default int timeout() {
+        return getOptions().getTimeout();
+    }
+
+    /**
+     * Sleep for the given milliseconds. Returns the driver for chaining
+     * (v1 parity, e.g. {@code delay(500).click(...)}).
+     */
+    default Driver delay(int millis) {
+        if (millis > 0) {
+            try {
+                Thread.sleep(millis);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        return this;
     }
 
     // ========== Request Interception ==========

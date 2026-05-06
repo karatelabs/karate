@@ -40,7 +40,8 @@ import java.util.UUID;
  */
 public class CdpDriverOptions implements DriverOptions {
 
-    private final int timeout;
+    // mutable so Driver.timeout(int) can adjust mid-scenario (v1 parity)
+    private int timeout;
     private final int retryCount;
     private final int retryInterval;
     private final boolean headless;
@@ -162,6 +163,11 @@ public class CdpDriverOptions implements DriverOptions {
 
     public int getTimeout() {
         return timeout;
+    }
+
+    @Override
+    public void setTimeout(int millis) {
+        this.timeout = millis;
     }
 
     public int getRetryCount() {

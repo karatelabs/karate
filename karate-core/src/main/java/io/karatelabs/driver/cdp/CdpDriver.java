@@ -1097,6 +1097,32 @@ public class CdpDriver implements Driver {
         return bytes;
     }
 
+    /**
+     * Take a screenshot clipped to the bounding rect of the element matched by
+     * the locator. Uses CDP's {@code Page.captureScreenshot} with a {@code clip}
+     * param — matches v1 behavior.
+     */
+    @Override
+    public byte[] screenshot(String locator, boolean embed) {
+        Map<String, Object> pos = position(locator);
+        if (pos == null) {
+            // fall back to full-page when the element can't be located
+            return screenshot(embed);
+        }
+        Map<String, Object> clip = new java.util.LinkedHashMap<>(pos);
+        clip.put("scale", 1);
+        CdpResponse response = cdp.method("Page.captureScreenshot")
+                .param("format", "png")
+                .param("clip", clip)
+                .send();
+        String base64 = response.getResultAsString("data");
+        byte[] bytes = Base64.getDecoder().decode(base64);
+        if (embed) {
+            LogContext.get().embed(bytes, "image/png", "screenshot.png");
+        }
+        return bytes;
+    }
+
     // ========== Dialog Handling ==========
 
     /**

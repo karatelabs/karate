@@ -788,6 +788,25 @@ public class W3cDriver implements Driver {
         return bytes;
     }
 
+    /**
+     * Element-clipped screenshot via the W3C
+     * {@code GET /session/{id}/element/{eid}/screenshot} endpoint.
+     */
+    @Override
+    public byte[] screenshot(String locator, boolean embed) {
+        try {
+            String elementId = findElementIdWithRetry(locator);
+            byte[] bytes = session.elementScreenshot(elementId);
+            if (embed) {
+                LogContext.get().embed(bytes, "image/png", "screenshot.png");
+            }
+            return bytes;
+        } catch (Exception e) {
+            // fall back to full-page on any failure (matches v1 leniency)
+            return screenshot(embed);
+        }
+    }
+
     // ========== Dialog (additional abstract methods) ==========
 
     @Override

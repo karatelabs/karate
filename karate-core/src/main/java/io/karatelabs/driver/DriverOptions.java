@@ -39,6 +39,12 @@ public interface DriverOptions {
     int getTimeout();
 
     /**
+     * Update the operation timeout in milliseconds. Used by
+     * {@link Driver#timeout(int)} for v1 parity (mid-scenario timeout tweaks).
+     */
+    void setTimeout(int millis);
+
+    /**
      * Get timeout as Duration.
      */
     Duration getTimeoutDuration();

@@ -120,6 +120,14 @@ public class Finder {
                 double width = ((Number) pos.get("width")).doubleValue();
                 double height = ((Number) pos.get("height")).doubleValue();
 
+                // Self-match guard — when the candidate locator matches the
+                // reference itself (e.g. near('#a').find('span') where #a is
+                // a <span>), drop the reference from the result so we don't
+                // recommend the anchor as its own neighbour.
+                if (samePosition(x, y, width, height, refX, refY, refWidth, refHeight)) {
+                    continue;
+                }
+
                 double centerX = x + width / 2;
                 double centerY = y + height / 2;
                 double right = x + width;
@@ -130,48 +138,39 @@ public class Finder {
 
                 switch (position) {
                     case RIGHT_OF:
-                        // Element should be to the right of reference
-                        if (x >= refRight - tolerance) {
-                            // Check vertical overlap or nearness
-                            if (hasVerticalOverlap(refY, refBottom, y, bottom, tolerance)) {
-                                match = true;
-                                distance = x - refRight;
-                            }
+                        // Strict: candidate's left edge must be at-or-past the
+                        // reference's right edge, and the candidate must
+                        // actually overlap the reference's vertical extent
+                        // (no axis tolerance — adjacent rows shouldn't match).
+                        if (x >= refRight && verticalOverlap(refY, refBottom, y, bottom)) {
+                            match = true;
+                            distance = x - refRight;
                         }
                         break;
 
                     case LEFT_OF:
-                        // Element should be to the left of reference
-                        if (right <= refX + tolerance) {
-                            if (hasVerticalOverlap(refY, refBottom, y, bottom, tolerance)) {
-                                match = true;
-                                distance = refX - right;
-                            }
+                        if (right <= refX && verticalOverlap(refY, refBottom, y, bottom)) {
+                            match = true;
+                            distance = refX - right;
                         }
                         break;
 
                     case ABOVE:
-                        // Element should be above reference
-                        if (bottom <= refY + tolerance) {
-                            if (hasHorizontalOverlap(refX, refRight, x, right, tolerance)) {
-                                match = true;
-                                distance = refY - bottom;
-                            }
+                        if (bottom <= refY && horizontalOverlap(refX, refRight, x, right)) {
+                            match = true;
+                            distance = refY - bottom;
                         }
                         break;
 
                     case BELOW:
-                        // Element should be below reference
-                        if (y >= refBottom - tolerance) {
-                            if (hasHorizontalOverlap(refX, refRight, x, right, tolerance)) {
-                                match = true;
-                                distance = y - refBottom;
-                            }
+                        if (y >= refBottom && horizontalOverlap(refX, refRight, x, right)) {
+                            match = true;
+                            distance = y - refBottom;
                         }
                         break;
 
                     case NEAR:
-                        // Element should be within tolerance distance
+                        // Element should be within tolerance distance (Euclidean centre-to-centre).
                         double dx = centerX - refCenterX;
                         double dy = centerY - refCenterY;
                         distance = Math.sqrt(dx * dx + dy * dy);
@@ -215,14 +214,22 @@ public class Finder {
         return !findAll(locator).isEmpty();
     }
 
-    private boolean hasVerticalOverlap(double y1, double bottom1, double y2, double bottom2, double tolerance) {
-        // Check if the vertical ranges overlap (with tolerance)
-        return bottom1 + tolerance >= y2 && bottom2 + tolerance >= y1;
+    private boolean verticalOverlap(double y1, double bottom1, double y2, double bottom2) {
+        // strict overlap — no tolerance, prevents adjacent rows from matching
+        return bottom1 > y2 && bottom2 > y1;
     }
 
-    private boolean hasHorizontalOverlap(double x1, double right1, double x2, double right2, double tolerance) {
-        // Check if the horizontal ranges overlap (with tolerance)
-        return right1 + tolerance >= x2 && right2 + tolerance >= x1;
+    private boolean horizontalOverlap(double x1, double right1, double x2, double right2) {
+        return right1 > x2 && right2 > x1;
+    }
+
+    private boolean samePosition(double x, double y, double w, double h,
+                                  double refX, double refY, double refW, double refH) {
+        // 1px slack absorbs rounding from getBoundingClientRect across browsers
+        return Math.abs(x - refX) < 1
+                && Math.abs(y - refY) < 1
+                && Math.abs(w - refW) < 1
+                && Math.abs(h - refH) < 1;
     }
 
     private String positionDescription() {

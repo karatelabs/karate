@@ -18,6 +18,7 @@ public class DriverApi {
     public static final String FOCUS = "focus";
     public static final String SCROLL = "scroll";
     public static final String HIGHLIGHT = "highlight";
+    public static final String HIGHLIGHT_ALL = "highlightAll";
     public static final String SELECT = "select";
     public static final String SUBMIT = "submit";
 
@@ -38,6 +39,7 @@ public class DriverApi {
 
     // Wait methods
     public static final String WAIT_FOR = "waitFor";
+    public static final String WAIT_FOR_ANY = "waitForAny";
     public static final String WAIT_FOR_TEXT = "waitForText";
     public static final String WAIT_FOR_ENABLED = "waitForEnabled";
     public static final String WAIT_FOR_URL = "waitForUrl";
@@ -55,14 +57,29 @@ public class DriverApi {
 
     // Navigation
     public static final String REFRESH = "refresh";
+    public static final String RELOAD = "reload";
     public static final String BACK = "back";
     public static final String FORWARD = "forward";
+
+    // Window
+    public static final String MAXIMIZE = "maximize";
+    public static final String MINIMIZE = "minimize";
+    public static final String FULLSCREEN = "fullscreen";
+    public static final String ACTIVATE = "activate";
+
+    // Lifecycle
+    public static final String CLOSE = "close";
+    public static final String QUIT = "quit";
 
     // Screenshot
     public static final String SCREENSHOT = "screenshot";
 
+    // PDF
+    public static final String PDF = "pdf";
+
     // Cookies
     public static final String COOKIE = "cookie";
+    public static final String COOKIES_SET = "setCookies";
     public static final String CLEAR_COOKIES = "clearCookies";
     public static final String DELETE_COOKIE = "deleteCookie";
 
@@ -78,8 +95,16 @@ public class DriverApi {
     public static final String MOUSE = "mouse";
     public static final String KEYS = "keys";
 
-    // Retry
+    // Positional finders
+    public static final String RIGHT_OF = "rightOf";
+    public static final String LEFT_OF = "leftOf";
+    public static final String ABOVE = "above";
+    public static final String BELOW = "below";
+    public static final String NEAR = "near";
+
+    // Retry / timing
     public static final String RETRY = "retry";
+    public static final String TIMEOUT = "timeout";
 
     // Properties
     public static final String URL = "url";
@@ -89,19 +114,22 @@ public class DriverApi {
 
     // Collection of all bindable method names
     public static final List<String> BOUND_METHODS = List.of(
-            CLICK, INPUT, CLEAR, FOCUS, SCROLL, HIGHLIGHT, SELECT, SUBMIT,
-            TEXT, HTML, VALUE, ATTRIBUTE, EXISTS, ENABLED, POSITION,
+            CLICK, INPUT, CLEAR, FOCUS, SCROLL, HIGHLIGHT, HIGHLIGHT_ALL, SELECT, SUBMIT,
+            TEXT, HTML, VALUE, ATTRIBUTE, PROPERTY, EXISTS, ENABLED, POSITION,
             LOCATE, LOCATE_ALL, OPTIONAL,
-            WAIT_FOR, WAIT_FOR_TEXT, WAIT_FOR_ENABLED, WAIT_FOR_URL, WAIT_UNTIL, WAIT_FOR_RESULT_COUNT,
+            WAIT_FOR, WAIT_FOR_ANY, WAIT_FOR_TEXT, WAIT_FOR_ENABLED, WAIT_FOR_URL, WAIT_UNTIL, WAIT_FOR_RESULT_COUNT,
             SWITCH_FRAME, SWITCH_PAGE, GET_PAGES,
             SCRIPT, SCRIPT_ALL,
-            REFRESH, BACK, FORWARD,
-            SCREENSHOT,
-            COOKIE, CLEAR_COOKIES, DELETE_COOKIE,
+            REFRESH, RELOAD, BACK, FORWARD,
+            MAXIMIZE, MINIMIZE, FULLSCREEN, ACTIVATE,
+            CLOSE, QUIT,
+            SCREENSHOT, PDF,
+            COOKIE, COOKIES_SET, CLEAR_COOKIES, DELETE_COOKIE,
             INTERCEPT,
             DIALOG, ON_DIALOG,
             MOUSE, KEYS,
-            RETRY
+            RIGHT_OF, LEFT_OF, ABOVE, BELOW, NEAR,
+            RETRY, TIMEOUT
     );
 
     /**
