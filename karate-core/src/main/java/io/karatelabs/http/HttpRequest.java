@@ -28,6 +28,7 @@ import io.karatelabs.common.Json;
 import io.karatelabs.common.Pair;
 import io.karatelabs.common.ResourceType;
 import io.karatelabs.common.StringUtils;
+import io.karatelabs.js.JavaCallable;
 import io.karatelabs.js.JavaInvokable;
 import io.karatelabs.js.SimpleObject;
 import io.netty.buffer.Unpooled;
@@ -64,6 +65,7 @@ public class HttpRequest implements SimpleObject {
     private Map<String, String> pathParams;
     private String pathPattern;
     private Map<String, List<Map<String, Object>>> multiParts;
+    private Map<String, Object> cacheStore;
     private transient HttpClient httpClient;
 
     /**
@@ -662,6 +664,38 @@ public class HttpRequest implements SimpleObject {
         };
     }
 
+    /**
+     * Per-request memoization. {@code request.cache('key', () => compute())}
+     * invokes the function on the first call with that key, stores the result
+     * on this request, and returns the same value on subsequent calls. The
+     * store dies with the request — never crosses request boundaries.
+     * <p>
+     * The two-argument form is the only supported shape. If the key is
+     * missing, the second argument must be a function (otherwise a runtime
+     * error is raised). A cached {@code null} or {@code undefined} return
+     * value is still a cache hit and does not re-invoke the function.
+     */
+    private JavaCallable cache() {
+        return (context, args) -> {
+            if (args.length < 2) {
+                throw new RuntimeException("cache() requires (key, fn)");
+            }
+            String key = args[0] + "";
+            if (cacheStore != null && cacheStore.containsKey(key)) {
+                return cacheStore.get(key);
+            }
+            if (!(args[1] instanceof JavaCallable fn)) {
+                throw new RuntimeException("cache() second argument must be a function: " + key);
+            }
+            Object value = fn.call(context);
+            if (cacheStore == null) {
+                cacheStore = new HashMap<>();
+            }
+            cacheStore.put(key, value);
+            return value;
+        };
+    }
+
     @Override
     public Object jsGet(String key) {
         switch (key) {
@@ -709,6 +743,8 @@ public class HttpRequest implements SimpleObject {
                 return multiParts;
             case "proceed":
                 return proceed();
+            case "cache":
+                return cache();
             case "get":
             case "post":
             case "put":
