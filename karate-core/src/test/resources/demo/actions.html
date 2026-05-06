@@ -1,0 +1,37 @@
+<!--
+    Test page for K5 — context.actions registry. Registers three handlers
+    and renders the resulting flash messages so RequestActionsTest can assert
+    on response body.
+-->
+<script ka:scope="global">
+    if (!session) context.init();
+    session.events = session.events || [];
+
+    // Dot notation is the preferred style — works because context.actions is a
+    // plain Map exposed to the JS engine (same shape as context.flash.success).
+    context.actions.addUser = function (form) {
+        session.events.push({ type: 'addUser', email: form.email, role: form.role });
+        context.flash.success = 'Added ' + form.email;
+    };
+
+    context.actions.suspend = function () {
+        session.events.push({ type: 'suspend', userId: request.param('userId') });
+        context.flash.success = 'Suspended.';
+    };
+
+    context.actions.boom = function () {
+        throw new Error('handler-failed');
+    };
+
+    // Bracket notation works too — use it for action names that aren't valid
+    // JS identifiers (hyphens, numeric prefixes, etc.).
+    context.actions['hyphen-action'] = function () {
+        context.flash.success = 'Hyphen.';
+    };
+</script>
+
+<section id="actions-page">
+    <div th:if="context.flash.success" id="flash-success" th:text="context.flash.success">success</div>
+    <div th:if="context.flash.error" id="flash-error" th:text="context.flash.error">error</div>
+    <pre id="events" th:text="context.toJson(session.events)">[]</pre>
+</section>

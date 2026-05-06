@@ -68,6 +68,7 @@ class KaScriptProcessor extends AbstractElementModelProcessor {
                             kec.evalLocal(text);
                         } else {
                             kec.evalGlobal(text);
+                            kec.maybeDispatchAction();
                         }
                     }
                 }

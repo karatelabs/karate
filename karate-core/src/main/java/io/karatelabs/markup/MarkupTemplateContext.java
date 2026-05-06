@@ -64,6 +64,46 @@ public class MarkupTemplateContext implements IEngineContext {
         engine.eval(src);
     }
 
+    /**
+     * K5 — after a {@code ka:scope="global"} block has run, check if the
+     * inbound POST has a matching handler in {@code context.actions} and
+     * dispatch it. The handler runs at most once per request even with
+     * multiple global blocks. Plain (non-server) contexts are a silent
+     * no-op since they don't implement {@link ActionDispatchHost}.
+     *
+     * <p>The dispatch JS pre-decodes {@code request.paramJson('form')}
+     * (the karate-markup form-payload convention) and passes it as the
+     * single positional argument. Handlers that don't need {@code form}
+     * just don't declare a parameter; handlers that need different params
+     * read them off the {@code request} global directly inside the body.
+     *
+     * <p>Uncaught exceptions from the handler are translated to
+     * {@code context.flash.error} so a thrown handler degrades the same
+     * way a hand-written {@code switch}/{@code try-catch} does today.
+     */
+    void maybeDispatchAction() {
+        Object ctxObj = wrapped.getVariable("context");
+        if (!(ctxObj instanceof ActionDispatchHost host)) return;
+        if (host.isActionDispatched()) return;
+        if (host.getActions() == null || host.getActions().isEmpty()) return;
+        Object dispatched = engine.eval(DISPATCH_JS);
+        if (Boolean.TRUE.equals(dispatched)) {
+            host.markActionDispatched();
+        }
+    }
+
+    private static final String DISPATCH_JS =
+            "(function() {"
+            + "  if (typeof request === 'undefined' || !request.post) return false;"
+            + "  var name = request.param('action');"
+            + "  if (!name) return false;"
+            + "  var fn = context.actions[name];"
+            + "  if (typeof fn !== 'function') return false;"
+            + "  try { fn(request.paramJson('form')); }"
+            + "  catch (e) { context.flash.error = (e && e.message) || (e + ''); }"
+            + "  return true;"
+            + "})()";
+
     public Object evalLocalAsObject(String src) {
         String temp;
         if (src.startsWith("${")) {

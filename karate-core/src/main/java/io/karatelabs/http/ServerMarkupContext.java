@@ -27,6 +27,7 @@ import io.karatelabs.common.FileUtils;
 import io.karatelabs.common.Json;
 import io.karatelabs.common.Resource;
 import io.karatelabs.js.JavaInvokable;
+import io.karatelabs.markup.ActionDispatchHost;
 import io.karatelabs.markup.MarkupContext;
 
 import java.util.ArrayList;
@@ -52,7 +53,7 @@ import java.util.function.Supplier;
  * &lt;/script&gt;
  * </pre>
  */
-public class ServerMarkupContext implements MarkupContext {
+public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
 
     /**
      * Session key used to persist flash messages across redirects.
@@ -76,6 +77,8 @@ public class ServerMarkupContext implements MarkupContext {
     private String redirectPath;
     private final List<String> logMessages = new ArrayList<>();
     private final Map<String, Object> flash = new HashMap<>();
+    private final Map<String, Object> actions = new HashMap<>();
+    private boolean actionDispatched = false;
 
     public ServerMarkupContext(HttpRequest request, HttpResponse response, ServerConfig config) {
         this.request = request;
@@ -273,6 +276,7 @@ public class ServerMarkupContext implements MarkupContext {
             case "closed" -> isClosed();
             case "switched" -> switched;
             case "flash" -> flash;
+            case "actions" -> actions;
             case "request" -> request;
             case "response" -> response;
             case "session" -> session;
@@ -355,6 +359,23 @@ public class ServerMarkupContext implements MarkupContext {
 
     public Map<String, Object> getFlash() {
         return flash;
+    }
+
+    // ActionDispatchHost (K5)
+
+    @Override
+    public Map<String, Object> getActions() {
+        return actions;
+    }
+
+    @Override
+    public boolean isActionDispatched() {
+        return actionDispatched;
+    }
+
+    @Override
+    public void markActionDispatched() {
+        this.actionDispatched = true;
     }
 
     /**
