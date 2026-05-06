@@ -18,4 +18,14 @@ public class DemoUtils {
         return sb.toString();
     }
 
+    public enum QueryIdType {
+        STRING, NUMBER
+    }
+
+    public static class NestedHelper {
+        public static String greet() {
+            return "hello-nested";
+        }
+    }
+
 }

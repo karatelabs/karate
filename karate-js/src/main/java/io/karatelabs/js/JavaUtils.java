@@ -121,6 +121,12 @@ public class JavaUtils {
                         return jc.getMethod(name);
                     }
                 }
+                // Static nested class / enum: e.g. Foo.Bar where Bar is a member type
+                for (Class<?> nested : clazz.getClasses()) {
+                    if (nested.getSimpleName().equals(name)) {
+                        return new JavaType(nested);
+                    }
+                }
             }
             throw JsErrorException.typeError("." + name + " is not a property (on " + jsTypeName(clazz) + ")");
         }

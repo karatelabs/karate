@@ -731,6 +731,38 @@ class ExternalBridgeTest extends EvalBase {
     }
 
     @Test
+    void testStaticNestedEnumAccess() {
+        // Issue #2829: Java.type('utils.PostgresHelper').QueryIdType.STRING
+        // worked in v1 (GraalJS) but throws in v2 because getStatic does not
+        // resolve nested classes.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Object result = engine.eval(
+                "var DemoUtils = Java.type('io.karatelabs.js.DemoUtils'); DemoUtils.QueryIdType.STRING");
+        assertEquals(DemoUtils.QueryIdType.STRING, result);
+    }
+
+    @Test
+    void testStaticNestedClassMethodCall() {
+        // Sibling case: nested non-enum class — call a static method on it.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Object result = engine.eval(
+                "var DemoUtils = Java.type('io.karatelabs.js.DemoUtils'); DemoUtils.NestedHelper.greet()");
+        assertEquals("hello-nested", result);
+    }
+
+    @Test
+    void testStaticNestedEnumAccessFqn() {
+        // Same as above but using the dotted FQN form (no Java.type binding).
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Object result = engine.eval(
+                "io.karatelabs.js.DemoUtils.QueryIdType.STRING");
+        assertEquals(DemoUtils.QueryIdType.STRING, result);
+    }
+
+    @Test
     void testXmlPathViaSimpleObject() {
         engine = new Engine();
         engine.setExternalBridge(bridge);
