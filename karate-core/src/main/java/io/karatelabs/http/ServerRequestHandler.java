@@ -32,6 +32,8 @@ import io.karatelabs.markup.ResourceResolver;
 import io.karatelabs.markup.HxDialect;
 import io.karatelabs.output.HttpLogger;
 import io.karatelabs.output.LogContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.function.Function;
 
@@ -59,6 +61,8 @@ import java.util.function.Function;
  */
 public class ServerRequestHandler implements Function<HttpRequest, HttpResponse> {
 
+    private static final Logger logger = LoggerFactory.getLogger(ServerRequestHandler.class);
+
     private final ServerConfig config;
     private final ResourceResolver resolver;
     private final Markup markup;
@@ -71,8 +75,17 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
         MarkupConfig markupConfig = new MarkupConfig();
         markupConfig.setResolver(resolver);
         markupConfig.setDevMode(config.isDevMode());
+        markupConfig.setDevTrace(config.isDevTrace());
         markupConfig.setEngineSupplier(config.getEngineSupplier());
         this.markup = Markup.init(markupConfig, new HxDialect(markupConfig));
+        if (config.isDevMode()) {
+            logger.info("karate dev-mode enabled — templates hot-reload on every request");
+            if (config.isDevTrace()) {
+                logger.info("karate dev-trace enabled — fragment boundaries emitted as HTML comments (never enable in production)");
+            }
+        } else if (config.isDevTrace()) {
+            logger.info("karate dev-trace ignored — requires devMode(true)");
+        }
     }
 
     @Override

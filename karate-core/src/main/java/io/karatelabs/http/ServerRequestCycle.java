@@ -230,7 +230,18 @@ public class ServerRequestCycle {
 
             String html;
             if (wrapWithShell) {
-                vars.put("content", contentHtml);
+                // Devmode shell-trace: wrap the content HTML with begin/end
+                // marker comments so the shell↔page boundary is visible in
+                // view-source. Same gating as devTrace (requires devMode too).
+                String shellWrappedContent = contentHtml;
+                if (config.isDevMode() && config.isDevTrace()) {
+                    String safe = contentTemplate == null ? "" : contentTemplate.replace("-->", "--&gt;");
+                    shellWrappedContent =
+                            "<!-- ka:fragment-begin (shell) " + safe + " depth=0 -->\n"
+                                    + contentHtml
+                                    + "\n<!-- ka:fragment-end (shell) " + safe + " depth=0 -->";
+                }
+                vars.put("content", shellWrappedContent);
                 vars.put("contentTemplate", contentTemplate);
                 // Session is bound as a Supplier in toVars(), so the shell
                 // already sees any session created by the content template.

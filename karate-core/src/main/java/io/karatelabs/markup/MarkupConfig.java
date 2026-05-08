@@ -33,6 +33,7 @@ public class MarkupConfig {
     private ResourceResolver resolver;
     private String contextPath;
     private boolean devMode;
+    private boolean devTrace;
     private boolean serverMode = true; // default to server mode for backward compatibility
 
     public void setResolver(ResourceResolver resolver) {
@@ -57,6 +58,14 @@ public class MarkupConfig {
 
     public void setDevMode(boolean devMode) {
         this.devMode = devMode;
+    }
+
+    public boolean isDevTrace() {
+        return devTrace;
+    }
+
+    public void setDevTrace(boolean devTrace) {
+        this.devTrace = devTrace;
     }
 
     public boolean isServerMode() {

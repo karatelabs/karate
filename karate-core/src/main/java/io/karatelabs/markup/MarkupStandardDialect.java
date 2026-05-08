@@ -26,19 +26,29 @@ package io.karatelabs.markup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.context.IExpressionContext;
+import org.thymeleaf.dialect.IPostProcessorDialect;
+import org.thymeleaf.postprocessor.IPostProcessor;
+import org.thymeleaf.postprocessor.PostProcessor;
 import org.thymeleaf.processor.IProcessor;
 import org.thymeleaf.standard.StandardDialect;
 import org.thymeleaf.standard.expression.*;
 import org.thymeleaf.standard.processor.*;
+import org.thymeleaf.templatemode.TemplateMode;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-class MarkupStandardDialect extends StandardDialect implements IStandardVariableExpressionEvaluator, IStandardExpressionParser {
+class MarkupStandardDialect extends StandardDialect implements IStandardVariableExpressionEvaluator, IStandardExpressionParser, IPostProcessorDialect {
 
     private static final Logger logger = LoggerFactory.getLogger(MarkupStandardDialect.class);
 
     private final StandardExpressionParser expressionParser = new StandardExpressionParser();
+    private final MarkupConfig config;
+
+    MarkupStandardDialect(MarkupConfig config) {
+        this.config = config;
+    }
 
     @Override
     public IStandardVariableExpressionEvaluator getVariableExpressionEvaluator() {
@@ -71,14 +81,35 @@ class MarkupStandardDialect extends StandardDialect implements IStandardVariable
                 p = new KaAttributeProcessor.KarateAttrprependTagProcessor(p.getTemplateMode(), dialectPrefix);
             }
             if (p instanceof StandardInsertTagProcessor) {
-                p = new KaInsertProcessor(p.getTemplateMode(), dialectPrefix);
+                p = new KaInsertProcessor(p.getTemplateMode(), dialectPrefix, config);
             }
             if (p instanceof StandardReplaceTagProcessor) {
-                p = new KaReplaceProcessor(p.getTemplateMode(), dialectPrefix);
+                p = new KaReplaceProcessor(p.getTemplateMode(), dialectPrefix, config);
             }
             patched.add(p);
         }
         return patched;
+    }
+
+    /**
+     * Post-processor middleware registration. Returns the trace handler ONLY
+     * when devTrace + devMode are both enabled. In production, this returns
+     * an empty set — Thymeleaf doesn't even instantiate the handler, so the
+     * pipeline pays zero overhead. The conditional registration is the prod-
+     * safety gate.
+     */
+    @Override
+    public Set<IPostProcessor> getPostProcessors() {
+        if (FragmentTrace.enabled(config)) {
+            return Collections.singleton(
+                    new PostProcessor(TemplateMode.HTML, FragmentTraceHandler.class, 1000));
+        }
+        return Collections.emptySet();
+    }
+
+    @Override
+    public int getDialectPostProcessorPrecedence() {
+        return 1000;
     }
 
     @Override

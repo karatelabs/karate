@@ -40,6 +40,8 @@ public class ServerConfig {
     private String resourceRoot;
     private String contextPath = "";
     private boolean devMode = false;
+    // KARATE_DEV_TRACE=true env var pre-sets this; programmatic .devTrace(...) overrides.
+    private boolean devTrace = "true".equalsIgnoreCase(System.getenv("KARATE_DEV_TRACE"));
     private int sessionExpirySeconds = 600;
     private String sessionCookieName = "karate.sid";
     private SessionStore sessionStore;
@@ -102,6 +104,10 @@ public class ServerConfig {
 
     public boolean isDevMode() {
         return devMode;
+    }
+
+    public boolean isDevTrace() {
+        return devTrace;
     }
 
     public int getSessionExpirySeconds() {
@@ -230,6 +236,23 @@ public class ServerConfig {
 
     public ServerConfig devMode(boolean devMode) {
         this.devMode = devMode;
+        return this;
+    }
+
+    /**
+     * Enable fragment-trace HTML comments around every {@code th:insert} /
+     * {@code th:replace} resolution. Useful for debugging composition.
+     * <p>
+     * Requires {@link #devMode(boolean)} {@code = true} as a precondition —
+     * trace emission is silently a no-op outside dev mode (production safety:
+     * never leak fragment names or scope payloads to end users).
+     * <p>
+     * Can also be enabled via the {@code KARATE_DEV_TRACE=true} environment
+     * variable, which is read once when {@link ServerConfig} is constructed.
+     * Programmatic configuration via this method overrides the env var.
+     */
+    public ServerConfig devTrace(boolean devTrace) {
+        this.devTrace = devTrace;
         return this;
     }
 

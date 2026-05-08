@@ -960,4 +960,158 @@ class MarkupTest {
                 "double-quote in event name must be safely escaped: " + rendered);
     }
 
+    // ========== ka:data-mirror (K8) ==========
+
+    @Test
+    void testKaDataMirrorSimpleScope() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<input ka:data-mirror=\"form\"/>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("type=\"hidden\""),
+                "must emit type=hidden: " + rendered);
+        assertTrue(rendered.contains("name=\"form\""),
+                "must emit name attr from expression: " + rendered);
+        assertTrue(rendered.contains(":value=\"JSON.stringify(form)\""),
+                "must emit Alpine :value bind that JSON-stringifies expression: " + rendered);
+        assertFalse(rendered.contains("ka:data-mirror"),
+                "ka:data-mirror attribute must be removed from rendered output: " + rendered);
+    }
+
+    @Test
+    void testKaDataMirrorSubPath() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<input ka:data-mirror=\"form.contact\"/>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("name=\"form.contact\""),
+                "sub-path expression must round-trip into name attr: " + rendered);
+        assertTrue(rendered.contains(":value=\"JSON.stringify(form.contact)\""),
+                "sub-path must round-trip into JSON.stringify call: " + rendered);
+    }
+
+    // ========== devTrace fragment trace (K7) ==========
+
+    private static Markup tracingMarkup(boolean devMode, boolean devTrace) {
+        MarkupConfig cfg = new MarkupConfig();
+        cfg.setResolver(new RootResourceResolver("classpath:markup"));
+        cfg.setEngineSupplier(Engine::new);
+        cfg.setDevMode(devMode);
+        cfg.setDevTrace(devTrace);
+        return Markup.init(cfg);
+    }
+
+    @Test
+    void testDevTraceOffEmitsNoComments() {
+        Markup markup = tracingMarkup(false, false);
+        String rendered = markup.processPath("with.html", null);
+        assertFalse(rendered.contains("ka:fragment"),
+                "default render must not emit trace comments: " + rendered);
+        assertFalse(rendered.contains("data-ka-trace"),
+                "marker attribute must not leak when trace is off: " + rendered);
+    }
+
+    @Test
+    void testDevTraceMarksInsertResolution() {
+        Markup markup = tracingMarkup(true, true);
+        String rendered = markup.processPath("with.html", null);
+        // with.html renders a fragment via th:insert with th:with — middleware
+        // must wrap the host element with begin/end comments carrying the
+        // fragment expression, depth, and the raw th:with payload.
+        assertTrue(rendered.contains("ka:fragment-begin (insert) this:with-called"),
+                "devTrace must emit a begin comment: " + rendered);
+        assertTrue(rendered.contains("ka:fragment-end (insert) this:with-called"),
+                "devTrace must emit a paired end comment: " + rendered);
+        assertTrue(rendered.contains("with={foo: 'bar', msg: msg}"),
+                "trace must surface the call-site th:with expression: " + rendered);
+        assertTrue(rendered.contains("depth=0"),
+                "depth must be tracked: " + rendered);
+        int begin = rendered.indexOf("ka:fragment-begin");
+        int firstDiv = rendered.indexOf("<div>bar</div>");
+        int end = rendered.indexOf("ka:fragment-end");
+        assertTrue(begin >= 0 && firstDiv > begin && end > firstDiv,
+                "comments must wrap the fragment content: begin=" + begin
+                        + " fragment=" + firstDiv + " end=" + end + "\n" + rendered);
+        // marker attribute must be stripped from rendered output
+        assertFalse(rendered.contains("data-ka-trace"),
+                "internal trace marker attr must not leak: " + rendered);
+    }
+
+    @Test
+    void testDevTraceRequiresDevMode() {
+        // devTrace=true, devMode=false → no trace comments (production safety gate)
+        Markup markup = tracingMarkup(false, true);
+        String rendered = markup.processPath("with.html", null);
+        assertFalse(rendered.contains("ka:fragment"),
+                "trace must be a no-op when devMode is false: " + rendered);
+        assertFalse(rendered.contains("data-ka-trace"),
+                "marker attribute must not leak when devMode is false: " + rendered);
+    }
+
+    @Test
+    void testDevTraceWrapsReplaceResolution() {
+        // th:replace removes the host entirely — the wrapper-element approach
+        // (TraceWrappingHandler) handles this case by injecting a synthetic
+        // <ka-trace> around the fragment IModel, which becomes the replacement.
+        Markup markup = tracingMarkup(true, true);
+        String rendered = markup.processPath("trace-replace.html", null);
+        assertTrue(rendered.contains("ka:fragment-begin (replace) this:trace-leaf"),
+                "th:replace must emit a begin comment: " + rendered);
+        assertTrue(rendered.contains("ka:fragment-end (replace) this:trace-leaf"),
+                "th:replace must emit a paired end comment: " + rendered);
+        // synthetic wrapper element must not leak
+        assertFalse(rendered.contains("<ka-trace"),
+                "synthetic <ka-trace> wrapper open tag must not leak: " + rendered);
+        assertFalse(rendered.contains("</ka-trace>"),
+                "synthetic </ka-trace> wrapper close tag must not leak: " + rendered);
+        assertFalse(rendered.contains("data-ka-trace"),
+                "internal trace marker attr must not leak: " + rendered);
+        // begin must precede fragment content; end must follow
+        int begin = rendered.indexOf("ka:fragment-begin");
+        int leaf = rendered.indexOf("<span>leaf</span>");
+        int end = rendered.indexOf("ka:fragment-end");
+        assertTrue(begin >= 0 && leaf > begin && end > leaf,
+                "comments must wrap fragment content: begin=" + begin + " leaf=" + leaf
+                        + " end=" + end + "\n" + rendered);
+    }
+
+    @Test
+    void testDevTraceTracksNestedDepth() {
+        // Nested fragments: parent.html inserts inner.html, inner.html inserts leaf.html.
+        // Parent is depth=0, inner=1, leaf=2 — middleware must increment as it descends.
+        Markup markup = tracingMarkup(true, true);
+        String rendered = markup.processPath("trace-parent.html", null);
+        assertTrue(rendered.contains("ka:fragment-begin (insert) this:trace-inner depth=0"), rendered);
+        assertTrue(rendered.contains("ka:fragment-begin (insert) this:trace-leaf depth=1"), rendered);
+        assertTrue(rendered.contains("ka:fragment-end (insert) this:trace-leaf depth=1"), rendered);
+        assertTrue(rendered.contains("ka:fragment-end (insert) this:trace-inner depth=0"), rendered);
+        // depths must be properly nested in document order
+        int innerBegin = rendered.indexOf("ka:fragment-begin (insert) this:trace-inner");
+        int leafBegin = rendered.indexOf("ka:fragment-begin (insert) this:trace-leaf");
+        int leafEnd = rendered.indexOf("ka:fragment-end (insert) this:trace-leaf");
+        int innerEnd = rendered.indexOf("ka:fragment-end (insert) this:trace-inner");
+        assertTrue(innerBegin < leafBegin && leafBegin < leafEnd && leafEnd < innerEnd,
+                "comments must nest properly: innerBegin=" + innerBegin + " leafBegin=" + leafBegin
+                        + " leafEnd=" + leafEnd + " innerEnd=" + innerEnd + "\n" + rendered);
+    }
+
+    @Test
+    void testKaDataMirrorInsideEach() {
+        // verify the processor renders correctly per iteration when nested in th:each
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <script ka:scope="global">
+                _.rows = [{id: 'a'}, {id: 'b'}];
+            </script>
+            <form th:each="row, iter: rows">
+                <input ka:data-mirror="row"/>
+            </form>
+            """;
+        String rendered = markup.processString(html, null);
+        // Two rows → two mirror inputs
+        int count = rendered.split(":value=\"JSON.stringify\\(row\\)\"", -1).length - 1;
+        assertEquals(2, count, "should emit one mirror input per iteration: " + rendered);
+    }
+
 }

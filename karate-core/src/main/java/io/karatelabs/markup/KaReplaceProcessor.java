@@ -36,15 +36,23 @@ class KaReplaceProcessor extends AbstractStandardFragmentInsertionTagProcessor {
     private static final int PRECEDENCE = 100;
     private static final String ATTR_NAME = "replace";
 
-    public KaReplaceProcessor(final TemplateMode templateMode, final String dialectPrefix) {
+    private final MarkupConfig config;
+
+    public KaReplaceProcessor(final TemplateMode templateMode, final String dialectPrefix, MarkupConfig config) {
         super(templateMode, dialectPrefix, ATTR_NAME, PRECEDENCE, true);
+        this.config = config;
     }
 
     @Override
     protected void doProcess(ITemplateContext context, IProcessableElementTag tag, AttributeName attributeName, String attributeValue, IElementTagStructureHandler structureHandler) {
         String fragmentExpr = attributeValue.startsWith("~{") ? attributeValue : "~{" + attributeValue + "}";
+        IElementTagStructureHandler handler = structureHandler;
+        if (FragmentTrace.enabled(config)) {
+            String payload = FragmentTrace.buildPayload("replace", attributeValue, tag);
+            handler = new TraceWrappingHandler(structureHandler, context, payload);
+        }
         try {
-            super.doProcess(context, tag, attributeName, fragmentExpr, structureHandler);
+            super.doProcess(context, tag, attributeName, fragmentExpr, handler);
         } catch (TemplateProcessingException e) {
             FragmentSupport.translateSignatureError(e);
             throw e;

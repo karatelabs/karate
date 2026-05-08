@@ -66,7 +66,7 @@ public class Markup {
             return new MarkupTemplateContext(engineContext, config);
         });
         // the next line is a set which clears and replaces all existing / default
-        wrapped.setDialect(new MarkupStandardDialect());
+        wrapped.setDialect(new MarkupStandardDialect(config));
         for (IDialect dialect : dialects) {
             wrapped.addDialect(dialect);
         }
