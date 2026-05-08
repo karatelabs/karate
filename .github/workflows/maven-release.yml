@@ -80,6 +80,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          cache: maven
           server-id: central
           server-username: CENTRAL_TOKEN_USERNAME
           server-password: CENTRAL_TOKEN_PASSWORD
@@ -132,6 +133,7 @@ jobs:
             -DskipTestScope=true \
             -DnvdApiDelay=3000 \
             -DnvdApiResultsPerPage=1000 \
+            -DdataDirectory=${HOME}/.dependency-check/data \
             -DnvdValidForHours=144 \
             -Dformat=JSON
 
