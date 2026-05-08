@@ -1,117 +1,8 @@
 # Karate v1 to v2 Migration Guide
 
-## What's New in Karate v2
+Karate v2 is a complete ground-up rewrite. For the feature overview see [What's New in v2](https://docs.karatelabs.io/getting-started/whats-new-v2/). This guide focuses on the migration mechanics for v1 users.
 
-Karate v2 is a **complete ground-up rewrite** with significant improvements across the board. Here are the highlights:
-
-### Performance & Scalability
-
-| Improvement | Description                                                                                              | Commit |
-|-------------|----------------------------------------------------------------------------------------------------------|--------|
-| **Embedded JS Engine** | Fast hand-rolled lexer/parser with ES6+ support, focused on the Java interop use-case, [see benchmark](https://github.com/ptrthomas/karate-js-benchmark) | [90d6e07](https://github.com/karatelabs/karate/commit/90d6e07) |
-| **Virtual Threads** | Java 21+ unlocks massive parallelism with minimal overhead                                               | - |
-| **@lock Tag** | Scenario-level mutual exclusion for parallel safety (`@lock=name`)                                       | [a08337b](https://github.com/karatelabs/karate/commit/a08337b) |
-| **@lock=\*** | Exclusive execution - scenario runs alone                                                                | [cd94b11](https://github.com/karatelabs/karate/commit/cd94b11) |
-
-### Assertions
-
-| Improvement | Description | Commit |
-|-------------|-------------|--------|
-| **match within** | Frequently requested - assert that a value falls within a range | [8535be0](https://github.com/karatelabs/karate/commit/8535be0) |
-| **karate.faker.\*** | Built-in test data generation: `firstName()`, `email()`, `randomInt()`, etc. | [245c540](https://github.com/karatelabs/karate/commit/245c540) |
-| **karate.expect()** | Chai-style BDD assertions - easier migration from Postman! | [ad2f475](https://github.com/karatelabs/karate/commit/ad2f475) |
-| **karate.uuid()** | Generate random UUIDs | [cb516d4](https://github.com/karatelabs/karate/commit/cb516d4) |
-
-### Modern HTTP Client
-
-| Improvement | Description | Commit |
-|-------------|-------------|--------|
-| **Apache HttpClient 5.6** | Modern HTTP client with Brotli compression support | [1a35bcd](https://github.com/karatelabs/karate/commit/1a35bcd) |
-| **Declarative Auth** | `configure auth` for Basic, Bearer, and OAuth2 with automatic token refresh | [1a06c64](https://github.com/karatelabs/karate/commit/1a06c64) |
-
-### HTTP Mocks
-
-| Improvement | Description | Commit |
-|-------------|-------------|--------|
-| **Mock Server Rewrite** | New JS engine and rewritten from scratch for performance - see [MOCKS.md](./MOCKS.md) | [d84c0e4](https://github.com/karatelabs/karate/commit/d84c0e4) |
-
-### Performance Testing
-
-| Improvement | Description | Commit |
-|-------------|-------------|--------|
-| **Gatling 3.14** | Re-implemented load testing with pure Java architecture | [32f8b00](https://github.com/karatelabs/karate/commit/32f8b00) |
-
-### Browser Automation
-
-| Improvement | Description | Commit |
-|-------------|-------------|--------|
-| **CDP Driver Rewrite** | Complete reimplementation using Chrome DevTools Protocol directly | [68111e5](https://github.com/karatelabs/karate/commit/68111e5) |
-| **PooledDriverProvider** | Automatic browser pooling for parallel UI automation | [b140436](https://github.com/karatelabs/karate/commit/b140436) |
-| **Auto-wait** | Automatic waiting before element operations reduces flaky tests | [67e4c2d](https://github.com/karatelabs/karate/commit/67e4c2d) |
-
-### Developer Experience
-
-| Improvement | Description | Commit |
-|-------------|-------------|--------|
-| **Unified Event System** | Single `RunListener` API for observing and controlling test execution - see [DESIGN.md](./DESIGN.md#event-system) | [f4240a2](https://github.com/karatelabs/karate/commit/f4240a2) |
-| **JSONL Streaming** | Tail-able `karate-events.jsonl` lifecycle event stream for IDE / CI integration | [f4240a2](https://github.com/karatelabs/karate/commit/f4240a2) |
-| **Modern HTML Reports** | Bootstrap 5.3 with dark mode, interactive tag filtering | [3b965b6](https://github.com/karatelabs/karate/commit/3b965b6) |
-| **JUnit 6 Integration** | Streaming dynamic test generation via `@TestFactory` | [a794b02](https://github.com/karatelabs/karate/commit/a794b02) |
-
-### V1 Compatibility
-
-| Improvement | Description | Commit |
-|-------------|-------------|--------|
-| **Compatibility Shims** | `com.intuit.karate` package delegates to v2 | [fefb91f](https://github.com/karatelabs/karate/commit/fefb91f) |
-| **Drop-in Migration** | Most v1 code works with just dependency update | - |
-
-### More
-* ANSI colors in console, works even outside IDE
-* HTML report with tags filtering
-* Soft assertions
-* JSON validation works in "soft assertion mode by default"
-* Debugging of JavaScript is possible now
-* Large JSON operations such as "contains" will use disk when needed to avoid out-of-memory issues
----
-
-#### Configure Auth Details
-
-Centralized authentication configuration supporting multiple auth types:
-
-```javascript
-// Basic Auth
-configure auth = { type: 'basic', username: 'user', password: 'pass' }
-
-// Bearer Token
-configure auth = { type: 'bearer', token: 'your-token' }
-
-// OAuth2 Client Credentials
-configure auth = { type: 'oauth2', tokenUrl: 'https://auth.example.com/token', clientId: '...', clientSecret: '...' }
-
-// OAuth2 Authorization Code (PKCE)
-configure auth = { type: 'oauth2', flow: 'authorization_code', authUrl: '...', tokenUrl: '...', clientId: '...' }
-```
-
-- Automatic token refresh for OAuth2
-- Auth configuration inherited by called features
-
-#### karate.expect() - Chai-style Assertions
-
-If you're migrating from Postman or other frameworks using Chai-style JavaScript syntax, `karate.expect()` provides a familiar API:
-
-```javascript
-karate.expect(response.name).to.equal('John')
-karate.expect(response.age).to.be.above(18)
-karate.expect(response).to.have.property('email')
-karate.expect(response.tags).to.include('active')
-karate.expect(response.status).to.not.equal('deleted')
-```
-
----
-
-## Overview
-
-Karate v2 includes **backward compatibility shims** that allow most v1 code to work with minimal changes. For most users, the only change required is updating the Maven dependency.
+V2 includes backward compatibility shims that allow most v1 code to work with minimal changes — for most users the only change required is updating the Maven dependency.
 
 ## Quick Start
 
@@ -359,42 +250,9 @@ Two channels, two thresholds. **The HTML report has full bodies by default — y
 | `configure printEnabled = false`                        | `configure logging = { report: 'warn' }` — raise threshold to drop INFO `print`/`karate.log` lines  |
 | `configure lowerCaseResponseHeaders = true`             | **Dropped.** `match header X-Foo` is already case-insensitive; use `karate.lowerCase(responseHeaders)` for direct map access |
 | `configure logModifier = MyImpl`                        | `configure logging = { mask: {...} }` — declarative map, no Java class needed                        |
-| `configure report = { logLevel: 'warn' }`               | **Hard-removed in 2.0.6** — use `configure logging = { report: 'warn' }`                            |
 | Manual `LoggerFactory.getLogger('com.intuit.karate').setLevel(...)` for mid-test silencing | `* configure logging = { console: 'error' }` — auto-restored at scenario end |
 
 The four v1 keys above (`logPrettyRequest`, `logPrettyResponse`, `printEnabled`, `lowerCaseResponseHeaders`) are silent no-ops with deprecation warnings — your tests still run, you just see a one-line WARN per process pointing at the new shape. `logModifier` likewise warns; rewrite the masking declaratively as shown above.
-
-### CLI flag rename (breaking)
-
-| V2 < 2.0.6           | V2 ≥ 2.0.6      |
-|----------------------|-----------------|
-| `--report-log-level` | `--log-report`  |
-| `--runtime-log-level`| `--log-console` |
-
-`karate-pom.json` `output.logLevel` is replaced by a top-level `logging` block — using the old key now raises a migration error:
-
-```json
-{
-  "logging": {
-    "report": "debug",
-    "console": "info"
-  }
-}
-```
-
-### `@report=false` is back
-
-Tag a scenario `@report=false` to keep it in the run (counts toward suite totals) but suppress its step detail from HTML / JUnit XML / Cucumber JSON / JSONL outputs. Use this for runs where step content (HTTP bodies, error messages) may include secrets that mustn't reach CI artifacts.
-
-- Failures still surface — but the error message is redacted to `output suppressed by @report=false (full detail in runtime logs)`.
-- Full failure detail still hits SLF4J / Logback (configurable via `--log-console`), so local debugging works.
-- Suppression propagates to features called from a `@report=false` scenario.
-
-```gherkin
-@report=false
-Scenario: warmup with sensitive credentials
-  * call read('classpath:auth/login.feature')
-```
 
 ---
 
@@ -563,8 +421,6 @@ Scenario: Full regression
   * call read('classpath:pages/dashboard.feature') # ✅ works — driver is shared
 ```
 
-> **Note:** Early v2 releases required `scope: 'caller'` in the driver config. This is no longer needed and can be safely removed.
-
 ### Driver-Bound Functions
 
 These functions are only available **after** `driver 'url'` has been called (i.e., a browser session is active):
@@ -617,7 +473,6 @@ V1 → V2 translation recipes:
 
 ### Migration Checklist for Driver Tests
 
-- [ ] Remove `scope: 'caller'` from driver config if present (no longer needed)
 - [ ] Replace `delay(millis)` with `karate.pause(millis)` if used before the driver starts
 - [ ] `showDriverLog` has no effect (TODO)
 - [ ] W3C WebDriver types (`chromedriver`, `geckodriver`, `safaridriver`) are now fully supported
