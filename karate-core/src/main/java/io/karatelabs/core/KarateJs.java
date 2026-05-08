@@ -98,6 +98,14 @@ public class KarateJs extends KarateJsBase implements PerfContext {
     }
 
     /**
+     * Track the previous HTTP response, used to back karate.response in non-mock context.
+     * Called by StepExecutor after each HTTP method invocation.
+     */
+    public void setPrevResponse(io.karatelabs.http.HttpResponse response) {
+        this.prevResponse = response;
+    }
+
+    /**
      * Capture a custom performance event (implements PerfContext).
      * <p>
      * When running under Gatling, this event will be reported to the
@@ -972,16 +980,18 @@ public class KarateJs extends KarateJsBase implements PerfContext {
     }
 
     /**
-     * karate.response - Returns the current response variable (only in mock context).
-     * Used by mocks to get/set the response to return.
+     * karate.response - In mock context, returns the response variable being constructed
+     * (a writable parsed body). In non-mock (test) context, returns the previous {@code HttpResponse}
+     * received from an HTTP call, exposing {@code .header(name)} for case-insensitive header
+     * lookup as well as {@code .status}, {@code .body}, {@code .headers} and friends.
+     * Returns null before any request has been made.
      */
     private Object getResponse() {
-        if (mockHandler == null) {
-            logger.warn("karate.response is only available in mock context");
-            return null;
+        if (mockHandler != null) {
+            // In mock context, 'response' is a variable in the engine being constructed
+            return engine.get("response");
         }
-        // In mock context, 'response' is a variable in the engine
-        return engine.get("response");
+        return prevResponse;
     }
 
     /**

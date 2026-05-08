@@ -82,6 +82,7 @@ abstract class KarateJsBase implements SimpleObject {
     String overrideOutputDir; // for tests to override output directory
     MockHandler mockHandler; // non-null only in mock context
     io.karatelabs.http.HttpRequest prevRequest; // tracks previous HTTP request
+    io.karatelabs.http.HttpResponse prevResponse; // tracks previous HTTP response (for karate.response)
     KarateJsLog logFacade; // lazy-initialized
 
     KarateJsBase(Resource root, HttpClient client) {

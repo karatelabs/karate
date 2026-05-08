@@ -608,6 +608,33 @@ class StepHttpTest {
     }
 
     @Test
+    void testMatchResponseHeaderEqualsAndContains() {
+        // Both 'match header X == value' and 'match header X contains value' should work,
+        // and both should be case-insensitive on the header name lookup.
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> {
+            HttpResponse resp = json("{ \"ok\": true }");
+            resp.setHeader("Content-Type", "application/json");
+            resp.setHeader("X-Trace-Id", "abc-123");
+            return resp;
+        });
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test'
+            * method get
+            * status 200
+            # equals form
+            * match header Content-Type == 'application/json'
+            * match header content-type == 'application/json'
+            * match header X-Trace-Id == 'abc-123'
+            * match header x-trace-id == 'abc-123'
+            # contains form
+            * match header Content-Type contains 'application/json'
+            * match header content-type contains 'json'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testParamsWithNullValues() {
         // V1 behavior: params with null values should be skipped
         InMemoryHttpClient client = new InMemoryHttpClient(req -> {
@@ -1282,6 +1309,81 @@ class StepHttpTest {
             * match response.contentType contains 'application/vnd.app.test+json'
             * match response.contentType contains 'charset=UTF-8'
             * match response.contentType contains 'version=1'
+            """);
+        assertPassed(sr);
+    }
+
+    // ========== karate.response Tests (issue #2830) ==========
+    // V2: karate.response is exposed in normal test context (not just mocks),
+    // and provides case-insensitive header lookup via .header(name).
+
+    @Test
+    void testKarateResponseHeaderCaseInsensitive() {
+        // Issue #2830: karate.response.header('content-type') should work in test context
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> {
+            HttpResponse resp = json("{ \"ok\": true }");
+            resp.setHeader("Content-Type", "application/json; charset=utf-8");
+            return resp;
+        });
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test'
+            * method get
+            * status 200
+            * match karate.response.header('content-type') contains 'application/json'
+            * match karate.response.header('Content-Type') contains 'application/json'
+            * match karate.response.header('CONTENT-TYPE') contains 'application/json'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateResponseStatusAndBody() {
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> {
+            HttpResponse resp = json("{ \"id\": 42, \"name\": 'Bob' }");
+            return resp;
+        });
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test'
+            * method get
+            * match karate.response.status == 200
+            * match karate.response.body == { id: 42, name: 'Bob' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateResponseHeaderMissingReturnsNull() {
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> json("{}"));
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test'
+            * method get
+            * match karate.response.header('X-Missing') == null
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateResponseUpdatesAfterEachCall() {
+        // Each request should refresh karate.response
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> {
+            HttpResponse resp = json("{ \"path\": \"" + req.getPath() + "\" }");
+            resp.setHeader("X-Path", req.getPath());
+            return resp;
+        });
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test/first'
+            * method get
+            * match karate.response.header('x-path') == '/first'
+            * match karate.response.body.path == '/first'
+
+            * url 'http://test/second'
+            * method get
+            * match karate.response.header('x-path') == '/second'
+            * match karate.response.body.path == '/second'
             """);
         assertPassed(sr);
     }

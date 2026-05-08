@@ -2018,6 +2018,8 @@ public class StepExecutor {
         if (response.getRequest() != null) {
             runtime.getKarate().setPrevRequest(response.getRequest());
         }
+        // Track previous response for karate.response (non-mock context)
+        runtime.getKarate().setPrevResponse(response);
 
         setResponseVariables(response);
 

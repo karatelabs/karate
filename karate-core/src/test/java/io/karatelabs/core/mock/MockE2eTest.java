@@ -1678,6 +1678,38 @@ class MockE2eTest {
         assertPassed(sr);
     }
 
+    // ===== karate.response in Test Context (issue #2830) =====
+
+    @Test
+    void testKarateResponseHeaderCaseInsensitiveE2e() {
+        // Issue #2830: karate.response.header('content-type') should work in test context
+        // and be case-insensitive (also confirms the documented escape hatch in the issue).
+        ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
+            Feature: karate.response.header in test context
+
+            Scenario: case-insensitive header access via karate.response
+            * url 'http://localhost:%d'
+            * path '/hello'
+            * method get
+            * status 200
+            # case-insensitive single-value access (recommended)
+            * match karate.response.header('content-type') contains 'application/json'
+            * match karate.response.header('Content-Type') contains 'application/json'
+            * match karate.response.header('CONTENT-TYPE') contains 'application/json'
+            # the existing 'match header' syntax is also case-insensitive,
+            # and supports both '==' (equals) and 'contains' operators
+            * match header content-type contains 'application/json'
+            * match header CONTENT-TYPE contains 'application/json'
+            * match header Content-Type == 'application/json'
+            * match header content-type == 'application/json'
+            # status and body are also exposed
+            * match karate.response.status == 200
+            * match karate.response.body == { bar: 'baz' }
+            """.formatted(port));
+
+        assertPassed(sr);
+    }
+
     // ===== Configure Auth Tests =====
 
     @Test
