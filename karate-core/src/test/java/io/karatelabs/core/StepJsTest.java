@@ -273,6 +273,42 @@ class StepJsTest {
     }
 
     @Test
+    void testKarateGetWithDotPath() {
+        // v1 parity: karate.get('var.nested.prop') should traverse the object graph (issue #2833)
+        ScenarioRuntime sr = run("""
+            * def myObject = { name: 'John', address: { city: 'NewYork', zip: '111' } }
+            * def viaKarateGet = karate.get('myObject.address.city', 'NOT_FOUND')
+            * match viaKarateGet == 'NewYork'
+            * def headers = { access_token: 'abc123', testInfo: { env: ['DEV'] } }
+            * def tokenViaGet = karate.get('headers.access_token', 'NOT_FOUND')
+            * match tokenViaGet == 'abc123'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateGetMissingDotPathReturnsDefault() {
+        ScenarioRuntime sr = run("""
+            * def myObject = { name: 'John' }
+            * def res = karate.get('myObject.missing.deep', 'FALLBACK')
+            * match res == 'FALLBACK'
+            * def res2 = karate.get('nonexistent.path', 'FALLBACK')
+            * match res2 == 'FALLBACK'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateGetWithBracketPath() {
+        ScenarioRuntime sr = run("""
+            * def myObject = { 'a-b': { c: 42 } }
+            * def res = karate.get("myObject['a-b'].c", 'NOT_FOUND')
+            * match res == 42
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testKarateSetWithJsonPath() {
         ScenarioRuntime sr = run("""
             * def json = { foo: [] }

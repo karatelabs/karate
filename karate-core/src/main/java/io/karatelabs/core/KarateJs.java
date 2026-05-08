@@ -490,13 +490,39 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 return engine.get(withoutDollar);
             }
 
-            // Simple variable lookup
-            Object result = engine.get(expr);
+            Object result;
+            if (isSimpleIdentifier(expr)) {
+                result = engine.get(expr);
+            } else {
+                // dot / bracket path traversal e.g. 'foo.bar.baz' or 'foo["bar"]' (v1 parity)
+                try {
+                    result = engine.eval(expr);
+                } catch (Exception e) {
+                    result = null;
+                }
+            }
             if (result == null && args.length > 1) {
                 return args[1];
             }
             return result;
         };
+    }
+
+    private static boolean isSimpleIdentifier(String s) {
+        if (s == null || s.isEmpty()) {
+            return false;
+        }
+        char first = s.charAt(0);
+        if (!Character.isLetter(first) && first != '_' && first != '$') {
+            return false;
+        }
+        for (int i = 1; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (!Character.isLetterOrDigit(c) && c != '_' && c != '$') {
+                return false;
+            }
+        }
+        return true;
     }
 
     @SuppressWarnings("unchecked")
