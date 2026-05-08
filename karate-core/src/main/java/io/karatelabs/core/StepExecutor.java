@@ -3013,7 +3013,21 @@ public class StepExecutor {
         // Check for regular embedded: #(...)
         if (str.startsWith("#(") && str.endsWith(")")) {
             String expr = str.substring(2, str.length() - 1);
-            return runtime.eval(expr);
+            try {
+                return runtime.eval(expr);
+            } catch (Exception e) {
+                // V1 parity (issue #2831): an embedded expression `#(...)` can be any
+                // valid JS — a bare identifier, a property chain, a ternary, a call —
+                // and at `def` time we may not yet have the surrounding context the
+                // expression needs. Rather than special-casing error kinds, we mirror
+                // v1: if eval fails at def time, preserve the placeholder string and
+                // let the match engine try again at match time
+                // (Operation.macroEqualsExpected). If it still fails there, the error
+                // surfaces with the right scenario context.
+                // This is the schema-as-template pattern — schemas are loaded ahead
+                // of the variables they reference and resolved on use.
+                return str;
+            }
         }
         // Check for embedded expressions within a larger string
         // e.g., "Hello #(name)!" or "Value: ##(optional)"
@@ -3024,7 +3038,14 @@ public class StepExecutor {
     }
 
     /**
-     * Process inline embedded expressions like "Hello #(name)!"
+     * Process inline embedded expressions like "Hello #(name)!".
+     *
+     * Note: the lazy-defer-on-eval-failure treatment applied to whole-value
+     * `#(...)` strings (see processEmbeddedString) is intentionally NOT applied
+     * here. For a whole-value placeholder, the match engine can resolve `#(...)`
+     * later (Operation.macroEqualsExpected); for an inline substitution there is
+     * no such recovery — leaving a literal `#(name)` inside the string would be
+     * surprising rather than helpful. So eval failures here fail fast.
      */
     private Object processInlineEmbedded(String str) {
         StringBuilder result = new StringBuilder();

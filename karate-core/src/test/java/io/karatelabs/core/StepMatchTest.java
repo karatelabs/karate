@@ -625,4 +625,71 @@ class StepMatchTest {
         assertPassed(sr);
     }
 
+    // ========== Schema-as-template — deferred #(...) at match time (issue #2831) ==========
+    // V1 parity: a `#(varName)` placeholder embedded in a JSON literal at `def`
+    // time is preserved when `varName` is undefined. The match engine resolves
+    // it later via Operation.macroEqualsExpected. See StepDataTypesTest for the
+    // def-time storage shape; tests here cover the match-time resolution.
+
+    @Test
+    void testMatchSchemaTemplateWithDeferredEmbeddedExpr() {
+        // Define schema with undefined `#(idCheck)`, then define the variable,
+        // then use the schema as a match RHS — placeholder resolves at match.
+        ScenarioRuntime sr = run("""
+            * def MySchema =
+            \"\"\"
+            {
+              id: '#(idCheck)',
+              name: '#string'
+            }
+            \"\"\"
+            * def idCheck = '#number'
+            * def actual = { id: 42, name: 'sample' }
+            * match actual == MySchema
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchSchemaTemplateFailsCleanlyIfStillUndefinedAtMatchTime() {
+        // If the variable is STILL undefined when the schema is used in a match,
+        // the failure surfaces at match time (not at def time) with a meaningful
+        // error. This is the contract: defer the error, do not swallow it.
+        ScenarioRuntime sr = run("""
+            * def MySchema =
+            \"\"\"
+            {
+              id: '#(idCheck)',
+              name: '#string'
+            }
+            \"\"\"
+            * def actual = { id: 42, name: 'sample' }
+            * match actual == MySchema
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testMatchSchemaTemplateAcrossCallBoundary() {
+        // Mirrors the issue #2831 reproduction shape: schema feature is loaded
+        // before the variable is defined in the caller. Here we simulate the
+        // call boundary by defining the schema first, then the variable, then
+        // matching — the placeholder must survive intervening steps.
+        ScenarioRuntime sr = run("""
+            * def MySchema =
+            \"\"\"
+            {
+              id: '#(idCheck)',
+              name: '#string'
+            }
+            \"\"\"
+            * def someOtherVar = 'unrelated'
+            * def yetAnother = 42
+            * def idCheck = '#number'
+            * def actual = { id: 7, name: 'x' }
+            * match actual == MySchema
+            """);
+        assertPassed(sr);
+    }
+
 }

@@ -698,4 +698,134 @@ class StepDataTypesTest {
         assertPassed(sr);
     }
 
+    // ========== Lazy #(...) resolution at def time (issue #2831) ==========
+    // V1 behavior: `#(varName)` in a JSON literal at `def` time tolerated an
+    // undefined variable — the placeholder string was preserved and resolved
+    // later at match time. Common pattern for shared schemas-as-templates,
+    // where the template is loaded ahead of the variable being defined.
+
+    @Test
+    void testDefSchemaTemplateWithUndefinedVarDoesNotThrow() {
+        // The exact case from issue #2831 — undefined `idCheck` at def time
+        // must not throw; the schema is stored as a template and resolved later.
+        ScenarioRuntime sr = run("""
+            * def MySchema =
+            \"\"\"
+            {
+              id: '#(idCheck)',
+              name: '#string'
+            }
+            \"\"\"
+            """);
+        assertPassed(sr);
+        // Placeholder is preserved verbatim for the match engine to resolve later.
+        Map<String, Object> schema = (Map<String, Object>) get(sr, "MySchema");
+        assertEquals("#(idCheck)", schema.get("id"));
+        assertEquals("#string", schema.get("name"));
+    }
+
+    // (End-to-end: deferred placeholder resolved at match time — see
+    // StepMatchTest.testMatchSchemaTemplateWithDeferredEmbeddedExpr)
+
+    @Test
+    void testNestedSchemaTemplateWithUndefinedVar() {
+        // Undefined-var deferral works through nested maps and lists too.
+        ScenarioRuntime sr = run("""
+            * def MySchema =
+            \"\"\"
+            {
+              user: { id: '#(idCheck)', name: '#string' },
+              tags: ['#(tagCheck)']
+            }
+            \"\"\"
+            """);
+        assertPassed(sr);
+        Map<String, Object> schema = (Map<String, Object>) get(sr, "MySchema");
+        Map<String, Object> user = (Map<String, Object>) schema.get("user");
+        assertEquals("#(idCheck)", user.get("id"));
+        List<Object> tags = (List<Object>) schema.get("tags");
+        assertEquals("#(tagCheck)", tags.get(0));
+    }
+
+    @Test
+    void testDefSchemaTemplateNestedAccessUndefinedRoot() {
+        // #(foo.bar) where `foo` itself is undefined → eval throws → placeholder preserved.
+        ScenarioRuntime sr = run("""
+            * def MySchema =
+            \"\"\"
+            { val: '#(foo.bar)' }
+            \"\"\"
+            """);
+        assertPassed(sr);
+        Map<String, Object> schema = (Map<String, Object>) get(sr, "MySchema");
+        assertEquals("#(foo.bar)", schema.get("val"));
+    }
+
+    @Test
+    void testDefSchemaTemplateNestedAccessDefinedRootMissingProp() {
+        // #(foo.bar) where `foo = {}` → no error → JS undefined.
+        // Documents (not asserts ideal) the boundary of the deferral: there is no
+        // exception to swallow, so the value resolves eagerly to undefined → null.
+        ScenarioRuntime sr = run("""
+            * def foo = ({})
+            * def MySchema =
+            \"\"\"
+            { val: '#(foo.bar)' }
+            \"\"\"
+            """);
+        assertPassed(sr);
+        Map<String, Object> schema = (Map<String, Object>) get(sr, "MySchema");
+        assertEquals(null, schema.get("val"));
+    }
+
+    @Test
+    void testDefSchemaTemplateNullChainDeferrsViaTypeError() {
+        // #(foo.bar) where `foo = null` → TypeError → placeholder preserved (full v1 parity).
+        ScenarioRuntime sr = run("""
+            * def foo = null
+            * def MySchema =
+            \"\"\"
+            { val: '#(foo.bar)' }
+            \"\"\"
+            """);
+        assertPassed(sr);
+        Map<String, Object> schema = (Map<String, Object>) get(sr, "MySchema");
+        assertEquals("#(foo.bar)", schema.get("val"));
+    }
+
+    @Test
+    void testDefSchemaTemplateTernaryWithUndefinedVar() {
+        // Embedded expressions can be arbitrary JS (#(a ? 'b' : 'c'), calls, etc.).
+        // If eval fails for any reason at def time, the placeholder is preserved
+        // and the match engine evaluates it later.
+        ScenarioRuntime sr = run("""
+            * def MySchema =
+            \"\"\"
+            { val: '#(flag ? "yes" : "no")' }
+            \"\"\"
+            """);
+        assertPassed(sr);
+        Map<String, Object> schema = (Map<String, Object>) get(sr, "MySchema");
+        assertEquals("#(flag ? \"yes\" : \"no\")", schema.get("val"));
+    }
+
+    @Test
+    void testDefinedVarStillSubstitutesEagerly() {
+        // Sanity: the deferral only kicks in for ReferenceError. When the
+        // variable IS in scope, `#(varName)` substitutes eagerly as before.
+        ScenarioRuntime sr = run("""
+            * def idCheck = '#number'
+            * def MySchema =
+            \"\"\"
+            {
+              id: '#(idCheck)',
+              name: '#string'
+            }
+            \"\"\"
+            """);
+        assertPassed(sr);
+        Map<String, Object> schema = (Map<String, Object>) get(sr, "MySchema");
+        assertEquals("#number", schema.get("id"));
+    }
+
 }
