@@ -379,7 +379,9 @@ public final class Runner {
 
         /**
          * Enable/disable JSON Lines streaming output.
-         * Writes feature results to karate-results.jsonl as they complete.
+         * Streams lifecycle events to karate-json/karate-events.jsonl as they fire,
+         * with one record per line and a per-line flush so external tools (e.g. IDE
+         * test runners) can tail the file in real time.
          */
         public Builder outputJsonLines(boolean enabled) {
             this.outputJsonLines = enabled;

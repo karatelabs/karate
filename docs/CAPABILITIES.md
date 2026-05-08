@@ -2,7 +2,7 @@
 
 Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
-> **Generated:** 2026-04-28 from `CAPABILITIES.yaml`
+> **Generated:** 2026-05-08 from `CAPABILITIES.yaml`
 >
 > See also: [Design Principles](./PRINCIPLES.md) | [Roadmap](./ROADMAP.md)
 
@@ -381,7 +381,7 @@ Tools and workflows for test development
 Test results and third-party integrations
 
 - `[1.x ✓]` Results Output / Export
-  - `[1.x ✓]` Karate JSON report
+  - `[1.x ✓]` JSON Lines event stream (karate-events.jsonl)
   - `[1.x ✓]` JUnit XML report
   - `[1.x ✓]` Cucumber JSON report
   - `[-]` PDF reports `$`

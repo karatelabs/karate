@@ -39,7 +39,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class JsonLinesReportListenerTest {
+class JsonLinesEventWriterTest {
 
     @TempDir
     Path tempDir;

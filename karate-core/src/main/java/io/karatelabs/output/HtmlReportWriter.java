@@ -61,11 +61,12 @@ import java.util.Map;
  * Output structure:
  * <pre>
  * target/karate-reports/
- * ├── karate-results.jsonl      (streamed during execution, optional)
  * ├── index.html                (redirects to karate-summary.html)
  * ├── karate-summary.html       (summary page with tag filtering)
- * ├── features/
+ * ├── karate-timeline.html      (parallel-execution Gantt)
+ * ├── feature-html/
  * │   └── {feature.path}.html   (per-feature reports, dot-based naming)
+ * ├── karate-json/karate-events.jsonl  (streamed during execution, opt-in)
  * └── res/
  *     ├── bootstrap.min.css
  *     ├── alpine.min.js
@@ -97,31 +98,6 @@ public final class HtmlReportWriter {
             new java.util.concurrent.atomic.AtomicInteger(0);
 
     private HtmlReportWriter() {
-    }
-
-    /**
-     * Generate HTML reports from a JSON Lines file.
-     * This is the primary entry point when using streaming via {@link JsonLinesReportListener}.
-     *
-     * @param jsonlPath the path to the JSON Lines file
-     * @param outputDir  the directory to write reports
-     */
-    public static void writeFromJsonLines(Path jsonlPath, Path outputDir) {
-        try {
-            // Parse JSON Lines file
-            JsonLinesData data = parseJsonLines(jsonlPath);
-
-            // Generate reports
-            writeReports(data.suiteData, data.features, outputDir);
-
-            logger.debug("HTML report written to: {}", outputDir.resolve("karate-summary.html"));
-
-        } catch (Exception e) {
-            logger.warn("Failed to write HTML report from JSON Lines: {}", e.getMessage());
-            if (logger.isDebugEnabled()) {
-                logger.debug("HTML report error details", e);
-            }
-        }
     }
 
     /**
@@ -381,96 +357,6 @@ public final class HtmlReportWriter {
         }
     }
 
-    // ========== JSON Lines Parsing ==========
-
-    private static JsonLinesData parseJsonLines(Path jsonlPath) throws IOException {
-        JsonLinesData data = new JsonLinesData();
-        List<String> lines = Files.readAllLines(jsonlPath, StandardCharsets.UTF_8);
-
-        for (String line : lines) {
-            if (line.trim().isEmpty()) continue;
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> envelope = (Map<String, Object>) Json.of(line).value();
-            String eventType = (String) envelope.get("type");
-            @SuppressWarnings("unchecked")
-            Map<String, Object> eventData = (Map<String, Object>) envelope.get("data");
-
-            if ("SUITE_ENTER".equals(eventType) && eventData != null) {
-                data.suiteData = buildSuiteDataFromEvent(envelope, eventData);
-            } else if ("FEATURE_EXIT".equals(eventType) && eventData != null) {
-                data.features.add(eventData);
-            } else if ("SUITE_EXIT".equals(eventType) && eventData != null) {
-                // Get summary from SUITE_EXIT data
-                @SuppressWarnings("unchecked")
-                Map<String, Object> summary = (Map<String, Object>) eventData.get("summary");
-                if (summary != null) {
-                    data.suiteData.put("summary", summary);
-                }
-            }
-        }
-
-        // If summary wasn't set, build it from features
-        if (!data.suiteData.containsKey("summary")) {
-            Map<String, Object> summary = buildSummaryFromFeatures(data.features);
-            data.suiteData.put("summary", summary);
-        }
-
-        return data;
-    }
-
-    private static Map<String, Object> buildSuiteDataFromEvent(Map<String, Object> envelope, Map<String, Object> eventData) {
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("env", eventData.get("env"));
-        data.put("threads", eventData.get("threads"));
-        data.put("karateVersion", eventData.get("version"));
-        // Convert timestamp to date string
-        Object ts = envelope.get("ts");
-        if (ts instanceof Number) {
-            data.put("reportDate", DATE_FORMAT.format(Instant.ofEpochMilli(((Number) ts).longValue())));
-        }
-        return data;
-    }
-
-    private static Map<String, Object> buildSummaryFromFeatures(List<Map<String, Object>> features) {
-        Map<String, Object> summary = new LinkedHashMap<>();
-        int featurePassed = 0;
-        int featureFailed = 0;
-        int scenarioPassed = 0;
-        int scenarioFailed = 0;
-        int scenarioSkipped = 0;
-        long durationMillis = 0;
-
-        for (Map<String, Object> feature : features) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> result = (Map<String, Object>) feature.get("result");
-            if (result != null) {
-                String status = (String) result.get("status");
-                if ("passed".equals(status)) {
-                    featurePassed++;
-                } else {
-                    featureFailed++;
-                }
-                scenarioPassed += ((Number) result.getOrDefault("passed_count", 0)).intValue();
-                scenarioFailed += ((Number) result.getOrDefault("failed_count", 0)).intValue();
-                scenarioSkipped += ((Number) result.getOrDefault("skipped_count", 0)).intValue();
-                durationMillis += ((Number) result.getOrDefault("duration_millis", 0)).longValue();
-            }
-        }
-
-        summary.put("feature_count", features.size());
-        summary.put("feature_passed", featurePassed);
-        summary.put("feature_failed", featureFailed);
-        summary.put("scenario_count", scenarioPassed + scenarioFailed);
-        summary.put("scenario_passed", scenarioPassed);
-        summary.put("scenario_failed", scenarioFailed);
-        summary.put("scenario_skipped", scenarioSkipped);
-        summary.put("duration_millis", durationMillis);
-        summary.put("status", featureFailed > 0 ? "failed" : "passed");
-
-        return summary;
-    }
-
     // ========== Data Building from SuiteResult ==========
 
     private static Map<String, Object> buildSuiteData(SuiteResult result, String env) {
@@ -723,14 +609,6 @@ public final class HtmlReportWriter {
                 .replace("\\", ".")
                 .replaceAll("[^a-zA-Z0-9_.-]", "_")
                 .toLowerCase();
-    }
-
-    /**
-     * Internal data holder for JSON Lines parsing.
-     */
-    private static class JsonLinesData {
-        Map<String, Object> suiteData = new LinkedHashMap<>();
-        List<Map<String, Object>> features = new ArrayList<>();
     }
 
     // ========== Timeline Generation ==========

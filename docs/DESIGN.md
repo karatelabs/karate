@@ -373,40 +373,47 @@ All report formats derive from `FeatureResult.toJson()`. Generation is async via
 
 ```
 target/karate-reports/
-├── karate-summary.html        # Summary dashboard
-├── karate-timeline.html       # Gantt-style parallel execution view
-├── feature-html/              # Per-feature interactive reports
-├── cucumber-json/             # Per-feature Cucumber JSON (opt-in)
-├── junit-xml/                 # Per-feature JUnit XML (opt-in)
-└── karate-json/karate-events.jsonl  # Event stream (opt-in)
+├── karate-summary.html               # Summary dashboard (default)
+├── karate-timeline.html              # Gantt-style parallel execution view (default)
+├── feature-html/                     # Per-feature interactive reports (default)
+├── karate-json/karate-events.jsonl   # JSON Lines event stream (opt-in)
+├── cucumber-json/                    # Per-feature Cucumber JSON (opt-in)
+└── junit-xml/                        # Per-feature JUnit XML (opt-in)
 ```
 
-### JSONL Event Stream
+### Defaults
 
-Standard envelope: `{"type":"EVENT_TYPE","ts":epoch_ms,"threadId":"...","data":{...}}`
-
-`FEATURE_EXIT` contains full `toJson()` — the source of truth for offline report generation. Enable with `Runner.outputJsonLines(true)` or `--jsonl`.
-
-### Runner API
+Only HTML is on by default. Cucumber JSON, JUnit XML, and JSONL are opt-in via `Runner.Builder` flags or the CLI `-f/--format` switch:
 
 ```java
 Runner.path("features/")
-    .outputJsonLines(true)      // JSONL event stream
-    .outputCucumberJson(true)   // Cucumber JSON
-    .outputJunitXml(true)       // JUnit XML
+    .outputJsonLines(true)      // karate-json/karate-events.jsonl
+    .outputCucumberJson(true)   // cucumber-json/*.json
+    .outputJunitXml(true)       // junit-xml/*.xml
     .outputHtmlReport(false)    // disable HTML (on by default)
     .parallel(5);
 ```
 
-### Report Aggregation
+CLI: `-f html,karate:jsonl,cucumber:json,junit:xml`. Prefix with `~` to disable (`-f ~html`). Default is `html`. See `RunCommand.java`.
 
-```java
-HtmlReport.aggregate()
-    .json("target/run1/karate-json/karate-events.jsonl")
-    .json("target/run2/karate-json/karate-events.jsonl")
-    .outputDir("target/combined-report")
-    .generate();
+### JSON Lines event stream
+
+Written by `JsonLinesEventWriter` (a `RunListener`) to `karate-json/karate-events.jsonl`. One record per line, flushed per write so external tools — IDE test runners, dashboards — can tail the file in real time during the run.
+
+Standard envelope:
+
+```json
+{"type":"SUITE_ENTER","timeStamp":1747555200000,"threadId":null,"data":{"schemaVersion":"1","version":"2.0.8","env":"dev","threads":4}}
+{"type":"FEATURE_ENTER","timeStamp":1747555200010,"threadId":"worker-1","data":{...}}
+{"type":"SCENARIO_ENTER","timeStamp":1747555200020,"threadId":"worker-1","data":{...}}
+{"type":"SCENARIO_EXIT","timeStamp":1747555200100,"threadId":"worker-1","data":{...}}
+{"type":"FEATURE_EXIT","timeStamp":1747555200200,"threadId":"worker-1","data":{...FeatureResult.toJson()}}
+{"type":"SUITE_EXIT","timeStamp":1747555210000,"threadId":null,"data":{"summary":{...}}}
 ```
+
+`FEATURE_EXIT.data` is the full `FeatureResult.toJson()` — the canonical structured payload for offline analysis, CI/CD scraping, and downstream tooling. `SUITE_EXIT.data.summary` carries pass/fail counters and total duration.
+
+`STEP_ENTER` / `STEP_EXIT` / `HTTP_ENTER` / `HTTP_EXIT` events fire on the `RunListener` bus but are deliberately not emitted into JSONL (too granular for a streaming feed). HTTP request/response detail still reaches consumers via `step.embeds[]` inside `FEATURE_EXIT`.
 
 **Source files:** `HtmlReportListener.java`, `HtmlReportWriter.java`, `CucumberJsonWriter.java`, `JunitXmlWriter.java`, `JsonLinesEventWriter.java`
 

@@ -1045,7 +1045,8 @@ categories:
         license: oss
         tags: [reports, milestone-1]
         items:
-          - name: Karate JSON report
+          - name: JSON Lines event stream (karate-events.jsonl)
+            description: "Replaces v1's per-feature *.karate-json.txt and karate-summary.json with a single tail-able lifecycle event stream (SUITE/FEATURE/SCENARIO enter+exit). FEATURE_EXIT carries full FeatureResult.toJson() — the canonical structured artifact for CI/CD scrapers and IDE integrations."
             v1: true
             v2: implemented
           - name: JUnit XML report

@@ -54,7 +54,7 @@ Karate v2 is a **complete ground-up rewrite** with significant improvements acro
 | Improvement | Description | Commit |
 |-------------|-------------|--------|
 | **Unified Event System** | Single `RunListener` API for observing and controlling test execution - see [DESIGN.md](./DESIGN.md#event-system) | [f4240a2](https://github.com/karatelabs/karate/commit/f4240a2) |
-| **JSONL Streaming** | Memory-efficient `karate-results.jsonl` format with real-time progress | [f4240a2](https://github.com/karatelabs/karate/commit/f4240a2) |
+| **JSONL Streaming** | Tail-able `karate-events.jsonl` lifecycle event stream for IDE / CI integration | [f4240a2](https://github.com/karatelabs/karate/commit/f4240a2) |
 | **Modern HTML Reports** | Bootstrap 5.3 with dark mode, interactive tag filtering | [3b965b6](https://github.com/karatelabs/karate/commit/3b965b6) |
 | **JUnit 6 Integration** | Streaming dynamic test generation via `@TestFactory` | [a794b02](https://github.com/karatelabs/karate/commit/a794b02) |
 
@@ -395,6 +395,71 @@ Tag a scenario `@report=false` to keep it in the run (counts toward suite totals
 Scenario: warmup with sensitive credentials
   * call read('classpath:auth/login.feature')
 ```
+
+---
+
+## Reports
+
+V2 redesigned the report architecture around `FeatureResult.toJson()` as the single source of truth. The text-based v1 dumps (`karate-summary.json`, per-feature `*.json.txt`) are gone; their replacement is the **JSON Lines event stream** (`karate-json/karate-events.jsonl`), which is the supported structured feed for CI/CD scrapers and IDE integrations.
+
+### V1 → V2 mapping
+
+| V1 artifact | V2 equivalent |
+|---|---|
+| `target/karate-reports/karate-summary.json` | `SUITE_EXIT.data.summary` line in `karate-events.jsonl` (carries pass/fail counters and total duration) |
+| `target/karate-reports/<feature>.karate-json.txt` (per feature) | `FEATURE_EXIT.data` line in `karate-events.jsonl` (the full `FeatureResult.toJson()`) |
+| `target/karate-reports/karate-summary.html` | `target/karate-reports/karate-summary.html` (unchanged location, redesigned UI) |
+| `cucumber-json/*.json` | `target/karate-reports/cucumber-json/*.json` — **now opt-in** |
+| JUnit XML | `target/karate-reports/junit-xml/*.xml` — **now opt-in** |
+
+### What's on by default
+
+Only HTML — `karate-summary.html`, `karate-timeline.html`, and `feature-html/`. Everything else is opt-in:
+
+```java
+Runner.path("features/")
+    .outputJsonLines(true)      // karate-json/karate-events.jsonl
+    .outputCucumberJson(true)   // cucumber-json/*.json
+    .outputJunitXml(true)       // junit-xml/*.xml
+    .parallel(5);
+```
+
+CLI: `-f html,karate:jsonl,cucumber:json,junit:xml` (prefix with `~` to disable, e.g. `-f ~html`).
+
+### `karate-events.jsonl` envelope
+
+One record per line, lifecycle events flushed per-write so the file can be tailed live:
+
+```json
+{"type":"SUITE_ENTER","timeStamp":1747555200000,"threadId":null,"data":{"version":"2.0.8","env":"dev","threads":4}}
+{"type":"FEATURE_ENTER","timeStamp":1747555200010,"threadId":"worker-1","data":{...}}
+{"type":"SCENARIO_ENTER","timeStamp":1747555200020,"threadId":"worker-1","data":{...}}
+{"type":"SCENARIO_EXIT","timeStamp":1747555200100,"threadId":"worker-1","data":{...}}
+{"type":"FEATURE_EXIT","timeStamp":1747555200200,"threadId":"worker-1","data":{...FeatureResult.toJson()}}
+{"type":"SUITE_EXIT","timeStamp":1747555210000,"threadId":null,"data":{"summary":{...}}}
+```
+
+### Migrating CI/CD scrapers
+
+If you parsed `karate-summary.json` or per-feature `*.json.txt` from v1, switch to `karate-events.jsonl`. The single line for a per-suite IM/Slack summary:
+
+```bash
+jq 'select(.type == "SUITE_EXIT") | .data.summary' \
+   target/karate-reports/karate-json/karate-events.jsonl
+```
+
+For per-feature detail (drop-in for the old `<feature>.json.txt`):
+
+```bash
+jq 'select(.type == "FEATURE_EXIT") | .data' \
+   target/karate-reports/karate-json/karate-events.jsonl
+```
+
+This is a deliberate, breaking change — budget time for the scraper rewrite. The JSON Lines format is the long-term support contract; per-feature `.txt` dumps will not return.
+
+> **Note:** opt-in Cucumber JSON output is still produced when `cucumber:json` is set, with the same per-feature shape v1 emitted. If you have existing Cucumber JSON consumers (e.g., third-party dashboards) you can keep using them — just enable the flag.
+
+See [DESIGN.md § Reports](./DESIGN.md#reports) for the full report architecture.
 
 ---
 

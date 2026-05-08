@@ -24,6 +24,7 @@
 package io.karatelabs.output;
 
 import io.karatelabs.core.Runner;
+import io.karatelabs.core.Suite;
 import io.karatelabs.core.SuiteResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -75,7 +76,8 @@ class HtmlReportListenerTest {
         assertTrue(Files.exists(reportDir.resolve(HtmlReportListener.SUBFOLDER)), "Features directory should exist");
 
         // JSON Lines should NOT exist (opt-in only)
-        assertFalse(Files.exists(reportDir.resolve("karate-results.jsonl")), "JSON Lines should not exist by default");
+        assertFalse(Files.exists(reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl")),
+                "JSON Lines should not exist by default");
 
         // Static resources should be copied
         assertTrue(Files.exists(reportDir.resolve("res/bootstrap.min.css")), "Bootstrap CSS should exist");
