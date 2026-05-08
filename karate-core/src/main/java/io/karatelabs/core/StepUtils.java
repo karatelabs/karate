@@ -344,6 +344,25 @@ public class StepUtils {
     }
 
     /**
+     * True if {@code s} is a bare identifier — letter/_/$ followed by letters/digits/_/$.
+     * Used by `set` to distinguish full-replacement (`set foo = ...`) from path/JS forms
+     * (`set foo.b = ...`, `set arr[0] = ...`).
+     */
+    public static boolean isPlainIdentifier(String s) {
+        if (s == null) return false;
+        s = s.trim();
+        int n = s.length();
+        if (n == 0) return false;
+        char c0 = s.charAt(0);
+        if (!(Character.isLetter(c0) || c0 == '_' || c0 == '$')) return false;
+        for (int i = 1; i < n; i++) {
+            char c = s.charAt(i);
+            if (!(Character.isLetterOrDigit(c) || c == '_' || c == '$')) return false;
+        }
+        return true;
+    }
+
+    /**
      * True if {@code lhs} is a "pure" JSON path expression: an identifier followed by
      * zero or more path segments where every segment is one of
      * {@code .ident}, {@code [int]}, {@code [int:int]}, {@code ['str']}, {@code ["str"]},

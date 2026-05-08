@@ -601,7 +601,7 @@ public class StepExecutor {
                     throw new RuntimeException("cannot set xpath on non-XML variable: " + varName);
                 }
 
-                Object value = evalValue(valueExpr);
+                Object value = evalKarateExpression(valueExpr);
                 org.w3c.dom.Document doc = target instanceof org.w3c.dom.Document
                         ? (org.w3c.dom.Document) target
                         : ((Node) target).getOwnerDocument();
@@ -625,23 +625,26 @@ public class StepExecutor {
                 Object target = runtime.getVariable(vp.var);
                 if (target instanceof Map || target instanceof List) {
                     String valueExpr = text.substring(eqIndex + 1).trim();
-                    Object value = evalValue(valueExpr);
+                    Object value = evalKarateExpression(valueExpr);
                     Json.of(target).set(vp.path, value);
                     return;
                 }
+            }
+
+            // V1 compatibility: `set varname = expr` where varname is a bare identifier
+            // routes the RHS through evalKarateExpression — same path as `def`/`match`/
+            // `configure`. Without this, `set foo = { id: #(id) }` fails JS parsing on
+            // the `#`. See issue #2813 and the broader RHS-semantics fix.
+            if (StepUtils.isPlainIdentifier(leftPart)) {
+                String valueExpr = text.substring(eqIndex + 1).trim();
+                Object value = evalKarateExpression(valueExpr);
+                runtime.setVariable(leftPart, value);
+                return;
             }
         }
 
         // Default: evaluate as JS expression (e.g., "foo.b = 2", "arr[0] = 99")
         runtime.eval(text);
-    }
-
-    private Object evalValue(String valueExpr) {
-        if (valueExpr.startsWith("<")) {
-            // XML literal
-            return Xml.toXmlDoc(valueExpr);
-        }
-        return runtime.eval(wrapJsonLikeExpression(valueExpr));
     }
 
     @SuppressWarnings("unchecked")
