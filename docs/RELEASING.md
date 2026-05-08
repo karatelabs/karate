@@ -9,9 +9,9 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
   ```bash
   mvn versions:set -DnewVersion=X.Y.Z -DgenerateBackupPoms=false
   ```
-- [ ] Commit and push (the `vX.Y.Z` tag is created later via the GitHub release UI, not from the CLI):
+- [ ] Commit and push (use `[no ci]` — `main` is already green and the Maven release job runs the full test suite). The `vX.Y.Z` tag is created later via the GitHub release UI, not from the CLI:
   ```bash
-  git add -A && git commit -m "release X.Y.Z"
+  git add -A && git commit -m "release X.Y.Z [no ci]"
   git push
   ```
 
@@ -37,7 +37,10 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
 
 ## 4. Close Issues and Milestone
 
-- [ ] Close each fixed issue on the `X.Y.Z` milestone via the GitHub UI, leaving a comment `vX.Y.Z released` on each (issues labeled `fixed` typically just need to be closed)
+- [ ] Close each fixed issue on the `X.Y.Z` milestone, leaving a `vX.Y.Z released` comment on each (always — including issues already labeled `fixed`):
+  ```bash
+  gh issue close <NUM> -R karatelabs/karate -c "vX.Y.Z released"
+  ```
 - [ ] Move any remaining open issues to the next milestone
 - [ ] Close the GitHub milestone for `X.Y.Z`
 
