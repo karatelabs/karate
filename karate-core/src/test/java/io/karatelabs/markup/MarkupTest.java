@@ -1063,6 +1063,33 @@ class MarkupTest {
     }
 
     @Test
+    void testThWithObjectSpread() {
+        // JS spread operator inside an object literal: {...obj} dumps obj's
+        // properties as own keys. KaWithProcessor wraps the value in `({...})`
+        // and forEach-binds each key as a local var, so `th:with="...obj"`
+        // forwards every property of obj as a named template var.
+        Engine js = new Engine();
+        js.put("ctx", java.util.Map.of("title", "Edit User", "size", "md"));
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<div th:with=\"...ctx\" th:text=\"title + ' (' + size + ')'\"></div>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains(">Edit User (md)<"),
+                "th:with=\"...obj\" must spread obj's properties as local vars: " + rendered);
+    }
+
+    @Test
+    void testThWithSpreadCombinedWithExplicitOverride() {
+        // Spread plus explicit override: later keys win, just like JS.
+        Engine js = new Engine();
+        js.put("ctx", java.util.Map.of("title", "Default", "size", "md"));
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<div th:with=\"...ctx, size: 'lg'\" th:text=\"title + ' (' + size + ')'\"></div>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains(">Default (lg)<"),
+                "explicit assignment after spread must override the spread value: " + rendered);
+    }
+
+    @Test
     void testThWithObjectShorthandForwardsParentScope() {
         // K9 alternative: forward parent's foo + bar into a nested element using
         // JS object shorthand, no engine support needed beyond what already exists.
