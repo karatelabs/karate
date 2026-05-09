@@ -27,6 +27,7 @@ import io.karatelabs.common.FileUtils;
 import io.karatelabs.common.Json;
 import io.karatelabs.common.Resource;
 import io.karatelabs.js.JavaInvokable;
+import io.karatelabs.js.JsLazy;
 import io.karatelabs.markup.ActionDispatchHost;
 import io.karatelabs.markup.MarkupContext;
 
@@ -36,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 /**
  * Server-side context exposed to templates and API handlers.
@@ -99,12 +99,12 @@ public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
         vars.put("request", request);
         vars.put("response", response);
         vars.put("context", this);
-        // Wrap session as a Supplier so template expressions see a live view.
+        // Wrap session as a JsLazy so template expressions see a live view.
         // Without this, the snapshot taken here is stale if a ka:scope block
         // later calls context.init() — subsequent th:* expressions would still
-        // see the old null session. The JS engine auto-unwraps Suppliers on
+        // see the old null session. The JS engine auto-unwraps JsLazy on
         // property access (see docs/JS_ENGINE.md § Lazy Variables).
-        vars.put("session", (Supplier<Session>) () -> this.session);
+        vars.put("session", (JsLazy) () -> this.session);
         return vars;
     }
 
@@ -198,8 +198,8 @@ public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
 
     /**
      * Initialize a new session. If sessions are not enabled in config, this is a no-op.
-     * Script and template bindings that reference {@code session} do so through a
-     * Supplier (see {@link #toVars()} and {@code ServerRequestCycle.createEngine()}),
+     * Script and template bindings that reference {@code session} do so through
+     * {@link JsLazy} (see {@link #toVars()} and {@code ServerRequestCycle.createEngine()}),
      * so no callback is needed — the next access reads the live value.
      */
     public void init() {

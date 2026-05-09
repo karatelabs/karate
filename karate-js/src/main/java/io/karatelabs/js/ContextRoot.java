@@ -29,7 +29,6 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
  * Engine-state holder. Sits above the script-level {@link CoreContext} as the
@@ -116,7 +115,7 @@ class ContextRoot implements Context {
 
     /**
      * Lookup-chain entry for callers that want a value (not a Slot) — wraps
-     * {@link #resolveOrInit} with Supplier-unwrap and undefined fallback.
+     * {@link #resolveOrInit} with JsLazy-unwrap and undefined fallback.
      */
     Object get(String key) {
         BindingSlot s = resolveOrInit(key);
@@ -124,7 +123,7 @@ class ContextRoot implements Context {
             return Terms.UNDEFINED;
         }
         Object v = s.value;
-        return v instanceof Supplier<?> sup ? sup.get() : v;
+        return v instanceof JsLazy lz ? lz.get() : v;
     }
 
     /**

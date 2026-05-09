@@ -1944,7 +1944,7 @@ public class ProcessHandle implements SimpleObject {
 
 3. **`jsGet()` handles property access** - The switch expression is efficient and type-safe. Return `JavaCallable` or `JavaInvokable` for methods.
 
-4. **`jsGet()` is inherently lazy** - Called on every property access, so values are computed fresh each time. No need for `Supplier` pattern.
+4. **`jsGet()` is inherently lazy** - Called on every property access, so values are computed fresh each time. No need for `JsLazy` pattern.
 
 ### Why Both `jsKeys()` and `jsGet()`?
 
@@ -1963,16 +1963,18 @@ For `SimpleObject`, there is no `hasMember()` API. When `jsGet()` returns `null`
 
 ---
 
-## Lazy Variables with Supplier
+## Lazy Variables with JsLazy
 
-The engine supports lazy/computed variables via `java.util.function.Supplier`. When a variable's value is a `Supplier`, it is automatically invoked when accessed:
+The engine supports lazy/computed variables via the `JsLazy` marker interface. When a variable's value implements `JsLazy`, it is automatically invoked when accessed:
 
 ```java
-// In CoreContext.get()
-if (result instanceof Supplier<?> supplier) {
-    return supplier.get();
+// In CoreContext.readSlot()
+if (v instanceof JsLazy lz) {
+    return lz.get();
 }
 ```
+
+`JsLazy` is deliberately distinct from `java.util.function.Supplier`: the latter is a generic functional interface that any callable host object (including JS functions, since `JavaCallable` extends `Supplier<Object>`) can satisfy, which would conflate "compute lazily on read" with "this happens to be callable." `JsLazy` is reserved for the lazy-binding sentinel role.
 
 ### Usage
 
@@ -1983,7 +1985,7 @@ Engine engine = new Engine();
 engine.put("staticValue", someObject.getValue());
 
 // Lazy value - evaluated each time it's accessed
-engine.put("lazyValue", (Supplier<String>) () -> someObject.getValue());
+engine.put("lazyValue", (JsLazy) () -> someObject.getValue());
 ```
 
 ### Use Cases
@@ -1998,16 +2000,16 @@ The mock server uses this pattern to avoid setting request variables on every HT
 
 ```java
 // Set up once during initialization
-engine.put("requestPath", (Supplier<String>) () ->
+engine.put("requestPath", (JsLazy) () ->
     currentRequest != null ? currentRequest.getPath() : null);
-engine.put("requestMethod", (Supplier<String>) () ->
+engine.put("requestMethod", (JsLazy) () ->
     currentRequest != null ? currentRequest.getMethod() : null);
 
 // Per request, only update the reference
 this.currentRequest = incomingRequest;
 
-// When script accesses requestPath, Supplier.get() is called automatically
-// * def path = requestPath  →  invokes the Supplier
+// When script accesses requestPath, JsLazy.get() is called automatically
+// * def path = requestPath  →  invokes the lazy resolver
 ```
 
 This reduces per-request `engine.put()` calls from many to just one field assignment.
@@ -2038,12 +2040,12 @@ engine.getBindings().containsKey("normal");  // true - visible
 
 ### With Lazy Evaluation
 
-Root bindings also support `Supplier` for lazy/dynamic values:
+Root bindings also support `JsLazy` for lazy/dynamic values:
 
 ```java
 String[] suiteDriver = { null };
 
-engine.putRootBinding("driver", (Supplier<String>) () -> suiteDriver[0]);
+engine.putRootBinding("driver", (JsLazy) () -> suiteDriver[0]);
 
 engine.eval("driver");  // null initially
 suiteDriver[0] = "suite-driver";

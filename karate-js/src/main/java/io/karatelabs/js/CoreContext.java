@@ -26,7 +26,6 @@ package io.karatelabs.js;
 import io.karatelabs.parser.Node;
 
 import java.util.*;
-import java.util.function.Supplier;
 
 /**
  * Execution context. Two outward links per ECMAScript 8.3:
@@ -290,14 +289,14 @@ class CoreContext implements Context {
         return argumentsObject;
     }
 
-    /** Apply TDZ check + Supplier-unwrap to a resolved Slot. Shared between
+    /** Apply TDZ check + JsLazy-unwrap to a resolved Slot. Shared between
      *  {@link #get} and {@link Interpreter#evalRefExpr}'s single-walk path. */
     Object readSlot(BindingSlot s, String key) {
         if (s.scope != null && !s.initialized) {
             throw JsErrorException.referenceError("cannot access '" + key + "' before initialization");
         }
         Object v = s.value;
-        return v instanceof Supplier<?> supplier ? supplier.get() : v;
+        return v instanceof JsLazy lz ? lz.get() : v;
     }
 
     boolean hasKey(String key) {

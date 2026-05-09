@@ -352,6 +352,16 @@ This matches v1 behavior — most v1 feature files work unchanged. The only thin
 
 ---
 
+## Java Interop
+
+`Java.type()` and existing v1 patterns work unchanged. Two notes:
+
+- **`karate.toJava()` is a deprecated no-op** in v2 (logs a one-line warning per process). It's no longer needed: JS arrays/objects work directly as Java `List`/`Map`, and JS functions auto-coerce to Java `@FunctionalInterface` parameters (`Function`, `Predicate`, `Consumer`, `Supplier`, `Runnable`).
+- **JS function → Java functional interface coercion** works natively. v1 got this from Graal's interop layer; v2 routes through default methods on `JavaCallable`. Pass an inline `function` / arrow directly to a Java method that declares e.g. `Predicate<Map<String, Object>>`. `Predicate.test()` uses JS-truthy semantics on the return value; `Function.apply()` and `Supplier.get()` auto-unwrap (`undefined → null`, `JsDate → java.util.Date`). For multi-arg interfaces (`BiFunction`, `BiConsumer`), receive the JS function as `JavaCallable` and call `.call(null, arg1, arg2)` explicitly.
+- **Lazy bindings**: register through `JsLazy` (in `io.karatelabs.js`), not `Supplier<T>`. The previous `instanceof Supplier` sentinel collided with the new functional-interface coercion (every JS function would have been treated as a lazy binding). External lazy bindings via `engine.put("key", (Supplier<X>) () -> ...)` need to be migrated to `(JsLazy) () -> ...`. See [JS_ENGINE.md § Lazy Variables with JsLazy](./JS_ENGINE.md#lazy-variables-with-jslazy).
+
+---
+
 ## Browser Automation (UI Tests)
 
 V2 uses a rewritten driver with CDP (Chrome DevTools Protocol) as the primary backend and full W3C WebDriver support for cross-browser testing.
@@ -533,6 +543,8 @@ For serving full web applications with templates, see [TEMPLATING.md](./TEMPLATI
 - [ ] Replace `JsonUtils` with `Json` class (if used)
 - [ ] Remove code using `HttpLogModifier`, `WebSocketClient`, or Driver Java APIs (if used)
 - [ ] Update cookie domain assertions if needed
+- [ ] Remove `karate.toJava(...)` calls (deprecated no-op — JS functions auto-coerce to Java functional interfaces; arrays/objects work as `List`/`Map` directly)
+- [ ] If you registered lazy bindings via `engine.put("key", (Supplier<X>) () -> ...)`, migrate to `(JsLazy) () -> ...`
 - [ ] If using embedded HTTP server: switch to `HttpServer.start(port, ServerRequestHandler)`, add a `SessionStore`, and decide whether to keep CSRF on
 - [ ] If migrating to native v2 APIs: update imports, return types, and method names (see above)
 

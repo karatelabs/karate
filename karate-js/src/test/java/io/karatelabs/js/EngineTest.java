@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -25,7 +24,7 @@ class EngineTest {
     @Test
     void testLazyContextVariables() {
         Engine engine = new Engine();
-        engine.put("x", (Supplier<String>) () -> "foo");
+        engine.put("x", (JsLazy) () -> "foo");
         assertEquals("foo", engine.eval("x"));
     }
 
@@ -545,8 +544,8 @@ class EngineTest {
         // Simulate a suite-level resource that may or may not exist
         String[] suiteDriver = { null };
 
-        // Root binding with Supplier - lazily evaluated each time
-        engine.putRootBinding("driver", (Supplier<String>) () -> {
+        // Root binding with JsLazy - lazily evaluated each time
+        engine.putRootBinding("driver", (JsLazy) () -> {
             // This simulates: return local driver if exists, else suite driver
             return suiteDriver[0];
         });

@@ -1,5 +1,13 @@
 package io.karatelabs.js;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+
 public class DemoPojo {
 
     public DemoPojo() {
@@ -136,6 +144,33 @@ public class DemoPojo {
 
     public byte getByteAt(byte[] bytes, int index) {
         return bytes[index];
+    }
+
+    // Mirrors the issue #2837 scenario: a Java method with a Predicate parameter
+    public List<Map<String, Object>> filterRows(List<Map<String, Object>> rows, Predicate<Map<String, Object>> condition) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            if (condition.test(row)) {
+                result.add(row);
+            }
+        }
+        return result;
+    }
+
+    public <T, R> R transform(T input, Function<T, R> fn) {
+        return fn.apply(input);
+    }
+
+    public void consumeValue(Object value, Consumer<Object> consumer) {
+        consumer.accept(value);
+    }
+
+    public Object produce(Supplier<Object> supplier) {
+        return supplier.get();
+    }
+
+    public void execute(Runnable task) {
+        task.run();
     }
 
 }

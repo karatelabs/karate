@@ -39,6 +39,7 @@ import io.karatelabs.http.HttpResponse;
 import io.karatelabs.js.Engine;
 import io.karatelabs.js.JavaInvokable;
 import io.karatelabs.js.JavaCallable;
+import io.karatelabs.js.JsLazy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
@@ -52,7 +53,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 /**
  * Mock server request handler that routes requests to matching scenarios.
@@ -189,27 +189,27 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
             }
         });
 
-        // Register lazy request variables (resolved via Supplier when accessed)
+        // Register lazy request variables (resolved via JsLazy when accessed)
         // These read from currentRequest field which is set per-request
-        engine.put("request", (Supplier<Object>) () ->
+        engine.put("request", (JsLazy) () ->
             currentRequest != null ? currentRequest.getBodyConverted() : null);
-        engine.put("requestBytes", (Supplier<byte[]>) () ->
+        engine.put("requestBytes", (JsLazy) () ->
             currentRequest != null ? currentRequest.getBody() : null);
-        engine.put("requestPath", (Supplier<String>) () ->
+        engine.put("requestPath", (JsLazy) () ->
             currentRequest != null ? currentRequest.getPath() : null);
-        engine.put("requestUri", (Supplier<String>) () ->
+        engine.put("requestUri", (JsLazy) () ->
             currentRequest != null ? currentRequest.getPathRaw() : null);
-        engine.put("requestUrlBase", (Supplier<Object>) () ->
+        engine.put("requestUrlBase", (JsLazy) () ->
             currentRequest != null ? currentRequest.jsGet("urlBase") : null);
-        engine.put("requestMethod", (Supplier<String>) () ->
+        engine.put("requestMethod", (JsLazy) () ->
             currentRequest != null ? currentRequest.getMethod() : null);
-        engine.put("requestHeaders", (Supplier<Map<String, List<String>>>) () ->
+        engine.put("requestHeaders", (JsLazy) () ->
             currentRequest != null ? currentRequest.getHeaders() : null);
-        engine.put("requestParams", (Supplier<Map<String, List<String>>>) () ->
+        engine.put("requestParams", (JsLazy) () ->
             currentRequest != null ? currentRequest.getParams() : null);
-        engine.put("requestParts", (Supplier<Map<String, List<Map<String, Object>>>>) () ->
+        engine.put("requestParts", (JsLazy) () ->
             currentRequest != null ? currentRequest.getMultiParts() : null);
-        engine.put("requestCookies", (Supplier<Map<String, Map<String, String>>>) () ->
+        engine.put("requestCookies", (JsLazy) () ->
             currentRequest != null ? currentRequest.getCookies() : null);
 
         // Put args into globals if provided
@@ -355,7 +355,7 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
     }
 
     private void setupRequestVariables(Engine engine, HttpRequest request) {
-        // Set current request - lazy Suppliers and matcher functions read from this field
+        // Set current request - JsLazy bindings and matcher functions read from this field
         this.currentRequest = request;
 
         // Parse multipart/form-urlencoded body so fields are available in requestParams

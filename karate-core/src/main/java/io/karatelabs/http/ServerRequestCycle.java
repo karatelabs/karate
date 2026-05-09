@@ -27,11 +27,11 @@ import io.karatelabs.common.Resource;
 import io.karatelabs.common.ResourceNotFoundException;
 import io.karatelabs.js.Engine;
 import io.karatelabs.js.FlowControlSignal;
+import io.karatelabs.js.JsLazy;
 import io.karatelabs.markup.Markup;
 import io.karatelabs.markup.ResourceResolver;
 
 import java.util.Map;
-import java.util.function.Supplier;
 
 /**
  * Per-request lifecycle wrapper that provides isolated Engine instances.
@@ -88,9 +88,9 @@ public class ServerRequestCycle {
         engine.putRootBinding("request", request);
         engine.putRootBinding("response", response);
         engine.putRootBinding("context", context);
-        // Supplier ensures scripts read the live session even after context.init()
+        // JsLazy ensures scripts read the live session even after context.init()
         // creates one mid-request. See docs/JS_ENGINE.md § Lazy Variables.
-        engine.putRootBinding("session", (Supplier<Session>) context::getSession);
+        engine.putRootBinding("session", (JsLazy) context::getSession);
         return engine;
     }
 
@@ -243,7 +243,7 @@ public class ServerRequestCycle {
                 }
                 vars.put("content", shellWrappedContent);
                 vars.put("contentTemplate", contentTemplate);
-                // Session is bound as a Supplier in toVars(), so the shell
+                // Session is bound as a JsLazy in toVars(), so the shell
                 // already sees any session created by the content template.
                 context.setTemplateName(shellTemplate);
                 try {

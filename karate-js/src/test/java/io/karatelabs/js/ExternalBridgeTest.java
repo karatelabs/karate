@@ -1196,4 +1196,195 @@ class ExternalBridgeTest extends EvalBase {
         assertInstanceOf(JavaCallable.class, capturedFn[0], "JS function should be instanceof JavaCallable");
     }
 
+    // =================================================================================================================
+    // JS Function → Java Functional Interface Coercion Tests (issue #2837)
+    // JS functions are accepted by Java methods declaring Predicate / Function /
+    // Consumer / Supplier / Runnable parameters. v1 got this via Graal interop;
+    // v2 routes through default methods on JavaCallable.
+    // =================================================================================================================
+
+    @Test
+    void testJsFunctionAsPredicate() {
+        // Direct mirror of issue #2837: Java method takes Predicate<Map<String, Object>>
+        // and is called from JS with a JS function as the predicate argument.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Map<String, Object> r1 = new HashMap<>();
+        r1.put("status", "active");
+        r1.put("count", 5);
+        Map<String, Object> r2 = new HashMap<>();
+        r2.put("status", "inactive");
+        r2.put("count", 3);
+        Map<String, Object> r3 = new HashMap<>();
+        r3.put("status", "active");
+        r3.put("count", 1);
+        engine.put("rows", List.of(r1, r2, r3));
+        engine.eval("""
+                var DemoPojo = Java.type('io.karatelabs.js.DemoPojo');
+                var pojo = new DemoPojo();
+                var result = pojo.filterRows(rows, function(row) { return row['status'] === 'active' });
+                """);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> result = (List<Map<String, Object>>) engine.get("result");
+        assertEquals(2, result.size());
+        assertEquals("active", result.get(0).get("status"));
+        assertEquals("active", result.get(1).get("status"));
+    }
+
+    @Test
+    void testJsArrowFunctionAsPredicate() {
+        // Arrow function variant
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Map<String, Object> r1 = new HashMap<>();
+        r1.put("count", 10);
+        Map<String, Object> r2 = new HashMap<>();
+        r2.put("count", 2);
+        engine.put("rows", List.of(r1, r2));
+        engine.eval("""
+                var DemoPojo = Java.type('io.karatelabs.js.DemoPojo');
+                var pojo = new DemoPojo();
+                var result = pojo.filterRows(rows, row => row.count > 5);
+                """);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> result = (List<Map<String, Object>>) engine.get("result");
+        assertEquals(1, result.size());
+        assertEquals(10, result.get(0).get("count"));
+    }
+
+    @Test
+    void testJsPredicateTruthyConversion() {
+        // Predicate uses JS truthy semantics: empty string / 0 / undefined are false,
+        // non-empty string / non-zero number / objects are true.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Map<String, Object> r1 = new HashMap<>();
+        r1.put("name", "alice");
+        Map<String, Object> r2 = new HashMap<>();
+        r2.put("name", "");
+        Map<String, Object> r3 = new HashMap<>();
+        // 'name' missing → undefined
+        engine.put("rows", List.of(r1, r2, r3));
+        engine.eval("""
+                var DemoPojo = Java.type('io.karatelabs.js.DemoPojo');
+                var pojo = new DemoPojo();
+                var result = pojo.filterRows(rows, function(r) { return r.name });
+                """);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> result = (List<Map<String, Object>>) engine.get("result");
+        assertEquals(1, result.size());
+        assertEquals("alice", result.get(0).get("name"));
+    }
+
+    @Test
+    void testJsFunctionAsFunction() {
+        // Java method takes Function<T, R>: JS function returns the transformed value.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Object result = engine.eval("""
+                var DemoPojo = Java.type('io.karatelabs.js.DemoPojo');
+                var pojo = new DemoPojo();
+                pojo.transform('hello', function(s) { return s.toUpperCase() });
+                """);
+        assertEquals("HELLO", result);
+    }
+
+    @Test
+    void testJsFunctionAsFunctionUnwrapsJsValue() {
+        // Function.apply routes through Engine.toJava — JsDate must be unwrapped
+        // to java.util.Date so Java callers don't see internal wrapper types.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Object result = engine.eval("""
+                var DemoPojo = Java.type('io.karatelabs.js.DemoPojo');
+                var pojo = new DemoPojo();
+                pojo.transform(1609459200000, function(millis) { return new Date(millis) });
+                """);
+        assertInstanceOf(Date.class, result);
+        assertEquals(1609459200000L, ((Date) result).getTime());
+    }
+
+    @Test
+    void testJsFunctionAsConsumer() {
+        // Java method takes Consumer<T>: JS function executes for side-effects.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.eval("""
+                var DemoPojo = Java.type('io.karatelabs.js.DemoPojo');
+                var pojo = new DemoPojo();
+                var captured;
+                pojo.consumeValue('hello', function(v) { captured = v + ' world' });
+                """);
+        assertEquals("hello world", engine.get("captured"));
+    }
+
+    @Test
+    void testJsFunctionAsSupplier() {
+        // Java method takes Supplier<T>: zero-arg JS function provides the value.
+        // After the JsLazy split, Supplier is a clean parameter-coercion target —
+        // it no longer doubles as the lazy-binding sentinel.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Object result = engine.eval("""
+                var DemoPojo = Java.type('io.karatelabs.js.DemoPojo');
+                var pojo = new DemoPojo();
+                pojo.produce(function() { return 'supplied' });
+                """);
+        assertEquals("supplied", result);
+    }
+
+    @Test
+    void testJsFunctionAsRunnable() {
+        // Java method takes Runnable: zero-arg JS function for fire-and-forget execution.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.eval("""
+                var DemoPojo = Java.type('io.karatelabs.js.DemoPojo');
+                var pojo = new DemoPojo();
+                var ran = false;
+                pojo.execute(function() { ran = true });
+                """);
+        assertEquals(true, engine.get("ran"));
+    }
+
+    @Test
+    void testJsFunctionInstanceOfFunctionalInterfaces() {
+        // Sanity check: a JS function obtained from JS via the bridge is recognised
+        // as each of the supported single-arg functional interfaces.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Object[] captured = new Object[1];
+        SimpleObject utils = name -> {
+            if ("capture".equals(name)) {
+                return (JavaCallable) (context, args) -> {
+                    captured[0] = args[0];
+                    return null;
+                };
+            }
+            return null;
+        };
+        engine.put("utils", utils);
+        engine.eval("utils.capture(function(x) { return x })");
+        assertInstanceOf(java.util.function.Function.class, captured[0]);
+        assertInstanceOf(java.util.function.Predicate.class, captured[0]);
+        assertInstanceOf(java.util.function.Consumer.class, captured[0]);
+        assertInstanceOf(java.util.function.Supplier.class, captured[0]);
+        assertInstanceOf(Runnable.class, captured[0]);
+        // JsLazy is the lazy-binding sentinel — JS functions are explicitly NOT lazy.
+        assertFalse(captured[0] instanceof JsLazy);
+    }
+
+    @Test
+    void testJsFunctionViaEngineEvalSupportsFunctionalInterface() {
+        // Function returned to Java via engine.eval() (i.e. wrapped as
+        // JsFunctionWrapper) also satisfies the functional interfaces.
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Object fn = engine.eval("function(x) { return x * 2 }");
+        assertInstanceOf(java.util.function.Function.class, fn);
+        @SuppressWarnings("unchecked")
+        java.util.function.Function<Object, Object> javaFn = (java.util.function.Function<Object, Object>) fn;
+        assertEquals(10, ((Number) javaFn.apply(5)).intValue());
+    }
+
 }
