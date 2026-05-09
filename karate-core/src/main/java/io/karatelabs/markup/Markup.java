@@ -112,8 +112,11 @@ public class Markup {
                 // intentional control flow (e.g. context.redirect, context.switch) — not an error
                 throw new RuntimeException(e);
             }
-            logTemplateError(isPath, content, e);
-            throw new RuntimeException(e);
+            String formatted = logTemplateError(isPath, content, e);
+            // Carry the formatted block as the wrapper's message so callers
+            // (e.g. ServerRequestCycle.handleError) can surface it in the
+            // response body when in devMode without re-deriving line/col/source.
+            throw new RuntimeException(formatted, e);
         }
     }
 
@@ -130,7 +133,7 @@ public class Markup {
 
     private static final int CONTEXT_LINES = 2;
 
-    private void logTemplateError(boolean isPath, String template, Exception e) {
+    private String logTemplateError(boolean isPath, String template, Exception e) {
         StringBuilder sb = new StringBuilder();
         sb.append("\n========== TEMPLATE ERROR ==========\n");
 
@@ -181,12 +184,14 @@ public class Markup {
         sb.append("Error: ").append(rootCause.getMessage()).append("\n");
         sb.append("====================================\n");
 
-        logger.error(sb.toString());
+        String formatted = sb.toString();
+        logger.error(formatted);
 
         // Also log full stack trace at trace level for troubleshooting
         if (logger.isTraceEnabled()) {
             logger.trace("Full stack trace: {}", StringUtils.throwableToString(e));
         }
+        return formatted;
     }
 
     private void appendContextLines(StringBuilder sb, String template, int errorLine) {

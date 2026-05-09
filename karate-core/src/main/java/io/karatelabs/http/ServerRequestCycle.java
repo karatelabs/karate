@@ -333,8 +333,18 @@ public class ServerRequestCycle {
             }
         }
 
-        // Fallback to simple text
-        response.setBody("Internal Server Error: " + e.getMessage());
+        // Fallback. In devMode, surface the formatted template-error block
+        // (line/col + source context) that Markup attaches to the wrapper's
+        // message — saves devs from having to scroll the server log. In prod
+        // the response stays opaque to avoid leaking template paths/source.
+        String body;
+        if (config.isDevMode()) {
+            String detail = e.getMessage();
+            body = detail != null ? "Internal Server Error\n" + detail : "Internal Server Error";
+        } else {
+            body = "Internal Server Error";
+        }
+        response.setBody(body);
         response.setHeader("Content-Type", "text/plain");
         return response;
     }

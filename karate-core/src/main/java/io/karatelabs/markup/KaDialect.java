@@ -55,6 +55,7 @@ class KaDialect extends AbstractProcessorDialect {
         ps.add(new KaSetAttrProcessor(dialectPrefix));
         ps.add(new KaDispatchProcessor(dialectPrefix));
         ps.add(new KaDataMirrorProcessor(dialectPrefix));
+        ps.add(new KaIslandProcessor(dialectPrefix));
         return ps;
     }
 

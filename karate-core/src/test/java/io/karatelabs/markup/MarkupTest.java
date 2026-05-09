@@ -990,6 +990,153 @@ class MarkupTest {
                 "sub-path must round-trip into JSON.stringify call: " + rendered);
     }
 
+    // ========== ka:island (K3) ==========
+
+    @Test
+    void testKaIslandSimple() {
+        Engine js = new Engine();
+        js.put("users", java.util.List.of(
+                java.util.Map.of("userId", "u1", "name", "Alice"),
+                java.util.Map.of("userId", "u2", "name", "Bob")));
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<div ka:island=\"users\"/>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<script type=\"application/json\" id=\"users-data\">"),
+                "must emit script tag with type=application/json and default id=<expr>-data: " + rendered);
+        assertTrue(rendered.contains("</script>"),
+                "script tag must be closed properly: " + rendered);
+        assertTrue(rendered.contains("\"userId\":\"u1\"") && rendered.contains("\"name\":\"Alice\""),
+                "must serialize the bound List<Map> as JSON inside the script body: " + rendered);
+        assertFalse(rendered.contains("ka:island"),
+                "ka:island attribute must not leak to output: " + rendered);
+        assertFalse(rendered.contains("<div"),
+                "host element must be replaced, not retained: " + rendered);
+    }
+
+    @Test
+    void testKaIslandCustomId() {
+        Engine js = new Engine();
+        js.put("users", java.util.List.of());
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<div ka:island=\"users:custom-id\"/>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("id=\"custom-id\""),
+                "custom id must override the default <expr>-data: " + rendered);
+        assertFalse(rendered.contains("id=\"users-data\""),
+                "default id must be skipped when custom id is provided: " + rendered);
+    }
+
+    @Test
+    void testKaIslandNullValue() {
+        Engine js = new Engine();
+        js.put("missing", null);
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<div ka:island=\"missing\"/>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<script type=\"application/json\" id=\"missing-data\">null</script>"),
+                "null value must render as the literal `null` (valid JSON): " + rendered);
+    }
+
+    // ========== th:with parameter forwarding (K9 — already supported) ==========
+    //
+    // The original PLAN sketch for K9 asked for a `th:with-spread` directive to
+    // forward all parent scoped vars into a child fragment. It turns out the
+    // existing th:with already handles parameter forwarding cleanly:
+    //
+    //   • `th:with="foo: 'a', bar: 'b'"` — explicit assignments (Map literal).
+    //   • `th:with="foo, bar"`           — JS object shorthand → {foo: foo, bar: bar},
+    //                                       reading values from the enclosing scope.
+    //
+    // Both forms route through MarkupTemplateContext.evalLocalAsObject which wraps
+    // the attribute value in `({...})` and evaluates as JS. ES6 shorthand object
+    // properties are a standard JS feature; the karate JS engine supports it.
+    // K9 demoted on this basis — see PLAN.md.
+
+    @Test
+    void testThWithMultipleAssignments() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<div th:with=\"foo: 'a', bar: 'b'\" th:text=\"foo + ' ' + bar\"></div>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains(">a b<"),
+                "th:with must support multiple comma-separated assignments: " + rendered);
+    }
+
+    @Test
+    void testThWithObjectShorthandForwardsParentScope() {
+        // K9 alternative: forward parent's foo + bar into a nested element using
+        // JS object shorthand, no engine support needed beyond what already exists.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<div th:with=\"foo: 'a', bar: 'b'\">"
+                + "<span th:with=\"foo, bar\" th:text=\"foo + ' ' + bar\"></span>"
+                + "</div>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<span>a b</span>"),
+                "th:with with shorthand `foo, bar` must forward parent-scope values: " + rendered);
+    }
+
+    // ========== friendly error: `_.foo` in template attrs ==========
+    //
+    // Script-state vars set as `_.foo = bar` are flushed into the Thymeleaf
+    // scope on every level-increase, so by the time a template attribute
+    // expression evaluates, the `_` Map is empty. Reading `_.foo` in attrs
+    // silently returns undefined (or throws on chained property access).
+    // The check in MarkupExpression rejects these eagerly with a hint.
+
+    @Test
+    void testUnderscoreReachInTemplateAttrThrowsFriendlyError() {
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<script ka:scope=\"global\">_.foo = 'bar';</script>"
+                + "<div th:text=\"_.foo\"></div>";
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> markup.processString(html, null));
+        String msg = collectMessages(ex);
+        assertTrue(msg.contains("`_` is the script-local state object"),
+                "error must explain why `_.foo` doesn't work: " + msg);
+        assertTrue(msg.contains("read them in template attrs as `foo`"),
+                "error must point at the correct convention: " + msg);
+    }
+
+    @Test
+    void testUnderscoreReachWithDollarBraceWrapperThrowsFriendlyError() {
+        // The form that bit a developer in the modal-as-URL session.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<script ka:scope=\"global\">_.foo = 'bar';</script>"
+                + "<div th:text=\"${_.foo}\"></div>";
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> markup.processString(html, null));
+        String msg = collectMessages(ex);
+        assertTrue(msg.contains("`_` is the script-local state object"),
+                "wrapped ${_.foo} must also throw the friendly error: " + msg);
+    }
+
+    @Test
+    void testUnderscoreReachAllowsLegitimateUnderscoreNames() {
+        // `obj._foo` (underscore-prefixed property) and `_a.foo` (identifier
+        // starting with underscore) must not be mistaken for `_.foo` reach.
+        Engine js = new Engine();
+        js.put("obj", java.util.Map.of("_foo", "ok-prefixed"));
+        js.put("_a", java.util.Map.of("foo", "ok-id"));
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<div th:text=\"obj._foo + ' / ' + _a.foo\"></div>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<div>ok-prefixed / ok-id</div>"),
+                "legitimate underscore property/identifier names must not trigger the check: " + rendered);
+    }
+
+    private static String collectMessages(Throwable t) {
+        StringBuilder sb = new StringBuilder();
+        Throwable cur = t;
+        while (cur != null) {
+            sb.append(cur.getMessage()).append('\n');
+            cur = cur.getCause();
+        }
+        return sb.toString();
+    }
+
     // ========== devTrace fragment trace (K7) ==========
 
     private static Markup tracingMarkup(boolean devMode, boolean devTrace) {
