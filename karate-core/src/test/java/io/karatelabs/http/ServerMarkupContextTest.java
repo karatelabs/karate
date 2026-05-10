@@ -553,4 +553,131 @@ class ServerMarkupContextTest {
         assertNotNull(csrf.getToken());
     }
 
+    // ========== context.set (per-render, _-backed) ==========
+
+    @Test
+    void testContextSetWritesToScope() {
+        // context.set delegates to MarkupScope.set, which writes to the
+        // per-render `_` underscore namespace. Verified here with a stub
+        // scope that records writes.
+        java.util.Map<String, Object> bag = new java.util.HashMap<>();
+        context.setMarkupScope(new io.karatelabs.markup.MarkupScope() {
+            @Override
+            public Object lookup(String name) {
+                return bag.get(name);
+            }
+
+            @Override
+            public void set(String name, Object value) {
+                bag.put(name, value);
+            }
+        });
+
+        ((JavaInvokable) context.jsGet("set")).invoke("theme", "dark");
+
+        assertEquals("dark", bag.get("theme"));
+        assertEquals("dark", ((JavaInvokable) context.jsGet("get")).invoke("theme"));
+    }
+
+    @Test
+    void testContextSetNoScopeIsNoOp() {
+        // Without a scope wired (e.g. outside a template render), set is a
+        // silent no-op — symmetric with the no-engine-wired behavior of
+        // setGlobal.
+        ((JavaInvokable) context.jsGet("set")).invoke("theme", "dark");
+        // No exception, no observable side effect.
+    }
+
+    @Test
+    void testContextSetMissingNameThrows() {
+        JavaInvokable set = (JavaInvokable) context.jsGet("set");
+        RuntimeException thrown = assertThrows(RuntimeException.class, set::invoke);
+        assertTrue(thrown.getMessage().contains("context.set() requires a name argument"));
+    }
+
+    // ========== context.setGlobal / getGlobal (per-request, engine-backed) ==========
+
+    @Test
+    void testContextSetGlobalGetGlobalRoundTrip() {
+        // setGlobal writes to engine.bindings; getGlobal reads back.
+        io.karatelabs.js.Engine engine = new io.karatelabs.js.Engine();
+        context.setEngine(engine);
+
+        ((JavaInvokable) context.jsGet("setGlobal")).invoke("crumbs", java.util.List.of("Home", "Docs"));
+
+        assertEquals(java.util.List.of("Home", "Docs"),
+                ((JavaInvokable) context.jsGet("getGlobal")).invoke("crumbs"));
+    }
+
+    @Test
+    void testContextSetGlobalVisibleAsBareJsName() {
+        // setGlobal puts the value in engine.bindings as a script-level
+        // global, so a subsequent JS eval picks it up as a bare reference —
+        // this is the whole point: a ka:scope=local block can plant a value
+        // visible to a later eval in the same request.
+        io.karatelabs.js.Engine engine = new io.karatelabs.js.Engine();
+        context.setEngine(engine);
+
+        ((JavaInvokable) context.jsGet("setGlobal")).invoke("crumbs", "from-content");
+
+        assertEquals("from-content", engine.eval("crumbs"));
+    }
+
+    @Test
+    void testContextGetGlobalReturnsDefaultWhenMissing() {
+        io.karatelabs.js.Engine engine = new io.karatelabs.js.Engine();
+        context.setEngine(engine);
+
+        assertEquals("fallback",
+                ((JavaInvokable) context.jsGet("getGlobal")).invoke("missing", "fallback"));
+    }
+
+    @Test
+    void testContextGetGlobalReturnsNullWhenMissingNoDefault() {
+        io.karatelabs.js.Engine engine = new io.karatelabs.js.Engine();
+        context.setEngine(engine);
+
+        assertNull(((JavaInvokable) context.jsGet("getGlobal")).invoke("missing"));
+    }
+
+    @Test
+    void testContextSetGlobalNoEngineIsNoOp() {
+        // Pre-cycle / direct-construction case: no engine wired → set silently
+        // no-ops, get returns default. Keeps unit construction usable.
+        assertNull(((JavaInvokable) context.jsGet("getGlobal")).invoke("missing"));
+        ((JavaInvokable) context.jsGet("setGlobal")).invoke("foo", "bar");
+        assertEquals("fallback",
+                ((JavaInvokable) context.jsGet("getGlobal")).invoke("foo", "fallback"));
+    }
+
+    @Test
+    void testContextGlobalIsolatedAcrossRequests() {
+        // Two requests, two engines — globals don't leak.
+        io.karatelabs.js.Engine engineA = new io.karatelabs.js.Engine();
+        ServerMarkupContext first = new ServerMarkupContext(request, response, config);
+        first.setEngine(engineA);
+        ((JavaInvokable) first.jsGet("setGlobal")).invoke("crumbs", "from-first");
+
+        io.karatelabs.js.Engine engineB = new io.karatelabs.js.Engine();
+        ServerMarkupContext second = new ServerMarkupContext(request, response, config);
+        second.setEngine(engineB);
+        assertNull(((JavaInvokable) second.jsGet("getGlobal")).invoke("crumbs"));
+    }
+
+    @Test
+    void testContextSetGlobalMissingNameThrows() {
+        context.setEngine(new io.karatelabs.js.Engine());
+        JavaInvokable setGlobal = (JavaInvokable) context.jsGet("setGlobal");
+        RuntimeException thrown = assertThrows(RuntimeException.class, setGlobal::invoke);
+        assertTrue(thrown.getMessage().contains("context.setGlobal() requires a name argument"));
+    }
+
+    @Test
+    void testContextGetGlobalMissingNameThrows() {
+        context.setEngine(new io.karatelabs.js.Engine());
+        JavaInvokable getGlobal = (JavaInvokable) context.jsGet("getGlobal");
+        RuntimeException thrown = assertThrows(RuntimeException.class, getGlobal::invoke);
+        assertTrue(thrown.getMessage().contains("context.getGlobal() requires a name argument"));
+    }
+
 }

@@ -26,6 +26,7 @@ package io.karatelabs.http;
 import io.karatelabs.common.FileUtils;
 import io.karatelabs.common.Json;
 import io.karatelabs.common.Resource;
+import io.karatelabs.js.Engine;
 import io.karatelabs.js.JavaInvokable;
 import io.karatelabs.js.JsLazy;
 import io.karatelabs.markup.ActionDispatchHost;
@@ -79,6 +80,11 @@ public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
     private final List<String> logMessages = new ArrayList<>();
     private final Map<String, Object> flash = new HashMap<>();
     private final Map<String, Object> actions = new HashMap<>();
+    // Per-request JS engine, wired in by ServerRequestCycle.createEngine().
+    // Backs context.set (engine.put → script-level global) and the engine-binding
+    // fallback in context.get. Null in non-server contexts (plain templating /
+    // direct unit construction); set/get degrade silently in that case.
+    private Engine engine;
     private boolean actionDispatched = false;
     private java.util.function.Consumer<String> eagerDispatchHook;
     private MarkupScope markupScope;
@@ -293,6 +299,39 @@ public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
         throw new TemplateFlowSignal(TemplateFlowSignal.Kind.SWITCH);
     }
 
+    /**
+     * Per-request escape hatch for setting JS-engine globals from inside a
+     * {@code ka:scope="local"} block. Routes to {@code engine.put(name, value)}
+     * so the value becomes a script-level global for the rest of the request,
+     * visible as a bare JS name in any subsequent eval (local or global) and
+     * via {@link #jsGet(String) context.getGlobal(name)}.
+     * <p>
+     * Distinct from {@code context.set} (which writes to {@code _}, the
+     * per-template-render namespace). Use {@code setGlobal} only when a value
+     * needs to cross template renders within a request (e.g. content → shell).
+     * <p>
+     * No-op when no engine is wired (non-server contexts).
+     */
+    public void setGlobal(String name, Object value) {
+        if (engine != null) {
+            engine.put(name, value);
+        }
+    }
+
+    /**
+     * Per-request engine-binding read with optional default.
+     * Symmetric reader for {@link #setGlobal(String, Object)}.
+     * Returns the engine binding's value if set (non-null), else the default
+     * (or null when no default is given). Returns null when no engine is wired.
+     */
+    public Object getGlobal(String name, Object defaultValue) {
+        if (engine != null) {
+            Object v = engine.get(name);
+            if (v != null) return v;
+        }
+        return defaultValue;
+    }
+
     // SimpleObject/jsGet implementation
 
     @Override
@@ -328,6 +367,23 @@ public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
                 if (args.length == 0) throw new RuntimeException("switch() requires a template argument");
                 switchTemplate(args[0].toString());
                 return null;
+            };
+            case "setGlobal" -> (JavaInvokable) args -> {
+                if (args.length == 0 || args[0] == null) {
+                    throw new RuntimeException("context.setGlobal() requires a name argument");
+                }
+                String name = args[0].toString();
+                Object value = args.length > 1 ? args[1] : null;
+                setGlobal(name, value);
+                return null;
+            };
+            case "getGlobal" -> (JavaInvokable) args -> {
+                if (args.length == 0 || args[0] == null) {
+                    throw new RuntimeException("context.getGlobal() requires a name argument");
+                }
+                String name = args[0].toString();
+                Object defaultValue = args.length > 1 ? args[1] : null;
+                return getGlobal(name, defaultValue);
             };
 
             // Properties
@@ -379,6 +435,19 @@ public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
 
     public void setResourceResolver(Function<String, Resource> resourceResolver) {
         this.resourceResolver = resourceResolver;
+    }
+
+    /**
+     * Wired by {@link ServerRequestCycle#createEngine()} so
+     * {@link #setGlobal(String, Object)} / {@link #getGlobal(String, Object)}
+     * can route to the per-request JS engine bindings.
+     */
+    public void setEngine(Engine engine) {
+        this.engine = engine;
+    }
+
+    public Engine getEngine() {
+        return engine;
     }
 
     public String getRedirectPath() {

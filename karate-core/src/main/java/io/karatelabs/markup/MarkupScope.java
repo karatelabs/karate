@@ -40,4 +40,14 @@ public interface MarkupScope {
      */
     Object lookup(String name);
 
+    /**
+     * Write-side companion to {@link #lookup(String)}. Stores {@code value}
+     * under {@code name} in the {@code _} underscore namespace of the current
+     * render. Backs {@code context.set(name, value)}; equivalent to writing
+     * {@code _.<name> = value} from JS. Default no-op for implementations
+     * that don't carry per-render write state.
+     */
+    default void set(String name, Object value) {
+    }
+
 }

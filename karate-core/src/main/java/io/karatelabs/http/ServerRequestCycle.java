@@ -91,6 +91,10 @@ public class ServerRequestCycle {
         // JsLazy ensures scripts read the live session even after context.init()
         // creates one mid-request. See docs/JS_ENGINE.md § Lazy Variables.
         engine.putRootBinding("session", (JsLazy) context::getSession);
+        // Hand the engine back to the context so context.setGlobal /
+        // context.getGlobal can route reads/writes to script-level bindings
+        // for the rest of this request.
+        context.setEngine(engine);
         return engine;
     }
 

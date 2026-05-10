@@ -163,6 +163,23 @@ public interface MarkupContext extends SimpleObject {
                 }
                 return defaultValue;
             };
+            // context.set(name, value) — symmetric writer for context.get.
+            // Routes to MarkupScope.set, which writes to the `_` underscore
+            // namespace of the current render (same store as `_.<name> = value`
+            // from JS). Per-render lifetime; use context.setGlobal in server
+            // mode to cross template renders within a request.
+            case "set" -> (JavaInvokable) args -> {
+                if (args.length == 0 || args[0] == null) {
+                    throw new RuntimeException("context.set() requires a name argument");
+                }
+                String name = args[0].toString();
+                Object value = args.length > 1 ? args[1] : null;
+                MarkupScope scope = getMarkupScope();
+                if (scope != null) {
+                    scope.set(name, value);
+                }
+                return null;
+            };
             default -> null;
         };
     }

@@ -125,6 +125,16 @@ public class MarkupTemplateContext implements IEngineContext, MarkupScope {
     }
 
     /**
+     * {@link MarkupScope} write-side. Stores {@code value} under {@code name}
+     * in the per-render underscore map (same store as {@code _.<name> = value}
+     * from JS). Backs {@code context.set(name, value)}.
+     */
+    @Override
+    public void set(String name, Object value) {
+        vars.put(name, value);
+    }
+
+    /**
      * {@link MarkupScope} implementation. Looks up {@code name} in the
      * underscore map first, then the wrapped Thymeleaf scope. Returns the
      * bound non-null value if found, else null. Used by
