@@ -508,6 +508,122 @@ class MarkupTest {
                    rendered.contains("<span>Banana</span>: <span>$0.83</span>"), "Banana total: " + rendered);
     }
 
+    // ========== K22 — context.get(name, default?) + dual-lookup `_` ==========
+
+    @Test
+    void testContextGetReturnsThWithBoundValue() {
+        // K22 — context.get(name) walks the underscore map first then the
+        // wrapped Thymeleaf scope, so caller-passed th:with values resolve
+        // through the same accessor used for fragment-optional params.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <div th:with="spacing: 'mt-3'">
+                <span th:text="context.get('spacing')"></span>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<span>mt-3</span>"), "rendered: " + rendered);
+    }
+
+    @Test
+    void testContextGetReturnsDefaultWhenMissing() {
+        // K22 — no binding for the name → second-arg default is returned.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <div>
+                <span th:text="context.get('spacing', 'mb-4')"></span>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<span>mb-4</span>"), "rendered: " + rendered);
+    }
+
+    @Test
+    void testContextGetReturnsNullWhenMissingAndNoDefault() {
+        // K22 — single-arg form returns null on miss (no exception).
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <div>
+                <span th:text="context.get('spacing') == null ? 'is-null' : 'other'"></span>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<span>is-null</span>"), "rendered: " + rendered);
+    }
+
+    @Test
+    void testContextGetReadsUnderscoreMap() {
+        // K22 — `_` writes are visible via context.get too.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <div>
+                <script ka:scope="local">
+                    _.theme = 'dark';
+                </script>
+                <span th:text="context.get('theme', 'light')"></span>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<span>dark</span>"), "rendered: " + rendered);
+    }
+
+    @Test
+    void testUnderscoreReadFallsThroughToThWithScope() {
+        // K22 — `_.spacing` (read) falls through to Thymeleaf scope when
+        // the underscore map doesn't have the name. Caller's th:with-bound
+        // value is reachable as `_.spacing` from inside a fragment, no
+        // typeof guard needed.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <div th:with="spacing: 'mt-3'">
+                <span th:text="_.spacing"></span>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<span>mt-3</span>"), "rendered: " + rendered);
+    }
+
+    @Test
+    void testUnderscoreReadReturnsNullWhenTrulyMissing() {
+        // K22 — bare `_.missing` access on a fully unset name returns null
+        // (no ReferenceError). Distinguishes the dual-lookup `_` from the
+        // strict bare-name path.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <div>
+                <span th:text="_.missing == null ? 'is-null' : 'other'"></span>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<span>is-null</span>"), "rendered: " + rendered);
+    }
+
+    @Test
+    void testUnderscoreWritePreservesExplicitNull() {
+        // K22 — explicit `_.foo = null` is preserved on read (does not
+        // fall through to wrapped scope). Distinguishes "set to null"
+        // from "never set".
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <div th:with="foo: 'parent-value'">
+                <script ka:scope="local">
+                    _.foo = null;
+                </script>
+                <span th:text="_.foo == null ? 'explicit-null' : _.foo"></span>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<span>explicit-null</span>"),
+                "explicit `_.foo = null` must win over a th:with-bound parent value: " + rendered);
+    }
+
     // ========== th:with Parameter Passing ==========
 
     @Test
@@ -850,31 +966,80 @@ class MarkupTest {
     }
 
     @Test
-    void testFragmentReadsUnsetThWithVarAsUndefined() {
-        // K12 — a fragment with no declared params (or a fragment-scope variable
-        // that the caller didn't bind via th:with) used to throw
-        // `ReferenceError: target is not defined` on every render. Match
-        // JS-everywhere semantics — unset reads in a template expression resolve
-        // to undefined so `th:if="target"` becomes a clean falsy branch.
+    void testFragmentMissingThWithVarThrowsWithHint() {
+        // K21 — replaces K12 lenient-retry. A fragment that reads a name
+        // the caller didn't bind via th:with now throws a real ReferenceError,
+        // wrapped with an actionable hint pointing at the th:with call-site
+        // pattern. Templates are no longer expected to silently null-fallback.
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
 
-        // 1. Caller doesn't pass `target` at all. Fragment's th:if/th:unless
-        //    branches must work without the typeof-guard idiom.
+        // 1. Caller doesn't pass `target` at all. Must throw with hint.
         String htmlNoTarget = "<div th:insert=\"~{fragment-no-params :: optional}\"></div>";
-        String renderedNoTarget = markup.processString(htmlNoTarget, null);
-        assertTrue(renderedNoTarget.contains("no-target"),
-                "th:unless='target' must run when target is unbound: " + renderedNoTarget);
-        assertFalse(renderedNoTarget.contains("Default"),
-                "th:if='target' branch must be suppressed when target is unbound: " + renderedNoTarget);
+        RuntimeException thrown = assertThrows(RuntimeException.class,
+                () -> markup.processString(htmlNoTarget, null),
+                "fragment reading an unbound bare name must throw");
 
-        // 2. Caller passes target via th:with — fragment uses it.
+        // Walk the cause chain — the hint message must point at th:with.
+        Throwable t = thrown;
+        boolean foundHint = false;
+        while (t != null) {
+            String msg = t.getMessage();
+            if (msg != null && msg.contains("'target' is not defined")
+                    && msg.contains("th:with")) {
+                foundHint = true;
+                break;
+            }
+            t = t.getCause();
+        }
+        assertTrue(foundHint,
+                "error must hint at the th:with call-site pattern; got: " + thrown.getMessage());
+
+        // 2. Caller passes target via th:with — fragment uses it (no change).
         String htmlWithTarget = "<div th:insert=\"~{fragment-no-params :: optional}\" th:with=\"target: 'hit'\"></div>";
         String renderedWithTarget = markup.processString(htmlWithTarget, null);
         assertTrue(renderedWithTarget.contains("hit"),
                 "th:if='target' branch must use the bound value: " + renderedWithTarget);
-        assertFalse(renderedWithTarget.contains("no-target"),
-                "th:unless='target' must be suppressed when target is bound: " + renderedWithTarget);
+    }
+
+    @Test
+    void testIntraScriptBareReadAfterUnderscoreWriteHintsAtUnderscore() {
+        // K21 — within a single ka:scope block, after `_.foo = 'bar'` the
+        // bare name `foo` does NOT auto-resolve (this preserves the `_`
+        // namespace discipline — writes to template state must always go
+        // through `_` and reads must match). The error message points the
+        // developer at `_.foo`.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+
+        // Within the same script body, the level-flush hasn't happened yet —
+        // bare `foo` is unbound, but `_.foo` exists in the underscore namespace.
+        String html = """
+            <div>
+                <script ka:scope="local">
+                    _.foo = 'hello';
+                    _.bar = foo + ' world';
+                </script>
+                <span th:text="bar"></span>
+            </div>
+            """;
+        RuntimeException thrown = assertThrows(RuntimeException.class,
+                () -> markup.processString(html, null),
+                "bare `foo` after `_.foo = ...` in the same block must throw");
+
+        Throwable t = thrown;
+        boolean foundHint = false;
+        while (t != null) {
+            String msg = t.getMessage();
+            if (msg != null && msg.contains("'foo' is not defined")
+                    && msg.contains("_.foo")) {
+                foundHint = true;
+                break;
+            }
+            t = t.getCause();
+        }
+        assertTrue(foundHint,
+                "error must hint at `_.foo`; got: " + thrown.getMessage());
     }
 
     @Test
@@ -958,6 +1123,76 @@ class MarkupTest {
         String rendered = markup.processString(html, null);
         assertTrue(rendered.contains("\\\"") || rendered.contains("&quot;"),
                 "double-quote in event name must be safely escaped: " + rendered);
+    }
+
+    // ========== ka:dispatch @ trigger (K17) ==========
+
+    @Test
+    void testKaDispatchAtHtmxAfterSwap() {
+        // K17 — `ka:dispatch="<event> @ <trigger>"` re-binds the dispatch
+        // trigger from the default `click` to the named DOM/htmx event,
+        // emitted via htmx's `hx-on:<trigger>`. Most useful for re-firing
+        // CustomEvents after an htmx swap (e.g. notification-stack listeners).
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<div ka:dispatch=\"users-refreshed @ htmx:afterSwap\"></div>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("hx-on:htmx:afterSwap"),
+                "@-trigger must emit hx-on:<event>: " + rendered);
+        assertTrue(rendered.contains("window.dispatchEvent(new CustomEvent("),
+                "must still emit a CustomEvent dispatch: " + rendered);
+        assertTrue(rendered.contains("\"users-refreshed\""),
+                "event name must be inlined: " + rendered);
+        assertFalse(rendered.contains("onclick"),
+                "@-trigger must replace onclick, not co-emit it: " + rendered);
+        assertFalse(rendered.contains("ka:dispatch"),
+                "ka: attributes must be scrubbed: " + rendered);
+    }
+
+    @Test
+    void testKaDispatchAtPlainDomEvent() {
+        // K17 — works for plain DOM events too (change, submit, etc.).
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<select ka:dispatch=\"role-changed@change\"></select>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("hx-on:change"),
+                "plain DOM events also flow through hx-on: " + rendered);
+        assertFalse(rendered.contains("onclick"),
+                "no onclick when @-trigger is set: " + rendered);
+        assertTrue(rendered.contains("\"role-changed\""),
+                "LHS of @ is the dispatched event name: " + rendered);
+    }
+
+    @Test
+    void testKaDispatchAtTolerantOfWhitespace() {
+        // K17 — whitespace around the @ delimiter is optional and trimmed.
+        // Both `users-refreshed@htmx:afterSwap` and the spaced form work.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String tight = "<div ka:dispatch=\"users-refreshed@htmx:afterSwap\"></div>";
+        String spaced = "<div ka:dispatch=\"  users-refreshed   @   htmx:afterSwap  \"></div>";
+        String renderedTight = markup.processString(tight, null);
+        String renderedSpaced = markup.processString(spaced, null);
+        assertTrue(renderedTight.contains("hx-on:htmx:afterSwap"), "tight form: " + renderedTight);
+        assertTrue(renderedTight.contains("\"users-refreshed\""), "tight event name: " + renderedTight);
+        assertTrue(renderedSpaced.contains("hx-on:htmx:afterSwap"), "spaced form: " + renderedSpaced);
+        assertTrue(renderedSpaced.contains("\"users-refreshed\""),
+                "spaced event name must be trimmed: " + renderedSpaced);
+    }
+
+    @Test
+    void testKaDispatchDefaultsToOnClick() {
+        // K17 sanity — without an @ delimiter, the original click-only
+        // behavior holds, no htmx dependency introduced.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<button ka:dispatch=\"open-modal\">Open</button>";
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("onclick"),
+                "default behavior is onclick: " + rendered);
+        assertFalse(rendered.contains("hx-on:"),
+                "no hx-on attribute when @ is absent: " + rendered);
     }
 
     // ========== ka:data-mirror (K8) ==========
@@ -1103,41 +1338,35 @@ class MarkupTest {
                 "th:with with shorthand `foo, bar` must forward parent-scope values: " + rendered);
     }
 
-    // ========== friendly error: `_.foo` in template attrs ==========
+    // ========== K22 — `_.foo` in template attrs is supported ==========
     //
-    // Script-state vars set as `_.foo = bar` are flushed into the Thymeleaf
-    // scope on every level-increase, so by the time a template attribute
-    // expression evaluates, the `_` Map is empty. Reading `_.foo` in attrs
-    // silently returns undefined (or throws on chained property access).
-    // The check in MarkupExpression rejects these eagerly with a hint.
+    // Under the dual-lookup `_` ObjectLike (K22), `_.foo` reads in template
+    // attributes resolve correctly: the underscore map is checked first and
+    // any miss falls through to the wrapped Thymeleaf scope (which carries
+    // level-flushed values). This replaces the prior "underscore-reach"
+    // guard that rejected these reads — both `_.foo` and bare `foo` now
+    // work in template attrs after a script's `_.foo = ...` write.
 
     @Test
-    void testUnderscoreReachInTemplateAttrThrowsFriendlyError() {
+    void testUnderscoreReachInTemplateAttrIsSupported() {
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
         String html = "<script ka:scope=\"global\">_.foo = 'bar';</script>"
                 + "<div th:text=\"_.foo\"></div>";
-        RuntimeException ex = assertThrows(RuntimeException.class,
-                () -> markup.processString(html, null));
-        String msg = collectMessages(ex);
-        assertTrue(msg.contains("`_` is the script-local state object"),
-                "error must explain why `_.foo` doesn't work: " + msg);
-        assertTrue(msg.contains("read them in template attrs as `foo`"),
-                "error must point at the correct convention: " + msg);
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<div>bar</div>"),
+                "`_.foo` in a template attr must resolve via dual-lookup: " + rendered);
     }
 
     @Test
-    void testUnderscoreReachWithDollarBraceWrapperThrowsFriendlyError() {
-        // The form that bit a developer in the modal-as-URL session.
+    void testUnderscoreReachWithDollarBraceWrapperIsSupported() {
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
         String html = "<script ka:scope=\"global\">_.foo = 'bar';</script>"
                 + "<div th:text=\"${_.foo}\"></div>";
-        RuntimeException ex = assertThrows(RuntimeException.class,
-                () -> markup.processString(html, null));
-        String msg = collectMessages(ex);
-        assertTrue(msg.contains("`_` is the script-local state object"),
-                "wrapped ${_.foo} must also throw the friendly error: " + msg);
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<div>bar</div>"),
+                "wrapped ${_.foo} must also resolve via dual-lookup: " + rendered);
     }
 
     @Test

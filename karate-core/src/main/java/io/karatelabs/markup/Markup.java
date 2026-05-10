@@ -181,7 +181,23 @@ public class Markup {
         while (rootCause.getCause() != null) {
             rootCause = rootCause.getCause();
         }
-        sb.append("Error: ").append(rootCause.getMessage()).append("\n");
+        // K21 — when an evaluator wrapper added an actionable hint to a
+        // ReferenceError, prefer that hint instead of the deeper raw JS
+        // message. The augmented form is produced in
+        // MarkupTemplateContext.evalLocal — it always contains either
+        // "did you mean" or "th:with at the call site".
+        String displayMessage = rootCause.getMessage();
+        Throwable scan = e;
+        while (scan != null) {
+            String m = scan.getMessage();
+            if (m != null && m.startsWith("ReferenceError:")
+                    && (m.contains("did you mean") || m.contains("th:with at the call site"))) {
+                displayMessage = m;
+                break;
+            }
+            scan = scan.getCause();
+        }
+        sb.append("Error: ").append(displayMessage).append("\n");
         sb.append("====================================\n");
 
         String formatted = sb.toString();

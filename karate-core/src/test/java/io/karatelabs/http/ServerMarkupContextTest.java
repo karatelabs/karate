@@ -419,6 +419,58 @@ class ServerMarkupContextTest {
         assertSame(context.getSession(), context.jsGet("session"));
     }
 
+    // K16 — session-unavailable-proxy tests
+
+    @Test
+    void testSessionAccessWithoutSessionStoreThrowsActionableError() {
+        // K16 — when no sessionStore is configured, toVars() installs a proxy
+        // for `session` that throws a clear error on any property access. The
+        // error must mention "sessionStore" and "ServerConfig.sessionStore"
+        // so the developer knows where to fix the configuration.
+        ServerMarkupContext ctx = new ServerMarkupContext(request, response, new ServerConfig());
+        Map<String, Object> vars = ctx.toVars();
+        Object sessionBinding = vars.get("session");
+        assertTrue(sessionBinding instanceof io.karatelabs.js.ObjectLike,
+                "session must be an ObjectLike proxy when sessionStore is unconfigured");
+
+        io.karatelabs.js.ObjectLike proxy = (io.karatelabs.js.ObjectLike) sessionBinding;
+        RuntimeException thrown = assertThrows(RuntimeException.class,
+                () -> proxy.getMember("user"),
+                "reading session.user with no sessionStore must throw");
+        String msg = thrown.getMessage();
+        assertTrue(msg.contains("sessionStore is configured") || msg.contains("no sessionStore is configured"),
+                "error must mention sessionStore: " + msg);
+        assertTrue(msg.contains("ServerConfig.sessionStore"),
+                "error must point at ServerConfig.sessionStore: " + msg);
+        assertTrue(msg.contains("session.user"),
+                "error must include the attempted access path: " + msg);
+    }
+
+    @Test
+    void testSessionWriteWithoutSessionStoreThrowsActionableError() {
+        // K16 — writes (`session.foo = ...`) must also surface the same hint,
+        // worded as a write attempt.
+        ServerMarkupContext ctx = new ServerMarkupContext(request, response, new ServerConfig());
+        io.karatelabs.js.ObjectLike proxy = (io.karatelabs.js.ObjectLike) ctx.toVars().get("session");
+
+        RuntimeException thrown = assertThrows(RuntimeException.class,
+                () -> proxy.putMember("user", "alice"));
+        String msg = thrown.getMessage();
+        assertTrue(msg.contains("write"), "write attempts must surface as writes: " + msg);
+        assertTrue(msg.contains("session.user"), "error must include the attempted path: " + msg);
+    }
+
+    @Test
+    void testSessionWithSessionStoreUsesLiveJsLazy() {
+        // K16 sanity — the proxy is ONLY installed when sessionStore is
+        // unconfigured. With a configured store, toVars() returns the JsLazy
+        // wrapper as before (live-view of context.getSession()).
+        Map<String, Object> vars = context.toVars();  // context has InMemorySessionStore
+        Object sessionBinding = vars.get("session");
+        assertTrue(sessionBinding instanceof io.karatelabs.js.JsLazy,
+                "session must be a JsLazy live-view when sessionStore is configured");
+    }
+
     // Session management tests
 
     @Test

@@ -30,6 +30,7 @@ import io.karatelabs.js.JavaInvokable;
 import io.karatelabs.js.JsLazy;
 import io.karatelabs.markup.ActionDispatchHost;
 import io.karatelabs.markup.MarkupContext;
+import io.karatelabs.markup.MarkupScope;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -80,6 +81,17 @@ public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
     private final Map<String, Object> actions = new HashMap<>();
     private boolean actionDispatched = false;
     private java.util.function.Consumer<String> eagerDispatchHook;
+    private MarkupScope markupScope;
+
+    @Override
+    public void setMarkupScope(MarkupScope scope) {
+        this.markupScope = scope;
+    }
+
+    @Override
+    public MarkupScope getMarkupScope() {
+        return markupScope;
+    }
 
     public ServerMarkupContext(HttpRequest request, HttpResponse response, ServerConfig config) {
         this.request = request;
@@ -99,13 +111,60 @@ public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
         vars.put("request", request);
         vars.put("response", response);
         vars.put("context", this);
-        // Wrap session as a JsLazy so template expressions see a live view.
-        // Without this, the snapshot taken here is stale if a ka:scope block
-        // later calls context.init() — subsequent th:* expressions would still
-        // see the old null session. The JS engine auto-unwraps JsLazy on
-        // property access (see docs/JS_ENGINE.md § Lazy Variables).
-        vars.put("session", (JsLazy) () -> this.session);
+        if (config.isSessionEnabled()) {
+            // Wrap session as a JsLazy so template expressions see a live view.
+            // Without this, the snapshot taken here is stale if a ka:scope block
+            // later calls context.init() — subsequent th:* expressions would still
+            // see the old null session. The JS engine auto-unwraps JsLazy on
+            // property access (see docs/JS_ENGINE.md § Lazy Variables).
+            vars.put("session", (JsLazy) () -> this.session);
+        } else {
+            // K16 — sessionStore is unconfigured. Install a proxy that throws a
+            // clear, actionable error on any property access (instead of
+            // letting `null.foo` bubble up as an opaque TemplateInputException).
+            // This deliberately surfaces misconfiguration loudly: an
+            // `if (session) { session.foo }` pattern that would silently skip
+            // the branch when session is null now enters and fails noisily,
+            // pointing the developer at ServerConfig.sessionStore(...).
+            vars.put("session", SessionUnavailableProxy.INSTANCE);
+        }
         return vars;
+    }
+
+    /**
+     * K16 — placeholder for the {@code session} binding when no sessionStore
+     * is configured. Throws a clear, actionable error on any access.
+     */
+    private static final class SessionUnavailableProxy implements io.karatelabs.js.ObjectLike {
+
+        static final SessionUnavailableProxy INSTANCE = new SessionUnavailableProxy();
+
+        @Override
+        public Object getMember(String name) {
+            throw sessionUnavailable(name, false);
+        }
+
+        @Override
+        public void putMember(String name, Object value) {
+            throw sessionUnavailable(name, true);
+        }
+
+        @Override
+        public void removeMember(String name) {
+            throw sessionUnavailable(name, true);
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            throw sessionUnavailable("(toMap)", false);
+        }
+
+        private static RuntimeException sessionUnavailable(String name, boolean write) {
+            return new RuntimeException(
+                    "session is unavailable: no sessionStore is configured. "
+                            + "Call ServerConfig.sessionStore(...) at app startup to enable sessions. "
+                            + "Attempted to " + (write ? "write" : "read") + " session." + name);
+        }
     }
 
     // MarkupContext implementation

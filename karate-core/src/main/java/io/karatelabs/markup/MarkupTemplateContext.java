@@ -37,35 +37,94 @@ import org.thymeleaf.templatemode.TemplateMode;
 
 import java.util.*;
 
-public class MarkupTemplateContext implements IEngineContext {
+public class MarkupTemplateContext implements IEngineContext, MarkupScope {
 
     final IEngineContext wrapped;
     private final Engine engine;
     private final Map<String, Object> vars = new HashMap<>();
 
+    // `_` is exposed as a dual-lookup ObjectLike: writes go to `vars`
+    // (the per-eval underscore map, unchanged); reads check `vars` first
+    // and fall through to the wrapped Thymeleaf scope when a name isn't
+    // present. This lets a fragment write `_.spacing` and read it back, OR
+    // read `_.spacing` when a parent template's `th:with` bound the name.
+    // Distinct from `lookup()` (used by context.get): getMember preserves
+    // an explicit `_.foo = null`, while lookup treats null as "use default".
+    private final io.karatelabs.js.ObjectLike underscoreView = new io.karatelabs.js.ObjectLike() {
+        @Override
+        public Object getMember(String name) {
+            if (vars.containsKey(name)) {
+                return vars.get(name);
+            }
+            if (wrapped.containsVariable(name)) {
+                return wrapped.getVariable(name);
+            }
+            return null;
+        }
+
+        @Override
+        public void putMember(String name, Object value) {
+            vars.put(name, value);
+        }
+
+        @Override
+        public void removeMember(String name) {
+            vars.remove(name);
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return new java.util.LinkedHashMap<>(vars);
+        }
+    };
+
     MarkupTemplateContext(IEngineContext wrapped, MarkupConfig config) {
         this.wrapped = wrapped;
         this.engine = config.getEngineSupplier().get();
-        this.engine.put("_", vars);
+        this.engine.put("_", underscoreView);
         // Use existing MarkupContext from template variables if present (e.g., ServerMarkupContext in server mode)
         // Otherwise create a SimpleMarkupContext for plain templating mode
         // In server mode the engine is shared with ServerRequestCycle (via ThreadLocal supplier),
         // and `session` is bound there as a Supplier — so reads always see the live value.
+        MarkupContext markupContext;
         Object existingContext = wrapped.getVariable("context");
-        if (existingContext instanceof MarkupContext) {
-            this.engine.put("context", existingContext);
+        if (existingContext instanceof MarkupContext mc) {
+            markupContext = mc;
         } else {
-            this.engine.put("context", new SimpleMarkupContext(this, config.getResolver()));
+            markupContext = new SimpleMarkupContext(this, config.getResolver());
         }
+        this.engine.put("context", markupContext);
+        // Inject self as the MarkupScope so `context.get(name, default?)`
+        // can resolve names against the live `_` + Thymeleaf scope of this eval.
+        markupContext.setMarkupScope(this);
         // K5 — install eager-dispatch hook on the actions registry. The host's
         // context.actions view fires this on every put; if the put just
         // registered the matching handler for the inbound POST, dispatch it
         // immediately so any state reads later in the same script see
         // post-mutation data. Plain templating contexts implement a default
         // no-op hook, so this is a silent no-op outside server mode.
-        if (existingContext instanceof ActionDispatchHost host) {
+        if (markupContext instanceof ActionDispatchHost host) {
             host.setEagerDispatchHook(name -> maybeDispatchAction());
         }
+    }
+
+    /**
+     * {@link MarkupScope} implementation. Looks up {@code name} in the
+     * underscore map first, then the wrapped Thymeleaf scope. Returns the
+     * bound non-null value if found, else null. Used by
+     * {@code context.get(name, default?)} (see {@link MarkupContext#jsGet}).
+     */
+    @Override
+    public Object lookup(String name) {
+        if (vars.containsKey(name)) {
+            Object v = vars.get(name);
+            if (v != null) return v;
+        }
+        if (wrapped.containsVariable(name)) {
+            Object v = wrapped.getVariable(name);
+            if (v != null) return v;
+        }
+        return null;
     }
 
     void evalGlobal(String src) {
@@ -128,26 +187,37 @@ public class MarkupTemplateContext implements IEngineContext {
         for (String name : getVariableNames()) {
             localVars.put(name, getVariable(name));
         }
-        localVars.put("_", vars);
-        // K12 — template expressions reference fragment-scope vars that the
-        // caller may not have passed (e.g. ~{file::chip} where chip reads
-        // `target` but no caller bound it). Strict JS throws ReferenceError;
-        // templates by convention resolve unset names to null. We catch only
-        // ReferenceError (via EngineException's typed JS-error-name accessor),
-        // bind the missing name as null, and retry under a small budget so
-        // chained misses can't loop.
-        int budget = 8;
-        while (true) {
-            try {
-                return engine.evalWith(src, localVars);
-            } catch (io.karatelabs.js.EngineException e) {
-                String missing = extractMissingName(e);
-                if (missing == null || localVars.containsKey(missing) || budget-- <= 0) {
-                    throw e;
-                }
-                localVars.put(missing, null);
+        // Bind `_` as the dual-lookup ObjectLike (not the raw vars Map)
+        // so template-attribute reads of `_.<name>` fall through to the
+        // wrapped Thymeleaf scope when the underscore map is empty.
+        localVars.put("_", underscoreView);
+        // Strict ReferenceError on missing names — augment with an actionable
+        // hint pointing at either the `_.<name>` discipline or the
+        // th:with-at-call-site / context.get(...) optional-param pattern.
+        try {
+            return engine.evalWith(src, localVars);
+        } catch (io.karatelabs.js.EngineException e) {
+            String missing = extractMissingName(e);
+            if (missing == null) {
+                throw e;
             }
+            throw new RuntimeException(buildMissingNameHint(missing, e), e);
         }
+    }
+
+    private String buildMissingNameHint(String missing, Throwable cause) {
+        String base = "ReferenceError: '" + missing + "' is not defined";
+        if (vars.containsKey(missing)) {
+            return base + " — did you mean `_." + missing + "`? "
+                    + "ka:scope blocks namespace template state via the `_` map; "
+                    + "bare names must come from a th:with or a parent template binding.";
+        }
+        return base + " — if `" + missing + "` is a fragment parameter, "
+                + "declare it via th:with at the call site "
+                + "(e.g. <div th:insert=\"~{file::frag}\" th:with=\"" + missing + ": value\">). "
+                + "If it's optional, read it inside the fragment via "
+                + "context.get('" + missing + "') or context.get('" + missing + "', defaultValue) — "
+                + "returns null (or the default) when the name is unbound.";
     }
 
     // The unframed JS-side message for a ReferenceError is `<name> is not defined`

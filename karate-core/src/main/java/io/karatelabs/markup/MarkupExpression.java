@@ -33,16 +33,6 @@ class MarkupExpression implements IStandardExpression {
 
     private static final Logger logger = LoggerFactory.getLogger(MarkupExpression.class);
 
-    // Detects template expressions reaching into `_.<name>` from a template
-    // attribute. The script-state Map is flushed into the Thymeleaf scope on
-    // every level-increase (see MarkupTemplateContext.increaseLevel), so by the
-    // time an attribute expression evaluates, the `_` Map is empty — script-set
-    // values must be read by their bare names, not via the `_.` prefix.
-    // Negative lookbehind skips legitimate `obj._foo` / `obj_._foo` cases by
-    // requiring the `_` not to be preceded by a word char or dot.
-    private static final java.util.regex.Pattern UNDERSCORE_REACH_PATTERN =
-            java.util.regex.Pattern.compile("(^|[^\\w.])_\\.[A-Za-z_$]");
-
     private final String input;
 
     MarkupExpression(String input) {
@@ -60,14 +50,12 @@ class MarkupExpression implements IStandardExpression {
 
     @Override
     public Object execute(IExpressionContext ctx) {
-        if (UNDERSCORE_REACH_PATTERN.matcher(input).find()) {
-            throw new io.karatelabs.js.EngineException(
-                    "template expression cannot read `_.<name>` — `_` is the script-local state object "
-                            + "and is empty by the time attributes evaluate. Set values in ka:scope as "
-                            + "`_.foo = ...`, then read them in template attrs as `foo` (no underscore prefix). "
-                            + "Source: " + input,
-                    null);
-        }
+        // K22 — under the dual-lookup `_` ObjectLike, template attributes
+        // reading `_.<name>` resolve via the underscore map first then fall
+        // through to the wrapped Thymeleaf scope (which carries th:with-bound
+        // and level-flushed values). The previous "underscore-reach" guard
+        // is now obsolete; both `_.foo` and bare `foo` work in template
+        // attrs after a script's `_.foo = ...` write.
         MarkupTemplateContext kec = (MarkupTemplateContext) ctx;
         return kec.evalLocal(input);
     }

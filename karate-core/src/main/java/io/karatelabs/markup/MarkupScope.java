@@ -1,0 +1,43 @@
+/*
+ * The MIT License
+ *
+ * Copyright 2026 Karate Labs Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+package io.karatelabs.markup;
+
+/**
+ * K22 — current-eval scope accessor injected onto a {@link MarkupContext}
+ * by {@link MarkupTemplateContext} at engine-bind time. Backs the
+ * {@code context.get(name, default?)} accessor that fragments use to read
+ * optional names without triggering the K21 strict-ReferenceError path.
+ */
+public interface MarkupScope {
+
+    /**
+     * Look up {@code name} in the current eval scope. Checks the {@code _}
+     * underscore namespace first, then the wrapped Thymeleaf scope (which
+     * carries every {@code th:with}-bound name, every global, and every
+     * level-flushed entry). Returns the bound non-null value, or {@code null}
+     * when the name is unset or explicitly null.
+     */
+    Object lookup(String name);
+
+}

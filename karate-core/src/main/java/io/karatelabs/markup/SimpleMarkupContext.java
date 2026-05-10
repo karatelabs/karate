@@ -39,10 +39,21 @@ class SimpleMarkupContext implements MarkupContext {
 
     final MarkupTemplateContext markup;
     final ResourceResolver resolver;
+    private MarkupScope markupScope;
 
     SimpleMarkupContext(MarkupTemplateContext markup, ResourceResolver resolver) {
         this.markup = markup;
         this.resolver = resolver;
+    }
+
+    @Override
+    public void setMarkupScope(MarkupScope scope) {
+        this.markupScope = scope;
+    }
+
+    @Override
+    public MarkupScope getMarkupScope() {
+        return markupScope;
     }
 
     @Override

@@ -316,6 +316,32 @@ public class HttpRequest implements SimpleObject {
     }
 
     /**
+     * K18 — canonical multipart-file accessor for server-side templates and
+     * handlers. Returns the first uploaded file with the given form-field
+     * name, or null if absent. Each returned map carries
+     * {@code {name, filename, contentType, charset?, value (byte[]), bytes
+     * (byte[] alias), size}}. Mirrors {@link #getHeader(String)} (first match).
+     */
+    public Map<String, Object> getFile(String name) {
+        return getMultiPart(name);
+    }
+
+    /**
+     * K18 — multi-value multipart-file accessor. Returns ALL uploaded files
+     * with the given form-field name, in upload order. Empty list if none.
+     * Mirrors {@link #getHeaderValues(String)} / {@link #getParamValues(String)}.
+     * Use this for {@code <input type="file" multiple>} or any form posting
+     * repeated file fields under the same name.
+     */
+    public List<Map<String, Object>> getFiles(String name) {
+        if (multiParts == null) {
+            return java.util.Collections.emptyList();
+        }
+        List<Map<String, Object>> parts = multiParts.get(name);
+        return parts != null ? parts : java.util.Collections.emptyList();
+    }
+
+    /**
      * Process the request body for form-urlencoded or multipart data.
      * For form-urlencoded, fields are merged into params.
      * For multipart, file uploads are stored in multiParts and fields in params.
@@ -366,7 +392,13 @@ public class HttpRequest implements SimpleObject {
                             map.put("charset", charset.name());
                         }
                         map.put("contentType", fup.getContentType());
-                        map.put("value", fup.get()); // bytes
+                        byte[] bytes = fup.get();
+                        map.put("value", bytes);
+                        // K18 — `bytes` alias for `value` (same byte[] reference, no copy)
+                        // and `size` for ergonomic length access. Used by the canonical
+                        // `request.file(name)` / `request.files(name)` API.
+                        map.put("bytes", bytes);
+                        map.put("size", bytes != null ? bytes.length : 0);
                         String transferEncoding = fup.getContentTransferEncoding();
                         if (transferEncoding != null) {
                             map.put("transferEncoding", transferEncoding);
@@ -623,6 +655,26 @@ public class HttpRequest implements SimpleObject {
         };
     }
 
+    private JavaInvokable file() {
+        return args -> {
+            if (args.length > 0) {
+                return getFile(args[0] + "");
+            } else {
+                throw new RuntimeException("missing argument for file()");
+            }
+        };
+    }
+
+    private JavaInvokable files() {
+        return args -> {
+            if (args.length > 0) {
+                return getFiles(args[0] + "");
+            } else {
+                throw new RuntimeException("missing argument for files()");
+            }
+        };
+    }
+
     /**
      * Forward this request to a target URL and return the response.
      * Mirrors {@code karate.proceed()} so JS-file mocks can implement proxy behavior.
@@ -741,6 +793,10 @@ public class HttpRequest implements SimpleObject {
                 return multiPart();
             case "multiParts":
                 return multiParts;
+            case "file":
+                return file();
+            case "files":
+                return files();
             case "proceed":
                 return proceed();
             case "cache":

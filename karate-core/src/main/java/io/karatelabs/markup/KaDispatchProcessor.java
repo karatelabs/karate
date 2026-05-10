@@ -52,9 +52,14 @@ import java.util.Map;
  * listeners attached at {@code window} or {@code document} level (typical for
  * "open modal" patterns) receive it.
  *
- * <p>For now {@code ka:dispatch} only fires on {@code click}. If a non-click
- * trigger is needed (change, keydown, etc.), open an issue — a follow-up
- * {@code ka:dispatch-on} attribute would extend this.
+ * <p>By default the dispatch fires on {@code click}. To bind to a different
+ * trigger, embed an {@code @<event>} suffix in the attribute value:
+ * <pre>{@code <div ka:dispatch="users-refreshed @ htmx:afterSwap"></div>}
+ * {@code <select ka:dispatch="role-changed @ change"></select>}</pre>
+ * Whitespace around the {@code @} is optional and trimmed. The processor
+ * emits {@code hx-on:<event>="..."} (htmx must be loaded on the page for
+ * non-click events). Works for both plain DOM events ({@code change},
+ * {@code submit}) and namespaced events ({@code htmx:afterSwap}).
  */
 class KaDispatchProcessor extends AbstractAttributeTagProcessor {
 
@@ -71,7 +76,21 @@ class KaDispatchProcessor extends AbstractAttributeTagProcessor {
     protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag,
                              AttributeName attributeName, String attributeValue,
                              IElementTagStructureHandler structureHandler) {
+        // K17 — split `<dispatched-event> @ <trigger-event>`. The `@`
+        // delimiter is optional; without it the dispatch fires on click
+        // (default, no htmx dependency). With it, the LHS is the CustomEvent
+        // name and the RHS is the DOM/htmx trigger emitted via
+        // `hx-on:<trigger>` (htmx must be loaded on the page).
         String eventName = attributeValue;
+        String triggerOn = null;
+        int at = attributeValue.indexOf('@');
+        if (at >= 0) {
+            eventName = attributeValue.substring(0, at).trim();
+            triggerOn = attributeValue.substring(at + 1).trim();
+            if (triggerOn.isEmpty()) {
+                triggerOn = null;
+            }
+        }
         MarkupTemplateContext kec = (MarkupTemplateContext) ctx;
         String detailJson = "{}";
         String vals = tag.getAttributeValue(getDialectPrefix(), VALS);
@@ -86,7 +105,11 @@ class KaDispatchProcessor extends AbstractAttributeTagProcessor {
         String js = "window.dispatchEvent(new CustomEvent(\""
                 + escapeJsString(eventName)
                 + "\", {detail: " + detailJson + ", bubbles: true, composed: true}))";
-        structureHandler.setAttribute("onclick", js, AttributeValueQuotes.SINGLE);
+        if (triggerOn != null) {
+            structureHandler.setAttribute("hx-on:" + triggerOn, js, AttributeValueQuotes.SINGLE);
+        } else {
+            structureHandler.setAttribute("onclick", js, AttributeValueQuotes.SINGLE);
+        }
     }
 
     private static String escapeJsString(String s) {

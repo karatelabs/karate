@@ -96,6 +96,24 @@ public interface MarkupContext extends SimpleObject {
     }
 
     /**
+     * Set the current-eval scope accessor. Called by
+     * {@link MarkupTemplateContext} at engine-bind time so {@code context.get}
+     * can resolve names from {@code _} and the wrapped Thymeleaf scope.
+     * Default no-op for implementations that don't carry scope state.
+     */
+    default void setMarkupScope(MarkupScope scope) {
+    }
+
+    /**
+     * Companion accessor for {@link #setMarkupScope(MarkupScope)}.
+     * Default returns null; implementations override to surface the scope
+     * to the {@code context.get} dispatch path.
+     */
+    default MarkupScope getMarkupScope() {
+        return null;
+    }
+
+    /**
      * Default implementation of jsGet that exposes context methods to JavaScript.
      * Implementations can override to add more properties/methods.
      */
@@ -119,6 +137,23 @@ public interface MarkupContext extends SimpleObject {
             case "fromJson" -> (JavaInvokable) args -> {
                 if (args.length == 0) throw new RuntimeException("fromJson() requires a JSON string argument");
                 return fromJson(args[0].toString());
+            };
+            // context.get(name, default?) for optional fragment params.
+            // Walks the current eval scope (`_` map first, then wrapped
+            // Thymeleaf scope). Returns the bound non-null value if found,
+            // else the default (or null when no default is given).
+            case "get" -> (JavaInvokable) args -> {
+                if (args.length == 0) {
+                    throw new RuntimeException("context.get() requires a name argument");
+                }
+                String name = args[0].toString();
+                Object defaultValue = args.length > 1 ? args[1] : null;
+                MarkupScope scope = getMarkupScope();
+                if (scope != null) {
+                    Object v = scope.lookup(name);
+                    if (v != null) return v;
+                }
+                return defaultValue;
             };
             default -> null;
         };
