@@ -1,6 +1,6 @@
 <!--
-    Test page for K5 — context.actions registry. Registers three handlers
-    and renders the resulting flash messages so RequestActionsTest can assert
+    Test page for context.actions registry. Registers three handlers and
+    renders the resulting flash messages so RequestActionsTest can assert
     on response body.
 -->
 <script ka:scope="global">
@@ -30,9 +30,9 @@
     };
 
     // Mutation handler — sets a session field. State reads AFTER this
-    // registration must observe the mutation (regression for the K5 eager-
-    // dispatch ordering: pre-fix, dispatch fired at end of script and any
-    // reads above were stale).
+    // registration must observe the mutation (regression: pre-eager-
+    // dispatch, the handler fired at end of script and any reads above
+    // were stale).
     context.actions.mutateThenRead = function () {
         session.flag = 'set-by-handler';
     };

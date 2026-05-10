@@ -1,4 +1,4 @@
-// Exercise request.cache(). Used by RequestCacheTest (K2).
+// Exercise request.cache(). Used by RequestCacheTest.
 
 var calls = 0;
 function compute(tag) {

@@ -22,16 +22,16 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Integration tests for SSE with template-rendered HTML fragments.
- * Tests the P11 pattern: server renders HTML fragment, sends via SSE,
- * HTMX sse-swap consumes it on the client.
- * Also tests the P12 pattern: server sends JSON data via SSE for Alpine.js.
+ * Integration tests for two SSE-with-templates shapes:
+ * (a) server renders HTML fragments and sends them via SSE for an HTMX
+ *     {@code sse-swap} to consume on the client;
+ * (b) server sends JSON event data via SSE for an Alpine.js client to render.
  */
 class SseTemplateIntegrationTest {
 
     /**
-     * P11: Server renders HTML fragments and sends them as SSE event data.
-     * HTMX sse-swap replaces DOM elements with the received HTML.
+     * Server renders HTML fragments and sends them as SSE event data;
+     * HTMX {@code sse-swap} replaces DOM elements with the received HTML.
      */
     @Test
     void testSseWithRenderedHtmlFragment() throws Exception {
@@ -47,7 +47,7 @@ class SseTemplateIntegrationTest {
         String errorBadge = markup.processString(
                 "<span th:insert=\"~{components/badge :: badge}\" th:with=\"state: 'error'\"></span>", Map.of());
 
-        // SSE handler sends server-rendered HTML fragments (P11 pattern)
+        // SSE handler sends server-rendered HTML fragments
         SseHandler sseHandler = (request, connection) -> {
             Thread.ofVirtual().start(() -> {
                 try {
@@ -130,14 +130,14 @@ class SseTemplateIntegrationTest {
     }
 
     /**
-     * P12: Server sends JSON data via SSE for client-side rendering with Alpine.js.
+     * Server sends JSON event data via SSE for client-side rendering with Alpine.js.
      */
     @Test
     void testSseWithJsonData() throws Exception {
         SseHandler sseHandler = (request, connection) -> {
             Thread.ofVirtual().start(() -> {
                 try {
-                    // Send iteration progress as JSON (P12 pattern)
+                    // Send iteration progress as JSON event data
                     connection.send("iteration", "{\"index\":1,\"status\":\"pass\",\"duration\":42}");
                     connection.send("iteration", "{\"index\":2,\"status\":\"fail\",\"duration\":108}");
                     connection.send("iteration", "{\"index\":3,\"status\":\"pass\",\"duration\":25}");

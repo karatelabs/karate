@@ -1,9 +1,10 @@
-// Exercise all four header-set patterns. Used by ResponseHeadersTest (K10).
+// Exercise all four header-set patterns. Used by ResponseHeadersTest.
 
 // 1. 2-arg setter form
 response.header('X-Setter', 'one');
 
-// 2. bracket-set with string value (the silent-500 path before K10)
+// 2. bracket-set with string value (was the silent-500 path before the
+//    coercing-setter fix landed)
 response.headers['X-Bracket'] = 'two';
 
 // 3. bracket-set with list value
