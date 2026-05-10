@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Verifies the K7 shell-trace and end-to-end fragment-trace plumbing through
+ * Verifies shell-trace and end-to-end fragment-trace plumbing through
  * the HTTP layer. The Markup-level trace tests in {@code MarkupTest} cover
  * {@code th:insert} / {@code th:replace} wrapping at the engine layer. This
  * test exercises the boundary that those can't reach: the

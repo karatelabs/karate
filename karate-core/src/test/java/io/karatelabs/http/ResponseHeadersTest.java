@@ -9,10 +9,10 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Regression for K10 — bracket-set on {@code response.headers} used to silently
- * 500 because {@code Map<String, List<String>>.put(name, "stringValue")} corrupted
+ * Regression: bracket-set on {@code response.headers} used to silently 500
+ * because {@code Map<String, List<String>>.put(name, "stringValue")} corrupted
  * the entry and Netty's serializer threw a {@code ClassCastException} far from
- * the JS handler. After K10 the JS-side setters route through {@code setHeader},
+ * the JS handler. The JS-side setters now route through {@code setHeader},
  * coercing strings / lists / null appropriately.
  *
  * <p>Backed by {@code demo/api/headers.js} which exercises:
@@ -60,7 +60,7 @@ class ResponseHeadersTest {
     void testBracketSetStringReachesWire() {
         HttpResponse r = harness.get("/api/headers");
         assertEquals("two", r.getHeader("X-Bracket"),
-                "response.headers['X'] = 'v' must set the header (silent-500 K10 regression)");
+                "response.headers['X'] = 'v' must set the header (bracket-set regression)");
     }
 
     @Test

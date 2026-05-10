@@ -74,7 +74,20 @@ public class MarkupTemplateContext implements IEngineContext, MarkupScope {
 
         @Override
         public Map<String, Object> toMap() {
+            // Enumeration (Object.keys(_)) intentionally returns ONLY the
+            // underscore namespace — names written via `_.foo = ...`. The
+            // wrapped Thymeleaf scope is reachable through read fall-through
+            // for convenience but is not part of the underscore namespace.
             return new java.util.LinkedHashMap<>(vars);
+        }
+
+        @Override
+        public boolean isOwnProperty(String name) {
+            // Mirrors getMember's read fall-through so `'foo' in _` agrees
+            // with `_.foo`: both report present when the name is bound either
+            // in the underscore vars or in the wrapped Thymeleaf scope.
+            // Object.keys(_) stays scoped to the underscore namespace only.
+            return vars.containsKey(name) || wrapped.containsVariable(name);
         }
     };
 
@@ -97,7 +110,7 @@ public class MarkupTemplateContext implements IEngineContext, MarkupScope {
         // Inject self as the MarkupScope so `context.get(name, default?)`
         // can resolve names against the live `_` + Thymeleaf scope of this eval.
         markupContext.setMarkupScope(this);
-        // K5 — install eager-dispatch hook on the actions registry. The host's
+        // install eager-dispatch hook on the actions registry. The host's
         // context.actions view fires this on every put; if the put just
         // registered the matching handler for the inbound POST, dispatch it
         // immediately so any state reads later in the same script see
@@ -133,7 +146,7 @@ public class MarkupTemplateContext implements IEngineContext, MarkupScope {
     }
 
     /**
-     * K5 — after a {@code ka:scope="global"} block has run, check if the
+     * After a {@code ka:scope="global"} block has run, check if the
      * inbound POST has a matching handler in {@code context.actions} and
      * dispatch it. The handler runs at most once per request even with
      * multiple global blocks. Plain (non-server) contexts are a silent
@@ -179,7 +192,57 @@ public class MarkupTemplateContext implements IEngineContext, MarkupScope {
         } else {
             temp = "({" + src + "})";
         }
-        return evalLocal(temp);
+        try {
+            return evalLocal(temp);
+        } catch (io.karatelabs.parser.ParserException pe) {
+            // th:attr / ka:with / hx-vals / ka:dispatch values whose keys
+            // contain hyphens or colons (e.g. `data-foo: 'bar'`,
+            // `hx-target: t`, `ka:get: url`) confuse the JS object-literal
+            // parser. Augment the bare parser failure with a hint that names
+            // the offending keys and shows the corrected (quoted) form.
+            String hint = buildAttrKeyHint(src);
+            if (hint != null) {
+                throw new RuntimeException(hint, pe);
+            }
+            throw pe;
+        }
+    }
+
+    // Detects unquoted attribute-style keys (containing `-` or `:`) at the
+    // start of an object-literal pair. Anchored at start-of-string or after a
+    // comma so it ignores already-quoted keys (`'data-foo':`) and identifiers
+    // inside expression values (`bar - baz`, `obj.x`).
+    private static final java.util.regex.Pattern UNQUOTED_HYPHEN_COLON_KEY =
+            java.util.regex.Pattern.compile(
+                    "(^|,)\\s*([a-zA-Z_$][\\w$]*(?:[-:][\\w$]+)+)\\s*:");
+
+    private static String buildAttrKeyHint(String src) {
+        java.util.regex.Matcher m = UNQUOTED_HYPHEN_COLON_KEY.matcher(src);
+        java.util.LinkedHashSet<String> badKeys = new java.util.LinkedHashSet<>();
+        while (m.find()) {
+            badKeys.add(m.group(2));
+        }
+        if (badKeys.isEmpty()) {
+            return null;
+        }
+        String corrected = src;
+        for (String key : badKeys) {
+            corrected = corrected.replaceAll(
+                    "(^|,)(\\s*)" + java.util.regex.Pattern.quote(key) + "(\\s*):",
+                    "$1$2'" + java.util.regex.Matcher.quoteReplacement(key) + "'$3:");
+        }
+        StringBuilder hint = new StringBuilder();
+        hint.append("SyntaxError parsing object-literal expression — attribute key");
+        hint.append(badKeys.size() > 1 ? "s " : " ");
+        boolean first = true;
+        for (String k : badKeys) {
+            if (!first) hint.append(", ");
+            hint.append("`").append(k).append("`");
+            first = false;
+        }
+        hint.append(badKeys.size() > 1 ? " contain" : " contains");
+        hint.append(" hyphens or colons and must be quoted. Try: ").append(corrected);
+        return hint.toString();
     }
 
     public Object evalLocal(String src) {

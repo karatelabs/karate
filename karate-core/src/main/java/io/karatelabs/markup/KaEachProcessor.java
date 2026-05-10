@@ -55,21 +55,21 @@ class KaEachProcessor extends AbstractAttributeTagProcessor {
             final AttributeName attributeName, String av,
             final IElementTagStructureHandler structureHandler) {
         int pos = av.indexOf(':');
+        if (pos == -1) {
+            throw new RuntimeException(
+                    "th:each requires `name : expression` form (got `" + av + "`).");
+        }
+        String varPart = av.substring(0, pos).trim();
+        av = av.substring(pos + 1).trim();
         String iterVarName;
         String statusVarName = null;
-        if (pos == -1) {
-            iterVarName = "_";
+        // Check for status variable: "item, iter" or just "item"
+        int commaPos = varPart.indexOf(',');
+        if (commaPos != -1) {
+            iterVarName = varPart.substring(0, commaPos).trim();
+            statusVarName = varPart.substring(commaPos + 1).trim();
         } else {
-            String varPart = av.substring(0, pos).trim();
-            av = av.substring(pos + 1).trim();
-            // Check for status variable: "item, iter" or just "item"
-            int commaPos = varPart.indexOf(',');
-            if (commaPos != -1) {
-                iterVarName = varPart.substring(0, commaPos).trim();
-                statusVarName = varPart.substring(commaPos + 1).trim();
-            } else {
-                iterVarName = varPart;
-            }
+            iterVarName = varPart;
         }
         MarkupTemplateContext kec = (MarkupTemplateContext) ctx;
         Object value = kec.evalLocal(av);

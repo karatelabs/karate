@@ -419,11 +419,11 @@ class ServerMarkupContextTest {
         assertSame(context.getSession(), context.jsGet("session"));
     }
 
-    // K16 — session-unavailable-proxy tests
+    // ========== session-unavailable-proxy ==========
 
     @Test
     void testSessionAccessWithoutSessionStoreThrowsActionableError() {
-        // K16 — when no sessionStore is configured, toVars() installs a proxy
+        // When no sessionStore is configured, toVars() installs a proxy
         // for `session` that throws a clear error on any property access. The
         // error must mention "sessionStore" and "ServerConfig.sessionStore"
         // so the developer knows where to fix the configuration.
@@ -448,7 +448,7 @@ class ServerMarkupContextTest {
 
     @Test
     void testSessionWriteWithoutSessionStoreThrowsActionableError() {
-        // K16 — writes (`session.foo = ...`) must also surface the same hint,
+        // Writes (`session.foo = ...`) must also surface the same hint,
         // worded as a write attempt.
         ServerMarkupContext ctx = new ServerMarkupContext(request, response, new ServerConfig());
         io.karatelabs.js.ObjectLike proxy = (io.karatelabs.js.ObjectLike) ctx.toVars().get("session");
@@ -462,7 +462,7 @@ class ServerMarkupContextTest {
 
     @Test
     void testSessionWithSessionStoreUsesLiveJsLazy() {
-        // K16 sanity — the proxy is ONLY installed when sessionStore is
+        // Sanity — the proxy is ONLY installed when sessionStore is
         // unconfigured. With a configured store, toVars() returns the JsLazy
         // wrapper as before (live-view of context.getSession()).
         Map<String, Object> vars = context.toVars();  // context has InMemorySessionStore

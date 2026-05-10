@@ -114,11 +114,11 @@ class HttpRequestTest {
         assertEquals("c", values.get(2));
     }
 
-    // ========== K18 — request.file / request.files (multipart) ==========
+    // ========== request.file / request.files (multipart) ==========
 
     @Test
     void testFileSingleAndFilesMultiViaMultipart() throws Exception {
-        // K18 — POST a multipart body with two files under the SAME field name
+        // POST a multipart body with two files under the SAME field name
         // (`<input type="file" multiple>` shape) plus one file under a different
         // field name. Verify:
         //   - request.file('upload') returns the FIRST file (mirrors header())

@@ -31,6 +31,13 @@ import static io.karatelabs.parser.TokenType.*;
 
 public class JsParser extends BaseParser {
 
+    // ECMA "no-in" production flag. Set inside the for-statement init
+    // expression (between `for (` and the first `;`) so the IN_EXPR branch
+    // skips IN — leaving it to be consumed as the for-in / for-of header
+    // token. Reset to false inside parens / brackets / function calls so
+    // `for (var x = (a in b); cond; upd)` still works as a relational `in`.
+    private boolean noIn;
+
     // EnumSet token sets for O(1) lookup in hot paths
     private static final EnumSet<TokenType> T_VAR_STMT = EnumSet.of(VAR, CONST, LET);
     private static final EnumSet<TokenType> T_ASSIGN_EXPR = EnumSet.of(EQ, PLUS_EQ, MINUS_EQ, STAR_EQ, SLASH_EQ, PERCENT_EQ, STAR_STAR_EQ, GT_GT_EQ, LT_LT_EQ, GT_GT_GT_EQ, AMP_EQ, PIPE_EQ, CARET_EQ);
@@ -519,8 +526,14 @@ public class JsParser extends BaseParser {
             return false;
         }
         consumeSoft(L_PAREN);
-        if (!(peekIf(SEMI) || var_stmt(true) || expr_list(false))) {
-            error(NodeType.VAR_STMT, NodeType.EXPR);
+        boolean prevNoIn = noIn;
+        noIn = true;
+        try {
+            if (!(peekIf(SEMI) || var_stmt(true) || expr_list(false))) {
+                error(NodeType.VAR_STMT, NodeType.EXPR);
+            }
+        } finally {
+            noIn = prevNoIn;
         }
         if (consumeIf(SEMI)) {
             if (peekIf(SEMI) || expr_list(false)) {
@@ -831,6 +844,17 @@ public class JsParser extends BaseParser {
             } else if (enter(NodeType.MATH_POST_EXPR, T_MATH_POST_EXPR)) {
                 exit(Shift.LEFT);
             } else if (priority < 8 && enter(NodeType.INSTANCEOF_EXPR, INSTANCEOF)) {
+                expr(8, true);
+                exit(Shift.LEFT);
+            } else if (priority < 8 && !noIn && enter(NodeType.IN_EXPR, IN)) {
+                // ECMA relational `key in obj` — true iff `obj` (or its
+                // prototype chain) has a property named `key`. Same precedence
+                // as `instanceof`. The for-stmt parser checks T_FOR_IN_OF
+                // before entering expression land for `for (var x in y)`
+                // (no `=` initializer), so consuming IN here doesn't affect
+                // that path. The pathological `for (var x = a in b; ...)`
+                // form parses `(a in b)` as the initializer and then fails at
+                // the missing `;`.
                 expr(8, true);
                 exit(Shift.LEFT);
             } else {
@@ -1192,7 +1216,15 @@ public class JsParser extends BaseParser {
         if (!enter(NodeType.PAREN_EXPR, L_PAREN)) {
             return false;
         }
-        expr_list(true);
+        // Parens reset the no-in restriction — `for (var x = (a in b); ...)`
+        // works as a relational `in` because the parens reopen IN_EXPR.
+        boolean prevNoIn = noIn;
+        noIn = false;
+        try {
+            expr_list(true);
+        } finally {
+            noIn = prevNoIn;
+        }
         consumeSoft(R_PAREN);
         return exit();
     }

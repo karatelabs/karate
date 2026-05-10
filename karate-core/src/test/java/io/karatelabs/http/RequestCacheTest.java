@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * K2 — {@code request.cache(key, fn)} per-request memoization.
+ * Per-request memoization via {@code request.cache(key, fn)}.
  *
  * <p>Backed by {@code demo/api/cache.js} which exercises the contract:
  * <ul>

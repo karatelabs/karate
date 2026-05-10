@@ -1495,6 +1495,94 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testInOperator() {
+        // Plain object — own properties
+        assertEquals(true, eval("'foo' in {foo: 1, bar: 2}"));
+        assertEquals(true, eval("'bar' in {foo: 1, bar: 2}"));
+        assertEquals(false, eval("'baz' in {foo: 1, bar: 2}"));
+        // Property set to undefined still counts as present (spec — own key)
+        assertEquals(true, eval("'foo' in {foo: undefined}"));
+        // Numeric key — coerced to string per ToPropertyKey
+        assertEquals(true, eval("0 in [10, 20, 30]"));
+        assertEquals(true, eval("2 in [10, 20, 30]"));
+        assertEquals(false, eval("5 in [10, 20, 30]"));
+        assertEquals(true, eval("'0' in [10, 20, 30]"));
+        // Inherited property (Array.prototype.length is own; push is inherited)
+        assertEquals(true, eval("'length' in []"));
+        assertEquals(true, eval("'push' in []"));
+        // String literal length is own-on-prototype
+        assertEquals(true, eval("'foo' in {foo: null}"));
+        // Empty object — no own keys, but inherited from Object.prototype
+        assertEquals(false, eval("'foo' in {}"));
+        assertEquals(true, eval("'toString' in {}"));
+    }
+
+    @Test
+    void testInOperatorTypeErrorOnNonObject() {
+        // RHS must be an object — primitives and null/undefined throw TypeError
+        assertThrows(Exception.class, () -> eval("'foo' in null"));
+        assertThrows(Exception.class, () -> eval("'foo' in undefined"));
+        assertThrows(Exception.class, () -> eval("0 in 42"));
+        assertThrows(Exception.class, () -> eval("'len' in 'hello'"));
+        assertThrows(Exception.class, () -> eval("0 in true"));
+    }
+
+    @Test
+    void testInOperatorInsideExpressions() {
+        // Used as a boolean in conditionals
+        assertEquals("yes", eval("var o = {a: 1}; ('a' in o) ? 'yes' : 'no'"));
+        assertEquals("no", eval("var o = {a: 1}; ('b' in o) ? 'yes' : 'no'"));
+        // Combined with logical operators
+        assertEquals(true, eval("'a' in {a: 1} && 'b' in {b: 2}"));
+        assertEquals(true, eval("'a' in {a: 1} || 'b' in {a: 1}"));
+        // Chained in a ternary deep inside an expression
+        assertEquals(1, eval("var o = {x: 1}; ('x' in o) && o.x"));
+        // Assigned to a variable
+        assertEquals(true, eval("var has = 'foo' in {foo: 1}; has"));
+    }
+
+    @Test
+    void testForInStillWorksAfterInOperator() {
+        // The originally-failing pattern from EngineTest.testForLoopIterationTracking —
+        // for-in must still consume IN at the for-statement level, not eat it as a
+        // relational operator in expression land. The noIn flag handles this.
+        eval("""
+                var a = {a: 1, b: 2, c: 3};
+                var keys = [];
+                for (x in a) keys.push(x);
+                """);
+        assertEquals(java.util.List.of("a", "b", "c"), get("keys"));
+        // for-in with `var` declaration
+        eval("""
+                var b = {x: 10, y: 20};
+                var ks = [];
+                for (var k in b) ks.push(k);
+                """);
+        assertEquals(java.util.List.of("x", "y"), get("ks"));
+    }
+
+    @Test
+    void testInOperatorInsideForInitParensResetNoIn() {
+        // Parens reset the no-in restriction — inside `for ( ... )` an `in`
+        // wrapped in further parens IS a relational operator. Without noIn
+        // reset, this would parse as a for-in header and choke.
+        eval("""
+                var o = {target: 99};
+                var x;
+                for (x = ('target' in o ? 1 : 0); x < 3; x++) { /* no body */ }
+                """);
+        assertEquals(3, get("x"));
+        // Mixed: relational `in` inside ternary inside the init expression's
+        // grouping, paired with a real for-loop test/update.
+        eval("""
+                var o = {found: true};
+                var collected = [];
+                for (var i = (('found' in o) ? 0 : 99); i < 3; i++) collected.push(i);
+                """);
+        assertEquals(java.util.List.of(0, 1, 2), get("collected"));
+    }
+
+    @Test
     void testDestructuringDefaultUndefinedVsNull() {
         // Present-with-undefined: default fires
         assertEquals(1, eval("var x; ({ x = 1 } = { x: undefined }); x"));

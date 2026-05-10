@@ -76,7 +76,7 @@ class KaDispatchProcessor extends AbstractAttributeTagProcessor {
     protected void doProcess(ITemplateContext ctx, IProcessableElementTag tag,
                              AttributeName attributeName, String attributeValue,
                              IElementTagStructureHandler structureHandler) {
-        // K17 — split `<dispatched-event> @ <trigger-event>`. The `@`
+        // Split `<dispatched-event> @ <trigger-event>`. The `@`
         // delimiter is optional; without it the dispatch fires on click
         // (default, no htmx dependency). With it, the LHS is the CustomEvent
         // name and the RHS is the DOM/htmx trigger emitted via

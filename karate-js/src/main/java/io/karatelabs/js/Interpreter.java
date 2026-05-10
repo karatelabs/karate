@@ -906,6 +906,10 @@ class Interpreter {
         return Terms.instanceOf(eval(node.get(0), context), eval(node.get(2), context));
     }
 
+    private static Object evalInExpr(Node node, CoreContext context) {
+        return Terms.in(eval(node.get(0), context), eval(node.get(2), context));
+    }
+
     private static BindScope toScope(BindScope scope) {
         return scope == BindScope.VAR ? null : scope;
     }
@@ -1751,6 +1755,7 @@ class Interpreter {
             case FOR_STMT -> evalForStmt(node, context);
             case IF_STMT -> evalIfStmt(node, context);
             case INSTANCEOF_EXPR -> evalInstanceOfExpr(node, context);
+            case IN_EXPR -> evalInExpr(node, context);
             case LOGIC_EXPR -> evalLogicExpr(node, context);
             case LOGIC_AND_EXPR -> evalLogicAndExpr(node, context);
             case LOGIC_NULLISH_EXPR -> evalLogicNullishExpr(node, context);

@@ -773,6 +773,12 @@ public class Terms {
         if (o instanceof String) {
             return new JsString((String) o).jsEntries(ctx);
         }
+        if (o instanceof ObjectLike obj) {
+            // Generic ObjectLike host bridges (e.g. fall-through underscore
+            // views, lazy proxies, custom Map adapters). Read via toMap()
+            // so Object.keys/values/entries and for-in see the live state.
+            return new JsObject(obj.toMap()).jsEntries(ctx);
+        }
         return new JsObject().jsEntries(ctx);
     }
 
@@ -960,6 +966,30 @@ public class Terms {
                 }
                 current = current.getPrototype();
             }
+        }
+        return false;
+    }
+
+    /**
+     * ECMA relational {@code in} — returns {@code true} iff {@code rhs} (or its
+     * prototype chain) has a property named {@code ToPropertyKey(lhs)}.
+     * Throws {@link JsErrorException#typeError} when {@code rhs} is not an
+     * object (per spec §13.10.1 step 7), since the {@code [[HasProperty]]}
+     * internal method is only defined on objects.
+     */
+    static boolean in(Object lhs, Object rhs) {
+        if (!(rhs instanceof ObjectLike obj)) {
+            throw JsErrorException.typeError(
+                    "Cannot use 'in' operator to search for '"
+                            + String.valueOf(lhs) + "' in " + String.valueOf(rhs));
+        }
+        String key = toPropertyKey(lhs);
+        ObjectLike current = obj;
+        while (current != null) {
+            if (current.isOwnProperty(key)) {
+                return true;
+            }
+            current = current.getPrototype();
         }
         return false;
     }

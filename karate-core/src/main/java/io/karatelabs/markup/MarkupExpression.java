@@ -50,7 +50,7 @@ class MarkupExpression implements IStandardExpression {
 
     @Override
     public Object execute(IExpressionContext ctx) {
-        // K22 — under the dual-lookup `_` ObjectLike, template attributes
+        // Under the dual-lookup `_` ObjectLike, template attributes
         // reading `_.<name>` resolve via the underscore map first then fall
         // through to the wrapped Thymeleaf scope (which carries th:with-bound
         // and level-flushed values). The previous "underscore-reach" guard

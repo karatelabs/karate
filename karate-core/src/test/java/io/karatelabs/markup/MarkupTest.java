@@ -422,6 +422,80 @@ class MarkupTest {
         assertTrue(rendered.contains("data-id=\"42\""), "Should have data-id: " + rendered);
     }
 
+    @Test
+    void testThAttrUnquotedHyphenatedKeyHintsAtQuoting() {
+        // When a th:attr (or ka:with / hx-vals / ka:dispatch) value contains
+        // an unquoted attribute key with hyphens or colons, the JS
+        // object-literal parser fails with a generic SyntaxError. We
+        // augment that with a hint that names the offending keys and shows
+        // the corrected (quoted) form so the fix is one read away.
+        Engine js = new Engine();
+        js.put("itemId", "42");
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+
+        // Single hyphenated key.
+        String htmlSingle = "<button th:attr=\"data-id: itemId\">Click</button>";
+        RuntimeException thrownSingle = assertThrows(RuntimeException.class,
+                () -> markup.processString(htmlSingle, null),
+                "unquoted hyphenated attr key must throw");
+        assertHintContains(thrownSingle,
+                "data-id", "must be quoted", "'data-id'");
+
+        // Multiple hyphenated and colon-bearing keys at once.
+        String htmlMulti = "<a th:attr=\"data-item-id: itemId, hx-target: 'body', ka:get: '/x'\"></a>";
+        RuntimeException thrownMulti = assertThrows(RuntimeException.class,
+                () -> markup.processString(htmlMulti, null),
+                "multiple unquoted hyphenated/colon keys must throw");
+        assertHintContains(thrownMulti,
+                "data-item-id", "hx-target", "ka:get", "must be quoted",
+                "'data-item-id'", "'hx-target'", "'ka:get'");
+    }
+
+    private static void assertHintContains(Throwable thrown, String... needles) {
+        Throwable t = thrown;
+        while (t != null) {
+            String msg = t.getMessage();
+            if (msg != null) {
+                boolean all = true;
+                for (String n : needles) {
+                    if (!msg.contains(n)) {
+                        all = false;
+                        break;
+                    }
+                }
+                if (all) return;
+            }
+            t = t.getCause();
+        }
+        throw new AssertionError("no exception in cause chain contained all of "
+                + java.util.Arrays.toString(needles)
+                + "; top message was: " + thrown.getMessage());
+    }
+
+    // ========== th:each (KaEachProcessor replaces StandardEachTagProcessor) ==========
+
+    @Test
+    void testThEachWithoutColonRejected() {
+        // Karate-markup's th:each (handled by KaEachProcessor) requires the
+        // explicit `name : expression` form — the bare-form shorthand that
+        // implicitly named the iteration variable `_` was a karate-specific
+        // invention that clashed with the underscore-namespace discipline.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+
+        String html = """
+            <script ka:scope="global">
+                _.items = ['a', 'b'];
+            </script>
+            <ul><li th:each="_.items">x</li></ul>
+            """;
+        RuntimeException thrown = assertThrows(RuntimeException.class,
+                () -> markup.processString(html, null),
+                "bare th:each form must throw");
+        assertHintContains(thrown,
+                "th:each requires", "name : expression");
+    }
+
     // ========== Iteration Variable Tests ==========
 
     @Test
@@ -508,11 +582,11 @@ class MarkupTest {
                    rendered.contains("<span>Banana</span>: <span>$0.83</span>"), "Banana total: " + rendered);
     }
 
-    // ========== K22 — context.get(name, default?) + dual-lookup `_` ==========
+    // ========== context.get(name, default?) + dual-lookup `_` ==========
 
     @Test
     void testContextGetReturnsThWithBoundValue() {
-        // K22 — context.get(name) walks the underscore map first then the
+        // context.get(name) walks the underscore map first then the
         // wrapped Thymeleaf scope, so caller-passed th:with values resolve
         // through the same accessor used for fragment-optional params.
         Engine js = new Engine();
@@ -528,7 +602,7 @@ class MarkupTest {
 
     @Test
     void testContextGetReturnsDefaultWhenMissing() {
-        // K22 — no binding for the name → second-arg default is returned.
+        // No binding for the name → second-arg default is returned.
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
         String html = """
@@ -542,7 +616,7 @@ class MarkupTest {
 
     @Test
     void testContextGetReturnsNullWhenMissingAndNoDefault() {
-        // K22 — single-arg form returns null on miss (no exception).
+        // Single-arg form returns null on miss (no exception).
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
         String html = """
@@ -556,7 +630,7 @@ class MarkupTest {
 
     @Test
     void testContextGetReadsUnderscoreMap() {
-        // K22 — `_` writes are visible via context.get too.
+        // `_` writes are visible via context.get too.
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
         String html = """
@@ -573,7 +647,7 @@ class MarkupTest {
 
     @Test
     void testUnderscoreReadFallsThroughToThWithScope() {
-        // K22 — `_.spacing` (read) falls through to Thymeleaf scope when
+        // `_.spacing` (read) falls through to Thymeleaf scope when
         // the underscore map doesn't have the name. Caller's th:with-bound
         // value is reachable as `_.spacing` from inside a fragment, no
         // typeof guard needed.
@@ -589,8 +663,42 @@ class MarkupTest {
     }
 
     @Test
+    void testUnderscoreObjectKeysScopedToNamespace() {
+        // Object.keys(_) is intentionally scoped to the underscore namespace
+        // itself — only names written via `_.x = ...`. Read fall-through to
+        // the wrapped Thymeleaf scope is a convenience for `_.foo` reads but
+        // does not extend to enumeration. Asserted inside a script block so
+        // both the writes and the keys check evaluate in the same scope.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <div th:with="parentName: 'mt-3'">
+                <script ka:scope="local">
+                    _.localName = 'lx';
+                    // Read fall-through: parentName comes from th:with
+                    _.parentSeen = _.parentName;
+                    // Enumeration: only underscore writes
+                    _.namespaceKeys = Object.keys(_).sort().join(',');
+                </script>
+                <span th:text="parentSeen">_</span>
+                <span th:text="namespaceKeys">_</span>
+            </div>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<span>mt-3</span>"),
+                "_.parentName must read through to th:with binding: " + rendered);
+        // Object.keys(_) sees writes assigned BEFORE the call (the sort()/join
+        // result is itself the value being assigned to namespaceKeys, so
+        // namespaceKeys is not yet present). Critically: parentName (a
+        // wrapped-scope binding, reachable via read fall-through) is NOT
+        // enumerated — Object.keys is scoped to the underscore namespace.
+        assertTrue(rendered.contains("<span>localName,parentSeen</span>"),
+                "Object.keys must show only underscore writes, not fall-through names: " + rendered);
+    }
+
+    @Test
     void testUnderscoreReadReturnsNullWhenTrulyMissing() {
-        // K22 — bare `_.missing` access on a fully unset name returns null
+        // Bare `_.missing` access on a fully unset name returns null
         // (no ReferenceError). Distinguishes the dual-lookup `_` from the
         // strict bare-name path.
         Engine js = new Engine();
@@ -606,7 +714,7 @@ class MarkupTest {
 
     @Test
     void testUnderscoreWritePreservesExplicitNull() {
-        // K22 — explicit `_.foo = null` is preserved on read (does not
+        // Explicit `_.foo = null` is preserved on read (does not
         // fall through to wrapped scope). Distinguishes "set to null"
         // from "never set".
         Engine js = new Engine();
@@ -934,9 +1042,9 @@ class MarkupTest {
 
     @Test
     void testFragmentSignatureWithParamsThrowsFriendlyError() {
-        // K11 — karate-markup deliberately does not support param lists in
+        // karate-markup deliberately does not support param lists in
         // th:fragment signatures. The convention is plain `th:fragment="name"`
-        // + th:with at the call site (with K12's unset-as-null lenient eval).
+        // + th:with at the call site (unset names evaluate to null).
         // If a developer accidentally writes `th:fragment="chip(label, count)"`,
         // the engine surfaces a karate-flavoured error that points at the
         // convention rather than at Thymeleaf's strict-matching internals.
@@ -967,7 +1075,7 @@ class MarkupTest {
 
     @Test
     void testFragmentMissingThWithVarThrowsWithHint() {
-        // K21 — replaces K12 lenient-retry. A fragment that reads a name
+        // Strict-ReferenceError path with hint fallback. A fragment that reads a name
         // the caller didn't bind via th:with now throws a real ReferenceError,
         // wrapped with an actionable hint pointing at the th:with call-site
         // pattern. Templates are no longer expected to silently null-fallback.
@@ -1004,7 +1112,7 @@ class MarkupTest {
 
     @Test
     void testIntraScriptBareReadAfterUnderscoreWriteHintsAtUnderscore() {
-        // K21 — within a single ka:scope block, after `_.foo = 'bar'` the
+        // Within a single ka:scope block, after `_.foo = 'bar'` the
         // bare name `foo` does NOT auto-resolve (this preserves the `_`
         // namespace discipline — writes to template state must always go
         // through `_` and reads must match). The error message points the
@@ -1076,7 +1184,7 @@ class MarkupTest {
                 "Surrounding markup must render normally: " + rendered);
     }
 
-    // ========== ka:dispatch (K4) ==========
+    // ========== Declarative Custom-Event Dispatch (`ka:dispatch`) ==========
 
     @Test
     void testKaDispatchEmitsOnClickWithDetail() {
@@ -1125,11 +1233,11 @@ class MarkupTest {
                 "double-quote in event name must be safely escaped: " + rendered);
     }
 
-    // ========== ka:dispatch @ trigger (K17) ==========
+    // ========== `ka:dispatch="event @ trigger"` ==========
 
     @Test
     void testKaDispatchAtHtmxAfterSwap() {
-        // K17 — `ka:dispatch="<event> @ <trigger>"` re-binds the dispatch
+        // `ka:dispatch="<event> @ <trigger>"` re-binds the dispatch
         // trigger from the default `click` to the named DOM/htmx event,
         // emitted via htmx's `hx-on:<trigger>`. Most useful for re-firing
         // CustomEvents after an htmx swap (e.g. notification-stack listeners).
@@ -1151,7 +1259,7 @@ class MarkupTest {
 
     @Test
     void testKaDispatchAtPlainDomEvent() {
-        // K17 — works for plain DOM events too (change, submit, etc.).
+        // Works for plain DOM events too (change, submit, etc.).
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
         String html = "<select ka:dispatch=\"role-changed@change\"></select>";
@@ -1166,7 +1274,7 @@ class MarkupTest {
 
     @Test
     void testKaDispatchAtTolerantOfWhitespace() {
-        // K17 — whitespace around the @ delimiter is optional and trimmed.
+        // Whitespace around the @ delimiter is optional and trimmed.
         // Both `users-refreshed@htmx:afterSwap` and the spaced form work.
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
@@ -1183,7 +1291,7 @@ class MarkupTest {
 
     @Test
     void testKaDispatchDefaultsToOnClick() {
-        // K17 sanity — without an @ delimiter, the original click-only
+        // Sanity — without an @ delimiter, the original click-only
         // behavior holds, no htmx dependency introduced.
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
@@ -1195,7 +1303,7 @@ class MarkupTest {
                 "no hx-on attribute when @ is absent: " + rendered);
     }
 
-    // ========== ka:data-mirror (K8) ==========
+    // ========== Outer-scope Form Mirror (`ka:data-mirror`) ==========
 
     @Test
     void testKaDataMirrorSimpleScope() {
@@ -1225,7 +1333,7 @@ class MarkupTest {
                 "sub-path must round-trip into JSON.stringify call: " + rendered);
     }
 
-    // ========== ka:island (K3) ==========
+    // ========== JSON-island Hydration (`ka:island`) ==========
 
     @Test
     void testKaIslandSimple() {
@@ -1272,11 +1380,9 @@ class MarkupTest {
                 "null value must render as the literal `null` (valid JSON): " + rendered);
     }
 
-    // ========== th:with parameter forwarding (K9 — already supported) ==========
+    // ========== th:with parameter forwarding (built-in Thymeleaf) ==========
     //
-    // The original PLAN sketch for K9 asked for a `th:with-spread` directive to
-    // forward all parent scoped vars into a child fragment. It turns out the
-    // existing th:with already handles parameter forwarding cleanly:
+    // The existing th:with already handles parameter forwarding cleanly:
     //
     //   • `th:with="foo: 'a', bar: 'b'"` — explicit assignments (Map literal).
     //   • `th:with="foo, bar"`           — JS object shorthand → {foo: foo, bar: bar},
@@ -1285,7 +1391,6 @@ class MarkupTest {
     // Both forms route through MarkupTemplateContext.evalLocalAsObject which wraps
     // the attribute value in `({...})` and evaluates as JS. ES6 shorthand object
     // properties are a standard JS feature; the karate JS engine supports it.
-    // K9 demoted on this basis — see PLAN.md.
 
     @Test
     void testThWithMultipleAssignments() {
@@ -1326,8 +1431,8 @@ class MarkupTest {
 
     @Test
     void testThWithObjectShorthandForwardsParentScope() {
-        // K9 alternative: forward parent's foo + bar into a nested element using
-        // JS object shorthand, no engine support needed beyond what already exists.
+        // Alternative: forward parent's foo + bar via th:with into a nested element
+        // using JS object shorthand, no engine support needed beyond what already exists.
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
         String html = "<div th:with=\"foo: 'a', bar: 'b'\">"
@@ -1338,9 +1443,9 @@ class MarkupTest {
                 "th:with with shorthand `foo, bar` must forward parent-scope values: " + rendered);
     }
 
-    // ========== K22 — `_.foo` in template attrs is supported ==========
+    // ========== `_.foo` in template attrs (dual-lookup `_`) ==========
     //
-    // Under the dual-lookup `_` ObjectLike (K22), `_.foo` reads in template
+    // Under the dual-lookup `_` ObjectLike, `_.foo` reads in template
     // attributes resolve correctly: the underscore map is checked first and
     // any miss falls through to the wrapped Thymeleaf scope (which carries
     // level-flushed values). This replaces the prior "underscore-reach"
@@ -1393,7 +1498,7 @@ class MarkupTest {
         return sb.toString();
     }
 
-    // ========== devTrace fragment trace (K7) ==========
+    // ========== `devTrace` Fragment Composition Trace ==========
 
     private static Markup tracingMarkup(boolean devMode, boolean devTrace) {
         MarkupConfig cfg = new MarkupConfig();

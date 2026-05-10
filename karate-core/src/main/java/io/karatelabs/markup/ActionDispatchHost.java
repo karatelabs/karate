@@ -26,8 +26,9 @@ package io.karatelabs.markup;
 import java.util.Map;
 
 /**
- * Implemented by request-scoped contexts that participate in K5 — the
- * {@code context.actions} POST-handler registry. The markup template engine
+ * Implemented by request-scoped contexts that participate in the
+ * POST-handler dispatch chain via the {@code context.actions} registry.
+ * The markup template engine
  * checks for this capability after each {@code ka:scope="global"} block to
  * decide whether to dispatch a handler for the inbound POST.
  *

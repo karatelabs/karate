@@ -57,6 +57,7 @@ public enum NodeType {
     NEW_EXPR,
     TYPEOF_EXPR,
     INSTANCEOF_EXPR,
+    IN_EXPR,
     FN_CALL_EXPR,
     FN_CALL_ARGS,
     FN_CALL_ARG,
@@ -119,7 +120,7 @@ public enum NodeType {
                  PLACEHOLDER, FN_DECL_ARG, FN_CALL_ARG, ARRAY_ELEM,
                  FN_TAGGED_TEMPLATE_EXPR -> 2;
             // Three-child nodes: binary ops after Shift.LEFT (left, op, right)
-            case REF_DOT_EXPR, INSTANCEOF_EXPR -> 3;
+            case REF_DOT_EXPR, INSTANCEOF_EXPR, IN_EXPR -> 3;
             // Ternary: condition ? true_expr : false_expr = 5 children
             case LOGIC_TERN_EXPR -> 5;
             // Container nodes: variable, often many children

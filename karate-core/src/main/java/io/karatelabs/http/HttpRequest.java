@@ -316,7 +316,7 @@ public class HttpRequest implements SimpleObject {
     }
 
     /**
-     * K18 — canonical multipart-file accessor for server-side templates and
+     * Canonical multipart-file accessor for server-side templates and
      * handlers. Returns the first uploaded file with the given form-field
      * name, or null if absent. Each returned map carries
      * {@code {name, filename, contentType, charset?, value (byte[]), bytes
@@ -327,7 +327,7 @@ public class HttpRequest implements SimpleObject {
     }
 
     /**
-     * K18 — multi-value multipart-file accessor. Returns ALL uploaded files
+     * Multi-value multipart-file accessor. Returns ALL uploaded files
      * with the given form-field name, in upload order. Empty list if none.
      * Mirrors {@link #getHeaderValues(String)} / {@link #getParamValues(String)}.
      * Use this for {@code <input type="file" multiple>} or any form posting
@@ -394,7 +394,7 @@ public class HttpRequest implements SimpleObject {
                         map.put("contentType", fup.getContentType());
                         byte[] bytes = fup.get();
                         map.put("value", bytes);
-                        // K18 — `bytes` alias for `value` (same byte[] reference, no copy)
+                        // `bytes` alias for `value` (same byte[] reference, no copy)
                         // and `size` for ergonomic length access. Used by the canonical
                         // `request.file(name)` / `request.files(name)` API.
                         map.put("bytes", bytes);

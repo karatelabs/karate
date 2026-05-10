@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * K5 — {@code context.actions} POST-handler registry.
+ * POST-handler registry via {@code context.actions}.
  *
  * <p>Each test posts to {@code /actions} (backed by {@code demo/actions.html})
  * which registers three handlers: {@code addUser} (flash success + session

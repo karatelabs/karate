@@ -339,8 +339,8 @@ public class HttpResponse implements ObjectLike {
      * access. Reads return {@code List<String>} matching the historical raw-Map shape
      * (so {@code response.headers['X-Multi']} stays array-typed). Writes route through
      * {@link #putHeaderValue(String, Object)} so {@code String}, {@code List}, and
-     * {@code null} all coerce correctly — replacing the silent type-corruption that
-     * the old raw-Map exposure caused (see karate-skills PLAN K10).
+     * {@code null} all coerce correctly — replacing the silent type-corruption
+     * that the old raw-Map exposure caused.
      */
     private ObjectLike headersView() {
         return new ObjectLike() {

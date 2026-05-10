@@ -24,10 +24,10 @@
 package io.karatelabs.markup;
 
 /**
- * K22 — current-eval scope accessor injected onto a {@link MarkupContext}
+ * Current-eval scope accessor injected onto a {@link MarkupContext}
  * by {@link MarkupTemplateContext} at engine-bind time. Backs the
  * {@code context.get(name, default?)} accessor that fragments use to read
- * optional names without triggering the K21 strict-ReferenceError path.
+ * optional names without triggering the strict-ReferenceError path.
  */
 public interface MarkupScope {
 

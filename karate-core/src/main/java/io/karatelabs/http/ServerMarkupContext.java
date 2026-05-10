@@ -119,7 +119,7 @@ public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
             // property access (see docs/JS_ENGINE.md § Lazy Variables).
             vars.put("session", (JsLazy) () -> this.session);
         } else {
-            // K16 — sessionStore is unconfigured. Install a proxy that throws a
+            // sessionStore is unconfigured. Install a proxy that throws a
             // clear, actionable error on any property access (instead of
             // letting `null.foo` bubble up as an opaque TemplateInputException).
             // This deliberately surfaces misconfiguration loudly: an
@@ -132,7 +132,7 @@ public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
     }
 
     /**
-     * K16 — placeholder for the {@code session} binding when no sessionStore
+     * Placeholder for the {@code session} binding when no sessionStore
      * is configured. Throws a clear, actionable error on any access.
      */
     private static final class SessionUnavailableProxy implements io.karatelabs.js.ObjectLike {
@@ -421,7 +421,7 @@ public class ServerMarkupContext implements MarkupContext, ActionDispatchHost {
         return flash;
     }
 
-    // ActionDispatchHost (K5)
+    // ActionDispatchHost (POST-handler dispatch)
 
     @Override
     public Map<String, Object> getActions() {
