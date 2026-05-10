@@ -273,10 +273,25 @@ class CsrfProtectionTest {
 
     @Test
     void testCreateTemplateTokenNullSession() {
+        // When no session is available no token can be issued, so the
+        // template wrapper itself is null. This lets templates use
+        // `th:if="context.csrf"` as a presence check and skip emitting
+        // CSRF markup (e.g. an empty <meta name="csrf-token"> tag) for
+        // anonymous visitors.
         CsrfProtection.CsrfToken csrfToken = CsrfProtection.createTemplateToken(null);
 
-        assertNotNull(csrfToken);
-        assertNull(csrfToken.getToken());
+        assertNull(csrfToken);
+    }
+
+    @Test
+    void testCreateTemplateTokenTemporarySession() {
+        // Same contract as the null-session case: a temporary session
+        // (the placeholder used before context.init()) cannot carry a
+        // CSRF token, so the wrapper is null rather than a wrapper
+        // around a null token.
+        CsrfProtection.CsrfToken csrfToken = CsrfProtection.createTemplateToken(Session.TEMPORARY);
+
+        assertNull(csrfToken);
     }
 
     // Timing attack prevention test

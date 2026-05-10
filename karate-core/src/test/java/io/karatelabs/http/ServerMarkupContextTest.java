@@ -523,12 +523,13 @@ class ServerMarkupContextTest {
 
     @Test
     void testCsrfTokenWithoutSession() {
-        // No session initialized
+        // No session initialized — no token can be issued, so the wrapper
+        // itself is null. Templates can then use `th:if="context.csrf"` as
+        // a presence check and skip emitting CSRF markup for anonymous
+        // visitors instead of producing an empty <meta name="csrf-token">.
         CsrfProtection.CsrfToken csrf = (CsrfProtection.CsrfToken) context.jsGet("csrf");
 
-        // Should still return token object, but with null token
-        assertNotNull(csrf);
-        assertNull(csrf.getToken());
+        assertNull(csrf);
     }
 
     @Test

@@ -177,11 +177,24 @@ public class CsrfProtection {
      * Create a template-accessible object containing CSRF token information.
      * This can be added to template variables as "csrf".
      *
+     * <p>Returns {@code null} when {@link #getOrCreateToken(Session)} would
+     * yield {@code null} (i.e. the session is {@code null} or temporary).
+     * Returning {@code null} — rather than a wrapper around a {@code null}
+     * token — lets templates use {@code th:if="context.csrf"} as the natural
+     * presence check and skip rendering CSRF-related markup (e.g. a
+     * {@code <meta name="csrf-token">} tag) for anonymous visitors. Otherwise
+     * the wrapper is truthy while its inner token is empty, producing markup
+     * that exposes no usable token.
+     *
      * @param session the session to get the token from
-     * @return a SimpleObject with token, headerName, and fieldName properties
+     * @return a {@link CsrfToken} with token / headerName / fieldName
+     *         properties, or {@code null} if no token is available
      */
     public static CsrfToken createTemplateToken(Session session) {
         String token = getOrCreateToken(session);
+        if (token == null) {
+            return null;
+        }
         return new CsrfToken(token);
     }
 
