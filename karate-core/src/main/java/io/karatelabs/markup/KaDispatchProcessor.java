@@ -81,15 +81,28 @@ class KaDispatchProcessor extends AbstractAttributeTagProcessor {
         // (default, no htmx dependency). With it, the LHS is the CustomEvent
         // name and the RHS is the DOM/htmx trigger emitted via
         // `hx-on:<trigger>` (htmx must be loaded on the page).
-        String eventName = attributeValue;
+        String av = attributeValue.trim();
+        String eventName = av;
         String triggerOn = null;
-        int at = attributeValue.indexOf('@');
+        int at = av.indexOf('@');
         if (at >= 0) {
-            eventName = attributeValue.substring(0, at).trim();
-            triggerOn = attributeValue.substring(at + 1).trim();
-            if (triggerOn.isEmpty()) {
-                triggerOn = null;
+            if (av.lastIndexOf('@') != at) {
+                throw new RuntimeException(
+                        "ka:dispatch supports a single `event @ trigger` delimiter; got `"
+                                + attributeValue + "`");
             }
+            eventName = av.substring(0, at).trim();
+            triggerOn = av.substring(at + 1).trim();
+            if (triggerOn.isEmpty()) {
+                throw new RuntimeException(
+                        "ka:dispatch trigger must be non-empty after `@`; got `"
+                                + attributeValue + "`");
+            }
+        }
+        if (eventName.isEmpty()) {
+            throw new RuntimeException(
+                    "ka:dispatch requires an event name; got `"
+                            + attributeValue + "`");
         }
         MarkupTemplateContext kec = (MarkupTemplateContext) ctx;
         String detailJson = "{}";

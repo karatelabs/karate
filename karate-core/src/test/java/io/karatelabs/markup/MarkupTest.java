@@ -510,6 +510,28 @@ class MarkupTest {
     }
 
     @Test
+    void testUnderscoreReadOfIterationStatusReturnsJsFriendlyMap() {
+        // `_.iter.first` (and similar) must see the same JS-friendly shape
+        // that bare `iter.first` already gets — the underscoreView's
+        // fall-through read routes through the outer getVariable so
+        // Thymeleaf's IterationStatusVar gets converted to a {first, last,
+        // index, ...} Map. Without the conversion, `_.iter.first` would
+        // surface the raw IterationStatusVar object and fail at the JS
+        // layer (no `.first` accessor on the Java object).
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = """
+            <ul>
+                <li th:each="item, iter: ['a', 'b', 'c']" th:text="_.iter.first ? 'is-first' : _.iter.last ? 'is-last' : 'mid'">0</li>
+            </ul>
+            """;
+        String rendered = markup.processString(html, null);
+        assertTrue(rendered.contains("<li>is-first</li>"), "iter.first via _ access: " + rendered);
+        assertTrue(rendered.contains("<li>mid</li>"), "iter middle via _ access: " + rendered);
+        assertTrue(rendered.contains("<li>is-last</li>"), "iter.last via _ access: " + rendered);
+    }
+
+    @Test
     void testIterationCount() {
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
@@ -626,6 +648,29 @@ class MarkupTest {
             """;
         String rendered = markup.processString(html, null);
         assertTrue(rendered.contains("<span>is-null</span>"), "rendered: " + rendered);
+    }
+
+    @Test
+    void testContextMethodsRejectNullPathArg() {
+        // context.read(null) / readBytes(null) / fromJson(null) /
+        // context.get(null) used to NPE on args[0].toString(). They now
+        // throw the same actionable error as the missing-arg case.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String htmlGet = "<div th:text=\"context.get(null)\"></div>";
+        RuntimeException thrownGet = assertThrows(RuntimeException.class,
+                () -> markup.processString(htmlGet, null));
+        assertHintContains(thrownGet, "context.get() requires a name argument");
+
+        String htmlRead = "<div th:text=\"context.read(null)\"></div>";
+        RuntimeException thrownRead = assertThrows(RuntimeException.class,
+                () -> markup.processString(htmlRead, null));
+        assertHintContains(thrownRead, "read() requires a path argument");
+
+        String htmlFromJson = "<div th:text=\"context.fromJson(null)\"></div>";
+        RuntimeException thrownFromJson = assertThrows(RuntimeException.class,
+                () -> markup.processString(htmlFromJson, null));
+        assertHintContains(thrownFromJson, "fromJson() requires a JSON string argument");
     }
 
     @Test
@@ -1301,6 +1346,43 @@ class MarkupTest {
                 "default behavior is onclick: " + rendered);
         assertFalse(rendered.contains("hx-on:"),
                 "no hx-on attribute when @ is absent: " + rendered);
+    }
+
+    @Test
+    void testKaDispatchRejectsEmptyEventName() {
+        // Bare `@trigger` is rejected — an empty event name would dispatch
+        // a CustomEvent with no name, which the browser refuses anyway.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<button ka:dispatch=\"@click\">x</button>";
+        RuntimeException thrown = assertThrows(RuntimeException.class,
+                () -> markup.processString(html, null));
+        assertHintContains(thrown, "ka:dispatch requires an event name");
+    }
+
+    @Test
+    void testKaDispatchRejectsEmptyTriggerAfterAt() {
+        // `event @` alone is rejected — the trailing `@` signals trigger
+        // override, and an empty trigger silently degrades to onclick which
+        // is misleading.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<button ka:dispatch=\"open-modal @ \">x</button>";
+        RuntimeException thrown = assertThrows(RuntimeException.class,
+                () -> markup.processString(html, null));
+        assertHintContains(thrown, "ka:dispatch trigger must be non-empty");
+    }
+
+    @Test
+    void testKaDispatchRejectsMultipleAtDelimiters() {
+        // `event @ trigger @ extra` is rejected — only one `@` is supported.
+        // (lastIndexOf would silently lose information; ambiguous either way.)
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+        String html = "<button ka:dispatch=\"open-modal @ click @ extra\">x</button>";
+        RuntimeException thrown = assertThrows(RuntimeException.class,
+                () -> markup.processString(html, null));
+        assertHintContains(thrown, "single `event @ trigger` delimiter");
     }
 
     // ========== Outer-scope Form Mirror (`ka:data-mirror`) ==========

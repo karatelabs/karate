@@ -57,7 +57,10 @@ public class MarkupTemplateContext implements IEngineContext, MarkupScope {
                 return vars.get(name);
             }
             if (wrapped.containsVariable(name)) {
-                return wrapped.getVariable(name);
+                // Route through the outer getVariable so Thymeleaf's
+                // IterationStatusVar gets converted to a JS-friendly Map
+                // (consistent with bare-name reads of the same scope var).
+                return MarkupTemplateContext.this.getVariable(name);
             }
             return null;
         }
@@ -134,7 +137,9 @@ public class MarkupTemplateContext implements IEngineContext, MarkupScope {
             if (v != null) return v;
         }
         if (wrapped.containsVariable(name)) {
-            Object v = wrapped.getVariable(name);
+            // Use this.getVariable so IterationStatusVar gets converted
+            // to a JS-friendly Map (same shape as a bare-name read).
+            Object v = getVariable(name);
             if (v != null) return v;
         }
         return null;
@@ -202,7 +207,7 @@ public class MarkupTemplateContext implements IEngineContext, MarkupScope {
             // the offending keys and shows the corrected (quoted) form.
             String hint = buildAttrKeyHint(src);
             if (hint != null) {
-                throw new RuntimeException(hint, pe);
+                throw new MarkupHintException(hint, pe);
             }
             throw pe;
         }
@@ -264,7 +269,7 @@ public class MarkupTemplateContext implements IEngineContext, MarkupScope {
             if (missing == null) {
                 throw e;
             }
-            throw new RuntimeException(buildMissingNameHint(missing, e), e);
+            throw new MarkupHintException(buildMissingNameHint(missing, e), e);
         }
     }
 

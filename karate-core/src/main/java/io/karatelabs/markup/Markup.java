@@ -181,23 +181,17 @@ public class Markup {
         while (rootCause.getCause() != null) {
             rootCause = rootCause.getCause();
         }
-        // When an evaluator wrapper added an actionable hint, prefer that
-        // hint over the deeper raw JS message. Two augmented forms exist:
-        //   - ReferenceError hints from MarkupTemplateContext.evalLocal
-        //     (containing "did you mean" or "th:with at the call site")
-        //   - SyntaxError hints from MarkupTemplateContext.evalLocalAsObject
-        //     for unquoted hyphenated/colon attribute keys (containing
-        //     "must be quoted")
+        // When an evaluator wrapper added an actionable hint
+        // (MarkupTemplateContext.evalLocal / evalLocalAsObject), prefer that
+        // hint over the deeper raw JS message. Hints are tagged via the
+        // sentinel MarkupHintException type — type-checked rather than
+        // substring-matched, so unrelated RuntimeException messages can't
+        // masquerade.
         String displayMessage = rootCause.getMessage();
         Throwable scan = e;
         while (scan != null) {
-            String m = scan.getMessage();
-            if (m != null && (
-                    (m.startsWith("ReferenceError:")
-                            && (m.contains("did you mean") || m.contains("th:with at the call site")))
-                    || (m.startsWith("SyntaxError parsing object-literal expression")
-                            && m.contains("must be quoted")))) {
-                displayMessage = m;
+            if (scan instanceof MarkupHintException) {
+                displayMessage = scan.getMessage();
                 break;
             }
             scan = scan.getCause();

@@ -123,19 +123,27 @@ public interface MarkupContext extends SimpleObject {
             case "template" -> getTemplateName();
             case "caller" -> getCallerTemplateName();
             case "read" -> (JavaInvokable) args -> {
-                if (args.length == 0) throw new RuntimeException("read() requires a path argument");
+                if (args.length == 0 || args[0] == null) {
+                    throw new RuntimeException("read() requires a path argument");
+                }
                 return read(args[0].toString());
             };
             case "readBytes" -> (JavaInvokable) args -> {
-                if (args.length == 0) throw new RuntimeException("readBytes() requires a path argument");
+                if (args.length == 0 || args[0] == null) {
+                    throw new RuntimeException("readBytes() requires a path argument");
+                }
                 return readBytes(args[0].toString());
             };
             case "toJson" -> (JavaInvokable) args -> {
+                // null IS a valid JSON-able value (`null`), so only the
+                // missing-arg case errors here.
                 if (args.length == 0) throw new RuntimeException("toJson() requires an object argument");
                 return toJson(args[0]);
             };
             case "fromJson" -> (JavaInvokable) args -> {
-                if (args.length == 0) throw new RuntimeException("fromJson() requires a JSON string argument");
+                if (args.length == 0 || args[0] == null) {
+                    throw new RuntimeException("fromJson() requires a JSON string argument");
+                }
                 return fromJson(args[0].toString());
             };
             // context.get(name, default?) for optional fragment params.
@@ -143,7 +151,7 @@ public interface MarkupContext extends SimpleObject {
             // Thymeleaf scope). Returns the bound non-null value if found,
             // else the default (or null when no default is given).
             case "get" -> (JavaInvokable) args -> {
-                if (args.length == 0) {
+                if (args.length == 0 || args[0] == null) {
                     throw new RuntimeException("context.get() requires a name argument");
                 }
                 String name = args[0].toString();
