@@ -140,6 +140,24 @@ class RequestHandlerTest {
     }
 
     @Test
+    void testApiRedirectHtmxUsesHxRedirect() {
+        // For htmx-originated requests (HX-Request header present), context.redirect
+        // must emit HX-Redirect with status 200 instead of a bare 302. htmx's XHR
+        // layer silently follows 302s and only swaps the configured target — that
+        // strands the document <head> on the previous page (e.g. a stale or absent
+        // <meta name="csrf-token">). HX-Redirect makes htmx do a full window
+        // navigation, which re-renders the head with the new session's CSRF meta.
+        HttpResponse response = harness.request()
+                .path("/api/redirect")
+                .header("HX-Request", "true")
+                .get();
+
+        assertEquals(200, response.getStatus());
+        assertEquals("/other", response.getHeader("HX-Redirect"));
+        assertNull(response.getHeader("Location"));
+    }
+
+    @Test
     void testApiNotFound() {
         HttpResponse response = get("/api/nonexistent");
 

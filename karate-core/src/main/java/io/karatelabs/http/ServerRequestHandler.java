@@ -149,9 +149,7 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
             if (context.hasRedirect()) {
                 // Persist flash messages to session so they survive the redirect
                 context.persistFlashToSession();
-                result.setStatus(302);
-                result.setHeader("Location", context.getRedirectPath());
-                result.setBody("");
+                applyRedirect(request, result, context.getRedirectPath());
             }
 
             // Save session if modified
@@ -165,8 +163,7 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
             return result;
 
         } catch (RedirectException e) {
-            response.setStatus(302);
-            response.setHeader("Location", e.getLocation());
+            applyRedirect(request, response, e.getLocation());
             return response;
 
         } catch (Exception e) {
@@ -210,6 +207,29 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
             }
         }
         return null;
+    }
+
+    /**
+     * Write a redirect into {@code response}. For an htmx-originated request
+     * (one carrying the {@code HX-Request} header) this emits an
+     * {@code HX-Redirect} header with status 200 — htmx interprets that as a
+     * full window navigation, which re-renders the document {@code <head>}
+     * and any other shell content that a {@code hx-target}-scoped swap would
+     * leave stale (e.g. a {@code <meta name="csrf-token">} tag refreshed by
+     * a {@code context.init()} during the same request). For a non-htmx
+     * request it falls back to a standard {@code 302 Location} response so
+     * native form submits and direct navigation continue to work.
+     */
+    static void applyRedirect(HttpRequest request, HttpResponse response, String location) {
+        if (request != null && request.isAjax()) {
+            response.setStatus(200);
+            response.setHeader("HX-Redirect", location);
+            response.setBody("");
+        } else {
+            response.setStatus(302);
+            response.setHeader("Location", location);
+            response.setBody("");
+        }
     }
 
     /**
