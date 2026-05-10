@@ -25,9 +25,6 @@ package io.karatelabs.markup;
 
 import org.thymeleaf.exceptions.TemplateProcessingException;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 /**
  * Friendly error translation for the unsupported {@code th:fragment="name(params)"}
  * declared-signature shape.
@@ -37,41 +34,19 @@ import java.util.regex.Pattern;
  * values via {@code th:with}, the fragment reads them as ordinary scope variables,
  * and unset names resolve to {@code null} (see Gotcha #21 + #22 in MARKUP_SKILL.md).
  *
- * <p>If a developer accidentally writes {@code th:fragment="chip(label, count)"},
- * one of two things happens:
+ * <p>Two paths surface the convention:
  * <ul>
- *   <li>Thymeleaf fires a strict signature-matching error — caught and re-thrown
- *       with a karate-flavoured message by {@link #translateSignatureError}.</li>
- *   <li>The caller uses Thymeleaf's keyword-argument form
- *       ({@code ~{... :: chip(label='x', count=3)}}) — Thymeleaf accepts the call,
- *       binds the parameters into Thymeleaf-private scope, but karate-markup's
- *       JS expression engine never sees them. The fragment renders with
- *       {@code label} / {@code count} resolving to {@code null} and the failure is
- *       silent. {@link #checkDeclaredSignature} catches this case proactively at
- *       template-load time before any rendering happens.</li>
+ *   <li>{@link KaFragmentProcessor} is registered in place of Thymeleaf's
+ *       {@code StandardFragmentTagProcessor} via the instance-of patching loop in
+ *       {@link MarkupStandardDialect#getProcessors}. It validates the
+ *       {@code th:fragment} attribute value at evaluation time and throws via
+ *       {@link #signatureMessage} when it contains a {@code (}.</li>
+ *   <li>{@link #translateSignatureError} stays as a backstop for any Thymeleaf
+ *       strict-matching error that slips through (e.g. third-party fragments
+ *       loaded outside the Karate dialect path).</li>
  * </ul>
  */
 final class FragmentSupport {
-
-    /**
-     * Matches a {@code th:fragment} (or {@code data-th-fragment}) attribute whose
-     * value contains an opening parenthesis — the disallowed declared-signature
-     * shape. The capturing group returns the offending attribute value so the
-     * error message can quote it back to the developer.
-     *
-     * <p>Constraints:
-     * <ul>
-     *   <li>Word-boundary before {@code th:fragment} avoids matching inside other
-     *       attribute names (none currently end in {@code th:fragment} but
-     *       defensive).</li>
-     *   <li>Tolerates whitespace around the {@code =} (rare but legal HTML).</li>
-     *   <li>Accepts double or single quotes.</li>
-     *   <li>Requires a {@code (} somewhere inside the quoted value before the
-     *       matching close quote.</li>
-     * </ul>
-     */
-    private static final Pattern DECLARED_SIGNATURE = Pattern.compile(
-            "\\b(?:data-)?th:fragment\\s*=\\s*[\"']([^\"']*\\([^\"']*)[\"']");
 
     private FragmentSupport() {
     }
@@ -87,46 +62,22 @@ final class FragmentSupport {
         if (msg == null || !msg.contains("Cannot resolve fragment. Signature")) {
             return;
         }
-        throw new TemplateProcessingException(unsupportedSignatureMessage(null, null, msg), e);
+        throw new TemplateProcessingException(signatureMessage(null, null, msg), e);
     }
 
     /**
-     * Scan a raw template body for {@code th:fragment="name(params)"} and throw
-     * a friendly {@link TemplateProcessingException} if any are found. Called
-     * from the template resource readers so the failure surfaces at template
-     * load time rather than as silent {@code null} bindings during render.
-     *
-     * @param html       the template source about to be parsed
-     * @param resourceDescription a human-readable resource path for the error
-     *                            (e.g. {@code "components/mega-menu.html"})
+     * Build the karate-flavoured "param lists not supported" message. Used by
+     * both the proactive {@link KaFragmentProcessor} (which passes the offending
+     * attribute value) and {@link #translateSignatureError} (which only has the
+     * Thymeleaf message). Either argument may be {@code null}.
      */
-    static void checkDeclaredSignature(String html, String resourceDescription) {
-        if (html == null) {
-            return;
-        }
-        // Cheap pre-filter — the regex is only worth running on templates that
-        // actually contain the literal `th:fragment` (or its HTML5 data-attr
-        // alias). Page templates almost never declare fragments, so a plain
-        // indexOf scan keeps the happy path at near-zero cost; fragment files
-        // (components/) pay the regex once at template-load time.
-        if (html.indexOf("th:fragment") < 0 && html.indexOf("th-fragment") < 0) {
-            return;
-        }
-        Matcher m = DECLARED_SIGNATURE.matcher(html);
-        if (m.find()) {
-            String offending = m.group(1);
-            throw new TemplateProcessingException(
-                    unsupportedSignatureMessage(offending, resourceDescription, null));
-        }
-    }
-
-    private static String unsupportedSignatureMessage(String offending, String resource, String thymeleafMsg) {
+    static String signatureMessage(String offendingValue, String resourceDescription, String thymeleafMsg) {
         StringBuilder sb = new StringBuilder();
         sb.append("karate-markup does not support param lists in th:fragment signatures.\n");
-        if (offending != null) {
-            sb.append("  Found    th:fragment=\"").append(offending).append("\"");
-            if (resource != null) {
-                sb.append("   in ").append(resource);
+        if (offendingValue != null) {
+            sb.append("  Found    th:fragment=\"").append(offendingValue).append("\"");
+            if (resourceDescription != null) {
+                sb.append("   in ").append(resourceDescription);
             }
             sb.append("\n");
         }

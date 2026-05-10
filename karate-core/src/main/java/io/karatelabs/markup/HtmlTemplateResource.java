@@ -26,8 +26,8 @@ package io.karatelabs.markup;
 import io.karatelabs.common.Resource;
 import org.thymeleaf.templateresource.ITemplateResource;
 
+import java.io.InputStreamReader;
 import java.io.Reader;
-import java.io.StringReader;
 
 class HtmlTemplateResource implements ITemplateResource {
 
@@ -60,12 +60,7 @@ class HtmlTemplateResource implements ITemplateResource {
 
     @Override
     public Reader reader() {
-        // Read eagerly so we can run the th:fragment signature check before the
-        // template is parsed. Catches the th:fragment="name(p)" form proactively
-        // instead of letting it silently render with null params.
-        String text = resource.getText();
-        FragmentSupport.checkDeclaredSignature(text, resource.getPrefixedPath());
-        return new StringReader(text);
+        return new InputStreamReader(resource.getStream());
     }
 
     @Override

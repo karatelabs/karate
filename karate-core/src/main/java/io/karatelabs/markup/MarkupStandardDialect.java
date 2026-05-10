@@ -86,6 +86,9 @@ class MarkupStandardDialect extends StandardDialect implements IStandardVariable
             if (p instanceof StandardReplaceTagProcessor) {
                 p = new KaReplaceProcessor(p.getTemplateMode(), dialectPrefix, config);
             }
+            if (p instanceof StandardFragmentTagProcessor) {
+                p = new KaFragmentProcessor(p.getTemplateMode(), dialectPrefix);
+            }
             patched.add(p);
         }
         return patched;
