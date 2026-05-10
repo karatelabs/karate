@@ -1119,6 +1119,38 @@ class MarkupTest {
     }
 
     @Test
+    void testFragmentSignatureWithKeywordArgsAlsoThrowsFriendlyError() {
+        // Defensive check: even when the caller uses Thymeleaf's keyword-argument
+        // form (`~{... :: chip(label='x', count=3)}`), which Thymeleaf accepts
+        // against a parameterised signature without raising "Cannot resolve
+        // fragment. Signature ...", karate-markup must still surface the
+        // convention violation. Without this proactive load-time check the
+        // template renders silently with `label` and `count` resolving to null
+        // because karate-markup's JS expression engine never sees Thymeleaf's
+        // private parameter scope.
+        Engine js = new Engine();
+        Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
+
+        String html = "<div th:insert=\"~{fragment-params :: chip(label='x', count=3)}\"></div>";
+        RuntimeException thrown = assertThrows(RuntimeException.class,
+                () -> markup.processString(html, null),
+                "keyword-arg call against a parameterised fragment must surface the convention error");
+
+        Throwable t = thrown;
+        boolean foundFriendlyMessage = false;
+        while (t != null) {
+            String msg = t.getMessage();
+            if (msg != null && msg.contains("karate-markup does not support param lists in th:fragment")) {
+                foundFriendlyMessage = true;
+                break;
+            }
+            t = t.getCause();
+        }
+        assertTrue(foundFriendlyMessage,
+                "error must point at karate-markup convention; got: " + thrown.getMessage());
+    }
+
+    @Test
     void testFragmentMissingThWithVarThrowsWithHint() {
         // Strict-ReferenceError path with hint fallback. A fragment that reads a name
         // the caller didn't bind via th:with now throws a real ReferenceError,

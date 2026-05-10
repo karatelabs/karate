@@ -55,6 +55,8 @@ class HtmlStringTemplateResource implements ITemplateResource {
 
     @Override
     public Reader reader() {
+        // Same proactive th:fragment="name(...)" check as the file-based resource.
+        FragmentSupport.checkDeclaredSignature(text, getDescription());
         return new StringReader(text);
     }
 
