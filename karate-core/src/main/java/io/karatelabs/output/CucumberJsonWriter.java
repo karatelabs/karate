@@ -188,11 +188,71 @@ public final class CucumberJsonWriter {
         } else {
             for (StepResult stepResult : sr.getStepResults()) {
                 steps.add(stepToMap(stepResult));
+                // Cucumber JSON has no native "nested call" concept, so flatten any
+                // called sub-feature's steps into this scenario's steps[] using v1's
+                // `>`-prefixed keyword convention. This is what cucumber-reporting and
+                // similar consumers already understand (a v1 power user noticed sub-
+                // feature steps missing in v2 — issue surfaced in maintainer feedback).
+                appendCallResultSteps(steps, stepResult, 1);
             }
         }
         map.put("steps", steps);
 
         return map;
+    }
+
+    /**
+     * Recursively inline a step's called sub-features as additional flat entries
+     * in the parent scenario's steps[]. Mirrors v1's ScenarioResult.recurse():
+     * <ul>
+     *   <li>For each FeatureResult in {@code parent.getCallResults()}, emit a synthetic
+     *       header row with keyword {@code "> "} (or {@code ">> "} at depth 2, etc.)
+     *       and name = the called feature's display path (+ {@code [loopIdx]} if looped).</li>
+     *   <li>Then emit each step from the called feature's scenarios, with the original
+     *       keyword prefixed by {@code "> "} × depth (so {@code "Given "} becomes
+     *       {@code "> Given "} at depth 1).</li>
+     *   <li>Recurse for steps that themselves had nested call results.</li>
+     * </ul>
+     */
+    private static void appendCallResultSteps(List<Map<String, Object>> steps, StepResult parent, int depth) {
+        if (!parent.hasCallResults()) {
+            return;
+        }
+        String marker = ">".repeat(depth) + " "; // ">" × depth + space
+        int parentLine = parent.getStep() != null ? parent.getStep().getLine() : 0;
+        for (FeatureResult fr : parent.getCallResults()) {
+            // Synthetic header for the called feature
+            Map<String, Object> header = new LinkedHashMap<>();
+            header.put("keyword", marker);
+            header.put("name", callNameForReport(fr));
+            header.put("line", parentLine);
+            Map<String, Object> headerResult = new LinkedHashMap<>();
+            headerResult.put("status", "passed");
+            headerResult.put("duration", 0L);
+            header.put("result", headerResult);
+            steps.add(header);
+
+            // Steps of every scenario in the called feature
+            for (ScenarioResult childScenario : fr.getScenarioResults()) {
+                for (StepResult childStep : childScenario.getStepResults()) {
+                    Map<String, Object> childMap = stepToMap(childStep);
+                    Object originalKeyword = childMap.get("keyword");
+                    childMap.put("keyword", marker + (originalKeyword == null ? "" : originalKeyword));
+                    steps.add(childMap);
+                    appendCallResultSteps(steps, childStep, depth + 1);
+                }
+            }
+        }
+    }
+
+    /**
+     * Build the displayName used in the synthetic call header.
+     * v1 parity: prefix with {@code "[loopIndex] "} when the call ran inside a loop.
+     */
+    private static String callNameForReport(FeatureResult fr) {
+        String name = fr.getDisplayName();
+        int loopIndex = fr.getLoopIndex();
+        return loopIndex < 0 ? name : "[" + loopIndex + "] " + name;
     }
 
     private static Map<String, Object> stepToMap(StepResult sr) {

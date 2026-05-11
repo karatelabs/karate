@@ -445,4 +445,133 @@ class CucumberJsonWriterTest {
         assertTrue(foundTable, "Should have a step with table rows");
     }
 
+    @Test
+    void testCalledSubFeatureStepsAreFlattenedWithAngleMarkers() throws Exception {
+        // sub.feature is called by main.feature via `call read(...)` — its steps must
+        // show up in main.feature's Cucumber JSON (Cucumber has no native nested-call
+        // concept, so v1 flattens with ">"-prefixed keywords).
+        Path subFeature = tempDir.resolve("sub.feature");
+        Files.writeString(subFeature, """
+            Feature: Sub
+
+            Scenario: sub work
+            * def y = param1
+            * match y == 'hello'
+            """);
+
+        Path mainFeature = tempDir.resolve("main.feature");
+        Files.writeString(mainFeature, """
+            Feature: Main
+
+            Scenario: calls sub
+            * def x = 1
+            * def myCall = call read('sub.feature') { param1: 'hello' }
+            * match x == 1
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+        SuiteResult result = Runner.path(mainFeature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputCucumberJson(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+        assertTrue(result.isPassed());
+
+        String jsonStr = Files.readString(reportDir.resolve("cucumber-json/main.json"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> features = (List<Map<String, Object>>) (List<?>) Json.of(jsonStr).asList();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> elements = (List<Map<String, Object>>) features.get(0).get("elements");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> steps = (List<Map<String, Object>>) elements.get(0).get("steps");
+
+        // Expected sequence: top step, top call step, synthetic header, 2 sub steps, top match
+        assertEquals(6, steps.size(), "main scenario should have 6 entries after flattening");
+
+        assertEquals("* ", steps.get(0).get("keyword"));
+        assertEquals("def x = 1", steps.get(0).get("name"));
+
+        assertEquals("* ", steps.get(1).get("keyword"));
+        assertTrue(((String) steps.get(1).get("name")).startsWith("def myCall = call read"));
+
+        // Synthetic call header
+        assertEquals("> ", steps.get(2).get("keyword"));
+        assertTrue(((String) steps.get(2).get("name")).endsWith("sub.feature"),
+                "header name should be the called feature path, got: " + steps.get(2).get("name"));
+
+        // Sub-feature steps inlined with "> " keyword prefix
+        assertEquals("> * ", steps.get(3).get("keyword"));
+        assertEquals("def y = param1", steps.get(3).get("name"));
+
+        assertEquals("> * ", steps.get(4).get("keyword"));
+        assertEquals("match y == 'hello'", steps.get(4).get("name"));
+
+        // Top-level continues after the call
+        assertEquals("* ", steps.get(5).get("keyword"));
+        assertEquals("match x == 1", steps.get(5).get("name"));
+    }
+
+    @Test
+    void testNestedCalledSubFeatureStepsUseDoubleAngleMarkers() throws Exception {
+        Path deepFeature = tempDir.resolve("deep.feature");
+        Files.writeString(deepFeature, """
+            Feature: Deep
+
+            Scenario: deep work
+            * def z = 42
+            """);
+
+        Path subFeature = tempDir.resolve("sub.feature");
+        Files.writeString(subFeature, """
+            Feature: Sub
+
+            Scenario: sub work
+            * def y = 1
+            * def d = call read('deep.feature')
+            """);
+
+        Path mainFeature = tempDir.resolve("main.feature");
+        Files.writeString(mainFeature, """
+            Feature: Main
+
+            Scenario: nested calls
+            * def m = call read('sub.feature')
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+        SuiteResult result = Runner.path(mainFeature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputCucumberJson(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+        assertTrue(result.isPassed());
+
+        String jsonStr = Files.readString(reportDir.resolve("cucumber-json/main.json"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> features = (List<Map<String, Object>>) (List<?>) Json.of(jsonStr).asList();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> elements = (List<Map<String, Object>>) features.get(0).get("elements");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> steps = (List<Map<String, Object>>) elements.get(0).get("steps");
+
+        // Verify that we see both a "> " (depth 1) and a ">> " (depth 2) marker somewhere
+        boolean sawDepth1Header = false;
+        boolean sawDepth1Step = false;
+        boolean sawDepth2Header = false;
+        boolean sawDepth2Step = false;
+        for (Map<String, Object> step : steps) {
+            String kw = (String) step.get("keyword");
+            if ("> ".equals(kw)) sawDepth1Header = true;
+            if ("> * ".equals(kw)) sawDepth1Step = true;
+            if (">> ".equals(kw)) sawDepth2Header = true;
+            if (">> * ".equals(kw)) sawDepth2Step = true;
+        }
+        assertTrue(sawDepth1Header, "expected '> ' header for depth-1 call");
+        assertTrue(sawDepth1Step, "expected '> * ' step for depth-1 sub-feature");
+        assertTrue(sawDepth2Header, "expected '>> ' header for depth-2 call");
+        assertTrue(sawDepth2Step, "expected '>> * ' step for depth-2 sub-feature");
+    }
+
 }
