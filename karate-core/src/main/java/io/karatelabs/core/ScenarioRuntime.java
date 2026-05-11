@@ -1023,10 +1023,16 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     }
 
     /**
-     * Evaluate scenario name if it starts with a backtick (JS template literal).
-     * This allows dynamic scenario names in reports, e.g., `result is ${1+1}`.
-     * If evaluation fails, the original name is kept and a warning is logged
-     * to both the console and the test report (appended to last step's log).
+     * Evaluate a dynamic scenario name as a JS template literal. v1 parity — fires when
+     * the name is either:
+     * <ul>
+     *   <li>wrapped in backticks (already a template literal), e.g. {@code `result is ${1+1}`}, or</li>
+     *   <li>contains a {@code ${...}} placeholder anywhere in the name (the typical case —
+     *       Gherkin authors don't naturally write backticks). The name is wrapped in
+     *       backticks before eval so the placeholder resolves against the JS bindings.</li>
+     * </ul>
+     * If evaluation fails the original name is kept and a warning is logged to console
+     * and appended to the last step's log for report visibility.
      */
     private void evaluateScenarioName() {
         String name = scenario.getName();
@@ -1034,11 +1040,16 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             return;
         }
         String trimmed = name.trim();
-        if (!trimmed.startsWith("`")) {
+        boolean wrappedByBackTick = trimmed.length() > 1
+                && trimmed.charAt(0) == '`'
+                && trimmed.charAt(trimmed.length() - 1) == '`';
+        boolean hasPlaceholder = JS_NAME_PLACEHOLDER.matcher(trimmed).find();
+        if (!wrappedByBackTick && !hasPlaceholder) {
             return;
         }
+        String eval = wrappedByBackTick ? trimmed : "`" + trimmed + "`";
         try {
-            Object evaluated = karate.engine.eval(trimmed);
+            Object evaluated = karate.engine.eval(eval);
             if (evaluated != null) {
                 scenario.setName(evaluated.toString());
             }
@@ -1053,6 +1064,9 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             }
         }
     }
+
+    private static final java.util.regex.Pattern JS_NAME_PLACEHOLDER =
+            java.util.regex.Pattern.compile("\\$\\{.*?}");
 
     // ========== Execution Context ==========
 

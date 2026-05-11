@@ -73,6 +73,72 @@ class ScenarioRuntimeTest {
     }
 
     @Test
+    void testScenarioNameInterpolationWithoutBackticks() {
+        // v1 parity: ${...} placeholders in a scenario name should be evaluated
+        // even when the name is not wrapped in backticks. Real-world example
+        // surfaced by a v1 power user — name uses karate-config.js bindings.
+        ScenarioRuntime sr = runFeature("""
+            Feature:
+            Scenario: market '${countryCode}': creation [Tracking ID: ${tracingId}]
+            * def countryCode = 'DE'
+            * def tracingId = 'trace-xyz'
+            """);
+        assertPassed(sr);
+        assertEquals("market 'DE': creation [Tracking ID: trace-xyz]",
+                sr.getScenario().getName());
+    }
+
+    @Test
+    void testScenarioNameInterpolationWithMethodCall() {
+        // Method call inside ${...} — mirrors user's currentMarket().countryCode case.
+        ScenarioRuntime sr = runFeature("""
+            Feature:
+            Scenario: market '${currentMarket().countryCode}' check
+            * def currentMarket = function(){ return { countryCode: 'DE' } }
+            """);
+        assertPassed(sr);
+        assertEquals("market 'DE' check", sr.getScenario().getName());
+    }
+
+    @Test
+    void testScenarioNameWithBacktickWrapStillWorks() {
+        // Existing backtick path — regression guard.
+        ScenarioRuntime sr = runFeature("""
+            Feature:
+            Scenario: `result is ${1 + 1}`
+            * def x = 1
+            """);
+        assertPassed(sr);
+        assertEquals("result is 2", sr.getScenario().getName());
+    }
+
+    @Test
+    void testScenarioNameWithoutPlaceholderIsUnchanged() {
+        // No ${...}, no backticks — name passes through verbatim, eval not attempted.
+        ScenarioRuntime sr = runFeature("""
+            Feature:
+            Scenario: plain name with $ sign and {curly braces}
+            * def x = 1
+            """);
+        assertPassed(sr);
+        assertEquals("plain name with $ sign and {curly braces}",
+                sr.getScenario().getName());
+    }
+
+    @Test
+    void testScenarioNameInterpolationFailureKeepsOriginal() {
+        // Eval throws (undefined variable) — original name kept, warning logged.
+        ScenarioRuntime sr = runFeature("""
+            Feature:
+            Scenario: ref to ${undefinedVarThatBlowsUp}
+            * def x = 1
+            """);
+        assertPassed(sr);
+        assertEquals("ref to ${undefinedVarThatBlowsUp}",
+                sr.getScenario().getName());
+    }
+
+    @Test
     void testHotReloadUpdatesStepText() throws Exception {
         Path featureFile = tempDir.resolve("reload.feature");
         Files.writeString(featureFile, """
