@@ -1458,6 +1458,15 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             }
         }
 
+        // stop:false is a debug-only flag — bypass the driver pool so the instance
+        // we hand out isn't recycled or auto-closed by the pool's lifecycle.
+        boolean stopFlag = !Boolean.FALSE.equals(configMap.get("stop"));
+        if (!stopFlag && provider != null) {
+            logger.warn("configure driver = {{ stop: false }} — bypassing driver pool;"
+                    + " browser will be left running on scenario exit (debug use only)");
+            provider = null;
+        }
+
         // Determine driver type and parse scope
         String driverType = (String) configMap.getOrDefault("type", "chrome");
         boolean isW3c = io.karatelabs.driver.w3c.W3cBrowserType.isW3cType(driverType);
@@ -1602,6 +1611,21 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         if (driverInherited) {
             driver = null;
             return;
+        }
+
+        // configure driver = { stop: false } — leave the browser running for DOM
+        // inspection. Skips both direct quit() and the pool's release(). Note that
+        // a leaked driver here loses one slot from the pool's accounting; that's
+        // accepted because stop:false is a single-scenario debug flag.
+        try {
+            if (!driver.getOptions().isStop()) {
+                logger.warn("driver.stop=false — leaving browser running, scenario will not close it: {}",
+                        scenario.getName());
+                driver = null;
+                return;
+            }
+        } catch (Exception e) {
+            logger.debug("could not read driver options for stop check: {}", e.getMessage());
         }
 
         // Shared-scope called feature: propagate the driver up to the caller scenario

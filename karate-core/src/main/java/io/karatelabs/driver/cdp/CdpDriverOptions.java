@@ -57,6 +57,7 @@ public class CdpDriverOptions implements DriverOptions {
     private final List<String> addOptions;
     private final String webSocketUrl;
     private final String scope;
+    private final boolean stop;
 
     private CdpDriverOptions(Builder builder) {
         this.timeout = builder.timeout;
@@ -75,6 +76,7 @@ public class CdpDriverOptions implements DriverOptions {
         this.addOptions = builder.addOptions != null ? List.copyOf(builder.addOptions) : List.of();
         this.webSocketUrl = builder.webSocketUrl;
         this.scope = builder.scope;
+        this.stop = builder.stop;
     }
 
     public static Builder builder() {
@@ -140,6 +142,9 @@ public class CdpDriverOptions implements DriverOptions {
         }
         if (map.containsKey("scope")) {
             builder.scope((String) map.get("scope"));
+        }
+        if (map.containsKey("stop")) {
+            builder.stop(toBoolean(map.get("stop")));
         }
 
         return builder.build();
@@ -281,6 +286,11 @@ public class CdpDriverOptions implements DriverOptions {
         return "caller".equals(scope);
     }
 
+    @Override
+    public boolean isStop() {
+        return stop;
+    }
+
     public Duration getTimeoutDuration() {
         return Duration.ofMillis(timeout);
     }
@@ -302,6 +312,7 @@ public class CdpDriverOptions implements DriverOptions {
         private List<String> addOptions;
         private String webSocketUrl;
         private String scope = "scenario";
+        private boolean stop = true;
 
         public Builder timeout(int millis) {
             this.timeout = millis;
@@ -400,6 +411,16 @@ public class CdpDriverOptions implements DriverOptions {
          */
         public Builder scope(String scope) {
             this.scope = scope != null ? scope : "scenario";
+            return this;
+        }
+
+        /**
+         * Keep the browser process alive after the scenario ends (default: true = quit).
+         * When {@code false}, also bypasses the suite driver pool so the instance is
+         * not shared across scenarios.
+         */
+        public Builder stop(boolean stop) {
+            this.stop = stop;
             return this;
         }
 

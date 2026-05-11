@@ -52,6 +52,7 @@ public class W3cDriverOptions implements DriverOptions {
     private final int highlightDuration;
     private final PageLoadStrategy pageLoadStrategy;
     private final String scope;
+    private final boolean stop;
 
     // W3C-specific
     private final String webDriverUrl;
@@ -79,6 +80,7 @@ public class W3cDriverOptions implements DriverOptions {
         this.highlightDuration = toInt(map.get("highlightDuration"), 3000);
         this.pageLoadStrategy = PageLoadStrategy.DOMCONTENT_AND_FRAMES;
         this.scope = (String) map.getOrDefault("scope", "scenario");
+        this.stop = toBool(map.get("stop"), true);
 
         this.webDriverUrl = (String) map.get("webDriverUrl");
         this.webDriverSession = (Map<String, Object>) map.get("webDriverSession");
@@ -224,6 +226,11 @@ public class W3cDriverOptions implements DriverOptions {
 
     public String getScope() {
         return scope;
+    }
+
+    @Override
+    public boolean isStop() {
+        return stop;
     }
 
     /**

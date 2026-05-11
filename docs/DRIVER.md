@@ -454,6 +454,25 @@ boolean isTerminated()
 DriverOptions getOptions()
 ```
 
+### Keep the browser open for debugging — `stop: false`
+
+```gherkin
+* configure driver = { type: 'chromedriver', stop: false }
+```
+
+When `stop: false`, the driver is intentionally not quit at scenario exit so the
+DOM stays inspectable. Two side-effects to be aware of:
+
+- The suite driver pool is **bypassed** for that scenario — the browser instance
+  is created directly rather than acquired from the pool, so the pool's lifecycle
+  (release/quit on suite shutdown) won't touch it. A WARN is logged at init.
+- The driver process is leaked from the JVM's perspective. Browsers spawned
+  this way will typically die when the JVM exits, so to actually inspect the
+  page you need to keep the JVM alive (e.g., a breakpoint or `karate.pause`).
+
+Intended for one-off UI debug runs only. **Do not enable in parallel/CI runs** —
+each scenario will leak a browser.
+
 ---
 
 ## JS API

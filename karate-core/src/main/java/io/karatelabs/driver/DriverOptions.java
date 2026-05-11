@@ -94,4 +94,14 @@ public interface DriverOptions {
      */
     void setPreSubmitHash(String hash);
 
+    /**
+     * Whether the browser should be quit at scenario end. Default true.
+     * When false, the driver process and browser are intentionally left alive
+     * so the DOM can be inspected after the run — typically used for one-off
+     * UI debugging. v1 parity: {@code configure driver = { ..., stop: false }}.
+     */
+    default boolean isStop() {
+        return true;
+    }
+
 }

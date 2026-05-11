@@ -225,6 +225,24 @@ class CdpDriverOptionsTest {
     }
 
     @Test
+    void testStopDefaultsTrue() {
+        assertTrue(CdpDriverOptions.builder().build().isStop());
+        assertTrue(CdpDriverOptions.fromMap(Map.of()).isStop());
+    }
+
+    @Test
+    void testStopFromMap() {
+        assertFalse(CdpDriverOptions.fromMap(Map.of("stop", false)).isStop());
+        assertFalse(CdpDriverOptions.fromMap(Map.of("stop", "false")).isStop());
+        assertTrue(CdpDriverOptions.fromMap(Map.of("stop", true)).isStop());
+    }
+
+    @Test
+    void testStopBuilder() {
+        assertFalse(CdpDriverOptions.builder().stop(false).build().isStop());
+    }
+
+    @Test
     void testAddOptionsImmutable() {
         CdpDriverOptions options = CdpDriverOptions.builder()
                 .addOptions(List.of("--disable-gpu"))
