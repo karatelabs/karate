@@ -325,6 +325,7 @@ See [DESIGN.md § Reports](./DESIGN.md#reports) for the full report architecture
 
 Most feature files work unchanged. Known differences:
 
+- **`@parallel=false` is gone — use `@lock` instead.** See [Parallel Execution Control](#parallel-execution-control) below.
 - **Cookie domain assertions**: If testing cookie domains, note that RFC 6265 compliance means leading dots are stripped (`.example.com` → `example.com`).
 - **Karate-JSON vs JavaScript on the RHS**: as in v1, any `def` / `set` / `configure` / `match` RHS that starts with `{` or `[` is parsed as Karate's relaxed JSON. To force JavaScript / ES6 semantics on the value side, wrap the literal in parens. See below.
 
@@ -349,6 +350,41 @@ Anything on the right-hand side of `def` (or `set`, `configure`, `match`, …) t
 ```
 
 This matches v1 behavior — most v1 feature files work unchanged. The only thing to watch for is feature/test code that intentionally relied on JS semantics for an unwrapped literal (e.g., `* def response = { id: pathParams.id }`) — those need paren-wrapping (`* def response = ({ id: pathParams.id })`) or rewriting with `#(...)`.
+
+---
+
+## Parallel Execution Control
+
+V2 **drops the `@parallel=false` tag**. It is silently ignored — no deprecation warning, no error — and any feature still relying on it will run in parallel as if untagged. The replacement is the more expressive `@lock` tag.
+
+| v1 intent | v2 equivalent |
+|---|---|
+| `@parallel=false` on a `Feature` — run that feature's scenarios sequentially, but let other features still run in parallel | `@lock=<unique-name>` on the `Feature` (any name; pick one not used elsewhere) |
+| Single-thread the entire run — keep one feature isolated from every other scenario in the suite | `@lock=*` on the `Feature` or `Scenario` |
+| Coordinate two unrelated features that mutate the same shared resource | `@lock=<shared-name>` on both — any scenarios tagged with the same name serialize against each other |
+
+Feature-level tags propagate to every scenario in the feature (`Scenario.getTagsEffective()` merges `Feature` tags in), so `@lock` on the `Feature:` line is the drop-in for v1's feature-level `@parallel=false`.
+
+```gherkin
+# v1 — no longer works in v2 (silently ignored)
+@parallel=false
+Feature: order workflow
+
+# v2 — same effect: every scenario in this feature serializes against every other
+# scenario tagged @lock=order-workflow
+@lock=order-workflow
+Feature: order workflow
+```
+
+```gherkin
+# v2 — run this feature exclusively (no other scenarios anywhere run concurrently)
+@lock=*
+Feature: db migration smoke
+```
+
+Unlike `@parallel=false`, `@lock=name` lets unrelated features still run concurrently with each other — only scenarios sharing the same lock name serialize. Use `@lock=*` only when full exclusion is genuinely required, since it stalls the whole worker pool.
+
+See [DESIGN.md § Built-in Tags](./DESIGN.md#built-in-tags) and `ScenarioLockManager.java` for implementation detail.
 
 ---
 
@@ -542,6 +578,7 @@ For serving full web applications with templates, see [TEMPLATING.md](./TEMPLATI
 - [ ] If using the Gatling plugin, add `--add-opens=java.base/java.lang=ALL-UNNAMED` to its `<jvmArgs>`
 - [ ] Replace `JsonUtils` with `Json` class (if used)
 - [ ] Remove code using `HttpLogModifier`, `WebSocketClient`, or Driver Java APIs (if used)
+- [ ] Replace any `@parallel=false` tags with `@lock=<name>` (or `@lock=*` for full exclusion) — `@parallel=false` is silently ignored in v2
 - [ ] Update cookie domain assertions if needed
 - [ ] Remove `karate.toJava(...)` calls (deprecated no-op — JS functions auto-coerce to Java functional interfaces; arrays/objects work as `List`/`Map` directly)
 - [ ] If you registered lazy bindings via `engine.put("key", (Supplier<X>) () -> ...)`, migrate to `(JsLazy) () -> ...`

@@ -27,16 +27,24 @@ import io.karatelabs.common.Pair;
 import io.karatelabs.common.Resource;
 import io.karatelabs.common.StringUtils;
 import io.karatelabs.parser.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.karatelabs.parser.TokenType.*;
 
 public class GherkinParser extends BaseParser {
 
+    private static final Logger logger = LoggerFactory.getLogger(GherkinParser.class);
+
     // Pre-allocated token array for stepLine loop
     private static final TokenType[] T_STEP_LINE = {G_KEYWORD, EQ, IDENT, DOT, G_EXPR};
+
+    // TODO remove this v1 @parallel deprecation warning in karate v3 once users have migrated to @lock
+    private static final AtomicBoolean PARALLEL_TAG_WARNED = new AtomicBoolean();
 
     private Node ast;
 
@@ -314,7 +322,17 @@ public class GherkinParser extends BaseParser {
         for (int i = 0, n = tagsNode.size(); i < n; i++) {
             Node child = tagsNode.get(i);
             if (child.isToken() && child.token.type == G_TAG) {
-                tags.add(new Tag(child.token.line + 1, child.token.getText()));
+                Tag tag = new Tag(child.token.line + 1, child.token.getText());
+                tags.add(tag);
+                // TODO remove this v1 @parallel deprecation warning in karate v3
+                if ("parallel".equals(tag.getName()) && PARALLEL_TAG_WARNED.compareAndSet(false, true)) {
+                    String path = resource != null ? resource.getPrefixedPath() : "<unknown>";
+                    logger.warn("@parallel is no longer supported in v2 and is silently ignored "
+                            + "(first seen at {}:{}). Use @lock=<name> for mutual exclusion "
+                            + "or @lock=* for exclusive execution. "
+                            + "See https://docs.karatelabs.io/getting-started/migration-from-v1#parallel-execution-control",
+                            path, tag.getLine());
+                }
             }
         }
         return tags;
