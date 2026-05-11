@@ -20,9 +20,11 @@ Suite → FeatureRuntime → ScenarioRuntime → StepExecutor
 
 ```
 karate/
-├── karate-js/          # JavaScript engine, Gherkin parser, lexer
-│   └── io.karatelabs.js        # JsEngine, JsValue, GherkinParser, JsParser
-├── karate-core/        # Runtime, HTTP, matching, mocks, reports, templating
+├── karate-js/          # JS engine + reusable parser framework + Resource abstraction
+│   ├── io.karatelabs.js        # Engine, Context, Bindings, JsValue hierarchy
+│   ├── io.karatelabs.parser    # BaseParser, BaseLexer — extended by GherkinParser
+│   └── io.karatelabs.common    # Resource, Pair, StringUtils (no karate-core deps)
+├── karate-core/        # Runtime, HTTP, matching, mocks, reports, templating, gherkin model
 │   └── io.karatelabs.*         # See packages below
 ├── karate-junit6/      # JUnit 6 integration
 ├── karate-gatling/     # Performance testing (Gatling integration)
@@ -33,7 +35,8 @@ karate/
 
 | Package | Purpose |
 |---------|---------|
-| `io.karatelabs` | Suite, Runner, FeatureRuntime, ScenarioRuntime, StepExecutor |
+| `io.karatelabs.core` | Suite, Runner, FeatureRuntime, ScenarioRuntime, StepExecutor, KarateConfig, ScenarioLockManager |
+| `io.karatelabs.gherkin` | Gherkin model + parser: Feature, Scenario, Tag, GherkinParser (extends `io.karatelabs.parser.BaseParser`) |
 | `io.karatelabs.http` | ApacheHttpClient, HttpClientFactory, MockServer, WebSocket |
 | `io.karatelabs.match` | Match engine (EQUALS, CONTAINS, WITHIN, etc.) |
 | `io.karatelabs.output` | Reports (HTML, Cucumber JSON, JUnit XML, JSONL), LogContext |
@@ -50,6 +53,8 @@ karate/
 | `FeatureRuntime` | Feature execution, scenario iteration, callOnce caching |
 | `ScenarioRuntime` | Scenario execution, variable scope, implements `KarateJsContext` |
 | `StepExecutor` | Keyword dispatch (def, match, url, method, etc.) |
+| `KarateConfig` | Mutable per-scenario configuration; source of truth for `configure ...` keys (snapshotted/restored across scenarios) |
+| `ScenarioLockManager` | `@lock` enforcement — named locks + global read/write lock for `@lock=*` |
 | `KarateJs` | JS engine bridge, `karate.*` API methods |
 | `KarateJsBase` | Shared state and infrastructure for KarateJs |
 | `KarateJsUtils` | Stateless utility methods (`karate.filter`, `karate.map`, etc.) |
@@ -79,7 +84,11 @@ karate/
 | `@lock=name` | Named mutual exclusion (same name = sequential) |
 | `@lock=*` | Exclusive execution (no other scenarios run concurrently) |
 | `@report=false` | Scenario runs and counts toward suite totals, but its step detail is suppressed from HTML / Cucumber JSON / JUnit XML / JSONL outputs. Failures surface only a redacted message; full detail still hits runtime logs. Inherits into any features called from this scenario. Use for runs where step content (HTTP bodies, error messages) may include secrets that mustn't reach CI artifacts. |
-| `@skipped` | Synthetic — engine auto-adds in the result's tags when a scenario was aborted (via `karate.abort()` or suite abort). Informational only; surfaces in the HTML report's tag chips. `skippedCount` is additive — skipped scenarios still count as passed (no breaking change to existing counts). |
+| `@skipped` | **Synthetic** — engine adds this tag to a scenario result when it didn't run to completion. Three triggers: (1) `karate.abort()` called from a step, (2) suite-abort via `abortSuiteOnFailure` (top-level scenarios only), (3) no step passed or failed (empty / fully-skipped body). Surfaces: HTML summary `@skipped` chip + dedicated Skipped column with pass-%, per-feature stdout, `ScenarioResult.skipped`, `FeatureResult.skippedCount`, `SuiteResult.getScenarioSkippedCount()` / `summary.scenariosSkipped`. **Additive** — a skipped scenario is also counted as passed, so existing pass/fail totals are unchanged. |
+
+**Source files.** `Tag.java` (recognized constants: `IGNORE`, `ENV`, `ENVNOT`, `SETUP`, `FAIL`, `LOCK`), `GherkinParser.transformTags` (parse-time tag construction), `Scenario.getTagsEffective()` (feature + scenario tag merge), `ScenarioLockManager.java` (`@lock` enforcement), `ScenarioResult.isSkipped()` (`@skipped` semantics), `Scenario.isIgnore()` / `Feature.getSetup()` (`@ignore` / `@setup` enforcement).
+
+**v1 leftover — `@parallel=false`.** Not recognized in v2; runs in parallel as if untagged. `GherkinParser.transformTags` emits a one-shot WARN at parse time pointing users at `@lock`. See [MIGRATION_GUIDE.md § Parallel Execution Control](./MIGRATION_GUIDE.md#parallel-execution-control).
 
 ## Caching
 
@@ -443,6 +452,6 @@ Standard envelope:
 | [GATLING.md](./GATLING.md) | Performance testing — Java DSL, session chaining, HTTP pooling |
 | [TEMPLATING.md](./TEMPLATING.md) | HTML templating — Thymeleaf + JS expressions, HTMX, server/static modes |
 | [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) | V1 -> V2 migration guide |
-| [CAPABILITIES.yaml](./CAPABILITIES.yaml) | Complete feature inventory (366 capabilities) |
+| [CAPABILITIES.yaml](./CAPABILITIES.yaml) | Complete feature inventory (source of truth — regen `CAPABILITIES.md` via `./etc/generate-capabilities.sh`) |
 | [TODOS.md](./TODOS.md) | Actionable work items |
 | [RELEASING.md](./RELEASING.md) | Release checklist |

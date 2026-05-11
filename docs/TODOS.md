@@ -12,6 +12,7 @@ Scratch pad for tracking work across the project. See also [CAPABILITIES.yaml](.
 - [ ] Priority 9: `configure report = { showJsLineNumbers: true }`
 - [ ] Priority 9: `karate-base.js` (shared config from classpath JAR)
 - [ ] Step definitions with regex pattern matching
+- [ ] `@timeout=<millis>` scenario-level timeout tag — was documented in v1 / early v2 docs (now removed from karate-docs) but never wired up. `Tag.java` has no `TIMEOUT` constant and no handler exists. Decide whether to ship it (`ScenarioRuntime` cancels the scenario after N ms, surfaces as a failure with a clear message) or formally drop it from the surface area.
 - [ ] Multiple Suite Execution: `Runner.suites().add(...).parallel(n).run()`
 - [ ] Shared "misc" JS engine for tag-selector evaluation, `@setup` dynamic expressions, and examples-table cell interpolation. Currently `TagSelector.evaluate` creates a fresh `Engine` per call — low individual cost but adds up across per-section pre-filter + per-scenario runtime evaluation. Would need per-thread or pooled engines for parallel execution.
 

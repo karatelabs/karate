@@ -200,11 +200,61 @@ categories:
         v2: implemented
         license: oss
         tags: [core, milestone-1]
+        notes: "Replaces v1's @parallel=false (which is silently ignored in v2). @lock is more granular — unrelated scenarios still run in parallel, only those sharing a lock name serialize. Feature-level @lock propagates to every scenario in the feature."
         items:
           - name: "@lock=name (named mutual exclusion)"
             v1: false
             v2: implemented
           - name: "@lock=* (exclusive execution)"
+            v1: false
+            v2: implemented
+
+      - name: HTML Templating
+        description: Thymeleaf-based HTML templating with JS expressions, HTMX, and server/static modes
+        v1: false
+        v2: implemented
+        license: oss
+        tags: [core]
+        notes: "io.karatelabs.template package; karate.doc() / karate.render() for ad-hoc rendering; per-render context.set + per-request context.setGlobal/getGlobal for state; HX-Redirect support for HTMX-originated requests. See TEMPLATING.md."
+        items:
+          - name: Thymeleaf integration with JS expressions
+            v1: false
+            v2: implemented
+          - name: HTMX integration
+            v1: false
+            v2: implemented
+          - name: karate.doc() and karate.render() from feature files
+            v1: false
+            v2: implemented
+          - name: Server-mode rendering (embedded HTTP server)
+            v1: false
+            v2: implemented
+          - name: Static-mode rendering (offline HTML generation)
+            v1: false
+            v2: implemented
+          - name: Per-render and per-request context state
+            description: "context.set for per-render values; context.setGlobal/getGlobal for per-request state"
+            v1: false
+            v2: implemented
+
+      - name: Process Execution
+        description: Synchronous and asynchronous subprocess control from feature files
+        v1: false
+        v2: implemented
+        license: oss
+        tags: [core]
+        notes: "karate.exec for sync, karate.fork for async with ProcessHandle (waitSync, waitForOutput, waitForPort, waitForHttp, onStdOut, signal). karate.signal + listen for forked-process → test-flow coordination."
+        items:
+          - name: karate.exec (synchronous command execution)
+            v1: false
+            v2: implemented
+          - name: karate.fork (async background process with ProcessHandle)
+            v1: false
+            v2: implemented
+          - name: karate.signal + listen (process → test coordination)
+            v1: false
+            v2: implemented
+          - name: karate.waitForPort / karate.waitForHttp
             v1: false
             v2: implemented
 

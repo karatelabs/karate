@@ -2,7 +2,7 @@
 
 Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
-> **Generated:** 2026-05-08 from `CAPABILITIES.yaml`
+> **Generated:** 2026-05-11 from `CAPABILITIES.yaml`
 >
 > See also: [Design Principles](./PRINCIPLES.md) | [Roadmap](./ROADMAP.md)
 
@@ -21,13 +21,13 @@ Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
 ## Summary
 
-**Total capabilities: 375**
+**Total capabilities: 387**
 
 | Category | Count |
 |----------|-------|
 | v1 features ported to v2 | 133 |
 | v1 features pending | 8 |
-| New in v2 (implemented) | 52 |
+| New in v2 (implemented) | 64 |
 | New in v2 (in progress) | 1 |
 | Planned | 19 |
 | Future / Wish list | 162 |
@@ -105,6 +105,20 @@ Foundation capabilities that power all test types
 - `[v2]` Parallel Safety
   - `[v2]` @lock=name (named mutual exclusion)
   - `[v2]` @lock=* (exclusive execution)
+
+- `[v2]` HTML Templating
+  - `[v2]` Thymeleaf integration with JS expressions
+  - `[v2]` HTMX integration
+  - `[v2]` karate.doc() and karate.render() from feature files
+  - `[v2]` Server-mode rendering (embedded HTTP server)
+  - `[v2]` Static-mode rendering (offline HTML generation)
+  - `[v2]` Per-render and per-request context state
+
+- `[v2]` Process Execution
+  - `[v2]` karate.exec (synchronous command execution)
+  - `[v2]` karate.fork (async background process with ProcessHandle)
+  - `[v2]` karate.signal + listen (process → test coordination)
+  - `[v2]` karate.waitForPort / karate.waitForHttp
 
 - `[1.x ✓]` Environment & Configuration
   - `[1.x ✓]` karate-config.js
