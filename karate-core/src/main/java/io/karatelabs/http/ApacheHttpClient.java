@@ -61,6 +61,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.karatelabs.common.Resource;
+import io.karatelabs.core.KarateConfig;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
@@ -117,152 +118,61 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     private final HttpLogger logger = new HttpLogger();
 
-    @SuppressWarnings("unchecked")
     @Override
-    public void config(String key, Object value) {
-        switch (key) {
-            case "ssl":
-                if (value instanceof Boolean flag) {
-                    ssl = flag;
-                } else if (value instanceof Map) {
-                    ssl = true;
-                    Map<String, Object> map = (Map<String, Object>) value;
-                    sslKeyStore = (String) map.get("keyStore");
-                    sslKeyStorePassword = (String) map.get("keyStorePassword");
-                    sslKeyStoreType = (String) map.get("keyStoreType");
-                    sslTrustStore = (String) map.get("trustStore");
-                    sslTrustStorePassword = (String) map.get("trustStorePassword");
-                    sslTrustStoreType = (String) map.get("trustStoreType");
-                    Boolean trustAll = (Boolean) map.get("trustAll");
-                    if (trustAll != null) {
-                        sslTrustAll = trustAll;
-                    }
-                    String algorithm = (String) map.get("algorithm");
-                    if (algorithm != null) {
-                        sslAlgorithm = algorithm;
-                    }
-                } else {
-                    LOGGER.warn("boolean or object expected for: {}", key);
-                }
-                break;
-            case "proxy":
-                switch (value) {
-                    case null -> proxyUri = null;
-                    case String s -> proxyUri = s;
-                    case Map<?, ?> ignored -> {
-                        Map<String, Object> map = (Map<String, Object>) value;
-                        proxyUri = (String) map.get("uri");
-                        proxyUsername = (String) map.get("username");
-                        proxyPassword = (String) map.get("password");
-                        nonProxyHosts = (List<String>) map.get("nonProxyHosts");
-                    }
-                    default -> LOGGER.warn("string or object expected for: {}", key);
-                }
-                break;
-            case "readTimeout":
-                if (value instanceof Number time) {
-                    readTimeout = time.intValue();
-                } else {
-                    LOGGER.warn("number expected for: {}", key);
-                }
-                break;
-            case "connectTimeout":
-                if (value instanceof Number time) {
-                    connectTimeout = time.intValue();
-                } else {
-                    LOGGER.warn("number expected for: {}", key);
-                }
-                break;
-            case "followRedirects":
-                if (value instanceof Boolean flag) {
-                    followRedirects = flag;
-                } else {
-                    LOGGER.warn("boolean expected for: {}", key);
-                }
-                break;
-            case "httpRetryEnabled":
-                if (value instanceof Boolean flag) {
-                    httpRetryEnabled = flag;
-                } else {
-                    LOGGER.warn("boolean expected for: {}", key);
-                }
-                break;
-            case "retry":
-                if (value instanceof Map) {
-                    Map<String, Object> map = (Map<String, Object>) value;
-                    if (map.get("count") instanceof Number count) {
-                        retryCount = count.intValue();
-                    }
-                    if (map.get("interval") instanceof Number interval) {
-                        retryInterval = interval.intValue();
-                    }
-                }
-                break;
-            case "localAddress":
-                if (value instanceof String s) {
-                    try {
-                        localAddress = InetAddress.getByName(s);
-                    } catch (Exception e) {
-                        LOGGER.warn("invalid local address: {}", s);
-                    }
-                } else if (value == null) {
-                    localAddress = null;
-                } else {
-                    LOGGER.warn("string expected for: {}", key);
-                }
-                break;
-            case "charset":
-                if (value instanceof String s) {
-                    charset = Charset.forName(s);
-                } else if (value == null) {
-                    charset = StandardCharsets.UTF_8;
-                } else {
-                    LOGGER.warn("string expected for: {}", key);
-                }
-                break;
-            case "auth":
-                if (value == null) {
-                    // Clear NTLM config if it was auth type ntlm
-                    ntlmUsername = null;
-                    ntlmPassword = null;
-                    ntlmDomain = null;
-                    ntlmWorkstation = null;
-                } else if (value instanceof Map) {
-                    Map<String, Object> map = (Map<String, Object>) value;
-                    String type = (String) map.get("type");
-                    if ("ntlm".equals(type)) {
-                        LOGGER.warn("NTLM auth is deprecated in HttpClient 5, consider using Basic or Bearer auth with TLS");
-                        ntlmUsername = (String) map.get("username");
-                        ntlmPassword = (String) map.get("password");
-                        ntlmDomain = (String) map.get("domain");
-                        ntlmWorkstation = (String) map.get("workstation");
-                    }
-                    // Other auth types (basic, bearer, oauth2) are handled at the request level
-                }
-                break;
-            case "ntlmAuth":
-                // Legacy support - convert to auth with type: 'ntlm'
-                if (value == null) {
-                    ntlmUsername = null;
-                    ntlmPassword = null;
-                    ntlmDomain = null;
-                    ntlmWorkstation = null;
-                } else if (value instanceof Map) {
-                    LOGGER.warn("ntlmAuth is deprecated in HttpClient 5, consider using Basic or Bearer auth with TLS");
-                    Map<String, Object> map = (Map<String, Object>) value;
-                    ntlmUsername = (String) map.get("username");
-                    ntlmPassword = (String) map.get("password");
-                    ntlmDomain = (String) map.get("domain");
-                    ntlmWorkstation = (String) map.get("workstation");
-                } else {
-                    LOGGER.warn("map expected for: {}", key);
-                }
-                break;
-            default:
-                LOGGER.warn("unexpected key: {}", key);
+    public void apply(KarateConfig config) {
+        if (config == null) return;
+        // SSL
+        ssl = config.isSslEnabled();
+        sslAlgorithm = config.getSslAlgorithm();
+        sslKeyStore = config.getSslKeyStore();
+        sslKeyStorePassword = config.getSslKeyStorePassword();
+        sslKeyStoreType = config.getSslKeyStoreType();
+        sslTrustStore = config.getSslTrustStore();
+        sslTrustStorePassword = config.getSslTrustStorePassword();
+        sslTrustStoreType = config.getSslTrustStoreType();
+        sslTrustAll = config.isSslTrustAll();
+        // Proxy
+        proxyUri = config.getProxyUri();
+        proxyUsername = config.getProxyUsername();
+        proxyPassword = config.getProxyPassword();
+        nonProxyHosts = config.getNonProxyHosts();
+        // Timeouts / redirects
+        readTimeout = config.getReadTimeout();
+        connectTimeout = config.getConnectTimeout();
+        followRedirects = config.isFollowRedirects();
+        // Retry
+        httpRetryEnabled = config.isHttpRetryEnabled();
+        retryCount = config.getRetryCount();
+        retryInterval = config.getRetryInterval();
+        // Charset
+        if (config.getCharset() != null) {
+            charset = config.getCharset();
         }
-        LOGGER.debug("http client configured: {}", key);
-        httpClient = null; // will force lazy rebuild
+        // Local address
+        String localAddr = config.getLocalAddress();
+        if (localAddr != null) {
+            try {
+                localAddress = InetAddress.getByName(localAddr);
+            } catch (Exception e) {
+                LOGGER.warn("invalid local address: {}", localAddr);
+            }
+        } else {
+            localAddress = null;
+        }
+        // NTLM (auth.type=ntlm)
+        if ("ntlm".equals(config.getAuthType())) {
+            ntlmUsername = config.getNtlmUsername();
+            ntlmPassword = config.getNtlmPassword();
+            ntlmDomain = config.getNtlmDomain();
+            ntlmWorkstation = config.getNtlmWorkstation();
+        } else {
+            ntlmUsername = null;
+            ntlmPassword = null;
+            ntlmDomain = null;
+            ntlmWorkstation = null;
+        }
+        httpClient = null; // force lazy rebuild on next invoke
+        LOGGER.debug("http client config applied");
     }
 
     @SuppressWarnings("deprecation")

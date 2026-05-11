@@ -1,5 +1,7 @@
 package io.karatelabs.http;
 
+import io.karatelabs.core.KarateConfig;
+
 public class ErrorHttpClient implements HttpClient {
 
     @Override
@@ -8,7 +10,7 @@ public class ErrorHttpClient implements HttpClient {
     }
 
     @Override
-    public void config(String key, Object value) {
+    public void apply(KarateConfig config) {
 
     }
 

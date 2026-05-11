@@ -24,6 +24,7 @@
 package io.karatelabs.http;
 
 import io.karatelabs.common.Json;
+import io.karatelabs.core.KarateConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +48,7 @@ public class Http {
     public final String urlBase;
     private final HttpClient client;
     private final HttpRequestBuilder builder;
+    private final KarateConfig config = new KarateConfig();
 
     public static Http to(String url) {
         return new Http(url);
@@ -90,12 +92,14 @@ public class Http {
     }
 
     public Http configure(String key, Object value) {
-        client.config(key, value);
+        config.configure(key, value);
+        client.apply(config);
         return this;
     }
 
     public Http configure(Map<String, Object> map) {
-        map.forEach(this::configure);
+        map.forEach(config::configure);
+        client.apply(config);
         return this;
     }
 

@@ -559,8 +559,11 @@ public class StepExecutor {
             for (Map.Entry<String, Object> entry : resultVars.entrySet()) {
                 runtime.setVariable(entry.getKey(), entry.getValue());
             }
-            // V1 compatibility: Also propagate config changes back to caller
+            // V1 compatibility: Also propagate config changes back to caller.
+            // The caller's HTTP client also needs to be re-projected so a callee-set
+            // proxy/ssl/timeout etc. takes effect on subsequent caller requests.
             runtime.getConfig().copyFrom(calleeRuntime.getConfig());
+            runtime.getKarate().client.apply(runtime.getConfig());
             // V1 compatibility: Also propagate cookie jar back to caller
             runtime.getCookieJar().putAll(calleeRuntime.getCookieJar());
             // Propagate driver upward for shared-scope calls (V1-compatible behavior)
@@ -2626,6 +2629,10 @@ public class StepExecutor {
             runtime.setVariable(entry.getKey(), entry.getValue());
         }
         runtime.getConfig().copyFrom(cached.config());
+        // Push the restored config to the HTTP client so callonce hits made
+        // earlier (e.g. that set a proxy or token-derived auth) still apply
+        // to the cached-replay scenario's requests.
+        runtime.getKarate().client.apply(runtime.getConfig());
         // V1 compatibility: Also restore cookie jar from cache
         if (cached.cookieJar() != null) {
             Map<String, Map<String, Object>> cookieJarCopy = (Map<String, Map<String, Object>>) StepUtils.deepCopy(cached.cookieJar());

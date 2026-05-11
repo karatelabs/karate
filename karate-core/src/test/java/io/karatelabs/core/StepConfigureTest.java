@@ -24,7 +24,11 @@
 package io.karatelabs.core;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import static io.karatelabs.core.TestUtils.*;
@@ -34,6 +38,9 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests for KarateConfig (configure keyword and karate.config getter).
  */
 class StepConfigureTest {
+
+    @TempDir
+    Path tempDir;
 
     @Test
     void testConfigureSslBoolean() {
@@ -402,6 +409,119 @@ class StepConfigureTest {
             * match cfg.proxyUri == 'proxy.example.com:8080'
             """);
         assertPassed(sr);
+    }
+
+    // ========== Config propagation into called features (issue #2839) ==========
+
+    /**
+     * Issue #2839: a proxy configured globally in karate-config.js reaches the
+     * top-level scenario's HTTP client but is silently dropped on the way down
+     * into a called feature. The called feature inherits the {@link KarateConfig}
+     * fields but the freshly-constructed HTTP client never receives them.
+     * <p>
+     * Verified by inspecting which config keys each scenario's HTTP client received.
+     */
+    @Test
+    void testProxyFromConfigJsPropagatesIntoCalledFeature() throws Exception {
+        Path configFile = tempDir.resolve("karate-config.js");
+        Files.writeString(configFile, """
+            function fn() {
+              karate.configure('proxy', { uri: 'http://test-proxy:9999' });
+              return {};
+            }
+            fn();
+            """);
+        Path called = tempDir.resolve("called.feature");
+        Files.writeString(called, """
+            Feature: Called
+            Scenario: noop
+            * def x = 1
+            """);
+        Path caller = tempDir.resolve("caller.feature");
+        Files.writeString(caller, """
+            Feature: Caller
+            Scenario: call into another feature
+            * def res = call read('called.feature')
+            """);
+
+        InMemoryHttpClient.Factory factory = new InMemoryHttpClient.Factory();
+
+        SuiteResult result = Runner.builder()
+                .path(caller.toString())
+                .workingDir(tempDir)
+                .configDir(configFile.toString())
+                .httpClientFactory(factory)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed(), "suite should pass");
+
+        List<InMemoryHttpClient> clients = factory.getClients();
+        assertEquals(2, clients.size(), "expected one client per scenario (caller + callee)");
+
+        // Caller's client received proxy via karate.configure() in karate-config.js
+        KarateConfig callerConfig = clients.get(0).getLatestConfig();
+        assertNotNull(callerConfig, "caller scenario's client should have received a config");
+        assertEquals("http://test-proxy:9999", callerConfig.getProxyUri(),
+                "caller scenario's client should have received the proxy");
+
+        // The bug: called feature inherits KarateConfig but its fresh HTTP client
+        // never gets proxy applied. Fixed by re-projecting inherited config onto
+        // the new client in ScenarioRuntime.inheritConfigFromCaller.
+        KarateConfig calleeConfig = clients.get(1).getLatestConfig();
+        assertNotNull(calleeConfig, "called feature's client should have received a config");
+        assertEquals("http://test-proxy:9999", calleeConfig.getProxyUri(),
+                "called feature's client should inherit proxy from parent context");
+    }
+
+    /**
+     * Same hole, exercised via step-level {@code * configure proxy = ...} instead
+     * of {@code karate.configure(...)} in karate-config.js. Both paths reach the
+     * same inheritance code, so both must propagate to the callee's client.
+     */
+    @Test
+    void testProxyFromStepPropagatesIntoCalledFeature() throws Exception {
+        Path called = tempDir.resolve("called.feature");
+        Files.writeString(called, """
+            Feature: Called
+            Scenario: noop
+            * def x = 1
+            """);
+        Path caller = tempDir.resolve("caller.feature");
+        Files.writeString(caller, """
+            Feature: Caller
+            Scenario: set proxy then call another feature
+            * configure proxy = 'http://test-proxy:9999'
+            * def res = call read('called.feature')
+            """);
+
+        InMemoryHttpClient.Factory factory = new InMemoryHttpClient.Factory();
+
+        SuiteResult result = Runner.builder()
+                .path(caller.toString())
+                .workingDir(tempDir)
+                .httpClientFactory(factory)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed(), "suite should pass");
+
+        List<InMemoryHttpClient> clients = factory.getClients();
+        assertEquals(2, clients.size(), "expected one client per scenario (caller + callee)");
+
+        KarateConfig callerConfig = clients.get(0).getLatestConfig();
+        assertNotNull(callerConfig, "caller scenario's client should have received a config");
+        assertEquals("http://test-proxy:9999", callerConfig.getProxyUri(),
+                "caller scenario's client should have received the proxy");
+
+        KarateConfig calleeConfig = clients.get(1).getLatestConfig();
+        assertNotNull(calleeConfig, "called feature's client should have received a config");
+        assertEquals("http://test-proxy:9999", calleeConfig.getProxyUri(),
+                "called feature's client should inherit proxy from parent context");
     }
 
 }

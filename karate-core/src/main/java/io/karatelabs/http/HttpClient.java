@@ -23,13 +23,20 @@
  */
 package io.karatelabs.http;
 
+import io.karatelabs.core.KarateConfig;
+
 import java.io.Closeable;
 
 public interface HttpClient extends Closeable {
 
     HttpResponse invoke(HttpRequest request);
 
-    void config(String key, Object value);
+    /**
+     * Apply a typed configuration snapshot. {@link KarateConfig} is the single
+     * source of truth — implementations read every relevant setting via its
+     * typed getters and (re)build their internal client state.
+     */
+    void apply(KarateConfig config);
 
     void abort();
 

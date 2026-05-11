@@ -23,6 +23,7 @@
  */
 package io.karatelabs.core.mock;
 
+import io.karatelabs.core.KarateConfig;
 import io.karatelabs.core.MockServer;
 import io.karatelabs.http.ApacheHttpClient;
 import io.karatelabs.http.Http;
@@ -89,7 +90,9 @@ class MockServerTest {
             .start();
 
         client = new ApacheHttpClient();
-        client.config("ssl", true);
+        KarateConfig sslConfig = new KarateConfig();
+        sslConfig.configure("ssl", true);
+        client.apply(sslConfig);
     }
 
     @AfterAll

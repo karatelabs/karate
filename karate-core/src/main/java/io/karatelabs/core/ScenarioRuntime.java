@@ -765,16 +765,20 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
     /**
      * Inherit config from caller scenario (V1 behavior).
-     * In shared scope, we share the same config. In isolated scope, we copy it.
+     * <p>
+     * Both shared and isolated scope copy the typed {@link KarateConfig} fields
+     * from the caller — variables differ in scope semantics, but configuration
+     * (proxy, ssl, timeouts, etc.) always propagates downward into a called
+     * feature.
+     * <p>
+     * Re-projects the inherited config onto this scenario's HTTP client. Without
+     * this push, the fresh {@code HttpClient} created in the constructor would
+     * never see settings like {@code proxy} set in {@code karate-config.js} or
+     * via {@code * configure proxy = ...} in the caller (issue #2839).
      */
     private void inheritConfigFromCaller(ScenarioRuntime callerScenario, boolean sharedScope) {
-        if (sharedScope) {
-            // Shared scope - share the config (mutations affect caller)
-            this.config.copyFrom(callerScenario.config);
-        } else {
-            // Isolated scope - copy the config
-            this.config.copyFrom(callerScenario.config);
-        }
+        this.config.copyFrom(callerScenario.config);
+        karate.client.apply(this.config);
         logger.debug("Inherited config from caller");
     }
 
@@ -1206,9 +1210,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // Delegate to KarateConfig for type-safe storage
         boolean requiresHttpClientRebuild = config.configure(key, value);
 
-        // Apply to HTTP client if needed
+        // Re-project the typed config onto the HTTP client when a client-relevant
+        // key changed. KarateConfig is the single source of truth; the client just
+        // reads typed getters off it (see HttpClient.apply).
         if (requiresHttpClientRebuild) {
-            karate.client.config(key, value);
+            karate.client.apply(config);
         }
 
         // Additional side effects for specific keys

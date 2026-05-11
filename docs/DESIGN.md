@@ -261,6 +261,44 @@ public interface RunListenerFactory {
 
 ---
 
+## Configuration
+
+`KarateConfig` is the single source of truth for every `configure ...` key — `proxy`, `ssl`, `readTimeout`, `connectTimeout`, `followRedirects`, `auth`, `retry`, `httpRetryEnabled`, `localAddress`, `charset`, `headers`, `cookies`, `logging`, `report`, `callSingleCache`, `driver`, lifecycle hooks, channel options (kafka/grpc/websocket), and execution flags. `KarateConfig.configure(key, value)` is the *only* place that parses key names; the HTTP client and `LogContext` are projections that read typed getters.
+
+### Projection points
+
+| Sink | Method | When |
+|------|--------|------|
+| `HttpClient` | `HttpClient.apply(KarateConfig)` | `KarateConfig.configure` returns `true` (client-affecting key), and at every inheritance / restore site below. |
+| `LogContext` | `KarateConfig.applyLoggingToContext(LogContext)` | At scenario entry (`ScenarioRuntime.call()`), so mask + pretty set in `karate-config.js` survive the thread-local reset. |
+
+`HttpClient.apply` is the entire interface contract for client setup — no per-key dispatch. `ApacheHttpClient.apply` reads `config.getProxyUri()`, `config.isSslEnabled()`, etc., into local fields and nulls its cached `CloseableHttpClient` to trigger a lazy rebuild on the next `invoke()`. Each `ScenarioRuntime` constructs a fresh `HttpClient` via `Suite.httpClientFactory` (default: `DefaultHttpClientFactory` → one `ApacheHttpClient` per scenario), so the projection has to fire for *every* scenario, including called features.
+
+### Inheritance and propagation
+
+Variables and configuration have different scope semantics for `call read(...)`:
+
+| Direction | Variables | Configuration (proxy, ssl, timeouts, …) |
+|-----------|-----------|-----------------------------------------|
+| Down (caller → callee) | Copied (isolated) or shared (shared scope) | **Always copied**, regardless of scope |
+| Up (callee → caller) | Returned as result map (isolated) or shared (shared) | **Shared scope only** |
+
+This is intentional: a `def foo = call bar` (isolated) explicitly opts out of variable mutation but still needs the caller's proxy/SSL/auth to reach the callee's HTTP client (issue #2839).
+
+Three sites push the typed `KarateConfig` to the relevant `HttpClient` after `copyFrom`:
+
+- `ScenarioRuntime.inheritConfigFromCaller` — caller → callee on `call read(...)`. Both scopes.
+- `StepExecutor.propagateFromCallee` — callee → caller on shared scope. Isolated scope skips this by design.
+- `StepExecutor.applyCachedCallOnceResult` — restores `KarateConfig` (and re-projects to the client) when replaying a cached `callonce`.
+
+Mid-test `* configure ...` mutations are auto-snapshotted at scenario entry and restored in the `finally` of `ScenarioRuntime.call()` so they don't leak into the next scenario.
+
+**Adding a new `configure` key:** add the field + typed getter to `KarateConfig`, add a `case` in `KarateConfig.configure(...)`, and if it affects HTTP client state, return `true` (rebuild required) and read it in `ApacheHttpClient.apply`. Nothing else dispatches on key name.
+
+**Source files:** `KarateConfig.java`, `HttpClient.java`, `ApacheHttpClient.apply`, `ScenarioRuntime.inheritConfigFromCaller` / `configure`, `StepExecutor.propagateFromCallee` / `applyCachedCallOnceResult`.
+
+---
+
 ## Logging
 
 SLF4J-based with category hierarchy — `karate.runtime`, `karate.http`, `karate.mock`, `karate.scenario`, `karate.console`.
