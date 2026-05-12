@@ -1349,7 +1349,14 @@ public class StepExecutor {
             // Check if it's var[*].path, var[?...].path, var..path, or var.prop[*].path pattern
             int bracketIdx = expr.indexOf('[');
             int doubleDotIdx = expr.indexOf("..");
-            int splitIdx = bracketIdx > 0 ? bracketIdx : doubleDotIdx;
+            // Split at whichever operator appears first — issue #2841: `response..items[*].type`
+            // would otherwise split at `[` and try to JS-eval `response..items`.
+            int splitIdx;
+            if (bracketIdx > 0 && (doubleDotIdx < 0 || bracketIdx < doubleDotIdx)) {
+                splitIdx = bracketIdx;
+            } else {
+                splitIdx = doubleDotIdx;
+            }
             if (splitIdx > 0) {
                 String basePath = expr.substring(0, splitIdx);
                 // Verify it starts with a valid identifier

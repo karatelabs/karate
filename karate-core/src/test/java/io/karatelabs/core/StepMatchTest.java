@@ -440,6 +440,26 @@ class StepMatchTest {
         assertPassed(sr);
     }
 
+    @Test
+    void testMatchDeepScanWithArrayWildcard() {
+        // Issue #2841 — deep scan combined with [*] wildcard
+        ScenarioRuntime sr = run("""
+            * def response = { data: { items: [{ type: 'admin' }, { type: 'user' }] } }
+            * match response..items[*].type contains 'admin'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchEachDeepScanWithArrayWildcard() {
+        // Issue #2841 — match each with deep scan + [*] wildcard
+        ScenarioRuntime sr = run("""
+            * def response = { data: { items: [{ type: 'admin' }, { type: 'user' }, { type: 'user' }] } }
+            * match each response..items[*].type == '#string'
+            """);
+        assertPassed(sr);
+    }
+
     // ========== Comment as Assertion Label ==========
 
     @Test
