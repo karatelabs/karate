@@ -636,6 +636,104 @@ class SpecPinTest extends EvalBase {
                         + " msg"));
     }
 
+    @Test
+    void whileConditionThrow_propagates() {
+        // §14.7.3 abrupt completion in the while loop-test must skip the body
+        // and surface the throw to the surrounding catch — was: body silently ran
+        // because Terms.isTruthy(thrownJsError) returned true.
+        assertEquals("caught:boom", eval(
+                "function thrower(){ throw new Error('boom'); }"
+                        + " var msg = 'no-catch';"
+                        + " try { while (thrower()) msg='body-ran'; }"
+                        + " catch (e) { msg = 'caught:' + e.message; }"
+                        + " msg"));
+    }
+
+    @Test
+    void doWhileConditionThrow_propagates() {
+        // §14.7.2 doWhile evaluates body first, then test; if test throws,
+        // the second iteration must not run and the throw must propagate.
+        // Body should have run exactly once before the throw.
+        assertEquals("caught:boom:1", eval(
+                "function thrower(){ throw new Error('boom'); }"
+                        + " var msg = 'no-catch'; var count = 0;"
+                        + " try { do { count++; } while (thrower()); }"
+                        + " catch (e) { msg = 'caught:' + e.message; }"
+                        + " msg + ':' + count"));
+    }
+
+    @Test
+    void forConditionThrow_propagates() {
+        // §14.7.4 abrupt completion in the C-style for loop-test must exit
+        // without running the body or the increment.
+        assertEquals("caught:boom", eval(
+                "function thrower(){ throw new Error('boom'); }"
+                        + " var msg = 'no-catch';"
+                        + " try { for (var i=0; thrower(); i++) msg='body-ran'; }"
+                        + " catch (e) { msg = 'caught:' + e.message; }"
+                        + " msg"));
+    }
+
+    @Test
+    void switchDiscriminantThrow_propagates() {
+        // §14.12 abrupt completion in the switch discriminant must skip the body.
+        assertEquals("caught:boom", eval(
+                "function thrower(){ throw new Error('boom'); }"
+                        + " var msg = 'no-catch';"
+                        + " try { switch (thrower()) { case 1: msg='one'; break; default: msg='dflt'; } }"
+                        + " catch (e) { msg = 'caught:' + e.message; }"
+                        + " msg"));
+    }
+
+    @Test
+    void switchCaseLabelThrow_propagates() {
+        // Abrupt completion in a CaseClause expression must propagate.
+        assertEquals("caught:boom", eval(
+                "function thrower(){ throw new Error('boom'); }"
+                        + " var msg = 'no-catch';"
+                        + " try { switch (1) { case thrower(): msg='matched'; break; default: msg='dflt'; } }"
+                        + " catch (e) { msg = 'caught:' + e.message; }"
+                        + " msg"));
+    }
+
+    @Test
+    void ternaryTestThrow_propagates() {
+        // §13.14 abrupt completion in the ?: test must skip both branches.
+        assertEquals("caught:boom", eval(
+                "function thrower(){ throw new Error('boom'); }"
+                        + " var msg = 'no-catch';"
+                        + " try { msg = thrower() ? 'a' : 'b'; }"
+                        + " catch (e) { msg = 'caught:' + e.message; }"
+                        + " msg"));
+    }
+
+    @Test
+    void logicAndShortCircuitOnThrow_propagates() {
+        // §13.13 abrupt completion in the LHS of && / || must not evaluate the RHS.
+        // rhsRan must remain false because the throw short-circuits.
+        assertEquals("caught:boom:false", eval(
+                "function thrower(){ throw new Error('boom'); }"
+                        + " var rhsRan = false;"
+                        + " function rhs(){ rhsRan = true; return 1; }"
+                        + " var msg = 'no-catch';"
+                        + " try { var x = thrower() && rhs(); msg='unreached'; }"
+                        + " catch (e) { msg = 'caught:' + e.message; }"
+                        + " msg + ':' + rhsRan"));
+    }
+
+    @Test
+    void logicNullishShortCircuitOnThrow_propagates() {
+        // §13.13 ?? must propagate LHS throw without evaluating RHS.
+        assertEquals("caught:boom:false", eval(
+                "function thrower(){ throw new Error('boom'); }"
+                        + " var rhsRan = false;"
+                        + " function rhs(){ rhsRan = true; return 1; }"
+                        + " var msg = 'no-catch';"
+                        + " try { var x = thrower() ?? rhs(); msg='unreached'; }"
+                        + " catch (e) { msg = 'caught:' + e.message; }"
+                        + " msg + ':' + rhsRan"));
+    }
+
     // -------------------------------------------------------------------------
     // Generic descriptor preserves existing accessor type.
     //

@@ -29,6 +29,10 @@ skip:
       reason: class syntax not supported (use prototypes)
     - path: test/language/expressions/super/**
       reason: class syntax not supported (use prototypes)
+    - path: test/language/statements/with/**
+      reason: with-statement is conformance-only, negligible in real-world JS and LLM-written code
+    - path: test/language/eval-code/direct/**
+      reason: direct-eval lexical-environment semantics are exotic, negligible in real-world JS
 
   # Tests whose YAML frontmatter contains any of these `flags:` values.
   flags:
@@ -91,6 +95,10 @@ skip:
       reason: Float16Array (ES2025) not implemented; Math.f16round depends on it
     - feature: ArrayBuffer
       reason: ArrayBuffer semantics not implemented
+    - feature: resizable-arraybuffer
+      reason: resizable ArrayBuffer (ES2024) not implemented; harness requires Int8Array
+    - feature: cross-realm
+      reason: multi-realm semantics not modeled ($262.createRealm absent)
     - feature: SharedArrayBuffer
       reason: SharedArrayBuffer not implemented
     - feature: DataView

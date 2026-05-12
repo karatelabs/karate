@@ -750,6 +750,10 @@ class Interpreter {
                         index++;
                         context.iteration = index;
                         Object forCondition = eval(node.get(4), context);
+                        // §14.7.4 abrupt completion in the loop-test expression must exit.
+                        if (context.isStopped()) {
+                            break;
+                        }
                         if (Terms.isTruthy(forCondition)) {
                             if (isLetOrConst && loopVarNames != null && !loopVarNames.isEmpty()) {
                                 // Snapshot all loop variables, then push fresh bindings for this iteration
@@ -1106,10 +1110,25 @@ class Interpreter {
                     case 't' -> { sb.append('\t'); i++; }
                     case 'b' -> { sb.append('\b'); i++; }
                     case 'f' -> { sb.append('\f'); i++; }
+                    case 'v' -> { sb.append((char) 0x0B); i++; }
                     case '0' -> { sb.append('\0'); i++; }
                     case '\\' -> { sb.append('\\'); i++; }
                     case '\'' -> { sb.append('\''); i++; }
                     case '"' -> { sb.append('"'); i++; }
+                    case 'x' -> {
+                        // Hex escape: backslash-x followed by exactly 2 hex digits
+                        if (i + 3 < s.length()) {
+                            try {
+                                int code = Integer.parseInt(s.substring(i + 2, i + 4), 16);
+                                sb.append((char) code);
+                                i += 3;
+                            } catch (NumberFormatException e) {
+                                sb.append(c); // invalid escape, keep backslash
+                            }
+                        } else {
+                            sb.append(c);
+                        }
+                    }
                     case 'u' -> {
                         // Unicode escape sequence (4 hex digits)
                         if (i + 5 < s.length()) {
@@ -1166,7 +1185,14 @@ class Interpreter {
 
     private static boolean evalLogicExpr(Node node, CoreContext context) {
         Object lhs = eval(node.get(0), context);
+        // Abrupt completion in LHS must not evaluate RHS. Caller propagates via isStopped.
+        if (context.isStopped()) {
+            return false;
+        }
         Object rhs = eval(node.get(2), context);
+        if (context.isStopped()) {
+            return false;
+        }
         TokenType logicOp = node.get(1).token.type;
         if (Terms.NAN.equals(lhs) || Terms.NAN.equals(rhs)) {
             if (logicOp == NOT_EQ || logicOp == NOT_EQ_EQ) {
@@ -1189,6 +1215,10 @@ class Interpreter {
 
     private static Object evalLogicAndExpr(Node node, CoreContext context) {
         Object lhsValue = eval(node.get(0), context);
+        // §13.13 abrupt completion in the LHS short-circuits — must not evaluate RHS.
+        if (context.isStopped()) {
+            return null;
+        }
         boolean lhs = Terms.isTruthy(lhsValue);
         if (node.get(1).token.type == AMP_AMP) {
             if (lhs) {
@@ -1207,6 +1237,10 @@ class Interpreter {
 
     private static Object evalLogicNullishExpr(Node node, CoreContext context) {
         Object lhsValue = eval(node.get(0), context);
+        // §13.13 abrupt completion in the LHS short-circuits — must not evaluate RHS.
+        if (context.isStopped()) {
+            return null;
+        }
         // ?? returns lhs if it's not null/undefined, otherwise rhs
         if (lhsValue == null || lhsValue == Terms.UNDEFINED) {
             return eval(node.get(2), context);
@@ -1215,7 +1249,12 @@ class Interpreter {
     }
 
     private static Object evalLogicTernExpr(Node node, CoreContext context) {
-        if (Terms.isTruthy(eval(node.get(0), context))) {
+        Object testValue = eval(node.get(0), context);
+        // §13.14 abrupt completion in the test expression must skip both branches.
+        if (context.isStopped()) {
+            return null;
+        }
+        if (Terms.isTruthy(testValue)) {
             return eval(node.get(2), context);
         } else {
             return eval(node.get(4), context);
@@ -1482,6 +1521,10 @@ class Interpreter {
 
     private static Object evalSwitchStmt(Node node, CoreContext context) {
         Object switchValue = eval(node.get(2), context);
+        // §14.12 abrupt completion in the discriminant must skip the switch body.
+        if (context.isStopped()) {
+            return null;
+        }
         List<Node> caseNodes = node.findImmediateChildren(NodeType.CASE_BLOCK);
         boolean found = false;
         Object result = null;
@@ -1489,6 +1532,10 @@ class Interpreter {
             for (Node caseNode : caseNodes) {
                 if (!found) {
                     Object caseValue = eval(caseNode.get(1), context);
+                    // Abrupt completion in a CaseClause expression propagates.
+                    if (context.isStopped()) {
+                        return null;
+                    }
                     if (Terms.eq(switchValue, caseValue, true)) {
                         found = true;
                     }
@@ -1683,6 +1730,12 @@ class Interpreter {
         try {
             while (true) {
                 Object whileCondition = eval(whileExpr, context);
+                // §14.7.3 abrupt completion in the loop-test expression must skip the
+                // body. Without this guard a thrown error in the condition is returned
+                // as a truthy JsError and the body silently runs.
+                if (context.isStopped()) {
+                    break;
+                }
                 if (!Terms.isTruthy(whileCondition)) {
                     break;
                 }
@@ -1723,6 +1776,10 @@ class Interpreter {
                     }
                 }
                 Object doCondition = eval(doExpr, context);
+                // §14.7.2 abrupt completion in the loop-test expression must exit the loop.
+                if (context.isStopped()) {
+                    break;
+                }
                 if (!Terms.isTruthy(doCondition)) {
                     break;
                 }

@@ -70,7 +70,7 @@ Each session that touches the engine should:
    numbers go stale fast — record fresh before/after pass counts in the
    commit message and pin the run-dir.
 2. **Unit tests:** `mvn -f pom.xml -pl karate-js -o test` →
-   `Tests run: 981+, Failures: 0, Errors: 0, Skipped: 2` (count grows as
+   `Tests run: 1022+, Failures: 0, Errors: 0, Skipped: 2` (count grows as
    `SpecPinTest` accretes invariants).
 3. **test262 built-ins probe:** diff `results.jsonl` against the previous
    run. **Zero regressions (PASS → FAIL).** Document any flip in the commit
@@ -84,7 +84,7 @@ Each session that touches the engine should:
    mvn -f pom.xml -pl karate-js -o install -DskipTests
    mvn -f pom.xml -o test -pl karate-core
    ```
-   Expect `Tests run: 1969, Failures: 0, Errors: 0, Skipped: 1`.
+   Expect `Tests run: 2171+, Failures: 0, Errors: 0, Skipped: 3`.
 6. **Update this file's TODOs in the same commit.** This is a roadmap,
    not a changelog. For each item the commit addressed (active priority
    bullet, background sweep, deferred TODO, or implicit assumption a bug
@@ -99,19 +99,30 @@ Each session that touches the engine should:
 
 ## Active priorities
 
-Slice order, picked for **feedback-loop speed** + **foundations first**.
-Re-probe each session before scoping. Symbol is **last**, not first —
-Math/Number/Date/String are independent of Symbol.
+Re-probed 2026-05-12: 13,535 PASS / 6,920 FAIL / 32,714 SKIP. The
+built-in slices are mostly drained — **`test/language/**` now holds
+~3,650 of the ~6,900 fails**, dominated by destructuring-assignment
+pattern parsing. That's the centerpiece for the next few sessions.
+Symbol stays parked: real-world JS doesn't use `Symbol(...)`, and the
+well-known symbols (`@@iterator` / `@@toPrimitive` / `@@toStringTag`)
+already work as string stand-ins.
 
-| # | Slice | What's left |
+| Slice | Remaining FAIL | Notes |
 |---|---|---|
-| 1 | `test/built-ins/Number/**` | `Object.prototype.toString.call(num)` `[object Number]` (Symbol-gated, slice #7), `MAX_VALUE` / `MIN_VALUE` literal-form parser edge. See [JS_ENGINE.md § Numeric / coercion](../docs/JS_ENGINE.md#numeric--coercion). |
-| 2 | `test/built-ins/Date/**` | `Date.parse` ISO format edges, UTC vs local hour math, invalid-date propagation. See [JS_ENGINE.md § Date](../docs/JS_ENGINE.md#date). |
-| 3 | `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` edge cases tied to ToInteger spec corners, parser-blocked tests, Symbol-gated tail. Spec preamble pattern + JS-spec whitespace + `replace` substitution doc'd in [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
-| 4 | `test/built-ins/RegExp/**` | `Symbol.{match,replace,search,split,matchAll}` (slice #7), `RegExp.escape` (ES2025), parser `R_PAREN` / Unicode-escape edges, `cross-realm` tests (multi-realm not modeled). See [JS_ENGINE.md § Built-in accessor descriptors on prototypes](../docs/JS_ENGINE.md#built-in-accessor-descriptors-on-prototypes) and [§ JsRegex.replace](../docs/JS_ENGINE.md#jsregexreplace--js-substitution-template). |
-| 5 | `test/built-ins/Object/**` | `defineProperty` length-descriptor / array-length cluster (~10 fails post-Apr-27 fixes), `seal` (TypedArray-feature-gated), Annex-B `arguments` parameter-map aliasing (deferred — see Engine cleanup), Symbol-gated tail. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes) and [§ Own-key ordering](../docs/JS_ENGINE.md#own-key-ordering). |
-| 6 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` residuals (slice #7), parser-blocked async / generator paths, harness-feature-gated (Int8Array). See [JS_ENGINE.md § Prototype machinery](../docs/JS_ENGINE.md#prototype-machinery). |
-| 7 | `test/built-ins/Symbol/**` + cascades | Full Symbol primitive: `typeof === "symbol"`, unique identity, `Symbol.for` / `keyFor` / `description`, `Object.getOwnPropertySymbols`, `Reflect.ownKeys`. Touches `Terms.typeOf` / `eq` / coercion; `PropertyKey` abstraction across `JsObject.props` / `isOwnProperty`. 2–4 sessions. Unblocks the Array / String / RegExp Symbol-gated tail. |
+| `test/language/statements/for-of` | 352 | **Dominant cluster: destructuring-assignment patterns in for-of head** (`for ([{x}] of …)` / `for ({x,y} of …)`). Spec §13.7.5.13 step 4b: LHS must be reparsed as `AssignmentPattern` — needs **pattern-vs-literal two-mode parsing** (see Background sweep below). Also ~52 negative-parse tightenings (`for (var x of []) let y;`) and ~50 IteratorClose-on-throw runtime fixes. |
+| `test/language/expressions/object` | 310 | Object literal shorthand / computed-key / spread / method-def edges; partially shares the two-mode parser fate with destructuring patterns. |
+| `test/language/expressions/assignment` | 185 | Destructuring assignment residuals — same two-mode parser. |
+| `test/language/statements/function` + `expressions/function` + `arrow-function` | 514 | Function-form edges: default params, rest, destructuring in params. |
+| `test/language/expressions/compound-assignment` | 131 | `\|\|=` / `&&=` / `??=` plus compound-op corners. |
+| `test/language/statements/try` (117) + `for` (116) + `switch` (47) | 280 | Control-flow tail; abrupt-completion sweep already cleared the headline cases. |
+| `test/built-ins/Array/**` | ~485 | Down ~85 from the harness-gate skip + abrupt-completion. `splice`/`concat` `Symbol.species` (slice gated until Symbol). |
+| `test/built-ins/RegExp/**` | ~370 | Down ~20 from `RegExp.escape` landing. `Symbol.{match,replace,search,split,matchAll}` (Symbol-gated), parser edges, named-groups feature-gated. |
+| `test/built-ins/String/**` | ~380 | `substring` / `lastIndexOf` / `charAt` ToInteger corners, parser-blocked tests, Symbol-gated tail. See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
+| `test/built-ins/Object/**` | ~270 | Descriptor edges, `seal` (TypedArray-feature-gated), Annex-B `arguments` aliasing (deferred). See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
+| `test/built-ins/JSON/**` | 106 | JSON.parse delegates to `json-smart` (permissive); spec-strict pre-validation needed. ~26 "Expected SyntaxError" + 4 StackOverflow cluster. 1–2 h. |
+| `test/built-ins/Number/**` | ~20 | Effectively drained — only `[object Number]` (Symbol-gated) + a literal-form parser edge remain. |
+| `test/built-ins/Date/**` | ~9 | Effectively drained — ISO format edges + invalid-date propagation. See [JS_ENGINE.md § Date](../docs/JS_ENGINE.md#date). |
+| `test/built-ins/Symbol/**` + cascades | (parked) | Symbol primitive — `typeof === "symbol"`, identity, `Symbol.for` / `keyFor` / `description`, `Object.getOwnPropertySymbols`. **Deprioritized:** no real-world code uses it; the value is unblocking Symbol-gated tails in slices above, which are now small percentages. Pick up after the language work. |
 
 ### Background sweeps
 
@@ -144,9 +155,15 @@ Picked off opportunistically when nearby — not session-sized on their own.
 - **`.length` / `.name` rollout to remaining prototypes.** `JsBuiltinMethod`
   infra in place; most residual `name.js` fails are Symbol-gated.
 
-- **Destructuring residuals.** Lexer identifier-escape support, TDZ /
-  init-order corners, negative parse tests needing pattern-vs-literal
-  two-mode parsing.
+- **Destructuring-assignment two-mode parser.** Spec §13.7.5.13 step 4b
+  requires the LHS of `for ({x} of …)` / `[x, y] = …` to be reparsed
+  using `AssignmentPattern` as the goal symbol. Today the parser
+  resolves `{x, y}` eagerly as a block-statement and `[x]` as an
+  array-literal, then the `of` / `=` arrives too late. This is the
+  single biggest remaining language fix — owns ~850 fails across
+  `for-of` / `expressions/object` / `expressions/assignment`. Plus
+  TDZ / init-order corners, lexer identifier-escape support, negative
+  parse tightenings. **Centerpiece of upcoming sessions.**
 
 - **Cleanup residuals.** Occasional `"null"` NPE paths, `IllegalName` JDK
   lambda leak, `Java heap space` OOM in array-slice paths.
@@ -212,21 +229,6 @@ and the per-section anchors.
   `list.iterator()` in a translating `Iterator`). No test262 wins
   expected (these are Java-interop seams), but spec-shape pinning in
   `SpecPinTest`. Pairs with the full HOLE elimination above. ~30 min.
-
-- **Abrupt-completion gap in non-`if` control-flow statements.**
-  `Interpreter.evalIfStmt` now checks `context.isStopped()` after
-  evaluating the test expression so a thrown error in the condition
-  skips both branches (was: condition's throw returned undefined, the
-  truthy check read it as falsy, the else-branch ran silently — pinned
-  in `SpecPinTest.ifConditionThrowPropagatesToCatch` /
-  `…ThrowInOrChain_propagates`). The same gap exists at
-  `evalWhileStmt` / `evalDoWhileStmt` / `evalForStmt` (loop-test
-  expressions), `evalSwitchStmt` (switch discriminant + per-case),
-  `evalTernary` (?: test), and `evalLogicalExpr` (`&&` / `||` short-
-  circuit). The engine uses `context.stopAndThrow` sentinels rather
-  than Java exceptions, so each control-flow site that consumes a
-  sub-expression must check `isStopped()` before acting on the result.
-  Audit and fix in one pass with pins. ~1 h.
 
 - **`PropertyKey` abstraction.** Symbol prep. Defer to slice #7 itself —
   introducing `PropertyKey` ahead of a concrete consumer is YAGNI.
