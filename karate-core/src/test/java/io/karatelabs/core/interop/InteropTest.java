@@ -2,6 +2,7 @@ package io.karatelabs.core.interop;
 
 import io.karatelabs.core.ScenarioRuntime;
 import io.karatelabs.core.TestUtils;
+import io.karatelabs.test.LogSilencer;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -156,8 +157,8 @@ class InteropTest {
 
     @Test
     void testCatKittensWithToJava() {
-        // Test setting kittens list using karate.toJava()
-        ScenarioRuntime sr = run("""
+        // karate.toJava() is deprecated — silenced so the warn doesn't pollute test output.
+        ScenarioRuntime sr = LogSilencer.silenced("karate.runtime", () -> run("""
             * def catType = 'io.karatelabs.core.interop.Cat'
             * def toCat = function(x){ return karate.toBean(x, catType) }
             * def toJson = function(x){ return karate.toJson(x, true) }
@@ -167,7 +168,7 @@ class InteropTest {
             * def kittens = karate.map(names, fun)
             * billie.kittens = karate.toJava(kittens)
             * match toJson(billie) contains { kittens: '#[2]' }
-            """);
+            """));
         assertPassed(sr);
     }
 

@@ -26,6 +26,7 @@ package io.karatelabs.core;
 import io.karatelabs.common.Resource;
 import io.karatelabs.gherkin.Feature;
 import io.karatelabs.output.Console;
+import io.karatelabs.test.LogSilencer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -168,12 +169,13 @@ class RunnerTest {
         // This directory contains feature files in test resources
         // One has an intentionally failing scenario for report testing
         // @ignore features (helper, data-setup) are completely skipped
-        SuiteResult result = Runner.path("classpath:io/karatelabs/report")
+        // (silenced: hooks-demo.feature deliberately fails its afterScenario hook)
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.path("classpath:io/karatelabs/report")
                 .outputDir(tempDir.resolve("reports"))
                 .outputHtmlReport(false)
                 .outputConsoleSummary(false)
                 .outputConsoleSummary(false)
-                .parallel(1);
+                .parallel(1));
 
         // Should find only non-@ignore features: test-report, second-feature, third-feature, http-demo, skipped-scenarios, hooks-demo
         assertEquals(6, result.getFeatureCount());
@@ -185,12 +187,13 @@ class RunnerTest {
     void testRunnerWithClasspathDirectoryTrailingSlash() {
         // Same test but with trailing slash
         // Contains intentionally failing scenario for report testing
-        SuiteResult result = Runner.path("classpath:io/karatelabs/report/")
+        // (silenced: hooks-demo.feature deliberately fails its afterScenario hook)
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.path("classpath:io/karatelabs/report/")
                 .outputDir(tempDir.resolve("reports"))
                 .outputHtmlReport(false)
                 .outputConsoleSummary(false)
                 .outputConsoleSummary(false)
-                .parallel(1);
+                .parallel(1));
 
         // @ignore features are skipped, http-demo and skipped-scenarios included
         assertEquals(6, result.getFeatureCount());
@@ -269,14 +272,14 @@ class RunnerTest {
             """);
 
         // This should NOT throw - it should return a SuiteResult with failures
-        SuiteResult result = Runner.path(tempDir.toString())
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.path(tempDir.toString())
                 .workingDir(tempDir)
                 .configDir(tempDir.toString())
                 .outputDir(tempDir.resolve("reports"))
                 .outputHtmlReport(false)
                 .outputConsoleSummary(false)
                 .outputConsoleSummary(false)
-                .parallel(1);
+                .parallel(1));
 
         // The suite should complete (not crash) with the scenario marked as failed
         assertNotNull(result);

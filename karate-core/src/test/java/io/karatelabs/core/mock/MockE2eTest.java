@@ -28,6 +28,7 @@ import io.karatelabs.core.ScenarioRuntime;
 import io.karatelabs.core.Suite;
 import io.karatelabs.core.SuiteResult;
 import io.karatelabs.http.ApacheHttpClient;
+import io.karatelabs.test.LogSilencer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -1151,7 +1152,8 @@ class MockE2eTest {
 
         try {
             int testPort = hookServer.getPort();
-            ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
+            ScenarioRuntime sr = LogSilencer.silenced("karate.mock", () ->
+                    runFeature(new ApacheHttpClient(), """
                 Feature: mock hook failure returns 500
 
                 Scenario: hook failure surfaces as 500
@@ -1160,7 +1162,7 @@ class MockE2eTest {
                 * method get
                 * status 500
                 * match response.error contains 'afterScenario'
-                """.formatted(testPort));
+                """.formatted(testPort)));
 
             assertPassed(sr);
         } finally {

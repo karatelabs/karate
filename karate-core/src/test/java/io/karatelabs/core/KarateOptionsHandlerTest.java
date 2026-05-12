@@ -6,6 +6,7 @@
 package io.karatelabs.core;
 
 import io.karatelabs.output.Console;
+import io.karatelabs.test.LogSilencer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -107,7 +108,8 @@ class KarateOptionsHandlerTest {
     @Test
     void testInvalidOptionsDoesNotCrash() {
         Runner.Builder builder = Runner.builder().tags("@preserve");
-        int effective = KarateOptionsHandler.parseAndApplyOptions(builder, "--bogus-flag-nonexistent", 2);
+        int effective = LogSilencer.silenced("karate.runtime", () ->
+                KarateOptionsHandler.parseAndApplyOptions(builder, "--bogus-flag-nonexistent", 2));
         assertEquals(2, effective);
         // Builder values preserved — invalid string ignored
         assertEquals(java.util.List.of("@preserve"), builder.getTags());

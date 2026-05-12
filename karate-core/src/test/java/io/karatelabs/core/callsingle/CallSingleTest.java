@@ -28,6 +28,7 @@ import io.karatelabs.core.Runner;
 import io.karatelabs.core.ScenarioResult;
 import io.karatelabs.core.StepResult;
 import io.karatelabs.core.SuiteResult;
+import io.karatelabs.test.LogSilencer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -221,13 +222,13 @@ class CallSingleTest {
             * def result = karate.callSingle('fail.feature')
             """);
 
-        SuiteResult result = Runner.builder()
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.builder()
                 .path(callerFeature.toString())
                 .workingDir(tempDir)
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
                 .backupOutputDir(false)
-                .parallel(1);
+                .parallel(1));
 
         assertTrue(result.isFailed(), "callSingle with failing feature should fail");
     }
@@ -903,13 +904,13 @@ class CallSingleTest {
             * def result = karate.callSingle('fail.feature')
             """);
 
-        SuiteResult result = Runner.builder()
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.builder()
                 .path(callerFeature.toString())
                 .workingDir(tempDir)
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
                 .backupOutputDir(false)
-                .parallel(1);
+                .parallel(1));
 
         assertTrue(result.isFailed(), "callSingle of a failing feature should fail the scenario");
 

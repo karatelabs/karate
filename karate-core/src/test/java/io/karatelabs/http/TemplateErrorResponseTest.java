@@ -1,6 +1,8 @@
 package io.karatelabs.http;
 
+import io.karatelabs.markup.Markup;
 import io.karatelabs.markup.RootResourceResolver;
+import io.karatelabs.test.LogSilencer;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,7 +30,7 @@ class TemplateErrorResponseTest {
 
     @Test
     void testDevModeIncludesFormattedTemplateError() {
-        HttpResponse response = harness(true).get("/trigger-error");
+        HttpResponse response = LogSilencer.silenced(Markup.class, () -> harness(true).get("/trigger-error"));
         assertEquals(500, response.getStatus());
         String body = response.getBodyString();
         assertTrue(body.contains("Internal Server Error"),
@@ -43,7 +45,7 @@ class TemplateErrorResponseTest {
 
     @Test
     void testProdModeBodyIsOpaque() {
-        HttpResponse response = harness(false).get("/trigger-error");
+        HttpResponse response = LogSilencer.silenced(Markup.class, () -> harness(false).get("/trigger-error"));
         assertEquals(500, response.getStatus());
         String body = response.getBodyString();
         assertEquals("Internal Server Error", body.trim());

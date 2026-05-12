@@ -23,6 +23,7 @@
  */
 package io.karatelabs.core;
 
+import io.karatelabs.test.LogSilencer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -129,7 +130,8 @@ public class ScenarioHooksTest {
               * match x == 1
             """);
 
-        SuiteResult result = runTestSuite(tempDir, feature.toString());
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () ->
+                runTestSuite(tempDir, feature.toString()));
 
         assertFalse(result.isPassed(), "hook failure should fail the scenario by default");
         String msg = getFailureMessage(result);
@@ -150,7 +152,8 @@ public class ScenarioHooksTest {
               * match x == 99
             """);
 
-        SuiteResult result = runTestSuite(tempDir, feature.toString());
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () ->
+                runTestSuite(tempDir, feature.toString()));
 
         assertFalse(result.isPassed(), "scenario should fail");
         // getFailureMessage returns the FIRST failed step's message - so the primary step error
@@ -185,14 +188,14 @@ public class ScenarioHooksTest {
             }
             """);
 
-        SuiteResult result = Runner.path(feature.toString())
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.path(feature.toString())
                 .workingDir(tempDir)
                 .configDir(tempDir.toString())
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
                 .backupOutputDir(false)
                 .skipTagFiltering(true)
-                .parallel(1);
+                .parallel(1));
 
         assertFalse(result.isPassed(), "beforeScenario failure should fail scenario");
         assertEquals(0, hookCount, "scenario steps should not run after beforeScenario failure (default)");
@@ -216,14 +219,14 @@ public class ScenarioHooksTest {
               * def x = 1
             """);
 
-        SuiteResult result = Runner.path(feature.toString())
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.path(feature.toString())
                 .workingDir(tempDir)
                 .configDir(tempDir.toString())
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
                 .backupOutputDir(false)
                 .skipTagFiltering(true)
-                .parallel(1);
+                .parallel(1));
 
         assertFalse(result.isPassed(), "scenario should still fail overall");
         assertEquals(1, hookCount,

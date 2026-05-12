@@ -1,6 +1,8 @@
 package io.karatelabs.http;
 
+import io.karatelabs.markup.Markup;
 import io.karatelabs.markup.RootResourceResolver;
+import io.karatelabs.test.LogSilencer;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -35,7 +37,7 @@ class ErrorTemplateTest {
     @Test
     void test500TemplateReceivesErrorAndGlobals() {
         // trigger-error.html deliberately throws — handleError kicks in
-        HttpResponse response = harness.get("/trigger-error");
+        HttpResponse response = LogSilencer.silenced(Markup.class, () -> harness.get("/trigger-error"));
         assertEquals(500, response.getStatus());
         String body = response.getBodyString();
         assertTrue(body.contains("id=\"error-500\""), "custom 500 template should render");

@@ -26,6 +26,8 @@ package io.karatelabs.core.ssl;
 import io.karatelabs.core.MockServer;
 import io.karatelabs.core.Runner;
 import io.karatelabs.core.SuiteResult;
+import io.karatelabs.test.LogSilencer;
+import io.netty.channel.DefaultChannelPipeline;
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
@@ -146,11 +148,14 @@ class SslTest {
 
     @Test
     void testSslMtlsNoCertFails() {
-        // Connecting to an mTLS server WITHOUT a client certificate should fail
+        // Connecting to an mTLS server WITHOUT a client certificate should fail.
+        // Netty's pipeline-tail handler logs the unhandled SSLHandshakeException at WARN with a
+        // full stack trace — expected here, so silence it.
         int port = mtlsServer.getPort();
-        SuiteResult results = Runner.path("classpath:ssl/ssl-mtls-no-cert.feature")
-                .systemProperty("mtls.port", port + "")
-                .parallel(1);
+        SuiteResult results = LogSilencer.silenced(DefaultChannelPipeline.class, () ->
+                Runner.path("classpath:ssl/ssl-mtls-no-cert.feature")
+                        .systemProperty("mtls.port", port + "")
+                        .parallel(1));
         assertEquals(1, results.getScenarioFailedCount(),
                 "Expected failure when connecting to mTLS server without client certificate");
     }

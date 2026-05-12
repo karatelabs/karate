@@ -3,6 +3,7 @@ package io.karatelabs.markup;
 import io.karatelabs.common.Resource;
 import io.karatelabs.js.Engine;
 import io.karatelabs.js.ExternalBridge;
+import io.karatelabs.test.LogSilencer;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -160,9 +161,8 @@ class MarkupTest {
             </div>
             """;
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> {
-            markup.processString(template, null);
-        });
+        RuntimeException ex = LogSilencer.silenced(Markup.class, () ->
+                assertThrows(RuntimeException.class, () -> markup.processString(template, null)));
 
         // Verify the root cause contains useful error info
         Throwable rootCause = ex;
@@ -435,17 +435,19 @@ class MarkupTest {
 
         // Single hyphenated key.
         String htmlSingle = "<button th:attr=\"data-id: itemId\">Click</button>";
-        RuntimeException thrownSingle = assertThrows(RuntimeException.class,
-                () -> markup.processString(htmlSingle, null),
-                "unquoted hyphenated attr key must throw");
+        RuntimeException thrownSingle = LogSilencer.silenced(Markup.class, () ->
+                assertThrows(RuntimeException.class,
+                        () -> markup.processString(htmlSingle, null),
+                        "unquoted hyphenated attr key must throw"));
         assertHintContains(thrownSingle,
                 "data-id", "must be quoted", "'data-id'");
 
         // Multiple hyphenated and colon-bearing keys at once.
         String htmlMulti = "<a th:attr=\"data-item-id: itemId, hx-target: 'body', ka:get: '/x'\"></a>";
-        RuntimeException thrownMulti = assertThrows(RuntimeException.class,
-                () -> markup.processString(htmlMulti, null),
-                "multiple unquoted hyphenated/colon keys must throw");
+        RuntimeException thrownMulti = LogSilencer.silenced(Markup.class, () ->
+                assertThrows(RuntimeException.class,
+                        () -> markup.processString(htmlMulti, null),
+                        "multiple unquoted hyphenated/colon keys must throw"));
         assertHintContains(thrownMulti,
                 "data-item-id", "hx-target", "ka:get", "must be quoted",
                 "'data-item-id'", "'hx-target'", "'ka:get'");
@@ -489,9 +491,10 @@ class MarkupTest {
             </script>
             <ul><li th:each="_.items">x</li></ul>
             """;
-        RuntimeException thrown = assertThrows(RuntimeException.class,
-                () -> markup.processString(html, null),
-                "bare th:each form must throw");
+        RuntimeException thrown = LogSilencer.silenced(Markup.class, () ->
+                assertThrows(RuntimeException.class,
+                        () -> markup.processString(html, null),
+                        "bare th:each form must throw"));
         assertHintContains(thrown,
                 "th:each requires", "name : expression");
     }
@@ -658,18 +661,21 @@ class MarkupTest {
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
         String htmlGet = "<div th:text=\"context.get(null)\"></div>";
-        RuntimeException thrownGet = assertThrows(RuntimeException.class,
-                () -> markup.processString(htmlGet, null));
+        RuntimeException thrownGet = LogSilencer.silenced(Markup.class, () ->
+                assertThrows(RuntimeException.class,
+                        () -> markup.processString(htmlGet, null)));
         assertHintContains(thrownGet, "context.get() requires a name argument");
 
         String htmlRead = "<div th:text=\"context.read(null)\"></div>";
-        RuntimeException thrownRead = assertThrows(RuntimeException.class,
-                () -> markup.processString(htmlRead, null));
+        RuntimeException thrownRead = LogSilencer.silenced(Markup.class, () ->
+                assertThrows(RuntimeException.class,
+                        () -> markup.processString(htmlRead, null)));
         assertHintContains(thrownRead, "read() requires a path argument");
 
         String htmlFromJson = "<div th:text=\"context.fromJson(null)\"></div>";
-        RuntimeException thrownFromJson = assertThrows(RuntimeException.class,
-                () -> markup.processString(htmlFromJson, null));
+        RuntimeException thrownFromJson = LogSilencer.silenced(Markup.class, () ->
+                assertThrows(RuntimeException.class,
+                        () -> markup.processString(htmlFromJson, null)));
         assertHintContains(thrownFromJson, "fromJson() requires a JSON string argument");
     }
 
@@ -1097,9 +1103,10 @@ class MarkupTest {
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
 
         String html = "<div th:insert=\"~{fragment-params :: chip}\"></div>";
-        RuntimeException thrown = assertThrows(RuntimeException.class,
-                () -> markup.processString(html, null),
-                "calling a fragment whose signature declares params must surface as an error");
+        RuntimeException thrown = LogSilencer.silenced(Markup.class, () ->
+                assertThrows(RuntimeException.class,
+                        () -> markup.processString(html, null),
+                        "calling a fragment whose signature declares params must surface as an error"));
 
         // Walk the cause chain — karate-core wraps Thymeleaf's exception in its
         // own RuntimeException for logging.
@@ -1132,9 +1139,10 @@ class MarkupTest {
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
 
         String html = "<div th:insert=\"~{fragment-params :: chip(label='x', count=3)}\"></div>";
-        RuntimeException thrown = assertThrows(RuntimeException.class,
-                () -> markup.processString(html, null),
-                "keyword-arg call against a parameterised fragment must surface the convention error");
+        RuntimeException thrown = LogSilencer.silenced(Markup.class, () ->
+                assertThrows(RuntimeException.class,
+                        () -> markup.processString(html, null),
+                        "keyword-arg call against a parameterised fragment must surface the convention error"));
 
         Throwable t = thrown;
         boolean foundFriendlyMessage = false;
@@ -1161,9 +1169,10 @@ class MarkupTest {
 
         // 1. Caller doesn't pass `target` at all. Must throw with hint.
         String htmlNoTarget = "<div th:insert=\"~{fragment-no-params :: optional}\"></div>";
-        RuntimeException thrown = assertThrows(RuntimeException.class,
-                () -> markup.processString(htmlNoTarget, null),
-                "fragment reading an unbound bare name must throw");
+        RuntimeException thrown = LogSilencer.silenced(Markup.class, () ->
+                assertThrows(RuntimeException.class,
+                        () -> markup.processString(htmlNoTarget, null),
+                        "fragment reading an unbound bare name must throw"));
 
         // Walk the cause chain — the hint message must point at th:with.
         Throwable t = thrown;
@@ -1208,9 +1217,10 @@ class MarkupTest {
                 <span th:text="bar"></span>
             </div>
             """;
-        RuntimeException thrown = assertThrows(RuntimeException.class,
-                () -> markup.processString(html, null),
-                "bare `foo` after `_.foo = ...` in the same block must throw");
+        RuntimeException thrown = LogSilencer.silenced(Markup.class, () ->
+                assertThrows(RuntimeException.class,
+                        () -> markup.processString(html, null),
+                        "bare `foo` after `_.foo = ...` in the same block must throw"));
 
         Throwable t = thrown;
         boolean foundHint = false;
@@ -1387,8 +1397,9 @@ class MarkupTest {
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
         String html = "<button ka:dispatch=\"@click\">x</button>";
-        RuntimeException thrown = assertThrows(RuntimeException.class,
-                () -> markup.processString(html, null));
+        RuntimeException thrown = LogSilencer.silenced(Markup.class, () ->
+                assertThrows(RuntimeException.class,
+                        () -> markup.processString(html, null)));
         assertHintContains(thrown, "ka:dispatch requires an event name");
     }
 
@@ -1400,8 +1411,9 @@ class MarkupTest {
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
         String html = "<button ka:dispatch=\"open-modal @ \">x</button>";
-        RuntimeException thrown = assertThrows(RuntimeException.class,
-                () -> markup.processString(html, null));
+        RuntimeException thrown = LogSilencer.silenced(Markup.class, () ->
+                assertThrows(RuntimeException.class,
+                        () -> markup.processString(html, null)));
         assertHintContains(thrown, "ka:dispatch trigger must be non-empty");
     }
 
@@ -1412,8 +1424,9 @@ class MarkupTest {
         Engine js = new Engine();
         Markup markup = Markup.init(js, new RootResourceResolver("classpath:markup"));
         String html = "<button ka:dispatch=\"open-modal @ click @ extra\">x</button>";
-        RuntimeException thrown = assertThrows(RuntimeException.class,
-                () -> markup.processString(html, null));
+        RuntimeException thrown = LogSilencer.silenced(Markup.class, () ->
+                assertThrows(RuntimeException.class,
+                        () -> markup.processString(html, null)));
         assertHintContains(thrown, "single `event @ trigger` delimiter");
     }
 

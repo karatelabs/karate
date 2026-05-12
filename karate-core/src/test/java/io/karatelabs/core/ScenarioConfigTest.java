@@ -23,6 +23,7 @@
  */
 package io.karatelabs.core;
 
+import io.karatelabs.test.LogSilencer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -734,7 +735,9 @@ class ScenarioConfigTest {
             * match value == 'something'
             """);
 
-        SuiteResult result = runTestSuite(tempDir, featureFile.toString());
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () ->
+                LogSilencer.silenced("karate.scenario", () ->
+                        runTestSuite(tempDir, featureFile.toString())));
 
         // The scenario should fail (not pass silently with missing config vars)
         assertFalse(result.isPassed(), "Config with JS errors should cause scenario failure");

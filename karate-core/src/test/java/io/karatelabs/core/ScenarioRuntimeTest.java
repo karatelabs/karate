@@ -6,6 +6,7 @@ import io.karatelabs.gherkin.Scenario;
 import io.karatelabs.gherkin.Step;
 import io.karatelabs.http.HttpResponse;
 import io.karatelabs.http.HttpServer;
+import io.karatelabs.test.LogSilencer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -128,11 +129,11 @@ class ScenarioRuntimeTest {
     @Test
     void testScenarioNameInterpolationFailureKeepsOriginal() {
         // Eval throws (undefined variable) — original name kept, warning logged.
-        ScenarioRuntime sr = runFeature("""
+        ScenarioRuntime sr = LogSilencer.silenced("karate.runtime", () -> runFeature("""
             Feature:
             Scenario: ref to ${undefinedVarThatBlowsUp}
             * def x = 1
-            """);
+            """));
         assertPassed(sr);
         assertEquals("ref to ${undefinedVarThatBlowsUp}",
                 sr.getScenario().getName());

@@ -29,6 +29,7 @@ import io.karatelabs.core.Runner;
 import io.karatelabs.core.Suite;
 import io.karatelabs.core.SuiteResult;
 import io.karatelabs.http.ServerTestHarness;
+import io.karatelabs.test.LogSilencer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -112,13 +113,14 @@ class HtmlReportWriterTest {
     void testHtmlReportGeneration() throws Exception {
         Console.setColorsEnabled(true);
         // Run features from test-classes directory with parallel for timeline
+        // (silenced: hooks-demo.feature deliberately throws to exercise hook failure rendering)
         String testResourcesDir = "target/test-classes/io/karatelabs/report";
-        SuiteResult result = Runner.path(testResourcesDir)
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.path(testResourcesDir)
                 .configDir(testResourcesDir)  // Load karate-config.js for baseUrl
                 .systemProperty("karate.server.port", String.valueOf(harness.getPort()))
                 .outputDir(OUTPUT_DIR)
                 .outputJsonLines(true)
-                .parallel(3);  // parallel for timeline testing
+                .parallel(3));  // parallel for timeline testing
 
         // Verify the run completed (feature count may vary with @ignore features)
         assertTrue(result.getFeatureCount() >= 5, "Should have at least 5 features (including http-demo and hooks-demo)");
@@ -757,13 +759,13 @@ class HtmlReportWriterTest {
 
         Path reportDir = tempDir.resolve("reports");
 
-        SuiteResult result = Runner.path(feature.toString())
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.path(feature.toString())
                 .workingDir(tempDir)
                 .outputDir(reportDir)
                 .outputHtmlReport(true)
                 .outputJsonLines(true)
                 .outputConsoleSummary(false)
-                .parallel(1);
+                .parallel(1));
 
         // Scenario should still pass (eval failure doesn't fail the test)
         assertTrue(result.isPassed());
@@ -902,13 +904,13 @@ class HtmlReportWriterTest {
 
         Path reportDir = tempDir.resolve("reports");
 
-        SuiteResult result = Runner.path(feature.toString())
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.path(feature.toString())
                 .workingDir(tempDir)
                 .configDir(tempDir.toString())
                 .outputDir(reportDir)
                 .outputHtmlReport(true)
                 .outputConsoleSummary(false)
-                .parallel(1);
+                .parallel(1));
 
         assertFalse(result.isPassed());
         assertEquals(1, result.getScenarioFailedCount());
@@ -948,12 +950,12 @@ class HtmlReportWriterTest {
 
         Path reportDir = tempDir.resolve("reports");
 
-        SuiteResult result = Runner.path(feature.toString())
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.path(feature.toString())
                 .workingDir(tempDir)
                 .outputDir(reportDir)
                 .outputHtmlReport(true)
                 .outputConsoleSummary(false)
-                .parallel(1);
+                .parallel(1));
 
         assertFalse(result.isPassed());
         assertEquals(1, result.getScenarioFailedCount());
@@ -1496,12 +1498,12 @@ class HtmlReportWriterTest {
                 * match x == 1
                 """);
         Path reportDir = loggingTestDir("v1-keys");
-        SuiteResult result = Runner.path(feature.toString())
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.path(feature.toString())
                 .workingDir(tempDir)
                 .outputDir(reportDir)
                 .outputHtmlReport(true)
                 .outputConsoleSummary(false)
-                .parallel(1);
+                .parallel(1));
         assertTrue(result.isPassed(),
                 "deprecated v1 configure keys must remain no-ops, not throw");
     }

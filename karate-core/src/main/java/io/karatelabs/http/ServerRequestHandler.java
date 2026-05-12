@@ -79,7 +79,7 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
         markupConfig.setEngineSupplier(config.getEngineSupplier());
         this.markup = Markup.init(markupConfig, new HxDialect(markupConfig));
         if (config.isDevMode()) {
-            logger.info("karate dev-mode enabled — templates hot-reload on every request");
+            logger.warn("karate dev-mode enabled — templates hot-reload on every request");
             if (config.isDevTrace()) {
                 logger.info("karate dev-trace enabled — fragment boundaries emitted as HTML comments (never enable in production)");
             }

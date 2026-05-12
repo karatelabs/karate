@@ -18,6 +18,8 @@
     <!-- change to DEBUG for troubleshooting tests if needed -->
     <logger name="karate.http" level="WARN"/>
     <logger name="karate.scenario" level="WARN"/>
+    <!-- dev-mode banner fires in nearly every markup/http test -->
+    <logger name="io.karatelabs.http.ServerRequestHandler" level="ERROR"/>
 
     <!-- Suppress verbose Testcontainers stack traces when trying Docker connection strategies -->
     <logger name="org.testcontainers.dockerclient.DockerClientProviderStrategy" level="ERROR"/>
