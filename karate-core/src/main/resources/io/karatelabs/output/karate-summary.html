@@ -125,9 +125,9 @@
                         Failed
                         <span x-show="sortField === 'failedCount'" x-text="sortDir === 'asc' ? ' \u2191' : ' \u2193'"></span>
                     </th>
-                    <th class="sortable" @click="sortBy('passRate')" style="width: 90px;">
+                    <th class="sortable" @click="sortBy('passedRate')" style="width: 90px;">
                         Pass %
-                        <span x-show="sortField === 'passRate'" x-text="sortDir === 'asc' ? ' \u2191' : ' \u2193'"></span>
+                        <span x-show="sortField === 'passedRate'" x-text="sortDir === 'asc' ? ' \u2191' : ' \u2193'"></span>
                     </th>
                     <th class="sortable" @click="sortBy('durationMillis')" style="width: 120px;">
                         Duration
@@ -161,7 +161,7 @@
                             <td x-text="f.scenarioCount">0</td>
                             <td x-text="f.passedCount">0</td>
                             <td x-text="f.failedCount">0</td>
-                            <td x-text="formatPassRate(f.passRate)">&mdash;</td>
+                            <td x-text="formatPassedRate(f.passedRate)">&mdash;</td>
                             <td><span x-text="f.durationMillis">0</span> ms</td>
                             <td>
                                 <span x-show="f.passed" class="badge bg-success">PASSED</span>
@@ -176,7 +176,7 @@
                     <td x-text="totals.scenarios">0</td>
                     <td x-text="totals.passed">0</td>
                     <td x-text="totals.failed">0</td>
-                    <td x-text="formatPassRate(totals.passRate)">&mdash;</td>
+                    <td x-text="formatPassedRate(totals.passedRate)">&mdash;</td>
                     <td><span x-text="totals.durationMillis">0</span> ms</td>
                     <td></td>
                 </tr>

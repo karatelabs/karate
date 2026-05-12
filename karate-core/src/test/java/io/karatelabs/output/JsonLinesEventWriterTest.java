@@ -223,6 +223,7 @@ class JsonLinesEventWriterTest {
         assertEquals(0, ((Number) summary.get("featuresFailed")).intValue());
         assertEquals(2, ((Number) summary.get("scenariosPassed")).intValue());
         assertEquals(0, ((Number) summary.get("scenariosFailed")).intValue());
+        assertEquals(100, ((Number) summary.get("passedRate")).intValue());
         assertTrue(summary.containsKey("durationMillis"));
     }
 
@@ -270,6 +271,7 @@ class JsonLinesEventWriterTest {
 
         // Check status
         assertEquals(true, featureData.get("failed"));
+        assertEquals(50, ((Number) featureData.get("passedRate")).intValue());
 
         // Check scenarioResults - one passed, one failed
         @SuppressWarnings("unchecked")
@@ -295,6 +297,7 @@ class JsonLinesEventWriterTest {
         assertEquals(1, ((Number) summary.get("featuresFailed")).intValue());
         assertEquals(1, ((Number) summary.get("scenariosPassed")).intValue());
         assertEquals(1, ((Number) summary.get("scenariosFailed")).intValue());
+        assertEquals(50, ((Number) summary.get("passedRate")).intValue());
     }
 
     @Test

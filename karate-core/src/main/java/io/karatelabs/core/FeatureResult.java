@@ -189,6 +189,17 @@ public class FeatureResult {
         return (int) scenarioResults.stream().filter(ScenarioResult::isSkipped).count();
     }
 
+    /**
+     * Pass rate as an integer percentage 0–100, or null when no scenarios executed.
+     * Denominator is {@code passedCount + failedCount} — mirrors the HTML report's
+     * per-feature calc so JSONL consumers and the HTML view agree.
+     */
+    public Integer getPassedRate() {
+        int passed = getPassedCount();
+        int executed = passed + getFailedCount();
+        return executed == 0 ? null : (int) Math.round((passed * 100.0) / executed);
+    }
+
     public boolean isPassed() {
         return scenarioResults.stream().noneMatch(ScenarioResult::isFailed);
     }
@@ -237,6 +248,7 @@ public class FeatureResult {
         map.put("passedCount", getPassedCount());
         map.put("failedCount", getFailedCount());
         map.put("skippedCount", getSkippedCount());
+        map.put("passedRate", getPassedRate());
 
         // Path fields
         map.put("packageQualifiedName", feature.getResource().getPackageQualifiedName());

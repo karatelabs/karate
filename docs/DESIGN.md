@@ -458,7 +458,7 @@ Standard envelope:
 {"type":"SUITE_EXIT","timeStamp":1747555210000,"threadId":null,"data":{"summary":{...}}}
 ```
 
-`FEATURE_EXIT.data` is the full `FeatureResult.toJson()` — the canonical structured payload for offline analysis, CI/CD scraping, and downstream tooling. `SUITE_EXIT.data.summary` carries pass/fail counters and total duration.
+`FEATURE_EXIT.data` is the full `FeatureResult.toJson()` — the canonical structured payload for offline analysis, CI/CD scraping, and downstream tooling. `SUITE_EXIT.data.summary` carries pass/fail counters, total duration, and a `passedRate` (integer percentage 0–100, or null when no scenarios executed). The same `passedRate` is exposed per feature on `FEATURE_EXIT.data` so dashboards don't have to recompute it. Denominator is `passedCount + failedCount` (matching the HTML report's totals row); since `@skipped` is additive to `passedCount`, it's also counted in the denominator.
 
 `STEP_ENTER` / `STEP_EXIT` / `HTTP_ENTER` / `HTTP_EXIT` events fire on the `RunListener` bus but are deliberately not emitted into JSONL (too granular for a streaming feed). HTTP request/response detail still reaches consumers via `step.embeds[]` inside `FEATURE_EXIT`.
 

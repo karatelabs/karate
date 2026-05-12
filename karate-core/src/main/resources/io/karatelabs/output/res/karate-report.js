@@ -381,13 +381,8 @@ const KarateReport = {
             },
 
             get filteredFeatures() {
-                let features = (this.data.features || []).map(f => {
-                    const p = f.passedCount || 0;
-                    const fl = f.failedCount || 0;
-                    const executed = p + fl;
-                    const passRate = executed === 0 ? null : Math.round((p / executed) * 100);
-                    return Object.assign({}, f, { passRate });
-                });
+                // passedRate is supplied by HtmlReportWriter#buildFeatureSummaryList
+                let features = (this.data.features || []).slice();
                 features.sort((a, b) => {
                     let aVal = a[this.sortField];
                     let bVal = b[this.sortField];
@@ -410,11 +405,11 @@ const KarateReport = {
                     return acc;
                 }, { scenarios: 0, passed: 0, failed: 0, skipped: 0, durationMillis: 0 });
                 const executed = t.passed + t.failed;
-                t.passRate = executed === 0 ? null : Math.round((t.passed / executed) * 100);
+                t.passedRate = executed === 0 ? null : Math.round((t.passed / executed) * 100);
                 return t;
             },
 
-            formatPassRate(rate) {
+            formatPassedRate(rate) {
                 return rate == null ? '\u2014' : rate + '%';
             },
 

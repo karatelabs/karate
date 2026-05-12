@@ -113,6 +113,17 @@ public class SuiteResult {
         return featureResults.stream().mapToInt(FeatureResult::getSkippedCount).sum();
     }
 
+    /**
+     * Pass rate as an integer percentage 0–100, or null when no scenarios executed.
+     * Denominator is {@code scenariosPassed + scenariosFailed} — matches
+     * {@link FeatureResult#getPassedRate()} and the HTML report's totals row.
+     */
+    public Integer getScenarioPassedRate() {
+        int passed = getScenarioPassedCount();
+        int executed = passed + getScenarioFailedCount();
+        return executed == 0 ? null : (int) Math.round((passed * 100.0) / executed);
+    }
+
     public boolean isPassed() {
         return featureResults.stream().noneMatch(FeatureResult::isFailed);
     }
@@ -146,6 +157,7 @@ public class SuiteResult {
         summary.put("scenariosPassed", getScenarioPassedCount());
         summary.put("scenariosFailed", getScenarioFailedCount());
         summary.put("scenariosSkipped", getScenarioSkippedCount());
+        summary.put("passedRate", getScenarioPassedRate());
         summary.put("durationMillis", getDurationMillis());
         summary.put("passed", !isFailed());
         map.put("summary", summary);
