@@ -107,7 +107,11 @@ public class StepExecutor {
     public StepResult execute(Step step) {
         long startTime = System.currentTimeMillis();
         long startNanos = System.nanoTime();
-        stepCallResults = null;  // Clear for this step
+        // Note: stepCallResults is NOT cleared here. Any pending entries from pre-step JS
+        // evaluation (karate-config.js calling karate.call / karate.callSingle) belong to
+        // this step's callResults so they surface in the HTML / Cucumber JSON / JUnit report.
+        // The buffer is nulled inside collectLogsAndEmbeds AFTER attaching, so the next step
+        // still starts clean.
 
         // Synthesized (fake) steps bypass listener events and the run interceptor.
         boolean isFake = step.isFake();
@@ -299,10 +303,13 @@ public class StepExecutor {
                 result.addEmbed(embed);
             }
         }
-        // Set call results accumulated during this step's execution
+        // Set call results accumulated during this step's execution (plus any pending
+        // entries carried over from pre-step JS evaluation like karate-config.js).
         if (stepCallResults != null && !stepCallResults.isEmpty()) {
             result.setCallResults(stepCallResults);
         }
+        // Wipe AFTER attaching so the next step starts with a clean buffer.
+        stepCallResults = null;
     }
 
     // ========== Expression Execution ==========

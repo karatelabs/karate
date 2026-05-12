@@ -135,3 +135,14 @@ Scenario: Loop call with array data
 * print 'running', testCases.length, 'test cases'
 * def results = call read('data-setup.feature') testCases
 * print 'loop call completed'
+
+@call @callsingle
+Scenario: callSingle nested feature with HTTP traffic
+# callSingle runs the helper exactly once per suite under a lock; the winning
+# scenario's calling step carries the nested FeatureResult so the helper's
+# HTTP request/response renders under this step in the HTML report (issue #2840).
+# The ?suffix gives this call its own cache key — distinct from the config-time
+# callSingle in karate-config.js — so this scenario reliably surfaces the nested
+# HTTP traffic regardless of parallel ordering.
+* def auth = karate.callSingle('classpath:io/karatelabs/report/callsingle-auth.feature?in-step', { baseUrl: baseUrl })
+* match auth.authToken == 'tok-2.0.0'

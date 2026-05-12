@@ -483,11 +483,14 @@ public final class HtmlReportWriter {
         } else {
             // Fake step (e.g., for @fail tag, or a lifecycle hook)
             data.put("prefix", "*");
-            data.put("keyword", "*");
             if (step.isHook()) {
+                // Hook step renders as `* beforeScenario` — the hook name *is* the keyword,
+                // so leave the keyword slot empty to avoid the double `* *` prefix.
+                data.put("keyword", "");
                 data.put("text", step.getHookName());
                 data.put("hook", step.getHookName());
             } else {
+                data.put("keyword", "*");
                 data.put("text", step.getLog() != null ? step.getLog() : "");
             }
             data.put("line", 0);

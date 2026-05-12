@@ -318,6 +318,17 @@ public class LogContext {
     }
 
     /**
+     * Append previously-captured log content verbatim, bypassing level filtering.
+     * Used to carry log output across a LogContext reset (e.g. preserving
+     * karate-config.js logs into the fresh per-scenario LogContext).
+     */
+    public void appendCaptured(String content) {
+        if (content != null && !content.isEmpty()) {
+            buffer.append(content);
+        }
+    }
+
+    /**
      * Get accumulated log without clearing.
      */
     public String peek() {

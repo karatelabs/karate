@@ -26,6 +26,7 @@ package io.karatelabs.core.callsingle;
 import io.karatelabs.core.FeatureResult;
 import io.karatelabs.core.Runner;
 import io.karatelabs.core.ScenarioResult;
+import io.karatelabs.core.StepResult;
 import io.karatelabs.core.SuiteResult;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -744,6 +745,191 @@ class CallSingleTest {
         File[] cacheFiles = cacheDir.listFiles((dir, name) -> name.endsWith(".txt"));
         assertNotNull(cacheFiles, "Cache directory should contain files");
         assertTrue(cacheFiles.length > 0, "Should have at least one cache file");
+    }
+
+    // ========== Tests for callSingle reporting (issue #2840) ==========
+    // The "winning" scenario (the one whose thread acquires the lock and actually executes
+    // the feature) should carry the called feature's FeatureResult on the calling step's
+    // callResults so HTML / Cucumber JSON / JUnit reports surface its HTTP traffic and steps.
+    // Subsequent cache-hit scenarios should not double-report.
+
+    @Test
+    void testCallSingleFromStepAttachesToCallingStep() throws Exception {
+        Path setupFeature = tempDir.resolve("setup.feature");
+        Files.writeString(setupFeature, """
+            Feature: Setup
+            Scenario:
+            * def token = 'abc'
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario: invoke from step
+            * def result = karate.callSingle('setup.feature')
+            * match result.token == 'abc'
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(callerFeature.toString())
+                .workingDir(tempDir)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed(), getFailureMessage(result));
+
+        StepResult callingStep = findStepWithCallResults(result);
+        assertNotNull(callingStep, "callSingle should attach FeatureResult to the calling step");
+        assertEquals(1, callingStep.getCallResults().size());
+        FeatureResult attached = callingStep.getCallResults().get(0);
+        assertEquals("setup.feature", attached.getFeature().getResource().getRelativePath());
+    }
+
+    @Test
+    void testCallSingleFromConfigAttachesToFirstStep() throws Exception {
+        Path setupFeature = tempDir.resolve("setup.feature");
+        Files.writeString(setupFeature, """
+            Feature: Setup
+            Scenario:
+            * def token = 'config-token'
+            """);
+
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+            function fn() {
+                var auth = karate.callSingle('setup.feature');
+                return { token: auth.token };
+            }
+            """);
+
+        Path testFeature = tempDir.resolve("test.feature");
+        Files.writeString(testFeature, """
+            Feature: Test
+            Scenario: uses config
+            * match token == 'config-token'
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(testFeature.toString())
+                .workingDir(tempDir)
+                .configDir(configJs.toString())
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed(), getFailureMessage(result));
+
+        StepResult firstStep = result.getFeatureResults().get(0)
+                .getScenarioResults().get(0)
+                .getStepResults().get(0);
+        assertTrue(firstStep.hasCallResults(),
+                "config-time callSingle should attach to the first step's callResults");
+        assertEquals(1, firstStep.getCallResults().size());
+        assertEquals("setup.feature",
+                firstStep.getCallResults().get(0).getFeature().getResource().getRelativePath());
+    }
+
+    @Test
+    void testCallSingleParallelOnlyWinnerCarriesCallResults() throws Exception {
+        Path setupFeature = tempDir.resolve("setup.feature");
+        Files.writeString(setupFeature, """
+            Feature: Setup
+            Scenario:
+            * def shared = 'once'
+            """);
+
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+            function fn() {
+                var s = karate.callSingle('setup.feature');
+                return { shared: s.shared };
+            }
+            """);
+
+        Path testFeature = tempDir.resolve("parallel.feature");
+        Files.writeString(testFeature, """
+            Feature: Parallel
+            Scenario: a
+            * match shared == 'once'
+            Scenario: b
+            * match shared == 'once'
+            Scenario: c
+            * match shared == 'once'
+            Scenario: d
+            * match shared == 'once'
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(testFeature.toString())
+                .workingDir(tempDir)
+                .configDir(configJs.toString())
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(4);
+
+        assertTrue(result.isPassed(), getFailureMessage(result));
+
+        int totalCallResults = 0;
+        for (FeatureResult fr : result.getFeatureResults()) {
+            for (ScenarioResult sr : fr.getScenarioResults()) {
+                for (StepResult step : sr.getStepResults()) {
+                    if (step.hasCallResults()) {
+                        totalCallResults += step.getCallResults().size();
+                    }
+                }
+            }
+        }
+        assertEquals(1, totalCallResults,
+                "callSingle runs once — only the winning scenario should carry the FeatureResult");
+    }
+
+    @Test
+    void testCallSingleFailureStillAttachesForVisibility() throws Exception {
+        Path failFeature = tempDir.resolve("fail.feature");
+        Files.writeString(failFeature, """
+            Feature: Failing setup
+            Scenario:
+            * def x = karate.fail('boom')
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario: invoke failing setup
+            * def result = karate.callSingle('fail.feature')
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(callerFeature.toString())
+                .workingDir(tempDir)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertTrue(result.isFailed(), "callSingle of a failing feature should fail the scenario");
+
+        StepResult callingStep = findStepWithCallResults(result);
+        assertNotNull(callingStep,
+                "failed callSingle should still attach its FeatureResult so the failure is visible in the report");
+        assertTrue(callingStep.getCallResults().get(0).isFailed());
+    }
+
+    private static StepResult findStepWithCallResults(SuiteResult result) {
+        for (FeatureResult fr : result.getFeatureResults()) {
+            for (ScenarioResult sr : fr.getScenarioResults()) {
+                for (StepResult step : sr.getStepResults()) {
+                    if (step.hasCallResults()) {
+                        return step;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private String getFailureMessage(SuiteResult result) {

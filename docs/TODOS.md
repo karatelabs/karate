@@ -48,6 +48,7 @@ Scratch pad for tracking work across the project. See also [CAPABILITIES.yaml](.
 - [ ] `FeatureResult.fromJson()` for offline report generation from JSONL
 - [ ] JS line-level logging in reports (opt-in)
 - [ ] Report rendering test cases for nested calls (`karate.call()` from JS, Background calls, multi-level chains)
+- [ ] Synthetic "config bootstrap" step for `karate-base.js` / `karate-config.js` / env-config output. Today config-time `karate.log`, `karate.embed`, `karate.call`, `karate.callSingle` output is replayed onto the first user step (or the beforeScenario hook step when one fires) — see `ScenarioRuntime.call()` capture-then-replay around the `LogContext.set(new LogContext())` reset, issue #2840. A dedicated synthetic step (parallel to `StepResult.hook(...)`, e.g. `StepResult.configBootstrap(...)`) would surface config output as a distinct first-class entry rather than blending it into user steps. Hook point: between the capture and the step loop in `ScenarioRuntime.call()`. Needs HTML/Cucumber JSON/JUnit XML writers to render the new synthetic step kind.
 
 ## WebSocket
 

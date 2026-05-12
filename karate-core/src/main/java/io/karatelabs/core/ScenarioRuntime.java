@@ -644,6 +644,14 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             );
             FeatureResult fr = nestedFr.call();
 
+            // Attach the called feature's result so its steps (and HTTP traffic) surface
+            // in the calling scenario's HTML / Cucumber JSON / JUnit report. callSingle
+            // executes exactly once per Suite under a lock — only the "winning" scenario
+            // (cache miss) reaches this code, so the call results appear under whichever
+            // scenario's thread actually ran the feature. Done before the failure throw
+            // so a failed callSingle still surfaces its steps in the report (issue #2840).
+            executor.addCallResult(fr);
+
             // Check if the feature failed
             if (fr.isFailed()) {
                 String failureMsg = fr.getScenarioResults().stream()
@@ -831,6 +839,16 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
     @Override
     public ScenarioResult call() {
+        // karate-base.js / karate-config.js / env-config eval (in the constructor's
+        // initEngine()) may have produced log lines and embeds — capture them so the
+        // upcoming LogContext.set(...) doesn't drop them on the floor. They'll be
+        // replayed into the fresh context below so the first step's StepResult.log
+        // (or the beforeScenario hook step, if one fires) surfaces config-time output
+        // alongside config-time karate.call / karate.callSingle results (issue #2840).
+        // LogContext.get() lazy-creates an empty one if no thread-local is set, so this
+        // is safe even on a cold thread — collect() / collectEmbeds() return ""/null.
+        String configTimeLog = LogContext.get().collect();
+        java.util.List<StepResult.Embed> configTimeEmbeds = LogContext.get().collectEmbeds();
         LogContext.set(new LogContext());
         // Repopulate the fresh LogContext from this scenario's KarateConfig — which is
         // the source of truth for mask + pretty. Without this, anything that
@@ -838,6 +856,17 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // via `karate.configure('logging', {...})` would be silently dropped here, since
         // the new LogContext starts with mask=null. See issue #2826.
         config.applyLoggingToContext(LogContext.get());
+        // Replay the captured config-time output into the fresh, properly-configured
+        // context. Order matters: this happens AFTER applyLoggingToContext so the new
+        // context already has the right threshold / mask / pretty before content lands.
+        if (configTimeLog != null && !configTimeLog.isEmpty()) {
+            LogContext.get().appendCaptured(configTimeLog);
+        }
+        if (configTimeEmbeds != null) {
+            for (StepResult.Embed e : configTimeEmbeds) {
+                LogContext.get().embed(e.getData(), e.getMimeType(), e.getName());
+            }
+        }
         if (config.getCompiledMask() != null && logger.isDebugEnabled()) {
             // One-line confirmation per scenario so users can verify the mask compiled
             // and is actually active. Visible only when karate.runtime is at DEBUG, so
@@ -1568,11 +1597,13 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         }
         long startTime = System.currentTimeMillis();
         long startNanos = System.nanoTime();
-        executor.resetCallResults();
-        // Drain any residual log/embed buffer so the hook step only reflects hook output
+        // No explicit reset of call-results / log / embed buffers here. Each step's
+        // collectLogsAndEmbeds already drains those buffers as part of its normal lifecycle,
+        // so by afterScenario the buffers are naturally empty. For beforeScenario specifically,
+        // anything karate-config.js produced (karate.log, karate.embed, karate.call /
+        // karate.callSingle) sits in those buffers — preserving them means the hook's
+        // synthetic step absorbs that config-time output instead of dropping it (issue #2840).
         LogContext ctx = LogContext.get();
-        ctx.collect();
-        ctx.collectEmbeds();
 
         Throwable err = invokeHook(hookRef, hookName);
 
