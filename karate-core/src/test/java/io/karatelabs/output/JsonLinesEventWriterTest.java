@@ -225,6 +225,8 @@ class JsonLinesEventWriterTest {
         assertEquals(0, ((Number) summary.get("scenariosFailed")).intValue());
         assertEquals(100, ((Number) summary.get("passedRate")).intValue());
         assertTrue(summary.containsKey("durationMillis"));
+        assertTrue(((Number) summary.get("durationMillis")).longValue() >= 0,
+                "durationMillis in SUITE_EXIT must not be negative");
     }
 
     @Test
