@@ -119,7 +119,7 @@ already work as string stand-ins.
 | `test/built-ins/RegExp/**` | ~370 | Down ~20 from `RegExp.escape` landing. `Symbol.{match,replace,search,split,matchAll}` (Symbol-gated), parser edges, named-groups feature-gated. |
 | `test/built-ins/String/**` | ~380 | `substring` / `lastIndexOf` / `charAt` ToInteger corners, parser-blocked tests, Symbol-gated tail. See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
 | `test/built-ins/Object/**` | ~270 | Descriptor edges, `seal` (TypedArray-feature-gated), Annex-B `arguments` aliasing (deferred). See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
-| `test/built-ins/JSON/**` | 106 | JSON.parse delegates to `json-smart` (permissive); spec-strict pre-validation needed. ~26 "Expected SyntaxError" + 4 StackOverflow cluster. 1–2 h. |
+| `test/built-ins/JSON/**` | 74 | JSON.parse now spec-strict via own `JsonParser` (replaced json-smart 2026-05-12 — +31 PASS on parse slice). Remaining: mostly JSON.stringify reviver/replacer 2-arg semantics, plus a small parser tail (`text-negative-zero.js`: `-0` returns Integer 0 by deliberate json-smart parity; `S15.12.2_A1.js`: `__proto__` key shouldn't shadow proto). Calibration follow-up: run JSONTestSuite — see [JS_ENGINE.md § Future TODO Items](../docs/JS_ENGINE.md#2-future-todo-items). |
 | `test/built-ins/Number/**` | ~20 | Effectively drained — only `[object Number]` (Symbol-gated) + a literal-form parser edge remain. |
 | `test/built-ins/Date/**` | ~9 | Effectively drained — ISO format edges + invalid-date propagation. See [JS_ENGINE.md § Date](../docs/JS_ENGINE.md#date). |
 | `test/built-ins/Symbol/**` + cascades | (parked) | Symbol primitive — `typeof === "symbol"`, identity, `Symbol.for` / `keyFor` / `description`, `Object.getOwnPropertySymbols`. **Deprioritized:** no real-world code uses it; the value is unblocking Symbol-gated tails in slices above, which are now small percentages. Pick up after the language work. |
@@ -552,7 +552,7 @@ regressions compound into minutes of wall time. **Prefer profile mode** — the
 mvn -pl karate-js -q test-compile
 
 # Profile mode (30 s warm loop; JIT-stable, ~16k iterations averaged).
-java -cp "karate-js/target/classes:karate-js/target/test-classes:$(find ~/.m2/repository -name 'slf4j-api-*.jar' | head -1):$(find ~/.m2/repository -name 'json-smart-*.jar' | head -1):$(find ~/.m2/repository -name 'accessors-smart-*.jar' | head -1):$(find ~/.m2/repository -name 'asm-9*.jar' | grep -v asm-tree | grep -v asm-commons | head -1)" \
+java -cp "karate-js/target/classes:karate-js/target/test-classes:$(find ~/.m2/repository -name 'slf4j-api-*.jar' | head -1)" \
     io.karatelabs.parser.EngineBenchmark profile
 
 # Fast mode (median of 10 cold runs) — noisy, gut-check only

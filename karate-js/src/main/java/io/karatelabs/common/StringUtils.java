@@ -25,10 +25,9 @@ package io.karatelabs.common;
 
 import io.karatelabs.js.JsFunction;
 import io.karatelabs.js.JsValue;
+import io.karatelabs.js.JsonParser;
 import io.karatelabs.js.ObjectLike;
 import io.karatelabs.js.Terms;
-import net.minidev.json.JSONStyle;
-import net.minidev.json.JSONValue;
 
 import java.io.*;
 import java.security.SecureRandom;
@@ -486,11 +485,10 @@ public class StringUtils {
     public static String formatJson(Object o, boolean pretty, boolean lenient, boolean sort, String indent) {
         if (o instanceof String ostring) {
             if (StringUtils.looksLikeJson(ostring)) {
-                if (sort) { // dont care about order in first phase
-                    o = JSONValue.parse(ostring);
-                } else {
-                    o = JSONValue.parseKeepingOrder(ostring);
-                }
+                // strict RFC 8259 — replaces json-smart parseKeepingOrder/parse.
+                // The `sort` flag controls Map ordering during formatting below;
+                // parse always yields a LinkedHashMap (insertion order).
+                o = JsonParser.parse(ostring);
             } else {
                 return ostring;
             }
@@ -674,8 +672,66 @@ public class StringUtils {
         return JS_IDENTIFIER_PATTERN.matcher(key).matches();
     }
 
+    // Strict JSON string escape, matching the surface json-smart's
+    // JSONStyle.LT_COMPRESS produced for karate-js:
+    //   " and \ → escaped; 0x08/09/0A/0C/0D → named escapes b/t/n/f/r;
+    //   other 0x00..0x1F → four-hex u-escape (uppercase);
+    //   0x7F and 0x80..0x9F → four-hex u-escape;
+    //   U+2028 / U+2029 → four-hex u-escape (these break JS string literals
+    //   if left raw, even though they're valid in JSON itself).
+    // Note: contrary to the legacy name, LT_COMPRESS does NOT escape < > or /.
     private static String escapeJsonValue(String raw) {
-        return JSONValue.escape(raw, JSONStyle.LT_COMPRESS);
+        if (raw == null) {
+            return null;
+        }
+        int len = raw.length();
+        // fast path: scan to find first char that needs escaping
+        int i = 0;
+        while (i < len) {
+            char c = raw.charAt(i);
+            if (c < 0x20 || c == '"' || c == '\\' || (c >= 0x7F && c <= 0x9F) || c == 0x2028 || c == 0x2029) {
+                break;
+            }
+            i++;
+        }
+        if (i == len) {
+            return raw;
+        }
+        StringBuilder sb = new StringBuilder(len + 16);
+        sb.append(raw, 0, i);
+        for (; i < len; i++) {
+            char c = raw.charAt(i);
+            switch (c) {
+                case '"':
+                    sb.append("\\\"");
+                    break;
+                case '\\':
+                    sb.append("\\\\");
+                    break;
+                case '\b':
+                    sb.append("\\b");
+                    break;
+                case '\t':
+                    sb.append("\\t");
+                    break;
+                case '\n':
+                    sb.append("\\n");
+                    break;
+                case '\f':
+                    sb.append("\\f");
+                    break;
+                case '\r':
+                    sb.append("\\r");
+                    break;
+                default:
+                    if (c < 0x20 || (c >= 0x7F && c <= 0x9F) || c == 0x2028 || c == 0x2029) {
+                        sb.append(String.format("\\u%04X", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+            }
+        }
+        return sb.toString();
     }
 
 }

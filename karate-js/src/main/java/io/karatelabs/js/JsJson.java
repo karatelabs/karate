@@ -24,7 +24,6 @@
 package io.karatelabs.js;
 
 import io.karatelabs.common.StringUtils;
-import net.minidev.json.JSONValue;
 
 import java.math.BigInteger;
 import java.util.LinkedHashMap;
@@ -170,7 +169,7 @@ public class JsJson extends JsObject {
     }
 
     private static JsInvokable parse() {
-        return args -> JSONValue.parseKeepingOrder((String) args[0]);
+        return args -> JsonParser.parse((String) args[0]);
     }
 
 }

@@ -23,8 +23,6 @@
  */
 package io.karatelabs.js;
 
-import net.minidev.json.JSONValue;
-
 import java.lang.reflect.*;
 import java.util.*;
 
@@ -420,6 +418,24 @@ public class JavaUtils {
         return types.length == args.length;
     }
 
+    /**
+     * Deliberately thin Java-bean → Map conversion. Used by
+     * {@link JavaObject#toMap()} when JS code does {@code Object.keys(bean)}
+     * or {@code JSON.stringify(bean)} against a host object.
+     *
+     * <p>Pass-through for the JSON-shape types (Map, List/Array, String,
+     * Number, Boolean, null). For anything else, a shallow public-getter +
+     * public-field walk produces a {@link LinkedHashMap}. This is enough for
+     * debugging/inspection of plain POJOs; it does NOT replicate the json-smart
+     * ASM bean unpacker's full surface (Lombok beans, JPA entities with
+     * side-effecting getters, JDK temporals, Optional, Enum/BigDecimal coercion,
+     * {@code byte[]} → base64, etc.).
+     *
+     * <p>Consumers needing the rich surface (e.g. karate-core, which still
+     * depends on json-smart) should convert Java objects to Map/List at the
+     * bind boundary before they reach karate-js, rather than expanding this
+     * stub.
+     */
     @SuppressWarnings("unchecked")
     static Object toMap(Object object) {
         if (object == null) {
@@ -431,12 +447,76 @@ public class JavaUtils {
             map.forEach((k, v) -> result.put(k, toMap(v)));
             return result;
         }
-        if (object instanceof String || object instanceof Number || object instanceof Boolean) {
+        if (object instanceof List) {
+            List<Object> list = (List<Object>) object;
+            List<Object> result = new ArrayList<>(list.size());
+            for (Object v : list) {
+                result.add(toMap(v));
+            }
+            return result;
+        }
+        if (object.getClass().isArray()) {
+            int n = Array.getLength(object);
+            List<Object> result = new ArrayList<>(n);
+            for (int i = 0; i < n; i++) {
+                result.add(toMap(Array.get(object, i)));
+            }
+            return result;
+        }
+        if (object instanceof String || object instanceof Number || object instanceof Boolean
+                || object instanceof Character) {
             return object;
         }
-        // using json-smart asm based java-bean unpacking
-        String json = JSONValue.toJSONString(object);
-        return JSONValue.parse(json);
+        return beanToMap(object);
+    }
+
+    private static Map<String, Object> beanToMap(Object object) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        Class<?> clazz = object.getClass();
+        // public getters (getXxx / isXxx — exclude getClass)
+        for (Method m : clazz.getMethods()) {
+            if (m.getParameterCount() != 0) continue;
+            if (Modifier.isStatic(m.getModifiers())) continue;
+            if (m.getDeclaringClass() == Object.class) continue;
+            String name = m.getName();
+            String prop;
+            if (name.startsWith("get") && name.length() > 3 && !"getClass".equals(name)) {
+                prop = decapitalize(name.substring(3));
+            } else if (name.startsWith("is") && name.length() > 2
+                    && (m.getReturnType() == boolean.class || m.getReturnType() == Boolean.class)) {
+                prop = decapitalize(name.substring(2));
+            } else {
+                continue;
+            }
+            try {
+                Object value = m.invoke(object);
+                result.put(prop, value == object ? null : toMap(value));
+            } catch (Exception e) {
+                // skip getters that fail — keep the walk best-effort
+            }
+        }
+        // public fields (e.g. final public fields not covered by a getter)
+        for (Field f : clazz.getFields()) {
+            if (Modifier.isStatic(f.getModifiers())) continue;
+            String name = f.getName();
+            if (result.containsKey(name)) continue;
+            try {
+                Object value = f.get(object);
+                result.put(name, value == object ? null : toMap(value));
+            } catch (Exception e) {
+                // skip
+            }
+        }
+        return result;
+    }
+
+    private static String decapitalize(String s) {
+        if (s.isEmpty()) return s;
+        // matches java.beans.Introspector.decapitalize: leave "URL" / "FOO" alone
+        if (s.length() > 1 && Character.isUpperCase(s.charAt(1)) && Character.isUpperCase(s.charAt(0))) {
+            return s;
+        }
+        return Character.toLowerCase(s.charAt(0)) + s.substring(1);
     }
 
     static Object convertIfArray(Object o) {

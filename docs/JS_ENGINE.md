@@ -2346,3 +2346,21 @@ public final class JsUndefined implements JsValue {
 - Multi-frame call stack still TODO — would track function entry/exit
   in `Interpreter.evalFnCall`, stash name + source on `CoreContext`,
   and capture the chain on throw. Priority: medium.
+
+**JsonParser confidence — run JSONTestSuite**
+- `JsonParser` (replaced json-smart) is currently validated by
+  `JsonParserTest` (~50 inputs) and the test262 `JSON/parse` slice
+  (51 pass / 16 fail; the 16 are reviver/engine-level, not parser-shape).
+- test262 is an ECMAScript-interface oracle, not a JSON-format oracle.
+  The canonical JSON-format conformance corpus is Nicolas Seriot's
+  [JSONTestSuite](https://github.com/nst/JSONTestSuite) (~318 hand-curated
+  inputs: `y_*` definitely-valid, `n_*` definitely-invalid, `i_*`
+  implementation-defined). It surfaces parser disagreements test262
+  doesn't reach: BOM handling, numbers at precision boundaries,
+  pathological whitespace, ambiguous Unicode.
+- Action: add a `JsonTestSuiteRunner` test that walks the three
+  directories and asserts per-file (y_=accept, n_=reject, i_=record-
+  disposition). Pin scores against the previous json-smart behavior to
+  flag any drift. ~30 min of work; closes the "handles JSON in the wild"
+  confidence gap. Priority: low (parser is already production-shape; this
+  is calibration, not bug-hunting).

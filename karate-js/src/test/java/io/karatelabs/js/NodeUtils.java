@@ -1,9 +1,9 @@
 package io.karatelabs.js;
 
+import io.karatelabs.common.StringUtils;
 import io.karatelabs.parser.Node;
 import io.karatelabs.parser.NodeType;
 import io.karatelabs.parser.TokenType;
-import net.minidev.json.JSONValue;
 import org.junit.jupiter.api.Assertions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,12 +18,220 @@ public class NodeUtils {
 
     static final Logger logger = LoggerFactory.getLogger(NodeUtils.class);
 
+    /**
+     * Lenient JSON-ish parser for test expectations. Mirrors json-smart's
+     * {@code JSONValue.parse} accept surface so legacy NodeUtils.match calls
+     * keep working:
+     * <ul>
+     *   <li>strict JSON (RFC 8259) shapes
+     *   <li>single-quoted strings
+     *   <li>unquoted identifier keys (incl. {@code $foo})
+     *   <li>top-level bare tokens treated as String literals
+     *   <li>array/object elements that aren't a JSON shape treated as
+     *       trimmed string values (everything up to the next {@code ,]}/{@code }})
+     * </ul>
+     */
     public static <T> T fromJson(String s) {
-        return (T) JSONValue.parse(s);
+        if (s == null) return null;
+        return (T) new LenientJsonParser(s).parseTop();
     }
 
     public static String toJson(Object o) {
-        return JSONValue.toJSONString(o);
+        return StringUtils.formatJson(o, false, false, false);
+    }
+
+    private static final class LenientJsonParser {
+        private final String s;
+        private final int len;
+        private int p;
+
+        LenientJsonParser(String s) {
+            this.s = s;
+            this.len = s.length();
+        }
+
+        Object parseTop() {
+            skipWs();
+            if (p >= len) return "";
+            char c = s.charAt(p);
+            if (c == '[' || c == '{' || c == '"' || c == '\'') {
+                return value();
+            }
+            // Bare top-level token. json-smart parses single tokens that look
+            // numeric / true / false / null as their typed values; everything
+            // else (including comma-bearing input like "1,2,3") is the raw
+            // input as a String.
+            return interpretBare(s);
+        }
+
+        // value when nested inside an array/object — supports unquoted bare tokens.
+        // Stops at the boundary char in `terminators` (e.g. ",]" or ",}").
+        private Object valueOrBare(String terminators) {
+            skipWs();
+            if (p >= len) throw new RuntimeException("unexpected end at " + p + " in: " + s);
+            char c = s.charAt(p);
+            if (c == '{' || c == '[' || c == '"' || c == '\'') {
+                return value();
+            }
+            // bare token: read until terminator, treat trim-result as string
+            // unless it parses as a number / true / false / null.
+            int start = p;
+            int depth = 0;
+            while (p < len) {
+                char ch = s.charAt(p);
+                if (depth == 0 && terminators.indexOf(ch) >= 0) break;
+                if (ch == '[' || ch == '{') depth++;
+                else if (ch == ']' || ch == '}') depth--;
+                p++;
+            }
+            String tok = s.substring(start, p).trim();
+            return interpretBare(tok);
+        }
+
+        private Object value() {
+            char c = s.charAt(p);
+            if (c == '{') return obj();
+            if (c == '[') return arr();
+            if (c == '"' || c == '\'') return str(c);
+            // shouldn't reach here from parseTop / valueOrBare
+            throw new RuntimeException("unexpected '" + c + "' at " + p + " in: " + s);
+        }
+
+        private static Object interpretBare(String tok) {
+            if (tok.isEmpty()) return tok;
+            switch (tok) {
+                case "true": return Boolean.TRUE;
+                case "false": return Boolean.FALSE;
+                case "null": return null;
+                default:
+                    if (looksNumeric(tok)) {
+                        try {
+                            if (tok.contains(".") || tok.contains("e") || tok.contains("E")) {
+                                return Double.parseDouble(tok);
+                            }
+                            long v = Long.parseLong(tok);
+                            if (v >= Integer.MIN_VALUE && v <= Integer.MAX_VALUE) return (int) v;
+                            return v;
+                        } catch (NumberFormatException nfe) {
+                            // fall through — treat as string
+                        }
+                    }
+                    return tok;
+            }
+        }
+
+        private static boolean looksNumeric(String tok) {
+            int i = 0, n = tok.length();
+            if (i < n && tok.charAt(i) == '-') i++;
+            if (i >= n) return false;
+            // require at least one digit before any other numeric char
+            if (tok.charAt(i) < '0' || tok.charAt(i) > '9') return false;
+            for (; i < n; i++) {
+                char c = tok.charAt(i);
+                if ((c < '0' || c > '9') && c != '.' && c != 'e' && c != 'E' && c != '+' && c != '-') {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private Map<String, Object> obj() {
+            p++;
+            Map<String, Object> m = new java.util.LinkedHashMap<>();
+            skipWs();
+            if (p < len && s.charAt(p) == '}') { p++; return m; }
+            while (true) {
+                skipWs();
+                String key = keyName();
+                skipWs();
+                if (p >= len || s.charAt(p) != ':') throw new RuntimeException("expected ':' at " + p + " in: " + s);
+                p++;
+                m.put(key, valueOrBare(",}"));
+                skipWs();
+                if (p >= len) throw new RuntimeException("unterminated object at " + p + " in: " + s);
+                char c = s.charAt(p);
+                if (c == ',') { p++; continue; }
+                if (c == '}') { p++; return m; }
+                throw new RuntimeException("expected ',' or '}' at " + p + " in: " + s);
+            }
+        }
+
+        private List<Object> arr() {
+            p++;
+            List<Object> list = new ArrayList<>();
+            skipWs();
+            if (p < len && s.charAt(p) == ']') { p++; return list; }
+            while (true) {
+                list.add(valueOrBare(",]"));
+                skipWs();
+                if (p >= len) throw new RuntimeException("unterminated array at " + p + " in: " + s);
+                char c = s.charAt(p);
+                if (c == ']') { p++; return list; }
+                // matches json-smart's permissive accept: skip an optional ',' and
+                // keep reading elements. Two adjacent quoted/array values without
+                // a comma become two list elements.
+                if (c == ',') p++;
+            }
+        }
+
+        private String keyName() {
+            if (p >= len) throw new RuntimeException("expected key at " + p);
+            char c = s.charAt(p);
+            if (c == '"' || c == '\'') return str(c);
+            // unquoted: read identifier-ish (letters/digits/_/$/.)
+            int start = p;
+            while (p < len) {
+                char ch = s.charAt(p);
+                if (Character.isLetterOrDigit(ch) || ch == '_' || ch == '$' || ch == '-' || ch == '.') p++;
+                else break;
+            }
+            if (start == p) throw new RuntimeException("expected key at " + p + " in: " + s);
+            return s.substring(start, p);
+        }
+
+        private String str(char q) {
+            p++;
+            StringBuilder sb = new StringBuilder();
+            while (p < len) {
+                char c = s.charAt(p);
+                if (c == q) { p++; return sb.toString(); }
+                if (c == '\\') {
+                    p++;
+                    if (p >= len) throw new RuntimeException("dangling escape");
+                    char e = s.charAt(p++);
+                    switch (e) {
+                        case '"': sb.append('"'); break;
+                        case '\'': sb.append('\''); break;
+                        case '\\': sb.append('\\'); break;
+                        case '/': sb.append('/'); break;
+                        case 'b': sb.append('\b'); break;
+                        case 'f': sb.append('\f'); break;
+                        case 'n': sb.append('\n'); break;
+                        case 'r': sb.append('\r'); break;
+                        case 't': sb.append('\t'); break;
+                        case 'u': {
+                            if (p + 4 > len) throw new RuntimeException("bad \\u escape");
+                            sb.append((char) Integer.parseInt(s.substring(p, p + 4), 16));
+                            p += 4;
+                            break;
+                        }
+                        default: sb.append(e);
+                    }
+                } else {
+                    sb.append(c);
+                    p++;
+                }
+            }
+            throw new RuntimeException("unterminated string");
+        }
+
+        private void skipWs() {
+            while (p < len) {
+                char c = s.charAt(p);
+                if (c == ' ' || c == '\t' || c == '\n' || c == '\r') p++;
+                else return;
+            }
+        }
     }
 
     public static void match(Object actual, String json) {
