@@ -528,6 +528,18 @@ public class KarateJs extends KarateJsBase implements PerfContext {
     @SuppressWarnings("unchecked")
     private JavaInvokable set() {
         return args -> {
+            // v1 bulk form: karate.set(map) sets each top-level key as a variable.
+            // Common pattern is `karate.set(read('classpath:settings.json'))`
+            // to load a settings file into scope. Issue #2842.
+            if (args.length == 1) {
+                if (args[0] instanceof Map<?, ?> bulk) {
+                    for (Map.Entry<?, ?> e : bulk.entrySet()) {
+                        engine.put(e.getKey() + "", e.getValue());
+                    }
+                    return null;
+                }
+                throw new RuntimeException("set() with a single argument expects a Map / JSON object");
+            }
             if (args.length < 2) {
                 throw new RuntimeException("set() needs at least two arguments: name and value");
             }

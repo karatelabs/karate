@@ -318,6 +318,38 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    // Issue #2842 — v1 bulk form: a single Map argument sets each top-level
+    // key as a variable. Common pattern is `karate.set(read('settings.json'))`.
+    @Test
+    void testKarateSetBulkFromMap() {
+        ScenarioRuntime sr = run("""
+            * karate.set({ first: 1, second: 'two', third: { nested: true } })
+            * match first == 1
+            * match second == 'two'
+            * match third == { nested: true }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateSetBulkOverwritesExisting() {
+        ScenarioRuntime sr = run("""
+            * def first = 'old'
+            * karate.set({ first: 'new', second: 99 })
+            * match first == 'new'
+            * match second == 99
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateSetSingleArgNonMapFails() {
+        ScenarioRuntime sr = run("""
+            * karate.set('just-a-string')
+            """);
+        assertFailed(sr);
+    }
+
     // ========== karate.forEach / map / filter ==========
 
     @Test

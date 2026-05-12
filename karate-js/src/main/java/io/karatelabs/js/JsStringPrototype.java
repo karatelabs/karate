@@ -63,6 +63,7 @@ class JsStringPrototype extends Prototype {
         install("repeat", 1, this::repeat);
         install("slice", 2, this::slice);
         install("substring", 2, this::substring);
+        install("substr", 2, this::substr);
         install("toLowerCase", 0, this::toLowerCase);
         install("toUpperCase", 0, this::toUpperCase);
         install("trim", 0, this::trim);
@@ -329,6 +330,30 @@ class JsStringPrototype extends Prototype {
             endIndex = temp;
         }
         return s.substring(beginIndex, endIndex);
+    }
+
+    // Annex B §B.2.2.1 — legacy String.prototype.substr(start, length).
+    // Kept for v1 parity (issue #2842): widely used in older test suites
+    // (e.g. `id.substr(-4)`), and modern engines still expose it.
+    //   - Negative `start` → max(len + start, 0).
+    //   - `length` defaults to len - start, clamped to [0, len - start].
+    //   - `length <= 0` (or NaN) returns "".
+    private Object substr(Context context, Object[] args) {
+        String s = thisString(context, "substr");
+        int len = s.length();
+        int start = argInt(args, 0, 0);
+        if (start < 0) start = Math.max(len + start, 0);
+        if (start >= len) return "";
+        int defaultLength = len - start;
+        int length;
+        if (args.length > 1 && args[1] != null && args[1] != Terms.UNDEFINED) {
+            length = argInt(args, 1, defaultLength);
+        } else {
+            length = defaultLength;
+        }
+        if (length <= 0) return "";
+        int end = Math.min(start + length, len);
+        return s.substring(start, end);
     }
 
     private Object toLowerCase(Context context, Object[] args) {

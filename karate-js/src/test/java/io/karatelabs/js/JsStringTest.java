@@ -140,6 +140,16 @@ class JsStringTest extends EvalBase {
         assertEquals("bar", eval("a = 'foobar'; a.substring(3)"));
         assertEquals("ob", eval("a = 'foobar'; a.substring(2, 4)"));
         assertEquals("oob", eval("a = 'foobar'; a.substring(4, 1)"));  // should swap indices
+        // Annex B substr — kept for legacy / v1 parity (issue #2842)
+        assertEquals("bar", eval("a = 'foobar'; a.substr(3)"));
+        assertEquals("oba", eval("a = 'foobar'; a.substr(2, 3)"));
+        assertEquals("obar", eval("a = 'foobar'; a.substr(-4)"));
+        assertEquals("oba", eval("a = 'foobar'; a.substr(-4, 3)"));
+        assertEquals("foobar", eval("a = 'foobar'; a.substr(-99)"));      // start clamps to 0
+        assertEquals("", eval("a = 'foobar'; a.substr(10)"));               // start past end
+        assertEquals("", eval("a = 'foobar'; a.substr(2, 0)"));             // zero length
+        assertEquals("", eval("a = 'foobar'; a.substr(2, -1)"));            // negative length
+        assertEquals("obar", eval("a = 'foobar'; a.substr(2, 99)"));        // length past end clamps
         assertEquals("foobar", eval("a = 'FOOBAR'; a.toLowerCase()"));
         assertEquals("FOOBAR", eval("a = 'foobar'; a.toUpperCase()"));
         assertEquals("foo", eval("a = '  foo  '; a.trim()"));
