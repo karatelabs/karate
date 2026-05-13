@@ -323,10 +323,15 @@ public class Suite {
                 runSequential();
             }
 
+            // set end time before firing SUITE_EXIT so the event carries a valid durationMillis
+            result.setEndTime(System.currentTimeMillis());
+
             // Fire SUITE_EXIT event
             fireEvent(SuiteRunEvent.exit(this, result));
         } finally {
-            result.setEndTime(System.currentTimeMillis());
+            if (result.getEndTime() == 0) {
+                result.setEndTime(System.currentTimeMillis());
+            }
 
             // Shutdown driver provider if one exists
             if (driverProvider != null) {

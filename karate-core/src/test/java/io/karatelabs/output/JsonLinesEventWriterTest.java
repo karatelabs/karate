@@ -193,7 +193,7 @@ class JsonLinesEventWriterTest {
 
         Path reportDir = tempDir.resolve("reports");
 
-        Runner.path(feature.toString())
+        SuiteResult result = Runner.path(feature.toString())
                 .workingDir(tempDir)
                 .outputDir(reportDir)
                 .outputJsonLines(true)
@@ -224,7 +224,12 @@ class JsonLinesEventWriterTest {
         assertEquals(2, ((Number) summary.get("scenariosPassed")).intValue());
         assertEquals(0, ((Number) summary.get("scenariosFailed")).intValue());
         assertEquals(100, ((Number) summary.get("passedRate")).intValue());
-        assertTrue(summary.containsKey("durationMillis"));
+        long duration = ((Number) summary.get("durationMillis")).longValue();
+        assertTrue(duration >= 0, "durationMillis in SUITE_EXIT must not be negative");
+        // endTime is set exactly once — before SUITE_EXIT fires — so the event's duration
+        // must match what survives to the returned SuiteResult (regression guard for #2843)
+        assertEquals(result.getDurationMillis(), duration,
+                "SUITE_EXIT durationMillis should match the in-memory SuiteResult");
     }
 
     @Test
