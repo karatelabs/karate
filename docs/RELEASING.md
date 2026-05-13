@@ -25,15 +25,38 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
 
 - [ ] Go to https://github.com/karatelabs/karate/releases/new and create tag `vX.Y.Z` on the release form (target: `main`) — this creates the tag as part of publishing the release
 - [ ] Set the **release title** to `vX.Y.Z` explicitly (must match the tag) — if left blank, the GitHub UI defaults the title to the most recent commit message
-- [ ] Write release notes:
-  - Summary of important fixes / features
-  - Link to the milestone: `https://github.com/karatelabs/karate/milestone/NN?closed=1`
-  - Full changelog link: `https://github.com/karatelabs/karate/compare/vPREVIOUS...vX.Y.Z`
-  - Reference to the 2.0.0 migration guide if applicable
-- [ ] Upload release assets:
+- [ ] Write release notes following the template below — one-line bullets, issue refs at the end (e.g. `#2843`), milestone link, compare link, 2.0.0 migration note, then `### Artifacts`. See [v2.0.8](https://github.com/karatelabs/karate/releases/tag/v2.0.8) / [v2.0.9](https://github.com/karatelabs/karate/releases/tag/v2.0.9) for reference renderings.
+
+  ```markdown
+  ## Important Fixes
+  * <one-line description of the fix, ending with the issue ref> #NNNN
+  * ...
+
+  ## New Features & Enhancements
+  * <one-line description — issue ref optional, only when there's a tracking issue>
+  * ...
+
+  View the complete list of [all issues fixed in this release](https://github.com/karatelabs/karate/milestone/NN?closed=1).
+
+  **Full Changelog**: https://github.com/karatelabs/karate/compare/vPREVIOUS...vX.Y.Z
+
+  **Important**: refer [2.0.0 release notes](https://github.com/karatelabs/karate/releases/tag/v2.0.0) for those upgrading from 1.X
+
+  ### Artifacts
+  * [Maven artifacts](https://central.sonatype.com/artifact/io.karatelabs/karate-core/X.Y.Z)
+  * [Standalone JAR](https://docs.karatelabs.io/getting-started/standalone-execution) (download below)
+  * CVE / SBOM report (download below)
+  ```
+
+  Style notes:
+  - **Important Fixes** = user-visible bugs, regressions, and v1→v2 parity restorations. Almost always carries an issue ref.
+  - **New Features & Enhancements** = additive changes, internal improvements, dep bumps worth surfacing. Issue ref optional.
+  - Keep each bullet to one line. Lead with the change, not the file/module. Put the issue ref at the end.
+  - Skip dependabot-only / chore-only releases of either section if there's nothing in it — don't ship empty headers.
+
+- [ ] Upload release assets (attach to the GitHub release):
   - `karate-X.Y.Z.jar` (fat jar)
   - `cve-sbom-report.html`
-- [ ] See [v2.0.1](https://github.com/karatelabs/karate/releases/tag/v2.0.1) for reference
 
 ## 4. Close Issues and Milestone
 
@@ -59,6 +82,7 @@ This is critical — the CLI installer pulls versions from this manifest.
   - Move the `stable` channel from the previous version to the new one
   - Update `channel_defaults.stable` to point to `X.Y.Z`
   - Update `generated_at` timestamp
+  - **Trim old entries** — keep only the new release + the previous two on the current major line (N, N-1, N-2), plus the latest `1.5.2` legacy anchor for v1 users. Drop everything else. The JARs stay on GitHub Releases either way; the manifest is just the installer's lookup index, so this only affects what `karate.sh` can resolve by version name.
 - [ ] Commit and push to `main` (Netlify auto-deploys)
 - [ ] Verify: `curl -s https://karate.sh/manifest.json | jq '.channel_defaults.stable'`
 - [ ] Refer to `../karate-sh/README.md` for full manifest schema details
