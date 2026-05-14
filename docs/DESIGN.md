@@ -263,7 +263,7 @@ public interface RunListenerFactory {
 
 ## Configuration
 
-`KarateConfig` is the single source of truth for every `configure ...` key — `proxy`, `ssl`, `readTimeout`, `connectTimeout`, `followRedirects`, `auth`, `retry`, `httpRetryEnabled`, `localAddress`, `charset`, `headers`, `cookies`, `logging`, `report`, `callSingleCache`, `driver`, lifecycle hooks, channel options (kafka/grpc/websocket), and execution flags. `KarateConfig.configure(key, value)` is the *only* place that parses key names; the HTTP client and `LogContext` are projections that read typed getters.
+`KarateConfig` is the single source of truth for every `configure ...` key — `proxy`, `ssl`, `readTimeout`, `connectTimeout`, `followRedirects`, `auth`, `retry`, `httpRetryEnabled`, `localAddress`, `charset`, `headers`, `cookies`, `logging`, `report`, `callSingleCache`, `driver`, `continueOnStepFailure`, lifecycle hooks, channel options (kafka/grpc/websocket), and execution flags. `KarateConfig.configure(key, value)` is the *only* place that parses key names; the HTTP client and `LogContext` are projections that read typed getters.
 
 ### Projection points
 
@@ -296,6 +296,22 @@ Mid-test `* configure ...` mutations are auto-snapshotted at scenario entry and 
 **Adding a new `configure` key:** add the field + typed getter to `KarateConfig`, add a `case` in `KarateConfig.configure(...)`, and if it affects HTTP client state, return `true` (rebuild required) and read it in `ApacheHttpClient.apply`. Nothing else dispatches on key name.
 
 **Source files:** `KarateConfig.java`, `HttpClient.java`, `ApacheHttpClient.apply`, `ScenarioRuntime.inheritConfigFromCaller` / `configure`, `StepExecutor.propagateFromCallee` / `applyCachedCallOnceResult`.
+
+### `configure continueOnStepFailure`
+
+Boolean. When `true`, a failing step (`match`, `assert`, also a `beforeScenario` hook throw) is *deferred* — the runtime records it but execution continues into the next step. When `false` (default), the first failure stops the scenario as usual.
+
+Semantics:
+
+- Only the **first** deferred failure's error is retained; later failures while the flag is `true` are continued past but do not overwrite the captured error.
+- Flipping the flag **back to `false`** mid-scenario with `* configure continueOnStepFailure = false` surfaces accumulated failures immediately at that step — subsequent steps do not run.
+- If the flag is still `true` at scenario end and any failure accumulated, the scenario is marked failed with the first captured error.
+- Honoured by the `beforeScenario` hook path (`ScenarioRuntime` line ~934): a hook throw does not stop the scenario when the flag is `true`.
+- Like every other `configure` key, snapshotted at scenario entry and restored on exit — does not leak across scenarios.
+
+**v2 simplification.** v1 had a per-keyword list (`continueAfter`); v2 is a plain boolean.
+
+**Source files:** `KarateConfig.continueOnStepFailure`, `ScenarioRuntime.call` (step loop + `configure` override).
 
 ---
 
