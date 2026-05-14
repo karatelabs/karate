@@ -129,6 +129,17 @@ Source: `ScenarioRuntime.isDryRunSkip()`, `KarateJs.isDryRun()`.
 
 ---
 
+## Match Engine
+
+`io.karatelabs.match` — operator set in `Operation` (EQUALS, CONTAINS, CONTAINS_DEEP, CONTAINS_ONLY, CONTAINS_ANY, WITHIN, EACH, etc.), driven from `Match.java`. Two notable behaviors:
+
+- **Full-tree failure collection.** A single `match` walks the entire actual/expected pair and **collects every mismatched path**, not just the first one. Each failure is a `Result.Failure` record (`path`, `reason`, `actualType`, `expectedType`, `actualValue`, `expectedValue`, `depth`). The structured list is rendered into the hierarchical message by `Operation.collectFailureReasons` and surfaced to reports via `Result.toMap()`. This is what makes "fix all mismatches in one iteration" possible — pairs naturally with `continueOnStepFailure` for the cross-step equivalent.
+- **Fuzzy markers in `Validators.java`.** `#string`, `#number`, `#regex(...)`, `#?<expr>`, `##` (optional), `#null` / `#notpresent`, cross-field `$` references, embedded JS predicates. The engine evaluates markers in place during the walk; no separate schema phase.
+
+**Source files:** `Match.java`, `Operation.java`, `Result.java`, `Value.java`, `Validators.java`, `MatchContext.java`.
+
+---
+
 ## System-Property Overrides
 
 `Runner.Builder.parallel()` applies CI overrides before execution (v1 parity). Reads `karate.options` (with `KARATE_OPTIONS` env fallback), plus `karate.env` and `karate.config.dir`, and overrides Builder values in place. The option string uses the `karate run` CLI grammar. Applied before `startDebugServerIfRequired`, so IDE debug launches inherit the merged state via `buildDebugArgs`. See [CLI.md](./CLI.md#system-properties--environment-variables). Source: `KarateOptionsHandler.java`.
