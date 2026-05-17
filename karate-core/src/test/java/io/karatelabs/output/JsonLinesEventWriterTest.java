@@ -227,9 +227,18 @@ class JsonLinesEventWriterTest {
         long duration = ((Number) summary.get("durationMillis")).longValue();
         assertTrue(duration >= 0, "durationMillis in SUITE_EXIT must not be negative");
         // endTime is set exactly once — before SUITE_EXIT fires — so the event's duration
-        // must match what survives to the returned SuiteResult (regression guard for #2843)
+        // must match what survives to the returned SuiteResult
         assertEquals(result.getDurationMillis(), duration,
                 "SUITE_EXIT durationMillis should match the in-memory SuiteResult");
+
+        long startTime = ((Number) summary.get("startTime")).longValue();
+        long endTime = ((Number) summary.get("endTime")).longValue();
+        assertEquals(result.getStartTime(), startTime,
+                "summary.startTime should match the in-memory SuiteResult");
+        assertEquals(result.getEndTime(), endTime,
+                "summary.endTime should match the in-memory SuiteResult");
+        assertEquals(duration, endTime - startTime,
+                "summary durationMillis must equal endTime - startTime");
     }
 
     @Test

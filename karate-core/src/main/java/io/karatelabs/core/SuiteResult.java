@@ -158,6 +158,8 @@ public class SuiteResult {
         summary.put("scenariosFailed", getScenarioFailedCount());
         summary.put("scenariosSkipped", getScenarioSkippedCount());
         summary.put("passedRate", getScenarioPassedRate());
+        summary.put("startTime", startTime);
+        summary.put("endTime", endTime);
         summary.put("durationMillis", getDurationMillis());
         summary.put("passed", !isFailed());
         map.put("summary", summary);
