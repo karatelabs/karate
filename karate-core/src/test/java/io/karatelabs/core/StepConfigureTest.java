@@ -28,6 +28,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -522,6 +523,72 @@ class StepConfigureTest {
         assertNotNull(calleeConfig, "called feature's client should have received a config");
         assertEquals("http://test-proxy:9999", calleeConfig.getProxyUri(),
                 "called feature's client should inherit proxy from parent context");
+    }
+
+    /**
+     * {@code * configure headers = ...} must own the request's header set: a
+     * scenario that sets {@code = null} or replaces the map should not leak the
+     * Background-set headers into the wire request. Multi-scenario + Background
+     * is the canonical repro — the bug only surfaces because the configure step
+     * fires twice per scenario (once in Background, once in the scenario body)
+     * without an intervening request to reset the request builder.
+     */
+    @Test
+    void testConfigureHeadersReplacesOrClearsBackgroundHeaders() throws Exception {
+        List<String> seenAuth = new ArrayList<>();
+        List<String> seenOther = new ArrayList<>();
+        InMemoryHttpClient.Factory factory = new InMemoryHttpClient.Factory(req -> {
+            seenAuth.add(req.getHeader("X-Custom-Auth"));
+            seenOther.add(req.getHeader("X-Different-Header"));
+            return InMemoryHttpClient.json("{ \"ok\": true }");
+        });
+
+        Path feature = tempDir.resolve("feature.feature");
+        Files.writeString(feature, """
+            Feature: configure headers ownership across Background
+
+            Background:
+            * configure headers = { 'X-Custom-Auth': 'Bearer token123' }
+            * url 'http://test'
+
+            Scenario: keeps Background headers when scenario does not touch them
+            * method get
+            * status 200
+
+            Scenario: clears Background headers with null
+            * configure headers = null
+            * method get
+            * status 200
+
+            Scenario: replaces Background headers with a new map
+            * configure headers = { 'X-Different-Header': 'new-value' }
+            * method get
+            * status 200
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(feature.toString())
+                .workingDir(tempDir)
+                .httpClientFactory(factory)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed(), "suite should pass");
+        assertEquals(3, seenAuth.size());
+
+        // Scenario 1: Background header reaches the wire
+        assertEquals("Bearer token123", seenAuth.get(0));
+        assertNull(seenOther.get(0));
+
+        // Scenario 2: `configure headers = null` clears the Background header
+        assertNull(seenAuth.get(1), "configure headers = null must clear Background-set headers");
+        assertNull(seenOther.get(1));
+
+        // Scenario 3: replacement map fully owns the header set — Background header is dropped
+        assertNull(seenAuth.get(2), "replacement configure headers must not retain Background headers");
+        assertEquals("new-value", seenOther.get(2));
     }
 
 }

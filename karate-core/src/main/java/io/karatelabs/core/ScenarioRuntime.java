@@ -1262,11 +1262,6 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         }
 
         // Additional side effects for specific keys
-        if ("headers".equals(key) && value instanceof Map) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> headers = (Map<String, Object>) value;
-            karate.http.headers(headers);
-        }
         if ("cookies".equals(key) && value == null) {
             // V1 compatibility: configure cookies = null should also clear the cookie jar
             clearCookieJar();
