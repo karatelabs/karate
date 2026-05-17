@@ -377,18 +377,10 @@ public class StepExecutor {
                 // Not a valid JS expression, fall through to feature call
             }
             if (evaluated instanceof JavaCallable fn) {
-                // It's a JS function - invoke it and store result
-                Object arg = null;
-                if (spaceIdx > 0) {
-                    String argExpr = callExpr.substring(spaceIdx + 1).trim();
-                    if (!argExpr.isEmpty()) {
-                        arg = runtime.eval(wrapJsonLikeExpression(argExpr));
-                        // V1 compatibility: process embedded expressions like #(var) in call arguments
-                        if (arg instanceof Map) {
-                            arg = processEmbeddedExpressions((Map<?, ?>) arg);
-                        }
-                    }
-                }
+                // It's a JS function - invoke it and store result.
+                // evalKarateExpression handles inline JSON with `#(...)`, lists,
+                // variables, and bare JS — single shared path for all call args.
+                Object arg = spaceIdx > 0 ? evalKarateExpression(callExpr.substring(spaceIdx + 1).trim()) : null;
                 Object result = arg != null
                         ? fn.call(null, new Object[]{arg})
                         : fn.call(null, new Object[0]);
@@ -2426,14 +2418,10 @@ public class StepExecutor {
                 // Not a valid JS expression, fall through to feature call
             }
             if (evaluated instanceof JavaCallable fn) {
-                // It's a JS function - invoke it
-                Object arg = null;
-                if (spaceIdx > 0) {
-                    String argExpr = text.substring(spaceIdx + 1).trim();
-                    if (!argExpr.isEmpty()) {
-                        arg = runtime.eval(wrapJsonLikeExpression(argExpr));
-                    }
-                }
+                // It's a JS function - invoke it. Route the arg through the same
+                // karate-expression entry point used everywhere else (handles
+                // inline JSON with `#(...)`, lists, variables, bare JS).
+                Object arg = spaceIdx > 0 ? evalKarateExpression(text.substring(spaceIdx + 1).trim()) : null;
                 Object result = arg != null
                         ? fn.call(null, arg)
                         : fn.call(null);
@@ -2537,11 +2525,9 @@ public class StepExecutor {
             throw new RuntimeException("expected Feature or FeatureCall, got: " + featureObj.getClass());
         }
 
-        // Parse argument expression if provided
-        Object argObj = null;
-        if (argExpr != null && !argExpr.isEmpty()) {
-            argObj = runtime.eval(wrapJsonLikeExpression(argExpr));
-        }
+        // Karate-expression eval handles inline JSON with embedded `#(...)`,
+        // arrays, variables, and bare JS uniformly.
+        Object argObj = argExpr == null ? null : evalKarateExpression(argExpr);
 
         // Check if it's an array loop call
         if (argObj instanceof List) {
@@ -2665,7 +2651,9 @@ public class StepExecutor {
 
         // Check if it's a read() call
         if (text.startsWith("read(")) {
-            int closeParen = text.indexOf(')');
+            // Quote- and nested-paren-aware close paren — handles read('foo)bar.feature')
+            // and inline JSON args that contain parens, e.g. { val: foo() }.
+            int closeParen = StepUtils.findReadCloseParen(text);
             if (closeParen > 0) {
                 // Extract path from read('path')
                 String readArg = text.substring(5, closeParen).trim();
@@ -2683,25 +2671,16 @@ public class StepExecutor {
                 // Parse tag selector from path
                 parsePathAndTag(rawPath, expr);
 
-                // Check for arguments after the read()
-                String remainder = text.substring(closeParen + 1).trim();
-                if (!remainder.isEmpty()) {
-                    // Evaluate as JS - could be an object literal, array, or variable
-                    Object argObj = runtime.eval(wrapJsonLikeExpression(remainder));
-                    if (argObj instanceof List) {
-                        // Array argument - for loop calls
-                        expr.argList = (List<?>) argObj;
-                    } else if (argObj instanceof Map) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> argMap = (Map<String, Object>) argObj;
-                        // Process embedded expressions in call arguments (e.g., { nodes: '#(nodes)' })
-                        Object processed = processEmbeddedExpressions(argMap);
-                        if (processed instanceof Map) {
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> processedMap = (Map<String, Object>) processed;
-                            expr.arg = processedMap;
-                        }
-                    }
+                // Karate-expression eval handles inline JSON with embedded `#(...)`
+                // (the V1 path — see evalKarateExpression). Variables and JS exprs
+                // also resolve here; embedded-expression walking is built in.
+                Object argObj = evalKarateExpression(text.substring(closeParen + 1).trim());
+                if (argObj instanceof List) {
+                    expr.argList = (List<?>) argObj;
+                } else if (argObj instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> argMap = (Map<String, Object>) argObj;
+                    expr.arg = argMap;
                 }
             }
         } else {

@@ -72,6 +72,31 @@ karate/
 - **Control:** `call`, `callonce`, `eval`, `doc`
 - **Config:** `configure` (ssl, proxy, timeouts, headers, cookies, auth, retry, report, etc.)
 
+## Karate-Expression Evaluation
+
+`StepExecutor.evalKarateExpression(String)` is the **single entry point** for any RHS that may be a Karate-specific (non-JS) expression. It dispatches on the leading token:
+
+| Prefix | Handler |
+|--------|---------|
+| `call ` / `callonce ` | Nested call (returns the result variable) |
+| `$` | `$.path` / `$varname[*].path` JSONPath |
+| `get ` / `get[N]` | get-expression on a named variable |
+| `<` | XML literal (+ embedded-expression walk) |
+| `/` or `//` | XPath on `response` |
+| `varname/xpath` | XPath on a named variable |
+| `{` or `[` | Relaxed JSON via `Json.parseLenient` (+ embedded-expression walk on the result) |
+| _other_ | JS eval (+ embedded-expression walk if result is Map or List) |
+
+The `{...}` / `[...]` branch is what lets `{ userId: #(userId) }` resolve embedded expressions without first surviving JS parsing — `Json.parseLenient` accepts `#(...)` as a string token, then `processEmbeddedExpressions` walks the result tree. To force ES6 / JS evaluation of a `{`-leading expression (e.g. shorthand `{ id }`, or values that aren't lenient-JSON-tokenisable), wrap in parens: `({ id })`.
+
+**Call-arg sites must use this entry point.** All four call-arg evaluation sites — `parseCallExpression` (read-based feature call), the JS-function branches in `executeCall` and `executeCallWithResult`, and `executeFeatureCall` — route their arg through `evalKarateExpression` so inline JSON with embedded `#(...)` resolves uniformly. Reaching for `runtime.eval(wrapJsonLikeExpression(...))` directly in a new call-related path is a regression bait — it bypasses the JSON+embedded branch and produces `ReferenceError: # is not defined` on unquoted placeholders (issue #2849).
+
+Splitting `read(path) arg` is **quote- and nested-paren-aware** via `StepUtils.findReadCloseParen` — paths containing `)` (inside quotes) and args containing parens (`{ val: foo() }`) both split correctly.
+
+**Source files:** `StepExecutor.evalKarateExpression`, `StepExecutor.processEmbeddedExpressions`, `StepUtils.findReadCloseParen` / `findCallArgSeparator`, `Json.parseLenient`.
+
+---
+
 ## Built-in Tags
 
 | Tag | Description |

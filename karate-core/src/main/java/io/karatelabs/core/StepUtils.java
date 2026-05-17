@@ -84,6 +84,35 @@ public class StepUtils {
     }
 
     /**
+     * Find the index of the `)` that matches the leading `read(` in {@code text},
+     * skipping anything inside single- or double-quoted strings and tracking
+     * nested parens. Returns -1 if {@code text} does not start with {@code read(}
+     * or no matching paren is found. Used to safely split {@code read(path) arg}
+     * even when the path contains characters like {@code )} inside quotes.
+     */
+    public static int findReadCloseParen(String text) {
+        if (!text.startsWith("read(")) return -1;
+        int parenDepth = 0;
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\'' && !inDoubleQuote) {
+                inSingleQuote = !inSingleQuote;
+            } else if (c == '"' && !inSingleQuote) {
+                inDoubleQuote = !inDoubleQuote;
+            }
+            if (inSingleQuote || inDoubleQuote) continue;
+            if (c == '(') parenDepth++;
+            else if (c == ')') {
+                parenDepth--;
+                if (parenDepth == 0) return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
      * Find the separator between call target and arguments in a call expression.
      * Handles quoted strings in read() calls, e.g., read('foo bar.js') arg
      *
@@ -91,26 +120,8 @@ public class StepUtils {
      */
     public static int findCallArgSeparator(String text) {
         if (text.startsWith("read(")) {
-            int parenDepth = 0;
-            boolean inSingleQuote = false;
-            boolean inDoubleQuote = false;
-            for (int i = 0; i < text.length(); i++) {
-                char c = text.charAt(i);
-                if (c == '\'' && !inDoubleQuote) {
-                    inSingleQuote = !inSingleQuote;
-                } else if (c == '"' && !inSingleQuote) {
-                    inDoubleQuote = !inDoubleQuote;
-                }
-                if (inSingleQuote || inDoubleQuote) continue;
-                if (c == '(') parenDepth++;
-                else if (c == ')') {
-                    parenDepth--;
-                    if (parenDepth == 0) {
-                        return text.indexOf(' ', i + 1);
-                    }
-                }
-            }
-            return -1;
+            int closeParen = findReadCloseParen(text);
+            return closeParen < 0 ? -1 : text.indexOf(' ', closeParen + 1);
         }
         return text.indexOf(' ');
     }

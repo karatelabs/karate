@@ -631,6 +631,159 @@ class StepCallTest {
     }
 
     @Test
+    void testCallFeatureWithUnquotedEmbeddedExpression() throws Exception {
+        // https://github.com/karatelabs/karate/issues/2849
+        // V1 accepted unquoted embedded expressions in inline call args, e.g.
+        //   call read('called.feature') { userId: #(userId) }
+        // (no quotes around #(userId)). In v2 this failed with `ReferenceError: # is not defined`
+        // because parseCallExpression evaluated the remainder as pure JS instead of going
+        // through the karate-expression path that recognises `{...}` as JSON-with-embedded.
+        Path calledFeature = tempDir.resolve("called.feature");
+        Files.writeString(calledFeature, """
+            Feature: Called
+            Scenario:
+            * def out = userId
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def userId = 1
+            * def result = call read('called.feature') { userId: #(userId) }
+            * match result.out == 1
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(),
+                "Unquoted #(...) in call arg should be resolved (issue #2849): " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallOnceFeatureWithUnquotedEmbeddedExpression() throws Exception {
+        // Same fix must apply to the callonce variant — both flow through parseCallExpression.
+        Path calledFeature = tempDir.resolve("called.feature");
+        Files.writeString(calledFeature, """
+            Feature: Called
+            Scenario:
+            * def out = userId
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def userId = 7
+            * def result = callonce read('called.feature') { userId: #(userId) }
+            * match result.out == 7
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(),
+                "Unquoted #(...) in callonce arg should be resolved: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallFunctionWithUnquotedEmbeddedExpression() throws Exception {
+        // The JS-function branch of executeCallWithResult also routes args through
+        // evalKarateExpression, so unquoted #(...) works for `call fun { ... }` too.
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def token = 'abc'
+            * def fun = function(arg){ return arg.token + '-' + arg.n }
+            * def result = call fun { token: #(token), n: 1 }
+            * match result == 'abc-1'
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(),
+                "Unquoted #(...) in `call fun {...}` should be resolved: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallByTagWithUnquotedEmbeddedExpression() throws Exception {
+        // call-by-tag (`read('file.feature@tag') {...}`) must work with unquoted #(...).
+        Path calledFeature = tempDir.resolve("called.feature");
+        Files.writeString(calledFeature, """
+            Feature: Tagged
+            @target
+            Scenario:
+            * def out = userId
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def userId = 99
+            * def result = call read('called.feature@target') { userId: #(userId) }
+            * match result.out == 99
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(),
+                "Unquoted #(...) in call-by-tag arg should be resolved: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallFeatureWithSpacesInPathAndInlineArg() throws Exception {
+        // Path with a space + inline JSON arg — exercises the quote-aware close-paren
+        // finder. Before the fix, parseCallExpression used indexOf(')') which works
+        // here but the surrounding wrapping-as-JS still broke embedded args.
+        Path calledFeature = tempDir.resolve("my feature.feature");
+        Files.writeString(calledFeature, """
+            Feature: With spaces
+            Scenario:
+            * def out = userId
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def userId = 42
+            * def result = call read('my feature.feature') { userId: #(userId) }
+            * match result.out == 42
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(),
+                "Path with spaces + inline arg should work: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallFeatureWithCloseParenInPath() throws Exception {
+        // Path containing `)` — proves the quote-aware close-paren scan beats
+        // the old naive indexOf(')'). Rare but legal.
+        Path calledFeature = tempDir.resolve("foo)bar.feature");
+        Files.writeString(calledFeature, """
+            Feature: Funky name
+            Scenario:
+            * def out = 'ok'
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def result = call read('foo)bar.feature')
+            * match result.out == 'ok'
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(),
+                "Path containing ')' should not confuse the call-arg splitter: " + getFailureMessage(result));
+    }
+
+    @Test
     void testCallReadJsWithSpacesInPath() throws Exception {
         // Tests that paths with spaces work correctly
         Path jsFile = tempDir.resolve("my function.js");
