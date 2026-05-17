@@ -81,6 +81,15 @@ public class Engine {
         return evalInternal(Resource.text(text), null);
     }
 
+    /**
+     * Parses JS source text into an AST {@link Node} without evaluating it.
+     * Exposed for tools (linters, formatters, AST patchers) that need source
+     * positions and structure but not execution.
+     */
+    public static Node parse(String text) {
+        return new JsParser(Resource.text(text)).parse();
+    }
+
     public Object evalWith(Node program, Map<String, Object> vars) {
         return evalInternal(program, vars);
     }

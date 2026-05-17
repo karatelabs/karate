@@ -1069,4 +1069,29 @@ class EngineTest {
         assertEquals(3.0, ((Number) e2.eval("var a = [1,2]; a.push(3); a.length")).doubleValue());
     }
 
+    @Test
+    void testParseReturnsAstWithPositions() {
+        // Engine.parse() is the public entry point for AST-aware tools (linters,
+        // formatters, AST patchers) that need source positions but not execution.
+        String src = "const lookup = {\n  base: 172,\n  rate: 'fast'\n};";
+        Node program = Engine.parse(src);
+        assertNotNull(program);
+        Node varStmt = program.findFirstChild(NodeType.VAR_STMT);
+        assertNotNull(varStmt);
+        Token first = varStmt.getFirstToken();
+        assertEquals(0, first.line);
+        assertTrue(first.pos >= 0);
+        String slice = varStmt.getTextIncludingWhitespace();
+        assertTrue(slice.startsWith("const lookup"));
+        assertTrue(slice.endsWith("}"));
+    }
+
+    @Test
+    void testParseSurfacesParserExceptionForBadSource() {
+        // Parse failures must propagate as ParserException so callers can render
+        // a structured error (line/col/message).
+        assertThrows(io.karatelabs.parser.ParserException.class,
+                () -> Engine.parse("const x = ;"));
+    }
+
 }
