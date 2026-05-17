@@ -392,6 +392,33 @@ class StepHttpTest {
         assertPassed(sr);
     }
 
+    @Test
+    void testOutlineDocStringWithTypeHintReachesRequestBody() {
+        // https://github.com/karatelabs/karate/issues/2847
+        // Verifies that <column> substitution inside a `request` doc-string
+        // works with the `!` type-hint (which used to NPE during outline expansion)
+        // AND that the substituted values actually reach the HTTP request body.
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> json(req.getBodyString()));
+
+        ScenarioRuntime sr = runFeature(client, """
+            Feature:
+
+            Scenario Outline:
+            * url 'http://test'
+            * request
+            \"\"\"
+            { firstName: <firstName>, lastName: <lastName>, active: <active> }
+            \"\"\"
+            * method post
+            * match response == { firstName: <firstName>, lastName: <lastName>, active: <active> }
+
+            Examples:
+            | firstName! | lastName! | active! |
+            | 'Bob'      | 'Jones'   | false   |
+            """);
+        assertPassed(sr);
+    }
+
     // ========== Embedded Expression Tests ==========
     // Tests for V1 compatibility: embedded expressions like #(varName) in JSON literals
 

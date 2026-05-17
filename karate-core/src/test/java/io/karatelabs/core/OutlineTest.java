@@ -330,6 +330,39 @@ public class OutlineTest {
     }
 
     @Test
+    void testOutlinePlaceholderInDocStringWithTypeHint() throws Exception {
+        // https://github.com/karatelabs/karate/issues/2847
+        // A step whose only content is the keyword (e.g. `request`) followed by a doc-string
+        // produces step.text == null. Outline expansion then NPE'd on text.replace(...).
+        Path feature = tempDir.resolve("outline-docstring-typehint.feature");
+        Files.writeString(feature, """
+            Feature: Type-hint in doc-string
+
+            Scenario Outline: Type-hint with angle-bracket in doc-string
+            Given url 'https://example.com'
+            And path 'post'
+            And request
+            \"\"\"
+            {
+              firstName: <firstName>,
+              lastName: <lastName>,
+              active: <active>
+            }
+            \"\"\"
+
+            Examples:
+            | firstName! | lastName! | active! |
+            | 'Alice'    | 'Smith'   | true    |
+            | 'Bob'      | 'Jones'   | false   |
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+
+        assertTrue(result.isPassed(), getFailureMessage(result));
+        assertEquals(2, result.getScenarioPassedCount());
+    }
+
+    @Test
     void testOutlinePlaceholderInStepTable() throws Exception {
         // Verify placeholders are substituted in step tables
         // Note: table keyword evaluates cells as expressions, so use quoted values

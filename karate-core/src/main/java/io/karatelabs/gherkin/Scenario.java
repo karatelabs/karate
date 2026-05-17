@@ -139,7 +139,9 @@ public class Scenario {
         }
         for (Step step : steps) {
             String text = step.getText();
-            step.setText(text.replace(token, value));
+            if (text != null) {
+                step.setText(text.replace(token, value));
+            }
             String docString = step.getDocString();
             if (docString != null) {
                 step.setDocString(docString.replace(token, value));
