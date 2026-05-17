@@ -37,11 +37,29 @@ public class JavaType implements ExternalAccess {
     }
 
     public JavaType(String className) {
-        try {
-            this.clazz = Class.forName(className);
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
+        // Try thread context classloader first so classes loaded only by a
+        // child loader (e.g. JUnit Platform Console Launcher's --cp loader)
+        // are visible. Class.forName(name) uses the caller's defining loader
+        // (this bundle's), which can't see those classes. Fall back to that
+        // loader if the TCCL isn't set or doesn't have the class.
+        Class<?> resolved = null;
+        ClassNotFoundException last = null;
+        ClassLoader tccl = Thread.currentThread().getContextClassLoader();
+        if (tccl != null) {
+            try {
+                resolved = Class.forName(className, true, tccl);
+            } catch (ClassNotFoundException e) {
+                last = e;
+            }
         }
+        if (resolved == null) {
+            try {
+                resolved = Class.forName(className);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(last != null ? last : e);
+            }
+        }
+        this.clazz = resolved;
     }
 
     @Override

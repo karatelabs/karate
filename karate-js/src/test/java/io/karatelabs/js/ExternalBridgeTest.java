@@ -1374,6 +1374,71 @@ class ExternalBridgeTest extends EvalBase {
         assertFalse(captured[0] instanceof JsLazy);
     }
 
+    // =================================================================================================================
+    // Java.type() Classloader Tests (issue #2855)
+    // Class.forName() uses the caller's defining loader (this bundle); classes
+    // loaded only by a child loader (e.g. JUnit Platform Console Launcher's
+    // --cp loader, set as TCCL) need the lookup to consult TCCL first.
+    // =================================================================================================================
+
+    private static java.net.URLClassLoader compileIntoIsolatedLoader(String fqcn, String source) throws Exception {
+        javax.tools.JavaCompiler compiler = javax.tools.ToolProvider.getSystemJavaCompiler();
+        assertNotNull(compiler, "JavaCompiler unavailable — test requires a JDK (not a JRE)");
+        java.nio.file.Path tmp = java.nio.file.Files.createTempDirectory("karate-cl-iso-");
+        tmp.toFile().deleteOnExit();
+        String simpleName = fqcn.substring(fqcn.lastIndexOf('.') + 1);
+        java.nio.file.Path srcFile = tmp.resolve(simpleName + ".java");
+        java.nio.file.Files.writeString(srcFile, source);
+        int rc = compiler.run(null, null, null, "-d", tmp.toString(), srcFile.toString());
+        assertEquals(0, rc, "javac failed");
+        // Parent = platform loader → bundle classpath is NOT in the parent chain,
+        // so the compiled class is reachable ONLY via this URLClassLoader.
+        return new java.net.URLClassLoader(
+                new java.net.URL[]{tmp.toUri().toURL()},
+                ClassLoader.getPlatformClassLoader());
+    }
+
+    @Test
+    void testJavaTypeResolvesViaThreadContextClassLoader() throws Exception {
+        // Compile com.example.IsolatedHelper into a dir reachable only by a
+        // URLClassLoader that's NOT in the karate-js loader's parent chain.
+        // Pre-fix: Class.forName uses the karate-js loader → CNFE → forType
+        // returns null. Post-fix: TCCL lookup succeeds.
+        java.net.URLClassLoader isolated = compileIntoIsolatedLoader(
+                "com.example.IsolatedHelper",
+                "package com.example;\n" +
+                        "public class IsolatedHelper {\n" +
+                        "  public static String hello() { return \"hi-from-isolated\"; }\n" +
+                        "}\n");
+        ClassLoader prev = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(isolated);
+            engine = new Engine();
+            engine.setExternalBridge(bridge);
+            Object result = engine.eval(
+                    "var H = Java.type('com.example.IsolatedHelper'); H.hello()");
+            assertEquals("hi-from-isolated", result);
+        } finally {
+            Thread.currentThread().setContextClassLoader(prev);
+            isolated.close();
+        }
+    }
+
+    @Test
+    void testJavaTypeMissingClassThrowsTypeError() {
+        // Java.type for a genuinely missing class must throw a clear error
+        // rather than silently returning null (which would later surface as
+        // "cannot read properties of null").
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        Exception ex = assertThrows(Exception.class, () ->
+                engine.eval("Java.type('com.example.does.not.Exist')"));
+        assertTrue(ex.getMessage().contains("class not found"),
+                "expected 'class not found' in: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("com.example.does.not.Exist"),
+                "expected class name in: " + ex.getMessage());
+    }
+
     @Test
     void testJsFunctionViaEngineEvalSupportsFunctionalInterface() {
         // Function returned to Java via engine.eval() (i.e. wrapped as

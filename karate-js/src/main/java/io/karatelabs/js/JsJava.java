@@ -37,7 +37,20 @@ public class JsJava implements SimpleObject {
     @Override
     public Object jsGet(String name) {
         return switch (name) {
-            case "type" -> (JsInvokable) args -> bridge.forType((String) args[0]);
+            case "type" -> (JsInvokable) args -> {
+                String className = (String) args[0];
+                // forType() returns null on ClassNotFoundException — that
+                // null-as-sentinel contract is needed by PropertyAccess for
+                // the dotted-FQN probe, so we keep it. But here the script
+                // explicitly asked for this class; a null result must surface
+                // as a real error rather than silently propagating and
+                // failing later as "cannot read properties of null".
+                ExternalAccess type = bridge.forType(className);
+                if (type == null) {
+                    throw JsErrorException.typeError("Java.type: class not found: " + className);
+                }
+                return type;
+            };
             case "to" -> (JsInvokable) args -> {
                 if (args[0] instanceof ExternalAccess ja) {
                     return ja.getJavaValue();
