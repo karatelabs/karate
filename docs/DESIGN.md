@@ -270,11 +270,35 @@ public interface RunListenerFactory {
 
 **Source files:** `RunEventType.java`, `RunEvent.java`, `HttpRunEvent.java`, `StepRunEvent.java`, `RunListener.java`, `RunListenerFactory.java`
 
+### Failure hooks
+
+When a Gherkin step fails, `ScenarioRuntime.runStepFailurePipeline` fans out to three sinks in order:
+
+1. **Built-in defaults.** Driver `screenshotOnFailure` (default `true`) — captures a PNG and attaches it directly to the failed `StepResult`. The enabled flag is resolved from the live `configure driver` map first, falling back to the driver instance's frozen options, so per-scenario overrides win under pooled-driver reuse. Capture errors are swallowed with a warn — a dead browser must never escalate into a second scenario failure.
+2. **User DSL hook: `configure onStepFailure`.** A JS function called with one info-map argument:
+   ```js
+   karate.configure('onStepFailure', function(info) {
+     // info.error           — failure message
+     // info.step            — { line, text, prefix }
+     // info.scenarioName    — current scenario name
+     // info.featureName     — current feature name
+     // info.embed(bytes, mime, name?)  — attach to the failed step
+     // info.proceed()       — per-step override: soft-assert this failure
+     // info.stop()          — per-step override: hard-stop this failure
+   })
+   ```
+   `info.proceed()` / `info.stop()` give the hook the per-step decision power that the static `configure continueOnStepFailure` flag cannot — last call wins; if neither is called, the runtime falls back to the static config. Hook exceptions are caught and warn-logged.
+3. **Bus event `ErrorRunEvent`.** Fired on the `RunListener` bus for programmatic observers (debuggers, IDE plugins, JSONL streams). Skipped for `@report=false` scenarios so sensitive content stays out of report artefacts.
+
+The pipeline fires only at the **innermost** failure: a `call` step whose callee already ran the pipeline (signalled by `StepResult.hasCallResults()`) skips built-in screenshot and user hook, mirroring v1's `isWithCallResults` guard. `ErrorRunEvent` still fires at every level so observers always see the failure surface.
+
+**Source files:** `ScenarioRuntime.runStepFailurePipeline`, `KarateConfig.onStepFailure`, `ErrorRunEvent.java`.
+
 ---
 
 ## Configuration
 
-`KarateConfig` is the single source of truth for every `configure ...` key — `proxy`, `ssl`, `readTimeout`, `connectTimeout`, `followRedirects`, `auth`, `retry`, `httpRetryEnabled`, `localAddress`, `charset`, `headers`, `cookies`, `logging`, `report`, `callSingleCache`, `driver`, `continueOnStepFailure`, lifecycle hooks, channel options (kafka/grpc/websocket), and execution flags. `KarateConfig.configure(key, value)` is the *only* place that parses key names; the HTTP client and `LogContext` are projections that read typed getters.
+`KarateConfig` is the single source of truth for every `configure ...` key — `proxy`, `ssl`, `readTimeout`, `connectTimeout`, `followRedirects`, `auth`, `retry`, `httpRetryEnabled`, `localAddress`, `charset`, `headers`, `cookies`, `logging`, `report`, `callSingleCache`, `driver`, `continueOnStepFailure`, lifecycle hooks (`beforeScenario`, `afterScenario`, `afterScenarioOutline`, `afterFeature`, `onStepFailure`), channel options (kafka/grpc/websocket), and execution flags. `KarateConfig.configure(key, value)` is the *only* place that parses key names; the HTTP client and `LogContext` are projections that read typed getters.
 
 ### Projection points
 
@@ -320,9 +344,9 @@ Semantics:
 - Honoured by the `beforeScenario` hook path (`ScenarioRuntime` line ~934): a hook throw does not stop the scenario when the flag is `true`.
 - Like every other `configure` key, snapshotted at scenario entry and restored on exit — does not leak across scenarios.
 
-**v2 simplification.** v1 had a per-keyword list (`continueAfter`); v2 is a plain boolean.
+**v2 simplification.** v1 had a per-keyword list (`continueAfter`); v2 is a plain boolean. For dynamic per-step decisions (the use case `continueAfter` originally covered), install an [`onStepFailure`](#failure-hooks) hook and call `info.proceed()` / `info.stop()` — the hook overrides the static flag on a per-failure basis.
 
-**Source files:** `KarateConfig.continueOnStepFailure`, `ScenarioRuntime.call` (step loop + `configure` override).
+**Source files:** `KarateConfig.continueOnStepFailure`, `ScenarioRuntime.call` (step loop + `configure` override), `ScenarioRuntime.runStepFailurePipeline` (per-step override resolution).
 
 ---
 

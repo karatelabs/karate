@@ -346,9 +346,10 @@ categories:
           - name: JavaScript hooks
             v1: false
             v2: future
-          - name: onError hook
+          - name: onStepFailure hook
+            description: "configure onStepFailure = function(info) { ... } — fires when a Gherkin step fails. info exposes error, step, scenarioName, featureName, embed(bytes, mime, name) to attach artifacts to the failed step, and proceed()/stop() to override continueOnStepFailure on a per-step basis. Same hook handles all step types (match, assert, HTTP, driver). ErrorRunEvent fires on the RunListener bus from the same site."
             v1: false
-            v2: future
+            v2: implemented
           - name: Plugin system
             v1: false
             v2: planned
@@ -700,6 +701,7 @@ categories:
             v1: true
             v2: planned
           - name: Screenshot on failure
+            description: "screenshotOnFailure (default true) on the driver config — auto-captures a PNG when a step fails and embeds it on the failed step in the HTML report. Resolved from live configure driver first then driver options, so per-scenario overrides win under pooled-driver reuse. Wired through the unified onStepFailure pipeline; capture errors are swallowed with a warn so a dead browser never escalates into a second failure."
             v1: true
             v2: implemented
 

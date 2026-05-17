@@ -2,7 +2,7 @@
 
 Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
-> **Generated:** 2026-05-11 from `CAPABILITIES.yaml`
+> **Generated:** 2026-05-17 from `CAPABILITIES.yaml`
 >
 > See also: [Design Principles](./PRINCIPLES.md) | [Roadmap](./ROADMAP.md)
 
@@ -27,10 +27,10 @@ Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 |----------|-------|
 | v1 features ported to v2 | 133 |
 | v1 features pending | 8 |
-| New in v2 (implemented) | 64 |
+| New in v2 (implemented) | 65 |
 | New in v2 (in progress) | 1 |
 | Planned | 19 |
-| Future / Wish list | 162 |
+| Future / Wish list | 161 |
 
 ## Categories
 
@@ -145,7 +145,7 @@ Foundation capabilities that power all test types
   - `[1.x ✓]` Before/After scenario hooks
   - `[1.x ✓]` Before/After feature hooks
   - `[-]` JavaScript hooks
-  - `[-]` onError hook
+  - `[v2]` onStepFailure hook
   - `[ ]` Plugin system
 
 - `[1.x ✓]` Artifact & Code Re-use

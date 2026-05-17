@@ -129,6 +129,7 @@ class DriverFeatureTest {
                 .outputHtmlReport(true)
                 .outputConsoleSummary(true)
                 .driverProvider(provider)
+                .tags("~@expect-failure")  // exclude features designed to fail (see StepFailureFeatureTest)
                 .parallel(2);  // Pool size auto-detected from this
 
         // Log results

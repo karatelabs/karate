@@ -75,7 +75,7 @@ public class KarateConfig implements SimpleObject {
             // Execution control
             "continueOnStepFailure", "abortedStepsShouldPass", "abortSuiteOnFailure", "matchEachEmptyAllowed",
             // Mock settings
-            "corsEnabled", "responseHeaders", "afterScenario", "afterScenarioOutline", "afterFeature",
+            "corsEnabled", "responseHeaders", "afterScenario", "afterScenarioOutline", "afterFeature", "onStepFailure",
             // Driver
             "driverConfig"
     );
@@ -150,6 +150,18 @@ public class KarateConfig implements SimpleObject {
     private Object afterScenario;         // Invokable - hook called after each scenario
     private Object afterScenarioOutline;  // Invokable - hook called after all examples of an outline complete
     private Object afterFeature;          // Invokable - hook called after feature completes
+    // Fires when a Gherkin step fails (match/assert/HTTP/driver/etc). Receives a single info arg:
+    //   { error, step: { line, text, prefix }, scenarioName, featureName,
+    //     embed(bytes, mime, name?),  // attach to the failed step's StepResult
+    //     proceed(),                  // override: soft-assert this failure (per-step)
+    //     stop()                      // override: hard-stop this failure (per-step)
+    //   }
+    // If the hook calls neither proceed() nor stop(), the runtime falls back to the static
+    // continueOnStepFailure config flag. Hook exceptions are caught and warn-logged - a failing
+    // onStepFailure hook never escalates into a second scenario failure. Only fires at the
+    // innermost failure: a `call` step whose callee already fired onStepFailure is suppressed
+    // (mirrors v1's isWithCallResults guard).
+    private Object onStepFailure;         // Invokable - hook called when a Gherkin step fails
 
     // Driver configuration (Map or DriverOptions)
     private Object driverConfig;
@@ -225,6 +237,7 @@ public class KarateConfig implements SimpleObject {
         this.afterScenario = other.afterScenario;
         this.afterScenarioOutline = other.afterScenarioOutline;
         this.afterFeature = other.afterFeature;
+        this.onStepFailure = other.onStepFailure;
         // Driver
         this.driverConfig = other.driverConfig;
         // Channel options
@@ -366,6 +379,10 @@ public class KarateConfig implements SimpleObject {
             }
             case "afterFeature" -> {
                 this.afterFeature = value;
+                yield false;
+            }
+            case "onStepFailure" -> {
+                this.onStepFailure = value;
                 yield false;
             }
 
@@ -736,6 +753,7 @@ public class KarateConfig implements SimpleObject {
             case "afterScenario" -> afterScenario;
             case "afterScenarioOutline" -> afterScenarioOutline;
             case "afterFeature" -> afterFeature;
+            case "onStepFailure" -> onStepFailure;
             case "driverConfig" -> driverConfig;
             default -> null;
         };
@@ -1007,6 +1025,10 @@ public class KarateConfig implements SimpleObject {
 
     public Object getAfterFeature() {
         return afterFeature;
+    }
+
+    public Object getOnStepFailure() {
+        return onStepFailure;
     }
 
     public Object getDriverConfig() {

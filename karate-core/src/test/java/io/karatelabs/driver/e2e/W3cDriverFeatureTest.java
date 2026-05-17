@@ -119,7 +119,7 @@ class W3cDriverFeatureTest {
                 .outputDir(Path.of("target", "w3c-driver-feature-reports"))
                 .outputHtmlReport(true)
                 .outputConsoleSummary(true)
-                .tags("~@cdp", "~@lock=frames")
+                .tags("~@cdp", "~@lock=frames", "~@expect-failure")
                 .driverProvider(provider)
                 .parallel(1);  // Single thread for W3C (shared session)
 

@@ -963,7 +963,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 result.addStepResult(sr);
 
                 if (sr.isFailed()) {
-                    if (config.isContinueOnStepFailure()) {
+                    boolean softAssert = runStepFailurePipeline(sr);
+                    if (softAssert) {
                         // Log the failure but continue execution
                         if (!hasIgnoredFailure) {
                             hasIgnoredFailure = true;
@@ -1451,6 +1452,184 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
     public boolean isSkipBackground() {
         return skipBackground;
+    }
+
+    // ========== Failure Pipeline ==========
+
+    /**
+     * Centralised failure handler. Runs in order:
+     * <ol>
+     *   <li>Built-in defaults (driver {@code screenshotOnFailure}).</li>
+     *   <li>User {@code configure onStepFailure} hook with an info map exposing
+     *       {@code embed} / {@code proceed} / {@code stop} callbacks.</li>
+     *   <li>{@link ErrorRunEvent} on the {@link Suite} bus.</li>
+     * </ol>
+     * Returns the resolved soft-assert decision: {@code true} → soft-assert this
+     * failure, {@code false} → hard-stop. If the hook called neither
+     * {@code info.proceed()} nor {@code info.stop()}, falls back to the static
+     * {@code configure continueOnStepFailure} flag.
+     *
+     * <p>Only fires at the innermost failure: when the failed step is a
+     * {@code call} whose callee already ran this pipeline (signalled by
+     * {@link StepResult#hasCallResults()}), the built-in screenshot and user
+     * hook are skipped to avoid duplicate work. {@link ErrorRunEvent} still
+     * fires so observers always see the failure.
+     *
+     * <p>Built-in defaults and the user hook each catch their own exceptions
+     * and warn-log; a buggy hook or a dead browser must never escalate into a
+     * second scenario failure.
+     */
+    private boolean runStepFailurePipeline(StepResult sr) {
+        boolean innermost = !sr.hasCallResults();
+        if (innermost) {
+            captureScreenshotOnFailure(sr);
+        }
+        FailureDecision decision = new FailureDecision();
+        if (innermost) {
+            invokeOnStepFailureHook(sr, decision);
+        }
+        fireErrorEvent(sr);
+        return decision.resolve(config.isContinueOnStepFailure());
+    }
+
+    /**
+     * Built-in {@code screenshotOnFailure}: when a driver is active and the
+     * option is enabled (default true), capture a PNG and attach it directly
+     * to the failed step. Any failure during capture is swallowed.
+     *
+     * <p>The enabled flag is resolved from the live {@code configure driver}
+     * map first, falling back to the driver instance's frozen options. This
+     * lets per-scenario overrides take effect under pooled-driver reuse, where
+     * the driver instance's options reflect creation-time config not the
+     * current scenario's.
+     */
+    private void captureScreenshotOnFailure(StepResult sr) {
+        if (driver == null || driver.isTerminated()) {
+            return;
+        }
+        try {
+            if (!isScreenshotOnFailureEnabled()) {
+                return;
+            }
+            byte[] bytes = driver.screenshot(false);
+            if (bytes != null && bytes.length > 0) {
+                sr.addEmbed(new StepResult.Embed(bytes, "image/png", "screenshot.png"));
+            }
+        } catch (Throwable t) {
+            logger.warn("screenshotOnFailure: capture failed, continuing: {}", t.toString());
+        }
+    }
+
+    @SuppressWarnings("rawtypes")
+    private boolean isScreenshotOnFailureEnabled() {
+        Object cfg = config.getDriverConfig();
+        if (cfg instanceof Map map && map.containsKey("screenshotOnFailure")) {
+            Object v = map.get("screenshotOnFailure");
+            return v == null || Boolean.parseBoolean(String.valueOf(v));
+        }
+        try {
+            return driver.getOptions().isScreenshotOnFailure();
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    /**
+     * Invoke the {@code configure onStepFailure} hook with a single info-map
+     * argument. The map exposes failure metadata plus three JS-callable
+     * methods (embed / proceed / stop) bound to {@code sr} and {@code decision}.
+     */
+    private void invokeOnStepFailureHook(StepResult sr, FailureDecision decision) {
+        Object hookRef = config.getOnStepFailure();
+        if (!(hookRef instanceof JavaCallable callable)) {
+            return;
+        }
+        try {
+            Map<String, Object> info = buildStepFailureInfo(sr, decision);
+            callable.call(null, new Object[]{info});
+        } catch (Throwable t) {
+            logger.warn("onStepFailure hook threw, continuing: {}", t.toString());
+        }
+    }
+
+    private Map<String, Object> buildStepFailureInfo(StepResult sr, FailureDecision decision) {
+        Map<String, Object> info = new LinkedHashMap<>();
+        Throwable err = sr.getError();
+        info.put("error", err == null ? null : err.getMessage());
+        Step step = sr.getStep();
+        if (step != null) {
+            Map<String, Object> stepInfo = new LinkedHashMap<>();
+            stepInfo.put("line", step.getLine());
+            stepInfo.put("text", step.getText());
+            stepInfo.put("prefix", step.getPrefix());
+            info.put("step", stepInfo);
+        }
+        info.put("scenarioName", scenario == null ? null : scenario.getName());
+        if (scenario != null && scenario.getFeature() != null) {
+            info.put("featureName", scenario.getFeature().getName());
+        }
+        info.put("embed", (io.karatelabs.js.JavaInvokable) args -> {
+            if (args.length < 1 || args[0] == null) {
+                return null;
+            }
+            byte[] bytes = io.karatelabs.core.KarateJsUtils.convertToBytes(args[0]);
+            String mime = args.length > 1 && args[1] != null
+                    ? args[1].toString()
+                    : io.karatelabs.core.KarateJsUtils.detectMimeType(args[0]);
+            String name = args.length > 2 && args[2] != null ? args[2].toString() : null;
+            sr.addEmbed(new StepResult.Embed(bytes, mime, name));
+            return null;
+        });
+        info.put("proceed", (io.karatelabs.js.JavaInvokable) args -> {
+            decision.proceed();
+            return null;
+        });
+        info.put("stop", (io.karatelabs.js.JavaInvokable) args -> {
+            decision.stop();
+            return null;
+        });
+        return info;
+    }
+
+    private void fireErrorEvent(StepResult sr) {
+        Suite suite = featureRuntime == null ? null : featureRuntime.getSuite();
+        if (suite == null) {
+            return;
+        }
+        // @report=false scenarios are designed to keep sensitive content out of
+        // every reporting surface (HTML, JSONL). Skipping the bus fire here is
+        // the cheapest way to honor that contract — the failure still counts,
+        // it just doesn't surface raw error text to listeners.
+        if (reportDisabled) {
+            return;
+        }
+        try {
+            suite.fireEvent(ErrorRunEvent.of(sr.getError(), this));
+        } catch (Throwable t) {
+            logger.warn("ErrorRunEvent dispatch failed, continuing: {}", t.toString());
+        }
+    }
+
+    /**
+     * Tracks whether the {@code onStepFailure} hook explicitly chose a
+     * soft-assert / hard-stop outcome. Last call wins; if neither is called,
+     * {@link #resolve(boolean)} returns the supplied static-config default.
+     */
+    private static final class FailureDecision {
+
+        private Boolean override;
+
+        void proceed() {
+            override = Boolean.TRUE;
+        }
+
+        void stop() {
+            override = Boolean.FALSE;
+        }
+
+        boolean resolve(boolean configDefault) {
+            return override == null ? configDefault : override;
+        }
     }
 
     // ========== Driver Support ==========
