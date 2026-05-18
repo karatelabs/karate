@@ -37,6 +37,7 @@ import java.util.regex.Pattern;
 public class Operation {
 
     static final String REGEX = "regex";
+    static final int MAX_EACH_FAILURES = 5;
 
     final MatchContext context;
     final Match.Type type;
@@ -145,6 +146,7 @@ public class Operation {
                     }
                     Match.Type nestedMatchType = fromMatchEach();
                     List<Integer> failedIndices = new ArrayList<>();
+                    boolean stoppedEarly = false;
                     for (int i = 0; i < count; i++) {
                         Object o = actual.getListElement(i);
                         context.engine.put("_$", o);
@@ -153,13 +155,18 @@ public class Operation {
                         context.engine.remove("_$");
                         if (!mo.pass) {
                             failedIndices.add(i);
+                            if (failedIndices.size() >= MAX_EACH_FAILURES && i < count - 1) {
+                                stoppedEarly = true;
+                                break;
+                            }
                         }
                     }
                     if (!failedIndices.isEmpty()) {
+                        String suffix = stoppedEarly ? " (stopped after " + MAX_EACH_FAILURES + " failures)" : "";
                         if (failedIndices.size() == 1) {
-                            return fail("match each failed at index " + failedIndices.getFirst());
+                            return fail("match each failed at index " + failedIndices.getFirst() + suffix);
                         }
-                        return fail("match each failed at indices " + failedIndices);
+                        return fail("match each failed at indices " + failedIndices + suffix);
                     }
                     return true;
                 } else {
@@ -831,21 +838,30 @@ public class Operation {
         StringBuilder sb = new StringBuilder();
         sb.append("match failed: ").append(root.type).append('\n');
         Collections.reverse(root.failures);
-        Iterator<Operation> iterator = root.failures.iterator();
         Set<String> previousPaths = new HashSet<>();
-        int index = 0;
-        int prevDepth = -1;
-        while (iterator.hasNext()) {
-            Operation mo = iterator.next();
+        List<Operation> visible = new ArrayList<>();
+        for (Operation mo : root.failures) {
             if (previousPaths.contains(mo.context.path) || mo.isXmlAttributeOrMap()) {
                 continue;
             }
             previousPaths.add(mo.context.path);
-            if (mo.context.depth != prevDepth) {
-                prevDepth = mo.context.depth;
-                index++;
-            }
-            String prefix = StringUtils.repeat(' ', index * 2);
+            visible.add(mo);
+        }
+        // rank unique depths in ascending order so XML's filtered intermediates
+        // (depth 0 → 3 with no visible 1 or 2) collapse to consecutive indents
+        TreeSet<Integer> uniqueDepths = new TreeSet<>();
+        for (Operation mo : visible) {
+            uniqueDepths.add(mo.context.depth);
+        }
+        Map<Integer, Integer> depthRank = new HashMap<>();
+        int rank = 0;
+        for (int d : uniqueDepths) {
+            depthRank.put(d, rank++);
+        }
+        Iterator<Operation> iterator = visible.iterator();
+        while (iterator.hasNext()) {
+            Operation mo = iterator.next();
+            String prefix = StringUtils.repeat(' ', (depthRank.get(mo.context.depth) + 1) * 2);
             sb.append(prefix).append(mo.context.path).append(" | ").append(mo.failReason);
             sb.append(" (").append(mo.actual.type).append(':').append(mo.expected.type).append(")");
             sb.append('\n');

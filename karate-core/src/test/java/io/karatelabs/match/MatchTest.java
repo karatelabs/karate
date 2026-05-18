@@ -268,7 +268,6 @@ class MatchTest {
                   $ | actual contains expected (LIST:STRING)
                   ["foo","bar"]
                   'bar'
-
                 """);
         match(
                 "[{ foo: 1 }, { foo: 2 }, { foo: 3 }]",
@@ -280,31 +279,31 @@ class MatchTest {
                   $ | actual does not contain expected | actual array does not contain expected item - {"foo":0} (LIST:LIST)
                   [{"foo":1},{"foo":2},{"foo":3}]
                   [{"foo":0},{"foo":2},{"foo":3}]
-                
+
                     $[2] | not equal | match failed for name: 'foo' (MAP:MAP)
                     {"foo":3}
                     {"foo":0}
-                
+
                       $[2].foo | not equal (NUMBER:NUMBER)
                       3
                       0
-                
-                        $[1] | not equal | match failed for name: 'foo' (MAP:MAP)
-                        {"foo":2}
-                        {"foo":0}
-                
-                          $[1].foo | not equal (NUMBER:NUMBER)
-                          2
-                          0
-                
-                            $[0] | not equal | match failed for name: 'foo' (MAP:MAP)
-                            {"foo":1}
-                            {"foo":0}
-                
-                              $[0].foo | not equal (NUMBER:NUMBER)
-                              1
-                              0
-                """); // TODO improve error message for this case
+
+                    $[1] | not equal | match failed for name: 'foo' (MAP:MAP)
+                    {"foo":2}
+                    {"foo":0}
+
+                      $[1].foo | not equal (NUMBER:NUMBER)
+                      2
+                      0
+
+                    $[0] | not equal | match failed for name: 'foo' (MAP:MAP)
+                    {"foo":1}
+                    {"foo":0}
+
+                      $[0].foo | not equal (NUMBER:NUMBER)
+                      1
+                      0
+                """);
     }
 
     @Test
@@ -341,6 +340,27 @@ class MatchTest {
         message(expected);
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, "#object");
         match("[{ a: 1 }, { a: 2 }]", EACH_EQUALS, "{ a: '#number' }");
+    }
+
+    @Test
+    void testEachListOfMaps() {
+        // 7 elements all violating timestamp expectation — engine should stop after 5 failures
+        String actual = """
+                [
+                  {"orderId":"ord-1234","status":"picked","timestamp":"1779118997735","location":"WH-EAST-01"},
+                  {"orderId":"ord-1234","status":"packed","timestamp":"1779118998735","location":"WH-EAST-01"},
+                  {"orderId":"ord-1234","status":"shipped","timestamp":"1779118999735","location":"Hub-LAX"},
+                  {"orderId":"ord-1234","status":"in_transit","timestamp":"1779119000735","location":"Hub-DEN"},
+                  {"orderId":"ord-1234","status":"delivered","timestamp":"1779119001735","location":"Customer"},
+                  {"orderId":"ord-1234","status":"returned","timestamp":"1779119002735","location":"Customer"},
+                  {"orderId":"ord-1234","status":"closed","timestamp":"1779119003735","location":"Customer"}
+                ]
+                """;
+        String expected = "{ orderId: '#string', status: '#string', timestamp: '#number', location: '#string' }";
+        match(actual, EACH_EQUALS, expected, FAILS);
+        assertTrue(message.contains("match each failed at indices [0, 1, 2, 3, 4] (stopped after 5 failures)"), message);
+        assertFalse(message.contains("$[5]"), message);
+        assertFalse(message.contains("$[6]"), message);
     }
 
     @Test
@@ -388,7 +408,6 @@ class MatchTest {
                   $ | actual does not contain expected | actual does not contain keys - [z, x] (MAP:MAP)
                   {"a":1,"b":2,"c":3}
                   {"z":9,"x":2}
-
                 """);
         match("{ a: 1, b: 2, c: 3 }", CONTAINS_ANY, "{ z: 9, x: 2 }", FAILS);
         message("""
@@ -396,7 +415,6 @@ class MatchTest {
                   $ | actual does not contain expected | no key-values matched (MAP:MAP)
                   {"a":1,"b":2,"c":3}
                   {"z":9,"x":2}
-
                 """);
         match("{ a: 1, b: 2, c: 3 }", NOT_CONTAINS, "{ a: 1 }", FAILS);
         message("""
@@ -723,7 +741,6 @@ class MatchTest {
                   $ | actual is not within expected | expected does not contain actual item - d (LIST:LIST)
                   ["a","d"]
                   ["a","b","c"]
-
                 """);
 
         // List: actual longer than expected
@@ -733,7 +750,6 @@ class MatchTest {
                   $ | actual is not within expected | actual array length is greater than expected - 4:3 (LIST:LIST)
                   ["a","b","c","d"]
                   ["a","b","c"]
-
                 """);
 
         // Map: all keys in actual exist in expected
@@ -746,7 +762,6 @@ class MatchTest {
                   $ | actual is not within expected | expected does not contain key - 'z' (MAP:MAP)
                   {"a":1,"z":9}
                   {"a":1,"b":2,"c":3}
-
                 """);
 
         // Map: value mismatch
@@ -771,7 +786,6 @@ class MatchTest {
                   $ | actual is not within expected | expected does not contain actual item - d (STRING:LIST)
                   'd'
                   ["a","b","c"]
-
                 """);
 
         // NOT_WITHIN: actual is not subset of expected
