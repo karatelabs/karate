@@ -23,7 +23,9 @@
  */
 package io.karatelabs.core;
 
+import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
 import io.karatelabs.common.*;
 import io.karatelabs.gherkin.Feature;
 import io.karatelabs.gherkin.MatchExpression;
@@ -73,6 +75,8 @@ public class KarateJs extends KarateJsBase implements PerfContext {
     private static final Faker FAKER = new Faker();
 
     private final JavaCallable read;
+    private final Configuration jsonPathConfig = Configuration.defaultConfiguration()
+            .addOptions(Option.SUPPRESS_EXCEPTIONS);
 
     public KarateJs(Resource root) {
         this(root, new DefaultHttpClientFactory());
@@ -491,14 +495,14 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                     String jsonPath = "$" + withoutDollar.substring(pathStart);
                     Object target = engine.get(varName);
                     if (target != null) {
-                        return JsonPath.read(target, jsonPath);
+                        return JsonPath.using(jsonPathConfig).parse(target).read(jsonPath);
                     }
                     return null;
                 } else if (pathStart == 0) {
                     // $. or $[ means use 'response'
                     Object target = engine.get("response");
                     if (target != null) {
-                        return JsonPath.read(target, "$" + withoutDollar);
+                        return JsonPath.using(jsonPathConfig).parse(target).read("$" + withoutDollar);
                     }
                     return null;
                 }

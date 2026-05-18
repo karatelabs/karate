@@ -101,6 +101,9 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.5</version>
                 <configuration>
+                    <systemPropertyVariables>
+                        <user.timezone>UTC</user.timezone>
+                    </systemPropertyVariables>
                     <!-- Exclude testcontainers E2E tests by default (require Docker) -->
                     <excludes>
                         <exclude>**/e2e/**</exclude>

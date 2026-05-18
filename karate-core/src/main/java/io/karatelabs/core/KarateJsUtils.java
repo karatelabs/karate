@@ -23,6 +23,8 @@
  */
 package io.karatelabs.core;
 
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.Option;
 import io.karatelabs.common.DataUtils;
 import io.karatelabs.common.Json;
 import io.karatelabs.common.OsUtils;
@@ -70,6 +72,9 @@ import java.util.regex.Pattern;
 public class KarateJsUtils {
 
     private static final Logger logger = LogContext.RUNTIME_LOGGER;
+
+    private static final Configuration jsonPathConfig = Configuration.defaultConfiguration()
+            .addOptions(Option.SUPPRESS_EXCEPTIONS);
 
     private KarateJsUtils() {
         // utility class
@@ -274,7 +279,7 @@ public class KarateJsUtils {
             }
             Object json = args[0];
             String path = args[1].toString();
-            return JsonPath.read(json, path);
+            return JsonPath.using(jsonPathConfig).parse(json).read(path);
         };
     }
 

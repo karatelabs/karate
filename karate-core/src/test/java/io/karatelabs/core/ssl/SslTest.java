@@ -80,8 +80,10 @@ class SslTest {
         ).ssl(true).start();
 
         // Generate server and client certificates for mTLS
-        SelfSignedCertificate serverCert = SelfSignedCertificate.builder().fqdn("localhost").build();
-        SelfSignedCertificate clientCert = SelfSignedCertificate.builder().fqdn("client").build();
+        java.util.Date notBefore = new java.util.Date();
+        java.util.Date notAfter = new java.util.Date(notBefore.getTime() + (86400000L * 365));
+        SelfSignedCertificate serverCert = new SelfSignedCertificate("localhost", notBefore, notAfter);
+        SelfSignedCertificate clientCert = new SelfSignedCertificate("client", notBefore, notAfter);
 
         // Create server SSL context requiring client certificate
         SslContext mtlsSslContext = SslContextBuilder
