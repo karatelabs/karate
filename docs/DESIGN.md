@@ -538,7 +538,32 @@ Standard envelope:
 
 `STEP_ENTER` / `STEP_EXIT` / `HTTP_ENTER` / `HTTP_EXIT` events fire on the `RunListener` bus but are deliberately not emitted into JSONL (too granular for a streaming feed). HTTP request/response detail still reaches consumers via `step.embeds[]` inside `FEATURE_EXIT`.
 
-**Source files:** `HtmlReportListener.java`, `HtmlReportWriter.java`, `CucumberJsonWriter.java`, `JunitXmlWriter.java`, `JsonLinesEventWriter.java`
+### Outbound HTTP delivery
+
+The same JSONL envelope can be POSTed to a configured HTTP receiver — useful for piping runs into a dashboard, an aggregator, or any compatible service. Activation is env-var driven; the OSS path has zero network cost when unconfigured.
+
+| Env var | Purpose |
+|---|---|
+| `KARATE_AGENT_URL` | Destination base URL. Required to activate. When unset, no `HttpClient` is created, no startup line is logged, no listener is registered. |
+| `KARATE_AGENT_TOKEN` | Optional bearer token, sent as `Authorization: Bearer <token>`. |
+| `KARATE_AGENT_MODE` | `batch` (default — POST every 50 events plus a final flush) or `final` (POST once on `SUITE_EXIT`). Streaming mode is reserved for a future revision. |
+
+When active, the listener prints exactly one INFO line on startup announcing the destination so operators always see where data goes. Posts are **best-effort**: failures log at WARN and are dropped — the build is never failed by a transport error. The on-disk JSONL file (when `outputJsonLines(true)`) remains the source of truth.
+
+The wire envelope adds an explicit `schema` field for forward compatibility:
+
+```json
+{"schema":{"version":1,"dialect":"karate-v2"},"type":"SCENARIO_EXIT","timeStamp":1747555200100,"threadId":"worker-1","data":{...}}
+```
+
+`SUITE_ENTER.data` additionally carries `runId` (a UUID generated per run) and `karateVersion`. Endpoints called (paths relative to `KARATE_AGENT_URL`):
+
+- `POST /api/runs/{runId}/events` — batched events, body is JSONL (`application/x-ndjson`).
+- `POST /api/runs/{runId}/complete` — final flush on `SUITE_EXIT`.
+
+Receivers can implement these two endpoints to consume Karate runs over HTTP.
+
+**Source files:** `HtmlReportListener.java`, `HtmlReportWriter.java`, `CucumberJsonWriter.java`, `JunitXmlWriter.java`, `JsonLinesEventWriter.java`, `HttpPostListener.java`
 
 ---
 
