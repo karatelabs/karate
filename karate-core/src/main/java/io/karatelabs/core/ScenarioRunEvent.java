@@ -23,6 +23,9 @@
  */
 package io.karatelabs.core;
 
+import io.karatelabs.gherkin.Feature;
+import io.karatelabs.gherkin.Scenario;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -58,15 +61,24 @@ public record ScenarioRunEvent(
     public Map<String, Object> toJson() {
         Map<String, Object> map = new LinkedHashMap<>();
         if (source != null && source.getScenario() != null) {
-            var scenario = source.getScenario();
+            Scenario scenario = source.getScenario();
             var fr = source.getFeatureRuntime();
-            if (fr != null && fr.getFeature() != null && fr.getFeature().getResource() != null) {
-                map.put("feature", fr.getFeature().getResource().getRelativePath());
+            Feature feature = fr != null ? fr.getFeature() : null;
+            boolean reportDisabled = result != null && result.isReportDisabled();
+            if (feature != null && feature.getResource() != null) {
+                map.put("feature", feature.getResource().getRelativePath());
             }
             map.put("name", scenario.getName());
             map.put("line", scenario.getLine());
             map.put("refId", scenario.getRefId());
             map.put("callDepth", fr != null ? fr.getCallDepth() : 0);
+            // Cross-run-stable slug + merged effective tags so the aggregator can
+            // upsert taxonomy without needing source files. See CoverageAtom.
+            map.put("slug", CoverageAtom.scenarioSlug(scenario, feature));
+            map.put("tags", CoverageAtom.tagTexts(scenario.getTagsEffective()));
+            if (type == RunEventType.SCENARIO_EXIT) {
+                map.put("coverageItems", CoverageAtom.chain(scenario, feature, reportDisabled));
+            }
         }
         if (type == RunEventType.SCENARIO_EXIT && result != null) {
             map.put("passed", !result.isFailed());

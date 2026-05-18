@@ -68,6 +68,8 @@ public record FeatureRunEvent(
                     map.put("path", feature.getResource().getRelativePath());
                 }
                 map.put("name", feature.getName());
+                map.put("description", feature.getDescription());
+                map.put("tags", CoverageAtom.tagTexts(feature.getTags()));
                 map.put("line", feature.getLine());
             }
             map.put("callDepth", source.getCallDepth());
