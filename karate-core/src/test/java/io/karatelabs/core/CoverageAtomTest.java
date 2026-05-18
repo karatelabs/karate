@@ -197,14 +197,14 @@ class CoverageAtomTest {
                 @api @env=qa
                 Feature: users
 
-                  @REQ=KEY-123 @smoke
+                  @req=KEY-123 @smoke
                   Scenario: create user
                     Given url 'x'
                 """);
         Scenario scenario = firstScenario(feature);
 
         List<String> tags = CoverageAtom.tagTexts(scenario.getTagsEffective());
-        assertTrue(tags.contains("REQ=KEY-123"),
+        assertTrue(tags.contains("req=KEY-123"),
                 "key=value tag form should round-trip: " + tags);
         assertTrue(tags.contains("env=qa"), "feature key=value should appear: " + tags);
     }

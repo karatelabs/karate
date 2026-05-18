@@ -52,9 +52,11 @@ import java.util.Map;
  *   <li>Unnamed scenarios → {@code <feature-path>::L<line>}.</li>
  * </ol>
  *
- * <p>Note: {@code @id=...} identifies the scenario itself; {@code @REQ=...} is a
+ * <p>Note: {@code @id=...} identifies the scenario itself; {@code @req=...} is a
  * different concept (covers requirement X in an external system). Both live in
- * tags independently.
+ * tags independently. The {@code req} key is lowercase by convention; the ID
+ * after the {@code =} stays in whatever case the external system uses
+ * (e.g. {@code @req=ORD-001}).
  */
 public final class CoverageAtom {
 
