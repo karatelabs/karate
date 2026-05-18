@@ -436,6 +436,22 @@ public class KarateJs extends KarateJsBase implements PerfContext {
      * Read a file as raw bytes. Useful for binary content handling.
      * Usage: karate.readAsBytes('path/to/file')
      */
+    /**
+     * {@code karate.sysenv('NAME')} — read an OS environment variable. Returns the
+     * value as a String, or {@code null} when unset. Convenience to avoid the
+     * verbose {@code java.lang.System.getenv('NAME')} pattern teams reach for today.
+     */
+    private JavaInvokable sysenv() {
+        return args -> {
+            if (args.length == 0) {
+                throw new RuntimeException("sysenv() needs the environment-variable name");
+            }
+            Object first = args[0];
+            if (first == null) return null;
+            return System.getenv(first.toString());
+        };
+    }
+
     private JavaInvokable readAsBytes() {
         return args -> {
             if (args.length == 0) {
@@ -1268,6 +1284,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             case "signal" -> signal();
             case "start" -> start();
             case "stop" -> KarateJsUtils.stop();
+            case "sysenv" -> sysenv();
             case "tags" -> getTags();
             case "tagValues" -> getTagValues();
             case "toAbsolutePath" -> toAbsolutePath();

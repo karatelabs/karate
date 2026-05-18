@@ -99,4 +99,17 @@ class KarateJsTest {
         }
     }
 
+    @Test
+    void testSysenv() {
+        KarateJs context = new KarateJs(Resource.path("src/test/resources"));
+        // PATH is virtually always set on the platforms we ship to.
+        context.engine.eval("var p = karate.sysenv('PATH');");
+        Object p = context.engine.get("p");
+        assertTrue(p instanceof String && !((String) p).isEmpty(),
+                "karate.sysenv('PATH') should return the OS PATH");
+        // Unset variable returns null.
+        context.engine.eval("var missing = karate.sysenv('__KARATE_SHOULD_NEVER_BE_SET_98765__');");
+        assertEquals(null, context.engine.get("missing"));
+    }
+
 }

@@ -316,6 +316,13 @@ public class Suite {
             addJsonlListener(httpPostListener);
         }
 
+        // Load karate-boot.js if present (workdir root, then classpath). Plugin SPI
+        // per K43: boot file evaluates plugin-scripting only; the side effect is
+        // plugin registration through BootBinding.plugin(...). Returns null when
+        // no boot file exists — preserves the zero-cost path for projects that
+        // don't use plugins.
+        BootBinding bootBinding = BootLoader.loadIfPresent(this, env);
+
         try {
             // Notify listeners
             for (ResultListener listener : resultListeners) {
@@ -362,6 +369,19 @@ public class Suite {
                 removeJsonlListener(httpPostListener);
             }
 
+            // Plugin onShutdown — best-effort; exceptions are logged + dropped per K43.
+            if (bootBinding != null) {
+                for (Plugin plugin : bootBinding.getPlugins()) {
+                    try {
+                        plugin.onShutdown();
+                    } catch (Exception e) {
+                        logger.warn("plugin onShutdown failed ({}): {}",
+                                plugin.getClass().getName(), e.getMessage());
+                    }
+                    removeJsonlListener(plugin);
+                }
+            }
+
             // Notify listeners
             for (ResultListener listener : resultListeners) {
                 listener.onSuiteEnd(result);
@@ -378,6 +398,20 @@ public class Suite {
         synchronized (mutableListeners) {
             mutableListeners.add(listener);
         }
+    }
+
+    /**
+     * Register a {@link Plugin} as a {@link RunListener} on this Suite. Called from
+     * {@link BootBinding#plugin(String)} during karate-boot.js evaluation, before
+     * SUITE_ENTER fires. Plugin will see every event from SUITE_ENTER onward.
+     */
+    public void registerPluginListener(Plugin plugin) {
+        addJsonlListener(plugin);
+    }
+
+    /** Workdir for boot.js discovery + per-plugin file resolution. */
+    public Path getWorkingDir() {
+        return workingDir;
     }
 
     private void removeJsonlListener(RunListener listener) {

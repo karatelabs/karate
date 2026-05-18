@@ -575,7 +575,71 @@ Receivers can implement these two endpoints to consume Karate runs over HTTP.
 | `HttpClientFactory` | Custom HTTP clients | Constructor injection |
 | `RunListener` | Event listeners | `Runner.listener()` or `--listener` CLI |
 | `RunListenerFactory` | Per-thread listeners | `Runner.listenerFactory()` |
+| `Plugin` | **Suite-lifetime singletons configured from `karate-boot.js`** | Name convention via `boot.plugin('name')` |
 | `ReportWriterFactory` | Custom report formats | ServiceLoader (planned) |
+
+### `Plugin` + `karate-boot.js`
+
+A second activation surface (coexisting with `karate.channel(...)`). Plugins are
+singletons-per-Suite that observe the run via `RunListener`. They are configured
+declaratively from a `karate-boot.js` file at the workdir root, evaluated **once
+per Suite** before `SUITE_ENTER` fires.
+
+```js
+// karate-boot.js — runs once per Suite; cannot contribute variables to test scope
+const agent = boot.plugin('agent');
+agent.url = boot.sysenv('AGENT_URL') || 'http://localhost:4444';
+agent.mode = boot.env === 'ci' ? 'batch' : 'final';
+
+const openapi = boot.plugin('openapi');
+openapi.path = 'api/openapi.yaml';
+openapi.excludes = ['/health/**'];
+```
+
+**Resolution.** `boot.plugin('foo')` looks up
+`io.karatelabs.plugins.foo.FooPlugin` on the classpath (name convention). Missing
+class → boot-time failure that fails the Suite loud.
+
+**`boot.*` namespace** — the only API surface inside `karate-boot.js`:
+
+| Member | Purpose |
+|---|---|
+| `boot.env` | Value of `karate.env` (CLI `-e` flag). |
+| `boot.sysenv(name)` | Read an OS environment variable. |
+| `boot.read(path)` | Read a text file relative to workdir (e.g. an OpenAPI spec). |
+| `boot.log(msg)` | INFO log with `[boot]` prefix. |
+| `boot.plugin(name)` | Construct + register a plugin; returns the instance for configuration. |
+
+**Lifecycle.**
+
+1. `karate-boot.js` evaluates top-to-bottom. Each `boot.plugin('name')` call
+   constructs the plugin, fires its `onBoot(Suite)`, and registers it as a
+   `RunListener` on the Suite.
+2. Property setters validate eagerly — e.g. `openapi.path = '/no/such/file'`
+   throws on the line itself, before any tests run.
+3. `SUITE_ENTER.data.plugins[]` carries each plugin's `getManifest()` so the
+   receiver (e.g. karate-agent dashboard) knows which plugins were active and
+   with what config.
+4. Plugins see every event from `SUITE_ENTER` through `SUITE_EXIT` via
+   `onEvent(RunEvent)`.
+5. After `SUITE_EXIT`, each plugin's `onShutdown()` fires.
+
+**Failure mode.** Exceptions during `onBoot` fail the Suite. Exceptions inside
+`onEvent` are logged WARN and dropped — the run continues, that signal is lost.
+
+**Cross-plugin coordination.** Plugins do not call each other directly. They
+contribute via the existing `step.embed(name, payload)` mechanism (the same
+channel HTTP-exchange data already uses). The `agent` plugin ships these embeds
+on the wire inside `FEATURE_EXIT.data.scenarioResults[].stepResults[].embeds[]`;
+a downstream plugin (e.g. `openapi`) writes an additional embed
+(`step.embed('openapi-match', {opId, method, path, status})`) which travels
+alongside. Receivers decode embeds by name.
+
+**Mock-server mode** (`karate.start({mock: ...})`) suppresses `karate-boot.js`
+loading entirely — mock servers aren't tests, so plugins don't activate.
+
+**Source files:** `Plugin.java`, `BootBinding.java`, `BootLoader.java`,
+`Suite.java` (loader hook + plugin registration / shutdown).
 
 ---
 
