@@ -53,6 +53,11 @@ import java.util.UUID;
  *   <li>{@code KARATE_AGENT_URL} — destination base URL (required to activate)</li>
  *   <li>{@code KARATE_AGENT_TOKEN} — optional bearer token for receivers that require auth</li>
  *   <li>{@code KARATE_AGENT_MODE} — {@code batch} (default) or {@code final}; stream mode is reserved</li>
+ *   <li>{@code KARATE_AGENT_PARAMS} — optional JSON object attached verbatim to
+ *       {@code SUITE_ENTER.data.params}. V0 schema {@code {"dev": bool}} marks the run as
+ *       developer-loop so the aggregator can hide it from the default Runs rail.
+ *       Forward-compatible: receivers persist unknown keys untouched. Malformed JSON or a
+ *       non-object value logs WARN and is dropped (params absent from the envelope).</li>
  * </ul>
  * <p>
  * Modes:
@@ -96,6 +101,7 @@ public class HttpPostListener implements RunListener {
     public static final String ENV_URL = "KARATE_AGENT_URL";
     public static final String ENV_TOKEN = "KARATE_AGENT_TOKEN";
     public static final String ENV_MODE = "KARATE_AGENT_MODE";
+    public static final String ENV_PARAMS = "KARATE_AGENT_PARAMS";
 
     public static final int DEFAULT_BATCH_SIZE = 50;
     public static final Duration HTTP_TIMEOUT = Duration.ofSeconds(10);
@@ -113,6 +119,7 @@ public class HttpPostListener implements RunListener {
     private final int batchSize;
     private final String runId;
     private final String env;
+    private final Map<String, Object> params;
     private final HttpClient httpClient;
 
     private final List<String> buffer = new ArrayList<>();
@@ -132,16 +139,22 @@ public class HttpPostListener implements RunListener {
         if (envUrl == null || envUrl.isEmpty()) {
             return null;
         }
-        return new HttpPostListener(envUrl, env, DEFAULT_BATCH_SIZE);
+        Map<String, Object> params = parseParams(System.getenv(ENV_PARAMS));
+        return new HttpPostListener(envUrl, env, DEFAULT_BATCH_SIZE, params);
     }
 
     HttpPostListener(String url, String env, int batchSize) {
+        this(url, env, batchSize, null);
+    }
+
+    HttpPostListener(String url, String env, int batchSize, Map<String, Object> params) {
         this.url = stripTrailingSlash(url);
         this.token = System.getenv(ENV_TOKEN);
         this.mode = parseMode(System.getenv(ENV_MODE));
         this.batchSize = batchSize;
         this.runId = UUID.randomUUID().toString();
         this.env = env;
+        this.params = params;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(HTTP_TIMEOUT)
                 .build();
@@ -163,6 +176,33 @@ public class HttpPostListener implements RunListener {
         } catch (IllegalArgumentException e) {
             logger.warn("invalid {}={}, defaulting to batch", ENV_MODE, raw);
             return Mode.BATCH;
+        }
+    }
+
+    /**
+     * Parse the {@code KARATE_AGENT_PARAMS} env-var value as a JSON object. Returns the
+     * parsed map verbatim — forward-compat with unknown keys. Returns {@code null} (with a
+     * single WARN log line) when the value is null/empty, not a valid JSON object, or fails
+     * to parse. The wire envelope omits the {@code params} field in that case; the listener
+     * still activates.
+     */
+    static Map<String, Object> parseParams(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return null;
+        }
+        try {
+            Object parsed = Json.parseStrict(raw);
+            if (!(parsed instanceof Map)) {
+                logger.warn("invalid {}: expected JSON object, got {}", ENV_PARAMS,
+                        parsed == null ? "null" : parsed.getClass().getSimpleName());
+                return null;
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) parsed;
+            return map;
+        } catch (Exception e) {
+            logger.warn("invalid {}: {}", ENV_PARAMS, e.getMessage());
+            return null;
         }
     }
 
@@ -214,6 +254,9 @@ public class HttpPostListener implements RunListener {
             data.put("karateVersion", Globals.KARATE_VERSION);
             if (env != null && !env.isEmpty()) {
                 data.put("env", env);
+            }
+            if (params != null) {
+                data.put("params", params);
             }
         }
         envelope.put("data", data);

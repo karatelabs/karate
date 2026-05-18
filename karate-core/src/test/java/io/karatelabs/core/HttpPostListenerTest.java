@@ -25,6 +25,9 @@ package io.karatelabs.core;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -115,6 +118,84 @@ class HttpPostListenerTest {
         HttpPostListener a = new HttpPostListener("http://localhost:4444", "dev", 50);
         HttpPostListener b = new HttpPostListener("http://localhost:4444", "dev", 50);
         assertNotEquals(a.getRunId(), b.getRunId());
+    }
+
+    @Test
+    void parseParams_returnsNull_forNullOrEmpty() {
+        assertNull(HttpPostListener.parseParams(null));
+        assertNull(HttpPostListener.parseParams(""));
+    }
+
+    @Test
+    void parseParams_returnsMap_forValidJsonObject() {
+        Map<String, Object> parsed = HttpPostListener.parseParams("{\"dev\":true,\"label\":\"local\"}");
+        assertNotNull(parsed);
+        assertEquals(Boolean.TRUE, parsed.get("dev"));
+        assertEquals("local", parsed.get("label"));
+    }
+
+    @Test
+    void parseParams_returnsNull_forNonObjectJson() {
+        // JSON array — not an object. We require an object envelope so receivers can
+        // add new keys without breaking older readers; arrays/scalars are dropped.
+        assertNull(HttpPostListener.parseParams("[1,2,3]"));
+        assertNull(HttpPostListener.parseParams("\"just-a-string\""));
+        assertNull(HttpPostListener.parseParams("42"));
+        assertNull(HttpPostListener.parseParams("true"));
+    }
+
+    @Test
+    void parseParams_returnsNull_forMalformedJson() {
+        // Per the env-var contract: malformed JSON logs WARN and is dropped; the listener
+        // still activates (the run-data plumbing is independent of the params envelope).
+        assertNull(HttpPostListener.parseParams("{not valid"));
+        assertNull(HttpPostListener.parseParams("{\"dangling\":}"));
+    }
+
+    @Test
+    void serialize_includesParams_onSuiteEnter_whenParamsSet() {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("dev", true);
+        HttpPostListener listener = new HttpPostListener("http://localhost:4444", "dev", 50, params);
+
+        Suite suite = Runner.builder().buildSuite();
+        SuiteRunEvent enter = SuiteRunEvent.enter(suite);
+        String line = listener.serialize(enter);
+
+        assertTrue(line.contains("\"params\":{\"dev\":true}"),
+                "SUITE_ENTER should include params: " + line);
+    }
+
+    @Test
+    void serialize_omitsParams_whenParamsNull() {
+        // No params constructor arg → SUITE_ENTER envelope must not carry a params field.
+        HttpPostListener listener = new HttpPostListener("http://localhost:4444", "dev", 50);
+
+        Suite suite = Runner.builder().buildSuite();
+        SuiteRunEvent enter = SuiteRunEvent.enter(suite);
+        String line = listener.serialize(enter);
+
+        assertFalse(line.contains("\"params\""),
+                "SUITE_ENTER should not carry params when env var unset: " + line);
+    }
+
+    @Test
+    void serialize_passesParamsThrough_forForwardCompatibility() {
+        // Unknown keys (anything beyond V0's `dev` flag) must survive the wire so
+        // future receivers can read them without a karate-core release.
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("dev", false);
+        params.put("team", "payments");
+        params.put("branch", "feature/abc");
+        HttpPostListener listener = new HttpPostListener("http://localhost:4444", "qa", 50, params);
+
+        Suite suite = Runner.builder().buildSuite();
+        SuiteRunEvent enter = SuiteRunEvent.enter(suite);
+        String line = listener.serialize(enter);
+
+        assertTrue(line.contains("\"team\":\"payments\""), "team key missing: " + line);
+        assertTrue(line.contains("\"branch\":\"feature/abc\""), "branch key missing: " + line);
+        assertTrue(line.contains("\"dev\":false"), "dev key missing: " + line);
     }
 
 }

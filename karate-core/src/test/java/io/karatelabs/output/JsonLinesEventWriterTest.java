@@ -503,6 +503,18 @@ class JsonLinesEventWriterTest {
         assertNotNull(scenarioExit, "should have SCENARIO_EXIT event");
         assertEquals(true, scenarioExit.get("skipped"), "aborted scenario must report skipped=true");
         assertNull(scenarioExit.get("error"), "skipped scenario must not carry an error");
+
+        // V0 contract (AGENT_KARATE PR 4.A): a karate.abort()-bodied scenario — used as the
+        // declared-not-implemented convention — must still emit a coverage-atom chain so the
+        // aggregator's Coverage.gaps() surface sees the slug.
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> coverageItems = (List<Map<String, Object>>) scenarioExit.get("coverageItems");
+        assertNotNull(coverageItems, "skipped scenario must still emit coverageItems[]");
+        assertEquals(2, coverageItems.size(),
+                "plain skipped scenario chain = feature + scenario: " + coverageItems);
+        assertEquals("feature", coverageItems.get(0).get("kind"));
+        assertEquals("scenario", coverageItems.get(1).get("kind"));
+        assertEquals("aborts mid-way", coverageItems.get(1).get("name"));
     }
 
     @Test
