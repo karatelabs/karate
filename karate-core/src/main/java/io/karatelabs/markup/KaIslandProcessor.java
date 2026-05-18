@@ -63,7 +63,7 @@ import java.util.Map;
  *   }
  * }</pre>
  *
- * <p>Resolves Gotcha #14 in {@code MARKUP_SKILL.md} (the boilerplate {@code <script
+ * <p>Resolves Gotcha #14 in karate-skills {@code markup/skill.md} (the boilerplate {@code <script
  * type="application/json" id="x" th:utext="xJson">[]</script>} pattern).
  *
  * <p>Null values render as the literal {@code null} (valid JSON); call sites

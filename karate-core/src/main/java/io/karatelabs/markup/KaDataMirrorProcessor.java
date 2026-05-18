@@ -52,7 +52,7 @@ import org.thymeleaf.templatemode.TemplateMode;
  * so the POST body always matches the live UI state. The server reads
  * {@code request.paramJson('<expr>')} as it would for any other JSON field.
  *
- * <p>See {@code MARKUP_SKILL.md} Gotcha #20 in the karate-skills repo for the
+ * <p>See {@code markup/skill.md} Gotcha #20 in the karate-skills repo for the
  * outer-scope shadowing pitfall this directive collapses.
  */
 class KaDataMirrorProcessor extends AbstractAttributeTagProcessor {

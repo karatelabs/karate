@@ -32,7 +32,7 @@ import org.thymeleaf.exceptions.TemplateProcessingException;
  * <p>karate-markup intentionally does not support param lists in {@code th:fragment}
  * declarations. The convention is plain {@code th:fragment="chip"} — callers pass
  * values via {@code th:with}, the fragment reads them as ordinary scope variables,
- * and unset names resolve to {@code null} (see Gotcha #21 + #22 in MARKUP_SKILL.md).
+ * and unset names resolve to {@code null} (see Gotcha #21 + #22 in karate-skills {@code markup/skill.md}).
  *
  * <p>Two paths surface the convention:
  * <ul>
@@ -84,7 +84,7 @@ final class FragmentSupport {
         sb.append("  Change   th:fragment=\"name(p1, p2)\"   ➜   th:fragment=\"name\"\n");
         sb.append("  Pass values via th:with at the call site; the fragment reads them as\n");
         sb.append("  ordinary scope variables. Unset names resolve to null (no typeof guard\n");
-        sb.append("  needed). See MARKUP_SKILL.md Gotcha #21.");
+        sb.append("  needed). See karate-skills markup/skill.md Gotcha #21.");
         if (thymeleafMsg != null) {
             sb.append("\n  Original Thymeleaf error: ").append(thymeleafMsg);
         }
