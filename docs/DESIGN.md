@@ -540,15 +540,25 @@ Standard envelope:
 
 ### Outbound HTTP delivery
 
-The same JSONL envelope can be POSTed to a configured HTTP receiver — useful for piping runs into a dashboard, an aggregator, or any compatible service. Activation is env-var driven; the OSS path has zero network cost when unconfigured.
+The same JSONL envelope can be POSTed to a configured HTTP receiver — useful for piping runs into a dashboard, an aggregator, or any compatible service. Activation is now via the [`Plugin` architecture](#plugin-architecture) — a customer adds `boot.plugin('agent')` to `karate-boot.js` and sets `.url`. When no `karate-boot.js` exists or `boot.plugin('agent')` is never invoked, no `HttpClient` is constructed and no listener is registered (zero network cost).
 
-| Env var | Purpose |
+```js
+// karate-boot.js — drop next to karate-config.js
+const agent = boot.plugin('agent');
+agent.url = boot.sysenv('AGENT_URL') || 'http://localhost:4444';
+agent.mode = boot.env === 'ci' ? 'batch' : 'final';   // optional, default 'batch'
+agent.token = boot.sysenv('AGENT_TOKEN');             // optional bearer
+agent.params = { dev: boot.env !== 'ci' };            // optional, forwarded verbatim
+```
+
+| Property | Purpose |
 |---|---|
-| `KARATE_AGENT_URL` | Destination base URL. Required to activate. When unset, no `HttpClient` is created, no startup line is logged, no listener is registered. |
-| `KARATE_AGENT_TOKEN` | Optional bearer token, sent as `Authorization: Bearer <token>`. |
-| `KARATE_AGENT_MODE` | `batch` (default — POST every 50 events plus a final flush) or `final` (POST once on `SUITE_EXIT`). Streaming mode is reserved for a future revision. |
+| `.url` | Destination base URL. Required to activate. Blank / unset leaves the plugin inert. |
+| `.mode` | `batch` (default — POST every 50 events plus a final flush) or `final` (POST once on `SUITE_EXIT`). Streaming mode is reserved for a future revision. |
+| `.token` | Optional bearer token, sent as `Authorization: Bearer <token>`. |
+| `.params` | Arbitrary map attached verbatim to `SUITE_ENTER.data.params`. V0 schema `{dev: bool}` marks the run as developer-loop; forward-compatible — receivers persist unknown keys untouched. |
 
-When active, the listener prints exactly one INFO line on startup announcing the destination so operators always see where data goes. Posts are **best-effort**: failures log at WARN and are dropped — the build is never failed by a transport error. The on-disk JSONL file (when `outputJsonLines(true)`) remains the source of truth.
+When active, the plugin prints exactly one INFO line on first event announcing the destination so operators always see where data goes. Posts are **best-effort**: failures log at WARN and are dropped — the build is never failed by a transport error. The on-disk JSONL file (when `outputJsonLines(true)`) remains the source of truth.
 
 The wire envelope adds an explicit `schema` field for forward compatibility:
 
@@ -556,14 +566,14 @@ The wire envelope adds an explicit `schema` field for forward compatibility:
 {"schema":{"version":1,"dialect":"karate-v2"},"type":"SCENARIO_EXIT","timeStamp":1747555200100,"threadId":"worker-1","data":{...}}
 ```
 
-`SUITE_ENTER.data` additionally carries `runId` (a UUID generated per run) and `karateVersion`. Endpoints called (paths relative to `KARATE_AGENT_URL`):
+`SUITE_ENTER.data` additionally carries `runId` (a UUID generated per run) and `karateVersion`, plus a `plugins[]` array — one entry per active karate-boot.js plugin — so receivers know which plugins were active for this run and with what config. Endpoints called (paths relative to `.url`):
 
 - `POST /api/runs/{runId}/events` — batched events, body is JSONL (`application/x-ndjson`).
 - `POST /api/runs/{runId}/complete` — final flush on `SUITE_EXIT`.
 
 Receivers can implement these two endpoints to consume Karate runs over HTTP.
 
-**Source files:** `HtmlReportListener.java`, `HtmlReportWriter.java`, `CucumberJsonWriter.java`, `JunitXmlWriter.java`, `JsonLinesEventWriter.java`, `HttpPostListener.java`
+**Source files:** `HtmlReportListener.java`, `HtmlReportWriter.java`, `CucumberJsonWriter.java`, `JunitXmlWriter.java`, `JsonLinesEventWriter.java`, `plugins/agent/AgentPlugin.java`
 
 ---
 

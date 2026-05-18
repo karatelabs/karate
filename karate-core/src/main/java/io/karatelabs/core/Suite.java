@@ -133,6 +133,11 @@ public class Suite {
     // Performance testing hook (for Gatling integration)
     private PerfHook perfHook;
 
+    // karate-boot.js plugins, evaluated by BootLoader.loadIfPresent() at run() start.
+    // Exposed via getBootBinding() so SuiteRunEvent can surface plugin manifests on
+    // SUITE_ENTER. Null when no karate-boot.js file is present in the workdir.
+    private BootBinding bootBinding;
+
     // ========== Constructor (package-private) ==========
 
     /**
@@ -308,20 +313,13 @@ public class Suite {
             }
         }
 
-        // Optionally register HTTP POST listener (karate-agent dashboard).
-        // tryCreate() returns null when KARATE_AGENT_URL is unset, preserving the
-        // zero-network guarantee — no HttpClient is created, no log line is printed.
-        HttpPostListener httpPostListener = HttpPostListener.tryCreate(env);
-        if (httpPostListener != null) {
-            addJsonlListener(httpPostListener);
-        }
-
         // Load karate-boot.js if present (workdir root, then classpath). Plugin SPI
         // per K43: boot file evaluates plugin-scripting only; the side effect is
         // plugin registration through BootBinding.plugin(...). Returns null when
         // no boot file exists — preserves the zero-cost path for projects that
-        // don't use plugins.
-        BootBinding bootBinding = BootLoader.loadIfPresent(this, env);
+        // don't use plugins. Per K44 the karate-agent client now activates here
+        // (boot.plugin('agent')) — the old KARATE_AGENT_* env-var contract is gone.
+        this.bootBinding = BootLoader.loadIfPresent(this, env);
 
         try {
             // Notify listeners
@@ -361,12 +359,6 @@ public class Suite {
                 } catch (Exception e) {
                     logger.warn("Failed to close JSONL event stream: {}", e.getMessage());
                 }
-            }
-
-            // Detach HTTP POST listener (no resources to close; the final flush
-            // already happened on SUITE_EXIT inside onEvent).
-            if (httpPostListener != null) {
-                removeJsonlListener(httpPostListener);
             }
 
             // Plugin onShutdown — best-effort; exceptions are logged + dropped per K43.
@@ -412,6 +404,17 @@ public class Suite {
     /** Workdir for boot.js discovery + per-plugin file resolution. */
     public Path getWorkingDir() {
         return workingDir;
+    }
+
+    /**
+     * Returns the karate-boot.js {@link BootBinding} populated during {@link #run()},
+     * or {@code null} when no boot file is present in the workdir. Surfaced so
+     * {@link SuiteRunEvent#toJson()} can attach {@code plugins[]} manifests to
+     * SUITE_ENTER. Per K47 the dashboard reads this to know which plugins were
+     * active and which embed names to expect.
+     */
+    public BootBinding getBootBinding() {
+        return bootBinding;
     }
 
     private void removeJsonlListener(RunListener listener) {
