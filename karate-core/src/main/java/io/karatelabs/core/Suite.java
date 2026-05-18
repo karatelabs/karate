@@ -308,6 +308,14 @@ public class Suite {
             }
         }
 
+        // Optionally register HTTP POST listener (karate-agent dashboard).
+        // tryCreate() returns null when KARATE_AGENT_URL is unset, preserving the
+        // zero-network guarantee — no HttpClient is created, no log line is printed.
+        HttpPostListener httpPostListener = HttpPostListener.tryCreate(env);
+        if (httpPostListener != null) {
+            addJsonlListener(httpPostListener);
+        }
+
         try {
             // Notify listeners
             for (ResultListener listener : resultListeners) {
@@ -346,6 +354,12 @@ public class Suite {
                 } catch (Exception e) {
                     logger.warn("Failed to close JSONL event stream: {}", e.getMessage());
                 }
+            }
+
+            // Detach HTTP POST listener (no resources to close; the final flush
+            // already happened on SUITE_EXIT inside onEvent).
+            if (httpPostListener != null) {
+                removeJsonlListener(httpPostListener);
             }
 
             // Notify listeners
