@@ -105,8 +105,11 @@
                         <user.timezone>UTC</user.timezone>
                     </systemPropertyVariables>
                     <!-- Exclude testcontainers E2E tests by default (require Docker) -->
+                    <!-- Also exclude OAuth callback tests — synchronous port-release waits add ~45s locally -->
                     <excludes>
                         <exclude>**/e2e/**</exclude>
+                        <exclude>**/LocalCallbackServerTest.java</exclude>
+                        <exclude>**/AuthorizationCodeAuthHandlerTest.java</exclude>
                     </excludes>
                 </configuration>
             </plugin>
