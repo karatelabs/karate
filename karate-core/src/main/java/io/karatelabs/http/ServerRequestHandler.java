@@ -168,8 +168,7 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
 
         } catch (Exception e) {
             response.setStatus(500);
-            response.setBody("Internal Server Error: " + e.getMessage());
-            response.setHeader("Content-Type", "text/plain");
+            response.setBody("Internal Server Error: " + e.getMessage(), ResourceType.TEXT);
             return response;
         }
     }
@@ -224,11 +223,9 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
         if (request != null && request.isAjax()) {
             response.setStatus(200);
             response.setHeader("HX-Redirect", location);
-            response.setBody("");
         } else {
             response.setStatus(302);
             response.setHeader("Location", location);
-            response.setBody("");
         }
     }
 
@@ -263,13 +260,8 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
             return null;
         }
 
-        // Validate the token
         if (!CsrfProtection.validate(request, session)) {
-            HttpResponse response = new HttpResponse();
-            response.setStatus(403);
-            response.setBody("Forbidden: Invalid or missing CSRF token");
-            response.setHeader("Content-Type", "text/plain");
-            return response;
+            return HttpResponse.text(403, "Forbidden: Invalid or missing CSRF token");
         }
 
         return null;
@@ -392,15 +384,13 @@ public class ServerRequestHandler implements Function<HttpRequest, HttpResponse>
 
     private HttpResponse notFound(HttpResponse response, String path) {
         response.setStatus(404);
-        response.setBody("Not Found: " + path);
-        response.setHeader("Content-Type", "text/plain");
+        response.setBody("Not Found: " + path, ResourceType.TEXT);
         return response;
     }
 
     private HttpResponse forbidden(HttpResponse response, String message) {
         response.setStatus(403);
-        response.setBody("Forbidden: " + message);
-        response.setHeader("Content-Type", "text/plain");
+        response.setBody("Forbidden: " + message, ResourceType.TEXT);
         return response;
     }
 

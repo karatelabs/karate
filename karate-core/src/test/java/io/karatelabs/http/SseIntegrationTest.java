@@ -27,11 +27,8 @@ class SseIntegrationTest {
     @BeforeAll
     static void beforeAll() {
         // Normal handler for non-SSE requests
-        java.util.function.Function<HttpRequest, HttpResponse> handler = request -> {
-            HttpResponse response = new HttpResponse();
-            response.setBody("normal response");
-            return response;
-        };
+        java.util.function.Function<HttpRequest, HttpResponse> handler = request ->
+                HttpResponse.text("normal response");
         // SSE handler sends 3 events then closes
         SseHandler sseHandler = (request, connection) -> {
             Thread.ofVirtual().start(() -> {
@@ -119,11 +116,8 @@ class SseIntegrationTest {
 
     @Test
     void testSseMultilineData() throws Exception {
-        HttpServer multilineServer = HttpServer.start(0, request -> {
-            HttpResponse response = new HttpResponse();
-            response.setBody("fallback");
-            return response;
-        }, (request, connection) -> {
+        HttpServer multilineServer = HttpServer.start(0, request ->
+                HttpResponse.text("fallback"), (request, connection) -> {
             Thread.ofVirtual().start(() -> {
                 connection.send("update", "line1\nline2\nline3");
                 connection.close();
@@ -160,11 +154,8 @@ class SseIntegrationTest {
     @Test
     void testSseClientDisconnect() throws Exception {
         CountDownLatch disconnectLatch = new CountDownLatch(1);
-        HttpServer disconnectServer = HttpServer.start(0, request -> {
-            HttpResponse response = new HttpResponse();
-            response.setBody("fallback");
-            return response;
-        }, (request, connection) -> {
+        HttpServer disconnectServer = HttpServer.start(0, request ->
+                HttpResponse.text("fallback"), (request, connection) -> {
             connection.onDisconnect(disconnectLatch::countDown);
             Thread.ofVirtual().start(() -> {
                 // Keep sending until client disconnects
@@ -205,11 +196,8 @@ class SseIntegrationTest {
     @Test
     void testSseWithoutHandler() throws Exception {
         // Server with no SSE handler — SSE requests should get normal response
-        HttpServer noSseServer = HttpServer.start(0, request -> {
-            HttpResponse response = new HttpResponse();
-            response.setBody("normal only");
-            return response;
-        });
+        HttpServer noSseServer = HttpServer.start(0, request ->
+                HttpResponse.text("normal only"));
 
         try {
             HttpURLConnection conn = (HttpURLConnection) URI.create(

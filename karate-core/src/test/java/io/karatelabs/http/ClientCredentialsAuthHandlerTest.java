@@ -1,6 +1,7 @@
 package io.karatelabs.http;
 
 import io.karatelabs.common.Json;
+import io.karatelabs.common.ResourceType;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,10 +20,10 @@ class ClientCredentialsAuthHandlerTest {
         HttpServer server = HttpServer.start(0, request -> {
             HttpResponse response = new HttpResponse();
             if (request.pathMatches("/token")) {
-                response.setBody(Json.of("{ access_token: 'foo' }").asMap());
+                response.setBody(Json.toBytes(Json.of("{ access_token: 'foo' }").asMap()), ResourceType.JSON);
             } else {
                 String authHeader = request.getHeader("authorization");
-                response.setBody(authHeader);
+                response.setBody(authHeader, ResourceType.TEXT);
             }
             return response;
         });

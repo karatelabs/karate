@@ -335,8 +335,9 @@ class DemoAppTest {
         HttpResponse response = get("/restricted");
         assertEquals(302, response.getStatus());
         assertEquals("/", response.getHeader("Location"));
-        // body is discarded on redirect
-        assertEquals("", response.getBodyString());
+        // body is discarded on redirect (null body — never set, never rendered)
+        String body = response.getBodyString();
+        assertTrue(body == null || body.isEmpty(), "body must be empty on redirect, got: " + body);
     }
 
     @Test
@@ -801,7 +802,9 @@ class DemoAppTest {
         HttpResponse response = get("/restricted");
         assertEquals(302, response.getStatus());
         assertEquals("/", response.getHeader("Location"));
-        assertEquals("", response.getBodyString(), "body must be empty on redirect (shell never runs)");
+        String body = response.getBodyString();
+        assertTrue(body == null || body.isEmpty(),
+                "body must be empty on redirect (shell never runs), got: " + body);
     }
 
     @Test

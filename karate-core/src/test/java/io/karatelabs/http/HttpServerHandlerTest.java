@@ -69,6 +69,39 @@ class HttpServerHandlerTest {
     }
 
     @Test
+    void testIsSseRequestPostRejected() {
+        // MCP Streamable HTTP transport sends POST with Accept: text/event-stream
+        // so the server *may* upgrade to SSE — but that upgrade is the
+        // application's choice, not an automatic transport upgrade.
+        // EventSource (real SSE clients) only ever send GET.
+        FullHttpRequest req = new DefaultFullHttpRequest(
+                HttpVersion.HTTP_1_1, HttpMethod.POST, "/mcp");
+        req.headers().set("Accept", "text/event-stream");
+        assertFalse(HttpServerHandler.isSseRequest(req));
+    }
+
+    @Test
+    void testIsSseRequestPostWithMixedAcceptRejected() {
+        FullHttpRequest req = new DefaultFullHttpRequest(
+                HttpVersion.HTTP_1_1, HttpMethod.POST, "/mcp");
+        req.headers().set("Accept", "application/json, text/event-stream");
+        assertFalse(HttpServerHandler.isSseRequest(req));
+    }
+
+    @Test
+    void testIsSseRequestPutDeleteRejected() {
+        FullHttpRequest put = new DefaultFullHttpRequest(
+                HttpVersion.HTTP_1_1, HttpMethod.PUT, "/api/data");
+        put.headers().set("Accept", "text/event-stream");
+        assertFalse(HttpServerHandler.isSseRequest(put));
+
+        FullHttpRequest del = new DefaultFullHttpRequest(
+                HttpVersion.HTTP_1_1, HttpMethod.DELETE, "/api/data");
+        del.headers().set("Accept", "text/event-stream");
+        assertFalse(HttpServerHandler.isSseRequest(del));
+    }
+
+    @Test
     void testToRequestWithBody() {
         byte[] body = "{\"name\":\"test\"}".getBytes();
         FullHttpRequest nettyRequest = new DefaultFullHttpRequest(

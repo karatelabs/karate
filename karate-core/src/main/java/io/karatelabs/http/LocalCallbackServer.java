@@ -1,8 +1,6 @@
 package io.karatelabs.http;
 
-import io.karatelabs.http.HttpRequest;
-import io.karatelabs.http.HttpResponse;
-import io.karatelabs.http.HttpServer;
+import io.karatelabs.common.ResourceType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,19 +41,12 @@ public class LocalCallbackServer {
     }
 
     private HttpResponse handleRequest(HttpRequest request) {
-        HttpResponse response = new HttpResponse();
-
-        // Only handle GET requests to /callback path
         if (!"GET".equalsIgnoreCase(request.getMethod())) {
-            response.setStatus(405);
-            response.setBody("Method Not Allowed");
-            return response;
+            return HttpResponse.text(405, "Method Not Allowed");
         }
 
         if (!"/callback".equals(request.getPath())) {
-            response.setStatus(404);
-            response.setBody("Not Found");
-            return response;
+            return HttpResponse.text(404, "Not Found");
         }
 
         String code = request.getParam("code");
@@ -65,6 +56,7 @@ public class LocalCallbackServer {
         logger.debug("Received OAuth callback: code={}, error={}, state={}",
             code != null ? "present" : "null", error, state);
 
+        HttpResponse response = new HttpResponse();
         if (code != null) {
             codeFuture.complete(code);
             sendSuccessPage(response);
@@ -78,7 +70,6 @@ public class LocalCallbackServer {
             );
             sendErrorPage(response, error, errorDesc);
         }
-
         return response;
     }
 
@@ -101,8 +92,7 @@ public class LocalCallbackServer {
             </html>
             """;
         response.setStatus(200);
-        response.setBody(html);
-        response.setContentType("text/html; charset=UTF-8");
+        response.setBody(html, ResourceType.HTML);
     }
 
     private void sendErrorPage(HttpResponse response, String error, String description) {
@@ -126,8 +116,7 @@ public class LocalCallbackServer {
             </html>
             """, error, description);
         response.setStatus(400);
-        response.setBody(html);
-        response.setContentType("text/html; charset=UTF-8");
+        response.setBody(html, ResourceType.HTML);
     }
 
     public CompletableFuture<String> getCodeFuture() {

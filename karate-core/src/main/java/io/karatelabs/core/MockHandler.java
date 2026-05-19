@@ -418,11 +418,7 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
             StepResult result = executor.execute(step);
             if (result.isFailed()) {
                 logger.error("step execution failed at line {}: {}", step.getLine(), result.getError().getMessage());
-                // Return 500 error on step failure
-                HttpResponse response = new HttpResponse();
-                response.setStatus(500);
-                response.setBody(Map.of("error", result.getError().getMessage()));
-                return response;
+                return HttpResponse.error(500, result.getError().getMessage());
             }
         }
 
@@ -455,10 +451,7 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
     }
 
     private HttpResponse hookErrorResponse(String hookName, Exception error) {
-        HttpResponse response = new HttpResponse();
-        response.setStatus(500);
-        response.setBody(Map.of("error", hookName + " hook failed: " + error.getMessage()));
-        return response;
+        return HttpResponse.error(500, hookName + " hook failed: " + error.getMessage());
     }
 
     @SuppressWarnings("unchecked")
@@ -512,17 +505,8 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
             response.setHeader("Access-Control-Allow-Origin", "*");
         }
 
-        // Set body (auto-detect content type)
         if (responseBody != null) {
-            if (responseBody instanceof Map || responseBody instanceof List) {
-                response.setBody(FileUtils.toBytes(JSONValue.toJSONString(responseBody)), ResourceType.JSON);
-            } else if (responseBody instanceof Node) {
-                response.setBody(FileUtils.toBytes(Xml.toString((Node) responseBody)), ResourceType.XML);
-            } else if (responseBody instanceof String) {
-                response.setBody((String) responseBody);
-            } else if (responseBody instanceof byte[]) {
-                response.setBody((byte[]) responseBody, null);
-            }
+            response.setBodyDynamic(responseBody);
         }
 
         // Set response delay (handled by HttpServerHandler using Netty scheduler)
@@ -537,10 +521,7 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
     }
 
     private HttpResponse createNotFoundResponse() {
-        HttpResponse response = new HttpResponse();
-        response.setStatus(404);
-        response.setBody(Map.of("error", "no matching scenario"));
-        return response;
+        return HttpResponse.notFound("no matching scenario");
     }
 
     // ===== Accessors =====

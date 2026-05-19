@@ -121,9 +121,7 @@ public class TestPageServer {
         byte[] content = loadResource(resourcePath);
 
         if (content == null) {
-            response.setStatus(404);
-            response.setBody("Not Found: " + path);
-            return response;
+            return HttpResponse.text(404, "Not Found: " + path);
         }
 
         // Determine content type

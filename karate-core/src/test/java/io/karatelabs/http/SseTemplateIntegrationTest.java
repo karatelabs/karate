@@ -148,11 +148,8 @@ class SseTemplateIntegrationTest {
             });
         };
 
-        HttpServer server = HttpServer.start(0, request -> {
-            HttpResponse response = new HttpResponse();
-            response.setBody("fallback");
-            return response;
-        }, sseHandler);
+        HttpServer server = HttpServer.start(0, request ->
+                HttpResponse.text("fallback"), sseHandler);
 
         try {
             HttpURLConnection conn = (HttpURLConnection) URI.create(
@@ -210,11 +207,8 @@ class SseTemplateIntegrationTest {
             });
         };
 
-        HttpServer server = HttpServer.start(0, request -> {
-            HttpResponse response = new HttpResponse();
-            response.setBody("ok");
-            return response;
-        }, sseHandler);
+        HttpServer server = HttpServer.start(0, request ->
+                HttpResponse.text("ok"), sseHandler);
 
         try {
             HttpURLConnection conn = (HttpURLConnection) URI.create(
@@ -270,11 +264,8 @@ class SseTemplateIntegrationTest {
             });
         };
 
-        HttpServer server = HttpServer.start(0, request -> {
-            HttpResponse response = new HttpResponse();
-            response.setBody("ok");
-            return response;
-        }, sseHandler);
+        HttpServer server = HttpServer.start(0, request ->
+                HttpResponse.text("ok"), sseHandler);
 
         try {
             HttpURLConnection conn = (HttpURLConnection) URI.create(

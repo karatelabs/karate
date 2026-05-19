@@ -151,20 +151,14 @@ public class InMemoryHttpClient implements HttpClient {
      * Create a response with JSON body.
      */
     public static HttpResponse json(String jsonBody) {
-        HttpResponse resp = new HttpResponse();
-        resp.setStatus(200);
-        resp.setBodyJson(jsonBody);
-        return resp;
+        return HttpResponse.json(jsonBody);
     }
 
     /**
      * Create a response with status and JSON body.
      */
     public static HttpResponse json(int status, String jsonBody) {
-        HttpResponse resp = new HttpResponse();
-        resp.setStatus(status);
-        resp.setBodyJson(jsonBody);
-        return resp;
+        return HttpResponse.json(status, jsonBody);
     }
 
     /**

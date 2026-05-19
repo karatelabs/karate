@@ -1,6 +1,7 @@
 package io.karatelabs.http;
 
 import io.karatelabs.common.Resource;
+import io.karatelabs.common.ResourceType;
 import io.karatelabs.core.KarateJs;
 import io.karatelabs.js.JavaCallable;
 import io.karatelabs.js.SimpleObject;
@@ -167,7 +168,7 @@ class ServerIntegrationTest {
     void testTemplateRenderSimple() {
         harness.setHandler(ctx -> {
             String html = ctx.renderString("<div th:text=\"'hello world'\"></div>");
-            ctx.response().setBody(html);
+            ctx.response().setBody(html, ResourceType.HTML);
             return ctx.response();
         });
 
@@ -179,7 +180,7 @@ class ServerIntegrationTest {
     void testTemplateRenderWithVariable() {
         harness.setHandler(ctx -> {
             String html = ctx.renderString("<div th:text=\"message\"></div>", Map.of("message", "greetings"));
-            ctx.response().setBody(html);
+            ctx.response().setBody(html, ResourceType.HTML);
             return ctx.response();
         });
 
@@ -192,7 +193,7 @@ class ServerIntegrationTest {
         harness.setHandler(ctx -> {
             // Template can access request object
             String html = ctx.renderString("<div th:text=\"request.param('name')\"></div>");
-            ctx.response().setBody(html);
+            ctx.response().setBody(html, ResourceType.HTML);
             return ctx.response();
         });
 
@@ -206,7 +207,7 @@ class ServerIntegrationTest {
             // Set session data in JS, access in template
             ctx.eval("session.username = 'john'");
             String html = ctx.renderString("<div th:text=\"session.username\"></div>");
-            ctx.response().setBody(html);
+            ctx.response().setBody(html, ResourceType.HTML);
             return ctx.response();
         });
 
@@ -221,7 +222,7 @@ class ServerIntegrationTest {
                     "<div th:if=\"show\">visible</div><div th:unless=\"show\">hidden</div>",
                     Map.of("show", true)
             );
-            ctx.response().setBody(html);
+            ctx.response().setBody(html, ResourceType.HTML);
             return ctx.response();
         });
 
@@ -236,7 +237,7 @@ class ServerIntegrationTest {
                     "<ul><li th:each=\"item : items\" th:text=\"item\"></li></ul>",
                     Map.of("items", java.util.List.of("a", "b", "c"))
             );
-            ctx.response().setBody(html);
+            ctx.response().setBody(html, ResourceType.HTML);
             return ctx.response();
         });
 
@@ -249,7 +250,7 @@ class ServerIntegrationTest {
         harness.setHandler(ctx -> ctx.respondWithTemplate("temp.html"));
 
         HttpResponse response = harness.get("/test");
-        assertEquals("text/html", response.getHeader("Content-Type"));
+        assertEquals("text/html; charset=UTF-8", response.getHeader("Content-Type"));
         assertTrue(response.getBodyString().contains("temp"));
     }
 
@@ -264,7 +265,7 @@ class ServerIntegrationTest {
 
             // Render template with session data
             String html = ctx.renderString("<div th:text=\"session.greeting\"></div>");
-            ctx.response().setBody(html);
+            ctx.response().setBody(html, ResourceType.HTML);
             return ctx.response();
         });
 
@@ -280,7 +281,7 @@ class ServerIntegrationTest {
 
             // Template sets body
             String html = ctx.renderString("<div>created</div>");
-            ctx.response().setBody(html);
+            ctx.response().setBody(html, ResourceType.HTML);
             ctx.response().setHeader("Content-Type", "text/html");
             return ctx.response();
         });
@@ -296,7 +297,7 @@ class ServerIntegrationTest {
     void testJsHttpClient() {
         // Test the JS karate.http() client making requests to our server
         harness.setHandler(ctx -> {
-            ctx.response().setBody("hello world");
+            ctx.response().setBody("hello world", ResourceType.TEXT);
             return ctx.response();
         });
 
@@ -362,7 +363,7 @@ class ServerIntegrationTest {
                     "<span th:text=\"utils.uppercase('hello')\"></span>",
                     Map.of("utils", utils)
             );
-            ctx.response().setBody(html);
+            ctx.response().setBody(html, ResourceType.HTML);
             return ctx.response();
         });
 
@@ -379,7 +380,7 @@ class ServerIntegrationTest {
                     "<span th:text=\"utils.formatPrice(19.99)\"></span>",
                     Map.of("utils", utils)
             );
-            ctx.response().setBody(html);
+            ctx.response().setBody(html, ResourceType.HTML);
             return ctx.response();
         });
 
@@ -397,7 +398,7 @@ class ServerIntegrationTest {
                     "<span th:text=\"utils.appName\"></span>",
                     Map.of("utils", utils)
             );
-            ctx.response().setBody(html);
+            ctx.response().setBody(html, ResourceType.HTML);
             return ctx.response();
         });
 
@@ -516,7 +517,7 @@ class ServerIntegrationTest {
                     """,
                     Map.of("utils", utils)
             );
-            ctx.response().setBody(html);
+            ctx.response().setBody(html, ResourceType.HTML);
             return ctx.response();
         });
 

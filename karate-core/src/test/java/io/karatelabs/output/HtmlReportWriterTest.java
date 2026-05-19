@@ -24,6 +24,7 @@
 package io.karatelabs.output;
 
 import io.karatelabs.common.Json;
+import io.karatelabs.common.ResourceType;
 import io.karatelabs.core.Globals;
 import io.karatelabs.core.Runner;
 import io.karatelabs.core.Suite;
@@ -68,27 +69,26 @@ class HtmlReportWriterTest {
         harness.setHandler(ctx -> {
             String path = ctx.request().getPath();
             var response = ctx.response();
-            response.setHeader("Content-Type", "application/json");
 
             if (path.equals("/api/users") && ctx.request().getMethod().equals("GET")) {
-                response.setBody(Map.of(
+                response.setBody(Json.toBytes(Map.of(
                     "users", List.of(
                         Map.of("id", 1, "name", "Alice", "role", "admin"),
                         Map.of("id", 2, "name", "Bob", "role", "user")
                     ),
                     "total", 2
-                ));
+                )), ResourceType.JSON);
             } else if (path.equals("/api/users") && ctx.request().getMethod().equals("POST")) {
                 response.setStatus(201);
-                response.setBody(Map.of("id", 3, "name", "Charlie", "created", true));
+                response.setBody(Json.toBytes(Map.of("id", 3, "name", "Charlie", "created", true)), ResourceType.JSON);
             } else if (path.startsWith("/api/users/")) {
                 String id = path.substring("/api/users/".length());
-                response.setBody(Map.of("id", Integer.parseInt(id), "name", "User " + id, "active", true));
+                response.setBody(Json.toBytes(Map.of("id", Integer.parseInt(id), "name", "User " + id, "active", true)), ResourceType.JSON);
             } else if (path.equals("/api/status")) {
-                response.setBody(Map.of("status", "healthy", "version", "2.0.0"));
+                response.setBody(Json.toBytes(Map.of("status", "healthy", "version", "2.0.0")), ResourceType.JSON);
             } else {
                 response.setStatus(404);
-                response.setBody(Map.of("error", "Not found", "path", path));
+                response.setBody(Json.toBytes(Map.of("error", "Not found", "path", path)), ResourceType.JSON);
             }
             return response;
         });

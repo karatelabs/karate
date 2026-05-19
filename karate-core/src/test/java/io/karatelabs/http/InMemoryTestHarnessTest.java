@@ -8,11 +8,8 @@ class InMemoryTestHarnessTest {
 
     @Test
     void testBasicRequestResponse() {
-        InMemoryTestHarness harness = new InMemoryTestHarness(request -> {
-            HttpResponse response = new HttpResponse();
-            response.setBody("hello " + request.getParam("name"));
-            return response;
-        });
+        InMemoryTestHarness harness = new InMemoryTestHarness(request ->
+                HttpResponse.text("hello " + request.getParam("name")));
 
         HttpResponse response = harness.get("/test?name=world");
         assertEquals("hello world", response.getBodyString());
@@ -21,15 +18,15 @@ class InMemoryTestHarnessTest {
     @Test
     void testPathMatching() {
         InMemoryTestHarness harness = new InMemoryTestHarness(request -> {
-            HttpResponse response = new HttpResponse();
             if (request.pathMatches("/token")) {
-                response.setBody("token-response");
+                return HttpResponse.text("token-response");
             } else if (request.pathMatches("/api/{id}")) {
-                response.setBody("api-response");
+                return HttpResponse.text("api-response");
             } else {
+                HttpResponse response = new HttpResponse();
                 response.setStatus(404);
+                return response;
             }
-            return response;
         });
 
         assertEquals("token-response", harness.get("/token").getBodyString());
@@ -42,29 +39,18 @@ class InMemoryTestHarnessTest {
         InMemoryTestHarness harness = new InMemoryTestHarness();
 
         // First handler
-        harness.setHandler(req -> {
-            HttpResponse resp = new HttpResponse();
-            resp.setBody("handler1");
-            return resp;
-        });
+        harness.setHandler(req -> HttpResponse.text("handler1"));
         assertEquals("handler1", harness.get("/").getBodyString());
 
         // Swap handler
-        harness.setHandler(req -> {
-            HttpResponse resp = new HttpResponse();
-            resp.setBody("handler2");
-            return resp;
-        });
+        harness.setHandler(req -> HttpResponse.text("handler2"));
         assertEquals("handler2", harness.get("/").getBodyString());
     }
 
     @Test
     void testPostWithBody() {
-        InMemoryTestHarness harness = new InMemoryTestHarness(request -> {
-            HttpResponse response = new HttpResponse();
-            response.setBody("received: " + request.getBodyString());
-            return response;
-        });
+        InMemoryTestHarness harness = new InMemoryTestHarness(request ->
+                HttpResponse.text("received: " + request.getBodyString()));
 
         HttpResponse response = harness.post("/submit", "test-body");
         assertEquals("received: test-body", response.getBodyString());

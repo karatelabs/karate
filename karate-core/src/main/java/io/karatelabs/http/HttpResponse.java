@@ -85,6 +85,15 @@ public class HttpResponse implements ObjectLike {
         this.status = status;
     }
 
+    /**
+     * Paired status setter — sets status code and reason text atomically.
+     * Equivalent to {@link #setStatus(int)} followed by {@link #setStatusText(String)}.
+     */
+    public void setStatus(int status, String statusText) {
+        this.status = status;
+        this.statusText = statusText;
+    }
+
     public void setContentLength(int contentLength) {
         this.contentLength = contentLength;
     }
@@ -175,32 +184,43 @@ public class HttpResponse implements ObjectLike {
         return FileUtils.toString(Json.toBytes(body));
     }
 
-    public void setBody(byte[] body, ResourceType resourceType) {
+    /**
+     * Canonical body setter. {@code type} drives the Content-Type header
+     * (pass {@code null} if the caller will set Content-Type explicitly).
+     * For text-based types ({@code text/*}, {@code application/json|xml}, etc.)
+     * the default UTF-8 charset is appended — see {@link #applyCharset}.
+     * The implicit-type-inference overloads were removed in favour of the
+     * static factories ({@link #text}, {@link #json}, {@link #html}, ...).
+     */
+    public void setBody(byte[] body, ResourceType type) {
         this.body = body;
-        this.resourceType = resourceType;
-        if (resourceType != null) {
-            setContentType(resourceType.contentType);
+        this.resourceType = type;
+        if (type != null) {
+            setContentType(applyCharset(type));
         }
     }
 
-    public void setBody(String body) {
-        setBody(FileUtils.toBytes(body), ResourceType.TEXT);
+    /**
+     * Append the default charset to {@code type.contentType} when the type is
+     * text-based. UTF-8 today; a future {@code ServerConfig} hook can override
+     * the default (per-server, or via thread-local on the handler chain) without
+     * changing the {@link ResourceType} enum — which is also the inbound-parsing
+     * key and must stay charset-agnostic.
+     */
+    private static String applyCharset(ResourceType type) {
+        return switch (type) {
+            case TEXT, HTML, XML, JSON, JS, CSS -> type.contentType + "; charset=UTF-8";
+            default -> type.contentType;
+        };
     }
 
-    public void setBody(Map<String, Object> body) {
-        setBody(Json.toBytes(body), ResourceType.JSON);
-    }
-
-    public void setBody(List<Object> body) {
-        setBody(Json.toBytes(body), ResourceType.JSON);
-    }
-
-    public void setBodyJson(String body) {
-        setBody(FileUtils.toBytes(body), ResourceType.JSON);
-    }
-
-    public void setBodyXml(String body) {
-        setBody(FileUtils.toBytes(body), ResourceType.XML);
+    /**
+     * Convenience overload for {@link #setBody(byte[], ResourceType)} that
+     * UTF-8-encodes the supplied String. Caller still passes the explicit
+     * type — no hidden defaults.
+     */
+    public void setBody(String body, ResourceType type) {
+        setBody(FileUtils.toBytes(body), type);
     }
 
     public Object getBodyConverted() {
@@ -394,17 +414,7 @@ public class HttpResponse implements ObjectLike {
     public void putMember(String key, Object value) {
         switch (key) {
             case "body":
-                if (value instanceof Map || value instanceof List) {
-                    setBody(FileUtils.toBytes(JSONValue.toJSONString(value)), ResourceType.JSON);
-                } else if (value instanceof Node xml) {
-                    setBody(FileUtils.toBytes(Xml.toString(xml)), ResourceType.XML);
-                } else if (value instanceof String s) {
-                    setBody(s);
-                } else if (value instanceof byte[] bytes) {
-                    setBody(bytes, null);
-                } else {
-                    throw new RuntimeException("unsupported response body type: " + value);
-                }
+                applyJsBody(this, value);
                 break;
             case "status":
                 status = ((Number) value).intValue();
@@ -415,6 +425,155 @@ public class HttpResponse implements ObjectLike {
             default:
                 logger.warn("put - unexpected key: {}", key);
         }
+    }
+
+    /**
+     * Type-dispatched body assignment for dynamic call sites — mock dispatch
+     * and the JS-mock {@code response.body = ...} path. Map/List → JSON,
+     * Node → XML, String → TEXT, byte[] → null-type (caller controls
+     * Content-Type for raw bytes — historical behaviour for raw bytes).
+     * Production code that knows the body type should prefer one of the
+     * static factories ({@link #json(Object)}, {@link #text(String)}, etc.).
+     */
+    public void setBodyDynamic(Object value) {
+        applyJsBody(this, value);
+    }
+
+    private static void applyJsBody(HttpResponse r, Object value) {
+        if (value == null) {
+            r.setBody((byte[]) null, null);
+        } else if (value instanceof byte[] bytes) {
+            r.setBody(bytes, null);
+        } else if (value instanceof String s) {
+            r.setBody(s, ResourceType.TEXT);
+        } else if (value instanceof Node xml) {
+            r.setBody(Xml.toString(xml), ResourceType.XML);
+        } else if (value instanceof Map<?, ?> || value instanceof List<?>) {
+            r.setBody(FileUtils.toBytes(JSONValue.toJSONString(value)), ResourceType.JSON);
+        } else {
+            throw new RuntimeException("unsupported response body type: " + value);
+        }
+    }
+
+    // ========== Static factories ==========
+    // Build a response in one call. Status + body + Content-Type set atomically
+    // — no order trap, no hidden setBody overloads.
+
+    /** {@code 200 OK} with no body. */
+    public static HttpResponse ok() {
+        HttpResponse r = new HttpResponse();
+        r.setStatus(200);
+        return r;
+    }
+
+    /**
+     * {@code 200 OK} with body type inferred (matches the JS-mock dispatch):
+     * {@code String→text/plain}, {@code Map/List→application/json},
+     * {@code Node→application/xml}, {@code byte[]→no Content-Type}.
+     */
+    public static HttpResponse ok(Object body) {
+        HttpResponse r = ok();
+        applyJsBody(r, body);
+        return r;
+    }
+
+    /** {@code 200 OK} + {@code text/plain}. */
+    public static HttpResponse text(String body) {
+        return text(200, body);
+    }
+
+    /** Status + {@code text/plain}. */
+    public static HttpResponse text(int status, String body) {
+        HttpResponse r = new HttpResponse();
+        r.setStatus(status);
+        r.setBody(body, ResourceType.TEXT);
+        return r;
+    }
+
+    /** {@code 200 OK} + {@code application/json}. */
+    public static HttpResponse json(Object body) {
+        return json(200, body);
+    }
+
+    /**
+     * Status + {@code application/json}. {@code String} bodies are treated
+     * as already-encoded JSON; everything else goes through {@code Json.toBytes}.
+     */
+    public static HttpResponse json(int status, Object body) {
+        HttpResponse r = new HttpResponse();
+        r.setStatus(status);
+        if (body == null) {
+            r.setBody(new byte[0], ResourceType.JSON);
+        } else if (body instanceof String s) {
+            r.setBody(s, ResourceType.JSON);
+        } else if (body instanceof byte[] bytes) {
+            r.setBody(bytes, ResourceType.JSON);
+        } else {
+            r.setBody(Json.toBytes(body), ResourceType.JSON);
+        }
+        return r;
+    }
+
+    /** {@code 200 OK} + {@code text/html}. */
+    public static HttpResponse html(String body) {
+        HttpResponse r = new HttpResponse();
+        r.setStatus(200);
+        r.setBody(body, ResourceType.HTML);
+        return r;
+    }
+
+    /** {@code 200 OK} + {@code application/xml}. */
+    public static HttpResponse xml(String body) {
+        HttpResponse r = new HttpResponse();
+        r.setStatus(200);
+        r.setBody(body, ResourceType.XML);
+        return r;
+    }
+
+    /** {@code 200 OK} + {@code application/octet-stream}. */
+    public static HttpResponse binary(byte[] body) {
+        HttpResponse r = new HttpResponse();
+        r.setStatus(200);
+        r.setBody(body, ResourceType.BINARY);
+        return r;
+    }
+
+    /** {@code 204 No Content}. */
+    public static HttpResponse noContent() {
+        HttpResponse r = new HttpResponse();
+        r.setStatus(204);
+        return r;
+    }
+
+    /** {@code 302 Found} + {@code Location} header. */
+    public static HttpResponse redirect(String location) {
+        return redirect(302, location);
+    }
+
+    /** Custom redirect status (301 / 303 / 307 / 308) + {@code Location} header. */
+    public static HttpResponse redirect(int status, String location) {
+        HttpResponse r = new HttpResponse();
+        r.setStatus(status);
+        r.setHeader(HttpUtils.Header.LOCATION.key, location);
+        return r;
+    }
+
+    /** Status + JSON body {@code {"error": message}}. {@code null} message becomes {@code ""}. */
+    public static HttpResponse error(int status, String message) {
+        HttpResponse r = new HttpResponse();
+        r.setStatus(status);
+        r.setBody(Json.toBytes(Map.of("error", message == null ? "" : message)), ResourceType.JSON);
+        return r;
+    }
+
+    /** Shortcut for {@code error(400, message)}. */
+    public static HttpResponse badRequest(String message) {
+        return error(400, message);
+    }
+
+    /** Shortcut for {@code error(404, message)}. */
+    public static HttpResponse notFound(String message) {
+        return error(404, message);
     }
 
     @Override

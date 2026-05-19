@@ -50,10 +50,7 @@ class RequestFilterTest {
         ServerConfig config = baseConfig()
                 .requestFilter((request, context) -> {
                     if (request.getPath().startsWith("/api/") && context.getSession() == null) {
-                        HttpResponse resp = new HttpResponse();
-                        resp.setStatus(401);
-                        resp.setBody("Unauthorized");
-                        return resp;
+                        return HttpResponse.text(401, "Unauthorized");
                     }
                     return null; // continue
                 });
@@ -69,10 +66,7 @@ class RequestFilterTest {
         ServerConfig config = baseConfig()
                 .requestFilter((request, context) -> {
                     if (request.getPath().startsWith("/api/") && context.getSession() == null) {
-                        HttpResponse resp = new HttpResponse();
-                        resp.setStatus(401);
-                        resp.setBody("Unauthorized");
-                        return resp;
+                        return HttpResponse.text(401, "Unauthorized");
                     }
                     return null;
                 });
@@ -99,17 +93,11 @@ class RequestFilterTest {
                     if (request.getPath().startsWith("/admin")) {
                         Session session = context.getSession();
                         if (session == null) {
-                            HttpResponse resp = new HttpResponse();
-                            resp.setStatus(403);
-                            resp.setBody("Forbidden");
-                            return resp;
+                            return HttpResponse.text(403, "Forbidden");
                         }
                         Object user = session.getMember("user");
                         if (user == null) {
-                            HttpResponse resp = new HttpResponse();
-                            resp.setStatus(403);
-                            resp.setBody("Forbidden: not logged in");
-                            return resp;
+                            return HttpResponse.text(403, "Forbidden: not logged in");
                         }
                     }
                     return null;
@@ -126,10 +114,7 @@ class RequestFilterTest {
         ServerConfig config = baseConfig()
                 .requestFilter((request, context) -> {
                     if (request.getPath().startsWith("/admin")) {
-                        HttpResponse resp = new HttpResponse();
-                        resp.setStatus(403);
-                        resp.setBody("Forbidden");
-                        return resp;
+                        return HttpResponse.text(403, "Forbidden");
                     }
                     return null;
                 });

@@ -1,6 +1,7 @@
 package io.karatelabs.http;
 
 import io.karatelabs.common.Resource;
+import io.karatelabs.common.ResourceType;
 import io.karatelabs.js.Engine;
 import io.karatelabs.markup.Markup;
 import io.karatelabs.markup.RootResourceResolver;
@@ -114,20 +115,14 @@ public class ServerTestHarness implements AutoCloseable {
 
     private HttpResponse handleRequest(HttpRequest request) {
         if (handler == null) {
-            HttpResponse response = new HttpResponse();
-            response.setStatus(404);
-            response.setBody("no handler configured");
-            return response;
+            return HttpResponse.text(404, "no handler configured");
         }
         RequestContext ctx = new RequestContext(request, resolver, sharedSession);
         try {
             return handler.apply(ctx);
         } catch (Exception e) {
             logger.error("handler error: {}", e.getMessage(), e);
-            HttpResponse response = new HttpResponse();
-            response.setStatus(500);
-            response.setBody("error: " + e.getMessage());
-            return response;
+            return HttpResponse.text(500, "error: " + e.getMessage());
         }
     }
 
@@ -305,8 +300,7 @@ public class ServerTestHarness implements AutoCloseable {
          */
         public HttpResponse respondWithTemplate(String templatePath, Map<String, Object> vars) {
             String html = renderTemplate(templatePath, vars);
-            response.setBody(html);
-            response.setHeader("Content-Type", "text/html");
+            response.setBody(html, ResourceType.HTML);
             return response;
         }
 

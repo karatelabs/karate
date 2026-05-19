@@ -1,6 +1,7 @@
 package io.karatelabs.http;
 
 import io.karatelabs.common.Json;
+import io.karatelabs.common.ResourceType;
 import io.karatelabs.http.OAuth2Exception;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -71,7 +72,7 @@ class AuthorizationCodeAuthHandlerTest {
                 // Verify it's a token exchange request
                 String body = request.getBodyString();
                 if (body.contains("grant_type=authorization_code")) {
-                    response.setBody(Json.of("""
+                    response.setBody(Json.toBytes(Json.of("""
                         {
                             access_token: 'test-access-token',
                             token_type: 'Bearer',
@@ -79,12 +80,12 @@ class AuthorizationCodeAuthHandlerTest {
                             expires_in: 3600,
                             scope: 'read write'
                         }
-                        """).asMap());
+                        """).asMap()), ResourceType.JSON);
                 }
             } else if (request.pathMatches("/api/test")) {
                 // Protected API endpoint - return the Authorization header
                 String authHeader = request.getHeader("authorization");
-                response.setBody(authHeader);
+                response.setBody(authHeader, ResourceType.TEXT);
             }
             return response;
         });
@@ -271,7 +272,7 @@ class AuthorizationCodeAuthHandlerTest {
                 // Return non-JSON error to trigger parsing failure
                 // The ERROR logs from this test are expected - they verify error handling works
                 response.setStatus(400);
-                response.setBody("invalid_grant");
+                response.setBody("invalid_grant", ResourceType.TEXT);
             }
             return response;
         });
@@ -320,7 +321,7 @@ class AuthorizationCodeAuthHandlerTest {
                     }
                 }
 
-                response.setBody(Json.of("{ access_token: 'token', expires_in: 3600 }").asMap());
+                response.setBody(Json.toBytes(Json.of("{ access_token: 'token', expires_in: 3600 }").asMap()), ResourceType.JSON);
             }
             return response;
         });
@@ -394,7 +395,7 @@ class AuthorizationCodeAuthHandlerTest {
         mockHandler.set(request -> {
             HttpResponse response = new HttpResponse();
             if (request.pathMatches("/token")) {
-                response.setBody(Json.of("{ access_token: 'token', expires_in: 3600 }").asMap());
+                response.setBody(Json.toBytes(Json.of("{ access_token: 'token', expires_in: 3600 }").asMap()), ResourceType.JSON);
             }
             return response;
         });
@@ -436,7 +437,7 @@ class AuthorizationCodeAuthHandlerTest {
         mockHandler.set(request -> {
             HttpResponse response = new HttpResponse();
             if (request.pathMatches("/token")) {
-                response.setBody(Json.of("{ access_token: 'token', expires_in: 3600 }").asMap());
+                response.setBody(Json.toBytes(Json.of("{ access_token: 'token', expires_in: 3600 }").asMap()), ResourceType.JSON);
             }
             return response;
         });
@@ -531,7 +532,7 @@ class AuthorizationCodeAuthHandlerTest {
         mockHandler.set(request -> {
             HttpResponse response = new HttpResponse();
             if (request.pathMatches("/token")) {
-                response.setBody(Json.of("{ access_token: 'token', expires_in: 3600 }").asMap());
+                response.setBody(Json.toBytes(Json.of("{ access_token: 'token', expires_in: 3600 }").asMap()), ResourceType.JSON);
             }
             return response;
         });

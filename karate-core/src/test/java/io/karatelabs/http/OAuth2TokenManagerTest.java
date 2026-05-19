@@ -1,6 +1,7 @@
 package io.karatelabs.http;
 
 import io.karatelabs.common.Json;
+import io.karatelabs.common.ResourceType;
 import io.karatelabs.http.ApacheHttpClient;
 import io.karatelabs.http.HttpClient;
 import io.karatelabs.http.HttpRequestBuilder;
@@ -115,7 +116,7 @@ class OAuth2TokenManagerTest {
             HttpResponse response = new HttpResponse();
             if (request.pathMatches("/token")) {
                 // Return a new token
-                response.setBody(Json.of("""
+                response.setBody(Json.toBytes(Json.of("""
                     {
                         access_token: 'new-access-token',
                         token_type: 'Bearer',
@@ -123,7 +124,7 @@ class OAuth2TokenManagerTest {
                         expires_in: 7200,
                         scope: 'read write'
                     }
-                    """).asMap());
+                    """).asMap()), ResourceType.JSON);
             }
             return response;
         });
@@ -175,7 +176,7 @@ class OAuth2TokenManagerTest {
                 String body = request.getBodyString();
                 assertTrue(body.contains("client_secret=test-secret"));
 
-                response.setBody(Json.of("{ access_token: 'new-token', expires_in: 3600 }").asMap());
+                response.setBody(Json.toBytes(Json.of("{ access_token: 'new-token', expires_in: 3600 }").asMap()), ResourceType.JSON);
             }
             return response;
         });
@@ -261,7 +262,7 @@ class OAuth2TokenManagerTest {
             if (request.pathMatches("/token")) {
                 // Return error
                 response.setStatus(400);
-                response.setBody("invalid_grant");
+                response.setBody("invalid_grant", ResourceType.TEXT);
             }
             return response;
         });
@@ -307,14 +308,14 @@ class OAuth2TokenManagerTest {
                 // Return token with incrementing values
                 String newAccessToken = "token-" + counter.incrementAndGet();
 
-                response.setBody(Json.of(String.format("""
+                response.setBody(Json.toBytes(Json.of(String.format("""
                     {
                         access_token: '%s',
                         token_type: 'Bearer',
                         refresh_token: 'refresh-%s',
                         expires_in: 3600
                     }
-                    """, newAccessToken, newAccessToken)).asMap());
+                    """, newAccessToken, newAccessToken)).asMap()), ResourceType.JSON);
             }
             return response;
         });

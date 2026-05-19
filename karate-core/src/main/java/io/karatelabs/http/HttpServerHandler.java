@@ -93,6 +93,13 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
     }
 
     static boolean isSseRequest(FullHttpRequest req) {
+        // SSE per the EventSource spec is GET-only. Other methods (e.g. MCP
+        // Streamable HTTP POSTs that advertise text/event-stream so the server
+        // *may* upgrade) must reach the regular handler, which decides whether
+        // to return JSON or open an SSE stream.
+        if (!HttpMethod.GET.equals(req.method())) {
+            return false;
+        }
         String accept = req.headers().get("Accept");
         return accept != null && accept.contains("text/event-stream");
     }

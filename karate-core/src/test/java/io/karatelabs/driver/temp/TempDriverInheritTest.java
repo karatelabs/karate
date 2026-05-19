@@ -67,8 +67,7 @@ public class TempDriverInheritTest {
                 response.setBody("<html><head><title>Wait Page</title></head><body><h1>Wait</h1></body></html>".getBytes(),
                     ResourceType.HTML);
             } else {
-                response.setStatus(404);
-                response.setBody("Not Found");
+                return HttpResponse.text(404, "Not Found");
             }
             return response;
         });

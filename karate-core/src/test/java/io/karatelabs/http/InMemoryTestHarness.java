@@ -17,11 +17,7 @@ import java.util.function.Function;
  * <p>
  * Usage:
  * <pre>
- * InMemoryTestHarness harness = new InMemoryTestHarness(request -> {
- *     HttpResponse response = new HttpResponse();
- *     response.setBody("hello");
- *     return response;
- * });
+ * InMemoryTestHarness harness = new InMemoryTestHarness(request -> HttpResponse.text("hello"));
  *
  * HttpResponse response = harness.get("/test");
  * assertEquals("hello", response.getBodyString());
@@ -53,18 +49,12 @@ public class InMemoryTestHarness {
      */
     public HttpResponse execute(HttpRequest request) {
         if (handler == null) {
-            HttpResponse response = new HttpResponse();
-            response.setStatus(404);
-            response.setBody("no handler configured");
-            return response;
+            return HttpResponse.text(404, "no handler configured");
         }
         try {
             return handler.apply(request);
         } catch (Exception e) {
-            HttpResponse response = new HttpResponse();
-            response.setStatus(500);
-            response.setBody("error: " + e.getMessage());
-            return response;
+            return HttpResponse.text(500, "error: " + e.getMessage());
         }
     }
 

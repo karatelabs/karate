@@ -25,6 +25,7 @@ package io.karatelabs.http;
 
 import io.karatelabs.common.Resource;
 import io.karatelabs.common.ResourceNotFoundException;
+import io.karatelabs.common.ResourceType;
 import io.karatelabs.js.Engine;
 import io.karatelabs.js.FlowControlSignal;
 import io.karatelabs.js.JsLazy;
@@ -264,9 +265,7 @@ public class ServerRequestCycle {
                 html = contentHtml;
             }
 
-            response.setBody(html);
-            response.setHeader("Content-Type", "text/html; charset=utf-8");
-
+            response.setBody(html, ResourceType.HTML);
             return response;
 
         } catch (ResourceNotFoundException e) {
@@ -330,8 +329,7 @@ public class ServerRequestCycle {
                 Map<String, Object> vars = context.toVars();
                 vars.put("error", e.getMessage());
                 String html = markup.processPath(config.getErrorTemplate500(), vars);
-                response.setBody(html);
-                response.setHeader("Content-Type", "text/html; charset=utf-8");
+                response.setBody(html, ResourceType.HTML);
                 return response;
             } catch (Exception ignored) {
             }
@@ -348,8 +346,7 @@ public class ServerRequestCycle {
         } else {
             body = "Internal Server Error";
         }
-        response.setBody(body);
-        response.setHeader("Content-Type", "text/plain");
+        response.setBody(body, ResourceType.TEXT);
         return response;
     }
 
@@ -380,23 +377,20 @@ public class ServerRequestCycle {
                 Map<String, Object> vars = context.toVars();
                 vars.put("path", path);
                 String html = markup.processPath(config.getErrorTemplate404(), vars);
-                response.setBody(html);
-                response.setHeader("Content-Type", "text/html; charset=utf-8");
+                response.setBody(html, ResourceType.HTML);
                 return response;
             } catch (Exception ignored) {
             }
         }
 
         // Fallback to simple text
-        response.setBody("Not Found: " + path);
-        response.setHeader("Content-Type", "text/plain");
+        response.setBody("Not Found: " + path, ResourceType.TEXT);
         return response;
     }
 
     private HttpResponse forbidden(String message) {
         response.setStatus(403);
-        response.setBody("Forbidden: " + message);
-        response.setHeader("Content-Type", "text/plain");
+        response.setBody("Forbidden: " + message, ResourceType.TEXT);
         return response;
     }
 

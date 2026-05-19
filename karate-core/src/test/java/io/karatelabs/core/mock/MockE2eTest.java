@@ -1702,8 +1702,8 @@ class MockE2eTest {
             # and supports both '==' (equals) and 'contains' operators
             * match header content-type contains 'application/json'
             * match header CONTENT-TYPE contains 'application/json'
-            * match header Content-Type == 'application/json'
-            * match header content-type == 'application/json'
+            * match header Content-Type == 'application/json; charset=UTF-8'
+            * match header content-type == 'application/json; charset=UTF-8'
             # status and body are also exposed
             * match karate.response.status == 200
             * match karate.response.body == { bar: 'baz' }
