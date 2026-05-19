@@ -262,12 +262,34 @@ class StepJsTest {
     }
 
     @Test
+    void testKarateJsonPathWithMissingField() {
+        ScenarioRuntime sr = run("""
+            * def json = [{bar: 1}, {bar: 2}]
+            * def fun = function(arg) { return karate.jsonPath(arg, '$.foo.[*].bar') }
+            * def res = call fun json
+            * match res == []
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testKarateGetWithJsonPath() {
         ScenarioRuntime sr = run("""
             * def foo = { bar: [{baz: 1}, {baz: 2}, {baz: 3}]}
             * def fun = function(){ return karate.get('$foo.bar[*].baz') }
             * def res = call fun
             * match res == [1, 2, 3]
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateGetMissingFieldWithJsonPath() {
+        ScenarioRuntime sr = run("""
+            * def foo = { x: [{baz: 1}, {baz: 2}, {baz: 3}]}
+            * def fun = function(){ return karate.get('$foo.bar[*].baz') }
+            * def res = call fun
+            * match res == []
             """);
         assertPassed(sr);
     }
@@ -314,6 +336,15 @@ class StepJsTest {
             * def json = { foo: [] }
             * karate.set('json', '$.foo[]', { bar: 'baz' })
             * match json == { foo: [{ bar: 'baz' }] }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateSetMissingFieldsWithJsonPath() {
+        ScenarioRuntime sr = run("""
+            * karate.set('json', '$.foo.bar', 'baz')
+            * match json == { foo: { bar: 'baz' } }
             """);
         assertPassed(sr);
     }

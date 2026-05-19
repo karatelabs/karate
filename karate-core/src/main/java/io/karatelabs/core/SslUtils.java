@@ -51,8 +51,11 @@ public class SslUtils {
      */
     public static SSLContext generateSelfSigned() {
         try {
+            java.util.Date notBefore = new java.util.Date();
+            java.util.Date notAfter = new java.util.Date(notBefore.getTime() + (86400000L * VALIDITY_DAYS));
+
             @SuppressWarnings("deprecation")
-            SelfSignedCertificate ssc = SelfSignedCertificate.builder().fqdn("localhost").build();
+            SelfSignedCertificate ssc = new SelfSignedCertificate("localhost", notBefore, notAfter);
 
             // Create KeyStore from the self-signed certificate
             KeyStore keyStore = KeyStore.getInstance("PKCS12");
@@ -88,8 +91,12 @@ public class SslUtils {
      */
     public static SslContext generateNettySslContext() {
         try {
+            java.util.Date notBefore = new java.util.Date();
+            java.util.Date notAfter = new java.util.Date(notBefore.getTime() + (86400000L * VALIDITY_DAYS));
+
             @SuppressWarnings("deprecation")
-            SelfSignedCertificate ssc = SelfSignedCertificate.builder().fqdn("localhost").build();
+            SelfSignedCertificate ssc = new SelfSignedCertificate("localhost", notBefore, notAfter);
+
             return SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
         } catch (Exception e) {
             throw new RuntimeException("failed to generate Netty SSL context: " + e.getMessage(), e);
