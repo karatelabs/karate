@@ -441,18 +441,43 @@ public class KarateJs extends KarateJsBase implements PerfContext {
      * Usage: karate.readAsBytes('path/to/file')
      */
     /**
-     * {@code karate.sysenv('NAME')} — read an OS environment variable. Returns the
-     * value as a String, or {@code null} when unset. Convenience to avoid the
-     * verbose {@code java.lang.System.getenv('NAME')} pattern teams reach for today.
+     * {@code karate.sysenv('NAME')} / {@code karate.sysenv('NAME', 'default')} —
+     * read an OS environment variable. Returns the value as a String. When the
+     * variable is unset or empty, returns the optional second argument (or
+     * {@code null} when no default is supplied) — matches shell {@code ${VAR:-default}}
+     * semantics so the previous {@code karate.sysenv('FOO') || 'default'} idiom
+     * collapses to a single call.
      */
     private JavaInvokable sysenv() {
         return args -> {
             if (args.length == 0) {
                 throw new RuntimeException("sysenv() needs the environment-variable name");
             }
+            Object fallback = args.length > 1 ? args[1] : null;
             Object first = args[0];
-            if (first == null) return null;
-            return System.getenv(first.toString());
+            if (first == null) return fallback;
+            String value = System.getenv(first.toString());
+            return (value == null || value.isEmpty()) ? fallback : value;
+        };
+    }
+
+    /**
+     * {@code karate.sysprop('NAME')} / {@code karate.sysprop('NAME', 'default')} —
+     * read a JVM system property. Cleaner alternative to
+     * {@code karate.properties['NAME']} with first-class default support; reads
+     * from the same merged map (CLI {@code -D}, Maven/Gradle, and {@code Runner.Builder.systemProperties}).
+     */
+    private JavaInvokable sysprop() {
+        return args -> {
+            if (args.length == 0) {
+                throw new RuntimeException("sysprop() needs the property name");
+            }
+            Object fallback = args.length > 1 ? args[1] : null;
+            Object first = args[0];
+            if (first == null) return fallback;
+            Map<String, String> props = getProperties();
+            String value = props == null ? null : props.get(first.toString());
+            return (value == null || value.isEmpty()) ? fallback : value;
         };
     }
 
@@ -1289,6 +1314,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             case "start" -> start();
             case "stop" -> KarateJsUtils.stop();
             case "sysenv" -> sysenv();
+            case "sysprop" -> sysprop();
             case "tags" -> getTags();
             case "tagValues" -> getTagValues();
             case "toAbsolutePath" -> toAbsolutePath();

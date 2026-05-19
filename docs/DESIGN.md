@@ -187,6 +187,7 @@ Source: `ScenarioRuntime.isDryRunSkip()`, `KarateJs.isDryRun()`.
 | **Test data** | `faker.*` (names, emails, addresses, numbers, timestamps, etc.), `uuid()` |
 | **Logging** | `log()`, `logger.debug/info/warn/error()`, `embed()` |
 | **Info** | `env`, `os`, `properties`, `config`, `feature`, `scenario`, `tags`, `tagValues` |
+| **System** | `sysenv(name [, default])`, `sysprop(name [, default])` |
 | **Templating** | `doc()`, `render()` |
 
 Full listing: see `KarateJs.java`, `KarateJsUtils.java` in karate-core.
@@ -545,7 +546,7 @@ The same JSONL envelope can be POSTed to a configured HTTP receiver — useful f
 ```js
 // karate-boot.js — drop next to karate-config.js
 const agent = boot.plugin('agent');
-agent.url = boot.sysenv('AGENT_URL') || 'http://localhost:4444';
+agent.url = boot.sysenv('AGENT_URL', 'http://localhost:4444');
 agent.mode = boot.env === 'ci' ? 'batch' : 'final';   // optional, default 'batch'
 agent.token = boot.sysenv('AGENT_TOKEN');             // optional bearer
 agent.params = { dev: boot.env !== 'ci' };            // optional, forwarded verbatim
@@ -598,7 +599,7 @@ per Suite** before `SUITE_ENTER` fires.
 ```js
 // karate-boot.js — runs once per Suite; cannot contribute variables to test scope
 const agent = boot.plugin('agent');
-agent.url = boot.sysenv('AGENT_URL') || 'http://localhost:4444';
+agent.url = boot.sysenv('AGENT_URL', 'http://localhost:4444');
 agent.mode = boot.env === 'ci' ? 'batch' : 'final';
 
 const openapi = boot.plugin('openapi');
@@ -615,7 +616,8 @@ class → boot-time failure that fails the Suite loud.
 | Member | Purpose |
 |---|---|
 | `boot.env` | Value of `karate.env` (CLI `-e` flag). |
-| `boot.sysenv(name)` | Read an OS environment variable. |
+| `boot.sysenv(name [, default])` | Read an OS environment variable; falls back to `default` when unset or empty. |
+| `boot.sysprop(name [, default])` | Read a JVM system property; reads from the Suite's merged property map (CLI `-D` plus `Runner.Builder.systemProperties`) when available. |
 | `boot.read(path)` | Read a text file relative to workdir (e.g. an OpenAPI spec). |
 | `boot.log(msg)` | INFO log with `[boot]` prefix. |
 | `boot.plugin(name)` | Construct + register a plugin; returns the instance for configuration. |

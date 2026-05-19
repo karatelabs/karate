@@ -99,6 +99,33 @@ class PluginSpiTest {
     }
 
     @Test
+    void bootSysenvDefaultFallback() {
+        BootBinding boot = newBinding(tmp, null, new ArrayList<>());
+        // Unset → default returned.
+        assertEquals("fallback", boot.sysenv("__BOOT_SHOULD_NEVER_BE_SET_12345__", "fallback"));
+        // Set → real value wins over default.
+        assertNotEquals("fallback", boot.sysenv("PATH", "fallback"));
+    }
+
+    @Test
+    void bootSysprop() {
+        System.setProperty("__boot_sysprop_test__", "hello");
+        try {
+            BootBinding boot = newBinding(tmp, null, new ArrayList<>());
+            // Set → real value.
+            assertEquals("hello", boot.sysprop("__boot_sysprop_test__"));
+            // Unset → null.
+            assertNull(boot.sysprop("__boot_sysprop_unset_99999__"));
+            // Unset with default → default.
+            assertEquals("fallback", boot.sysprop("__boot_sysprop_unset_99999__", "fallback"));
+            // Set with default → real value wins.
+            assertEquals("hello", boot.sysprop("__boot_sysprop_test__", "fallback"));
+        } finally {
+            System.clearProperty("__boot_sysprop_test__");
+        }
+    }
+
+    @Test
     void bootReadResolvesPathAgainstWorkdir() throws Exception {
         Files.writeString(tmp.resolve("payload.txt"), "hello-from-boot");
         BootBinding boot = newBinding(tmp, null, new ArrayList<>());

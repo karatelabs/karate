@@ -41,7 +41,12 @@ import java.util.Set;
  *
  * <ul>
  *   <li>{@code boot.env} — the value of {@code karate.env} (CLI {@code -e} flag).</li>
- *   <li>{@code boot.sysenv(name)} — read an OS environment variable.</li>
+ *   <li>{@code boot.sysenv(name)} / {@code boot.sysenv(name, default)} — read an
+ *       OS environment variable, optionally falling back to a default when unset
+ *       or empty.</li>
+ *   <li>{@code boot.sysprop(name)} / {@code boot.sysprop(name, default)} — read a
+ *       JVM system property; reads from the Suite's merged property map when
+ *       available.</li>
  *   <li>{@code boot.read(path)} — read a file (relative paths resolve against workdir).</li>
  *   <li>{@code boot.log(msg)} — INFO log line, prefixed {@code [boot]}.</li>
  *   <li>{@code boot.plugin(name)} — resolve + construct the named plugin via the
@@ -87,8 +92,42 @@ public class BootBinding {
 
     /** {@code boot.sysenv('NAME')} — read an OS env var; null if unset. */
     public String sysenv(String name) {
-        if (name == null) return null;
-        return System.getenv(name);
+        return sysenv(name, null);
+    }
+
+    /**
+     * {@code boot.sysenv('NAME', 'default')} — read an OS env var, falling back
+     * to {@code defaultValue} when unset or empty (shell {@code ${VAR:-default}}
+     * semantics). Collapses the previous {@code boot.sysenv('FOO') || 'default'}
+     * idiom into a single call.
+     */
+    public String sysenv(String name, String defaultValue) {
+        if (name == null) return defaultValue;
+        String value = System.getenv(name);
+        return (value == null || value.isEmpty()) ? defaultValue : value;
+    }
+
+    /** {@code boot.sysprop('NAME')} — read a JVM system property; null if unset. */
+    public String sysprop(String name) {
+        return sysprop(name, null);
+    }
+
+    /**
+     * {@code boot.sysprop('NAME', 'default')} — read a JVM system property,
+     * falling back to {@code defaultValue} when unset or empty. Reads from the
+     * Suite's merged property map when available so {@code Runner.Builder.systemProperties(...)}
+     * injections are visible, otherwise falls back to {@link System#getProperty(String)}.
+     */
+    public String sysprop(String name, String defaultValue) {
+        if (name == null) return defaultValue;
+        String value;
+        if (suite != null) {
+            Map<String, String> props = suite.getSystemProperties();
+            value = props == null ? null : props.get(name);
+        } else {
+            value = System.getProperty(name);
+        }
+        return (value == null || value.isEmpty()) ? defaultValue : value;
     }
 
     /** {@code boot.read('path')} — read text file relative to the Suite's workdir. */

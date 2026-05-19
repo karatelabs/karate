@@ -112,4 +112,38 @@ class KarateJsTest {
         assertEquals(null, context.engine.get("missing"));
     }
 
+    @Test
+    void testSysenvDefault() {
+        KarateJs context = new KarateJs(Resource.path("src/test/resources"));
+        // Unset → default returned.
+        context.engine.eval("var v = karate.sysenv('__KARATE_SHOULD_NEVER_BE_SET_98765__', 'fallback');");
+        assertEquals("fallback", context.engine.get("v"));
+        // Set → real value wins over default.
+        context.engine.eval("var p = karate.sysenv('PATH', 'fallback');");
+        Object p = context.engine.get("p");
+        assertTrue(p instanceof String && !"fallback".equals(p),
+                "real env var should win over default");
+    }
+
+    @Test
+    void testSysprop() {
+        System.setProperty("__karate_sysprop_test__", "hello");
+        try {
+            KarateJs context = new KarateJs(Resource.path("src/test/resources"));
+            context.engine.eval("var v = karate.sysprop('__karate_sysprop_test__');");
+            assertEquals("hello", context.engine.get("v"));
+            // Unset → null.
+            context.engine.eval("var u = karate.sysprop('__karate_sysprop_unset_99999__');");
+            assertEquals(null, context.engine.get("u"));
+            // Unset with default → default.
+            context.engine.eval("var d = karate.sysprop('__karate_sysprop_unset_99999__', 'fallback');");
+            assertEquals("fallback", context.engine.get("d"));
+            // Set with default → real value wins.
+            context.engine.eval("var w = karate.sysprop('__karate_sysprop_test__', 'fallback');");
+            assertEquals("hello", context.engine.get("w"));
+        } finally {
+            System.clearProperty("__karate_sysprop_test__");
+        }
+    }
+
 }
