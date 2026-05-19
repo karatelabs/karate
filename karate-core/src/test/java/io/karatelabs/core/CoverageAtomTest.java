@@ -46,7 +46,12 @@ class CoverageAtomTest {
     private static final Path WORKING_DIR = Path.of("src/test/resources");
 
     @Test
-    void scenarioSlug_usesIdTagWhenPresent() {
+    void scenarioSlug_ignoresIdTag() {
+        // @id= used to be a first-precedence slug override. It was removed
+        // because @id is a generic tag many teams already use for their own
+        // conventions (ticket IDs, story keys), and co-opting it into our
+        // cross-run-identity model silently coupled their tag conventions
+        // to our data model. Slug is now purely feature-path + scenario-name.
         Feature feature = parse("""
                 @api
                 Feature: users
@@ -57,7 +62,8 @@ class CoverageAtomTest {
                 """);
         Scenario scenario = firstScenario(feature);
 
-        assertEquals("USER-CREATE-1", CoverageAtom.scenarioSlug(scenario, feature));
+        String featurePath = CoverageAtom.featureSlug(feature);
+        assertEquals(featurePath + ":create user", CoverageAtom.scenarioSlug(scenario, feature));
     }
 
     @Test

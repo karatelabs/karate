@@ -43,8 +43,6 @@ import java.util.Map;
  *
  * <p>Slug resolution order (cross-run stable identity):
  * <ol>
- *   <li>{@code @id=<value>} tag wins — supports teams with external TCM keys
- *       (Xray, qMetry, internal) that should survive renames + folder moves.</li>
  *   <li>Feature + scenario name → {@code <feature-path>:<scenario-name>}.</li>
  *   <li>Outline-example → {@code <outline-slug>:<exampleIndex>} when the
  *       scenario is a generated outline row (token-substituted name would
@@ -52,15 +50,15 @@ import java.util.Map;
  *   <li>Unnamed scenarios → {@code <feature-path>::L<line>}.</li>
  * </ol>
  *
- * <p>Note: {@code @id=...} identifies the scenario itself; {@code @req=...} is a
- * different concept (covers requirement X in an external system). Both live in
- * tags independently. The {@code req} key is lowercase by convention; the ID
- * after the {@code =} stays in whatever case the external system uses
- * (e.g. {@code @req=ORD-001}).
+ * <p>Rename / refactor stability is handled by a future slug-aliasing
+ * mechanism on the receiver — not by a tag opt-in on the source. An earlier
+ * design used an {@code @id=<value>} tag as a first-precedence override; that
+ * was removed because {@code @id=} is a generic tag many teams already use
+ * for their own conventions (ticket IDs, story keys, internal nomenclature),
+ * and silently co-opting it into our cross-run-identity model coupled their
+ * tag conventions to our data model in a way they never asked for.
  */
 public final class CoverageAtom {
-
-    public static final String ID_TAG = "id";
 
     private CoverageAtom() {}
 
@@ -72,16 +70,11 @@ public final class CoverageAtom {
     }
 
     public static String scenarioSlug(Scenario scenario, Feature feature) {
-        String featurePath = featureSlug(feature);
-        String idTag = explicitIdTag(scenario);
         if (scenario.isOutlineExample()) {
             ScenarioOutline outline = parentOutline(scenario);
-            String outlineSlug = outlineSlug(outline, feature);
-            return outlineSlug + ":" + scenario.getExampleIndex();
+            return outlineSlug(outline, feature) + ":" + scenario.getExampleIndex();
         }
-        if (idTag != null) {
-            return idTag;
-        }
+        String featurePath = featureSlug(feature);
         String name = scenario.getName();
         if (name != null && !name.isEmpty()) {
             return featurePath + ":" + name;
@@ -92,10 +85,6 @@ public final class CoverageAtom {
     public static String outlineSlug(ScenarioOutline outline, Feature feature) {
         if (outline == null) {
             return featureSlug(feature) + "::outline";
-        }
-        String idTag = explicitIdTagOutline(outline);
-        if (idTag != null) {
-            return idTag;
         }
         String name = outline.getName();
         String featurePath = featureSlug(feature);
@@ -192,27 +181,6 @@ public final class CoverageAtom {
         meta.put("exampleIndex", example.getExampleIndex());
         m.put("metadata", meta);
         return m;
-    }
-
-    private static String explicitIdTag(Scenario scenario) {
-        return findIdTagValue(scenario.getTagsEffective());
-    }
-
-    private static String explicitIdTagOutline(ScenarioOutline outline) {
-        return findIdTagValue(outline.getTags());
-    }
-
-    private static String findIdTagValue(List<Tag> tags) {
-        if (tags == null) return null;
-        for (Tag t : tags) {
-            if (ID_TAG.equals(t.getName()) && !t.getValues().isEmpty()) {
-                String value = t.getValues().get(0);
-                if (value != null && !value.isEmpty()) {
-                    return value;
-                }
-            }
-        }
-        return null;
     }
 
     public static List<String> tagTexts(List<Tag> tags) {
