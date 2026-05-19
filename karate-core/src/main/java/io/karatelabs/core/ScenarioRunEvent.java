@@ -57,6 +57,18 @@ public record ScenarioRunEvent(
         return timeStamp;
     }
 
+    /**
+     * Serializes a thin per-scenario envelope: identity, slug, tags, and (on EXIT)
+     * pass/fail + coverage atoms. Step results — and any embeds attached to them by
+     * plugins (e.g. {@code openapi-match}, {@code grpc-match}) — are deliberately
+     * <strong>not</strong> emitted here. They reach receivers inside
+     * {@code FEATURE_EXIT.data.scenarioResults[i].stepResults[j].embeds[]} via
+     * {@link FeatureResult#toJson()}, which already serializes the full scenario
+     * detail. Duplicating embeds onto {@code SCENARIO_EXIT} would double the on-wire
+     * bytes for typical HTTP-heavy runs without giving consumers any new information —
+     * keep them at exactly one location on the wire. See
+     * {@code karate/docs/DESIGN.md} §JSONL stream for the cross-plugin convention.
+     */
     @Override
     public Map<String, Object> toJson() {
         Map<String, Object> map = new LinkedHashMap<>();

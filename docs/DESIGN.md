@@ -539,6 +539,8 @@ Standard envelope:
 
 `STEP_ENTER` / `STEP_EXIT` / `HTTP_ENTER` / `HTTP_EXIT` events fire on the `RunListener` bus but are deliberately not emitted into JSONL (too granular for a streaming feed). HTTP request/response detail still reaches consumers via `step.embeds[]` inside `FEATURE_EXIT`.
 
+**Where named embeds live on the wire (and why).** Step embeds — including plugin-emitted named entries like `openapi-match`, `grpc-match`, `http-exchange` — appear **only** at `FEATURE_EXIT.data.scenarioResults[i].stepResults[j].embeds[]`. They are deliberately **not** duplicated onto `SCENARIO_EXIT.data`. The rationale is bandwidth: `FEATURE_EXIT` already serializes the full `FeatureResult.toJson()` (which transitively walks every scenario's step results with their embeds), so a parallel `SCENARIO_EXIT.embeds[]` would either ship every embed twice for typical runs or force receivers to de-duplicate. Receivers wanting per-scenario embeds traverse `FEATURE_EXIT.data.scenarioResults[]` and key by `scenarioResults[i].refId` or `name`. Embeds use the canonical wire shape `{mime_type, data (base64), name}` (see `StepResult.Embed.toMap`); a plugin that wants a JSON payload base64-encodes the JSON bytes and sets `mime_type: "application/json"`.
+
 ### Outbound HTTP delivery
 
 The same JSONL envelope can be POSTed to a configured HTTP receiver — useful for piping runs into a dashboard, an aggregator, or any compatible service. Activation is now via the [`Plugin` architecture](#plugin-architecture) — a customer adds `boot.plugin('agent')` to `karate-boot.js` and sets `.url`. When no `karate-boot.js` exists or `boot.plugin('agent')` is never invoked, no `HttpClient` is constructed and no listener is registered (zero network cost).
