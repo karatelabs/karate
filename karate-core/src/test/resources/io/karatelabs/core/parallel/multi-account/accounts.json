@@ -1,0 +1,6 @@
+[
+  { "name": "alpha-us",  "preset": "premium", "market": "US" },
+  { "name": "beta-uk",   "preset": "basic",   "market": "UK" },
+  { "name": "gamma-jp",  "preset": "premium", "market": "JP" },
+  { "name": "delta-de",  "preset": "basic",   "market": "DE" }
+]

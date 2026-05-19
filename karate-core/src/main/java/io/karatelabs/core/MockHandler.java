@@ -160,6 +160,8 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
             }
             return false;
         });
+        engine.put("headerValue", (JavaInvokable) a ->
+            currentRequest != null && a.length > 0 ? currentRequest.getHeader(a[0] + "") : null);
         engine.put("paramValue", (JavaInvokable) a ->
             currentRequest != null ? currentRequest.getParam(a[0] + "") : null);
         engine.put("paramExists", (JavaInvokable) a -> {
@@ -287,8 +289,8 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
                name.equals("pathParams") || name.equals("pathMatches") ||
                name.equals("methodIs") || name.equals("typeContains") ||
                name.equals("acceptContains") || name.equals("headerContains") ||
-               name.equals("paramValue") || name.equals("paramExists") ||
-               name.equals("bodyPath");
+               name.equals("headerValue") || name.equals("paramValue") ||
+               name.equals("paramExists") || name.equals("bodyPath");
     }
 
     @Override

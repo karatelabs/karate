@@ -119,6 +119,36 @@ class MockHandlerTest {
     }
 
     @Test
+    void testHeaderValueCaseInsensitive() {
+        // headerValue(name) should be case-insensitive on name and return the value as a String
+        // (vs. raw requestHeaders[name] which is case-sensitive and returns List<String>).
+        Feature feature = parseFeature("""
+            Feature: Test Mock
+
+            Scenario: pathMatches('/echo')
+              * def auth = headerValue('Authorization')
+              * def lower = headerValue('authorization')
+              * def upper = headerValue('AUTHORIZATION')
+              * def missing = headerValue('X-Missing')
+              * def response = ({ auth: auth, lower: lower, upper: upper, missing: missing })
+            """);
+
+        MockHandler handler = new MockHandler(feature);
+        HttpRequest request = createRequest("GET", "/echo");
+        // Put the header in mixed-case; lookups in any case must find it.
+        request.putHeader("Authorization", "Bearer abc123");
+
+        HttpResponse response = handler.apply(request);
+        assertEquals(200, response.getStatus());
+        String body = response.getBodyString();
+        assertTrue(body.contains("\"auth\":\"Bearer abc123\""), body);
+        assertTrue(body.contains("\"lower\":\"Bearer abc123\""), body);
+        assertTrue(body.contains("\"upper\":\"Bearer abc123\""), body);
+        // Absent header -> null, which serializes as JSON null
+        assertTrue(body.contains("\"missing\":null"), body);
+    }
+
+    @Test
     void testResponseStatus() {
         Feature feature = parseFeature("""
             Feature: Test Mock

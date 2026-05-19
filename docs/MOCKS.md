@@ -157,6 +157,18 @@ Check if any value of a header contains substring:
 headerContains('Authorization', 'Bearer')
 ```
 
+### headerValue(name)
+
+Get a request header value as a String (or `null` if absent). Case-insensitive on
+`name`, returns the last value when the header appears multiple times. Cleaner
+than reaching into the raw `requestHeaders` map (and shaped consistently with
+`paramValue` / `paramExists`):
+
+```javascript
+// instead of: requestHeaders['authorization'][0]
+headerValue('Authorization')   // -> 'Bearer eyJhbGciOi...'
+```
+
 ### paramValue(name)
 
 Get query/form parameter value:

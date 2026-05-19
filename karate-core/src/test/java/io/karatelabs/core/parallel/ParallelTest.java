@@ -48,16 +48,21 @@ import static org.junit.jupiter.api.Assertions.*;
 class ParallelTest {
 
     private static MockServer mockServer;
+    private static MockServer multiAccountMockServer;
 
     @BeforeAll
     static void startMockServer() {
         mockServer = MockServer.feature("classpath:io/karatelabs/core/parallel/http/http-mock.feature").start();
+        multiAccountMockServer = MockServer.feature("classpath:io/karatelabs/core/parallel/multi-account/mock.feature").start();
     }
 
     @AfterAll
     static void stopMockServer() {
         if (mockServer != null) {
             mockServer.stopAndWait();
+        }
+        if (multiAccountMockServer != null) {
+            multiAccountMockServer.stopAndWait();
         }
     }
 
@@ -300,6 +305,28 @@ class ParallelTest {
      * - ParallelOutlineTest.testParallelOutline
      * - HelloTest.testParallel
      */
+    /**
+     * Reference test for the "run features against many account configurations" pattern.
+     * One Suite, one report; @setup fans out across the accounts.json rows, each row
+     * provisions its own session via the (mocked) external auth service, then calls the
+     * API features with that token.
+     * <p>
+     * Each scenario must use its OWN provisioned token -- the mock echoes the bearer
+     * token back so users.feature / orders.feature would fail if tokens crossed scenarios.
+     */
+    @Test
+    void testMultiAccountParallel() {
+        SuiteResult result = Runner.path("classpath:io/karatelabs/core/parallel/multi-account/driver.feature")
+                .configDir("classpath:io/karatelabs/core/parallel/multi-account")
+                .systemProperty("server.port", multiAccountMockServer.getPort() + "")
+                .outputHtmlReport(false)
+                .outputConsoleSummary(false)
+                .parallel(4);
+        assertEquals(0, result.getScenarioFailedCount(), String.join("\n", result.getErrors()));
+        // 4 accounts in accounts.json -> 4 outline rows -> 4 top-level scenarios
+        assertEquals(4, result.getScenarioCount());
+    }
+
     @Test
     void testHttpParallel() {
         SuiteResult result = Runner.path(
