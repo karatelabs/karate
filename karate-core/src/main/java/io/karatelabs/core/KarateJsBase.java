@@ -192,6 +192,7 @@ abstract class KarateJsBase implements SimpleObject {
         data.put("line", s.getLine());
         data.put("sectionIndex", s.getSection().getIndex());
         data.put("exampleIndex", s.getExampleIndex());
+        data.put("runtime", getRuntime());
         Map<String, Object> exampleData = s.getExampleData();
         if (exampleData != null) {
             data.put("exampleData", exampleData);

@@ -1637,6 +1637,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      * @throws RuntimeException if driver is not configured
      */
     public Driver getDriver() {
+        if (driver != null && driver.isTerminated()) closeDriver();
         if (driver == null || driver.isTerminated()) {
             driver = initDriver();
         }
