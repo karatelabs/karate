@@ -68,9 +68,19 @@ public final class Test262Runner {
         return l;
     }
 
-    /** Periodic progress line cadence: every N tests OR every M seconds, whichever first. */
-    private static final int PROGRESS_EVERY_N_TESTS = 500;
-    private static final long PROGRESS_EVERY_MS = 5_000L;
+    /** Periodic progress line cadence: every N tests OR every M seconds, whichever
+     *  first. Dialed back from 500/5s after the watchdog + exec-retire combo proved
+     *  reliable — full-suite runs no longer need a heartbeat every five seconds for
+     *  hang diagnosis. */
+    private static final int PROGRESS_EVERY_N_TESTS = 5_000;
+    private static final long PROGRESS_EVERY_MS = 60_000L;
+
+    /** Cap on per-FAIL stdout lines per run. Set low so even mid-size slices
+     *  (50–200 fails) get a representative sample rather than the full dump —
+     *  20 is enough to spot clusters; the canonical record is {@code results.jsonl}
+     *  and systematic triage goes through the `jq` recipes in TEST262.md. After
+     *  the cap, we emit a single {@code (… N more FAILs, see results.jsonl)} footer. */
+    private static final int MAX_FAIL_STDOUT = 20;
 
     /** Logback file appender reads this system property; see logback.xml. Set
      *  before the first SLF4J log call so the appender is configured against
@@ -170,6 +180,7 @@ public final class Test262Runner {
 
         int pass = 0, fail = 0, skip = 0;
         int processed = 0;
+        int failStdout = 0;       // counts FAIL lines actually printed to stdout
         long lastProgressNanos = startedNanos;
         boolean aborted = false;
 
@@ -206,7 +217,10 @@ public final class Test262Runner {
                 try {
                     tc = Test262Case.load(cli.test262, abs);
                 } catch (RuntimeException re) {
-                    System.out.println("FAIL " + rel + " — load error: " + re.getMessage());
+                    if (failStdout < MAX_FAIL_STDOUT) {
+                        System.out.println("FAIL " + rel + " — load error: " + re.getMessage());
+                        failStdout++;
+                    }
                     appendPartial(partialWriter,
                             ResultRecord.fail(rel, "Harness", "failed to load: " + re.getMessage()));
                     fail++;
@@ -250,7 +264,14 @@ public final class Test262Runner {
                             ErrorUtils.firstLine(cause.getMessage(), 200));
                 }
 
-                appendPartial(partialWriter, r);
+                // Dev-mode default: PASS rows are not written to results.jsonl
+                // (or its .partial). The pass counter still increments and the
+                // count is recorded in run-meta.json; HTML/diff tooling reads it
+                // there. Opt into PASS rows with --full when you want a complete
+                // record for archival or to drive the HTML report.
+                if (cli.full || r.status() != ResultRecord.Status.PASS) {
+                    appendPartial(partialWriter, r);
+                }
                 switch (r.status()) {
                     case PASS -> pass++;
                     case FAIL -> {
@@ -258,9 +279,14 @@ public final class Test262Runner {
                         // FAIL lines go to stdout only — the full record (with
                         // error_type, message, path) is in results.jsonl.partial,
                         // which is where a consumer should parse failures from.
-                        System.out.println("FAIL " + rel + " — "
-                                + (r.errorType() == null ? "" : r.errorType() + ": ")
-                                + (r.message() == null ? "" : r.message()));
+                        // Capped at MAX_FAIL_STDOUT so a flood doesn't drown sub-
+                        // agents / `tail -n` consumers; the cap is announced at end.
+                        if (failStdout < MAX_FAIL_STDOUT) {
+                            System.out.println("FAIL " + rel + " — "
+                                    + (r.errorType() == null ? "" : r.errorType() + ": ")
+                                    + (r.message() == null ? "" : r.message()));
+                            failStdout++;
+                        }
                     }
                     case SKIP -> skip++;
                 }
@@ -300,12 +326,20 @@ public final class Test262Runner {
         meta.writeTo(runMeta);
 
         sayProgress("");
+        if (fail > failStdout) {
+            sayProgress(String.format("(… %d more FAILs not printed, see results.jsonl)",
+                    fail - failStdout));
+        }
         sayProgress(String.format("%s: %d pass / %d fail / %d skip / %d total in %s",
                 aborted ? "Aborted" : "Summary",
                 pass, fail, skip, pass + fail + skip,
                 formatDuration(java.time.Duration.between(started, ended))));
         sayProgress("Run dir: " + runDir.toAbsolutePath());
-        sayProgress("Report:  java io.karatelabs.js.test262.Test262Report --run-dir " + runDir);
+        if (cli.full) {
+            sayProgress("Report:  java io.karatelabs.js.test262.Test262Report --run-dir " + runDir);
+        } else {
+            sayProgress("(results.jsonl: FAIL/SKIP only — rerun with --full for PASS rows + HTML)");
+        }
     }
 
     /**

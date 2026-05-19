@@ -22,6 +22,7 @@ public final class Cli {
     public String only;         // glob; null = no restriction
     public String single;       // relative path to one test262 file; null = full suite
     public int verbose;         // 0, 1, 2
+    public boolean full;        // --full: include PASS rows in results.jsonl + opt into HTML report
     public final List<String> rawArgs = new ArrayList<>();
 
     public static Cli parse(String[] args) {
@@ -47,6 +48,7 @@ public final class Cli {
             switch (a) {
                 case "-v"           -> c.verbose = Math.max(c.verbose, 1);
                 case "-vv"          -> c.verbose = 2;
+                case "--full"       -> c.full = true;
                 case "-h", "--help" -> { printHelp(); System.exit(0); }
                 default -> {
                     if (a.startsWith("-")) {
@@ -85,8 +87,13 @@ public final class Cli {
               --timeout-ms <n>         per-test watchdog (default: 10000)
               --max-duration <ms>      overall wall-clock cap; writes partial results on hit (default: 0 = unlimited)
               --only <glob>            restrict to tests matching a path glob, e.g. 'test/language/**'
-              --single <path>          run exactly one test (no file writes); use -vv to trace
-              -v | -vv                 verbose output (--single mode only)
+              --single <path>          run exactly one test (no file writes); use -v to trace
+              -v | -vv                 verbose output (--single mode only); -v = metadata + location,
+                                       -vv = also full source
+              --full                   write PASS rows to results.jsonl in addition to FAIL/SKIP
+                                       (default: dev mode — only FAIL/SKIP are written; pass count
+                                       lives in run-meta.json). etc/run.sh also gates the HTML
+                                       report step on this flag.
               -h | --help              show this help
 
             Prerequisite: ./fetch-test262.sh (one-time)

@@ -55,11 +55,15 @@ jobs:
           echo "path=$RUN_DIR" >> "$GITHUB_OUTPUT"
           echo "Run dir: $RUN_DIR"
 
+      # CI always uses --full: PASS rows in results.jsonl so the uploaded
+      # artifact is the canonical record, and so the HTML report step below
+      # has the data it needs. Local dev runs default to FAIL/SKIP-only.
       - name: Run test262 suite
         working-directory: karate-js-test262
         env:
           EXEC_ARGS: >-
             --run-dir ${{ steps.rundir.outputs.path }}
+            --full
             ${{ github.event.inputs.only != '' && format('--only {0}', github.event.inputs.only) || '' }}
             --timeout-ms ${{ github.event.inputs.timeout_ms }}
         run: mvn -B -ntp -f ../pom.xml -pl karate-js-test262 -o exec:java -Dexec.args="$EXEC_ARGS"

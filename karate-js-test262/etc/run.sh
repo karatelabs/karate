@@ -1,23 +1,24 @@
 #!/usr/bin/env bash
-# Run the karate-js test262 conformance suite and generate the HTML report.
+# Run the karate-js test262 conformance suite. HTML report is opt-in via --full.
 #
 # Usage (from any directory):
-#   etc/run.sh                                  # full suite, unlimited duration
-#   etc/run.sh --only 'test/language/**'        # narrow slice
-#   etc/run.sh --only 'test/language/**' --max-duration 300000   # 5-min cap
+#   etc/run.sh                                  # dev mode: FAIL/SKIP rows only, no HTML
+#   etc/run.sh --only 'test/language/**'        # narrow slice (dev mode)
+#   etc/run.sh --full                           # write PASS rows + generate HTML report
+#   etc/run.sh --only '...' --max-duration 300000   # 5-min cap (dev mode)
 #
 # Anything you pass is forwarded to Test262Runner — see --help for flags.
 #
 # Each invocation writes a fresh, self-contained directory:
-#   target/test262/run-<timestamp>/{results.jsonl, run-meta.json,
-#                                   progress.log, html/}
-# Old runs are never touched; clean up with `mvn clean` when desired.
+#   target/test262/run-<timestamp>/{results.jsonl, run-meta.json, progress.log}
+# Plus html/ only when --full is set. Old runs are never touched; clean up
+# with `mvn clean` when desired.
 #
 # Steps:
 #   1. Install the current karate-js into the local Maven repo so the runner
 #      picks up any engine changes you just made.
 #   2. Run the conformance runner inside the per-run directory.
-#   3. Generate the HTML report inside the same per-run directory.
+#   3. If --full was passed: also generate the HTML report inside that dir.
 
 set -euo pipefail
 
@@ -42,10 +43,18 @@ echo "==> running conformance suite  (run-dir: $RUN_DIR)"
 mvn -f ../pom.xml -pl karate-js-test262 -o exec:java -q \
     -Dexec.args="--run-dir $RUN_DIR $*"
 
-echo "==> generating HTML report"
-mvn -f ../pom.xml -pl karate-js-test262 -o exec:java -q \
-    -Dexec.mainClass=io.karatelabs.js.test262.Test262Report \
-    -Dexec.args="--run-dir $RUN_DIR"
+# Only generate the HTML report when --full is in the forwarded args.
+# Dev-mode runs (no --full) skip both PASS rows and the report.
+FULL=0
+for a in "$@"; do
+    if [[ "$a" == "--full" ]]; then FULL=1; break; fi
+done
 
-echo
-echo "Open: $(pwd)/$RUN_DIR/html/index.html"
+if [[ "$FULL" == "1" ]]; then
+    echo "==> generating HTML report"
+    mvn -f ../pom.xml -pl karate-js-test262 -o exec:java -q \
+        -Dexec.mainClass=io.karatelabs.js.test262.Test262Report \
+        -Dexec.args="--run-dir $RUN_DIR"
+    echo
+    echo "Open: $(pwd)/$RUN_DIR/html/index.html"
+fi

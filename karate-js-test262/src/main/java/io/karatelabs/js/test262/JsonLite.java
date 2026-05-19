@@ -26,15 +26,27 @@ final class JsonLite {
                 case '\r' -> sb.append("\\r");
                 case '\t' -> sb.append("\\t");
                 default -> {
-                    // Escape all surrogate code units regardless of pairing.
-                    // A lone surrogate that survives to the UTF-8 BufferedWriter
-                    // throws MalformedInputException and aborts the whole run
-                    // (encountered while triaging Array/concat tests that build
-                    // diagnostic messages from strings containing emoji). Always
-                    // emitting paired-or-not surrogates as backslash-u-NNNN is
-                    // JSON-legal and round-trips through any compliant reader.
-                    if (c < 0x20 || (c >= 0xD800 && c <= 0xDFFF)) {
+                    if (c < 0x20) {
                         sb.append(String.format("\\u%04x", (int) c));
+                    } else if (Character.isHighSurrogate(c)
+                            && i + 1 < n
+                            && Character.isLowSurrogate(s.charAt(i + 1))) {
+                        // Valid surrogate pair — emit both code units raw and let
+                        // the UTF-8 BufferedWriter encode the 4-byte sequence.
+                        sb.append(c).append(s.charAt(i + 1));
+                        i++;
+                    } else if (c >= 0xD800 && c <= 0xDFFF) {
+                        // Lone surrogate. Emitting it raw triggers a
+                        // MalformedInputException on the UTF-8 writer (e.g.
+                        // Array/concat diagnostic messages containing emoji
+                        // fragments); emitting it as a backslash-u escape
+                        // produces invalid JSON that strict readers reject
+                        // (jq fails with "Invalid surrogate pair" on test262
+                        // messages like for-of/string-astral that quote a
+                        // lone surrogate). Substitute U+FFFD: lossy for the
+                        // surrogate itself but keeps the surrounding message
+                        // intact and the JSONL parseable.
+                        sb.append('�');
                     } else {
                         sb.append(c);
                     }
