@@ -128,7 +128,7 @@ public class LocalCallbackServer {
     }
 
     public void stop() {
-        stopAsync();
+        stopAndWait();
     }
 
     public void stopAsync() {
