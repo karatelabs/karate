@@ -132,9 +132,11 @@ public class TagSelector {
         } else {
             this.tagTexts = new ArrayList<>(tags.size());
             this.tagValues = new HashMap<>(tags.size());
+            // Aggregate same-name tags so multiple lines like @suite=x + @suite=y produce
+            // valuesFor("suite") == [x, y] (issue #2859) — matches the comma-form @suite=x,y.
             for (Tag tag : tags) {
                 tagTexts.add(tag.getText());
-                tagValues.put(tag.getName(), tag.getValues());
+                tagValues.computeIfAbsent(tag.getName(), k -> new ArrayList<>()).addAll(tag.getValues());
             }
         }
     }

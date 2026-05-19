@@ -289,6 +289,38 @@ class StepInfoTest {
         assertPassed(sr);
     }
 
+    @Test
+    void testKarateTagValuesAggregatesSameNameOnFeature() {
+        // issue #2859 — multiple @suite=... lines on a Feature must aggregate, not last-wins
+        ScenarioRuntime sr = runFeature("""
+            @tests=get-test
+            @suite=x
+            @suite=y
+            Feature: TagValues Test
+            Scenario: test
+            * def tv = karate.tagValues
+            * match tv.tests == ['get-test']
+            * match tv.suite == ['x', 'y']
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateTagValuesScenarioFirstOverridesThenMerges() {
+        // first scenario-level @suite replaces the feature-level value; subsequent ones merge
+        ScenarioRuntime sr = runFeature("""
+            @suite=x
+            @suite=y
+            Feature: TagValues Test
+            @suite=a
+            @suite=b
+            Scenario: test
+            * def tv = karate.tagValues
+            * match tv.suite == ['a', 'b']
+            """);
+        assertPassed(sr);
+    }
+
     // ========== karate.scenarioOutline ==========
 
     @Test

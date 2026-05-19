@@ -42,9 +42,11 @@ import org.slf4j.Logger;
 import org.w3c.dom.Node;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -254,18 +256,25 @@ abstract class KarateJsBase implements SimpleObject {
         Scenario s = getScenario();
         if (s == null) return Map.of();
         Map<String, List<String>> result = new LinkedHashMap<>();
-        // Feature-level tags first
+        // Feature-level tags: aggregate same-name tags (e.g. @suite=x + @suite=y -> [x, y])
         List<Tag> featureTags = s.getFeature().getTags();
         if (featureTags != null) {
             for (Tag tag : featureTags) {
-                result.put(tag.getName(), tag.getValues());
+                result.computeIfAbsent(tag.getName(), k -> new ArrayList<>()).addAll(tag.getValues());
             }
         }
-        // Scenario-level tags (override feature-level)
+        // Scenario-level tags: first occurrence of a name replaces the feature-level entry,
+        // subsequent same-name tags at scenario level merge with that replacement.
         List<Tag> scenarioTags = s.getTags();
         if (scenarioTags != null) {
+            Set<String> seenAtScenarioLevel = new HashSet<>();
             for (Tag tag : scenarioTags) {
-                result.put(tag.getName(), tag.getValues());
+                String name = tag.getName();
+                if (seenAtScenarioLevel.add(name)) {
+                    result.put(name, new ArrayList<>(tag.getValues()));
+                } else {
+                    result.get(name).addAll(tag.getValues());
+                }
             }
         }
         return result;

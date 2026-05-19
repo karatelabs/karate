@@ -103,6 +103,16 @@ class TagSelectorTest {
         assertTrue(eval("valuesFor('@id').isEach(s => /^1.*/.test(s))", "@id=100,1000"));
     }
 
+    @Test
+    void testTagValueSelectorsAggregateSameName() {
+        // issue #2859 — multiple same-name tags (@suite=x + @suite=y) must aggregate,
+        // equivalent to the comma form @suite=x,y
+        assertTrue(eval("valuesFor('@suite').isAnyOf('x')", "@suite=x", "@suite=y"));
+        assertTrue(eval("valuesFor('@suite').isAnyOf('y')", "@suite=x", "@suite=y"));
+        assertTrue(eval("valuesFor('@suite').isAllOf('x', 'y')", "@suite=x", "@suite=y"));
+        assertTrue(eval("valuesFor('@suite').isOnly('x', 'y')", "@suite=x", "@suite=y"));
+    }
+
     private boolean evalEnv(String tagSelector, String karateEnv, String... strs) {
         List<Tag> list = new ArrayList<>(strs.length);
         for (String s : strs) {
