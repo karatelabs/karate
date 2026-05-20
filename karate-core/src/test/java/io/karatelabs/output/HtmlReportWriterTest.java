@@ -372,14 +372,14 @@ class HtmlReportWriterTest {
     void testDryRunSkipsStepsButGeneratesReport(@TempDir Path tempDir) throws Exception {
         // Dry-run should report every non-@setup step as passed without executing it, while
         // @setup scenarios run fully so dynamic outlines still resolve. The "dry-" prefix in
-        // outline row names proves karate.dryRun was observable inside the @setup scenario.
+        // outline row names proves karate.suite.dryRun was observable inside the @setup scenario.
         Path feature = tempDir.resolve("dryrun.feature");
         Files.writeString(feature, """
                 Feature: Dry Run Example
 
                   @setup
                   Scenario:
-                    * def tag = karate.dryRun ? 'dry' : 'live'
+                    * def tag = karate.suite.dryRun ? 'dry' : 'live'
                     * def rows = ([{ name: tag + '-alpha' }, { name: tag + '-beta' }])
 
                   Scenario: would fail for real
@@ -415,7 +415,7 @@ class HtmlReportWriterTest {
         assertTrue(Files.exists(reportDir.resolve("karate-summary.html")));
         assertTrue(Files.exists(reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl")));
 
-        // @setup scenario ran fully (outline rows exist) AND karate.dryRun was true inside it
+        // @setup scenario ran fully (outline rows exist) AND karate.suite.dryRun was true inside it
         // (rows carry the "dry-" prefix). If @setup had been skipped, no outline rows would appear.
         String jsonl = Files.readString(reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl"));
         assertTrue(jsonl.contains("outline dry-alpha"),

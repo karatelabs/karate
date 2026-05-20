@@ -22,3 +22,30 @@ Scenario: called feature propagates driver to caller automatically
 * call read('call-config-inherit.feature')
 * print 'Back in main - driver should be available (propagated from callee)'
 * match driver.title == 'Karate Driver Test'
+
+@lock=*
+Scenario: re-init driver after quit
+# Simulates running tests under multiple browsers in succession (e.g. a grid provider like
+# BrowserStack / Sauce Labs). For efficiency we want to:
+#  - start each remote browser session once and run through all tests
+#  - manually terminate each session when done so the grid slot is freed
+# In a real run the list of browser configs would be split into chunks by a dynamic @setup
+# scenario (one chunk per parallel thread); each chunk is processed sequentially per thread,
+# with all chunks running in parallel. We use threadCount + 1 here just to exercise the pool.
+* def runTestsWithBrowser =
+"""
+function (cfg, testPaths) {
+  karate.configure('driver', cfg)
+  karate.driver.setUrl(serverUrl + '/index.html')
+  karate.map(testPaths, function(testPath) {
+    driver.clearCookies()
+    driver.setUrl(serverUrl + '/index.html')
+    karate.call(testPath)
+  })
+  driver.quit()
+}
+"""
+* def browserConfigs = karate.repeat(karate.suite.threadCount + 1, () => karate.config.driverConfig)
+* def testPaths = ['call-driver-sub.feature']
+* karate.map(browserConfigs, cfg => runTestsWithBrowser(cfg, testPaths))
+

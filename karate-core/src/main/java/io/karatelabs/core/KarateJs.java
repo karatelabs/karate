@@ -1181,20 +1181,20 @@ public class KarateJs extends KarateJsBase implements PerfContext {
     }
 
     /**
-     * Exposes the suite's dry-run flag to feature files. Lets {@code @setup} scenarios
-     * short-circuit expensive fixture creation when the run is purely for report generation.
+     * JS-side access to the active browser driver, initialising it lazily from
+     * {@code configure driver = { ... }} on first read — the JS equivalent of the
+     * {@code * driver ...} step. Useful when driver lifecycle is orchestrated inside
+     * a JS function (e.g. iterating over a list of browser configs in a grid run),
+     * where Gherkin steps aren't reachable per iteration. Returns the same instance
+     * exposed via the {@code driver} root binding; after {@code driver.quit()} a
+     * subsequent read re-inits cleanly via {@link ScenarioRuntime#getDriver()}.
      */
-    private boolean isDryRun() {
+    private io.karatelabs.driver.Driver getDriverLazy() {
         ScenarioRuntime rt = getRuntime();
         if (rt == null) {
-            return false;
+            throw new RuntimeException("karate.driver can only be read within a scenario");
         }
-        FeatureRuntime fr = rt.getFeatureRuntime();
-        if (fr == null) {
-            return false;
-        }
-        Suite suite = fr.getSuite();
-        return suite != null && suite.dryRun;
+        return rt.getDriver();
     }
 
     // ========== Channel Support ==========
@@ -1277,7 +1277,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             case "config" -> getConfig();
             case "configure" -> configure();
             case "doc" -> doc();
-            case "dryRun" -> isDryRun();
+            case "driver" -> getDriverLazy();
             case "embed" -> embed();
             case "env" -> env;
             case "eval" -> eval();
@@ -1306,6 +1306,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             case "response" -> getResponse();
             case "scenario" -> getScenarioData();
             case "scenarioOutline" -> getScenarioOutlineData();
+            case "suite" -> getSuiteData();
             case "set" -> set();
             case "setup" -> setup();
             case "setupOnce" -> setupOnce();

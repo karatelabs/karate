@@ -477,30 +477,68 @@ each scenario will leak a browser.
 
 ## JS API
 
-### Binding: `karate.driver(config)`
+### Binding: `karate.driver` (lazy getter)
 
-The driver is exposed to JavaScript through `karate.driver(config)`:
+`karate.driver` is a property (not a function). Reading it returns the active `Driver`
+instance for the current scenario — initialising it lazily from the live
+`configure driver = { ... }` map on first read. It's the JS-side equivalent of the
+`* driver ...` Gherkin step, intended for cases where driver lifecycle is orchestrated
+inside a JS function (so reaching for a Gherkin step isn't an option).
 
 ```javascript
-// Create driver instance
-var driver = karate.driver({ type: 'chrome', headless: true })
+// Driver auto-inits from configure driver on first read.
+const d = karate.driver
+d.setUrl('http://localhost:8080/login')
+d.input('#username', 'admin')
+d.click('button[type=submit]')
+d.waitFor('#dashboard')
 
-// Navigate
-driver.setUrl('http://localhost:8080/login')
+// Subsequent reads return the same instance.
+karate.driver.title  // → 'Dashboard'
 
-// Interact
-driver.input('#username', 'admin')
-driver.click('button[type=submit]')
-driver.waitFor('#dashboard')
-
-// Read state
-var title = driver.title      // Property access via ObjectLike
-var url = driver.url
-var cookies = driver.cookies
-
-// Cleanup
-driver.quit()
+// After driver.quit(), the next read re-inits cleanly (see "Re-init after quit" below).
+d.quit()
+karate.driver.setUrl('http://localhost:8080/profile')
 ```
+
+The same instance is also bound at the root scope as `driver`, so plain `driver.click(...)`
+works in JS once init has happened (via either `karate.driver` or `* driver ...`). Throws
+when read with no `configure driver` in scope — the message points at `configure driver`.
+
+**ObjectLike property access** is preserved:
+
+- `driver.url` → `getUrl()`
+- `driver.title` → `getTitle()`
+- `driver.cookies` → `getCookies()`
+
+### Re-init after `driver.quit()` (grid-style runs)
+
+`getDriver()` releases a terminated driver back to the pool before re-init. That means
+`driver.quit()` followed by another `karate.driver` (or `* driver ...`) read inside the
+same scenario starts a fresh browser session against the *current* `configure driver` map
+— without leaking a pool slot. This is what makes the grid pattern of running a list of
+tests under multiple browsers in succession from a single scenario possible:
+
+```gherkin
+* def runWith =
+"""
+function (cfg, testPaths) {
+  karate.configure('driver', cfg)
+  karate.driver.setUrl(baseUrl)        // triggers init for this browser
+  karate.map(testPaths, function(p) {
+    driver.clearCookies()
+    driver.setUrl(baseUrl)
+    karate.call(p)
+  })
+  driver.quit()                        // release this browser; next iteration re-inits
+}
+"""
+* def browsers = [chromeCfg, firefoxCfg, edgeCfg]
+* karate.map(browsers, cfg => runWith(cfg, ['login.feature', 'cart.feature']))
+```
+
+Use `karate.suite.threadCount` to size browser-config chunks against the parallel-thread
+count when running this style of test on a grid provider (BrowserStack, Sauce Labs, etc.).
 
 ### ObjectLike Property Access
 

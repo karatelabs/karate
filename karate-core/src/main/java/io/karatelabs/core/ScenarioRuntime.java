@@ -242,7 +242,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      * True when this scenario's steps, hooks and config JS should be bypassed for dry-run.
      * {@code @setup} scenarios are exempt so dynamic scenario-outline example data
      * (e.g. {@code Examples: | karate.setup().data |}) still resolves in the report.
-     * Feature authors can observe dry-run state from inside {@code @setup} via {@code karate.dryRun}.
+     * Feature authors can observe dry-run state from inside {@code @setup} via {@code karate.suite.dryRun}.
      */
     boolean isDryRunSkip() {
         Suite suite = featureRuntime != null ? featureRuntime.getSuite() : null;
@@ -1637,7 +1637,13 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      * @throws RuntimeException if driver is not configured
      */
     public Driver getDriver() {
-        if (driver == null || driver.isTerminated()) {
+        // user-triggered driver.quit() leaves the instance terminated but still bound to this
+        // runtime; release it back to the pool before re-init or the slot leaks and subsequent
+        // grid-style runs (multiple browsers per scenario) deadlock once the pool fills (#2860)
+        if (driver != null && driver.isTerminated()) {
+            closeDriver();
+        }
+        if (driver == null) {
             driver = initDriver();
         }
         return driver;

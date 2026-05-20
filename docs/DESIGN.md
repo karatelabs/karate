@@ -142,15 +142,15 @@ Under dry-run:
 - `@setup` scenarios execute fully, so dynamic outlines (`Examples: | karate.setup().data |`) still resolve their rows.
 - All configured report formats (HTML, JUnit XML, Cucumber JSON, JSONL) are generated normally.
 
-**Escape hatch — `karate.dryRun`.** A boolean readable from any step, useful inside `@setup` to short-circuit expensive fixture creation:
+**Escape hatch — `karate.suite.dryRun`.** A boolean readable from any step, useful inside `@setup` to short-circuit expensive fixture creation:
 
 ```gherkin
 @setup
 Scenario:
-  * def rows = karate.dryRun ? [{ name: 'placeholder' }] : fetchFromDb()
+  * def rows = karate.suite.dryRun ? [{ name: 'placeholder' }] : fetchFromDb()
 ```
 
-Source: `ScenarioRuntime.isDryRunSkip()`, `KarateJs.isDryRun()`.
+Source: `ScenarioRuntime.isDryRunSkip()`, `KarateJsBase.getSuiteData()`.
 
 ---
 
@@ -186,7 +186,8 @@ Source: `ScenarioRuntime.isDryRunSkip()`, `KarateJs.isDryRun()`.
 | **Mock** | `start()`, `proceed()`, `stop()` |
 | **Test data** | `faker.*` (names, emails, addresses, numbers, timestamps, etc.), `uuid()` |
 | **Logging** | `log()`, `logger.debug/info/warn/error()`, `embed()` |
-| **Info** | `env`, `os`, `properties`, `config`, `feature`, `scenario`, `tags`, `tagValues` |
+| **Info** | `env`, `os`, `properties`, `config`, `feature`, `scenario`, `suite`, `tags`, `tagValues` |
+| **Driver** | `driver` (lazy getter — JS-side equivalent of the `* driver ...` step; re-inits cleanly after `driver.quit()`) |
 | **System** | `sysenv(name [, default])`, `sysprop(name [, default])` |
 | **Templating** | `doc()`, `render()` |
 

@@ -202,6 +202,24 @@ abstract class KarateJsBase implements SimpleObject {
     }
 
     /**
+     * Returns suite data map for karate.suite. Fields: {@code threadCount}, {@code dryRun}.
+     * The {@code karate.env} shortcut predates this map and stays where it is; everything
+     * else suite-level should land here so future suite introspection has a single home.
+     * Returns an empty map when no Suite is in scope (e.g. unit tests that drive KarateJs
+     * without a runtime).
+     */
+    Map<String, Object> getSuiteData() {
+        ScenarioRuntime rt = getRuntime();
+        if (rt == null || rt.getFeatureRuntime() == null) return Map.of();
+        io.karatelabs.core.Suite suite = rt.getFeatureRuntime().getSuite();
+        if (suite == null) return Map.of();
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("threadCount", suite.threadCount);
+        data.put("dryRun", suite.dryRun);
+        return data;
+    }
+
+    /**
      * Returns feature data map for karate.feature.
      * V1 compatible fields: name, description, prefixedPath, fileName, parentDir
      */
