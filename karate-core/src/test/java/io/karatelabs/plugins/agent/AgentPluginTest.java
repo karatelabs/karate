@@ -176,6 +176,50 @@ class AgentPluginTest {
     }
 
     @Test
+    void setProject_attachesSlugToSuiteEnter() {
+        // The receiver (karate-agent dashboard) reads data.project to auto-create
+        // / resolve the project and bind the run to it via SUITE_ENTER.
+        AgentPlugin plugin = new AgentPlugin();
+        plugin.setUrl("http://localhost:4444");
+        plugin.setProject("acme-billing");
+        plugin.onBoot(buildSuiteWithEnv("ci"));
+
+        Suite suite = Runner.builder().buildSuite();
+        SuiteRunEvent enter = SuiteRunEvent.enter(suite);
+        plugin.onEvent(enter);
+        String line = plugin.serialize(enter);
+
+        assertTrue(line.contains("\"project\":\"acme-billing\""),
+                "SUITE_ENTER should carry project slug: " + line);
+    }
+
+    @Test
+    void serialize_omitsProject_whenProjectUnset() {
+        AgentPlugin plugin = new AgentPlugin();
+        plugin.setUrl("http://localhost:4444");
+        plugin.onBoot(buildSuiteWithEnv("dev"));
+
+        Suite suite = Runner.builder().buildSuite();
+        SuiteRunEvent enter = SuiteRunEvent.enter(suite);
+        plugin.onEvent(enter);
+        String line = plugin.serialize(enter);
+
+        assertFalse(line.contains("\"project\""),
+                "SUITE_ENTER should not carry project when unset: " + line);
+    }
+
+    @Test
+    void setProject_blankOrNullClearsTheBinding() {
+        AgentPlugin plugin = new AgentPlugin();
+        plugin.setProject("anything");
+        plugin.setProject("");
+        assertNull(plugin.getProject(), "blank slug clears project binding");
+        plugin.setProject("anything");
+        plugin.setProject(null);
+        assertNull(plugin.getProject(), "null slug clears project binding");
+    }
+
+    @Test
     void serialize_omitsParams_whenParamsNull() {
         AgentPlugin plugin = new AgentPlugin();
         plugin.setUrl("http://localhost:4444");

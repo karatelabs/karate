@@ -105,6 +105,7 @@ public class AgentPlugin implements Plugin {
     private String token;
     private Mode mode = Mode.BATCH;
     private Map<String, Object> params;
+    private String project;
 
     private String env;
     private String runId;
@@ -169,6 +170,21 @@ public class AgentPlugin implements Plugin {
      */
     public void setParams(Map<String, Object> params) {
         this.params = params;
+    }
+
+    public String getProject() {
+        return project;
+    }
+
+    /**
+     * Setter for {@code agent.project = '<slug>'}. The slug is attached to
+     * {@code SUITE_ENTER.data.project}; the receiver auto-creates the project
+     * (or resolves an existing slug / alias) and binds the run to it. Null /
+     * blank leaves the run unbound — it still surfaces in the god-view "All
+     * Runs" list but doesn't roll up under any project.
+     */
+    public void setProject(String project) {
+        this.project = (project == null || project.isBlank()) ? null : project.trim();
     }
 
     /** Test-only override; production always uses {@link #DEFAULT_BATCH_SIZE}. */
@@ -250,6 +266,9 @@ public class AgentPlugin implements Plugin {
             }
             if (params != null) {
                 data.put("params", params);
+            }
+            if (project != null) {
+                data.put("project", project);
             }
         }
         envelope.put("data", data);
