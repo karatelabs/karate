@@ -665,21 +665,24 @@ categories:
             v2: future
 
       - name: Desktop Automation
-        description: Desktop application testing
+        description: Desktop application testing (commercial-only in v2)
         v1: true
         v2: future
-        license: oss
-        tags: [ui, future-milestone]
+        license: commercial
+        tags: [ui, future-milestone, commercial]
         items:
           - name: Windows desktop apps
             v1: true
             v2: future
+            license: commercial
           - name: macOS desktop apps
             v1: false
             v2: future
+            license: commercial
           - name: Linux desktop apps
             v1: false
             v2: future
+            license: commercial
 
   # ===========================================================================
   # UI & UX TESTING

@@ -526,6 +526,12 @@ V1 → V2 translation recipes:
 
 ---
 
+## Desktop Automation (karate-robot)
+
+`karate-robot` is **not part of Karate v2**. Teams that depend on native desktop automation can continue to use — or maintain a fork of — the v1 code, which is preserved on the [`v1` branch](https://github.com/karatelabs/karate/tree/v1/karate-robot). For commercial support or to discuss future plans, reach out via [karatelabs.io/contact-us](https://karatelabs.io/contact-us).
+
+---
+
 ## Embedded HTTP Server
 
 The v1 embedded HTTP server (`com.intuit.karate.http.HttpServer` with `ServerConfig` and `contextFactory`) has been replaced with a new architecture in v2:

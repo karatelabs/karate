@@ -2,7 +2,7 @@
 
 Complete taxonomy of Karate capabilities - current, in-progress, and planned.
 
-> **Generated:** 2026-05-17 from `CAPABILITIES.yaml`
+> **Generated:** 2026-05-21 from `CAPABILITIES.yaml`
 >
 > See also: [Design Principles](./PRINCIPLES.md) | [Roadmap](./ROADMAP.md)
 
@@ -251,10 +251,10 @@ User interface automation across platforms
   - `[-]` React Native apps
   - `[1.x -]` Mobile web testing
 
-- `[1.x -]` Desktop Automation
-  - `[1.x -]` Windows desktop apps
-  - `[-]` macOS desktop apps
-  - `[-]` Linux desktop apps
+- `[1.x -]` Desktop Automation `$`
+  - `[1.x -]` Windows desktop apps `$`
+  - `[-]` macOS desktop apps `$`
+  - `[-]` Linux desktop apps `$`
 
 ---
 
