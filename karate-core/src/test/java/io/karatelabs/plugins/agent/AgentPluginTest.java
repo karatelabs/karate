@@ -220,6 +220,19 @@ class AgentPluginTest {
     }
 
     @Test
+    void setProject_trimsWhitespace() {
+        // The receiver-side Project.SLUG_PATTERN doesn't allow whitespace, so
+        // trim client-side to keep the wire field canonical.
+        AgentPlugin plugin = new AgentPlugin();
+        plugin.setProject("  acme-billing  ");
+        assertEquals("acme-billing", plugin.getProject(), "leading + trailing whitespace stripped");
+        plugin.setProject("\tacme\n");
+        assertEquals("acme", plugin.getProject(), "tab/newline stripped");
+        plugin.setProject("   ");
+        assertNull(plugin.getProject(), "whitespace-only treated as blank → cleared");
+    }
+
+    @Test
     void serialize_omitsParams_whenParamsNull() {
         AgentPlugin plugin = new AgentPlugin();
         plugin.setUrl("http://localhost:4444");
