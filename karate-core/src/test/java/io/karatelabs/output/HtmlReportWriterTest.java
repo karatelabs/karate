@@ -579,7 +579,6 @@ class HtmlReportWriterTest {
         assertTrue(featureFiles.length > 0);
 
         String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
-        System.out.println(featureHtml);
         assertTrue(featureHtml.contains("<script id=\"karate-data\" type=\"application/json\">"));
         assertTrue(featureHtml.contains("\"file\": \"001_level-zero.txt\""));
         assertTrue(featureHtml.contains("\"file\": \"002_level-one.txt\""));

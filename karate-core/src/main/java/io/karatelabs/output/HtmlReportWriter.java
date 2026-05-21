@@ -101,6 +101,15 @@ public final class HtmlReportWriter {
     }
 
     /**
+     * Reset the embed file sequence. Called at suite start so embed file names
+     * (e.g. {@code 001_screenshot.png}) restart from 1 for each run instead of
+     * accumulating across runs in the same JVM.
+     */
+    public static void resetEmbedCounter() {
+        embedCounter.set(0);
+    }
+
+    /**
      * Generate HTML reports from a SuiteResult.
      * This is the backward-compatible entry point for direct invocation.
      *
@@ -152,6 +161,7 @@ public final class HtmlReportWriter {
 
     private static boolean hasEmbeds(FeatureResult result) {
         for (ScenarioResult sr : result.getScenarioResults()) {
+            if (sr.isReportDisabled()) continue;
             for (StepResult step : sr.getStepResults()) {
                 if (step.getEmbeds() != null && !step.getEmbeds().isEmpty()) {
                     return true;

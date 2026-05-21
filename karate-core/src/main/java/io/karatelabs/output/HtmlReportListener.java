@@ -87,6 +87,10 @@ public class HtmlReportListener implements ResultListener {
         suiteStartTime = System.currentTimeMillis();
         threadCount = suite.threadCount;
 
+        // Embed file names use a 001_, 002_, ... sequence; reset per suite so
+        // numbers don't bleed across runs in the same JVM (e.g. test suites).
+        HtmlReportWriter.resetEmbedCounter();
+
         // Create directories eagerly
         try {
             Files.createDirectories(outputDir.resolve(SUBFOLDER));
