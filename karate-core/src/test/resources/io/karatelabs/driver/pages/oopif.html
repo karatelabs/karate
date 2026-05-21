@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OOPIF Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 { color: #333; }
+        .frame-container {
+            margin: 20px 0;
+            border: 2px solid #ccc;
+            border-radius: 4px;
+        }
+        iframe {
+            width: 100%;
+            height: 300px;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>OOPIF Parent Page</h1>
+    <p id="main-text">This page hosts a cross-origin iframe (OOPIF).</p>
+
+    <div class="frame-container">
+        <iframe id="cross-origin-frame" name="crossOriginFrame"></iframe>
+    </div>
+
+    <script>
+        console.log('OOPIF parent page loaded');
+        window.parentValue = 'parent-data';
+    </script>
+</body>
+</html>
