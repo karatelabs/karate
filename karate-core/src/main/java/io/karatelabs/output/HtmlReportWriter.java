@@ -150,22 +150,42 @@ public final class HtmlReportWriter {
         Files.writeString(featuresDir.resolve(fileName), html);
     }
 
+    private static boolean hasEmbeds(FeatureResult result) {
+        for (ScenarioResult sr : result.getScenarioResults()) {
+            for (StepResult step : sr.getStepResults()) {
+                if (step.getEmbeds() != null && !step.getEmbeds().isEmpty()) {
+                    return true;
+                }
+                if (step.hasCallResults()) {
+                    for (FeatureResult fr : step.getCallResults()) {
+                        if (hasEmbeds(fr)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void writeEmbedFile(StepResult.Embed embed, Path embedsDir) throws IOException {
+        String ext = getExtensionForMimeType(embed.getMimeType());
+        String baseName = embed.getName() != null
+                ? embed.getName().replaceAll("[^a-zA-Z0-9_-]", "_")
+                : "embed";
+        String fileName = String.format("%03d_%s.%s",
+                embedCounter.incrementAndGet(), baseName, ext);
+        Path filePath = embedsDir.resolve(fileName);
+        Files.write(filePath, embed.getData());
+        embed.setFileName(fileName);
+    }
+
     /**
      * Write embed files to the embeds/ directory.
      * Sets the fileName on each Embed for JSON serialization.
      */
     private static void writeEmbedFiles(FeatureResult result, Path embedsDir) throws IOException {
-        boolean hasEmbeds = false;
-        for (ScenarioResult sr : result.getScenarioResults()) {
-            for (StepResult step : sr.getStepResults()) {
-                if (step.getEmbeds() != null && !step.getEmbeds().isEmpty()) {
-                    hasEmbeds = true;
-                    break;
-                }
-            }
-            if (hasEmbeds) break;
-        }
-        if (!hasEmbeds) {
+        if (!hasEmbeds(result)) {
             return;  // No embeds to write
         }
 
@@ -175,17 +195,14 @@ public final class HtmlReportWriter {
             // embed extraction so screenshots / attachments don't leak to disk either.
             if (sr.isReportDisabled()) continue;
             for (StepResult step : sr.getStepResults()) {
+                if (step.hasCallResults()) {
+                    for (FeatureResult fr : step.getCallResults()) {
+                        writeEmbedFiles(fr, embedsDir);
+                    }
+                }
                 if (step.getEmbeds() == null) continue;
                 for (StepResult.Embed embed : step.getEmbeds()) {
-                    String ext = getExtensionForMimeType(embed.getMimeType());
-                    String baseName = embed.getName() != null
-                            ? embed.getName().replaceAll("[^a-zA-Z0-9_-]", "_")
-                            : "embed";
-                    String fileName = String.format("%03d_%s.%s",
-                            embedCounter.incrementAndGet(), baseName, ext);
-                    Path filePath = embedsDir.resolve(fileName);
-                    Files.write(filePath, embed.getData());
-                    embed.setFileName(fileName);
+                    writeEmbedFile(embed, embedsDir);
                 }
             }
         }
