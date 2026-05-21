@@ -41,6 +41,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -523,6 +524,67 @@ class HtmlReportWriterTest {
         // Last line should be SUITE_EXIT
         assertTrue(lines[lines.length - 1].contains("\"type\":\"SUITE_EXIT\""));
         assertTrue(lines[lines.length - 1].contains("\"summary\""));
+    }
+
+    @Test
+    void testHtmlContainsNestedEmbeds(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("test.feature");
+        Files.writeString(feature, """
+            Feature: Nested Embeds Test
+
+            Background:
+            * def embedResult = "ok"
+
+            @ignore @levelTwo
+            Scenario: Nested level 2
+            * karate.embed('level-two-embed: ' + embedResult, 'text/plain', 'level-two')
+
+            @ignore @levelOne
+            Scenario: Nested level 1
+            * karate.embed('level-one-embed: ' + embedResult, 'text/plain', 'level-one')
+            * call read('@levelTwo')
+
+            Scenario: Test scenario
+            * karate.embed('level-zero-embed: ' + embedResult, 'text/plain',  'level-zero')
+            * call read('@levelOne')
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        // Verify 3 total embed files were created
+        Path embedsDir = reportDir.resolve("embeds");
+        assertTrue(Files.isDirectory(embedsDir),
+                "embeds/ directory should exist after a screenshot()");
+        long embedCount;
+        try (Stream<Path> files = Files.list(embedsDir)) {
+            embedCount = files.filter(p -> p.getFileName().toString().endsWith(".txt")).count();
+        }
+
+        assertEquals(3, embedCount,
+                "expected exactly 3 TXT embed — one from the default scenario, "
+                        + "one from the @levelOne scenario, and one from the @levelTwo scenario; got " + embedCount);
+
+        // Verify feature page also contains the nested embed data
+        Path featuresDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
+        assertTrue(Files.exists(featuresDir));
+        String[] featureFiles = featuresDir.toFile().list();
+        assertNotNull(featureFiles);
+        assertTrue(featureFiles.length > 0);
+
+        String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
+        System.out.println(featureHtml);
+        assertTrue(featureHtml.contains("<script id=\"karate-data\" type=\"application/json\">"));
+        assertTrue(featureHtml.contains("\"file\": \"001_level-zero.txt\""));
+        assertTrue(featureHtml.contains("\"file\": \"002_level-one.txt\""));
+        assertTrue(featureHtml.contains("\"file\": \"003_level-two.txt\""));
+        assertTrue(featureHtml.contains("x-data=\"KarateReport.featureData()\""));
     }
 
     // ========== Scenario Name Substitution Tests ==========
