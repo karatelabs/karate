@@ -90,10 +90,19 @@ public class W3cSession {
         String json = Json.of(sessionPayload).toString();
         logger.debug("Creating W3C session at {} with payload: {}", baseUrl, json);
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/session"))
+        URI uri = URI.create(baseUrl + "/session");
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                .uri(uri)
                 .header("Content-Type", "application/json")
-                .timeout(timeout)
+                .timeout(timeout);
+
+        String userInfo = uri.getUserInfo();
+        if (userInfo != null && !userInfo.isBlank()) {
+            String basicAuth = "Basic " + Base64.getEncoder().encodeToString(userInfo.getBytes());
+            requestBuilder.header("Authorization", basicAuth);
+        }
+
+        HttpRequest request = requestBuilder
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
 
