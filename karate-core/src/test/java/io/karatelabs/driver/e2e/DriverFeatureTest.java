@@ -100,8 +100,14 @@ class DriverFeatureTest {
 
         // Set serverUrl for test pages (webSocketUrl not needed - ContainerDriverProvider handles it)
         String serverUrl = chrome.getHostAccessUrl(TEST_SERVER_PORT);
+        // crossOriginUrl points at the same TestPageServer via a different hostname so the
+        // OOPIF feature can load an iframe from a different "site". Combined with
+        // --site-per-process on ChromeContainer this exercises out-of-process iframes.
+        String crossOriginUrl = chrome.getCrossOriginHostAccessUrl(TEST_SERVER_PORT);
         System.setProperty("karate.driver.serverUrl", serverUrl);
+        System.setProperty("karate.driver.crossOriginUrl", crossOriginUrl);
         logger.info("driver serverUrl: {}", serverUrl);
+        logger.info("driver crossOriginUrl: {}", crossOriginUrl);
     }
 
     @AfterAll
@@ -111,6 +117,7 @@ class DriverFeatureTest {
             testServer = null;
         }
         System.clearProperty("karate.driver.serverUrl");
+        System.clearProperty("karate.driver.crossOriginUrl");
     }
 
     @Test

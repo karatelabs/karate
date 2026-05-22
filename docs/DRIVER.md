@@ -287,6 +287,8 @@ void switchFrame(String locator)                 // By locator (null = main)
 Map<String, Object> getCurrentFrame()            // Get frame info
 ```
 
+**Out-of-process iframes (OOPIFs).** Cross-origin iframes — Stripe, PayPal, embedded sign-on widgets — run in a separate Chrome process under site isolation. `CdpDriver` opts into `Target.setAutoAttach` at init so it receives a CDP session for every isolated iframe; `switchFrame(locator)` first matches by name / URL substring against the standard frame tree, then against the OOPIF sessions, switching the CDP session into the iframe target on match. `switchFrame(null)` reverts to the parent page session. Same `switchFrame(...)` syntax — no separate API. Each OOPIF session's lifecycle events are session-filtered so they can't pollute the parent's page-load tracking. (Same-origin iframes are unaffected by this path.)
+
 ### Element Operations
 ```java
 Element click(String locator)
@@ -753,7 +755,7 @@ This allows:
 | Element actions | ✅ | ✅ | ✅ |
 | Wait methods | ✅ | ✅ | ✅ |
 | Screenshots | ✅ | ✅ | ✅ |
-| Frames | ✅ Explicit | ✅ Auto | ✅ Explicit |
+| Frames | ✅ Explicit (+ OOPIF) | ✅ Auto | ✅ Explicit |
 | Dialogs | ✅ Callback | ✅ Callback | ⚠️ Limited |
 | Request interception | ✅ | ✅ | ❌ |
 | PDF generation | ✅ | ✅ | ❌ |

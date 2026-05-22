@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OOPIF Frame</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #e8f5e9;
+        }
+    </style>
+</head>
+<body>
+    <h2>OOPIF Frame Content</h2>
+    <p id="frame-text">This content is inside the cross-origin iframe.</p>
+
+    <script>
+        console.log('OOPIF frame loaded');
+        window.frameValue = 'oopif-frame-data';
+    </script>
+</body>
+</html>

@@ -73,9 +73,12 @@ public class ChromeContainer extends GenericContainer<ChromeContainer> {
     public ChromeContainer() {
         super(DockerImageName.parse(IMAGE));
         withExposedPorts(CDP_PORT);
-        // Pass additional Chrome flags to allow WebSocket connections from any origin
-        // The chromedp/headless-shell image's entrypoint script appends these to Chrome
-        withCommand("--remote-allow-origins=*");
+        // Chrome flags:
+        // --remote-allow-origins=* — accept WebSocket connections from any origin
+        // --site-per-process — force process-per-site isolation in headless Chrome so
+        //   cross-origin iframes become OOPIFs (matches real-world Stripe/PayPal setup).
+        //   Same-origin iframes are unaffected.
+        withCommand("--remote-allow-origins=* --site-per-process");
         waitingFor(Wait.forHttp("/json/version").forPort(CDP_PORT));
         withStartupTimeout(Duration.ofMinutes(2));
 
@@ -127,6 +130,17 @@ public class ChromeContainer extends GenericContainer<ChromeContainer> {
         // It routes through a SOCKS proxy container to reach the host machine
         // This works on all platforms: macOS, Windows, and Linux (including GitHub Actions)
         return "http://host.testcontainers.internal:" + hostPort;
+    }
+
+    /**
+     * Same host port as {@link #getHostAccessUrl(int)} but reached via Docker's
+     * built-in host gateway. Different hostname → different eTLD+1 → Chrome treats
+     * pages served from here as a different "site" from {@code host.testcontainers.internal}.
+     * Combined with {@code --site-per-process}, this is the path that triggers OOPIF
+     * behaviour without needing a second test server.
+     */
+    public String getCrossOriginHostAccessUrl(int hostPort) {
+        return "http://host.docker.internal:" + hostPort;
     }
 
     @SuppressWarnings("unchecked")

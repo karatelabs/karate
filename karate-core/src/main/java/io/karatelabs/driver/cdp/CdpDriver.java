@@ -102,6 +102,11 @@ public class CdpDriver implements Driver {
     private Frame currentFrame;
     private final Map<String, Integer> frameContexts = new ConcurrentHashMap<>();
 
+    // OOPIF (Out-of-Process Iframe) tracking
+    private final Map<String, Map<String, Object>> oopifTargets = new ConcurrentHashMap<>();
+    private final Map<String, String> oopifSessions = new ConcurrentHashMap<>();
+    private volatile String pageSessionId; // Tracks the main page's session to switch back
+
     // Tab/target tracking for close() support
     private String currentTargetId;
 
@@ -273,10 +278,21 @@ public class CdpDriver implements Driver {
         // This prevents race conditions where events fire before handlers are registered
         setupEventHandlers();
 
+        // Record the main page's session id BEFORE enabling domains so the Page.*
+        // session filter has a reference value for the first wave of events.
+        this.pageSessionId = cdp.getSessionId();
+
         // NOW enable domains - events will be properly captured
         cdp.method("Page.enable").send();
         cdp.method("Runtime.enable").send();
         cdp.method("Network.enable").send(); // Required for cookie operations
+
+        // Tell Chrome to auto-attach to isolated cross-origin iframes (OOPIFs)
+        cdp.method("Target.setAutoAttach")
+                .param("autoAttach", true)
+                .param("waitForDebuggerOnStart", false)
+                .param("flatten", true)
+                .send();
 
         // Enable lifecycle events (required for Page.lifecycleEvent)
         cdp.method("Page.setLifecycleEventsEnabled")
@@ -377,7 +393,15 @@ public class CdpDriver implements Driver {
         // Listen to BOTH lifecycle events AND domContentEventFired for maximum compatibility
         // Page.lifecycleEvent is more reliable per-frame (Puppeteer approach)
         // Page.domContentEventFired is a fallback for environments where lifecycle events don't fire
+        //
+        // NOTE on session filtering: with OOPIF support, Page.enable is called on every isolated
+        // iframe session, so those sessions also stream Page.* events into this client. Without
+        // a sessionId filter, an OOPIF's DOMContentLoaded would flip the parent's domContentEventFired
+        // prematurely, and an OOPIF's frameStartedLoading would leak its frameId into
+        // framesStillLoading. Every Page.* handler that mutates parent state must reject events
+        // whose sessionId is not the current page session.
         cdp.on("Page.lifecycleEvent", event -> {
+            if (isFromOtherSession(event)) return;
             String name = event.get("name");
             String frameId = event.get("frameId");
             logger.trace("lifecycleEvent: name={}, frameId={}", name, frameId);
@@ -390,11 +414,13 @@ public class CdpDriver implements Driver {
 
         // Fallback: also listen to Page.domContentEventFired for compatibility
         cdp.on("Page.domContentEventFired", event -> {
+            if (isFromOtherSession(event)) return;
             domContentEventFired = true;
             logger.trace("domContentEventFired (fallback)");
         });
 
         cdp.on("Page.frameStartedLoading", event -> {
+            if (isFromOtherSession(event)) return;
             String frameId = event.get("frameId");
             if (frameId != null && frameId.equals(mainFrameId)) {
                 domContentEventFired = false;
@@ -407,6 +433,7 @@ public class CdpDriver implements Driver {
         });
 
         cdp.on("Page.frameStoppedLoading", event -> {
+            if (isFromOtherSession(event)) return;
             String frameId = event.get("frameId");
             if (frameId != null) {
                 framesStillLoading.remove(frameId);
@@ -420,6 +447,7 @@ public class CdpDriver implements Driver {
         // This was observed as a flaky failure in CI where framesStillLoading was non-empty
         // despite domContentEventFired being true.
         cdp.on("Page.frameDetached", event -> {
+            if (isFromOtherSession(event)) return;
             String frameId = event.get("frameId");
             if (frameId != null) {
                 framesStillLoading.remove(frameId);
@@ -483,11 +511,17 @@ public class CdpDriver implements Driver {
         //   appear to work (target activated) but subsequent operations would affect the wrong tab
         //
         cdp.on("Runtime.executionContextCreated", event -> {
-            // Filter by session: only process events from current session
+            // Filter by session: only process events from the current page session.
+            //
+            // OOPIF context ids are deliberately NOT stored: they are scoped to the OOPIF's
+            // own CDP session, and routing Runtime.evaluate to the right session (we set
+            // cdp.sessionId on switchFrame) makes the session's *default* context the OOPIF
+            // main world — no explicit contextId needed. See getFrameContext() /
+            // ensureFrameContext() for the OOPIF short-circuit.
             String eventSession = event.getSessionId();
             String currentSession = cdp.getSessionId();
             if (eventSession != null && !eventSession.equals(currentSession)) {
-                logger.trace("ignoring executionContextCreated from old session: {}", eventSession);
+                logger.trace("ignoring executionContextCreated from other session: {}", eventSession);
                 return;
             }
 
@@ -564,8 +598,75 @@ public class CdpDriver implements Driver {
             openedTargets.removeIf(entry -> targetId.equals(entry.get("targetId")));
         });
 
+        // Catch cross-origin iframes as they attach. Runtime.enable on the OOPIF session
+        // wires up its default execution context so Runtime.evaluate works against the
+        // iframe's main world once cdp.sessionId is routed there by switchFrame.
+        //
+        // We deliberately do NOT call Page.enable: that would have the OOPIF session stream
+        // Page.* lifecycle events into this client and they would have to be session-filtered
+        // (or worse, leak into parent page-load tracking). The defensive isFromOtherSession
+        // check in the Page.* handlers is a belt-and-suspenders for the same reason.
+        cdp.on("Target.attachedToTarget", event -> {
+            String attachedSessionId = event.get("sessionId");
+            Map<String, Object> targetInfo = event.get("targetInfo");
+
+            if (targetInfo != null && "iframe".equals(targetInfo.get("type"))) {
+                String targetId = (String) targetInfo.get("targetId"); // targetId = frameId
+                oopifTargets.put(targetId, targetInfo);
+                oopifSessions.put(targetId, attachedSessionId);
+                logger.debug("Attached to isolated iframe (OOPIF): {} session={}",
+                        targetInfo.get("url"), attachedSessionId);
+                cdp.method("Runtime.enable").sessionId(attachedSessionId).send();
+            }
+        });
+
+        // Remove tracked sessions when detached. If the OOPIF that detached was the
+        // currently-active session (user was inside the frame when it navigated away
+        // or was removed from the DOM), revert to the main page session so subsequent
+        // CDP commands don't hit a dead session.
+        cdp.on("Target.detachedFromTarget", event -> {
+            String detachedSessionId = event.get("sessionId");
+            if (detachedSessionId == null) return;
+            String detachedFrameId = null;
+            for (Map.Entry<String, String> e : oopifSessions.entrySet()) {
+                if (detachedSessionId.equals(e.getValue())) {
+                    detachedFrameId = e.getKey();
+                    break;
+                }
+            }
+            if (detachedFrameId != null) {
+                oopifSessions.remove(detachedFrameId);
+                oopifTargets.remove(detachedFrameId);
+                frameContexts.remove(detachedFrameId);
+                logger.debug("OOPIF detached: frameId={}, sessionId={}", detachedFrameId, detachedSessionId);
+            }
+            if (detachedSessionId.equals(cdp.getSessionId()) && pageSessionId != null) {
+                cdp.setSessionId(pageSessionId);
+                currentFrame = null;
+                logger.debug("active OOPIF session detached, reverted to main page session");
+            }
+        });
+
         // Request interception
         cdp.on("Fetch.requestPaused", this::onRequestPaused);
+    }
+
+    /**
+     * Returns true when an event's sessionId belongs to a session other than the
+     * current page session — typically an OOPIF session. Page.* handlers that
+     * mutate parent-page state (domContentEventFired, framesStillLoading, etc.)
+     * must drop such events; otherwise OOPIF load events leak into parent tracking.
+     */
+    private boolean isFromOtherSession(CdpEvent event) {
+        String eventSession = event.getSessionId();
+        if (eventSession == null) return false; // browser-level event
+        String currentSession = cdp.getSessionId();
+        if (eventSession.equals(currentSession)) return false;
+        // The current session may be an OOPIF session (we're switched into a frame).
+        // Compare to pageSessionId so an OOPIF event still counts as "other" while
+        // we're inside that very frame — its events still target frameId != mainFrameId
+        // and would not flip mainFrame-gated state anyway, but reject defensively.
+        return !eventSession.equals(pageSessionId);
     }
 
     @SuppressWarnings("unchecked")
@@ -1038,6 +1139,13 @@ public class CdpDriver implements Driver {
             // Explicit main frame context - more reliable than CDP's default after frame switches
             return frameContexts.get(mainFrameId);
         }
+        // For OOPIFs, cdp.sessionId is routed to the iframe's own CDP session. Each session
+        // has its own "default" execution context, which IS the OOPIF's main world. Passing
+        // a contextId from frameContexts (registered against a different session) would yield
+        // "Cannot find context with specified id". Returning null lets CDP pick the default.
+        if (oopifSessions.containsKey(currentFrame.id)) {
+            return null;
+        }
         return frameContexts.get(currentFrame.id);
     }
 
@@ -1272,8 +1380,18 @@ public class CdpDriver implements Driver {
         if (locator == null) {
             // Switch back to main frame
             currentFrame = null;
+            cdp.setSessionId(pageSessionId); // Restore main session
             logger.debug("switched to main frame");
             return;
+        }
+
+        // If we're currently inside an OOPIF, the iframe element lives in the parent's
+        // DOM — JS lookup has to run there, not in the current frame's session. Reset
+        // to the main session for the lookup; we'll re-switch below if the matched
+        // frame turns out to be another OOPIF.
+        if (pageSessionId != null && !pageSessionId.equals(cdp.getSessionId())) {
+            cdp.setSessionId(pageSessionId);
+            currentFrame = null;
         }
 
         // Wait for frame element to exist (same retry logic as other element operations)
@@ -1306,42 +1424,105 @@ public class CdpDriver implements Driver {
         CdpResponse response = cdp.method("Page.getFrameTree").send();
         List<Map<String, Object>> childFrames = response.getResult("frameTree.childFrames");
 
-        if (childFrames == null || childFrames.isEmpty()) {
-            throw new DriverException("no child frames in page");
-        }
-
         // Find matching frame in tree
         String frameId = null;
         String url = null;
         String name = null;
 
-        for (Map<String, Object> frameData : childFrames) {
-            Map<String, Object> frame = (Map<String, Object>) frameData.get("frame");
-            String fId = (String) frame.get("id");
-            String fUrl = (String) frame.get("url");
-            String fName = (String) frame.get("name");
+        // 1. Try standard, same-origin frames first
+        if (childFrames != null) {
+            for (Map<String, Object> frameData : childFrames) {
+                Map<String, Object> frame = (Map<String, Object>) frameData.get("frame");
+                String fId = (String) frame.get("id");
+                String fUrl = (String) frame.get("url");
+                String fName = (String) frame.get("name");
 
-            // Match by name if provided, otherwise by URL
-            boolean matches = false;
-            if (targetName != null && !targetName.isEmpty() && targetName.equals(fName)) {
-                matches = true;
-            } else if (targetSrc != null && !targetSrc.isEmpty() && fUrl != null && fUrl.contains(targetSrc)) {
-                matches = true;
-            } else if ((targetName == null || targetName.isEmpty()) && (targetSrc == null || targetSrc.isEmpty())) {
-                // No name or src - use first frame
-                matches = true;
-            }
+                // Match by name if provided, otherwise by URL
+                boolean matches = false;
+                if (targetName != null && !targetName.isEmpty() && targetName.equals(fName)) {
+                    matches = true;
+                } else if (targetSrc != null && !targetSrc.isEmpty() && fUrl != null && fUrl.contains(targetSrc)) {
+                    matches = true;
+                } else if ((targetName == null || targetName.isEmpty()) && (targetSrc == null || targetSrc.isEmpty())) {
+                    // No name or src - use first frame
+                    matches = true;
+                }
 
-            if (matches) {
-                frameId = fId;
-                url = fUrl;
-                name = fName;
-                break;
+                if (matches) {
+                    frameId = fId;
+                    url = fUrl;
+                    name = fName;
+                    cdp.setSessionId(pageSessionId); // Ensure we are on the main session
+                    break;
+                }
             }
         }
 
+        // 2. If not found, check isolated OOPIFs. Target.attachedToTarget is async — when
+        // the test set `iframe.src` to a cross-origin URL just before calling switchFrame,
+        // the OOPIF may not have attached yet. Retry briefly so callers don't need their
+        // own sleep before switchFrame.
         if (frameId == null) {
-            throw new DriverException("could not find frame for locator: " + locator);
+            final String fName = targetName;
+            final String fSrc = targetSrc;
+            final String[] matched = new String[3]; // frameId, url, name
+            retry("OOPIF matching locator " + locator, () -> {
+                for (Map.Entry<String, String> entry : oopifSessions.entrySet()) {
+                    String potentialFrameId = entry.getKey();
+                    String sessionId = entry.getValue();
+                    cdp.setSessionId(sessionId);
+                    try {
+                        CdpResponse evalName = cdp.method("Runtime.evaluate")
+                                .param("expression", "window.name")
+                                .param("returnByValue", true).send();
+                        CdpResponse evalUrl = cdp.method("Runtime.evaluate")
+                                .param("expression", "window.location.href")
+                                .param("returnByValue", true).send();
+                        String internalName = evalName.getResultAsString("result.value");
+                        String internalUrl = evalUrl.getResultAsString("result.value");
+                        boolean matches = false;
+                        if (fName != null && !fName.isEmpty() && fName.equals(internalName)) {
+                            matches = true;
+                        } else if (fSrc != null && !fSrc.isEmpty() && internalUrl != null && internalUrl.contains(fSrc)) {
+                            matches = true;
+                        } else if ((fName == null || fName.isEmpty()) && (fSrc == null || fSrc.isEmpty())) {
+                            matches = true;
+                        }
+                        if (matches) {
+                            matched[0] = potentialFrameId;
+                            matched[1] = internalUrl;
+                            matched[2] = internalName;
+                            // Leave cdp.sessionId on the OOPIF so future commands route here.
+                            return true;
+                        }
+                    } catch (Exception e) {
+                        logger.trace("Failed to query OOPIF internal state: {}", e.getMessage());
+                    }
+                    cdp.setSessionId(pageSessionId);
+                }
+                return false;
+            });
+            frameId = matched[0];
+            url = matched[1];
+            name = matched[2];
+        }
+
+        if (frameId == null) {
+            cdp.setSessionId(pageSessionId);
+            StringBuilder diag = new StringBuilder("could not find frame for locator: ").append(locator);
+            diag.append(" (targetName='").append(targetName).append("', targetSrc='").append(targetSrc).append("'");
+            if (!oopifTargets.isEmpty()) {
+                diag.append(", knownOopifs=[");
+                boolean first = true;
+                for (Map<String, Object> info : oopifTargets.values()) {
+                    if (!first) diag.append(", ");
+                    diag.append(info.get("url"));
+                    first = false;
+                }
+                diag.append("]");
+            }
+            diag.append(")");
+            throw new DriverException(diag.toString());
         }
 
         currentFrame = new Frame(frameId, url, name);
@@ -1368,6 +1549,13 @@ public class CdpDriver implements Driver {
     }
 
     private void ensureFrameContext(String frameId) {
+        // OOPIF: cdp.sessionId is routed to the iframe's own CDP session, whose default
+        // execution context IS the OOPIF's main world. No registration is needed — and the
+        // contextId-from-event path won't work here anyway since the id is scoped to a
+        // different session than the one we route commands on. Just return.
+        if (oopifSessions.containsKey(frameId)) {
+            return;
+        }
         // First, wait for the main world context to arrive via Runtime.executionContextCreated.
         // IMPORTANT: Do NOT immediately fall back to Page.createIsolatedWorld - isolated worlds
         // are separate JS contexts where variables set by page scripts (e.g., window.frameValue)
@@ -2734,6 +2922,8 @@ public class CdpDriver implements Driver {
         if (sessionId != null) {
             // Update the CDP client to use this session
             cdp.setSessionId(sessionId);
+            // Sync the new page session
+            this.pageSessionId = sessionId;
         }
 
         // Re-enable required domains on new target (triggers executionContextCreated)
