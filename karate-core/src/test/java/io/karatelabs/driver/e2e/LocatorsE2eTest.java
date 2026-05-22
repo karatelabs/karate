@@ -125,6 +125,16 @@ class LocatorsE2eTest extends DriverTestBase {
         assertTrue(driver.exists("{button}Submit"));
     }
 
+    @Test
+    void testWildcardTagOnly() {
+        assertTrue(driver.exists("{details}"));
+    }
+
+    @Test
+    void testWildcardAnchorTagNoAttributes() {
+        assertTrue(driver.exists("{a}Anchor With No Attributes"));
+    }
+
     // ========== Wildcard Contains Match ==========
 
     @Test
