@@ -441,6 +441,17 @@ class StepDataTypesTest {
     }
 
     @Test
+    void testCsvKeywordWithByteArray() {
+        // csv keyword with byte array reference
+        ScenarioRuntime sr = run("""
+            * def csvBytes = "name,age\\nJane,29".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            * csv info = csvBytes
+            * match info == [{ name: 'Jane', age: '29' }]
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testYamlKeywordWithDocString() {
         // yaml keyword with doc string
         ScenarioRuntime sr = run("""

@@ -52,6 +52,7 @@ import com.jayway.jsonpath.JsonPath;
 
 import java.io.File;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -1056,7 +1057,11 @@ public class StepExecutor {
             // Expression: csv data = someVar
             String expr = text.substring(eqIndex + 1).trim();
             Object value = runtime.eval(expr);
-            csvText = value.toString();
+            if (value instanceof byte[]) {
+                csvText = new String((byte[]) value, StandardCharsets.UTF_8);
+            } else {
+                csvText = value.toString();
+            }
         }
         List<Map<String, Object>> result = DataUtils.fromCsv(csvText);
         runtime.setVariable(name, result);
