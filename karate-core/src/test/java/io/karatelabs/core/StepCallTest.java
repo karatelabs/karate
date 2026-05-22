@@ -1616,4 +1616,44 @@ class StepCallTest {
         assertFalse(result.isPassed(), "Parent should fail when karate.callonce()ed feature fails");
     }
 
+    @Test
+    void testCallOnceInBackgroundDoesNotLeakOutlineVariables() throws Exception {
+        // Regression: when `callonce` is invoked in a Background and the scenario is a
+        // Scenario Outline, the example-row variable (e.g. `variable`) leaked across
+        // rows. The first row's value got cached on the callonce result map and the
+        // restore step in `applyCachedCallOnceResult` overwrote the next row's value.
+        // Placeholder substitution `<variable>` was fine (resolved at parse time),
+        // but bare `variable` was stuck at the first row's value.
+        Path helper = tempDir.resolve("helper.feature");
+        Files.writeString(helper, """
+            Feature: helper
+            Scenario:
+            * print 'callonce executed'
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: outline + callonce
+
+            Background:
+            * callonce read('helper.feature')
+
+            Scenario Outline:
+            * match variable == '<variable>'
+
+            Examples:
+            | variable  |
+            | a         |
+            | something |
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(),
+                "Outline row binding should match its example value even with callonce in Background: "
+                        + getFailureMessage(result));
+        assertEquals(2, result.getScenarioCount());
+        assertEquals(2, result.getScenarioPassedCount());
+    }
+
 }

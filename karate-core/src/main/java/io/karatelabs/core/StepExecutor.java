@@ -2603,12 +2603,30 @@ public class StepExecutor {
                 return;
             }
 
+            // Snapshot caller bindings before the call so we can cache only the
+            // callee's contribution. Capturing the full post-call binding set leaks
+            // pre-existing caller vars — notably Scenario Outline example-row vars
+            // set during scenario init — into the cache, where they would overwrite
+            // the next row's value on cache hit.
+            Map<String, Object> preCallVars = runtime.getAllVariables();
+
             // Not cached - execute the call
             executeCall(step);
 
-            // Cache variables, config, and cookie jar (executeCall already copied vars to runtime)
+            // Cache only the delta: bindings that the callee added or replaced.
+            // Identity comparison is intentional — an untouched caller binding keeps
+            // the same Object reference, while a callee def/assign produces a new one.
+            Map<String, Object> postCallVars = runtime.getAllVariables();
+            Map<String, Object> delta = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> entry : postCallVars.entrySet()) {
+                String key = entry.getKey();
+                Object after = entry.getValue();
+                if (!preCallVars.containsKey(key) || preCallVars.get(key) != after) {
+                    delta.put(key, after);
+                }
+            }
             @SuppressWarnings("unchecked")
-            Map<String, Object> vars = (Map<String, Object>) StepUtils.deepCopy(runtime.getAllVariables());
+            Map<String, Object> vars = (Map<String, Object>) StepUtils.deepCopy(delta);
             @SuppressWarnings("unchecked")
             Map<String, Map<String, Object>> cookieJarCopy = (Map<String, Map<String, Object>>) StepUtils.deepCopy(runtime.getCookieJar());
             cache.put(cacheKey, new CallOnceResult(vars, runtime.getConfig().copy(), cookieJarCopy));
