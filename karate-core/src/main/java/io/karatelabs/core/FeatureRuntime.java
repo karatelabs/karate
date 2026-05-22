@@ -674,8 +674,12 @@ public class FeatureRuntime implements Callable<FeatureResult> {
 
         private boolean shouldSelect(Scenario scenario) {
             // Check line filter first (if specified)
-            // Line filter takes precedence for scenario selection
-            if (suite != null && !suite.lineFilters.isEmpty()) {
+            // Line filter takes precedence for scenario selection.
+            // Only applies at the top level — a called feature must run its
+            // own scenarios regardless of the suite-level :LINE filter (same
+            // bypass as `scenarioName` below; mirrors the v1 behavior where a
+            // top-level `:N` filter never cascaded into `call`ed features).
+            if (suite != null && !suite.lineFilters.isEmpty() && caller == null) {
                 String featureUri = feature.getResource().getUri().toString();
                 Set<Integer> lines = suite.lineFilters.get(featureUri);
                 if (lines != null && !lines.isEmpty()) {
@@ -810,7 +814,8 @@ public class FeatureRuntime implements Callable<FeatureResult> {
 
         /**
          * Simple tag matching for call-by-tag syntax (e.g., call read('file.feature@tagname')).
-         * Supports: @tagname, @name=value, ~@tagname (negation)
+         * Supports: @tagname, @key=value, ~@tagname (negation). `@name=foo` is just the
+         * @key=value form with `name` as a convention — there is no built-in `name` tag.
          * Does NOT filter by @ignore - allows calling @ignore scenarios explicitly.
          */
         private boolean matchesCallTag(Scenario scenario, String tagSelector) {
@@ -845,7 +850,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
 
         /**
          * Check if a tag matches a selector.
-         * Selector can be: "tagname" or "name=value"
+         * Selector can be: "tagname" or "key=value" (generic — `name` is not special).
          */
         private boolean matchesTag(Tag tag, String selector) {
             int eqPos = selector.indexOf('=');

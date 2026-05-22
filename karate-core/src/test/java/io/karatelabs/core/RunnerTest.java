@@ -707,4 +707,35 @@ class RunnerTest {
         assertEquals(1, result.getScenarioPassedCount());
     }
 
+    @Test
+    void testRunnerLineFilterDoesNotCascadeIntoCalledFeature() throws Exception {
+        // Regression: a suite-level :LINE filter must not narrow scenario
+        // selection inside `call`ed features. Same bypass semantics as the
+        // scenarioName filter — applies at top level only.
+        Path feature = tempDir.resolve("line-and-call-to-self.feature");
+        Files.writeString(feature, """
+            Feature: Line and call to self
+
+            @ignore @callee
+            Scenario: Callee
+            * def x = 1
+
+            Scenario: Caller
+            * def result = karate.call('@callee')
+            * match result.x == 1
+            """);
+
+        // :8 targets only "Caller". Without the caller-null guard, the suite
+        // line filter would also exclude "Callee" when the same file is
+        // reached via the `karate.call('@callee')` step — failing the match.
+        SuiteResult result = Runner.path(feature.toString() + ":8")
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(1, result.getScenarioPassedCount());
+    }
+
 }
