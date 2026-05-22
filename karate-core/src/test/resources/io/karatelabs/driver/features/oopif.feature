@@ -1,4 +1,4 @@
-@lock=oopif
+@cdp @lock=oopif
 Feature: Out-of-Process Iframe (OOPIF) Support
   Cross-origin frame switching against an iframe served from a different
   "site" (different eTLD+1) than the parent page. With --site-per-process,

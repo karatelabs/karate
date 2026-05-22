@@ -29,7 +29,13 @@
     <p id="main-text">This page hosts a cross-origin iframe (OOPIF).</p>
 
     <div class="frame-container">
-        <iframe id="cross-origin-frame" name="crossOriginFrame"></iframe>
+        <!-- Initial src points at a same-origin page so the first frame load completes
+             cleanly (some Chrome builds under --site-per-process don't reliably fire
+             Page.frameStoppedLoading for an empty/about:blank iframe, which can wedge
+             the page-load watcher). The test then sets .src to the cross-origin URL,
+             promoting the iframe to an OOPIF. /index.html exists on TestPageServer and
+             has no h2/#frame-text — so test assertions can't false-positive against it. -->
+        <iframe id="cross-origin-frame" name="crossOriginFrame" src="/index.html"></iframe>
     </div>
 
     <script>
