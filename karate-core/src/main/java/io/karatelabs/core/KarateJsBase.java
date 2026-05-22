@@ -424,6 +424,62 @@ abstract class KarateJsBase implements SimpleObject {
     }
 
     /**
+     * karate.resolveScenarios() - Resolve all scenarios matching criteria.
+     */
+    JavaInvokable resolveScenarios() {
+        return args -> {
+            ScenarioRuntime rt = getRuntime();
+            if (rt == null) {
+                throw new RuntimeException("karate.resolveScenarios() is not available in this context");
+            }
+
+            if (args.length < 1) {
+                throw new RuntimeException("resolveScenarios() needs at least one argument");
+            }
+
+            if (!(args[0] instanceof Map options)) {
+                throw new RuntimeException("invalid resolveScenarios options: expected map");
+            }
+
+            String[] paths;
+            Object pathsRaw = options.get("path");
+            if (pathsRaw == null) {
+                paths = new String[]{""};
+            } else if (pathsRaw instanceof List) {
+                List pathsList = (List) pathsRaw;
+                paths = new String[pathsList.size()];
+                for (int i = 0; i < pathsList.size(); i++) {
+                    paths[i] = pathsList.get(i).toString();
+                }
+            } else {
+                paths = new String[]{pathsRaw.toString()};
+            }
+
+            String[] tags = null;
+            Object tagsRaw = options.get("tags");
+            if (tagsRaw != null) {
+                if (tagsRaw instanceof List) {
+                    List tagsList = (List) tagsRaw;
+                    tags = new String[tagsList.size()];
+                    for (int i = 0; i < tagsList.size(); i++) {
+                        tags[i] = tagsList.get(i).toString();
+                    }
+                } else {
+                    tags = new String[]{tagsRaw.toString()};
+                }
+            }
+
+            Object workingDirRaw = options.get("workingDir");
+            String workingDir = workingDirRaw != null ? workingDirRaw.toString() : null;
+
+            Object envRaw = options.get("env");
+            String env = envRaw != null ? envRaw.toString() : null;
+
+            return rt.getScenarioPathsFor(workingDir, paths, tags, env);
+        };
+    }
+
+    /**
      * Returns system properties available via karate.properties['key'].
      */
     Map<String, String> getProperties() {

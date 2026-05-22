@@ -71,6 +71,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
     private FeatureResult result;
     private final Map<Integer, Integer> outlineCompletedCounts = new HashMap<>();  // section index -> completed count
     private int loopIndex = -1;  // -1 means not a loop call; 0+ is the iteration index
+    private final Set<Integer> lineFilters;
 
     public FeatureRuntime(Feature feature) {
         this(null, feature, null, null, false, null);
@@ -89,6 +90,10 @@ public class FeatureRuntime implements Callable<FeatureResult> {
     }
 
     public FeatureRuntime(Suite suite, Feature feature, FeatureRuntime caller, ScenarioRuntime callerScenario, boolean sharedScope, Map<String, Object> callArg, String callTagSelector) {
+        this(suite, feature, caller, callerScenario, sharedScope, callArg, callTagSelector, null);
+    }
+
+    public FeatureRuntime(Suite suite, Feature feature, FeatureRuntime caller, ScenarioRuntime callerScenario, boolean sharedScope, Map<String, Object> callArg, String callTagSelector, Set<Integer> lineFilters) {
         this.suite = suite;
         this.feature = feature;
         this.caller = caller;
@@ -98,6 +103,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         this.callTagSelector = callTagSelector;
         this.result = new FeatureResult(feature);
         this.result.setCallDepth(getCallDepth());
+        this.lineFilters = lineFilters;
     }
 
     public int getCallDepth() {
@@ -675,21 +681,24 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         private boolean shouldSelect(Scenario scenario) {
             // Check line filter first (if specified)
             // Line filter takes precedence for scenario selection
-            if (suite != null && !suite.lineFilters.isEmpty()) {
+            Set<Integer> lines = null;
+            if (lineFilters != null && !lineFilters.isEmpty()) {
+                lines = lineFilters;
+            } else if (suite != null && !suite.lineFilters.isEmpty() && caller == null) {
                 String featureUri = feature.getResource().getUri().toString();
-                Set<Integer> lines = suite.lineFilters.get(featureUri);
-                if (lines != null && !lines.isEmpty()) {
-                    // Line filter is specified for this feature
-                    if (!matchesLineFilter(scenario, lines)) {
-                        return false;
-                    }
-                    // Line filter matched — if a scenario name is also set,
-                    // intersect (both must match). Otherwise skip other filters.
-                    if (suite.scenarioName != null && !matchesScenarioName(scenario)) {
-                        return false;
-                    }
-                    return true;
+                lines = suite.lineFilters.get(featureUri);
+            }
+            if (lines != null && !lines.isEmpty()) {
+                // Line filter is specified for this feature
+                if (!matchesLineFilter(scenario, lines)) {
+                    return false;
                 }
+                // Line filter matched — if a scenario name is also set,
+                // intersect (both must match). Otherwise skip other filters.
+                if (suite.scenarioName != null && !matchesScenarioName(scenario)) {
+                    return false;
+                }
+                return true;
             }
 
             // Apply call-level tag filter if specified (takes precedence)

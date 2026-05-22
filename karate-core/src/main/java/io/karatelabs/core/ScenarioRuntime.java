@@ -31,6 +31,7 @@ import io.karatelabs.driver.cdp.CdpDriver;
 import io.karatelabs.driver.cdp.CdpDriverOptions;
 import io.karatelabs.driver.DriverApi;
 import io.karatelabs.gherkin.Feature;
+import io.karatelabs.gherkin.FeatureSection;
 import io.karatelabs.gherkin.Scenario;
 import io.karatelabs.gherkin.Step;
 import io.karatelabs.gherkin.Tag;
@@ -42,11 +43,15 @@ import org.slf4j.Logger;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -398,6 +403,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // Parse path and tag selector
         String tagSelector;
         Feature calledFeature;
+        Set<Integer> lineFilters = null;
 
         if (path.startsWith("@")) {
             // Same-file tag call: call('@tagname')
@@ -414,13 +420,35 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 featurePath = path;
                 tagSelector = null;
             }
+
+            if (featurePath.contains(".feature:")) {
+                int featureExtIndex = path.indexOf(".feature:");
+                int colonIndex = featureExtIndex + ".feature".length();
+                String potentialPath = path.substring(0, colonIndex);
+                String remainder = path.substring(colonIndex + 1);
+
+                if (remainder.matches("\\d+(:\\d+)*")) {
+                    featurePath = potentialPath;
+                    lineFilters = new HashSet<>();
+                    for (String lineStr : remainder.split(":")) {
+                        try {
+                            lineFilters.add(Integer.parseInt(lineStr));
+                        } catch (NumberFormatException e) {
+                            featurePath = path;
+                            lineFilters.clear();
+                            break;
+                        }
+                    }
+                }
+            }
+
             Resource calledResource = featureRuntime.resolve(featurePath);
             calledFeature = Feature.read(calledResource);
         }
 
         // Array-loop call - delegate to shared helper used by the `call` keyword
         if (arg instanceof List) {
-            return executor.callFeatureLoop(calledFeature, (List<?>) arg, tagSelector);
+            return executor.callFeatureLoop(calledFeature, (List<?>) arg, tagSelector, lineFilters);
         }
 
         // Single call - arg must be a map (or null)
@@ -433,7 +461,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             }
         }
 
-        Map<String, Object> resultVars = executor.callFeatureSingle(calledFeature, callArg, tagSelector);
+        Map<String, Object> resultVars = executor.callFeatureSingle(calledFeature, callArg, tagSelector, lineFilters);
         return resultVars != null ? resultVars : new HashMap<>();
     }
 
@@ -2067,6 +2095,37 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         if (hook != null) {
             hook.reportPerfEvent(event);
         }
+    }
+
+    protected List<String> getScenarioPathsFor(String workingDirPath, String[] featurePaths, String[] tags, String env) {
+        Path workingDir = workingDirPath == null || workingDirPath.isEmpty()
+                ? featureRuntime.resolve("/").getPath()
+                : new File(workingDirPath).toPath();
+        List<Feature> features = Runner.builder().workingDir(workingDir).path(featurePaths).tags(tags).getResolvedFeatures();
+        if (features == null) {
+            return Collections.emptyList();
+        }
+
+        Map<String,Boolean> scenarioPaths = new LinkedHashMap<>();
+        String tagFilter = TagSelector.fromKarateOptionsTags(tags);
+
+        for (Feature feature : features) {
+            List<FeatureSection> sections = feature.getSections();
+            if (sections == null) {
+                continue;
+            }
+
+            for (FeatureSection section : sections) {
+                TagSelector selector = new TagSelector(
+                        section.isOutline() ? section.getScenarioOutline().getTags() : section.getScenario().getTags());
+
+                if (selector.evaluate(tagFilter, env)) {
+                    scenarioPaths.put(feature.getResource().getPrefixedPath() + ":" + section.getLine(), Boolean.TRUE);
+                }
+            }
+        }
+
+        return scenarioPaths.keySet().stream().toList();
     }
 
 }

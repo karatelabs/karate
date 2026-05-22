@@ -1616,4 +1616,39 @@ class StepCallTest {
         assertFalse(result.isPassed(), "Parent should fail when karate.callonce()ed feature fails");
     }
 
+    @Test
+    void testKarateCallWithLineFilter() throws Exception {
+        Path child = tempDir.resolve("child.feature");
+        Files.writeString(child, """
+            Feature: child
+            Scenario: a
+            * def val = 1
+            @b
+            Scenario: b
+            * def val = 2
+            @c
+            Scenario: c
+            * def val = 3
+            """);
+
+        Path parent = tempDir.resolve("parent.feature");
+        Files.writeString(parent, """
+            Feature: parent
+            Scenario:
+            * def result = karate.call('child.feature')
+            * match result.val == 3
+            # hard-coded line number
+            * def result = karate.call('child.feature:2')
+            * match result.val == 1
+            # resolve full path at runtime (preferred over hard-coding line numbers)
+            * def resolvedScenarios = karate.resolveScenarios({ path: 'child.feature', tags: '@b' })
+            * match resolvedScenarios == '#[1]'
+            * def result = karate.call(resolvedScenarios[0])
+            * match result.val == 2
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, parent.toString());
+        assertTrue(result.isPassed(), "Call with line filter should pass: " + getFailureMessage(result));
+    }
+
 }

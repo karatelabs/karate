@@ -707,4 +707,29 @@ class RunnerTest {
         assertEquals(1, result.getScenarioPassedCount());
     }
 
+    @Test
+    void testRunnerWithScenarioLineFilterAndCallToSelf() throws Exception {
+        Path feature = tempDir.resolve("line-and-call-to-self.feature");
+        Files.writeString(feature, """
+            Feature: Line and call to self
+            @ignore @worker
+            Scenario: Callee
+            * def x = 1
+
+            Scenario: Caller
+            * def result = karate.call('@worker')
+            * match result.x == 1
+            """);
+
+        // :LINE narrows to one of the two duplicate "Same name" scenarios.
+        // Intersection semantics: both filters must match.
+        SuiteResult result = Runner.path(feature+ ":6")
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+    }
+
 }

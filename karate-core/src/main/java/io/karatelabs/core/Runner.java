@@ -821,7 +821,15 @@ public final class Runner {
                 }
             }
 
+
             File file = new File(actualPath);
+            if (!file.toPath().startsWith(root)) {
+                Path relativePath = file.toPath();
+                if (relativePath.isAbsolute()) {
+                    relativePath = relativePath.getRoot().relativize(relativePath);
+                }
+                file = root.resolve(relativePath).toFile();
+            }
 
             if (file.isDirectory()) {
                 resolveDirectory(file, target, root);

@@ -59,6 +59,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class StepExecutor {
 
@@ -416,12 +417,12 @@ public class StepExecutor {
 
         // Check if it's an array loop call
         if (call.argList != null) {
-            runtime.setVariable(resultVar, callFeatureLoop(calledFeature, call.argList, call.tagSelector));
+            runtime.setVariable(resultVar, callFeatureLoop(calledFeature, call.argList, call.tagSelector, null));
             return;
         }
 
         // Single call
-        Map<String, Object> resultVars = callFeatureSingle(calledFeature, call.arg, call.tagSelector);
+        Map<String, Object> resultVars = callFeatureSingle(calledFeature, call.arg, call.tagSelector, null);
         if (resultVars != null) {
             runtime.setVariable(resultVar, resultVars);
         }
@@ -477,7 +478,7 @@ public class StepExecutor {
      * keyword paths and the `karate.call()` JS API. Returns the last scenario's
      * variables, or null if no scenario was executed. Throws on called-feature failure.
      */
-    Map<String, Object> callFeatureSingle(Feature calledFeature, Map<String, Object> callArg, String tagSelector) {
+    Map<String, Object> callFeatureSingle(Feature calledFeature, Map<String, Object> callArg, String tagSelector, Set<Integer> lineFilters) {
         FeatureRuntime fr = runtime.getFeatureRuntime();
         FeatureRuntime nestedFr = new FeatureRuntime(
                 fr != null ? fr.getSuite() : null,
@@ -486,7 +487,8 @@ public class StepExecutor {
                 runtime,
                 false,  // Isolated scope - copy variables, don't share
                 callArg,
-                tagSelector
+                tagSelector,
+                lineFilters
         );
         FeatureResult featureResult = nestedFr.call();
         addCallResult(featureResult);
@@ -502,7 +504,7 @@ public class StepExecutor {
      * `call` / `callonce` keyword paths and the `karate.call()` JS API.
      */
     @SuppressWarnings("unchecked")
-    List<Map<String, Object>> callFeatureLoop(Feature calledFeature, List<?> argList, String tagSelector) {
+    List<Map<String, Object>> callFeatureLoop(Feature calledFeature, List<?> argList, String tagSelector, Set<Integer> lineFilters) {
         FeatureRuntime fr = runtime.getFeatureRuntime();
         List<Map<String, Object>> results = new ArrayList<>();
         int loopIndex = 0;
@@ -515,7 +517,8 @@ public class StepExecutor {
                     runtime,
                     false,  // Always isolated scope for array loop
                     callArg,
-                    tagSelector
+                    tagSelector,
+                    lineFilters
             );
             nestedFr.setLoopIndex(loopIndex);
 
@@ -2462,7 +2465,7 @@ public class StepExecutor {
 
         // Check if it's an array loop call
         if (call.argList != null) {
-            List<Map<String, Object>> results = callFeatureLoop(calledFeature, call.argList, call.tagSelector);
+            List<Map<String, Object>> results = callFeatureLoop(calledFeature, call.argList, call.tagSelector, null);
             if (call.resultVar != null) {
                 runtime.setVariable(call.resultVar, results);
             }
@@ -2531,7 +2534,7 @@ public class StepExecutor {
 
         // Check if it's an array loop call
         if (argObj instanceof List) {
-            List<Map<String, Object>> results = callFeatureLoop(calledFeature, (List<?>) argObj, tagSelector);
+            List<Map<String, Object>> results = callFeatureLoop(calledFeature, (List<?>) argObj, tagSelector, null);
             if (resultVar != null) {
                 runtime.setVariable(resultVar, results);
             }

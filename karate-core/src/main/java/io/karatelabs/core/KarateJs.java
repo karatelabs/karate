@@ -1303,6 +1303,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             case "remove" -> remove();
             case "render" -> render();
             case "request" -> getRequest();
+            case "resolveScenarios" -> resolveScenarios();
             case "response" -> getResponse();
             case "scenario" -> getScenarioData();
             case "scenarioOutline" -> getScenarioOutlineData();
