@@ -59,6 +59,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class StepExecutor {
 
@@ -416,12 +417,12 @@ public class StepExecutor {
 
         // Check if it's an array loop call
         if (call.argList != null) {
-            runtime.setVariable(resultVar, callFeatureLoop(calledFeature, call.argList, call.tagSelector));
+            runtime.setVariable(resultVar, callFeatureLoop(calledFeature, call.argList, call.tagSelector, call.lineFilters));
             return;
         }
 
         // Single call
-        Map<String, Object> resultVars = callFeatureSingle(calledFeature, call.arg, call.tagSelector);
+        Map<String, Object> resultVars = callFeatureSingle(calledFeature, call.arg, call.tagSelector, call.lineFilters);
         if (resultVars != null) {
             runtime.setVariable(resultVar, resultVars);
         }
@@ -477,7 +478,7 @@ public class StepExecutor {
      * keyword paths and the `karate.call()` JS API. Returns the last scenario's
      * variables, or null if no scenario was executed. Throws on called-feature failure.
      */
-    Map<String, Object> callFeatureSingle(Feature calledFeature, Map<String, Object> callArg, String tagSelector) {
+    Map<String, Object> callFeatureSingle(Feature calledFeature, Map<String, Object> callArg, String tagSelector, Set<Integer> lineFilters) {
         FeatureRuntime fr = runtime.getFeatureRuntime();
         FeatureRuntime nestedFr = new FeatureRuntime(
                 fr != null ? fr.getSuite() : null,
@@ -486,7 +487,8 @@ public class StepExecutor {
                 runtime,
                 false,  // Isolated scope - copy variables, don't share
                 callArg,
-                tagSelector
+                tagSelector,
+                lineFilters
         );
         FeatureResult featureResult = nestedFr.call();
         addCallResult(featureResult);
@@ -502,7 +504,7 @@ public class StepExecutor {
      * `call` / `callonce` keyword paths and the `karate.call()` JS API.
      */
     @SuppressWarnings("unchecked")
-    List<Map<String, Object>> callFeatureLoop(Feature calledFeature, List<?> argList, String tagSelector) {
+    List<Map<String, Object>> callFeatureLoop(Feature calledFeature, List<?> argList, String tagSelector, Set<Integer> lineFilters) {
         FeatureRuntime fr = runtime.getFeatureRuntime();
         List<Map<String, Object>> results = new ArrayList<>();
         int loopIndex = 0;
@@ -515,7 +517,8 @@ public class StepExecutor {
                     runtime,
                     false,  // Always isolated scope for array loop
                     callArg,
-                    tagSelector
+                    tagSelector,
+                    lineFilters
             );
             nestedFr.setLoopIndex(loopIndex);
 
@@ -2462,7 +2465,7 @@ public class StepExecutor {
 
         // Check if it's an array loop call
         if (call.argList != null) {
-            List<Map<String, Object>> results = callFeatureLoop(calledFeature, call.argList, call.tagSelector);
+            List<Map<String, Object>> results = callFeatureLoop(calledFeature, call.argList, call.tagSelector, call.lineFilters);
             if (call.resultVar != null) {
                 runtime.setVariable(call.resultVar, results);
             }
@@ -2472,7 +2475,7 @@ public class StepExecutor {
         // Determine if shared scope (no resultVar) or isolated scope (has resultVar)
         boolean sharedScope = call.resultVar == null;
 
-        // Create nested FeatureRuntime with optional tag selector
+        // Create nested FeatureRuntime with optional tag selector and line filter
         FeatureRuntime nestedFr = new FeatureRuntime(
                 fr != null ? fr.getSuite() : null,
                 calledFeature,
@@ -2480,7 +2483,8 @@ public class StepExecutor {
                 runtime,
                 sharedScope,
                 call.arg,
-                call.tagSelector
+                call.tagSelector,
+                call.lineFilters
         );
 
         // Execute the called feature
@@ -2531,7 +2535,7 @@ public class StepExecutor {
 
         // Check if it's an array loop call
         if (argObj instanceof List) {
-            List<Map<String, Object>> results = callFeatureLoop(calledFeature, (List<?>) argObj, tagSelector);
+            List<Map<String, Object>> results = callFeatureLoop(calledFeature, (List<?>) argObj, tagSelector, null);
             if (resultVar != null) {
                 runtime.setVariable(resultVar, results);
             }
@@ -2555,7 +2559,8 @@ public class StepExecutor {
                 runtime,
                 sharedScope,
                 callArg,
-                tagSelector
+                tagSelector,
+                null
         );
 
         // Execute the called feature
@@ -2716,9 +2721,10 @@ public class StepExecutor {
     }
 
     /**
-     * Parse path and tag selector from a feature path.
+     * Parse path and tag/line selector from a feature path.
      * Supports:
      * - file.feature@tag - call specific scenario by tag
+     * - file.feature:N (or file.feature:N:M) - call by line number(s)
      * - @tag - call scenario in same file by tag
      */
     private void parsePathAndTag(String rawPath, CallExpression expr) {
@@ -2726,6 +2732,7 @@ public class StepExecutor {
         expr.path = parsed.path();
         expr.tagSelector = parsed.tagSelector();
         expr.sameFile = parsed.sameFile();
+        expr.lineFilters = parsed.lineFilters();
     }
 
     private static class CallExpression {
@@ -2735,6 +2742,7 @@ public class StepExecutor {
         String resultVar;
         String tagSelector;  // For call-by-tag syntax
         boolean sameFile;    // true if calling scenario in same file
+        Set<Integer> lineFilters;  // For file.feature:N(:N)* call-by-line syntax
     }
 
     private void executeEval(Step step) {

@@ -47,6 +47,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -395,32 +396,23 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             throw new RuntimeException("karate.call() requires a feature context");
         }
 
-        // Parse path and tag selector
-        String tagSelector;
+        // Parse path, tag selector and line filter — shared parser keeps JS
+        // (karate.call) and keyword (`call read(...)`) syntax in lockstep.
+        StepUtils.ParsedFeaturePath parsed = StepUtils.parseFeaturePath(path);
+        String tagSelector = parsed.tagSelector();
+        Set<Integer> lineFilters = parsed.lineFilters();
         Feature calledFeature;
-
-        if (path.startsWith("@")) {
-            // Same-file tag call: call('@tagname')
-            tagSelector = path;  // Keep the @ prefix
+        if (parsed.sameFile()) {
+            // call('@tagname') — scenario in the same file
             calledFeature = featureRuntime.getFeature();
         } else {
-            // Check for tag suffix: file.feature@tag
-            int tagPos = path.indexOf(".feature@");
-            String featurePath;
-            if (tagPos != -1) {
-                featurePath = path.substring(0, tagPos + 8);  // "file.feature"
-                tagSelector = "@" + path.substring(tagPos + 9);  // "@tag"
-            } else {
-                featurePath = path;
-                tagSelector = null;
-            }
-            Resource calledResource = featureRuntime.resolve(featurePath);
+            Resource calledResource = featureRuntime.resolve(parsed.path());
             calledFeature = Feature.read(calledResource);
         }
 
         // Array-loop call - delegate to shared helper used by the `call` keyword
         if (arg instanceof List) {
-            return executor.callFeatureLoop(calledFeature, (List<?>) arg, tagSelector);
+            return executor.callFeatureLoop(calledFeature, (List<?>) arg, tagSelector, lineFilters);
         }
 
         // Single call - arg must be a map (or null)
@@ -433,7 +425,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             }
         }
 
-        Map<String, Object> resultVars = executor.callFeatureSingle(calledFeature, callArg, tagSelector);
+        Map<String, Object> resultVars = executor.callFeatureSingle(calledFeature, callArg, tagSelector, lineFilters);
         return resultVars != null ? resultVars : new HashMap<>();
     }
 

@@ -43,35 +43,56 @@ public class StepUtils {
     }
 
     /**
-     * Parsed result of a feature path with optional tag selector.
+     * Parsed result of a feature path with optional tag selector or line filter.
      * Used by both StepExecutor (call keyword) and ScenarioRuntime (callSingle).
+     * {@code lineFilters} is non-null only for {@code file.feature:N(:N)*} form.
      */
-    public record ParsedFeaturePath(String path, String tagSelector, boolean sameFile) {}
+    public record ParsedFeaturePath(String path, String tagSelector, boolean sameFile,
+                                    java.util.Set<Integer> lineFilters) {}
 
     /**
-     * Parse a feature path into path and tag selector components.
+     * Parse a feature path into path and tag/line components.
      * Supports:
      * - file.feature@tag - call specific scenario by tag
+     * - file.feature:10 / file.feature:10:25 - call by line number(s); matches
+     *   Runner.path(...) suite-side syntax. Tag and line are mutually exclusive
+     *   on the same path; tag suffix wins by parse order.
      * - @tag - call scenario in same file by tag
      * - file.feature - normal call without tag
      *
-     * @param rawPath the raw path string (may contain @tag suffix)
-     * @return ParsedFeaturePath with separated path and tag components
+     * @param rawPath the raw path string (may contain @tag or :N suffix)
+     * @return ParsedFeaturePath with separated path and selector components
      */
     public static ParsedFeaturePath parseFeaturePath(String rawPath) {
         if (rawPath.startsWith("@")) {
             // Same-file tag call: @tagname
-            return new ParsedFeaturePath(null, rawPath, true);
+            return new ParsedFeaturePath(null, rawPath, true, null);
         }
         // Check for tag suffix: file.feature@tag
         int tagPos = rawPath.indexOf(".feature@");
         if (tagPos != -1) {
             String path = rawPath.substring(0, tagPos + 8);  // "file.feature"
             String tag = "@" + rawPath.substring(tagPos + 9);  // "@tag"
-            return new ParsedFeaturePath(path, tag, false);
+            return new ParsedFeaturePath(path, tag, false, null);
         }
-        // No tag - normal call
-        return new ParsedFeaturePath(rawPath, null, false);
+        // Check for line-number suffix: file.feature:10 or file.feature:10:25
+        // Mirrors Runner.resolveFeatures parsing for consistency.
+        int linePos = rawPath.indexOf(".feature:");
+        if (linePos != -1) {
+            String path = rawPath.substring(0, linePos + 8);  // "file.feature"
+            String remainder = rawPath.substring(linePos + 9);
+            if (remainder.matches("\\d+(:\\d+)*")) {
+                java.util.Set<Integer> lines = new java.util.LinkedHashSet<>();
+                for (String part : remainder.split(":")) {
+                    lines.add(Integer.parseInt(part));
+                }
+                return new ParsedFeaturePath(path, null, false, lines);
+            }
+            // Not numeric — fall through and treat as plain path (preserves
+            // edge-case behavior for paths that happen to contain ".feature:").
+        }
+        // No selector - normal call
+        return new ParsedFeaturePath(rawPath, null, false, null);
     }
 
     /**

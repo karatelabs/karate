@@ -1656,4 +1656,97 @@ class StepCallTest {
         assertEquals(2, result.getScenarioPassedCount());
     }
 
+    @Test
+    void testCallByLineFromKeyword() throws Exception {
+        // `call read('file.feature:N')` selects one scenario by line, mirroring
+        // the suite-side `Runner.path("file.feature:N")` syntax.
+        Path child = tempDir.resolve("child.feature");
+        Files.writeString(child, """
+            Feature: child
+
+            Scenario: alpha
+            * def val = 1
+
+            Scenario: beta
+            * def val = 2
+
+            Scenario: gamma
+            * def val = 3
+            """);
+
+        Path parent = tempDir.resolve("parent.feature");
+        Files.writeString(parent, """
+            Feature: parent
+            Scenario:
+            * def alpha = call read('child.feature:3')
+            * match alpha.val == 1
+            * def beta = call read('child.feature:6')
+            * match beta.val == 2
+            * def gamma = call read('child.feature:9')
+            * match gamma.val == 3
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, parent.toString());
+        assertTrue(result.isPassed(), "call by line should select the right scenario: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallByLineFromJs() throws Exception {
+        // `karate.call('file.feature:N')` — same syntax, JS surface.
+        Path child = tempDir.resolve("child.feature");
+        Files.writeString(child, """
+            Feature: child
+
+            Scenario: alpha
+            * def val = 1
+
+            Scenario: beta
+            * def val = 2
+            """);
+
+        Path parent = tempDir.resolve("parent.feature");
+        Files.writeString(parent, """
+            Feature: parent
+            Scenario:
+            * def alpha = karate.call('child.feature:3')
+            * match alpha.val == 1
+            * def beta = karate.call('child.feature:6')
+            * match beta.val == 2
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, parent.toString());
+        assertTrue(result.isPassed(), "karate.call by line should select the right scenario: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallByLineMultipleLinesSelectsAll() throws Exception {
+        // `call read('file.feature:N:M')` matches Runner's multi-line syntax —
+        // selects every scenario whose line is in the set. The callee's last
+        // scenario wins the returned variables (matches plain `call` semantics).
+        Path child = tempDir.resolve("child.feature");
+        Files.writeString(child, """
+            Feature: child
+
+            Scenario: a
+            * def val = 1
+
+            Scenario: b
+            * def val = 2
+
+            Scenario: c
+            * def val = 3
+            """);
+
+        Path parent = tempDir.resolve("parent.feature");
+        Files.writeString(parent, """
+            Feature: parent
+            Scenario:
+            * def result = call read('child.feature:3:6')
+            * match result.val == 2
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, parent.toString());
+        assertTrue(result.isPassed(), "multi-line call should run both scenarios: " + getFailureMessage(result));
+    }
+
 }

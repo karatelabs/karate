@@ -60,6 +60,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
     private final boolean sharedScope;  // true = pass variables by reference, false = pass copies
     private final Map<String, Object> callArg;
     private final String callTagSelector;  // Tag selector for call-by-tag (e.g., "@name=second")
+    private final Set<Integer> callLineFilters;  // Line filter for call-by-line (e.g., file.feature:10)
 
     // Caches (feature-level)
     final Map<String, Object> CALLONCE_CACHE = new ConcurrentHashMap<>();
@@ -89,6 +90,10 @@ public class FeatureRuntime implements Callable<FeatureResult> {
     }
 
     public FeatureRuntime(Suite suite, Feature feature, FeatureRuntime caller, ScenarioRuntime callerScenario, boolean sharedScope, Map<String, Object> callArg, String callTagSelector) {
+        this(suite, feature, caller, callerScenario, sharedScope, callArg, callTagSelector, null);
+    }
+
+    public FeatureRuntime(Suite suite, Feature feature, FeatureRuntime caller, ScenarioRuntime callerScenario, boolean sharedScope, Map<String, Object> callArg, String callTagSelector, Set<Integer> callLineFilters) {
         this.suite = suite;
         this.feature = feature;
         this.caller = caller;
@@ -96,6 +101,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         this.sharedScope = sharedScope;
         this.callArg = callArg;
         this.callTagSelector = callTagSelector;
+        this.callLineFilters = callLineFilters;
         this.result = new FeatureResult(feature);
         this.result.setCallDepth(getCallDepth());
     }
@@ -673,27 +679,34 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         }
 
         private boolean shouldSelect(Scenario scenario) {
-            // Check line filter first (if specified)
-            // Line filter takes precedence for scenario selection.
-            // Only applies at the top level — a called feature must run its
-            // own scenarios regardless of the suite-level :LINE filter (same
-            // bypass as `scenarioName` below; mirrors the v1 behavior where a
-            // top-level `:N` filter never cascaded into `call`ed features).
-            if (suite != null && !suite.lineFilters.isEmpty() && caller == null) {
+            // Check line filter first (if specified).
+            // Two sources, in priority order:
+            //   1. Per-call line filter from call('file.feature:N') — always
+            //      applies (this IS the call; the caller asked for this scenario).
+            //   2. Suite-level :LINE filter — only at the top level. A called
+            //      feature must run its own scenarios regardless of the suite-level
+            //      filter (mirrors v1 behavior; same bypass as `scenarioName` below).
+            Set<Integer> lines = null;
+            boolean isCallScoped = false;
+            if (callLineFilters != null && !callLineFilters.isEmpty()) {
+                lines = callLineFilters;
+                isCallScoped = true;
+            } else if (suite != null && !suite.lineFilters.isEmpty() && caller == null) {
                 String featureUri = feature.getResource().getUri().toString();
-                Set<Integer> lines = suite.lineFilters.get(featureUri);
-                if (lines != null && !lines.isEmpty()) {
-                    // Line filter is specified for this feature
-                    if (!matchesLineFilter(scenario, lines)) {
-                        return false;
-                    }
-                    // Line filter matched — if a scenario name is also set,
-                    // intersect (both must match). Otherwise skip other filters.
-                    if (suite.scenarioName != null && !matchesScenarioName(scenario)) {
-                        return false;
-                    }
-                    return true;
+                lines = suite.lineFilters.get(featureUri);
+            }
+            if (lines != null && !lines.isEmpty()) {
+                if (!matchesLineFilter(scenario, lines)) {
+                    return false;
                 }
+                // Suite-scoped only: intersect with scenarioName when both are set.
+                // Per-call scope: the caller explicitly asked for these lines —
+                // the top-level scenarioName filter does not apply inside a call.
+                if (!isCallScoped && suite != null && suite.scenarioName != null
+                        && !matchesScenarioName(scenario)) {
+                    return false;
+                }
+                return true;
             }
 
             // Apply call-level tag filter if specified (takes precedence)
