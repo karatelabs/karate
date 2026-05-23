@@ -28,53 +28,65 @@ import scala.collection.immutable.Seq;
 import scala.jdk.javaapi.CollectionConverters;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
  * Builder for creating Karate feature execution actions.
- * Provides a fluent API for configuring feature paths, tags, and silent mode.
+ * Provides a fluent API for configuring a feature path, tags, and silent mode.
  *
  * <p>Example usage:
  * <pre>
  * // Basic usage
  * karateFeature("classpath:features/cats.feature")
  *
- * // With tags
- * karateFeature("classpath:features/cats.feature").tags("@smoke")
+ * // With tag selector (positional, matches v1 API)
+ * karateFeature("classpath:features/cats.feature", "@smoke")
+ *
+ * // With multiple tag selectors (AND-ed)
+ * karateFeature("classpath:features/cats.feature", "@smoke", "~@slow")
  *
  * // Silent mode for warm-up
  * karateFeature("classpath:features/cats.feature").silent()
  * </pre>
+ *
+ * <p>To run multiple features in sequence, chain {@code .exec(...)} calls
+ * on the Gatling scenario rather than passing multiple paths here.
  */
 public final class KarateFeatureBuilder implements ActionBuilder {
 
-    private final List<String> featurePaths = new ArrayList<>();
+    private final String featurePath;
     private final List<String> tags = new ArrayList<>();
     private boolean silent = false;
     private KarateProtocol protocol;
 
     /**
-     * Create a builder with the given feature paths.
+     * Create a builder for the given feature path with optional tag selectors.
+     *
+     * @param path feature file path (e.g., "classpath:features/cats.feature")
+     * @param tags tag selector expressions (e.g., "@smoke", "~@slow") — varargs;
+     *             multiple values are AND-ed together, commas within a value are OR
      */
-    public KarateFeatureBuilder(String... paths) {
-        if (paths == null || paths.length == 0) {
-            throw new IllegalArgumentException("At least one feature path is required");
+    public KarateFeatureBuilder(String path, String... tags) {
+        if (path == null || path.isEmpty()) {
+            throw new IllegalArgumentException("feature path is required");
         }
-        for (String path : paths) {
-            featurePaths.add(path);
+        this.featurePath = path;
+        if (tags != null) {
+            Collections.addAll(this.tags, tags);
         }
     }
 
     /**
-     * Add tag filter expressions.
-     * Multiple tags are ANDed together.
+     * Add tag filter expressions. Equivalent to passing tags to the constructor;
+     * additional calls append to the existing tag list (all AND-ed together).
      *
-     * @param tagExpressions tag expressions like "@smoke", "@api"
+     * @param tagExpressions tag expressions like "@smoke", "~@slow"
      * @return this builder
      */
     public KarateFeatureBuilder tags(String... tagExpressions) {
-        for (String tag : tagExpressions) {
-            tags.add(tag);
+        if (tagExpressions != null) {
+            Collections.addAll(tags, tagExpressions);
         }
         return this;
     }
@@ -105,12 +117,8 @@ public final class KarateFeatureBuilder implements ActionBuilder {
 
     @Override
     public io.gatling.core.action.builder.ActionBuilder asScala() {
-        // Convert Java lists to Scala Seqs
-        Seq<String> scalaPaths = CollectionConverters.asScala(featurePaths).toSeq();
         Seq<String> scalaTags = CollectionConverters.asScala(tags).toSeq();
-
-        // Create the Scala ActionBuilder that provides access to StatsEngine
-        return new KarateScalaActionBuilder(scalaPaths, scalaTags, protocol, silent);
+        return new KarateScalaActionBuilder(featurePath, scalaTags, protocol, silent);
     }
 
 }

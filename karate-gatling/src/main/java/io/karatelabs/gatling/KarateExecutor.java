@@ -44,13 +44,13 @@ public class KarateExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(KarateExecutor.class);
 
-    private final List<String> featurePaths;
+    private final String featurePath;
     private final List<String> tags;
     private final KarateProtocol protocol;
     private final boolean silent;
 
-    public KarateExecutor(List<String> featurePaths, List<String> tags, KarateProtocol protocol, boolean silent) {
-        this.featurePaths = featurePaths;
+    public KarateExecutor(String featurePath, List<String> tags, KarateProtocol protocol, boolean silent) {
+        this.featurePath = featurePath;
         this.tags = tags;
         this.protocol = protocol;
         this.silent = silent;
@@ -94,23 +94,18 @@ public class KarateExecutor {
         // Create PerfHook for this execution
         PerfHook perfHook = createPerfHook(statsReporter, scenario, groups);
 
-        // Execute features
+        // Execute feature
         boolean success = true;
-        for (String path : featurePaths) {
-            if (!success) break;
+        FeatureResult result = Runner.runFeature(featurePath, arg, perfHook, tags);
 
-            FeatureResult result = Runner.runFeature(path, arg, perfHook);
-
-            if (result.isFailed()) {
-                success = false;
-                log.error("Feature failed: {}", path);
-            } else {
-                // Update karateVars for next feature
-                Map<String, Object> resultVars = result.getResultVariables();
-                if (resultVars != null) {
-                    karateVars.putAll(resultVars);
-                    arg.put(KarateProtocol.KARATE_KEY, karateVars);
-                }
+        if (result.isFailed()) {
+            success = false;
+            log.error("Feature failed: {}", featurePath);
+        } else {
+            // Update karateVars for chaining into subsequent exec() calls
+            Map<String, Object> resultVars = result.getResultVariables();
+            if (resultVars != null) {
+                karateVars.putAll(resultVars);
             }
         }
 

@@ -67,7 +67,7 @@ class KarateComponents(val protocol: KarateProtocol) extends ProtocolComponents 
  * All business logic is in Java (KarateExecutor).
  */
 class KarateScalaActionBuilder(
-    featurePaths: Seq[String],
+    featurePath: String,
     tags: Seq[String],
     protocolFromBuilder: KarateProtocol,  // May be null if not set on builder
     silent: Boolean
@@ -83,7 +83,7 @@ class KarateScalaActionBuilder(
     }
 
     new KarateScalaAction(
-      featurePaths.asJava,
+      featurePath,
       tags.asJava,
       protocol,
       ctx.coreComponents.statsEngine,
@@ -98,7 +98,7 @@ class KarateScalaActionBuilder(
  * Minimal Scala Action that delegates to Java KarateExecutor.
  */
 class KarateScalaAction(
-    featurePaths: java.util.List[String],
+    featurePath: String,
     tags: java.util.List[String],
     protocol: KarateProtocol,
     override val statsEngine: StatsEngine,
@@ -110,7 +110,7 @@ class KarateScalaAction(
   override val name: String = genName("karateFeature")
 
   // Create Java executor with all the business logic
-  private val executor = new KarateExecutor(featurePaths, tags, protocol, silent)
+  private val executor = new KarateExecutor(featurePath, tags, protocol, silent)
 
   // Create stats reporter that bridges to Gatling's StatsEngine
   private val statsReporter: GatlingStatsReporter = (

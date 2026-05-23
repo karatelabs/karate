@@ -23,8 +23,14 @@
  */
 package io.karatelabs.gatling;
 
+import io.karatelabs.core.FeatureResult;
+import io.karatelabs.core.Runner;
+import io.karatelabs.core.ScenarioResult;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+
+import java.util.HashMap;
+import java.util.List;
 
 import static io.karatelabs.gatling.KarateDsl.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -72,6 +78,44 @@ public class GatlingDslTest {
         // Test silent mode
         KarateFeatureBuilder silentBuilder = builder.silent();
         assertNotNull(silentBuilder, "Silent feature builder should be created");
+    }
+
+    /**
+     * Regression: issue #2870 — {@code karateFeature("path", "@tag")} must treat
+     * trailing string args as tag selectors, not additional feature paths.
+     * Also verifies that the tag filter is honored end-to-end via Runner.runFeature.
+     */
+    @Test
+    void testKarateFeatureTagFilter() {
+        // DSL: positional tag arg should be accepted without error
+        KarateFeatureBuilder builder = karateFeature(
+                "classpath:features/tag-filter.feature", "@perf");
+        assertNotNull(builder);
+
+        // End-to-end: tag selector filters scenarios at runtime
+        FeatureResult result = Runner.runFeature(
+                "classpath:features/tag-filter.feature",
+                new HashMap<>(),
+                null,
+                List.of("@perf"));
+        assertFalse(result.isFailed(), "feature should not fail");
+
+        List<ScenarioResult> ran = result.getScenarioResults();
+        assertEquals(1, ran.size(), "only the @perf scenario should run");
+        assertEquals("tagged scenario", ran.get(0).getScenario().getName());
+    }
+
+    @Test
+    void testKarateFeatureNoTagFilter() {
+        // Without a tag filter, every scenario runs
+        FeatureResult result = Runner.runFeature(
+                "classpath:features/tag-filter.feature",
+                new HashMap<>(),
+                null,
+                null);
+        assertFalse(result.isFailed());
+        assertEquals(3, result.getScenarioResults().size(),
+                "all three scenarios should run when no tags supplied");
     }
 
     @Test

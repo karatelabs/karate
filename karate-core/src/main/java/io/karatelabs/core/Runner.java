@@ -112,15 +112,35 @@ public final class Runner {
      * @return the feature result
      */
     public static FeatureResult runFeature(String path, Map<String, Object> arg, PerfHook perfHook) {
+        return runFeature(path, arg, perfHook, null);
+    }
+
+    /**
+     * Run a single feature file with arguments, optional PerfHook and tag filter.
+     * <p>
+     * This method is primarily used by Gatling integration. The {@code tags} argument
+     * follows the same semantics as {@link Builder#tags(String...)} — each entry is a
+     * tag expression; multiple entries are AND-ed together; commas within an entry are OR.
+     *
+     * @param path     the feature path (can be classpath: prefixed)
+     * @param arg      variables to inject into the feature (available as top-level variables)
+     * @param perfHook optional PerfHook for performance metric collection (Gatling)
+     * @param tags     optional tag filter expressions (null or empty means no filter)
+     * @return the feature result
+     */
+    public static FeatureResult runFeature(String path, Map<String, Object> arg, PerfHook perfHook, List<String> tags) {
         Resource resource = Resource.path(path);
         Feature feature = Feature.read(resource);
 
         // Create the suite using Builder
-        Suite suite = Runner.builder()
+        Builder builder = Runner.builder()
                 .features(feature)
                 .outputHtmlReport(false)
-                .outputConsoleSummary(false)
-                .buildSuite();
+                .outputConsoleSummary(false);
+        if (tags != null && !tags.isEmpty()) {
+            builder.tags(tags.toArray(new String[0]));
+        }
+        Suite suite = builder.buildSuite();
 
         // Set PerfHook if provided (for Gatling integration)
         if (perfHook != null) {

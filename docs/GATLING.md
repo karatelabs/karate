@@ -156,7 +156,7 @@ public final class KarateDsl {
     public static KarateProtocolBuilder karateProtocol(KarateUriPattern... patterns) { ... }
 
     // Feature action builder
-    public static KarateFeatureBuilder karateFeature(String name, String... tags) { ... }
+    public static KarateFeatureBuilder karateFeature(String path, String... tags) { ... }
 
     // Session variable injection
     public static ActionBuilder karateSet(String key, Function<Session, Object> supplier) { ... }

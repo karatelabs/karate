@@ -107,12 +107,18 @@ public final class KarateDsl {
 
     /**
      * Create a feature execution builder.
+     * <p>
+     * Tags are tag selector expressions (e.g. {@code "@smoke"}, {@code "~@slow"}).
+     * Multiple values are AND-ed together; commas within a single value are OR.
+     * To execute multiple feature files in sequence, chain multiple
+     * {@code .exec(karateFeature(...))} calls on the Gatling scenario.
      *
-     * @param paths the feature file paths (e.g., "classpath:features/cats.feature")
+     * @param path the feature file path (e.g., "classpath:features/cats.feature")
+     * @param tags optional tag selector expressions
      * @return a feature builder
      */
-    public static KarateFeatureBuilder karateFeature(String... paths) {
-        return new KarateFeatureBuilder(paths);
+    public static KarateFeatureBuilder karateFeature(String path, String... tags) {
+        return new KarateFeatureBuilder(path, tags);
     }
 
     // ========== Session Variable Injection ==========
