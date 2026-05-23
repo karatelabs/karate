@@ -233,7 +233,7 @@
         if (!tag || tag === '*') return '*';
         var map = {
             'button': 'button, [role="button"], input[type="submit"], input[type="button"]',
-            'a': 'a[href], [role="link"]',
+            'a': 'a, a[href], [role="link"]',
             'select': 'select, [role="combobox"], [role="listbox"]',
             'input': 'input:not([type="hidden"]), textarea, [role="textbox"]'
         };
@@ -254,6 +254,11 @@
         for (var i = 0; i < candidates.length; i++) {
             var el = candidates[i];
             if (!this.isVisible(el)) continue;
+            if (text === '') {
+                count++;
+                if (count === index) return el;
+                continue;
+            }
             var elText = this.getVisibleText(el);
             if (!elText) continue;
             var matches = contains
