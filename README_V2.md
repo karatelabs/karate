@@ -35,9 +35,8 @@ Karate v2 is a complete rewrite of [Karate](https://github.com/karatelabs/karate
 
 ## Documentation
 
-- [Design Principles](./docs/PRINCIPLES.md) - Core principles guiding v2 development
-- [Design](./docs/DESIGN.md) - Architecture and design reference
-- [Capabilities](./docs/CAPABILITIES.md) - Full taxonomy of features
+- [docs.karatelabs.io](https://docs.karatelabs.io) — usage docs
+- [Design](./docs/DESIGN.md) - Architecture reference for contributors
 - [Contributing](./CONTRIBUTING.md) - How to contribute
 
 ## For Karate 1.x Users

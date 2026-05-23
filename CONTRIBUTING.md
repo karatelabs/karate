@@ -62,13 +62,13 @@ mvn test
 karate/
 ├── karate-js/      # JavaScript engine and Gherkin parser
 ├── karate-core/    # Core framework (HTTP, templating, matching)
-├── docs/           # Design principles and roadmap
+├── docs/           # Architecture reference (DESIGN.md)
 └── pom.xml         # Parent Maven configuration
 ```
 
 ## Areas for Contribution
 
-See [TODOS.md](docs/TODOS.md) for current priorities and open tasks. Good areas for new contributors:
+See open [GitHub issues](https://github.com/karatelabs/karate/issues) for current priorities. Good areas for new contributors:
 
 - Documentation improvements
 - Test coverage expansion

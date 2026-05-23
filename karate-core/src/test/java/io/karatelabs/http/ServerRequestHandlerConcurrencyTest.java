@@ -41,8 +41,8 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
  * Disabled — kept as a documented reproducer for the concurrent JS-mock race
- * tracked in {@code docs/TODOS.md} (the {@code context.synchronized(name, fn)}
- * follow-up). Enable locally to confirm the failure mode and to verify a fix.
+ * (the {@code context.synchronized(name, fn)} follow-up tracked internally).
+ * Enable locally to confirm the failure mode and to verify a fix.
  * <p>
  * Setup mirrors {@code karate-todo}'s demo: a {@link ServerRequestHandler}
  * backed by a singleton {@link SessionStore} (every {@code create}/{@code get}
@@ -75,7 +75,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
  * Workaround today: wrap the request handler in a {@link
  * java.util.concurrent.locks.ReentrantLock} (see karate-todo's {@code App.handler()}).
  */
-@Disabled("documented reproducer — see docs/TODOS.md context.synchronized item")
+@Disabled("documented reproducer — context.synchronized follow-up (tracked internally)")
 class ServerRequestHandlerConcurrencyTest {
 
     static InMemoryTestHarness harness;

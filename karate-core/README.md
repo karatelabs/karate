@@ -2,7 +2,7 @@
 
 The core Karate testing framework providing HTTP client/server, HTML templating, and match assertions.
 
-> See also: [Design Principles](../PRINCIPLES.md) | [Roadmap](../ROADMAP.md) | [karate-js](../karate-js)
+> See also: [docs.karatelabs.io](https://docs.karatelabs.io) | [docs/DESIGN.md](../docs/DESIGN.md) | [karate-js](../karate-js)
 
 ## Components
 
@@ -39,7 +39,7 @@ Powerful assertion library for comparing values:
 - **ScenarioRuntime** - Test scenario execution engine (major port from Karate 1.x)
 - **KarateJs** - Bridge to the JavaScript engine
 
-> **Note:** The ScenarioEngine is a significant piece of work being ported from Karate 1.x. It handles step execution, variable scoping, call hierarchies, and parallel execution.
+> **Note:** The ScenarioEngine handles step execution, variable scoping, call hierarchies, and parallel execution.
 
 ## Usage
 
