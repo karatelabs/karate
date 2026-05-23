@@ -24,6 +24,7 @@
 package io.karatelabs.gatling;
 
 import io.gatling.javaapi.core.ProtocolBuilder;
+import io.karatelabs.core.Runner;
 import io.karatelabs.http.HttpRequest;
 
 import java.util.HashMap;
@@ -46,6 +47,15 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
 
     private final Map<String, KarateUriPattern> uriPatterns = new HashMap<>();
     private BiFunction<HttpRequest, Map<String, Object>, String> nameResolver;
+
+    /**
+     * Mutable {@link Runner.Builder} for configuring underlying Karate execution.
+     * Mirrors the v1 {@code protocol.runner} field — set {@code karateEnv},
+     * {@code configDir}, {@code systemProperty}, etc. directly on it.
+     * <p>
+     * Example: {@code protocol.runner.karateEnv("perf").configDir("src/test/resources");}
+     */
+    public final Runner.Builder runner = Runner.builder();
 
     /**
      * Create a new protocol builder with the given URI patterns.
@@ -73,7 +83,7 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
      * Build the KarateProtocol.
      */
     public KarateProtocol build() {
-        KarateProtocol protocol = new KarateProtocol(uriPatterns);
+        KarateProtocol protocol = new KarateProtocol(uriPatterns, runner);
         if (nameResolver != null) {
             protocol.setNameResolver(nameResolver);
         }

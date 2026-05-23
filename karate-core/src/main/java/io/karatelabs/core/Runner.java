@@ -129,14 +129,42 @@ public final class Runner {
      * @return the feature result
      */
     public static FeatureResult runFeature(String path, Map<String, Object> arg, PerfHook perfHook, List<String> tags) {
+        return runFeature(path, arg, perfHook, tags, null);
+    }
+
+    /**
+     * Run a single feature with arguments, optional PerfHook, tag filter, and a
+     * pre-configured {@link Builder} template (env, configDir, systemProperties).
+     * <p>
+     * Used by karate-gatling to expose {@code protocol.runner.karateEnv(...)} etc.
+     * The template's {@code env}, {@code configDir}, and {@code systemProperties}
+     * are applied; everything else (paths, listeners, output flags) is overridden
+     * for the single-feature, no-report execution model.
+     */
+    public static FeatureResult runFeature(String path, Map<String, Object> arg, PerfHook perfHook,
+                                           List<String> tags, Builder template) {
         Resource resource = Resource.path(path);
         Feature feature = Feature.read(resource);
 
-        // Create the suite using Builder
+        // Create the suite using Builder, seeding with template settings if provided
         Builder builder = Runner.builder()
                 .features(feature)
                 .outputHtmlReport(false)
                 .outputConsoleSummary(false);
+        if (template != null) {
+            if (template.getEnv() != null) {
+                builder.karateEnv(template.getEnv());
+            }
+            if (template.getConfigDir() != null) {
+                builder.configDir(template.getConfigDir());
+            }
+            Map<String, String> sysProps = template.getSystemProperties();
+            if (sysProps != null) {
+                for (Map.Entry<String, String> e : sysProps.entrySet()) {
+                    builder.systemProperty(e.getKey(), e.getValue());
+                }
+            }
+        }
         if (tags != null && !tags.isEmpty()) {
             builder.tags(tags.toArray(new String[0]));
         }

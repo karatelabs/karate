@@ -106,6 +106,24 @@ public class GatlingDslTest {
     }
 
     @Test
+    void testProtocolRunnerKarateEnv() {
+        // Mirrors v1: protocol.runner.karateEnv("perf") feeds karate.env
+        KarateProtocolBuilder protocolBuilder = karateProtocol();
+        protocolBuilder.runner.karateEnv("perf");
+        KarateProtocol protocol = protocolBuilder.build();
+        assertNotNull(protocol.getRunner(), "protocol.runner should be propagated");
+
+        FeatureResult result = Runner.runFeature(
+                "classpath:features/runner-env.feature",
+                new HashMap<>(),
+                null,
+                null,
+                protocol.getRunner());
+        assertFalse(result.isFailed(),
+                "feature should pass when karate.env was set via protocol.runner");
+    }
+
+    @Test
     void testKarateFeatureNoTagFilter() {
         // Without a tag filter, every scenario runs
         FeatureResult result = Runner.runFeature(

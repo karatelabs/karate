@@ -24,6 +24,7 @@
 package io.karatelabs.gatling;
 
 import io.gatling.core.protocol.Protocol;
+import io.karatelabs.core.Runner;
 import io.karatelabs.http.HttpUtils;
 import io.karatelabs.http.HttpRequest;
 
@@ -49,10 +50,25 @@ public class KarateProtocol implements Protocol {
     public static final String GATLING_KEY = "__gatling";
 
     private final Map<String, KarateUriPattern> uriPatterns;
+    private final Runner.Builder runner;
     private BiFunction<HttpRequest, Map<String, Object>, String> nameResolver;
 
     KarateProtocol(Map<String, KarateUriPattern> uriPatterns) {
+        this(uriPatterns, null);
+    }
+
+    KarateProtocol(Map<String, KarateUriPattern> uriPatterns, Runner.Builder runner) {
         this.uriPatterns = Collections.unmodifiableMap(new HashMap<>(uriPatterns));
+        this.runner = runner;
+    }
+
+    /**
+     * Get the underlying {@link Runner.Builder} template configured on the
+     * protocol builder. May be {@code null} if the protocol was constructed
+     * without one (e.g., the empty default-protocol fallback).
+     */
+    public Runner.Builder getRunner() {
+        return runner;
     }
 
     /**

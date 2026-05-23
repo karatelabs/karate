@@ -94,9 +94,11 @@ public class KarateExecutor {
         // Create PerfHook for this execution
         PerfHook perfHook = createPerfHook(statsReporter, scenario, groups);
 
-        // Execute feature
+        // Execute feature — apply protocol.runner template so users can configure
+        // karateEnv, configDir, systemProperty etc. via protocol.runner.*
+        Runner.Builder template = protocol != null ? protocol.getRunner() : null;
         boolean success = true;
-        FeatureResult result = Runner.runFeature(featurePath, arg, perfHook, tags);
+        FeatureResult result = Runner.runFeature(featurePath, arg, perfHook, tags, template);
 
         if (result.isFailed()) {
             success = false;

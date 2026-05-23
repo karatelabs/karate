@@ -585,7 +585,7 @@ This approach validates both karate-gatling and v2's mock server under load.
 - [x] `karateSet()` for variable injection
 - [x] `pauseFor()` method-specific pauses
 - [x] Custom `nameResolver`
-- [ ] `Runner.Builder` exposure via `protocol.runner()`
+- [x] `Runner.Builder` exposure via `protocol.runner`
 - [x] Silent mode (`.silent()`)
 
 ### Session Management
@@ -605,9 +605,9 @@ This approach validates both karate-gatling and v2's mock server under load.
 - [ ] Leverage v2's `Suite.getCallOnceCache()`
 
 ### Configuration
-- [ ] `karateEnv` via Runner.Builder
-- [ ] `configDir` via Runner.Builder
-- [ ] `systemProperty` via Runner.Builder
+- [x] `karateEnv` via Runner.Builder
+- [x] `configDir` via Runner.Builder
+- [x] `systemProperty` via Runner.Builder
 - [x] Tag filtering
 
 ---
@@ -1465,10 +1465,11 @@ HTML reports are generated in `target/gatling/`.
 
 > Consolidated list of outstanding items. Phases 0-3 are complete.
 
-### Phase 4: Polish (minor)
-- [ ] Port README.md with updated examples (Java-only, no Scala DSL)
-- [ ] `Runner.Builder` exposure via `protocol.runner()` for `karateEnv`, `configDir`, `systemProperty`
-- [ ] Leverage `Suite.getCallSingleCache()` / `Suite.getCallOnceCache()` directly
+### Phase 4: Polish
+- [ ] Leverage `Suite.getCallSingleCache()` / `Suite.getCallOnceCache()` directly.
+      Currently `Runner.runFeature` builds a fresh `Suite` per Gatling virtual user,
+      so `callSingle` is effectively per-user not per-simulation. Needs a long-lived
+      shared cache (or a Suite that survives across virtual-user executions).
 
 ### Phase 5: Standalone CLI Support
 - [ ] `CommandProvider` SPI in karate-core for dynamic subcommand discovery
