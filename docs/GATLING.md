@@ -601,8 +601,9 @@ This approach validates both karate-gatling and v2's mock server under load.
 - [x] Custom perf event capture (via PerfContext)
 
 ### Caching
-- [ ] Leverage v2's `Suite.getCallSingleCache()`
-- [ ] Leverage v2's `Suite.getCallOnceCache()`
+- [x] Leverage v2's `Suite.getCallSingleCache()` — protocol-scoped, shared across virtual users
+- [x] Leverage v2's `Suite.getCallOnceCache()` — protocol-scoped, per-feature, shared across virtual users
+- [x] Same for `Suite.getSetupOnceCache()`
 
 ### Configuration
 - [x] `karateEnv` via Runner.Builder
@@ -1466,10 +1467,8 @@ HTML reports are generated in `target/gatling/`.
 > Consolidated list of outstanding items. Phases 0-3 are complete.
 
 ### Phase 4: Polish
-- [ ] Leverage `Suite.getCallSingleCache()` / `Suite.getCallOnceCache()` directly.
-      Currently `Runner.runFeature` builds a fresh `Suite` per Gatling virtual user,
-      so `callSingle` is effectively per-user not per-simulation. Needs a long-lived
-      shared cache (or a Suite that survives across virtual-user executions).
+*(all items complete — see callsite changes in `Runner.Builder.callSingleCache(...)`,
+`Suite.getCallOnceCache(featureKey)`, and `KarateProtocolBuilder.runner`)*
 
 ### Phase 5: Standalone CLI Support
 - [ ] `CommandProvider` SPI in karate-core for dynamic subcommand discovery

@@ -124,6 +124,66 @@ public class GatlingDslTest {
     }
 
     @Test
+    void testCallSingleSharedAcrossRunsViaProtocolCache() {
+        // Simulates two Gatling virtual users running the same feature: with the
+        // protocol-scoped callSingle cache wired through, the helper feature should
+        // execute exactly once across both runs.
+        CallSingleCounter.reset();
+        KarateProtocolBuilder protocol = karateProtocol();
+        Runner.Builder template = protocol.build().getRunner();
+
+        FeatureResult r1 = Runner.runFeature(
+                "classpath:features/callsingle-main.feature",
+                new HashMap<>(), null, null, template);
+        FeatureResult r2 = Runner.runFeature(
+                "classpath:features/callsingle-main.feature",
+                new HashMap<>(), null, null, template);
+
+        assertFalse(r1.isFailed());
+        assertFalse(r2.isFailed());
+        assertEquals(1, CallSingleCounter.get(),
+                "callSingle helper must execute exactly once across both runs");
+    }
+
+    @Test
+    void testCallOnceSharedAcrossRunsViaProtocolCache() {
+        // Same idea for callonce: feature-scoped, but the cache lives on the
+        // protocol so two runs of the SAME feature share the cache entry.
+        CallSingleCounter.reset();
+        KarateProtocolBuilder protocol = karateProtocol();
+        Runner.Builder template = protocol.build().getRunner();
+
+        FeatureResult r1 = Runner.runFeature(
+                "classpath:features/callonce-main.feature",
+                new HashMap<>(), null, null, template);
+        FeatureResult r2 = Runner.runFeature(
+                "classpath:features/callonce-main.feature",
+                new HashMap<>(), null, null, template);
+
+        assertFalse(r1.isFailed());
+        assertFalse(r2.isFailed());
+        assertEquals(1, CallSingleCounter.get(),
+                "callonce helper must execute exactly once across both runs");
+    }
+
+    @Test
+    void testCallOnceNotSharedWithoutProtocolCache() {
+        // Without an injected store, each Runner.runFeature gets a fresh Suite —
+        // so callonce executes once per run. This documents the standalone semantic.
+        CallSingleCounter.reset();
+        FeatureResult r1 = Runner.runFeature(
+                "classpath:features/callonce-main.feature",
+                new HashMap<>(), null, null);
+        FeatureResult r2 = Runner.runFeature(
+                "classpath:features/callonce-main.feature",
+                new HashMap<>(), null, null);
+        assertFalse(r1.isFailed());
+        assertFalse(r2.isFailed());
+        assertEquals(2, CallSingleCounter.get(),
+                "without a shared store, each Suite owns its own cache");
+    }
+
+    @Test
     void testKarateFeatureNoTagFilter() {
         // Without a tag filter, every scenario runs
         FeatureResult result = Runner.runFeature(

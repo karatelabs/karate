@@ -29,6 +29,8 @@ import io.karatelabs.http.HttpRequest;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
 
 /**
@@ -54,8 +56,16 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
      * {@code configDir}, {@code systemProperty}, etc. directly on it.
      * <p>
      * Example: {@code protocol.runner.karateEnv("perf").configDir("src/test/resources");}
+     * <p>
+     * Protocol-scoped callSingle and callOnce/setupOnce caches are also pre-wired
+     * onto this builder. They live for the lifetime of the simulation (one protocol
+     * = one setUp), so an expensive {@code karate.callSingle(...)} or a feature-level
+     * {@code callonce} runs once per simulation rather than once per virtual user.
      */
-    public final Runner.Builder runner = Runner.builder();
+    public final Runner.Builder runner = Runner.builder()
+            .callSingleCache(new ConcurrentHashMap<>(), new ReentrantLock())
+            .callOnceCacheStore(new ConcurrentHashMap<>(), new ConcurrentHashMap<>())
+            .setupOnceCacheStore(new ConcurrentHashMap<>());
 
     /**
      * Create a new protocol builder with the given URI patterns.

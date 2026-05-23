@@ -362,19 +362,20 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             throw new RuntimeException("karate.setupOnce() requires a feature context");
         }
         String cacheKey = name == null ? "__default__" : name;
-        Map<String, Object> cached = (Map<String, Object>) featureRuntime.SETUPONCE_CACHE.get(cacheKey);
+        Map<String, Object> setupCache = featureRuntime.getSetupOnceCache();
+        Map<String, Object> cached = (Map<String, Object>) setupCache.get(cacheKey);
         if (cached != null) {
             // Return a shallow copy to prevent modifications affecting other scenarios
             return new HashMap<>(cached);
         }
-        synchronized (featureRuntime.SETUPONCE_CACHE) {
+        synchronized (setupCache) {
             // Double-check after acquiring lock
-            cached = (Map<String, Object>) featureRuntime.SETUPONCE_CACHE.get(cacheKey);
+            cached = (Map<String, Object>) setupCache.get(cacheKey);
             if (cached != null) {
                 return new HashMap<>(cached);
             }
             Map<String, Object> result = executeSetup(name);
-            featureRuntime.SETUPONCE_CACHE.put(cacheKey, result);
+            setupCache.put(cacheKey, result);
             return new HashMap<>(result);
         }
     }
@@ -443,7 +444,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         String cacheKey = "callonce:call read('" + path + "')";
 
         // Use feature-level cache (not suite-level) - callOnce is scoped per feature
-        Map<String, Object> cache = featureRuntime.CALLONCE_CACHE;
+        Map<String, Object> cache = featureRuntime.getCallOnceCache();
         java.util.concurrent.locks.ReentrantLock lock = featureRuntime.getCallOnceLock();
 
         // Fast path - check cache without lock

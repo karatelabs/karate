@@ -62,9 +62,13 @@ public class FeatureRuntime implements Callable<FeatureResult> {
     private final String callTagSelector;  // Tag selector for call-by-tag (e.g., "@name=second")
     private final Set<Integer> callLineFilters;  // Line filter for call-by-line (e.g., file.feature:10)
 
-    // Caches (feature-level)
-    final Map<String, Object> CALLONCE_CACHE = new ConcurrentHashMap<>();
-    final Map<String, Object> SETUPONCE_CACHE = new ConcurrentHashMap<>();
+    // Caches (feature-level). These fields are the fallback used when this
+    // FeatureRuntime has no Suite (test/standalone usage). When a Suite is
+    // attached, the accessors below delegate to Suite-owned stores keyed by
+    // feature URI — this gives karate-gatling a way to share callOnce/setupOnce
+    // results across virtual users that all run the same feature.
+    private final Map<String, Object> CALLONCE_CACHE_LOCAL = new ConcurrentHashMap<>();
+    private final Map<String, Object> SETUPONCE_CACHE_LOCAL = new ConcurrentHashMap<>();
     private final ReentrantLock callOnceLock = new ReentrantLock();
 
     // State
@@ -932,7 +936,19 @@ public class FeatureRuntime implements Callable<FeatureResult> {
     }
 
     public ReentrantLock getCallOnceLock() {
-        return callOnceLock;
+        return suite != null ? suite.getCallOnceLock(featureKey()) : callOnceLock;
+    }
+
+    public Map<String, Object> getCallOnceCache() {
+        return suite != null ? suite.getCallOnceCache(featureKey()) : CALLONCE_CACHE_LOCAL;
+    }
+
+    public Map<String, Object> getSetupOnceCache() {
+        return suite != null ? suite.getSetupOnceCache(featureKey()) : SETUPONCE_CACHE_LOCAL;
+    }
+
+    private String featureKey() {
+        return feature.getResource().getUri().toString();
     }
 
 }

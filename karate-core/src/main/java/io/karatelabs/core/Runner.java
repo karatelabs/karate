@@ -164,6 +164,18 @@ public final class Runner {
                     builder.systemProperty(e.getKey(), e.getValue());
                 }
             }
+            // Propagate injected cache stores so callSingle/callOnce results survive
+            // across this Suite (one virtual user) and back into the protocol-owned
+            // cache for the next virtual user to see.
+            if (template.getCallSingleCache() != null) {
+                builder.callSingleCache(template.getCallSingleCache(), template.getCallSingleLock());
+            }
+            if (template.getCallOnceCacheStore() != null) {
+                builder.callOnceCacheStore(template.getCallOnceCacheStore(), template.getCallOnceLockStore());
+            }
+            if (template.getSetupOnceCacheStore() != null) {
+                builder.setupOnceCacheStore(template.getSetupOnceCacheStore());
+            }
         }
         if (tags != null && !tags.isEmpty()) {
             builder.tags(tags.toArray(new String[0]));
@@ -234,6 +246,16 @@ public final class Runner {
 
         // Track resolved features separately to associate them with their original paths
         private List<Feature> resolvedFeatures;
+
+        // Optional injected cache stores. When non-null, Suite uses these instead of
+        // allocating fresh per-Suite stores. Used by karate-gatling to share callSingle
+        // and callOnce results across the virtual users of a single simulation, so an
+        // expensive setup runs once per simulation rather than once per virtual user.
+        private Map<String, Object> callSingleCache;
+        private java.util.concurrent.locks.ReentrantLock callSingleLock;
+        private Map<String, Map<String, Object>> callOnceCacheStore;
+        private Map<String, java.util.concurrent.locks.ReentrantLock> callOnceLockStore;
+        private Map<String, Map<String, Object>> setupOnceCacheStore;
 
         Builder() {
         }
@@ -641,6 +663,38 @@ public final class Runner {
             return this;
         }
 
+        /**
+         * Inject a pre-allocated callSingle cache (and its companion lock). When set,
+         * Suites built from this builder reuse the cache instead of creating their own
+         * — so the cache outlives any single Suite. Used by karate-gatling to share
+         * callSingle results across the virtual users of one simulation.
+         * <p>
+         * Pass a matching {@code lock} so all Suites sharing the cache also share its
+         * write lock; otherwise concurrent virtual users can race.
+         */
+        public Builder callSingleCache(Map<String, Object> cache, java.util.concurrent.locks.ReentrantLock lock) {
+            this.callSingleCache = cache;
+            this.callSingleLock = lock;
+            return this;
+        }
+
+        /**
+         * Inject pre-allocated callOnce/setupOnce stores (keyed by feature URI). Same
+         * lifetime semantics as {@link #callSingleCache} — used by karate-gatling so a
+         * feature's callOnce/setupOnce runs once per simulation, not once per virtual user.
+         */
+        public Builder callOnceCacheStore(Map<String, Map<String, Object>> cacheStore,
+                                          Map<String, java.util.concurrent.locks.ReentrantLock> lockStore) {
+            this.callOnceCacheStore = cacheStore;
+            this.callOnceLockStore = lockStore;
+            return this;
+        }
+
+        public Builder setupOnceCacheStore(Map<String, Map<String, Object>> cacheStore) {
+            this.setupOnceCacheStore = cacheStore;
+            return this;
+        }
+
         // ========== Package-private accessors for Suite constructor ==========
 
         List<Feature> getResolvedFeatures() {
@@ -677,6 +731,11 @@ public final class Runner {
         io.karatelabs.js.RunInterceptor<?> getDebugInterceptor() { return debugInterceptor; }
         io.karatelabs.js.DebugPointFactory<?> getDebugPointFactory() { return debugPointFactory; }
         List<String> getPaths() { return paths; }
+        Map<String, Object> getCallSingleCache() { return callSingleCache; }
+        java.util.concurrent.locks.ReentrantLock getCallSingleLock() { return callSingleLock; }
+        Map<String, Map<String, Object>> getCallOnceCacheStore() { return callOnceCacheStore; }
+        Map<String, java.util.concurrent.locks.ReentrantLock> getCallOnceLockStore() { return callOnceLockStore; }
+        Map<String, Map<String, Object>> getSetupOnceCacheStore() { return setupOnceCacheStore; }
         List<Feature> getFeatures() { return features; }
         LogLevel getLogLevel() { return logLevel; }
 

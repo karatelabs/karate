@@ -106,9 +106,14 @@ public class Suite {
     private final List<ResultListener> resultListeners;
 
 
-    // Caches (shared across features)
-    private final Map<String, Object> CALLSINGLE_CACHE = new ConcurrentHashMap<>();
-    private final ReentrantLock callSingleLock = new ReentrantLock();
+    // Caches (shared across features within a Suite — or longer-lived when injected
+    // via Runner.Builder, e.g. by karate-gatling so callSingle/callOnce survive across
+    // virtual users of the same simulation).
+    private final Map<String, Object> CALLSINGLE_CACHE;
+    private final ReentrantLock callSingleLock;
+    private final Map<String, Map<String, Object>> callOnceCacheStore;
+    private final Map<String, ReentrantLock> callOnceLockStore;
+    private final Map<String, Map<String, Object>> setupOnceCacheStore;
 
     // Lock manager for @lock tag support (mutual exclusion across parallel scenarios)
     private final ScenarioLockManager lockManager = new ScenarioLockManager();
@@ -145,6 +150,19 @@ public class Suite {
      * This constructor is package-private - only Runner.Builder can create Suite instances.
      */
     Suite(Runner.Builder builder, int threadCount) {
+        // Caches — use injected stores when present (e.g. from karate-gatling protocol),
+        // otherwise allocate fresh per-Suite stores.
+        this.CALLSINGLE_CACHE = builder.getCallSingleCache() != null
+                ? builder.getCallSingleCache() : new ConcurrentHashMap<>();
+        this.callSingleLock = builder.getCallSingleLock() != null
+                ? builder.getCallSingleLock() : new ReentrantLock();
+        this.callOnceCacheStore = builder.getCallOnceCacheStore() != null
+                ? builder.getCallOnceCacheStore() : new ConcurrentHashMap<>();
+        this.callOnceLockStore = builder.getCallOnceLockStore() != null
+                ? builder.getCallOnceLockStore() : new ConcurrentHashMap<>();
+        this.setupOnceCacheStore = builder.getSetupOnceCacheStore() != null
+                ? builder.getSetupOnceCacheStore() : new ConcurrentHashMap<>();
+
         // Core configuration
         this.features = List.copyOf(builder.getResolvedFeatures());
         this.env = builder.getEnv();
@@ -702,6 +720,24 @@ public class Suite {
 
     public ReentrantLock getCallSingleLock() {
         return callSingleLock;
+    }
+
+    /**
+     * Get the callOnce cache for the given feature key (its resource URI). The cache
+     * is created on first access and reused across all FeatureRuntimes for the same
+     * feature within this Suite — and across Suites when the underlying store was
+     * injected via Runner.Builder.
+     */
+    public Map<String, Object> getCallOnceCache(String featureKey) {
+        return callOnceCacheStore.computeIfAbsent(featureKey, k -> new ConcurrentHashMap<>());
+    }
+
+    public ReentrantLock getCallOnceLock(String featureKey) {
+        return callOnceLockStore.computeIfAbsent(featureKey, k -> new ReentrantLock());
+    }
+
+    public Map<String, Object> getSetupOnceCache(String featureKey) {
+        return setupOnceCacheStore.computeIfAbsent(featureKey, k -> new ConcurrentHashMap<>());
     }
 
     public ScenarioLockManager getLockManager() {

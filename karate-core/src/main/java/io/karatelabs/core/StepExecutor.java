@@ -439,7 +439,7 @@ public class StepExecutor {
             return;
         }
 
-        Map<String, Object> cache = fr.CALLONCE_CACHE;
+        Map<String, Object> cache = fr.getCallOnceCache();
         java.util.concurrent.locks.ReentrantLock lock = fr.getCallOnceLock();
 
         // Fast path - check cache without lock
@@ -2588,7 +2588,7 @@ public class StepExecutor {
             return;
         }
 
-        Map<String, Object> cache = fr.CALLONCE_CACHE;
+        Map<String, Object> cache = fr.getCallOnceCache();
         java.util.concurrent.locks.ReentrantLock lock = fr.getCallOnceLock();
 
         // Fast path - check cache without lock
