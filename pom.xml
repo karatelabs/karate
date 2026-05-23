@@ -53,6 +53,22 @@
 		<module>karate-js-test262</module>
 	</modules>
 
+    <dependencyManagement>
+        <dependencies>
+            <!-- Pin every netty artifact (incl. transitive epoll / io_uring
+                 transports pulled by gatling-netty-util) to ${netty.version}.
+                 Without this, Gatling's older netty-transport-* slips in via
+                 transitive resolution and trips OWASP dep-check CVEs. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.slf4j</groupId>
