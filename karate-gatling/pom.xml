@@ -82,7 +82,7 @@
             <plugin>
                 <groupId>io.gatling</groupId>
                 <artifactId>gatling-maven-plugin</artifactId>
-                <version>4.21.5</version>
+                <version>4.21.6</version>
                 <configuration>
                     <skip>${skipTests}</skip>
                 </configuration>
@@ -112,7 +112,7 @@
                     <plugin>
                         <groupId>io.gatling</groupId>
                         <artifactId>gatling-maven-plugin</artifactId>
-                        <version>4.21.5</version>
+                        <version>4.21.6</version>
                         <executions>
                             <execution>
                                 <id>gatling-cicd</id>
