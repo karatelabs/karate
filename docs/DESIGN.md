@@ -2,7 +2,7 @@
 
 > **Start here.** This is the primary reference for LLMs and maintainers working on the Karate codebase.
 >
-> See also: [PRINCIPLES.md](./PRINCIPLES.md) | [CLI.md](./CLI.md) | [JS_ENGINE.md](./JS_ENGINE.md) | [TODOS.md](./TODOS.md)
+> See also: [CLI.md](./CLI.md) | [JS_ENGINE.md](./JS_ENGINE.md) | [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)
 
 ---
 
@@ -662,14 +662,11 @@ loading entirely — mock servers aren't tests, so plugins don't activate.
 
 | Doc | Covers |
 |-----|--------|
-| [PRINCIPLES.md](./PRINCIPLES.md) | Design philosophy and priorities |
 | [CLI.md](./CLI.md) | Two-tier CLI (Rust launcher + Java), subcommands, karate-pom.json |
 | [JS_ENGINE.md](./JS_ENGINE.md) | Type system (JsValue hierarchy), Java interop, prototypes |
 | [DRIVER.md](./DRIVER.md) | Browser automation — CDP, W3C WebDriver, frame/window management |
 | [MOCKS.md](./MOCKS.md) | Mock server — feature-based definitions, proxy mode, stateful mocks |
 | [GATLING.md](./GATLING.md) | Performance testing — Java DSL, session chaining, HTTP pooling |
 | [TEMPLATING.md](./TEMPLATING.md) | HTML templating — Thymeleaf + JS expressions, HTMX, server/static modes |
-| [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) | V1 -> V2 migration guide |
-| [CAPABILITIES.yaml](./CAPABILITIES.yaml) | Complete feature inventory (source of truth — regen `CAPABILITIES.md` via `./etc/generate-capabilities.sh`) |
-| [TODOS.md](./TODOS.md) | Actionable work items |
+| [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) | V1 → V2 migration guide |
 | [RELEASING.md](./RELEASING.md) | Release checklist |
