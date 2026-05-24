@@ -28,8 +28,6 @@ import java.util.Properties;
 
 /**
  * Global constants and utilities for Karate runtime.
- * <p>
- * Provides access to version info, telemetry settings, and user identification.
  */
 public final class Globals {
 
@@ -55,19 +53,6 @@ public final class Globals {
         }
         return "(unknown)";
     }
-
-    /**
-     * Check if telemetry is enabled.
-     * Controlled by KARATE_TELEMETRY environment variable.
-     * Default is true (enabled).
-     */
-    public static boolean isTelemetryEnabled() {
-        String env = System.getenv("KARATE_TELEMETRY");
-        return env == null || !"false".equalsIgnoreCase(env.trim());
-    }
-
-    // TODO: lazy-loaded UUID from ~/.karate/uuid.txt
-    // public static String uuid() { ... }
 
     private Globals() {
         // utility class
