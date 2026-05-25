@@ -1552,8 +1552,13 @@ public class CdpDriver implements Driver {
         // OOPIF: cdp.sessionId is routed to the iframe's own CDP session, whose default
         // execution context IS the OOPIF's main world. No registration is needed — and the
         // contextId-from-event path won't work here anyway since the id is scoped to a
-        // different session than the one we route commands on. Just return.
+        // different session than the one we route commands on. But we DO need to wait
+        // for the OOPIF document to parse before returning: the switchFrame OOPIF match
+        // succeeds as soon as window.location.href is set (at document creation, before
+        // HTML parsing), so without this wait a caller that immediately queries DOM
+        // races the parser. Same-origin frames get this via waitForFrameContextReady().
         if (oopifSessions.containsKey(frameId)) {
+            waitForOopifReady(frameId);
             return;
         }
         // First, wait for the main world context to arrive via Runtime.executionContextCreated.
@@ -1596,6 +1601,37 @@ public class CdpDriver implements Driver {
         // This is critical for flaky test prevention - the context may exist but
         // the frame's document might not be ready yet (still loading)
         waitForFrameContextReady(frameId);
+    }
+
+    /**
+     * Wait for an OOPIF's document to leave the 'loading' state. cdp.sessionId is
+     * already routed to the OOPIF session when this is called, so a contextId-less
+     * Runtime.evaluate hits the OOPIF's default (main world) execution context.
+     */
+    private void waitForOopifReady(String frameId) {
+        int maxWaitMs = 2000;
+        int pollInterval = 50;
+        long deadline = System.currentTimeMillis() + maxWaitMs;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                CdpResponse response = cdp.method("Runtime.evaluate")
+                        .param("expression", "document.readyState")
+                        .param("returnByValue", true)
+                        .send();
+                if (!response.isError()) {
+                    Object value = response.getResult("result.value");
+                    if (value instanceof String && !"loading".equals(value)) {
+                        logger.trace("OOPIF ready: frameId={}, readyState={}", frameId, value);
+                        return;
+                    }
+                }
+            } catch (Exception e) {
+                logger.trace("OOPIF readyState check failed (will retry): {}", e.getMessage());
+            }
+            sleep(pollInterval);
+        }
+        // Not fatal — element-level retry in retryIfNeeded() will absorb any remainder.
+        logger.warn("timeout waiting for OOPIF document.readyState: frameId={} (will retry on first use)", frameId);
     }
 
     /**
