@@ -738,4 +738,77 @@ class RunnerTest {
         assertEquals(1, result.getScenarioPassedCount());
     }
 
+    /**
+     * Demonstrate it is possible to resolve individual scenarios at runtime. This is only needed until something like
+     * [in-suite orchestration hooks via karate-boot.js](https://github.com/karatelabs/karate/issues/2864) lands.
+     */
+    @Test
+    void testRunnerResolveFeatures() throws Exception {
+        Path subDir = tempDir.resolve("sub");
+        Files.createDirectory(subDir);
+        Files.writeString(tempDir.resolve("sub/a.feature"), """
+            Feature:
+            Scenario: no tags
+            * def result = 1
+            @smoke
+            Scenario: smoke test
+            * def result = 2
+            """);
+
+        Path feature = tempDir.resolve("feature.feature");
+        Files.writeString(feature, """
+            Feature:
+            Background:
+            * def resolveScenarios =
+            \"\"\"
+            function({ workingDir, path, tags, env }) {
+              workingDir = workingDir ?? null
+              path = Array.isArray(path) ? path : [path]
+              tags = Array.isArray(tags) ? tags : [tags]
+              env = env ?? null
+
+              const features = io.karatelabs.core.Runner.builder()
+                .workingDir(workingDir)
+                .path(path)
+                .tags(tags)
+                .getResolvedFeatures()
+
+              if (features == null) return []
+
+              const scenarioPaths = {}
+              const tagFilter = io.karatelabs.core.TagSelector.fromKarateOptionsTags(tags)
+
+              for (const feature of features) {
+                const sections = feature.getSections()
+                if (sections === null) continue
+
+                for (const section of sections) {
+                  const selector = new io.karatelabs.core.TagSelector(
+                    section.isOutline()
+                    ? section.getScenarioOutline().getTags()
+                    : section.getScenario().getTags())
+
+                  if (selector.evaluate(tagFilter, env)) {
+                    scenarioPaths[feature.getResource().getPrefixedPath() + ":" + section.getLine()] = true
+                  }
+                }
+              }
+
+              return Object.keys(scenarioPaths)
+            }
+            \"\"\"
+            Scenario:
+            * def result = resolveScenarios({ path: "${subDir}", tags: "@smoke" })
+            * match result == ["${subDir}/a.feature:5"]
+            """.replace("${subDir}", subDir.toString()));
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+    }
+
 }
