@@ -690,6 +690,21 @@ Guidance for host code:
 - **Plain `RuntimeException`** — Use for genuine error conditions. The JS side can catch and handle.
 - **`FlowControlSignal` subclass** — Use for intentional abort signals (redirect, switch, cancel). JS cannot catch; Java callers use `instanceof` to detect.
 
+**Cooperative interrupt.** `EngineInterruptedException` (subclass of
+`EngineException`) is thrown when `Thread.currentThread().isInterrupted()`
+is observed at a loop back-edge inside `Interpreter` (while / do-while /
+for / for-in / for-of). Lets hosts terminate a long-running script via
+`Thread.interrupt()` or `Future.cancel(true)` without leaking the worker
+thread. The interrupt flag is left set (we poll via `isInterrupted()`,
+which doesn't clear it), so callers higher in the stack still observe the
+cancellation. JS `try/catch` cannot swallow it — `evalTryStmt`
+special-cases it and re-throws. `Engine.eval` likewise re-throws it
+unwrapped so the host can distinguish a host-initiated cancel from a
+JS-origin error. **Intentionally not a `FlowControlSignal`** — karate-core
+callers (`Markup`, `ServerRequestCycle`) treat that marker as "intentional
+redirect/switch, response state already set, return normally," which would
+mask an interrupted handler as a successful run.
+
 ### JsError shape
 
 Error and its native subclasses follow the standard constructor + prototype

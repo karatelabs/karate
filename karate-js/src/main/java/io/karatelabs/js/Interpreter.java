@@ -57,6 +57,21 @@ class Interpreter {
         return receiver;
     }
 
+    /**
+     * Loop-iteration safe-point: polls the executing thread's interrupt flag
+     * and throws {@link EngineInterruptedException} if set. Called at the top
+     * of every loop iteration (while / do-while / for / for-in / for-of) so a
+     * runaway script can be terminated via {@link Thread#interrupt()} or
+     * {@link java.util.concurrent.Future#cancel(boolean)}. The flag is restored
+     * before the throw so callers higher in the stack still observe interrupt
+     * status (Java convention).
+     */
+    private static void checkInterrupted() {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new EngineInterruptedException();
+        }
+    }
+
     private static List<Node> fnArgs(Node fnArgs) {
         List<Node> list = new ArrayList<>(fnArgs.size() - 2);
         for (int i = 0, n = fnArgs.size(); i < n; i++) {
@@ -747,6 +762,7 @@ class Interpreter {
                     Node forAfter = node.get(6).token.type == R_PAREN ? null : node.get(6);
                     int index = -1;
                     while (true) {
+                        checkInterrupted();
                         index++;
                         context.iteration = index;
                         Object forCondition = eval(node.get(4), context);
@@ -817,6 +833,7 @@ class Interpreter {
                 if (in) {
                     int index = -1;
                     for (KeyValue kv : Terms.forInIterable(forObject, context)) {
+                        checkInterrupted();
                         index++;
                         context.iteration = index;
                         if (isLetOrConst) {
@@ -841,6 +858,7 @@ class Interpreter {
                     JsIterator iter = IterUtils.getIterator(forObject, context);
                     int index = -1;
                     while (iter.hasNext()) {
+                        checkInterrupted();
                         index++;
                         context.iteration = index;
                         Object varValue = iter.next();
@@ -1613,6 +1631,10 @@ class Interpreter {
             if (e instanceof FlowControlSignal) {
                 throw e;
             }
+            // Host-initiated cancel — JS try/catch must not swallow it
+            if (e instanceof EngineInterruptedException) {
+                throw e;
+            }
             JsError errObj = buildCaughtError(e);
             context.stopAndThrow(errObj);
             tryValue = null;
@@ -1729,6 +1751,7 @@ class Interpreter {
         Object whileResult = null;
         try {
             while (true) {
+                checkInterrupted();
                 Object whileCondition = eval(whileExpr, context);
                 // §14.7.3 abrupt completion in the loop-test expression must skip the
                 // body. Without this guard a thrown error in the condition is returned
@@ -1767,6 +1790,7 @@ class Interpreter {
         Object doResult = null;
         try {
             while (true) {
+                checkInterrupted();
                 doResult = eval(doBody, context);
                 if (context.isStopped()) {
                     if (context.isContinuing()) {

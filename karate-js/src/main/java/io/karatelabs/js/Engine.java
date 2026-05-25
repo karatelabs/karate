@@ -221,6 +221,11 @@ public class Engine {
                 // flow-control signal from a host function — pass through unchanged
                 throw (RuntimeException) e;
             }
+            if (e instanceof EngineInterruptedException eie) {
+                // host-initiated cancel — pass through unwrapped so callers can
+                // distinguish a cancelled run from a JS-origin error
+                throw eie;
+            }
             if (e instanceof ParserException pe) {
                 // preserve parser-failure type so callers can distinguish parse phase
                 throw pe;
