@@ -695,9 +695,7 @@ public final class Runner {
             return this;
         }
 
-        // ========== Package-private accessors for Suite constructor ==========
-
-        List<Feature> getResolvedFeatures() {
+        public List<Feature> getResolvedFeatures() {
             if (resolvedFeatures == null) {
                 resolvedFeatures = new ArrayList<>(features);
                 for (String path : paths) {
@@ -706,6 +704,8 @@ public final class Runner {
             }
             return resolvedFeatures;
         }
+
+        // ========== Package-private accessors for Suite constructor ==========
 
         String getEnv() { return env; }
         List<String> getTags() { return tags; }
