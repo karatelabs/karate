@@ -42,15 +42,14 @@ public class CdpMouse implements Mouse {
     private double y;
 
     public CdpMouse(CdpClient cdp) {
-        this.cdp = cdp;
-        this.x = 0;
-        this.y = 0;
+        this(cdp, 0, 0);
     }
 
     public CdpMouse(CdpClient cdp, double x, double y) {
         this.cdp = cdp;
         this.x = x;
         this.y = y;
+        dispatchEvent("mouseMoved");
     }
 
     @Override
