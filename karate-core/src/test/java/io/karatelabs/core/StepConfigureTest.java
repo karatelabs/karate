@@ -23,12 +23,15 @@
  */
 package io.karatelabs.core;
 
+import io.karatelabs.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -591,4 +594,38 @@ class StepConfigureTest {
         assertEquals("new-value", seenOther.get(2));
     }
 
+    @Test
+    void testConfigureHeadersMaintainsMethod() throws Exception {
+        InMemoryHttpClient.Factory factory = new InMemoryHttpClient.Factory(req -> {
+            HttpResponse response = new HttpResponse();
+            if (!Arrays.equals("name=Alex".getBytes(StandardCharsets.UTF_8), req.getBody())) {
+                response.setStatus(400);
+            } else {
+                response.setStatus(200);
+            }
+            return response;
+        });
+
+        Path feature = tempDir.resolve("feature.feature");
+        Files.writeString(feature, """
+                Feature:
+                Scenario:
+                * configure headers = () => ({ 'X-Custom': 'abc123' })
+                * url 'http://test'
+                * form fields { name: "Alex" }
+                * method post
+                * status 200
+                """);
+
+        SuiteResult result = Runner.builder()
+                .path(feature.toString())
+                .workingDir(tempDir)
+                .httpClientFactory(factory)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed(), "suite should pass");
+    }
 }

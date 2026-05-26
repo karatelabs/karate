@@ -1975,6 +1975,7 @@ public class StepExecutor {
         // Apply configured headers - may be a Map or a JsCallable
         Object configHeaders = config.getHeaders();
         if (configHeaders instanceof JavaCallable headersFn) {
+            http().method(method);
             // Build request first so function can access current state (for signing etc.)
             HttpRequest request = http().build();
             Object result = headersFn.call(null, request);
