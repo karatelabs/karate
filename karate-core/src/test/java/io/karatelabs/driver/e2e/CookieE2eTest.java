@@ -60,6 +60,19 @@ class CookieE2eTest extends DriverTestBase {
     }
 
     @Test
+    void testSetAndGetCookieNoDomain() {
+        driver.cookie(Map.of(
+                "name", "test_cookie",
+                "value", "hello123"
+        ));
+
+        Map<String, Object> cookie = driver.cookie("test_cookie");
+        assertNotNull(cookie);
+        assertEquals("test_cookie", cookie.get("name"));
+        assertEquals("hello123", cookie.get("value"));
+    }
+
+    @Test
     void testGetAllCookies() {
         driver.cookie(Map.of(
                 "name", "cookie1",
