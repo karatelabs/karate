@@ -418,6 +418,10 @@ public class HttpRequestBuilder implements SimpleObject {
         }
     }
 
+    // Destructive: drains multiPart form fields into URL params when method resolves to GET,
+    // and consumes multiPart into body bytes otherwise. Callers must set method() before
+    // calling build() on a form/multipart request, or the GET default below will silently
+    // rewrite the request (see issue #2851).
     private void buildInternal() {
         if (url == null) {
             throw new RuntimeException("incomplete http request, 'url' not set");

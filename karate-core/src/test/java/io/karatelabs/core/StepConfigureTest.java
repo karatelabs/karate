@@ -595,7 +595,7 @@ class StepConfigureTest {
     }
 
     @Test
-    void testConfigureHeadersMaintainsMethod() throws Exception {
+    void testConfigureHeadersFunctionPreservesFormBody() throws Exception {
         InMemoryHttpClient.Factory factory = new InMemoryHttpClient.Factory(req -> {
             HttpResponse response = new HttpResponse();
             if (!Arrays.equals("name=Alex".getBytes(StandardCharsets.UTF_8), req.getBody())) {

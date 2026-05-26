@@ -1953,6 +1953,11 @@ public class StepExecutor {
     private void doMethod(String method) {
         KarateConfig config = runtime.getConfig();
 
+        // Set method on the builder up-front so any build() below sees the real method.
+        // Without this, build() defaults method to GET and destructively drains form fields
+        // into the URL (HttpRequestBuilder.buildInternal) — see issue #2851.
+        http().method(method);
+
         // Apply cookies from the cookie jar (V1 compatibility: auto-send responseCookies)
         // Use the full cookie map to preserve the wrap flag from Set-Cookie parsing
         Map<String, Map<String, Object>> cookieJar = runtime.getCookieJar();
@@ -1975,7 +1980,6 @@ public class StepExecutor {
         // Apply configured headers - may be a Map or a JsCallable
         Object configHeaders = config.getHeaders();
         if (configHeaders instanceof JavaCallable headersFn) {
-            http().method(method);
             // Build request first so function can access current state (for signing etc.)
             HttpRequest request = http().build();
             Object result = headersFn.call(null, request);
@@ -1995,8 +1999,6 @@ public class StepExecutor {
         // Get perf event name before request (if in perf mode)
         String perfEventName = null;
         if (runtime.isPerfMode()) {
-            // Set method on builder before building so request.getMethod() works
-            http().method(method);
             HttpRequest builtRequest = http().build();
             PerfHook perfHook = runtime.getPerfHook();
             if (perfHook != null) {
@@ -2012,7 +2014,6 @@ public class StepExecutor {
             response = executeMethodWithRetry(method, retryUntil, config);
         } else {
             // Build request for HTTP_ENTER event
-            http().method(method);
             HttpRequest request = http().build();
 
             // Fire HTTP_ENTER event - listener can return false to skip
@@ -2116,8 +2117,7 @@ public class StepExecutor {
             // Make a copy of the request builder to preserve state for retry
             HttpRequestBuilder httpCopy = http().copy();
 
-            // Build request for HTTP_ENTER event
-            http().method(method);
+            // Build request for HTTP_ENTER event (method already set in doMethod)
             HttpRequest request = http().build();
 
             // Fire HTTP_ENTER event - listener can return false to skip
