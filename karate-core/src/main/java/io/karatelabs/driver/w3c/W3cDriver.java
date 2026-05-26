@@ -283,9 +283,7 @@ public class W3cDriver implements Driver {
 
     @Override
     public Mouse mouse() {
-        throw new UnsupportedOperationException(
-                "Mouse coordinate input not supported on WebDriver backend. "
-                        + "Use click(locator) instead.");
+        return new W3cMouse(session);
     }
 
     @Override
@@ -889,14 +887,18 @@ public class W3cDriver implements Driver {
 
     @Override
     public Mouse mouse(String locator) {
-        throw new UnsupportedOperationException(
-                "Mouse coordinate input not supported on WebDriver backend");
+        Map<String, Object> pos = position(locator, true);
+        double x = ((Number) pos.get("x")).doubleValue();
+        double y = ((Number) pos.get("y")).doubleValue();
+        double width = ((Number) pos.get("width")).doubleValue();
+        double height = ((Number) pos.get("height")).doubleValue();
+        // Center of element
+        return new W3cMouse(session, x + width / 2, y + height / 2);
     }
 
     @Override
     public Mouse mouse(Number x, Number y) {
-        throw new UnsupportedOperationException(
-                "Mouse coordinate input not supported on WebDriver backend");
+        return new W3cMouse(session, x.doubleValue(), y.doubleValue());
     }
 
     // ========== Pages/Tabs ==========
