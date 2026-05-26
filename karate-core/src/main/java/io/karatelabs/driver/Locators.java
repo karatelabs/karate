@@ -423,8 +423,12 @@ public class Locators {
     public static String inputJs(String locator, String value) {
         String escapedValue = escapeForJs(value);
         String js = "var e = " + selector(locator) + ";" +
+                " if (!e) return;" +
                 " e.focus();" +
-                " e.value = \"" + escapedValue + "\";" +
+                " var proto = e.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;" +
+                " var setter = Object.getOwnPropertyDescriptor(proto, 'value');" +
+                " if (setter && setter.set) { setter.set.call(e, \"" + escapedValue + "\"); }" +
+                " else { e.value = \"" + escapedValue + "\"; }" +
                 " e.dispatchEvent(new Event('input', { bubbles: true }));" +
                 " e.dispatchEvent(new Event('change', { bubbles: true }))";
         return wrapInFunctionInvoke(js);
@@ -435,8 +439,12 @@ public class Locators {
      */
     public static String clearJs(String locator) {
         String js = "var e = " + selector(locator) + ";" +
+                " if (!e) return;" +
                 " e.focus();" +
-                " e.value = '';" +
+                " var proto = e.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;" +
+                " var setter = Object.getOwnPropertyDescriptor(proto, 'value');" +
+                " if (setter && setter.set) { setter.set.call(e, ''); }" +
+                " else { e.value = ''; }" +
                 " e.dispatchEvent(new Event('input', { bubbles: true }));" +
                 " e.dispatchEvent(new Event('change', { bubbles: true }))";
         return wrapInFunctionInvoke(js);
