@@ -35,6 +35,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -695,6 +696,18 @@ public final class Runner {
             return this;
         }
 
+        /**
+         * <b>Provisional API — may change or be removed without notice.</b>
+         * Exposed to support advanced runtime scenario discovery (e.g. sequential
+         * retry against an expensive grid session) until in-suite orchestration
+         * hooks land — see <a href="https://github.com/karatelabs/karate/issues/2864">#2864</a>.
+         *
+         * <p>Note: callers that filter the returned {@link Feature}s themselves
+         * (e.g. by walking sections and evaluating a {@code TagSelector}) bypass
+         * {@code FeatureRuntime.shouldSelect} and will miss {@code @ignore},
+         * {@code @setup}, suite-level line/name filters, and {@code @envnot}.
+         * Mirror that logic if you need parity with what would actually run.
+         */
         public List<Feature> getResolvedFeatures() {
             if (resolvedFeatures == null) {
                 resolvedFeatures = new ArrayList<>(features);
@@ -702,7 +715,7 @@ public final class Runner {
                     resolveFeatures(path, resolvedFeatures, workingDir);
                 }
             }
-            return resolvedFeatures;
+            return Collections.unmodifiableList(resolvedFeatures);
         }
 
         // ========== Package-private accessors for Suite constructor ==========

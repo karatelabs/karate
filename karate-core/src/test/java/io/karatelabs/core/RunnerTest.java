@@ -741,6 +741,12 @@ class RunnerTest {
     /**
      * Demonstrate it is possible to resolve individual scenarios at runtime. This is only needed until something like
      * [in-suite orchestration hooks via karate-boot.js](https://github.com/karatelabs/karate/issues/2864) lands.
+     *
+     * <p>Caveat: the JS below filters via {@code TagSelector} only — it bypasses
+     * {@code FeatureRuntime.shouldSelect} and so does NOT honour {@code @ignore},
+     * {@code @setup}, {@code @envnot}, or suite-level line/name filters.
+     * Production discovery should mirror {@code shouldSelect} for parity with
+     * what would actually run.
      */
     @Test
     void testRunnerResolveFeatures() throws Exception {
