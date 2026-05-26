@@ -33,6 +33,7 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import io.netty.handler.codec.http.cors.CorsHandler;
+import io.karatelabs.common.ThreadUtils;
 import io.netty.handler.ssl.SslContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +41,6 @@ import org.slf4j.LoggerFactory;
 import java.net.InetSocketAddress;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 public class HttpServer {
@@ -129,22 +128,13 @@ public class HttpServer {
         workerGroup.shutdownGracefully();
     }
 
-    private static ThreadFactory daemonThreadFactory(String prefix) {
-        AtomicInteger counter = new AtomicInteger();
-        return r -> {
-            Thread t = new Thread(r, prefix + counter.incrementAndGet());
-            t.setDaemon(true);
-            return t;
-        };
-    }
-
     private HttpServer(int requestedPort, SslContext sslContext, Function<HttpRequest, HttpResponse> handler, SseHandler sseHandler, WsHandler wsHandler) {
         this.handler = handler;
         this.sseHandler = sseHandler;
         this.wsHandler = wsHandler;
         this.sslContext = sslContext;
-        bossGroup = new MultiThreadIoEventLoopGroup(1, daemonThreadFactory("http-boss-"), NioIoHandler.newFactory());
-        workerGroup = new MultiThreadIoEventLoopGroup(daemonThreadFactory("http-worker-"), NioIoHandler.newFactory());
+        bossGroup = new MultiThreadIoEventLoopGroup(1, ThreadUtils.daemonFactory("http-boss-"), NioIoHandler.newFactory());
+        workerGroup = new MultiThreadIoEventLoopGroup(ThreadUtils.daemonFactory("http-worker-"), NioIoHandler.newFactory());
         CorsConfig corsConfig = CorsConfigBuilder
                 .forAnyOrigin().allowNullOrigin()
                 .allowedRequestHeaders(HttpUtils.Header.keys())

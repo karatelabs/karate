@@ -34,6 +34,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.websocketx.*;
 import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketClientCompressionHandler;
+import io.karatelabs.common.ThreadUtils;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
@@ -46,7 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -58,7 +58,7 @@ public class WsClient {
 
     private static final Set<WsClient> ACTIVE_CLIENTS = ConcurrentHashMap.newKeySet();
     private static final ExecutorService CALLBACK_EXECUTOR =
-            Executors.newCachedThreadPool(daemonThreadFactory("ws-callback-"));
+            Executors.newCachedThreadPool(ThreadUtils.daemonFactory("ws-callback-"));
 
     public static void closeAll() {
         if (ACTIVE_CLIENTS.isEmpty()) {
@@ -89,15 +89,6 @@ public class WsClient {
         WsClient client = new WsClient(options);
         client.doConnect();
         return client;
-    }
-
-    private static ThreadFactory daemonThreadFactory(String prefix) {
-        AtomicInteger counter = new AtomicInteger();
-        return r -> {
-            Thread t = new Thread(r, prefix + counter.incrementAndGet());
-            t.setDaemon(true);
-            return t;
-        };
     }
 
     // Instance fields
@@ -158,7 +149,7 @@ public class WsClient {
         WsClientHandler handler = new WsClientHandler(this, handshaker);
         SslContext finalSslContext = sslContext;
 
-        group = new MultiThreadIoEventLoopGroup(1, daemonThreadFactory("ws-client-"), NioIoHandler.newFactory());
+        group = new MultiThreadIoEventLoopGroup(1, ThreadUtils.daemonFactory("ws-client-"), NioIoHandler.newFactory());
 
         try {
             Bootstrap bootstrap = new Bootstrap();
