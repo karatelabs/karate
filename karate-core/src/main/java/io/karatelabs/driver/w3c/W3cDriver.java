@@ -36,6 +36,8 @@ import io.karatelabs.driver.Locators;
 import io.karatelabs.driver.Mouse;
 import io.karatelabs.driver.PageLoadStrategy;
 import io.karatelabs.output.LogContext;
+import io.karatelabs.process.ProcessBuilder;
+import io.karatelabs.process.ProcessHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,10 +82,10 @@ public class W3cDriver implements Driver {
 
     private final W3cSession session;
     private final W3cDriverOptions options;
-    private final Process driverProcess;
+    private final ProcessHandle driverProcess;
     private volatile boolean terminated = false;
 
-    private W3cDriver(W3cSession session, W3cDriverOptions options, Process driverProcess) {
+    private W3cDriver(W3cSession session, W3cDriverOptions options, ProcessHandle driverProcess) {
         this.session = session;
         this.options = options;
         this.driverProcess = driverProcess;
@@ -127,11 +129,18 @@ public class W3cDriver implements Driver {
         command.add(browserType.formatPortArg(port));
         command.addAll(opts.getAddOptions());
 
-        try {
-            ProcessBuilder pb = new ProcessBuilder(command);
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
+        // Use the karate-labs ProcessHandle wrapper: it drains stdout/stderr on virtual
+        // threads (daemon by JEP 444), preventing the chatty drivers (chromedriver,
+        // geckodriver, ...) from blocking once the OS pipe buffer fills.
+        ProcessHandle process = ProcessHandle.start(
+                ProcessBuilder.create()
+                        .args(command)
+                        .redirectErrorStream(true)
+                        .logToContext(false) // don't pollute scenario logs with driver chatter
+                        .build()
+        );
 
+        try {
             // Wait for the driver to start accepting connections
             waitForPort("localhost", port, opts.getTimeoutDuration().toMillis());
             logger.info("{} started on port {}", executable, port);
@@ -139,7 +148,8 @@ public class W3cDriver implements Driver {
             String baseUrl = "http://localhost:" + port;
             W3cSession session = W3cSession.create(baseUrl, opts.buildSessionPayload(), opts.getTimeoutDuration());
             return new W3cDriver(session, opts, process);
-        } catch (IOException e) {
+        } catch (RuntimeException e) {
+            process.close(true);
             throw new DriverException("Failed to start " + executable + ": " + e.getMessage(), e);
         }
     }
@@ -970,7 +980,7 @@ public class W3cDriver implements Driver {
             logger.warn("Error deleting session: {}", e.getMessage());
         }
         if (driverProcess != null) {
-            driverProcess.destroyForcibly();
+            driverProcess.close(true);
             logger.info("Driver process terminated");
         }
     }

@@ -56,6 +56,31 @@ public class ProcessHandle implements SimpleObject {
             "waitForPort", "waitForHttp", "onStdOut", "onStdErr"
     );
 
+    // Track every live child process so we can forcibly clean them up on JVM exit.
+    // Without this, an abrupt JVM exit (Ctrl-C, OOM, kill) reparents children to init
+    // on POSIX and they survive — leaking chromedriver / geckodriver / Chrome / forked
+    // mock servers. The hook calls destroyForcibly() on each live handle; close() is
+    // idempotent so a normal scenario shutdown already running concurrently is fine.
+    // Tracking is done at the ProcessHandle level so every backend that goes through
+    // this class (CDP launcher, W3C driver, karate.fork()) benefits without per-call-site
+    // hook registration.
+    private static final java.util.Set<ProcessHandle> LIVE_HANDLES =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            for (ProcessHandle handle : LIVE_HANDLES) {
+                try {
+                    if (handle.process != null && handle.process.isAlive()) {
+                        handle.process.destroyForcibly();
+                    }
+                } catch (Throwable t) {
+                    // best-effort — JVM is going down anyway
+                }
+            }
+        }, "karate-process-shutdown"));
+    }
+
     private final ProcessConfig config;
     private Process process;
     private final CompletableFuture<Integer> exitFuture;
@@ -130,6 +155,7 @@ public class ProcessHandle implements SimpleObject {
             logger.debug("starting process: {}", config.args());
             this.process = pb.start();
             this.executor = Executors.newVirtualThreadPerTaskExecutor();
+            LIVE_HANDLES.add(this);
             startStreamReaders();
             startExitWaiter();
             return this;
@@ -208,6 +234,11 @@ public class ProcessHandle implements SimpleObject {
                 logger.debug("process exited with code: {}", code);
             } catch (Exception e) {
                 exitFuture.completeExceptionally(e);
+            } finally {
+                // Drop from the shutdown-hook registry as soon as the OS reports exit,
+                // even if close() is never called — keeps the set from growing unbounded
+                // over a long-lived JVM. close() also removes; remove() is idempotent.
+                LIVE_HANDLES.remove(this);
             }
             // Note: Don't shutdown executor here - let stream readers complete naturally.
             // Executor will be shutdown when close() is called or all tasks complete.
@@ -408,6 +439,7 @@ public class ProcessHandle implements SimpleObject {
                 process.destroy();
             }
             executor.shutdownNow();
+            LIVE_HANDLES.remove(this);
             logger.debug("process closed (force={})", force);
         }
     }

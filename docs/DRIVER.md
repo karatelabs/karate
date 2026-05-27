@@ -468,12 +468,15 @@ DOM stays inspectable. Two side-effects to be aware of:
 - The suite driver pool is **bypassed** for that scenario — the browser instance
   is created directly rather than acquired from the pool, so the pool's lifecycle
   (release/quit on suite shutdown) won't touch it. A WARN is logged at init.
-- The driver process is leaked from the JVM's perspective. Browsers spawned
-  this way will typically die when the JVM exits, so to actually inspect the
-  page you need to keep the JVM alive (e.g., a breakpoint or `karate.pause`).
+- The driver process is detached from the scenario's `quit()` path, but still
+  tracked by `ProcessHandle`'s static registry — the JVM-exit shutdown hook
+  forcibly kills it when the JVM terminates (clean exit, Ctrl-C, OOM all
+  covered). To actually inspect the page, keep the JVM alive: a breakpoint,
+  `karate.pause`, or `karate.stop(port)` (which blocks until you `curl` it).
+  Otherwise the browser closes the moment the run ends.
 
 Intended for one-off UI debug runs only. **Do not enable in parallel/CI runs** —
-each scenario will leak a browser.
+each scenario leaks a browser for the duration of the run.
 
 ---
 
@@ -817,9 +820,7 @@ export KARATE_CHROME_EXECUTABLE=/opt/chrome/chrome
 - All Gherkin E2E tests must pass
 - All JS API E2E tests must pass
 
-### W3C WebDriver Backend (Phase 11) - Experimental
-
-**Status:** Core implementation complete. Infrastructure works (session creation, navigation, element operations). Many edge cases still failing in E2E tests. Marked as experimental until stabilized.
+### W3C WebDriver Backend (Phase 11)
 
 **Architecture:**
 - Single `W3cDriver` class in `io.karatelabs.driver.w3c` package
@@ -862,6 +863,18 @@ configure driver = { type: 'chromedriver', webDriverUrl: 'http://localhost:9515'
 - If `webDriverUrl` is set, connects to existing server (no process launch)
 - Port auto-allocation from `W3cBrowserType.defaultPort`
 - On quit: DELETE /session, then kill process
+- Launch goes through `io.karatelabs.process.ProcessHandle` (same wrapper as
+  `CdpLauncher` and `karate.fork`): stdout/stderr drained by virtual-thread
+  daemon readers, so chatty drivers can't block on a full OS pipe buffer.
+  Every started handle registers in a static `LIVE_HANDLES` set; a JVM
+  shutdown hook iterates the set and `destroyForcibly()`s any survivor,
+  so abrupt JVM exit (Ctrl-C, OOM, `kill`) can't orphan a driver process.
+  Backend-agnostic — no per-call-site hook code.
+- Port arg format is `--port=%d` for every browser in `W3cBrowserType`:
+  `ProcessBuilder.command().add(String)` doesn't split on whitespace, so
+  `"--port %d"` would be passed as a single argv token the executable
+  doesn't recognise (the source of issue #2884). `W3cBrowserTypeTest` is
+  parameterized over the enum to enforce this invariant for any future row.
 
 **CDP-only operations (throw `UnsupportedOperationException`):**
 - `mouse()` — coordinate-based mouse input
@@ -876,27 +889,29 @@ configure driver = { type: 'chromedriver', webDriverUrl: 'http://localhost:9515'
 - `PooledDriverProvider.createDriver()` now dispatches on config `type` (CDP or W3C)
 - `ScenarioRuntime.initDriver()` detects W3C types and creates W3cDriver accordingly
 
-**Current W3C test results: 110/110 pass (100%)**
+**Test layout.** Three test classes under the `w3c` Maven profile
+(`mvn verify -Pw3c -pl karate-core`), runs as its own CI job in parallel with
+the main `build` job:
 
-Main suite: 92/92 pass (CDP-only scenarios tagged `@cdp` and excluded).
-Frame suite: 16/16 pass (dedicated W3cFrameFeatureTest, single-threaded).
-Separate Maven profile: `mvn verify -Pw3c -pl karate-core`. Runs in parallel CI job.
+- `W3cDriverFeatureTest` — main suite, CDP-only scenarios tagged `@cdp` and excluded.
+- `W3cFrameFeatureTest` — frames in a dedicated container, single-threaded (frame switching mutates global browser state).
+- `W3cGridE2eTest` — wire-format regression against a real Selenium Grid (hub + node-chromium); intentionally narrow, runs `navigation.feature` only — its job is to catch protocol-level regressions that the standalone container's lenient filter chain would miss (e.g. issue #2883 — missing `charset=utf-8` on POST /session).
 
 **What works:**
 - [x] Session creation and lifecycle (POST /session, DELETE /session)
-- [x] Navigation (url, back, forward, refresh) — 3/3 pass
-- [x] Element operations (click, input, clear, focus, text, html, value, attribute, enabled, exists, scroll, highlight, select) — 43/44 pass
+- [x] Navigation (url, back, forward, refresh)
+- [x] Element operations (click, input, clear, focus, text, html, value, attribute, enabled, exists, scroll, highlight, select)
 - [x] Element finding via JS eval (supports all Karate locator types: CSS, XPath, wildcard, shadow DOM)
 - [x] `__kjs` (driver.js) runtime injection (wildcard locators, shadow DOM traversal) — same as CDP
-- [x] Frame switching — 16/16 pass (uses W3C element reference directly, improvement over v1 index-finding)
+- [x] Frame switching (uses W3C element reference directly, improvement over v1 index-finding)
 - [x] Screenshots
-- [x] Cookies — 6/6 pass (W3C 404 "no such cookie" handled as null)
+- [x] Cookies (W3C 404 "no such cookie" handled as null)
 - [x] Window management (maximize, minimize, fullscreen, setDimensions/getWindowRect)
-- [x] Tab/window switching — 1/1 pass (close() uses W3C DELETE /window, auto-switches to remaining handle)
-- [x] Shadow DOM — 16/16 pass (deep traversal, wildcard resolution, input)
-- [x] Keyboard input via W3C Actions API — 20/21 pass (type, special keys, Ctrl/Shift/Alt combos, plus-notation)
-- [x] Feature file calling (call, callonce) — 2/2 pass
-- [x] Scenario Outline — 1/1 pass
+- [x] Tab/window switching (close() uses W3C DELETE /window, auto-switches to remaining handle)
+- [x] Shadow DOM (deep traversal, wildcard resolution, input)
+- [x] Keyboard input via W3C Actions API (type, special keys, Ctrl/Shift/Alt combos, plus-notation)
+- [x] Feature file calling (call, callonce)
+- [x] Scenario Outline
 - [x] Process launch for local driver executables (chromedriver, geckodriver, safaridriver, msedgedriver)
 - [x] Remote connection via webDriverUrl (SauceLabs, BrowserStack, Selenium Grid)
 - [x] PooledDriverProvider backend-generic dispatch (auto-detects CDP vs W3C from config type)
@@ -926,8 +941,8 @@ Separate Maven profile: `mvn verify -Pw3c -pl karate-core`. Runs in parallel CI 
 - element "Select triggers change event with bubbles" — event dispatch sequence differs between CDP and W3C executeScript contexts
 
 **Completed:**
-- [x] W3C test suite: 110/110 pass (100%)
-- [x] Separate Maven profile (`-Pw3c`) for W3C tests — keeps `cicd` fast (~1:30)
+- [x] W3C test suite green
+- [x] Separate Maven profile (`-Pw3c`) for W3C tests — keeps the default `cicd` build fast
 - [x] Parallel CI job in `cicd.yml` — `build` (CDP) and `w3c` run concurrently
 - [x] Fix `Runner.Builder.tags()` bug — multiple varargs now stored as List (was v2 regression from v1)
 
@@ -1072,6 +1087,20 @@ e2e/
 Both test suites must pass when switching backends:
 - Run with `type: 'chrome'` (CDP)
 - Run with `type: 'playwright'` (when implemented)
+
+### Selenium container image selection
+
+Testcontainers-backed W3C tests (`W3cDriverFeatureTest`, `W3cFrameFeatureTest`,
+`W3cGridE2eTest`) resolve image names via
+`io.karatelabs.driver.e2e.support.SeleniumImages`. The helper picks the
+community `seleniarm/*` arm64 images on Apple Silicon (avoids QEMU emulation,
+which roughly 5–10×s the chrome-driven runtime) and the upstream `selenium/*`
+images everywhere else — keeping CI on `ubuntu-latest` (amd64) on the native
+path. Per-image escape hatches via env vars: `KARATE_SELENIUM_STANDALONE_IMAGE`,
+`KARATE_SELENIUM_HUB_IMAGE`, `KARATE_SELENIUM_NODE_IMAGE`. The standalone image
+is wrapped with
+`DockerImageName.asCompatibleSubstituteFor("selenium/standalone-chrome")` to
+satisfy `BrowserWebDriverContainer`'s allowlist on the arm64 path.
 
 ### LLM/ariaTree Tests
 

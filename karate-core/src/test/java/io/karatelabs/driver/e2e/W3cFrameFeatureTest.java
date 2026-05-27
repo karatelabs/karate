@@ -27,6 +27,7 @@ import io.karatelabs.core.Runner;
 import io.karatelabs.core.SuiteResult;
 import io.karatelabs.driver.Driver;
 import io.karatelabs.driver.PooledDriverProvider;
+import io.karatelabs.driver.e2e.support.SeleniumImages;
 import io.karatelabs.driver.e2e.support.TestPageServer;
 import io.karatelabs.driver.w3c.W3cDriver;
 import io.karatelabs.driver.w3c.W3cDriverOptions;
@@ -68,7 +69,7 @@ class W3cFrameFeatureTest {
 
     @Container
     private static final BrowserWebDriverContainer<?> chrome =
-            new BrowserWebDriverContainer<>("selenium/standalone-chrome:latest")
+            new BrowserWebDriverContainer<>(SeleniumImages.standalone())
                     .withExposedPorts(4444);
 
     private static TestPageServer testServer;

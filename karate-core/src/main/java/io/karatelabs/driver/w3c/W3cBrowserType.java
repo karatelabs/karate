@@ -36,8 +36,8 @@ import java.util.Map;
 public enum W3cBrowserType {
 
     CHROMEDRIVER("chromedriver", "chrome", "chromedriver", 9515, "--port=%d"),
-    GECKODRIVER("geckodriver", "firefox", "geckodriver", 4444, "--port %d"),
-    SAFARIDRIVER("safaridriver", "safari", "safaridriver", 5555, "-p %d"),
+    GECKODRIVER("geckodriver", "firefox", "geckodriver", 4444, "--port=%d"),
+    SAFARIDRIVER("safaridriver", "safari", "safaridriver", 5555, "--port=%d"),
     MSEDGEDRIVER("msedgedriver", "MicrosoftEdge", "msedgedriver", 9515, "--port=%d");
 
     private static final Map<String, W3cBrowserType> BY_TYPE = new HashMap<>();

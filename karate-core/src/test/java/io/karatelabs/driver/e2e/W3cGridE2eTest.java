@@ -27,6 +27,7 @@ import io.karatelabs.core.Runner;
 import io.karatelabs.core.SuiteResult;
 import io.karatelabs.driver.Driver;
 import io.karatelabs.driver.PooledDriverProvider;
+import io.karatelabs.driver.e2e.support.SeleniumImages;
 import io.karatelabs.driver.e2e.support.TestPageServer;
 import io.karatelabs.driver.w3c.W3cDriver;
 import io.karatelabs.driver.w3c.W3cDriverOptions;
@@ -78,7 +79,7 @@ class W3cGridE2eTest {
 
     private static final Network network = Network.newNetwork();
 
-    private static final GenericContainer<?> hub = new GenericContainer<>("selenium/hub:latest")
+    private static final GenericContainer<?> hub = new GenericContainer<>(SeleniumImages.hub())
             .withNetwork(network)
             .withNetworkAliases("selenium-hub")
             .withExposedPorts(4442, 4443, 4444)
@@ -87,7 +88,7 @@ class W3cGridE2eTest {
             // readiness explicitly after the node is up.
             .waitingFor(Wait.forListeningPort().withStartupTimeout(Duration.ofMinutes(2)));
 
-    private static final GenericContainer<?> node = new GenericContainer<>("selenium/node-chromium:latest")
+    private static final GenericContainer<?> node = new GenericContainer<>(SeleniumImages.node())
             .withNetwork(network)
             .withNetworkAliases("selenium-node")
             .withEnv("SE_EVENT_BUS_HOST", "selenium-hub")

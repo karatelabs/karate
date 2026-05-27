@@ -239,6 +239,32 @@ Async background process. Returns `ProcessHandle` with:
 
 **Options:** `line`/`args`, `workingDir`, `env`, `useShell`, `redirectErrorStream`, `timeout`, `listener`, `errorListener`, `start`
 
+### ProcessHandle infrastructure guarantees
+
+`io.karatelabs.process.ProcessHandle` is the single child-process abstraction
+used by `karate.exec`, `karate.fork`, `CdpLauncher` (Chrome), and `W3cDriver`
+(chromedriver / geckodriver / safaridriver / msedgedriver). Three guarantees
+hold for every consumer — no per-call-site code required:
+
+- **Stream draining.** Stdout / stderr are pulled by virtual-thread readers as
+  soon as the process starts. Virtual threads are daemons by JEP 444 guarantee,
+  so they never keep the JVM alive. Chatty children (chromedriver under
+  `--verbose`, geckodriver, any noisy fork) cannot block by filling the OS
+  pipe buffer.
+- **JVM-exit cleanup.** Every started handle registers in a static
+  `LIVE_HANDLES` set; a `Runtime.addShutdownHook` callback iterates the set
+  and `destroyForcibly()`s any survivor. Covers clean exit, Ctrl-C, OOM, and
+  `kill` — a forked process can't be orphaned even on abnormal JVM
+  termination. Removal is idempotent (on `close()` and on natural process
+  exit), so the set doesn't bloat over a long-lived JVM.
+- **Argv-safe construction.** `ProcessBuilder.command().add(String)` does not
+  split on whitespace, so every consumer must pass each argv token as a
+  separate string. Format strings that bake the value into the same token as
+  the flag must use `--flag=value` form, never `--flag value` (the latter
+  becomes a single unrecognised token). The W3C driver's port arg format is
+  the canonical example — see `W3cBrowserTypeTest` for the enforced
+  invariant.
+
 ### karate.signal() + listen
 
 Communicate from forked process listener back to test flow:
