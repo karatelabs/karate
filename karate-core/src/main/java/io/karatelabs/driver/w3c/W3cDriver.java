@@ -377,9 +377,15 @@ public class W3cDriver implements Driver {
         } else {
             // v1 pattern: input is the ONE operation that uses native W3C sendKeys
             // because JS value assignment doesn't trigger framework input event handlers
-            String elementId = findElementIdWithRetry(locator);
             eval(Locators.clearJs(locator));
-            session.sendKeys(elementId, value);
+            String elementId = findElementIdWithRetry(locator);
+
+            try {
+                session.sendKeys(elementId, value);
+            } catch (Exception e) {
+                logger.warn("Native sendKeys failed. Falling back to JS injection.");
+                eval(Locators.inputJs(locator, value));
+            }
         }
         return BaseElement.existing(this, locator);
     }

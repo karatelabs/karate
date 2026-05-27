@@ -93,7 +93,7 @@ public class W3cSession {
         URI uri = URI.create(baseUrl + "/session");
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(uri)
-                .header("Content-Type", "application/json")
+                .header("Content-Type", "application/json; charset=utf-8")
                 .timeout(timeout);
 
         String userInfo = uri.getUserInfo();
@@ -408,7 +408,7 @@ public class W3cSession {
         logger.trace("POST {} : {}", path, json);
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("Content-Type", "application/json")
+                .header("Content-Type", "application/json; charset=utf-8")
                 .timeout(timeout)
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
