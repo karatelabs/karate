@@ -1480,14 +1480,22 @@ public class CdpDriver implements Driver {
                                 .param("returnByValue", true).send();
                         String internalName = evalName.getResultAsString("result.value");
                         String internalUrl = evalUrl.getResultAsString("result.value");
-                        boolean matches = false;
-                        if (fName != null && !fName.isEmpty() && fName.equals(internalName)) {
-                            matches = true;
-                        } else if (fSrc != null && !fSrc.isEmpty() && internalUrl != null && internalUrl.contains(fSrc)) {
-                            matches = true;
-                        } else if ((fName == null || fName.isEmpty()) && (fSrc == null || fSrc.isEmpty())) {
-                            matches = true;
-                        }
+                        // Strict matching: if BOTH name and src are specified on the iframe
+                        // element, require BOTH to match this OOPIF. window.name persists across
+                        // cross-process navigations of the same iframe, so a stale OOPIF entry
+                        // (e.g., the same iframe before the test promoted it cross-origin) still
+                        // has the matching window.name — name-only matching would happily pick it
+                        // up and we'd query an outdated document. Requiring window.location.href
+                        // to also contain the iframe's current src filters those out; the retry
+                        // loop absorbs the brief window before Target.attachedToTarget fires for
+                        // the new OOPIF.
+                        boolean noCriteria = (fName == null || fName.isEmpty())
+                                && (fSrc == null || fSrc.isEmpty());
+                        boolean nameOk = fName == null || fName.isEmpty()
+                                || fName.equals(internalName);
+                        boolean srcOk = fSrc == null || fSrc.isEmpty()
+                                || (internalUrl != null && internalUrl.contains(fSrc));
+                        boolean matches = noCriteria || (nameOk && srcOk);
                         if (matches) {
                             matched[0] = potentialFrameId;
                             matched[1] = internalUrl;

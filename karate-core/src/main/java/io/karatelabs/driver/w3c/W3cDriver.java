@@ -893,6 +893,12 @@ public class W3cDriver implements Driver {
 
     @Override
     public Mouse mouse(String locator) {
+        // W3C Actions API rejects pointerMove targets outside the viewport with
+        // "move target out of bounds" (HTTP 500). The element may be below the fold
+        // (small container Chrome viewport) or laid out at coords that are technically
+        // off-screen; scroll it into view so the viewport-relative coords below are
+        // always inside [0, viewportWidth) × [0, viewportHeight).
+        scroll(locator);
         Map<String, Object> pos = position(locator, true);
         double x = ((Number) pos.get("x")).doubleValue();
         double y = ((Number) pos.get("y")).doubleValue();
