@@ -140,8 +140,12 @@ public interface Driver extends CoreDriver, SimpleObject {
                     exists(String.valueOf(args[0]));
             case DriverApi.ENABLED -> (JavaCallable) (ctx, args) ->
                     enabled(String.valueOf(args[0]));
-            case DriverApi.POSITION -> (JavaCallable) (ctx, args) ->
-                    position(String.valueOf(args[0]));
+            case DriverApi.POSITION -> (JavaCallable) (ctx, args) -> {
+                if (args.length > 1 && args[1] instanceof Boolean) {
+                    return position(String.valueOf(args[0]), (Boolean) args[1]);
+                }
+                return position(String.valueOf(args[0]));
+            };
 
             // Locators
             case DriverApi.LOCATE -> (JavaCallable) (ctx, args) ->

@@ -17,6 +17,10 @@ Feature: Mouse Tests
     * match m.getY() == 200.0
 
   Scenario: Mouse at element
+    # Scrool to element so it is in the viewport
+    * scroll('#submit-btn')
+    # Ensure element does NOT have hover state at start
+    * assert script('#submit-btn', '(b) => getComputedStyle(b).backgroundColor != "rgb(0, 82, 163)"')
     * def m = mouse('#submit-btn')
     * def pos = position('#submit-btn', true)
     * def expectedX = pos.x + pos.width / 2
@@ -26,6 +30,8 @@ Feature: Mouse Tests
     * def yDiff = m.getY() - expectedY
     * assert Math.abs(xDiff) < 2
     * assert Math.abs(yDiff) < 2
+    # Ensure element has hover state - i.e. don't trust mouse impl to self report x,y
+    * assert script('#submit-btn', '(b) => getComputedStyle(b).backgroundColor === "rgb(0, 82, 163)"')
 
   Scenario: Mouse move
     * def m = mouse()
