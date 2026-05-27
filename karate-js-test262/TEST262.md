@@ -233,15 +233,32 @@ Picked off opportunistically when nearby — not session-sized on their own.
 - **`.length` / `.name` rollout to remaining prototypes.** `JsBuiltinMethod`
   infra in place; most residual `name.js` fails are Symbol-gated.
 
-- **Destructuring-assignment two-mode parser.** Spec §13.7.5.13 step 4b
-  requires the LHS of `for ({x} of …)` / `[x, y] = …` to be reparsed
-  using `AssignmentPattern` as the goal symbol. Today the parser
-  resolves `{x, y}` eagerly as a block-statement and `[x]` as an
-  array-literal, then the `of` / `=` arrives too late. Single biggest
-  remaining language fix — covers `for-of` / `expressions/object` /
-  `expressions/assignment` in one. Plus TDZ / init-order corners, lexer
-  identifier-escape support, negative parse tightenings. **Centerpiece
-  of upcoming sessions.**
+- **Destructuring cover-grammar — remaining gaps.** Five tail-end
+  items, in priority order:
+    - **Arrow-function param: duplicate binding names.** `(x, {x}) => 1`
+      / `({a, a}) => …` must be SyntaxError at parse phase. Needs a
+      walker over `FN_DECL_ARGS` collecting bound IDENTs through nested
+      destructuring, rejecting duplicates. Drives the
+      `arrowparameters-cover-no-duplicates-binding-*` cluster in
+      `test/language/expressions/arrow-function/syntax/early-errors`.
+    - **Other arrow-function early-errors.** `dstr/syntax-error-ident-ref-default.js`,
+      `dstr/syntax-error-ident-ref-extends.js`,
+      `object-destructuring-param-strict-body.js`. Likely small
+      spec-shape gaps in the same area; investigate per test.
+    - **Runtime: destructured arrow-param binding with defaults.**
+      `{ x = init }` in an arrow param doesn't bind `x` from the
+      iterator's value (and doesn't fall back to `init` on undefined).
+      Function-declaration-instantiation path needs to honor the cover
+      form. Representative: `arrow-function/dstr/obj-ptrn-id-init-fn-name-cover.js`.
+    - **Runtime: destructuring default in for-of array element.**
+      `[x = init]` in a for-of LHS doesn't apply `init` when the
+      iterator value is undefined. Representative:
+      `for-of/dstr/array-elem-init-in.js`.
+    - **Misclassified error in `([a = expr()] = it);`.** Parser emits
+      `expected: [IDENT, S_STRING]` (the object-accessor key set) for
+      an array-literal element with default. Likely a get/set accessor
+      branch in `object_elem` mis-triggering inside the array path.
+      Representative: `assignment/destructuring/default-expr-throws-iterator-return-get-throws.js`.
 
 - **Cleanup residuals.** Occasional `"null"` NPE paths, `IllegalName` JDK
   lambda leak, `Java heap space` OOM in array-slice paths.
@@ -492,9 +509,10 @@ tail -n 5 target/test262/run-<ts>/results.jsonl.partial    # last 5 FAIL/SKIP ro
 # 1. After editing karate-js/, refresh the local Maven repo
 mvn -f ../pom.xml -pl karate-js -o install -DskipTests
 
-# 2. Run the suite (sequential; minutes to tens of minutes).
+# 2. Run the suite. Sequential, but fast in dev mode:
+#    `test/language/**` (~24k attempted) ≈ 1m15s; full suite ≈ 2m30s.
+#    `--full` adds PASS rows + HTML render (~30s extra on the full suite).
 #    Run-dir defaults to target/test262/run-<timestamp>/; the runner prints it.
-#    Default is dev mode (FAIL/SKIP rows only). Add --full for PASS rows.
 mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
     -Dexec.args="--only test/language/expressions/**"
 

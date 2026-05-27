@@ -134,6 +134,7 @@ public class JsParser extends BaseParser {
         // subtree-walk is otherwise pure dead weight).
         if (!errorRecoveryEnabled) {
             validateEarlyErrors(ast);
+            validateCoverInitializedNames(ast, false);
         }
         return ast;
     }
@@ -204,6 +205,159 @@ public class JsParser extends BaseParser {
                 validateEarlyErrors(child);
             }
         }
+    }
+
+    /**
+     * Spec early error: a {@code CoverInitializedName} (the shorthand-with-default
+     * {@code IDENT = AssignmentExpression} inside object-literal braces) is only
+     * legal when the surrounding {@code {...}} ends up refined as an
+     * {@code ObjectAssignmentPattern} or {@code ObjectBindingPattern}. In a plain
+     * object literal it must be a SyntaxError (§12.2.6.1).
+     * <p>
+     * The parser accepts the cover form unconditionally in {@code object_elem()}
+     * because at parse time it can't yet tell whether {@code {...}} is the LHS of
+     * an assignment / a binding / an arrow param. This walk catches the cases
+     * where the surrounding shape never turns out to be a destructuring target.
+     */
+    private void validateCoverInitializedNames(Node node, boolean inPattern) {
+        if (node == null) return;
+        if (node.type == NodeType.OBJECT_ELEM && hasCoverInitForm(node) && !inPattern) {
+            throw new ParserException("invalid shorthand initializer: only allowed in destructuring pattern");
+        }
+        if (inPattern && node.type == NodeType.LIT_ARRAY) {
+            validateRestElementRules(node);
+        }
+        for (int i = 0, n = node.size(); i < n; i++) {
+            Node child = node.get(i);
+            if (child.isToken()) continue;
+            validateCoverInitializedNames(child, childInPatternContext(node, i, inPattern));
+        }
+    }
+
+    /**
+     * Spec early errors for {@code BindingRestElement} / {@code AssignmentRestElement}
+     * inside an {@code ArrayBindingPattern} / {@code ArrayAssignmentPattern}:
+     * <ul>
+     *   <li>Rest element must be the last binding element — {@code [...x, y]} is
+     *       invalid (§13.3.3).</li>
+     *   <li>Rest element cannot carry a default initializer — {@code [...x = 1]}
+     *       is invalid (rest target is a DestructuringAssignmentTarget, not an
+     *       AssignmentExpression).</li>
+     * </ul>
+     * Called only when the surrounding {@code LIT_ARRAY} is in pattern context;
+     * a spread {@code [...arr, b]} in a regular array literal stays valid.
+     */
+    private static void validateRestElementRules(Node litArray) {
+        int lastArrayElemIdx = -1;
+        for (int i = 0, n = litArray.size(); i < n; i++) {
+            Node ch = litArray.get(i);
+            if (!ch.isToken() && ch.type == NodeType.ARRAY_ELEM) {
+                lastArrayElemIdx = i;
+            }
+        }
+        for (int i = 0, n = litArray.size(); i < n; i++) {
+            Node ch = litArray.get(i);
+            if (ch.isToken() || ch.type != NodeType.ARRAY_ELEM) continue;
+            if (!hasRestPrefix(ch)) continue;
+            if (i != lastArrayElemIdx) {
+                throw new ParserException("invalid destructuring: rest element must be the last binding element");
+            }
+            if (restHasInitializer(ch)) {
+                throw new ParserException("invalid destructuring: rest element cannot have an initializer");
+            }
+        }
+    }
+
+    private static boolean hasRestPrefix(Node arrayElem) {
+        if (arrayElem.size() == 0) return false;
+        Node first = arrayElem.getFirst();
+        return first.isToken() && first.token.type == DOT_DOT_DOT;
+    }
+
+    /**
+     * For an ARRAY_ELEM that starts with {@code ...}, returns true iff the target
+     * expression after the DOT_DOT_DOT carries a top-level assignment — i.e. the
+     * rest target is being given a default value, which is invalid.
+     */
+    private static boolean restHasInitializer(Node arrayElem) {
+        boolean sawDot = false;
+        for (int i = 0, n = arrayElem.size(); i < n; i++) {
+            Node ch = arrayElem.get(i);
+            if (ch.isToken()) {
+                if (ch.token.type == DOT_DOT_DOT) sawDot = true;
+                continue;
+            }
+            if (!sawDot) continue;
+            Node inner = ch;
+            while (inner != null && inner.size() == 1
+                    && (inner.type == NodeType.EXPR
+                        || inner.type == NodeType.EXPR_LIST
+                        || inner.type == NodeType.LIT_EXPR)) {
+                Node next = inner.getFirst();
+                if (next.isToken()) break;
+                inner = next;
+            }
+            if (inner != null && inner.type == NodeType.ASSIGN_EXPR) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Pattern-context propagation rules. Top-down: a {@code LIT_OBJECT} (or
+     * {@code LIT_ARRAY}) that's a destructuring target distributes pattern context
+     * to its element values via {@code OBJECT_ELEM} / {@code ARRAY_ELEM}; the
+     * default-initializer expression after {@code =} in a CoverInitializedName is
+     * expression context, not pattern. Parens reset to expression — a
+     * parenthesized destructuring pattern is invalid per spec.
+     */
+    private static boolean childInPatternContext(Node parent, int i, boolean inPattern) {
+        switch (parent.type) {
+            case ASSIGN_EXPR, VAR_DECL, FN_DECL_ARG -> {
+                // LHS / binding position is at index 0.
+                return i == 0;
+            }
+            case FOR_STMT -> {
+                // for-of / for-in LHS — the non-token child immediately preceding
+                // the OF / IN token. for-loops with semicolons stay false.
+                for (int j = 0; j < parent.size(); j++) {
+                    Node sib = parent.get(j);
+                    if (sib.isToken() && (sib.token.type == OF || sib.token.type == IN)) {
+                        return i == j - 1;
+                    }
+                }
+                return false;
+            }
+            case OBJECT_ELEM -> {
+                // OBJECT_ELEM children: [key-bits..., (COLON | EQ), value/init].
+                // Only propagate pattern context through the value of a colon form;
+                // the initializer after `=` is always expression context.
+                if (!inPattern) return false;
+                return !hasCoverInitForm(parent);
+            }
+            case ARRAY_ELEM, LIT_OBJECT, LIT_ARRAY, LIT_EXPR, EXPR, EXPR_LIST -> {
+                return inPattern;
+            }
+            default -> {
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Detect the CoverInitializedName shape inside an {@code OBJECT_ELEM}:
+     * an {@code EQ} token appearing at the top of the element, not after a
+     * {@code COLON} (which would make it a regular {@code key: value = expr}
+     * where the inner {@code =} belongs to an AssignmentExpression value).
+     */
+    private static boolean hasCoverInitForm(Node objElem) {
+        for (int i = 0, n = objElem.size(); i < n; i++) {
+            Node ch = objElem.get(i);
+            if (!ch.isToken()) continue;
+            TokenType t = ch.token.type;
+            if (t == EQ) return true;
+            if (t == COLON) return false;
+        }
+        return false;
     }
 
     /**
@@ -889,19 +1043,27 @@ public class JsParser extends BaseParser {
         if (peek() != L_PAREN) {
             return false;
         }
-        int depth = 0;
+        // Track both () and {} depth so destructured object params (`({a}) =>`) and
+        // default expressions containing braces don't trip the early bail.
+        // A top-level SEMI is still a hard bail — arrow-param lists can't span statements.
+        int parenDepth = 0;
+        int curlyDepth = 0;
         int size = tokens.size();
         for (int i = getPosition(); i < size; i++) {
             TokenType t = tokens.get(i).type;
             if (t == L_PAREN) {
-                depth++;
+                parenDepth++;
             } else if (t == R_PAREN) {
-                if (--depth == 0) {
-                    // Check if next token is =>
+                if (--parenDepth == 0 && curlyDepth == 0) {
                     return i + 1 < size && tokens.get(i + 1).type == EQ_GT;
                 }
-            } else if (t == L_CURLY || t == SEMI || t == EOF) {
-                // Can't be arrow function args - bail early
+            } else if (t == L_CURLY) {
+                curlyDepth++;
+            } else if (t == R_CURLY) {
+                curlyDepth--;
+            } else if (t == EOF) {
+                return false;
+            } else if (t == SEMI && curlyDepth == 0) {
                 return false;
             }
         }
@@ -1073,25 +1235,33 @@ public class JsParser extends BaseParser {
         if (!enter(NodeType.LIT_OBJECT, L_CURLY)) {
             return false;
         }
-        boolean hasElements = false;
-        while (true) {
-            if (peekIf(R_CURLY) || peekIf(EOF)) {
-                break;
-            }
-            if (!object_elem()) {
-                if (errorRecoveryEnabled && hasElements) {
-                    // Only error/recover if we've parsed at least one element
-                    // If first element fails, this might be a block, not an object
-                    error("invalid object element");
-                    recoverTo(R_CURLY, COMMA, EOF);
-                    continue;
+        // Same NoIn reset as paren_expr — `for (var x = {k: a in b}; ...)` and
+        // `for ([x = a in b] of ...)` should treat the nested `in` as relational.
+        boolean prevNoIn = noIn;
+        noIn = false;
+        try {
+            boolean hasElements = false;
+            while (true) {
+                if (peekIf(R_CURLY) || peekIf(EOF)) {
+                    break;
                 }
-                break;
+                if (!object_elem()) {
+                    if (errorRecoveryEnabled && hasElements) {
+                        // Only error/recover if we've parsed at least one element
+                        // If first element fails, this might be a block, not an object
+                        error("invalid object element");
+                        recoverTo(R_CURLY, COMMA, EOF);
+                        continue;
+                    }
+                    break;
+                }
+                hasElements = true;
             }
-            hasElements = true;
+            boolean result = consumeIf(R_CURLY);
+            return exit(result, false);
+        } finally {
+            noIn = prevNoIn;
         }
-        boolean result = consumeIf(R_CURLY);
-        return exit(result, false);
     }
 
     private boolean object_elem() {
@@ -1178,21 +1348,27 @@ public class JsParser extends BaseParser {
         if (!enter(NodeType.LIT_ARRAY, L_BRACKET)) {
             return false;
         }
-        while (true) {
-            if (peekIf(R_BRACKET) || peekIf(EOF)) {
-                break;
-            }
-            if (!array_elem()) {
-                if (errorRecoveryEnabled) {
-                    error("invalid array element");
-                    recoverTo(R_BRACKET, COMMA, EOF);
-                    continue;
+        boolean prevNoIn = noIn;
+        noIn = false;
+        try {
+            while (true) {
+                if (peekIf(R_BRACKET) || peekIf(EOF)) {
+                    break;
                 }
-                break;
+                if (!array_elem()) {
+                    if (errorRecoveryEnabled) {
+                        error("invalid array element");
+                        recoverTo(R_BRACKET, COMMA, EOF);
+                        continue;
+                    }
+                    break;
+                }
             }
+            consumeSoft(R_BRACKET);
+            return exit();
+        } finally {
+            noIn = prevNoIn;
         }
-        consumeSoft(R_BRACKET);
-        return exit();
     }
 
     private boolean array_elem() {
