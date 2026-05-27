@@ -1,4 +1,3 @@
-@cdp
 Feature: Mouse Tests
   Mouse operations and positioning
 
