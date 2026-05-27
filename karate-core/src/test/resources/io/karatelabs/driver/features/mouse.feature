@@ -16,7 +16,7 @@ Feature: Mouse Tests
     * match m.getY() == 200.0
 
   Scenario: Mouse at element
-    # Scrool to element so it is in the viewport
+    # Scroll to element so it is in the viewport
     * scroll('#submit-btn')
     # Ensure element does NOT have hover state at start
     * assert script('#submit-btn', '(b) => getComputedStyle(b).backgroundColor != "rgb(0, 82, 163)"')
