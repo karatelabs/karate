@@ -2404,6 +2404,12 @@ public class CdpDriver implements Driver {
     public void cookie(Map<String, Object> cookie) {
         logger.debug("set cookie: {}", cookie.get("name"));
         CdpMessage message = cdp.method("Network.setCookie");
+
+        // CDP requires either a url or a domain. If neither is provided, default to current URL
+        if (!cookie.containsKey("url") && !cookie.containsKey("domain")) {
+            message.param("url", getUrl());
+        }
+
         cookie.forEach(message::param);
         message.send();
     }
