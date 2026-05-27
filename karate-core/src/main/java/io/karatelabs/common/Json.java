@@ -445,7 +445,7 @@ public class Json {
             return null;
         }
         if (o instanceof Map || o instanceof List) {
-            return FileUtils.toBytes(JSONValue.toJSONString(o));
+            return FileUtils.toBytes(JSONValue.toJSONString(breakCyclesIfAny(o)));
         } else if (o instanceof Node) {
             return FileUtils.toBytes(Xml.toString((Node) o));
         } else if (o instanceof byte[]) {
@@ -459,10 +459,46 @@ public class Json {
 
     public static String stringifyStrict(Object o) {
         if (o instanceof Map || o instanceof List) {
-            return JSONValue.toJSONString(o, JSON_STYLE);
+            return JSONValue.toJSONString(breakCyclesIfAny(o), JSON_STYLE);
         } else {
             return o == null ? "" : o.toString();
         }
+    }
+
+    /**
+     * json-smart's writer has no circular-reference guard and infinite-recurses on
+     * cyclic Maps/Lists. We pre-walk with identity tracking; if a cycle exists, we
+     * substitute with the existing {@code copy(o, true, true)} which replaces cycle
+     * back-edges with {@code "#<classname>"} markers. Non-cyclic inputs pass through
+     * untouched — the walk is O(n) and avoids the deep-copy cost in the common case.
+     */
+    private static Object breakCyclesIfAny(Object o) {
+        Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        if (hasCycle(o, seen)) {
+            return copy(o, true, true);
+        }
+        return o;
+    }
+
+    private static boolean hasCycle(Object o, Set<Object> seen) {
+        if (o instanceof Map<?, ?> map) {
+            if (!seen.add(o)) {
+                return true;
+            }
+            for (Object v : map.values()) {
+                if (hasCycle(v, seen)) return true;
+            }
+            seen.remove(o);
+        } else if (o instanceof List<?> list) {
+            if (!seen.add(o)) {
+                return true;
+            }
+            for (Object v : list) {
+                if (hasCycle(v, seen)) return true;
+            }
+            seen.remove(o);
+        }
+        return false;
     }
 
     /**

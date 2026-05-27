@@ -200,6 +200,36 @@ class JsonTest {
     }
 
     @Test
+    void testStringifyStrictBreaksCyclesAutomatically() {
+        // regression: issue #2880 — json-smart's writer has no cycle guard,
+        // a self-referencing Map crashed stringifyStrict with StackOverflowError.
+        Map<String, Object> obj = new LinkedHashMap<>();
+        obj.put("name", "test");
+        obj.put("self", obj);
+        String s = Json.stringifyStrict(obj);
+        assertEquals("{\"name\":\"test\",\"self\":\"#java.util.LinkedHashMap\"}", s);
+    }
+
+    @Test
+    void testStringifyStrictBreaksListCycles() {
+        List<Object> list = new ArrayList<>();
+        list.add(1);
+        list.add(list);
+        String s = Json.stringifyStrict(list);
+        assertEquals("[1,\"#java.util.ArrayList\"]", s);
+    }
+
+    @Test
+    void testToBytesBreaksCycles() {
+        // same hole as stringifyStrict — toBytes also fed JSONValue.toJSONString directly.
+        Map<String, Object> obj = new LinkedHashMap<>();
+        obj.put("k", "v");
+        obj.put("self", obj);
+        byte[] bytes = Json.toBytes(obj);
+        assertEquals("{\"k\":\"v\",\"self\":\"#java.util.LinkedHashMap\"}", new String(bytes));
+    }
+
+    @Test
     void testJsonOfNullThrows() {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> {
             Json.of(null);

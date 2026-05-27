@@ -128,4 +128,22 @@ class StepPrintTest {
         assertTrue(log.contains("bar"), "expected 'bar' in: " + log);
     }
 
+    @Test
+    void testPrintCircularReference() {
+        // regression: issue #2880 — printing a Map with a self-reference crashed
+        // with StackOverflowError because Json.stringifyStrict fed json-smart's
+        // writer directly (no cycle guard).
+        ScenarioRuntime sr = run("""
+            * def obj = { name: 'test', items: [1, 2, 3] }
+            * eval obj.self = obj
+            * match obj.self.name == 'test'
+            * match obj.self.self.name == 'test'
+            * print obj
+            """);
+        assertPassed(sr);
+        String log = getStepLog(sr, 4);
+        assertTrue(log.contains("test"), "expected 'test' in: " + log);
+        assertTrue(log.contains("#"), "expected cycle marker in: " + log);
+    }
+
 }
