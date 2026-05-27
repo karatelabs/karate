@@ -94,8 +94,7 @@ class JsFunctionNode extends JsFunction {
 
     // Called by Interpreter when context is pre-prepared with closure info
     Object bindArgsAndExecute(CoreContext functionContext, CoreContext parentContext, Object[] args) {
-        int actualArgCount = Math.min(args.length, argCount);
-        for (int i = 0; i < actualArgCount; i++) {
+        for (int i = 0; i < argCount; i++) {
             Node argNode = argNodes.get(i);
             Node first = argNode.getFirst();
             if (first.getFirstToken().type == TokenType.DOT_DOT_DOT) { // varargs
@@ -105,35 +104,26 @@ class JsFunctionNode extends JsFunction {
                 }
                 String argName = argNode.getLast().getText();
                 functionContext.put(argName, remainingArgs);
-            } else if (first.type == NodeType.LIT_ARRAY || first.type == NodeType.LIT_OBJECT) {
-                Interpreter.evalAssign(first, functionContext, BindScope.VAR, args[i], true);
-            } else {
-                String argName = argNode.getFirst().getText();
-                Object argValue = args[i];
-                if (argValue == Terms.UNDEFINED) {
-                    // check if default value expression exists
-                    // Only for FN_DECL_ARG nodes, not for single-param arrow functions
-                    // where argNode is the whole FN_ARROW_EXPR (getLast() would be the body!)
-                    Node exprNode = argNode.getLast();
-                    if (argNode.type == NodeType.FN_DECL_ARG && exprNode.type == NodeType.EXPR) {
-                        argValue = Interpreter.eval(exprNode, functionContext);
-                    }
-                }
-                functionContext.put(argName, argValue);
+                continue;
             }
-        }
-        if (args.length < argCount) {
-            for (int i = args.length; i < argCount; i++) {
-                Node argNode = argNodes.get(i);
-                String argName = argNode.getFirst().getText();
-                Node exprNode = argNode.getLast();
-                Object argValue;
-                // Only evaluate as default if argNode is FN_DECL_ARG (not FN_ARROW_EXPR)
-                if (argNode.type == NodeType.FN_DECL_ARG && exprNode.type == NodeType.EXPR) {
-                    argValue = Interpreter.eval(exprNode, functionContext);
-                } else {
-                    argValue = Terms.UNDEFINED;
-                }
+            // Resolve the passed value or fall back to UNDEFINED — the param-level
+            // default (FN_DECL_ARG: [target, EQ, EXPR, COMMA?]) then fires on
+            // UNDEFINED for both IDENT and destructuring-pattern params. The
+            // trailing COMMA is appended by the parser for every arg but the last,
+            // so look up EQ/EXPR by index rather than via getLast().
+            Object argValue = i < args.length ? args[i] : Terms.UNDEFINED;
+            if (argValue == Terms.UNDEFINED
+                    && argNode.type == NodeType.FN_DECL_ARG
+                    && argNode.size() >= 3
+                    && argNode.get(1).isToken()
+                    && argNode.get(1).token.type == TokenType.EQ
+                    && argNode.get(2).type == NodeType.EXPR) {
+                argValue = Interpreter.eval(argNode.get(2), functionContext);
+            }
+            if (first.type == NodeType.LIT_ARRAY || first.type == NodeType.LIT_OBJECT) {
+                Interpreter.evalAssign(first, functionContext, BindScope.VAR, argValue, true);
+            } else {
+                String argName = first.getText();
                 functionContext.put(argName, argValue);
             }
         }

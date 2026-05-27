@@ -187,10 +187,10 @@ counts go stale fast and don't belong in this file.
 
 | Slice | What's blocking it |
 |---|---|
-| `test/language/statements/for-of` | Destructuring-assignment patterns in for-of head (`for ([{x}] of …)` / `for ({x,y} of …)`). Spec §13.7.5.13 step 4b: LHS must be reparsed as `AssignmentPattern` — needs **pattern-vs-literal two-mode parsing** (see Background sweep). Also negative-parse tightenings (`for (var x of []) let y;`) and IteratorClose-on-throw runtime. |
-| `test/language/expressions/object` | Object literal shorthand / computed-key / spread / method-def edges. Shares two-mode parser fate with destructuring. |
-| `test/language/expressions/assignment` | Destructuring-assignment residuals — same two-mode parser. |
-| `test/language/statements/function` + `expressions/function` + `arrow-function` | Function-form edges: default params, rest, destructuring in params. |
+| `test/language/statements/for-of` | Residual: IteratorClose-on-throw runtime; fn-name inference for `[x = (function(){})] of …`; a handful of negative-parse tightenings (`for (var x of []) let y;`). Pattern-dispatch is in place (LHS unwrap → `destructurePattern` with assignment-mode `bindScope`). |
+| `test/language/expressions/object` | Escaped-keyword cover-name (`covered-ident-name-prop-name-literal-break-escaped.js` cluster) dominates; `__proto__`-duplicate edges; computed-key / spread / method-def tail. |
+| `test/language/expressions/assignment` | Iterator-return semantics on default-expr throw; misclassified parser error in `([a = expr()] = it)` (see Background sweep). |
+| `test/language/statements/function` + `expressions/function` + `arrow-function` | Residual: fn-name inference for `[x = (function(){})]`-style defaults, IteratorClose-on-throw, and a few rest-element edges. Param-level default (`= initializer`) now fires uniformly for IDENT and destructuring patterns. |
 | `test/language/expressions/compound-assignment` | `\|\|=` / `&&=` / `??=` plus compound-op corners. |
 | `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion already handles headline cases. |
 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` (gated until Symbol). |
@@ -233,8 +233,8 @@ Picked off opportunistically when nearby — not session-sized on their own.
 - **`.length` / `.name` rollout to remaining prototypes.** `JsBuiltinMethod`
   infra in place; most residual `name.js` fails are Symbol-gated.
 
-- **Destructuring cover-grammar — remaining gaps.** Five tail-end
-  items, in priority order:
+- **Destructuring cover-grammar — remaining gaps.** Tail-end items,
+  in priority order:
     - **Arrow-function param: duplicate binding names.** `(x, {x}) => 1`
       / `({a, a}) => …` must be SyntaxError at parse phase. Needs a
       walker over `FN_DECL_ARGS` collecting bound IDENTs through nested
@@ -245,15 +245,6 @@ Picked off opportunistically when nearby — not session-sized on their own.
       `dstr/syntax-error-ident-ref-extends.js`,
       `object-destructuring-param-strict-body.js`. Likely small
       spec-shape gaps in the same area; investigate per test.
-    - **Runtime: destructured arrow-param binding with defaults.**
-      `{ x = init }` in an arrow param doesn't bind `x` from the
-      iterator's value (and doesn't fall back to `init` on undefined).
-      Function-declaration-instantiation path needs to honor the cover
-      form. Representative: `arrow-function/dstr/obj-ptrn-id-init-fn-name-cover.js`.
-    - **Runtime: destructuring default in for-of array element.**
-      `[x = init]` in a for-of LHS doesn't apply `init` when the
-      iterator value is undefined. Representative:
-      `for-of/dstr/array-elem-init-in.js`.
     - **Misclassified error in `([a = expr()] = it);`.** Parser emits
       `expected: [IDENT, S_STRING]` (the object-accessor key set) for
       an array-literal element with default. Likely a get/set accessor

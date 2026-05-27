@@ -193,6 +193,13 @@ class Interpreter {
             int last = pattern.size() - 1;
             for (int i = 1; i < last; i++) {
                 Node elem = pattern.get(i);
+                // Parser appends the trailing COMMA as the last child of OBJECT_ELEM
+                // for every element except the last — so size includes a phantom slot
+                // for inner elements. Trim it before shape-based dispatch below.
+                int sz = elem.size();
+                if (sz > 0 && elem.get(sz - 1).isToken() && elem.get(sz - 1).token.type == COMMA) {
+                    sz--;
+                }
                 Node keyNode = elem.getFirst();
                 TokenType keyType = keyNode.token.type;
                 if (keyType == DOT_DOT_DOT) {
@@ -241,10 +248,10 @@ class Interpreter {
                         v = temp;
                     }
                 }
-                if (!computed && elem.size() < 3) {
+                if (!computed && sz < 3) {
                     // shorthand {foo}
                     bindLeaf(keyNode, key, context, bindScope, v, initialized);
-                } else if (!computed && elem.size() == 3 && elem.get(1).token.type == EQ) {
+                } else if (!computed && sz == 3 && elem.get(1).token.type == EQ) {
                     // shorthand with default {foo = default}
                     if (v == Terms.UNDEFINED) {
                         v = evalExpr(elem.get(2), context);
@@ -821,6 +828,24 @@ class Interpreter {
                 } else {
                     bindScope = BindScope.VAR;
                     bindings = node.get(2);
+                    // for-of/in without var/let/const: per spec §13.7.5.13 step 4b
+                    // the LHS is re-parsed as an AssignmentPattern when it's a
+                    // destructuring shape. The token-list LHS arrives wrapped as
+                    // EXPR_LIST → EXPR → LIT_EXPR → LIT_ARRAY/LIT_OBJECT; unwrap
+                    // to the pattern and switch to assignment mode (bindScope=null
+                    // so leaves route through context.update, not declare).
+                    Node bare = bindings;
+                    while (bare != null && !bare.isToken() && bare.size() > 0
+                            && (bare.type == NodeType.EXPR_LIST
+                                || bare.type == NodeType.EXPR
+                                || bare.type == NodeType.LIT_EXPR)) {
+                        bare = bare.getFirst();
+                    }
+                    if (bare != null && !bare.isToken()
+                            && (bare.type == NodeType.LIT_ARRAY || bare.type == NodeType.LIT_OBJECT)) {
+                        bindings = bare;
+                        bindScope = null;
+                    }
                 }
                 boolean isLetOrConst = bindScope == BindScope.LET || bindScope == BindScope.CONST;
                 // for-in keeps key-enumeration semantics (Object.keys-equivalent; null/undefined
