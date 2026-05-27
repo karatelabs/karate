@@ -28,6 +28,7 @@ import io.karatelabs.common.Json;
 import io.karatelabs.common.Resource;
 import io.karatelabs.common.StringUtils;
 import io.karatelabs.common.Xml;
+import io.karatelabs.output.ImageComparisonResult;
 import org.w3c.dom.Node;
 import io.karatelabs.gherkin.Feature;
 import io.karatelabs.gherkin.MatchExpression;
@@ -238,6 +239,9 @@ public class StepExecutor {
                     // Browser driver
                     case "driver" -> executeDriver(step);
 
+                    // Image comparison
+                    case "compareImage" ->  executeCompareImage(step);
+
                     default -> {
                         // Check if text starts with ( - means keyword is a function name like myFunc('a')
                         // We only do this check here (not earlier) because valid keywords like "eval"
@@ -303,6 +307,12 @@ public class StepExecutor {
         if (embeds != null) {
             for (StepResult.Embed embed : embeds) {
                 result.addEmbed(embed);
+            }
+        }
+        List<ImageComparisonResult> imageComparisonResults = ctx.collectImageComparisonResults();
+        if (imageComparisonResults != null) {
+            for (ImageComparisonResult icr : imageComparisonResults) {
+                result.addImageComparisonResult(icr);
             }
         }
         // Set call results accumulated during this step's execution (plus any pending
@@ -2826,6 +2836,17 @@ public class StepExecutor {
 
         // Navigate to the URL
         driver.setUrl(url);
+    }
+
+    // ========== Image comparison ==========
+
+    private void executeCompareImage(Step step) {
+        Object value = evalKarateExpression(step.getText());
+        if (value instanceof Map) {
+            runtime.compareImageInternal((Map)value);
+        } else {
+            throw new RuntimeException("compareImage expects a map: " + step.getText());
+        }
     }
 
     // ========== Karate Expression Helpers ==========

@@ -89,7 +89,10 @@ public final class HtmlReportWriter {
             "karate-report.css",
             "karate-report.js",
             "karate-logo.svg",
-            "favicon.ico"
+            "favicon.ico",
+            "jquery.min.js",
+            "jquery-ui.min.js",
+            "Resemble.js",
     };
 
     private static final String DATA_PLACEHOLDER = "/* KARATE_DATA */";
@@ -257,6 +260,7 @@ public final class HtmlReportWriter {
         summary.put("scenario_skipped", result.getScenarioSkippedCount());
         summary.put("duration_millis", result.getDurationMillis());
         summary.put("status", result.isFailed() ? "failed" : "passed");
+        summary.put("includes_image_comparison_report", result.hasImageComparisonReport());
         suiteData.put("summary", summary);
 
         // Build feature summary list for display

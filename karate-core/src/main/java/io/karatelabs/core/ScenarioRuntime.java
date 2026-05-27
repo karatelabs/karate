@@ -25,6 +25,7 @@ package io.karatelabs.core;
 
 import io.karatelabs.common.Json;
 import io.karatelabs.common.Resource;
+import io.karatelabs.common.ResourceType;
 import io.karatelabs.common.StringUtils;
 import io.karatelabs.driver.Driver;
 import io.karatelabs.driver.cdp.CdpDriver;
@@ -36,6 +37,7 @@ import io.karatelabs.gherkin.Step;
 import io.karatelabs.gherkin.Tag;
 import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.js.JavaCallable;
+import io.karatelabs.output.ImageComparisonResult;
 import io.karatelabs.output.LogContext;
 import org.slf4j.Logger;
 
@@ -1797,6 +1799,12 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 sr.addEmbed(e);
             }
         }
+        List<ImageComparisonResult> imageComparisonResults = ctx.collectImageComparisonResults();
+        if (imageComparisonResults != null) {
+            for (ImageComparisonResult icr : imageComparisonResults) {
+                sr.addImageComparisonResult(icr);
+            }
+        }
         result.addStepResult(sr);
         return err;
     }
@@ -2060,6 +2068,84 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         if (hook != null) {
             hook.reportPerfEvent(event);
         }
+    }
+
+    protected Map<String, Object> compareImageInternal(Map<String,Object> params) {
+        Map<String, Object> options = getImageOptions(params.get("options"), "options");
+        byte[] baselineImg = getImageBytes(params, "baseline");
+        byte[] latestImg = getImageBytes(params, "latest");
+
+        Map<String, Object> defaultOptions = getImageOptions(config.getImageComparison(), "defaultOptions");
+        boolean embedUI = !Boolean.TRUE.equals(defaultOptions.get("suppressUIOnSuccess"));
+
+        Map<String, Object> result = null;
+        try {
+            result = ImageComparison.compare(baselineImg, latestImg, options, defaultOptions);
+        } catch (ImageComparison.MismatchException e) {
+            logger.error("image comparison failed: {}", e.getMessage());
+            embedUI = true;
+            result = e.data;
+            if (!Boolean.TRUE.equals(defaultOptions.get("mismatchShouldPass"))) throw e;
+        } finally {
+            if (embedUI) {
+                // remove raw images from JSON output
+                Map<String, Object> condensedResult =  new HashMap<>(result);
+                condensedResult.remove(ImageComparison.BASELINE_IMAGE);
+                condensedResult.remove(ImageComparison.LATEST_IMAGE);
+                condensedResult.remove(ImageComparison.DIFF_IMAGE);
+                String diffJS = "newDiffUI(document.currentScript," +
+                        Json.of(condensedResult) + "," +
+                        Json.of(options) + "," +
+                        getImageHookFunction(options, defaultOptions, "onShowRebase") + "," +
+                        getImageHookFunction(options, defaultOptions, "onShowConfig") +
+                        ")";
+                LogContext.get().embed(KarateJsUtils.convertToBytes(diffJS), ResourceType.DEFERRED_JS.contentType);
+            }
+            ImageComparisonResult icr = ImageComparisonResult.fromMap(scenario, currentStep.getLine(), result);
+            LogContext.get().writeImageComparisonResult(icr);
+        }
+
+        return result;
+    }
+
+    private byte[] getImageBytes(Map<String, Object> params, String paramName) {
+        Object img = params.get(paramName);
+        if (img == null) {
+            return null;
+        }
+
+        if (img instanceof String) {
+            Resource resource = getFeatureRuntime().getFeature().getResource().resolve((String)img);
+            try (java.io.InputStream is = resource.getStream()) {
+                return is.readAllBytes();
+            } catch (java.io.IOException e) {
+                throw new RuntimeException("Failed to read bytes from: " + img, e);
+            }
+        }
+
+        if (img instanceof byte[]) {
+            return (byte[])img;
+        }
+
+        throw new RuntimeException(
+                "invalid image comparison options: expected " + paramName + " to be one of string|byte[]");
+    }
+
+    private Map<String, Object> getImageOptions(Object obj, String objName) {
+        if (obj == null) {
+            return new HashMap<>();
+        }
+
+        if (obj instanceof Map) {
+            return (Map<String, Object>)obj;
+        }
+
+        throw new RuntimeException("invalid image comparison " + objName + ": expected map");
+    }
+
+    private String getImageHookFunction(Map<String, Object> options, Map<String, Object> defaultOptions, String name) {
+        Object fn = options.containsKey(name) ? options.get(name) : defaultOptions.get(name);
+        return fn == null ? null : fn.toString();
     }
 
 }

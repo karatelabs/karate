@@ -24,6 +24,7 @@
 package io.karatelabs.core;
 
 import io.karatelabs.output.Console;
+import io.karatelabs.output.ImageComparisonReportListener;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -39,6 +40,7 @@ public class SuiteResult {
     private long endTime;
     private Path reportDir;
     private boolean htmlReportEnabled;
+    private ImageComparisonReportListener imageComparisonReportListener;
 
     public SuiteResult() {
     }
@@ -73,6 +75,10 @@ public class SuiteResult {
 
     public boolean isHtmlReportEnabled() {
         return htmlReportEnabled;
+    }
+
+    public void setImageComparisonReportListener(ImageComparisonReportListener imageComparisonReportListener) {
+        this.imageComparisonReportListener = imageComparisonReportListener;
     }
 
     public synchronized void addFeatureResult(FeatureResult fr) {
@@ -162,9 +168,14 @@ public class SuiteResult {
         summary.put("endTime", endTime);
         summary.put("durationMillis", getDurationMillis());
         summary.put("passed", !isFailed());
+        summary.put("includesImageComparisonReport", hasImageComparisonReport());
         map.put("summary", summary);
 
         return map;
+    }
+
+    public boolean hasImageComparisonReport() {
+        return imageComparisonReportListener != null && imageComparisonReportListener.hasResults();
     }
 
     public String toJsonString() {

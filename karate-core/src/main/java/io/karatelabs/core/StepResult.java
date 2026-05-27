@@ -26,6 +26,7 @@ package io.karatelabs.core;
 import io.karatelabs.gherkin.Step;
 
 import io.karatelabs.output.Console;
+import io.karatelabs.output.ImageComparisonResult;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -45,6 +46,7 @@ public class StepResult {
     private final Throwable error;
     private String log;
     private List<Embed> embeds;
+    private List<ImageComparisonResult> imageComparisonResults;
     private List<FeatureResult> callResults;  // For call steps - called feature results (V1 style)
     private String hookName;  // "beforeScenario" / "afterScenario" when this represents a lifecycle hook
 
@@ -147,6 +149,17 @@ public class StepResult {
             embeds = new ArrayList<>();
         }
         embeds.add(embed);
+    }
+
+    public List<ImageComparisonResult> getImageComparisonResults() {
+        return imageComparisonResults;
+    }
+
+    public void addImageComparisonResult(ImageComparisonResult imageComparisonResult) {
+        if (imageComparisonResults == null) {
+            imageComparisonResults  = new ArrayList<>();
+        }
+        imageComparisonResults.add(imageComparisonResult);
     }
 
     public List<FeatureResult> getCallResults() {

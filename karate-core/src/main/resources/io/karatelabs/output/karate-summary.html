@@ -29,6 +29,9 @@
                 <li class="nav-item">
                     <a class="nav-link" href="karate-timeline.html">Timeline</a>
                 </li>
+                <li x-show="data.summary?.includes_image_comparison_report" class="nav-item">
+                    <a class="nav-link" href="image-comparison.pdf">Image Comparison</a>
+                </li>
             </ul>
             <button class="btn btn-sm btn-outline-light ms-2" @click="toggleTheme()" title="Toggle theme">
                 <span x-show="theme === 'light'">&#9790;</span>

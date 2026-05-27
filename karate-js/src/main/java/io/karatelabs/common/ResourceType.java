@@ -31,6 +31,7 @@ import java.util.Map;
 
 public enum ResourceType {
 
+    DEFERRED_JS("text/x-deferred-javascript", vals("javascript"), vals("js")),
     JS("text/javascript", vals("javascript"), vals("js")),
     JSON("application/json", vals("json"), vals("json")),
     CSS("text/css", vals("css"), vals("css")),

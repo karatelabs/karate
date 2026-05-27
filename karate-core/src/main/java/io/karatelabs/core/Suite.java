@@ -317,6 +317,11 @@ public class Suite {
             resultListeners.add(new JunitXmlReportListener(outputDir));
         }
 
+        // Auto-register Image comparison report listener
+        ImageComparisonReportListener imageComparisonReportListener = new ImageComparisonReportListener(outputDir);
+        result.setImageComparisonReportListener(imageComparisonReportListener);
+        resultListeners.add(imageComparisonReportListener);
+
         // Optionally register JSON Lines event stream writer
         JsonLinesEventWriter jsonlWriter = null;
         if (outputJsonLines) {

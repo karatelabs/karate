@@ -77,7 +77,9 @@ public class KarateConfig implements SimpleObject {
             // Mock settings
             "corsEnabled", "responseHeaders", "afterScenario", "afterScenarioOutline", "afterFeature", "onStepFailure",
             // Driver
-            "driverConfig"
+            "driverConfig",
+            // Image comparison
+            "imageComparison"
     );
 
     // ===== HTTP Client (requires rebuild when changed) =====
@@ -166,6 +168,9 @@ public class KarateConfig implements SimpleObject {
     // Driver configuration (Map or DriverOptions)
     private Object driverConfig;
 
+    // Image comparison configuration
+    private Object imageComparison;  // Map<String,Object>
+
     // Channel options (e.g. kafka, grpc) set via 'configure kafka = { ... }'
     private final Map<String, Map<String, Object>> channelOptions = new HashMap<>();
 
@@ -240,6 +245,8 @@ public class KarateConfig implements SimpleObject {
         this.onStepFailure = other.onStepFailure;
         // Driver
         this.driverConfig = other.driverConfig;
+        // Image Comparison
+        this.imageComparison = other.imageComparison;
         // Channel options
         this.channelOptions.clear();
         other.channelOptions.forEach((k, v) -> this.channelOptions.put(k, new HashMap<>(v)));
@@ -389,6 +396,12 @@ public class KarateConfig implements SimpleObject {
             // Driver configuration
             case "driver" -> {
                 this.driverConfig = value;
+                yield false;
+            }
+
+            // Image comparison configuration
+            case "imageComparison" -> {
+                this.imageComparison = value;
                 yield false;
             }
 
@@ -755,6 +768,7 @@ public class KarateConfig implements SimpleObject {
             case "afterFeature" -> afterFeature;
             case "onStepFailure" -> onStepFailure;
             case "driverConfig" -> driverConfig;
+            case "imageComparison" -> imageComparison;
             default -> null;
         };
     }
@@ -1033,6 +1047,10 @@ public class KarateConfig implements SimpleObject {
 
     public Object getDriverConfig() {
         return driverConfig;
+    }
+
+    public Object getImageComparison() {
+        return imageComparison;
     }
 
     // ===== Channel Getters =====

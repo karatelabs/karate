@@ -65,6 +65,7 @@ public class LogContext {
 
     private final StringBuilder buffer = new StringBuilder();
     private List<StepResult.Embed> embeds;
+    private List<ImageComparisonResult> imageComparisonResults;
     // Per-thread HTTP logging config, set via `configure logging = { mask, pretty }`.
     // HttpLogger reads these on each request so changes take effect immediately
     // without needing to rebuild the HTTP client. Defaults: pretty=true, no mask.
@@ -280,6 +281,13 @@ public class LogContext {
 
     // ========== Embeds ==========
 
+    public void writeImageComparisonResult(ImageComparisonResult result) {
+        if (imageComparisonResults == null) {
+            imageComparisonResults = new ArrayList<>();
+        }
+        imageComparisonResults.add(result);
+    }
+
     /**
      * Add an embed (HTML, image, etc.) to be included in step result.
      */
@@ -304,6 +312,12 @@ public class LogContext {
         List<StepResult.Embed> result = embeds;
         embeds = null;
         return result;
+    }
+
+    public List<ImageComparisonResult> collectImageComparisonResults() {
+        List<ImageComparisonResult> results = imageComparisonResults;
+        imageComparisonResults = null;
+        return results;
     }
 
     // ========== Collect ==========

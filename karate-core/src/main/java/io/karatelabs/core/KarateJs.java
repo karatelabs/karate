@@ -1274,6 +1274,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             case "callonce" -> callonce();
             case "channel" -> channel();
             case "callSingle" -> callSingle();
+            case "compareImage" -> compareImage();
             case "config" -> getConfig();
             case "configure" -> configure();
             case "doc" -> doc();

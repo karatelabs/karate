@@ -424,6 +424,35 @@ abstract class KarateJsBase implements SimpleObject {
     }
 
     /**
+     * karate.compareImage() - Perform image comparison.
+     */
+    JavaInvokable compareImage() {
+        return args -> {
+            ScenarioRuntime rt = getRuntime();
+            if (rt == null) {
+                throw new RuntimeException("karate.compareImage() is not available in this context");
+            }
+
+            if (args.length < 2) {
+                throw new RuntimeException("compareImage() needs at least two arguments: baseline and latest");
+            }
+
+            Map<String, Object> params = new LinkedHashMap<>();
+            params.put("baseline", args[0]);
+            params.put("latest", args[1]);
+
+            if (args.length > 2) {
+                if (!(args[2] instanceof Map)) {
+                    throw new RuntimeException("invalid image comparison options: expected map");
+                }
+                params.put("options", args[2]);
+            }
+
+            return rt.compareImageInternal(params);
+        };
+    }
+
+    /**
      * Returns system properties available via karate.properties['key'].
      */
     Map<String, String> getProperties() {

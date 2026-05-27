@@ -96,6 +96,21 @@
             <version>4.44.0</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.github.t12y</groupId>
+            <artifactId>resemble</artifactId>
+            <version>1.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.t12y</groupId>
+            <artifactId>ssim</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.7</version>
+        </dependency>
     </dependencies>
 
     <build>
