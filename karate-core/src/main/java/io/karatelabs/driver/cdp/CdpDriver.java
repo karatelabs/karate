@@ -1558,7 +1558,12 @@ public class CdpDriver implements Driver {
         // HTML parsing), so without this wait a caller that immediately queries DOM
         // races the parser. Same-origin frames get this via waitForFrameContextReady().
         if (oopifSessions.containsKey(frameId)) {
-            waitForOopifReady(frameId);
+            // Pass the matched URL through so the readiness poll can also assert that the
+            // OOPIF's document.URL has actually become the expected one — guards against
+            // a transient state where readyState briefly reports non-'loading' before the
+            // cross-origin navigation has committed the new document in the new process.
+            String expectedUrl = currentFrame != null ? currentFrame.url : null;
+            waitForOopifReady(frameId, expectedUrl);
             return;
         }
         // First, wait for the main world context to arrive via Runtime.executionContextCreated.
@@ -1607,31 +1612,60 @@ public class CdpDriver implements Driver {
      * Wait for an OOPIF's document to leave the 'loading' state. cdp.sessionId is
      * already routed to the OOPIF session when this is called, so a contextId-less
      * Runtime.evaluate hits the OOPIF's default (main world) execution context.
+     *
+     * <p>When {@code expectedUrl} is non-empty, also require {@code document.URL} to
+     * contain it. {@code window.location.href} updates as soon as a navigation is
+     * committed in the browsing context — that's what {@code switchFrame} matches on
+     * — but {@code document.URL} only updates when the new {@link org.w3c.dom.Document}
+     * instance for that URL actually becomes current. Between those two points, a
+     * {@code Runtime.evaluate} can momentarily see {@code readyState !== 'loading'}
+     * against the prior/transient document (often "about:blank-ish") in the new
+     * RenderFrameHost, which would let us return before the real document is queryable.
+     * The {@code document.URL} match is the "the new doc is now real" signal.</p>
      */
-    private void waitForOopifReady(String frameId) {
+    private void waitForOopifReady(String frameId, String expectedUrl) {
         int maxWaitMs = 2000;
         int pollInterval = 50;
         long deadline = System.currentTimeMillis() + maxWaitMs;
+        boolean checkUrl = expectedUrl != null && !expectedUrl.isEmpty();
+        String script = checkUrl
+                ? "({r: document.readyState, u: document.URL})"
+                : "document.readyState";
         while (System.currentTimeMillis() < deadline) {
             try {
                 CdpResponse response = cdp.method("Runtime.evaluate")
-                        .param("expression", "document.readyState")
+                        .param("expression", script)
                         .param("returnByValue", true)
                         .send();
                 if (!response.isError()) {
-                    Object value = response.getResult("result.value");
-                    if (value instanceof String && !"loading".equals(value)) {
-                        logger.trace("OOPIF ready: frameId={}, readyState={}", frameId, value);
-                        return;
+                    if (checkUrl) {
+                        Map<String, Object> value = response.getResult("result.value");
+                        if (value != null) {
+                            Object r = value.get("r");
+                            Object u = value.get("u");
+                            if (r instanceof String && !"loading".equals(r)
+                                    && u instanceof String && ((String) u).contains(expectedUrl)) {
+                                logger.trace("OOPIF ready: frameId={}, readyState={}, url={}",
+                                        frameId, r, u);
+                                return;
+                            }
+                        }
+                    } else {
+                        Object value = response.getResult("result.value");
+                        if (value instanceof String && !"loading".equals(value)) {
+                            logger.trace("OOPIF ready: frameId={}, readyState={}", frameId, value);
+                            return;
+                        }
                     }
                 }
             } catch (Exception e) {
-                logger.trace("OOPIF readyState check failed (will retry): {}", e.getMessage());
+                logger.trace("OOPIF readiness check failed (will retry): {}", e.getMessage());
             }
             sleep(pollInterval);
         }
         // Not fatal — element-level retry in retryIfNeeded() will absorb any remainder.
-        logger.warn("timeout waiting for OOPIF document.readyState: frameId={} (will retry on first use)", frameId);
+        logger.warn("timeout waiting for OOPIF readiness: frameId={}, expectedUrl={} (will retry on first use)",
+                frameId, expectedUrl);
     }
 
     /**
