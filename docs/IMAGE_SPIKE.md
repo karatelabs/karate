@@ -4,13 +4,13 @@
 >
 > **Related:** [DESIGN.md § Ext Architecture](./DESIGN.md#ext-architecture) · [CLI.md](./CLI.md) · [RELEASING.md](./RELEASING.md) · Prototype (not committed): `~/Downloads/karate-report-redesign/` on the maintainer's machine — design-only reference, intentionally not in repo because it predates the feature/scenario/step data-model decisions Phase 1 makes
 >
-> **Vocabulary note (D17).** All SPI types and runtime symbols use `Ext` (interface `Ext`, `boot.ext('name')`, `io.karatelabs.ext.<name>.<Name>Ext`, sibling repo `karate-ext`). D17 landed in karate-core as part of the Phase 2 prep — `Plugin.java` is now `Ext.java`, `BootBinding.plugin(name)` is `BootBinding.ext(name)`, DESIGN.md § Plugin Architecture is renamed § Ext Architecture, and `SUITE_ENTER.data.plugins[]` is now `SUITE_ENTER.data.exts[]`. Historical references to "plugin" survive only in the §2 D-rows (decision provenance) and historical AGENT_KARATE.md K-row comments.
+> **Vocabulary (D17).** All SPI types and runtime symbols use `Ext` — interface `Ext`, `boot.ext('name')`, `io.karatelabs.ext.<name>.<Name>Ext`, sibling repo `karate-ext`. Wire field is `SUITE_ENTER.data.exts[]`. The §2 D-rows describing the rename use historical "plugin" terminology for decision provenance only.
 
 ---
 
 ## 1. Goals
 
-1. **Restyle the HTML report** by porting the existing three templates (`karate-summary.html`, `karate-feature.html`, `karate-timeline.html` under `karate-core/src/main/resources/io/karatelabs/output/`) to Tailwind, cherry-picking design ideas from the prototype at `~/Downloads/karate-report-redesign/` that align with our actual data model. The prototype was built by a design-first contributor without the feature→scenario→step hierarchy in view, so some of its KPIs and panels assume data we don't have; the port treats it as a visual vocabulary and aesthetic reference, not a one-to-one template port. Split across **Phase 1** (Tailwind chrome swap — done) and **Phase 1b** (matrix-feature adoption — donut, KPI cards, sticky sidebar, lightbox, copy-as-cURL, etc.). See the Phase 1 / Phase 1b sections for the curated idea-list and what landed where.
+1. **Restyle the HTML report** by porting the existing three templates (`karate-summary.html`, `karate-feature.html`, `karate-timeline.html` under `karate-core/src/main/resources/io/karatelabs/output/`) to Tailwind, cherry-picking design ideas from the prototype at `~/Downloads/karate-report-redesign/` that align with our actual data model. The prototype was built by a design-first contributor without the feature→scenario→step hierarchy in view, so some of its KPIs and panels assume data we don't have; the port treats it as a visual vocabulary and aesthetic reference, not a one-to-one template port. Phase 1 (chrome swap) + Phase 1b (matrix adoption) are complete; remaining "Adopt" items deferred — see Phase 1b § Deferred.
 2. **Define a slot/asset/global contract** so exts can contribute UI chunks (per-step embeds, summary panels, per-feature panels, top-level pages) and JS-scope globals to the test runtime without touching `karate-core` Java.
 3. **Ship `karate-image`** as the first OSS ext — an in-repo submodule with a fatjar build — covering the v1 `compareImage` use case with a Tailwind+Alpine UI. Image comparison is the *dogfood*: if the SPI can host it, the SPI is real.
 4. **Migrate `karate-ext/karate-openapi`** (renamed from `karate-plugins`; see D17) onto the new slot/asset contract — contributes a coverage page + summary panel (and later an "API calls touched" roll-up). Proves the SPI on a second, separately-versioned ext.
@@ -382,9 +382,7 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 
 ### Phase 1 — Tailwind restyle of existing reports (no ext code)
 
-> **Status:** *Complete.* Tailwind chrome swap landed: Bootstrap → Tailwind classes, dark/light, FOUC fix, navbar, Heroicons sprite, three `<!-- KARATE_* -->` placeholders in `HtmlReportWriter`. Build via `etc/tailwind/tailwind.sh` (downloads CLI v3.4.17 on first run to `etc/tailwind/.cache/`, no node / npm). CI staleness gate in `.github/workflows/cicd.yml`. Timeline page got D20-palette overrides; vis-timeline CDN accepted as documented carve-out (O20).
-
-> **Phase 1 vs Phase 1b.** Phase 1 was the chrome swap only. The "design idea adoption matrix" below lists prototype features marked "Adopt" that need real template + Alpine implementation — those live in **Phase 1b** (next section). The matrix stays here as Phase 1b's source-of-truth.
+> **Status:** *Complete.* Chrome swap landed: Bootstrap → Tailwind, dark/light, navbar, Heroicons sprite, `KARATE_*` placeholders in `HtmlReportWriter`, `etc/tailwind/` build script, CI staleness gate. Phase 1b (next section) owns adoption of matrix items that need real Alpine work.
 
 **Strategy: port, don't rewrite.** The existing three templates already wire `FeatureResult.toJson()` data correctly. Phase 1 replaces only the styling layer and selectively adopts visual ideas from the prototype that survive contact with the actual data model. Anything that assumes data we don't compute, or that's fluff dressed up to look impressive, gets rejected.
 
@@ -424,22 +422,7 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 
 ### Phase 1b — Prototype feature adoption
 
-> **Status:** *Chrome work complete — remaining items deferred.* Phase 1 was the Tailwind chrome swap only; Phase 1b owned the matrix "Adopt" features that needed real template + Alpine work. Everything tractable without upstream Java/data-model changes has landed; the rest are captured under "Deferred" below.
-
-**Done so far:**
-
-- *All three pages:* Enterprise CTA in topbar (per-page `utm_content` on `https://karatelabs.io/karate-enterprise?utm_source=karate-os&utm_medium=report&utm_campaign=enterprise-cta`), hero section (status pill + h1 + meta row), footer with `https://karatelabs.io` + `https://docs.karatelabs.io/` links.
-- *Summary page:* pass-rate donut (pure SVG, three `<circle>` segments unrolled — Alpine can't `<template x-for>` inside `<svg>`); Failures tile (clickable list of failing scenarios, links to `feature-html/<file>.html#<refId>`); summary tile row dogfoods §3.2 by exposing `<div data-slot="summary.panels" class="empty:hidden contents">` in an auto-fit grid (Failures spans full width when alone, splits when exts contribute in Phase 2); expand UX fix (always-visible chevron, per-feature `<tbody>`, accent left-border spine on expanded scenario rows linking to anchors).
-- *Feature page:* `data.reportDate` + `data.karateVersion` populated in `HtmlReportWriter.buildFeatureData` (falls back to earliest scenario start time) — timestamp now appears as the first item in the hero meta row; step-keyword color coding (only `method` orange + `match` blue; everything else slate); hook-step lines fully muted slate regardless of pass/fail; screenshot lightbox via `<dialog>` + `KarateReport.openLightbox(src, name)` — image embeds get `cursor-zoom-in` + click opens modal with caption; sidebar All/Failed filter chips (hidden when there are no failures — one-state filter is just noise).
-- *Timeline page:* KPI card row — Scenarios (total), Speedup (`serialDurationMillis / suiteDurationMillis`, threshold-gated: `≥500ms` wall + `≥2` threads, since sub-half-second runs are timing noise and single-thread has nothing to compare), Wall clock. Grid auto-collapses to 2 cols when Speedup is hidden so the row never leaves a gap. Per-thread groups in the gantt with `Thread N` labels (bare digit thread names were unreadable as group sidebar labels); Top-5 slowest scenarios panel below the gantt (links to `feature-html/<file>.html#<refId>`). Gantt height capped at `max-height: 60vh` so the slowest panel stays inside the viewport with the gantt. `HtmlReportWriter.buildTimelineData` now emits `summary` + `serialDurationMillis` + a flat `scenarios[]` for the panel.
-- *Build-side:* test fixture `karate-core/src/test/resources/io/karatelabs/report/sample-screenshot.png` + image-embed steps in `http-demo.feature` exercise the lightbox path; comment line added to `helper.feature` exercises comment rendering inside a nested call result.
-
-**Scope amendments made mid-build** (so a fresh reader doesn't try to re-add them):
-
-- Slowest-scenarios tile **dropped from Summary** (low signal — when everything passes it's filler). Moved into Timeline-page scope below.
-- Per-scenario step-gantt + inline step duration mini-bar — built then removed. Visual noise without telling users anything the numeric durations don't.
-- Step keyword color coding **narrowed** from a 7-keyword palette to just `method` + `match`. Restraint over rainbow.
-- Exec-summary paragraph, hero action buttons, Copy-link / Export-PDF / Re-run topbar buttons — all dropped. Theme toggle + Enterprise CTA are enough chrome.
+> **Status:** *Complete; some items deferred (see below).* Owns the matrix "Adopt" features that needed real template + Alpine work — everything tractable without upstream Java/data-model changes landed (donut, KPI cards, Failures tile, sticky sidebar with All/Failed filter, step-keyword color coding, screenshot lightbox, Timeline speedup/wall-clock cards + per-thread groups + Top-5 slowest panel). For specifics consult git history and the live templates.
 
 **Deferred — good to have, no ETA.** Investigated during Phase 1b and each one needs more upstream work than fits the chrome-restyle scope. Captured here so they're not lost.
 
@@ -449,18 +432,13 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 - **Outline examples table** *(deferred)* — aggregate sibling outline examples into a per-example table (status pill, refId, vars binding, duration). Today each example appears as its own scenario row; aggregation is straightforward but the *vars binding* isn't on the wire — `buildScenarioData` doesn't expose the row's column values. Needs the per-example vars added to the wire first.
 - **Skipped-scenario reason block** *(deferred)* — callout above a skipped scenario's steps showing why it was skipped. Today the synthetic `@skipped` tag is the only marker; `karate.abort()`-style skips show the abort step inline already, making the callout redundant. Worth doing only when tag-filter / `@ignore`-driven skips can be distinguished from abort skips — needs runtime metadata that isn't on `ScenarioResult` today.
 
-**Out of scope** (per matrix decisions):
-
-- Tag pass-rate rings (O13). Critical-path overlay on Timeline (rejected). Thread-utilization heatmap (O15). Mock data flourishes / heavy aesthetic effects (rejected per D20).
-
-**Data plumbing.** Remaining items are mostly template-side: data already lands in `SUITE_EXIT` / `FEATURE_EXIT` per DESIGN.md § Reports. The HTTP-block / expected-vs-actual items might need a small Java change to surface fields cleanly. If implementation reveals a missing field, pause and decide whether to extend the data model or drop the feature.
-
-**Exit criteria.** `HtmlReportWriterTest#testHtmlReportGeneration` green; each remaining item visible in the generated report; both light + dark themes pass eyeball.
+**Out of scope** (per matrix decisions): Tag pass-rate rings (O13). Critical-path overlay on Timeline (rejected). Thread-utilization heatmap (O15). Mock data flourishes / heavy aesthetic effects (rejected per D20).
 
 ### Phase 2 — Ext SPI extensions + slot loader
 
+> **Status note.** D17 rename (Plugin → Ext) already landed as Phase 2 prep — `Ext.java`, `BootBinding.ext(...)`, `boot.ext('x')`, `SUITE_ENTER.data.exts[]`, DESIGN.md § Ext Architecture. The remaining Phase 2 scope is the SPI extensions + slot loader below.
+
 **Scope:**
-- ~~Rename `Plugin` → `Ext`, `BootBinding.plugin(name)` → `BootBinding.ext(name)`, `boot.plugin('x')` JS surface → `boot.ext('x')`. Update DESIGN.md § Plugin Architecture → § Ext Architecture. Source files: `Plugin.java`, `BootBinding.java`, `BootLoader.java`, `Suite.java` (per DESIGN.md § Plugin Architecture "Source files" footer).~~ **Landed.** D17 rename complete: `Ext.java`, `BootBinding.ext(...)`, `boot.ext('x')`, `SUITE_ENTER.data.exts[]`, DESIGN.md § Ext Architecture, plus `AgentPlugin`→`AgentExt` (`io.karatelabs.ext.agent.AgentExt`).
 - Extend `Suite`: `registerReportAssets(name, ClassLoader)`, `getReportAssets()` (returns `Map<String, ExtAssetDescriptor>`), `registerGlobal(name, instance)`, `getGlobal(name)`, `getGlobals()`.
 - `HtmlReportWriter` already has the `<!-- KARATE_EXTS -->` placeholder wired (Phase 1 foundation; substitutes to empty string today). Phase 2 fills the substitution: at write time, iterate `Suite.getReportAssets()` → copy each ext's `META-INF/karate-ext/static/` to `target/karate-reports/ext/<name>/` → assemble the `<script src=ext/<name>/ext.js defer></script>` (+ optional `<link rel=stylesheet>`) lines and splice into the placeholder → write `ext/<name>/pages/...` for any nav-page contributions.
 - Extend `StepResult.Embed` to the multi-part shape (§3.6) with the single-part legacy shim.
@@ -604,7 +582,6 @@ These don't block the spike; capture so they don't get lost.
 | O5 | **Per-step embed naming convention** — `image-comparison` vs `image.comparison` vs `image-comparison-v1`. Mostly cosmetic; matters for the Alpine `Alpine.data(name)` registration key. Pick during Phase 3. | Phase 3. |
 | O6 | **Tailwind utility classes for exts** — should exts also use Tailwind, or pure scoped CSS? If Tailwind, they need their own build. Lean toward "scoped CSS for exts, Tailwind for core" — exts stay self-contained, no shared build dependency. | Document in Phase 2. |
 | O7 | **`karate.channel(...)` deprecation?** Boot-ext-globals overlap with channels in some uses (gRPC ext could expose `grpc` global instead of `karate.channel('grpc')`). Don't deprecate now — channels are per-call vs ext singletons-per-Suite, both valid. Revisit after several exts ship. | Watch. |
-| O8 | ~~**Tailwind binary licensing**~~ — **Resolved.** §3.1 no longer vendors the CLI; `etc/tailwind/tailwind.sh` fetches it on first run to a gitignored cache. Nothing redistributed by this repo. | Closed. |
 | O9 | **`@report=false` interaction with ext embeds** — DESIGN.md says `@report=false` strips step detail from artifacts. Ext embeds should respect this (image diffs of redacted scenarios must not leak). Verify in Phase 3 test. | Phase 3. |
 | O10 | **JS scope seeding order** — globals must be visible to `karate-config.js`. Need to verify `karate-base.js` ordering doesn't clobber. | Phase 2. |
 | O11 | **Channel resolver unification (D18 follow-through)** — refactor `KarateJs.channel()` (KarateJs.java:1202) to drop `KarateConfig.getChannelFactoryClass(type)` in favour of the shared `io.karatelabs.ext.<name>.<Name>Channel` resolver. Existing `karate-plugins/karate-grpc` etc. must be repackaged from `io.karatelabs.plugins.grpc.GrpcChannelFactory` → `io.karatelabs.ext.grpc.GrpcChannel`. Lock-step with D8 strict version match — `karate-ext`'s monorepo version tracks `karate-core` version exactly (a `karate-core` 2.0.10 cuts a `karate-ext` 2.0.10). | Phase 2 (resolver) + sibling repo PR + karate-ext version-sync as part of D17 rollout. |
@@ -612,11 +589,10 @@ These don't block the spike; capture so they don't get lost.
 | O13 | **Per-tag pass-rate aggregation** — deferred from Phase 1 design matrix (prototype's "tag pass-rate rings"). Requires `SuiteResult` to expose `Map<String, {passed, failed, skipped}> tagStats`. Light to compute, but no current consumer asks for it; ship Phase 1 without it, add when a user requests. | Post-Phase 1 if asked. |
 | O14 | **Karate-OSS distinct brand** — Phase 1 (D20) uses the slate-blue Karate Labs brand palette. Open question whether the OSS report should eventually have its own visual identity (e.g. to signal "this is the OSS product, not the commercial offering"). Triggers a brand-design phase that produces a Karate-OSS palette/typography spec; the spec then drops into `etc/tailwind/tailwind.config.js`'s `theme.extend` and the `@layer components` block we deliberately skipped. No template rewrite needed if Phase 1 stuck to utility classes (D20). | Post-spike; needs design input. |
 | O15 | **Thread-utilization on Timeline** — deferred from Phase 1 matrix. If anyone says the per-thread gantt isn't enough to understand parallelism behaviour, revisit. | Post-Phase 1 if asked. |
-| O16 | **Atomic D17 rename rollout — coordinate karate-core + karate-ext + Rust launcher in one release window.** A window where `~/.karate/ext/*.jar` manifests still say `karate-plugins` against a core that resolves `karate-ext` would break user setups. Rollout order: (1) merge karate-core rename + bump version, (2) immediately merge sibling karate-ext rename + matching version, (3) verify Rust launcher's `~/.karate/ext/` + `.karate/ext/` recognition unchanged (already aligned). Run all three in lockstep; don't ship one without the others. | Phase 2 release planning. |
+| O16 | **D17 rename rollout — karate-core landed; karate-ext sibling repo + Rust launcher still need lockstep.** karate-core rename merged. Outstanding: (1) sibling `karate-ext` (was `karate-plugins`) repackage from `io.karatelabs.plugins.*` to `io.karatelabs.ext.*`, (2) verify Rust launcher's `~/.karate/ext/` + `.karate/ext/` recognition (likely already aligned). A window where `~/.karate/ext/*.jar` manifests still say `karate-plugins` against a core that resolves `karate-ext` would break user setups — coordinate the sibling repo + first karate-core release that requires it. | Phase 2 release planning. |
 | O17 | **Channel resolver shares name lookup but lifecycle wrappers differ (D18 follow-through).** Per-call channels (`karate.channel('grpc')`) must instantiate per call from the factory; Suite-lifetime ext globals (`boot.ext('image')`) return the cached singleton. Phase 2 design: factor `ExtNameResolver` as a pure `String → Class<?>` lookup utility; both `BootBinding.ext()` and `KarateJs.channel()` call it but wrap the result differently. Avoids the trap of conflating the two roles into one method. | Phase 2 (resolver refactor). |
 | O18 | **Beef up collision detection for ext global names.** A registered ext global `image` shadows any user variable also named `image`. Today's collision detection (per DESIGN.md) covers built-in globals only. Phase 2 should extend the check: at scenario-runtime seed time, warn (or error, TBD) when an ext global name collides with the current scenario's `def`-bound variables. Note: `* image = 1` (raw assignment) is already invalid Karate syntax — users must write `* def image = 1` — so the *assignment* dispatch concern is bounded; the *shadowing* concern is real. | Phase 2. |
 | O19 | **Screenshot embed shape preservation when assets move to disk.** When Phase 2 lands the multi-part `{role, mime, url}` shape, screenshot embeds become URL-only (asset on disk) — the D6 shim only emits the legacy `{mime_type, data, name}` form when bytes are inline. JSONL consumers reading screenshots will silently see a shape change. Two options: (a) freeze a synthetic legacy block for the `screenshot` embed name by re-emitting the base64'd PNG inline, or (b) document the shape change in MIGRATION_GUIDE and require consumers to read `parts[]`. Pick before Phase 2 lands. | Phase 2 (decide before merge). |
-| O20 | ~~**`vis-timeline` CDN dependency on Timeline page violates D1's "no CDN at view time".**~~ — **Resolved as accepted limitation.** Timeline is rarely-used; vendoring or replacing didn't justify the cost. Timeline page applies D20 palette overrides via inline `<style>` (light + dark mode) so the chart is visually consistent with the rest of the report when it does load. D1 footnote: shipped reports are CDN-free *except* the Timeline page, which requires `unpkg.com` for `vis-timeline@7`. | Closed. |
 | O21 | **Marry Gherkin steps to complex JS/Java methods, commands, and builder patterns — the unifying authoring story.** Karate already exposes ext functionality through several syntactically distinct patterns; the design question is how they coexist coherently and what (if any) richer DSL layers on top. Inventory of forms today + proposed: (1) **property-setter / builder** — `* session.host = 'x'; * session.port = 9555` — proven in `karate.channel('grpc')` / `karate.channel('kafka')` per §3.4. Covers most configuration cases; needs no DSL design. (2) **plain JS method call** — `* image.compare('a.png', 'b.png')` or `* def x = image.compare(...)`. Works today via the JS bridge; no special dispatch. (3) **JSON-arg dispatch** — `* image { compare: 'home.png', baseline: '...' }` — Phase 2's minimal §3.5; handler routes by keys in the arg map. (4) **Cucumber-like keyword-pattern** — `* image compare "x.png" against "baseline/x.png" within 0.02` matched against a registered pattern `compare "{path}" against "{baseline}" within {threshold:double}`. Form (4) is the genuinely new design work — JS-authored handlers registered in `karate-boot.js` (no compile step), typed parameter binding, Cucumber's annotated-classpath-scanning model replaced by something declarative and runtime-registered. The win over Cucumber: keyword authoring without leaving JS, parameter validation, IDE autocompletion possible via the registered patterns. The harder question: *when does an ext author pick (1), (2), (3), or (4)?* Probably property-setter for config, plain JS for computed results (you want the return value), JSON-arg for one-shot side-effecting commands, keyword-pattern for "this should read like English." Worth a separate spike doc that thinks about all four together rather than designing the keyword-pattern form in isolation. | Post-Phase 3; separate spike doc that covers all four forms as one design conversation. |
 
 ---
@@ -632,30 +608,12 @@ These don't block the spike; capture so they don't get lost.
 
 ---
 
-## 8. Quick reference — what each artifact looks like at the end of the spike
+## 8. Quick reference — what each forward artifact looks like at the end of the spike
 
-Legend: ✅ = landed in foundation/template-port commits; 🔨 = still to build per phase.
+The Tailwind report + ext SPI scaffolding (templates, `_icons.svg`, `KARATE_*` placeholders, `etc/tailwind/`, CI staleness gate) is in `main`; treat the repo itself as the spec for those. Below shows the still-to-build layout for Phases 3 + 4 + how a user's project consumes the result.
 
 ```
-# karate (this repo)
-etc/tailwind/
-  tailwind.config.js                       ✅  brand palette, content globs (repo-root-relative)
-  input.css                                ✅  utility classes only, no @layer components (D20)
-  tailwind.sh                              ✅  one-shot / --watch; downloads CLI to .cache/ on first run
-  README.md                                ✅
-  .cache/                                  (gitignored — holds the downloaded standalone CLI)
-karate-core/
-  src/main/resources/io/karatelabs/output/
-    karate-summary.html                    ✅  Tailwind chrome + KPI cards + donut + Failures tile + summary.panels slot + expand UX
-    karate-feature.html                    ✅  chrome + hero w/ timestamp + sticky sidebar + sidebar All/Failed filter + step keyword colors + lightbox  🔨 outline table / skipped reason / HTTP block / cURL / expected-actual diff (P1b)
-    karate-timeline.html                   ✅  Tailwind chrome + D20 overrides + speedup/wall-clock cards + per-thread groups + Top-5 slowest panel; vis-timeline CDN accepted carve-out (O20)
-    _icons.svg                             ✅  Heroicons sprite, spliced via KARATE_ICONS
-    res/karate-report.css                  ✅  generated, ~18.9 KB minified
-    res/karate-report.js                   ✅  ~530 lines, Tailwind classes throughout
-    res/alpine.min.js                      ✅  vendored
-    res/karate-logo.svg, favicon.ico       ✅
-.github/workflows/cicd.yml                 ✅  runs tailwind.sh + git diff --exit-code (staleness gate)
-karate-image/                              🔨  Phase 3 — NEW submodule
+karate-image/                              🔨  Phase 3 — NEW in-repo submodule
   pom.xml                                  🔨  with -Pfatjar profile
   src/main/java/io/karatelabs/ext/image/
     ImageExt.java                          🔨
@@ -674,7 +632,7 @@ karate-openapi/                            🔨  Phase 4
   src/main/resources/META-INF/karate-ext/
     manifest.json, static/, pages/openapi-coverage.html
 
-# user's project
+# user's project at the end of the spike
 .
 ├── karate-boot.js
 │   const image = boot.ext('image'); image.baselineDir = 'baselines';
