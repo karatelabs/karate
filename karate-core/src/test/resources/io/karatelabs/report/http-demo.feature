@@ -42,6 +42,9 @@ Feature: HTTP API Demo
     And match response.status == 'healthy'
     And match response.version == '2.0.0'
     * karate.embed(response, 'application/json', 'Health Check Response')
+    # sample image embed — exercises the screenshot lightbox path
+    * def screenshot = karate.readAsBytes('classpath:io/karatelabs/report/sample-screenshot.png')
+    * karate.embed(screenshot, 'image/png', 'home page screenshot')
 
   @http @headers
   Scenario: Request with custom headers
