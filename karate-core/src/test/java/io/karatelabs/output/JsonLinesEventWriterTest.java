@@ -504,17 +504,73 @@ class JsonLinesEventWriterTest {
         assertEquals(true, scenarioExit.get("skipped"), "aborted scenario must report skipped=true");
         assertNull(scenarioExit.get("error"), "skipped scenario must not carry an error");
 
-        // V0 contract (AGENT_KARATE PR 4.A): a karate.abort()-bodied scenario — used as the
-        // declared-not-implemented convention — must still emit a coverage-atom chain so the
-        // aggregator's Coverage.gaps() surface sees the slug.
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> coverageItems = (List<Map<String, Object>>) scenarioExit.get("coverageItems");
-        assertNotNull(coverageItems, "skipped scenario must still emit coverageItems[]");
-        assertEquals(2, coverageItems.size(),
-                "plain skipped scenario chain = feature + scenario: " + coverageItems);
-        assertEquals("feature", coverageItems.get(0).get("kind"));
-        assertEquals("scenario", coverageItems.get(1).get("kind"));
-        assertEquals("aborts mid-way", coverageItems.get(1).get("name"));
+        // A karate.abort()-bodied scenario — used as the declared-not-implemented
+        // convention — must still emit identity fields (slug + name) so receivers
+        // can register the scenario in their taxonomy even though it didn't run.
+        assertNotNull(scenarioExit.get("slug"), "skipped scenario must carry a slug");
+        assertEquals("aborts mid-way", scenarioExit.get("name"));
+    }
+
+    @Test
+    void testJsonLinesOutlineEnterFiresOncePerOutline() throws Exception {
+        // Scenario Outline emits one OUTLINE_ENTER (with name/description/tags/
+        // numExamples) followed by N SCENARIO_ENTER/EXIT pairs, each carrying
+        // outlineSlug back to the parent so receivers can stitch.
+        Path feature = tempDir.resolve("outline.feature");
+        Files.writeString(feature, """
+            Feature: Outline JSONL Test
+
+            @smoke
+            Scenario Outline: lookup <key>
+            Lookup parameterised by key.
+            * def v = '<key>'
+            * match v == '<expected>'
+
+              Examples:
+                | key | expected |
+                | a   | a        |
+                | b   | b        |
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+        assertTrue(result.isPassed());
+
+        Path jsonlPath = reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl");
+        String[] lines = Files.readString(jsonlPath).trim().split("\n");
+
+        Map<String, Object> outlineEnter = null;
+        int outlineEnterCount = 0;
+        int outlineExampleScenarioCount = 0;
+        for (String line : lines) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> envelope = (Map<String, Object>) Json.of(line).value();
+            String type = (String) envelope.get("type");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) envelope.get("data");
+            if ("OUTLINE_ENTER".equals(type)) {
+                outlineEnterCount++;
+                outlineEnter = data;
+            } else if ("SCENARIO_EXIT".equals(type) && Boolean.TRUE.equals(data.get("isOutlineExample"))) {
+                outlineExampleScenarioCount++;
+            }
+        }
+
+        assertEquals(1, outlineEnterCount, "OUTLINE_ENTER should fire exactly once per outline section");
+        assertNotNull(outlineEnter);
+        assertEquals("lookup <key>", outlineEnter.get("name"),
+                "outline name keeps placeholder tokens — template identity, not expanded");
+        assertEquals(2, outlineEnter.get("numExamples"));
+        assertNotNull(outlineEnter.get("slug"));
+        assertTrue(outlineEnter.get("description").toString().contains("Lookup parameterised by key"));
+
+        assertEquals(2, outlineExampleScenarioCount,
+                "each outline-example should fire its own SCENARIO_EXIT");
     }
 
     @Test

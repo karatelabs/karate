@@ -75,6 +75,11 @@ public class FeatureRuntime implements Callable<FeatureResult> {
     private ScenarioRuntime lastExecuted;
     private FeatureResult result;
     private final Map<Integer, Integer> outlineCompletedCounts = new HashMap<>();  // section index -> completed count
+    // Outline sections we've already fired OUTLINE_ENTER for. Iteration is
+    // single-threaded (both sequential and parallel paths walk selectedScenarios()
+    // in the calling thread before submitting to the executor) so a plain HashSet
+    // is safe here.
+    private final java.util.Set<Integer> outlineEnteredSections = new java.util.HashSet<>();
     private int loopIndex = -1;  // -1 means not a loop call; 0+ is the iteration index
 
     public FeatureRuntime(Feature feature) {
@@ -162,6 +167,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                         if (suite != null && suite.isAborted()) {
                             break;
                         }
+                        maybeFireOutlineEnter(scenario);
                         executeScenario(scenario);
                     }
                 }
@@ -214,6 +220,10 @@ public class FeatureRuntime implements Callable<FeatureResult> {
             if (suite.isAborted()) {
                 break;
             }
+            // Fire OUTLINE_ENTER (if first example of its outline) in this
+            // calling thread before submitting — ensures the OUTLINE_ENTER
+            // event lands on the wire before any of its SCENARIO_ENTER events.
+            maybeFireOutlineEnter(scenario);
             Future<ScenarioResult> future = executor.submit(() -> {
                 String scenarioName = scenario.getName();
                 // Acquire semaphore to limit concurrent scenarios
@@ -382,6 +392,26 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                 logger.warn("afterFeature hook failed: {}", e.getMessage());
                 appendHookFailure(sr.getResult(), "afterFeature", e);
             }
+        }
+    }
+
+    /**
+     * Fires OUTLINE_ENTER once per outline section, the first time we encounter
+     * one of its generated examples during iteration. No-op for plain scenarios
+     * and for already-fired outlines. Called single-threaded from the iteration
+     * loops in {@link #run()} / {@link #runScenariosParallel()} before any
+     * scenario work is dispatched.
+     */
+    private void maybeFireOutlineEnter(Scenario scenario) {
+        if (suite == null || !scenario.isOutlineExample()) {
+            return;
+        }
+        FeatureSection section = scenario.getSection();
+        if (section == null) return;
+        ScenarioOutline outline = section.getScenarioOutline();
+        if (outline == null) return;
+        if (outlineEnteredSections.add(section.getIndex())) {
+            suite.fireEvent(OutlineRunEvent.enter(this, outline));
         }
     }
 

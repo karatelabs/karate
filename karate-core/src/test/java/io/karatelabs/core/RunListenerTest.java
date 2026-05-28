@@ -45,13 +45,14 @@ class RunListenerTest {
     void testRunEventTypeValues() {
         // Verify all expected event types exist
         RunEventType[] types = RunEventType.values();
-        assertEquals(12, types.length);  // Added HTTP_ENTER, HTTP_EXIT
+        assertEquals(13, types.length);  // Added OUTLINE_ENTER
 
         // Verify specific types
         assertNotNull(RunEventType.SUITE_ENTER);
         assertNotNull(RunEventType.SUITE_EXIT);
         assertNotNull(RunEventType.FEATURE_ENTER);
         assertNotNull(RunEventType.FEATURE_EXIT);
+        assertNotNull(RunEventType.OUTLINE_ENTER);
         assertNotNull(RunEventType.SCENARIO_ENTER);
         assertNotNull(RunEventType.SCENARIO_EXIT);
         assertNotNull(RunEventType.STEP_ENTER);

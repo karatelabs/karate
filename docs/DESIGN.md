@@ -292,6 +292,7 @@ Suite.fireEvent(RunEvent)  →  RunListener.onEvent(RunEvent)  →  return boole
 ```
 SUITE_ENTER
 ├── FEATURE_ENTER
+│   ├── OUTLINE_ENTER            (once per Scenario Outline section, before its examples)
 │   ├── SCENARIO_ENTER
 │   │   ├── STEP_ENTER
 │   │   │   ├── HTTP_ENTER → HTTP_EXIT
@@ -300,6 +301,8 @@ SUITE_ENTER
 └── FEATURE_EXIT
 SUITE_EXIT
 ```
+
+`OUTLINE_ENTER` fires once per outline section, the first time one of its generated examples is about to run. There's no `OUTLINE_EXIT` — outline completion is implied by the last outline-example's `SCENARIO_EXIT`. Outline-example scenarios reference their parent outline via `outlineSlug` on the SCENARIO_ENTER/EXIT data.
 
 Return `false` from `*_ENTER` events to skip execution. Events fire for **all** features including `call`ed ones — use `event.isTopLevel()` to filter.
 
@@ -555,12 +558,15 @@ Standard envelope:
 
 ```json
 {"type":"SUITE_ENTER","timeStamp":1747555200000,"threadId":null,"data":{"schemaVersion":"1","version":"2.0.8","env":"dev","threads":4}}
-{"type":"FEATURE_ENTER","timeStamp":1747555200010,"threadId":"worker-1","data":{...}}
-{"type":"SCENARIO_ENTER","timeStamp":1747555200020,"threadId":"worker-1","data":{...}}
-{"type":"SCENARIO_EXIT","timeStamp":1747555200100,"threadId":"worker-1","data":{...}}
+{"type":"FEATURE_ENTER","timeStamp":1747555200010,"threadId":"worker-1","data":{path,slug,name,description,tags,line,callDepth}}
+{"type":"OUTLINE_ENTER","timeStamp":1747555200015,"threadId":null,"data":{feature,slug,name,description,line,numExamples,tags,callDepth}}
+{"type":"SCENARIO_ENTER","timeStamp":1747555200020,"threadId":"worker-1","data":{feature,slug,name,description,line,refId,callDepth,tags,isOutlineExample,exampleIndex,outlineSlug}}
+{"type":"SCENARIO_EXIT","timeStamp":1747555200100,"threadId":"worker-1","data":{...same+passed,skipped,durationMillis,error}}
 {"type":"FEATURE_EXIT","timeStamp":1747555200200,"threadId":"worker-1","data":{...FeatureResult.toJson()}}
 {"type":"SUITE_EXIT","timeStamp":1747555210000,"threadId":null,"data":{"summary":{...}}}
 ```
+
+Identity (`slug`) is computed once per node and is intended to be cross-run stable: feature path for features; `<feature-path>:<name>` (or `::L<line>` if unnamed) for scenarios and outlines; `<outline-slug>:<exampleIndex>` for outline-examples. `outlineSlug` on a SCENARIO_ENTER/EXIT lets receivers stitch outline-examples back to their `OUTLINE_ENTER` event without denormalising outline metadata into every example. `tags` on scenarios are the *effective* list (feature + scenario tags merged); on outlines they merge feature + outline tags. See `RunUtils` for the slug formulas.
 
 `FEATURE_EXIT.data` is the full `FeatureResult.toJson()` — the canonical structured payload for offline analysis, CI/CD scraping, and downstream tooling. `SUITE_EXIT.data.summary` carries pass/fail counters, suite-level `startTime`/`endTime`/`durationMillis`, and a `passedRate` (integer percentage 0–100, or null when no scenarios executed). The same `passedRate` is exposed per feature on `FEATURE_EXIT.data` so dashboards don't have to recompute it. Denominator is `passedCount + failedCount` (matching the HTML report's totals row); since `@skipped` is additive to `passedCount`, it's also counted in the denominator. The suite-level epoch markers are co-located with `durationMillis` so a single read of `summary` gives consumers both absolute wall-clock anchors and the relative duration — without falling back to per-step `result.startTime`/`endTime` pairs, which only ever span a single step.
 

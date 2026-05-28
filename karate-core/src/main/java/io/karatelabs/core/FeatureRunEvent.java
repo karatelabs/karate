@@ -67,9 +67,13 @@ public record FeatureRunEvent(
                 if (feature.getResource() != null) {
                     map.put("path", feature.getResource().getRelativePath());
                 }
+                // slug == path today; emitted explicitly for symmetry with
+                // SCENARIO_ENTER's slug field so receivers can key by a single
+                // identifier across event types.
+                map.put("slug", RunUtils.featureSlug(feature));
                 map.put("name", feature.getName());
                 map.put("description", feature.getDescription());
-                map.put("tags", CoverageAtom.tagTexts(feature.getTags()));
+                map.put("tags", RunUtils.tagTexts(feature.getTags()));
                 map.put("line", feature.getLine());
             }
             map.put("callDepth", source.getCallDepth());

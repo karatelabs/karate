@@ -32,6 +32,10 @@ public enum RunEventType {
     SUITE_EXIT,
     FEATURE_ENTER,
     FEATURE_EXIT,
+    // OUTLINE_ENTER fires once per scenario-outline section before any of its
+    // generated examples run. Outline-examples themselves fire SCENARIO_ENTER /
+    // SCENARIO_EXIT — they're still scenarios. Receivers stitch via outlineSlug.
+    OUTLINE_ENTER,
     SCENARIO_ENTER,
     SCENARIO_EXIT,
     STEP_ENTER,

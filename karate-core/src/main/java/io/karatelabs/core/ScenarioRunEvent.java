@@ -58,16 +58,21 @@ public record ScenarioRunEvent(
     }
 
     /**
-     * Serializes a thin per-scenario envelope: identity, slug, tags, and (on EXIT)
-     * pass/fail + coverage atoms. Step results — and any embeds attached to them by
-     * plugins (e.g. {@code openapi-match}, {@code grpc-match}) — are deliberately
+     * Serializes a thin per-scenario envelope: identity (feature path, slug,
+     * line, refId), name, description, tags, and (on EXIT) pass/fail + duration.
+     * For outline-examples, {@code outlineSlug} + {@code exampleIndex} let
+     * receivers stitch back to the parent OUTLINE_ENTER event without
+     * denormalising outline metadata into every example.
+     *
+     * <p>Step results — and any embeds attached to them by exts (e.g.
+     * {@code openapi-match}, {@code grpc-match}) — are deliberately
      * <strong>not</strong> emitted here. They reach receivers inside
      * {@code FEATURE_EXIT.data.scenarioResults[i].stepResults[j].embeds[]} via
      * {@link FeatureResult#toJson()}, which already serializes the full scenario
-     * detail. Duplicating embeds onto {@code SCENARIO_EXIT} would double the on-wire
-     * bytes for typical HTTP-heavy runs without giving consumers any new information —
-     * keep them at exactly one location on the wire. See
-     * {@code karate/docs/DESIGN.md} §JSONL stream for the cross-plugin convention.
+     * detail. Duplicating embeds onto {@code SCENARIO_EXIT} would double the
+     * on-wire bytes for typical HTTP-heavy runs without giving consumers any new
+     * information — keep them at exactly one location on the wire. See
+     * {@code karate/docs/DESIGN.md} §JSONL stream for the cross-ext convention.</p>
      */
     @Override
     public Map<String, Object> toJson() {
@@ -80,16 +85,24 @@ public record ScenarioRunEvent(
             if (feature != null && feature.getResource() != null) {
                 map.put("feature", feature.getResource().getRelativePath());
             }
+            // Cross-run-stable slug so receivers can upsert by identity without
+            // re-reading source. Merged effective tags (feature + scenario).
+            map.put("slug", RunUtils.scenarioSlug(scenario, feature));
             map.put("name", scenario.getName());
+            // Description is redacted under @report=false so secrets in the
+            // scenario's description block don't leak into uploaded CI artifacts.
+            map.put("description", reportDisabled ? null : scenario.getDescription());
             map.put("line", scenario.getLine());
             map.put("refId", scenario.getRefId());
             map.put("callDepth", fr != null ? fr.getCallDepth() : 0);
-            // Cross-run-stable slug + merged effective tags so the aggregator can
-            // upsert taxonomy without needing source files. See CoverageAtom.
-            map.put("slug", CoverageAtom.scenarioSlug(scenario, feature));
-            map.put("tags", CoverageAtom.tagTexts(scenario.getTagsEffective()));
-            if (type == RunEventType.SCENARIO_EXIT) {
-                map.put("coverageItems", CoverageAtom.chain(scenario, feature, reportDisabled));
+            map.put("tags", RunUtils.tagTexts(scenario.getTagsEffective()));
+            // Outline-example fields. Parent outline metadata (name, description,
+            // tags, numExamples) is on the OUTLINE_ENTER event — stitch by outlineSlug.
+            if (scenario.isOutlineExample()) {
+                map.put("isOutlineExample", true);
+                map.put("exampleIndex", scenario.getExampleIndex());
+                map.put("outlineSlug", RunUtils.outlineSlug(
+                        RunUtils.parentOutline(scenario), feature));
             }
         }
         if (type == RunEventType.SCENARIO_EXIT && result != null) {

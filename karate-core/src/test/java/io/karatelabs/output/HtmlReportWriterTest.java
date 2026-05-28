@@ -764,9 +764,9 @@ class HtmlReportWriterTest {
             "Should contain substituted scenario name for first example");
         assertTrue(jsonl.contains("using title: Two"),
             "Should contain substituted scenario name for second example");
-        // Substituted names are what executing scenarios surface. The parent outline atom
-        // (kind="outline", emitted in coverageItems[] for outline-examples) is the template
-        // identity and legitimately carries "${title}" in its name + slug.
+        // Substituted names are what executing scenarios surface. The parent outline
+        // (OUTLINE_ENTER event, referenced from outline-examples via outlineSlug) is
+        // the template identity and legitimately carries "${title}" in its name + slug.
     }
 
     @Test

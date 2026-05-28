@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2025 Karate Labs Inc.
+ * Copyright 2026 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,16 +32,15 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Slug + atom-emission contract for the karate-agent wire protocol.
- * Verifies CoverageAtom's behaviour across the four slug-resolution branches:
- * explicit @id tag, named scenario, named outline (+ examples), unnamed fallback.
+ * Slug + tag-text helpers used by run-event JSON shaping. Verifies behaviour
+ * across the four slug-resolution branches (named scenario, unnamed scenario,
+ * outline, outline-example) and the key=value tag round-trip.
  */
-class CoverageAtomTest {
+class RunUtilsTest {
 
     private static final Path WORKING_DIR = Path.of("src/test/resources");
 
@@ -62,8 +61,8 @@ class CoverageAtomTest {
                 """);
         Scenario scenario = firstScenario(feature);
 
-        String featurePath = CoverageAtom.featureSlug(feature);
-        assertEquals(featurePath + ":create user", CoverageAtom.scenarioSlug(scenario, feature));
+        String featurePath = RunUtils.featureSlug(feature);
+        assertEquals(featurePath + ":create user", RunUtils.scenarioSlug(scenario, feature));
     }
 
     @Test
@@ -76,8 +75,8 @@ class CoverageAtomTest {
                 """);
         Scenario scenario = firstScenario(feature);
 
-        String featurePath = CoverageAtom.featureSlug(feature);
-        assertEquals(featurePath + ":create user", CoverageAtom.scenarioSlug(scenario, feature));
+        String featurePath = RunUtils.featureSlug(feature);
+        assertEquals(featurePath + ":create user", RunUtils.scenarioSlug(scenario, feature));
     }
 
     @Test
@@ -90,50 +89,13 @@ class CoverageAtomTest {
                 """);
         Scenario scenario = firstScenario(feature);
 
-        String slug = CoverageAtom.scenarioSlug(scenario, feature);
+        String slug = RunUtils.scenarioSlug(scenario, feature);
         assertTrue(slug.endsWith("::L" + scenario.getLine()),
                 "unnamed scenario slug should fall back to line: " + slug);
     }
 
     @Test
-    void chain_forPlainScenario_yieldsFeaturePlusScenario() {
-        Feature feature = parse("""
-                @api
-                Feature: users
-                User CRUD API spec.
-
-                  @smoke
-                  Scenario: create user
-                  Creates a new user account.
-                    Given url 'http://example.com'
-                """);
-        Scenario scenario = firstScenario(feature);
-
-        List<Map<String, Object>> chain = CoverageAtom.chain(scenario, feature, false);
-        assertEquals(2, chain.size());
-
-        Map<String, Object> featureAtom = chain.get(0);
-        assertEquals("feature", featureAtom.get("kind"));
-        assertEquals(CoverageAtom.featureSlug(feature), featureAtom.get("id"));
-        assertEquals("users", featureAtom.get("name"));
-        assertTrue(featureAtom.get("description").toString().contains("User CRUD API spec"));
-        assertEquals(List.of("api"), featureAtom.get("tags"));
-        assertNull(featureAtom.get("parentId"));
-
-        Map<String, Object> scenarioAtom = chain.get(1);
-        assertEquals("scenario", scenarioAtom.get("kind"));
-        assertEquals(CoverageAtom.featureSlug(feature) + ":create user", scenarioAtom.get("id"));
-        assertEquals("create user", scenarioAtom.get("name"));
-        // Effective tags = feature tag + scenario tag.
-        @SuppressWarnings("unchecked")
-        List<String> tags = (List<String>) scenarioAtom.get("tags");
-        assertTrue(tags.contains("api"), "tags should include feature tag: " + tags);
-        assertTrue(tags.contains("smoke"), "tags should include scenario tag: " + tags);
-        assertEquals(CoverageAtom.featureSlug(feature), scenarioAtom.get("parentId"));
-    }
-
-    @Test
-    void chain_forOutlineExample_yieldsFeaturePlusOutlinePlusExample() {
+    void outlineExampleSlug_isOutlineSlugPlusExampleIndex() {
         Feature feature = parse("""
                 Feature: lookups
 
@@ -146,43 +108,12 @@ class CoverageAtomTest {
                       | b   |
                 """);
 
-        // Trigger outline expansion by getting the generated examples through the
-        // scenarios list (the runtime materializes them).
         Scenario example = firstOutlineExample(feature);
         assertTrue(example.isOutlineExample(), "expected outline-example scenario");
 
-        List<Map<String, Object>> chain = CoverageAtom.chain(example, feature, false);
-        assertEquals(3, chain.size());
-
-        Map<String, Object> featureAtom = chain.get(0);
-        assertEquals("feature", featureAtom.get("kind"));
-
-        Map<String, Object> outlineAtom = chain.get(1);
-        assertEquals("outline", outlineAtom.get("kind"));
-        assertEquals(CoverageAtom.featureSlug(feature) + ":lookup <key>", outlineAtom.get("id"));
-
-        Map<String, Object> exampleAtom = chain.get(2);
-        assertEquals("outline-example", exampleAtom.get("kind"));
-        assertEquals(outlineAtom.get("id") + ":" + example.getExampleIndex(), exampleAtom.get("id"));
-        assertEquals(outlineAtom.get("id"), exampleAtom.get("parentId"));
-    }
-
-    @Test
-    void chain_redactsDescriptionWhenReportDisabled() {
-        Feature feature = parse("""
-                Feature: users
-                Sensitive feature description.
-
-                  Scenario: create user
-                  Sensitive scenario description.
-                    Given url 'http://example.com'
-                """);
-        Scenario scenario = firstScenario(feature);
-
-        List<Map<String, Object>> chain = CoverageAtom.chain(scenario, feature, true);
-        // Feature + scenario atoms have description = null when @report=false propagated.
-        assertNull(chain.get(0).get("description"), "feature description should be redacted");
-        assertNull(chain.get(1).get("description"), "scenario description should be redacted");
+        ScenarioOutline outline = RunUtils.parentOutline(example);
+        String expected = RunUtils.outlineSlug(outline, feature) + ":" + example.getExampleIndex();
+        assertEquals(expected, RunUtils.scenarioSlug(example, feature));
     }
 
     @Test
@@ -194,7 +125,7 @@ class CoverageAtomTest {
                 """);
         // Resource.text() synthesizes a resource — relative path may be empty in tests.
         // In real usage (Resource.from(file)) it's the file's relative path.
-        assertNotNull(CoverageAtom.featureSlug(feature));
+        assertNotNull(RunUtils.featureSlug(feature));
     }
 
     @Test
@@ -209,7 +140,7 @@ class CoverageAtomTest {
                 """);
         Scenario scenario = firstScenario(feature);
 
-        List<String> tags = CoverageAtom.tagTexts(scenario.getTagsEffective());
+        List<String> tags = RunUtils.tagTexts(scenario.getTagsEffective());
         assertTrue(tags.contains("req=KEY-123"),
                 "key=value tag form should round-trip: " + tags);
         assertTrue(tags.contains("env=qa"), "feature key=value should appear: " + tags);
