@@ -40,7 +40,7 @@ public class JsParser extends BaseParser {
 
     // EnumSet token sets for O(1) lookup in hot paths
     private static final EnumSet<TokenType> T_VAR_STMT = EnumSet.of(VAR, CONST, LET);
-    private static final EnumSet<TokenType> T_ASSIGN_EXPR = EnumSet.of(EQ, PLUS_EQ, MINUS_EQ, STAR_EQ, SLASH_EQ, PERCENT_EQ, STAR_STAR_EQ, GT_GT_EQ, LT_LT_EQ, GT_GT_GT_EQ, AMP_EQ, PIPE_EQ, CARET_EQ);
+    private static final EnumSet<TokenType> T_ASSIGN_EXPR = EnumSet.of(EQ, PLUS_EQ, MINUS_EQ, STAR_EQ, SLASH_EQ, PERCENT_EQ, STAR_STAR_EQ, GT_GT_EQ, LT_LT_EQ, GT_GT_GT_EQ, AMP_EQ, PIPE_EQ, CARET_EQ, PIPE_PIPE_EQ, AMP_AMP_EQ, QUES_QUES_EQ);
     private static final EnumSet<TokenType> T_LOGIC_EQ_EXPR = EnumSet.of(EQ_EQ_EQ, NOT_EQ_EQ, EQ_EQ, NOT_EQ);
     private static final EnumSet<TokenType> T_LOGIC_CMP_EXPR = EnumSet.of(LT, GT, LT_EQ, GT_EQ);
     private static final EnumSet<TokenType> T_LOGIC_SHIFT_EXPR = EnumSet.of(GT_GT, LT_LT, GT_GT_GT);
@@ -163,7 +163,13 @@ public class JsParser extends BaseParser {
                     if (sawOptionalChain && subtreeContainsOptionalChain(lhs)) {
                         throw new ParserException("optional chain is not a valid assignment target");
                     }
-                    checkSimpleAssignmentTarget(lhs, "assignment target");
+                    // Logical-assignment operators (||=, &&=, ??=) are ES2021 and have no
+                    // Annex B web-compat carve-out for CallExpression LHS — the SimpleAssignmentTarget
+                    // requirement is strict. Plain `=` and the older compound operators still allow
+                    // `f() = …` in non-strict mode.
+                    TokenType op = node.size() > 1 && node.get(1).isToken() ? node.get(1).token.type : null;
+                    boolean noCallCarveOut = op == PIPE_PIPE_EQ || op == AMP_AMP_EQ || op == QUES_QUES_EQ;
+                    checkSimpleAssignmentTarget(lhs, "assignment target", noCallCarveOut);
                 }
             }
             case MATH_POST_EXPR -> {
@@ -173,7 +179,7 @@ public class JsParser extends BaseParser {
                     if (sawOptionalChain && subtreeContainsOptionalChain(operand)) {
                         throw new ParserException("optional chain cannot be the operand of postfix ++/--");
                     }
-                    checkSimpleAssignmentTarget(operand, "operand of postfix update");
+                    checkSimpleAssignmentTarget(operand, "operand of postfix update", false);
                 }
             }
             case MATH_PRE_EXPR -> {
@@ -186,7 +192,7 @@ public class JsParser extends BaseParser {
                         if (sawOptionalChain && subtreeContainsOptionalChain(operand)) {
                             throw new ParserException("optional chain cannot be the operand of prefix ++/--");
                         }
-                        checkSimpleAssignmentTarget(operand, "operand of prefix update");
+                        checkSimpleAssignmentTarget(operand, "operand of prefix update", false);
                     }
                 }
             }
@@ -380,7 +386,7 @@ public class JsParser extends BaseParser {
      * corresponding test262 cases are flagged {@code onlyStrict} and skipped by the
      * harness.
      */
-    private static void checkSimpleAssignmentTarget(Node lhs, String siteName) {
+    private static void checkSimpleAssignmentTarget(Node lhs, String siteName, boolean noCallCarveOut) {
         Node n = stripExprWrappers(lhs);
         if (n == null) {
             // Defensive — empty LHS only happens in error-recovery edge cases.
@@ -444,7 +450,12 @@ public class JsParser extends BaseParser {
                 }
             }
             case FN_CALL_EXPR -> {
-                // Web-compat carve-out: see method javadoc.
+                // Web-compat carve-out (Annex B B.3.5): allow `f() = 1` in non-strict mode.
+                // Logical-assignment operators (||=, &&=, ??=) are ES2021 and the carve-out
+                // does NOT apply to them; the caller passes noCallCarveOut=true in that case.
+                if (noCallCarveOut) {
+                    throw new ParserException("invalid " + siteName + ": call expression");
+                }
             }
             default ->
                     throw new ParserException("invalid " + siteName + ": "

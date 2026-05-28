@@ -99,8 +99,11 @@ public class JsLexer extends BaseLexer {
 
         char c = source.charAt(pos);
 
-        // Whitespace (most common in typical code)
-        if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+        // Whitespace (most common in typical code) + the rarer spec-mandated forms:
+        // ES2021 §11.2 (VT, FF, NBSP, FEFF) and §11.3 line terminators (LS, PS).
+        if (c == ' ' || c == '\t' || c == '\r' || c == '\n'
+                || c == '\u000B' || c == '\u000C' || c == '\u00A0' || c == '\uFEFF'
+                || c == '\u2028' || c == '\u2029') {
             return scanWhitespace();
         }
 
@@ -146,14 +149,17 @@ public class JsLexer extends BaseLexer {
     // ========== Whitespace ==========
 
     private TokenType scanWhitespace() {
-        // Fast path: consume spaces/tabs with minimal overhead
+        // Fast path: consume spaces/tabs with minimal overhead. ES2021 §11.2 whitespace
+        // (VT, FF, NBSP, FEFF) is treated as non-newline; §11.3 line terminators (LF, CR,
+        // LS, PS) set hasNewline so ASI sees a line break.
         boolean hasNewline = false;
         while (pos < length) {
             char c = source.charAt(pos);
-            if (c == ' ' || c == '\t') {
+            if (c == ' ' || c == '\t' || c == '\u000B' || c == '\u000C'
+                    || c == '\u00A0' || c == '\uFEFF') {
                 pos++;
                 col++;
-            } else if (c == '\n') {
+            } else if (c == '\n' || c == '\u2028' || c == '\u2029') {
                 pos++;
                 line++;
                 col = 0;
@@ -754,7 +760,7 @@ public class JsLexer extends BaseLexer {
                     return QUES_DOT;
                 }
                 if (match('?')) {
-                    return QUES_QUES;
+                    return match('=') ? QUES_QUES_EQ : QUES_QUES;
                 }
                 return QUES;
 

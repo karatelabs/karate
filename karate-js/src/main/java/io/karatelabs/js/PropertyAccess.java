@@ -230,6 +230,82 @@ class PropertyAccess {
     }
 
     /**
+     * ES2021 logical-assignment (||=, &&=, ??=) with short-circuit semantics.
+     * The LHS reference is resolved once (target + key are evaluated in spec
+     * order, so `base[key()] ||= rhs` calls `key()` exactly once); the RHS
+     * expression is evaluated only when the operator's condition requires it.
+     */
+    static Object logicalCompound(Node node, CoreContext context, TokenType operator, Node rhsNode, Node trackingNode) {
+                return switch (node.type) {
+            case REF_EXPR -> {
+                String name = node.getText();
+                Object oldValue = context.get(name);
+                if (!shouldLogicalAssign(operator, oldValue)) yield oldValue;
+                Object newValue = Interpreter.eval(rhsNode, context);
+                if (context.isStopped()) yield null;
+                context.update(name, newValue, trackingNode);
+                yield newValue;
+            }
+            case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
+                AccessSite site = resolveWriteSite(node, context);
+                if (site == null) yield Terms.UNDEFINED;
+                // JS-level throw inside the target or index eval surfaces as
+                // context.isStopped() (eval returns null on abrupt completion).
+                // Bail before doing any further checks so the in-flight throw
+                // — not our own TypeError — is what the catch sees.
+                if (context.isStopped()) yield null;
+                // RequireObjectCoercible fires before ToPropertyKey on the index —
+                // null/undefined target must throw TypeError before any toString
+                // on a non-primitive key is invoked.
+                if (site.target == null || site.target == Terms.UNDEFINED) {
+                    throw JsErrorException.typeError("cannot read properties of "
+                            + (site.target == null ? "null" : "undefined"));
+                }
+                yield site.isIndex
+                        ? logicalCompoundByIndex(site.target, site.key, operator, rhsNode, context, trackingNode)
+                        : logicalCompoundByName(site.target, (String) site.key, operator, rhsNode, context, trackingNode);
+            }
+            default -> throw JsErrorException.typeError("cannot apply logical-assignment to: " + node);
+        };
+    }
+
+    private static boolean shouldLogicalAssign(TokenType operator, Object lhsValue) {
+        return switch (operator) {
+            case PIPE_PIPE_EQ -> !Terms.isTruthy(lhsValue);
+            case AMP_AMP_EQ -> Terms.isTruthy(lhsValue);
+            case QUES_QUES_EQ -> lhsValue == null || lhsValue == Terms.UNDEFINED;
+            default -> throw new RuntimeException("unexpected logical-assignment operator: " + operator);
+        };
+    }
+
+    private static Object logicalCompoundByIndex(Object object, Object index, TokenType operator, Node rhsNode, CoreContext context, Node trackingNode) {
+        if (index instanceof Number n) {
+            int i = n.intValue();
+            if (object instanceof List) {
+                List<Object> list = (List<Object>) object;
+                Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
+                if (!shouldLogicalAssign(operator, oldValue)) return oldValue;
+                Object newValue = Interpreter.eval(rhsNode, context);
+                if (context.isStopped()) return null;
+                while (list.size() <= i) list.add(Terms.UNDEFINED);
+                list.set(i, newValue);
+                firePropertySet(context, String.valueOf(i), newValue, oldValue, object, trackingNode);
+                return newValue;
+            }
+        }
+        return logicalCompoundByName(object, Terms.toPropertyKey(index), operator, rhsNode, context, trackingNode);
+    }
+
+    private static Object logicalCompoundByName(Object object, String name, TokenType operator, Node rhsNode, CoreContext context, Node trackingNode) {
+        Object oldValue = getByName(object, name, false, context, false);
+        if (!shouldLogicalAssign(operator, oldValue)) return oldValue;
+        Object newValue = Interpreter.eval(rhsNode, context);
+        if (context.isStopped()) return null;
+        setByName(object, name, newValue, context, trackingNode);
+        return newValue;
+    }
+
+    /**
      * Post-increment/decrement: returns old value, updates variable.
      */
     static Object postIncDec(Node node, CoreContext context, boolean isIncrement) {

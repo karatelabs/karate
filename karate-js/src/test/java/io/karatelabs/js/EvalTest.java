@@ -286,6 +286,37 @@ class EvalTest extends EvalBase {
         assertEquals(2, get("a"));
         assertEquals(2, eval("a = 16; a >>>= 3"));
         assertEquals(2, get("a"));
+        // ES2021 logical-assignment operators: ||=, &&=, ??= — short-circuit semantics
+        assertEquals(1, eval("a = 1; a ||= 2"));        // truthy: RHS skipped
+        assertEquals(1, get("a"));
+        assertEquals(2, eval("a = 0; a ||= 2"));        // falsy: RHS evaluated
+        assertEquals(2, get("a"));
+        assertEquals(2, eval("a = 1; a &&= 2"));        // truthy: RHS evaluated
+        assertEquals(2, get("a"));
+        assertEquals(0, eval("a = 0; a &&= 2"));        // falsy: RHS skipped
+        assertEquals(0, get("a"));
+        assertEquals(2, eval("a = null; a ??= 2"));     // nullish: RHS evaluated
+        assertEquals(2, get("a"));
+        assertEquals(0, eval("a = 0; a ??= 2"));        // defined: RHS skipped
+        assertEquals(0, get("a"));
+        // Short-circuit must skip RHS side effects
+        eval("var sideA = false; a = 1; a ||= (sideA = true);");
+        assertEquals(false, get("sideA"));
+        eval("var sideB = false; a = 0; a &&= (sideB = true);");
+        assertEquals(false, get("sideB"));
+        eval("var sideC = false; a = 1; a ??= (sideC = true);");
+        assertEquals(false, get("sideC"));
+        // Property-target forms: obj.x ??= …
+        assertEquals(7, eval("var o = {}; o.x ??= 7; o.x"));
+        assertEquals(3, eval("var o = {x: 3}; o.x ??= 7; o.x"));
+        // NamedEvaluation: anonymous function/arrow on RHS of identifier assignment
+        // inherits the identifier as its `.name`.
+        assertEquals("g", eval("var g; g = function(){}; g.name"));
+        assertEquals("h", eval("var h; h = () => 1; h.name"));
+        assertEquals("v", eval("var v = 0; v ||= function(){}; v.name"));
+        assertEquals("w", eval("var w = null; w ??= () => 1; w.name"));
+        // Reference assignment must NOT clobber an existing function name.
+        assertEquals("orig", eval("var orig = function(){}; var alias; alias = orig; alias.name"));
         // Binary / octal numeric literals
         assertEquals(2, eval("0b10"));
         assertEquals(13, eval("0b1101"));

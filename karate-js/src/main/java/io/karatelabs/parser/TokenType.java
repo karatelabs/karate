@@ -101,6 +101,7 @@ public enum TokenType {
     AMP,
     CARET_EQ,
     CARET,
+    QUES_QUES_EQ,
     QUES_QUES,
     QUES,
     //====

@@ -375,6 +375,13 @@ class CoreContext implements Context {
         if (s.scope == BindScope.CONST && s.initialized) {
             throw JsErrorException.typeError("assignment to constant: " + key);
         }
+        // NamedEvaluation (§13.15.2): when RHS is an anonymous function expression and
+        // LHS is an IdentifierRef, set fn.name from the identifier. Mirrors the
+        // declare-path hook above. Skipped for already-named functions so e.g.
+        // `g = someNamedFn` does not clobber the original name.
+        if (value instanceof JsFunction fn && (fn.name == null || fn.name.isEmpty())) {
+            fn.name = key;
+        }
         Object oldValue = s.value;
         s.initialized = true;
         // Unified write — works whether the Slot lives in this context's

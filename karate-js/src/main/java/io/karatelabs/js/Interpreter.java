@@ -118,6 +118,13 @@ class Interpreter {
     private static Object evalAssignExpr(Node node, CoreContext context) {
         Node lhs = node.get(0);
         TokenType operator = node.get(1).token.type;
+        // ES2021 logical-assignment (||=, &&=, ??=): short-circuit semantics +
+        // read-once over the LHS reference (target+key evaluated once in spec
+        // order; RHS lazy). All routed through PropertyAccess so the access
+        // site resolves identically to the standard compound path.
+        if (operator == PIPE_PIPE_EQ || operator == AMP_AMP_EQ || operator == QUES_QUES_EQ) {
+            return PropertyAccess.logicalCompound(lhs, context, operator, node.get(2), node);
+        }
         Object value = eval(node.get(2), context);
         if (operator == EQ) {
             if (lhs.type == NodeType.LIT_EXPR) {

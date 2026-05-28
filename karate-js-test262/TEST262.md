@@ -191,7 +191,7 @@ counts go stale fast and don't belong in this file.
 | `test/language/expressions/object` | Escaped-keyword cover-name (`covered-ident-name-prop-name-literal-break-escaped.js` cluster) dominates; `__proto__`-duplicate edges; computed-key / spread / method-def tail. |
 | `test/language/expressions/assignment` | Iterator-return semantics on default-expr throw; misclassified parser error in `([a = expr()] = it)` (see Background sweep). |
 | `test/language/statements/function` + `expressions/function` + `arrow-function` | Residual: fn-name inference for `[x = (function(){})]`-style defaults, IteratorClose-on-throw, and a few rest-element edges. Param-level default (`= initializer`) now fires uniformly for IDENT and destructuring patterns. |
-| `test/language/expressions/compound-assignment` | `\|\|=` / `&&=` / `??=` plus compound-op corners. |
+| `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS (gated on strict-mode plumbing); `valueOf` / ToNumeric ordering for `+=` / `*=` etc.; `A5.*_T2/T3` family (non-identifier LHS / parenthesized targets — Annex-B carve-out). Logical-assignment slice (`||=` / `&&=` / `??=`) is its own dir and now ~done modulo class-expression RHS (gated on class syntax). |
 | `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion already handles headline cases. |
 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` (gated until Symbol). |
 | `test/built-ins/RegExp/**` | `Symbol.{match,replace,search,split,matchAll}` (Symbol-gated), parser edges, named-groups feature-gated. |
