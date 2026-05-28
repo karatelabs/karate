@@ -462,8 +462,8 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 *Summary page* (`karate-summary.html` + `karate-report.js#summaryData`):
 - *(Already shipped in Phase 1's port)* KPI card row, sortable feature table with tag-count chips per row, Totals row, tag filter + highlight-only mode. Mark these "done by Phase 1" — they came along with the Bootstrap → Tailwind port.
 - **Animated pass-rate donut** (pure SVG, no JS library) — segments for pass / fail / skip, derived from `data.summary.scenario_passed / scenario_failed / scenario_skipped`. Sits next to / above the KPI cards.
-- **Failures panel** (clickable list of failed scenarios, jumps to feature page anchor). One card on the page; iterates `data.features[].scenarios[]` filtered to `!passed && !skipped`.
-- **Slowest-scenarios panel** (top N by `scenario.durationMillis` with horizontal bars). Sibling card to failures panel.
+- **Failures tile** (clickable list of failed scenarios, jumps to feature page anchor). One *baked-in* tile in a slot-aware tile row; iterates `data.features[].scenarios[]` filtered to `!passed && !skipped`.
+- **Tile row is the first slot consumer.** The summary template ships a `<div data-slot="summary.panels"></div>` container next to the Failures tile, with grid `repeat(auto-fit, minmax(380px, 1fr))` so Failures spans full-width when alone (Phase 1b reality) and shares the row when exts contribute (Phase 2 onwards). This intentionally dogfoods the §3.2 slot model: the report itself is the first SPI consumer. *Decision: drop the baked-in Slowest-scenarios tile from the summary* (low signal — when everything passes, "top 5 slowest" is filler; when something fails, the Failures tile is what matters). Move Slowest to the Timeline page where slowest-scenario context lives beside the parallel-execution gantt.
 - **Outline + skipped styled distinctly** from passed / failed — currently the status mapping is a three-way mutex (skipped > passed > failed); outline scenarios re-use a status, no separate visual treatment.
 
 *Feature page* (`karate-feature.html` + `karate-report.js#featureData`):

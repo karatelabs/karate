@@ -471,6 +471,69 @@ const KarateReport = {
                 });
             },
 
+            // Donut segments. r=50, pathLength="100" normalises math to percentages
+            // so stroke-dasharray is "<len> <gap>". Unrolled (not x-for) because
+            // <template x-for> doesn't work inside <svg> (namespace mismatch:
+            // Alpine can't importNode an HTML <template> into the SVG DOM).
+            // Three possible segments: pass / fail / skip; each getter returns
+            // {len, offset, dash} or null if that count is 0.
+            get donutTotal() {
+                const s = data.summary || {};
+                return (s.scenario_passed || 0) + (s.scenario_failed || 0) + (s.scenario_skipped || 0);
+            },
+            get donutPass() {
+                const total = this.donutTotal;
+                const n = data.summary?.scenario_passed || 0;
+                if (total === 0 || n === 0) return null;
+                const len = (n / total) * 100;
+                return { dash: len + ' ' + (100 - len), offset: 0 };
+            },
+            get donutFail() {
+                const total = this.donutTotal;
+                const n = data.summary?.scenario_failed || 0;
+                if (total === 0 || n === 0) return null;
+                const passed = data.summary?.scenario_passed || 0;
+                const len = (n / total) * 100;
+                return { dash: len + ' ' + (100 - len), offset: -(passed / total) * 100 };
+            },
+            get donutSkip() {
+                const total = this.donutTotal;
+                const n = data.summary?.scenario_skipped || 0;
+                if (total === 0 || n === 0) return null;
+                const before = (data.summary?.scenario_passed || 0) + (data.summary?.scenario_failed || 0);
+                const len = (n / total) * 100;
+                return { dash: len + ' ' + (100 - len), offset: -(before / total) * 100 };
+            },
+
+            get donutPct() {
+                const s = data.summary || {};
+                const p = s.scenario_passed || 0;
+                const f = s.scenario_failed || 0;
+                const k = s.scenario_skipped || 0;
+                const total = p + f + k;
+                return total === 0 ? 0 : Math.round((p / total) * 100);
+            },
+
+            // Flatten failed scenarios across features with click-through metadata.
+            get failedScenarios() {
+                const out = [];
+                (data.features || []).forEach(f => {
+                    (f.scenarios || []).forEach(s => {
+                        if (!s.passed && !s.skipped) {
+                            out.push({
+                                refId: s.refId,
+                                name: s.name,
+                                durationMillis: s.durationMillis,
+                                featureName: f.name || f.relativePath,
+                                featureFile: f.fileName,
+                                relativePath: f.relativePath,
+                            });
+                        }
+                    });
+                });
+                return out;
+            },
+
             toggleTag(tag) {
                 const idx = this.selectedTags.indexOf(tag);
                 if (idx > -1) {

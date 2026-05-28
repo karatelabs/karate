@@ -38,16 +38,37 @@
 
     <div class="px-6 py-5">
         <!-- Hero -->
-        <section class="mb-6">
-            <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-medium" :class="heroStatus.pillCls">
-                <span class="w-1.5 h-1.5 rounded-full" :class="heroStatus.dotCls"></span>
-                <span x-text="heroStatus.label"></span>
+        <section class="mb-6 flex items-start justify-between gap-6">
+            <div class="min-w-0 flex-1">
+                <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-medium" :class="heroStatus.pillCls">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="heroStatus.dotCls"></span>
+                    <span x-text="heroStatus.label"></span>
+                </div>
+                <h1 class="mt-3 text-2xl md:text-3xl font-semibold tracking-tight">Karate Test Report</h1>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-slate-500 dark:text-slate-400">
+                    <span class="inline-flex items-center gap-1.5"><svg class="w-4 h-4"><use href="#icon-clock"/></svg> <span x-text="data.reportDate">Date</span></span>
+                    <span x-show="data.env" class="inline-flex items-center gap-1.5"><svg class="w-4 h-4"><use href="#icon-server"/></svg> env <span class="font-mono" x-text="data.env"></span></span>
+                    <span x-show="data.threads" class="inline-flex items-center gap-1.5"><svg class="w-4 h-4"><use href="#icon-cpu"/></svg> <span x-text="data.threads"></span> threads</span>
+                </div>
             </div>
-            <h1 class="mt-3 text-2xl md:text-3xl font-semibold tracking-tight">Karate Test Report</h1>
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-slate-500 dark:text-slate-400">
-                <span class="inline-flex items-center gap-1.5"><svg class="w-4 h-4"><use href="#icon-clock"/></svg> <span x-text="data.reportDate">Date</span></span>
-                <span x-show="data.env" class="inline-flex items-center gap-1.5"><svg class="w-4 h-4"><use href="#icon-server"/></svg> env <span class="font-mono" x-text="data.env"></span></span>
-                <span x-show="data.threads" class="inline-flex items-center gap-1.5"><svg class="w-4 h-4"><use href="#icon-cpu"/></svg> <span x-text="data.threads"></span> threads</span>
+            <!-- Pass-rate donut. Three <circle> segments are unrolled (no x-for in SVG, see karate-report.js#donutPass). -->
+            <div class="relative shrink-0" x-show="donutTotal > 0">
+                <svg class="w-32 h-32 -rotate-90" viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="14" class="text-slate-200 dark:text-slate-700"/>
+                    <circle x-show="donutPass" cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="14"
+                            pathLength="100" stroke-linecap="butt" class="text-green-600"
+                            :stroke-dasharray="donutPass?.dash" :stroke-dashoffset="donutPass?.offset"/>
+                    <circle x-show="donutFail" cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="14"
+                            pathLength="100" stroke-linecap="butt" class="text-red-600"
+                            :stroke-dasharray="donutFail?.dash" :stroke-dashoffset="donutFail?.offset"/>
+                    <circle x-show="donutSkip" cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="14"
+                            pathLength="100" stroke-linecap="butt" class="text-amber-500"
+                            :stroke-dasharray="donutSkip?.dash" :stroke-dashoffset="donutSkip?.offset"/>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <div class="text-2xl font-bold tabular-nums"><span x-text="donutPct"></span><span class="text-sm font-medium opacity-60">%</span></div>
+                    <div class="text-[0.65rem] uppercase tracking-wide text-slate-500 dark:text-slate-400">passing</div>
+                </div>
             </div>
         </section>
 
@@ -73,6 +94,39 @@
                 <div class="text-sm opacity-90">Duration</div>
                 <div class="text-3xl font-bold mt-1"><span x-text="data.summary?.duration_millis || 0">0</span><span class="text-base font-medium ml-1">ms</span></div>
             </div>
+        </div>
+
+        <!-- Tile row: Failures (baked-in) + ext-contributed tiles via summary.panels slot.
+             Auto-fit grid means Failures spans full width when alone (Phase 1b) and
+             shares the row when exts contribute (Phase 2). Container is always
+             present so exts can target data-slot="summary.panels" without conditional
+             logic on the loader side. -->
+        <div class="grid gap-4 mb-6 grid-cols-[repeat(auto-fit,minmax(380px,1fr))]" x-show="failedScenarios.length > 0">
+            <!-- Failures tile -->
+            <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 overflow-hidden" x-show="failedScenarios.length > 0">
+                <div class="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700">
+                    <svg class="w-4 h-4 text-red-600 dark:text-red-400"><use href="#icon-x-circle"/></svg>
+                    <span class="font-medium">Failures</span>
+                    <span class="px-1.5 py-0.5 text-[0.65rem] rounded-full bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 tabular-nums" x-text="failedScenarios.length"></span>
+                </div>
+                <div class="divide-y divide-slate-100 dark:divide-slate-700/50 max-h-80 overflow-y-auto">
+                    <template x-for="s in failedScenarios" :key="s.featureFile + s.refId">
+                        <a class="flex items-start gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 group"
+                           :href="'feature-html/' + s.featureFile + '.html#' + s.refId">
+                            <span class="mt-0.5 w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm truncate"><span class="font-mono text-xs text-slate-500 dark:text-slate-400 mr-1.5" x-text="s.refId"></span><span x-text="s.name || '(unnamed)'"></span></div>
+                                <div class="text-xs text-slate-500 dark:text-slate-400 font-mono truncate" x-text="s.relativePath"></div>
+                            </div>
+                            <svg class="w-3 h-3 text-slate-400 group-hover:text-accent shrink-0 mt-1"><use href="#icon-chevron-right"/></svg>
+                        </a>
+                    </template>
+                </div>
+            </div>
+            <!-- Ext-contributed tiles land here. See IMAGE_SPIKE.md §3.2 (summary.panels slot)
+                 + Phase 2 (loader). empty:hidden removes the slot from the grid until an
+                 ext writes children into it, so the Failures tile spans full width. -->
+            <div data-slot="summary.panels" class="empty:hidden contents"></div>
         </div>
 
         <!-- Tag Filter -->
