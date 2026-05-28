@@ -189,7 +189,7 @@ counts go stale fast and don't belong in this file.
 |---|---|
 | `test/language/statements/for-of` | Residual: IteratorClose-on-throw runtime; fn-name inference for `[x = (function(){})] of …`; a handful of negative-parse tightenings (`for (var x of []) let y;`). Pattern-dispatch is in place (LHS unwrap → `destructurePattern` with assignment-mode `bindScope`). |
 | `test/language/expressions/object` | Escaped-keyword cover-name (`covered-ident-name-prop-name-literal-break-escaped.js` cluster) dominates; `__proto__`-duplicate edges; computed-key / spread / method-def tail. |
-| `test/language/expressions/assignment` | Iterator-return semantics on default-expr throw; misclassified parser error in `([a = expr()] = it)` (see Background sweep). |
+| `test/language/expressions/assignment` | Iterator-return semantics on default-expr throw. |
 | `test/language/statements/function` + `expressions/function` + `arrow-function` | Residual: fn-name inference for `[x = (function(){})]`-style defaults, IteratorClose-on-throw, and a few rest-element edges. Param-level default (`= initializer`) now fires uniformly for IDENT and destructuring patterns. |
 | `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS (gated on strict-mode plumbing); `valueOf` / ToNumeric ordering for `+=` / `*=` etc.; `A5.*_T2/T3` family (non-identifier LHS / parenthesized targets — Annex-B carve-out). Logical-assignment slice (`||=` / `&&=` / `??=`) is its own dir and now ~done modulo class-expression RHS (gated on class syntax). |
 | `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion already handles headline cases. |
@@ -245,11 +245,6 @@ Picked off opportunistically when nearby — not session-sized on their own.
       `dstr/syntax-error-ident-ref-extends.js`,
       `object-destructuring-param-strict-body.js`. Likely small
       spec-shape gaps in the same area; investigate per test.
-    - **Misclassified error in `([a = expr()] = it);`.** Parser emits
-      `expected: [IDENT, S_STRING]` (the object-accessor key set) for
-      an array-literal element with default. Likely a get/set accessor
-      branch in `object_elem` mis-triggering inside the array path.
-      Representative: `assignment/destructuring/default-expr-throws-iterator-return-get-throws.js`.
 
 - **Cleanup residuals.** Occasional `"null"` NPE paths, `IllegalName` JDK
   lambda leak, `Java heap space` OOM in array-slice paths.
@@ -284,6 +279,10 @@ harness-quality fixes. **For design context behind each, see
   has prototype machinery + `new` but no parser support for `class` /
   `extends` / `super` / method-definition. Parse fails loudly with
   `SyntaxError` — the right shape until real workload demands it.
+  **Why parked despite being common in modern code:** the target workload
+  is run-time glue and scripting — LLM-emitted snippets and reusable
+  functions, not OO application code. Classes are rare in that shape;
+  prototype + `new` covers the cases that do appear.
 
 - **Symbol primitive.** Slice #7 above. Tracked here as a feature gap
   because it gates a long tail of fails across String / Array / RegExp /

@@ -1292,7 +1292,7 @@ public class JsParser extends BaseParser {
                     error(R_BRACKET);
                     return exit(false, false);
                 }
-            } else if (!(consumeIf(IDENT) || consumeIf(S_STRING) || consumeIf(D_STRING) || consumeIf(NUMBER) || consumeIf(BIGINT))) {
+            } else if (!anyOf(T_ACCESSOR_KEY_START)) {
                 error(IDENT, S_STRING);
                 return exit(false, false);
             }
