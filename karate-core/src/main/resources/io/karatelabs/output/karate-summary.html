@@ -167,19 +167,26 @@
                     <th class="text-left px-3 py-2 w-24">Status</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-                <template x-for="f in filteredFeatures" :key="f.fileName">
+            <!-- One <tbody> per feature so expanded scenario rows stay nested under
+                 their parent feature row instead of collecting at table bottom. -->
+            <template x-for="f in filteredFeatures" :key="f.fileName">
+                <tbody class="divide-y divide-slate-200 dark:divide-slate-700 border-b border-slate-200 dark:border-slate-700">
                     <template x-if="highlightMode || featureMatchesTags(f)">
                         <tr class="hover:bg-slate-50 dark:hover:bg-slate-800"
                             :class="{ 'bg-amber-100 dark:bg-amber-900/40': selectedTags.length > 0 && highlightMode && featureMatchesTags(f) }">
                             <td class="px-3 py-2">
-                                <button x-show="selectedTags.length > 0 && f.scenarios?.length > 0"
-                                        class="inline-flex items-center justify-center w-5 h-5 mr-1 text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
-                                        @click="f.expanded = !f.expanded">
-                                    <svg class="w-3 h-3"><use :href="f.expanded ? '#icon-chevron-down' : '#icon-chevron-right'"/></svg>
-                                </button>
-                                <a class="text-accent hover:underline" :href="'feature-html/' + f.fileName + '.html'" x-text="f.name || f.relativePath">Feature</a>
-                                <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5" x-text="f.relativePath">path</div>
+                                <div class="flex items-start gap-1.5">
+                                    <button x-show="f.scenarios?.length > 0"
+                                            class="inline-flex items-center justify-center w-5 h-5 mt-0.5 rounded text-slate-400 hover:text-accent hover:bg-slate-100 dark:hover:bg-slate-700 shrink-0"
+                                            :title="f.expanded ? 'Collapse scenarios' : 'Expand to see ' + (f.scenarios?.length || 0) + ' scenarios'"
+                                            @click="f.expanded = !f.expanded">
+                                        <svg class="w-4 h-4"><use :href="f.expanded ? '#icon-chevron-down' : '#icon-chevron-right'"/></svg>
+                                    </button>
+                                    <div class="min-w-0 flex-1">
+                                        <a class="text-accent hover:underline" :href="'feature-html/' + f.fileName + '.html'" x-text="f.name || f.relativePath">Feature</a>
+                                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5" x-text="f.relativePath">path</div>
+                                    </div>
+                                </div>
                                 <template x-if="getFeatureTagCounts(f).length > 0">
                                     <div class="mt-1 flex flex-wrap gap-1">
                                         <template x-for="[tag, count] in getFeatureTagCounts(f)" :key="tag">
@@ -203,25 +210,16 @@
                             </td>
                         </tr>
                     </template>
-                </template>
-                <!-- Totals row -->
-                <tr class="bg-slate-100 dark:bg-slate-800 font-semibold" x-show="(data.features || []).length > 0">
-                    <td class="px-3 py-2">Total (<span x-text="(data.features || []).length"></span> features)</td>
-                    <td class="px-3 py-2 tabular-nums" x-text="totals.scenarios">0</td>
-                    <td class="px-3 py-2 tabular-nums" x-text="totals.passed">0</td>
-                    <td class="px-3 py-2 tabular-nums" x-text="totals.failed">0</td>
-                    <td class="px-3 py-2 tabular-nums" x-text="formatPassedRate(totals.passedRate)">&mdash;</td>
-                    <td class="px-3 py-2 tabular-nums"><span x-text="totals.durationMillis">0</span> ms</td>
-                    <td></td>
-                </tr>
-                <!-- Expanded scenarios when filtering by tags -->
-                <template x-for="f in filteredFeatures" :key="'exp-' + f.fileName">
-                    <template x-if="f.expanded && selectedTags.length > 0">
+                    <!-- Expanded scenarios under their parent feature. getMatchingScenarios
+                         returns all scenarios with no filter, just matches when filtering. -->
+                    <template x-if="f.expanded">
                         <template x-for="scenario in getMatchingScenarios(f)" :key="scenario.refId">
                             <tr class="bg-slate-50 dark:bg-slate-800/50 text-xs">
-                                <td class="px-3 py-1.5 pl-10">
-                                    <span class="font-bold" x-text="scenario.refId"></span>
-                                    <span x-text="scenario.name"></span>
+                                <td class="px-3 py-1.5 pl-10 border-l-4 border-accent">
+                                    <a class="text-accent hover:underline" :href="'feature-html/' + f.fileName + '.html#' + scenario.refId">
+                                        <span class="font-bold" x-text="scenario.refId"></span>
+                                        <span x-text="' ' + (scenario.name || '')"></span>
+                                    </a>
                                 </td>
                                 <td colspan="3" class="px-3 py-1.5">
                                     <template x-for="tag in scenario.tags || []" :key="tag">
@@ -238,7 +236,19 @@
                             </tr>
                         </template>
                     </template>
-                </template>
+                </tbody>
+            </template>
+            <!-- Totals row in its own tbody so it stays at the table foot. -->
+            <tbody>
+                <tr class="bg-slate-100 dark:bg-slate-800 font-semibold" x-show="(data.features || []).length > 0">
+                    <td class="px-3 py-2">Total (<span x-text="(data.features || []).length"></span> features)</td>
+                    <td class="px-3 py-2 tabular-nums" x-text="totals.scenarios">0</td>
+                    <td class="px-3 py-2 tabular-nums" x-text="totals.passed">0</td>
+                    <td class="px-3 py-2 tabular-nums" x-text="totals.failed">0</td>
+                    <td class="px-3 py-2 tabular-nums" x-text="formatPassedRate(totals.passedRate)">&mdash;</td>
+                    <td class="px-3 py-2 tabular-nums"><span x-text="totals.durationMillis">0</span> ms</td>
+                    <td></td>
+                </tr>
             </tbody>
         </table>
         </div>
