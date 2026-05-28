@@ -739,16 +739,38 @@ public final class HtmlReportWriter {
         data.put("threads", threadCount);
         data.put("karateVersion", Globals.KARATE_VERSION);
 
+        // Summary (mirrors the shape on summary page) — drives the hero status pill
+        // and the Speedup/Wall-clock cards.
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("feature_count", result.getFeatureCount());
+        summary.put("feature_passed", result.getFeaturePassedCount());
+        summary.put("feature_failed", result.getFeatureFailedCount());
+        summary.put("scenario_count", result.getScenarioCount());
+        summary.put("scenario_passed", result.getScenarioPassedCount());
+        summary.put("scenario_failed", result.getScenarioFailedCount());
+        summary.put("scenario_skipped", result.getScenarioSkippedCount());
+        summary.put("duration_millis", result.getDurationMillis());
+        summary.put("status", result.isFailed() ? "failed" : "passed");
+        data.put("summary", summary);
+
         // Build groups (one per thread) and items (one per scenario)
         Map<String, Integer> threadToGroupId = new LinkedHashMap<>();
         List<Map<String, Object>> groups = new ArrayList<>();
         List<Map<String, Object>> items = new ArrayList<>();
+        // Flat list of all scenarios — JS sorts by durationMillis desc for the
+        // Top-5 slowest panel (sibling card below the gantt).
+        List<Map<String, Object>> allScenarios = new ArrayList<>();
+        // Sum of per-scenario wall time across the suite — drives the Speedup
+        // card (serial-equivalent / actual). Computed here so we don't have to
+        // re-walk the tree in JS.
+        long serialMillis = 0;
         int itemId = 0;
 
         for (Map<String, Object> feature : features) {
             // Extract feature filename for timeline display
             String path = (String) feature.get("relativePath");
             String featureFileName = extractFileName(path);
+            String featureHtmlName = getFeatureFileName(feature);
 
             List<Map<String, Object>> scenarios = (List<Map<String, Object>>) feature.get("scenarioResults");
             if (scenarios == null) continue;
@@ -767,7 +789,11 @@ public final class HtmlReportWriter {
 
                     Map<String, Object> group = new LinkedHashMap<>();
                     group.put("id", groupId);
-                    group.put("content", threadName);
+                    // Bare thread names tend to be just a digit ("1", "2"); prefix
+                    // them so the vis-timeline sidebar reads as a label rather than
+                    // a stray index.
+                    String label = threadName.matches("\\d+") ? "Thread " + threadName : threadName;
+                    group.put("content", label);
                     groups.add(group);
                 }
 
@@ -803,11 +829,25 @@ public final class HtmlReportWriter {
                 item.put("className", passed ? "passed" : "failed");
 
                 items.add(item);
+
+                // Per-scenario summary for the Top-5 slowest panel + Speedup card.
+                long scenarioDuration = endTime - startTime + 1;
+                serialMillis += scenarioDuration;
+                Map<String, Object> s = new LinkedHashMap<>();
+                s.put("featureFileName", featureFileName);
+                s.put("featureHtmlName", featureHtmlName);
+                s.put("refId", refId);
+                s.put("name", scenarioName);
+                s.put("durationMillis", scenarioDuration);
+                s.put("passed", passed);
+                allScenarios.add(s);
             }
         }
 
         data.put("groups", groups);
         data.put("items", items);
+        data.put("scenarios", allScenarios);
+        data.put("serialDurationMillis", serialMillis);
 
         return data;
     }

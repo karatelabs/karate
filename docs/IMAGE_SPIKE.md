@@ -430,7 +430,8 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 
 - *All three pages:* Enterprise CTA in topbar (per-page `utm_content` on `https://karatelabs.io/karate-enterprise?utm_source=karate-os&utm_medium=report&utm_campaign=enterprise-cta`), hero section (status pill + h1 + meta row), footer with `https://karatelabs.io` + `https://docs.karatelabs.io/` links.
 - *Summary page:* pass-rate donut (pure SVG, three `<circle>` segments unrolled — Alpine can't `<template x-for>` inside `<svg>`); Failures tile (clickable list of failing scenarios, links to `feature-html/<file>.html#<refId>`); summary tile row dogfoods §3.2 by exposing `<div data-slot="summary.panels" class="empty:hidden contents">` in an auto-fit grid (Failures spans full width when alone, splits when exts contribute in Phase 2); expand UX fix (always-visible chevron, per-feature `<tbody>`, accent left-border spine on expanded scenario rows linking to anchors).
-- *Feature page:* `data.reportDate` + `data.karateVersion` populated in `HtmlReportWriter.buildFeatureData` (falls back to earliest scenario start time) — timestamp now appears as the first item in the hero meta row; step-keyword color coding (only `method` orange + `match` blue; everything else slate); hook-step lines fully muted slate regardless of pass/fail; screenshot lightbox via `<dialog>` + `KarateReport.openLightbox(src, name)` — image embeds get `cursor-zoom-in` + click opens modal with caption.
+- *Feature page:* `data.reportDate` + `data.karateVersion` populated in `HtmlReportWriter.buildFeatureData` (falls back to earliest scenario start time) — timestamp now appears as the first item in the hero meta row; step-keyword color coding (only `method` orange + `match` blue; everything else slate); hook-step lines fully muted slate regardless of pass/fail; screenshot lightbox via `<dialog>` + `KarateReport.openLightbox(src, name)` — image embeds get `cursor-zoom-in` + click opens modal with caption; sidebar All/Failed filter chips (hidden when there are no failures — one-state filter is just noise).
+- *Timeline page:* Speedup card (`serialDurationMillis / suiteDurationMillis`, threshold-gated: `≥500ms` wall + `≥2` threads, since sub-half-second runs are timing noise and single-thread has nothing to compare) + Wall clock card; per-thread groups in the gantt with `Thread N` labels (bare digit thread names were unreadable as group sidebar labels); Top-5 slowest scenarios panel below the gantt (links to `feature-html/<file>.html#<refId>`). `HtmlReportWriter.buildTimelineData` now emits `summary` + `serialDurationMillis` + a flat `scenarios[]` for the panel.
 - *Build-side:* test fixture `karate-core/src/test/resources/io/karatelabs/report/sample-screenshot.png` + image-embed steps in `http-demo.feature` exercise the lightbox path; comment line added to `helper.feature` exercises comment rendering inside a nested call result.
 
 **Scope amendments made mid-build** (so a fresh reader doesn't try to re-add them):
@@ -443,17 +444,11 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 **Remaining — pick up here:**
 
 *Feature page:*
-- **Sidebar filter chips** (All / Failed). Alpine state filters the sidebar scenario list. Prototype also had With-logs / Screenshots filters; defer those (low signal).
-- **Outline examples table** — for outline scenarios, render a per-example status table (one row per example with status pill, refId, vars binding, duration). Today only an "Outline" chip is rendered.
-- **Skipped-scenario reason block** — callout above a skipped scenario's steps showing the `@skip` / `@ignore`-style tag that excluded it.
+- **Outline examples table** — for outline scenarios, render a per-example status table (one row per example with status pill, refId, vars binding, duration). Today only an "Outline" chip is rendered; each example already appears as its own scenario row, so the work is aggregation + a new per-example vars-binding field on the wire (not in `buildScenarioData` today).
+- **Skipped-scenario reason block** — callout above a skipped scenario's steps showing why it was skipped. Today the synthetic `@skipped` tag is the only marker; `karate.abort()`-style skips have the abort step visible inline so the callout would be redundant. Worth doing only when tag-filter / `@ignore`-driven skips can be distinguished from abort skips — needs runtime metadata that isn't on `ScenarioResult` today.
 - **Two-column HTTP block** — method pill + status badge + foldable headers + JSON body. *Needs data-shape investigation:* `step.logs` is currently free-form text; check whether request/response are separable upstream. If not, render `logs` verbatim and flag as a follow-up — don't gate rest of Phase 1b on this.
 - **Copy-as-cURL** — synthesise from HTTP block fields; `navigator.clipboard.writeText(...)`. Depends on HTTP block.
 - **Expected-vs-actual diff** on match failures — `Result.Failure` carries `path` / `reason` / `actualValue` / `expectedValue` per DESIGN.md § Match Engine; verify the JSON wire-shape carries them, then render Expected / Actual side-by-side.
-
-*Timeline page:*
-- **Speedup metric card row** — two cards above the gantt: *Speedup* (`sum(scenario.durationMillis) / suiteDurationMillis`, formatted as `Nx`) and *Wall clock* (`suiteDurationMillis`). Skip Critical path (rejected per matrix), skip Thread efficiency (deferred per O15).
-- **Per-thread groups in the gantt** — vis-timeline's group support; group items by `threadId` (already on every step result and already wired via `data.groups`). Verify groups render with labels.
-- **Top-5 slowest scenarios panel** — sibling card below the gantt; sort `data.features[].scenarios[]` by `durationMillis` desc, take top 5. (Replaces the dropped Summary tile.)
 
 **Out of scope** (per matrix decisions):
 
@@ -653,8 +648,8 @@ etc/tailwind/
 karate-core/
   src/main/resources/io/karatelabs/output/
     karate-summary.html                    ✅  Tailwind chrome + KPI cards + donut + Failures tile + summary.panels slot + expand UX
-    karate-feature.html                    ✅  chrome + hero w/ timestamp + sticky sidebar + step keyword colors + lightbox  🔨 sidebar filters / outline table / skipped reason / HTTP block / cURL / expected-actual diff (P1b)
-    karate-timeline.html                   ✅  Tailwind chrome + D20 overrides; vis-timeline CDN is accepted carve-out (O20)  🔨 speedup row + per-thread groups + top-5 slowest (P1b)
+    karate-feature.html                    ✅  chrome + hero w/ timestamp + sticky sidebar + sidebar All/Failed filter + step keyword colors + lightbox  🔨 outline table / skipped reason / HTTP block / cURL / expected-actual diff (P1b)
+    karate-timeline.html                   ✅  Tailwind chrome + D20 overrides + speedup/wall-clock cards + per-thread groups + Top-5 slowest panel; vis-timeline CDN accepted carve-out (O20)
     _icons.svg                             ✅  Heroicons sprite, spliced via KARATE_ICONS
     res/karate-report.css                  ✅  generated, ~18.9 KB minified
     res/karate-report.js                   ✅  ~530 lines, Tailwind classes throughout

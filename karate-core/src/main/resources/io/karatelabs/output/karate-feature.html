@@ -38,7 +38,25 @@
     <!-- Sticky left sidebar -->
     <nav class="hidden md:block fixed top-14 bottom-0 left-0 w-56 overflow-y-auto border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 py-3">
         <div class="px-3 mb-2 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Scenarios</div>
-        <template x-for="scenario in data.scenarios" :key="scenario.refId">
+        <!-- Filter chips: All / Failed. Hidden when there are no failures
+             (one-state filter is just noise). -->
+        <div class="px-3 mb-2 flex gap-1.5" x-show="heroCounts.failed > 0">
+            <button type="button" @click="sidebarFilter = 'all'"
+                    class="px-2 py-0.5 text-xs rounded-full border transition-colors"
+                    :class="sidebarFilter === 'all'
+                        ? 'bg-accent text-white border-accent'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-accent'">
+                All <span class="opacity-75" x-text="'(' + data.scenarios.length + ')'"></span>
+            </button>
+            <button type="button" @click="sidebarFilter = 'failed'"
+                    class="px-2 py-0.5 text-xs rounded-full border transition-colors"
+                    :class="sidebarFilter === 'failed'
+                        ? 'bg-red-600 text-white border-red-600'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-red-500'">
+                Failed <span class="opacity-75" x-text="'(' + heroCounts.failed + ')'"></span>
+            </button>
+        </div>
+        <template x-for="scenario in filteredSidebar" :key="scenario.refId">
             <a class="block px-3 py-1.5 text-xs border-l-2 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-accent"
                :class="scenario.skipped
                    ? 'text-amber-600 dark:text-amber-400'

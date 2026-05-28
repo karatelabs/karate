@@ -435,6 +435,10 @@ const KarateReport = {
         return {
             data,
             theme: self.getTheme(),
+            // Sidebar filter: 'all' shows every scenario, 'failed' restricts to
+            // failures. Skipped count as non-failed (they're not actionable from
+            // a sidebar nav perspective).
+            sidebarFilter: 'all',
 
             get featureSimpleName() {
                 const p = (data.relativePath || data.path || data.name || '').toString();
@@ -453,6 +457,14 @@ const KarateReport = {
             },
 
             get heroStatus() { return self.heroStatus(this.heroCounts); },
+
+            get filteredSidebar() {
+                const scenarios = data.scenarios || [];
+                if (this.sidebarFilter === 'failed') {
+                    return scenarios.filter(s => !s.passed && !s.skipped);
+                }
+                return scenarios;
+            },
 
             toggleTheme()              { this.theme = self.toggleTheme(); },
             truncate(str, len)         { return self.truncate(str, len); },
@@ -672,6 +684,37 @@ const KarateReport = {
                     failed: s.scenario_failed || 0,
                     skipped: s.scenario_skipped || 0,
                 });
+            },
+
+            // Speedup metric: sum of per-scenario wall time vs actual suite wall time.
+            // "1.0x" = perfectly serial, "4.0x" = 4 threads fully utilised.
+            // Hidden when wall clock is sub-half-second (timing noise dominates) or
+            // when only one thread was used (nothing to speedup against).
+            get speedup() {
+                const wall = data.summary?.duration_millis || 0;
+                const serial = data.serialDurationMillis || 0;
+                if (wall < 500 || serial === 0 || (data.threads || 1) < 2) return null;
+                return (serial / wall).toFixed(1) + 'x';
+            },
+
+            get wallClock() {
+                const ms = data.summary?.duration_millis || 0;
+                if (ms < 1000) return ms + ' ms';
+                return (ms / 1000).toFixed(2) + ' s';
+            },
+
+            // Top-5 slowest scenarios. data.scenarios is the flat list built by
+            // HtmlReportWriter.buildTimelineData.
+            get slowestScenarios() {
+                return (data.scenarios || [])
+                    .slice()
+                    .sort((a, b) => (b.durationMillis || 0) - (a.durationMillis || 0))
+                    .slice(0, 5);
+            },
+
+            // Link to a scenario's anchor inside its feature page.
+            scenarioHref(scenario) {
+                return 'feature-html/' + scenario.featureHtmlName + '.html#' + scenario.refId;
             },
         };
     },
