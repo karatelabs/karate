@@ -177,6 +177,22 @@ const KarateReport = {
     _stepId: 0,
 
     /**
+     * Open the shared screenshot lightbox <dialog> on the page. The element is
+     * expected to be present in the feature template; embeds render onclick="..."
+     * inside HTML strings (Alpine doesn't process @click inside x-html output),
+     * so we go directly through the DOM here.
+     */
+    openLightbox(src, name) {
+        const dialog = document.getElementById('img-lightbox');
+        if (!dialog) return;
+        const img = document.getElementById('img-lightbox-img');
+        const cap = document.getElementById('img-lightbox-caption');
+        if (img) { img.src = src; img.alt = name || ''; }
+        if (cap) { cap.textContent = name || ''; }
+        dialog.showModal();
+    },
+
+    /**
      * Toggle expand/collapse for a step's detail section. Marker classes
      * (.k-step, .k-step-detail, .k-badge-collapsed, .step-row) are kept
      * as DOM hooks for these queries — they carry no styling.
@@ -371,7 +387,9 @@ const KarateReport = {
         }
         const mime = embed.mime_type || '';
         if (mime.startsWith('image/')) {
-            html += `<img src="../embeds/${this._esc(embed.file)}" class="max-w-full h-auto max-h-96" alt="${this._esc(embed.name || 'embedded image')}">`;
+            const src = `../embeds/${this._esc(embed.file)}`;
+            const alt = this._esc(embed.name || 'embedded image');
+            html += `<img src="${src}" alt="${alt}" class="max-w-full h-auto max-h-96 cursor-zoom-in rounded transition-opacity hover:opacity-90" onclick="KarateReport.openLightbox(this.src, this.alt)">`;
         } else if (mime === 'text/html') {
             html += `<iframe src="../embeds/${this._esc(embed.file)}" class="w-full border-0 h-72"></iframe>`;
         } else if (mime.startsWith('video/')) {

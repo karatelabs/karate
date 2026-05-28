@@ -449,7 +449,29 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 
 ### Phase 1b — Prototype feature adoption
 
+> **Status (2026-05-28):** *Partial — chrome + summary + feature-page polish landed; rest pending.* See checkbox status per group below; the original scope text is preserved as source-of-truth for what's still to do.
+
 **Why a separate phase.** Phase 1 was scoped (and executed) as a chrome swap — Bootstrap classes out, Tailwind classes in, no template structure changes. The "Adopt" features in the design-idea matrix go beyond restyling: they introduce new DOM (donut SVG, KPI card row, panels), new Alpine state (sticky sidebar scroll-spy, lightbox, copy-as-cURL clipboard), and new derived data (slowest-scenarios sort, speedup metric, expected-vs-actual diff). That work merits its own phase so PR review can compare matrix-vs-implementation cleanly, and so we know what "Phase 1 complete" actually means.
+
+**Progress snapshot** (2026-05-28):
+
+| Group | Status | Commits |
+|---|---|---|
+| Chrome additions across all 3 pages (Enterprise CTA, footer, hero) | ✅ Done | `b8c38e20a` |
+| Summary page features (donut, Failures tile, slot dogfood) | ✅ Done | `8aab76380` |
+| Summary expand UX fix (always-visible chevron, nested tbody, accent border) | ✅ Done (incidental) | `374614483` |
+| Feature page step polish (keyword colors method/match, hook muted, comment in nested call) | ✅ Done | `e7d504362` |
+| Feature page screenshot lightbox (`<dialog>` + `KarateReport.openLightbox`) | ✅ Done — code path live, visually unverified (no image-embed fixtures in test data) | (this session, pending commit) |
+| Feature page sidebar filter chips (All / Failed) | ⏭ Pending | — |
+| Feature page outline examples table | ⏭ Pending | — |
+| Feature page skipped-scenario reason block | ⏭ Pending | — |
+| Feature page two-column HTTP block + copy-as-cURL + expected/actual diff | ⏭ Pending (needs data-shape investigation) | — |
+| Timeline page speedup row + per-thread groups + top-5 slowest | ⏭ Pending | — |
+
+Mid-session scope amendments (kept here so the original scope text below stays load-bearing):
+- *Per-scenario step-gantt + step duration mini-bar* — built then removed in commit `e7d504362`. Visual noise without telling users anything the numeric durations don't.
+- *Step keyword color coding* — narrowed from a 7-keyword palette to just `method` (orange) and `match` (blue). Restraint over rainbow; everything else stays slate.
+- *Hook step lines* — full-row muted slate regardless of pass/fail status; the existing `hook` badge stays as the marker.
 
 **Scope** — implement the "Adopt" rows in the matrix that haven't shipped yet **plus** the gaps surfaced by the prototype-survey pass (these aren't in the original matrix but the prototype includes them). Grouped by template:
 
