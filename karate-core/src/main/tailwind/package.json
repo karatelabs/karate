@@ -1,9 +1,0 @@
-{
-  "//": "Pins tailwindcss for reproducible dev iteration via npx. The production build (future Maven mojo) uses the vendored standalone binary under etc/tailwind/; this package.json is only consulted when a maintainer runs `npx tailwindcss --watch` from this directory (per IMAGE_SPIKE.md §3.1.1).",
-  "name": "karate-report-tailwind",
-  "version": "0.0.0",
-  "private": true,
-  "devDependencies": {
-    "tailwindcss": "3.4.17"
-  }
-}

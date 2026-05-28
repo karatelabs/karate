@@ -22,6 +22,14 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Verify Tailwind CSS is up to date
+        run: |
+          bash etc/tailwind/tailwind.sh
+          if ! git diff --exit-code karate-core/src/main/resources/io/karatelabs/output/res/karate-report.css; then
+            echo "::error::karate-report.css is stale. Run 'bash etc/tailwind/tailwind.sh' locally and commit the regenerated CSS."
+            exit 1
+          fi
+
       - name: Build and test with Maven (cicd profile)
         run: mvn -B verify -Pcicd
 

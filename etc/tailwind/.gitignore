@@ -1,0 +1,2 @@
+# tailwind.sh downloads the standalone CLI here on first run.
+.cache/
