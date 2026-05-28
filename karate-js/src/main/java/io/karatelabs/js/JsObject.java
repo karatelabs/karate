@@ -772,11 +772,16 @@ class JsObject implements ObjectLike, Map<String, Object> {
     }
 
     static Set<Entry<String, Object>> getEntries(Map<String, Object> map) {
-        Set<Entry<String, Object>> unwrapped = new LinkedHashSet<>();
+        // Back the entry set with a LinkedHashMap rather than a LinkedHashSet:
+        // LinkedHashSet.add hashes each Entry (key^value), and value.hashCode() recurses
+        // forever when a user variable holds a self-referential Map / List (issue #2887).
+        // Input keys are already unique (they come from a Map.entrySet), so de-dup-by-hash
+        // is wasted work even in the common case.
+        Map<String, Object> unwrapped = new LinkedHashMap<>();
         for (Entry<String, Object> entry : map.entrySet()) {
-            unwrapped.add(new AbstractMap.SimpleEntry<>(entry.getKey(), Engine.toJava(entry.getValue())));
+            unwrapped.put(entry.getKey(), Engine.toJava(entry.getValue()));
         }
-        return unwrapped;
+        return unwrapped.entrySet();
     }
 
     // =================================================================================================

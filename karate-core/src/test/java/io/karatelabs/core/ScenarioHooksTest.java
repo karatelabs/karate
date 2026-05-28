@@ -336,6 +336,40 @@ public class ScenarioHooksTest {
         assertEquals(2, beforeHookCount, "cleanup scenario body should have run once per call");
     }
 
+    // ===== #2887: afterScenario karate.call must not SOE when a scenario var holds a cycle =====
+
+    @Test
+    void testAfterScenarioCallWithCircularScenarioVariable() throws Exception {
+        // A scenario variable that references itself (`obj.self = obj`) must not crash the
+        // afterScenario hook's karate.call(). The called feature inherits variables from the
+        // caller; unwrapping the bindings map through JsObject.getEntries used to dedupe via
+        // LinkedHashSet, which hashed each Entry (key^value) and recursed forever on the cycle.
+        Path callee = tempDir.resolve("noop.feature");
+        Files.writeString(callee, """
+            @ignore
+            Feature: noop
+
+              Scenario: noop
+                * print 'hook callee ran'
+            """);
+        Path feature = tempDir.resolve("after-circular.feature");
+        Files.writeString(feature, """
+            Feature: afterScenario karate.call with circular variable
+
+              Background:
+                * configure afterScenario = function(){ karate.call('noop.feature') }
+
+              Scenario: should not stack-overflow
+                * def obj = { name: 'test', items: [1, 2, 3] }
+                * eval obj.self = obj
+                * match obj.self.name == 'test'
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+
+        assertTrue(result.isPassed(), getFailureMessage(result));
+    }
+
     @Test
     void testBeforeScenarioInBackgroundDoesNotFireForOwnScenario() throws Exception {
         // beforeScenario runs BEFORE Background, so setting it in Background cannot
