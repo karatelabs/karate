@@ -93,6 +93,15 @@ public final class HtmlReportWriter {
     };
 
     private static final String DATA_PLACEHOLDER = "/* KARATE_DATA */";
+    // Phase 1 (IMAGE_SPIKE.md §3.1.2 + D21): inline-SVG sprite splice.
+    // Phase 2 will fill EXTS_PLACEHOLDER with <script>/<link> tags per registered ext;
+    // for now the splice substitutes the empty string, which is a no-op.
+    private static final String ICONS_PLACEHOLDER = "<!-- KARATE_ICONS -->";
+    private static final String EXTS_PLACEHOLDER = "<!-- KARATE_EXTS -->";
+
+    // Lazily-loaded sprite contents. Loaded once per JVM (sprite is small and
+    // identical for every template + every run).
+    private static volatile String iconsSprite;
 
     private static final java.util.concurrent.atomic.AtomicInteger embedCounter =
             new java.util.concurrent.atomic.AtomicInteger(0);
@@ -337,22 +346,39 @@ public final class HtmlReportWriter {
     }
 
     /**
-     * Inline JSON data into an HTML template.
-     * Replaces the placeholder with the JSON string.
+     * Inline JSON data into an HTML template, plus splice the icons sprite and
+     * the (currently empty) ext-asset block. See IMAGE_SPIKE.md §3.1.2 for the
+     * placeholder model — `HtmlReportWriter` is the single string-replace point
+     * for every template; Phase 2 will fill {@link #EXTS_PLACEHOLDER} with
+     * per-ext {@code <script>}/{@code <link>} tags assembled from
+     * {@code Suite.getReportAssets()}.
      */
     private static String inlineJson(String template, Object data) {
         String json = Json.of(data).toStringPretty();
         json = json.replace("</", "<\\/"); // prevent </script> in JSON from closing the script tag
-        return template.replace(DATA_PLACEHOLDER, json);
+        String html = template.replace(DATA_PLACEHOLDER, json);
+        html = html.replace(ICONS_PLACEHOLDER, loadIconsSprite());
+        html = html.replace(EXTS_PLACEHOLDER, ""); // Phase 2: assemble + splice ext assets
+        return html;
     }
 
     // ========== Template and Resource Loading ==========
 
     private static String loadTemplate(String name) throws IOException {
-        String path = RESOURCE_ROOT + name;
+        return loadClasspathResource(RESOURCE_ROOT + name, true);
+    }
+
+    /**
+     * Read a UTF-8 classpath resource. When {@code required} is true a missing
+     * resource raises; otherwise the empty string is returned.
+     */
+    private static String loadClasspathResource(String path, boolean required) throws IOException {
         try (InputStream is = HtmlReportWriter.class.getClassLoader().getResourceAsStream(path)) {
             if (is == null) {
-                throw new IOException("Template not found: " + path);
+                if (required) {
+                    throw new IOException("Resource not found: " + path);
+                }
+                return "";
             }
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
                 StringBuilder sb = new StringBuilder();
@@ -363,6 +389,26 @@ public final class HtmlReportWriter {
                 return sb.toString();
             }
         }
+    }
+
+    /**
+     * Load the icons sprite once per JVM and cache it. Missing sprite is logged
+     * at WARN and the splice yields the empty string — the report still renders,
+     * just without icons. See {@code _icons.svg} + IMAGE_SPIKE.md D21.
+     */
+    private static String loadIconsSprite() {
+        String cached = iconsSprite;
+        if (cached != null) {
+            return cached;
+        }
+        try {
+            cached = loadClasspathResource(RESOURCE_ROOT + "_icons.svg", false);
+        } catch (IOException e) {
+            logger.warn("Failed to load icons sprite: {}", e.getMessage());
+            cached = "";
+        }
+        iconsSprite = cached;
+        return cached;
     }
 
     /**

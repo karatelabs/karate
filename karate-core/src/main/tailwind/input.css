@@ -1,0 +1,13 @@
+/* Karate report Tailwind input — Phase 1 sticks to utility classes only.
+ *
+ * Per IMAGE_SPIKE.md D20: no @layer components block — no Karate-specific
+ * reusable classes (.k-card, .k-pill-pass, etc.). If reusable components
+ * become genuinely necessary later, that's a follow-up phase that also
+ * addresses the Karate-OSS brand question.
+ *
+ * Output (when the production build mojo lands): res/karate-report.css
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

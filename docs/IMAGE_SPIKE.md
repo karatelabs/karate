@@ -39,7 +39,7 @@ Per D19, extensions split across two tiers — same SPI, different licence + rep
 
 | # | Decision | Rationale |
 |---|----------|-----------|
-| D1 | **Real Tailwind for production**, checked-in precompiled CSS + hash-verified rebuild gate. **CDN Tailwind for the dev preview harness only** (§3.1 + §3.1.1). | Production reports stay offline-capable, deterministic, and don't depend on a CDN at view time. The maintainer-side dev harness uses Play CDN so template iteration is reload-fast — no `mvn package` per visual tweak. |
+| D1 | **Real Tailwind for production**, checked-in precompiled CSS + hash-verified rebuild gate (§3.1). Dev iteration uses the existing `HtmlReportWriterTest` + `npx tailwindcss --watch` (§3.1.1) — same toolchain as production, no separate preview harness, no CDN dependency. | Production reports stay offline-capable, deterministic, and don't depend on a CDN at view time. Dev iteration runs the actual production code path so styling changes can't quietly diverge from what users see. |
 | D2 | **Strict phase 1 → phase 2.** Redesigned report ships first (with slot DOM hooks but no plugin loader); plugin SPI and `karate-image` land after. | Smaller PRs; first PR proves the design language, second proves the SPI. |
 | D3 | **All slot types** supported: per-step embed, summary panel, feature panel, extra top-level page | One slot mechanism, four naming conventions. Plugin-owned render. |
 | D4 | **Plugin JAR ships its own JS+CSS** under `META-INF/karate-ext/static/`; core copies into `target/karate-reports/ext/<name>/` at write time | Self-contained; versioned with plugin JAR; loaded only when plugin active. |
@@ -58,8 +58,8 @@ Per D19, extensions split across two tiers — same SPI, different licence + rep
 | D17 | **Rename "plugin" → "ext" across the SPI.** `Plugin` interface → `Ext`. `boot.plugin('x')` → `boot.ext('x')`. `io.karatelabs.plugins.foo.FooPlugin` → `io.karatelabs.ext.foo.FooExt`. Sibling repo `karate-plugins` → `karate-ext`. Section header in DESIGN.md "Plugin Architecture" → "Ext Architecture". | Disambiguates from IDE plugins / Maven plugins / Gradle plugins. Aligns with `~/.karate/ext/` + `.karate/ext/` dirs that already exist (DESIGN.md, CLI.md, karate-cli/docs/spec.md). One vocabulary across runtime SPI, on-disk classpath dir, and the umbrella repo. v2 hasn't GA'd — clean rename now or never. |
 | D18 | **`karate.channel('type')` resolution moves to the unified registry.** Today `channel()` hard-codes a lookup against `KarateConfig.getChannelFactoryClass(type)`. After the ext rename, the channel SPI resolves via the same `io.karatelabs.ext.<name>.<Name>Channel` convention as ext-globals. | Two name-convention resolvers (one for channels, one for ext) is the kind of duplication that rots into divergence. One resolver, two roles (per-call factory vs Suite-lifetime singleton). |
 | D19 | **Extensions split across two licensing tiers, same SPI, same resolver.** OSS extensions live as submodules in *this* repo (`karate-image`, future visual/a11y/screenshot-regression tooling) — Apache/MIT, published under `io.karatelabs:karate-*`. Proprietary extensions live in the sibling `karate-ext` monorepo (renamed from `karate-plugins`, per D17) — license-gated, published under `io.karatelabs.ext:karate-*` (or kept private). Both tiers implement the same `io.karatelabs.core.Ext` SPI, resolve via the same `io.karatelabs.ext.<name>.<Name>Ext` name-convention, and activate the same way (`boot.ext('name')`). The runtime cannot tell them apart; only the JAR's licence header + Maven coordinate group does. We use "extension" / "ext" terminology despite VS Code's overlap — `ext` as a 3-letter token is unambiguous in context (filesystem dir, boot API, SPI name). | Single SPI surface, single mental model for users and contributors. License model is metadata, not architecture. Lets a future OSS extension graduate into core or a proprietary extension be open-sourced without an API break. |
-| D20 | **Phase 1 sticks to Tailwind built-ins + reuses the karatelabs-site brand.** No `@layer components` for Karate-specific classes (no `.k-card`, `.k-pill-pass`); use utility classes directly in templates. The `theme.extend` block in `karate-core/src/main/tailwind/tailwind.config.js` mirrors `../karatelabs-site/tailwind.config.js` verbatim — same `brand` slate scale (`#0f172a` → `#475569` + `navbar`), same `accent` blue (`#60a5fa`), same `amber` warning, same `surface` neutral scale, **same system-font stack** (no Google Fonts CDN). Overrides the prototype's Inter + JetBrains Mono + green-accent aesthetic. Per-ext CSS classes (e.g. image-comparison's `.k-image-ext` scope) remain fine — they isolate ext-owned styles, not Karate brand. | Visual continuity with karatelabs.io for free. Zero font CDN dependency keeps reports rendering styled in air-gapped CI. Defers any "design a Karate-OSS distinct brand" question to a later phase. Sticking to utility classes (no component layer) means the brand can be revisited later without a template rewrite — just swap `tailwind.config.js`. |
-| D21 | **Icons: Heroicons sourced into an inline SVG sprite, spliced by `HtmlReportWriter` at write time.** Source: [heroicons.com](https://heroicons.com) (MIT, made by Tailwind Labs, 24×24 viewBox matches karatelabs-site convention). Implementation matches the existing `HtmlReportWriter` model (see §3.1.2): one `karate-core/src/main/resources/io/karatelabs/output/_icons.svg` containing `<svg style="display:none"><symbol id="icon-check" viewBox="0 0 24 24">…</symbol>…</svg>`; templates carry a new `<!-- KARATE_ICONS -->` placeholder near `<body>` start; `HtmlReportWriter` string-replaces it with the sprite contents (same mechanism as `/* KARATE_DATA */`). Templates reference icons via `<svg class="w-4 h-4"><use href="#icon-check"/></svg>` — color inherits from `text-*` utilities, size from `w-*`/`h-*`. Inline (not file-referenced) sprite avoids `file://` CORS when reports are opened locally. ~2 KB per template; deduplicates SVG paths across the three pages. Estimated icon count for Phase 1: ~15-25 (check / X / dash for pass/fail/skip, chevrons for sort + expand, sun/moon for theme toggle, clipboard for copy-as-cURL, link/anchor, exclamation-triangle for failures, document for embeds, clock for durations). | Reject Bootstrap Icons / Font Awesome (webfont = CDN + FOIT). Reject Lucide/Tabler/Phosphor (good libs, but Heroicons is the canonical Tailwind pairing). Reject Thymeleaf-fragment approach (templates are static HTML + string-replace — no template engine). Per-ext icons follow the same inline-SVG pattern inside the ext's own `static/` assets. |
+| D20 | **Phase 1 sticks to Tailwind built-ins + the Karate Labs brand palette.** No `@layer components` for Karate-specific classes (no `.k-card`, `.k-pill-pass`); use utility classes directly in templates. The `theme.extend` block in `karate-core/src/main/tailwind/tailwind.config.js` carries the brand palette: slate `brand` scale (`#0f172a` → `#475569` + `navbar` `#212529`), `accent` blue (`#60a5fa`), `amber` warning, `surface` neutral scale, **system-font stack** (no Google Fonts CDN). Overrides the prototype's Inter + JetBrains Mono + green-accent aesthetic. Per-ext CSS classes (e.g. image-comparison's `.k-image-ext` scope) remain fine — they isolate ext-owned styles, not Karate brand. | Restrained brand suited to a utility tool (test reports land in CI artifacts + Jira tickets, where visual quietness > visual flair). Zero font CDN dependency keeps reports rendering styled in air-gapped CI. Sticking to utility classes (no component layer) means the brand can be revisited later without a template rewrite — just swap `tailwind.config.js`. |
+| D21 | **Icons: Heroicons sourced into an inline SVG sprite, spliced by `HtmlReportWriter` at write time.** Source: [heroicons.com](https://heroicons.com) (MIT, made by Tailwind Labs, 24×24 viewBox is the standard outline-icon size). Implementation matches the existing `HtmlReportWriter` model (see §3.1.2): one `karate-core/src/main/resources/io/karatelabs/output/_icons.svg` containing `<svg style="display:none"><symbol id="icon-check" viewBox="0 0 24 24">…</symbol>…</svg>`; templates carry a new `<!-- KARATE_ICONS -->` placeholder near `<body>` start; `HtmlReportWriter` string-replaces it with the sprite contents (same mechanism as `/* KARATE_DATA */`). Templates reference icons via `<svg class="w-4 h-4"><use href="#icon-check"/></svg>` — color inherits from `text-*` utilities, size from `w-*`/`h-*`. Inline (not file-referenced) sprite avoids `file://` CORS when reports are opened locally. ~2 KB per template; deduplicates SVG paths across the three pages. Estimated icon count for Phase 1: ~15-25 (check / X / dash for pass/fail/skip, chevrons for sort + expand, sun/moon for theme toggle, clipboard for copy-as-cURL, link/anchor, exclamation-triangle for failures, document for embeds, clock for durations). | Reject Bootstrap Icons / Font Awesome (webfont = CDN + FOIT). Reject Lucide/Tabler/Phosphor (good libs, but Heroicons is the canonical Tailwind pairing). Reject Thymeleaf-fragment approach (templates are static HTML + string-replace — no template engine). Per-ext icons follow the same inline-SVG pattern inside the ext's own `static/` assets. |
 
 ---
 
@@ -72,7 +72,7 @@ Per D19, extensions split across two tiers — same SPI, different licence + rep
 - Vendor the `tailwindcss` standalone binary per-OS under `etc/tailwind/` (no node toolchain). One file per `{linux,macos,windows}-{x64,arm64}`. Pinned source: `tailwindcss v3.4.17` standalone CLI, downloaded from `https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-{os}-{arch}`. SHA-256 checksums in `etc/tailwind/CHECKSUMS.txt`. ~120 MB total checked in (acceptable; binaries are stable across point releases).
   - Alternative considered: download-on-build via `frontend-maven-plugin`. Rejected: every CI run pays the download cost, offline builds break.
 - Source: `karate-core/src/main/tailwind/`
-  - `tailwind.config.js` — content globs over `karate-core/src/main/resources/io/karatelabs/output/*.html` (plus the dev preview harness under `karate-core/src/main/tailwind/preview/*.html`); `theme.extend` block copied verbatim from `../karatelabs-site/tailwind.config.js` per D20 (slate `brand` scale, `accent` blue, `amber`, `surface`, system-font stack). Initially no ext static asset dir in the content glob — exts own their own CSS and don't need core utilities.
+  - `tailwind.config.js` — content globs over `karate-core/src/main/resources/io/karatelabs/output/*.html`; `theme.extend` carries the Karate Labs brand palette per D20 (slate `brand` scale, `accent` blue, `amber`, `surface` neutrals, system-font stack). Initially no ext static asset dir in the content glob — exts own their own CSS and don't need core utilities.
   - `input.css` — `@tailwind base; @tailwind components; @tailwind utilities;` only. **No `@layer components` block** in Phase 1 (D20). If reusable component classes are genuinely needed later, add them in a follow-up phase that also addresses the Karate-OSS brand question.
 - Output: `karate-core/src/main/resources/io/karatelabs/output/res/karate-report.css` (checked in).
 - Production templates always reference the precompiled CSS via `<link rel="stylesheet" href="res/karate-report.css">`. No CDN dependency in shipped reports — they render styled offline and in air-gapped CI.
@@ -88,33 +88,33 @@ A Maven mojo (under `karate-core/src/build-tools/`, or simpler — a `Mojo` in a
 
 **Why checked-in.** Most contributors edit Java, not templates. Forcing every Java-only edit through a Tailwind rebuild is friction. The hash gate makes template edits loud without taxing unrelated work.
 
-### 3.1.1 Dev preview harness (CDN-based)
+### 3.1.1 Dev iteration loop (no separate harness needed)
 
-Iterating on templates against `mvn package` per visual tweak is too slow. The dev harness sidesteps the production toolchain entirely for the inner-loop:
+For sub-second iteration on Tailwind class changes while working on templates, **reuse the existing `HtmlReportWriterTest#testHtmlReportGeneration`** — it writes a full report to `target/karate-report-dev/` (persistent dir, designed for visual inspection per the test's docstring) from a representative 33-scenario mixed pass/fail/skip suite.
 
+The inner loop:
+
+```bash
+# Terminal 1: generate the report once against real data.
+mvn -pl karate-core test -Dtest=HtmlReportWriterTest#testHtmlReportGeneration -q
+open karate-core/target/karate-report-dev/karate-summary.html
+
+# Terminal 2: watch + rebuild Tailwind CSS on every template/config save.
+npx tailwindcss --watch \
+    -i karate-core/src/main/tailwind/input.css \
+    -o karate-core/src/main/resources/io/karatelabs/output/res/karate-report.css
+
+# Edit a template (no need to re-run mvn — the templates+JSON are already on disk,
+# and watch regenerates the CSS the report references). Browser reload, see result.
 ```
-karate-core/src/main/tailwind/preview/
-├── preview.html            # static HTML — loads CDN Tailwind + fixtures + the production template bodies via fetch
-├── fixtures/
-│   ├── small-suite.jsonl   # ~5 features, mixed pass/fail/skip
-│   ├── large-suite.jsonl   # ~100 features, multiple threads — for layout stress
-│   └── failure-heavy.jsonl # for testing the failure panels
-└── README.md               # "open preview.html in a browser; pick fixture from dropdown"
-```
 
-`preview.html`:
-- `<script src="https://cdn.tailwindcss.com">` — Play CDN with JIT; same `tailwind.config.js` via `<script>tailwind.config = {...}</script>` inline.
-- Loads the fixture JSONL, parses it client-side into the same `FeatureResult` shape the Java side emits.
-- Renders the production template bodies (fetched from `../../resources/io/karatelabs/output/*.html`) against the parsed data — using the same Alpine components production uses, just without going through the Java pipeline.
-- Live-reload via a watch flag (browser auto-refreshes when template or fixture files change; small standalone script, no build tool).
+Two properties over a separate-harness design:
+- **Same production code path** — same `HtmlReportWriter`, same templates, same data wiring. No risk of a parallel "preview-only" code path quietly diverging from production styling or interaction behaviour.
+- **Same toolchain as production** — `npx tailwindcss --watch` uses the same standalone Tailwind binary the production build will vendor. CDN-vs-precompiled differences can't bite you.
 
-Two benefits:
-1. **Sub-second iteration cycle** on visual changes — save template, browser reloads, see result. No Maven, no binary invocation, no test suite run.
-2. **Real data shapes** — the fixtures are real `FeatureResult.toJson()` output captured from genuine runs (commit a curated set as part of Phase 1). Any prototype design idea that doesn't survive contact with the real data fails visibly here, not after merge.
+The only cost is needing `npx` available during template work. That cost is contained to maintainers iterating on templates; regular contributors editing Java never touch it.
 
-Fixtures are captured by running `karate run --output-jsonl features/` against a representative suite, then trimming the JSONL to the shape needed.
-
-**The harness is dev-only — never bundled in any release artifact.** It lives under `src/main/tailwind/` (build-tooling area), not under `src/main/resources/`, so it doesn't ship in the jar.
+When you're done iterating, the production `mvn -pl karate-core karate:tailwind` (when the mojo lands) regenerates the same CSS file and updates the hash — no extra cleanup step.
 
 ### 3.1.2 Template architecture — confirmed reality (not Thymeleaf)
 
@@ -357,7 +357,7 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 
 **Scope:**
 - Build apparatus (§3.1): vendored Tailwind binary + Maven mojo + hash gate.
-- Dev preview harness (§3.1.1): CDN-based, with committed fixture JSONLs.
+- Dev iteration loop (§3.1.1) — uses existing `HtmlReportWriterTest` + `npx tailwindcss --watch`. No new files to commit.
 - Port `karate-summary.html`, `karate-feature.html`, `karate-timeline.html` in place — keep the existing Java data bindings (Thymeleaf or whatever's there today), replace the CSS classes + JS interactivity. Each template adopts a subset of prototype design ideas per the matrix below.
 - Delete `jquery.min.js`, `jquery-ui.min.js`, `karate-report.js`, old `karate-report.css`.
 - Add Alpine (3.x, vendored single file). Replace jQuery-driven interactions with Alpine components.
@@ -374,10 +374,10 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 | Idea | Decision | Notes |
 |------|----------|-------|
 | Dark theme default + light toggle (`data-theme="dark\|light"` on `<html>`) | **Adopt** | Pure Tailwind `dark:` variants; toggle in topbar; localStorage persists. |
-| Top-bar nav (Summary / Timeline / Feature) | **Adopt** | Replaces today's plain header. Uses `brand.navbar` (`#212529`) per karatelabs-site palette. |
-| Inter + JetBrains Mono fonts | **Reject — per D20** | System-font stack from karatelabs-site (`system-ui`, `-apple-system`, `Segoe UI`, etc.) replaces the prototype's Google-Fonts-loaded Inter/JetBrains. Air-gapped CI still gets identical rendering on any platform. |
-| Prototype's green `#00d97e` accent | **Reject — per D20** | Use karatelabs-site's `accent` blue (`#60a5fa`) instead. Test reports get karatelabs.io visual continuity for free. |
-| Iconography (status pills, sort arrows, theme toggle, copy button, etc.) | **Adopt — per D21** | Inline SVG via Heroicons, sourced into `_icons.html` Thymeleaf fragment. Mirrors karatelabs-site's existing inline-SVG pattern. No icon-font dependency. |
+| Top-bar nav (Summary / Timeline / Feature) | **Adopt** | Replaces today's plain header. Uses `brand.navbar` (`#212529`) per D20 palette. |
+| Inter + JetBrains Mono fonts | **Reject — per D20** | System-font stack (`system-ui`, `-apple-system`, `Segoe UI`, etc.) replaces the prototype's Google-Fonts-loaded Inter/JetBrains. Air-gapped CI still gets identical rendering on any platform. |
+| Prototype's green `#00d97e` accent | **Reject — per D20** | Use the `accent` blue (`#60a5fa`) from the Karate Labs brand palette. |
+| Iconography (status pills, sort arrows, theme toggle, copy button, etc.) | **Adopt — per D21** | Inline SVG sprite (Heroicons), spliced by `HtmlReportWriter` via the `<!-- KARATE_ICONS -->` placeholder. No icon-font dependency. |
 | KPI card row on Summary (total / pass / fail / skipped / duration) | **Adopt** | We compute all these on `SuiteResult`. |
 | Animated pass-rate donut | **Adopt** | `passedRate` already exposed on `SUITE_EXIT.summary` per DESIGN.md § Reports. |
 | Failures panel (list of failed scenarios + click-through) | **Adopt** | We have the data. |
@@ -396,7 +396,7 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 | Speedup metric ("would have taken Xs serial, took Ys parallel") | **Adopt** | Easy to compute: `sum(scenario.durationMs) / suiteDurationMs`. Genuinely useful. |
 | Thread-utilization heatmap | **Defer** | Needs busy-vs-idle per-thread timeline that's expensive to compute and rarely actionable. Re-evaluate if anyone complains the gantt isn't enough. |
 | "Realistic-but-illustrative" mock data flourishes (e.g. 47/52 specific OpenAPI numbers in mock cards) | **Reject** | Mock-only data; no equivalent in real runs. |
-| `backdrop-filter` + `color-mix()` heavy aesthetic effects | **Reject — per D20** | Skip for Phase 1. Stick to flat Tailwind utility classes; the karatelabs-site brand is restrained by design. These effects are exactly the "premium dev tool look" we're not optimising for. Re-evaluate when (if) a brand phase happens. |
+| `backdrop-filter` + `color-mix()` heavy aesthetic effects | **Reject — per D20** | Skip for Phase 1. Stick to flat Tailwind utility classes; the Karate Labs brand is restrained by design. These effects are exactly the "premium dev tool look" we're not optimising for. Re-evaluate when (if) a brand phase happens. |
 
 **Files touched:** ~25 (Tailwind build dir, the three HTML templates, asset deletes, `HtmlReportWriter` if data shape needs extending for adopted ideas).
 
@@ -406,7 +406,7 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 - Existing functionality preserved verbatim: tag filter dropdown, scenario expand/collapse, step bodies, embed rendering for screenshots and `doc` HTML, line-number deep-links, the `@report=false` redaction behaviour from DESIGN.md.
 - `jquery.min.js`, `jquery-ui.min.js`, old `karate-report.js`, old `karate-report.css` are gone from the repo.
 - Hash-gate triggers on a deliberate template edit; build fails with the exact message `Tailwind CSS is stale. Run: mvn -pl karate-core karate:tailwind`.
-- Dev preview harness (§3.1.1) loads each committed fixture and renders the templates against it with no console errors.
+- `HtmlReportWriterTest#testHtmlReportGeneration` writes a green report against the new Tailwind classes (visual inspection per §3.1.1 inner-loop pattern).
 
 ### Phase 2 — Ext SPI extensions + slot loader
 
@@ -561,7 +561,7 @@ These don't block the spike; capture so they don't get lost.
 | O11 | **Channel resolver unification (D18 follow-through)** — refactor `KarateJs.channel()` (KarateJs.java:1202) to drop `KarateConfig.getChannelFactoryClass(type)` in favour of the shared `io.karatelabs.ext.<name>.<Name>Channel` resolver. Existing `karate-plugins/karate-grpc` etc. must be repackaged from `io.karatelabs.plugins.grpc.GrpcChannelFactory` → `io.karatelabs.ext.grpc.GrpcChannel`. Lock-step with D8 strict version match — `karate-ext`'s monorepo version tracks `karate-core` version exactly (a `karate-core` 2.0.10 cuts a `karate-ext` 2.0.10). | Phase 2 (resolver) + sibling repo PR + karate-ext version-sync as part of D17 rollout. |
 | O12 | **`karate-ext` monorepo version tied to `karate-core` version** — every karate-core release triggers a matching karate-ext release at the same version number, even when no ext module changed (no-op republish keeps the strict-match contract working). RELEASING.md needs a step for this. | RELEASING.md §2 amendment (Phase 3 in this spike); enforced by the loader check from D8. |
 | O13 | **Per-tag pass-rate aggregation** — deferred from Phase 1 design matrix (prototype's "tag pass-rate rings"). Requires `SuiteResult` to expose `Map<String, {passed, failed, skipped}> tagStats`. Light to compute, but no current consumer asks for it; ship Phase 1 without it, add when a user requests. | Post-Phase 1 if asked. |
-| O14 | **Karate-OSS distinct brand** — Phase 1 (D20) reuses karatelabs-site's slate-blue brand for visual continuity. Open question whether the OSS report should eventually have its own visual identity distinct from the marketing site (e.g. to signal "this is the OSS product, not the commercial offering"). Triggers a brand-design phase that produces a Karate-OSS palette/typography spec; the spec then drops into `karate-core/src/main/tailwind/tailwind.config.js`'s `theme.extend` and the `@layer components` block we deliberately skipped. No template rewrite needed if Phase 1 stuck to utility classes (D20). | Post-spike; needs design input. |
+| O14 | **Karate-OSS distinct brand** — Phase 1 (D20) uses the slate-blue Karate Labs brand palette. Open question whether the OSS report should eventually have its own visual identity (e.g. to signal "this is the OSS product, not the commercial offering"). Triggers a brand-design phase that produces a Karate-OSS palette/typography spec; the spec then drops into `karate-core/src/main/tailwind/tailwind.config.js`'s `theme.extend` and the `@layer components` block we deliberately skipped. No template rewrite needed if Phase 1 stuck to utility classes (D20). | Post-spike; needs design input. |
 | O15 | **Thread-utilization on Timeline** — deferred from Phase 1 matrix. If anyone says the per-thread gantt isn't enough to understand parallelism behaviour, revisit. | Post-Phase 1 if asked. |
 
 ---
