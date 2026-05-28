@@ -143,6 +143,35 @@ const KarateReport = {
         return null;
     },
 
+    /**
+     * Hero status pill — input is a count triple {passed, failed, skipped}.
+     * Returns label, dot fill class, and outer pill class. Used by the
+     * page hero on summary / feature / timeline.
+     */
+    heroStatus(counts) {
+        const failed = counts.failed || 0;
+        const skipped = counts.skipped || 0;
+        if (failed > 0) {
+            return {
+                label: failed + (failed === 1 ? ' FAILURE' : ' FAILURES'),
+                dotCls: 'bg-red-500',
+                pillCls: 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-900'
+            };
+        }
+        if (skipped > 0) {
+            return {
+                label: skipped + (skipped === 1 ? ' SKIPPED' : ' SKIPPED'),
+                dotCls: 'bg-amber-500',
+                pillCls: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900'
+            };
+        }
+        return {
+            label: 'ALL PASSED',
+            dotCls: 'bg-green-500',
+            pillCls: 'bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 border-green-200 dark:border-green-900'
+        };
+    },
+
     // ========== Step Rendering (recursive) ==========
 
     _stepId: 0,
@@ -377,6 +406,18 @@ const KarateReport = {
                 return base.replace(/\.feature$/, '') || 'Feature';
             },
 
+            get heroCounts() {
+                const scenarios = data.scenarios || [];
+                return scenarios.reduce((acc, s) => {
+                    if (s.skipped) acc.skipped++;
+                    else if (s.passed) acc.passed++;
+                    else acc.failed++;
+                    return acc;
+                }, { passed: 0, failed: 0, skipped: 0 });
+            },
+
+            get heroStatus() { return self.heroStatus(this.heroCounts); },
+
             toggleTheme()              { this.theme = self.toggleTheme(); },
             truncate(str, len)         { return self.truncate(str, len); },
             renderSteps(steps)         { return self.renderSteps(steps); },
@@ -420,6 +461,15 @@ const KarateReport = {
             toggleTheme()        { this.theme = self.toggleTheme(); },
             statusOf(item)       { return self.statusOf(item); },
             statusOfFeature(f)   { return self.statusOfFeature(f); },
+
+            get heroStatus() {
+                const s = data.summary || {};
+                return self.heroStatus({
+                    passed: s.scenario_passed || 0,
+                    failed: s.scenario_failed || 0,
+                    skipped: s.scenario_skipped || 0,
+                });
+            },
 
             toggleTag(tag) {
                 const idx = this.selectedTags.indexOf(tag);
@@ -515,6 +565,15 @@ const KarateReport = {
             data,
             theme: self.getTheme(),
             toggleTheme()  { this.theme = self.toggleTheme(); },
+
+            get heroStatus() {
+                const s = data.summary || {};
+                return self.heroStatus({
+                    passed: s.scenario_passed || 0,
+                    failed: s.scenario_failed || 0,
+                    skipped: s.scenario_skipped || 0,
+                });
+            },
         };
     },
 
