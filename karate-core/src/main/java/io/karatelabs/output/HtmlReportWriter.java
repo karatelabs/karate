@@ -466,6 +466,20 @@ public final class HtmlReportWriter {
         data.put("relativePath", fr.getFeature().getResource().getRelativePath());
         data.put("passed", fr.isPassed());
         data.put("durationMillis", fr.getDurationMillis());
+        // Timestamp + karate version on every feature page so the hero + footer
+        // render the same provenance line as the summary. Falls back to the
+        // earliest scenario start time if FeatureResult itself has none.
+        long startTime = fr.getStartTime();
+        if (startTime == 0) {
+            for (ScenarioResult sr : fr.getScenarioResults()) {
+                long st = sr.getStartTime();
+                if (st > 0 && (startTime == 0 || st < startTime)) startTime = st;
+            }
+        }
+        if (startTime > 0) {
+            data.put("reportDate", DATE_FORMAT.format(Instant.ofEpochMilli(startTime)));
+        }
+        data.put("karateVersion", Globals.KARATE_VERSION);
 
         // Scenarios
         List<Map<String, Object>> scenarios = new ArrayList<>();

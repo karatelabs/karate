@@ -68,6 +68,7 @@
             <h1 class="mt-3 text-xl md:text-2xl font-semibold tracking-tight" x-text="data.name || 'Feature'">Feature Name</h1>
             <p class="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1" x-text="data.path">path/to/feature</p>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-slate-500 dark:text-slate-400">
+                <span x-show="data.reportDate" class="inline-flex items-center gap-1.5"><svg class="w-4 h-4"><use href="#icon-clock"/></svg> <span x-text="data.reportDate">Date</span></span>
                 <span class="inline-flex items-center gap-1.5"><svg class="w-4 h-4"><use href="#icon-check-circle"/></svg> <span x-text="heroCounts.passed"></span> passed</span>
                 <span x-show="heroCounts.failed > 0" class="inline-flex items-center gap-1.5 text-red-600 dark:text-red-400"><svg class="w-4 h-4"><use href="#icon-x-circle"/></svg> <span x-text="heroCounts.failed"></span> failed</span>
                 <span x-show="heroCounts.skipped > 0" class="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400"><svg class="w-4 h-4"><use href="#icon-minus-circle"/></svg> <span x-text="heroCounts.skipped"></span> skipped</span>
