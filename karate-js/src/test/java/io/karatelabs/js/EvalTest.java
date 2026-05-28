@@ -1416,6 +1416,40 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testArrayLiteralSpread() {
+        // Bare identifier — the only shape that ever worked.
+        matchEval("var a = [1, 2, 3]; [...a]", "[1, 2, 3]");
+        // Spread argument is any expression — function call, method call,
+        // array literal, paren expression — not just an identifier.
+        matchEval("function f(){ return [1, 2, 3] }; [...f()]", "[1, 2, 3]");
+        matchEval("var s = new Set([1, 2, 3]); [...s.values()]", "[1, 2, 3]");
+        matchEval("[...[1, 2, 3]]", "[1, 2, 3]");
+        matchEval("[...(true ? [1, 2] : [3, 4])]", "[1, 2]");
+        // Multiple spreads + interleaved elements.
+        matchEval("var a = [1, 2], b = [3, 4]; [0, ...a, ...b, 5]", "[0, 1, 2, 3, 4, 5]");
+        // Spread of an iterable that isn't a JsArray.
+        matchEval("[...new Set([1, 2, 3])]", "[1, 2, 3]");
+        // Spread of a string iterates code units.
+        matchEval("[...'abc']", "['a', 'b', 'c']");
+        // Non-iterable spread → TypeError (not a misleading ReferenceError).
+        try {
+            eval("[...undefined]");
+            fail("expected TypeError");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("not iterable"), e.getMessage());
+        }
+        // Calling a missing method inside a spread surfaces as
+        // "not a function" (TypeError), not "X(args) is not defined".
+        try {
+            eval("var x = {}; [...x.foo()]");
+            fail("expected TypeError");
+        } catch (Exception e) {
+            String msg = e.getMessage();
+            assertTrue(msg.contains("is not a function") && !msg.contains("is not defined"), msg);
+        }
+    }
+
+    @Test
     void testImmediatelyInvokedFunctionExpression() {
         // Named function expression immediately invoked
         assertEquals(1, eval("var x = function f1(){ return 1; }(); x"));

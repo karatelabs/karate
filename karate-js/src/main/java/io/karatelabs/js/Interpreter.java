@@ -449,7 +449,7 @@ class Interpreter {
                                           boolean newKeyword, Node node, CoreContext context) {
         if (o instanceof JsCallable callable) {
             if (newKeyword && !callable.isConstructable()) {
-                throw JsErrorException.typeError(node.toStringWithoutType() + " is not a constructor");
+                throw JsErrorException.typeError(node.getTextIncludingWhitespace() + " is not a constructor");
             }
             List<Object> argsList = new ArrayList<>();
             int argsCount = fnArgsNode == null ? 0 : fnArgsNode.size();
@@ -524,7 +524,7 @@ class Interpreter {
             }
             return result;
         } else {
-            throw JsErrorException.typeError(node.toStringWithoutType() + " is not a function");
+            throw JsErrorException.typeError(node.getTextIncludingWhitespace() + " is not a function");
         }
     }
 
@@ -548,7 +548,7 @@ class Interpreter {
             return Terms.UNDEFINED;
         }
         if (!(callable instanceof JsCallable c) || !c.isConstructable()) {
-            throw JsErrorException.typeError(operand.toStringWithoutType() + " is not a constructor");
+            throw JsErrorException.typeError(operand.getTextIncludingWhitespace() + " is not a constructor");
         }
         return invokeAsConstructor(c, new Object[0], operand, context);
     }
@@ -645,7 +645,7 @@ class Interpreter {
             return o;
         }
         if (!(o instanceof JsCallable callable)) {
-            throw JsErrorException.typeError(callableNode.toStringWithoutType() + " is not a function");
+            throw JsErrorException.typeError(callableNode.getTextIncludingWhitespace() + " is not a function");
         }
         Object[] args = new Object[substitutions.size() + 1];
         args[0] = cooked;
@@ -976,7 +976,11 @@ class Interpreter {
             Node elem = node.get(i);
             Node exprNode = elem.get(0);
             if (exprNode.token.type == DOT_DOT_DOT) { // spread
-                Object value = evalRefExpr(elem.get(1), context);
+                // Spread argument is any expression — function call, literal,
+                // paren expression, etc. evalRefExpr would treat it as a bare
+                // identifier (via node.getText()) and throw a misleading
+                // ReferenceError on anything other than a single name.
+                Object value = eval(elem.get(1), context);
                 JsIterator iter = IterUtils.getIterator(value, context);
                 while (iter.hasNext()) {
                     list.add(iter.next());

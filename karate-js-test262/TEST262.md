@@ -61,23 +61,14 @@ Operating-mode maxims for the test262 conformance loop. Treat as load-bearing.
    regressions.
 
 7. **Aggregate, don't dump — context is precious.** A full run is ~53k
-   JSONL rows; a single slice spits hundreds of FAIL lines on stdout.
-   Reading any of that raw burns the context budget you need for the
-   actual engineering work. Aggregate with `jq` / `wc -l` / `tail -n 5`,
-   cap diff output, default `--single` to `-v`, and delegate slice runs
-   to a sub-agent with a strict ≤200-word return contract. Full rules
-   in [Context discipline](#context-discipline).
+   JSONL rows. Treat run output as files to query, not streams to tail.
+   Full rules in [Context discipline](#context-discipline).
 
-8. **Playbook hygiene is the work, not a chore.** When you find this
-   file — or the runner it documents — has accumulated rot, fix it
-   inline in the same session that surfaced it. Concretely: stale
-   counts and "past wins" narration get deleted; running scores move
-   to [Failure triage](#failure-triage) (the latest run-dir is the
-   source of truth); log patterns that flood context get dialed back
-   (cap, raise cadence, route to file); JSONL the queries can't parse
-   gets fixed at the writer (e.g. lone-surrogate substitution in
-   `JsonLite`), not worked around. A playbook future sessions can
-   trust is worth more than one preserved as a museum piece.
+8. **Playbook hygiene is the work, not a chore.** Stale counts, "past
+   wins" narration, log patterns that flood context, JSONL the queries
+   can't parse — fix the rot inline in the session that surfaced it.
+   Fix it at the writer, not in a workaround. A playbook future
+   sessions can trust is worth more than a museum piece.
 
 ---
 
@@ -92,7 +83,7 @@ Each session that touches the engine should:
    `--only` invocation *is* the baseline; pin its run-dir in the commit
    so the next session has a diff target.
 2. **Unit tests:** `mvn -f pom.xml -pl karate-js -o test` →
-   `Tests run: 1022+, Failures: 0, Errors: 0, Skipped: 2` (count grows as
+   `Tests run: 1086+, Failures: 0, Errors: 0, Skipped: 2` (count grows as
    `SpecPinTest` accretes invariants).
 3. **test262 built-ins probe:** diff `results.jsonl` against the previous
    run. **Zero regressions (PASS → FAIL).** Document any flip in the commit
@@ -106,7 +97,7 @@ Each session that touches the engine should:
    mvn -f pom.xml -pl karate-js -o install -DskipTests
    mvn -f pom.xml -o test -pl karate-core
    ```
-   Expect `Tests run: 2171+, Failures: 0, Errors: 0, Skipped: 3`.
+   Expect `Tests run: 2224+, Failures: 0, Errors: 0, Skipped: 3`.
 6. **Update this file's TODOs in the same commit.** This is a roadmap,
    not a changelog. For each item the commit addressed (active priority
    bullet, background sweep, deferred TODO, or implicit assumption a bug
@@ -187,259 +178,151 @@ counts go stale fast and don't belong in this file.
 
 | Slice | What's blocking it |
 |---|---|
-| `test/language/statements/for-of` | Residual: IteratorClose-on-throw runtime; fn-name inference for `[x = (function(){})] of …`; a handful of negative-parse tightenings (`for (var x of []) let y;`). Pattern-dispatch is in place (LHS unwrap → `destructurePattern` with assignment-mode `bindScope`). |
-| `test/language/expressions/object` | Escaped-keyword cover-name (`covered-ident-name-prop-name-literal-break-escaped.js` cluster) dominates; `__proto__`-duplicate edges; computed-key / spread / method-def tail. |
+| `test/language/statements/for-of` | IteratorClose-on-throw; fn-name inference for `[x = (function(){})] of …`; a few negative-parse tightenings. |
+| `test/language/expressions/object` | Escaped-keyword cover-name dominates; `__proto__`-duplicate edges; computed-key / spread / method-def tail. |
 | `test/language/expressions/assignment` | Iterator-return semantics on default-expr throw. |
-| `test/language/statements/function` + `expressions/function` + `arrow-function` | Residual: fn-name inference for `[x = (function(){})]`-style defaults, IteratorClose-on-throw, and a few rest-element edges. Param-level default (`= initializer`) now fires uniformly for IDENT and destructuring patterns. |
-| `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS (gated on strict-mode plumbing); `valueOf` / ToNumeric ordering for `+=` / `*=` etc.; `A5.*_T2/T3` family (non-identifier LHS / parenthesized targets — Annex-B carve-out). Logical-assignment slice (`||=` / `&&=` / `??=`) is its own dir and now ~done modulo class-expression RHS (gated on class syntax). |
-| `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion already handles headline cases. |
-| `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` (gated until Symbol). |
+| `test/language/{statements,expressions}/function` + `arrow-function` | fn-name inference for `[x = (function(){})]`-style defaults; IteratorClose-on-throw; rest-element edges. |
+| `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS (gated on strict-mode plumbing); `valueOf` / ToNumeric ordering for `+=` / `*=`; `A5.*_T2/T3` family (non-identifier LHS — Annex-B carve-out). |
+| `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion handles headline cases. |
+| `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` (Symbol-gated). |
 | `test/built-ins/RegExp/**` | `Symbol.{match,replace,search,split,matchAll}` (Symbol-gated), parser edges, named-groups feature-gated. |
-| `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` ToInteger corners, parser-blocked tests, Symbol-gated tail. See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
-| `test/built-ins/Object/**` | Descriptor edges, `seal` (TypedArray-feature-gated), Annex-B `arguments` aliasing (deferred). See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
-| `test/built-ins/JSON/**` | `JSON.stringify` reviver/replacer 2-arg semantics; small parser tail (`text-negative-zero.js` — `-0` returns Integer 0 by deliberate json-smart parity; `S15.12.2_A1.js` — `__proto__` key shouldn't shadow proto). Calibration: run JSONTestSuite — see [JS_ENGINE.md § Future TODO Items](../docs/JS_ENGINE.md#2-future-todo-items). |
+| `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` ToInteger corners; parser-blocked; Symbol-gated tail. See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
+| `test/built-ins/Object/**` | Descriptor edges; `seal` (TypedArray-gated); Annex-B `arguments` aliasing. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
+| `test/built-ins/JSON/**` | `JSON.stringify` reviver/replacer 2-arg semantics; `-0`/`__proto__` parser tail. Calibration: run JSONTestSuite — see [JS_ENGINE.md § Future TODO Items](../docs/JS_ENGINE.md#2-future-todo-items). |
 | `test/built-ins/Number/**` | `[object Number]` (Symbol-gated) + a literal-form parser edge. |
 | `test/built-ins/Date/**` | ISO format edges + invalid-date propagation. See [JS_ENGINE.md § Date](../docs/JS_ENGINE.md#date). |
-| `test/built-ins/Symbol/**` + cascades (parked) | Symbol primitive — `typeof === "symbol"`, identity, `Symbol.for` / `keyFor` / `description`, `Object.getOwnPropertySymbols`. **Deprioritized:** no real-world code uses it. Pick up after the language work. |
+| `test/built-ins/Symbol/**` (parked) | Symbol primitive. Deprioritized — no real-world code uses it. Pick up after the language work. |
 
 ### Background sweeps
 
 Picked off opportunistically when nearby — not session-sized on their own.
 
 - **String iterator splits surrogate pairs.** `IterUtils.stringIterator`
-  walks `charAt(i)` so `'🥰💩'` yields four iterations instead of two
-  code-points. Spec §22.1.5.1 calls for code-point iteration. Affects
-  test262 `Object/groupBy/string.js`, `Map/groupBy/string.js`, and any
-  spec that consumes a string via `for-of`. Fix: walk `codePointAt` /
-  `charCount` in the iterator. ~1 h.
+  walks `charAt(i)` (UTF-16) instead of code-points (spec §22.1.5.1).
+  Affects any `for-of` over a string. Fix: walk `codePointAt` /
+  `charCount`. ~1 h.
 
-- **`Array.prototype.values()` returns raw `List` instead of a spec
-  iterator object.** `IterUtils.iteratorFromCallable` was made lenient
-  (falls back to `getIterator`) to absorb the mismatch for set-algebra
-  iteration of `[v].values()`-style set-likes; the underlying gap is
-  that `Array.prototype.values` should return a wrapped iterator with
-  `next` / `@@iterator` so direct `arr.values().next()` works. Use
+- **`Array.prototype.values()` returns raw `List`, not a spec iterator
+  object.** `IterUtils.iteratorFromCallable` absorbs the mismatch via a
+  lenient fallback; direct `arr.values().next()` still fails. Use
   `IterUtils.toIteratorObject(listIterator(...))`. ~30 min.
 
-- **Block-scope `const` redeclaration across sibling `{ ... }` blocks.**
-  test262 `Set/prototype/{union,intersection,difference,
-  symmetricDifference}/result-order.js` declares `const s1` inside each
-  of four sibling blocks; the second block reports
-  `s1.union(s2) is not defined` (the AST node text leaks into the
-  reference-error message), suggesting block scoping for `const` does
-  not isolate the declarations cleanly. Investigate parser/scope
-  handling for `LET` / `CONST` inside `BLOCK` nodes.
+- **Object-literal spread restricted to bare ident — parser-level.**
+  `{...fn()}` / `{...obj.method()}` / `{...{x:1}}` fail at parse
+  (parser accepts only `IDENT` after `...` in `LIT_OBJECT`). Parser
+  grammar change; bigger scope than the array-spread fix. Array side
+  covered by `EvalTest.testArrayLiteralSpread`.
 
-- **`.length` / `.name` rollout to remaining prototypes.** `JsBuiltinMethod`
-  infra in place; most residual `name.js` fails are Symbol-gated.
+- **`.length` / `.name` rollout to remaining prototypes** —
+  `JsBuiltinMethod` infra in place; most residual `name.js` fails are
+  Symbol-gated.
 
-- **Destructuring cover-grammar — remaining gaps.** Tail-end items,
-  in priority order:
-    - **Arrow-function param: duplicate binding names.** `(x, {x}) => 1`
-      / `({a, a}) => …` must be SyntaxError at parse phase. Needs a
-      walker over `FN_DECL_ARGS` collecting bound IDENTs through nested
-      destructuring, rejecting duplicates. Drives the
-      `arrowparameters-cover-no-duplicates-binding-*` cluster in
-      `test/language/expressions/arrow-function/syntax/early-errors`.
-    - **Other arrow-function early-errors.** `dstr/syntax-error-ident-ref-default.js`,
-      `dstr/syntax-error-ident-ref-extends.js`,
-      `object-destructuring-param-strict-body.js`. Likely small
-      spec-shape gaps in the same area; investigate per test.
+- **Destructuring cover-grammar tail.** Arrow-fn early errors:
+  duplicate-binding-name walk over `FN_DECL_ARGS`
+  (`(x, {x}) => 1` / `({a, a}) => …` should SyntaxError);
+  `dstr/syntax-error-ident-ref-default.js` and siblings under
+  `arrow-function/syntax/early-errors`.
 
-- **Cleanup residuals.** Occasional `"null"` NPE paths, `IllegalName` JDK
-  lambda leak, `Java heap space` OOM in array-slice paths.
+- **Cleanup residuals** — occasional `"null"` NPE paths, `IllegalName`
+  JDK lambda leak, `Java heap space` OOM in array-slice paths.
 
 ---
 
 ## Deferred TODOs
 
-Tracked but un-scheduled. Three flavors: feature gaps that are intentional
-non-goals today, engine cleanup needing a dedicated session, and
-harness-quality fixes. **For design context behind each, see
-[JS_ENGINE.md](../docs/JS_ENGINE.md)** — anchors inline below.
+Tracked but un-scheduled. Each item: a one-line *what* + *why parked* +
+file pointer. For *how the subsystem is shaped*, read the file. For
+*spec invariants worth honoring*, see
+[JS_ENGINE.md § Spec Invariants](../docs/JS_ENGINE.md#spec-invariants-test262-driven).
 
 ### Engine — feature gaps
 
-- **Strict mode plumbing.** Parse `"use strict"` directive prologue,
-  thread `strictMode` flag via `CoreContext`, flip ~7 lenient sites
-  (frozen-write / writable=false / read-only / set-only-accessor /
-  non-extensible-add / non-configurable-delete) through one
-  `failSilentOrThrow` helper. `AccessorSlot.write` already accepts a
-  `strict` arg. ~3–4 h. **Risk:** parser changes may regress
-  `flags: [noStrict]` test262 paths if directive parsing is over-eager.
-
-- **Promises + async / await + setTimeout.** Skipped (`feature: Promise`,
-  `async-functions`, `Symbol.asyncIterator`, `include: promiseHelper.js`).
-  karate-js is synchronous. Viable path: synchronous subset first —
-  `Promise` as eagerly-resolving thenable, `async function` runs
-  synchronously, `await` synchronously unwraps. Escalate to a microtask
-  runtime only when a real workload needs timer-driven scheduling.
-
-- **Class syntax (ES6).** Skipped (`feature: class` and friends). Engine
-  has prototype machinery + `new` but no parser support for `class` /
-  `extends` / `super` / method-definition. Parse fails loudly with
-  `SyntaxError` — the right shape until real workload demands it.
-  **Why parked despite being common in modern code:** the target workload
-  is run-time glue and scripting — LLM-emitted snippets and reusable
-  functions, not OO application code. Classes are rare in that shape;
-  prototype + `new` covers the cases that do appear.
-
-- **Symbol primitive.** Slice #7 above. Tracked here as a feature gap
-  because it gates a long tail of fails across String / Array / RegExp /
-  Object that depend on `@@iterator` / `Symbol.species` / `Symbol.toPrimitive`.
+- **Strict mode plumbing.** Parse `"use strict"` directive, thread
+  `strictMode` via `CoreContext`, flip lenient sites through one
+  `failSilentOrThrow` helper. `AccessorSlot.write` already takes a
+  `strict` arg. ~3–4 h. Risk: directive parser may regress
+  `flags: [noStrict]` paths.
+- **Promises / async / await / setTimeout.** Skipped (`feature: Promise`,
+  `async-functions`, `Symbol.asyncIterator`). karate-js is synchronous.
+  Viable path: sync subset first — `Promise` as eager thenable,
+  `async function` runs sync, `await` sync-unwraps.
+- **Class syntax (ES6).** No parser support for `class` / `extends` /
+  `super`. Parked because target workload is glue/scripting, not OO;
+  prototype + `new` covers the cases that appear.
+- **Symbol primitive.** Gates a long tail across String / Array / RegExp /
+  Object. Deprioritized — real-world code doesn't use it.
 
 ### Engine — cleanup
 
-Items needing a dedicated session — benchmark-gated or coordinated with
-other work. Design context in
-[JS_ENGINE.md § Spec Invariants](../docs/JS_ENGINE.md#spec-invariants-test262-driven)
-and the per-section anchors.
+Benchmark-gated or coordinated with other work.
 
-- **`Prototype.toMap()` rebuilds on every call.** Allocates fresh
-  `LinkedHashMap` per invocation; iteration paths re-pay the cost.
-  Memoize on slot-map modification stamp or expose non-materializing
-  iterator. ~1 h. Defer until benchmark shows it matters.
-
-- **`HOLE` → tombstone full elimination.** Centralization fallback
-  landed; full elimination needs sparse-array storage rework (dense
-  `list` only set values; sparse positions consult `props` with
-  tombstoned `DataSlot` entries). Pair with parser `in` support.
-  Pinned in `SpecPinTest`. ~6–8 h.
-
-- **HOLE leak audit at JsArray Java-interop seams.** `iterator()`,
-  `toArray()`, `toArray(T[])`, `subList(int,int)`, `contains(Object)`,
-  `indexOf(Object)`, `lastIndexOf(Object)` route to `list.foo()` raw —
-  HOLE escapes to Java consumers. `get(int)` already translates HOLE→null;
-  the rest don't. Centralize on a single unwrap helper (or wrap
-  `list.iterator()` in a translating `Iterator`). No test262 wins
-  expected (these are Java-interop seams), but spec-shape pinning in
-  `SpecPinTest`. Pairs with the full HOLE elimination above. ~30 min.
-
-- **`PropertyKey` abstraction.** Symbol prep. Defer to slice #7 itself —
-  introducing `PropertyKey` ahead of a concrete consumer is YAGNI.
-
-- **Arguments → spec exotic Arguments object.** Now a `JsArray` (cached
-  per-call frame) — supports `arguments[i]` / `.length` / iteration /
-  property writes. Not yet: `arguments.callee` (deprecated, strict-mode
-  TypeError), dynamic alias to formal parameters in non-strict mode
-  (`function f(x){ arguments[0]=2; return x }` → `2`),
-  `Object.prototype.toString.call(arguments) === "[object Arguments]"`.
-  Subclass `JsArguments extends JsArray` with the alias map +
-  `Symbol.toStringTag` override when a real workload demands.
-
-- **`CreateDataPropertyOrThrow` + `ArraySpeciesCreate` proper.** Array
-  result-allocation methods (`slice` / `concat` / `splice` / `map` /
-  `filter` / `flat` / `flatMap`) currently `new JsArray(new ArrayList<>())`
-  then populate via `.add()`. Spec shape uses `ArraySpeciesCreate(O, len)`
-  (depends on `Symbol.species` — slice #7) and
-  `CreateDataPropertyOrThrow(A, k, v)` per element. Defer until Symbol
-  lands; current shape passes ~all non-Symbol-gated tests.
+- **`Prototype.toMap()` rebuilds per call** — memoize on slot-map mod
+  stamp or expose a non-materializing iterator. Defer until benchmark
+  shows it matters.
+- **`HOLE` → tombstone full elimination.** Sparse-array storage rework;
+  pair with parser `in` support. Pinned in `SpecPinTest`. ~6–8 h.
+- **HOLE leak audit at `JsArray` Java-interop seams** —
+  `iterator()` / `toArray()` / `subList()` / `contains()` / `indexOf()` /
+  `lastIndexOf()` route raw; only `get(int)` translates HOLE→null.
+  Centralize on one unwrap helper. ~30 min. Pairs with above.
+- **`PropertyKey` abstraction.** Symbol prep — YAGNI until Symbol lands.
+- **`Arguments` → spec exotic Arguments object.** Cached `JsArray`
+  today; missing `arguments.callee` (strict TypeError), non-strict
+  alias-to-formal-parameters, and `[object Arguments]` toStringTag.
+  Subclass when a workload demands.
+- **`CreateDataPropertyOrThrow` + `ArraySpeciesCreate`.** Array
+  result-allocation (`slice` / `concat` / `splice` / `map` / `filter` /
+  `flat` / `flatMap`) bypasses spec sequence; depends on `Symbol.species`.
+  Defer until Symbol.
 
 ### Engine — spec alignment
 
-Cases where current behavior is observably non-spec but not yet a slice
-priority. Pick up when the relevant slice surfaces them.
+Observably non-spec; pick up when the owning slice surfaces them.
 
-- **`JsArray.handleLengthAssign` return value dropped on direct
-  assignment.** Returns `boolean` for "throw TypeError on writable=false /
-  partial-truncate"; only `defineLength` consumes it. Direct
-  `arr.length = X` silently no-ops on writable=false. Spec wants
-  TypeError under strict. Pair with the strict-mode plumbing TODO above.
-
-- **`ToObject` coercion for non-empty string descriptor sources.**
-  Non-empty strings short-circuit to TypeError matching the spec
-  end-state but skip the wrapper-iterate-each-char pipeline. Become
-  spec-shaped when adjacent.
-
-- **`JsArray.jsEntries` vs `[[OwnPropertyKeys]]` semantics asymmetry.**
-  `jsEntries` yields indices only (correct for `Array.prototype.*`).
-  For-in / `Object.keys` / `defineProperties` want indices PLUS named
-  non-index props. `JsObjectConstructor` works around it via its own
-  `ownKeys` helper. Cleaner long-term: split into `arrayEntries(ctx)`
-  vs `ownEntries(ctx)`. ~1 h once a fourth caller surfaces the bug.
-
-- **`ToPropertyKey` for ObjectLike — remaining no-ctx callers.**
-  `defineProperty` now passes ctx through and `toPropertyKey(o, ctx)`
-  routes ObjectLike receivers through spec ToPrimitive(string) →
-  ToString (throws TypeError when neither toString nor valueOf yields
-  a primitive). Still on the no-ctx `toPropertyKey(o)` path:
-  `JsObjectConstructor.hasOwn` and `getOwnPropertyDescriptor` (both
-  wired as `JsInvokable`, no Context arg). Migrate when a real workload
-  passes non-string keys to either; switching the wiring to
-  `JsCallable` is the mechanical part. See
-  [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes).
-
-- **Integer-index accessors beyond `JsArray.list.size()`.**
-  `JsArray.jsEntries` Phase 1 walks `0..list.size()`, Phase 2 yields
-  non-index named props in insertion order. An accessor installed at
-  e.g. index 100 on an empty array (via `defineProperty(arr, "100",
-  {get, enumerable:true})`) is missed by both — Phase 1's bound, Phase 2's
-  `parseIndex >= 0` skip. Spec §9.4.2 [[OwnPropertyKeys]] says
-  ALL integer-index keys ascend first. The `defineOwnAccessor` HOLE-pad
-  loop is the current workaround (extends `list` to `idx + 1` so Phase 1
-  reaches the slot), but it allocates `idx` HOLE entries — wasteful at
-  large indices and a correctness liability if a later spec-shape change
-  drops the pad. Real fix: track integer-index entries in `namedProps`
-  and merge into Phase 1's ascending walk (or extend Phase 1's bound
-  to include the max integer-index key in `namedProps`). Pair with the
-  HOLE elimination above.
-
-- **`JsGlobalThis` two-store reads.** Data descriptors live on
-  `BindingsStore`, accessor descriptors on `JsObject.props` (because
-  `BindingSlot` is data-only). `getMember` / `isOwnProperty` / `toMap`
-  consult both, but the split is a smell. Either extend `BindingSlot`
-  to carry an `AccessorSlot` side-table, or commit to a unified
-  two-store contract with a single authoritative read seam. ~2 h. See
-  [JS_ENGINE.md § Globals](../docs/JS_ENGINE.md#globals).
-
-- **`Symbol.toPrimitive` is not dispatched.** Matches our minimal
-  Symbol surface. Fix as part of slice #7.
-
-- **`(0, fn)()` indirect call this-binding.**
-  `(1, Object.prototype.valueOf)()` should pass undefined as `this`
-  (per spec the comma operator drops the reference base), invoking the
-  spec preamble's TypeError. Today the receiver still falls through to
-  globalThis. Audit `evalCallExpr` for the parenthesized comma case.
+- **`JsArray.handleLengthAssign` return dropped on direct assign** —
+  silent no-op on writable=false; spec wants TypeError under strict.
+  Pair with strict-mode plumbing.
+- **`ToObject` for non-empty string descriptor sources** — short-circuits
+  to TypeError (correct end-state), skips wrapper pipeline.
+- **`JsArray.jsEntries` vs `[[OwnPropertyKeys]]` asymmetry** —
+  `jsEntries` is indices only; for-in / `Object.keys` /
+  `defineProperties` want indices + named. `JsObjectConstructor.ownKeys`
+  works around it. Split into `arrayEntries(ctx)` / `ownEntries(ctx)`
+  when a 4th caller surfaces.
+- **`ToPropertyKey` no-ctx callers** — `JsObjectConstructor.hasOwn` and
+  `getOwnPropertyDescriptor` still on the no-ctx path. Migrate when a
+  workload passes non-string keys.
+- **Integer-index accessors beyond `JsArray.list.size()`** — high-index
+  accessor via `defineProperty` is missed by `jsEntries`. Current
+  workaround: `defineOwnAccessor` HOLE-pads. Real fix: merge integer-index
+  `namedProps` into Phase 1. Pairs with HOLE elimination.
+- **`JsGlobalThis` two-store reads** — data in `BindingsStore`,
+  accessors in `JsObject.props`. Extend `BindingSlot` with accessor
+  side-table OR commit to a unified two-store contract. ~2 h.
+- **`Symbol.toPrimitive` not dispatched** — matches minimal Symbol
+  surface; fix with Symbol.
+- **`(0, fn)()` indirect-call `this`-binding** — comma should drop
+  reference base (→ `this = undefined`); today falls through to
+  globalThis. Audit `evalCallExpr` for the parenthesized-comma case.
 
 ### Harness quality
 
-- **Replace hand-rolled YAML parser with SnakeYAML.** `Expectations.java` /
-  `Test262Metadata.java` break on `#` in quoted reasons, block-scalar
-  `description:` fields, and block-form list values. Swap when next
-  touched.
-
-- **`--resume` refreshes stale records.** Currently echoes records for
-  tests that no longer exist or are now SKIP'd. Gate on test-still-exists
-  + not-in-skip-list, or rename to `--resume-crash-only`.
-
-- **Cache parsed harness ASTs, not source text.** `HarnessLoader`
-  re-parses `assert.js`, `sta.js`, and per-test `includes:` on every
-  test; ~50k re-parses per full-suite run.
-
-- **Surface per-test console capture in `ResultRecord`.** `evaluate(...)`
-  already wires `Engine.setOnConsoleLog(...)` to a per-test sink
-  (discarded); plumb into `ResultRecord` for `--single -vv` and the
-  HTML drill-down.
-
-- **`phase: resolution` (module-resolution) negative tests.** Conflated
-  with `runtime` today. Modules globally skipped, so latent.
-
-- **Structured `$262` surface.** `AbstractModuleSource`, `IsHTMLDDA`,
-  `agent.broadcast/getReport/sleep/monotonicNow` absent; all
-  feature-gated, unreachable today. Add stubs when a feature comes off
-  the skip list.
-
-- **Parallel execution.** Prior attempts showed no speedup (thread
-  context-switch beat ~1 ms per-test cost) and the engine doesn't poll
-  `Thread.interrupt()`. Revisit when per-test cost grows or the engine
-  learns cooperative abort.
-
-- **`readHeadSha` path fragility.** `Test262Runner.readHeadSha` walks up
-  `cli.test262.getParent().getParent()`. Prefer `git rev-parse HEAD`
-  or `--karate-sha`.
-
-- **Commit `target/test262/results.jsonl` once stable.** Gitignored
-  today; re-evaluate when engine churn slows.
+- Replace hand-rolled YAML parser with SnakeYAML (`Expectations.java` /
+  `Test262Metadata.java` — breaks on `#` in quoted reasons, block scalars).
+- `--resume` echoes records for deleted / now-SKIP'd tests — gate or
+  rename to `--resume-crash-only`.
+- Cache parsed harness ASTs in `HarnessLoader` (~50k re-parses per run).
+- Plumb per-test console capture into `ResultRecord` (currently wired
+  and discarded by `evaluate(...)`).
+- `phase: resolution` (module-resolution) negatives conflated with
+  `runtime` — latent (modules skipped).
+- `$262` surface stubs (`AbstractModuleSource`, `IsHTMLDDA`,
+  `agent.*`) — add when a feature unblocks.
+- Parallel execution — prior attempts showed no speedup; engine
+  doesn't poll `Thread.interrupt()`. Revisit when per-test cost grows.
+- `Test262Runner.readHeadSha` walks parent chain — prefer
+  `git rev-parse HEAD` or `--karate-sha`.
+- Commit `target/test262/results.jsonl` once engine churn slows.
 
 ---
 
@@ -453,97 +336,61 @@ Maven repo, not from the reactor.
 
 ### Quick start
 
+[`etc/run.sh`](etc/run.sh) does install + run (+ HTML on `--full`):
+
 ```sh
 cd karate-js-test262
 etc/fetch-test262.sh                                       # first time only — shallow clone
-etc/run.sh --only 'test/language/expressions/addition/**'  # dev-mode: FAIL/SKIP only, no HTML
-etc/run.sh --only '...' --full                             # add PASS rows + HTML report
-```
-
-**Every run writes a fresh, self-contained directory:**
-`target/test262/run-<timestamp>/` containing `results.jsonl`,
-`results.jsonl.partial`, `run-meta.json`, `progress.log`. The `html/`
-subdir appears only when `--full` is passed. Old runs are never touched
-(clean up with `mvn clean`). The runner prints `Run dir: <path>` on
-completion.
-
-**Dev mode (default).** `results.jsonl` contains only FAIL + SKIP rows.
-The pass count lives in `run-meta.json` under `counts.pass` and prints
-in the summary line. This is the right mode for iteration: smaller
-files, faster sort, no time spent rendering HTML you won't open. To
-get the canonical record + HTML (e.g. for CI artifacts or a deep
-audit), add `--full`.
-
-[`etc/run.sh`](etc/run.sh) does install + run (+ HTML when `--full`):
-
-```sh
 etc/run.sh                                                 # dev mode, full suite
-etc/run.sh --only 'test/language/**' --max-duration 300000 # 5-min cap, dev mode
+etc/run.sh --only 'test/language/**' --max-duration 300000 # scoped, 5-min cap
 etc/run.sh --full                                          # PASS rows + HTML
-
-# Sampling liveness (substitute the actual <ts> the runner printed).
-# Note: `wc -l` on the partial counts FAIL+SKIP only in dev mode — use
-# the progress heartbeat (its `processed N` field) for total-processed.
-tail -n 1 target/test262/run-<ts>/progress.log             # last heartbeat: "processed N pass M fail K skip L @ rate"
-tail -n 5 target/test262/run-<ts>/progress.log             # last 5 progress lines
-tail -n 5 target/test262/run-<ts>/results.jsonl.partial    # last 5 FAIL/SKIP rows
-
-# Do NOT `tail -f` either file from inside this session — every line
-# streams into context. For long-running probes, delegate to a sub-agent
-# (Recipes → Delegate a slice run).
 ```
 
-### Driving the pieces by hand
+Each run writes a fresh `target/test262/run-<timestamp>/` (the runner
+prints the path) containing `results.jsonl`, `results.jsonl.partial`,
+`run-meta.json`, `progress.log`; `html/` only with `--full`. Old runs
+are immutable; `mvn clean` wipes them.
+
+**Dev mode (default)** keeps `results.jsonl` to FAIL+SKIP only; the
+pass count is in `run-meta.json` (`counts.pass`). `--full` adds PASS
+rows (for CI artifacts / audits / HTML).
+
+**Liveness sampling** (never `tail -f` — see
+[Context discipline](#context-discipline)):
 
 ```sh
-# 1. After editing karate-js/, refresh the local Maven repo
-mvn -f ../pom.xml -pl karate-js -o install -DskipTests
-
-# 2. Run the suite. Sequential, but fast in dev mode:
-#    `test/language/**` (~24k attempted) ≈ 1m15s; full suite ≈ 2m30s.
-#    `--full` adds PASS rows + HTML render (~30s extra on the full suite).
-#    Run-dir defaults to target/test262/run-<timestamp>/; the runner prints it.
-mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
-    -Dexec.args="--only test/language/expressions/**"
-
-# 3. (Optional) HTML report — only meaningful on a --full run, since the
-#    report needs PASS rows to render the per-slice tiles correctly.
-mvn -f ../pom.xml -pl karate-js-test262 -o exec:java \
-    -Dexec.mainClass=io.karatelabs.js.test262.Test262Report \
-    -Dexec.args="--run-dir target/test262/run-<ts>"
+tail -n 1 <run-dir>/progress.log    # last heartbeat: processed N pass M fail K skip L
+tail -n 5 <run-dir>/progress.log
 ```
 
-**Why install instead of `-am`:** `exec:java` is a direct goal, not a phase,
-so Maven invokes it on every selected reactor project. With `-am`, the reactor
-also includes `karate-parent` (no `mainClass`), and the goal aborts the run
-before our module is reached. Installing karate-js to the local repo first,
-then running without `-am`, sidesteps the reactor entirely.
+### Driving by hand
+
+If you need to invoke the runner or HTML report without `etc/run.sh`,
+read [`etc/run.sh`](etc/run.sh) — it documents the install step and the
+`-am` gotcha (`exec:java` is a direct goal; with `-am` the reactor
+includes `karate-parent`, which has no `mainClass`, and aborts before
+this module). Install karate-js separately, then run without `-am`.
 
 ### Flags
 
-| Flag | Default | Purpose |
-|---|---|---|
-| `--expectations <path>` | `etc/expectations.yaml` | skip list manifest |
-| `--test262 <path>` | `test262` | suite clone dir |
-| `--run-dir <path>` | `target/test262/run-<timestamp>/` | output dir for this run; results.jsonl, run-meta.json, progress.log all go inside. `html/` only with `--full` |
-| `--timeout-ms <n>` | `10000` | per-test watchdog (infinite-loop guard) |
-| `--max-duration <ms>` | `0` (unlimited) | overall wall-clock cap; writes partial results and prints `Aborted:` on hit |
-| `--only <glob>` | — | restrict to matching paths |
-| `--single <path>` | — | run one test, no file writes |
-| `-v` / `-vv` | off | (with `--single`) `-v` prints parsed metadata + source location; `-vv` adds full source |
-| `--full` | off (dev mode) | write PASS rows to `results.jsonl` in addition to FAIL/SKIP. `etc/run.sh` also gates the HTML report step on this flag. Default keeps `results.jsonl` small and FAIL-focused; pass count always lives in `run-meta.json` |
+Most-used flags below. Full set + defaults: read `main(...)` in
+[`Test262Runner`](src/main/java/io/karatelabs/js/test262/Test262Runner.java).
 
-Runs are **silent except failures + periodic progress**. A `FAIL <path> —
-<type>: <msg>` line prints to stdout per failure, **capped at 20** —
-after which a single `(… N more FAILs, see results.jsonl)` footer fires.
-20 is enough to spot clusters at any slice size; systematic triage goes
-through the `jq` recipes (see [Failure triage](#failure-triage)). A `[progress]` line emits every
-5000 tests or every 60 seconds (dialed back from 500/5s once the
-watchdog + exec-retire combo proved reliable). Banner / progress /
-summary lines are mirrored to `<run-dir>/progress.log` via Logback —
-sample with `tail -n 5` for liveness (avoid `tail -f`; see
-[Context discipline](#context-discipline)). Per-FAIL detail lives only
-in JSONL (mirroring would duplicate without new signal).
+| Flag | Purpose |
+|---|---|
+| `--only <glob>` | restrict to matching paths |
+| `--single <path> [-v] [-vv]` | run one test, no file writes. `-v` prints metadata + classification + engine location; `-vv` adds full source |
+| `--full` | write PASS rows (default is FAIL+SKIP only); also gates HTML render in `etc/run.sh` |
+| `--max-duration <ms>` | overall wall-clock cap (default unlimited); writes partial results + prints `Aborted:` on hit |
+| `--timeout-ms <n>` | per-test watchdog (default 10s) |
+| `--run-dir <path>` | output dir (default `target/test262/run-<ts>/`) |
+
+Runs are silent except FAIL lines + periodic `[progress]`. FAIL lines
+on stdout are capped at 20 (footer `(… N more FAILs, see results.jsonl)`
+fires after). `[progress]` lines emit every 5000 tests or 60 s and are
+mirrored to `<run-dir>/progress.log`. Per-FAIL detail lives only in
+JSONL — sample `progress.log` for liveness, never `tail -f`
+`results.jsonl.partial`.
 
 ### Hang handling
 
@@ -555,16 +402,8 @@ subsequent tests don't queue behind the stuck thread. Net cost of a genuine
 hang: one abandoned daemon thread, one Timeout row in `results.jsonl`, a few
 ms of recreate overhead.
 
-### Driving from scripts / agents
-
-Pass `--max-duration <ms>` so a catastrophic engine bug can't wedge the
-caller. The periodic `[progress]` line gives a machine-parseable
-heartbeat — **sample** with `wc -l <run-dir>/results.jsonl.partial` or
-`tail -n 5 <run-dir>/progress.log` rather than `tail -f`-ing the stream.
-The latter ingests every FAIL line and quickly exhausts context. Run
-long probes in the background (or via a sub-agent — see
-[Delegate a slice run](#delegate-a-slice-run)) and query the final
-`results.jsonl` when it lands.
+For scripts / agents driving the runner: pass `--max-duration <ms>` as a
+safety net and follow [Context discipline](#context-discipline).
 
 ---
 

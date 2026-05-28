@@ -122,20 +122,6 @@ public class Node {
         return "[" + type + "] " + getTextIncludingWhitespace();
     }
 
-    public String toStringWithoutType() {
-        if (isToken()) {
-            return token.getText();
-        }
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < childCount; i++) {
-            if (i != 0) {
-                sb.append(' ');
-            }
-            sb.append(children[i].toStringWithoutType());
-        }
-        return sb.toString();
-    }
-
     public Node findFirstChild(NodeType type) {
         for (int i = 0; i < childCount; i++) {
             Node child = children[i];
