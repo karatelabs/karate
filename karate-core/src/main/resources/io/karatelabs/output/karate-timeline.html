@@ -81,9 +81,16 @@
                 <span x-show="data.threads" class="inline-flex items-center gap-1.5"><svg class="w-4 h-4"><use href="#icon-cpu"/></svg> <span x-text="data.threads"></span> threads</span>
             </div>
         </section>
-        <!-- KPI cards: Speedup + Wall clock. Skipped when suite duration is too
-             noisy (<100ms) — see speedup getter in karate-report.js. -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5" x-show="speedup || data.summary?.duration_millis">
+        <!-- KPI cards: Scenarios | Speedup (when shown) | Wall clock.
+             Speedup is threshold-gated — see speedup getter in karate-report.js. -->
+        <div class="grid grid-cols-1 gap-4 mb-5"
+             :class="speedup ? 'sm:grid-cols-3' : 'sm:grid-cols-2'"
+             x-show="data.summary?.scenario_count || data.summary?.duration_millis">
+            <div class="rounded-lg p-4 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                <div class="text-sm text-slate-500 dark:text-slate-400">Scenarios</div>
+                <div class="text-3xl font-bold mt-1 tabular-nums" x-text="data.summary?.scenario_count || 0">0</div>
+                <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">total executed</div>
+            </div>
             <div class="rounded-lg p-4 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50" x-show="speedup">
                 <div class="text-sm text-slate-500 dark:text-slate-400">Speedup</div>
                 <div class="text-3xl font-bold mt-1 tabular-nums" x-text="speedup">1.0x</div>
