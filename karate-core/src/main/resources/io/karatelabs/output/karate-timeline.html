@@ -21,6 +21,12 @@
         .vis-item.passed { background-color: #16a34a !important; border-color: #15803d !important; color: white !important; }
         .vis-label { font-size: 0.9rem; }
         .vis-item-content { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Light mode — soften vis-timeline's default greys to match the D20 surface palette. */
+        .vis-timeline { border-color: #e2e8f0; }
+        .vis-labelset .vis-label { background-color: #f8fafc; color: #0f172a; border-color: #e2e8f0; }
+        .vis-time-axis .vis-text { color: #475569; }
+        .vis-time-axis .vis-grid.vis-minor { border-color: #e2e8f0; }
+        .vis-time-axis .vis-grid.vis-major { border-color: #cbd5e1; }
         /* Dark mode for vis-timeline (we set data-theme on <html>) */
         [data-theme="dark"] .vis-timeline { border-color: #475569; }
         [data-theme="dark"] .vis-panel.vis-background,
