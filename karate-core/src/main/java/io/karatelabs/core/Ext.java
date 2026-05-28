@@ -27,37 +27,37 @@ import java.util.Collections;
 import java.util.Map;
 
 /**
- * Karate plugin SPI — singletons-per-Suite that observe the run via {@link RunListener}.
+ * Karate ext SPI — singletons-per-Suite that observe the run via {@link RunListener}.
  *
- * <p>Plugins are loaded from a {@code karate-boot.js} file at the workdir root, once per
+ * <p>Exts are loaded from a {@code karate-boot.js} file at the workdir root, once per
  * Suite, by {@link BootLoader}. Activation example:</p>
  *
  * <pre>
  * // karate-boot.js
- * const agent = boot.plugin('agent');
+ * const agent = boot.ext('agent');
  * agent.url = 'http://localhost:4444';
  * agent.params = { dev: true };
  *
- * const openapi = boot.plugin('openapi');
+ * const openapi = boot.ext('openapi');
  * openapi.path = 'api/openapi.yaml';
  * openapi.excludes = ['/health/**'];
  * </pre>
  *
- * <p>The {@code boot.plugin('foo')} call resolves {@code foo} to
- * {@code io.karatelabs.plugins.foo.FooPlugin} by name convention, instantiates the class,
- * invokes {@link #onBoot(Suite)} immediately, registers the plugin as a listener on the
+ * <p>The {@code boot.ext('foo')} call resolves {@code foo} to
+ * {@code io.karatelabs.ext.foo.FooExt} by name convention, instantiates the class,
+ * invokes {@link #onBoot(Suite)} immediately, registers the ext as a listener on the
  * Suite, and returns the instance so the boot script can configure it.</p>
  *
- * <p>Plugins coexist with the per-call {@link RunListener#onEvent(RunEvent) channel}
- * pattern ({@code karate.channel(...)}) — channels are per-call; plugins are
+ * <p>Exts coexist with the per-call {@link RunListener#onEvent(RunEvent) channel}
+ * pattern ({@code karate.channel(...)}) — channels are per-call; exts are
  * singleton-per-Suite. See AGENT_KARATE.md K43 for the design rationale.</p>
  *
  * <p>Lifecycle:</p>
  * <ol>
- *   <li>{@code karate-boot.js} evaluates → each {@code boot.plugin('name')} call
- *       constructs the plugin and fires {@link #onBoot(Suite)}.</li>
- *   <li>Suite registers the plugin as a {@link RunListener}; it sees every event.</li>
- *   <li>{@code SUITE_ENTER.data.plugins[]} carries each plugin's {@link #getManifest()}.</li>
+ *   <li>{@code karate-boot.js} evaluates → each {@code boot.ext('name')} call
+ *       constructs the ext and fires {@link #onBoot(Suite)}.</li>
+ *   <li>Suite registers the ext as a {@link RunListener}; it sees every event.</li>
+ *   <li>{@code SUITE_ENTER.data.exts[]} carries each ext's {@link #getManifest()}.</li>
  *   <li>After {@code SUITE_EXIT}, {@link #onShutdown()} fires.</li>
  * </ol>
  *
@@ -65,13 +65,13 @@ import java.util.Map;
  * inside {@link #onEvent} are logged WARN and dropped — the run continues, that one
  * signal is lost.</p>
  */
-public interface Plugin extends RunListener {
+public interface Ext extends RunListener {
 
     /**
-     * Called once per Suite when the {@code boot.plugin('name')} expression evaluates
+     * Called once per Suite when the {@code boot.ext('name')} expression evaluates
      * in {@code karate-boot.js}. Throws from here fail the Suite.
      *
-     * <p>Default no-op so plugins that only need to observe events ({@code onEvent})
+     * <p>Default no-op so exts that only need to observe events ({@code onEvent})
      * can stay terse.</p>
      */
     default void onBoot(Suite suite) {
@@ -87,13 +87,13 @@ public interface Plugin extends RunListener {
     }
 
     /**
-     * Manifest entry recorded under {@code SUITE_ENTER.data.plugins[]} so receivers
-     * (e.g. the karate-agent dashboard) know which plugins were active for this run
+     * Manifest entry recorded under {@code SUITE_ENTER.data.exts[]} so receivers
+     * (e.g. the karate-agent dashboard) know which exts were active for this run
      * and with what config. Returned map is serialised to JSON verbatim — keep keys
      * primitive ({@code String}, {@code Number}, {@code Boolean}, nested maps).
      *
-     * <p>Standard entries: {@code name}, {@code version}. Plugin-specific summary
-     * fields are flat under the top-level map. Default returns an empty map; plugins
+     * <p>Standard entries: {@code name}, {@code version}. Ext-specific summary
+     * fields are flat under the top-level map. Default returns an empty map; exts
      * with meaningful manifests should override.</p>
      */
     default Map<String, Object> getManifest() {
@@ -102,7 +102,7 @@ public interface Plugin extends RunListener {
 
     /**
      * Default {@link RunListener#onEvent(RunEvent)} returns true (continue execution).
-     * Plugins that only need lifecycle hooks (onBoot / onShutdown / manifest) without
+     * Exts that only need lifecycle hooks (onBoot / onShutdown / manifest) without
      * observing events can rely on this and skip the override.
      */
     @Override

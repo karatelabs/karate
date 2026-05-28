@@ -21,11 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package io.karatelabs.plugins.agent;
+package io.karatelabs.ext.agent;
 
 import io.karatelabs.common.Json;
+import io.karatelabs.core.Ext;
 import io.karatelabs.core.Globals;
-import io.karatelabs.core.Plugin;
 import io.karatelabs.core.RunEvent;
 import io.karatelabs.core.RunEventType;
 import io.karatelabs.core.Suite;
@@ -44,18 +44,18 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Baked-in karate-agent client plugin — registered from {@code karate-boot.js} via
- * {@code boot.plugin('agent')}. POSTs run events as JSONL to a remote receiver
+ * Baked-in karate-agent client ext — registered from {@code karate-boot.js} via
+ * {@code boot.ext('agent')}. POSTs run events as JSONL to a remote receiver
  * (typically the karate-agent dashboard, but the wire is open).
  *
  * <p>Per K44 ships in karate-core itself (OSS, free, opt-in only). Per K30 the
  * K30 "no surprise network egress" guarantee holds: no HttpClient is constructed,
  * no startup log line fires, no listener registration happens unless
- * {@code boot.plugin('agent')} is invoked AND a {@code .url} is set.</p>
+ * {@code boot.ext('agent')} is invoked AND a {@code .url} is set.</p>
  *
  * <p>Configuration in karate-boot.js:</p>
  * <pre>
- * const agent = boot.plugin('agent');
+ * const agent = boot.ext('agent');
  * agent.url = boot.sysenv('AGENT_URL') || 'http://localhost:4444';
  * agent.mode = boot.env === 'ci' ? 'batch' : 'final';
  * agent.token = boot.sysenv('AGENT_TOKEN');
@@ -84,7 +84,7 @@ import java.util.UUID;
  * }
  * </pre>
  */
-public class AgentPlugin implements Plugin {
+public class AgentExt implements Ext {
 
     private static final Logger logger = LoggerFactory.getLogger("karate.runtime");
 
@@ -122,7 +122,7 @@ public class AgentPlugin implements Plugin {
 
     /**
      * Setter for {@code agent.url = '...'}. Strips trailing slash. Empty/null leaves
-     * the plugin inert — no listener registration, no activation, no startup log line.
+     * the ext inert — no listener registration, no activation, no startup log line.
      */
     public void setUrl(String url) {
         if (url == null || url.isBlank()) {
@@ -228,7 +228,7 @@ public class AgentPlugin implements Plugin {
                 flush(type == RunEventType.SUITE_EXIT);
             }
         } catch (Exception e) {
-            logger.warn("AgentPlugin: failed to enqueue event: {}", e.getMessage());
+            logger.warn("AgentExt: failed to enqueue event: {}", e.getMessage());
         }
 
         return true;
@@ -245,7 +245,7 @@ public class AgentPlugin implements Plugin {
 
     /**
      * Serialize one event into a JSONL envelope. Package-visible for unit-testing the
-     * wire shape; not part of the public plugin API.
+     * wire shape; not part of the public ext API.
      */
     String serialize(RunEvent event) {
         Map<String, Object> envelope = new LinkedHashMap<>();
@@ -330,12 +330,12 @@ public class AgentPlugin implements Plugin {
             }
             HttpResponse<String> res = httpClient.send(req.build(), HttpResponse.BodyHandlers.ofString());
             if (res.statusCode() >= 400) {
-                logger.warn("AgentPlugin: POST {} returned {}: {}",
+                logger.warn("AgentExt: POST {} returned {}: {}",
                         endpoint, res.statusCode(), truncate(res.body(), 200));
             }
         } catch (Exception e) {
             // Best-effort: the on-disk JSONL is the spool.
-            logger.warn("AgentPlugin: POST {} failed: {}", endpoint, e.getMessage());
+            logger.warn("AgentExt: POST {} failed: {}", endpoint, e.getMessage());
         }
     }
 

@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package io.karatelabs.plugins.agent;
+package io.karatelabs.ext.agent;
 
 import io.karatelabs.core.Runner;
 import io.karatelabs.core.Suite;
@@ -34,49 +34,49 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Unit tests for {@link AgentPlugin} — wire shape, property setters, and the
+ * Unit tests for {@link AgentExt} — wire shape, property setters, and the
  * lazy-activation lifecycle, without actually sending HTTP. Mirrors the contract
  * the retired {@code HttpPostListenerTest} pinned down for the env-var-driven
- * predecessor; rewritten against the {@code boot.plugin('agent')} activation path.
+ * predecessor; rewritten against the {@code boot.ext('agent')} activation path.
  */
-class AgentPluginTest {
+class AgentExtTest {
 
     @Test
     void inert_whenUrlNotSet() {
-        AgentPlugin plugin = new AgentPlugin();
+        AgentExt ext = new AgentExt();
         // No url → onEvent must be a complete no-op: no activation, no buffering.
         Suite suite = Runner.builder().buildSuite();
-        plugin.onEvent(SuiteRunEvent.enter(suite));
-        assertFalse(plugin.isActivatedForTest(), "should not activate without url");
-        assertEquals(0, plugin.bufferSizeForTest());
-        assertNull(plugin.getRunId());
+        ext.onEvent(SuiteRunEvent.enter(suite));
+        assertFalse(ext.isActivatedForTest(), "should not activate without url");
+        assertEquals(0, ext.bufferSizeForTest());
+        assertNull(ext.getRunId());
     }
 
     @Test
     void activates_lazilyOnFirstEvent_whenUrlSet() {
-        AgentPlugin plugin = new AgentPlugin();
-        plugin.setUrl("http://localhost:4444");
+        AgentExt ext = new AgentExt();
+        ext.setUrl("http://localhost:4444");
 
         Suite suite = Runner.builder().buildSuite();
-        plugin.onEvent(SuiteRunEvent.enter(suite));
+        ext.onEvent(SuiteRunEvent.enter(suite));
 
-        assertTrue(plugin.isActivatedForTest(), "first event with url set should activate");
-        assertNotNull(plugin.getRunId(), "runId minted on activation");
-        assertTrue(plugin.getRunId().matches("[0-9a-f-]{36}"),
-                "runId not UUID-shaped: " + plugin.getRunId());
-        assertEquals(1, plugin.bufferSizeForTest(), "SUITE_ENTER should buffer");
+        assertTrue(ext.isActivatedForTest(), "first event with url set should activate");
+        assertNotNull(ext.getRunId(), "runId minted on activation");
+        assertTrue(ext.getRunId().matches("[0-9a-f-]{36}"),
+                "runId not UUID-shaped: " + ext.getRunId());
+        assertEquals(1, ext.bufferSizeForTest(), "SUITE_ENTER should buffer");
     }
 
     @Test
     void serialize_includesSchemaVersionAndDialect_onEveryEvent() {
-        AgentPlugin plugin = new AgentPlugin();
-        plugin.setUrl("http://localhost:4444");
-        plugin.onBoot(buildSuiteWithEnv("dev"));
+        AgentExt ext = new AgentExt();
+        ext.setUrl("http://localhost:4444");
+        ext.onBoot(buildSuiteWithEnv("dev"));
 
         Suite suite = Runner.builder().buildSuite();
         SuiteRunEvent enter = SuiteRunEvent.enter(suite);
-        plugin.onEvent(enter); // trigger activation so runId exists for the assertion below
-        String line = plugin.serialize(enter);
+        ext.onEvent(enter); // trigger activation so runId exists for the assertion below
+        String line = ext.serialize(enter);
 
         assertTrue(line.contains("\"schema\":{\"version\":1,\"dialect\":\"karate-v2\"}"),
                 "envelope missing schema fields: " + line);
@@ -86,16 +86,16 @@ class AgentPluginTest {
 
     @Test
     void serialize_addsRunIdAndKarateVersion_onSuiteEnter() {
-        AgentPlugin plugin = new AgentPlugin();
-        plugin.setUrl("http://localhost:4444");
-        plugin.onBoot(buildSuiteWithEnv("qa"));
+        AgentExt ext = new AgentExt();
+        ext.setUrl("http://localhost:4444");
+        ext.onBoot(buildSuiteWithEnv("qa"));
 
         Suite suite = Runner.builder().buildSuite();
         SuiteRunEvent enter = SuiteRunEvent.enter(suite);
-        plugin.onEvent(enter);
-        String line = plugin.serialize(enter);
+        ext.onEvent(enter);
+        String line = ext.serialize(enter);
 
-        assertTrue(line.contains("\"runId\":\"" + plugin.getRunId() + "\""),
+        assertTrue(line.contains("\"runId\":\"" + ext.getRunId() + "\""),
                 "SUITE_ENTER missing runId: " + line);
         assertTrue(line.contains("\"karateVersion\":"),
                 "SUITE_ENTER missing karateVersion: " + line);
@@ -105,49 +105,49 @@ class AgentPluginTest {
 
     @Test
     void getMode_defaultsToBatch() {
-        AgentPlugin plugin = new AgentPlugin();
-        assertEquals("batch", plugin.getMode());
+        AgentExt ext = new AgentExt();
+        assertEquals("batch", ext.getMode());
     }
 
     @Test
     void setMode_acceptsBatchAndFinal_caseInsensitive() {
-        AgentPlugin plugin = new AgentPlugin();
-        plugin.setMode("final");
-        assertEquals("final", plugin.getMode());
-        plugin.setMode("BATCH");
-        assertEquals("batch", plugin.getMode());
+        AgentExt ext = new AgentExt();
+        ext.setMode("final");
+        assertEquals("final", ext.getMode());
+        ext.setMode("BATCH");
+        assertEquals("batch", ext.getMode());
     }
 
     @Test
     void setMode_failsFast_onInvalidValue() {
-        AgentPlugin plugin = new AgentPlugin();
+        AgentExt ext = new AgentExt();
         // Eager validation per K43 — bad mode throws at the assignment line in karate-boot.js.
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> plugin.setMode("streaming"));
+                () -> ext.setMode("streaming"));
         assertTrue(ex.getMessage().contains("agent.mode"),
                 "message should name the property: " + ex.getMessage());
     }
 
     @Test
     void setUrl_stripsTrailingSlash() {
-        AgentPlugin plugin = new AgentPlugin();
-        plugin.setUrl("http://localhost:4444/");
-        assertEquals("http://localhost:4444", plugin.getUrl());
+        AgentExt ext = new AgentExt();
+        ext.setUrl("http://localhost:4444/");
+        assertEquals("http://localhost:4444", ext.getUrl());
     }
 
     @Test
-    void setUrl_nullOrBlank_leavesPluginInert() {
-        AgentPlugin plugin = new AgentPlugin();
-        plugin.setUrl(null);
-        assertNull(plugin.getUrl());
-        plugin.setUrl("   ");
-        assertNull(plugin.getUrl());
+    void setUrl_nullOrBlank_leavesExtInert() {
+        AgentExt ext = new AgentExt();
+        ext.setUrl(null);
+        assertNull(ext.getUrl());
+        ext.setUrl("   ");
+        assertNull(ext.getUrl());
     }
 
     @Test
     void twoListeners_haveDistinctRunIds() {
-        AgentPlugin a = newActivatedPlugin();
-        AgentPlugin b = newActivatedPlugin();
+        AgentExt a = newActivatedExt();
+        AgentExt b = newActivatedExt();
         assertNotEquals(a.getRunId(), b.getRunId());
     }
 
@@ -160,15 +160,15 @@ class AgentPluginTest {
         params.put("team", "payments");
         params.put("branch", "feature/abc");
 
-        AgentPlugin plugin = new AgentPlugin();
-        plugin.setUrl("http://localhost:4444");
-        plugin.setParams(params);
-        plugin.onBoot(buildSuiteWithEnv("qa"));
+        AgentExt ext = new AgentExt();
+        ext.setUrl("http://localhost:4444");
+        ext.setParams(params);
+        ext.onBoot(buildSuiteWithEnv("qa"));
 
         Suite suite = Runner.builder().buildSuite();
         SuiteRunEvent enter = SuiteRunEvent.enter(suite);
-        plugin.onEvent(enter);
-        String line = plugin.serialize(enter);
+        ext.onEvent(enter);
+        String line = ext.serialize(enter);
 
         assertTrue(line.contains("\"team\":\"payments\""), "team key missing: " + line);
         assertTrue(line.contains("\"branch\":\"feature/abc\""), "branch key missing: " + line);
@@ -179,15 +179,15 @@ class AgentPluginTest {
     void setProject_attachesSlugToSuiteEnter() {
         // The receiver (karate-agent dashboard) reads data.project to auto-create
         // / resolve the project and bind the run to it via SUITE_ENTER.
-        AgentPlugin plugin = new AgentPlugin();
-        plugin.setUrl("http://localhost:4444");
-        plugin.setProject("acme-billing");
-        plugin.onBoot(buildSuiteWithEnv("ci"));
+        AgentExt ext = new AgentExt();
+        ext.setUrl("http://localhost:4444");
+        ext.setProject("acme-billing");
+        ext.onBoot(buildSuiteWithEnv("ci"));
 
         Suite suite = Runner.builder().buildSuite();
         SuiteRunEvent enter = SuiteRunEvent.enter(suite);
-        plugin.onEvent(enter);
-        String line = plugin.serialize(enter);
+        ext.onEvent(enter);
+        String line = ext.serialize(enter);
 
         assertTrue(line.contains("\"project\":\"acme-billing\""),
                 "SUITE_ENTER should carry project slug: " + line);
@@ -195,14 +195,14 @@ class AgentPluginTest {
 
     @Test
     void serialize_omitsProject_whenProjectUnset() {
-        AgentPlugin plugin = new AgentPlugin();
-        plugin.setUrl("http://localhost:4444");
-        plugin.onBoot(buildSuiteWithEnv("dev"));
+        AgentExt ext = new AgentExt();
+        ext.setUrl("http://localhost:4444");
+        ext.onBoot(buildSuiteWithEnv("dev"));
 
         Suite suite = Runner.builder().buildSuite();
         SuiteRunEvent enter = SuiteRunEvent.enter(suite);
-        plugin.onEvent(enter);
-        String line = plugin.serialize(enter);
+        ext.onEvent(enter);
+        String line = ext.serialize(enter);
 
         assertFalse(line.contains("\"project\""),
                 "SUITE_ENTER should not carry project when unset: " + line);
@@ -210,38 +210,38 @@ class AgentPluginTest {
 
     @Test
     void setProject_blankOrNullClearsTheBinding() {
-        AgentPlugin plugin = new AgentPlugin();
-        plugin.setProject("anything");
-        plugin.setProject("");
-        assertNull(plugin.getProject(), "blank slug clears project binding");
-        plugin.setProject("anything");
-        plugin.setProject(null);
-        assertNull(plugin.getProject(), "null slug clears project binding");
+        AgentExt ext = new AgentExt();
+        ext.setProject("anything");
+        ext.setProject("");
+        assertNull(ext.getProject(), "blank slug clears project binding");
+        ext.setProject("anything");
+        ext.setProject(null);
+        assertNull(ext.getProject(), "null slug clears project binding");
     }
 
     @Test
     void setProject_trimsWhitespace() {
         // The receiver-side Project.SLUG_PATTERN doesn't allow whitespace, so
         // trim client-side to keep the wire field canonical.
-        AgentPlugin plugin = new AgentPlugin();
-        plugin.setProject("  acme-billing  ");
-        assertEquals("acme-billing", plugin.getProject(), "leading + trailing whitespace stripped");
-        plugin.setProject("\tacme\n");
-        assertEquals("acme", plugin.getProject(), "tab/newline stripped");
-        plugin.setProject("   ");
-        assertNull(plugin.getProject(), "whitespace-only treated as blank → cleared");
+        AgentExt ext = new AgentExt();
+        ext.setProject("  acme-billing  ");
+        assertEquals("acme-billing", ext.getProject(), "leading + trailing whitespace stripped");
+        ext.setProject("\tacme\n");
+        assertEquals("acme", ext.getProject(), "tab/newline stripped");
+        ext.setProject("   ");
+        assertNull(ext.getProject(), "whitespace-only treated as blank → cleared");
     }
 
     @Test
     void serialize_omitsParams_whenParamsNull() {
-        AgentPlugin plugin = new AgentPlugin();
-        plugin.setUrl("http://localhost:4444");
-        plugin.onBoot(buildSuiteWithEnv("dev"));
+        AgentExt ext = new AgentExt();
+        ext.setUrl("http://localhost:4444");
+        ext.onBoot(buildSuiteWithEnv("dev"));
 
         Suite suite = Runner.builder().buildSuite();
         SuiteRunEvent enter = SuiteRunEvent.enter(suite);
-        plugin.onEvent(enter);
-        String line = plugin.serialize(enter);
+        ext.onEvent(enter);
+        String line = ext.serialize(enter);
 
         assertFalse(line.contains("\"params\""),
                 "SUITE_ENTER should not carry params when none set: " + line);
@@ -249,11 +249,11 @@ class AgentPluginTest {
 
     @Test
     void manifest_carriesVersionAndConfigSummary() {
-        AgentPlugin plugin = new AgentPlugin();
-        plugin.setUrl("http://localhost:4444");
-        plugin.setMode("final");
+        AgentExt ext = new AgentExt();
+        ext.setUrl("http://localhost:4444");
+        ext.setMode("final");
 
-        Map<String, Object> manifest = plugin.getManifest();
+        Map<String, Object> manifest = ext.getManifest();
         assertNotNull(manifest.get("version"), "manifest must carry the karate version");
         assertEquals("http://localhost:4444", manifest.get("url"));
         assertEquals("final", manifest.get("mode"));
@@ -261,20 +261,20 @@ class AgentPluginTest {
 
     @Test
     void manifest_omitsUrl_whenNotConfigured() {
-        // Plugin booted but never given a url → manifest carries mode + version only.
+        // Ext booted but never given a url → manifest carries mode + version only.
         // (Token is intentionally never in the manifest — it's sensitive.)
-        AgentPlugin plugin = new AgentPlugin();
-        Map<String, Object> manifest = plugin.getManifest();
+        AgentExt ext = new AgentExt();
+        Map<String, Object> manifest = ext.getManifest();
         assertFalse(manifest.containsKey("url"));
         assertEquals("batch", manifest.get("mode"));
     }
 
-    private AgentPlugin newActivatedPlugin() {
-        AgentPlugin plugin = new AgentPlugin();
-        plugin.setUrl("http://localhost:4444");
+    private AgentExt newActivatedExt() {
+        AgentExt ext = new AgentExt();
+        ext.setUrl("http://localhost:4444");
         Suite suite = Runner.builder().buildSuite();
-        plugin.onEvent(SuiteRunEvent.enter(suite));
-        return plugin;
+        ext.onEvent(SuiteRunEvent.enter(suite));
+        return ext;
     }
 
     private static Suite buildSuiteWithEnv(String env) {

@@ -138,8 +138,8 @@ public class Suite {
     // Performance testing hook (for Gatling integration)
     private PerfHook perfHook;
 
-    // karate-boot.js plugins, evaluated by BootLoader.loadIfPresent() at run() start.
-    // Exposed via getBootBinding() so SuiteRunEvent can surface plugin manifests on
+    // karate-boot.js exts, evaluated by BootLoader.loadIfPresent() at run() start.
+    // Exposed via getBootBinding() so SuiteRunEvent can surface ext manifests on
     // SUITE_ENTER. Null when no karate-boot.js file is present in the workdir.
     private BootBinding bootBinding;
 
@@ -331,12 +331,12 @@ public class Suite {
             }
         }
 
-        // Load karate-boot.js if present (workdir root, then classpath). Plugin SPI
-        // per K43: boot file evaluates plugin-scripting only; the side effect is
-        // plugin registration through BootBinding.plugin(...). Returns null when
+        // Load karate-boot.js if present (workdir root, then classpath). Ext SPI
+        // per K43: boot file evaluates ext-scripting only; the side effect is
+        // ext registration through BootBinding.ext(...). Returns null when
         // no boot file exists — preserves the zero-cost path for projects that
-        // don't use plugins. Per K44 the karate-agent client now activates here
-        // (boot.plugin('agent')) — the old KARATE_AGENT_* env-var contract is gone.
+        // don't use exts. Per K44 the karate-agent client now activates here
+        // (boot.ext('agent')) — the old KARATE_AGENT_* env-var contract is gone.
         this.bootBinding = BootLoader.loadIfPresent(this, env);
 
         try {
@@ -379,16 +379,16 @@ public class Suite {
                 }
             }
 
-            // Plugin onShutdown — best-effort; exceptions are logged + dropped per K43.
+            // Ext onShutdown — best-effort; exceptions are logged + dropped per K43.
             if (bootBinding != null) {
-                for (Plugin plugin : bootBinding.getPlugins()) {
+                for (Ext ext : bootBinding.getExts()) {
                     try {
-                        plugin.onShutdown();
+                        ext.onShutdown();
                     } catch (Exception e) {
-                        logger.warn("plugin onShutdown failed ({}): {}",
-                                plugin.getClass().getName(), e.getMessage());
+                        logger.warn("ext onShutdown failed ({}): {}",
+                                ext.getClass().getName(), e.getMessage());
                     }
-                    removeJsonlListener(plugin);
+                    removeJsonlListener(ext);
                 }
             }
 
@@ -411,15 +411,15 @@ public class Suite {
     }
 
     /**
-     * Register a {@link Plugin} as a {@link RunListener} on this Suite. Called from
-     * {@link BootBinding#plugin(String)} during karate-boot.js evaluation, before
-     * SUITE_ENTER fires. Plugin will see every event from SUITE_ENTER onward.
+     * Register an {@link Ext} as a {@link RunListener} on this Suite. Called from
+     * {@link BootBinding#ext(String)} during karate-boot.js evaluation, before
+     * SUITE_ENTER fires. Ext will see every event from SUITE_ENTER onward.
      */
-    public void registerPluginListener(Plugin plugin) {
-        addJsonlListener(plugin);
+    public void registerExtListener(Ext ext) {
+        addJsonlListener(ext);
     }
 
-    /** Workdir for boot.js discovery + per-plugin file resolution. */
+    /** Workdir for boot.js discovery + per-ext file resolution. */
     public Path getWorkingDir() {
         return workingDir;
     }
@@ -427,8 +427,8 @@ public class Suite {
     /**
      * Returns the karate-boot.js {@link BootBinding} populated during {@link #run()},
      * or {@code null} when no boot file is present in the workdir. Surfaced so
-     * {@link SuiteRunEvent#toJson()} can attach {@code plugins[]} manifests to
-     * SUITE_ENTER. Per K47 the dashboard reads this to know which plugins were
+     * {@link SuiteRunEvent#toJson()} can attach {@code exts[]} manifests to
+     * SUITE_ENTER. Per K47 the dashboard reads this to know which exts were
      * active and which embed names to expect.
      */
     public BootBinding getBootBinding() {

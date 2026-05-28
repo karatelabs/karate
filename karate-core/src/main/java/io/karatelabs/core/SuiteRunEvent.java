@@ -64,14 +64,14 @@ public record SuiteRunEvent(
         if (source != null) {
             map.put("env", source.env);
             map.put("threads", source.threadCount);
-            // K47: surface karate-boot.js plugin manifests so receivers know which
-            // plugins were active for this run and what embed names to expect.
+            // K47: surface karate-boot.js ext manifests so receivers know which
+            // exts were active for this run and what embed names to expect.
             // Absent when no karate-boot.js was loaded (the common case).
             BootBinding boot = source.getBootBinding();
             if (boot != null) {
                 var manifests = boot.manifests();
                 if (!manifests.isEmpty()) {
-                    map.put("plugins", manifests);
+                    map.put("exts", manifests);
                 }
             }
         }

@@ -2,9 +2,9 @@
 
 > **Status:** Plan. Drives the work that supersedes [PR #2885](https://github.com/karatelabs/karate/pull/2885) and proves the v2 ext model end-to-end through the first real out-of-core ext: `karate-image`.
 >
-> **Related:** [DESIGN.md § Plugin Architecture](./DESIGN.md#plugin-architecture) (post-D17 this section gets renamed § Ext Architecture) · [CLI.md](./CLI.md) · [RELEASING.md](./RELEASING.md) · Prototype (not committed): `~/Downloads/karate-report-redesign/` on the maintainer's machine — design-only reference, intentionally not in repo because it predates the feature/scenario/step data-model decisions Phase 1 makes
+> **Related:** [DESIGN.md § Ext Architecture](./DESIGN.md#ext-architecture) · [CLI.md](./CLI.md) · [RELEASING.md](./RELEASING.md) · Prototype (not committed): `~/Downloads/karate-report-redesign/` on the maintainer's machine — design-only reference, intentionally not in repo because it predates the feature/scenario/step data-model decisions Phase 1 makes
 >
-> **Vocabulary note (D17).** All SPI types and runtime symbols use `Ext` (interface `Ext`, `boot.ext('name')`, `io.karatelabs.ext.<name>.<Name>Ext`, sibling repo `karate-ext`). Historical references to "plugin" survive only in the §2 D-rows (decision provenance) and where citing pre-rename DESIGN.md / source code (e.g. the current `Plugin.java` interface file, the `BootBinding.plugin(name)` method that becomes `BootBinding.ext(name)`). When this doc says "ext" and DESIGN.md says "plugin" it is the same concept; DESIGN.md will be updated as part of Phase 2.
+> **Vocabulary note (D17).** All SPI types and runtime symbols use `Ext` (interface `Ext`, `boot.ext('name')`, `io.karatelabs.ext.<name>.<Name>Ext`, sibling repo `karate-ext`). D17 landed in karate-core as part of the Phase 2 prep — `Plugin.java` is now `Ext.java`, `BootBinding.plugin(name)` is `BootBinding.ext(name)`, DESIGN.md § Plugin Architecture is renamed § Ext Architecture, and `SUITE_ENTER.data.plugins[]` is now `SUITE_ENTER.data.exts[]`. Historical references to "plugin" survive only in the §2 D-rows (decision provenance) and historical AGENT_KARATE.md K-row comments.
 
 ---
 
@@ -188,7 +188,7 @@ If no `Alpine.data(name)` is registered for an embed-name, the slot stays empty 
 
 ### 3.3 Ext asset contribution
 
-> Builds on the existing [DESIGN.md § Plugin Architecture](./DESIGN.md#plugin-architecture) (rename pending — see vocabulary note) and the `Plugin` interface defined in `karate-core/src/main/java/io/karatelabs/core/Plugin.java` (becomes `Ext.java` in Phase 2). The wire shape below is new; the registration entry point (`onBoot(Suite)`) is unchanged.
+> Builds on the existing [DESIGN.md § Ext Architecture](./DESIGN.md#ext-architecture) and the `Ext` interface defined in `karate-core/src/main/java/io/karatelabs/core/Ext.java`. The wire shape below is new; the registration entry point (`onBoot(Suite)`) is unchanged.
 
 **Wire shape** — `META-INF/karate-ext/static/` inside the ext JAR:
 
@@ -226,7 +226,7 @@ suite.registerReportAssets("image", this.getClass().getClassLoader());
 
 `Suite.registerReportAssets(name, ClassLoader)` walks the ext's `META-INF/karate-ext/` resources via `ClassLoader.getResources`, validates `manifest.json`, and stashes the descriptor under a new `Map<String, ExtAssetDescriptor> reportAssets` field on `Suite`. Paired getter `Suite.getReportAssets()` returns the immutable view — read by `HtmlReportWriter` at report-write time.
 
-**Manifest validation failure modes** (all fail the Suite loud at `onBoot`, consistent with DESIGN.md § Plugin Architecture "Exceptions during `onBoot` fail the Suite"):
+**Manifest validation failure modes** (all fail the Suite loud at `onBoot`, consistent with DESIGN.md § Ext Architecture "Exceptions during `onBoot` fail the Suite"):
 
 | Condition | Behaviour |
 |-----------|-----------|
@@ -293,7 +293,7 @@ Scenario: pixel-diff
   * image.compare('home.png', 'screenshots/home.png')
 ```
 
-**Per-call shape mirrors `karate.channel`.** See [DESIGN.md § Plugin Architecture](./DESIGN.md#plugin-architecture) for the singleton-per-Suite lifecycle; the only difference is the ext global is *exposed* in scenario scope (channels are returned per call).
+**Per-call shape mirrors `karate.channel`.** See [DESIGN.md § Ext Architecture](./DESIGN.md#ext-architecture) for the singleton-per-Suite lifecycle; the only difference is the ext global is *exposed* in scenario scope (channels are returned per call).
 
 ### 3.5 Custom step keyword sugar — `* <extName> <expr>`
 
@@ -460,7 +460,7 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 ### Phase 2 — Ext SPI extensions + slot loader
 
 **Scope:**
-- Rename `Plugin` → `Ext`, `BootBinding.plugin(name)` → `BootBinding.ext(name)`, `boot.plugin('x')` JS surface → `boot.ext('x')`. Update DESIGN.md § Plugin Architecture → § Ext Architecture. Source files: `Plugin.java`, `BootBinding.java`, `BootLoader.java`, `Suite.java` (per DESIGN.md § Plugin Architecture "Source files" footer).
+- ~~Rename `Plugin` → `Ext`, `BootBinding.plugin(name)` → `BootBinding.ext(name)`, `boot.plugin('x')` JS surface → `boot.ext('x')`. Update DESIGN.md § Plugin Architecture → § Ext Architecture. Source files: `Plugin.java`, `BootBinding.java`, `BootLoader.java`, `Suite.java` (per DESIGN.md § Plugin Architecture "Source files" footer).~~ **Landed.** D17 rename complete: `Ext.java`, `BootBinding.ext(...)`, `boot.ext('x')`, `SUITE_ENTER.data.exts[]`, DESIGN.md § Ext Architecture, plus `AgentPlugin`→`AgentExt` (`io.karatelabs.ext.agent.AgentExt`).
 - Extend `Suite`: `registerReportAssets(name, ClassLoader)`, `getReportAssets()` (returns `Map<String, ExtAssetDescriptor>`), `registerGlobal(name, instance)`, `getGlobal(name)`, `getGlobals()`.
 - `HtmlReportWriter` already has the `<!-- KARATE_EXTS -->` placeholder wired (Phase 1 foundation; substitutes to empty string today). Phase 2 fills the substitution: at write time, iterate `Suite.getReportAssets()` → copy each ext's `META-INF/karate-ext/static/` to `target/karate-reports/ext/<name>/` → assemble the `<script src=ext/<name>/ext.js defer></script>` (+ optional `<link rel=stylesheet>`) lines and splice into the placeholder → write `ext/<name>/pages/...` for any nav-page contributions.
 - Extend `StepResult.Embed` to the multi-part shape (§3.6) with the single-part legacy shim.
@@ -537,7 +537,7 @@ Lives in the separate `karate-ext` repo (proprietary; renamed from `karate-plugi
   - `nav.pages` — `pages/openapi-coverage.html` — full coverage matrix (per-op pass/fail/untouched).
   - `step.embed` — name `openapi-match` already exists ([DESIGN.md § Reports "Where named embeds live on the wire"](./DESIGN.md#reports) names it explicitly); render it per-step.
 - Rename `OpenapiPlugin` → `OpenapiExt`, package `io.karatelabs.plugins.openapi` → `io.karatelabs.ext.openapi`.
-- Move `boot.ext('openapi')` config keys (`path`, `excludes`) — already per-instance property shape per [DESIGN.md § Plugin Architecture](./DESIGN.md#plugin-architecture); only the `boot.plugin` → `boot.ext` call site changes.
+- Move `boot.ext('openapi')` config keys (`path`, `excludes`) — already per-instance property shape per [DESIGN.md § Ext Architecture](./DESIGN.md#ext-architecture); only the `boot.plugin` → `boot.ext` call site changes.
 
 **Cross-repo dependency:** `../karate-ext/karate-openapi/pom.xml` declares `karate-core` 2.0.10 (or whatever this spike lands as). Strict version match per D8; `karate-ext` monorepo version mirrors `karate-core` per O12.
 

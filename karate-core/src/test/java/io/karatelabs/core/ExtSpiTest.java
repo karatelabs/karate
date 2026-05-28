@@ -37,48 +37,48 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Unit-level checks for {@link Plugin} + {@link BootBinding} + {@link BootLoader}.
+ * Unit-level checks for {@link Ext} + {@link BootBinding} + {@link BootLoader}.
  * Uses the explicit BootBinding constructor that decouples workingDir + listener
  * registrar from a fully-instantiated Suite. Full Suite-level integration (boot.js
- * loaded inside Suite.run()) is exercised in the downstream karate-plugins / demo
+ * loaded inside Suite.run()) is exercised in the downstream karate-ext / demo
  * flow; this test covers the core SPI mechanics in isolation.
  */
-class PluginSpiTest {
+class ExtSpiTest {
 
     @TempDir
     Path tmp;
 
-    private BootBinding newBinding(Path workdir, String env, List<Plugin> registered) {
+    private BootBinding newBinding(Path workdir, String env, List<Ext> registered) {
         return new BootBinding(null, workdir, env, registered::add);
     }
 
     @Test
-    void bootBindingResolvesPluginByNameConvention() {
-        List<Plugin> registered = new ArrayList<>();
+    void bootBindingResolvesExtByNameConvention() {
+        List<Ext> registered = new ArrayList<>();
         BootBinding boot = newBinding(tmp, "test", registered);
-        Plugin plugin = boot.plugin("noop");
-        assertNotNull(plugin);
-        assertEquals("io.karatelabs.plugins.noop.NoopPlugin", plugin.getClass().getName());
-        assertEquals(1, registered.size(), "plugin should be registered exactly once");
-        assertSame(plugin, registered.get(0));
+        Ext ext = boot.ext("noop");
+        assertNotNull(ext);
+        assertEquals("io.karatelabs.ext.noop.NoopExt", ext.getClass().getName());
+        assertEquals(1, registered.size(), "ext should be registered exactly once");
+        assertSame(ext, registered.get(0));
     }
 
     @Test
     void bootBindingReturnsSameSingletonForSameName() {
-        List<Plugin> registered = new ArrayList<>();
+        List<Ext> registered = new ArrayList<>();
         BootBinding boot = newBinding(tmp, "test", registered);
-        Plugin first = boot.plugin("noop");
-        Plugin second = boot.plugin("noop");
+        Ext first = boot.ext("noop");
+        Ext second = boot.ext("noop");
         assertSame(first, second);
-        assertEquals(1, boot.getPlugins().size());
+        assertEquals(1, boot.getExts().size());
         assertEquals(1, registered.size(), "registrar fired only once for the singleton");
     }
 
     @Test
-    void bootBindingMissingPluginFailsLoud() {
+    void bootBindingMissingExtFailsLoud() {
         BootBinding boot = newBinding(tmp, null, new ArrayList<>());
         RuntimeException ex = assertThrows(RuntimeException.class,
-                () -> boot.plugin("does-not-exist"));
+                () -> boot.ext("does-not-exist"));
         assertTrue(ex.getMessage().contains("does-not-exist"));
     }
 
@@ -139,14 +139,14 @@ class PluginSpiTest {
     }
 
     @Test
-    void manifestsCollectAllPluginEntries() {
+    void manifestsCollectAllExtEntries() {
         BootBinding boot = newBinding(tmp, null, new ArrayList<>());
-        boot.plugin("noop");
+        boot.ext("noop");
         var manifests = boot.manifests();
         assertEquals(1, manifests.size());
         Map<String, Object> entry = manifests.get(0);
         assertEquals("noop", entry.get("name"));
-        assertEquals("io.karatelabs.plugins.noop.NoopPlugin", entry.get("class"));
+        assertEquals("io.karatelabs.ext.noop.NoopExt", entry.get("class"));
         assertEquals("noop-v1", entry.get("version"));
     }
 
@@ -156,8 +156,8 @@ class PluginSpiTest {
         Engine engine = new Engine();
         engine.setExternalBridge(new ExternalBridge() {});
         engine.putRootBinding("boot", boot);
-        engine.eval("var x = boot.env; var p = boot.plugin('noop');");
+        engine.eval("var x = boot.env; var p = boot.ext('noop');");
         assertEquals("ci", engine.get("x"));
-        assertEquals(1, boot.getPlugins().size());
+        assertEquals(1, boot.getExts().size());
     }
 }

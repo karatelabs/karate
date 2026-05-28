@@ -35,7 +35,7 @@ import java.util.Set;
 /**
  * Backing object for the {@code boot} global exposed inside {@code karate-boot.js}.
  *
- * <p>karate-boot.js is plugin-scripting only — its JS scope is discarded after the
+ * <p>karate-boot.js is ext-scripting only — its JS scope is discarded after the
  * file evaluates, so variables defined there cannot leak into the feature-runtime
  * scope. The only API surface is this class. See AGENT_KARATE.md K43.</p>
  *
@@ -49,9 +49,9 @@ import java.util.Set;
  *       available.</li>
  *   <li>{@code boot.read(path)} — read a file (relative paths resolve against workdir).</li>
  *   <li>{@code boot.log(msg)} — INFO log line, prefixed {@code [boot]}.</li>
- *   <li>{@code boot.plugin(name)} — resolve + construct the named plugin via the
- *       {@code io.karatelabs.plugins.<name>.<Name>Plugin} convention, fire its
- *       {@link Plugin#onBoot(Suite)}, register it with the Suite, and return the
+ *   <li>{@code boot.ext(name)} — resolve + construct the named ext via the
+ *       {@code io.karatelabs.ext.<name>.<Name>Ext} convention, fire its
+ *       {@link Ext#onBoot(Suite)}, register it with the Suite, and return the
  *       instance so the boot script can configure it.</li>
  * </ul>
  */
@@ -62,13 +62,13 @@ public class BootBinding {
     private final Suite suite;
     private final java.nio.file.Path workingDir;
     private final String env;
-    private final java.util.function.Consumer<Plugin> registrar;
-    private final Set<Plugin> plugins = new LinkedHashSet<>();
+    private final java.util.function.Consumer<Ext> registrar;
+    private final Set<Ext> exts = new LinkedHashSet<>();
 
-    /** Production constructor — wires a live Suite for plugin registration. */
+    /** Production constructor — wires a live Suite for ext registration. */
     public BootBinding(Suite suite, String env) {
         this(suite, suite == null ? null : suite.getWorkingDir(), env,
-                suite == null ? p -> {} : suite::registerPluginListener);
+                suite == null ? e -> {} : suite::registerExtListener);
     }
 
     /**
@@ -78,11 +78,11 @@ public class BootBinding {
     public BootBinding(Suite suite,
                        java.nio.file.Path workingDir,
                        String env,
-                       java.util.function.Consumer<Plugin> registrar) {
+                       java.util.function.Consumer<Ext> registrar) {
         this.suite = suite;
         this.workingDir = workingDir;
         this.env = env;
-        this.registrar = registrar == null ? p -> {} : registrar;
+        this.registrar = registrar == null ? e -> {} : registrar;
     }
 
     /** {@code boot.env} — JS sees this as a property, not a method. */
@@ -160,73 +160,73 @@ public class BootBinding {
     }
 
     /**
-     * {@code boot.plugin('name')} — resolve + construct + register a plugin.
+     * {@code boot.ext('name')} — resolve + construct + register an ext.
      *
      * <p>Resolution by name convention: {@code 'openapi'} →
-     * {@code io.karatelabs.plugins.openapi.OpenapiPlugin}. The class is loaded from
-     * the runtime classloader; missing plugin → boot-time failure (suite fails loud).</p>
+     * {@code io.karatelabs.ext.openapi.OpenapiExt}. The class is loaded from
+     * the runtime classloader; missing ext → boot-time failure (suite fails loud).</p>
      *
      * <p>Same name twice returns the same singleton instance.</p>
      */
-    public Plugin plugin(String name) {
+    public Ext ext(String name) {
         if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("boot.plugin: name is null or empty");
+            throw new IllegalArgumentException("boot.ext: name is null or empty");
         }
         // Singleton-per-name within this BootBinding (which is itself per-Suite).
-        for (Plugin existing : plugins) {
-            if (name.equals(pluginShortName(existing))) {
+        for (Ext existing : exts) {
+            if (name.equals(extShortName(existing))) {
                 return existing;
             }
         }
-        String className = "io.karatelabs.plugins." + name + "." + capitalize(name) + "Plugin";
-        Plugin plugin;
+        String className = "io.karatelabs.ext." + name + "." + capitalize(name) + "Ext";
+        Ext ext;
         try {
             Class<?> cls = Class.forName(className);
             Object instance = cls.getDeclaredConstructor().newInstance();
-            if (!(instance instanceof Plugin)) {
+            if (!(instance instanceof Ext)) {
                 throw new RuntimeException(
-                        "boot.plugin('" + name + "'): " + className
-                                + " does not implement io.karatelabs.core.Plugin");
+                        "boot.ext('" + name + "'): " + className
+                                + " does not implement io.karatelabs.core.Ext");
             }
-            plugin = (Plugin) instance;
+            ext = (Ext) instance;
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(
-                    "boot.plugin('" + name + "'): not on classpath. Expected "
+                    "boot.ext('" + name + "'): not on classpath. Expected "
                             + className + " (name-convention resolution).", e);
         } catch (Exception e) {
             throw new RuntimeException(
-                    "boot.plugin('" + name + "'): failed to construct " + className
+                    "boot.ext('" + name + "'): failed to construct " + className
                             + " — " + e.getMessage(), e);
         }
         // Fire onBoot eagerly per K43. Throws here fail the Suite.
-        plugin.onBoot(suite);
-        plugins.add(plugin);
-        registrar.accept(plugin);
-        logger.info("plugin booted: {} ({})", name, plugin.getClass().getName());
-        return plugin;
+        ext.onBoot(suite);
+        exts.add(ext);
+        registrar.accept(ext);
+        logger.info("ext booted: {} ({})", name, ext.getClass().getName());
+        return ext;
     }
 
-    public Set<Plugin> getPlugins() {
-        return plugins;
+    public Set<Ext> getExts() {
+        return exts;
     }
 
-    /** Collected manifest array shape for SUITE_ENTER.data.plugins[]. */
+    /** Collected manifest array shape for SUITE_ENTER.data.exts[]. */
     public java.util.List<Map<String, Object>> manifests() {
         java.util.List<Map<String, Object>> out = new java.util.ArrayList<>();
-        for (Plugin p : plugins) {
+        for (Ext e : exts) {
             Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("name", pluginShortName(p));
-            entry.put("class", p.getClass().getName());
-            Map<String, Object> manifest = p.getManifest();
+            entry.put("name", extShortName(e));
+            entry.put("class", e.getClass().getName());
+            Map<String, Object> manifest = e.getManifest();
             if (manifest != null) entry.putAll(manifest);
             out.add(entry);
         }
         return out;
     }
 
-    private static String pluginShortName(Plugin p) {
-        // io.karatelabs.plugins.openapi.OpenapiPlugin → "openapi"
-        String pkg = p.getClass().getPackage().getName();
+    private static String extShortName(Ext e) {
+        // io.karatelabs.ext.openapi.OpenapiExt → "openapi"
+        String pkg = e.getClass().getPackage().getName();
         int lastDot = pkg.lastIndexOf('.');
         return lastDot < 0 ? pkg : pkg.substring(lastDot + 1);
     }

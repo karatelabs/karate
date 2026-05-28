@@ -566,15 +566,15 @@ Standard envelope:
 
 `STEP_ENTER` / `STEP_EXIT` / `HTTP_ENTER` / `HTTP_EXIT` events fire on the `RunListener` bus but are deliberately not emitted into JSONL (too granular for a streaming feed). HTTP request/response detail still reaches consumers via `step.embeds[]` inside `FEATURE_EXIT`.
 
-**Where named embeds live on the wire (and why).** Step embeds — including plugin-emitted named entries like `openapi-match`, `grpc-match`, `http-exchange` — appear **only** at `FEATURE_EXIT.data.scenarioResults[i].stepResults[j].embeds[]`. They are deliberately **not** duplicated onto `SCENARIO_EXIT.data`. The rationale is bandwidth: `FEATURE_EXIT` already serializes the full `FeatureResult.toJson()` (which transitively walks every scenario's step results with their embeds), so a parallel `SCENARIO_EXIT.embeds[]` would either ship every embed twice for typical runs or force receivers to de-duplicate. Receivers wanting per-scenario embeds traverse `FEATURE_EXIT.data.scenarioResults[]` and key by `scenarioResults[i].refId` or `name`. Embeds use the canonical wire shape `{mime_type, data (base64), name}` (see `StepResult.Embed.toMap`); a plugin that wants a JSON payload base64-encodes the JSON bytes and sets `mime_type: "application/json"`.
+**Where named embeds live on the wire (and why).** Step embeds — including ext-emitted named entries like `openapi-match`, `grpc-match`, `http-exchange` — appear **only** at `FEATURE_EXIT.data.scenarioResults[i].stepResults[j].embeds[]`. They are deliberately **not** duplicated onto `SCENARIO_EXIT.data`. The rationale is bandwidth: `FEATURE_EXIT` already serializes the full `FeatureResult.toJson()` (which transitively walks every scenario's step results with their embeds), so a parallel `SCENARIO_EXIT.embeds[]` would either ship every embed twice for typical runs or force receivers to de-duplicate. Receivers wanting per-scenario embeds traverse `FEATURE_EXIT.data.scenarioResults[]` and key by `scenarioResults[i].refId` or `name`. Embeds use the canonical wire shape `{mime_type, data (base64), name}` (see `StepResult.Embed.toMap`); an ext that wants a JSON payload base64-encodes the JSON bytes and sets `mime_type: "application/json"`.
 
 ### Outbound HTTP delivery
 
-The same JSONL envelope can be POSTed to a configured HTTP receiver — useful for piping runs into a dashboard, an aggregator, or any compatible service. Activation is now via the [`Plugin` architecture](#plugin-architecture) — a customer adds `boot.plugin('agent')` to `karate-boot.js` and sets `.url`. When no `karate-boot.js` exists or `boot.plugin('agent')` is never invoked, no `HttpClient` is constructed and no listener is registered (zero network cost).
+The same JSONL envelope can be POSTed to a configured HTTP receiver — useful for piping runs into a dashboard, an aggregator, or any compatible service. Activation is now via the [`Ext` architecture](#ext-architecture) — a customer adds `boot.ext('agent')` to `karate-boot.js` and sets `.url`. When no `karate-boot.js` exists or `boot.ext('agent')` is never invoked, no `HttpClient` is constructed and no listener is registered (zero network cost).
 
 ```js
 // karate-boot.js — drop next to karate-config.js
-const agent = boot.plugin('agent');
+const agent = boot.ext('agent');
 agent.url = boot.sysenv('AGENT_URL', 'http://localhost:4444');
 agent.mode = boot.env === 'ci' ? 'batch' : 'final';   // optional, default 'batch'
 agent.token = boot.sysenv('AGENT_TOKEN');             // optional bearer
@@ -583,12 +583,12 @@ agent.params = { dev: boot.env !== 'ci' };            // optional, forwarded ver
 
 | Property | Purpose |
 |---|---|
-| `.url` | Destination base URL. Required to activate. Blank / unset leaves the plugin inert. |
+| `.url` | Destination base URL. Required to activate. Blank / unset leaves the ext inert. |
 | `.mode` | `batch` (default — POST every 50 events plus a final flush) or `final` (POST once on `SUITE_EXIT`). Streaming mode is reserved for a future revision. |
 | `.token` | Optional bearer token, sent as `Authorization: Bearer <token>`. |
 | `.params` | Arbitrary map attached verbatim to `SUITE_ENTER.data.params`. V0 schema `{dev: bool}` marks the run as developer-loop; forward-compatible — receivers persist unknown keys untouched. |
 
-When active, the plugin prints exactly one INFO line on first event announcing the destination so operators always see where data goes. Posts are **best-effort**: failures log at WARN and are dropped — the build is never failed by a transport error. The on-disk JSONL file (when `outputJsonLines(true)`) remains the source of truth.
+When active, the ext prints exactly one INFO line on first event announcing the destination so operators always see where data goes. Posts are **best-effort**: failures log at WARN and are dropped — the build is never failed by a transport error. The on-disk JSONL file (when `outputJsonLines(true)`) remains the source of truth.
 
 The wire envelope adds an explicit `schema` field for forward compatibility:
 
@@ -596,18 +596,18 @@ The wire envelope adds an explicit `schema` field for forward compatibility:
 {"schema":{"version":1,"dialect":"karate-v2"},"type":"SCENARIO_EXIT","timeStamp":1747555200100,"threadId":"worker-1","data":{...}}
 ```
 
-`SUITE_ENTER.data` additionally carries `runId` (a UUID generated per run) and `karateVersion`, plus a `plugins[]` array — one entry per active karate-boot.js plugin — so receivers know which plugins were active for this run and with what config. Endpoints called (paths relative to `.url`):
+`SUITE_ENTER.data` additionally carries `runId` (a UUID generated per run) and `karateVersion`, plus an `exts[]` array — one entry per active karate-boot.js ext — so receivers know which exts were active for this run and with what config. Endpoints called (paths relative to `.url`):
 
 - `POST /api/runs/{runId}/events` — batched events, body is JSONL (`application/x-ndjson`).
 - `POST /api/runs/{runId}/complete` — final flush on `SUITE_EXIT`.
 
 Receivers can implement these two endpoints to consume Karate runs over HTTP.
 
-**Source files:** `HtmlReportListener.java`, `HtmlReportWriter.java`, `CucumberJsonWriter.java`, `JunitXmlWriter.java`, `JsonLinesEventWriter.java`, `plugins/agent/AgentPlugin.java`
+**Source files:** `HtmlReportListener.java`, `HtmlReportWriter.java`, `CucumberJsonWriter.java`, `JunitXmlWriter.java`, `JsonLinesEventWriter.java`, `ext/agent/AgentExt.java`
 
 ---
 
-## Plugin Architecture
+## Ext Architecture
 
 | Interface | Purpose | Discovery |
 |-----------|---------|-----------|
@@ -615,29 +615,29 @@ Receivers can implement these two endpoints to consume Karate runs over HTTP.
 | `HttpClientFactory` | Custom HTTP clients | Constructor injection |
 | `RunListener` | Event listeners | `Runner.listener()` or `--listener` CLI |
 | `RunListenerFactory` | Per-thread listeners | `Runner.listenerFactory()` |
-| `Plugin` | **Suite-lifetime singletons configured from `karate-boot.js`** | Name convention via `boot.plugin('name')` |
+| `Ext` | **Suite-lifetime singletons configured from `karate-boot.js`** | Name convention via `boot.ext('name')` |
 | `ReportWriterFactory` | Custom report formats | ServiceLoader (planned) |
 
-### `Plugin` + `karate-boot.js`
+### `Ext` + `karate-boot.js`
 
-A second activation surface (coexisting with `karate.channel(...)`). Plugins are
+A second activation surface (coexisting with `karate.channel(...)`). Exts are
 singletons-per-Suite that observe the run via `RunListener`. They are configured
 declaratively from a `karate-boot.js` file at the workdir root, evaluated **once
 per Suite** before `SUITE_ENTER` fires.
 
 ```js
 // karate-boot.js — runs once per Suite; cannot contribute variables to test scope
-const agent = boot.plugin('agent');
+const agent = boot.ext('agent');
 agent.url = boot.sysenv('AGENT_URL', 'http://localhost:4444');
 agent.mode = boot.env === 'ci' ? 'batch' : 'final';
 
-const openapi = boot.plugin('openapi');
+const openapi = boot.ext('openapi');
 openapi.path = 'api/openapi.yaml';
 openapi.excludes = ['/health/**'];
 ```
 
-**Resolution.** `boot.plugin('foo')` looks up
-`io.karatelabs.plugins.foo.FooPlugin` on the classpath (name convention). Missing
+**Resolution.** `boot.ext('foo')` looks up
+`io.karatelabs.ext.foo.FooExt` on the classpath (name convention). Missing
 class → boot-time failure that fails the Suite loud.
 
 **`boot.*` namespace** — the only API surface inside `karate-boot.js`:
@@ -649,38 +649,38 @@ class → boot-time failure that fails the Suite loud.
 | `boot.sysprop(name [, default])` | Read a JVM system property; reads from the Suite's merged property map (CLI `-D` plus `Runner.Builder.systemProperties`) when available. |
 | `boot.read(path)` | Read a text file relative to workdir (e.g. an OpenAPI spec). |
 | `boot.log(msg)` | INFO log with `[boot]` prefix. |
-| `boot.plugin(name)` | Construct + register a plugin; returns the instance for configuration. |
+| `boot.ext(name)` | Construct + register an ext; returns the instance for configuration. |
 
 **Lifecycle.**
 
-1. `karate-boot.js` evaluates top-to-bottom. Each `boot.plugin('name')` call
-   constructs the plugin, fires its `onBoot(Suite)`, and registers it as a
+1. `karate-boot.js` evaluates top-to-bottom. Each `boot.ext('name')` call
+   constructs the ext, fires its `onBoot(Suite)`, and registers it as a
    `RunListener` on the Suite.
 2. Property setters validate eagerly — e.g. `openapi.path = '/no/such/file'`
    throws on the line itself, before any tests run.
-3. `SUITE_ENTER.data.plugins[]` carries each plugin's `getManifest()` so the
-   receiver (e.g. karate-agent dashboard) knows which plugins were active and
+3. `SUITE_ENTER.data.exts[]` carries each ext's `getManifest()` so the
+   receiver (e.g. karate-agent dashboard) knows which exts were active and
    with what config.
-4. Plugins see every event from `SUITE_ENTER` through `SUITE_EXIT` via
+4. Exts see every event from `SUITE_ENTER` through `SUITE_EXIT` via
    `onEvent(RunEvent)`.
-5. After `SUITE_EXIT`, each plugin's `onShutdown()` fires.
+5. After `SUITE_EXIT`, each ext's `onShutdown()` fires.
 
 **Failure mode.** Exceptions during `onBoot` fail the Suite. Exceptions inside
 `onEvent` are logged WARN and dropped — the run continues, that signal is lost.
 
-**Cross-plugin coordination.** Plugins do not call each other directly. They
+**Cross-ext coordination.** Exts do not call each other directly. They
 contribute via the existing `step.embed(name, payload)` mechanism (the same
-channel HTTP-exchange data already uses). The `agent` plugin ships these embeds
+channel HTTP-exchange data already uses). The `agent` ext ships these embeds
 on the wire inside `FEATURE_EXIT.data.scenarioResults[].stepResults[].embeds[]`;
-a downstream plugin (e.g. `openapi`) writes an additional embed
+a downstream ext (e.g. `openapi`) writes an additional embed
 (`step.embed('openapi-match', {opId, method, path, status})`) which travels
 alongside. Receivers decode embeds by name.
 
 **Mock-server mode** (`karate.start({mock: ...})`) suppresses `karate-boot.js`
-loading entirely — mock servers aren't tests, so plugins don't activate.
+loading entirely — mock servers aren't tests, so exts don't activate.
 
-**Source files:** `Plugin.java`, `BootBinding.java`, `BootLoader.java`,
-`Suite.java` (loader hook + plugin registration / shutdown).
+**Source files:** `Ext.java`, `BootBinding.java`, `BootLoader.java`,
+`Suite.java` (loader hook + ext registration / shutdown).
 
 ---
 

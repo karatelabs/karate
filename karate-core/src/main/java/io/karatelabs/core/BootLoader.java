@@ -34,8 +34,8 @@ import java.nio.file.Path;
 
 /**
  * Discovers {@code karate-boot.js} (workdir root, then classpath root) and evaluates
- * it once per Suite. The boot file is plugin-scripting only — its JS scope is
- * discarded after evaluation; the side effects (plugins registered on Suite) are the
+ * it once per Suite. The boot file is ext-scripting only — its JS scope is
+ * discarded after evaluation; the side effects (exts registered on Suite) are the
  * only output. See AGENT_KARATE.md K43.
  */
 public final class BootLoader {
@@ -48,7 +48,7 @@ public final class BootLoader {
 
     /**
      * Discover + evaluate {@code karate-boot.js} for the given Suite. Returns the
-     * {@link BootBinding} so the caller can surface registered plugins on
+     * {@link BootBinding} so the caller can surface registered exts on
      * {@code SUITE_ENTER}. Returns {@code null} when no boot file is present (the
      * common case — boot is opt-in).
      *
@@ -64,7 +64,7 @@ public final class BootLoader {
         BootBinding boot = new BootBinding(suite, env);
         Engine engine = new Engine();
         // ExternalBridge enables reflective dispatch for plain Java methods on
-        // the bound objects — required for boot.plugin(name) / boot.read(path) etc.
+        // the bound objects — required for boot.ext(name) / boot.read(path) etc.
         engine.setExternalBridge(new ExternalBridge() {});
         engine.putRootBinding("boot", boot);
         try {
