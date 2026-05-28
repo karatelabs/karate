@@ -10,7 +10,7 @@
 
 ## 1. Goals
 
-1. **Restyle the HTML report** by porting the existing three templates (`karate-summary.html`, `karate-feature.html`, `karate-timeline.html` under `karate-core/src/main/resources/io/karatelabs/output/`) to Tailwind, cherry-picking design ideas from the prototype at `~/Downloads/karate-report-redesign/` that align with our actual data model. The prototype was built by a design-first contributor without the feature→scenario→step hierarchy in view, so some of its KPIs and panels assume data we don't have; the port treats it as a visual vocabulary and aesthetic reference, not a one-to-one template port. See Phase 1 for the curated idea-list.
+1. **Restyle the HTML report** by porting the existing three templates (`karate-summary.html`, `karate-feature.html`, `karate-timeline.html` under `karate-core/src/main/resources/io/karatelabs/output/`) to Tailwind, cherry-picking design ideas from the prototype at `~/Downloads/karate-report-redesign/` that align with our actual data model. The prototype was built by a design-first contributor without the feature→scenario→step hierarchy in view, so some of its KPIs and panels assume data we don't have; the port treats it as a visual vocabulary and aesthetic reference, not a one-to-one template port. Split across **Phase 1** (Tailwind chrome swap — done) and **Phase 1b** (matrix-feature adoption — donut, KPI cards, sticky sidebar, lightbox, copy-as-cURL, etc.). See the Phase 1 / Phase 1b sections for the curated idea-list and what landed where.
 2. **Define a slot/asset/global contract** so exts can contribute UI chunks (per-step embeds, summary panels, per-feature panels, top-level pages) and JS-scope globals to the test runtime without touching `karate-core` Java.
 3. **Ship `karate-image`** as the first OSS ext — an in-repo submodule with a fatjar build — covering the v1 `compareImage` use case with a Tailwind+Alpine UI. Image comparison is the *dogfood*: if the SPI can host it, the SPI is real.
 4. **Migrate `karate-ext/karate-openapi`** (renamed from `karate-plugins`; see D17) onto the new slot/asset contract — contributes a coverage page + summary panel (and later an "API calls touched" roll-up). Proves the SPI on a second, separately-versioned ext.
@@ -382,7 +382,9 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 
 ### Phase 1 — Tailwind restyle of existing reports (no ext code)
 
-> **Status (2026-05-28):** *Complete.* Placeholder splice machinery, icons sprite, Tailwind config skeleton, template port (Bootstrap → Tailwind), theme-aware navbar, `karate-report.js` rewrite with Tailwind classes, Bootstrap asset deletes, `etc/tailwind/tailwind.sh` build script (no node / npm / mojo / vendored binary, see §3.1), CI staleness gate in `cicd.yml`, and Timeline page D20-palette overrides (O20 accepted as a CDN carve-out with theming pass) have all landed. Phase 2 (ext SPI extensions + slot loader) is the next active phase.
+> **Status (2026-05-28):** *Complete.* Placeholder splice machinery, icons sprite, Tailwind config skeleton, template port (Bootstrap → Tailwind), theme-aware navbar, `karate-report.js` rewrite with Tailwind classes, Bootstrap asset deletes, `etc/tailwind/tailwind.sh` build script (no node / npm / mojo / vendored binary, see §3.1), CI staleness gate in `cicd.yml`, and Timeline page D20-palette overrides (O20 accepted as a CDN carve-out with theming pass) have all landed.
+>
+> **Scope correction.** Phase 1 as built delivered the *Tailwind chrome swap* (Bootstrap → Tailwind classes, dark/light toggle, FOUC fix, navbar). The §"design idea adoption matrix" below lists prototype features marked "Adopt" that need real template + Alpine implementation, not just class swaps. Those land in **Phase 1b** (next section) before Phase 2. The matrix stays here unchanged — it's the source-of-truth for what Phase 1b builds.
 
 **Strategy: port, don't rewrite.** The existing three templates already wire `FeatureResult.toJson()` data correctly. Phase 1 replaces only the styling layer (Bootstrap → Tailwind; Alpine.js was already in place) and selectively adopts visual ideas from the prototype that survive contact with our actual data model. Anything in the prototype that assumes data we don't compute (or that's "fluff" — visuals dressed up to look impressive without informing the reader) gets rejected. The data wiring stays put; the chrome around it gets modernised.
 
@@ -444,6 +446,50 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 - Existing functionality preserved: tag filter dropdown, scenario expand/collapse, step bodies, embed rendering for screenshots and `doc` HTML, line-number deep-links, the `@report=false` redaction behaviour from DESIGN.md — **done**. Note: the status-badge rendering is now mutually exclusive (skipped wins over passed/failed) where before three `x-show` clauses could overlap on `skipped && !passed`. Better behaviour, but technically a divergence from "verbatim" — see §3.4 note.
 - CI staleness gate: deliberate template edit without re-running `tailwind.sh` makes `cicd.yml` red with a `git diff` pointing at `karate-report.css` — **done** (wired in `.github/workflows/cicd.yml`).
 - `bash etc/tailwind/tailwind.sh` downloads the standalone CLI on first run, caches under `etc/tailwind/.cache/`, regenerates the CSS deterministically — **done**.
+
+### Phase 1b — Prototype feature adoption
+
+**Why a separate phase.** Phase 1 was scoped (and executed) as a chrome swap — Bootstrap classes out, Tailwind classes in, no template structure changes. The "Adopt" features in the design-idea matrix go beyond restyling: they introduce new DOM (donut SVG, KPI card row, panels), new Alpine state (sticky sidebar scroll-spy, lightbox, copy-as-cURL clipboard), and new derived data (slowest-scenarios sort, speedup metric, expected-vs-actual diff). That work merits its own phase so PR review can compare matrix-vs-implementation cleanly, and so we know what "Phase 1 complete" actually means.
+
+**Scope** — implement the "Adopt" rows in the matrix that haven't shipped yet. Grouped by template:
+
+*Summary page* (`karate-summary.html` + `karate-report.js#summaryData`):
+- KPI card row (total / pass / fail / skipped / duration) above the existing feature table.
+- Animated pass-rate donut (CSS / SVG) wired to `SUITE_EXIT.summary.passedRate`.
+- Failures panel (clickable list of failed scenarios, jumps to feature page anchor).
+- Slowest-scenarios panel (top N by `scenario.durationMs`).
+- Sortable feature table — add tag-count chips per row + a Totals row at the bottom. Existing sort already in place; just enrich the row template.
+- Outline / skipped scenarios styled distinctly from passed / failed (currently three statuses + mutex; outline merits its own visual treatment, not a re-use of one of the existing three).
+
+*Feature page* (`karate-feature.html` + `karate-report.js#featureData`):
+- Sticky scenario sidebar (`position: sticky`, scroll-spy via `IntersectionObserver` on scenario anchors).
+- Two-column HTTP block — method pill + status badge + foldable headers + JSON body. The pattern is reusable; live next to step embeds.
+- Copy-as-cURL button on the HTTP block (synthesise from request data; navigator.clipboard).
+- Screenshot lightbox — `<dialog>` + Alpine; replaces the today's inline screenshot embed render. Same UX pattern that `karate-image` will use in Phase 3 (intentional reuse).
+- Expected-vs-actual diff block on match failures — `Result.Failure` already carries `path` / `reason` / `actualValue` / `expectedValue` (DESIGN.md § Match Engine); just render.
+
+*Timeline page* (`karate-timeline.html` + `karate-report.js#timelineData`):
+- Per-thread gantt rows — `threadId` already on every step result; group items by thread.
+- Top-5 slowest scenarios panel (above or below the gantt, TBD).
+- Speedup metric — `sum(scenario.durationMs) / suiteDurationMs`. One number, one line above the gantt.
+
+**Out of scope** (per matrix decisions, listed for completeness):
+- Tag pass-rate rings — needs `SuiteResult.tagStats` aggregation; deferred (O13).
+- Critical-path overlay on Timeline — rejected (semantically vacuous for Karate's scheduling).
+- Thread-utilization heatmap — deferred (O15).
+- Realistic-but-illustrative mock data flourishes — rejected (no equivalent in real runs).
+- Heavy `backdrop-filter` / `color-mix()` aesthetic effects — rejected per D20.
+
+**Data plumbing.** Every Adopt item is template-side: data already lands in `SUITE_EXIT` / `FEATURE_EXIT` per DESIGN.md § Reports. No Java changes, no `Suite.java` extensions. If implementation reveals a missing field, that's a flag — pause Phase 1b, decide whether to extend the data model or drop the feature, document the call.
+
+**Exit criteria** (each independently verifiable via `HtmlReportWriterTest#testHtmlReportGeneration` + visual inspection):
+- Summary page: KPI cards visible, donut renders the published `passedRate`, failures panel + slowest panel populated against the mixed-pass/fail test suite.
+- Feature page: sticky sidebar tracks scroll position, lightbox opens on screenshot click, copy-as-cURL writes a valid cURL to the clipboard, expected-vs-actual diff appears on the test suite's known match-fail scenarios.
+- Timeline page: per-thread gantt groups items by thread, speedup metric visible above the chart, top-5 slowest panel populated.
+- `mvn -pl karate-core test` green, no new tests required beyond the existing report-render test (these are template features, not behavioural changes).
+- Visual inspection on both light + dark theme — every new component themed against the D20 palette.
+
+**Sequencing within Phase 1b.** Suggested ordering — Summary KPI row + donut first (highest visual impact for a quick win), then sticky sidebar + lightbox on the feature page (UX wins users notice), then HTTP block + copy-as-cURL (most code, least visual change), then Timeline enhancements last. Each can ship as its own PR; phase closes when all four merged.
 
 ### Phase 2 — Ext SPI extensions + slot loader
 
@@ -634,9 +680,9 @@ etc/tailwind/
   .cache/                                  (gitignored — holds the downloaded standalone CLI)
 karate-core/
   src/main/resources/io/karatelabs/output/
-    karate-summary.html                    ✅  Tailwind, dark/light, Alpine
-    karate-feature.html                    ✅  ditto, slot containers added (empty in P1)
-    karate-timeline.html                   ✅  ditto + D20-palette overrides; vis-timeline CDN is accepted carve-out (O20)
+    karate-summary.html                    ✅  Tailwind chrome (P1) 🔨 KPI cards + donut + failures/slowest panels + tag chips (P1b)
+    karate-feature.html                    ✅  Tailwind chrome (P1) 🔨 sticky sidebar + HTTP block + copy-cURL + lightbox + diff (P1b); slot containers added (empty in P1)
+    karate-timeline.html                   ✅  Tailwind chrome + D20 overrides (P1) 🔨 per-thread gantt + top-5 slowest + speedup (P1b); vis-timeline CDN is accepted carve-out (O20)
     _icons.svg                             ✅  Heroicons sprite, spliced via KARATE_ICONS
     res/karate-report.css                  ✅  generated, ~18.9 KB minified
     res/karate-report.js                   ✅  ~530 lines, Tailwind classes throughout
