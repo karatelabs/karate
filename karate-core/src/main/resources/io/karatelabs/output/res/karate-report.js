@@ -201,6 +201,19 @@ const KarateReport = {
         return steps.map(step => this._renderStep(step)).join('');
     },
 
+    /**
+     * Map a Karate keyword to a text color class. Only two keywords get colored:
+     * `method` (the HTTP fire-the-request action) and `match` (the assertion).
+     * Everything else stays slate. Class strings stay literal so Tailwind's
+     * content scanner picks them up.
+     */
+    _keywordColor(keyword) {
+        const k = (keyword || '').toLowerCase();
+        if (k === 'method') return 'text-orange-600 dark:text-orange-400';
+        if (k === 'match')  return 'text-blue-700 dark:text-blue-400';
+        return                     'text-slate-700 dark:text-slate-300';
+    },
+
     _esc(s) {
         if (s == null) return '';
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -224,15 +237,20 @@ const KarateReport = {
         const hasDetail = step.hasLogs || step.hasEmbeds || step.hasCallResults;
         const clickable = hasDetail ? 'cursor-pointer' : '';
         const onclick = hasDetail ? `onclick="KarateReport.toggleStep(this)"` : '';
-        const statusClass = step.status === 'passed'
-            ? 'text-green-700 dark:text-green-400'
-            : step.status === 'failed'
-                ? 'text-red-700 dark:text-red-400'
-                : step.status === 'skipped'
-                    ? 'text-amber-700 dark:text-amber-400'
-                    : '';
+        // Hook steps (before/after) are infrastructure, not user-authored test logic —
+        // mute them so the eye skims past to the real steps.
+        const statusClass = step.hook
+            ? 'text-slate-400 dark:text-slate-500'
+            : step.status === 'passed'
+                ? 'text-green-700 dark:text-green-400'
+                : step.status === 'failed'
+                    ? 'text-red-700 dark:text-red-400'
+                    : step.status === 'skipped'
+                        ? 'text-amber-700 dark:text-amber-400'
+                        : '';
         const muted = 'text-slate-500 dark:text-slate-400';
         const badgeBase = this._BADGE_BASE;
+        const keywordColor = this._keywordColor(step.keyword);
 
         let html = `<div class="k-step" id="${id}">`;
 
@@ -248,7 +266,7 @@ const KarateReport = {
         html += `<div class="${muted} mr-2 w-10 text-right shrink-0"><span class="text-xs">[${step.line}]</span></div>`;
         html += `<div class="flex-1 min-w-0 ${statusClass}">`;
         html += `<span class="${muted}">${this._esc(step.prefix)}</span> `;
-        html += `<span class="font-bold">${this._esc(step.keyword)}</span> `;
+        html += `<span class="font-bold ${keywordColor}">${this._esc(step.keyword)}</span> `;
         html += `<span>${this._esc(step.text)}</span>`;
 
         if (step.hook) {
