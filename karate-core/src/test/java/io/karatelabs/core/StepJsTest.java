@@ -349,6 +349,20 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    // Issue #2886 — sibling of the `set var['hy-phen']` fix. karate.set() is
+    // documented as accepting JSONPath, so bracket-quoted keys must work too.
+    @Test
+    void testKarateSetWithBracketedSpecialCharKey() {
+        ScenarioRuntime sr = run("""
+            * def json = { 'some-code': 'DE' }
+            * karate.set('json', "$['alt-code']", 'FR')
+            * match json == { 'some-code': 'DE', 'alt-code': 'FR' }
+            * karate.set('json', "$.nested['hy-phen']", 'x')
+            * match json.nested == { 'hy-phen': 'x' }
+            """);
+        assertPassed(sr);
+    }
+
     // Issue #2842 — v1 bulk form: a single Map argument sets each top-level
     // key as a variable. Common pattern is `karate.set(read('settings.json'))`.
     @Test

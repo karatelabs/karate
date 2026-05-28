@@ -73,4 +73,59 @@ class StepSetRhsTest {
                 """);
         assertPassed(sr);
     }
+
+    // Issue #2886 — `set var['hy-phen'] = value` regressed in 2.0.8: Jayway's
+    // doc.put was being called with the raw `['hy-phen']` bracketed leaf as
+    // the key, so the resulting JSON had a literal `['hy-phen']` key instead
+    // of `hy-phen`. The pure-JsonPath LHS routing must strip the bracket /
+    // quote wrapper before handing the leaf to Jayway.
+    @Test
+    void testSetWithBracketedSpecialCharKey() {
+        ScenarioRuntime sr = run("""
+                * def jsonData = { some-code: 'DE' }
+                * set jsonData['alt-code'] = 'FR'
+                * match jsonData == { 'some-code': 'DE', 'alt-code': 'FR' }
+                * match jsonData['alt-code'] == 'FR'
+                """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testSetWithBracketedSpecialCharKeyOverwriteExisting() {
+        // overwriting an existing bracket-quoted key — same routing path
+        ScenarioRuntime sr = run("""
+                * def jsonData = { 'some-code': 'DE' }
+                * set jsonData['some-code'] = 'FR'
+                * match jsonData == { 'some-code': 'FR' }
+                """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testSetWithBracketedSpecialCharKeyNested() {
+        // bracket key on a nested path (`var.foo['hy-phen']`) — same fix must
+        // handle the mixed dot + bracket form, not just leading-bracket.
+        ScenarioRuntime sr = run("""
+                * def jsonData = { meta: { 'some-code': 'DE' } }
+                * set jsonData.meta['alt-code'] = 'FR'
+                * match jsonData.meta == { 'some-code': 'DE', 'alt-code': 'FR' }
+                """);
+        assertPassed(sr);
+    }
+
+    // For these single-key assignments `set` is overkill — plain JS works.
+    // `* jsonData['some-code'] = 'value1'` is evaluated by the JS engine which
+    // mutates the underlying map directly. The `set` keyword is only needed
+    // for JsonPath features (wildcards, recursive descent, auto-vivification)
+    // or for XML xpath updates. See issue #2886.
+    @Test
+    void testJsAssignmentWithBracketedSpecialCharKey() {
+        ScenarioRuntime sr = run("""
+                * def jsonData = { some-code: 'DE' }
+                * jsonData['alt-code'] = 'FR'
+                * match jsonData == { 'some-code': 'DE', 'alt-code': 'FR' }
+                * match jsonData['alt-code'] == 'FR'
+                """);
+        assertPassed(sr);
+    }
 }

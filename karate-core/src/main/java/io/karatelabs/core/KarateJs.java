@@ -622,35 +622,16 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                     } else {
                         Xml.setByPath(doc, path, value == null ? "" : value.toString());
                     }
-                } else if (target == null) {
-                    target = new java.util.LinkedHashMap<>();
-                    engine.put(name, target);
-                    // Direct path set for JSON
-                    String navPath = path.startsWith("$.") ? path.substring(2) : path;
-                    KarateJsUtils.setAtPath(target, navPath, value);
                 } else {
-                    // Handle special jsonpath cases
-                    if (path.endsWith("[]")) {
-                        // Append to array: $.foo[] means add to foo array
-                        String arrayPath = path.substring(0, path.length() - 2);
-                        if (arrayPath.equals("$")) {
-                            // Root is array
-                            if (target instanceof List) {
-                                ((List<Object>) target).add(value);
-                            }
-                        } else {
-                            // Navigate to array and append
-                            String navPath = arrayPath.substring(2); // remove "$."
-                            Object arr = KarateJsUtils.navigateToPath(target, navPath);
-                            if (arr instanceof List) {
-                                ((List<Object>) arr).add(value);
-                            }
-                        }
-                    } else {
-                        // Direct path set
-                        String navPath = path.startsWith("$.") ? path.substring(2) : path;
-                        KarateJsUtils.setAtPath(target, navPath, value);
+                    // Route through Json (Jayway) for full JSONPath semantics:
+                    // dotted paths, [N] indices, $.foo[] array append, and
+                    // ['hy-phen'] bracket-quoted keys (issue #2886). Mirrors
+                    // the `set var.path = value` Gherkin step.
+                    if (target == null) {
+                        target = new java.util.LinkedHashMap<>();
+                        engine.put(name, target);
                     }
+                    Json.of(target).set(path, value);
                 }
             }
             return null;

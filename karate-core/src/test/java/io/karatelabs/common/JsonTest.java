@@ -23,15 +23,18 @@ class JsonTest {
     void testParsingParentAndLeafName() {
         assertEquals(Pair.of("", "$"), Json.toParentAndLeaf("$"));
         assertEquals(Pair.of("$", "foo"), Json.toParentAndLeaf("$.foo"));
-        assertEquals(Pair.of("$", "['foo']"), Json.toParentAndLeaf("$['foo']"));
+        // leading bracket-quoted segment is unwrapped to a bare key — required by
+        // Jayway's doc.put contract (issue #2886). Also normalises `.foo` and
+        // `['foo']` to the same leaf shape.
+        assertEquals(Pair.of("$", "foo"), Json.toParentAndLeaf("$['foo']"));
         assertEquals(Pair.of("$.foo", "bar"), Json.toParentAndLeaf("$.foo.bar"));
-        assertEquals(Pair.of("$.foo", "['bar']"), Json.toParentAndLeaf("$.foo['bar']"));
+        assertEquals(Pair.of("$.foo", "bar"), Json.toParentAndLeaf("$.foo['bar']"));
         assertEquals(Pair.of("$.foo", "bar[0]"), Json.toParentAndLeaf("$.foo.bar[0]"));
-        assertEquals(Pair.of("$.foo", "['bar'][0]"), Json.toParentAndLeaf("$.foo['bar'][0]"));
+        assertEquals(Pair.of("$.foo", "bar[0]"), Json.toParentAndLeaf("$.foo['bar'][0]"));
         assertEquals(Pair.of("$.foo[2]", "bar[0]"), Json.toParentAndLeaf("$.foo[2].bar[0]"));
-        assertEquals(Pair.of("$.foo[2]", "['bar'][0]"), Json.toParentAndLeaf("$.foo[2]['bar'][0]"));
+        assertEquals(Pair.of("$.foo[2]", "bar[0]"), Json.toParentAndLeaf("$.foo[2]['bar'][0]"));
         assertEquals(Pair.of("$.foo[2]", "bar"), Json.toParentAndLeaf("$.foo[2].bar"));
-        assertEquals(Pair.of("$.foo[2]", "['bar']"), Json.toParentAndLeaf("$.foo[2]['bar']"));
+        assertEquals(Pair.of("$.foo[2]", "bar"), Json.toParentAndLeaf("$.foo[2]['bar']"));
     }
 
     @Test
