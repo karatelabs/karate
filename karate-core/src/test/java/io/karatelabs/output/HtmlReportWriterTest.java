@@ -156,7 +156,7 @@ class HtmlReportWriterTest {
         assertTrue(Files.exists(OUTPUT_DIR.resolve("karate-timeline.html")));
         assertTrue(Files.exists(OUTPUT_DIR.resolve("index.html")));
         assertTrue(Files.exists(OUTPUT_DIR.resolve(HtmlReportListener.SUBFOLDER)));
-        assertTrue(Files.exists(OUTPUT_DIR.resolve("res/bootstrap.min.css")));
+        assertTrue(Files.exists(OUTPUT_DIR.resolve("res/karate-report.css")));
         assertTrue(Files.exists(OUTPUT_DIR.resolve("res/favicon.ico")));
 
         // Verify JSON Lines file was created

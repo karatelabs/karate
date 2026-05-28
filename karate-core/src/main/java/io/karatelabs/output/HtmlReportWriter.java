@@ -83,8 +83,6 @@ public final class HtmlReportWriter {
     private static final String RESOURCE_ROOT = "io/karatelabs/output/";
 
     private static final String[] STATIC_RESOURCES = {
-            "bootstrap.min.css",
-            "bootstrap.bundle.min.js",
             "alpine.min.js",
             "karate-report.css",
             "karate-report.js",

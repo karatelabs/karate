@@ -1,0 +1,3 @@
+# Created on demand by `npm install` for the dev iteration loop
+# (IMAGE_SPIKE.md §3.1.1). Not part of the build.
+node_modules/

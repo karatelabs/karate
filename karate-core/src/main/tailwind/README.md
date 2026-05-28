@@ -3,7 +3,7 @@
 Source files for the Karate v2 report's Tailwind CSS build.
 
 See [`docs/IMAGE_SPIKE.md`](../../../../docs/IMAGE_SPIKE.md) §3.1 (production
-build), §3.1.1 (dev preview harness), §3.1.2 (template architecture) and D20
+build), §3.1.1 (dev iteration loop), §3.1.2 (template architecture) and D20
 (brand + utility-class-only constraints).
 
 ## Files
@@ -11,10 +11,15 @@ build), §3.1.1 (dev preview harness), §3.1.2 (template architecture) and D20
 - `tailwind.config.js` — Tailwind config; `theme.extend` carries the Karate
   Labs brand palette (slate `brand`, `accent` blue, `amber`, `surface` neutrals)
   plus a system-font stack (no Google Fonts). Content globs cover the
-  production templates under `../resources/io/karatelabs/output/*.html` plus
-  the dev preview harness under `./preview/*.html` (added in a later session).
+  production templates under `../resources/io/karatelabs/output/*.html` **and**
+  `res/karate-report.js` (the JS file emits Tailwind class names inside HTML-
+  string template literals — without scanning it, those classes would be
+  missing from the generated CSS).
 - `input.css` — Tailwind entry point. Phase 1 has no `@layer components`
-  block (D20) — utility classes only.
+  block (D20) — utility classes only. One Alpine-specific shim appended:
+  `[x-cloak] { display: none !important; }`.
+- `package.json` — pins `tailwindcss@3.4.17` so `npx tailwindcss` resolves
+  deterministically. No global install required.
 
 ## Building (when the mojo lands)
 

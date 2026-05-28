@@ -80,7 +80,7 @@ class HtmlReportListenerTest {
                 "JSON Lines should not exist by default");
 
         // Static resources should be copied
-        assertTrue(Files.exists(reportDir.resolve("res/bootstrap.min.css")), "Bootstrap CSS should exist");
+        assertTrue(Files.exists(reportDir.resolve("res/karate-report.css")), "Tailwind CSS should exist");
         assertTrue(Files.exists(reportDir.resolve("res/alpine.min.js")), "Alpine.js should exist");
     }
 

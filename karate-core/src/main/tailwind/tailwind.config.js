@@ -2,17 +2,24 @@
 // no @layer components, slate-blue Karate Labs brand palette, system fonts only
 // (zero CDN dependency for fonts).
 //
-// Two consumers:
-//   1. Production CSS build: `mvn -pl karate-core karate:tailwind` (see IMAGE_SPIKE.md §3.1) —
-//      not yet wired; this config will be used when the Maven mojo lands.
-//   2. Dev preview harness: src/main/tailwind/preview/*.html via the Play CDN — same config
-//      via inline `<script>tailwind.config = {...}</script>` (see IMAGE_SPIKE.md §3.1.1).
+// Used by:
+//   - Production CSS build (future Maven mojo `mvn -pl karate-core karate:tailwind` —
+//     IMAGE_SPIKE.md §3.1). Until the mojo lands, regen by hand:
+//       npx tailwindcss@3.4.17 -i input.css -o ../resources/io/karatelabs/output/res/karate-report.css --minify
+//   - Dev iteration loop (`npx tailwindcss --watch …` per IMAGE_SPIKE.md §3.1.1).
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+    // data-theme="dark" on <html> toggles dark mode (set by karate-report.js).
+    // Uses Tailwind v3 selector-based dark mode via custom selector strategy.
+    darkMode: ['selector', '[data-theme="dark"]'],
     content: [
+        // Class names used in templates (Alpine bindings inline classes).
         '../resources/io/karatelabs/output/*.html',
-        './preview/*.html',
+        // karate-report.js emits class names as HTML string fragments
+        // (renderSteps / renderEmbed); Tailwind must scan it too or those classes
+        // won't be in the generated CSS.
+        '../resources/io/karatelabs/output/res/karate-report.js',
     ],
     theme: {
         extend: {
