@@ -335,8 +335,7 @@ public class Suite {
         // per K43: boot file evaluates ext-scripting only; the side effect is
         // ext registration through BootBinding.ext(...). Returns null when
         // no boot file exists — preserves the zero-cost path for projects that
-        // don't use exts. Per K44 the karate-agent client now activates here
-        // (boot.ext('agent')) — the old KARATE_AGENT_* env-var contract is gone.
+        // don't use exts.
         this.bootBinding = BootLoader.loadIfPresent(this, env);
 
         try {
@@ -428,8 +427,8 @@ public class Suite {
      * Returns the karate-boot.js {@link BootBinding} populated during {@link #run()},
      * or {@code null} when no boot file is present in the workdir. Surfaced so
      * {@link SuiteRunEvent#toJson()} can attach {@code exts[]} manifests to
-     * SUITE_ENTER. Per K47 the dashboard reads this to know which exts were
-     * active and which embed names to expect.
+     * SUITE_ENTER — receivers read this to know which exts were active and which
+     * embed names to expect.
      */
     public BootBinding getBootBinding() {
         return bootBinding;

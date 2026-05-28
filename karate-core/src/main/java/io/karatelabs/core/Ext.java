@@ -34,10 +34,6 @@ import java.util.Map;
  *
  * <pre>
  * // karate-boot.js
- * const agent = boot.ext('agent');
- * agent.url = 'http://localhost:4444';
- * agent.params = { dev: true };
- *
  * const openapi = boot.ext('openapi');
  * openapi.path = 'api/openapi.yaml';
  * openapi.excludes = ['/health/**'];
@@ -88,9 +84,9 @@ public interface Ext extends RunListener {
 
     /**
      * Manifest entry recorded under {@code SUITE_ENTER.data.exts[]} so receivers
-     * (e.g. the karate-agent dashboard) know which exts were active for this run
-     * and with what config. Returned map is serialised to JSON verbatim — keep keys
-     * primitive ({@code String}, {@code Number}, {@code Boolean}, nested maps).
+     * know which exts were active for this run and with what config. Returned map
+     * is serialised to JSON verbatim — keep keys primitive ({@code String},
+     * {@code Number}, {@code Boolean}, nested maps).
      *
      * <p>Standard entries: {@code name}, {@code version}. Ext-specific summary
      * fields are flat under the top-level map. Default returns an empty map; exts
