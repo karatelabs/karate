@@ -386,52 +386,52 @@ public class IterUtils {
                     return;
                 }
                 done = true;
-                Object retFn = readMember(iterObj, "return", ctx);
-                if (isJsErrored(ctx)) {
-                    // a throwing `return` getter — discard while unwinding an error
-                    if (dueToError) clearError(ctx);
-                    return;
-                }
-                if (retFn == null || retFn == Terms.UNDEFINED) {
-                    return; // no return method — nothing to close
-                }
-                if (!(retFn instanceof JsCallable retCallable)) {
-                    if (dueToError) return;
-                    throw JsErrorException.typeError("iterator 'return' is not a function");
-                }
-                // In the dueToError path the original abrupt completion must win, so
-                // park it across the return() call and swallow anything return() raises.
+                // Park any in-flight error (the abrupt completion that triggered this
+                // close) up front — otherwise the isJsErrored() checks below mistake it
+                // for an error raised by the return lookup/call. Per spec step 4, when
+                // the original completion is a throw it wins, so on dueToError the
+                // parked error is restored and anything return() raises is discarded.
                 boolean hadError = isJsErrored(ctx);
                 Object savedError = hadError ? ((CoreContext) ctx).getErrorThrown() : null;
                 if (hadError) {
                     ((CoreContext) ctx).reset();
                 }
-                Object result;
-                if (ctx instanceof CoreContext cc) {
-                    Object savedThis = cc.thisObject;
-                    cc.thisObject = iterObj;
-                    try {
-                        result = retCallable.call(cc, EMPTY_ARGS);
-                    } finally {
-                        cc.thisObject = savedThis;
-                    }
-                } else {
-                    result = retCallable.call(ctx, EMPTY_ARGS);
-                }
-                if (dueToError) {
+                try {
+                    Object retFn = readMember(iterObj, "return", ctx);
                     if (isJsErrored(ctx)) {
-                        clearError(ctx); // discard return()'s own error
+                        if (dueToError) clearError(ctx); // throwing return getter, discard
+                        return;
                     }
+                    if (retFn == null || retFn == Terms.UNDEFINED) {
+                        return; // no return method — nothing to close
+                    }
+                    if (!(retFn instanceof JsCallable retCallable)) {
+                        if (dueToError) return;
+                        throw JsErrorException.typeError("iterator 'return' is not a function");
+                    }
+                    Object result;
+                    if (ctx instanceof CoreContext cc) {
+                        Object savedThis = cc.thisObject;
+                        cc.thisObject = iterObj;
+                        try {
+                            result = retCallable.call(cc, EMPTY_ARGS);
+                        } finally {
+                            cc.thisObject = savedThis;
+                        }
+                    } else {
+                        result = retCallable.call(ctx, EMPTY_ARGS);
+                    }
+                    if (isJsErrored(ctx)) {
+                        if (dueToError) clearError(ctx); // return() threw, discard
+                        return;                           // else propagate return()'s throw
+                    }
+                    if (!dueToError && !(result instanceof ObjectLike)) {
+                        throw JsErrorException.typeError("iterator 'return' result is not an object");
+                    }
+                } finally {
                     if (hadError) {
-                        ((CoreContext) ctx).stopAndThrow(savedError); // restore original
+                        ((CoreContext) ctx).stopAndThrow(savedError); // original completion wins
                     }
-                    return;
-                }
-                if (isJsErrored(ctx)) {
-                    return; // return() threw on a normal completion — propagate it
-                }
-                if (!(result instanceof ObjectLike)) {
-                    throw JsErrorException.typeError("iterator 'return' result is not an object");
                 }
             }
         };

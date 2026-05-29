@@ -75,6 +75,32 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testForOfMemberExpressionLhs() {
+        // A non-binding member-expression LHS (`for (x.attr of ...)`) is a PutValue
+        // assignment target, not a var declaration: it actually assigns, and a
+        // throwing setter closes the iterator and forwards the error — it must NOT
+        // be treated as `var x, attr` (which would loop forever on a live iterator).
+        assertEquals(3, eval("var x={}; for (x.attr of [1,2,3]) {} x.attr"));
+        assertEquals(9, eval("var o={}, k='v'; for (o[k] of [7,8,9]) {} o.v"));
+        // setter throws -> error propagates, body never runs, iterator's return() once
+        assertEquals("threw=true iter=0 close=1", eval(
+                "var iter=0, close=0;"
+                        + " var x={set attr(v){ throw new Error('e') }};"
+                        + " var ib={}; ib['@@iterator']=function(){return{"
+                        + "   next:function(){return{done:false,value:0}}, return:function(){close+=1}}};"
+                        + " var threw=false;"
+                        + " try { for (x.attr of ib) { iter += 1 } } catch(e){ threw=true }"
+                        + " ('threw='+threw+' iter='+iter+' close='+close)"));
+        // for-of break closes a user iterator (return() invoked once)
+        assertEquals(1, eval(
+                "var close=0; var ib={}; ib['@@iterator']=function(){return{"
+                        + " next:function(){return{done:false,value:1}}, return:function(){close+=1;return{}}}};"
+                        + " for (var v of ib) { break } close"));
+        // arrays / strings have no observable return — break/return must not throw
+        assertEquals(1, eval("var s=0; for (var v of [1,2,3]){ if(v==2) break; s+=v } s"));
+    }
+
+    @Test
     void testBoxedPrimitives() {
         // Number() vs new Number()
         assertEquals("number", eval("typeof Number(5)"));

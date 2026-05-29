@@ -96,6 +96,11 @@ class Interpreter {
     static Object evalAssign(Node bindings, CoreContext context, BindScope bindScope, Object value, boolean initialized) {
         if (bindings.type == NodeType.LIT_ARRAY || bindings.type == NodeType.LIT_OBJECT) {
             destructurePattern(bindings, context, bindScope, value, initialized);
+        } else if (bindScope == null
+                && (bindings.type == NodeType.REF_DOT_EXPR || bindings.type == NodeType.REF_BRACKET_EXPR)) {
+            // Assignment-target LHS (e.g. for-of `x.attr` / `x[i]`): PutValue so
+            // accessor setters fire — not a binding declaration.
+            PropertyAccess.set(bindings, context, value);
         } else if (bindings.isToken() && bindings.token.type == IDENT) {
             String name = bindings.getText();
             context.declare(name, value, toScope(bindScope), initialized);
@@ -868,6 +873,15 @@ class Interpreter {
                             && (bare.type == NodeType.LIT_ARRAY || bare.type == NodeType.LIT_OBJECT)) {
                         bindings = bare;
                         bindScope = null;
+                    } else if (bare != null
+                            && (bare.type == NodeType.REF_DOT_EXPR || bare.type == NodeType.REF_BRACKET_EXPR)) {
+                        // Non-binding member-expression LHS (`for (x.attr of …)`) is an
+                        // assignment target, not a declaration — route to PutValue so a
+                        // throwing setter fires (closing the iterator and forwarding the
+                        // error) instead of being silently treated as a var declaration,
+                        // which otherwise loops forever on a non-terminating iterator.
+                        bindings = bare;
+                        bindScope = null;
                     }
                 }
                 boolean isLetOrConst = bindScope == BindScope.LET || bindScope == BindScope.CONST;
@@ -934,6 +948,12 @@ class Interpreter {
                             if (context.isContinuing()) {
                                 context.reset();
                             } else {
+                                // break / return / throw exits the loop with the iterator
+                                // not yet exhausted — perform IteratorClose (spec 7.4.6).
+                                // dueToError on a throw (return()'s own error is swallowed,
+                                // the original throw wins); on break/return a throwing
+                                // return() propagates.
+                                iter.close(context, context.isError());
                                 break;
                             }
                         }
