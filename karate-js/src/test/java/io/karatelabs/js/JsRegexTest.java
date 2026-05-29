@@ -166,6 +166,54 @@ class JsRegexTest extends EvalBase {
     }
 
     @Test
+    void testNamedGroupsExec() {
+        // exec result carries a `groups` object keyed by capture name
+        eval("var m = /(?<y>\\d{4})-(?<m>\\d{2})/.exec('2026-05');"
+                + "var y = m.groups.y; var mo = m.groups.m;");
+        assertEquals("2026", get("y"));
+        assertEquals("05", get("mo"));
+
+        // no named groups -> groups is undefined (surfaces as null via get)
+        eval("var m = /(\\d{4})/.exec('2026'); var g = m.groups; var t = typeof m.groups;");
+        assertNull(get("g"));
+        assertEquals("undefined", get("t"));
+
+        // a named group that didn't participate -> undefined (not "")
+        eval("var m = /(?<a>x)|(?<b>y)/.exec('y'); var a = m.groups.a; var b = m.groups.b;");
+        assertNull(get("a"));
+        assertEquals("y", get("b"));
+
+        // the groups object has a null prototype per spec
+        eval("var m = /(?<y>\\d)/.exec('5'); var proto = Object.getPrototypeOf(m.groups);");
+        assertNull(get("proto"));
+
+        // lookbehind shares the (?< prefix but binds no name
+        eval("var m = /(?<=x)(?<v>\\d)/.exec('x5'); var v = m.groups.v;");
+        assertEquals("5", get("v"));
+    }
+
+    @Test
+    void testNamedGroupsMatchAndReplace() {
+        // String.prototype.match (non-global) surfaces groups
+        eval("var m = '2026-05'.match(/(?<y>\\d{4})-(?<m>\\d{2})/); var s = m.groups.y + '/' + m.groups.m;");
+        assertEquals("2026/05", get("s"));
+
+        // $<name> substitution in replace
+        eval("var s = '2026-05'.replace(/(?<y>\\d{4})-(?<m>\\d{2})/, '$<m>/$<y>');");
+        assertEquals("05/2026", get("s"));
+
+        // function replacer receives a trailing groups object
+        eval("var s = '2026'.replace(/(?<y>\\d{4})/, function() {"
+                + "  var g = arguments[arguments.length - 1]; return g.y; });");
+        assertEquals("2026", get("s"));
+
+        // matchAll yields per-match groups
+        eval("var out = []; for (var m of '1a2b'.matchAll(/(?<d>\\d)/g)) { out.push(m.groups.d); }"
+                + "var s = out.join(',');");
+        assertEquals("1,2", get("s"));
+    }
+
+    @Test
     void testInvalidRegex() {
         try {
             eval("var re = /(/;"); // Unbalanced parenthesis

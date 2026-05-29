@@ -470,19 +470,21 @@ class JsStringPrototype extends Prototype {
         return s.replace(searchStr, argString(args, 1, context));
     }
 
-    // Spec §22.1.3.18 — for each match: call fn(match, p1...pN, offset, string),
-    // coerce result to string, splice in. {@code global=false} stops after the
-    // first hit. Local to JsStringPrototype because JsRegex shouldn't depend
-    // on JsCallable / Context.
+    // Spec §22.1.3.18 — for each match: call fn(match, p1...pN, offset, string)
+    // — plus a trailing {@code groups} object when the pattern has named
+    // captures — coerce result to string, splice in. {@code global=false}
+    // stops after the first hit. Local to JsStringPrototype because JsRegex
+    // shouldn't depend on JsCallable / Context.
     private static String regexReplace(String s, JsRegex regex, JsCallable fn, Context context, boolean global) {
         java.util.regex.Matcher m = regex.javaPattern.matcher(s);
         StringBuilder sb = new StringBuilder();
         int last = 0;
         CoreContext cc = context instanceof CoreContext c ? c : null;
+        boolean hasNamed = !regex.groupNames.isEmpty();
         while (m.find()) {
             sb.append(s, last, m.start());
             int groups = m.groupCount();
-            Object[] callArgs = new Object[groups + 3];
+            Object[] callArgs = new Object[groups + 3 + (hasNamed ? 1 : 0)];
             callArgs[0] = m.group(0);
             for (int i = 1; i <= groups; i++) {
                 String g = m.group(i);
@@ -490,6 +492,9 @@ class JsStringPrototype extends Prototype {
             }
             callArgs[groups + 1] = m.start();
             callArgs[groups + 2] = s;
+            if (hasNamed) {
+                callArgs[groups + 3] = regex.buildGroups(m);
+            }
             Object r = fn.call(context, callArgs);
             sb.append(Terms.toStringCoerce(r, cc));
             last = m.end();
@@ -544,6 +549,7 @@ class JsStringPrototype extends Prototype {
                 JsArray match = new JsArray(groups);
                 match.putMember("index", matcher.start());
                 match.putMember("input", s);
+                match.putMember("groups", regex.buildGroups(matcher));
                 pending = match;
                 fetched = true;
             }

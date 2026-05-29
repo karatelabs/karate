@@ -40,6 +40,11 @@ public class JsRegex extends JsObject {
     public final String flags;
     public final Pattern javaPattern;
     public final boolean global;
+    // Named-group names in source order, derived by scanning the pattern.
+    // Java's pre-JDK-20 Matcher/Pattern doesn't expose the name list, so
+    // we extract it ourselves at construction. Empty when the pattern has
+    // no `(?<name>…)` groups.
+    public final List<String> groupNames;
 
     private int lastIndex = 0;
 
@@ -65,6 +70,7 @@ public class JsRegex extends JsObject {
             this.flags = "";
         }
         this.global = this.flags.contains("g");
+        this.groupNames = extractGroupNames(this.pattern);
         int javaFlags = translateJsFlags(this.flags);
         try {
             // unescape js-specific regex syntax that differs from Java
@@ -80,6 +86,7 @@ public class JsRegex extends JsObject {
         this.pattern = pattern;
         this.flags = flags != null ? flags : "";
         this.global = this.flags.contains("g");
+        this.groupNames = extractGroupNames(this.pattern);
         int javaFlags = translateJsFlags(this.flags);
         try {
             String javaPattern = translateJsRegexToJava(this.pattern);
@@ -87,6 +94,61 @@ public class JsRegex extends JsObject {
         } catch (PatternSyntaxException e) {
             throw JsErrorException.syntaxError("Invalid regular expression: /" + pattern + "/ - " + e.getMessage());
         }
+    }
+
+    // Scan a JS regex source for named-capture group names `(?<name>…)`,
+    // in source order. Skips escaped parens (`\(`), character classes
+    // (`[ … ]`, where `(` is literal), and the lookbehind cover forms
+    // `(?<=` / `(?<!` which share the `(?<` prefix but bind no name.
+    private static List<String> extractGroupNames(String p) {
+        List<String> names = new ArrayList<>();
+        boolean inClass = false;
+        int n = p.length();
+        for (int i = 0; i < n; i++) {
+            char c = p.charAt(i);
+            if (c == '\\') {
+                i++; // skip the escaped char
+                continue;
+            }
+            if (inClass) {
+                if (c == ']') inClass = false;
+                continue;
+            }
+            if (c == '[') {
+                inClass = true;
+                continue;
+            }
+            if (c == '(' && i + 2 < n && p.charAt(i + 1) == '?' && p.charAt(i + 2) == '<') {
+                char d = i + 3 < n ? p.charAt(i + 3) : '\0';
+                if (d != '=' && d != '!') {
+                    int close = p.indexOf('>', i + 3);
+                    if (close > i + 3) {
+                        names.add(p.substring(i + 3, close));
+                        i = close;
+                    }
+                }
+            }
+        }
+        return names;
+    }
+
+    // Spec §22.2.7.2 RegExpBuiltinExec: the match result's `groups` is an
+    // OrdinaryObjectCreate(null) mapping each name to its capture (or
+    // {@code undefined} when that group didn't participate), and is
+    // {@code undefined} when the pattern declares no named groups. Returns
+    // {@link Terms#UNDEFINED} in that case so callers can attach it
+    // unconditionally as an own property.
+    Object buildGroups(Matcher matcher) {
+        if (groupNames.isEmpty()) {
+            return Terms.UNDEFINED;
+        }
+        JsObject groups = new JsObject();
+        groups.setPrototype(null);
+        for (String name : groupNames) {
+            String g = matcher.group(name);
+            groups.putMember(name, g != null ? g : Terms.UNDEFINED);
+        }
+        return groups;
     }
 
     private static String translateJsRegexToJava(String jsPattern) {
@@ -276,6 +338,7 @@ public class JsRegex extends JsObject {
         JsArray result = new JsArray(matches);
         result.putMember("index", matcher.start());
         result.putMember("input", str);
+        result.putMember("groups", buildGroups(matcher));
         return result;
     }
 

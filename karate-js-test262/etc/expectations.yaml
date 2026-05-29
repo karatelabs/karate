@@ -121,8 +121,6 @@ skip:
       reason: Promises not supported
     - feature: Promise.allSettled
       reason: Promises not supported
-    - feature: regexp-named-groups
-      reason: named regex groups not yet implemented
     - feature: regexp-lookbehind
       reason: regex lookbehind not yet implemented
     - feature: regexp-unicode-property-escapes

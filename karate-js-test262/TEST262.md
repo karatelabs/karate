@@ -176,6 +176,44 @@ already work as string stand-ins. For current pass/fail/skip counts,
 query the latest run-dir (Recipes → [Failure triage](#failure-triage)) —
 counts go stale fast and don't belong in this file.
 
+### Built-in health — the business-rules / logic-scripting surface
+
+Qualitative verdict from a scoped probe of the data-type built-ins (the
+methods business-rules and logic scripts actually lean on). Counts rot,
+so they're omitted — re-probe with `--only 'test/built-ins/<X>/**'` for
+fresh numbers. The *shape* of what's solid vs. gapped is the durable part:
+
+- **Number, Date, Object — solid.** `toFixed`/`parseInt`/`parseFloat`/
+  `toString(radix)`/`isNaN`/`isInteger`; Date parse/format/`getTime`/
+  `getFullYear`/arithmetic; `keys`/`values`/`entries`/`assign`/`freeze`/
+  `create`/`getPrototypeOf`/`hasOwn`/spread/`fromEntries` all work.
+  Residual fails are spec-corner arg-validation (missing `TypeError` on
+  bad args), descriptor-attribute edges, and Symbol gates — not core
+  method behavior. Object had **zero** Java-leak rows.
+- **String, Array — solid on the common path.** `split`/`replace`/`slice`/
+  `substring`/`indexOf`/`includes`/`trim`/`pad`/case and `push`/`map`/
+  `filter`/`reduce`/`slice`/`concat`/`find`/`sort`/`from`/spread all work.
+  The low raw pass-% is dominated by strict coercion-error semantics and
+  Symbol/feature gates, *not* everyday breakage. Caveats: a few principle-#2
+  Java leaks — `String.prototype.replaceAll`/`endsWith` `Range […) out of
+  bounds`, `Array` at near-2³³ lengths (`Index out of bounds` / VM-size /
+  heap). Narrow but real; see Cleanup residuals.
+- **RegExp — solid for everyday patterns; advanced-pattern tail remains.**
+  `test`/`exec`/`match`/`replace` (string + function replacer) / `split` /
+  `search`, `g`/`i`/`m` flags, and **named-group capture** (`m.groups.name`,
+  `$<name>` substitution, the function-replacer `groups` arg) all work —
+  Java `Pattern` is the backend. Remaining gaps: lookbehind, unicode
+  property escapes, `/v` flag, group-name early-error validation; plus
+  null-arg Java leaks in `exec`/`test` and one catastrophic-backtracking
+  timeout. The `Symbol.{replace,match,matchAll,split,search}` *protocol*
+  fails are conformance-only — the everyday `str.replace(re, fn)` path does
+  not route through them and works.
+
+**Bottom line for the target workload:** String/Number/Date/Array/Object
+are dependable, and RegExp now covers the common path including named
+groups; the residual RegExp tail (lookbehind / unicode escapes / `/v` /
+early-error validation) is advanced-pattern territory.
+
 | Slice | What's blocking it |
 |---|---|
 | `test/language/statements/for-of` | IteratorClose **done** — on destructuring (normal/throwing/non-object `return()`, rest-skips-close) AND on abrupt loop exit (break/return/throw closes the outer iterator); body-skip-on-abrupt-binding; member-expression LHS (`for (x.attr of …)`) is now PutValue (invokes setters) not a var declaration — this also fixed the `body-put-error.js` infinite-loop hang. (`Interpreter.destructurePattern`/`evalForStmt` + `JsIterator.close`.) Remaining: assignment-pattern target-eval-order (`[ obj[sideEffect()] ] of …` must evaluate the target reference before stepping the iterator — the `*thrw-close*` family, a rare spec corner); fn-name inference for `[x = (function(){})] of …`; negative-parse tightenings; `array-elem-put-let.js`-style ReferenceError-on-bad-target (strict-mode-gated). |
@@ -185,8 +223,8 @@ counts go stale fast and don't belong in this file.
 | `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS (gated on strict-mode plumbing); `valueOf` / ToNumeric ordering for `+=` / `*=`; `A5.*_T2/T3` family (non-identifier LHS — Annex-B carve-out). |
 | `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion handles headline cases. |
 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` (Symbol-gated). |
-| `test/built-ins/RegExp/**` | `Symbol.{match,replace,search,split,matchAll}` (Symbol-gated), parser edges, named-groups feature-gated. |
-| `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` ToInteger corners; parser-blocked; Symbol-gated tail. See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
+| `test/built-ins/RegExp/**` | Named-group capture access **done** (`result.groups` + `$<name>` + function-replacer `groups` arg; see Background sweeps). Residual: group-name early-error validation, `Symbol.{match,replace,search,split,matchAll}` protocol (Symbol-gated, conformance-only — everyday `str.replace(re,fn)` doesn't use it), lookbehind / unicode-property-escapes / `/v` flag (feature-gated), one functional-replace-global ordering case. Null-arg Java leaks + one catastrophic-backtracking timeout in `exec`/`test` (principle #2 — see Cleanup residuals). |
+| `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` ToInteger corners; parser-blocked; Symbol-gated tail; `replaceAll`/`endsWith` `Range […) out of bounds` Java leaks (principle #2). See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
 | `test/built-ins/Object/**` | Descriptor edges; `seal` (TypedArray-gated); Annex-B `arguments` aliasing. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
 | `test/built-ins/JSON/**` | `JSON.stringify` reviver/replacer 2-arg semantics; `-0`/`__proto__` parser tail. Calibration: run JSONTestSuite — see [JS_ENGINE.md § Future TODO Items](../docs/JS_ENGINE.md#2-future-todo-items). |
 | `test/built-ins/Number/**` | `[object Number]` (Symbol-gated) + a literal-form parser edge. |
@@ -217,6 +255,24 @@ Picked off opportunistically when nearby — not session-sized on their own.
   `JsBuiltinMethod` infra in place; most residual `name.js` fails are
   Symbol-gated.
 
+- **RegExp named-group capture access (`result.groups`) — DONE.**
+  `JsRegex.exec` / `JsStringPrototype.match` / `matchAll` now attach a
+  spec-shaped `groups` object (null prototype; name→value, `undefined` for
+  non-participating groups, `undefined` when the pattern has no named
+  groups); function replacers receive the trailing `groups` arg per spec
+  §22.1.3.18. Names derived once at construction via `JsRegex.groupNames`
+  (scans the source for `(?<name>`, skipping `(?<=`/`(?<!` lookbehind and
+  escaped/char-class contexts). `feature: regexp-named-groups` skip
+  removed. Slice delta (`run-2026-05-30-003211` vs `…-001414`): **+12
+  PASS, 0 regressions**, covered in `JsRegexTest.testNamedGroups*`.
+  Residual `named-groups/**` tail (still failing, separate concerns):
+  group-name **early-error validation** (`(?<__proto__>…)` / `(?<_>…)`
+  should SyntaxError — engine accepts; part of the parser-tightening
+  sweep), the `Symbol.replace`/`match` protocol (Symbol-gated), and one
+  global functional-replace argument-ordering case
+  (`named-groups/functional-replace-global.js` — `«badc»` vs `«bacd»`;
+  worth a focused look, likely pre-dates this change).
+
 - **Destructuring cover-grammar tail.** Arrow-fn early errors:
   duplicate-binding-name walk over `FN_DECL_ARGS`
   (`(x, {x}) => 1` / `({a, a}) => …` should SyntaxError);
@@ -232,7 +288,15 @@ Picked off opportunistically when nearby — not session-sized on their own.
   (`EvalTest.testCatchDestructuring`).
 
 - **Cleanup residuals** — occasional `"null"` NPE paths, `IllegalName`
-  JDK lambda leak, `Java heap space` OOM in array-slice paths.
+  JDK lambda leak, `Java heap space` OOM in array-slice paths. Built-in
+  probe (2026-05-30) added concrete principle-#2 leaks to chase:
+  `String.prototype.replaceAll`/`endsWith` throwing Java `Range […) out of
+  bounds` instead of behaving/throwing-as-JS; `RegExp` `exec`/`test`
+  surfacing `Cannot invoke Object.toString() because args[N] is null` on
+  null args + one catastrophic-backtracking `Timeout`
+  (`RegExp/.../S15.10.2.8_A3_T17.js`); `Array` at near-2³³ lengths leaking
+  `Index out of bounds` / `Requested array size exceeds VM limit` / heap
+  (`unshift`/`splice`/`reverse`). All confined to edge/pathological inputs.
 
 ---
 
