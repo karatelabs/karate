@@ -43,6 +43,38 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testIteratorCloseOnDestructuring() {
+        // Array destructuring that leaves the iterator un-exhausted must call
+        // IteratorClose (the iterator's `return` method) — spec 13.15.5.3 step 5.
+        String iter = "var rc=0; var it={next:function(){return{done:false,value:1}},"
+                + " return:function(){rc++;return{}}};"
+                + " var ib={}; ib['@@iterator']=function(){return it}; ";
+        assertEquals(1, eval(iter + "var [x]=ib; rc"));
+        // return() that throws on a normal completion propagates
+        assertThrows(RuntimeException.class, () -> eval(
+                "var it={next:function(){return{done:false,value:1}}, return:function(){throw 'boom'}};"
+                        + " var ib={}; ib['@@iterator']=function(){return it}; var [x]=ib"));
+        // return() that yields a non-object on a normal completion is a TypeError
+        assertThrows(RuntimeException.class, () -> eval(
+                "var it={next:function(){return{done:false,value:1}}, return:function(){return null}};"
+                        + " var ib={}; ib['@@iterator']=function(){return it}; var [x]=ib"));
+        // a rest element drives the iterator to done, so return() is NOT called
+        String restIter = "var rc=0; var n=0; var it={next:function(){return{done:++n>3,value:n}},"
+                + " return:function(){rc++;return{}}};"
+                + " var ib={}; ib['@@iterator']=function(){return it}; ";
+        assertEquals(0, eval(restIter + "var [...r]=ib; rc"));
+        // internal array iterator has no observable return — no spurious throw
+        assertEquals(3, eval("var [a,b]=[1,2,3]; a+b"));
+        // for-of with a destructuring LHS: IteratorClose runs as part of binding,
+        // BEFORE the loop body — a return() that throws must skip the body entirely.
+        assertEquals(0, eval(
+                "var counter=0, _;"
+                        + " var it={next:function(){return{done:false,value:1}}, return:function(){throw 'x'}};"
+                        + " var ib={}; ib['@@iterator']=function(){return it};"
+                        + " try { for ([_] of [ib]) { counter += 1 } } catch(e){} counter"));
+    }
+
+    @Test
     void testBoxedPrimitives() {
         // Number() vs new Number()
         assertEquals("number", eval("typeof Number(5)"));

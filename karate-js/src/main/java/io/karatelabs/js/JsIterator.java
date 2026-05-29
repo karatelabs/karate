@@ -32,4 +32,20 @@ import java.util.Iterator;
  * value-only enumeration, no key channel).
  */
 public interface JsIterator extends Iterator<Object> {
+
+    /**
+     * IteratorClose (spec 7.4.6): invoke the iterator's {@code return} method when
+     * iteration ends before the iterator is exhausted (destructuring with no rest
+     * element, for-of {@code break}/{@code return}/throw). The internal array /
+     * string iterators have no observable {@code return}, so the default is a no-op;
+     * only user-defined iterators (objects with {@code Symbol.iterator}) override it.
+     * <p>
+     * {@code dueToError} mirrors the spec's completion argument: when {@code true}
+     * the surrounding completion is already abrupt, so {@code return}'s own result
+     * and any error it raises are discarded (the original completion wins). When
+     * {@code false} a {@code return} that throws propagates, and a non-object
+     * {@code return} result is a TypeError.
+     */
+    default void close(Context context, boolean dueToError) {
+    }
 }

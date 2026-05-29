@@ -166,29 +166,45 @@ class Interpreter {
             // for non-iterables (boolean, plain object without @@iterator, etc.).
             JsIterator iter = IterUtils.getIterator(source, context);
             int last = pattern.size() - 1;
-            for (int i = 1; i < last; i++) {
-                Node elem = pattern.get(i);
-                Node first = elem.get(0);
-                if (first.isToken() && first.token.type == DOT_DOT_DOT) {
-                    JsArray rest = new JsArray();
-                    while (iter.hasNext()) {
-                        rest.list.add(iter.next());
-                    }
-                    bindTarget(elem.get(1), context, bindScope, rest, initialized);
-                    break;
-                } else if (first.isToken() && first.token.type == COMMA) {
-                    if (iter.hasNext()) iter.next();
-                } else {
-                    Object v = Terms.UNDEFINED;
-                    if (iter.hasNext()) {
-                        Object temp = iter.next();
-                        if (temp != Terms.UNDEFINED) {
-                            v = temp;
+            // Per spec 13.15.5.3 / 8.5.2: when the pattern finishes with the iterator
+            // not yet exhausted (no rest element, or a rest never reached), perform
+            // IteratorClose(iterator). A rest element drives next() to done, so close
+            // then no-ops. On an abrupt completion (a binding / default expr throws),
+            // IteratorClose still runs but the original throw wins.
+            boolean abrupt = false;
+            try {
+                for (int i = 1; i < last; i++) {
+                    Node elem = pattern.get(i);
+                    Node first = elem.get(0);
+                    if (first.isToken() && first.token.type == DOT_DOT_DOT) {
+                        JsArray rest = new JsArray();
+                        while (iter.hasNext()) {
+                            rest.list.add(iter.next());
                         }
+                        bindTarget(elem.get(1), context, bindScope, rest, initialized);
+                        break;
+                    } else if (first.isToken() && first.token.type == COMMA) {
+                        if (iter.hasNext()) iter.next();
+                    } else {
+                        Object v = Terms.UNDEFINED;
+                        if (iter.hasNext()) {
+                            Object temp = iter.next();
+                            if (temp != Terms.UNDEFINED) {
+                                v = temp;
+                            }
+                        }
+                        bindTarget(first, context, bindScope, v, initialized);
                     }
-                    bindTarget(first, context, bindScope, v, initialized);
+                    if (context.isError()) { // cooperative throw mid-binding
+                        abrupt = true;
+                        break;
+                    }
                 }
+            } catch (RuntimeException e) {
+                iter.close(context, true); // swallows return()'s own error; original wins
+                throw e;
             }
+            iter.close(context, abrupt);
         } else if (pattern.type == NodeType.LIT_OBJECT) {
             // Use ObjectLike.getMember for property reads — Map.get on JsObject
             // auto-unwraps UNDEFINED → null via Engine.toJava, which would make
@@ -873,7 +889,12 @@ class Interpreter {
                             enteredBodyScope = true;
                         }
                         evalAssign(bindings, context, bindScope, kv.key(), true);
-                        forResult = eval(forBody, context);
+                        // A destructuring LHS can complete abruptly (throwing getter
+                        // / IteratorClose) — skip the body when it does, per spec
+                        // ForIn/OfBodyEvaluation (binding precedes the Statement).
+                        if (!context.isStopped()) {
+                            forResult = eval(forBody, context);
+                        }
                         if (isLetOrConst && enteredBodyScope) {
                             context.exitScope();
                             enteredBodyScope = false;
@@ -899,7 +920,12 @@ class Interpreter {
                             enteredBodyScope = true;
                         }
                         evalAssign(bindings, context, bindScope, varValue, true);
-                        forResult = eval(forBody, context);
+                        // A destructuring LHS can complete abruptly (throwing getter
+                        // / IteratorClose) — skip the body when it does, per spec
+                        // ForIn/OfBodyEvaluation (binding precedes the Statement).
+                        if (!context.isStopped()) {
+                            forResult = eval(forBody, context);
+                        }
                         if (isLetOrConst && enteredBodyScope) {
                             context.exitScope();
                             enteredBodyScope = false;

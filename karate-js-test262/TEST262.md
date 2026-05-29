@@ -178,7 +178,7 @@ counts go stale fast and don't belong in this file.
 
 | Slice | What's blocking it |
 |---|---|
-| `test/language/statements/for-of` | IteratorClose-on-throw; fn-name inference for `[x = (function(){})] of …`; a few negative-parse tightenings. |
+| `test/language/statements/for-of` | IteratorClose on destructuring **done** (normal-completion `return()`, throwing `return()`, non-object `return()` result, rest-skips-close, body-skip-on-abrupt-binding — `Interpreter.destructurePattern` + `JsIterator.close`). Remaining: assignment-pattern target-eval-order (`[ obj[sideEffect()] ] of …` must evaluate the target reference before stepping the iterator — the `*thrw-close*` family, a rare spec corner); fn-name inference for `[x = (function(){})] of …`; a few negative-parse tightenings. |
 | `test/language/expressions/object` | Escaped-keyword cover-name dominates; `__proto__`-duplicate edges; computed-key / spread / method-def tail. |
 | `test/language/expressions/assignment` | Iterator-return semantics on default-expr throw. |
 | `test/language/{statements,expressions}/function` + `arrow-function` | fn-name inference for `[x = (function(){})]`-style defaults; IteratorClose-on-throw; rest-element edges. |

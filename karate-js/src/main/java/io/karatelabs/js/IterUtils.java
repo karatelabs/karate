@@ -376,7 +376,71 @@ public class IterUtils {
                 pending = null;
                 return v;
             }
+
+            @Override
+            public void close(Context ctx, boolean dueToError) {
+                // [[done]] already true → IteratorClose is a no-op (spec 7.4.6 only
+                // calls return() when done is false). Mark closed so a second close
+                // (e.g. a nested abrupt unwind) does not re-invoke return().
+                if (done) {
+                    return;
+                }
+                done = true;
+                Object retFn = readMember(iterObj, "return", ctx);
+                if (isJsErrored(ctx)) {
+                    // a throwing `return` getter — discard while unwinding an error
+                    if (dueToError) clearError(ctx);
+                    return;
+                }
+                if (retFn == null || retFn == Terms.UNDEFINED) {
+                    return; // no return method — nothing to close
+                }
+                if (!(retFn instanceof JsCallable retCallable)) {
+                    if (dueToError) return;
+                    throw JsErrorException.typeError("iterator 'return' is not a function");
+                }
+                // In the dueToError path the original abrupt completion must win, so
+                // park it across the return() call and swallow anything return() raises.
+                boolean hadError = isJsErrored(ctx);
+                Object savedError = hadError ? ((CoreContext) ctx).getErrorThrown() : null;
+                if (hadError) {
+                    ((CoreContext) ctx).reset();
+                }
+                Object result;
+                if (ctx instanceof CoreContext cc) {
+                    Object savedThis = cc.thisObject;
+                    cc.thisObject = iterObj;
+                    try {
+                        result = retCallable.call(cc, EMPTY_ARGS);
+                    } finally {
+                        cc.thisObject = savedThis;
+                    }
+                } else {
+                    result = retCallable.call(ctx, EMPTY_ARGS);
+                }
+                if (dueToError) {
+                    if (isJsErrored(ctx)) {
+                        clearError(ctx); // discard return()'s own error
+                    }
+                    if (hadError) {
+                        ((CoreContext) ctx).stopAndThrow(savedError); // restore original
+                    }
+                    return;
+                }
+                if (isJsErrored(ctx)) {
+                    return; // return() threw on a normal completion — propagate it
+                }
+                if (!(result instanceof ObjectLike)) {
+                    throw JsErrorException.typeError("iterator 'return' result is not an object");
+                }
+            }
         };
+    }
+
+    private static void clearError(Context ctx) {
+        if (ctx instanceof CoreContext cc && cc.isError()) {
+            cc.reset();
+        }
     }
 
     private static final Object[] EMPTY_ARGS = new Object[0];
