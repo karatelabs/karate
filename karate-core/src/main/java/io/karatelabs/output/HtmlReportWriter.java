@@ -193,15 +193,23 @@ public final class HtmlReportWriter {
     }
 
     private static void writeEmbedFile(StepResult.Embed embed, Path embedsDir) throws IOException {
-        String ext = getExtensionForMimeType(embed.getMimeType());
         String baseName = embed.getName() != null
                 ? embed.getName().replaceAll("[^a-zA-Z0-9_-]", "_")
                 : "embed";
-        String fileName = String.format("%03d_%s.%s",
-                embedCounter.incrementAndGet(), baseName, ext);
-        Path filePath = embedsDir.resolve(fileName);
-        Files.write(filePath, embed.getData());
-        embed.setFileName(fileName);
+        List<StepResult.Part> parts = embed.getParts();
+        boolean multi = parts.size() > 1;
+        for (StepResult.Part part : parts) {
+            // url-only parts (ext-written assets) are already on disk; nothing to copy
+            if (part.getData() == null) {
+                continue;
+            }
+            String ext = getExtensionForMimeType(part.getMime());
+            String suffix = multi && part.getRole() != null ? "_" + part.getRole() : "";
+            String fileName = String.format("%03d_%s%s.%s",
+                    embedCounter.incrementAndGet(), baseName, suffix, ext);
+            Files.write(embedsDir.resolve(fileName), part.getData());
+            part.setFileName(fileName);
+        }
     }
 
     /**

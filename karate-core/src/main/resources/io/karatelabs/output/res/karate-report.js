@@ -385,28 +385,47 @@ const KarateReport = {
         if (embed.name) {
             html += `<div class="text-xs ${muted} mb-1">${this._esc(embed.name)}</div>`;
         }
-        const mime = embed.mime_type || '';
-        if (mime.startsWith('image/')) {
-            const src = `../embeds/${this._esc(embed.file)}`;
-            const alt = this._esc(embed.name || 'embedded image');
-            html += `<img src="${src}" alt="${alt}" class="max-w-full h-auto max-h-96 cursor-zoom-in rounded transition-opacity hover:opacity-90" onclick="KarateReport.openLightbox(this.src, this.alt)">`;
-        } else if (mime === 'text/html') {
-            html += `<iframe src="../embeds/${this._esc(embed.file)}" class="w-full border-0 h-72"></iframe>`;
-        } else if (mime.startsWith('video/')) {
-            html += `<video controls class="w-full max-h-96"><source src="../embeds/${this._esc(embed.file)}" type="${this._esc(mime)}"></video>`;
-        } else if (mime === 'application/pdf') {
-            html += `<embed src="../embeds/${this._esc(embed.file)}" type="application/pdf" class="w-full h-96">`;
-        } else if (mime === 'text/plain' || mime === 'application/json' || mime === 'application/xml') {
-            if (embed.file) {
-                html += `<a href="../embeds/${this._esc(embed.file)}" class="text-xs text-accent hover:underline" target="_blank">Open file</a>`;
-            }
-            if (embed.data) {
-                html += `<pre class="bg-slate-900 text-slate-100 p-2 rounded m-0 mt-1 text-xs max-h-72 overflow-auto whitespace-pre-wrap">${this._esc(atob(embed.data))}</pre>`;
-            }
-        } else if (embed.file) {
-            html += `<a href="../embeds/${this._esc(embed.file)}" class="inline-block px-2 py-1 text-xs border border-slate-400 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800" download>Download (${this._esc(mime)})</a>`;
-        }
+        // Wire shape is {name, parts:[{role, mime, data|url|file}], meta}. Core renders
+        // each part generically by mime; ext-specific layouts come from the ext's own
+        // slot script (loaded via KARATE_EXTS), not here.
+        (embed.parts || []).forEach(part => { html += this._renderEmbedPart(part, embed.name); });
         html += `</div>`;
+        return html;
+    },
+
+    // Resolve a part's src relative to a feature page (under feature-html/): inline
+    // assets live in ../embeds/<file>; ext-written assets carry a report-relative url.
+    _embedPartSrc(part) {
+        if (part.file) return `../embeds/${this._esc(part.file)}`;
+        if (part.url) return `../${this._esc(part.url)}`;
+        return null;
+    },
+
+    _renderEmbedPart(part, embedName) {
+        const mime = part.mime || '';
+        const src = this._embedPartSrc(part);
+        let html = '';
+        if (mime.startsWith('image/')) {
+            if (src) {
+                const alt = this._esc(embedName || part.role || 'embedded image');
+                html += `<img src="${src}" alt="${alt}" class="max-w-full h-auto max-h-96 cursor-zoom-in rounded transition-opacity hover:opacity-90" onclick="KarateReport.openLightbox(this.src, this.alt)">`;
+            }
+        } else if (mime === 'text/html') {
+            if (src) html += `<iframe src="${src}" class="w-full border-0 h-72"></iframe>`;
+        } else if (mime.startsWith('video/')) {
+            if (src) html += `<video controls class="w-full max-h-96"><source src="${src}" type="${this._esc(mime)}"></video>`;
+        } else if (mime === 'application/pdf') {
+            if (src) html += `<embed src="${src}" type="application/pdf" class="w-full h-96">`;
+        } else if (mime === 'text/plain' || mime === 'application/json' || mime === 'application/xml') {
+            if (src) {
+                html += `<a href="${src}" class="text-xs text-accent hover:underline" target="_blank">Open file</a>`;
+            }
+            if (part.data) {
+                html += `<pre class="bg-slate-900 text-slate-100 p-2 rounded m-0 mt-1 text-xs max-h-72 overflow-auto whitespace-pre-wrap">${this._esc(atob(part.data))}</pre>`;
+            }
+        } else if (src) {
+            html += `<a href="${src}" class="inline-block px-2 py-1 text-xs border border-slate-400 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-800" download>Download (${this._esc(mime)})</a>`;
+        }
         return html;
     },
 

@@ -245,28 +245,141 @@ public class StepResult {
         return map;
     }
 
+    /**
+     * A named report embed, generalised to one-or-more {@link Part}s plus optional
+     * {@code meta} (IMAGE_SPIKE.md §3.6). A legacy single-asset embed (screenshot,
+     * {@code doc} HTML, {@code karate.embed}) is one {@code "primary"} part carrying
+     * inline bytes; a multi-asset embed (e.g. image-comparison: baseline / current /
+     * diff) carries several parts, typically url-based.
+     *
+     * <p>Wire shape is uniform: {@code {name, parts:[{role, mime, data|url|file}], meta}}.
+     * There is no legacy flat ({@code mime_type}) form — v2 has no released embed
+     * consumers, so this is a clean break. The legacy constructor + accessors remain
+     * only as ergonomic helpers for core code that deals in single-asset embeds.</p>
+     */
     public static class Embed {
-        private final byte[] data;
-        private final String mimeType;
-        private final String name;
-        private String fileName;  // Set by HtmlReportWriter when writing to file
 
+        private final String name;
+        private final List<Part> parts;
+        private final Map<String, Object> meta;
+
+        /** Legacy single inline-bytes embed — wrapped as one {@code "primary"} part. */
         public Embed(byte[] data, String mimeType, String name) {
-            this.data = data;
-            this.mimeType = mimeType;
             this.name = name;
+            this.parts = new ArrayList<>();
+            this.parts.add(new Part("primary", mimeType, data));
+            this.meta = null;
+        }
+
+        /** Multi-asset embed (e.g. image-comparison). {@code parts} must be non-empty. */
+        public Embed(String name, List<Part> parts, Map<String, Object> meta) {
+            this.name = name;
+            this.parts = parts != null ? parts : new ArrayList<>();
+            this.meta = meta;
+        }
+
+        private Part primary() {
+            return parts.isEmpty() ? null : parts.get(0);
+        }
+
+        // ----- legacy accessors: delegate to the primary part (single-asset embeds) -----
+
+        public byte[] getData() {
+            Part p = primary();
+            return p == null ? null : p.data;
+        }
+
+        public String getMimeType() {
+            Part p = primary();
+            return p == null ? null : p.mime;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        /** Set by HtmlReportWriter after writing the primary part's bytes to disk. */
+        public void setFileName(String fileName) {
+            Part p = primary();
+            if (p != null) {
+                p.fileName = fileName;
+            }
+        }
+
+        public String getFileName() {
+            Part p = primary();
+            return p == null ? null : p.fileName;
+        }
+
+        // ----- multi-part accessors -----
+
+        public List<Part> getParts() {
+            return parts;
+        }
+
+        public Map<String, Object> getMeta() {
+            return meta;
+        }
+
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            if (name != null) {
+                map.put("name", name);
+            }
+            List<Map<String, Object>> partList = new ArrayList<>();
+            for (Part p : parts) {
+                partList.add(p.toMap());
+            }
+            map.put("parts", partList);
+            if (meta != null && !meta.isEmpty()) {
+                map.put("meta", meta);
+            }
+            return map;
+        }
+    }
+
+    /**
+     * One asset within an {@link Embed}: either inline {@code data} (core writes the
+     * file and sets {@code fileName}) or a report-relative {@code url} (the ext wrote
+     * the asset itself, e.g. under {@code ext/image/assets/}).
+     */
+    public static class Part {
+        private final String role;       // "primary" | "baseline" | "current" | "diff" | ...
+        private final String mime;
+        private final byte[] data;       // inline bytes (legacy / core-written)
+        private final String url;        // report-relative URL (ext-written asset)
+        private String fileName;         // set by HtmlReportWriter when inline bytes are written to disk
+
+        /** Inline-bytes part — core writes the file and sets {@link #fileName}. */
+        public Part(String role, String mime, byte[] data) {
+            this.role = role;
+            this.mime = mime;
+            this.data = data;
+            this.url = null;
+        }
+
+        /** URL part — the ext has already written the asset to disk. */
+        public Part(String role, String mime, String url) {
+            this.role = role;
+            this.mime = mime;
+            this.url = url;
+            this.data = null;
+        }
+
+        public String getRole() {
+            return role;
+        }
+
+        public String getMime() {
+            return mime;
         }
 
         public byte[] getData() {
             return data;
         }
 
-        public String getMimeType() {
-            return mimeType;
-        }
-
-        public String getName() {
-            return name;
+        public String getUrl() {
+            return url;
         }
 
         public void setFileName(String fileName) {
@@ -277,16 +390,16 @@ public class StepResult {
             return fileName;
         }
 
-        public Map<String, Object> toMap() {
+        Map<String, Object> toMap() {
             Map<String, Object> map = new LinkedHashMap<>();
-            map.put("mime_type", mimeType);
+            map.put("role", role);
+            map.put("mime", mime);
             if (fileName != null) {
-                map.put("file", fileName);  // File reference for HTML reports
-            } else {
-                map.put("data", java.util.Base64.getEncoder().encodeToString(data));  // Inline for other formats
-            }
-            if (name != null) {
-                map.put("name", name);
+                map.put("file", fileName);
+            } else if (url != null) {
+                map.put("url", url);
+            } else if (data != null) {
+                map.put("data", java.util.Base64.getEncoder().encodeToString(data));
             }
             return map;
         }

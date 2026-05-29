@@ -318,16 +318,23 @@ public final class CucumberJsonWriter {
             embeddings.add(logEmbed);
         }
 
-        // Add actual embeds
+        // Add actual embeds. Cucumber JSON is an external spec: one {mime_type, data}
+        // entry per inline asset. url-only parts (ext-written) have no inline bytes to
+        // embed and are skipped — Cucumber JSON can't reference an external file.
         if (sr.getEmbeds() != null) {
             for (StepResult.Embed embed : sr.getEmbeds()) {
-                Map<String, Object> embedMap = new LinkedHashMap<>();
-                embedMap.put("mime_type", embed.getMimeType());
-                embedMap.put("data", Base64.getEncoder().encodeToString(embed.getData()));
-                if (embed.getName() != null) {
-                    embedMap.put("name", embed.getName());
+                for (StepResult.Part part : embed.getParts()) {
+                    if (part.getData() == null) {
+                        continue;
+                    }
+                    Map<String, Object> embedMap = new LinkedHashMap<>();
+                    embedMap.put("mime_type", part.getMime());
+                    embedMap.put("data", Base64.getEncoder().encodeToString(part.getData()));
+                    if (embed.getName() != null) {
+                        embedMap.put("name", embed.getName());
+                    }
+                    embeddings.add(embedMap);
                 }
-                embeddings.add(embedMap);
             }
         }
 
