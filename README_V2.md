@@ -48,7 +48,7 @@ Karate v2 maintains backwards compatibility with 1.x features. If you're migrati
 ## Related Projects
 
 - [Karate CLI](https://github.com/karatelabs/karate-cli) - Command-line interface for non-Java environments
-- [Karate Xplorer](https://xplorer.karatelabs.io/) - Desktop IDE for Karate
+- [Karate Xplorer](https://karatelabs.io/xplorer) - Desktop IDE for Karate
 
 ## License
 
@@ -56,6 +56,6 @@ Karate v2 maintains backwards compatibility with 1.x features. If you're migrati
 
 ## About
 
-Karate v2 is developed by [Karate Labs Inc.](https://www.karatelabs.io) with contributions from the community.
+Karate v2 is developed by [Karate Labs Inc.](https://karatelabs.io) with contributions from the community.
 
 We invite enterprise users of Karate to review, influence the direction, and contribute to this project.
