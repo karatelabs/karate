@@ -333,6 +333,19 @@ public class JsParser extends BaseParser {
                 }
                 return false;
             }
+            case TRY_STMT -> {
+                // CatchParameter — the child between the CATCH-introduced L_PAREN
+                // and its R_PAREN is a BindingPattern, so cover-init shorthand
+                // (`catch ({a = 1})`) is legal there. The try/finally blocks stay false.
+                for (int j = 1; j < parent.size(); j++) {
+                    Node sib = parent.get(j);
+                    if (sib.isToken() && sib.token.type == L_PAREN
+                            && parent.get(j - 1).isToken() && parent.get(j - 1).token.type == CATCH) {
+                        return i == j + 1;
+                    }
+                }
+                return false;
+            }
             case OBJECT_ELEM -> {
                 // OBJECT_ELEM children: [key-bits..., (COLON | EQ), value/init].
                 // Only propagate pattern context through the value of a colon form;
@@ -671,7 +684,10 @@ public class JsParser extends BaseParser {
         }
         block(true);
         if (consumeIf(CATCH)) {
-            if (consumeIf(L_PAREN) && consumeIf(IDENT) && consumeIf(R_PAREN) && block(true)) {
+            // CatchParameter → BindingIdentifier | BindingPattern. Reuse the same
+            // binding-target trio as var_decl so `catch ([a,b])` / `catch ({e})`
+            // parse through the destructuring cover-grammar, not just bare idents.
+            if (consumeIf(L_PAREN) && (lit_array() || lit_object() || consumeIf(IDENT)) && consumeIf(R_PAREN) && block(true)) {
                 if (consumeIf(FINALLY)) {
                     block(true);
                 }

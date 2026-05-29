@@ -24,6 +24,25 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testCatchDestructuring() {
+        // CatchParameter as a BindingPattern (array / object), not just a bare ident.
+        assertEquals(2, eval("try { throw [1,2,3] } catch ([x,y,z]) { y }"));
+        assertEquals(5, eval("try { throw {m:5} } catch ({m}) { m }"));
+        assertEquals(11, eval("try { throw {k:11} } catch ({k:v}) { v }"));
+        // rest element and nested pattern
+        assertEquals(3, eval("try { throw [1,2,3,4] } catch ([h,...t]) { t.length }"));
+        assertEquals(8, eval("try { throw {p:[9,8]} } catch ({p:[,second]}) { second }"));
+        // CoverInitializedName (shorthand-with-default) is legal in the binding pattern
+        assertEquals(7, eval("try { throw {} } catch ({a=7}) { a }"));
+        // still pairs with finally (normal finally completion is discarded per spec,
+        // so the catch block's value wins); optional-binding catch unaffected
+        assertEquals(3, eval("try { throw [1,2] } catch ([x,y]) { x+y } finally { 'fin' }"));
+        assertEquals(9, eval("try { throw 1 } catch { 9 }"));
+        // cover-init shorthand outside a pattern context is still a SyntaxError
+        assertThrows(RuntimeException.class, () -> eval("var o = {a=7}"));
+    }
+
+    @Test
     void testBoxedPrimitives() {
         // Number() vs new Number()
         assertEquals("number", eval("typeof Number(5)"));

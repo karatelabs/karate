@@ -221,7 +221,15 @@ Picked off opportunistically when nearby — not session-sized on their own.
   duplicate-binding-name walk over `FN_DECL_ARGS`
   (`(x, {x}) => 1` / `({a, a}) => …` should SyntaxError);
   `dstr/syntax-error-ident-ref-default.js` and siblings under
-  `arrow-function/syntax/early-errors`.
+  `arrow-function/syntax/early-errors`. **Same family: duplicate
+  BoundNames in a catch parameter** (`catch ([x,x])` /
+  `catch ({a,a})` — `try/early-catch-duplicates.js`, currently
+  SKIP'd). The shared fix is one spec-shaped BoundNames walk over a
+  binding pattern (mirror the binding structure — bound names of
+  `{a: x = y}` are `{x}` only, so a flat `findChildren(IDENT)` would
+  false-positive on valid renamed/defaulted patterns). Catch-clause
+  *runtime/parse* destructuring itself now works
+  (`EvalTest.testCatchDestructuring`).
 
 - **Cleanup residuals** — occasional `"null"` NPE paths, `IllegalName`
   JDK lambda leak, `Java heap space` OOM in array-slice paths.

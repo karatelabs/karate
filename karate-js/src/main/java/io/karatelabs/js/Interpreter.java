@@ -1687,8 +1687,15 @@ class Interpreter {
                 context.event(EventType.CONTEXT_ENTER, node);
                 try {
                     if (node.get(3).token.type == L_PAREN) {
-                        String errorName = node.get(4).getText();
-                        context.put(errorName, errorThrown);
+                        Node param = node.get(4);
+                        if (param.type == NodeType.LIT_ARRAY || param.type == NodeType.LIT_OBJECT) {
+                            // Destructuring CatchParameter (`catch ([a,b])` / `catch ({e})`).
+                            // BindScope.VAR → toScope null → each leaf declares with the same
+                            // current-scope semantics as the bare-ident context.put below.
+                            destructurePattern(param, context, BindScope.VAR, errorThrown, true);
+                        } else {
+                            context.put(param.getText(), errorThrown);
+                        }
                         tryValue = eval(node.get(6), context);
                     } else { // catch without variable name, 3 is block
                         tryValue = eval(node.get(3), context);
