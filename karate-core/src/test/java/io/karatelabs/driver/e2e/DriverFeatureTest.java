@@ -180,10 +180,10 @@ class DriverFeatureTest {
                 .resolve("target.test-classes.io.karatelabs.driver.features.screenshot.html");
         assertTrue(Files.exists(featureHtml), "screenshot feature HTML not found: " + featureHtml);
         String html = Files.readString(featureHtml);
-        assertTrue(html.contains("\"mime_type\": \"image/png\""),
-                "feature HTML should inline embed JSON with image/png mime type");
+        assertTrue(html.contains("\"mime\": \"image/png\""),
+                "feature HTML should carry the embed part with image/png mime type");
         assertTrue(html.matches("(?s).*\"file\":\\s*\"\\d+_screenshot[^\"]*\\.png\".*"),
-                "feature HTML should inline embed JSON with a screenshot .png file reference");
+                "feature HTML should carry the embed part with a screenshot .png file reference");
     }
 
 }

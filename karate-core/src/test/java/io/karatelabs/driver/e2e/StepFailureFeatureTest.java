@@ -131,7 +131,7 @@ class StepFailureFeatureTest {
         assertTrue(Files.exists(featureHtml),
                 "feature HTML not found: " + featureHtml);
         String html = Files.readString(featureHtml);
-        assertTrue(html.contains("\"mime_type\": \"image/png\""),
-                "feature HTML should inline embed JSON with image/png mime type");
+        assertTrue(html.contains("\"mime\": \"image/png\""),
+                "feature HTML should carry the embed part with image/png mime type");
     }
 }
