@@ -143,6 +143,18 @@ public class Suite {
     // SUITE_ENTER. Null when no karate-boot.js file is present in the workdir.
     private BootBinding bootBinding;
 
+    // Ext globals registered by exts in their onBoot(Suite) — name → instance
+    // (typically a SimpleObject). Seeded into every scenario's JS scope before
+    // karate-config.js evaluates (see ScenarioRuntime.initEngine). Populated only
+    // during single-threaded boot, then read-only for the parallel run.
+    private final Map<String, Object> globals = new LinkedHashMap<>();
+
+    // Ext report-asset contributions registered by exts in onBoot — name → spec.
+    // Read by HtmlReportWriter at report-write time to copy ext assets and splice
+    // <script>/<link> tags. Like globals: populated single-threaded at boot,
+    // read-only thereafter.
+    private final Map<String, ReportAssets> reportAssets = new LinkedHashMap<>();
+
     // ========== Constructor (package-private) ==========
 
     /**
@@ -432,6 +444,61 @@ public class Suite {
      */
     public BootBinding getBootBinding() {
         return bootBinding;
+    }
+
+    /**
+     * Built-in JS-scope names an ext global may not shadow. Registration of a
+     * colliding ext global fails the Suite loud at boot (per IMAGE_SPIKE §3.4).
+     */
+    private static final Set<String> RESERVED_GLOBAL_NAMES = Set.of("karate", "read", "match", "driver");
+
+    /**
+     * Register an ext global under {@code name}, seeded into every scenario's JS
+     * scope before {@code karate-config.js} evaluates. Called by an {@link Ext}
+     * from {@link Ext#onBoot(Suite)}; the instance is typically a
+     * {@link io.karatelabs.js.SimpleObject} so members cross into JS natively
+     * (no reflection). Throws — and so fails the Suite at boot — when the name is
+     * blank or collides with a built-in global ({@code karate}, {@code read},
+     * {@code match}, {@code driver}).
+     */
+    public void registerGlobal(String name, Object instance) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("registerGlobal: name is null or empty");
+        }
+        if (RESERVED_GLOBAL_NAMES.contains(name)) {
+            throw new RuntimeException("ext global '" + name + "' collides with built-in '" + name + "'");
+        }
+        globals.put(name, instance);
+    }
+
+    /** The ext global registered under {@code name}, or {@code null} if none. */
+    public Object getGlobal(String name) {
+        return globals.get(name);
+    }
+
+    /** Immutable view of all ext globals, in registration order. */
+    public Map<String, Object> getGlobals() {
+        return Collections.unmodifiableMap(globals);
+    }
+
+    /**
+     * Register an ext's report-asset contribution. Called by an {@link Ext} from
+     * {@link Ext#onBoot(Suite)} with a fluent {@link ReportAssets} spec, e.g.
+     * {@code suite.registerReportAssets(ReportAssets.named("image").js("static/ext.js"), getClass().getClassLoader())}.
+     * Validates the spec against the classloader (referenced resources must exist);
+     * any failure throws and so fails the Suite loud at boot (IMAGE_SPIKE §3.3).
+     */
+    public void registerReportAssets(ReportAssets assets, ClassLoader classLoader) {
+        if (assets == null) {
+            throw new IllegalArgumentException("registerReportAssets: assets is null");
+        }
+        assets.validateAndBind(classLoader);
+        reportAssets.put(assets.name(), assets);
+    }
+
+    /** Immutable view of all registered ext report-asset specs, in registration order. */
+    public Map<String, ReportAssets> getReportAssets() {
+        return Collections.unmodifiableMap(reportAssets);
     }
 
     private void removeJsonlListener(RunListener listener) {

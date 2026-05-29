@@ -65,6 +65,10 @@ public class HtmlReportListener implements ResultListener {
     private long suiteStartTime;
     private int threadCount;
     private boolean resourcesCopied = false;
+    // Ext report-asset specs captured at suite start; threaded into the writer so
+    // ext <script>/<link> tags get spliced and ext static dirs copied. Empty when
+    // no exts registered assets.
+    private Map<String, io.karatelabs.core.ReportAssets> reportAssets = java.util.Collections.emptyMap();
 
     /**
      * Create a new HTML report listener.
@@ -86,6 +90,7 @@ public class HtmlReportListener implements ResultListener {
     public void onSuiteStart(Suite suite) {
         suiteStartTime = System.currentTimeMillis();
         threadCount = suite.threadCount;
+        reportAssets = suite.getReportAssets();
 
         // Embed file names use a 001_, 002_, ... sequence; reset per suite so
         // numbers don't bleed across runs in the same JVM (e.g. test suites).
@@ -112,7 +117,7 @@ public class HtmlReportListener implements ResultListener {
         executor.submit(() -> {
             try {
                 ensureResourcesCopied();
-                HtmlReportWriter.writeFeatureHtml(result, outputDir);
+                HtmlReportWriter.writeFeatureHtml(result, outputDir, reportAssets);
             } catch (Exception e) {
                 logger.warn("Failed to write feature HTML for {}: {}", result.getDisplayName(), e.getMessage());
             }
@@ -126,10 +131,10 @@ public class HtmlReportListener implements ResultListener {
             ensureResourcesCopied();
 
             // Write summary pages using canonical feature maps
-            HtmlReportWriter.writeSummaryPages(featureMaps, result, outputDir, env);
+            HtmlReportWriter.writeSummaryPages(featureMaps, result, outputDir, env, reportAssets);
 
             // Write timeline page using canonical feature maps
-            HtmlReportWriter.writeTimelineHtml(featureMaps, result, outputDir, env, threadCount);
+            HtmlReportWriter.writeTimelineHtml(featureMaps, result, outputDir, env, threadCount, reportAssets);
 
             logger.debug("HTML report written to: {}", outputDir.resolve("karate-summary.html"));
 

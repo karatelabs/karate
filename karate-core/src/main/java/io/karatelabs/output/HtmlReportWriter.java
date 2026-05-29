@@ -25,6 +25,7 @@ package io.karatelabs.output;
 
 import io.karatelabs.common.Json;
 import io.karatelabs.common.ResourceType;
+import io.karatelabs.core.ReportAssets;
 import io.karatelabs.core.FeatureResult;
 import io.karatelabs.core.Globals;
 import io.karatelabs.core.ScenarioResult;
@@ -151,6 +152,11 @@ public final class HtmlReportWriter {
      * @param outputDir the root output directory (features/ subdirectory will be used)
      */
     public static void writeFeatureHtml(FeatureResult result, Path outputDir) throws IOException {
+        writeFeatureHtml(result, outputDir, java.util.Collections.emptyMap());
+    }
+
+    public static void writeFeatureHtml(FeatureResult result, Path outputDir,
+                                        Map<String, ReportAssets> reportAssets) throws IOException {
         Path featuresDir = outputDir.resolve(HtmlReportListener.SUBFOLDER);
         Path embedsDir = outputDir.resolve("embeds");
         Files.createDirectories(featuresDir);
@@ -160,7 +166,8 @@ public final class HtmlReportWriter {
 
         Map<String, Object> featureData = buildFeatureData(result);
         String template = loadTemplate("karate-feature.html");
-        String html = inlineJson(template, featureData);
+        // feature pages live under feature-html/, so ext refs need the "../" prefix
+        String html = inlineJson(template, featureData, buildExtsHtml(reportAssets, "../"));
 
         String fileName = getFeatureFileName(featureData) + ".html";
         Files.writeString(featuresDir.resolve(fileName), html);
@@ -248,6 +255,16 @@ public final class HtmlReportWriter {
      */
     public static void writeSummaryPages(List<Map<String, Object>> features,
                                          SuiteResult result, Path outputDir, String env) throws IOException {
+        writeSummaryPages(features, result, outputDir, env, java.util.Collections.emptyMap());
+    }
+
+    public static void writeSummaryPages(List<Map<String, Object>> features,
+                                         SuiteResult result, Path outputDir, String env,
+                                         Map<String, ReportAssets> reportAssets) throws IOException {
+        // Copy ext assets once at suite end — feature/summary/timeline pages all
+        // reference ext/<name>/... so the files must be on disk before the report is viewed.
+        copyExtAssets(reportAssets, outputDir);
+
         // Build suite data from SuiteResult
         Map<String, Object> suiteData = new LinkedHashMap<>();
         suiteData.put("env", env);
@@ -273,7 +290,7 @@ public final class HtmlReportWriter {
         Map<String, Object> summaryPageData = new LinkedHashMap<>(suiteData);
         summaryPageData.put("features", featureSummaryList);
         String summaryTemplate = loadTemplate("karate-summary.html");
-        String summaryHtml = inlineJson(summaryTemplate, summaryPageData);
+        String summaryHtml = inlineJson(summaryTemplate, summaryPageData, buildExtsHtml(reportAssets, ""));
         Files.writeString(outputDir.resolve("karate-summary.html"), summaryHtml);
 
         // Write index redirect
@@ -352,12 +369,56 @@ public final class HtmlReportWriter {
      * {@code Suite.getReportAssets()}.
      */
     private static String inlineJson(String template, Object data) {
+        return inlineJson(template, data, "");
+    }
+
+    private static String inlineJson(String template, Object data, String extsHtml) {
         String json = Json.of(data).toStringPretty();
         json = json.replace("</", "<\\/"); // prevent </script> in JSON from closing the script tag
         String html = template.replace(DATA_PLACEHOLDER, json);
         html = html.replace(ICONS_PLACEHOLDER, loadIconsSprite());
-        html = html.replace(EXTS_PLACEHOLDER, ""); // Phase 2: assemble + splice ext assets
+        html = html.replace(EXTS_PLACEHOLDER, extsHtml == null ? "" : extsHtml);
         return html;
+    }
+
+    /**
+     * Assemble the {@code <!-- KARATE_EXTS -->} fragment: one {@code <script defer>}
+     * (and optional {@code <link>}) per registered ext, ordered as registered in
+     * {@code karate-boot.js}. {@code relPrefix} matches the page's depth — {@code ""}
+     * for root pages (summary, timeline), {@code "../"} for feature pages under
+     * {@code feature-html/} — mirroring how the templates reference {@code res/}.
+     */
+    private static String buildExtsHtml(Map<String, ReportAssets> reportAssets, String relPrefix) {
+        if (reportAssets == null || reportAssets.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (ReportAssets assets : reportAssets.values()) {
+            String base = relPrefix + "ext/" + assets.name() + "/";
+            String cssHref = assets.cssHref();
+            if (cssHref != null) {
+                sb.append("<link rel=\"stylesheet\" href=\"").append(base).append(cssHref).append("\">\n");
+            }
+            sb.append("<script src=\"").append(base).append(assets.jsHref()).append("\" defer></script>\n");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Copy each registered ext's declared assets into {@code outputDir/ext/<name>/}.
+     * Best-effort per ext: a copy failure for one ext is logged and the rest proceed.
+     */
+    private static void copyExtAssets(Map<String, ReportAssets> reportAssets, Path outputDir) {
+        if (reportAssets == null || reportAssets.isEmpty()) {
+            return;
+        }
+        for (ReportAssets assets : reportAssets.values()) {
+            try {
+                assets.copyTo(outputDir.resolve("ext").resolve(assets.name()));
+            } catch (Exception e) {
+                logger.warn("Failed to copy ext assets for '{}': {}", assets.name(), e.getMessage());
+            }
+        }
     }
 
     // ========== Template and Resource Loading ==========
@@ -719,9 +780,15 @@ public final class HtmlReportWriter {
     public static void writeTimelineHtml(List<Map<String, Object>> features,
                                          SuiteResult result, Path outputDir, String env,
                                          int threadCount) throws IOException {
+        writeTimelineHtml(features, result, outputDir, env, threadCount, java.util.Collections.emptyMap());
+    }
+
+    public static void writeTimelineHtml(List<Map<String, Object>> features,
+                                         SuiteResult result, Path outputDir, String env,
+                                         int threadCount, Map<String, ReportAssets> reportAssets) throws IOException {
         Map<String, Object> timelineData = buildTimelineData(features, result, env, threadCount);
         String template = loadTemplate("karate-timeline.html");
-        String html = inlineJson(template, timelineData);
+        String html = inlineJson(template, timelineData, buildExtsHtml(reportAssets, ""));
         Files.writeString(outputDir.resolve("karate-timeline.html"), html);
     }
 

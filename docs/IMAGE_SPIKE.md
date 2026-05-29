@@ -46,9 +46,9 @@ Per D19, extensions split across two tiers — same SPI, different licence + rep
 | D5 | **Alpine init order** via `defer` + `alpine:init` event hook. Plugins register `Alpine.data(...)` inside the hook. | Documented Alpine pattern; no template-ordering coupling. |
 | D6 | **Embed schema generalised to `parts[]`** — `{name, parts: [{role, mime, data\|url}], meta}` | One diff = three images + metadata. Future-proofs `grpc-match` etc. |
 | D7 | **Plugin distribution = existing `~/.karate/ext/` + `.karate/ext/`** dirs picked up by the Rust launcher | Zero new infra; we only need to test the path. |
-| D8 | **Strict core-version match** — plugin manifest carries `coreVersion`; loader fails fast on mismatch | Forces lock-step releases. Cheaper than a half-working SPI. |
+| D8 | **Strict core-version match** — plugin manifest carries `coreVersion`; loader fails fast on mismatch | Forces lock-step releases. Cheaper than a half-working SPI. **Update (Phase 2 build): dropped for now.** With the JSON manifest gone (§3.3) there's no natural build-time stamp for the built-against version, and exts ship in lockstep with core today. No version guard in `ReportAssets`; revisit if independently-versioned drop-in JARs make a runtime mismatch likely. |
 | D9 | **No `karate.*` JS method contribution from plugins.** Breaking change from v1's `karate.compareImage()` | Forces a clean SPI; plugin globals land in scenario scope under their own name. |
-| D10 | **Plugin global + custom step keyword.** `boot.plugin('image')` → `image` global is in scope inside scenarios. `* image { compare: '...', baseline: '...' }` dispatches to the same global | Unifies channel + boot models; finally lets users extend Karate keywords. |
+| D10 | **Plugin global + custom step keyword.** `boot.plugin('image')` → `image` global is in scope inside scenarios. `* image { compare: '...', baseline: '...' }` dispatches to the same global | Unifies channel + boot models; finally lets users extend Karate keywords. **Update (Phase 2):** only the ext-global half of this ships in Phase 2; the custom step keyword (`* image { ... }`) is deferred into O21 with no ETA — see §3.5. The global covers the surface via `image.compare(...)` + property-setters. |
 | D11 | **Resemble.js stays, loaded from CDN** (lazy on lightbox open) | Server emits precomputed diff PNG; Resemble.js powers interactive tools (slider, blink, onion-skin). CDN keeps plugin JAR small. |
 | D12 | **No new methods on `Plugin` interface** — assets + init + globals registered imperatively from `onBoot(Suite)` | Compat with existing SPI; everything funnels through `Suite` registries. |
 | D13 | **Cherry-pick PR #2885's server-side Java** (`ImageComparison.java`, pixel-diff logic); rewrite UI + step integration to fit plugin model | Don't redo solid pixel math; do redo jQuery UI. Credit contributor in MIGRATION_GUIDE + AUTHORS. |
@@ -188,13 +188,14 @@ If no `Alpine.data(name)` is registered for an embed-name, the slot stays empty 
 
 ### 3.3 Ext asset contribution
 
-> Builds on the existing [DESIGN.md § Ext Architecture](./DESIGN.md#ext-architecture) and the `Ext` interface defined in `karate-core/src/main/java/io/karatelabs/core/Ext.java`. The wire shape below is new; the registration entry point (`onBoot(Suite)`) is unchanged.
+> Builds on the existing [DESIGN.md § Ext Architecture](./DESIGN.md#ext-architecture) and the `Ext` interface defined in `karate-core/src/main/java/io/karatelabs/core/Ext.java`. The registration entry point (`onBoot(Suite)`) is unchanged.
+>
+> **Decision (Phase 2 build): imperative registration, no `manifest.json`.** The ext object is already live at `onBoot`, so asset wiring is declared in Java via a fluent `ReportAssets` spec — one source of truth, type-safe, no JSON-vs-file drift, and aligned with D12's "registered imperatively from `onBoot`". The earlier JSON-manifest design (struck through below for provenance) was dropped because it duplicated `onBoot` + `Ext.getManifest()` and its only non-redundant value (build-time `coreVersion` stamping for out-of-process tooling) isn't used — auto-discovery is explicitly rejected (§7). The `coreVersion` strict-match (D8) was **also dropped for now**: exts ship in lockstep with core; revisit only if independently-versioned drop-in JARs make a mismatch likely.
 
-**Wire shape** — `META-INF/karate-ext/static/` inside the ext JAR:
+**On-disk shape** — assets live under `META-INF/karate-ext/` inside the ext JAR (no manifest file):
 
 ```
 META-INF/karate-ext/
-├── manifest.json           # name, version, coreVersion, init, slots used
 ├── static/
 │   ├── ext.js              # registered in alpine:init (D5)
 │   ├── ext.css             # optional; loaded if present
@@ -203,42 +204,35 @@ META-INF/karate-ext/
     └── image-comparison.html
 ```
 
-`manifest.json` schema:
-
-```json
-{
-  "name": "image",
-  "version": "2.0.10",
-  "coreVersion": "2.0.10",
-  "init": "static/ext.js",
-  "css":  "static/ext.css",
-  "pages": [
-    {"slot": "nav.pages", "title": "Image diffs", "href": "pages/image-comparison.html"}
-  ]
-}
-```
-
-**Loader.** `Ext.onBoot(Suite)` calls:
+**Registration.** `Ext.onBoot(Suite)` builds a `ReportAssets` spec and hands it over:
 
 ```java
-suite.registerReportAssets("image", this.getClass().getClassLoader());
+suite.registerReportAssets(
+    ReportAssets.named("image")
+        .js("static/ext.js")          // required
+        .css("static/ext.css")        // optional
+        .page("nav.pages", "Image diffs", "pages/image-comparison.html"),
+    getClass().getClassLoader());
 ```
 
-`Suite.registerReportAssets(name, ClassLoader)` walks the ext's `META-INF/karate-ext/` resources via `ClassLoader.getResources`, validates `manifest.json`, and stashes the descriptor under a new `Map<String, ExtAssetDescriptor> reportAssets` field on `Suite`. Paired getter `Suite.getReportAssets()` returns the immutable view — read by `HtmlReportWriter` at report-write time.
+`ReportAssets` (`io.karatelabs.core.ReportAssets`) is a fluent builder: `named(name)`, `js(path)` (required), `css(path)`, `page(slot, title, href)` (zero or more). Paths resolve against `META-INF/karate-ext/` on the ext's classloader. `Suite.registerReportAssets(ReportAssets, ClassLoader)` validates + binds the classloader, then stashes it under `Map<String, ReportAssets> reportAssets`; `Suite.getReportAssets()` returns the immutable view — read by `HtmlReportWriter` at report-write time.
 
-**Manifest validation failure modes** (all fail the Suite loud at `onBoot`, consistent with DESIGN.md § Ext Architecture "Exceptions during `onBoot` fail the Suite"):
+**Validation failure modes** (all fail the Suite loud at `onBoot`, consistent with DESIGN.md § Ext Architecture "Exceptions during `onBoot` fail the Suite"):
 
 | Condition | Behaviour |
 |-----------|-----------|
-| `META-INF/karate-ext/manifest.json` missing | `RuntimeException("ext '<name>': no META-INF/karate-ext/manifest.json on classloader")` |
-| `manifest.json` malformed JSON | wrapped `JsonParseException` rethrown with ext name |
-| `coreVersion` key absent | `RuntimeException("ext '<name>': manifest.coreVersion required (running core <X.Y.Z>)")` |
-| `coreVersion` present but ≠ running `Version.NUMBER` | `RuntimeException("ext '<name>': built for core <A.B.C>, running <X.Y.Z>; rebuild required")` (D8) |
-| `init` / `css` paths resolve to missing resources | hard fail with path in message |
+| `js(...)` not set | `RuntimeException("ext '<name>': ReportAssets.js(...) is required")` |
+| `js` / `css` / `page` href resolves to a missing resource | `RuntimeException("ext '<name>': <key> points at missing resource: META-INF/karate-ext/<path>")` |
 
-When `HtmlReportWriter` runs (post-suite), it copies each registered `static/` dir to `target/karate-reports/ext/<name>/` and splices the `<script src=ext/<name>/ext.js defer></script>` (and `<link rel=stylesheet href=ext/<name>/ext.css>`) tags into the `<!-- KARATE_EXTS -->` placeholder per §3.1.2 (same string-replace mechanism as `/* KARATE_DATA */`).
+When `HtmlReportWriter` runs (post-suite), it copies each registered ext's declared assets to `target/karate-reports/ext/<name>/` (the `static/` prefix is stripped — `static/ext.js` → `ext/<name>/ext.js`; `pages/` is kept) and splices `<script src=ext/<name>/ext.js defer></script>` (and `<link rel=stylesheet href=ext/<name>/ext.css>`) into the `<!-- KARATE_EXTS -->` placeholder per §3.1.2 (same string-replace mechanism as `/* KARATE_DATA */`). Feature pages live under `feature-html/`, so their ext refs carry the `../` prefix, mirroring how the templates reference `res/`.
 
 **No new methods on `Ext`.** Per D12 — the ext is responsible for calling `suite.registerReportAssets(...)` in its `onBoot`. Convention not contract; keeps the interface stable.
+
+<details><summary>Superseded JSON-manifest design (provenance)</summary>
+
+The original §3.3 shipped a `META-INF/karate-ext/manifest.json` (`name`, `version`, `coreVersion`, `init`, `css`, `pages`) read by `registerReportAssets(name, ClassLoader)` into an `ExtAssetDescriptor`, with failure modes for missing/malformed manifest and `coreVersion` absent / mismatched (D8). Dropped during the Phase 2 build in favour of the imperative `ReportAssets` spec above.
+
+</details>
 
 ### 3.4 Ext globals — `boot.ext('image')` puts `image` in scenario scope
 
@@ -259,7 +253,7 @@ Inside `ImageExt.onBoot(Suite suite)`:
 suite.registerGlobal("image", new ImageApi(suite));
 ```
 
-`ImageApi` is a POJO with whatever methods the ext exposes (`compare`, `mask`, `setBaselineDir`, …). It crosses the JS bridge through the existing `JsValue` adapter — same path as `karate.driver` (see [DESIGN.md § karate.* API](./DESIGN.md#karate-api), `Driver` row).
+`ImageApi` should implement [`io.karatelabs.js.SimpleObject`](../karate-js/src/main/java/io/karatelabs/js/SimpleObject.java) rather than being a reflection-bridged POJO. `SimpleObject` exposes members to the JS engine natively: the ext implements `jsGet(name)` (return a value, or a `JavaCallable` for methods like `compare`), overrides `putMember(name, value)` for settable config properties (`baselineDir`, `threshold`, …), and `jsKeys()` for enumeration. No reflection on the hot path — the engine calls `getMember`/`putMember` directly, which performs better than the reflective `JsValue` POJO adapter that `karate.driver` uses (see [DESIGN.md § karate.* API](./DESIGN.md#karate-api), `Driver` row). The plain-POJO path still works for trivial cases, but `SimpleObject` is the recommended ext-global style.
 
 **Builder / property-setter pattern is the canonical ext-global API style.** Proven in the existing `karate.channel('grpc')` / `karate.channel('kafka')` channels — users set config as properties, then invoke the operation:
 
@@ -280,7 +274,7 @@ Ext globals should follow the same idiom — readable, no method-name churn for 
 * image.compare('home.png')
 ```
 
-Per-call setters mutate the singleton's state for the rest of the scenario (scoped to the runtime, not the Suite — the property-setter idiom is local-state, not global state). Phase 3 (`karate-image`) follows this pattern verbatim.
+Per-call setters mutate the singleton's state for the rest of the scenario (scoped to the runtime, not the Suite — the property-setter idiom is local-state, not global state). Property writes land in `SimpleObject.putMember`; reads and method lookups in `jsGet`. Phase 3 (`karate-image`) follows this pattern verbatim.
 
 **(b) Scenario-runtime exposure.**
 
@@ -296,6 +290,13 @@ Scenario: pixel-diff
 **Per-call shape mirrors `karate.channel`.** See [DESIGN.md § Ext Architecture](./DESIGN.md#ext-architecture) for the singleton-per-Suite lifecycle; the only difference is the ext global is *exposed* in scenario scope (channels are returned per call).
 
 ### 3.5 Custom step keyword sugar — `* <extName> <expr>`
+
+> **Status: Deferred — no ETA (folded into O21).** Phase 2 does **not** ship this. The bare-keyword JSON-arg form (`* image { compare: '...' }`) is the *only* authoring shape that needs a `StepExecutor` change; every other form already works through the existing dispatch once the ext global is seeded into scope:
+> - `* image.compare('home.png')` and `* def x = image.compare(...)` route through the `StepUtils.hasPunctuation(keyword)` branch in `StepExecutor.run` (line ~176) → `runtime.eval` — **no change needed**.
+> - `* image.threshold = 0.02` (property setter) routes the same way → `SimpleObject.putMember`.
+> - Only `* image { ... }` (bare identifier + payload) falls to the keyword-switch `default` branch and throws `unknown keyword`; wiring it up is what §3.5 below describes.
+>
+> Since the injected `SimpleObject` global already covers the full functional surface (config via property-setters, operations via method calls), the bare-keyword sugar is pure ergonomics. It also touches the hottest switch in the executor (the `default` branch runs for every unrecognized-keyword step) and raises ambiguity questions (collision with `unknown keyword`, shadowing). O21 already frames the *whole* keyword-authoring story (JSON-arg form + Cucumber-like patterns) as a separate spike rather than piecemeal design — this form goes there. The design below is retained as the reference for that future work.
 
 Follows the `doc` keyword pattern: dispatch at `StepExecutor.java:233` (`case "doc" -> executeDoc(step)` inside the keyword `switch` in `StepExecutor.run`), implementation at `StepExecutor.java:2765`. The new ext-keyword dispatch goes into the same switch, on the `default` branch:
 
@@ -338,7 +339,7 @@ The map (or scalar) is passed to `image.handleStep(args, runtime)`; the ext inte
 
 **Why this is overdue.** Users have asked for custom keywords since v1. The reason it was always refused — every new keyword needed a `case` in `StepExecutor` — vanishes once dispatch is data-driven on the registered-globals map. Ext keyword names are namespaced under the ext name; there's no global keyword pollution.
 
-**Phase 2 ships the minimal dispatch above.** Richer DSL (typed parameter patterns à la Cucumber but JS-authored and compile-free) is captured as future work in O21 — that's where the experience actually beats Cucumber rather than just matching it.
+**This dispatch is deferred (see the status note at the top of §3.5).** Both the minimal JSON-arg form above *and* the richer DSL (typed parameter patterns à la Cucumber but JS-authored and compile-free) are captured as future work in O21 — designed together as one keyword-authoring conversation rather than the JSON-arg form landing alone in Phase 2.
 
 ### 3.6 Image-comparison embed shape (D6)
 
@@ -436,28 +437,31 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 
 ### Phase 2 — Ext SPI extensions + slot loader
 
-> **Status note.** D17 rename (Plugin → Ext) already landed as Phase 2 prep — `Ext.java`, `BootBinding.ext(...)`, `boot.ext('x')`, `SUITE_ENTER.data.exts[]`, DESIGN.md § Ext Architecture. The remaining Phase 2 scope is the SPI extensions + slot loader below.
+> **Status: in progress.** D17 rename (Plugin → Ext) landed earlier as prep. This session landed the **ext-global path** and the **report-asset path** (both green). **Remaining:** the multi-part `StepResult.Embed` shape (§3.6).
 
 **Scope:**
-- Extend `Suite`: `registerReportAssets(name, ClassLoader)`, `getReportAssets()` (returns `Map<String, ExtAssetDescriptor>`), `registerGlobal(name, instance)`, `getGlobal(name)`, `getGlobals()`.
-- `HtmlReportWriter` already has the `<!-- KARATE_EXTS -->` placeholder wired (Phase 1 foundation; substitutes to empty string today). Phase 2 fills the substitution: at write time, iterate `Suite.getReportAssets()` → copy each ext's `META-INF/karate-ext/static/` to `target/karate-reports/ext/<name>/` → assemble the `<script src=ext/<name>/ext.js defer></script>` (+ optional `<link rel=stylesheet>`) lines and splice into the placeholder → write `ext/<name>/pages/...` for any nav-page contributions.
-- Extend `StepResult.Embed` to the multi-part shape (§3.6) with the single-part legacy shim.
-- Add `StepHandler` interface + the `StepExecutor.run` keyword-switch dispatch change (§3.5). Add `StepUtils.firstWhitespaceToken(String)` helper.
-- Extend `KarateJsBase` to seed `Suite.getGlobals()` into JS scope before `karate-base.js` / `karate-config.js` evaluate (see DESIGN.md § Dry Run for the existing config-eval pipeline order).
-- Ext manifest validation: load `META-INF/karate-ext/manifest.json` on `registerReportAssets`; failure modes per §3.3 table (missing manifest, malformed JSON, missing/mismatched `coreVersion`, missing referenced resources) — all hard fail at boot.
+- Extend `Suite`: `registerGlobal(name, instance)` / `getGlobal(name)` / `getGlobals()`, and `registerReportAssets(ReportAssets, ClassLoader)` / `getReportAssets()` (returns `Map<String, ReportAssets>`). ✅ done.
+- Seed ext globals into JS scope before `karate-base.js` / `karate-config.js` evaluate — done in `ScenarioRuntime.initEngine` (hidden root bindings, same mechanism as `karate`/`read`/`match`; applies to called features too). Ext globals are `SimpleObject` instances (§3.4) — they cross into scope natively, no reflective adapter. Built-in-name collision (`karate`/`read`/`match`/`driver`) fails the Suite loud at boot. ✅ done.
+- `HtmlReportWriter` already had the `<!-- KARATE_EXTS -->` placeholder wired (Phase 1 foundation; empty string). Phase 2 fills it: at write time, copy each registered ext's declared assets to `target/karate-reports/ext/<name>/` (static/ stripped; pages/ kept), assemble the `<script src=ext/<name>/ext.js defer></script>` (+ optional `<link rel=stylesheet>`) lines and splice into the placeholder. Root pages use `ext/<name>/…`; feature pages under `feature-html/` use `../ext/<name>/…`. Threaded through `HtmlReportListener` (captures `suite.getReportAssets()` at suite start). ✅ done.
+- Ext asset registration is imperative via `ReportAssets` (§3.3) — no JSON manifest, no `coreVersion` check. Validation: `js` required + referenced resources must exist; failures hard-fail at boot. ✅ done.
+- Extend `StepResult.Embed` to the multi-part shape (§3.6) with the single-part legacy shim. ⏳ remaining.
+- **Not in Phase 2:** the `StepHandler` interface and the `StepExecutor.run` keyword-switch dispatch (§3.5) are deferred into O21 with no ETA. The injected `SimpleObject` global already exposes the full surface via method calls (`dummy.echo('hi')`) and property-setters (`dummy.threshold = 0.02`), both of which ride the existing `StepExecutor` dispatch unchanged. No `StepExecutor` / `StepUtils` edits this phase.
 
-**Out of scope:** any real ext. This phase has no production consumer; tests use a synthetic test-only ext under `karate-core/src/test/java/io/karatelabs/ext/dummy/`.
+**Out of scope:** any real ext. This phase has no production consumer; tests use a synthetic test-only ext under `karate-core/src/test/java/io/karatelabs/ext/dummy/` (`DummyExt`).
 
 **Exit criteria** (each independently verifiable):
-- Unit test: `DummyExt` in test scope registers a global `dummy`, contributes a `summary.panels` widget, exposes `* dummy { ... }` step keyword.
-- End-to-end Suite test (`DummyExtE2ETest`) runs a feature; verification path is **HTML-parse, not Playwright** (no Playwright dependency added in this phase):
-  - Global visibility assertion: feature contains `* def x = dummy.echo('hi')` and `* match x == 'hi'` (passes only if global was seeded into scope).
-  - Step keyword assertion: feature contains `* dummy { action: 'mark' }` and a later `* match dummy.state == 'mark'`.
-  - Asset-copy assertion: `target/karate-reports/ext/dummy/ext.js` exists after run.
-  - Panel-render assertion: parse `target/karate-reports/karate-summary.html` with Jsoup, assert `<div data-slot="summary.panels" data-ext-name="dummy">` is present and `<script src="ext/dummy/ext.js">` is in `<head>`.
-- Backward-compat: existing `step.embeds[]` JSONL consumers see the legacy `{mime_type, data, name}` shape for single-part inline-bytes embeds (per §3.6 shim rule).
+- Unit test: `ReportAssetsTest` — valid spec resolves + copies (static/ stripped, pages/ kept); `js` required and missing-resource both fail loud. ✅
+- End-to-end Suite test (`DummyExtE2ETest`) runs a feature; verification path is **HTML string-parse, not Playwright** (no Playwright/Jsoup dependency added in this phase):
+  - Global visibility: feature contains `* def x = dummy.echo('hi')` and `* match x == 'hi'` (passes only if the `SimpleObject` global was seeded; exercises `jsGet` → `JavaCallable`). ✅
+  - Global visible to `karate-config.js` (seed ordering). ✅
+  - Property-setter: `* dummy.state = 'mark'` then `* match dummy.state == 'mark'` (exercises `putMember` / `jsGet`). ✅
+  - Asset-copy: `ext/dummy/ext.js`, `ext.css`, `pages/dummy.html` exist after run. ✅
+  - Splice: `karate-summary.html` contains `<script src="ext/dummy/ext.js" defer></script>` (+ `<link>`); the feature page carries the `../` prefix. ✅
+- Backward-compat: existing `step.embeds[]` JSONL consumers see the legacy `{mime_type, data, name}` shape for single-part inline-bytes embeds (per §3.6 shim rule). ⏳ with the §3.6 work.
 
-**Files touched:** ~15 (Suite, HtmlReportWriter, StepResult, StepExecutor, StepUtils, KarateJsBase, Plugin→Ext rename, BootBinding, new SPI interfaces).
+> **Exit-criteria note.** The original "panel-render assertion" (Jsoup-parse for `<div data-slot="summary.panels" data-ext-name="dummy">`) assumed core *emits* a panel container per ext. That contradicts the §3.2 slot model where the *container* is in the template and the ext renders into it **client-side** (Alpine) — invisible to a static HTML parse with no browser. Replaced with the asset-copy + `<script>`-splice assertions above, which are the server-side-observable facts. Verifying the live panel render belongs to a browser-driven check (Phase 3 manual smoke).
+
+**Files touched (globals + assets slices):** `Suite`, `ScenarioRuntime`, `HtmlReportWriter`, `HtmlReportListener`, new `ReportAssets`; test fixtures `DummyExt` + assets, `DummyExtE2ETest`, `ReportAssetsTest`. `StepExecutor` / `StepUtils` **not** touched (§3.5 deferred). `StepResult` still to change for §3.6.
 
 ### Phase 3 — `karate-image` submodule (dogfood)
 
@@ -466,8 +470,8 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 - `pom.xml`: depends on `karate-core` (provided scope), brings in Resemble's *server-side* equivalent if needed (we'll likely just use AWT or a tiny pixel-loop — Resemble.js is browser-side only). Confirmed plan: keep the pixel-diff math from PR #2885's `ImageComparison.java` verbatim, just relocate.
 - `pom.xml -Pfatjar`: bundles everything needed for `~/.karate/ext/` drop-in.
 - `io.karatelabs.ext.image.ImageExt` — implements `Ext` (the renamed `Plugin` interface per Phase 2), registers global + assets in `onBoot`.
-- `io.karatelabs.ext.image.ImageApi` — implements `StepHandler`. Methods: `compare(args)`, `setBaselineDir(path)`, `setThreshold(double)`. `handleStep(args, runtime)` dispatches by `args` keys (presence of `compare` → call `compare`).
-- `META-INF/karate-ext/manifest.json`, `static/ext.js`, `static/ext.css`.
+- `io.karatelabs.ext.image.ImageApi` — implements `io.karatelabs.js.SimpleObject` (§3.4). `jsGet("compare")` returns a `JavaCallable` (`compare(args)`); `putMember` accepts the config properties (`baselineDir`, `threshold`, `report`). Used as `* image.baselineDir = '...'` then `* image.compare('home.png')`. (The `* image { compare: ... }` keyword form is deferred — §3.5 / O21.)
+- `static/ext.js`, `static/ext.css` under `META-INF/karate-ext/` (no manifest — assets registered imperatively via `ReportAssets` in `onBoot`, §3.3).
 - `static/ext.js`:
   - Registers `Alpine.data('imageComparison', ...)` per §3.2.
   - Lightbox: `<dialog>` element + Alpine, no Bootstrap modal. Slider/blink/onion-skin toolbar.
@@ -491,7 +495,7 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 
 **Exit criteria** (each independently verifiable):
 - `mvn -pl karate-image test` green.
-- `ImageExtE2ETest` runs a Suite with a `karate-boot.js` that calls `boot.ext('image')`; test `.feature` calls `* image { compare: ... }`; HTML-parse asserts the diff `<dialog>` element and three `<img>` tags (baseline/current/diff) are present in the written `karate-feature.html`.
+- `ImageExtE2ETest` runs a Suite with a `karate-boot.js` that calls `boot.ext('image')`; test `.feature` calls `* image.compare('home.png')` (with baseline/threshold set via property-setters); HTML-parse asserts the diff `<dialog>` element and three `<img>` tags (baseline/current/diff) are present in the written `karate-feature.html`.
 - **Manual smoke step** (mark explicit — no automation): open the generated report in a browser, click a diff thumbnail, confirm lightbox opens and slider/blink/onion-skin toolbar works.
 - Fatjar test: build `karate-image-X.Y.Z.jar`, then run in an **isolated home** so the test cannot pollute the developer's real `~/.karate/ext/`:
   ```bash
@@ -593,7 +597,7 @@ These don't block the spike; capture so they don't get lost.
 | O17 | **Channel resolver shares name lookup but lifecycle wrappers differ (D18 follow-through).** Per-call channels (`karate.channel('grpc')`) must instantiate per call from the factory; Suite-lifetime ext globals (`boot.ext('image')`) return the cached singleton. Phase 2 design: factor `ExtNameResolver` as a pure `String → Class<?>` lookup utility; both `BootBinding.ext()` and `KarateJs.channel()` call it but wrap the result differently. Avoids the trap of conflating the two roles into one method. | Phase 2 (resolver refactor). |
 | O18 | **Beef up collision detection for ext global names.** A registered ext global `image` shadows any user variable also named `image`. Today's collision detection (per DESIGN.md) covers built-in globals only. Phase 2 should extend the check: at scenario-runtime seed time, warn (or error, TBD) when an ext global name collides with the current scenario's `def`-bound variables. Note: `* image = 1` (raw assignment) is already invalid Karate syntax — users must write `* def image = 1` — so the *assignment* dispatch concern is bounded; the *shadowing* concern is real. | Phase 2. |
 | O19 | **Screenshot embed shape preservation when assets move to disk.** When Phase 2 lands the multi-part `{role, mime, url}` shape, screenshot embeds become URL-only (asset on disk) — the D6 shim only emits the legacy `{mime_type, data, name}` form when bytes are inline. JSONL consumers reading screenshots will silently see a shape change. Two options: (a) freeze a synthetic legacy block for the `screenshot` embed name by re-emitting the base64'd PNG inline, or (b) document the shape change in MIGRATION_GUIDE and require consumers to read `parts[]`. Pick before Phase 2 lands. | Phase 2 (decide before merge). |
-| O21 | **Marry Gherkin steps to complex JS/Java methods, commands, and builder patterns — the unifying authoring story.** Karate already exposes ext functionality through several syntactically distinct patterns; the design question is how they coexist coherently and what (if any) richer DSL layers on top. Inventory of forms today + proposed: (1) **property-setter / builder** — `* session.host = 'x'; * session.port = 9555` — proven in `karate.channel('grpc')` / `karate.channel('kafka')` per §3.4. Covers most configuration cases; needs no DSL design. (2) **plain JS method call** — `* image.compare('a.png', 'b.png')` or `* def x = image.compare(...)`. Works today via the JS bridge; no special dispatch. (3) **JSON-arg dispatch** — `* image { compare: 'home.png', baseline: '...' }` — Phase 2's minimal §3.5; handler routes by keys in the arg map. (4) **Cucumber-like keyword-pattern** — `* image compare "x.png" against "baseline/x.png" within 0.02` matched against a registered pattern `compare "{path}" against "{baseline}" within {threshold:double}`. Form (4) is the genuinely new design work — JS-authored handlers registered in `karate-boot.js` (no compile step), typed parameter binding, Cucumber's annotated-classpath-scanning model replaced by something declarative and runtime-registered. The win over Cucumber: keyword authoring without leaving JS, parameter validation, IDE autocompletion possible via the registered patterns. The harder question: *when does an ext author pick (1), (2), (3), or (4)?* Probably property-setter for config, plain JS for computed results (you want the return value), JSON-arg for one-shot side-effecting commands, keyword-pattern for "this should read like English." Worth a separate spike doc that thinks about all four together rather than designing the keyword-pattern form in isolation. | Post-Phase 3; separate spike doc that covers all four forms as one design conversation. |
+| O21 | **Marry Gherkin steps to complex JS/Java methods, commands, and builder patterns — the unifying authoring story.** Karate already exposes ext functionality through several syntactically distinct patterns; the design question is how they coexist coherently and what (if any) richer DSL layers on top. Inventory of forms today + proposed: (1) **property-setter / builder** — `* session.host = 'x'; * session.port = 9555` — proven in `karate.channel('grpc')` / `karate.channel('kafka')` per §3.4. Covers most configuration cases; needs no DSL design. (2) **plain JS method call** — `* image.compare('a.png', 'b.png')` or `* def x = image.compare(...)`. Works today via the JS bridge; no special dispatch. (3) **JSON-arg dispatch** — `* image { compare: 'home.png', baseline: '...' }` — the minimal §3.5 form; handler routes by keys in the arg map. **Deferred — pulled out of Phase 2 (no ETA); designed here alongside form (4) rather than landing alone.** Reason: forms (1) and (2) already cover the full functional surface once the `SimpleObject` global is in scope, and (3) is the only form that touches `StepExecutor`'s hot keyword-switch default branch. (4) **Cucumber-like keyword-pattern** — `* image compare "x.png" against "baseline/x.png" within 0.02` matched against a registered pattern `compare "{path}" against "{baseline}" within {threshold:double}`. Form (4) is the genuinely new design work — JS-authored handlers registered in `karate-boot.js` (no compile step), typed parameter binding, Cucumber's annotated-classpath-scanning model replaced by something declarative and runtime-registered. The win over Cucumber: keyword authoring without leaving JS, parameter validation, IDE autocompletion possible via the registered patterns. The harder question: *when does an ext author pick (1), (2), (3), or (4)?* Probably property-setter for config, plain JS for computed results (you want the return value), JSON-arg for one-shot side-effecting commands, keyword-pattern for "this should read like English." Worth a separate spike doc that thinks about all four together rather than designing the keyword-pattern form in isolation. | Post-Phase 3; separate spike doc that covers all four forms as one design conversation. |
 
 ---
 
@@ -616,12 +620,11 @@ The Tailwind report + ext SPI scaffolding (templates, `_icons.svg`, `KARATE_*` p
 karate-image/                              🔨  Phase 3 — NEW in-repo submodule
   pom.xml                                  🔨  with -Pfatjar profile
   src/main/java/io/karatelabs/ext/image/
-    ImageExt.java                          🔨
-    ImageApi.java                          🔨  implements StepHandler
+    ImageExt.java                          🔨  registers global + ReportAssets in onBoot
+    ImageApi.java                          🔨  implements SimpleObject
     ImageComparison.java                   🔨  cherry-picked from PR #2885
   src/main/resources/META-INF/karate-ext/
-    manifest.json                          🔨
-    static/ext.js, ext.css                 🔨
+    static/ext.js, ext.css                 🔨  (no manifest.json — imperative ReportAssets)
     pages/image-comparison.html            🔨
   src/test/java/...                        🔨
 
@@ -630,7 +633,7 @@ karate-openapi/                            🔨  Phase 4
   src/main/java/io/karatelabs/ext/openapi/
     OpenapiExt.java                        🔨  updated: registerGlobal + registerReportAssets
   src/main/resources/META-INF/karate-ext/
-    manifest.json, static/, pages/openapi-coverage.html
+    static/, pages/openapi-coverage.html   🔨  (no manifest.json)
 
 # user's project at the end of the spike
 .

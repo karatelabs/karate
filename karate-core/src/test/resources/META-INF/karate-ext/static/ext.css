@@ -1,0 +1,2 @@
+/* Test-only ext stylesheet for DummyExt; scoped to avoid colliding with core. */
+.k-dummy-ext { display: contents; }

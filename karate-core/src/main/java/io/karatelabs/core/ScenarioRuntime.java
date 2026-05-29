@@ -173,6 +173,16 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             karate.setEnv(featureRuntime.getSuite().env);
         }
 
+        // Seed ext globals (registered by exts in onBoot) into JS scope as hidden
+        // root bindings — same mechanism as the karate/read/match globals — so they
+        // survive across steps and are visible to karate-config.js. Done before
+        // evalConfig() below; applies to called features too (suite-level singletons).
+        if (featureRuntime != null && featureRuntime.getSuite() != null) {
+            for (var entry : featureRuntime.getSuite().getGlobals().entrySet()) {
+                karate.engine.putRootBinding(entry.getKey(), entry.getValue());
+            }
+        }
+
         // Evaluate config (only for top-level scenarios, not called features).
         // In dry-run mode, skip config JS for non-@setup scenarios - @setup scenarios
         // still run fully so scenario outlines can resolve their example data (V1 parity).
