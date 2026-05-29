@@ -61,12 +61,12 @@ import static org.junit.jupiter.api.Assertions.*;
  * throws or the JVM is yanked, no listener leaks past the test method.
  *
  * Regression coverage:
- *   - issue #2877: HTTPS-through-proxy must send the target host as SNI, not "" / proxy host.
+ *   - HTTPS-through-proxy must send the target host as SNI, not "" / proxy host.
  */
 class ApacheHttpClientProxySslE2eTest {
 
     /**
-     * Issue #2877: after a successful proxy CONNECT, the TLS ClientHello must carry the
+     * After a successful proxy CONNECT, the TLS ClientHello must carry the
      * actual HTTPS target host as the SNI server_name. Before the fix,
      * {@code LenientSslConnectionSocketFactory.createLayeredSocket} forced an empty SNI,
      * which broke handshakes against any SNI-routed backend (CDN, k8s ingress, etc.).
@@ -97,7 +97,7 @@ class ApacheHttpClientProxySslE2eTest {
             assertTrue(proxy.awaitSni(5, TimeUnit.SECONDS), "proxy never captured a ClientHello");
             assertEquals(List.of(target + ":443"), proxy.connectTargets);
             assertEquals(List.of(target), proxy.sniHosts,
-                    "SNI must be the HTTPS target host, not the proxy host (issue #2877)");
+                    "SNI must be the HTTPS target host, not the proxy host");
         }
     }
 

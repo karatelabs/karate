@@ -237,7 +237,7 @@ class DialogE2eTest extends DriverTestBase {
         assertEquals(2, dialogCount.get());
     }
 
-    // Regression guard for https://github.com/karatelabs/karate/issues/2801
+    // Regression guard:
     // click() that triggers a blocking JS dialog must not throw. Dialog text
     // must be readable via driver.getDialogText() and dialog(true|false) must
     // resolve it.

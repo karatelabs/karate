@@ -49,7 +49,7 @@ class OperationTest {
     }
 
     @Test
-    void testIssue2515() {
+    void testEqualsArrayContainsOnlyWithNestedObjects() {
         String cat = """
                 {
                   name: 'Billie',
@@ -71,7 +71,7 @@ class OperationTest {
     }
 
     @Test
-    void testIssue2727() {
+    void testContainsDeepNestedArray() {
         String response = "[ { a: 1, b: [ { c: 3, d: 4 } ] } ]";
         Json pattern1 = Json.of("{ a: 1, b: [ { c: 3 } ] }");
         Engine engine = new Engine();

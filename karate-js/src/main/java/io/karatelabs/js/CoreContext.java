@@ -229,7 +229,7 @@ class CoreContext implements Context {
     //
     // Chain order: own bindings (local) → captured (closure snapshot) →
     // outer (lexical parent for function contexts; dynamic parent
-    // otherwise — see issue #2802) → root (with lazy built-in init).
+    // otherwise) → root (with lazy built-in init).
     BindingSlot resolve(String key) {
         if (bindings != null) {
             BindingSlot s = bindings.getSlot(key);
@@ -246,7 +246,7 @@ class CoreContext implements Context {
         // Function contexts use lexical scoping — walk outer, NOT parent
         // (parent here is the caller's context, which would give dynamic
         // scoping). Non-function contexts (block / loop scopes inside a
-        // function) have outer == null and walk parent. Issue #2802: a
+        // function) have outer == null and walk parent. Without this, a
         // caller's parameter name used to shadow the callee's closure-
         // captured `var` / parameter of the same name.
         if (outer != null) {

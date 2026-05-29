@@ -667,7 +667,7 @@ class StepXmlTest {
 
     @Test
     void testMatchSoapResponseWithAncestorNamespaces() {
-        // issue #2469 - xsi declared on soap:Envelope, used deep in tree.
+        // xsi declared on soap:Envelope, used deep in tree.
         // match on the whole doc must succeed - the diff path (toString on
         // descendant subtree) used to throw "Namespace for prefix 'xsi' has
         // not been declared" if anything differed, and the xmlstring
@@ -712,7 +712,7 @@ class StepXmlTest {
 
     @Test
     void testXmlStringOfDescendantWithAncestorNamespaces() {
-        // issue #2469 - xmlstring of a sub-element must pull in ancestor
+        // xmlstring of a sub-element must pull in ancestor
         // xmlns:* declarations so the subtree serializes cleanly
         ScenarioRuntime sr = run("""
             * def content =

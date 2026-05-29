@@ -56,7 +56,7 @@ class W3cDriverTest {
 
     @Test
     void testPrefixReturnMultiStatementLeftAlone() {
-        // Regression for https://github.com/karatelabs/karate/issues/2803
+        // Regression:
         // Prefixing `return` to the first statement makes every statement after the
         // first `;` dead code. Multi-statement scripts must pass through untouched so
         // W3C executeScript runs the whole function body.

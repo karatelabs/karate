@@ -1,6 +1,6 @@
 @expect-failure
 Feature: screenshotOnFailure regression
-  Regression guard for https://github.com/karatelabs/karate/issues/2845 —
+  Regression guard:
   when a step fails and the driver is configured with `screenshotOnFailure: true`
   (the default), a PNG screenshot must be embedded into the HTML report for
   the failed step.

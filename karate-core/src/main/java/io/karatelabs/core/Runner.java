@@ -700,7 +700,7 @@ public final class Runner {
          * <b>Provisional API — may change or be removed without notice.</b>
          * Exposed to support advanced runtime scenario discovery (e.g. sequential
          * retry against an expensive grid session) until in-suite orchestration
-         * hooks land — see <a href="https://github.com/karatelabs/karate/issues/2864">#2864</a>.
+         * hooks land.
          *
          * <p>Note: callers that filter the returned {@link Feature}s themselves
          * (e.g. by walking sections and evaluating a {@code TagSelector}) bypass

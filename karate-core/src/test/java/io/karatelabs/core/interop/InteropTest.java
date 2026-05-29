@@ -114,7 +114,7 @@ class InteropTest {
 
     @Test
     void testStaticVarArgs() {
-        // Issue #2761: static method with String... varargs
+        // static method with String... varargs
         ScenarioRuntime sr = run("""
             * def Pojo = Java.type('io.karatelabs.core.interop.SimplePojo')
             * def result = Pojo.staticVarArgs('a', 'b', 'v1')

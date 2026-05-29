@@ -295,7 +295,7 @@ class LocatorsTest {
         assertEquals("() => { return document.title }", Locators.toFunction(fn));
     }
 
-    // ========== toFunction: Regression for #2803 ==========
+    // ========== toFunction: Regression ==========
     // Plain string expressions must pass through toFunction() untouched.
     // Driver.script(Object) only wraps in IIFE when the result contains "=>"
     // or starts with "function", so anything toFunction() returns unchanged

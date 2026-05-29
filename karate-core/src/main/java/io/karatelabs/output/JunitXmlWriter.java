@@ -137,7 +137,7 @@ public final class JunitXmlWriter {
         xml.append(" time=\"").append(formatter.format(sr.getDurationMillis() / 1000.0)).append("\"");
         xml.append(">");
 
-        // Properties for tags — Xray-style convention (#2818):
+        // Properties for tags — Xray-style convention:
         //   `@key=v1,v2` → <property name="key" value="v1,v2"/>  (v1 parity; Xray reads
         //                  `requirements`, `requirement`, `test_key`, `test_id`,
         //                  `test_summary`, `test_description`, `tr:<field>`, etc.)
@@ -210,7 +210,7 @@ public final class JunitXmlWriter {
         for (StepResult sr : stepResults) {
             // Synthetic step results (lifecycle hooks, @fail tag, scenario init failures)
             // have a null Step — render a "* <hookName-or-message>" placeholder rather than
-            // NPE'ing and silently dropping the entire feature's XML. See issue #2827.
+            // NPE'ing and silently dropping the entire feature's XML.
             boolean syntheticLogIsDescription = false;
             if (sr.getStep() != null) {
                 sb.append(sr.getStep().getPrefix()).append(" ").append(sr.getStep().getText()).append("\n");

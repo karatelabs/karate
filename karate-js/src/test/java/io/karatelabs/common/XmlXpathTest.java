@@ -72,7 +72,7 @@ class XmlXpathTest {
 
     @Test
     void testSerializeDescendantWithAncestorNamespaces() {
-        // issue #2469 - xsi declared on soap:Envelope, attribute used on a
+        // xsi declared on soap:Envelope, attribute used on a
         // nested element. Serializing the nested subtree must pull down
         // ancestor xmlns:* declarations or the Transformer throws
         // "Namespace for prefix 'xsi' has not been declared".

@@ -296,7 +296,7 @@ class StepJsTest {
 
     @Test
     void testKarateGetWithDotPath() {
-        // v1 parity: karate.get('var.nested.prop') should traverse the object graph (issue #2833)
+        // v1 parity: karate.get('var.nested.prop') should traverse the object graph
         ScenarioRuntime sr = run("""
             * def myObject = { name: 'John', address: { city: 'NewYork', zip: '111' } }
             * def viaKarateGet = karate.get('myObject.address.city', 'NOT_FOUND')
@@ -349,7 +349,7 @@ class StepJsTest {
         assertPassed(sr);
     }
 
-    // Issue #2886 — sibling of the `set var['hy-phen']` fix. karate.set() is
+    // Sibling of the `set var['hy-phen']` fix. karate.set() is
     // documented as accepting JSONPath, so bracket-quoted keys must work too.
     @Test
     void testKarateSetWithBracketedSpecialCharKey() {
@@ -363,7 +363,7 @@ class StepJsTest {
         assertPassed(sr);
     }
 
-    // Issue #2842 — v1 bulk form: a single Map argument sets each top-level
+    // v1 bulk form: a single Map argument sets each top-level
     // key as a variable. Common pattern is `karate.set(read('settings.json'))`.
     @Test
     void testKarateSetBulkFromMap() {
@@ -1247,11 +1247,10 @@ class StepJsTest {
         assertPassed(sr);
     }
 
-    // ========== Issue #2778: embedded expressions in read() JSON ==========
+    // ========== embedded expressions in read() JSON ==========
 
     @Test
     void testReadJsonEmbeddedExpressions() {
-        // https://github.com/karatelabs/karate/issues/2778
         // Embedded expressions like #(myVar) in JSON files loaded via read() should be resolved
         ScenarioRuntime sr = run("""
             * def myVar = 'hello'
@@ -1262,11 +1261,10 @@ class StepJsTest {
         assertPassed(sr);
     }
 
-    // ========== Issue #2802: lexical scoping across call boundaries ==========
+    // ========== lexical scoping across call boundaries ==========
 
     @Test
     void testCalleeClosureNotShadowedByCallerSameNamedParam() {
-        // https://github.com/karatelabs/karate/issues/2802
         // Factory captures `config` by closure; caller's parameter is also named
         // `config`. Lexical scoping must win - closure must see the factory's
         // captured config, not the caller's `{ db: ... }` argument.
@@ -1284,7 +1282,7 @@ class StepJsTest {
     @Test
     void testReadJsFunctionPreservesLexicalScope() {
         // Same shape but the caller is loaded via read('classpath:*.js') -
-        // the original failure path from the issue.
+        // the original failure path.
         ScenarioRuntime sr = run("""
             * def dbConfig = { url: 'jdbc:fake' }
             * def factory = function(config) { return { read: function() { return config.url } } }
@@ -1296,11 +1294,10 @@ class StepJsTest {
         assertPassed(sr);
     }
 
-    // ========== Issue #2777: ES6 null/undefined loose equality ==========
+    // ========== ES6 null/undefined loose equality ==========
 
     @Test
     void testNullLooseEqualityWithFalsyValues() {
-        // https://github.com/karatelabs/karate/issues/2777
         // Per ES6: null/undefined are only loosely equal to each other, not to other falsy values
         ScenarioRuntime sr = runFeature("""
             Feature:

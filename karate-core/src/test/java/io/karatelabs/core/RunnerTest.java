@@ -498,7 +498,7 @@ class RunnerTest {
         assertEquals(2, result.getScenarioPassedCount());
     }
 
-    // ========== Scenario name filter (issue #2522) ==========
+    // ========== Scenario name filter ==========
 
     @Test
     void testRunnerWithScenarioNameFilter() throws Exception {
@@ -739,8 +739,8 @@ class RunnerTest {
     }
 
     /**
-     * Demonstrate it is possible to resolve individual scenarios at runtime. This is only needed until something like
-     * [in-suite orchestration hooks via karate-boot.js](https://github.com/karatelabs/karate/issues/2864) lands.
+     * Demonstrate it is possible to resolve individual scenarios at runtime. This is only needed until
+     * in-suite orchestration hooks via karate-boot.js land.
      *
      * <p>Caveat: the JS below filters via {@code TagSelector} only — it bypasses
      * {@code FeatureRuntime.shouldSelect} and so does NOT honour {@code @ignore},

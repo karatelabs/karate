@@ -244,7 +244,6 @@ class CucumberJsonWriterTest {
 
     @Test
     void testCucumberJsonStripsAnsiEscapeCodes() throws Exception {
-        // regression for https://github.com/karatelabs/karate/issues/2799
         // step logs can contain raw ANSI codes (from HttpLogger) which break downstream tools
         // build ANSI at runtime via String.fromCharCode so the feature source has no ESC bytes
         Path feature = tempDir.resolve("ansi.feature");
@@ -345,7 +344,6 @@ class CucumberJsonWriterTest {
 
     @Test
     void testCucumberJsonWithSyntheticStep() throws Exception {
-        // regression for https://github.com/karatelabs/karate/issues/2827
         // synthetic step results (null Step) — produced by @fail tag, lifecycle hooks,
         // and scenario init failures — used to NPE in stepToMap and silently drop the
         // entire feature's JSON file.

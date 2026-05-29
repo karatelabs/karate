@@ -561,11 +561,11 @@ class ScenarioConfigTest {
         assertTrue(foundConfigPath, "Debug points should include karate-config.js source path. Points: " + debugPoints);
     }
 
-    // ========== Issue #2780: toLocaleDateString in config ==========
+    // ========== toLocaleDateString in config ==========
 
     @Test
     void testToLocaleDateStringInConfig() throws Exception {
-        // This is the exact pattern from issue #2780 that was failing silently
+        // This is the exact pattern that was failing silently
         Path configFile = tempDir.resolve("karate-config.js");
         Files.writeString(configFile, """
             function fn() {
@@ -581,7 +581,7 @@ class ScenarioConfigTest {
 
         Path featureFile = tempDir.resolve("test.feature");
         Files.writeString(featureFile, """
-            Feature: Issue 2780
+            Feature: config with toLocaleDateString
             Scenario: Config with toLocaleDateString
             * match simpleStuff == 'Hello World'
             * match dateString != null
@@ -744,10 +744,10 @@ class ScenarioConfigTest {
         assertEquals(1, result.getScenarioFailedCount());
     }
 
-    // ========== Issue #2804: variables from Background call not visible in Scenario ==========
+    // ========== variables from Background call not visible in Scenario ==========
 
     @Test
-    void testIssue2804_plain() throws Exception {
+    void testBackgroundCallVar_plain() throws Exception {
         // Baseline: define testData directly in Background (no call). Expected to pass.
         Path feature = tempDir.resolve("testData-plain.feature");
         Files.writeString(feature, """
@@ -762,7 +762,7 @@ class ScenarioConfigTest {
     }
 
     @Test
-    void testIssue2804_predefined() throws Exception {
+    void testBackgroundCallVar_predefined() throws Exception {
         // Pre-define testData = {} then call a reusable feature which redefines it.
         Path reusable = tempDir.resolve("testData-direct.reusable.feature");
         Files.writeString(reusable, """
@@ -785,7 +785,7 @@ class ScenarioConfigTest {
     }
 
     @Test
-    void testIssue2804_direct() throws Exception {
+    void testBackgroundCallVar_direct() throws Exception {
         // Reusable feature uses `def` to create testData - caller does NOT pre-define it.
         // V1 behavior: the call in Background merges variables into caller scope.
         Path reusable = tempDir.resolve("testData-direct.reusable.feature");
@@ -808,7 +808,7 @@ class ScenarioConfigTest {
     }
 
     @Test
-    void testIssue2804_karate() throws Exception {
+    void testBackgroundCallVar_karate() throws Exception {
         // Reusable feature uses `karate.set()` to create testData - caller does NOT pre-define it.
         // V1 behavior: the call in Background merges variables into caller scope.
         Path reusable = tempDir.resolve("testData-karate.reusable.feature");
@@ -831,10 +831,10 @@ class ScenarioConfigTest {
     }
 
     // Same as above, but running via scenario-name filter (simulates IDE "run single scenario").
-    // This is the path that actually fails per the issue reporter.
+    // This is the path that actually fails when running a single scenario.
 
     @Test
-    void testIssue2804_direct_singleScenario() throws Exception {
+    void testBackgroundCallVar_direct_singleScenario() throws Exception {
         Path reusable = tempDir.resolve("testData-direct.reusable.feature");
         Files.writeString(reusable, """
             @ignore
@@ -862,7 +862,7 @@ class ScenarioConfigTest {
     }
 
     @Test
-    void testIssue2804_karate_singleScenario() throws Exception {
+    void testBackgroundCallVar_karate_singleScenario() throws Exception {
         Path reusable = tempDir.resolve("testData-karate.reusable.feature");
         Files.writeString(reusable, """
             @ignore
@@ -889,10 +889,10 @@ class ScenarioConfigTest {
         assertTrue(result.isPassed(), "karate.set-via-call should pass when running single scenario by name");
     }
 
-    // ========== Issue #2805: functions from karate-config.js not available in called feature ==========
+    // ========== functions from karate-config.js not available in called feature ==========
 
     @Test
-    void testIssue2805_callonceInBackground() throws Exception {
+    void testConfigFunctionsInCalledFeature_callonceInBackground() throws Exception {
         // karate-config.js defines a variable AND a function
         Path configFile = tempDir.resolve("karate-config.js");
         Files.writeString(configFile, """
@@ -933,7 +933,7 @@ class ScenarioConfigTest {
     }
 
     @Test
-    void testIssue2805_callInBackground() throws Exception {
+    void testConfigFunctionsInCalledFeature_callInBackground() throws Exception {
         // Same as above but using plain `call` instead of `callonce`
         Path configFile = tempDir.resolve("karate-config.js");
         Files.writeString(configFile, """

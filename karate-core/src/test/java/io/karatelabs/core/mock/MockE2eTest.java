@@ -569,7 +569,7 @@ class MockE2eTest {
 
     @Test
     void testCookieQuotedPreservedOnReplay() {
-        // Issue #2779: server sends quoted cookie, should be replayed quoted
+        // server sends quoted cookie, should be replayed quoted
         ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
             Feature: Quoted cookie preserved on replay
 
@@ -590,7 +590,7 @@ class MockE2eTest {
 
     @Test
     void testCookieUnquotedPreservedOnReplay() {
-        // Issue #2779: server sends unquoted cookie, should be replayed unquoted
+        // server sends unquoted cookie, should be replayed unquoted
         ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
             Feature: Unquoted cookie preserved on replay
 
@@ -1531,7 +1531,7 @@ class MockE2eTest {
 
     @Test
     void testCookieJarInheritedByCalledFeature() throws Exception {
-        // Issue #2762: cookies set in caller should be available in called feature (shared scope)
+        // cookies set in caller should be available in called feature (shared scope)
         // The caller sets a cookie via Set-Cookie, then calls a helper feature.
         // The helper should inherit the caller's cookie jar so its requests include the cookie.
 
@@ -1680,12 +1680,12 @@ class MockE2eTest {
         assertPassed(sr);
     }
 
-    // ===== karate.response in Test Context (issue #2830) =====
+    // ===== karate.response in Test Context =====
 
     @Test
     void testKarateResponseHeaderCaseInsensitiveE2e() {
-        // Issue #2830: karate.response.header('content-type') should work in test context
-        // and be case-insensitive (also confirms the documented escape hatch in the issue).
+        // karate.response.header('content-type') should work in test context
+        // and be case-insensitive (also confirms the documented escape hatch).
         ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
             Feature: karate.response.header in test context
 

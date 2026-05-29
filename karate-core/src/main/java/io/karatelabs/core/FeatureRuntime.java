@@ -751,7 +751,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
 
             // For called features (caller != null), don't apply user-facing filters
             // (@ignore, @env, scenarioName). These only exclude scenarios from
-            // top-level runner selection. Issue #2804: without this, a called
+            // top-level runner selection. Without this, a called
             // feature's anonymous Scenario: would be filtered out whenever a
             // top-level scenarioName filter is active, causing variable-propagation
             // from Background `call read(...)` to silently break.

@@ -764,11 +764,10 @@ class GherkinParserTest {
         assertTrue(feature.getSections().isEmpty());
     }
 
-    // ========== Issue #2775: Docstring under Scenario Outline ==========
+    // ========== Docstring under Scenario Outline ==========
 
     @Test
     void testExamplesTagsBelongToExamplesNotOutline() {
-        // https://github.com/karatelabs/karate/issues/2773
         // Tags on Examples blocks should be parsed as children of G_EXAMPLES,
         // not as children of G_SCENARIO_OUTLINE
         parseWithAst("""
@@ -801,7 +800,6 @@ class GherkinParserTest {
 
     @Test
     void testScenarioOutlineWithDocstringBeforeSteps() {
-        // https://github.com/karatelabs/karate/issues/2775
         parseWithAst("""
                 Feature: Docstring bug
                 Scenario Outline: My outline
@@ -867,7 +865,6 @@ class GherkinParserTest {
 
     @Test
     void testDocstringWithAtSignDoesNotBreakParsing() {
-        // https://github.com/karatelabs/karate/issues/2775
         // An @ inside a docstring should NOT be tokenized as a tag
         parseWithAst("""
                 Feature: Docstring with @

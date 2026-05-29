@@ -105,7 +105,7 @@ class TagSelectorTest {
 
     @Test
     void testTagValueSelectorsAggregateSameName() {
-        // issue #2859 — multiple same-name tags (@suite=x + @suite=y) must aggregate,
+        // multiple same-name tags (@suite=x + @suite=y) must aggregate,
         // equivalent to the comma form @suite=x,y
         assertTrue(eval("valuesFor('@suite').isAnyOf('x')", "@suite=x", "@suite=y"));
         assertTrue(eval("valuesFor('@suite').isAnyOf('y')", "@suite=x", "@suite=y"));

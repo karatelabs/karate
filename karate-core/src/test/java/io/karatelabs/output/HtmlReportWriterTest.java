@@ -1208,11 +1208,11 @@ class HtmlReportWriterTest {
         assertTrue(stepLog.contains("X-Secret: ***"), "X-Secret header should be masked");
     }
 
-    // Repro for issue #2826 — mask configured via karate.configure() inside karate-config.js
-    // is silently dropped because ScenarioRuntime.call() resets LogContext to a fresh instance
+    // A mask configured via karate.configure() inside karate-config.js must not be
+    // silently dropped — ScenarioRuntime.call() resets LogContext to a fresh instance
     // AFTER karate-config.js has already populated it during the constructor's initEngine().
     @Test
-    void testIssue2826MaskInKarateConfigJs(@TempDir Path tempDir) throws Exception {
+    void testMaskConfiguredInKarateConfigJs(@TempDir Path tempDir) throws Exception {
         Path configJs = tempDir.resolve("karate-config.js");
         Files.writeString(configJs, """
                 function fn() {

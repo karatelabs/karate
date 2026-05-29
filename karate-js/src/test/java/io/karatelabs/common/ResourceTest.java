@@ -1583,7 +1583,6 @@ class ResourceTest {
 
     @Test
     void testJarResourceGetExtension() throws Exception {
-        // Reproduces https://github.com/karatelabs/karate/issues/2811
         // For JAR-backed PathResources, uri.getPath() is null because jar: URIs are opaque,
         // which used to NPE inside Resource.getExtension().
         Path jarPath = tempDir.resolve("ext.jar");

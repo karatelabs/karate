@@ -5,7 +5,7 @@ function fn() {
   };
   karate.log('karate-config: using baseUrl', config.baseUrl);
   // Demonstrate karate.callSingle() from karate-config.js — runs the helper
-  // exactly once per suite under a lock. After issue #2840 the winning
+  // exactly once per suite under a lock. The winning
   // scenario's first step (or its beforeScenario synthetic step, if one is
   // present) carries the helper's nested FeatureResult so its HTTP traffic
   // renders in the HTML report.

@@ -146,7 +146,7 @@ public class DemoPojo {
         return bytes[index];
     }
 
-    // Mirrors the issue #2837 scenario: a Java method with a Predicate parameter
+    // Exercises a Java method with a Predicate parameter
     public List<Map<String, Object>> filterRows(List<Map<String, Object>> rows, Predicate<Map<String, Object>> condition) {
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> row : rows) {

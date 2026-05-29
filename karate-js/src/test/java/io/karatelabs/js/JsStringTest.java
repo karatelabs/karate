@@ -140,7 +140,7 @@ class JsStringTest extends EvalBase {
         assertEquals("bar", eval("a = 'foobar'; a.substring(3)"));
         assertEquals("ob", eval("a = 'foobar'; a.substring(2, 4)"));
         assertEquals("oob", eval("a = 'foobar'; a.substring(4, 1)"));  // should swap indices
-        // Annex B substr — kept for legacy / v1 parity (issue #2842)
+        // Annex B substr — kept for legacy / v1 parity
         assertEquals("bar", eval("a = 'foobar'; a.substr(3)"));
         assertEquals("oba", eval("a = 'foobar'; a.substr(2, 3)"));
         assertEquals("obar", eval("a = 'foobar'; a.substr(-4)"));

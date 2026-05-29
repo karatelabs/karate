@@ -333,7 +333,7 @@ class JsStringPrototype extends Prototype {
     }
 
     // Annex B §B.2.2.1 — legacy String.prototype.substr(start, length).
-    // Kept for v1 parity (issue #2842): widely used in older test suites
+    // Kept for v1 parity: widely used in older test suites
     // (e.g. `id.substr(-4)`), and modern engines still expose it.
     //   - Negative `start` → max(len + start, 0).
     //   - `length` defaults to len - start, clamped to [0, len - start].

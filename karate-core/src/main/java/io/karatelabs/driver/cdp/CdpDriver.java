@@ -1062,8 +1062,6 @@ public class CdpDriver implements Driver {
                 // accessible via getDialog() / getDialogText() / driver.dialogText
                 // and can be resolved with dialog(true|false). Return an empty
                 // response so extractJsValue yields null.
-                //
-                // See: https://github.com/karatelabs/karate/issues/2797
                 logger.debug("script opened a dialog, returning null: {}", truncate(expression, 100));
                 return new CdpResponse(Map.of());
             }

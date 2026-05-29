@@ -36,7 +36,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for beforeScenario / afterScenario lifecycle hooks in regular (non-mock) execution.
- * Covers GitHub issues #2796, #2540, #2699, #2239.
  */
 public class ScenarioHooksTest {
 
@@ -60,7 +59,7 @@ public class ScenarioHooksTest {
         beforeHookCount++;
     }
 
-    // ===== #2796: afterScenario defined in Background fires in regular execution =====
+    // ===== afterScenario defined in Background fires in regular execution =====
 
     @Test
     void testAfterScenarioRunsOnPass_fromBackground() throws Exception {
@@ -86,7 +85,7 @@ public class ScenarioHooksTest {
         assertEquals(2, hookCount, "afterScenario should fire once per scenario");
     }
 
-    // ===== #2540: afterScenario runs even when the scenario fails =====
+    // ===== afterScenario runs even when the scenario fails =====
 
     @Test
     void testAfterScenarioRunsOnFail() throws Exception {
@@ -108,7 +107,7 @@ public class ScenarioHooksTest {
         assertEquals(1, hookCount, "afterScenario should fire even when scenario fails");
     }
 
-    // ===== #2699: hook failure fails the scenario by default =====
+    // ===== hook failure fails the scenario by default =====
 
     @Test
     void testHookMatchFailureFailsScenario() throws Exception {
@@ -261,7 +260,7 @@ public class ScenarioHooksTest {
                 "user-wrapped hook failure should not fail the scenario: " + getFailureMessage(result));
     }
 
-    // ===== #2239: beforeScenario hook =====
+    // ===== beforeScenario hook =====
 
     @Test
     void testBeforeScenarioFromConfigJs() throws Exception {
@@ -295,7 +294,7 @@ public class ScenarioHooksTest {
         assertEquals(2, beforeHookCount, "beforeScenario should fire once per scenario");
     }
 
-    // ===== #2796 follow-up: karate.call() inside afterScenario must not recurse =====
+    // ===== follow-up: karate.call() inside afterScenario must not recurse =====
 
     @Test
     void testAfterScenarioWithKarateCallDoesNotRecurse() throws Exception {
@@ -336,7 +335,7 @@ public class ScenarioHooksTest {
         assertEquals(2, beforeHookCount, "cleanup scenario body should have run once per call");
     }
 
-    // ===== #2887: afterScenario karate.call must not SOE when a scenario var holds a cycle =====
+    // ===== afterScenario karate.call must not SOE when a scenario var holds a cycle =====
 
     @Test
     void testAfterScenarioCallWithCircularScenarioVariable() throws Exception {

@@ -140,7 +140,7 @@ Scenario: Loop call with array data
 Scenario: callSingle nested feature with HTTP traffic
 # callSingle runs the helper exactly once per suite under a lock; the winning
 # scenario's calling step carries the nested FeatureResult so the helper's
-# HTTP request/response renders under this step in the HTML report (issue #2840).
+# HTTP request/response renders under this step in the HTML report.
 # The ?suffix gives this call its own cache key — distinct from the config-time
 # callSingle in karate-config.js — so this scenario reliably surfaces the nested
 # HTTP traffic regardless of parallel ordering.

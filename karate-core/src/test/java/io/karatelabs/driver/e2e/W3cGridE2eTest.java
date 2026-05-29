@@ -60,7 +60,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * lenient about filters like {@code CheckContentTypeHeader}, while a real grid
  * (Selenium Grid, SauceLabs, BrowserStack, Selenium Server in hub mode)
  * applies them strictly on every routed request. This split is what allowed
- * the bug fixed in #2883 (missing {@code charset=utf-8} on POST /session) to
+ * an earlier bug (missing {@code charset=utf-8} on POST /session) to
  * slip past the existing standalone-container test.</p>
  *
  * <p>This test runs the smallest meaningful navigation flow against a real

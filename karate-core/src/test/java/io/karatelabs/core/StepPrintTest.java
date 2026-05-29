@@ -130,7 +130,7 @@ class StepPrintTest {
 
     @Test
     void testPrintCircularReference() {
-        // regression: issue #2880 — printing a Map with a self-reference crashed
+        // regression: printing a Map with a self-reference crashed
         // with StackOverflowError because Json.stringifyStrict fed json-smart's
         // writer directly (no cycle guard).
         ScenarioRuntime sr = run("""

@@ -156,7 +156,7 @@ class DriverFeatureTest {
     }
 
     /**
-     * Regression guard for https://github.com/karatelabs/karate/issues/2798 —
+     * Regression guard:
      * screenshot() from Gherkin must embed the image into the HTML report.
      *
      * <p>We verify the embed pipeline end-to-end: the PNG bytes land on disk

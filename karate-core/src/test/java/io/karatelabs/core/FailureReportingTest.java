@@ -170,7 +170,7 @@ class FailureReportingTest {
 
     @Test
     void testPrintSummaryShowsFullErrorMessageWithoutTruncation() throws Exception {
-        // Regression for #2822 — the failed-features console block used to truncate
+        // Regression: the failed-features console block used to truncate
         // failure messages at 200 chars, hiding the actual diff. We want the full
         // message printed, since match diffs and JS error stacks routinely exceed 200.
         Path feature = tempDir.resolve("long-fail.feature");
@@ -200,7 +200,7 @@ class FailureReportingTest {
         assertTrue(output.contains("Expected [value-A] but got [value-B]"),
                 "expected leading diff content in summary output: " + output);
         assertTrue(output.contains("TAIL_TOKEN_END"),
-                "expected tail of long message in summary output (regression for #2822): " + output);
+                "expected tail of long message in summary output (regression): " + output);
 
         // No truncation marker on the failure message line. We isolate the failed-features
         // block to avoid false positives from unrelated "..." elsewhere in summary output.

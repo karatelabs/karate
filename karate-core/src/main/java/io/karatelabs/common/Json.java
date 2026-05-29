@@ -341,8 +341,8 @@ public class Json {
         String left = path.substring(0, pos == -1 ? 0 : pos);
         // Unwrap a leading bracket-quoted segment so the leaf is a bare key for
         // Jayway's doc.put — its second arg is a literal key, not a path. Without
-        // this, `set var['hy-phen'] = v` produces a literal `['hy-phen']` key
-        // (issue #2886). Any trailing `[N]` array index is preserved as-is.
+        // this, `set var['hy-phen'] = v` produces a literal `['hy-phen']` key.
+        // Any trailing `[N]` array index is preserved as-is.
         if (right.length() >= 4 && right.charAt(0) == '[') {
             char q = right.charAt(1);
             if (q == '\'' || q == '"') {

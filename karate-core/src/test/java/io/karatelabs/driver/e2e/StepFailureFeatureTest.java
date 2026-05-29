@@ -44,7 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Regression guard for <a href="https://github.com/karatelabs/karate/issues/2845">#2845</a>:
+ * Regression guard:
  * when a Gherkin step fails and the driver has {@code screenshotOnFailure: true}
  * (default), a PNG screenshot must land in the HTML report against the failed
  * step. Also verifies the negative path: {@code screenshotOnFailure: false}

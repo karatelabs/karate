@@ -207,7 +207,7 @@ class JunitXmlWriterTest {
         String xml = Files.readString(xmlPath);
 
         // Plain tags are aggregated into a single <property name="tags" value="@a,@b"/>
-        // (Xray-style convention — see issue #2818). Feature-level tags are inherited.
+        // (Xray-style convention). Feature-level tags are inherited.
         assertTrue(xml.contains("<properties>"));
         assertTrue(xml.contains("<property name=\"tags\" value=\"@feature-tag,@smoke,@api\"/>"));
         assertTrue(xml.contains("</properties>"));
@@ -215,7 +215,6 @@ class JunitXmlWriterTest {
 
     @Test
     void testJunitXmlKeyValueTagsAsNamedProperties() throws Exception {
-        // regression for https://github.com/karatelabs/karate/issues/2818
         // Xray (and other CI tools) key on the property *name*, so `@key=v1,v2` must map to
         // <property name="key" value="v1,v2"/> instead of the generic `name="tag"` form.
         Path feature = tempDir.resolve("xray.feature");
@@ -252,7 +251,6 @@ class JunitXmlWriterTest {
 
     @Test
     void testJunitXmlStripsAnsiEscapeCodes() throws Exception {
-        // regression for https://github.com/karatelabs/karate/issues/2799
         // step logs can contain raw ANSI codes (from HttpLogger) which break CI parsers
         // build ANSI at runtime via String.fromCharCode so the feature source has no ESC bytes
         // (if ESC were in the step text itself it'd leak into the XML regardless of log stripping)
@@ -316,7 +314,6 @@ class JunitXmlWriterTest {
 
     @Test
     void testJunitXmlWithSyntheticStep() throws Exception {
-        // regression for https://github.com/karatelabs/karate/issues/2827
         // synthetic step results (null Step) — produced by @fail tag, lifecycle hooks,
         // and scenario init failures — used to NPE in appendStepLogs and silently drop
         // the entire feature's XML file.

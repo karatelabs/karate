@@ -415,10 +415,10 @@ class StepConfigureTest {
         assertPassed(sr);
     }
 
-    // ========== Config propagation into called features (issue #2839) ==========
+    // ========== Config propagation into called features ==========
 
     /**
-     * Issue #2839: a proxy configured globally in karate-config.js reaches the
+     * A proxy configured globally in karate-config.js reaches the
      * top-level scenario's HTTP client but is silently dropped on the way down
      * into a called feature. The called feature inherits the {@link KarateConfig}
      * fields but the freshly-constructed HTTP client never receives them.

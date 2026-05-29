@@ -52,7 +52,7 @@ Feature: Dialog Tests
     * match resultText == 'Prompt result: null'
     * onDialog(null)
 
-  # Regression guard for https://github.com/karatelabs/karate/issues/2797
+  # Regression guard for a script() that itself opens a blocking JS dialog
   # A script() that itself opens a blocking JS dialog (confirm/alert/prompt)
   # must not throw — the dialog text must be readable via driver.dialogText
   # and the dialog must be dismissable with dialog(true|false).
@@ -70,7 +70,7 @@ Feature: Dialog Tests
     * def cleared = driver.dialogText
     * match cleared == null
 
-  # Regression guard for https://github.com/karatelabs/karate/issues/2801
+  # Regression guard for click() on an element whose onclick opens a blocking dialog
   # click() on an element whose onclick opens a blocking dialog must not throw.
   # Previously the post-action BaseElement.of() re-ran exists(), which hit the
   # "dialog is blocking" fail-fast check in cdpEval.

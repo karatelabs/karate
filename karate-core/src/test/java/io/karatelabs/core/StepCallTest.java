@@ -199,7 +199,6 @@ class StepCallTest {
 
     @Test
     void testKarateCallWithArrayLoop() throws Exception {
-        // https://github.com/karatelabs/karate/issues/2806
         // karate.call(path, array) should iterate and invoke the callee per-element,
         // matching the semantics of: call read('path') array
         Path calledFeature = tempDir.resolve("called.feature");
@@ -632,7 +631,6 @@ class StepCallTest {
 
     @Test
     void testCallFeatureWithUnquotedEmbeddedExpression() throws Exception {
-        // https://github.com/karatelabs/karate/issues/2849
         // V1 accepted unquoted embedded expressions in inline call args, e.g.
         //   call read('called.feature') { userId: #(userId) }
         // (no quotes around #(userId)). In v2 this failed with `ReferenceError: # is not defined`
@@ -657,7 +655,7 @@ class StepCallTest {
         SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
 
         assertTrue(result.isPassed(),
-                "Unquoted #(...) in call arg should be resolved (issue #2849): " + getFailureMessage(result));
+                "Unquoted #(...) in call arg should be resolved: " + getFailureMessage(result));
     }
 
     @Test
@@ -1292,11 +1290,10 @@ class StepCallTest {
         return "unknown";
     }
 
-    // ========== Issue #2777: integer 0 passed as call argument arrives as undefined ==========
+    // ========== integer 0 passed as call argument arrives as undefined ==========
 
     @Test
     void testCallFeatureWithZeroArgument() throws Exception {
-        // https://github.com/karatelabs/karate/issues/2777
         // Passing integer 0 as a call argument should work - not arrive as undefined
         Path calledFeature = tempDir.resolve("called.feature");
         Files.writeString(calledFeature, """
@@ -1323,7 +1320,6 @@ class StepCallTest {
 
     @Test
     void testCallFeatureWithZeroViaEmbeddedExpression() throws Exception {
-        // https://github.com/karatelabs/karate/issues/2777
         // Passing 0 via embedded expression #(var) should also work
         Path calledFeature = tempDir.resolve("called.feature");
         Files.writeString(calledFeature, """
@@ -1351,7 +1347,6 @@ class StepCallTest {
 
     @Test
     void testCallFeatureWithFalsyArguments() throws Exception {
-        // https://github.com/karatelabs/karate/issues/2777
         // All falsy values (0, false, null, empty string) should be passed correctly
         Path calledFeature = tempDir.resolve("called.feature");
         Files.writeString(calledFeature, """
@@ -1377,7 +1372,7 @@ class StepCallTest {
         assertTrue(result.isPassed(), "Falsy values should be passed correctly: " + getFailureMessage(result));
     }
 
-    // ========== Issue #2763: call read() should fail caller when called feature fails ==========
+    // ========== call read() should fail caller when called feature fails ==========
 
     @Test
     void testCallFailedFeatureFailsCaller() throws Exception {
@@ -1475,11 +1470,10 @@ class StepCallTest {
         assertFalse(result.isPassed(), "Parent should fail when called feature has match failure");
     }
 
-    // ========== Issue #2816: karate.call() must propagate failures from called feature ==========
+    // ========== karate.call() must propagate failures from called feature ==========
 
     @Test
     void testKarateCallMatchFailureFailsCaller() throws Exception {
-        // https://github.com/karatelabs/karate/issues/2816
         // karate.call(path) should propagate a match failure in the called feature
         Path child = tempDir.resolve("child.feature");
         Files.writeString(child, """
@@ -1555,8 +1549,7 @@ class StepCallTest {
 
     @Test
     void testCallByTagDoesNotReExecuteOnFailure() throws Exception {
-        // Regression for https://github.com/karatelabs/karate/issues/2821
-        // `call read('file.feature@tag')` was executing the called scenario twice
+        // Regression: `call read('file.feature@tag')` was executing the called scenario twice
         // when it failed. The JS-eval probe in executeCall() caught FeatureCall
         // execution failures and silently fell through to the standard call path,
         // running the same scenario a second time and masking the original error.
@@ -1590,7 +1583,7 @@ class StepCallTest {
                 .mapToLong(step -> step.getCallResults().size())
                 .sum();
         assertEquals(1, calleeRuns,
-                "Called scenario should execute exactly once on failure (issue #2821), got " + calleeRuns);
+                "Called scenario should execute exactly once on failure, got " + calleeRuns);
     }
 
     @Test

@@ -51,7 +51,7 @@ public class Xml {
     }
 
     public static String toString(Node node, boolean pretty) {
-        // issue #2469 - when serializing a subtree that's still attached to a
+        // when serializing a subtree that's still attached to a
         // bigger document, any prefix declared on an ancestor (e.g. xsi on
         // soap:Envelope, used deep in the tree) is out of scope from the
         // serializer's view and it throws "Namespace for prefix X has not
@@ -462,7 +462,7 @@ public class Xml {
         // inherit in-scope xmlns:* declarations from the source node's
         // ancestors so a subtree lifted out of a bigger document stays
         // self-contained — otherwise prefixed names referencing an ancestor
-        // namespace (e.g. xsi:nil) fail to serialize. issue #2469
+        // namespace (e.g. xsi:nil) fail to serialize.
         if (in.getNodeType() == Node.ELEMENT_NODE && node.getNodeType() == Node.ELEMENT_NODE) {
             Element target = (Element) node;
             Map<String, String> inherited = collectAncestorNamespaces(in);

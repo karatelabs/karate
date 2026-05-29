@@ -748,7 +748,7 @@ class CallSingleTest {
         assertTrue(cacheFiles.length > 0, "Should have at least one cache file");
     }
 
-    // ========== Tests for callSingle reporting (issue #2840) ==========
+    // ========== Tests for callSingle reporting ==========
     // The "winning" scenario (the one whose thread acquires the lock and actually executes
     // the feature) should carry the called feature's FeatureResult on the calling step's
     // callResults so HTML / Cucumber JSON / JUnit reports surface its HTTP traffic and steps.

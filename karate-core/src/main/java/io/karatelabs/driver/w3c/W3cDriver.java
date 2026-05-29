@@ -1074,8 +1074,7 @@ public class W3cDriver implements Driver {
         // Multi-statement detection: a top-level semicolon followed by more code means
         // prefixing `return` would turn everything after the first `;` into dead code
         // (e.g. `return a = 1; b = 2` only runs the first assignment). Leave such scripts
-        // untouched so W3C executeScript runs the full function body. See
-        // https://github.com/karatelabs/karate/issues/2803.
+        // untouched so W3C executeScript runs the full function body.
         int semi = indexOfTopLevelSemicolon(trimmed);
         if (semi >= 0 && !trimmed.substring(semi + 1).isBlank()) {
             return js;

@@ -228,7 +228,7 @@ Feature: Element Tests
     * match form.matches('#test-form') == true
 
   # ========== script() and scriptAll() behaviors ==========
-  # Regressions for #2803: plain strings passed to script() must reach the browser
+  # Regression: plain strings passed to script() must reach the browser
   # unchanged — no implicit parenthesization that would break void method calls,
   # statements, or the comma operator.
 

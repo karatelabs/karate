@@ -313,7 +313,7 @@ public interface Driver extends CoreDriver, SimpleObject {
             // (v1 behavior). The Java API's 0-arg screenshot() deliberately
             // returns bytes without embedding; here we call screenshot(true)
             // so that `* screenshot` from a feature file shows up in the HTML
-            // report. See: https://github.com/karatelabs/karate/issues/2798
+            // report.
             case DriverApi.SCREENSHOT -> (JavaCallable) (ctx, args) -> {
                 if (args.length == 0) {
                     return screenshot(true);

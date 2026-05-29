@@ -371,7 +371,7 @@ public class StepExecutor {
         } else {
             // Type-probe first token as JS to distinguish js function / feature ref / path string.
             // Only the probe itself is wrapped — failures inside the call must propagate, not
-            // silently fall through and cause double-execution (issue #2821).
+            // silently fall through and cause double-execution.
             Object evaluated = null;
             try {
                 evaluated = runtime.eval(firstToken);
@@ -620,9 +620,9 @@ public class StepExecutor {
             }
 
             // V1-compatible: route LHS paths through Jayway. Covers JsonPath wildcards
-            // (`[*]`, `..`, `[?(...)]` — issue #2819) and auto-vivification of intermediate
+            // (`[*]`, `..`, `[?(...)]`) and auto-vivification of intermediate
             // objects when an inner segment is undefined (e.g. `set foo.a.b = 1` where
-            // `foo.a` doesn't exist — issue #2828). JS-style dynamic indices like `arr[i]`
+            // `foo.a` doesn't exist). JS-style dynamic indices like `arr[i]`
             // fail `isPureJsonPath` and continue to route through the JS engine below.
             // The v2-idiomatic alternative is a single `def` with an object literal;
             // `set` is retained for v1 migration and XML xpath updates.
@@ -640,7 +640,7 @@ public class StepExecutor {
             // V1 compatibility: `set varname = expr` where varname is a bare identifier
             // routes the RHS through evalKarateExpression — same path as `def`/`match`/
             // `configure`. Without this, `set foo = { id: #(id) }` fails JS parsing on
-            // the `#`. See issue #2813 and the broader RHS-semantics fix.
+            // the `#`. This matches the broader RHS-semantics handling.
             if (StepUtils.isPlainIdentifier(leftPart)) {
                 String valueExpr = text.substring(eqIndex + 1).trim();
                 Object value = evalKarateExpression(valueExpr);
@@ -1349,7 +1349,7 @@ public class StepExecutor {
             // Check if it's var[*].path, var[?...].path, var..path, or var.prop[*].path pattern
             int bracketIdx = expr.indexOf('[');
             int doubleDotIdx = expr.indexOf("..");
-            // Split at whichever operator appears first — issue #2841: `response..items[*].type`
+            // Split at whichever operator appears first — e.g. `response..items[*].type`
             // would otherwise split at `[` and try to JS-eval `response..items`.
             int splitIdx;
             if (bracketIdx > 0 && (doubleDotIdx < 0 || bracketIdx < doubleDotIdx)) {
@@ -1405,7 +1405,7 @@ public class StepExecutor {
                 String propName = expr.substring(lastDot + 1);
                 // Resolve the base and check key presence directly. The JS `in`
                 // operator can misreport Java Map keys, so we cannot rely on it
-                // (issue #2820 — a real null property looked like #notpresent).
+                // (a real null property looked like #notpresent).
                 try {
                     Object base = runtime.eval(basePath);
                     if (base instanceof Map<?, ?> baseMap) {
@@ -1955,7 +1955,7 @@ public class StepExecutor {
 
         // Set method on the builder up-front so any build() below sees the real method.
         // Without this, build() defaults method to GET and destructively drains form fields
-        // into the URL (HttpRequestBuilder.buildInternal) — see issue #2851.
+        // into the URL (HttpRequestBuilder.buildInternal).
         http().method(method);
 
         // Apply cookies from the cookie jar (V1 compatibility: auto-send responseCookies)
@@ -2419,7 +2419,7 @@ public class StepExecutor {
         } else {
             // Type-probe first token as JS to distinguish js function / feature ref / path string.
             // Only the probe itself is wrapped — failures inside the call must propagate, not
-            // silently fall through and cause double-execution (issue #2821).
+            // silently fall through and cause double-execution.
             Object evaluated = null;
             try {
                 evaluated = runtime.eval(firstToken);
@@ -3051,7 +3051,7 @@ public class StepExecutor {
             try {
                 return runtime.eval(expr);
             } catch (Exception e) {
-                // V1 parity (issue #2831): an embedded expression `#(...)` can be any
+                // V1 parity: an embedded expression `#(...)` can be any
                 // valid JS — a bare identifier, a property chain, a ternary, a call —
                 // and at `def` time we may not yet have the surrounding context the
                 // expression needs. Rather than special-casing error kinds, we mirror

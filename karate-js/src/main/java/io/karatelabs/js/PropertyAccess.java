@@ -595,7 +595,7 @@ class PropertyAccess {
             // ZonedDateTime.format remain callable. A plain JsObject without
             // an original returns UNDEFINED here — bridge access on a JS-only
             // object would expose wrapper internals and shadow the
-            // intentionally-undefined property. See #2815.
+            // intentionally-undefined property.
             if (!(object instanceof JsValue jv) || jv.getOriginalJavaValue() == null) {
                 return Terms.UNDEFINED;
             }

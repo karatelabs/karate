@@ -331,7 +331,6 @@ public class OutlineTest {
 
     @Test
     void testOutlinePlaceholderInDocStringWithTypeHint() throws Exception {
-        // https://github.com/karatelabs/karate/issues/2847
         // A step whose only content is the keyword (e.g. `request`) followed by a doc-string
         // produces step.text == null. Outline expansion then NPE'd on text.replace(...).
         Path feature = tempDir.resolve("outline-docstring-typehint.feature");
@@ -1186,11 +1185,10 @@ public class OutlineTest {
 
     // ========== Helper Methods ==========
 
-    // ========== Issue #2775: Docstring under Scenario Outline ==========
+    // ========== Docstring under Scenario Outline ==========
 
     @Test
     void testOutlineWithDocstringBeforeSteps() throws Exception {
-        // https://github.com/karatelabs/karate/issues/2775
         Path feature = tempDir.resolve("outline-docstring.feature");
         Files.writeString(feature, """
             Feature: Docstring bug
@@ -1214,11 +1212,10 @@ public class OutlineTest {
         assertEquals(2, result.getScenarioPassedCount());
     }
 
-    // ========== Issue #2773: Tag filter on Examples blocks ==========
+    // ========== Tag filter on Examples blocks ==========
 
     @Test
     void testOutlineTagFilterPerExamplesBlock() throws Exception {
-        // https://github.com/karatelabs/karate/issues/2773
         // When an outline has multiple Examples blocks with different tags,
         // the tag filter should be evaluated per generated scenario, not per outline.
         Path feature = tempDir.resolve("outline-tag-filter.feature");

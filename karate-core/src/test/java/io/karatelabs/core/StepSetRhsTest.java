@@ -6,9 +6,8 @@ import static io.karatelabs.core.TestUtils.*;
 
 /**
  * V1 RHS semantics for the `set` keyword. Sister suite to the def/match coverage
- * in StepDataTypesTest / StepMatchTest added by the #2813 fix — `set` was missed
- * by that commit and routed only through the JS engine, which broke `#(...)`
- * and hyphenated keys.
+ * in StepDataTypesTest / StepMatchTest. Earlier, `set` was routed only through
+ * the JS engine, which broke `#(...)` and hyphenated keys.
  */
 class StepSetRhsTest {
 
@@ -74,7 +73,7 @@ class StepSetRhsTest {
         assertPassed(sr);
     }
 
-    // Issue #2886 — `set var['hy-phen'] = value` regressed in 2.0.8: Jayway's
+    // `set var['hy-phen'] = value` regressed in 2.0.8: Jayway's
     // doc.put was being called with the raw `['hy-phen']` bracketed leaf as
     // the key, so the resulting JSON had a literal `['hy-phen']` key instead
     // of `hy-phen`. The pure-JsonPath LHS routing must strip the bracket /
@@ -117,7 +116,7 @@ class StepSetRhsTest {
     // `* jsonData['some-code'] = 'value1'` is evaluated by the JS engine which
     // mutates the underlying map directly. The `set` keyword is only needed
     // for JsonPath features (wildcards, recursive descent, auto-vivification)
-    // or for XML xpath updates. See issue #2886.
+    // or for XML xpath updates.
     @Test
     void testJsAssignmentWithBracketedSpecialCharKey() {
         ScenarioRuntime sr = run("""

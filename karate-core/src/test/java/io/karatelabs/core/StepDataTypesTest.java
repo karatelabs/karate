@@ -125,7 +125,7 @@ class StepDataTypesTest {
         matchVar(sr, "foo", Map.of("a", 1));
     }
 
-    // ========== JsonPath wildcard for set / remove (issue #2819) ==========
+    // ========== JsonPath wildcard for set / remove ==========
     // V1 routed any non-empty path after the variable through Jayway; v2's `set` / `remove`
     // delegate to JS, so `[*]` / `..` / `[?(...)]` would hit the JS parser as syntax errors.
     // The keyword now detects JsonPath constructs and falls back to Jayway.
@@ -181,17 +181,16 @@ class StepDataTypesTest {
         assertPassed(sr);
     }
 
-    // ========== Issue #2828: nested set with auto-vivified intermediate paths ==========
+    // ========== nested set with auto-vivified intermediate paths ==========
     // V1 always routed `set var.path = expr` through Jayway, which auto-creates
     // intermediate objects. v2 had been delegating to JS, where `obj.foo.bar = x`
     // throws TypeError when `obj.foo` is undefined. The fix re-routes any "pure"
-    // JsonPath LHS through Jayway (issue #2828). The v2-idiomatic alternative is
+    // JsonPath LHS through Jayway. The v2-idiomatic alternative is
     // to build the structure with a single `def` literal — `set` is mainly kept
     // for v1 compatibility (and remains the way to set XML via xpath).
 
     @Test
     void testSetAutoVivifyIntermediatePaths() {
-        // https://github.com/karatelabs/karate/issues/2828
         ScenarioRuntime sr = run("""
             * def reqPayload = {}
             * def short_id = 'ABC123'
@@ -573,11 +572,10 @@ class StepDataTypesTest {
     // V2 restores v1 behavior: anything starting with { or [ on the RHS of `def`
     // is parsed by Karate's relaxed JSON parser (which accepts #(expr) tokens),
     // not by the JS engine. To force JS / ES6 evaluation, wrap in parens.
-    // See issue #2813.
 
     @Test
     void testDocStringJsonUnquotedEmbeddedExpr() {
-        // The exact case from issue #2813 — works in v1, regressed in v2.0.5,
+        // works in v1, regressed in v2.0.5,
         // restored here by routing { ... } through Karate's JSON parser first
         ScenarioRuntime sr = run("""
             * def id = 123
@@ -681,14 +679,13 @@ class StepDataTypesTest {
         assertPassed(sr);
     }
 
-    // ========== Hyphenated Keys in Inline Maps (issue #2814) ==========
+    // ========== Hyphenated Keys in Inline Maps ==========
     // V1's relaxed JSON parser accepted bare hyphenated keys like Content-Type.
     // V2 < 2.0.6 evaluated as JS where `Content-Type` was parsed as subtraction.
     // Fixed by routing { ... } through Karate's JSON parser first.
 
     @Test
     void testInlineMapWithHyphenatedKeys() {
-        // The exact case from issue #2814
         ScenarioRuntime sr = run("""
             * def headers = { Accept: 'application/json', Content-Type: 'application/json', Idempotency-Key: 'abc-123' }
             * match headers['Content-Type'] == 'application/json'
@@ -709,7 +706,7 @@ class StepDataTypesTest {
         assertPassed(sr);
     }
 
-    // ========== Lazy #(...) resolution at def time (issue #2831) ==========
+    // ========== Lazy #(...) resolution at def time ==========
     // V1 behavior: `#(varName)` in a JSON literal at `def` time tolerated an
     // undefined variable — the placeholder string was preserved and resolved
     // later at match time. Common pattern for shared schemas-as-templates,
@@ -717,7 +714,7 @@ class StepDataTypesTest {
 
     @Test
     void testDefSchemaTemplateWithUndefinedVarDoesNotThrow() {
-        // The exact case from issue #2831 — undefined `idCheck` at def time
+        // undefined `idCheck` at def time
         // must not throw; the schema is stored as a template and resolved later.
         ScenarioRuntime sr = run("""
             * def MySchema =

@@ -1,5 +1,5 @@
 Feature: Screenshot Tests
-  Regression guard for https://github.com/karatelabs/karate/issues/2798 —
+  Regression guard:
   `screenshot()` from Gherkin must embed the image into the HTML report.
 
   Background:

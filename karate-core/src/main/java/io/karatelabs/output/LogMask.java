@@ -133,7 +133,7 @@ public class LogMask {
         JavaCallable enableForUri = map.get("enableForUri") instanceof JavaCallable c ? c : null;
         if (headers.isEmpty() && jsonPaths.isEmpty() && patternRules.isEmpty()) {
             // User provided a mask map but every rule list is empty / invalid. Without this
-            // warn the mask silently does nothing, which was hard to debug in #2826.
+            // warn the mask silently does nothing, which is hard to debug.
             logger.warn("configure logging.mask: no usable rules — set at least one of "
                     + "headers / jsonPaths / patterns. mask is OFF.");
             return null;

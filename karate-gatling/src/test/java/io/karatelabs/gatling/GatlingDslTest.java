@@ -81,7 +81,7 @@ public class GatlingDslTest {
     }
 
     /**
-     * Regression: issue #2870 — {@code karateFeature("path", "@tag")} must treat
+     * Regression: {@code karateFeature("path", "@tag")} must treat
      * trailing string args as tag selectors, not additional feature paths.
      * Also verifies that the tag filter is honored end-to-end via Runner.runFeature.
      */

@@ -287,7 +287,7 @@ class JsDateTest extends EvalBase {
 
     @Test
     void testToLocaleDateStringSplitPattern() {
-        // This is the exact pattern from issue #2780 that was failing
+        // This is the exact pattern that was failing
         eval("var t = new Date(2025, 0, 15);"
                 + "var tx = t.toLocaleDateString('en-NZ');"
                 + "var parts = tx.split('/');");

@@ -233,7 +233,7 @@ public class SuiteResult {
                             Console.println("      " + Console.cyan(stepText));
                         }
                         // Show full error message — match diffs and JS errors routinely
-                        // exceed any short cap, and truncating hides the actual diff (#2822)
+                        // exceed any short cap, and truncating hides the actual diff
                         if (sr.getFailureMessage() != null) {
                             Console.println("      " + Console.yellow(sr.getFailureMessage()));
                         }

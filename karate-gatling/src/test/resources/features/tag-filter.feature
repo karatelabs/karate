@@ -1,4 +1,4 @@
-Feature: Tag filter regression for issue #2870
+Feature: Tag filter regression
 
   @perf
   Scenario: tagged scenario

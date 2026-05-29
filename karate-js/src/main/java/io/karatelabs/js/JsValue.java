@@ -87,7 +87,7 @@ public sealed interface JsValue permits JsUndefined, JsPrimitive, JsDateValue, J
      * For example, a {@link JsDate} built from a {@code ZonedDateTime} returns
      * the original {@code ZonedDateTime} so {@code zdt.format(formatter)} can
      * route to the Java method when {@code format} isn't on the JS Date
-     * prototype. See issue #2815.
+     * prototype.
      * <p>
      * Default returns {@code null} — opt in by overriding.
      */

@@ -442,7 +442,7 @@ class StepMatchTest {
 
     @Test
     void testMatchDeepScanWithArrayWildcard() {
-        // Issue #2841 — deep scan combined with [*] wildcard
+        // deep scan combined with [*] wildcard
         ScenarioRuntime sr = run("""
             * def response = { data: { items: [{ type: 'admin' }, { type: 'user' }] } }
             * match response..items[*].type contains 'admin'
@@ -452,7 +452,7 @@ class StepMatchTest {
 
     @Test
     void testMatchEachDeepScanWithArrayWildcard() {
-        // Issue #2841 — match each with deep scan + [*] wildcard
+        // match each with deep scan + [*] wildcard
         ScenarioRuntime sr = run("""
             * def response = { data: { items: [{ type: 'admin' }, { type: 'user' }, { type: 'user' }] } }
             * match each response..items[*].type == '#string'
@@ -508,12 +508,11 @@ class StepMatchTest {
         assertFailedWith(sr, "not equal");
     }
 
-    // ========== Non-JSON field access (#2406) ==========
+    // ========== Non-JSON field access ==========
 
     @Test
     void testNonJsonResponseFieldMatchShouldFail() {
         // Accessing fields on a non-JSON (string) value should fail, not silently pass
-        // https://github.com/karatelabs/karate/issues/2406
         ScenarioRuntime sr = run("""
             * def response = ''
             * match response.id == '#null'
@@ -541,13 +540,12 @@ class StepMatchTest {
         assertPassed(sr);
     }
 
-    // ========== Real null vs missing key (issue #2820) ==========
+    // ========== Real null vs missing key ==========
 
     @Test
     void testMatchRealNullField() {
         // When a JSON property exists with the value null, `match x.y == null`
         // should pass — the path exists, the value is null.
-        // https://github.com/karatelabs/karate/issues/2820
         ScenarioRuntime sr = run("""
             * def response = { status: 'ERROR_CREATING', user: null, settings: null }
             * match response.status == 'ERROR_CREATING'
@@ -577,7 +575,7 @@ class StepMatchTest {
         assertFailed(sr);
     }
 
-    // ========== Embedded variables on the RHS of match (issue #2813) ==========
+    // ========== Embedded variables on the RHS of match ==========
     // V2 evaluates the RHS as JS, so the v1 trick of writing { id: #(id) } is a
     // syntax error. The same alternatives that work for `def` also work here.
 
@@ -645,7 +643,7 @@ class StepMatchTest {
         assertPassed(sr);
     }
 
-    // ========== Schema-as-template — deferred #(...) at match time (issue #2831) ==========
+    // ========== Schema-as-template — deferred #(...) at match time ==========
     // V1 parity: a `#(varName)` placeholder embedded in a JSON literal at `def`
     // time is preserved when `varName` is undefined. The match engine resolves
     // it later via Operation.macroEqualsExpected. See StepDataTypesTest for the
@@ -691,7 +689,7 @@ class StepMatchTest {
 
     @Test
     void testMatchSchemaTemplateAcrossCallBoundary() {
-        // Mirrors the issue #2831 reproduction shape: schema feature is loaded
+        // Mirrors the reproduction shape: schema feature is loaded
         // before the variable is defined in the caller. Here we simulate the
         // call boundary by defining the schema first, then the variable, then
         // matching — the placeholder must survive intervening steps.

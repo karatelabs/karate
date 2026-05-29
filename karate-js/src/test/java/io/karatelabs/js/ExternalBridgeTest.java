@@ -147,7 +147,7 @@ class ExternalBridgeTest extends EvalBase {
 
     @Test
     void testRealVarArgsStatic() {
-        // Static method with Java varargs - this is the issue #2761 scenario
+        // Static method with Java varargs
         eval("var DemoUtils = Java.type('io.karatelabs.js.DemoUtils'); var c = DemoUtils.withVarArgs('a', 'b', 'v1')");
         assertEquals("a,b,v1", get("c"));
         // multiple varargs
@@ -472,7 +472,7 @@ class ExternalBridgeTest extends EvalBase {
 
     @Test
     void testJavaTimeChainedFormat() {
-        // Issue #2815: chained java.time expressions should reach Java methods
+        // Chained java.time expressions should reach Java methods
         // not on the JsDate prototype. ZonedDateTime.now(...) returns a ZDT
         // that's wrapped in JsDate; .format(formatter) must fall through to
         // the Java method on the original ZonedDateTime.
@@ -732,7 +732,7 @@ class ExternalBridgeTest extends EvalBase {
 
     @Test
     void testStaticNestedEnumAccess() {
-        // Issue #2829: Java.type('utils.PostgresHelper').QueryIdType.STRING
+        // Java.type('utils.PostgresHelper').QueryIdType.STRING
         // worked in v1 (GraalJS) but throws in v2 because getStatic does not
         // resolve nested classes.
         engine = new Engine();
@@ -1197,7 +1197,7 @@ class ExternalBridgeTest extends EvalBase {
     }
 
     // =================================================================================================================
-    // JS Function → Java Functional Interface Coercion Tests (issue #2837)
+    // JS Function → Java Functional Interface Coercion Tests
     // JS functions are accepted by Java methods declaring Predicate / Function /
     // Consumer / Supplier / Runnable parameters. v1 got this via Graal interop;
     // v2 routes through default methods on JavaCallable.
@@ -1205,7 +1205,7 @@ class ExternalBridgeTest extends EvalBase {
 
     @Test
     void testJsFunctionAsPredicate() {
-        // Direct mirror of issue #2837: Java method takes Predicate<Map<String, Object>>
+        // Java method takes Predicate<Map<String, Object>>
         // and is called from JS with a JS function as the predicate argument.
         engine = new Engine();
         engine.setExternalBridge(bridge);
@@ -1375,7 +1375,7 @@ class ExternalBridgeTest extends EvalBase {
     }
 
     // =================================================================================================================
-    // Java.type() Classloader Tests (issue #2855)
+    // Java.type() Classloader Tests
     // Class.forName() uses the caller's defining loader (this bundle); classes
     // loaded only by a child loader (e.g. JUnit Platform Console Launcher's
     // --cp loader, set as TCCL) need the lookup to consult TCCL first.

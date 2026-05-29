@@ -120,7 +120,7 @@ public class KarateConfig implements SimpleObject {
     // Compiled form of logging.mask. KarateConfig is the source of truth — LogContext is a
     // per-thread cache that ScenarioRuntime.call() repopulates from this field at scenario
     // entry. Keeps mask/pretty alive across the LogContext.set() reset done at call() entry,
-    // which previously dropped any mask set during karate-config.js (issue #2826).
+    // which previously dropped any mask set during karate-config.js.
     private LogMask compiledMask;
 
     // CallSingleCache: { minutes, dir }

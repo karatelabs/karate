@@ -212,7 +212,7 @@ public final class KarateOptionsHandler {
             }
         }
 
-        // --- Scenario name (stub today; see issue #2522) ---
+        // --- Scenario name (stub today) ---
         if (parsed.getScenarioName() != null) {
             builder.setScenarioName(parsed.getScenarioName());
             summary.add("name=" + parsed.getScenarioName());

@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 class W3cBrowserTypeTest {
 
     /**
-     * Regression for <a href="https://github.com/karatelabs/karate/issues/2884">#2884</a>:
+     * Regression:
      * {@code W3cDriver} passes the port arg via {@code ProcessBuilder.command().add(...)},
      * which treats the entire string as a single argv element. A format like
      * {@code "--port %d"} therefore becomes one token (e.g. {@code "--port 4444"}) that

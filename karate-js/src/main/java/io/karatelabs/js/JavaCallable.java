@@ -45,8 +45,8 @@ public interface JavaCallable extends JsCallable,
     }
 
     // Functional-interface adapters: let JS functions satisfy Function /
-    // Predicate / Consumer / Supplier / Runnable parameters on Java methods
-    // (issue #2837). v1 got this for free via Graal interop coercion; the v2
+    // Predicate / Consumer / Supplier / Runnable parameters on Java methods.
+    // v1 got this for free via Graal interop coercion; the v2
     // engine has none, so we route through call(). Lazy bindings are the
     // separate {@link JsLazy} marker — Supplier here is purely for parameter
     // coercion and never appears as a binding sentinel.

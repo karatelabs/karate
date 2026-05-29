@@ -66,7 +66,7 @@ public class BaseElement implements Element {
      * Construct an Element whose existence has already been verified by the caller.
      * Skips the exists() round-trip, which also avoids re-entering the driver at a
      * moment when it may be unable to evaluate JS — e.g. after click() opened a
-     * blocking alert/confirm/prompt dialog (see issue #2801).
+     * blocking alert/confirm/prompt dialog.
      */
     public static BaseElement existing(Driver driver, String locator) {
         return new BaseElement(driver, locator, true);

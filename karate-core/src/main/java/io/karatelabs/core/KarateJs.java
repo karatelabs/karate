@@ -575,7 +575,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
         return args -> {
             // v1 bulk form: karate.set(map) sets each top-level key as a variable.
             // Common pattern is `karate.set(read('classpath:settings.json'))`
-            // to load a settings file into scope. Issue #2842.
+            // to load a settings file into scope.
             if (args.length == 1) {
                 if (args[0] instanceof Map<?, ?> bulk) {
                     for (Map.Entry<?, ?> e : bulk.entrySet()) {
@@ -625,7 +625,7 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 } else {
                     // Route through Json (Jayway) for full JSONPath semantics:
                     // dotted paths, [N] indices, $.foo[] array append, and
-                    // ['hy-phen'] bracket-quoted keys (issue #2886). Mirrors
+                    // ['hy-phen'] bracket-quoted keys. Mirrors
                     // the `set var.path = value` Gherkin step.
                     if (target == null) {
                         target = new java.util.LinkedHashMap<>();

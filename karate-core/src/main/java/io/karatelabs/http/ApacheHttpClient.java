@@ -570,7 +570,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
         @Override
         public Socket createLayeredSocket(Socket socket, String target, int port, HttpContext context) throws IOException {
-            // pass target host through so SNI carries the real HTTPS target after a proxy CONNECT (issue #2877)
+            // pass target host through so SNI carries the real HTTPS target after a proxy CONNECT
             return super.createLayeredSocket(socket, target, port, context);
         }
 

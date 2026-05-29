@@ -291,7 +291,7 @@ class StepInfoTest {
 
     @Test
     void testKarateTagValuesAggregatesSameNameOnFeature() {
-        // issue #2859 — multiple @suite=... lines on a Feature must aggregate, not last-wins
+        // multiple @suite=... lines on a Feature must aggregate, not last-wins
         ScenarioRuntime sr = runFeature("""
             @tests=get-test
             @suite=x

@@ -369,7 +369,7 @@ public class StepUtils {
      * True when an LHS path uses a JsonPath construct that JS can't evaluate:
      * {@code [*]} (array wildcard), {@code ..} (recursive descent), or {@code [?(...)]} (filter).
      * Used by `set` / `remove` to fall back to Jayway when a step like
-     * {@code set body[*].parent = 'test'} would otherwise hit the JS parser. See issue #2819.
+     * {@code set body[*].parent = 'test'} would otherwise hit the JS parser.
      */
     public static boolean containsJsonPathWildcard(String s) {
         return s.contains("[*]") || s.contains("[?") || s.contains("..");
@@ -402,7 +402,7 @@ public class StepUtils {
      * {@code [i+1]}) deliberately fail this check so they continue to route through the
      * JS engine. Used by `set` / `remove` to route LHS paths through Jayway, which mirrors
      * v1 semantics — most importantly, auto-vivifying intermediate objects when the
-     * target path doesn't yet exist (see issue #2828).
+     * target path doesn't yet exist.
      */
     public static boolean isPureJsonPath(String lhs) {
         if (lhs == null) return false;

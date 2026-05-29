@@ -394,7 +394,6 @@ class StepHttpTest {
 
     @Test
     void testOutlineDocStringWithTypeHintReachesRequestBody() {
-        // https://github.com/karatelabs/karate/issues/2847
         // Verifies that <column> substitution inside a `request` doc-string
         // works with the `!` type-hint (which used to NPE during outline expansion)
         // AND that the substituted values actually reach the HTTP request body.
@@ -1340,13 +1339,13 @@ class StepHttpTest {
         assertPassed(sr);
     }
 
-    // ========== karate.response Tests (issue #2830) ==========
+    // ========== karate.response Tests ==========
     // V2: karate.response is exposed in normal test context (not just mocks),
     // and provides case-insensitive header lookup via .header(name).
 
     @Test
     void testKarateResponseHeaderCaseInsensitive() {
-        // Issue #2830: karate.response.header('content-type') should work in test context
+        // karate.response.header('content-type') should work in test context
         InMemoryHttpClient client = new InMemoryHttpClient(req -> {
             HttpResponse resp = json("{ \"ok\": true }");
             resp.setHeader("Content-Type", "application/json; charset=utf-8");

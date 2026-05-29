@@ -261,7 +261,7 @@ public final class CucumberJsonWriter {
 
         // Synthetic step results (lifecycle hooks, @fail tag, scenario init failures)
         // have a null Step — emit a "* <hookName-or-message>" placeholder so the writer
-        // doesn't NPE and so the artifact still records what happened. See issue #2827.
+        // doesn't NPE and so the artifact still records what happened.
         if (step == null) {
             map.put("keyword", "* ");
             String name;

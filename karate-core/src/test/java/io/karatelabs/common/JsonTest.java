@@ -24,7 +24,7 @@ class JsonTest {
         assertEquals(Pair.of("", "$"), Json.toParentAndLeaf("$"));
         assertEquals(Pair.of("$", "foo"), Json.toParentAndLeaf("$.foo"));
         // leading bracket-quoted segment is unwrapped to a bare key — required by
-        // Jayway's doc.put contract (issue #2886). Also normalises `.foo` and
+        // Jayway's doc.put contract. Also normalises `.foo` and
         // `['foo']` to the same leaf shape.
         assertEquals(Pair.of("$", "foo"), Json.toParentAndLeaf("$['foo']"));
         assertEquals(Pair.of("$.foo", "bar"), Json.toParentAndLeaf("$.foo.bar"));
@@ -204,7 +204,7 @@ class JsonTest {
 
     @Test
     void testStringifyStrictBreaksCyclesAutomatically() {
-        // regression: issue #2880 — json-smart's writer has no cycle guard,
+        // regression: json-smart's writer has no cycle guard,
         // a self-referencing Map crashed stringifyStrict with StackOverflowError.
         Map<String, Object> obj = new LinkedHashMap<>();
         obj.put("name", "test");

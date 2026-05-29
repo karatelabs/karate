@@ -652,7 +652,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // executes exactly once per Suite under a lock — only the "winning" scenario
             // (cache miss) reaches this code, so the call results appear under whichever
             // scenario's thread actually ran the feature. Done before the failure throw
-            // so a failed callSingle still surfaces its steps in the report (issue #2840).
+            // so a failed callSingle still surfaces its steps in the report.
             executor.addCallResult(fr);
 
             // Check if the feature failed
@@ -785,7 +785,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      * Re-projects the inherited config onto this scenario's HTTP client. Without
      * this push, the fresh {@code HttpClient} created in the constructor would
      * never see settings like {@code proxy} set in {@code karate-config.js} or
-     * via {@code * configure proxy = ...} in the caller (issue #2839).
+     * via {@code * configure proxy = ...} in the caller.
      */
     private void inheritConfigFromCaller(ScenarioRuntime callerScenario, boolean sharedScope) {
         this.config.copyFrom(callerScenario.config);
@@ -826,7 +826,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     @SuppressWarnings("unchecked")
     private static Object shallowCopy(Object value) {
         // JsCallable functions implement Map but must be shared, not wrapped.
-        // Issue #2805: without this guard, functions from karate-config.js get
+        // Without this guard, functions from karate-config.js get
         // turned into plain LinkedHashMaps when inherited into an isolated-scope
         // called feature, losing their callable behavior.
         if (value instanceof JavaCallable) {
@@ -847,7 +847,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // upcoming LogContext.set(...) doesn't drop them on the floor. They'll be
         // replayed into the fresh context below so the first step's StepResult.log
         // (or the beforeScenario hook step, if one fires) surfaces config-time output
-        // alongside config-time karate.call / karate.callSingle results (issue #2840).
+        // alongside config-time karate.call / karate.callSingle results.
         // LogContext.get() lazy-creates an empty one if no thread-local is set, so this
         // is safe even on a cold thread — collect() / collectEmbeds() return ""/null.
         String configTimeLog = LogContext.get().collect();
@@ -857,7 +857,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // the source of truth for mask + pretty. Without this, anything that
         // karate-config.js (evaluated during the constructor's initEngine()) configured
         // via `karate.configure('logging', {...})` would be silently dropped here, since
-        // the new LogContext starts with mask=null. See issue #2826.
+        // the new LogContext starts with mask=null.
         config.applyLoggingToContext(LogContext.get());
         // Replay the captured config-time output into the fresh, properly-configured
         // context. Order matters: this happens AFTER applyLoggingToContext so the new
@@ -1642,7 +1642,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     public Driver getDriver() {
         // user-triggered driver.quit() leaves the instance terminated but still bound to this
         // runtime; release it back to the pool before re-init or the slot leaks and subsequent
-        // grid-style runs (multiple browsers per scenario) deadlock once the pool fills (#2860)
+        // grid-style runs (multiple browsers per scenario) deadlock once the pool fills
         if (driver != null && driver.isTerminated()) {
             closeDriver();
         }
@@ -1785,7 +1785,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // so by afterScenario the buffers are naturally empty. For beforeScenario specifically,
         // anything karate-config.js produced (karate.log, karate.embed, karate.call /
         // karate.callSingle) sits in those buffers — preserving them means the hook's
-        // synthetic step absorbs that config-time output instead of dropping it (issue #2840).
+        // synthetic step absorbs that config-time output instead of dropping it.
         LogContext ctx = LogContext.get();
 
         Throwable err = invokeHook(hookRef, hookName);

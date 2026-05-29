@@ -406,7 +406,7 @@ class JsFunctionTest extends EvalBase {
     }
 
     // ====================================================================================
-    // Lexical scoping regression suite — issue #2802
+    // Lexical scoping regression suite
     //
     // Bug shape: a callee's closure-captured outer var was being shadowed by
     // a same-named variable in the caller's scope, because the function context's
@@ -416,7 +416,7 @@ class JsFunctionTest extends EvalBase {
 
     @Test
     void testCalleeClosureNotShadowedByCallerParam() {
-        // Issue #2802: factory captures `config` by closure; caller's parameter
+        // Factory captures `config` by closure; caller's parameter
         // is also named `config`. Lexical scoping must win — closure must see
         // the factory's captured config.
         assertEquals("jdbc:fake", eval(
@@ -517,7 +517,7 @@ class JsFunctionTest extends EvalBase {
 
     @Test
     void testFunctionStoredInObjectInvokedFromAnotherFunction() {
-        // The exact issue 2802 shape: factory returns {method}, that method is
+        // The exact failing shape: factory returns {method}, that method is
         // invoked via `obj.method()` from inside a different function whose
         // parameter shadows the closure var.
         assertEquals(7, eval(
@@ -570,7 +570,7 @@ class JsFunctionTest extends EvalBase {
 
     @Test
     void testJavaTypeReferenceSurvivesAcrossCallBoundary() {
-        // 2.0.3 symptom from issue #2802: Java.type wrapper captured in a
+        // Java.type wrapper captured in a
         // closure must remain functional when the function is called via
         // an indirect path. We don't have Java.type in the pure-JS test
         // engine, but we can simulate the same shape with any host object
