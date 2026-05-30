@@ -87,6 +87,9 @@ public enum NodeType {
     LIT_TEMPLATE,
     PLACEHOLDER,
     LIT_REGEX,
+    CLASS_EXPR,
+    CLASS_METHOD,
+    CLASS_FIELD,
     //====
     G_FEATURE,
     G_TAGS,
@@ -129,6 +132,8 @@ public enum NodeType {
             case G_TABLE_ROW -> 12;
             // Literals can have many elements: {a:1,b:2,...} or [1,2,3,...]
             case LIT_ARRAY, LIT_OBJECT -> 16;
+            // A class body holds an optional name + heritage + many members
+            case CLASS_EXPR -> 16;
             case BLOCK, FN_CALL_ARGS, FN_DECL_ARGS,
                  EXPR_LIST, CASE_BLOCK, DEFAULT_BLOCK, LIT_TEMPLATE,
                  G_FEATURE, G_SCENARIO, G_SCENARIO_OUTLINE, G_BACKGROUND,

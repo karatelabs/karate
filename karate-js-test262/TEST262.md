@@ -336,9 +336,28 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   `async-functions`, `Symbol.asyncIterator`). karate-js is synchronous.
   Viable path: sync subset first — `Promise` as eager thenable,
   `async function` runs sync, `await` sync-unwraps.
-- **Class syntax (ES6).** No parser support for `class` / `extends` /
-  `super`. Parked because target workload is glue/scripting, not OO;
-  prototype + `new` covers the cases that appear.
+- **Class syntax (ES6) — Phase 1 DONE; extends/super/fields remain.**
+  `class` declarations + expressions now parse and evaluate: constructor,
+  instance methods, `static` methods, `get`/`set` accessors, computed method
+  names, default-constructor synthesis, always-strict bodies,
+  constructor-without-`new` TypeError. Desugared at eval time onto the existing
+  constructor-function + prototype machinery (`Interpreter.evalClassExpr` →
+  constructor `JsFunctionNode` whose `.prototype` holds the methods; statics on
+  the constructor; methods/accessors installed non-enumerable). New tokens
+  `CLASS` (lexer) + NodeTypes `CLASS_EXPR`/`CLASS_METHOD`/`CLASS_FIELD`; parser
+  `class_expr()`/`class_element()` mirror `object_elem`. Covered by
+  `JsClassTest` (20 cases). **Phase 2 (remaining):** `extends` heritage +
+  `super(...)` / `super.m()` — needs a construction refactor to inject `this`
+  into the parent constructor + a `homeObject`/`activeFunction` seam for super
+  dispatch (see `karate-js-test262/etc/CLASS_PLAN.md` for the reviewed design
+  and the genuine `extends Error`/`Array` skip). **Phase 3:** public
+  instance/static fields. Known Phase-1 gaps (deferred, measured via a
+  2026-05-30 class-slice probe): numeric/string-literal method-name
+  canonicalization (`get 0x10(){}` → key should be `"16"`; shared with object
+  literals' NUMBER-key path), escaped-keyword method names (`if(){}`),
+  generator/async methods. test262 `class/**` stays path-skipped until Phase 2
+  (the tree interleaves supported + deferred cases with no clean glob; ~868
+  would pass / ~528 still fail today).
 - **Symbol primitive.** Gates a long tail across String / Array / RegExp /
   Object. Deprioritized — real-world code doesn't use it.
 

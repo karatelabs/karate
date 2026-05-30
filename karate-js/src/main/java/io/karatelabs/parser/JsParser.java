@@ -80,7 +80,7 @@ public class JsParser extends BaseParser {
     private static final EnumSet<TokenType> T_EXPR_START = EnumSet.of(
             IDENT, S_STRING, D_STRING, NUMBER, BIGINT, TRUE, FALSE, NULL,  // literals & ref
             L_CURLY, L_BRACKET, BACKTICK, REGEX,                           // compound literals
-            FUNCTION, L_PAREN, NEW, TYPEOF, VOID,                          // keywords & grouping
+            FUNCTION, CLASS, L_PAREN, NEW, TYPEOF, VOID,                   // keywords & grouping
             NOT, TILDE, PLUS_PLUS, MINUS_MINUS, MINUS, PLUS                // unary operators
     );
     private static final EnumSet<TokenType> T_LIT_EXPR_START = EnumSet.of(
@@ -576,6 +576,7 @@ public class JsParser extends BaseParser {
                 || (continue_stmt() && eos())
                 || (delete_stmt() && eos())
                 || fn_expr() // function declarations don't need eos (ASI)
+                || class_expr() // class declarations don't need eos (ASI), like function decls
                 || block(false) // block before expr_list: per JS spec, { } at statement position is a block
                 || (expr_list(false) && eos())
                 || consumeIf(SEMI); // empty statement
@@ -902,6 +903,7 @@ public class JsParser extends BaseParser {
         boolean result = ref_expr() // also handles single-arg arrow functions without parentheses
                 || lit_expr()
                 || fn_expr()
+                || class_expr()
                 || fn_arrow_expr()
                 || paren_expr()
                 || unary_expr()
@@ -1179,6 +1181,93 @@ public class JsParser extends BaseParser {
             return false;
         }
         expr(13, true);
+        return exit();
+    }
+
+    // Tokens that can begin a (non-computed) class member name. `get`/`set`/
+    // `static`/`constructor` all lex as IDENT and are disambiguated in
+    // class_element by whether another key token follows.
+    private static final EnumSet<TokenType> T_CLASS_KEY_NAME =
+            EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER);
+
+    // ES6 class declaration / expression. Phase 1: constructor + methods +
+    // static methods + get/set accessors + computed keys. No `extends` / `super`
+    // / fields yet (those parse-fail and are skip-listed). The CLASS token and
+    // optional name (IDENT) become the leading children; member definitions
+    // follow as CLASS_METHOD nodes; brace/semicolon tokens are interleaved and
+    // ignored at eval time.
+    private boolean class_expr() {
+        if (!enter(NodeType.CLASS_EXPR, CLASS)) {
+            return false;
+        }
+        consumeIf(IDENT); // optional class name
+        if (!consumeIf(L_CURLY)) {
+            error(L_CURLY);
+            return exit(false, false);
+        }
+        while (true) {
+            if (peekIf(R_CURLY) || peekIf(EOF)) {
+                break;
+            }
+            if (consumeIf(SEMI)) { // empty class element — allowed and ignored
+                continue;
+            }
+            if (!class_element()) {
+                if (errorRecoveryEnabled) {
+                    error("invalid class element");
+                    recoverTo(R_CURLY, SEMI, EOF);
+                    continue;
+                }
+                return exit(false, false);
+            }
+        }
+        return exit(consumeIf(R_CURLY), true);
+    }
+
+    // One class member: [modifier-tokens...] <key> FN_EXPR. A leading
+    // `static`/`get`/`set` IDENT is a modifier only when another key token
+    // follows; otherwise it is the member name itself. The key is either a
+    // single name token or a computed `[expr]` (L_BRACKET, EXPR, R_BRACKET).
+    // The body is a synthetic FN_EXPR (FN_DECL_ARGS + BLOCK), matching the
+    // object-literal shorthand-method shape so evalFnExpr handles it directly.
+    private boolean class_element() {
+        enter(NodeType.CLASS_METHOD);
+        while (true) {
+            if (consumeIf(L_BRACKET)) { // computed key [expr] — always the final key
+                expr(-1, true);
+                if (!consumeIf(R_BRACKET)) {
+                    error(R_BRACKET);
+                    return exit(false, false);
+                }
+                break;
+            }
+            if (!peekAnyOf(T_CLASS_KEY_NAME)) {
+                error("class member name");
+                return exit(false, false);
+            }
+            consumeNext();
+            if (peekIf(L_PAREN)) {
+                break; // the just-consumed token is the method name (the key)
+            }
+            String text = lastConsumedText();
+            if (("static".equals(text) || "get".equals(text) || "set".equals(text))
+                    && (peekAnyOf(T_CLASS_KEY_NAME) || peekIf(L_BRACKET))) {
+                continue; // it was a modifier — loop to consume the real key
+            }
+            // Not followed by `(` and not a recognized modifier — a class field.
+            // Fields are a deferred (Phase 3) feature; fail the parse so the
+            // test is skip-listed rather than silently mis-handled.
+            error(L_PAREN);
+            return exit(false, false);
+        }
+        if (!peekIf(L_PAREN)) {
+            error(L_PAREN);
+            return exit(false, false);
+        }
+        enter(NodeType.FN_EXPR);
+        fn_decl_args();
+        block(true);
+        exit();
         return exit();
     }
 

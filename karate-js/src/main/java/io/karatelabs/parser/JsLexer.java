@@ -668,6 +668,7 @@ public class JsLexer extends BaseLexer {
             if (c0 == 'c') {
                 if (matchKeyword(start, "const")) return CONST;
                 if (matchKeyword(start, "catch")) return CATCH;
+                if (matchKeyword(start, "class")) return CLASS;
             }
             if (c0 == 't' && matchKeyword(start, "throw")) return THROW;
             if (c0 == 'w' && matchKeyword(start, "while")) return WHILE;

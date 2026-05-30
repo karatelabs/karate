@@ -50,15 +50,27 @@ class JsFunctionNode extends JsFunction {
     // (declaredContext.strict). Resolved once at creation; the call frame
     // copies it onto CoreContext.strict.
     final boolean strict;
+    // True for the synthesized constructor of a `class` — class constructors
+    // are not callable without `new` (spec §15.7.14). Set by Interpreter at
+    // class-eval time; default false for ordinary functions.
+    boolean isClassConstructor;
 
     public JsFunctionNode(boolean arrow, Node node, List<Node> argNodes, Node body, CoreContext declaredContext) {
+        this(arrow, node, argNodes, body, declaredContext, false);
+    }
+
+    // forceStrict overload — class bodies are always strict regardless of any
+    // surrounding "use strict" directive (spec §15.7).
+    JsFunctionNode(boolean arrow, Node node, List<Node> argNodes, Node body, CoreContext declaredContext,
+                   boolean forceStrict) {
         this.arrow = arrow;
         this.node = node;
         this.argNodes = argNodes;
         this.argCount = argNodes.size();
         this.body = body;
         this.declaredContext = declaredContext;
-        this.strict = (declaredContext != null && declaredContext.strict)
+        this.strict = forceStrict
+                || (declaredContext != null && declaredContext.strict)
                 || (body.type == NodeType.BLOCK && Interpreter.hasUseStrictDirective(body));
         // Spec §15.2: f.length is the number of formal parameters before the
         // first one with a default value or a rest element. Approximating with

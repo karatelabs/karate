@@ -532,6 +532,10 @@ class Interpreter {
             if (newKeyword && !callable.isConstructable()) {
                 throw JsErrorException.typeError(node.getTextIncludingWhitespace() + " is not a constructor");
             }
+            if (!newKeyword && callable instanceof JsFunctionNode cf && cf.isClassConstructor) {
+                String n = cf.name == null || cf.name.isEmpty() ? "" : cf.name + " ";
+                throw JsErrorException.typeError("Class constructor " + n + "cannot be invoked without 'new'");
+            }
             List<Object> argsList = new ArrayList<>();
             int argsCount = fnArgsNode == null ? 0 : fnArgsNode.size();
             for (int i = 0; i < argsCount; i++) {
@@ -821,6 +825,138 @@ class Interpreter {
             argNodes = fnArgs(node.getFirst());
         }
         return new JsFunctionNode(true, node, argNodes, node.getLast(), context);
+    }
+
+    // ES6 class — desugared at eval time onto the existing constructor-function
+    // + prototype machinery (no AST rewrite). The class evaluates to a
+    // constructor JsFunctionNode whose .prototype holds the instance methods;
+    // static methods/accessors are installed on the constructor itself. Class
+    // bodies are always strict (spec §15.7). Phase 1: no extends / super /
+    // fields (those parse-fail upstream and are skip-listed). A named class
+    // declaration binds its name in the current scope; the re-eval skip and
+    // function-hoisting passes ignore CLASS_EXPR, so it runs in source order
+    // (no hoisting — TDZ is not modelled).
+    private static Object evalClassExpr(Node node, CoreContext context) {
+        String className = null;
+        if (node.size() > 1 && node.get(1).token != null && node.get(1).token.type == IDENT) {
+            className = node.get(1).getText();
+        }
+        Node ctorFnExpr = null;
+        List<ClassMember> members = new ArrayList<>();
+        for (int i = 0, n = node.size(); i < n; i++) {
+            Node child = node.get(i);
+            if (child.type != NodeType.CLASS_METHOD) {
+                continue; // CLASS token / name / braces / semicolons
+            }
+            ClassMember cm = analyzeClassMember(child);
+            if (!cm.isStatic && !cm.isAccessor && "constructor".equals(cm.simpleKey)) {
+                ctorFnExpr = cm.fnExpr;
+            } else {
+                members.add(cm);
+            }
+        }
+        JsFunctionNode ctor;
+        if (ctorFnExpr != null) {
+            ctor = new JsFunctionNode(false, ctorFnExpr, fnArgs(ctorFnExpr.getFirst()),
+                    ctorFnExpr.getLast(), context, true);
+        } else {
+            // synthesize `constructor() {}` — empty body, no params
+            ctor = new JsFunctionNode(false, node, Collections.emptyList(),
+                    new Node(NodeType.BLOCK), context, true);
+        }
+        ctor.name = className == null ? "" : className;
+        ctor.isClassConstructor = true;
+        JsObject proto = ctor.getFunctionPrototype();
+        // getFunctionPrototype installs `constructor` as enumerable (the ES5
+        // function default); for a class it must be non-enumerable + writable +
+        // configurable (spec §15.7) so it doesn't leak into for-in over instances.
+        proto.defineOwn("constructor", ctor, (byte) (PropertySlot.WRITABLE | PropertySlot.CONFIGURABLE));
+        for (ClassMember cm : members) {
+            String key = classMemberKey(cm, context);
+            if (context.isError()) {
+                return Terms.UNDEFINED;
+            }
+            JsObject target = cm.isStatic ? ctor : proto;
+            JsFunctionNode fn = new JsFunctionNode(false, cm.fnExpr,
+                    fnArgs(cm.fnExpr.getFirst()), cm.fnExpr.getLast(), context, true);
+            fn.name = key;
+            if (cm.isAccessor) {
+                PropertySlot existing = target.getOwnSlot(key);
+                JsCallable getter = existing instanceof AccessorSlot ea ? ea.getter : null;
+                JsCallable setter = existing instanceof AccessorSlot ea ? ea.setter : null;
+                if ("get".equals(cm.kind)) {
+                    getter = fn;
+                } else {
+                    setter = fn;
+                }
+                // class accessors are non-enumerable + configurable (no value/writable)
+                target.defineOwnAccessor(key, getter, setter, PropertySlot.CONFIGURABLE);
+            } else {
+                // class methods are writable + configurable, non-enumerable (spec §15.7)
+                target.defineOwn(key, fn, (byte) (PropertySlot.WRITABLE | PropertySlot.CONFIGURABLE));
+            }
+        }
+        if (className != null) {
+            context.put(className, ctor);
+        }
+        return ctor;
+    }
+
+    // Resolved shape of a CLASS_METHOD node:
+    //   [modifier tokens...] <key (1 name token | L_BRACKET EXPR R_BRACKET)> FN_EXPR
+    private static final class ClassMember {
+        boolean isStatic;
+        boolean isAccessor;
+        String kind;        // "get" / "set" / null
+        boolean computed;
+        Node keyExprNode;   // EXPR node, when computed
+        String simpleKey;   // resolved literal key, when not computed (else null)
+        Node fnExpr;        // the method's params + body (synthetic FN_EXPR)
+    }
+
+    private static ClassMember analyzeClassMember(Node m) {
+        ClassMember cm = new ClassMember();
+        int last = m.size() - 1;
+        cm.fnExpr = m.get(last);
+        int keyEnd = last - 1;
+        Node kc = m.get(keyEnd);
+        int keyStart;
+        if (kc.token != null && kc.token.type == R_BRACKET) {
+            cm.computed = true;
+            cm.keyExprNode = m.get(keyEnd - 1);
+            keyStart = keyEnd - 2; // L_BRACKET index
+        } else {
+            cm.simpleKey = keyTokenString(kc.token);
+            keyStart = keyEnd;
+        }
+        for (int i = 0; i < keyStart; i++) {
+            String t = m.get(i).getText();
+            if ("static".equals(t)) {
+                cm.isStatic = true;
+            } else if ("get".equals(t)) {
+                cm.isAccessor = true;
+                cm.kind = "get";
+            } else if ("set".equals(t)) {
+                cm.isAccessor = true;
+                cm.kind = "set";
+            }
+        }
+        return cm;
+    }
+
+    private static String keyTokenString(Token t) {
+        if (t.type == S_STRING || t.type == D_STRING) {
+            return (String) Terms.literalValue(t);
+        }
+        return t.getText(); // IDENT or NUMBER
+    }
+
+    private static String classMemberKey(ClassMember cm, CoreContext context) {
+        if (cm.computed) {
+            Object keyValue = eval(cm.keyExprNode, context);
+            return Terms.toStringCoerce(keyValue, context);
+        }
+        return cm.simpleKey;
     }
 
     private static Object evalForStmt(Node node, CoreContext context) {
@@ -2030,6 +2166,7 @@ class Interpreter {
             case MATH_PRE_EXPR -> evalMathPreExpr(node, context);
             case NEW_EXPR -> evalNewExpr(node, context);
             case PAREN_EXPR -> eval(node.get(1), context);
+            case CLASS_EXPR -> evalClassExpr(node, context);
             case PROGRAM -> evalProgram(node, context);
             case REF_EXPR -> evalRefExpr(node, context);
             case REF_BRACKET_EXPR -> chainStepResult(PropertyAccess.get(node, context), node);
