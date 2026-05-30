@@ -46,8 +46,6 @@ skip:
       reason: with-statement is conformance-only, negligible in real-world JS and LLM-written code
     - path: test/language/eval-code/direct/**
       reason: direct-eval lexical-environment semantics are exotic, negligible in real-world JS
-    - path: test/language/statements/try/early-catch-duplicates.js
-      reason: duplicate-BoundNames early error (catch param) un-enforced — part of the deferred duplicate-binding-name sweep (also FN_DECL_ARGS); a naive check would false-positive on valid renamed patterns
 
   # Tests whose YAML frontmatter contains any of these `flags:` values.
   flags:

@@ -1025,4 +1025,62 @@ class SpecPinTest extends EvalBase {
         // so the octal that follows stays legal (parses without a SyntaxError).
         assertEquals("number", eval("(\"use strict\"); typeof 0755"));
     }
+
+    // -------------------------------------------------------------------------
+    // Duplicate-BoundNames early errors over binding patterns
+    // (JsParser.checkFormalParameters / checkCatchParameter / collectBoundNames).
+    // Duplicate bound names are a SyntaxError for arrow params, non-simple
+    // parameter lists, and catch params ALWAYS (not strict-gated); simple
+    // duplicate params in a sloppy non-arrow function stay legal. BoundNames
+    // mirror the binding structure — keys, defaults, and renamed targets must
+    // NOT false-positive, the load-bearing guard the sweep is built around.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void dupParams_arrowIsAlwaysParseError() {
+        assertParseError("var f = (a, a) => a;");           // arrow: UniqueFormalParameters
+        assertParseError("var f = (a, b, a) => a;");
+        // sloppy non-arrow simple list stays legal (last wins).
+        assertEquals(2, eval("function f(a, a) { return a; } f(1, 2)"));
+    }
+
+    @Test
+    void dupParams_nonSimpleListIsAlwaysParseError() {
+        assertParseError("function f(a, a = 1) {}");         // has a default -> non-simple
+        assertParseError("function f({a}, a) {}");           // has a pattern  -> non-simple
+        assertParseError("function f(a, ...a) {}");          // has a rest     -> non-simple
+        assertParseError("function f([a, a]) {}");           // dup inside one array pattern
+        assertParseError("function f({a, b: a}) {}");        // shorthand a + target a -> dup
+    }
+
+    @Test
+    void boundNames_mirrorStructure_noFalsePositive() {
+        // Key, default, and renamed targets are NOT bound names of the property.
+        assertEquals(12, eval("var f = ({a: x = 9, b: y}) => x + y; f({b: 3})"));  // x defaults to 9, y=3
+        assertEquals(3, eval("function f({x: a, y: b}) { return a + b; } f({x: 1, y: 2})"));
+        // Duplicate property KEY but distinct binding targets is valid (only
+        // duplicate bound NAMES are an error).
+        assertEquals(2, eval("function f({x: a, x: b}) { return b; } f({x: 2})"));
+        // Nested patterns with all-distinct names parse and bind correctly.
+        assertEquals(6, eval("var f = ([a, {b}, [c]]) => a + b + c; f([1, {b: 2}, [3]])"));
+    }
+
+    @Test
+    void dupCatchParam_isAlwaysParseError() {
+        assertParseError("try {} catch ([x, x]) {}");
+        assertParseError("try {} catch ({a, b: a}) {}");
+        // distinct destructured catch names are fine; simple catch never collides.
+        assertEquals(3, eval("try { throw [1, 2]; } catch ([x, y]) { x + y; }"));
+        assertEquals("ok", eval("try { throw 'ok'; } catch (e) { e; }"));
+    }
+
+    @Test
+    void evalArguments_boundInsidePattern_strictOnly() {
+        assertParseError("'use strict'; function f({eval}) {}");
+        assertParseError("'use strict'; function f([arguments]) {}");
+        assertParseError("'use strict'; var {eval} = {};");
+        assertParseError("'use strict'; try {} catch ({arguments}) {}");
+        // sloppy: eval/arguments bound inside a pattern is permitted.
+        assertEquals(7, eval("function f({eval}) { return eval; } f({eval: 7})"));
+    }
 }

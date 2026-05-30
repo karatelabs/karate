@@ -364,8 +364,7 @@ public class NodeUtils {
         try {
             Assertions.assertEquals(expectedJson, actualJson);
         } catch (Throwable t) {
-            // logger.debug("tree:\n{}", toString(node));
-            logger.debug("text:\n{}", text);
+            logger.debug("text:\n{}\ntree:\n{}", text, tree(node));
             throw t;
         }
     }
@@ -376,18 +375,34 @@ public class NodeUtils {
         }
     }
 
-    private static void recurse(StringBuilder sb, int level, Node node) {
-        spaces(sb, level);
-        sb.append(node).append('\n');
-        for (int i = 0, n = node.size(); i < n; i++) {
-            recurse(sb, level + 1, node.get(i));
-        }
+    /**
+     * Renders a parse tree as an indented, type-annotated dump for debugging.
+     * Each internal node prints its {@link io.karatelabs.parser.NodeType}; each
+     * leaf prints {@code TOKEN_TYPE 'text'}. Unlike {@link #ser} — the compact
+     * golden-tree form used by parser assertions, which collapses single-child
+     * nodes and drops type names (so {@code b: c} renders ambiguously as
+     * {@code "$b:"}) — this is lossless about structure and token kind. Reach for
+     * it when you need to see the actual shape of a production rather than match
+     * it. Pairs with the {@code logger.debug("tree:...")} call in
+     * {@link #assertEquals} that fires on a failed parser assertion.
+     */
+    public static String tree(Node node) {
+        StringBuilder sb = new StringBuilder();
+        treeRecurse(sb, 0, node);
+        return sb.toString();
     }
 
-    private static String toString(Node node) {
-        StringBuilder sb = new StringBuilder();
-        recurse(sb, 0, node);
-        return sb.toString();
+    private static void treeRecurse(StringBuilder sb, int level, Node node) {
+        spaces(sb, level * 2);
+        if (node.isToken()) {
+            sb.append(node.token.type).append(" '").append(node.getText()).append('\'');
+        } else {
+            sb.append(node.type);
+        }
+        sb.append('\n');
+        for (int i = 0, n = node.size(); i < n; i++) {
+            treeRecurse(sb, level + 1, node.get(i));
+        }
     }
 
 }

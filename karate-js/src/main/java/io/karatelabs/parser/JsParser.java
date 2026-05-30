@@ -25,7 +25,11 @@ package io.karatelabs.parser;
 
 import io.karatelabs.common.Resource;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static io.karatelabs.parser.TokenType.*;
 
@@ -247,9 +251,16 @@ public class JsParser extends BaseParser {
                 childStrict = strict || fnBodyHasUseStrict(node);
                 if (childStrict) {
                     checkFunctionName(node);
-                    checkFormalParameters(node);
                 }
+                // Parameter early errors gate themselves: duplicate BoundNames fire
+                // for arrows / non-simple parameter lists even in sloppy code, and for
+                // any strict function; eval/arguments only under strict.
+                checkFormalParameters(node, childStrict, node.type == NodeType.FN_ARROW_EXPR);
             }
+            // Duplicate BoundNames in a catch parameter are an early error always
+            // (not strict-gated); eval/arguments only under strict. TRY does not
+            // change lexical strictness, so childStrict stays = strict.
+            case TRY_STMT -> checkCatchParameter(node, strict);
             // Class bodies — and every FN_EXPR (constructor / method) nested inside
             // — are always strict regardless of any enclosing directive (§15.7).
             case CLASS_EXPR -> childStrict = true;
@@ -372,11 +383,19 @@ public class JsParser extends BaseParser {
         }
     }
 
-    /** Strict formal-parameter early errors: no parameter may be named {@code eval}
-     *  / {@code arguments}, and no two parameters may share a name. Only simple
-     *  (identifier and rest-identifier) parameters are inspected here; the
-     *  duplicate-BoundNames walk over destructuring patterns is a separate sweep. */
-    private static void checkFormalParameters(Node fn) {
+    /**
+     * Formal-parameter early errors over the full BoundNames of the parameter list:
+     * <ul>
+     *   <li>Duplicate bound names are a SyntaxError when the list is non-simple (any
+     *       destructuring pattern, default, or rest element), when the function is an
+     *       arrow (UniqueFormalParameters), or when the function is strict. Plain
+     *       duplicate simple params in a sloppy non-arrow function stay legal.</li>
+     *   <li>Under strict, no bound name may be {@code eval} / {@code arguments}.</li>
+     * </ul>
+     * BoundNames mirror the binding structure, so {@code ({a: x = y}) => …} binds
+     * only {@code x} — not the key {@code a} or the default {@code y}.
+     */
+    private static void checkFormalParameters(Node fn, boolean strict, boolean isArrow) {
         Node args = null;
         for (int i = 0, n = fn.size(); i < n; i++) {
             Node child = fn.get(i);
@@ -388,60 +407,262 @@ public class JsParser extends BaseParser {
         if (args == null) {
             return;
         }
-        java.util.Set<String> seen = new java.util.HashSet<>();
+        // Hot-path guard: a sloppy non-arrow function with a simple parameter list
+        // can't have any of these early errors, so skip the BoundNames allocation
+        // entirely (the common case — every `.map(function(x){…})` callback). The
+        // nonSimple scan is allocation-free.
+        boolean nonSimple = false;
+        for (int i = 0, n = args.size(); i < n; i++) {
+            Node arg = args.get(i);
+            if (!arg.isToken() && arg.type == NodeType.FN_DECL_ARG && isNonSimpleParam(arg)) {
+                nonSimple = true;
+                break;
+            }
+        }
+        if (!strict && !isArrow && !nonSimple) {
+            return;
+        }
+        List<String> names = new ArrayList<>();
         for (int i = 0, n = args.size(); i < n; i++) {
             Node arg = args.get(i);
             if (arg.isToken() || arg.type != NodeType.FN_DECL_ARG) {
                 continue;
             }
-            String name = simpleParamName(arg);
-            if (name == null) {
-                continue; // destructuring / pattern parameter — deferred BoundNames walk
+            collectBindingBoundNames(arg, names);
+        }
+        if (strict) {
+            for (String name : names) {
+                if (isEvalOrArguments(name)) {
+                    throw new ParserException(
+                            "'" + name + "' is not a valid parameter name in strict mode");
+                }
             }
-            if (isEvalOrArguments(name)) {
+        }
+        if (strict || isArrow || nonSimple) {
+            String dup = firstDuplicate(names);
+            if (dup != null) {
                 throw new ParserException(
-                        "'" + name + "' is not a valid parameter name in strict mode");
-            }
-            if (!seen.add(name)) {
-                throw new ParserException(
-                        "duplicate parameter name '" + name + "' is not allowed in strict mode");
+                        "duplicate parameter name '" + dup + "' is not allowed here");
             }
         }
     }
 
-    /** Returns the bound name of a simple {@code FN_DECL_ARG} ({@code x},
-     *  {@code x = default}, or {@code ...rest}), or {@code null} for a destructuring
-     *  pattern parameter. */
-    private static String simpleParamName(Node arg) {
-        if (arg.size() == 0) {
-            return null;
+    /** A FormalParameter is non-simple if it is a destructuring pattern, carries a
+     *  default initializer, or is a rest element — any of which makes the whole
+     *  parameter list non-simple, so duplicate bound names become an early error. */
+    private static boolean isNonSimpleParam(Node arg) {
+        for (int i = 0, n = arg.size(); i < n; i++) {
+            Node ch = arg.get(i);
+            if (ch.isToken()) {
+                if (ch.token.type == EQ || ch.token.type == DOT_DOT_DOT) {
+                    return true;
+                }
+            } else if (ch.type == NodeType.LIT_ARRAY || ch.type == NodeType.LIT_OBJECT) {
+                return true;
+            }
         }
-        Node first = arg.getFirst();
-        if (!first.isToken()) {
-            return null;
-        }
-        if (first.token.type == IDENT) {
-            return first.getText();
-        }
-        if (first.token.type == DOT_DOT_DOT && arg.size() > 1
-                && arg.get(1).isToken() && arg.get(1).token.type == IDENT) {
-            return arg.get(1).getText();
-        }
-        return null;
+        return false;
     }
 
-    /** A strict var/let/const declaration may not bind {@code eval} / {@code arguments}.
-     *  Only the simple-identifier binding is checked; destructuring BoundNames are
-     *  part of the deferred pattern sweep. */
-    private static void checkVarDeclName(Node varDecl) {
-        if (varDecl.size() == 0) {
+    /** Catch-clause early errors: duplicate BoundNames of the catch parameter are a
+     *  SyntaxError always (not strict-gated); under strict, {@code eval}/{@code arguments}
+     *  may not be bound. A simple {@code catch (e)} can't collide — the duplicate rule
+     *  only bites for a destructuring catch param ({@code catch ([x, x])}). */
+    private static void checkCatchParameter(Node tryStmt, boolean strict) {
+        // TRY_STMT: ... CATCH L_PAREN <binding> R_PAREN BLOCK ...  The binding is the
+        // first node/ident between the post-CATCH L_PAREN and the matching R_PAREN.
+        int catchIdx = -1;
+        for (int i = 0, n = tryStmt.size(); i < n; i++) {
+            Node ch = tryStmt.get(i);
+            if (ch.isToken() && ch.token.type == CATCH) {
+                catchIdx = i;
+                break;
+            }
+        }
+        if (catchIdx < 0) {
             return;
         }
-        Node first = varDecl.getFirst();
-        if (first.isToken() && first.token.type == IDENT && isEvalOrArguments(first.getText())) {
-            throw new ParserException(
-                    "'" + first.getText() + "' is not a valid binding name in strict mode");
+        Node binding = null;
+        for (int i = catchIdx + 1, n = tryStmt.size(); i < n; i++) {
+            Node ch = tryStmt.get(i);
+            if (ch.isToken()) {
+                if (ch.token.type == R_PAREN) {
+                    break;
+                }
+                if (ch.token.type == IDENT) {
+                    binding = ch; // simple catch binding — no duplicate possible
+                    break;
+                }
+                // skip the L_PAREN
+            } else {
+                binding = ch; // LIT_ARRAY / LIT_OBJECT pattern
+                break;
+            }
         }
+        if (binding == null) {
+            return;
+        }
+        List<String> names = new ArrayList<>();
+        collectBoundNames(binding, names);
+        String dup = firstDuplicate(names);
+        if (dup != null) {
+            throw new ParserException(
+                    "duplicate binding name '" + dup + "' is not allowed in a catch parameter");
+        }
+        if (strict) {
+            for (String name : names) {
+                if (isEvalOrArguments(name)) {
+                    throw new ParserException(
+                            "'" + name + "' is not a valid binding name in strict mode");
+                }
+            }
+        }
+    }
+
+    /** A strict var/let/const declaration may not bind {@code eval} / {@code arguments}
+     *  — including inside a destructuring pattern. (Lexical duplicate-BoundNames for
+     *  let/const patterns is a distinct rule, deferred — VAR_DECL doesn't carry the
+     *  let-vs-var distinction.) */
+    private static void checkVarDeclName(Node varDecl) {
+        List<String> names = new ArrayList<>();
+        collectBindingBoundNames(varDecl, names);
+        for (String name : names) {
+            if (isEvalOrArguments(name)) {
+                throw new ParserException(
+                        "'" + name + "' is not a valid binding name in strict mode");
+            }
+        }
+    }
+
+    /** Bound names of one {@code FN_DECL_ARG} / {@code VAR_DECL} — the binding target
+     *  before any {@code = default} initializer (the default expression binds nothing).
+     *  Handles simple idents, rest ({@code ...r}), and destructuring patterns. */
+    private static void collectBindingBoundNames(Node binding, List<String> out) {
+        for (int i = 0, n = binding.size(); i < n; i++) {
+            Node ch = binding.get(i);
+            if (ch.isToken()) {
+                if (ch.token.type == EQ) {
+                    return; // default initializer follows — target already collected
+                }
+                if (ch.token.type == IDENT) {
+                    out.add(ch.getText()); // simple binding, or the ...rest ident
+                }
+                // DOT_DOT_DOT, COMMA: structural — skip
+            } else {
+                collectBoundNames(ch, out); // LIT_ARRAY / LIT_OBJECT pattern
+            }
+        }
+    }
+
+    /** BoundNames of a binding target, mirroring the binding structure so a default
+     *  value or property key contributes nothing. Handles bare/REF identifiers,
+     *  default targets ({@code x = y} → {@code x}), array patterns, object patterns. */
+    private static void collectBoundNames(Node n, List<String> out) {
+        if (n == null) {
+            return;
+        }
+        if (n.isToken()) {
+            if (n.token.type == IDENT) {
+                out.add(n.getText());
+            }
+            return;
+        }
+        switch (n.type) {
+            case EXPR, EXPR_LIST, LIT_EXPR, PAREN_EXPR -> {
+                for (int i = 0, c = n.size(); i < c; i++) {
+                    collectBoundNames(n.get(i), out);
+                }
+            }
+            case REF_EXPR -> {
+                Node f = n.getFirst();
+                if (f != null && f.isToken() && f.token.type == IDENT) {
+                    out.add(f.getText());
+                }
+            }
+            // A destructuring default `target = value`: only the target binds.
+            case ASSIGN_EXPR -> {
+                if (n.size() > 0) {
+                    collectBoundNames(n.getFirst(), out);
+                }
+            }
+            case LIT_OBJECT -> {
+                for (int i = 0, c = n.size(); i < c; i++) {
+                    Node ch = n.get(i);
+                    if (!ch.isToken() && ch.type == NodeType.OBJECT_ELEM) {
+                        collectObjectElemBoundNames(ch, out);
+                    }
+                }
+            }
+            case LIT_ARRAY -> {
+                for (int i = 0, c = n.size(); i < c; i++) {
+                    Node ch = n.get(i);
+                    if (ch.isToken() || ch.type != NodeType.ARRAY_ELEM) {
+                        continue;
+                    }
+                    // Array element: skip the leading `...` / trailing `,`, recurse
+                    // into the target (a hole has no target and binds nothing).
+                    for (int j = 0, e = ch.size(); j < e; j++) {
+                        Node sub = ch.get(j);
+                        if (!sub.isToken()) {
+                            collectBoundNames(sub, out);
+                        }
+                    }
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
+    /** BoundNames of one object-pattern property: {@code {a}} / {@code {a = d}} bind
+     *  {@code a}; {@code {k: target}} binds BoundNames(target); {@code {...r}} binds
+     *  {@code r}. The key and any default initializer contribute nothing. A property
+     *  that is really a method/accessor (carries an FN_EXPR) is not a binding. */
+    private static void collectObjectElemBoundNames(Node elem, List<String> out) {
+        int colonIdx = -1;
+        int restIdx = -1;
+        for (int i = 0, n = elem.size(); i < n; i++) {
+            Node ch = elem.get(i);
+            if (ch.isToken()) {
+                if (ch.token.type == COLON) {
+                    colonIdx = i;
+                } else if (ch.token.type == DOT_DOT_DOT) {
+                    restIdx = i;
+                }
+            } else if (ch.type == NodeType.FN_EXPR) {
+                return; // method / accessor — not a binding element
+            }
+        }
+        if (colonIdx >= 0 || restIdx >= 0) {
+            // `key: target` or `...rest` — bind the first node after the marker.
+            for (int i = (colonIdx >= 0 ? colonIdx : restIdx) + 1, n = elem.size(); i < n; i++) {
+                Node ch = elem.get(i);
+                if (!ch.isToken()) {
+                    collectBoundNames(ch, out);
+                    return;
+                }
+            }
+            return;
+        }
+        // Shorthand `{a}` or `{a = default}`: the first IDENT token is the bound name.
+        for (int i = 0, n = elem.size(); i < n; i++) {
+            Node ch = elem.get(i);
+            if (ch.isToken() && ch.token.type == IDENT) {
+                out.add(ch.getText());
+                return;
+            }
+        }
+    }
+
+    /** First duplicate element in {@code names}, or {@code null} if all are distinct. */
+    private static String firstDuplicate(List<String> names) {
+        Set<String> seen = new HashSet<>(Math.max(4, names.size() * 2));
+        for (String name : names) {
+            if (!seen.add(name)) {
+                return name;
+            }
+        }
+        return null;
     }
 
     /** A strict assignment / update may not target {@code eval} / {@code arguments}.
