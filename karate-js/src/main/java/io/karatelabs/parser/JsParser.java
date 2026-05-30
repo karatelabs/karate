@@ -349,7 +349,11 @@ public class JsParser extends BaseParser {
         }
         boolean childStrict = strict;
         switch (node.type) {
-            case PROGRAM -> childStrict = strict || hasUseStrictPrologue(node);
+            case PROGRAM -> {
+                childStrict = strict || hasUseStrictPrologue(node);
+                // Script top level: function declarations are var-scoped, not lexical.
+                checkScopeRedeclaration(directStatements(node), true, childStrict);
+            }
             case FN_EXPR, FN_ARROW_EXPR -> {
                 childStrict = strict || fnBodyHasUseStrict(node);
                 if (childStrict) {
@@ -360,6 +364,22 @@ public class JsParser extends BaseParser {
                 // any strict function; eval/arguments only under strict.
                 checkFormalParameters(node, childStrict, node.type == NodeType.FN_ARROW_EXPR);
             }
+            // A Block / CaseBlock / Script / function body each forms a scope whose
+            // LexicallyDeclaredNames must have no duplicates and must not intersect its
+            // VarDeclaredNames (§14.2.1, §14.12.1, §16.1.1). The check is strict-aware:
+            // the sole Annex B.3.3 sloppy carve-out is that duplicate names bound ONLY
+            // by FunctionDeclarations are legal (so `function f(){} function f(){}` in a
+            // block is sloppy-legal but a strict early error). The lexical∩var clash has
+            // no carve-out. A standalone Block's function declarations are lexical; a
+            // function body's / Script's top-level ones are var-scoped — hence the
+            // topLevel flag, derived for a BLOCK from whether its parent is a function.
+            case BLOCK -> {
+                Node p = node.getParent();
+                boolean fnBody = p != null
+                        && (p.type == NodeType.FN_EXPR || p.type == NodeType.FN_ARROW_EXPR);
+                checkScopeRedeclaration(directStatements(node), fnBody, strict);
+            }
+            case SWITCH_STMT -> checkSwitchCaseBlockRedeclaration(node, strict);
             // Duplicate BoundNames in a catch parameter are an early error always
             // (not strict-gated); eval/arguments only under strict. TRY does not
             // change lexical strictness, so childStrict stays = strict.
@@ -639,6 +659,181 @@ public class JsParser extends BaseParser {
                 throw new ParserException(
                         "'" + name + "' is not a valid binding name in strict mode");
             }
+        }
+    }
+
+    /** The direct {@code STATEMENT} children of a {@code PROGRAM} / {@code BLOCK}
+     *  (its StatementList), skipping structural braces / EOF. */
+    private static List<Node> directStatements(Node scope) {
+        List<Node> out = new ArrayList<>();
+        for (int i = 0, n = scope.size(); i < n; i++) {
+            Node ch = scope.get(i);
+            if (!ch.isToken() && ch.type == NodeType.STATEMENT) {
+                out.add(ch);
+            }
+        }
+        return out;
+    }
+
+    /** The first non-token child of a node, or {@code null}. A {@code STATEMENT} wraps
+     *  exactly one inner statement / declaration, so this unwraps it. */
+    private static Node firstNonToken(Node node) {
+        for (int i = 0, n = node.size(); i < n; i++) {
+            Node ch = node.get(i);
+            if (!ch.isToken()) {
+                return ch;
+            }
+        }
+        return null;
+    }
+
+    /** The bound name of a {@code FN_EXPR} / {@code CLASS_EXPR} declaration — the IDENT
+     *  between the {@code function}/{@code class} keyword and the parameter list /
+     *  heritage / body. {@code null} for an anonymous form (no statement-position
+     *  binding). */
+    private static String declarationName(Node decl) {
+        for (int i = 0, n = decl.size(); i < n; i++) {
+            Node ch = decl.get(i);
+            if (ch.isToken()) {
+                TokenType tt = ch.token.type;
+                if (tt == IDENT) {
+                    return ch.getText();
+                }
+                if (tt == EXTENDS || tt == L_CURLY || tt == L_PAREN) {
+                    return null; // reached heritage / body / params — anonymous
+                }
+            } else {
+                return null; // reached FN_DECL_ARGS / class body subtree — anonymous
+            }
+        }
+        return null;
+    }
+
+    /** All case/default clauses of a {@code switch} share ONE lexical scope (the
+     *  CaseBlock), so the redeclaration check spans every clause's StatementList. */
+    private void checkSwitchCaseBlockRedeclaration(Node switchStmt, boolean strict) {
+        List<Node> statements = new ArrayList<>();
+        for (int i = 0, n = switchStmt.size(); i < n; i++) {
+            Node ch = switchStmt.get(i);
+            if (!ch.isToken()
+                    && (ch.type == NodeType.CASE_BLOCK || ch.type == NodeType.DEFAULT_BLOCK)) {
+                statements.addAll(directStatements(ch));
+            }
+        }
+        checkScopeRedeclaration(statements, false, strict);
+    }
+
+    /**
+     * Enforces the per-scope redeclaration early errors over a StatementList:
+     * its LexicallyDeclaredNames must have no duplicate entries and must not also
+     * occur in its VarDeclaredNames. {@code let}/{@code const}/{@code class} always
+     * contribute lexical names; a FunctionDeclaration contributes a lexical name in a
+     * Block/CaseBlock but a var name at Script / function-body top level
+     * ({@code topLevel}). The only Annex B.3.3 sloppy relaxation is that a duplicate
+     * bound SOLELY by FunctionDeclarations is legal (still a strict early error); the
+     * lexical∩var clash has no relaxation.
+     */
+    private void checkScopeRedeclaration(List<Node> statements, boolean topLevel, boolean strict) {
+        List<String> lexNames = new ArrayList<>();   // LexicallyDeclaredNames, with repeats
+        Set<String> lexNonFn = new HashSet<>();      // those NOT bound by a FunctionDeclaration
+        for (Node stmt : statements) {
+            Node d = firstNonToken(stmt);
+            if (d == null) {
+                continue;
+            }
+            if (d.type == NodeType.VAR_STMT && isLexicalVarStmt(d)) {
+                List<String> tmp = new ArrayList<>();
+                for (int i = 0, n = d.size(); i < n; i++) {
+                    Node ch = d.get(i);
+                    if (!ch.isToken() && ch.type == NodeType.VAR_DECL) {
+                        collectBindingBoundNames(ch, tmp);
+                    }
+                }
+                lexNames.addAll(tmp);
+                lexNonFn.addAll(tmp);
+            } else if (d.type == NodeType.CLASS_EXPR) {
+                String name = declarationName(d);
+                if (name != null) {
+                    lexNames.add(name);
+                    lexNonFn.add(name);
+                }
+            } else if (d.type == NodeType.FN_EXPR && !topLevel) {
+                String name = declarationName(d);
+                if (name != null) {
+                    lexNames.add(name); // function-bound — deliberately not in lexNonFn
+                }
+            }
+        }
+        if (lexNames.isEmpty()) {
+            return; // no lexical declarations → no duplicate and no clash possible
+        }
+        // Duplicate LexicallyDeclaredNames. Annex B.3.3: a sloppy duplicate bound only
+        // by FunctionDeclarations is allowed; everything else (and all of strict) errors.
+        Set<String> seen = new HashSet<>();
+        for (String name : lexNames) {
+            if (!seen.add(name)) {
+                boolean onlyFunctions = !lexNonFn.contains(name);
+                if (strict || !onlyFunctions) {
+                    throw new ParserException(
+                            "identifier '" + name + "' has already been declared");
+                }
+            }
+        }
+        // Lexical names may not also be var-declared anywhere in the scope (vars hoist
+        // through nested blocks; at top level a FunctionDeclaration is itself var-scoped).
+        List<String> varNames = new ArrayList<>();
+        for (Node stmt : statements) {
+            collectVarNames(stmt, varNames);
+            if (topLevel) {
+                Node d = firstNonToken(stmt);
+                if (d != null && d.type == NodeType.FN_EXPR) {
+                    String name = declarationName(d);
+                    if (name != null) {
+                        varNames.add(name);
+                    }
+                }
+            }
+        }
+        if (varNames.isEmpty()) {
+            return;
+        }
+        Set<String> varSet = new HashSet<>(varNames);
+        for (String name : lexNames) {
+            if (varSet.contains(name)) {
+                throw new ParserException(
+                        "identifier '" + name + "' has already been declared");
+            }
+        }
+    }
+
+    /** VarDeclaredNames within a scope's StatementList — {@code var} bindings reachable
+     *  without crossing a nested function or class boundary (vars hoist through plain
+     *  blocks and control structures, so the traversal descends into them but stops at
+     *  {@code FN_EXPR}/{@code FN_ARROW_EXPR}/{@code CLASS_EXPR}). */
+    private static void collectVarNames(Node node, List<String> out) {
+        if (node == null || node.isToken()) {
+            return;
+        }
+        switch (node.type) {
+            case FN_EXPR, FN_ARROW_EXPR, CLASS_EXPR -> {
+                return; // nested function / class scope — its vars belong to it
+            }
+            case VAR_STMT -> {
+                if (!isLexicalVarStmt(node)) { // a `var` statement
+                    for (int i = 0, n = node.size(); i < n; i++) {
+                        Node ch = node.get(i);
+                        if (!ch.isToken() && ch.type == NodeType.VAR_DECL) {
+                            collectBindingBoundNames(ch, out);
+                        }
+                    }
+                }
+                return;
+            }
+            default -> {
+            }
+        }
+        for (int i = 0, n = node.size(); i < n; i++) {
+            collectVarNames(node.get(i), out);
         }
     }
 

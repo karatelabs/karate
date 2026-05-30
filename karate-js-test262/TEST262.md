@@ -191,20 +191,18 @@ cluster).** A probe of `test/language/statements/**` buckets these under the new
 instead of rejecting — see [Results schema](#results-schema)): **141** remain in
 the statements slice (was 183; −42 from the declaration-in-statement-position
 sweep below). Use it to scope: `jq -r 'select(.error_type=="MissingParseError").path'`.
-**Function- AND lexical/class-declaration-in-statement-position are DONE** (see
-Background sweeps); the residual is the long tail of other early errors:
-escaped-keyword / reserved-word misuse, **duplicate lexical declarations in a
-scope** (the `switch/syntax/redeclaration/**` cluster, ~24 — the recommended next
-item: a block-scoped LexicallyDeclaredNames-no-duplicate + no-intersection-with-
-VarDeclaredNames walk per §14.2.1/§14.12.1, generalizes to every BLOCK / CaseBlock
-/ program / function body), `break`/`continue` to undefined labels, `new.target` /
-`super` outside a method, getter/setter arity, etc. Pick the next sub-cluster by
-count from the `MissingParseError` histogram. The remaining `for-(of|in)/dstr/**`
-cluster (~56) is a fragmented long tail of distinct destructuring-pattern rules —
-lower leverage per unit effort. Two known un-enforced parser corners carried over:
-a `"use strict"` prologue inside a non-simple-parameter-list function is itself an
-early error; lexical duplicate-BoundNames for `let`/`const` patterns (`let {a,a}=…`
-— folds into the duplicate-lexical-declaration walk above).
+**Function- AND lexical/class-declaration-in-statement-position, AND per-scope
+lexical-redeclaration are DONE** (see Background sweeps — the latter cleared the
+whole `switch/syntax/redeclaration/**` cluster, 24→0). The residual is the long
+tail of other early errors: escaped-keyword / reserved-word misuse,
+`break`/`continue` to undefined labels, `new.target` / `super` outside a method,
+getter/setter arity, etc. Pick the next sub-cluster by count from the
+`MissingParseError` histogram. The remaining `for-(of|in)/dstr/**` cluster (~56) is
+a fragmented long tail of distinct destructuring-pattern rules — lower leverage per
+unit effort. One known un-enforced parser corner carried over: a `"use strict"`
+prologue inside a non-simple-parameter-list function is itself an early error.
+(Lexical duplicate-BoundNames for `let`/`const` *patterns* — `let {a,a}=…` — is now
+covered by the redeclaration walk's per-VAR_DECL BoundNames collection.)
 
 **Also residual from the `onlyStrict` un-skip:** (2) **~16 runtime `SyntaxError`**
 not thrown; (3) **~14 strict-assignment runtime `TypeError`** (arguments-object
@@ -312,6 +310,35 @@ Picked off opportunistically when nearby — not session-sized on their own.
   `let/syntax` + `const/syntax` statement-position families. Pinned by
   `SpecPinTest.lexicalOrClassDeclAsClauseBody_isAlwaysParseError /
   letAsIdentifierWithLineTerminator_isNotALexicalDeclaration`.
+
+- **Per-scope lexical-redeclaration early error — DONE.** `JsParser` now enforces,
+  per lexical scope (Script, function body, plain Block, switch CaseBlock), that
+  LexicallyDeclaredNames has no duplicates and does not intersect VarDeclaredNames
+  (§14.2.1 / §14.12.1 / §16.1.1). It rides the strict-aware `checkStrictEarlyErrors`
+  walk (`checkScopeRedeclaration` + `checkSwitchCaseBlockRedeclaration` +
+  `collectVarNames` + `declarationName` + `directStatements`) because the **only**
+  Annex B.3.3 relaxation is strict-gated: a duplicate bound *solely* by
+  FunctionDeclarations is sloppy-legal but a strict early error (e.g. `{ function
+  f(){} function f(){} }`). The lexical∩var clash has no carve-out (always an error).
+  FunctionDeclarations are lexical in a Block/CaseBlock but var-scoped at Script /
+  function-body top level (the `topLevel` flag, derived for a BLOCK from whether its
+  parent is a function via `Node.getParent`). A hot-path guard returns immediately
+  when a scope has no lexical declarations (keeps the benchmark flat). Error message
+  aligned to the existing runtime wording (`identifier 'X' has already been
+  declared`, `CoreContext`) so it reads the same whichever layer catches it; the two
+  JUnit tests that asserted the old *runtime* message (`EvalTest.testConstRedeclare`,
+  `EngineTest.testConstRedeclareAcrossEvals`) — correct in spirit, these ARE
+  `phase: parse` early errors — still pass unchanged (REPL cross-eval redeclaration
+  stays legal since each eval parses independently). Also subsumes the
+  previously-deferred `let {a,a}=…` duplicate-pattern rule (per-VAR_DECL BoundNames).
+  Slice delta (`test/language/**`): **switch `redeclaration` cluster 24 → 0,
+  +134 PASS overall, 0 regressions**. Pinned by `SpecPinTest.duplicateLexicalNamesInScope_* /
+  lexicalNameClashingWithVar_* / duplicateFunctionDeclarations_areSloppyLegalStrictError`.
+  ⚠️ Three positive tests still FAIL with the *same* `has already been declared`
+  message but from the **runtime** `CoreContext` check, not the parser — pre-existing
+  env-scoping gaps unrelated to this change (see Deferred TODOs → spec alignment):
+  indirect `(0,eval)(...)` must get a distinct declarative environment, and a switch
+  CaseBlock must get its own block environment at runtime (`scope-lex-close-case.js`).
 
 - **C-style `for` per-iteration `let`/`const` environment — DONE.**
   `Interpreter.evalForStmt` now models §14.7.4.3 ForBodyEvaluation properly: the
@@ -521,6 +548,16 @@ Benchmark-gated or coordinated with other work.
 
 Observably non-spec; pick up when the owning slice surfaces them.
 
+- **Runtime block/eval environments for lexical bindings.** Surfaced by the
+  per-scope redeclaration sweep: three positive tests FAIL because the *runtime*
+  `CoreContext` redeclaration check (`identifier 'X' has already been declared`,
+  not the parser) fires where the spec wants a fresh declarative environment.
+  (1) A `switch` CaseBlock needs its own block environment so `let x` inside a
+  `case` does not collide with an outer `let x` (`statements/switch/scope-lex-close-case.js`).
+  (2) Indirect `(0,eval)('const x…')` must evaluate in a NewDeclarativeEnvironment
+  off the global env, so the eval'd lexical binding does not collide with an outer
+  global `const x` (`eval-code/indirect/lex-env-distinct-{const,let}.js`). Both are
+  runtime scoping gaps, independent of the parse-phase early-error work.
 - **`JsArray.handleLengthAssign` strict TypeError on non-writable length.**
   Strict-mode plumbing has landed (`CoreContext.strict`), but the `length`
   write still routes through `handleLengthAssign(value, ctx)` with no strict

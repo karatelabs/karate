@@ -1187,4 +1187,56 @@ class SpecPinTest extends EvalBase {
         // `const` is a reserved word, so it has no such ASI escape — still an error.
         assertParseError("if (x) const\n y = 1;");
     }
+
+    // -------------------------------------------------------------------------
+    // Per-scope redeclaration early errors (§14.2.1 Block, §14.12.1 CaseBlock,
+    // §16.1.1 Script): LexicallyDeclaredNames must have no duplicates and must
+    // not intersect VarDeclaredNames. The sole Annex B.3.3 sloppy relaxation is
+    // that a duplicate bound ONLY by FunctionDeclarations is legal (still a
+    // strict error). FunctionDeclarations are lexical in a Block/CaseBlock but
+    // var-scoped at Script / function-body top level.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void duplicateLexicalNamesInScope_isParseError() {
+        // switch CaseBlock — all clauses share one lexical scope.
+        assertParseError("switch (0) { case 1: let f; default: const f = 0 }");
+        assertParseError("switch (0) { case 1: let f; default: let f }");
+        assertParseError("switch (0) { case 1: class f {} default: const f = 0 }");
+        // plain Block and Script top level.
+        assertParseError("{ let x; let x; }");
+        assertParseError("let x; const x = 1;");
+        assertParseError("function g() { let x; let x; }");
+        // duplicate BoundNames WITHIN a single lexical declaration's pattern.
+        assertParseError("let {a, a} = obj;");
+        assertParseError("const [b, b] = arr;");
+    }
+
+    @Test
+    void lexicalNameClashingWithVar_isParseError() {
+        // lexical ∩ var has NO Annex B carve-out — error in both modes.
+        assertParseError("switch (0) { case 1: var f; default: let f }");
+        assertParseError("switch (0) { case 1: var f; default: function f() {} }");
+        assertParseError("switch (0) { case 1: function f() {} default: var f }");
+        assertParseError("{ let x; var x; }");
+        assertParseError("let x; var x;");
+        // a `var` nested in an inner block still hoists into the outer scope.
+        assertParseError("{ let x; { var x; } }");
+    }
+
+    @Test
+    void duplicateFunctionDeclarations_areSloppyLegalStrictError() {
+        // Annex B.3.3: duplicate names bound ONLY by FunctionDeclarations are legal
+        // in sloppy code (in a Block / CaseBlock) ...
+        assertEquals(5, eval("{ function f() {} function f() {} } 5"));
+        assertEquals(6, eval("switch (0) { case 1: function f() {} default: function f() {} } 6"));
+        // ... but a strict-mode early error.
+        assertParseError("'use strict'; { function f() {} function f() {} }");
+        // At Script / function-body top level a FunctionDeclaration is var-scoped, so a
+        // duplicate is legal even in strict mode (no lexical name involved).
+        assertEquals(7, eval("function f() {} function f() {} 7"));
+        assertEquals(9, eval("function g() { 'use strict'; function f() {} function f() {} return 9; } g()"));
+        // top-level function + var share var scope — legal.
+        assertEquals(1, eval("function f() {} var f; 1"));
+    }
 }
