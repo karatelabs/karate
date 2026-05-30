@@ -168,7 +168,20 @@ streams to be tailed.**
 
 ## Active priorities
 
-Remaining work is concentrated in `test/language/**`, dominated by
+**Next up — parser early-errors + lexical-strictness sweep (keystone).**
+Strict-mode *runtime* is done (`CoreContext.strict`); the missing half is
+parser-side early errors (`with`, duplicate params, octal `0755`,
+assign-to-`eval`/`arguments`) plus the runner prepending a strict directive.
+This one bounded, parser-local workstream unblocks three things at once:
+the whole `flag: onlyStrict` class (currently all skipped), the ~105
+class early-error negative tests (a third of the `class/**` un-skip gate —
+see [Skip list](#skip-list)), and the duplicate-binding-name destructuring
+sweep (arrow-fn `(x,{x})=>1` / catch-param `catch([x,x])`, see Background
+sweeps). Risk: don't regress `flag: noStrict` paths with over-eager directive
+parsing. Details + the runtime half already shipped:
+[Deferred TODOs → Strict mode](#deferred-todos).
+
+Beyond that, remaining work is concentrated in `test/language/**`, dominated by
 destructuring-assignment pattern parsing (see Background sweeps).
 Symbol stays parked — real-world JS doesn't use `Symbol(...)`, and the
 well-known symbols (`@@iterator` / `@@toPrimitive` / `@@toStringTag`)

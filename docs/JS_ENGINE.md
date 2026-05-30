@@ -901,10 +901,25 @@ creates the instance normally (proto already chains to `Parent.prototype`);
 `super(...)` then runs the parent constructor *against that same instance* via
 `Interpreter.runSuperConstructor` rather than allocating a new one. A class
 with no constructor that `extends` carries `isDefaultDerivedConstructor` and
-forwards all args to `super(...)` at construction time. **Known deviations
-(deferred):** no `this`-TDZ before `super()`, no `super()` return-override, and
-`extends` of a built-in exotic (Error/Array) uses a copy-own-props shim rather
-than true exotic subclassing.
+forwards all args to `super(...)` at construction time.
+
+**Public fields are enumerable own properties, run per-instance.** The parser
+emits a field as a `CLASS_METHOD` node with no trailing `FN_EXPR` (just an
+optional `= EXPR`); `evalClassExpr` resolves the field name once (computed
+names too) and stashes `JsFunctionNode.instanceFields`. Each `new` runs
+`Interpreter.runInstanceFieldInitializers` with `this` = the instance, in
+declaration order — before the constructor body for a base class, right after
+`super()` returns for a derived one. `static` fields are evaluated at
+class-definition time with `this` = the constructor. Unlike methods, fields
+use `putMember` (enumerable).
+
+**Known deviations (deferred):** no `this`-TDZ before `super()`, no `super()`
+return-override, `extends` of a built-in exotic (Error/Array) uses a
+copy-own-props shim rather than true exotic subclassing; and `class/**` stays
+test262-skipped (private `#x`, generator/async methods, decorators, class
+early-errors, public-field conformance edge tail) — see the un-skip gate in
+`karate-js-test262/etc/expectations.yaml` and the roadmap entry in
+`TEST262.md`. `JsClassTest` (44 cases) is the canonical behavior record.
 
 ### Globals
 
