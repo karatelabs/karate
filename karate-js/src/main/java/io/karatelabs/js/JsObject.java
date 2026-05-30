@@ -287,8 +287,28 @@ class JsObject implements ObjectLike, Map<String, Object> {
         return s != null && !s.tombstoned;
     }
 
+    /** Strict-mode [[Set]] rejection: assigning a non-writable / frozen prop. */
+    static void failReadOnly(String name) {
+        throw JsErrorException.typeError("Cannot assign to read only property '" + name + "'");
+    }
+
+    /** Strict-mode [[Set]] rejection: adding a key to a non-extensible object. */
+    static void failNotExtensible(String name) {
+        throw JsErrorException.typeError("Cannot add property " + name + ", object is not extensible");
+    }
+
+    /** Strict-mode [[Delete]] rejection: removing a non-configurable property. */
+    static void failNotConfigurable(String name) {
+        throw JsErrorException.typeError("Cannot delete property '" + name + "' of " + "[object Object]");
+    }
+
     @Override
     public void putMember(String name, Object value) {
+        putMember(name, value, null, false);
+    }
+
+    @Override
+    public void putMember(String name, Object value, CoreContext ctx, boolean strict) {
         if ("__proto__".equals(name)) {
             if (value instanceof ObjectLike proto) {
                 this.__proto__ = proto;
@@ -297,11 +317,12 @@ class JsObject implements ObjectLike, Map<String, Object> {
             }
             return;
         }
-        // Frozen: silently ignore all writes (lenient mode — strict-mode
-        // TypeError flip lives elsewhere). Non-extensible: ignore writes
-        // that would *create* a new own property; existing-key updates are
-        // still allowed (sealed differs from frozen by allowing them).
+        // Frozen: ignore all writes (sloppy); strict throws. Non-extensible:
+        // ignore writes that would *create* a new own property; existing-key
+        // updates are still allowed (sealed differs from frozen by allowing
+        // them).
         if (frozen) {
+            if (strict) failReadOnly(name);
             return;
         }
         PropertySlot s = props == null ? null : props.get(name);
@@ -314,23 +335,26 @@ class JsObject implements ObjectLike, Map<String, Object> {
         // putting them back is allowed if the object is extensible.
         boolean intrinsic = !keyExists && hasOwnIntrinsic(name);
         if (nonExtensible && !keyExists && !intrinsic) {
+            if (strict) failNotExtensible(name);
             return;
         }
-        // Existing accessor descriptor: invoke the setter (lenient — get-only
-        // accessors silently drop the write; strict-mode TypeError flip lives
-        // elsewhere). No context available on this entry point — accessor
-        // setters that need ctx must be reached via the receiver-aware path
-        // in {@link PropertyAccess#setByName}, which threads it.
+        // Existing accessor descriptor: invoke the setter (get-only accessors
+        // drop the write in sloppy mode, TypeError under strict — the slot's
+        // own write() honors the flag). The ctx threads through for live
+        // setters when the receiver-aware {@link PropertyAccess#setByName}
+        // path supplies it; direct callers pass null.
         if (keyExists && s instanceof AccessorSlot acc) {
-            acc.write(this, value, null, false);
+            acc.write(this, value, ctx, strict);
             return;
         }
-        // Per-property writable=false: silently ignore the [[Set]]. Spec says
-        // throw under strict; we're non-strict by default.
+        // Per-property writable=false: silently ignore the [[Set]] in sloppy
+        // mode; TypeError under strict.
         if (keyExists && !s.isWritable()) {
+            if (strict) failReadOnly(name);
             return;
         }
         if (intrinsic && (getOwnAttrs(name) & WRITABLE) == 0) {
+            if (strict) failReadOnly(name);
             return;
         }
         if (s == null) {
@@ -572,6 +596,11 @@ class JsObject implements ObjectLike, Map<String, Object> {
 
     @Override
     public void removeMember(String name) {
+        removeMember(name, null, false);
+    }
+
+    @Override
+    public void removeMember(String name, CoreContext ctx, boolean strict) {
         PropertySlot s = props == null ? null : props.get(name);
         // Already tombstoned — nothing to do.
         if (s != null && s.tombstoned) {
@@ -586,8 +615,11 @@ class JsObject implements ObjectLike, Map<String, Object> {
         // otherwise fall back to the intrinsic's getOwnAttrs default. Sealed/
         // frozen flags imply non-configurable (they cleared the bit on every
         // slot when applied), so checking the slot's attrs alone is enough.
+        // Sloppy `delete` of a non-configurable prop returns false silently;
+        // strict mode throws TypeError.
         byte attrs = inMap ? s.attrs : getOwnAttrs(name);
         if ((attrs & CONFIGURABLE) == 0) {
+            if (strict) failNotConfigurable(name);
             return;
         }
         if (intrinsic) {

@@ -45,6 +45,11 @@ class JsFunctionNode extends JsFunction {
     final int argCount;
     final CoreContext declaredContext;
     final BindingsStore capturedBindings; // References to Slots at creation time, frozen-shape
+    // Strict-mode is lexical: a function is strict if it carries its own
+    // "use strict" prologue OR it was defined inside already-strict code
+    // (declaredContext.strict). Resolved once at creation; the call frame
+    // copies it onto CoreContext.strict.
+    final boolean strict;
 
     public JsFunctionNode(boolean arrow, Node node, List<Node> argNodes, Node body, CoreContext declaredContext) {
         this.arrow = arrow;
@@ -53,6 +58,8 @@ class JsFunctionNode extends JsFunction {
         this.argCount = argNodes.size();
         this.body = body;
         this.declaredContext = declaredContext;
+        this.strict = (declaredContext != null && declaredContext.strict)
+                || (body.type == NodeType.BLOCK && Interpreter.hasUseStrictDirective(body));
         // Spec §15.2: f.length is the number of formal parameters before the
         // first one with a default value or a rest element. Approximating with
         // argCount is correct for the common case (no defaults, no rest) and
@@ -89,6 +96,7 @@ class JsFunctionNode extends JsFunction {
         }
         // Create lightweight function context with captured bindings
         CoreContext functionContext = new CoreContext(parentContext, node, args, declaredContext, capturedBindings);
+        functionContext.strict = strict;
         return bindArgsAndExecute(functionContext, parentContext, args);
     }
 

@@ -741,11 +741,11 @@ class PropertyAccess {
             // silently drops the write.
             AccessorSlot accSlot = findAccessorInChain(objectLike, name);
             if (accSlot != null) {
-                accSlot.write(object, value, context, false);
+                accSlot.write(object, value, context, context.strict);
                 return;
             }
             Object oldValue = objectLike.getMember(name);
-            objectLike.putMember(name, value);
+            objectLike.putMember(name, value, context, context.strict);
             firePropertySet(context, name, value, oldValue, object, trackingNode);
         } else if (object instanceof Map) {
             Map<String, Object> map = (Map<String, Object>) object;
@@ -852,7 +852,7 @@ class PropertyAccess {
         Object oldValue = null;
         if (object instanceof ObjectLike ol) {
             oldValue = ol.getMember(key);
-            ol.removeMember(key);
+            ol.removeMember(key, context, context.strict);
             firePropertyDelete(context, key, oldValue, object, node);
             return true;
         } else if (object instanceof Map<?, ?> map) {

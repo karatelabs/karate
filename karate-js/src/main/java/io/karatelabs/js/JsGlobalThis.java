@@ -106,15 +106,20 @@ final class JsGlobalThis extends JsObject {
 
     @Override
     public void putMember(String name, Object value) {
+        putMember(name, value, null, false);
+    }
+
+    @Override
+    public void putMember(String name, Object value, CoreContext ctx, boolean strict) {
         if ("__proto__".equals(name)) {
             super.putMember(name, value);
             return;
         }
-        // Honor writable=false from a previous defineProperty call (lenient
-        // mode silently drops the write; strict-mode TypeError flip is a
-        // separate concern).
+        // Honor writable=false from a previous defineProperty call: the write
+        // is silently dropped in sloppy mode, TypeError under strict.
         BindingSlot s = bindings().getSlot(name);
         if (s != null && s.attrsExplicit && (s.attrs & WRITABLE) == 0) {
+            if (strict) JsObject.failReadOnly(name);
             return;
         }
         bindings().clearTombstone(name);
@@ -138,6 +143,11 @@ final class JsGlobalThis extends JsObject {
 
     @Override
     public void removeMember(String name) {
+        removeMember(name, null, false);
+    }
+
+    @Override
+    public void removeMember(String name, CoreContext ctx, boolean strict) {
         BindingsStore b = bindings();
         BindingSlot s = b.getSlot(name);
         if (s == null) {
@@ -149,9 +159,11 @@ final class JsGlobalThis extends JsObject {
             return;
         }
         // Configurability check: defineProperty-style descriptors block delete
-        // when configurable=false; default attrs (W|C) allow it.
+        // when configurable=false; default attrs (W|C) allow it. Sloppy delete
+        // of a non-configurable prop is a silent no-op; strict throws.
         byte attrs = s.attrsExplicit ? s.attrs : (byte) (WRITABLE | CONFIGURABLE);
         if ((attrs & CONFIGURABLE) == 0) {
+            if (strict) JsObject.failNotConfigurable(name);
             return;
         }
         if (root.hasKey(name)) {

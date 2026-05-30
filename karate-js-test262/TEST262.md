@@ -216,11 +216,11 @@ early-error validation) is advanced-pattern territory.
 
 | Slice | What's blocking it |
 |---|---|
-| `test/language/statements/for-of` | IteratorClose **done** — on destructuring (normal/throwing/non-object `return()`, rest-skips-close) AND on abrupt loop exit (break/return/throw closes the outer iterator); body-skip-on-abrupt-binding; member-expression LHS (`for (x.attr of …)`) is now PutValue (invokes setters) not a var declaration — this also fixed the `body-put-error.js` infinite-loop hang. (`Interpreter.destructurePattern`/`evalForStmt` + `JsIterator.close`.) Remaining: assignment-pattern target-eval-order (`[ obj[sideEffect()] ] of …` must evaluate the target reference before stepping the iterator — the `*thrw-close*` family, a rare spec corner); fn-name inference for `[x = (function(){})] of …`; negative-parse tightenings; `array-elem-put-let.js`-style ReferenceError-on-bad-target (strict-mode-gated). |
+| `test/language/statements/for-of` | IteratorClose **done** — on destructuring (normal/throwing/non-object `return()`, rest-skips-close) AND on abrupt loop exit (break/return/throw closes the outer iterator); body-skip-on-abrupt-binding; member-expression LHS (`for (x.attr of …)`) is now PutValue (invokes setters) not a var declaration — this also fixed the `body-put-error.js` infinite-loop hang. (`Interpreter.destructurePattern`/`evalForStmt` + `JsIterator.close`.) Remaining: assignment-pattern target-eval-order (`[ obj[sideEffect()] ] of …` must evaluate the target reference before stepping the iterator — the `*thrw-close*` family, a rare spec corner); fn-name inference for `[x = (function(){})] of …`; negative-parse tightenings; `array-elem-put-let.js`-style ReferenceError-on-bad-target (now fires under in-body `"use strict"`; `onlyStrict` variants stay SKIP). |
 | `test/language/expressions/object` | Escaped-keyword cover-name dominates; `__proto__`-duplicate edges; computed-key / spread / method-def tail. |
 | `test/language/expressions/assignment` | Iterator-return semantics on default-expr throw. |
 | `test/language/{statements,expressions}/function` + `arrow-function` | fn-name inference for `[x = (function(){})]`-style defaults; IteratorClose-on-throw; rest-element edges. |
-| `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS (gated on strict-mode plumbing); `valueOf` / ToNumeric ordering for `+=` / `*=`; `A5.*_T2/T3` family (non-identifier LHS — Annex-B carve-out). |
+| `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS now fires under in-body `"use strict"` (the `onlyStrict`-flagged variants stay SKIP until the runner runs a strict pass); `valueOf` / ToNumeric ordering for `+=` / `*=`; `A5.*_T2/T3` family (non-identifier LHS — Annex-B carve-out). |
 | `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion handles headline cases. |
 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` (Symbol-gated). |
 | `test/built-ins/RegExp/**` | Named-group capture access **done** (`result.groups` + `$<name>` + function-replacer `groups` arg; see Background sweeps). Residual: group-name early-error validation, `Symbol.{match,replace,search,split,matchAll}` protocol (Symbol-gated, conformance-only — everyday `str.replace(re,fn)` doesn't use it), lookbehind / unicode-property-escapes / `/v` flag (feature-gated), one functional-replace-global ordering case. Null-arg Java leaks + one catastrophic-backtracking timeout in `exec`/`test` (principle #2 — see Cleanup residuals). |
@@ -316,11 +316,22 @@ file pointer. For *how the subsystem is shaped*, read the file. For
 
 ### Engine — feature gaps
 
-- **Strict mode plumbing.** Parse `"use strict"` directive, thread
-  `strictMode` via `CoreContext`, flip lenient sites through one
-  `failSilentOrThrow` helper. `AccessorSlot.write` already takes a
-  `strict` arg. ~3–4 h. Risk: directive parser may regress
-  `flags: [noStrict]` paths.
+- **Strict mode — runtime semantics DONE; parser early-errors remain.**
+  `"use strict"` now activates the spec runtime flips: `this`→undefined in
+  plain calls, `ReferenceError` on implicit-global assign, and `TypeError`
+  on write-to-frozen / read-only / getter-only / non-extensible and
+  `delete` of non-configurable. Strictness is lexical, cached on
+  `JsFunctionNode.strict`, threaded via `CoreContext.strict`. See
+  [JS_ENGINE.md § Strict Mode Policy](../docs/JS_ENGINE.md#strict-mode-policy)
+  for the flip table and invariants; pinned by `SpecPinTest.strict_*`.
+  **Remaining (separate workstream):** parser-side early errors (`with`,
+  duplicate params, octal `0755`, assign-to-`eval`/`arguments`) need the
+  parser to track lexical strictness; and the runner executes each test
+  once in sloppy mode, so `flags: [onlyStrict]` stays skipped until the
+  runner prepends a strict directive (and the early-error set lands) —
+  enabling it now would FAIL the negative early-error tests. Risk on the
+  parser work: regressing `flags: [noStrict]` paths if directive parsing
+  is over-eager.
 - **Promises / async / await / setTimeout.** Skipped (`feature: Promise`,
   `async-functions`, `Symbol.asyncIterator`). karate-js is synchronous.
   Viable path: sync subset first — `Promise` as eager thenable,
@@ -358,9 +369,13 @@ Benchmark-gated or coordinated with other work.
 
 Observably non-spec; pick up when the owning slice surfaces them.
 
-- **`JsArray.handleLengthAssign` return dropped on direct assign** —
-  silent no-op on writable=false; spec wants TypeError under strict.
-  Pair with strict-mode plumbing.
+- **`JsArray.handleLengthAssign` strict TypeError on non-writable length.**
+  Strict-mode plumbing has landed (`CoreContext.strict`), but the `length`
+  write still routes through `handleLengthAssign(value, ctx)` with no strict
+  arg — `PropertyAccess.setByName` special-cases `"length"` *before* the
+  strict-aware `putMember`, so `'use strict'; arr.length = 0` on a
+  non-writable length is still a silent no-op. Thread `strict` into
+  `handleLengthAssign` to finish the flip; everyday code doesn't hit it.
 - **`ToObject` for non-empty string descriptor sources** — short-circuits
   to TypeError (correct end-state), skips wrapper pipeline.
 - **`JsArray.jsEntries` vs `[[OwnPropertyKeys]]` asymmetry** —

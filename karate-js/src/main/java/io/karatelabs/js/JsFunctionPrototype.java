@@ -97,15 +97,16 @@ class JsFunctionPrototype extends Prototype {
 
     // Spec OrdinaryCallBindThis (§9.2.1.2): the null/undefined → globalThis
     // substitution applies to sloppy-mode user-defined functions only.
-    // Built-in methods (and strict-mode user fns, when we get there) see
-    // the raw thisArg — required for e.g. Object.prototype.toString.call(null)
-    // returning "[object Null]" and for RequireObjectCoercible-gated
-    // built-ins to throw TypeError on null/undefined receivers.
+    // Built-in methods and strict-mode user fns see the raw thisArg —
+    // required for e.g. Object.prototype.toString.call(null) returning
+    // "[object Null]" and for RequireObjectCoercible-gated built-ins to throw
+    // TypeError on null/undefined receivers.
     private static Object bindForCall(JsCallable callable, Object thisObject, CoreContext cc) {
         if (callable instanceof JsBuiltinMethod) {
             return thisObject;
         }
-        return Interpreter.bindThisForCall(thisObject, cc);
+        boolean strict = callable instanceof JsFunctionNode jfn && jfn.strict;
+        return Interpreter.bindThisForCall(thisObject, cc, strict);
     }
 
     private Object applyMethod(Context context, Object[] args) {

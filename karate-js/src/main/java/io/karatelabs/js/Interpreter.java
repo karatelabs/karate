@@ -39,10 +39,11 @@ class Interpreter {
     static final Logger logger = LoggerFactory.getLogger(Interpreter.class);
 
     /**
-     * Spec §10.2.1.2 OrdinaryCallBindThis (non-strict): a regular function
-     * called as {@code f()} (no receiver, no {@code f.call(...)}, no
-     * {@code new}) gets {@code this = globalThis}. We don't model strict-mode
-     * separately, so always do the substitution.
+     * Spec §10.2.1.2 OrdinaryCallBindThis: a regular function called as
+     * {@code f()} (no receiver, no {@code f.call(...)}, no {@code new}) gets
+     * {@code this = globalThis} in sloppy mode, but {@code this = undefined}
+     * under {@code "use strict"} — the callee's strictness ({@code strict})
+     * decides, not the caller's.
      * <p>
      * Used by every regular-call dispatch site (FN_CALL_EXPR + tagged
      * template) and by {@link JsFunctionPrototype}'s {@code call}/{@code apply}
@@ -50,11 +51,70 @@ class Interpreter {
      * {@code this} binding (newInstance for user fns, callable singleton for
      * built-ins) and don't go through here.
      */
-    static Object bindThisForCall(Object receiver, CoreContext context) {
+    static Object bindThisForCall(Object receiver, CoreContext context, boolean strict) {
         if (receiver == null || receiver == Terms.UNDEFINED) {
-            return context.root.thisObject;
+            return strict ? Terms.UNDEFINED : context.root.thisObject;
         }
         return receiver;
+    }
+
+    /**
+     * True iff {@code body} (a {@code PROGRAM} or a function {@code BLOCK})
+     * opens with a {@code "use strict"} Directive Prologue (ES 11.2.1). The
+     * prologue is the leading run of ExpressionStatements consisting of a
+     * single string literal; the code is strict iff one of them is the exact
+     * source text {@code "use strict"} / {@code 'use strict'} (no escapes,
+     * per spec). Scanning stops at the first statement that isn't a lone
+     * string literal. Cheap on the hot path: the common "first statement is
+     * not a string" case bails after one c.
+     */
+    static boolean hasUseStrictDirective(Node body) {
+        for (int i = 0, n = body.size(); i < n; i++) {
+            Node child = body.get(i);
+            if (child.isToken()) {
+                continue; // structural L_CURLY / R_CURLY / EOF — keep scanning
+            }
+            if (child.type != NodeType.STATEMENT) {
+                return false;
+            }
+            Token strTok = directiveStringToken(child);
+            if (strTok == null) {
+                return false; // first non-directive statement ends the prologue
+            }
+            String raw = strTok.getText();
+            if ("\"use strict\"".equals(raw) || "'use strict'".equals(raw)) {
+                return true;
+            }
+            // a different directive (e.g. "use asm") — keep scanning the prologue
+        }
+        return false;
+    }
+
+    /** If {@code stmt} is an expression statement consisting of exactly one
+     *  string literal, returns its token; else {@code null}. Shape:
+     *  {@code STATEMENT > EXPR_LIST > EXPR > LIT_EXPR > TOKEN(S_STRING|D_STRING)}. */
+    private static Token directiveStringToken(Node stmt) {
+        if (stmt.size() == 0) {
+            return null;
+        }
+        Node exprList = stmt.getFirst();
+        if (exprList.type != NodeType.EXPR_LIST || exprList.size() != 1) {
+            return null;
+        }
+        Node expr = exprList.getFirst();
+        if (expr.type != NodeType.EXPR || expr.size() != 1) {
+            return null;
+        }
+        Node lit = expr.getFirst();
+        if (lit.type != NodeType.LIT_EXPR || lit.size() != 1) {
+            return null;
+        }
+        Node tok = lit.getFirst();
+        if (!tok.isToken()) {
+            return null;
+        }
+        TokenType tt = tok.token.type;
+        return (tt == S_STRING || tt == D_STRING) ? tok.token : null;
     }
 
     /**
@@ -506,6 +566,7 @@ class Interpreter {
             // For user-defined functions, create full function context with closure info
             if (callable instanceof JsFunctionNode jsFunc) {
                 callContext = new CoreContext(context, node, args, jsFunc.declaredContext, jsFunc.capturedBindings);
+                callContext.strict = jsFunc.strict;
                 if (newKeyword) {
                     callContext.callInfo = new CallInfo(true, callable);
                     newInstance = new JsObject();
@@ -516,8 +577,9 @@ class Interpreter {
                     callContext.thisObject = newInstance;
                 } else if (!jsFunc.arrow) {
                     // Regular functions get their own 'this'; arrow functions inherit from
-                    // parent. Spec substitution (null/undefined → globalThis) lives in the helper.
-                    callContext.thisObject = bindThisForCall(receiver, context);
+                    // parent. Sloppy fns substitute null/undefined → globalThis; strict
+                    // fns keep undefined (the helper decides on jsFunc.strict).
+                    callContext.thisObject = bindThisForCall(receiver, context, jsFunc.strict);
                 }
                 callContext.event(EventType.CONTEXT_ENTER, node);
                 // bindArgsAndExecute handles error propagation internally
@@ -530,7 +592,7 @@ class Interpreter {
                     // Built-in constructors handle their own construction
                     callContext.thisObject = callable;
                 } else {
-                    callContext.thisObject = bindThisForCall(receiver, context);
+                    callContext.thisObject = bindThisForCall(receiver, context, false);
                 }
                 callContext.event(EventType.CONTEXT_ENTER, node);
                 result = callable.call(callContext, args);
@@ -593,6 +655,7 @@ class Interpreter {
         Object result;
         if (callable instanceof JsFunctionNode jsFunc) {
             callContext = new CoreContext(context, node, args, jsFunc.declaredContext, jsFunc.capturedBindings);
+            callContext.strict = jsFunc.strict;
             callContext.callInfo = new CallInfo(true, callable);
             newInstance = new JsObject();
             Object proto = jsFunc.getMember("prototype");
@@ -684,14 +747,15 @@ class Interpreter {
         Object result;
         if (callable instanceof JsFunctionNode jsFunc) {
             callContext = new CoreContext(context, node, args, jsFunc.declaredContext, jsFunc.capturedBindings);
+            callContext.strict = jsFunc.strict;
             if (!jsFunc.arrow) {
-                callContext.thisObject = bindThisForCall(receiver, context);
+                callContext.thisObject = bindThisForCall(receiver, context, jsFunc.strict);
             }
             callContext.event(EventType.CONTEXT_ENTER, node);
             result = jsFunc.bindArgsAndExecute(callContext, context, args);
         } else {
             callContext = new CoreContext(context, node, args);
-            callContext.thisObject = bindThisForCall(receiver, context);
+            callContext.thisObject = bindThisForCall(receiver, context, false);
             callContext.event(EventType.CONTEXT_ENTER, node);
             result = callable.call(callContext, args);
             context.updateFrom(callContext);
@@ -1434,6 +1498,12 @@ class Interpreter {
     }
 
     private static Object evalProgram(Node node, CoreContext context) {
+        // A top-level "use strict" directive makes the whole script strict, and
+        // must be resolved before hoisting so function objects created here
+        // capture the right lexical strictness via their declaredContext.
+        if (!context.strict && hasUseStrictDirective(node)) {
+            context.strict = true;
+        }
         // Hoist top-level function declarations so they're visible before their lexical
         // position. Per ES5/ES6, `function foo() {}` at script-level is registered before
         // any other statement runs — code earlier in the source can still reference foo.

@@ -80,9 +80,8 @@ class SpecPinTest extends EvalBase {
 
     @Test
     void getOnlyAccessor_writeIsLenient() {
-        // get-only accessor: writes are silently ignored in lenient mode.
-        // After strict-mode work (mega-commit 2J), writing to a get-only
-        // accessor under "use strict" should throw TypeError.
+        // get-only accessor: writes are silently ignored in sloppy mode.
+        // (The strict-mode TypeError flip is pinned in strict_setGetterOnlyThrows.)
         assertEquals(7, eval(
                 "var o = {}; Object.defineProperty(o, 'x', {get: function(){return 7;}});"
                         + " o.x = 99; o.x"));
@@ -340,8 +339,10 @@ class SpecPinTest extends EvalBase {
     }
 
     // -------------------------------------------------------------------------
-    // Strict mode — currently engine is fully lenient. After mega-commit 2J,
-    // these flips activate under "use strict". For now, pin lenient behavior.
+    // Sloppy mode (no directive) stays lenient: rejected [[Set]] / [[Delete]]
+    // are silent no-ops. The strict-mode counterparts below pin the TypeError /
+    // ReferenceError flips that a "use strict" directive activates. Both halves
+    // are load-bearing — the lenient default is the documented engine policy.
     // -------------------------------------------------------------------------
 
     @Test
@@ -365,6 +366,79 @@ class SpecPinTest extends EvalBase {
                         + " Object.defineProperty(o, 'x', {value: 1, configurable: false});"
                         + " delete o.x;"
                         + " o.hasOwnProperty('x')"));
+    }
+
+    // --- strict-mode flips (assert via JS try/catch so the engine's own error
+    //     routing is part of the invariant) ------------------------------------
+
+    /** Helper: run {@code body} under "use strict" and return the caught
+     *  error's {@code .name}, or "no-throw" if it completed normally. */
+    private Object strictErrName(String body) {
+        return eval("'use strict';"
+                + " try { " + body + "; 'no-throw'; } catch (e) { e.name; }");
+    }
+
+    @Test
+    void strict_undeclaredAssignThrowsReferenceError() {
+        assertEquals("ReferenceError", strictErrName("undeclaredName = 1"));
+        // sloppy: same code creates an implicit global (no throw).
+        assertEquals(1, eval("(function(){ sloppyGlobal = 1; return sloppyGlobal; })()"));
+    }
+
+    @Test
+    void strict_writeToFrozenThrowsTypeError() {
+        assertEquals("TypeError",
+                strictErrName("var o = {a: 1}; Object.freeze(o); o.a = 99"));
+    }
+
+    @Test
+    void strict_writeToReadOnlyThrowsTypeError() {
+        assertEquals("TypeError", strictErrName(
+                "var o = {}; Object.defineProperty(o, 'x', {value: 1, writable: false}); o.x = 9"));
+    }
+
+    @Test
+    void strict_setGetterOnlyThrowsTypeError() {
+        assertEquals("TypeError", strictErrName(
+                "var o = {}; Object.defineProperty(o, 'x', {get: function(){return 7;}}); o.x = 9"));
+    }
+
+    @Test
+    void strict_addToNonExtensibleThrowsTypeError() {
+        assertEquals("TypeError", strictErrName(
+                "var o = {}; Object.preventExtensions(o); o.y = 1"));
+    }
+
+    @Test
+    void strict_deleteNonConfigurableThrowsTypeError() {
+        assertEquals("TypeError", strictErrName(
+                "var o = {}; Object.defineProperty(o, 'x', {value: 1, configurable: false}); delete o.x"));
+    }
+
+    @Test
+    void strict_thisInPlainCallIsUndefined() {
+        // sloppy: `this` substitutes to the global object → typeof "object".
+        assertEquals("object", eval("function f(){ return typeof this; } f()"));
+        // strict: no substitution → undefined.
+        assertEquals("undefined", eval(
+                "'use strict'; function f(){ return typeof this; } f()"));
+    }
+
+    @Test
+    void strict_isLexicallyInherited() {
+        // A nested function defined inside a strict function is itself strict,
+        // even without its own directive: the undeclared assign throws.
+        assertEquals("ReferenceError", strictErrName(
+                "function outer(){ function inner(){ leaked = 1; } inner(); } outer()"));
+    }
+
+    @Test
+    void strict_directiveOnlyAppliesToOwnAndNestedScopes() {
+        // A "use strict" *inside* a function does not leak to the caller's
+        // sloppy scope: the implicit global after the call still works.
+        assertEquals(2, eval(
+                "function strictFn(){ 'use strict'; return 1; }"
+                        + " strictFn(); afterCall = 2; afterCall"));
     }
 
     // -------------------------------------------------------------------------

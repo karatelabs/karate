@@ -49,6 +49,16 @@ class CoreContext implements Context {
     Object thisObject = Terms.UNDEFINED;
     CallInfo callInfo;
 
+    // Strict-mode flag (ES "use strict"). Set per function-call context from
+    // the callee {@link JsFunctionNode#strict}, and per script context from a
+    // top-level directive prologue (see {@link Interpreter#evalProgram}).
+    // Block / loop / catch sub-scopes run on the same CoreContext (enterScope,
+    // not a fresh context), so they inherit it for free. Built-in call frames
+    // are left non-strict so internal [[Set]]s stay lenient. Flips: implicit
+    // global assignment (below), `this` substitution, and property-write /
+    // delete failures routed through {@link PropertyAccess}.
+    boolean strict;
+
     BindingsStore bindings;
 
     // Function context fields (non-null indicates this is a function context)
@@ -84,6 +94,7 @@ class CoreContext implements Context {
         // we're a script-level (or evalWith-ghost) context with no parent.
         if (parent != null) {
             thisObject = parent.thisObject;
+            strict = parent.strict;
         } else if (root != null) {
             thisObject = root.thisObject;
         }
@@ -369,6 +380,11 @@ class CoreContext implements Context {
     void update(String key, Object value, Node node) {
         BindingSlot s = resolve(key);
         if (s == null) {
+            if (strict) {
+                // Strict mode forbids the sloppy implicit-global creation:
+                // assigning to an unresolvable name is a ReferenceError.
+                throw JsErrorException.referenceError(key + " is not defined");
+            }
             assignImplicitGlobal(key, value, node);
             return;
         }

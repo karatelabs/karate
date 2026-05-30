@@ -224,6 +224,11 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     @Override
     public void putMember(String name, Object value) {
+        putMember(name, value, null, false);
+    }
+
+    @Override
+    public void putMember(String name, Object value, CoreContext ctx, boolean strict) {
         if ("__proto__".equals(name)) {
             if (value instanceof ObjectLike proto) {
                 this.__proto__ = proto;
@@ -232,11 +237,11 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             }
             return;
         }
-        // Frozen: silently ignore all writes (lenient mode — strict-mode
-        // TypeError flip lives elsewhere). Mirrors JsObject.putMember's
-        // frozen early exit. Non-extensible / sealed are checked downstream
-        // per-write so existing-index updates still flow.
+        // Frozen: ignore all writes (sloppy); strict throws. Mirrors
+        // JsObject.putMember's frozen early exit. Non-extensible / sealed are
+        // checked downstream per-write so existing-index updates still flow.
         if (frozen) {
+            if (strict) JsObject.failReadOnly(name);
             return;
         }
         // arr.length = N — primitives only on this path. Object values with
@@ -249,17 +254,17 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             handleLengthAssign(value, null);
             return;
         }
-        // Existing accessor: invoke the setter (lenient — get-only accessors
-        // silently drop the write). No ctx on this entry point — reach the
-        // ctx-aware path via PropertyAccess.setByName for live setters.
+        // Existing accessor: invoke the setter (get-only accessors drop the
+        // write in sloppy mode, TypeError under strict — the slot honors it).
         PropertySlot existing = namedProps == null ? null : namedProps.get(name);
         if (existing instanceof AccessorSlot acc) {
-            acc.write(this, value, null, false);
+            acc.write(this, value, ctx, strict);
             return;
         }
-        // Per-property writable=false: silently ignore (lenient mode — strict-mode
-        // TypeError flip lives elsewhere). Mirrors JsObject.putMember's check.
+        // Per-property writable=false: silently ignore (sloppy); strict throws.
+        // Mirrors JsObject.putMember's check.
         if (existing != null && !existing.isWritable()) {
+            if (strict) JsObject.failReadOnly(name);
             return;
         }
         // Numeric index write — fast path into the dense list (and pad with
@@ -272,6 +277,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         if (i >= 0 && existing == null) {
             boolean indexExists = i < list.size() && list.get(i) != HOLE;
             if (nonExtensible && !indexExists) {
+                if (strict) JsObject.failNotExtensible(name);
                 return;
             }
             while (list.size() < i) list.add(HOLE);
@@ -282,6 +288,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         // Named-prop path: non-extensible blocks creation of new keys; existing
         // (non-tombstoned) slots are still writable.
         if (existing == null && nonExtensible) {
+            if (strict) JsObject.failNotExtensible(name);
             return;
         }
         if (existing instanceof DataSlot ds) {
@@ -461,18 +468,25 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
 
     @Override
     public void removeMember(String name) {
+        removeMember(name, null, false);
+    }
+
+    @Override
+    public void removeMember(String name, CoreContext ctx, boolean strict) {
         // Configurability check (mirrors JsObject.removeMember): per-slot attrs
         // win when {@link #namedProps} has an entry; otherwise dense-slot attrs
         // come from {@link #getOwnAttrs} which already folds in sealed / frozen
-        // integrity flags. Lenient mode — a non-configurable target is a
-        // silent no-op; strict-mode TypeError flip lives at the [[Delete]]
-        // caller (deferred).
+        // integrity flags. A non-configurable target is a silent no-op in
+        // sloppy mode; strict mode throws TypeError.
         PropertySlot s = namedProps == null ? null : namedProps.get(name);
         int i = parseIndex(name);
         boolean denseSlot = i >= 0 && i < list.size() && list.get(i) != HOLE;
         if (s == null && !denseSlot) return;
         byte attrs = s != null ? s.attrs : getOwnAttrs(name);
-        if ((attrs & JsObject.CONFIGURABLE) == 0) return;
+        if ((attrs & JsObject.CONFIGURABLE) == 0) {
+            if (strict) JsObject.failNotConfigurable(name);
+            return;
+        }
         if (s != null) namedProps.remove(name);
         // Dense-list HOLE-write: own property reads false via
         // {@link #isOwnProperty} / hasOwnProperty after; {@link #resolveOwnIntrinsic}

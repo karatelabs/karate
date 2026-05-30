@@ -53,7 +53,36 @@ public interface ObjectLike {
 
     void putMember(String name, Object value);
 
+    /**
+     * Strict-aware {@code [[Set]]} (ES 10.4.7 OrdinarySetWithOwnDescriptor).
+     * Same store as {@link #putMember(String, Object)}, but when the write is
+     * rejected — frozen object, non-extensible new key, non-writable data
+     * property, or a get-only accessor — a sloppy caller gets the silent
+     * no-op while a {@code strict} caller gets a {@link JsErrorException}
+     * TypeError. {@code ctx} threads through for accessor setters.
+     * <p>
+     * Default delegates to the lenient {@link #putMember(String, Object)} —
+     * host bridges that don't model property attributes are perpetually
+     * writable, so there is nothing to reject. {@link JsObject} /
+     * {@link JsArray} override to enforce.
+     */
+    default void putMember(String name, Object value, CoreContext ctx, boolean strict) {
+        putMember(name, value);
+    }
+
     void removeMember(String name);
+
+    /**
+     * Strict-aware {@code [[Delete]]} (ES 13.5.1.2 / DeletePropertyOrThrow).
+     * Same removal as {@link #removeMember(String)}, but a non-configurable
+     * own property is a silent no-op for a sloppy caller and a TypeError for
+     * a {@code strict} caller. Default delegates to the lenient
+     * {@link #removeMember(String)}; {@link JsObject} / {@link JsArray}
+     * override to enforce.
+     */
+    default void removeMember(String name, CoreContext ctx, boolean strict) {
+        removeMember(name);
+    }
 
     Map<String, Object> toMap();
 

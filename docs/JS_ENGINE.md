@@ -1454,7 +1454,7 @@ The shared spec-primitive contract for the mutating path:
 |---|---|---|
 | `specGet(O, k)` | `Get(O, k)` | `O.getMember(k, O, ctx)` (proto-walking, accessor-aware) |
 | `specSet(O, k, v)` | `Set(O, k, v, true)` | `PropertyAccess.setByName` (proto-walks setters; routes JsArray length through `handleLengthAssign`) |
-| `specDelete(O, k)` | `DeletePropertyOrThrow` | `O.removeMember(k)` (lenient on configurable today; strict-mode flip deferred) |
+| `specDelete(O, k)` | `DeletePropertyOrThrow` | `O.removeMember(k, ctx, strict)` (sloppy: silent no-op on non-configurable; strict: TypeError) |
 | `hasPropertyChain(O, k)` | `HasProperty(O, k)` | own + `__proto__` walk |
 | `lengthOf(O)` | `ToLength(? Get(O, "length"))` | `arr.size()` for `JsArray`; otherwise `Terms.toNumberCoerce` (so `length: {valueOf(){…}}` resolves and `valueOf` abrupt-completion propagates via `ctx.isError()`) |
 | `setLength(O, n)` | `Set(O, "length", n, true)` | `JsArray.handleLengthAssign` for arrays (TypeError on writable=false), `setByName` otherwise |
@@ -1532,7 +1532,10 @@ Three spec checks land in order:
    wraps `handleLengthAssign` and throws `TypeError` on `false` —
    matches the spec's `Set(O, "length", newLen, true)` Throw=true
    semantics. Direct `arr.length = X` silently no-ops on writable=false
-   in lenient mode (strict-mode TypeError flip is a separate project).
+   in sloppy mode; the strict-mode TypeError flip is the one remaining
+   gap (the `"length"` write is special-cased in `setByName` ahead of the
+   strict-aware `putMember`, so `handleLengthAssign` doesn't yet receive
+   the `strict` flag — see TEST262.md § Engine — spec alignment).
 3. **Partial truncate when an index in `[newLen, oldLen)` is
    non-configurable.** Walks the truncate range high-to-low; on a blocking
    index, truncates above it, returns `false`. `Object.defineProperty`
@@ -2172,37 +2175,57 @@ runScript("const json = response.json(); pm.test('ok', () => {});");  // No conf
 
 ### Strict Mode Policy
 
-karate-js has **no strict/sloppy distinction**. There is a single execution
-mode, and it is closer to sloppy than to strict. A `"use strict"` (or
-`'use strict'`) directive is accepted but has no effect — it parses as a
-plain string-literal ExpressionStatement and its value is discarded like
-any other expression-statement result. This is the spec-intended
-backward-compatible behavior for an engine that does not implement strict
-mode: ES5 deliberately chose a string-literal directive form so that
-pre-ES5 engines would silently ignore it.
+karate-js implements **runtime** strict mode. The default (no directive) is
+sloppy and stays lenient — that is the documented engine policy for
+LLM/hand-written glue. A `"use strict"` / `'use strict'` directive activates
+the spec's strict *runtime* semantics for the program or function it heads.
 
-Consequences:
+**Strictness is lexical and resolved at function-object creation.** A
+function is strict iff it carries its own `"use strict"` Directive Prologue
+**or** it was defined inside already-strict code. `Interpreter.hasUseStrictDirective`
+scans the prologue (a leading run of single-string-literal ExpressionStatements;
+exact source `"use strict"`, no escapes per ES 11.2.1). The result is cached
+once on `JsFunctionNode.strict` (and on the script context in `evalProgram`),
+then copied onto `CoreContext.strict` for each call frame. Block / loop /
+catch sub-scopes share the same `CoreContext` (via `enterScope`, not a fresh
+context), so they inherit strictness for free. **Built-in call frames are left
+non-strict**, so the engine's internal `[[Set]]`s stay lenient regardless of
+the caller.
 
-- `with`, duplicate parameter names, octal literals like `0755`, and
-  assignments to `eval`/`arguments` are not rejected as SyntaxErrors.
-- `this` in a plain function call resolves to the global binding object,
-  not `undefined`.
-- Assigning to an undeclared name creates a global (see above).
-- The test262 harness skips tests flagged `onlyStrict` via
-  `karate-js-test262/etc/expectations.yaml`; there is no plan to
-  implement a parser-side strict flip.
+The flips that `CoreContext.strict` drives (all emit JS-shaped
+`ReferenceError` / `TypeError`, never Java leaks):
 
-If you need strict semantics, run your code in an engine that supports
-them; karate-js is a pragmatic embedded engine tuned for LLM-written and
-hand-written idiomatic JS, not for spec-lawyer strict-mode enforcement.
+| Sloppy behavior | Strict behavior | Site |
+|---|---|---|
+| Assign to undeclared name → implicit global | `ReferenceError` | `CoreContext.update` |
+| `this` in a plain `f()` call → globalThis | `undefined` | `Interpreter.bindThisForCall` (+ `Function.prototype.{call,apply}`) |
+| Write to frozen / non-writable data prop → silent | `TypeError` | `JsObject` / `JsArray` / `JsGlobalThis` `putMember(name,value,ctx,strict)` |
+| Write to a get-only accessor → silent | `TypeError` | `AccessorSlot.write(...,strict)` |
+| Add prop to non-extensible object → silent | `TypeError` | `putMember(...,strict)` |
+| `delete` a non-configurable prop → `false` | `TypeError` | `removeMember(name,ctx,strict)` |
 
-> **Aspirational TODO.** Adding strict-mode plumbing — parse the directive
-> prologue, thread `strictMode` via `CoreContext`, flip ~7 lenient sites
-> through one `failSilentOrThrow` helper — is tracked in
-> [TEST262.md § Engine — feature gaps](../karate-js-test262/TEST262.md#engine--feature-gaps).
-> The infrastructure is partly in place: `AccessorSlot.write` already accepts
-> a `strict` flag from S2 wiring. The risk is parser regressions on
-> `flags: [noStrict]` test262 paths if the directive parsing is over-eager.
+The strict flag is threaded by `PropertyAccess.{setByName,deleteByKey}`
+reading `context.strict`. The lenient and strict paths share one
+implementation per object kind — the `if (strict) failX(name)` guard sits
+inline where the sloppy path returns silently, so there is no duplicated
+rejection logic (`JsObject.fail{ReadOnly,NotExtensible,NotConfigurable}`).
+
+**Not implemented (parser-side early errors).** `"use strict"` does **not**
+yet reject `with`, duplicate parameter names, octal literals like `0755`, or
+assignments to `eval`/`arguments` as SyntaxErrors. Those are early errors
+that require the parser to track lexical strictness, a separate workstream
+with its own `flags: [noStrict]` regression surface. The test262 harness
+still skips `flags: [onlyStrict]` tests (`etc/expectations.yaml`) because the
+runner executes each test once in sloppy mode and does not prepend a strict
+directive — enabling that, plus the early-error set, is the remaining
+strict-mode work. See
+[TEST262.md § Engine — feature gaps](../karate-js-test262/TEST262.md#engine--feature-gaps).
+
+> **Spec invariant.** The sloppy default is intentional and load-bearing —
+> `SpecPinTest.lenient_*` pins it. Strict flips are pinned by
+> `SpecPinTest.strict_*`, which assert via in-engine `try/catch` so the error
+> name *and* the routing are part of the invariant. Don't make a lenient site
+> throw unconditionally; gate it on `CoreContext.strict`.
 
 ---
 
@@ -2272,6 +2295,19 @@ java -cp ... io.karatelabs.parser.EngineBenchmark profile
 | post-Slot unification (2026-04-26) | 1.36 ms | 0.53 ms | 15,824 |
 | post-S4 + refactors A/B/C/E (2026-04-26) | **1.36 ms** | **0.53 ms** | **15,824** |
 | Speedup vs. 2026-01-22 baseline | **1.51×** | **1.58×** | **1.54×** |
+| re-baseline at `80b15496b` (2026-05-30, pre-strict-mode) | 1.36–1.40 ms | 0.58–0.60 ms | ~15,300 |
+| + strict-mode runtime (2026-05-30) | 1.32–1.35 ms | 0.57–0.58 ms | ~15,400 |
+
+The object-eval figure drifted from 0.53 → ~0.58 ms across the month of
+engine work between 2026-04-26 and 2026-05-30 (object-spread, regex
+named-groups, spec iterators) — **not** attributable to any single commit.
+The strict-mode change measured at parity (object) / marginally faster
+(array) against the same-day pre-change baseline: the per-call cost is one
+`callContext.strict = jsFunc.strict` field copy and a `hasUseStrictDirective`
+prologue scan that bails on the first non-string statement (one comparison
+for the common case). The strict guards (`if (strict) failX(name)`) sit on
+the cold rejection path, never the hot store. Re-baseline locally before
+judging future refactors — the 0.53 number is stale.
 
 Engine instantiation is essentially unchanged (~0.4–0.6 µs median in both).
 Cumulative gains come from earlier perf work: tighter `Node` allocation and
