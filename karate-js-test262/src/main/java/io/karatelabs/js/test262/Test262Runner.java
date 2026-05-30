@@ -509,6 +509,16 @@ public final class Test262Runner {
                         && (neg.type() == null || neg.type().equals(type) || type == null)) {
                     return ResultRecord.pass(path);
                 }
+                // A parse-phase negative test that parsed (we're in the runtime catch,
+                // not the ParserException catch above) means the engine FAILED to detect
+                // an early/parse error: the code ran and typically tripped the harness
+                // $DONOTEVALUATE() marker. Bucket these as MissingParseError so the
+                // unimplemented-early-error backlog is measurable and not conflated with
+                // genuine engine crashes (NPE / StackOverflow), which stay Unknown.
+                if ("parse".equals(neg.phase())) {
+                    return ResultRecord.fail(path, "MissingParseError",
+                            "expected parse-phase " + neg + " but parsed; ran and threw: " + msg);
+                }
                 return ResultRecord.fail(path, type == null ? "Unknown" : type,
                         "expected negative " + neg + " but got: " + msg);
             }
@@ -517,6 +527,12 @@ public final class Test262Runner {
 
         // eval succeeded
         if (neg != null) {
+            // Same missing-early-error case as above, but the un-rejected source also
+            // completed without tripping any marker — still a missing parse-phase error.
+            if ("parse".equals(neg.phase())) {
+                return ResultRecord.fail(path, "MissingParseError",
+                        "expected parse-phase " + neg + " but parsed and completed normally");
+            }
             return ResultRecord.fail(path, "ExpectedThrow",
                     "expected negative " + neg + " but test completed normally");
         }

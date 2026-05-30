@@ -210,6 +210,13 @@ public class JsParser extends BaseParser {
                     throw new ParserException("tagged template literal cannot follow an optional chain");
                 }
             }
+            // A FunctionDeclaration is a StatementListItem, never a Statement, so it
+            // may not be the sole body of an iteration statement (§13.7). Unlike the
+            // `if` clause (Annex B.3.4) there is no web-compat carve-out, so this is an
+            // early error in BOTH sloppy and strict code — hence it lives here, not in
+            // the strict-gated walk. `for (…) { function f(){} }` stays legal: the body
+            // Statement wraps a BLOCK, so its direct child is BLOCK, not FN_EXPR.
+            case FOR_STMT, WHILE_STMT, DO_WHILE_STMT -> checkNoFunctionDeclarationBody(node, "a loop");
             default -> {
             }
         }
@@ -217,6 +224,29 @@ public class JsParser extends BaseParser {
             Node child = node.get(i);
             if (!child.isToken()) {
                 validateEarlyErrors(child);
+            }
+        }
+    }
+
+    /** Throws if any direct {@code STATEMENT} child of {@code node} is itself a
+     *  function declaration (its first non-token child is an {@code FN_EXPR}) — the
+     *  body of `if` / loop / labelled clauses is a Statement, and FunctionDeclaration
+     *  is a StatementListItem only. A braced body (BLOCK) is fine. */
+    private static void checkNoFunctionDeclarationBody(Node node, String where) {
+        for (int i = 0, n = node.size(); i < n; i++) {
+            Node child = node.get(i);
+            if (child.isToken() || child.type != NodeType.STATEMENT) {
+                continue;
+            }
+            for (int j = 0, m = child.size(); j < m; j++) {
+                Node inner = child.get(j);
+                if (!inner.isToken()) {
+                    if (inner.type == NodeType.FN_EXPR) {
+                        throw new ParserException(
+                                "a function declaration may not be the body of " + where);
+                    }
+                    break; // first non-token child decides
+                }
             }
         }
     }
@@ -280,6 +310,11 @@ public class JsParser extends BaseParser {
                     }
                 }
                 case VAR_DECL -> checkVarDeclName(node);
+                // Annex B.3.4 lets a FunctionDeclaration be an `if`/`else` clause body in
+                // sloppy code, but that extension is NOT honored in strict mode — there it
+                // is an early error (§13.6). The always-illegal loop bodies are handled
+                // mode-independently in validateEarlyErrors.
+                case IF_STMT -> checkNoFunctionDeclarationBody(node, "an `if` statement in strict mode");
                 default -> {
                 }
             }

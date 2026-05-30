@@ -1121,4 +1121,33 @@ class SpecPinTest extends EvalBase {
                 "var fns = []; for (let i = 0; i < 3; i++) { fns.push(function() { return i; }); }"
                         + " fns.map(function(f) { return f(); }).join(',');"));
     }
+
+    // -------------------------------------------------------------------------
+    // FunctionDeclaration is a StatementListItem, never a Statement — so it may
+    // not be the sole body of a loop or (in strict mode) an `if` clause (§13.6,
+    // §13.7). Loop bodies are an early error in BOTH modes (no Annex B carve-out);
+    // the `if` clause is sloppy-legal (Annex B.3.4) but a strict-mode early error.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void functionDeclAsLoopBody_isAlwaysParseError() {
+        assertParseError("for (;;) function f() {}");
+        assertParseError("while (x) function f() {}");
+        assertParseError("do function f() {} while (x);");
+        assertParseError("for (k in o) function f() {}");
+        assertParseError("for (k of o) function f() {}");
+        // a braced body is a Block (StatementList) — function declaration is fine there.
+        assertEquals(1, eval("for (var i = 0; i < 1; i++) { function f() { return 1; } } f();"));
+    }
+
+    @Test
+    void functionDeclAsIfBody_isStrictOnlyParseError() {
+        assertParseError("'use strict'; if (x) function f() {}");
+        assertParseError("'use strict'; if (x) {} else function f() {}");
+        // Annex B.3.4: sloppy-mode `if`-clause function declaration is legal and runs.
+        assertEquals("function", eval("if (true) function f() {} typeof f;"));
+        assertEquals("function", eval("if (false) {} else function f() {} typeof f;"));
+        // braced body stays legal even in strict mode.
+        assertEquals(7, eval("'use strict'; if (true) { function f() { return 7; } return f(); }"));
+    }
 }

@@ -185,17 +185,26 @@ runner via `exec:java`, which does **not** recompile, so edits to `Test262Runner
 module first. The prepend had measured as a no-op (71/357) for a full cycle because
 of this.
 
-**Next up — the `onlyStrict` strict residual (~146 FAILs in `test/language/**`).**
-Three clusters: (1) **~99 negative parse-phase early errors** still unenforced —
-dominated by function-declaration-in-statement-position
-(`if (x) function f(){}` and friends — a strict early error; also block-scope
-function-decl rules); (2) **~16 runtime `SyntaxError`** not thrown; (3) **~14
-strict-assignment runtime `TypeError`** (arguments-object write guards et al.).
-`with`-statement early error stays deferred (`with` lexes as a call;
-`statements/with/**` path-skipped — negligible payoff). Two known un-enforced
-parser corners: a `"use strict"` prologue inside a non-simple-parameter-list
+**Next up — negative parse-phase early errors (the dominant `test/language`
+cluster).** A probe of `test/language/statements/**` buckets these under the new
+`MissingParseError` error type (negative `phase: parse` tests the engine parses
+instead of rejecting — see [Results schema](#results-schema)): **183** remain in
+the statements slice alone. Use it to scope: `jq -r 'select(.error_type=="MissingParseError").path'`.
+**Function-declaration-in-statement-position is DONE** (loops always; `if` clause
+in strict mode — see Background sweeps); the residual is the long tail of other
+early errors: escaped-keyword / reserved-word misuse, duplicate lexical
+declarations, `break`/`continue` to undefined labels, `new.target` / `super`
+outside a method, getter/setter arity, etc. Pick the next sub-cluster by count
+from the `MissingParseError` histogram. Two known un-enforced parser corners
+carried over: a `"use strict"` prologue inside a non-simple-parameter-list
 function is itself an early error; lexical duplicate-BoundNames for `let`/`const`
-patterns (`let {a,a}=…`). Details: [Deferred TODOs → Strict mode](#deferred-todos).
+patterns (`let {a,a}=…`).
+
+**Also residual from the `onlyStrict` un-skip:** (2) **~16 runtime `SyntaxError`**
+not thrown; (3) **~14 strict-assignment runtime `TypeError`** (arguments-object
+write guards et al.). `with`-statement early error stays deferred (`with` lexes as
+a call; `statements/with/**` path-skipped — negligible payoff). Details:
+[Deferred TODOs → Strict mode](#deferred-todos).
 
 Beyond that, remaining work is concentrated in `test/language/**`, dominated by
 destructuring-assignment pattern parsing (see Background sweeps).
@@ -263,6 +272,21 @@ early-error validation) is advanced-pattern territory.
 ### Background sweeps
 
 Picked off opportunistically when nearby — not session-sized on their own.
+
+- **Function-declaration-in-statement-position early error — DONE.**
+  `JsParser` now rejects a `FunctionDeclaration` used as the sole body of a
+  Statement clause (its body `STATEMENT` directly wraps an `FN_EXPR`; a braced
+  body is a `BLOCK` and stays legal). Loop bodies (`for` / `for-in` / `for-of` /
+  `while` / `do-while`) are an early error in BOTH modes — no Annex B carve-out —
+  so they live in `validateEarlyErrors` (`checkNoFunctionDeclarationBody`). The
+  `if`/`else` clause is sloppy-legal (Annex B.3.4) but a strict-mode early error,
+  so it rides the strict-gated `checkStrictEarlyErrors` walk. Labelled-function
+  declarations (`label: function f(){}`) are NOT covered — the parser has no
+  LABELLED node type. Slice delta (`test/language/statements/**`): **~13 PASS, 0
+  regressions** (`if` 8, plus one each in `for`/`while`/`do-while`/`for-in`/
+  `for-of`). Pinned by `SpecPinTest.functionDeclAsLoopBody_* /
+  functionDeclAsIfBody_*`. Invariant recorded in
+  [JS_ENGINE.md § Strict Mode Policy](../docs/JS_ENGINE.md#strict-mode-policy).
 
 - **C-style `for` per-iteration `let`/`const` environment — DONE.**
   `Interpreter.evalForStmt` now models §14.7.4.3 ForBodyEvaluation properly: the
@@ -677,7 +701,13 @@ Error types are classified into:
 `SyntaxError | TypeError | ReferenceError | RangeError | Error | Timeout |
 Harness | Unknown` by inspecting message prefixes (the engine emits
 `"TypeError: ..."` style messages at most failure sites). The classifier
-itself is in `ErrorUtils`.
+itself is in `ErrorUtils`. Two buckets are assigned by the runner (not the
+classifier) for negative tests: **`ExpectedThrow`** (a non-parse negative test
+completed normally) and **`MissingParseError`** (a `phase: parse` negative test
+parsed instead of being rejected — the engine is missing that early error; the
+code then ran and usually tripped the harness `$DONOTEVALUATE()` marker). Keeping
+`MissingParseError` distinct stops the unimplemented-early-error backlog from
+hiding inside `Unknown` alongside genuine engine crashes.
 
 ---
 

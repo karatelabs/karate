@@ -2281,15 +2281,23 @@ implementation per object kind — the `if (strict) failX(name)` guard sits
 inline where the sloppy path returns silently, so there is no duplicated
 rejection logic (`JsObject.fail{ReadOnly,NotExtensible,NotConfigurable}`).
 
-**Not implemented (parser-side early errors).** `"use strict"` does **not**
-yet reject `with`, duplicate parameter names, octal literals like `0755`, or
-assignments to `eval`/`arguments` as SyntaxErrors. Those are early errors
-that require the parser to track lexical strictness, a separate workstream
-with its own `flags: [noStrict]` regression surface. The test262 harness
-still skips `flags: [onlyStrict]` tests (`etc/expectations.yaml`) because the
-runner executes each test once in sloppy mode and does not prepend a strict
-directive — enabling that, plus the early-error set, is the remaining
-strict-mode work. See
+**Parser-side early errors.** The parser tracks lexical strictness
+(`JsParser.checkStrictEarlyErrors`) and rejects, as parse-phase SyntaxErrors:
+legacy/non-octal-decimal literals (`0755`/`08`), `eval`/`arguments` as an
+assign/update target or a bound name (function name / param / var-binding /
+pattern), duplicate simple params, and the full BoundNames walk over binding
+patterns (`flags: [onlyStrict]` tests run with a prepended strict directive and
+are no longer skipped). A separate **mode-independent** walk
+(`validateEarlyErrors`) rejects assignment-target / optional-chain misuse and
+**function declarations in single-statement position**: a `FunctionDeclaration`
+is a StatementListItem, never a Statement, so it may not be the sole body of a
+loop (`for`/`while`/`do-while`, always — no Annex B carve-out) or — only in
+strict mode (Annex B.3.4 allows it sloppily) — an `if`/`else` clause. Detection
+keys on the body `STATEMENT` directly wrapping an `FN_EXPR`; a braced body
+(`BLOCK`) is legal. Labelled-function declarations are not yet covered (no
+LABELLED node type). Still deferred: the `with` statement early error (lexes as a
+call; path-skipped). Pinned by `SpecPinTest.functionDeclAs*` and the
+`strict_*`/`*EvalOrArguments*` family. See
 [TEST262.md § Engine — feature gaps](../karate-js-test262/TEST262.md#engine--feature-gaps).
 
 > **Spec invariant.** The sloppy default is intentional and load-bearing —
