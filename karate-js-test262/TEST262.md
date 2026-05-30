@@ -188,17 +188,23 @@ of this.
 **Next up — negative parse-phase early errors (the dominant `test/language`
 cluster).** A probe of `test/language/statements/**` buckets these under the new
 `MissingParseError` error type (negative `phase: parse` tests the engine parses
-instead of rejecting — see [Results schema](#results-schema)): **183** remain in
-the statements slice alone. Use it to scope: `jq -r 'select(.error_type=="MissingParseError").path'`.
-**Function-declaration-in-statement-position is DONE** (loops always; `if` clause
-in strict mode — see Background sweeps); the residual is the long tail of other
-early errors: escaped-keyword / reserved-word misuse, duplicate lexical
-declarations, `break`/`continue` to undefined labels, `new.target` / `super`
-outside a method, getter/setter arity, etc. Pick the next sub-cluster by count
-from the `MissingParseError` histogram. Two known un-enforced parser corners
-carried over: a `"use strict"` prologue inside a non-simple-parameter-list
-function is itself an early error; lexical duplicate-BoundNames for `let`/`const`
-patterns (`let {a,a}=…`).
+instead of rejecting — see [Results schema](#results-schema)): **141** remain in
+the statements slice (was 183; −42 from the declaration-in-statement-position
+sweep below). Use it to scope: `jq -r 'select(.error_type=="MissingParseError").path'`.
+**Function- AND lexical/class-declaration-in-statement-position are DONE** (see
+Background sweeps); the residual is the long tail of other early errors:
+escaped-keyword / reserved-word misuse, **duplicate lexical declarations in a
+scope** (the `switch/syntax/redeclaration/**` cluster, ~24 — the recommended next
+item: a block-scoped LexicallyDeclaredNames-no-duplicate + no-intersection-with-
+VarDeclaredNames walk per §14.2.1/§14.12.1, generalizes to every BLOCK / CaseBlock
+/ program / function body), `break`/`continue` to undefined labels, `new.target` /
+`super` outside a method, getter/setter arity, etc. Pick the next sub-cluster by
+count from the `MissingParseError` histogram. The remaining `for-(of|in)/dstr/**`
+cluster (~56) is a fragmented long tail of distinct destructuring-pattern rules —
+lower leverage per unit effort. Two known un-enforced parser corners carried over:
+a `"use strict"` prologue inside a non-simple-parameter-list function is itself an
+early error; lexical duplicate-BoundNames for `let`/`const` patterns (`let {a,a}=…`
+— folds into the duplicate-lexical-declaration walk above).
 
 **Also residual from the `onlyStrict` un-skip:** (2) **~16 runtime `SyntaxError`**
 not thrown; (3) **~14 strict-assignment runtime `TypeError`** (arguments-object
@@ -287,6 +293,25 @@ Picked off opportunistically when nearby — not session-sized on their own.
   `for-of`). Pinned by `SpecPinTest.functionDeclAsLoopBody_* /
   functionDeclAsIfBody_*`. Invariant recorded in
   [JS_ENGINE.md § Strict Mode Policy](../docs/JS_ENGINE.md#strict-mode-policy).
+
+- **Lexical/class-declaration-in-statement-position early error — DONE.**
+  `JsParser` now also rejects a LexicalDeclaration (`let`/`const`) or a
+  ClassDeclaration used as the sole body of an `if`/`else`/loop clause
+  (`checkNoLexicalOrClassDeclarationBody`, beside the function-decl helper, called
+  from the mode-independent `validateEarlyErrors`). Unlike FunctionDeclaration these
+  have **no Annex B carve-out**, so they are an early error in BOTH modes for every
+  clause including `if`/`else` (§13.6/§14.x). `var` hoists and stays legal; a braced
+  body is a `BLOCK`. The let-vs-var distinction lives on the `VAR_STMT` keyword
+  token, not `VAR_DECL` (`isLexicalVarStmt`). One sloppy-mode subtlety handled: `let`
+  is not reserved, so `if (x) let\n y` is `let`-the-identifier + ASI (the only
+  forbidden `let`-form at ExpressionStatement start is `let [`); a LineTerminator
+  after a `let` keyword (`lineTerminatorFollows`, scanning across WS/comments to the
+  next primary token) means it is NOT a lexical declaration here — `const` is
+  reserved and has no such escape. Slice delta (`test/language/statements/**`):
+  **+42 PASS, 0 regressions** (`MissingParseError` 183 → 141), dominated by the
+  `let/syntax` + `const/syntax` statement-position families. Pinned by
+  `SpecPinTest.lexicalOrClassDeclAsClauseBody_isAlwaysParseError /
+  letAsIdentifierWithLineTerminator_isNotALexicalDeclaration`.
 
 - **C-style `for` per-iteration `let`/`const` environment — DONE.**
   `Interpreter.evalForStmt` now models §14.7.4.3 ForBodyEvaluation properly: the

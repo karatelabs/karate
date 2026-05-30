@@ -216,7 +216,16 @@ public class JsParser extends BaseParser {
             // early error in BOTH sloppy and strict code — hence it lives here, not in
             // the strict-gated walk. `for (…) { function f(){} }` stays legal: the body
             // Statement wraps a BLOCK, so its direct child is BLOCK, not FN_EXPR.
-            case FOR_STMT, WHILE_STMT, DO_WHILE_STMT -> checkNoFunctionDeclarationBody(node, "a loop");
+            // A LexicalDeclaration (let/const) and a ClassDeclaration are likewise
+            // Declarations, not Statements, and — unlike FunctionDeclaration — have no
+            // Annex B carve-out for ANY clause, so they are illegal as the body of an
+            // `if`/`else` clause too (§13.6/§14.x). The `for`-init `let` is a direct
+            // FOR_STMT child, not a STATEMENT, so it is correctly ignored.
+            case FOR_STMT, WHILE_STMT, DO_WHILE_STMT -> {
+                checkNoFunctionDeclarationBody(node, "a loop");
+                checkNoLexicalOrClassDeclarationBody(node, "a loop");
+            }
+            case IF_STMT -> checkNoLexicalOrClassDeclarationBody(node, "an `if`/`else` clause");
             default -> {
             }
         }
@@ -249,6 +258,70 @@ public class JsParser extends BaseParser {
                 }
             }
         }
+    }
+
+    /** Throws if any direct {@code STATEMENT} child of {@code node} is itself a
+     *  LexicalDeclaration ({@code let}/{@code const}) or a ClassDeclaration — the body
+     *  of an `if`/`else`/loop clause is a Statement, and both are Declarations, not
+     *  Statements (§13.6/§14.x). A {@code var} declaration hoists and stays legal; a
+     *  braced body (BLOCK) is fine. Mode-independent — there is no Annex B carve-out
+     *  for these the way there is for FunctionDeclaration in an `if` clause. */
+    private static void checkNoLexicalOrClassDeclarationBody(Node node, String where) {
+        for (int i = 0, n = node.size(); i < n; i++) {
+            Node child = node.get(i);
+            if (child.isToken() || child.type != NodeType.STATEMENT) {
+                continue;
+            }
+            for (int j = 0, m = child.size(); j < m; j++) {
+                Node inner = child.get(j);
+                if (!inner.isToken()) {
+                    if (inner.type == NodeType.CLASS_EXPR) {
+                        throw new ParserException(
+                                "a class declaration may not be the body of " + where);
+                    }
+                    if (inner.type == NodeType.VAR_STMT && isLexicalVarStmt(inner)) {
+                        throw new ParserException(
+                                "a lexical declaration may not be the body of " + where);
+                    }
+                    break; // first non-token child decides
+                }
+            }
+        }
+    }
+
+    /** True if a {@code VAR_STMT}'s leading keyword token is {@code let} / {@code const}
+     *  (a LexicalDeclaration) rather than {@code var}. The keyword distinction lives on
+     *  VAR_STMT, not on the VAR_DECL children.
+     *  <p>One sloppy-mode subtlety: {@code let} is not a reserved word, so as the body of
+     *  an `if`/loop clause {@code let} followed by a LineTerminator is the identifier
+     *  {@code let} as an ExpressionStatement with ASI inserted before the next line
+     *  (`if (x) let\n y = 1` is two statements: `let; y = 1`). The only `let`-form the
+     *  ExpressionStatement lookahead forbids is `let [`. So a LineTerminator immediately
+     *  after a {@code let} keyword means it is NOT a lexical declaration here. {@code const}
+     *  is a reserved word and has no such escape. */
+    private static boolean isLexicalVarStmt(Node varStmt) {
+        for (int i = 0, n = varStmt.size(); i < n; i++) {
+            Node child = varStmt.get(i);
+            if (child.isToken()) {
+                TokenType tt = child.token.type;
+                if (tt == CONST) {
+                    return true;
+                }
+                return tt == LET && !lineTerminatorFollows(child.token);
+            }
+        }
+        return false;
+    }
+
+    /** True if a LineTerminator ({@code WS_LF}) appears between {@code tok} and the next
+     *  primary token, scanning across intervening whitespace / comments. */
+    private static boolean lineTerminatorFollows(Token tok) {
+        for (Token t = tok.getNext(); t != null && !t.type.primary; t = t.getNext()) {
+            if (t.type == WS_LF) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

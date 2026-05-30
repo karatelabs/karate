@@ -1150,4 +1150,41 @@ class SpecPinTest extends EvalBase {
         // braced body stays legal even in strict mode.
         assertEquals(7, eval("'use strict'; if (true) { function f() { return 7; } return f(); }"));
     }
+
+    // -------------------------------------------------------------------------
+    // A LexicalDeclaration (let/const) and a ClassDeclaration are Declarations,
+    // not Statements, so they may not be the sole body of an `if`/`else`/loop
+    // clause (§13.6, §14.x). Unlike FunctionDeclaration there is NO Annex B
+    // carve-out, so this is an early error in BOTH sloppy and strict code. A
+    // braced body (Block) is fine; a `var` declaration hoists and stays legal.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void lexicalOrClassDeclAsClauseBody_isAlwaysParseError() {
+        assertParseError("if (x) let y = 1;");
+        assertParseError("if (x) {} else const y = 1;");
+        assertParseError("for (;;) let y = 1;");
+        assertParseError("while (x) const y = 1;");
+        assertParseError("do let y = 1; while (x);");
+        assertParseError("for (k in o) let y = 1;");
+        assertParseError("for (k of o) class C {}");
+        assertParseError("if (x) class C {}");
+        // `var` hoists — legal as a clause body; braced lexical bodies are fine.
+        assertEquals(1, eval("if (true) var y = 1; y;"));
+        assertEquals(2, eval("if (true) { let y = 2; y; }"));
+    }
+
+    @Test
+    void letAsIdentifierWithLineTerminator_isNotALexicalDeclaration() {
+        // `let` is not reserved in sloppy mode: a LineTerminator after it forces ASI,
+        // so the clause body is the standalone ExpressionStatement identifier `let`
+        // (skipped here, condition false) and what follows is a separate statement —
+        // this must parse, not raise the lexical-declaration-as-clause-body error.
+        // (The trailing literal confirms parse success without depending on the
+        // engine's ASI handling of the skipped body.)
+        assertEquals(99, eval("if (false) let\n x = 1; 99"));
+        assertEquals(7, eval("while (false) let\n x; 7"));
+        // `const` is a reserved word, so it has no such ASI escape — still an error.
+        assertParseError("if (x) const\n y = 1;");
+    }
 }
