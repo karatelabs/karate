@@ -575,6 +575,28 @@ class StepMatchTest {
         assertFailed(sr);
     }
 
+    @Test
+    void testMatchDollarMissingFieldIsNotPresent() {
+        // $ JSONPath on a missing key must surface as #notpresent — matching the
+        // dot-notation path above — instead of throwing "No results for path".
+        ScenarioRuntime sr = run("""
+            * def response = { method: 'POST' }
+            * match $.method == 'POST'
+            * match $.errors == '#notpresent'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchDollarVarMissingFieldIsNotPresent() {
+        // Same, but via $varname.path JSONPath on a named variable.
+        ScenarioRuntime sr = run("""
+            * def foo = { name: 'bar' }
+            * match $foo.missing == '#notpresent'
+            """);
+        assertPassed(sr);
+    }
+
     // ========== Embedded variables on the RHS of match ==========
     // V2 evaluates the RHS as JS, so the v1 trick of writing { id: #(id) } is a
     // syntax error. The same alternatives that work for `def` also work here.

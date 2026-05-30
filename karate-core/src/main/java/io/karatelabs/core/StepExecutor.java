@@ -49,6 +49,7 @@ import io.karatelabs.match.Match;
 import io.karatelabs.match.Result;
 
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.PathNotFoundException;
 
 import java.io.File;
 import java.io.InputStream;
@@ -1292,7 +1293,14 @@ public class StepExecutor {
         // Handle $varname patterns - could be jsonpath OR xpath on XML variable
         // $varname/xpath, $varname /xpath, $[...], $., $varname[*].path
         if (expr.startsWith("$")) {
-            return evalDollarPrefixedExpression(expr);
+            // A missing JSONPath on the LHS of a match must surface as #notpresent
+            // (v1 evalJsonPath returned NOT_PRESENT) so `$.foo == '#notpresent'`
+            // passes instead of throwing "No results for path".
+            try {
+                return evalDollarPrefixedExpression(expr);
+            } catch (PathNotFoundException e) {
+                return "#notpresent";
+            }
         }
 
         // Handle bare xpath on response: "//xpath" or "/xpath"
