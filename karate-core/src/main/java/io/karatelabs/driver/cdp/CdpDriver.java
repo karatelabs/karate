@@ -1435,10 +1435,32 @@ public class CdpDriver implements Driver {
                 String fUrl = (String) frame.get("url");
                 String fName = (String) frame.get("name");
 
+                // A frame that has its own isolated CDP session is an OOPIF: its document is
+                // out-of-process and is ONLY queryable via that session, never the main page
+                // session. Page.getFrameTree still lists it here, so a name/URL match would set
+                // cdp.sessionId to the main session and every subsequent command (readiness
+                // poll, element lookup) would run against the parent document — element-not-found
+                // and "timeout waiting for OOPIF readiness" with the wrong expectedUrl. Defer to
+                // the OOPIF-aware matching below, which routes the session and validates the live
+                // URL. Covers the case where Target.attachedToTarget has already fired.
+                if (oopifSessions.containsKey(fId)) {
+                    continue;
+                }
+
                 // Match by name if provided, otherwise by URL
                 boolean matches = false;
                 if (targetName != null && !targetName.isEmpty() && targetName.equals(fName)) {
-                    matches = true;
+                    // Name match alone is not enough when the element also carries a concrete src:
+                    // during a same-origin -> cross-origin navigation the OOPIF may not have
+                    // attached yet (so the guard above can't catch it), while this same-origin tree
+                    // entry still reports the OLD document URL. Matching by name there would bind to
+                    // the stale document on the main session. Require the committed URL to be
+                    // consistent with the requested src; a mismatch means "still transitioning" —
+                    // fall through to the OOPIF retry loop, which waits for the attach and matches
+                    // the live URL. Same-origin frames driven via srcdoc have an empty src, so this
+                    // guard is a no-op for them.
+                    matches = targetSrc == null || targetSrc.isEmpty()
+                            || (fUrl != null && fUrl.contains(targetSrc));
                 } else if (targetSrc != null && !targetSrc.isEmpty() && fUrl != null && fUrl.contains(targetSrc)) {
                     matches = true;
                 } else if ((targetName == null || targetName.isEmpty()) && (targetSrc == null || targetSrc.isEmpty())) {
@@ -1564,6 +1586,11 @@ public class CdpDriver implements Driver {
         // HTML parsing), so without this wait a caller that immediately queries DOM
         // races the parser. Same-origin frames get this via waitForFrameContextReady().
         if (oopifSessions.containsKey(frameId)) {
+            // Route to the OOPIF's own session before polling/using it. switchFrame(String)
+            // already leaves cdp.sessionId here after an OOPIF match, but route defensively so
+            // any other caller (e.g. index-based switchFrame) is correct too — the readiness
+            // poll and all subsequent commands MUST hit the OOPIF session, not the main page.
+            cdp.setSessionId(oopifSessions.get(frameId));
             // Pass the matched URL through so the readiness poll can also assert that the
             // OOPIF's document.URL has actually become the expected one — guards against
             // a transient state where readyState briefly reports non-'loading' before the
