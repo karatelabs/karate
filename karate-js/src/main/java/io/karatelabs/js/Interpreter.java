@@ -577,6 +577,12 @@ class Interpreter {
                     // the implicit `constructor(...args) { super(...args); }`.
                     if (jsFunc.isDefaultDerivedConstructor) {
                         runSuperConstructor(jsFunc, newInstance, args, callContext);
+                        runInstanceFieldInitializers(jsFunc, newInstance, callContext); // after super
+                    } else if (!jsFunc.isDerivedConstructor) {
+                        // base class: fields init before the constructor body runs.
+                        // (derived classes with an explicit constructor init their
+                        // fields right after super() returns — see evalSuperCall.)
+                        runInstanceFieldInitializers(jsFunc, newInstance, callContext);
                     }
                 } else if (!jsFunc.arrow) {
                     // Regular functions get their own 'this'; arrow functions inherit from
@@ -871,7 +877,7 @@ class Interpreter {
                 continue; // CLASS / EXTENDS / name / heritage EXPR / braces / semicolons
             }
             ClassMember cm = analyzeClassMember(child);
-            if (!cm.isStatic && !cm.isAccessor && "constructor".equals(cm.simpleKey)) {
+            if (!cm.isField && !cm.isStatic && !cm.isAccessor && "constructor".equals(cm.simpleKey)) {
                 ctorFnExpr = cm.fnExpr;
             } else {
                 members.add(cm);
@@ -913,6 +919,23 @@ class Interpreter {
             String key = classMemberKey(cm, context);
             if (context.isError()) {
                 return Terms.UNDEFINED;
+            }
+            if (cm.isField) {
+                // Public field. Computed name resolved once here; the value is
+                // run per-instance (instance fields) or now (static fields).
+                if (cm.isStatic) {
+                    Object value = evalFieldInitializer(cm.initExpr, ctor, context);
+                    if (context.isError()) {
+                        return Terms.UNDEFINED;
+                    }
+                    ctor.putMember(key, value); // static fields are enumerable own props
+                } else {
+                    if (ctor.instanceFields == null) {
+                        ctor.instanceFields = new ArrayList<>();
+                    }
+                    ctor.instanceFields.add(new JsFunctionNode.FieldInit(key, cm.initExpr));
+                }
+                continue;
             }
             JsObject target = cm.isStatic ? ctor : proto;
             JsFunctionNode fn = new JsFunctionNode(false, cm.fnExpr,
@@ -974,6 +997,8 @@ class Interpreter {
             return Terms.UNDEFINED;
         }
         runSuperConstructor(active, context.thisObject, args, context);
+        // A derived class's own instance fields init right after super() returns.
+        runInstanceFieldInitializers(active, context.thisObject, context);
         return Terms.UNDEFINED; // the value of a super() call is unused as a statement
     }
 
@@ -1015,6 +1040,37 @@ class Interpreter {
         }
     }
 
+    // Evaluates a public field's initializer with `this` bound to {@code thisObj}
+    // (the instance for an instance field, the constructor for a static field).
+    private static Object evalFieldInitializer(Node initExpr, Object thisObj, CoreContext context) {
+        if (initExpr == null) {
+            return Terms.UNDEFINED; // `x;` — field declared with no initializer
+        }
+        Object savedThis = context.thisObject;
+        context.thisObject = thisObj;
+        try {
+            return eval(initExpr, context);
+        } finally {
+            context.thisObject = savedThis;
+        }
+    }
+
+    // Runs a class's public instance-field initializers on a fresh instance, in
+    // declaration order. Base class: before the constructor body. Derived class:
+    // immediately after super() returns.
+    static void runInstanceFieldInitializers(JsFunctionNode ctor, Object thisObj, CoreContext context) {
+        if (ctor.instanceFields == null || !(thisObj instanceof JsObject obj)) {
+            return;
+        }
+        for (JsFunctionNode.FieldInit f : ctor.instanceFields) {
+            Object value = evalFieldInitializer(f.initializer, thisObj, context);
+            if (context.isError()) {
+                return;
+            }
+            obj.putMember(f.key, value); // public fields are enumerable own properties
+        }
+    }
+
     // Resolves the property-lookup target for `super.x` / `super[x]`: the
     // [[Prototype]] of the active method's home object (the parent class's
     // prototype, or the parent constructor for a static method).
@@ -1028,23 +1084,50 @@ class Interpreter {
         return proto instanceof ObjectLike ol ? ol : null;
     }
 
-    // Resolved shape of a CLASS_METHOD node:
-    //   [modifier tokens...] <key (1 name token | L_BRACKET EXPR R_BRACKET)> FN_EXPR
+    // Resolved shape of a CLASS_METHOD node. Methods/accessors end in FN_EXPR;
+    // fields have no FN_EXPR (optional trailing [EQ, EXPR] initializer):
+    //   [modifier tokens...] <key (1 name token | L_BRACKET EXPR R_BRACKET)>
+    //       ( FN_EXPR | [EQ EXPR]? )
     private static final class ClassMember {
         boolean isStatic;
         boolean isAccessor;
+        boolean isField;
         String kind;        // "get" / "set" / null
         boolean computed;
         Node keyExprNode;   // EXPR node, when computed
         String simpleKey;   // resolved literal key, when not computed (else null)
-        Node fnExpr;        // the method's params + body (synthetic FN_EXPR)
+        Node fnExpr;        // the method's params + body (synthetic FN_EXPR); null for a field
+        Node initExpr;      // a field's initializer EXPR; null for a method or a bare field
     }
 
     private static ClassMember analyzeClassMember(Node m) {
         ClassMember cm = new ClassMember();
-        int last = m.size() - 1;
-        cm.fnExpr = m.get(last);
-        int keyEnd = last - 1;
+        int n = m.size();
+        Node lastChild = m.get(n - 1);
+        int keyEnd;
+        if (lastChild.type == NodeType.FN_EXPR) {
+            cm.fnExpr = lastChild;
+            keyEnd = n - 2;
+        } else {
+            cm.isField = true;
+            // a field's optional initializer is a trailing [EQ, EXPR]; the only
+            // EQ that is a direct child of CLASS_METHOD is the field's `=`
+            // (default-param `=` lives inside the method's FN_EXPR subtree).
+            int eqIdx = -1;
+            for (int i = 0; i < n; i++) {
+                Node c = m.get(i);
+                if (c.token != null && c.token.type == EQ) {
+                    eqIdx = i;
+                    break;
+                }
+            }
+            if (eqIdx >= 0) {
+                cm.initExpr = m.get(eqIdx + 1);
+                keyEnd = eqIdx - 1;
+            } else {
+                keyEnd = n - 1;
+            }
+        }
         Node kc = m.get(keyEnd);
         int keyStart;
         if (kc.token != null && kc.token.type == R_BRACKET) {

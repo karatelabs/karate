@@ -336,11 +336,14 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   `async-functions`, `Symbol.asyncIterator`). karate-js is synchronous.
   Viable path: sync subset first — `Promise` as eager thenable,
   `async function` runs sync, `await` sync-unwraps.
-- **Class syntax (ES6) — Phases 1+2 DONE; fields remain (Phase 3).**
+- **Class syntax (ES6) — Phases 1+2+3 DONE; only the conformance tail remains.**
   `class` declarations + expressions parse and evaluate: constructor, instance
   methods, `static` methods, `get`/`set` accessors, computed method names,
   default-constructor synthesis, always-strict bodies, constructor-without-`new`
-  TypeError, **`extends` + `super(...)` + `super.method()`**. Desugared at eval
+  TypeError, **`extends` + `super(...)` + `super.method()`**, and **public
+  instance + static fields** (`x = 1` / `static n = …`, computed names, ASI,
+  enumerable own props, derived-class fields init after `super()` —
+  `JsFunctionNode.instanceFields` + `Interpreter.runInstanceFieldInitializers`). Desugared at eval
   time onto the existing constructor-function + prototype machinery
   (`Interpreter.evalClassExpr` → constructor `JsFunctionNode` whose `.prototype`
   holds the methods; statics on the constructor; methods/accessors non-
@@ -354,18 +357,22 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   construction (`Interpreter.runSuperConstructor` — no `invokeCallable`
   refactor needed, since the derived instance is created normally and super()
   only initializes it). `extends Error`/built-ins works via a pragmatic
-  copy-own-props shim. New tokens `CLASS`/`EXTENDS`/`SUPER` + NodeTypes
-  `CLASS_EXPR`/`CLASS_METHOD`/`CLASS_FIELD`/`SUPER_EXPR`. Covered by
-  `JsClassTest` (32 cases). **Phase 3 (remaining):** public instance/static
-  fields (see `karate-js-test262/etc/CLASS_PLAN.md`). Known deferred gaps
-  (2026-05-30 probe, ~978 pass / ~503 fail across the three class slices):
-  fields, private `#x`, generator/async methods, decorators, class
-  early-errors, object-literal-method `super` (needs object [[HomeObject]]),
-  two super edge cases (`this`-TDZ before `super()`, `super()` return-override),
-  numeric/string-literal method-name canonicalization (`get 0x10(){}` → key
-  `"16"`; shared with object literals' NUMBER-key path), escaped-keyword method
-  names. test262 `class/**` stays path-skipped until fields land (the tree
-  interleaves supported + deferred cases with no clean glob).
+  copy-own-props shim. Public fields ride `defineOwn`/`putMember` (enumerable,
+  unlike the non-enumerable methods); computed field names are resolved once at
+  class-definition time, the value per instance. New tokens
+  `CLASS`/`EXTENDS`/`SUPER` + NodeTypes
+  `CLASS_EXPR`/`CLASS_METHOD`/`CLASS_FIELD`/`SUPER_EXPR` (CLASS_METHOD also
+  carries fields — eval distinguishes by the trailing FN_EXPR). Covered by
+  `JsClassTest` (44 cases). **Remaining conformance tail (deferred):** private
+  `#x` fields/methods, generator/async methods, decorators, static-init blocks,
+  class early-errors, object-literal-method `super` (needs object
+  [[HomeObject]]), two super edge cases (`this`-TDZ before `super()`, `super()`
+  return-override), numeric/string-literal method-name canonicalization
+  (`get 0x10(){}` → key `"16"`; shared with object literals' NUMBER-key path),
+  escaped-keyword method names. Most have existing `feature:`-tag skips
+  (`class-fields-private` / `class-methods-private` / `generators` /
+  `async-functions` / `decorators`); see the [Skip list](#skip-list) note for
+  the path-skip un-skip plan.
 - **Symbol primitive.** Gates a long tail across String / Array / RegExp /
   Object. Deprioritized — real-world code doesn't use it.
 

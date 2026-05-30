@@ -65,6 +65,22 @@ class JsFunctionNode extends JsFunction {
     // instance method/constructor, or the constructor for a static method.
     // null for ordinary (non-class) functions.
     ObjectLike homeObject;
+    // Public instance fields declared on the class, in source order. Run on each
+    // new instance at construction (base class: before the constructor body;
+    // derived: right after super() returns). Computed field names are resolved
+    // once at class-definition time, so the key is a plain String. null when the
+    // class declares no instance fields.
+    List<FieldInit> instanceFields;
+
+    static final class FieldInit {
+        final String key;
+        final Node initializer; // EXPR node, or null for an uninitialized field
+
+        FieldInit(String key, Node initializer) {
+            this.key = key;
+            this.initializer = initializer;
+        }
+    }
 
     public JsFunctionNode(boolean arrow, Node node, List<Node> argNodes, Node body, CoreContext declaredContext) {
         this(arrow, node, argNodes, body, declaredContext, false);

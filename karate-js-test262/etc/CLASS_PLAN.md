@@ -1,18 +1,21 @@
 # ES6 `class` syntax — implementation plan
 
-**STATUS (2026-05-30): Phases 1 + 2 LANDED.** Phase 1 — constructor,
+**STATUS (2026-05-30): Phases 1 + 2 + 3 LANDED.** Phase 1 — constructor,
 instance/static methods, get/set accessors, computed keys, class
 declarations + expressions, default constructor, always-strict,
 constructor-without-`new` TypeError. Phase 2 — `extends`, `super(...)`,
 `super.method()`, default-derived-constructor arg forwarding, static
-inheritance, `extends Error`/built-in shim. Implemented via
-`JsFunctionNode.homeObject` + `CoreContext.activeFunction` + the special-cased
-construction in `Interpreter.runSuperConstructor` (no `invokeCallable` refactor
-was needed — the derived instance is created normally and `super()` only
-initializes it). Covered by `JsClassTest` (32 cases). **Phase 3 (fields) is NOT
-done** — this doc remains the design reference. Known Phase-2 gaps (deferred,
-edge cases): `this`-TDZ before `super()`, `super()` return-override binding,
-object-literal-method `super` (needs object [[HomeObject]]).
+inheritance, `extends Error`/built-in shim (`JsFunctionNode.homeObject` +
+`CoreContext.activeFunction` + `Interpreter.runSuperConstructor`; no
+`invokeCallable` refactor needed). Phase 3 — public instance + static fields
+(`JsFunctionNode.instanceFields` + `Interpreter.runInstanceFieldInitializers`;
+instance fields init before the base ctor body / after `super()` for derived;
+computed names resolved once at definition, values per-instance; fields are
+enumerable). Covered by `JsClassTest` (44 cases). **Remaining (deferred):**
+private `#x` fields/methods, generator/async methods, decorators, static-init
+blocks, class early-errors, `this`-TDZ before `super()`, `super()`
+return-override, object-literal-method `super`, numeric/string-literal
+method-name canonicalization.
 
 
 Goal: support real-world / LLM-written `class` code in karate-js. Pragmatic

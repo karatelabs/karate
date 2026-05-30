@@ -22,23 +22,26 @@ skip:
       reason: experimental proposals not yet ratified
     - path: test/annexB/**
       reason: legacy-web-browser behaviors out of scope
-    # class syntax: Phases 1+2 implemented (constructor, instance/static methods,
-    # get/set accessors, computed keys, class expressions, default constructor,
-    # extends, super(...) / super.method(); covered by JsClassTest). Still
-    # deferred: public/private fields, private methods, static-init blocks,
-    # generator/async methods, decorators, class early-errors, and two super
-    # edge cases (this-TDZ before super(), super() return-override). A probe
-    # (2026-05-30) measured ~978 of these tests PASS today across
-    # statements/class + expressions/class + expressions/super, but ~503 still
-    # FAIL on the deferred features; the class/** tree interleaves supported and
-    # deferred cases as flat filenames with no clean glob to separate them, and
-    # untagged tests surface as parser-error FAILs polluting every language
-    # probe. Keep the path-skip until fields land (Phase 3) — then the deferred
-    # remainder is small enough to feature-skip cleanly.
+    # class syntax: Phases 1+2+3 implemented (constructor, instance/static
+    # methods, get/set accessors, computed keys, class expressions, default
+    # constructor, extends, super(...) / super.method(), public instance+static
+    # fields; covered by JsClassTest, 44 cases). ~1090 class tests would PASS.
+    # STILL path-skipped — measured (2026-05-30) un-skip is NOT clean yet: with
+    # the path-skip + feature:class + class-fields-public removed (private /
+    # generators / async kept feature-skipped), the three class slices still
+    # produce ~1000 FAILs, dominated by (1) the public-field conformance tail
+    # under elements/ (~249), (2) ~108 untagged private-#x / generator / async /
+    # decorator tests that lack feature tags so feature-skips miss them and they
+    # hit "class member name" parse errors, and (3) ~105 negative class
+    # early-error tests the parser doesn't enforce. These would pollute every
+    # language probe. Un-skip gate: (a) harden public fields against the edge
+    # tail, (b) land the parser class-early-error sweep, (c) implement or
+    # reliably skip the untagged private/generator/async/decorator tail. Until
+    # then the path-skip stays; the engine capability is proven by JsClassTest.
     - path: test/language/**/class/**
-      reason: class fields/private/generators/decorators not yet supported (Phases 1+2 done — see JsClassTest)
+      reason: class private/generators/async/decorators + field/early-error conformance tail not done (Phases 1-3 done — see JsClassTest)
     - path: test/language/expressions/super/**
-      reason: object-literal-method super + super edge cases not yet supported (class super done — see JsClassTest)
+      reason: object-literal-method super + super edge cases (this-TDZ, return-override) not done (class super done — see JsClassTest)
     - path: test/language/statements/with/**
       reason: with-statement is conformance-only, negligible in real-world JS and LLM-written code
     - path: test/language/eval-code/direct/**

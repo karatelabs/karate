@@ -1240,12 +1240,15 @@ public class JsParser extends BaseParser {
         return exit(consumeIf(R_CURLY), true);
     }
 
-    // One class member: [modifier-tokens...] <key> FN_EXPR. A leading
+    // One class member (CLASS_METHOD node used for methods AND fields):
+    // [modifier-tokens...] <key> ( FN_EXPR | field-tail ). A leading
     // `static`/`get`/`set` IDENT is a modifier only when another key token
     // follows; otherwise it is the member name itself. The key is either a
     // single name token or a computed `[expr]` (L_BRACKET, EXPR, R_BRACKET).
-    // The body is a synthetic FN_EXPR (FN_DECL_ARGS + BLOCK), matching the
+    // A method body is a synthetic FN_EXPR (FN_DECL_ARGS + BLOCK), matching the
     // object-literal shorthand-method shape so evalFnExpr handles it directly.
+    // A field has no FN_EXPR — an optional `= EXPR` initializer then ASI; eval
+    // distinguishes the two by the presence of the trailing FN_EXPR.
     private boolean class_element() {
         enter(NodeType.CLASS_METHOD);
         while (true) {
@@ -1270,20 +1273,26 @@ public class JsParser extends BaseParser {
                     && (peekAnyOf(T_CLASS_KEY_NAME) || peekIf(L_BRACKET))) {
                 continue; // it was a modifier — loop to consume the real key
             }
-            // Not followed by `(` and not a recognized modifier — a class field.
-            // Fields are a deferred (Phase 3) feature; fail the parse so the
-            // test is skip-listed rather than silently mis-handled.
-            error(L_PAREN);
-            return exit(false, false);
+            // Not followed by `(` and not a modifier — a class field (`x` / `x = expr`).
+            return class_field_tail();
         }
         if (!peekIf(L_PAREN)) {
-            error(L_PAREN);
-            return exit(false, false);
+            return class_field_tail(); // computed-key field: `[k]` / `[k] = expr`
         }
         enter(NodeType.FN_EXPR);
         fn_decl_args();
         block(true);
         exit();
+        return exit();
+    }
+
+    // Public class field tail: optional `= AssignmentExpression`, ended by `;`
+    // or ASI. No FN_EXPR child — that's how eval tells a field from a method.
+    private boolean class_field_tail() {
+        if (consumeIf(EQ)) {
+            expr(-1, true);
+        }
+        consumeIf(SEMI); // optional; ASI otherwise (next element / `}` / newline)
         return exit();
     }
 

@@ -190,4 +190,71 @@ class JsClassTest extends EvalBase {
         assertEquals("TypeError", eval("var notCtor = 42;\n"
                 + "try { class B extends notCtor {} } catch (e) { e.name }"));
     }
+
+    // ===== Phase 3: public fields =====
+
+    @Test
+    void testInstanceField() {
+        assertEquals(1, eval("class C { x = 1 }\nnew C().x"));
+    }
+
+    @Test
+    void testInstanceFieldNoInitializer() {
+        assertEquals(true, eval("class C { x }\nvar c = new C();\n'x' in c && c.x === undefined"));
+    }
+
+    @Test
+    void testFieldInitializerSeesEarlierField() {
+        assertEquals(6, eval("class C { a = 2; b = this.a * 3 }\nnew C().b"));
+    }
+
+    @Test
+    void testFieldWithSemicolons() {
+        assertEquals(3, eval("class C { a = 1; b = 2; sum() { return this.a + this.b } }\nnew C().sum()"));
+    }
+
+    @Test
+    void testFieldsAsiNoSemicolons() {
+        assertEquals(3, eval("class C {\n  a = 1\n  b = 2\n  sum() { return this.a + this.b }\n}\nnew C().sum()"));
+    }
+
+    @Test
+    void testStaticField() {
+        assertEquals(42, eval("class C { static n = 42 }\nC.n"));
+    }
+
+    @Test
+    void testStaticFieldNotOnInstance() {
+        assertEquals(true, eval("class C { static n = 1 }\ntypeof new C().n === 'undefined'"));
+    }
+
+    @Test
+    void testComputedFieldName() {
+        assertEquals(5, eval("var k = 'dyn';\nclass C { [k] = 5 }\nnew C().dyn"));
+    }
+
+    @Test
+    void testFieldsAreEnumerable() {
+        assertEquals("x,y", eval("class C { x = 1; y = 2; m() {} }\n"
+                + "var k = []; for (var p in new C()) { k.push(p) }\nk.join(',')"));
+    }
+
+    @Test
+    void testStaticFieldReferencingClass() {
+        assertEquals(2, eval("class C { static count = 0; static inc() { return ++C.count } }\n"
+                + "C.inc(); C.inc(); C.count"));
+    }
+
+    @Test
+    void testDerivedFieldsAfterSuper() {
+        assertEquals("1,2,3", eval("class A { constructor() { this.a = 1 } }\n"
+                + "class B extends A { b = this.a + 1; constructor() { super(); this.c = this.b + 1 } }\n"
+                + "var o = new B();\n[o.a, o.b, o.c].join(',')"));
+    }
+
+    @Test
+    void testDefaultDerivedConstructorWithFields() {
+        assertEquals("5,9", eval("class A { constructor(x) { this.x = x } }\n"
+                + "class B extends A { y = 9 }\nvar o = new B(5);\no.x + ',' + o.y"));
+    }
 }
