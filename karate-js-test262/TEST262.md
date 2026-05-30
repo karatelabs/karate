@@ -264,6 +264,23 @@ early-error validation) is advanced-pattern territory.
 
 Picked off opportunistically when nearby — not session-sized on their own.
 
+- **C-style `for` per-iteration `let`/`const` environment — DONE.**
+  `Interpreter.evalForStmt` now models §14.7.4.3 ForBodyEvaluation properly: the
+  test + body run in one iteration scope (so a body closure captures that
+  iteration's distinct binding), then a *fresh* scope is seeded from the body's
+  end-of-iteration values and the increment runs in it. Fixes the infinite-loop
+  hang on an in-body update with no increment clause (`for (let x = 0; x < 10;)
+  { x++; }` — previously the per-iteration scope discarded `x++` and the snapshot
+  reset to 0). The old code wrote the body's values back to the LOOP_INIT slot via
+  `update()`, which corrupted closures created in the initializer (`for (let i =
+  0, f = () => i; …)` must keep returning 0); the rewrite threads values through an
+  explicit `carry` list, never resolving back to the captured LOOP_INIT slots. Also
+  fixed: `loopVarNames` collected initializer identifiers (`for (let i =
+  digits.length - 1; …)` wrongly captured `digits`) — now only binding targets.
+  Slice delta (`test/language/statements/**`): **+7 PASS, 0 regressions** (4
+  `continue/` timeout hangs + 3 `let`/`for` closure-scope tests). Pinned by
+  `SpecPinTest.forLet_*`.
+
 - **String iterator splits surrogate pairs — DONE.** `IterUtils.stringIterator`
   now walks code-points (`codePointAt` / `Character.charCount`) per spec
   §22.1.5.1, so `for-of` over a string with astral chars / emoji yields one

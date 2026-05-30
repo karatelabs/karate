@@ -1083,4 +1083,42 @@ class SpecPinTest extends EvalBase {
         // sloppy: eval/arguments bound inside a pattern is permitted.
         assertEquals(7, eval("function f({eval}) { return eval; } f({eval: 7})"));
     }
+
+    // -------------------------------------------------------------------------
+    // C-style for-loop with a `let` binding: §14.7.4.3 CreatePerIterationEnvironment
+    // copies the just-completed iteration's binding values forward. A body-internal
+    // update with no increment clause must carry across iterations — otherwise the
+    // binding resets to its initial value every iteration and the loop never ends.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void forLet_inBodyUpdate_carriesForward_noIncrementClause() {
+        // Without copy-forward this loops forever (x resets to 0 each iteration).
+        assertEquals(10, eval("var count = 0; for (let x = 0; x < 10;) { x++; count++; } count;"));
+        // continue does not skip the copy-forward.
+        assertEquals(10, eval("var count = 0; for (let x = 0; x < 10;) { x++; count++; continue; } count;"));
+        // a shadowing inner block before the continue must not clobber the outer binding.
+        assertEquals(10, eval(
+                "var count = 0; for (let x = 0; x < 10;) { x++; count++; { let x = 'hi'; continue; } } count;"));
+        // nested let-bound loops, inner in-body update.
+        assertEquals(20, eval(
+                "var count = 0; for (let x = 0; x < 10;) { x++; for (let y = 0; y < 2;) { y++; count++; } } count;"));
+    }
+
+    @Test
+    void forLet_initializerNamesAreNotCaptured() {
+        // The binding is only `i`; the initializer references the outer `const digits`,
+        // which the per-iteration capture must NOT attempt to re-declare or reassign.
+        assertEquals("012", eval(
+                "const digits = [2, 1, 0]; var out = '';"
+                        + " for (let i = digits.length - 1; i >= 0; i--) { out += digits[i]; } out;"));
+    }
+
+    @Test
+    void forLet_perIterationBindingCapturedByClosures() {
+        // Each iteration captures a distinct `i` binding (classic loop-closure test).
+        assertEquals("0,1,2", eval(
+                "var fns = []; for (let i = 0; i < 3; i++) { fns.push(function() { return i; }); }"
+                        + " fns.map(function(f) { return f(); }).join(',');"));
+    }
 }

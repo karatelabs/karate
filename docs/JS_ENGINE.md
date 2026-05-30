@@ -988,6 +988,23 @@ null/undefined per spec). JS-side errors during user iteration propagate via
 `"@@asyncIterator"`). No `Symbol(...)` constructor, no unique-symbol identity
 — tests needing those still skip via `feature: Symbol`.
 
+**C-style `for` per-iteration `let`/`const` environment (§14.7.4.3).**
+`Interpreter.evalForStmt` keeps three environments distinct, and a refactor must
+preserve all three: (1) the **LOOP_INIT** scope where the init declaration lives
+— a closure created in the initializer (`for (let i = 0, f = () => i; …)`)
+captures these slots, which must NEVER be mutated by the loop, so it keeps seeing
+the initial value; (2) the **per-iteration body scope** — test + body run here so
+a closure created in the body captures that iteration's distinct binding (the
+`[0,1,2]` loop-closure invariant); (3) a **fresh increment scope** seeded by
+copying the body's end-of-iteration values, in which the increment clause runs —
+this is what lets an in-body update with no increment clause (`for (let x = 0; x
+< 10;) { x++; }`) carry forward without the increment leaking into a body closure.
+Values thread across iterations through an explicit `carry` list, NOT by writing
+back to the LOOP_INIT slots (doing so corrupts initializer closures and can hit
+an outer `const` referenced by the initializer expression). `var` loop variables
+take a single shared scope (no per-iteration binding). Pinned by
+`SpecPinTest.forLet_*`.
+
 ### Own-key ordering
 
 **Spec §9.1.11.1 OrdinaryOwnPropertyKeys ordering applied at the
