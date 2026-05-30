@@ -39,6 +39,13 @@ RUN_DIR="target/test262/run-$(date +%Y-%m-%d-%H%M%S)"
 echo "==> installing karate-js to local Maven repo"
 mvn -f ../pom.xml -pl karate-js -o install -DskipTests -q
 
+# Compile the runner itself. `exec:java` does NOT trigger compilation, so without
+# this step it runs whatever stale target/classes happen to exist — meaning edits
+# to Test262Runner / the harness silently never take effect (this masked the
+# onlyStrict strict-directive prepend for an entire iteration cycle). Always rebuild.
+echo "==> compiling test262 runner"
+mvn -f ../pom.xml -pl karate-js-test262 -o test-compile -q
+
 echo "==> running conformance suite  (run-dir: $RUN_DIR)"
 mvn -f ../pom.xml -pl karate-js-test262 -o exec:java -q \
     -Dexec.args="--run-dir $RUN_DIR $*"

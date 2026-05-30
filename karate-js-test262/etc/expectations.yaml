@@ -53,18 +53,15 @@ skip:
       reason: karate-js does not support ES modules
     - flag: async
       reason: async/await not supported
-    # onlyStrict: the CAPABILITY is in place but the flag stays skipped to keep
-    # language probes clean. The runner prepends a "use strict" directive for these
-    # tests (Test262Runner.evaluate, dormant while skipped) and the parser enforces
-    # the strict-mode early errors (octal literals, eval/arguments binding+assignment,
-    # duplicate params — JsParser.checkStrictEarlyErrors). Measured un-skip
-    # (2026-05-30, test/language/**): 428 tests -> 71 PASS / 357 FAIL, 0 regressions.
-    # The 357 fails are real not-yet-done strict semantics: ~216 destructuring
-    # parse-phase early errors (the duplicate-binding / pattern sweep — next up),
-    # ~71 strict runtime TypeErrors, ~17 logical-assignment unresolved-LHS. Un-skip
-    # gate: land those sweeps so the flip is net-positive, then delete this rule.
-    - flag: onlyStrict
-      reason: strict-mode capability ready (runner strict-pass + parser early errors); un-skip gated on destructuring early-error sweep + strict runtime TypeErrors (measured 71 PASS/357 FAIL — see comment)
+    # onlyStrict is NOT skipped: the runner prepends a "use strict" directive for
+    # these tests (Test262Runner.evaluate) and the parser enforces the strict-mode
+    # early errors (octal literals, eval/arguments binding+assignment, simple +
+    # destructuring duplicate params, catch BoundNames — JsParser.checkStrictEarlyErrors).
+    # Measured un-skip (2026-05-30, test/language/**): 428 tests -> 282 PASS /
+    # 146 FAIL, 0 regressions (lang pass 5433 -> 5715). The 146 residual fails are
+    # real not-yet-done strict semantics: ~99 negative parse-phase early errors
+    # (function-decl-in-statement-position et al.), ~16 runtime SyntaxError, ~14
+    # strict-assignment runtime TypeError — see Active priorities for the tail.
     - flag: CanBlockIsTrue
       reason: engine cannot block on shared-memory worker agents
     - flag: CanBlockIsFalse

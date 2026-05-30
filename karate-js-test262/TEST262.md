@@ -168,29 +168,34 @@ streams to be tailed.**
 
 ## Active priorities
 
-**Next up — re-measure the `onlyStrict` gate, then the strict runtime
-`TypeError` tail.** The parser strict early-error machinery is now complete:
-lexical-strictness tracking (`JsParser.checkStrictEarlyErrors`, a strict-gated
+**Strict mode + `onlyStrict` — DONE and un-skipped.** The keystone landed: the
+parser tracks lexical strictness (`JsParser.checkStrictEarlyErrors`, a strict-gated
 post-parse walk: program prologue → function-body prologue → always-strict class
-bodies) enforces the simple-binding errors (legacy/non-octal-decimal literals
-`0755`/`08`, `eval`/`arguments` as assign/update target or function-name / param /
-var-binding name) **and** the full **BoundNames walk over binding patterns**
-(`collectBoundNames` + `collectObjectElemBoundNames` — mirrors the binding
-structure, so `{a: x = y}` binds only `{x}`, no false-positive): duplicate bound
-names in arrow params / non-simple parameter lists / catch params (always), and
-`eval`/`arguments` bound inside any pattern (strict). The runner prepends a
-`"use strict"` directive for `flags: [onlyStrict]` (`Test262Runner.evaluate`).
-Measured wins on already-running tests across the two parser commits: **+19**
-(simple early errors) then **+17** (BoundNames — 13 arrow, 2 function, 1
-object-method dup-binding, plus the `early-catch-duplicates.js` un-skip), **0
-regressions** each. The destructuring early-error cluster that dominated the
-`onlyStrict` FAILs (~216) should now mostly pass under the prepended directive —
-**re-measure `onlyStrict` (temporarily un-skip, run `test/language/**`, compare to
-the prior 71 PASS / 357 FAIL); if net-positive, delete the `flag: onlyStrict`
-skip.** Remaining strict gaps if it's still negative: strict runtime `TypeError`s
-(~71) and logical-assignment unresolved-LHS `ReferenceError` (~17). `with`-statement
-early error stays deferred (`with` lexes as a call; `statements/with/**` path-skipped —
-negligible payoff). Details: [Deferred TODOs → Strict mode](#deferred-todos).
+bodies) and enforces the simple-binding early errors (legacy/non-octal-decimal
+literals `0755`/`08`, `eval`/`arguments` as assign/update target or function-name /
+param / var-binding name) plus the full **BoundNames walk over binding patterns**
+(`collectBoundNames` — duplicate names in arrow params / non-simple parameter lists /
+catch params, and `eval`/`arguments` bound inside any pattern). The runner prepends a
+`"use strict"` directive for `flags: [onlyStrict]` (`Test262Runner.evaluate`), and
+the `flag: onlyStrict` skip is removed. Measured `onlyStrict` un-skip
+(`test/language/**`): **282 PASS / 146 FAIL, 0 regressions** (lang pass 5433 → 5715).
+⚠️ This only worked once a latent tooling bug was fixed — `etc/run.sh` ran the
+runner via `exec:java`, which does **not** recompile, so edits to `Test262Runner`
+(the strict-prepend) silently never took effect; run.sh now `test-compile`s the
+module first. The prepend had measured as a no-op (71/357) for a full cycle because
+of this.
+
+**Next up — the `onlyStrict` strict residual (~146 FAILs in `test/language/**`).**
+Three clusters: (1) **~99 negative parse-phase early errors** still unenforced —
+dominated by function-declaration-in-statement-position
+(`if (x) function f(){}` and friends — a strict early error; also block-scope
+function-decl rules); (2) **~16 runtime `SyntaxError`** not thrown; (3) **~14
+strict-assignment runtime `TypeError`** (arguments-object write guards et al.).
+`with`-statement early error stays deferred (`with` lexes as a call;
+`statements/with/**` path-skipped — negligible payoff). Two known un-enforced
+parser corners: a `"use strict"` prologue inside a non-simple-parameter-list
+function is itself an early error; lexical duplicate-BoundNames for `let`/`const`
+patterns (`let {a,a}=…`). Details: [Deferred TODOs → Strict mode](#deferred-todos).
 
 Beyond that, remaining work is concentrated in `test/language/**`, dominated by
 destructuring-assignment pattern parsing (see Background sweeps).
@@ -359,18 +364,17 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   function-name / param / var-binding name, and duplicate **simple** params.
   Pinned by `SpecPinTest.strict_octalLiteral* / *EvalOrArguments* / *duplicateParameters*
   / *classBodyIsAlwaysStrict* / *parenthesizedDirective*`. The runner prepends a
-  strict directive for `flags: [onlyStrict]` (`Test262Runner.evaluate`). The
-  **BoundNames walk over binding patterns** also landed (`collectBoundNames` —
-  duplicate names in arrow params / non-simple param lists / catch params, and
-  `eval`/`arguments` bound inside any pattern; +17 PASS, 0 regressions; see
-  Background sweeps). **Remaining:** (1) **re-measure `onlyStrict`** — the ~216
-  destructuring early-error cluster should now pass under the prepended directive;
-  if net-positive vs the prior 71/357, delete the `flag: onlyStrict` skip; (2)
-  strict runtime `TypeError`s (~71) and logical-assignment unresolved-LHS
-  `ReferenceError` (~17). `with`-statement early error deferred (path-skipped,
-  lexes as a call). Two known un-enforced corners: a `"use strict"` prologue inside
-  a non-simple-parameter-list function is itself an early error; lexical
-  duplicate-BoundNames for `let`/`const` patterns (`let {a,a}=…`).
+  strict directive for `flags: [onlyStrict]` (`Test262Runner.evaluate`), the
+  **BoundNames walk over binding patterns** landed (`collectBoundNames`), and the
+  `flag: onlyStrict` **skip is removed** — measured 282 PASS / 146 FAIL, 0
+  regressions (lang pass 5433 → 5715). **Remaining (the 146 residual, now visible
+  in probes):** (1) ~99 negative parse-phase early errors — function-declaration in
+  statement position (`if (x) function f(){}`), block-scope function-decl rules; (2)
+  ~16 runtime `SyntaxError`; (3) ~14 strict-assignment runtime `TypeError`
+  (arguments-object write guards). `with`-statement early error deferred
+  (path-skipped, lexes as a call). Two known un-enforced parser corners: a
+  `"use strict"` prologue inside a non-simple-parameter-list function is itself an
+  early error; lexical duplicate-BoundNames for `let`/`const` patterns (`let {a,a}=…`).
 - **Promises / async / await / setTimeout.** Skipped (`feature: Promise`,
   `async-functions`, `Symbol.asyncIterator`). karate-js is synchronous.
   Viable path: sync subset first — `Promise` as eager thenable,
@@ -483,6 +487,13 @@ Observably non-spec; pick up when the owning slice surfaces them.
 
 ### Harness quality
 
+- **FIXED — `etc/run.sh` now compiles the runner.** `exec:java` does not
+  trigger compilation, so for a full cycle the runner ran stale `target/classes`
+  and edits to `Test262Runner` (the `onlyStrict` strict-prepend) silently never
+  took effect — the prepend measured as a no-op (71/357) until a `test-compile`
+  step was added before `exec:java`. Lesson for harness edits: changes under
+  `karate-js-test262/src` need the module recompiled; only `karate-js` engine
+  changes are picked up by the `install` step alone.
 - Replace hand-rolled YAML parser with SnakeYAML (`Expectations.java` /
   `Test262Metadata.java` — breaks on `#` in quoted reasons, block scalars).
 - `--resume` echoes records for deleted / now-SKIP'd tests — gate or
