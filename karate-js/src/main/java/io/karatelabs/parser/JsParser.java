@@ -1352,12 +1352,9 @@ public class JsParser extends BaseParser {
         }
         boolean spread = false;
         if (!consumeIf(COLON)) {
-            if (lastConsumed() == DOT_DOT_DOT) { // spread operator
-                if (consumeIf(IDENT)) {
-                    spread = true;
-                } else {
-                    error(IDENT);
-                }
+            if (lastConsumed() == DOT_DOT_DOT) { // spread operator: {...AssignmentExpression}
+                spread = true;
+                expr(-1, true); // any expression — {...fn()}, {...obj.m()}, {...{x:1}}, not just a bare ident
             } else {
                 return exit(false, false); // could be block
             }

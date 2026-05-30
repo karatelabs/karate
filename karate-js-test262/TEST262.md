@@ -235,21 +235,28 @@ early-error validation) is advanced-pattern territory.
 
 Picked off opportunistically when nearby — not session-sized on their own.
 
-- **String iterator splits surrogate pairs.** `IterUtils.stringIterator`
-  walks `charAt(i)` (UTF-16) instead of code-points (spec §22.1.5.1).
-  Affects any `for-of` over a string. Fix: walk `codePointAt` /
-  `charCount`. ~1 h.
+- **String iterator splits surrogate pairs — DONE.** `IterUtils.stringIterator`
+  now walks code-points (`codePointAt` / `Character.charCount`) per spec
+  §22.1.5.1, so `for-of` over a string with astral chars / emoji yields one
+  element per code point. test262 `for-of/string-astral.js` now passes.
 
-- **`Array.prototype.values()` returns raw `List`, not a spec iterator
-  object.** `IterUtils.iteratorFromCallable` absorbs the mismatch via a
-  lenient fallback; direct `arr.values().next()` still fails. Use
-  `IterUtils.toIteratorObject(listIterator(...))`. ~30 min.
+- **`Array.prototype.values()` returns raw `List` — DONE.** Now returns a
+  spec Array Iterator object via
+  `IterUtils.toIteratorObject(IterUtils.listIterator(...))`, so
+  `arr.values().next()` works. `listIterator` exposed package-private.
+  test262 `Array/prototype/values/{iteration,returns-iterator,returns-iterator-from-object}.js`
+  now pass; `JsArrayTest.testArrayApi` updated to spec iterator semantics.
+  Note: `keys()` / `entries()` still return raw `List` (same class of bug,
+  lower-value — `arr.keys().next()` is rare); apply the same fix when a
+  workload surfaces it.
 
-- **Object-literal spread restricted to bare ident — parser-level.**
-  `{...fn()}` / `{...obj.method()}` / `{...{x:1}}` fail at parse
-  (parser accepts only `IDENT` after `...` in `LIT_OBJECT`). Parser
-  grammar change; bigger scope than the array-spread fix. Array side
-  covered by `EvalTest.testArrayLiteralSpread`.
+- **Object-literal spread of arbitrary expressions — DONE.** `{...fn()}` /
+  `{...obj.method()}` / `{...{x:1}}` now parse: `object_elem()` parses
+  `expr(-1, true)` after `...` (mirrors `array_elem`). `evalLitObject`
+  evaluates the operand and merges own-enumerable props via `spreadInto`
+  (Map / JsArray index keys / String code-unit keys / null+undefined no-op),
+  which also fixed the latent `{...array}` / `{...string}` cases.
+  `EvalTest.testObjectLiteralSpread` covers it.
 
 - **`.length` / `.name` rollout to remaining prototypes** —
   `JsBuiltinMethod` infra in place; most residual `name.js` fails are

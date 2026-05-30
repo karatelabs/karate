@@ -1067,19 +1067,16 @@ class Interpreter {
                 Object keyValue = evalExpr(elem.get(1), context);
                 key = Terms.toStringCoerce(keyValue, context);
             } else if (token == DOT_DOT_DOT) {
-                key = elem.get(1).getText();
+                key = null; // spread has no key — handled below by spreadInto
             } else if (token == S_STRING || token == D_STRING) {
                 key = (String) Terms.literalValue(keyNode.token);
             } else { // IDENT, NUMBER
                 key = keyNode.getText();
             }
             if (token == DOT_DOT_DOT) {
-                Object value = context.get(key);
-                if (value instanceof Map<?, ?> temp) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> map = (Map<String, Object>) temp;
-                    result.putAll(map);
-                }
+                // {...AssignmentExpression} — copy the operand's own enumerable
+                // properties into result. The operand is any expression, not just a bare ident.
+                spreadInto(result, evalExpr(elem.get(1), context));
             } else if (elem.size() > afterKeyPos && elem.get(afterKeyPos).type == NodeType.FN_EXPR) {
                 // Shorthand method: {foo() {...}} or {[k]() {...}} — the synthetic
                 // FN_EXPR is the next child after the key structure.
@@ -1091,6 +1088,31 @@ class Interpreter {
             }
         }
         return result;
+    }
+
+    /**
+     * Object spread {@code {...value}} — copies the value's own enumerable string-keyed
+     * properties into {@code result} (spec CopyDataProperties). null/undefined are a no-op;
+     * arrays and strings expose integer-index keys (strings by code unit); other primitives
+     * (number/boolean) have no own enumerable properties and contribute nothing.
+     */
+    private static void spreadInto(JsObject result, Object value) {
+        if (value == null || value == Terms.UNDEFINED) {
+            return;
+        }
+        if (value instanceof JsArray arr) {
+            for (int j = 0; j < arr.size(); j++) {
+                result.put(String.valueOf(j), arr.get(j));
+            }
+        } else if (value instanceof Map<?, ?> temp) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) temp;
+            result.putAll(map);
+        } else if (value instanceof String s) {
+            for (int j = 0; j < s.length(); j++) {
+                result.put(String.valueOf(j), String.valueOf(s.charAt(j)));
+            }
+        }
     }
 
     private static boolean isAccessorKeyword(String text) {

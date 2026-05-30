@@ -257,7 +257,7 @@ public class IterUtils {
     // ---------------------------------------------------------------------
     // built-in fast paths
 
-    private static JsIterator listIterator(List<Object> list) {
+    static JsIterator listIterator(List<Object> list) {
         return new JsIterator() {
             int i = 0;
 
@@ -293,7 +293,12 @@ public class IterUtils {
                 if (i >= text.length()) {
                     throw new NoSuchElementException();
                 }
-                return String.valueOf(text.charAt(i++));
+                // Iterate by Unicode code point, not UTF-16 code unit (spec §22.1.5.1),
+                // so a surrogate pair (emoji / astral char) yields one element, not two.
+                int cp = text.codePointAt(i);
+                int start = i;
+                i += Character.charCount(cp);
+                return text.substring(start, i);
             }
         };
     }

@@ -1413,7 +1413,9 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object values(Context context, Object[] args) {
-        return rawList(context);
+        // Spec §23.1.3.36: returns an Array Iterator object (next/value/done),
+        // not the raw backing list — so `arr.values().next()` works.
+        return IterUtils.toIteratorObject(IterUtils.listIterator(rawList(context)));
     }
 
     private Object entries(Context context, Object[] args) {

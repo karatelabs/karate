@@ -248,8 +248,11 @@ class JsArrayTest extends EvalBase {
         match(eval("[1, 2, 3, 4, 5].copyWithin(-2, 0, 2)"), "[1, 2, 3, 1, 2]");
         // keys(), values(), entries() tests
         match(eval("[1, 2, 3].keys()"), "[0, 1, 2]");
-        match(eval("[1, 2, 3].values()"), "[1, 2, 3]");
-        match(eval("[].values()"), "[]");
+        // values() returns a spec Array Iterator object (next/value/done), not the raw list
+        match(eval("[...[1, 2, 3].values()]"), "[1, 2, 3]");
+        match(eval("[...[].values()]"), "[]");
+        assertEquals(1, eval("[1, 2, 3].values().next().value"));
+        assertEquals(true, eval("[].values().next().done"));
         match(eval("[1, 2, 3].entries()"), "[[0, 1], [1, 2], [2, 3]]");
         // Array.isArray() and Array.of() tests
         assertEquals(true, eval("Array.isArray([])"));

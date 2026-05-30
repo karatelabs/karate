@@ -1527,6 +1527,23 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testObjectLiteralSpread() {
+        // Bare identifier — the only shape that previously parsed.
+        matchEval("var a = {x: 1}; var o = {...a, y: 2}; [o.x, o.y]", "[1, 2]");
+        // Spread argument is any expression — function call, method call, object literal.
+        matchEval("function f(){ return {x: 1} }; var o = {...f(), y: 2}; [o.x, o.y]", "[1, 2]");
+        matchEval("var m = {g: function(){ return {x: 1} }}; var o = {...m.g()}; o.x", "1");
+        matchEval("var o = {...{x: 1}, y: 2}; [o.x, o.y]", "[1, 2]");
+        // Later keys override earlier spreads (left-to-right CopyDataProperties).
+        matchEval("var o = {a: 1, ...{a: 2, b: 3}, a: 4}; [o.a, o.b]", "[4, 3]");
+        // Spreading an array exposes integer-index keys; a string exposes code-unit keys.
+        matchEval("var o = {...[7, 8]}; [o['0'], o['1']]", "[7, 8]");
+        matchEval("var o = {...'ab'}; [o['0'], o['1']]", "['a', 'b']");
+        // null / undefined spread is a no-op, not an error.
+        matchEval("var o = {...null, ...undefined, a: 1}; o.a", "1");
+    }
+
+    @Test
     void testImmediatelyInvokedFunctionExpression() {
         // Named function expression immediately invoked
         assertEquals(1, eval("var x = function f1(){ return 1; }(); x"));
