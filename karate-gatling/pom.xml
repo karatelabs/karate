@@ -16,7 +16,7 @@
     <description>Karate integration with Gatling for performance testing</description>
 
     <properties>
-        <gatling.version>3.15.0</gatling.version>
+        <gatling.version>3.15.1</gatling.version>
         <scala.version>3.7.4</scala.version>
     </properties>
 
