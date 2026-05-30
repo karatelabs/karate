@@ -485,8 +485,17 @@ public final class Test262Runner {
 
         // Evaluate the test source. Parse errors surface as ParserException (phase=parse);
         // anything else is phase=runtime.
+        //
+        // INTERPRETING.md: a `flags: [onlyStrict]` test is run with a "use strict"
+        // directive prepended so the whole source parses and executes as strict code.
+        // (raw tests never carry onlyStrict, but guard anyway — a raw test must run
+        // verbatim with no injected prologue.)
+        String source = tc.source();
+        if (!isRaw && tc.metadata().flags().contains("onlyStrict")) {
+            source = "\"use strict\";\n" + source;
+        }
         try {
-            engine.eval(tc.source());
+            engine.eval(source);
         } catch (ParserException pe) {
             return classifyNegative(path, neg, "parse", "SyntaxError", pe);
         } catch (RuntimeException re) {

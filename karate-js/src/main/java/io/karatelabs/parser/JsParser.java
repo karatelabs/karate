@@ -135,6 +135,10 @@ public class JsParser extends BaseParser {
         if (!errorRecoveryEnabled) {
             validateEarlyErrors(ast);
             validateCoverInitializedNames(ast, false);
+            // Strict-mode early errors are gated on lexical strictness, computed
+            // top-down during the walk; the program starts sloppy unless it opens
+            // with a "use strict" directive prologue.
+            checkStrictEarlyErrors(ast, false);
         }
         return ast;
     }
@@ -209,6 +213,271 @@ public class JsParser extends BaseParser {
             Node child = node.get(i);
             if (!child.isToken()) {
                 validateEarlyErrors(child);
+            }
+        }
+    }
+
+    /**
+     * Spec strict-mode early errors. Strictness is lexical and computed top-down:
+     * the program is strict iff it opens with a {@code "use strict"} directive
+     * prologue; a function adds strictness if its own body carries the prologue;
+     * a class body is always strict (§15.7). The test262 runner prepends a strict
+     * directive for {@code flags:[onlyStrict]} tests, so this same walk covers them.
+     * When strict, the following are SyntaxErrors at parse phase:
+     * <ul>
+     *   <li>Legacy octal ({@code 0755}) / NonOctalDecimal ({@code 08}/{@code 09})
+     *       integer literals (§12.9.3.1).</li>
+     *   <li>Assigning to / updating {@code eval} or {@code arguments} (§13.15.1).</li>
+     *   <li>Binding {@code eval} / {@code arguments} as a function name, formal
+     *       parameter, or var/let/const declaration name (BoundNames, §various).</li>
+     *   <li>Duplicate formal parameter names (§15.x).</li>
+     * </ul>
+     * Every check is strict-gated, so a correct strictness determination is the one
+     * invariant that keeps this from disturbing sloppy ({@code noStrict}) code.
+     * Throws {@link ParserException} so the runner classifies it as {@code phase: parse}.
+     */
+    private void checkStrictEarlyErrors(Node node, boolean strict) {
+        if (node == null) {
+            return;
+        }
+        boolean childStrict = strict;
+        switch (node.type) {
+            case PROGRAM -> childStrict = strict || hasUseStrictPrologue(node);
+            case FN_EXPR, FN_ARROW_EXPR -> {
+                childStrict = strict || fnBodyHasUseStrict(node);
+                if (childStrict) {
+                    checkFunctionName(node);
+                    checkFormalParameters(node);
+                }
+            }
+            // Class bodies — and every FN_EXPR (constructor / method) nested inside
+            // — are always strict regardless of any enclosing directive (§15.7).
+            case CLASS_EXPR -> childStrict = true;
+            default -> {
+            }
+        }
+        if (childStrict) {
+            switch (node.type) {
+                case LIT_EXPR -> checkLegacyOctalLiteral(node);
+                case ASSIGN_EXPR, MATH_POST_EXPR ->
+                        checkAssignTargetBinding(node.size() > 0 ? node.getFirst() : null);
+                case MATH_PRE_EXPR -> {
+                    if (node.size() > 1 && node.getFirst().isToken()
+                            && (node.getFirst().token.type == PLUS_PLUS
+                                || node.getFirst().token.type == MINUS_MINUS)) {
+                        checkAssignTargetBinding(node.get(1));
+                    }
+                }
+                case VAR_DECL -> checkVarDeclName(node);
+                default -> {
+                }
+            }
+        }
+        for (int i = 0, n = node.size(); i < n; i++) {
+            Node child = node.get(i);
+            if (!child.isToken()) {
+                checkStrictEarlyErrors(child, childStrict);
+            }
+        }
+    }
+
+    private static boolean isEvalOrArguments(String s) {
+        return "eval".equals(s) || "arguments".equals(s);
+    }
+
+    /** Scans a {@code PROGRAM} / {@code BLOCK}'s leading directive prologue for an
+     *  unescaped {@code "use strict"} / {@code 'use strict'}. Mirrors the eval-time
+     *  scan in {@code Interpreter.hasUseStrictDirective}, kept parser-local so the
+     *  parser carries no dependency on the interpreter package. */
+    private static boolean hasUseStrictPrologue(Node body) {
+        for (int i = 0, n = body.size(); i < n; i++) {
+            Node child = body.get(i);
+            if (child.isToken()) {
+                continue; // structural L_CURLY / R_CURLY / EOF — keep scanning
+            }
+            if (child.type != NodeType.STATEMENT) {
+                return false;
+            }
+            String dir = directiveString(child);
+            if (dir == null) {
+                return false; // first non-directive statement ends the prologue
+            }
+            if ("\"use strict\"".equals(dir) || "'use strict'".equals(dir)) {
+                return true;
+            }
+            // a different directive (e.g. "use asm") — keep scanning the prologue
+        }
+        return false;
+    }
+
+    /** If {@code stmt} is an expression statement consisting of exactly one string
+     *  literal, returns its raw token text (quotes included); else {@code null}.
+     *  Shape: {@code STATEMENT > EXPR_LIST(1) > EXPR(1) > LIT_EXPR(1) > TOKEN}. A
+     *  parenthesized string ({@code ("use strict")}) is a PAREN_EXPR, not LIT_EXPR,
+     *  so it correctly does not count as a directive. */
+    private static String directiveString(Node stmt) {
+        if (stmt.size() == 0) {
+            return null;
+        }
+        Node exprList = stmt.getFirst();
+        if (exprList.type != NodeType.EXPR_LIST || exprList.size() != 1) {
+            return null;
+        }
+        Node expr = exprList.getFirst();
+        if (expr.type != NodeType.EXPR || expr.size() != 1) {
+            return null;
+        }
+        Node lit = expr.getFirst();
+        if (lit.type != NodeType.LIT_EXPR || lit.size() != 1) {
+            return null;
+        }
+        Node tok = lit.getFirst();
+        if (!tok.isToken()) {
+            return null;
+        }
+        TokenType tt = tok.token.type;
+        return (tt == S_STRING || tt == D_STRING) ? tok.getText() : null;
+    }
+
+    /** True if the function's own body block opens with a {@code "use strict"}
+     *  prologue. Arrow functions with a concise (expression) body have no BLOCK and
+     *  therefore can never introduce strictness on their own. */
+    private static boolean fnBodyHasUseStrict(Node fn) {
+        for (int i = 0, n = fn.size(); i < n; i++) {
+            Node child = fn.get(i);
+            if (!child.isToken() && child.type == NodeType.BLOCK) {
+                return hasUseStrictPrologue(child);
+            }
+        }
+        return false;
+    }
+
+    /** A strict function may not be named {@code eval} / {@code arguments}. The name
+     *  is the single IDENT token between {@code function} and the parameter list;
+     *  arrows and anonymous expressions reach FN_DECL_ARGS first and return. */
+    private static void checkFunctionName(Node fn) {
+        for (int i = 0, n = fn.size(); i < n; i++) {
+            Node child = fn.get(i);
+            if (child.isToken()) {
+                if (child.token.type == IDENT) {
+                    if (isEvalOrArguments(child.getText())) {
+                        throw new ParserException(
+                                "'" + child.getText() + "' is not a valid function name in strict mode");
+                    }
+                    return;
+                }
+            } else if (child.type == NodeType.FN_DECL_ARGS) {
+                return; // reached the parameter list — function was anonymous
+            }
+        }
+    }
+
+    /** Strict formal-parameter early errors: no parameter may be named {@code eval}
+     *  / {@code arguments}, and no two parameters may share a name. Only simple
+     *  (identifier and rest-identifier) parameters are inspected here; the
+     *  duplicate-BoundNames walk over destructuring patterns is a separate sweep. */
+    private static void checkFormalParameters(Node fn) {
+        Node args = null;
+        for (int i = 0, n = fn.size(); i < n; i++) {
+            Node child = fn.get(i);
+            if (!child.isToken() && child.type == NodeType.FN_DECL_ARGS) {
+                args = child;
+                break;
+            }
+        }
+        if (args == null) {
+            return;
+        }
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (int i = 0, n = args.size(); i < n; i++) {
+            Node arg = args.get(i);
+            if (arg.isToken() || arg.type != NodeType.FN_DECL_ARG) {
+                continue;
+            }
+            String name = simpleParamName(arg);
+            if (name == null) {
+                continue; // destructuring / pattern parameter — deferred BoundNames walk
+            }
+            if (isEvalOrArguments(name)) {
+                throw new ParserException(
+                        "'" + name + "' is not a valid parameter name in strict mode");
+            }
+            if (!seen.add(name)) {
+                throw new ParserException(
+                        "duplicate parameter name '" + name + "' is not allowed in strict mode");
+            }
+        }
+    }
+
+    /** Returns the bound name of a simple {@code FN_DECL_ARG} ({@code x},
+     *  {@code x = default}, or {@code ...rest}), or {@code null} for a destructuring
+     *  pattern parameter. */
+    private static String simpleParamName(Node arg) {
+        if (arg.size() == 0) {
+            return null;
+        }
+        Node first = arg.getFirst();
+        if (!first.isToken()) {
+            return null;
+        }
+        if (first.token.type == IDENT) {
+            return first.getText();
+        }
+        if (first.token.type == DOT_DOT_DOT && arg.size() > 1
+                && arg.get(1).isToken() && arg.get(1).token.type == IDENT) {
+            return arg.get(1).getText();
+        }
+        return null;
+    }
+
+    /** A strict var/let/const declaration may not bind {@code eval} / {@code arguments}.
+     *  Only the simple-identifier binding is checked; destructuring BoundNames are
+     *  part of the deferred pattern sweep. */
+    private static void checkVarDeclName(Node varDecl) {
+        if (varDecl.size() == 0) {
+            return;
+        }
+        Node first = varDecl.getFirst();
+        if (first.isToken() && first.token.type == IDENT && isEvalOrArguments(first.getText())) {
+            throw new ParserException(
+                    "'" + first.getText() + "' is not a valid binding name in strict mode");
+        }
+    }
+
+    /** A strict assignment / update may not target {@code eval} / {@code arguments}.
+     *  Only a bare identifier reference is an early error; member targets
+     *  ({@code arguments[0] = …}) are fine. */
+    private void checkAssignTargetBinding(Node lhs) {
+        if (lhs == null) {
+            return;
+        }
+        Node n = stripExprWrappers(lhs);
+        if (n != null && n.type == NodeType.REF_EXPR && n.size() == 1
+                && n.getFirst().isToken() && n.getFirst().token.type == IDENT
+                && isEvalOrArguments(n.getFirst().getText())) {
+            throw new ParserException(
+                    "invalid assignment to '" + n.getFirst().getText() + "' in strict mode");
+        }
+    }
+
+    /** Strict-mode early error for a legacy octal ({@code 0755}) or NonOctalDecimal
+     *  ({@code 08} / {@code 09}) integer literal — any NUMBER whose text starts with
+     *  {@code 0} immediately followed by a decimal digit. {@code 0x…} / {@code 0b…} /
+     *  {@code 0o…} / {@code 0.…} / {@code 0e…} have a non-digit second char and a plain
+     *  {@code 0} is length 1, so all are correctly excluded. */
+    private static void checkLegacyOctalLiteral(Node litExpr) {
+        if (litExpr.size() != 1) {
+            return;
+        }
+        Node tok = litExpr.getFirst();
+        if (!tok.isToken() || tok.token.type != NUMBER) {
+            return;
+        }
+        String text = tok.getText();
+        if (text.length() >= 2 && text.charAt(0) == '0') {
+            char c = text.charAt(1);
+            if (c >= '0' && c <= '9') {
+                throw new ParserException("octal literals are not allowed in strict mode");
             }
         }
     }

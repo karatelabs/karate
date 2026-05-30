@@ -940,4 +940,89 @@ class SpecPinTest extends EvalBase {
                         + " catch (e) { threw = e instanceof TypeError; }"
                         + " threw"));
     }
+
+    // -------------------------------------------------------------------------
+    // Parser strict-mode early errors (JsParser.checkStrictEarlyErrors). Each is
+    // a SyntaxError at parse phase under strict code AND a no-op under sloppy
+    // code — the dual invariant is load-bearing: the checks are strict-gated, so
+    // a regression that fires them in sloppy mode would break idiomatic JS.
+    // Strictness is lexical — program prologue, function-body prologue, or class
+    // body — so we pin a representative spread of each.
+    // -------------------------------------------------------------------------
+
+    private static void assertParseError(String src) {
+        // A strict early error must abort at parse phase, before any evaluation.
+        assertThrows(io.karatelabs.parser.ParserException.class, () -> new Engine().eval(src));
+    }
+
+    @Test
+    void strict_octalLiteralIsParseError() {
+        assertParseError("'use strict'; var n = 0755;");
+        assertParseError("'use strict'; var n = 08;");          // NonOctalDecimal
+        assertParseError("'use strict'; var n = 09;");
+        // sloppy: legacy octal / non-octal-decimal forms still parse (the early
+        // error is strict-only; their Annex-B numeric value is a separate concern).
+        assertEquals("number", eval("typeof 0755"));
+        assertEquals("number", eval("typeof 08"));
+        // strict but legitimately non-octal numeric forms still parse.
+        assertEquals(255, eval("'use strict'; var n = 0xff; n"));
+        assertEquals(0.5, eval("'use strict'; var n = 0.5; n"));
+        assertEquals(0, eval("'use strict'; var n = 0; n"));
+    }
+
+    @Test
+    void strict_assignToEvalOrArgumentsIsParseError() {
+        assertParseError("'use strict'; eval = 1;");
+        assertParseError("'use strict'; arguments = 1;");
+        assertParseError("'use strict'; eval += 1;");
+        assertParseError("'use strict'; ++arguments;");
+        // sloppy: assigning to eval / arguments is allowed.
+        assertEquals(1, eval("eval = 1; eval"));
+        // member targets are fine even in strict mode.
+        assertEquals("undefined", eval("'use strict'; var o = {}; o.eval = 1; typeof undefinedX"));
+    }
+
+    @Test
+    void strict_bindEvalOrArgumentsIsParseError() {
+        assertParseError("'use strict'; var eval = 1;");
+        assertParseError("'use strict'; let arguments = 1;");
+        assertParseError("'use strict'; function eval() {}");
+        assertParseError("'use strict'; function f(eval) {}");
+        assertParseError("'use strict'; function f(arguments) {}");
+    }
+
+    @Test
+    void strict_duplicateParametersIsParseError() {
+        assertParseError("'use strict'; function f(a, a) {}");
+        assertParseError("'use strict'; function f(a, b, a) {}");
+        assertParseError("'use strict'; var g = function(x, x) {};");
+        // sloppy: duplicate simple parameters are permitted (last wins).
+        assertEquals(2, eval("function f(a, a) { return a; } f(1, 2)"));
+    }
+
+    @Test
+    void strict_isLexical_functionBodyAndInheritance() {
+        // A directive inside a function body makes that function (and nested
+        // functions) strict — the octal in the nested body is a parse error.
+        assertParseError("function outer() { 'use strict'; function inner() { return 0755; } }");
+        // ...but a sibling sloppy function in the same program is unaffected.
+        assertEquals("number", eval(
+                "function strictFn() { 'use strict'; return 1; }"
+                        + " function sloppyFn() { return 0755; } typeof sloppyFn()"));
+    }
+
+    @Test
+    void strict_classBodyIsAlwaysStrict() {
+        // Class bodies are strict regardless of any enclosing directive (§15.7):
+        // a duplicate-parameter method is a parse error even with no directive.
+        assertParseError("class C { m(a, a) {} }");
+        assertParseError("class C { m() { return 0755; } }");
+    }
+
+    @Test
+    void strict_parenthesizedDirectiveDoesNotActivate() {
+        // ("use strict") is a ParenthesizedExpression, not a directive prologue,
+        // so the octal that follows stays legal (parses without a SyntaxError).
+        assertEquals("number", eval("(\"use strict\"); typeof 0755"));
+    }
 }

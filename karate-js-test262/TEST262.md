@@ -168,18 +168,28 @@ streams to be tailed.**
 
 ## Active priorities
 
-**Next up — parser early-errors + lexical-strictness sweep (keystone).**
-Strict-mode *runtime* is done (`CoreContext.strict`); the missing half is
-parser-side early errors (`with`, duplicate params, octal `0755`,
-assign-to-`eval`/`arguments`) plus the runner prepending a strict directive.
-This one bounded, parser-local workstream unblocks three things at once:
-the whole `flag: onlyStrict` class (currently all skipped), the ~105
-class early-error negative tests (a third of the `class/**` un-skip gate —
-see [Skip list](#skip-list)), and the duplicate-binding-name destructuring
-sweep (arrow-fn `(x,{x})=>1` / catch-param `catch([x,x])`, see Background
-sweeps). Risk: don't regress `flag: noStrict` paths with over-eager directive
-parsing. Details + the runtime half already shipped:
-[Deferred TODOs → Strict mode](#deferred-todos).
+**Next up — duplicate-binding / destructuring early-error sweep.** The
+parser lexical-strictness machinery now exists (`JsParser.checkStrictEarlyErrors`,
+a strict-gated post-parse walk threading lexical strictness top-down: program
+prologue → function-body prologue → always-strict class bodies) and enforces the
+*simple-binding* strict early errors — legacy/non-octal-decimal literals (`0755`,
+`08`), `eval`/`arguments` as assignment/update target or as a function-name /
+formal-parameter / var-binding name, and duplicate **simple** formal parameters.
+The test262 runner prepends a `"use strict"` directive for `flags: [onlyStrict]`
+tests (`Test262Runner.evaluate`). Measured win on already-running tests: **+19
+PASS, 0 regressions** (negative early-error tests that now raise SyntaxError).
+The missing piece is the **BoundNames walk over binding patterns** — duplicate
+binding names in destructuring (arrow-fn `(x,{x})=>1` / `({a,a})=>…`),
+catch-param (`catch([x,x])`), and `eval`/`arguments` / dup names bound inside
+patterns. This is the single largest `onlyStrict` FAIL cluster (~216 parse-phase
+early-error tests) and the gate for un-skipping `onlyStrict` net-positive (see
+Background sweeps + [Skip list](#skip-list)). The shared fix is one spec-shaped
+BoundNames walk that mirrors the binding structure (bound names of `{a: x = y}`
+are `{x}` only — a flat `findChildren(IDENT)` false-positives). After that:
+strict runtime `TypeError`s (~71) and logical-assignment unresolved-LHS
+`ReferenceError` (~17). `with`-statement early error stays deferred (`with` lexes
+as a call, not a statement, and `statements/with/**` is path-skipped — negligible
+payoff). Details: [Deferred TODOs → Strict mode](#deferred-todos).
 
 Beyond that, remaining work is concentrated in `test/language/**`, dominated by
 destructuring-assignment pattern parsing (see Background sweeps).
@@ -293,19 +303,23 @@ Picked off opportunistically when nearby — not session-sized on their own.
   (`named-groups/functional-replace-global.js` — `«badc»` vs `«bacd»`;
   worth a focused look, likely pre-dates this change).
 
-- **Destructuring cover-grammar tail.** Arrow-fn early errors:
-  duplicate-binding-name walk over `FN_DECL_ARGS`
-  (`(x, {x}) => 1` / `({a, a}) => …` should SyntaxError);
-  `dstr/syntax-error-ident-ref-default.js` and siblings under
-  `arrow-function/syntax/early-errors`. **Same family: duplicate
-  BoundNames in a catch parameter** (`catch ([x,x])` /
-  `catch ({a,a})` — `try/early-catch-duplicates.js`, currently
-  SKIP'd). The shared fix is one spec-shaped BoundNames walk over a
-  binding pattern (mirror the binding structure — bound names of
-  `{a: x = y}` are `{x}` only, so a flat `findChildren(IDENT)` would
-  false-positive on valid renamed/defaulted patterns). Catch-clause
-  *runtime/parse* destructuring itself now works
-  (`EvalTest.testCatchDestructuring`).
+- **Destructuring BoundNames early-error walk — now the active keystone follow-on.**
+  The *simple*-binding strict early errors landed
+  (`JsParser.checkStrictEarlyErrors` — flat duplicate params, `eval`/`arguments`
+  param/var/fn-name). The remaining half is the **BoundNames walk over binding
+  patterns**: duplicate names in destructuring (`(x, {x}) => 1` / `({a, a}) => …`
+  should SyntaxError; `dstr/syntax-error-ident-ref-default.js` and siblings under
+  `arrow-function/syntax/early-errors`), `eval`/`arguments` bound *inside* a
+  pattern, and **duplicate BoundNames in a catch parameter** (`catch ([x,x])` /
+  `catch ({a,a})` — `try/early-catch-duplicates.js`, currently SKIP'd). This is
+  the single largest `onlyStrict` FAIL cluster (~216 parse-phase tests) and the
+  gate for un-skipping `onlyStrict` net-positive. The shared fix is one
+  spec-shaped BoundNames walk over a binding pattern (mirror the binding
+  structure — bound names of `{a: x = y}` are `{x}` only, so a flat
+  `findChildren(IDENT)` would false-positive on valid renamed/defaulted
+  patterns); hook it into `checkStrictEarlyErrors` (params/catch) where
+  `simpleParamName` currently returns null for patterns. Catch-clause
+  *runtime/parse* destructuring itself works (`EvalTest.testCatchDestructuring`).
 
 - **Cleanup residuals** — occasional `"null"` NPE paths, `IllegalName`
   JDK lambda leak, `Java heap space` OOM in array-slice paths. Built-in
@@ -329,22 +343,30 @@ file pointer. For *how the subsystem is shaped*, read the file. For
 
 ### Engine — feature gaps
 
-- **Strict mode — runtime semantics DONE; parser early-errors remain.**
-  `"use strict"` now activates the spec runtime flips: `this`→undefined in
+- **Strict mode — runtime semantics + simple-binding parser early-errors DONE.**
+  `"use strict"` activates the spec runtime flips: `this`→undefined in
   plain calls, `ReferenceError` on implicit-global assign, and `TypeError`
   on write-to-frozen / read-only / getter-only / non-extensible and
   `delete` of non-configurable. Strictness is lexical, cached on
   `JsFunctionNode.strict`, threaded via `CoreContext.strict`. See
   [JS_ENGINE.md § Strict Mode Policy](../docs/JS_ENGINE.md#strict-mode-policy)
-  for the flip table and invariants; pinned by `SpecPinTest.strict_*`.
-  **Remaining (separate workstream):** parser-side early errors (`with`,
-  duplicate params, octal `0755`, assign-to-`eval`/`arguments`) need the
-  parser to track lexical strictness; and the runner executes each test
-  once in sloppy mode, so `flags: [onlyStrict]` stays skipped until the
-  runner prepends a strict directive (and the early-error set lands) —
-  enabling it now would FAIL the negative early-error tests. Risk on the
-  parser work: regressing `flags: [noStrict]` paths if directive parsing
-  is over-eager.
+  for the flip table; pinned by `SpecPinTest.strict_*`. The parser now also
+  tracks lexical strictness (`JsParser.checkStrictEarlyErrors`, a strict-gated
+  post-parse walk: program prologue → function-body prologue → always-strict
+  class bodies) and raises parse-phase `SyntaxError` for legacy/non-octal-decimal
+  literals (`0755`/`08`), `eval`/`arguments` as assign/update target or as a
+  function-name / param / var-binding name, and duplicate **simple** params.
+  Pinned by `SpecPinTest.strict_octalLiteral* / *EvalOrArguments* / *duplicateParameters*
+  / *classBodyIsAlwaysStrict* / *parenthesizedDirective*`. The runner prepends a
+  strict directive for `flags: [onlyStrict]` (`Test262Runner.evaluate`).
+  **Remaining:** (1) the BoundNames walk over binding **patterns** (duplicate /
+  `eval`/`arguments` names inside destructuring + catch-param — the largest
+  `onlyStrict` cluster, ~216 tests, see Background sweeps); (2) strict runtime
+  `TypeError`s (~71) and logical-assignment unresolved-LHS `ReferenceError`
+  (~17); (3) then delete the `flag: onlyStrict` skip. `with`-statement early
+  error deferred (path-skipped, lexes as a call). Note: a `"use strict"` prologue
+  inside a non-simple-parameter-list function is itself an early error — not yet
+  enforced.
 - **Promises / async / await / setTimeout.** Skipped (`feature: Promise`,
   `async-functions`, `Symbol.asyncIterator`). karate-js is synchronous.
   Viable path: sync subset first — `Promise` as eager thenable,
