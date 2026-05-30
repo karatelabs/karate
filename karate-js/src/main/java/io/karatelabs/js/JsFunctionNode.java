@@ -54,6 +54,17 @@ class JsFunctionNode extends JsFunction {
     // are not callable without `new` (spec §15.7.14). Set by Interpreter at
     // class-eval time; default false for ordinary functions.
     boolean isClassConstructor;
+    // True for a `class X extends Y` constructor — a `super(...)` call inside it
+    // runs Y's constructor against the instance under construction.
+    boolean isDerivedConstructor;
+    // True when X extends Y but declares no constructor — the implicit
+    // `constructor(...args) { super(...args); }`; the super-forward runs at
+    // construction time (the synthesized body is empty).
+    boolean isDefaultDerivedConstructor;
+    // [[HomeObject]] for `super.member` resolution: the class prototype for an
+    // instance method/constructor, or the constructor for a static method.
+    // null for ordinary (non-class) functions.
+    ObjectLike homeObject;
 
     public JsFunctionNode(boolean arrow, Node node, List<Node> argNodes, Node body, CoreContext declaredContext) {
         this(arrow, node, argNodes, body, declaredContext, false);
@@ -109,6 +120,9 @@ class JsFunctionNode extends JsFunction {
         // Create lightweight function context with captured bindings
         CoreContext functionContext = new CoreContext(parentContext, node, args, declaredContext, capturedBindings);
         functionContext.strict = strict;
+        functionContext.activeFunction = arrow
+                ? (declaredContext != null ? declaredContext.activeFunction : null)
+                : this;
         return bindArgsAndExecute(functionContext, parentContext, args);
     }
 

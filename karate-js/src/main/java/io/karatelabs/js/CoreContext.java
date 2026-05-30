@@ -48,6 +48,12 @@ class CoreContext implements Context {
 
     Object thisObject = Terms.UNDEFINED;
     CallInfo callInfo;
+    // The user-defined function whose body is currently executing in this
+    // frame — used to resolve `super` (its [[HomeObject]] and the parent
+    // constructor). Set per non-arrow function/constructor call; inherited by
+    // nested block scopes and arrow frames so `super` in an arrow inside a
+    // method still resolves to the enclosing method's home object.
+    JsFunctionNode activeFunction;
 
     // Strict-mode flag (ES "use strict"). Set per function-call context from
     // the callee {@link JsFunctionNode#strict}, and per script context from a
@@ -95,6 +101,7 @@ class CoreContext implements Context {
         if (parent != null) {
             thisObject = parent.thisObject;
             strict = parent.strict;
+            activeFunction = parent.activeFunction;
         } else if (root != null) {
             thisObject = root.thisObject;
         }
@@ -112,6 +119,7 @@ class CoreContext implements Context {
         this.outer = outer;
         this.capturedBindings = captured;
         this.thisObject = parent.thisObject;
+        this.activeFunction = parent.activeFunction;
     }
 
     // Convenience for built-in function calls (no closure)

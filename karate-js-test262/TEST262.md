@@ -336,28 +336,36 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   `async-functions`, `Symbol.asyncIterator`). karate-js is synchronous.
   Viable path: sync subset first — `Promise` as eager thenable,
   `async function` runs sync, `await` sync-unwraps.
-- **Class syntax (ES6) — Phase 1 DONE; extends/super/fields remain.**
-  `class` declarations + expressions now parse and evaluate: constructor,
-  instance methods, `static` methods, `get`/`set` accessors, computed method
-  names, default-constructor synthesis, always-strict bodies,
-  constructor-without-`new` TypeError. Desugared at eval time onto the existing
-  constructor-function + prototype machinery (`Interpreter.evalClassExpr` →
-  constructor `JsFunctionNode` whose `.prototype` holds the methods; statics on
-  the constructor; methods/accessors installed non-enumerable). New tokens
-  `CLASS` (lexer) + NodeTypes `CLASS_EXPR`/`CLASS_METHOD`/`CLASS_FIELD`; parser
-  `class_expr()`/`class_element()` mirror `object_elem`. Covered by
-  `JsClassTest` (20 cases). **Phase 2 (remaining):** `extends` heritage +
-  `super(...)` / `super.m()` — needs a construction refactor to inject `this`
-  into the parent constructor + a `homeObject`/`activeFunction` seam for super
-  dispatch (see `karate-js-test262/etc/CLASS_PLAN.md` for the reviewed design
-  and the genuine `extends Error`/`Array` skip). **Phase 3:** public
-  instance/static fields. Known Phase-1 gaps (deferred, measured via a
-  2026-05-30 class-slice probe): numeric/string-literal method-name
-  canonicalization (`get 0x10(){}` → key should be `"16"`; shared with object
-  literals' NUMBER-key path), escaped-keyword method names (`if(){}`),
-  generator/async methods. test262 `class/**` stays path-skipped until Phase 2
-  (the tree interleaves supported + deferred cases with no clean glob; ~868
-  would pass / ~528 still fail today).
+- **Class syntax (ES6) — Phases 1+2 DONE; fields remain (Phase 3).**
+  `class` declarations + expressions parse and evaluate: constructor, instance
+  methods, `static` methods, `get`/`set` accessors, computed method names,
+  default-constructor synthesis, always-strict bodies, constructor-without-`new`
+  TypeError, **`extends` + `super(...)` + `super.method()`**. Desugared at eval
+  time onto the existing constructor-function + prototype machinery
+  (`Interpreter.evalClassExpr` → constructor `JsFunctionNode` whose `.prototype`
+  holds the methods; statics on the constructor; methods/accessors non-
+  enumerable). **extends** links both chains: `Child.__proto__ = Parent` (static
+  inheritance + the `super(...)` target) and `Child.prototype.__proto__ =
+  Parent.prototype` (instance inheritance). **super** dispatch uses a
+  `JsFunctionNode.homeObject` ([[HomeObject]]) + a `CoreContext.activeFunction`
+  seam set per non-arrow call (arrows inherit their defining method's): a
+  `super.m()` reads off `homeObject.getPrototype()` with `this`=current
+  receiver; `super(...)` runs the parent constructor against the instance under
+  construction (`Interpreter.runSuperConstructor` — no `invokeCallable`
+  refactor needed, since the derived instance is created normally and super()
+  only initializes it). `extends Error`/built-ins works via a pragmatic
+  copy-own-props shim. New tokens `CLASS`/`EXTENDS`/`SUPER` + NodeTypes
+  `CLASS_EXPR`/`CLASS_METHOD`/`CLASS_FIELD`/`SUPER_EXPR`. Covered by
+  `JsClassTest` (32 cases). **Phase 3 (remaining):** public instance/static
+  fields (see `karate-js-test262/etc/CLASS_PLAN.md`). Known deferred gaps
+  (2026-05-30 probe, ~978 pass / ~503 fail across the three class slices):
+  fields, private `#x`, generator/async methods, decorators, class
+  early-errors, object-literal-method `super` (needs object [[HomeObject]]),
+  two super edge cases (`this`-TDZ before `super()`, `super()` return-override),
+  numeric/string-literal method-name canonicalization (`get 0x10(){}` → key
+  `"16"`; shared with object literals' NUMBER-key path), escaped-keyword method
+  names. test262 `class/**` stays path-skipped until fields land (the tree
+  interleaves supported + deferred cases with no clean glob).
 - **Symbol primitive.** Gates a long tail across String / Array / RegExp /
   Object. Deprioritized — real-world code doesn't use it.
 

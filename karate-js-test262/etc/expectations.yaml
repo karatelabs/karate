@@ -22,20 +22,23 @@ skip:
       reason: experimental proposals not yet ratified
     - path: test/annexB/**
       reason: legacy-web-browser behaviors out of scope
-    # class syntax: Phase 1 (constructor, instance/static methods, get/set
-    # accessors, computed keys, class expressions, default constructor) is
-    # implemented and covered by JsClassTest. extends / super / fields / private
-    # / static-init / generator-and-async methods remain (Phase 2+). A probe
-    # (2026-05-30) measured ~868 of these tests would PASS today but ~528 still
+    # class syntax: Phases 1+2 implemented (constructor, instance/static methods,
+    # get/set accessors, computed keys, class expressions, default constructor,
+    # extends, super(...) / super.method(); covered by JsClassTest). Still
+    # deferred: public/private fields, private methods, static-init blocks,
+    # generator/async methods, decorators, class early-errors, and two super
+    # edge cases (this-TDZ before super(), super() return-override). A probe
+    # (2026-05-30) measured ~978 of these tests PASS today across
+    # statements/class + expressions/class + expressions/super, but ~503 still
     # FAIL on the deferred features; the class/** tree interleaves supported and
     # deferred cases as flat filenames with no clean glob to separate them, and
-    # ~1000 untagged tests would surface as parser-error FAILs polluting every
-    # language probe. Keep the path-skip until Phase 2 (extends/super) lands —
-    # then the deferred remainder can be feature-skipped cleanly.
+    # untagged tests surface as parser-error FAILs polluting every language
+    # probe. Keep the path-skip until fields land (Phase 3) — then the deferred
+    # remainder is small enough to feature-skip cleanly.
     - path: test/language/**/class/**
-      reason: class extends/super/fields not yet supported (Phase 1 methods done — see JsClassTest)
+      reason: class fields/private/generators/decorators not yet supported (Phases 1+2 done — see JsClassTest)
     - path: test/language/expressions/super/**
-      reason: super not yet supported (Phase 2)
+      reason: object-literal-method super + super edge cases not yet supported (class super done — see JsClassTest)
     - path: test/language/statements/with/**
       reason: with-statement is conformance-only, negligible in real-world JS and LLM-written code
     - path: test/language/eval-code/direct/**

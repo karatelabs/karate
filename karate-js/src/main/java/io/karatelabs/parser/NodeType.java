@@ -90,6 +90,7 @@ public enum NodeType {
     CLASS_EXPR,
     CLASS_METHOD,
     CLASS_FIELD,
+    SUPER_EXPR,
     //====
     G_FEATURE,
     G_TAGS,

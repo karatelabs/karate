@@ -73,6 +73,8 @@ public enum TokenType {
     THIS(true),
     VOID(true),
     CLASS(true),
+    EXTENDS(true),
+    SUPER(true),
     //====
     EQ_EQ_EQ,
     EQ_EQ,

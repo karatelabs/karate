@@ -80,7 +80,7 @@ public class JsParser extends BaseParser {
     private static final EnumSet<TokenType> T_EXPR_START = EnumSet.of(
             IDENT, S_STRING, D_STRING, NUMBER, BIGINT, TRUE, FALSE, NULL,  // literals & ref
             L_CURLY, L_BRACKET, BACKTICK, REGEX,                           // compound literals
-            FUNCTION, CLASS, L_PAREN, NEW, TYPEOF, VOID,                   // keywords & grouping
+            FUNCTION, CLASS, SUPER, L_PAREN, NEW, TYPEOF, VOID,            // keywords & grouping
             NOT, TILDE, PLUS_PLUS, MINUS_MINUS, MINUS, PLUS                // unary operators
     );
     private static final EnumSet<TokenType> T_LIT_EXPR_START = EnumSet.of(
@@ -904,6 +904,7 @@ public class JsParser extends BaseParser {
                 || lit_expr()
                 || fn_expr()
                 || class_expr()
+                || super_expr()
                 || fn_arrow_expr()
                 || paren_expr()
                 || unary_expr()
@@ -1184,6 +1185,18 @@ public class JsParser extends BaseParser {
         return exit();
     }
 
+    // `super` primary — yields a bare SUPER_EXPR. The trailing `(args)`
+    // (super-call) or `.x` / `[expr]` (super-property) is chained on top by
+    // expr_rhs, producing FN_CALL_EXPR / REF_DOT_EXPR / REF_BRACKET_EXPR with
+    // SUPER_EXPR as the base — the interpreter recognizes that base for the
+    // home-object dispatch.
+    private boolean super_expr() {
+        if (!enter(NodeType.SUPER_EXPR, SUPER)) {
+            return false;
+        }
+        return exit();
+    }
+
     // Tokens that can begin a (non-computed) class member name. `get`/`set`/
     // `static`/`constructor` all lex as IDENT and are disambiguated in
     // class_element by whether another key token follows.
@@ -1201,6 +1214,9 @@ public class JsParser extends BaseParser {
             return false;
         }
         consumeIf(IDENT); // optional class name
+        if (consumeIf(EXTENDS)) { // heritage: `extends <LeftHandSideExpression>`
+            expr(13, true); // priority 13 = LHS level (same as `new` operand)
+        }
         if (!consumeIf(L_CURLY)) {
             error(L_CURLY);
             return exit(false, false);

@@ -504,6 +504,9 @@ class Interpreter {
             fnArgsNode = node.get(2);
             node = node.getFirst();
         }
+        if (node.type == NodeType.SUPER_EXPR) {
+            return evalSuperCall(fnArgsNode, context);
+        }
         Object[] callableAndReceiver = PropertyAccess.getCallable(node, context);
         Object o = callableAndReceiver[0];
         Object receiver = callableAndReceiver[1];
@@ -536,22 +539,7 @@ class Interpreter {
                 String n = cf.name == null || cf.name.isEmpty() ? "" : cf.name + " ";
                 throw JsErrorException.typeError("Class constructor " + n + "cannot be invoked without 'new'");
             }
-            List<Object> argsList = new ArrayList<>();
-            int argsCount = fnArgsNode == null ? 0 : fnArgsNode.size();
-            for (int i = 0; i < argsCount; i++) {
-                Node fnArgNode = fnArgsNode.get(i);
-                Node argNode = fnArgNode.get(0);
-                if (argNode.isToken()) { // DOT_DOT_DOT
-                    Object arg = eval(fnArgNode.get(1), context);
-                    JsIterator iter = IterUtils.getIterator(arg, context);
-                    while (iter.hasNext()) {
-                        argsList.add(iter.next());
-                    }
-                } else {
-                    Object arg = eval(argNode, context);
-                    argsList.add(arg);
-                }
-            }
+            List<Object> argsList = new ArrayList<>(evalCallArgs(fnArgsNode, context));
             // Convert JS types to Java types if JS/Java boundary:
             // - undefined → null
             // - JsValue (JsDate, etc.) → unwrapped via getJavaValue()
@@ -571,6 +559,12 @@ class Interpreter {
             if (callable instanceof JsFunctionNode jsFunc) {
                 callContext = new CoreContext(context, node, args, jsFunc.declaredContext, jsFunc.capturedBindings);
                 callContext.strict = jsFunc.strict;
+                // Thread the active function for `super` resolution: a non-arrow
+                // call is its own active function; an arrow inherits the method
+                // it was defined in (from its declaring context).
+                callContext.activeFunction = jsFunc.arrow
+                        ? (jsFunc.declaredContext != null ? jsFunc.declaredContext.activeFunction : null)
+                        : jsFunc;
                 if (newKeyword) {
                     callContext.callInfo = new CallInfo(true, callable);
                     newInstance = new JsObject();
@@ -579,6 +573,11 @@ class Interpreter {
                         newInstance.setPrototype(protoObj);
                     }
                     callContext.thisObject = newInstance;
+                    // A `class X extends Y {}` with no explicit constructor runs
+                    // the implicit `constructor(...args) { super(...args); }`.
+                    if (jsFunc.isDefaultDerivedConstructor) {
+                        runSuperConstructor(jsFunc, newInstance, args, callContext);
+                    }
                 } else if (!jsFunc.arrow) {
                     // Regular functions get their own 'this'; arrow functions inherit from
                     // parent. Sloppy fns substitute null/undefined → globalThis; strict
@@ -831,22 +830,45 @@ class Interpreter {
     // + prototype machinery (no AST rewrite). The class evaluates to a
     // constructor JsFunctionNode whose .prototype holds the instance methods;
     // static methods/accessors are installed on the constructor itself. Class
-    // bodies are always strict (spec §15.7). Phase 1: no extends / super /
-    // fields (those parse-fail upstream and are skip-listed). A named class
-    // declaration binds its name in the current scope; the re-eval skip and
-    // function-hoisting passes ignore CLASS_EXPR, so it runs in source order
-    // (no hoisting — TDZ is not modelled).
+    // bodies are always strict (spec §15.7). Phase 2: `extends` links both the
+    // instance prototype chain and the constructor [[Prototype]] (for statics +
+    // super(...)); `super(...)` / `super.m()` resolve via the method's
+    // [[HomeObject]] and the active-function seam. Fields remain Phase 3. A
+    // named class declaration binds its name in the current scope; the re-eval
+    // skip and function-hoisting passes ignore CLASS_EXPR, so it runs in source
+    // order (no hoisting — TDZ is not modelled).
     private static Object evalClassExpr(Node node, CoreContext context) {
         String className = null;
         if (node.size() > 1 && node.get(1).token != null && node.get(1).token.type == IDENT) {
             className = node.get(1).getText();
+        }
+        // heritage: `extends <expr>` — the EXPR follows the EXTENDS token.
+        boolean hasExtends = false;
+        Object parentValue = null;
+        for (int i = 0, n = node.size(); i < n; i++) {
+            Node child = node.get(i);
+            if (child.token != null && child.token.type == EXTENDS) {
+                hasExtends = true;
+                parentValue = eval(node.get(i + 1), context);
+                break;
+            }
+        }
+        if (context.isError()) {
+            return Terms.UNDEFINED;
+        }
+        ObjectLike parentCtor = null;
+        if (hasExtends && parentValue != null && parentValue != Terms.UNDEFINED) {
+            if (!(parentValue instanceof JsCallable pc) || !pc.isConstructable() || !(parentValue instanceof ObjectLike)) {
+                throw JsErrorException.typeError("Class extends value is not a constructor or null");
+            }
+            parentCtor = (ObjectLike) parentValue;
         }
         Node ctorFnExpr = null;
         List<ClassMember> members = new ArrayList<>();
         for (int i = 0, n = node.size(); i < n; i++) {
             Node child = node.get(i);
             if (child.type != NodeType.CLASS_METHOD) {
-                continue; // CLASS token / name / braces / semicolons
+                continue; // CLASS / EXTENDS / name / heritage EXPR / braces / semicolons
             }
             ClassMember cm = analyzeClassMember(child);
             if (!cm.isStatic && !cm.isAccessor && "constructor".equals(cm.simpleKey)) {
@@ -860,17 +882,33 @@ class Interpreter {
             ctor = new JsFunctionNode(false, ctorFnExpr, fnArgs(ctorFnExpr.getFirst()),
                     ctorFnExpr.getLast(), context, true);
         } else {
-            // synthesize `constructor() {}` — empty body, no params
+            // synthesize the implicit constructor — empty body. For a derived
+            // class it acts as `constructor(...args) { super(...args); }`; the
+            // super-forward runs at construction time (isDefaultDerivedConstructor).
             ctor = new JsFunctionNode(false, node, Collections.emptyList(),
                     new Node(NodeType.BLOCK), context, true);
         }
         ctor.name = className == null ? "" : className;
         ctor.isClassConstructor = true;
+        if (hasExtends) {
+            ctor.isDerivedConstructor = true;
+            ctor.isDefaultDerivedConstructor = ctorFnExpr == null;
+        }
         JsObject proto = ctor.getFunctionPrototype();
         // getFunctionPrototype installs `constructor` as enumerable (the ES5
         // function default); for a class it must be non-enumerable + writable +
         // configurable (spec §15.7) so it doesn't leak into for-in over instances.
         proto.defineOwn("constructor", ctor, (byte) (PropertySlot.WRITABLE | PropertySlot.CONFIGURABLE));
+        if (hasExtends) {
+            if (parentCtor != null) {
+                ctor.setPrototype(parentCtor); // static inheritance + super(...) target
+                Object parentProto = parentCtor.getMember("prototype");
+                proto.setPrototype(parentProto instanceof ObjectLike pp ? pp : null);
+            } else {
+                proto.setPrototype(null); // `extends null` — null instance prototype chain
+            }
+        }
+        ctor.homeObject = proto; // [[HomeObject]] for super.m() inside the constructor
         for (ClassMember cm : members) {
             String key = classMemberKey(cm, context);
             if (context.isError()) {
@@ -880,6 +918,7 @@ class Interpreter {
             JsFunctionNode fn = new JsFunctionNode(false, cm.fnExpr,
                     fnArgs(cm.fnExpr.getFirst()), cm.fnExpr.getLast(), context, true);
             fn.name = key;
+            fn.homeObject = target; // instance method → prototype; static method → constructor
             if (cm.isAccessor) {
                 PropertySlot existing = target.getOwnSlot(key);
                 JsCallable getter = existing instanceof AccessorSlot ea ? ea.getter : null;
@@ -900,6 +939,93 @@ class Interpreter {
             context.put(className, ctor);
         }
         return ctor;
+    }
+
+    // Collects call arguments (with spread) from an FN_CALL_ARGS node. Shared by
+    // the ordinary call path (invokeCallable) and super(...) dispatch.
+    private static List<Object> evalCallArgs(Node fnArgsNode, CoreContext context) {
+        List<Object> argsList = new ArrayList<>();
+        int argsCount = fnArgsNode == null ? 0 : fnArgsNode.size();
+        for (int i = 0; i < argsCount; i++) {
+            Node fnArgNode = fnArgsNode.get(i);
+            Node argNode = fnArgNode.get(0);
+            if (argNode.isToken()) { // DOT_DOT_DOT spread
+                Object arg = eval(fnArgNode.get(1), context);
+                JsIterator iter = IterUtils.getIterator(arg, context);
+                while (iter.hasNext()) {
+                    argsList.add(iter.next());
+                }
+            } else {
+                argsList.add(eval(argNode, context));
+            }
+        }
+        return argsList;
+    }
+
+    // `super(...)` in a derived constructor — runs the parent constructor against
+    // the instance currently under construction (context.thisObject).
+    private static Object evalSuperCall(Node fnArgsNode, CoreContext context) {
+        JsFunctionNode active = context.activeFunction;
+        if (active == null) {
+            throw JsErrorException.syntaxError("'super' keyword is only valid inside a class");
+        }
+        Object[] args = evalCallArgs(fnArgsNode, context).toArray();
+        if (context.isError()) {
+            return Terms.UNDEFINED;
+        }
+        runSuperConstructor(active, context.thisObject, args, context);
+        return Terms.UNDEFINED; // the value of a super() call is unused as a statement
+    }
+
+    // Runs the parent constructor of {@code derivedCtor} against an existing
+    // instance ({@code thisObj}) — the derived `this`. The parent is the derived
+    // constructor's [[Prototype]] (set to the superclass at class-eval time).
+    static void runSuperConstructor(JsFunctionNode derivedCtor, Object thisObj, Object[] args, CoreContext context) {
+        Object parent = derivedCtor.getPrototype(); // Child.__proto__ === Parent
+        if (!(parent instanceof JsCallable parentCallable) || !parentCallable.isConstructable()) {
+            throw JsErrorException.typeError("super: parent class is not a constructor");
+        }
+        if (parent instanceof JsFunctionNode parentFn) {
+            CoreContext sc = new CoreContext(context, parentFn.node, args,
+                    parentFn.declaredContext, parentFn.capturedBindings);
+            sc.strict = parentFn.strict;
+            sc.thisObject = thisObj;
+            sc.activeFunction = parentFn;
+            sc.callInfo = new CallInfo(true, parentFn);
+            // If the parent is itself a derived class with an implicit
+            // constructor, forward up the chain before running its (empty) body.
+            if (parentFn.isDefaultDerivedConstructor) {
+                runSuperConstructor(parentFn, thisObj, args, sc);
+            }
+            parentFn.bindArgsAndExecute(sc, context, args);
+        } else {
+            // Built-in superclass (Error/Array/Map/…). These constructors
+            // allocate and return their own exotic instance rather than
+            // initializing the receiver, so true exotic subclassing isn't
+            // supported — as a pragmatic shim, construct one and copy its own
+            // enumerable properties onto the derived instance (makes
+            // `class AppError extends Error { } ; new AppError('x').message`
+            // work for the common data-carrying case).
+            Object built = constructFromHost(parentCallable, args, context);
+            if (built instanceof ObjectLike src && thisObj instanceof JsObject dst) {
+                for (Map.Entry<String, Object> e : src.toMap().entrySet()) {
+                    dst.putMember(e.getKey(), e.getValue());
+                }
+            }
+        }
+    }
+
+    // Resolves the property-lookup target for `super.x` / `super[x]`: the
+    // [[Prototype]] of the active method's home object (the parent class's
+    // prototype, or the parent constructor for a static method).
+    static ObjectLike evalSuperBase(CoreContext context) {
+        JsFunctionNode active = context.activeFunction;
+        if (active == null || active.homeObject == null) {
+            throw JsErrorException.syntaxError("'super' keyword is only valid inside a class method");
+        }
+        ObjectLike home = active.homeObject;
+        Object proto = home.getPrototype();
+        return proto instanceof ObjectLike ol ? ol : null;
     }
 
     // Resolved shape of a CLASS_METHOD node:
@@ -2167,6 +2293,8 @@ class Interpreter {
             case NEW_EXPR -> evalNewExpr(node, context);
             case PAREN_EXPR -> eval(node.get(1), context);
             case CLASS_EXPR -> evalClassExpr(node, context);
+            case SUPER_EXPR -> evalSuperBase(context); // base for super.x / super[x] reads
+
             case PROGRAM -> evalProgram(node, context);
             case REF_EXPR -> evalRefExpr(node, context);
             case REF_BRACKET_EXPR -> chainStepResult(PropertyAccess.get(node, context), node);

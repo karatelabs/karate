@@ -673,6 +673,7 @@ public class JsLexer extends BaseLexer {
             if (c0 == 't' && matchKeyword(start, "throw")) return THROW;
             if (c0 == 'w' && matchKeyword(start, "while")) return WHILE;
             if (c0 == 'b' && matchKeyword(start, "break")) return BREAK;
+            if (c0 == 's' && matchKeyword(start, "super")) return SUPER;
         } else if (len == 6) {
             char c0 = source.charAt(start);
             if (c0 == 'r' && matchKeyword(start, "return")) return RETURN;
@@ -685,6 +686,7 @@ public class JsLexer extends BaseLexer {
                 if (matchKeyword(start, "finally")) return FINALLY;
             }
             if (c0 == 'd' && matchKeyword(start, "default")) return DEFAULT;
+            if (c0 == 'e' && matchKeyword(start, "extends")) return EXTENDS;
         } else if (len == 8) {
             char c0 = source.charAt(start);
             if (c0 == 'f' && matchKeyword(start, "function")) return FUNCTION;

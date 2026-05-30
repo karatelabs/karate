@@ -413,6 +413,14 @@ class PropertyAccess {
         Object object;
         boolean optional;
 
+        // `super.x` — look the property up on the parent prototype, but bind the
+        // method receiver (`this`) to the current instance, not the prototype.
+        if (node.getFirst().type == NodeType.SUPER_EXPR && node.get(1).type == NodeType.TOKEN) {
+            ObjectLike superProto = Interpreter.evalSuperBase(context);
+            if (outReceiver != null) outReceiver[1] = context.thisObject;
+            return getByName(superProto, node.get(2).getText(), false, context, functionCall);
+        }
+
         if (node.get(1).type == NodeType.TOKEN) {
             optional = node.get(1).token.type == TokenType.QUES_DOT;
             name = node.get(2).getText();

@@ -120,4 +120,74 @@ class JsClassTest extends EvalBase {
         assertEquals(true, eval("class C { static who() { return 'static' } who() { return 'instance' } }\n"
                 + "C.who() === 'static' && new C().who() === 'instance'"));
     }
+
+    // ===== Phase 2: extends / super =====
+
+    @Test
+    void testExtendsSuperConstructor() {
+        assertEquals(15, eval("class A { constructor(x) { this.x = x } }\n"
+                + "class B extends A { constructor(x) { super(x); this.y = x * 2 } }\n"
+                + "var b = new B(5); b.x + b.y"));
+    }
+
+    @Test
+    void testInheritedMethod() {
+        assertEquals("hi", eval("class A { greet() { return 'hi' } }\nclass B extends A {}\nnew B().greet()"));
+    }
+
+    @Test
+    void testSuperMethod() {
+        assertEquals(2, eval("class A { m() { return 1 } }\n"
+                + "class B extends A { m() { return super.m() + 1 } }\nnew B().m()"));
+    }
+
+    @Test
+    void testSuperMethodStringConcat() {
+        assertEquals("AB", eval("class A { name() { return 'A' } }\n"
+                + "class B extends A { name() { return super.name() + 'B' } }\nnew B().name()"));
+    }
+
+    @Test
+    void testInstanceOfBothLevels() {
+        assertEquals(true, eval("class A {} class B extends A {}\nvar b = new B();\nb instanceof B && b instanceof A"));
+    }
+
+    @Test
+    void testDefaultDerivedConstructorForwardsArgs() {
+        assertEquals(7, eval("class A { constructor(x) { this.x = x } }\nclass B extends A {}\nnew B(7).x"));
+    }
+
+    @Test
+    void testStaticInheritance() {
+        assertEquals(9, eval("class A { static s() { return 9 } }\nclass B extends A {}\nB.s()"));
+    }
+
+    @Test
+    void testSuperThreeLevels() {
+        assertEquals(111, eval("class A { m() { return 1 } }\n"
+                + "class B extends A { m() { return super.m() + 10 } }\n"
+                + "class C extends B { m() { return super.m() + 100 } }\nnew C().m()"));
+    }
+
+    @Test
+    void testSuperInConstructorMethodCall() {
+        assertEquals("base", eval("class A { tag() { return 'base' } }\n"
+                + "class B extends A { constructor() { super(); this.t = super.tag() } }\nnew B().t"));
+    }
+
+    @Test
+    void testExtendsErrorMessage() {
+        assertEquals("boom", eval("class E extends Error { constructor(m) { super(m) } }\nnew E('boom').message"));
+    }
+
+    @Test
+    void testExtendsErrorInstanceOf() {
+        assertEquals(true, eval("class E extends Error {}\nnew E('x') instanceof Error"));
+    }
+
+    @Test
+    void testExtendsNonConstructorThrows() {
+        assertEquals("TypeError", eval("var notCtor = 42;\n"
+                + "try { class B extends notCtor {} } catch (e) { e.name }"));
+    }
 }

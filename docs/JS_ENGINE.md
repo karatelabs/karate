@@ -867,6 +867,45 @@ This is the structural reason `JSON()` / `Math()` / `Reflect()` throw
 `TypeError` — they fail the `instanceof JsCallable` check at the call site,
 not via per-class `call` overrides.
 
+### Class semantics (`class` / `extends` / `super`)
+
+**`class` is desugared at eval time, not rewritten in the AST.**
+`Interpreter.evalClassExpr` builds a constructor `JsFunctionNode` whose
+auto-allocated `.prototype` holds the instance methods (installed
+non-enumerable via `defineOwn(..., WRITABLE|CONFIGURABLE)`); `static` members
+go on the constructor; `get`/`set` become `AccessorSlot`s. Class bodies are
+always strict (the `JsFunctionNode` `forceStrict` ctor overload). The whole
+thing rides the existing `new` / prototype-chain / `this`-binding path —
+`new Foo()` over a class constructor is an ordinary construction.
+
+**`extends` links two chains.** `Child.[[Prototype]] = Parent` (static method
+inheritance *and* the object `super(...)` reads to find the parent
+constructor) and `Child.prototype.[[Prototype]] = Parent.prototype` (instance
+method inheritance + `instanceof`). Set via `setPrototype` at class-eval time.
+
+**`super` dispatch rests on two seams that future code must keep wired:**
+- **`JsFunctionNode.homeObject`** — the [[HomeObject]]: the class prototype for
+  an instance method/constructor, the constructor for a static method. A
+  `super.m()` resolves `homeObject.getPrototype()` and reads `m` off it with
+  `this` = the current receiver (not the prototype).
+- **`CoreContext.activeFunction`** — the `JsFunctionNode` whose body is running
+  in this frame. It **must be set on every non-arrow user-function call frame**
+  (`invokeCallable`, `JsFunctionNode.call`, `runSuperConstructor`); an arrow
+  inherits its defining method's value (from `declaredContext.activeFunction`)
+  so `super` inside an arrow-in-a-method still resolves. Nested block scopes
+  inherit it through the `CoreContext` constructors. Miss a call site and
+  `super` in that frame resolves to the wrong (or no) home object.
+
+**`super(...)` does not refactor construction.** A derived `new Child()`
+creates the instance normally (proto already chains to `Parent.prototype`);
+`super(...)` then runs the parent constructor *against that same instance* via
+`Interpreter.runSuperConstructor` rather than allocating a new one. A class
+with no constructor that `extends` carries `isDefaultDerivedConstructor` and
+forwards all args to `super(...)` at construction time. **Known deviations
+(deferred):** no `this`-TDZ before `super()`, no `super()` return-override, and
+`extends` of a built-in exotic (Error/Array) uses a copy-own-props shim rather
+than true exotic subclassing.
+
 ### Globals
 
 **`eval` is a global** registered in `ContextRoot.initGlobal` with indirect-

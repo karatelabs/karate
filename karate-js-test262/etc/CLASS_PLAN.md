@@ -1,10 +1,18 @@
 # ES6 `class` syntax — implementation plan
 
-**STATUS (2026-05-30): Phase 1 LANDED** — constructor, instance/static methods,
-get/set accessors, computed keys, class declarations + expressions, default
-constructor, always-strict, constructor-without-`new` TypeError. Covered by
-`JsClassTest`. Phases 2 (extends/super) and 3 (fields) below are NOT yet done;
-this doc remains the reviewed design reference for them.
+**STATUS (2026-05-30): Phases 1 + 2 LANDED.** Phase 1 — constructor,
+instance/static methods, get/set accessors, computed keys, class
+declarations + expressions, default constructor, always-strict,
+constructor-without-`new` TypeError. Phase 2 — `extends`, `super(...)`,
+`super.method()`, default-derived-constructor arg forwarding, static
+inheritance, `extends Error`/built-in shim. Implemented via
+`JsFunctionNode.homeObject` + `CoreContext.activeFunction` + the special-cased
+construction in `Interpreter.runSuperConstructor` (no `invokeCallable` refactor
+was needed — the derived instance is created normally and `super()` only
+initializes it). Covered by `JsClassTest` (32 cases). **Phase 3 (fields) is NOT
+done** — this doc remains the design reference. Known Phase-2 gaps (deferred,
+edge cases): `this`-TDZ before `super()`, `super()` return-override binding,
+object-literal-method `super` (needs object [[HomeObject]]).
 
 
 Goal: support real-world / LLM-written `class` code in karate-js. Pragmatic
