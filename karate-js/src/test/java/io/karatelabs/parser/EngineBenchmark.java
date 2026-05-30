@@ -40,8 +40,9 @@ public class EngineBenchmark {
     private static final int PROFILING_DURATION_SECONDS = 30;
 
     // Pre-generated 20KB scripts for consistent benchmarking
-    private static final String ARRAY_SCRIPT_20KB = generateArrayHeavyScript(20);
-    private static final String OBJECT_SCRIPT_20KB = generateObjectHeavyScript(20);
+    // (package-private so NodeSizeAnalysis can reuse the exact corpus)
+    static final String ARRAY_SCRIPT_20KB = generateArrayHeavyScript(20);
+    static final String OBJECT_SCRIPT_20KB = generateObjectHeavyScript(20);
 
     public static void main(String[] args) {
         boolean profilingMode = args.length > 0 && "profile".equals(args[0]);

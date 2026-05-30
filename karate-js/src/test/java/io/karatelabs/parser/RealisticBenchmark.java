@@ -44,7 +44,8 @@ public class RealisticBenchmark {
     private static final int PROFILING_SECONDS = 30;
 
     // Typical Karate-like expressions - expanded for better coverage
-    private static final String[] EXPRESSIONS = {
+    // (package-private so NodeSizeAnalysis can reuse the exact corpus)
+    static final String[] EXPRESSIONS = {
         // Variable assignments with various object sizes
         "var response = { status: 200, body: { id: 123, name: 'test' } }",
         "var headers = { 'Content-Type': 'application/json', 'Accept': '*/*' }",
