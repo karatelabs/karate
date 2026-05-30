@@ -2376,6 +2376,7 @@ java -cp ... io.karatelabs.parser.EngineBenchmark profile
 | Speedup vs. 2026-01-22 baseline | **1.51×** | **1.58×** | **1.54×** |
 | re-baseline at `80b15496b` (2026-05-30, pre-strict-mode) | 1.36–1.40 ms | 0.58–0.60 ms | ~15,300 |
 | + strict-mode runtime (2026-05-30) | 1.32–1.35 ms | 0.57–0.58 ms | ~15,400 |
+| + fused early-error walk (2026-05-30) | **1.33 ms** | **0.57 ms** | **~15,700** |
 
 The object-eval figure drifted from 0.53 → ~0.58 ms across the month of
 engine work between 2026-04-26 and 2026-05-30 (object-spread, regex

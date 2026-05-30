@@ -70,6 +70,27 @@ Operating-mode maxims for the test262 conformance loop. Treat as load-bearing.
    Fix it at the writer, not in a workaround. A playbook future
    sessions can trust is worth more than a museum piece.
 
+9. **Refactor — or rewrite — boldly; the regression net is the license.**
+   This repo carries an unusually strong safety net: the test262 language
+   slice with byte-for-byte FAIL-set diffing ([Diff two run-dirs](#diff-two-run-dirs)),
+   1086+ unit tests with `SpecPinTest` spec-invariant pins, 2224+ karate-core
+   consumer tests, and JIT-stable benchmarks. That net exists so you can do the
+   *right* structural thing instead of accreting another local workaround. When a
+   subsystem is fighting you — near-duplicate traversals, a check at the wrong
+   layer, a seam that every new feature has to special-case — you are empowered to
+   restructure or rewrite it, not just patch around it. This is the active form of
+   principle #5: #5 says *spot* the wrong-layer smell; #9 says *act* on it. The
+   discipline that makes boldness safe, not reckless: (a) state the smell and the
+   target shape before cutting; (b) keep behavior-preserving refactors and new
+   behavior in **separate commits**; (c) gate every such change on the **full** net
+   — unit tests, `test/language/**` 0-regression diff, `EngineBenchmark profile`
+   within budget, karate-core consumer check — and quote the before/after in the
+   commit. A refactor that the net certifies as behavior-identical is always
+   cheaper than the compounding cost of the workaround it removes. *(Worked example:
+   the 2026-05-30 fused early-error walk — three full-tree validation passes
+   collapsed to one, ~13% of parse CPU reclaimed, FAIL set byte-for-byte identical.
+   See [Engine — cleanup → Fuse the early-error parse walks](#engine--cleanup).)*
+
 ---
 
 ## Per-session ritual
@@ -516,15 +537,26 @@ file pointer. For *how the subsystem is shaped*, read the file. For
 
 Benchmark-gated or coordinated with other work.
 
-- **Fuse the early-error parse walks.** `JsParser.parse` now runs three full
-  post-parse traversals: `validateEarlyErrors`, `validateCoverInitializedNames`,
-  and `checkStrictEarlyErrors` (strict-aware). The last has identical traversal
-  shape to the first; folding the strict checks into `validateEarlyErrors` (thread
-  a `boolean strict`, compute `childStrict` per node) eliminates one whole-tree
-  pass. The BoundNames sweep nudged object-eval ~0.60→~0.62 ms (within ±10%; a
-  hot-path guard already skips the BoundNames alloc for sloppy simple non-arrow
-  params). Mechanical but touches well-tested validation — own commit. Reclaim
-  when the benchmark budget tightens.
+- **Fuse the early-error parse walks — DONE (2026-05-30).** `JsParser.parse` ran
+  three full post-parse traversals (`validateEarlyErrors`,
+  `validateCoverInitializedNames`, `checkStrictEarlyErrors`); a JFR profile showed
+  the three walks at **~13% of CPU on both `EngineBenchmark` and
+  `RealisticBenchmark`** — as costly as the entire interpreter. They are now a
+  single descent: `earlyErrors(node, strict, inPattern)` threads the two pieces of
+  top-down state (`strict`, `inPattern`) and calls per-node helpers
+  (`earlyErrorNodeChecks` + the inlined CoverInitializedName/rest-element checks +
+  `strictNodeChecks`, which returns the propagated `childStrict`). Per-node check
+  order mirrors the former pass order so multi-error messages are unchanged.
+  Behavior-preserving: `test/language/**` FAIL set **byte-for-byte identical**
+  before/after (5849 PASS / 2397 FAIL, 0 regressions), all 1167 unit tests + 2235
+  karate-core tests green. Perf: EngineBenchmark array 1.41→1.33 ms / object
+  0.62→0.57 ms (+6.7% iters); RealisticBenchmark 68.6→62.3 µs/feature. **This is now
+  the single seam for new parse-phase early errors** — the dominant `MissingParseError`
+  backlog (escaped-keyword, undefined labels, `new.target`/`super` placement,
+  getter/setter arity, regex group-name, the non-simple-param `"use strict"` corner)
+  should each be added as another per-node helper in `earlyErrors`, never another
+  whole-tree walk. Reference table updated in
+  [JS_ENGINE.md § Performance Benchmarks](../docs/JS_ENGINE.md#performance-benchmarks).
 - **`Prototype.toMap()` rebuilds per call** — memoize on slot-map mod
   stamp or expose a non-materializing iterator. Defer until benchmark
   shows it matters.

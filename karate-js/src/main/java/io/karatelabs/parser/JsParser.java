@@ -133,22 +133,62 @@ public class JsParser extends BaseParser {
             error("cannot parse statement");
         }
         exit();
-        // Spec early errors: assignment-target validity (always) plus the
-        // optional-chain rules (only when `?.` was actually seen — that
-        // subtree-walk is otherwise pure dead weight).
+        // Spec early errors: one post-parse descent runs every per-node check.
+        // Three distinct rule families share a single traversal (they previously
+        // ran as three independent full-tree walks): assignment-target validity /
+        // optional-chain / declaration-position (mode-independent), the
+        // CoverInitializedName rule (gated on pattern context, threaded as
+        // `inPattern`), and the strict-mode family (gated on lexical strictness,
+        // computed top-down and threaded as `strict` — the program starts sloppy
+        // unless it opens with a "use strict" directive prologue). Adding a new
+        // early-error rule means adding a per-node helper to `earlyErrors`, never
+        // another whole-tree walk.
         if (!errorRecoveryEnabled) {
-            validateEarlyErrors(ast);
-            validateCoverInitializedNames(ast, false);
-            // Strict-mode early errors are gated on lexical strictness, computed
-            // top-down during the walk; the program starts sloppy unless it opens
-            // with a "use strict" directive prologue.
-            checkStrictEarlyErrors(ast, false);
+            earlyErrors(ast, false, false);
         }
         return ast;
     }
 
     /**
-     * Spec early errors walked once over the parsed tree:
+     * Single post-parse descent that runs all spec early-error checks per node and
+     * recurses once. Threads the two pieces of top-down state the individual rule
+     * families need — {@code strict} (lexical strictness) and {@code inPattern}
+     * (destructuring-pattern context) — and recomputes each for the children. The
+     * per-node check bodies live in dedicated helpers so this stays the one place
+     * the tree is walked; a new early-error rule plugs in as another helper call,
+     * not another traversal.
+     * <p>
+     * Per-node check order mirrors the former pass order
+     * (assignment-target/decl-position → CoverInitializedName → strict-mode) so a
+     * node that could trip more than one rule reports the same message as before.
+     */
+    private void earlyErrors(Node node, boolean strict, boolean inPattern) {
+        if (node == null) {
+            return;
+        }
+        // Mode-independent: assignment-target validity, optional-chain restrictions,
+        // declaration-in-statement-position.
+        earlyErrorNodeChecks(node);
+        // CoverInitializedName / rest-element rules, gated on pattern context.
+        if (node.type == NodeType.OBJECT_ELEM && hasCoverInitForm(node) && !inPattern) {
+            throw new ParserException("invalid shorthand initializer: only allowed in destructuring pattern");
+        }
+        if (inPattern && node.type == NodeType.LIT_ARRAY) {
+            validateRestElementRules(node);
+        }
+        // Strict-mode family; returns the strictness to propagate to children.
+        boolean childStrict = strictNodeChecks(node, strict);
+        for (int i = 0, n = node.size(); i < n; i++) {
+            Node child = node.get(i);
+            if (!child.isToken()) {
+                earlyErrors(child, childStrict, childInPatternContext(node, i, inPattern));
+            }
+        }
+    }
+
+    /**
+     * Mode-independent spec early errors checked at a single node (no recursion —
+     * {@link #earlyErrors} drives the traversal):
      * <ul>
      *   <li>IsValidSimpleAssignmentTarget: the LHS of {@code =} / compound assignment
      *       and the operand of {@code ++}/{@code --} must be a simple reference
@@ -162,8 +202,7 @@ public class JsParser extends BaseParser {
      * Throws {@link ParserException} so the test262 runner classifies the failure as
      * {@code phase: parse}.
      */
-    private void validateEarlyErrors(Node node) {
-        if (node == null) return;
+    private void earlyErrorNodeChecks(Node node) {
         switch (node.type) {
             case ASSIGN_EXPR -> {
                 if (node.size() > 0) {
@@ -227,12 +266,6 @@ public class JsParser extends BaseParser {
             }
             case IF_STMT -> checkNoLexicalOrClassDeclarationBody(node, "an `if`/`else` clause");
             default -> {
-            }
-        }
-        for (int i = 0, n = node.size(); i < n; i++) {
-            Node child = node.get(i);
-            if (!child.isToken()) {
-                validateEarlyErrors(child);
             }
         }
     }
@@ -342,11 +375,12 @@ public class JsParser extends BaseParser {
      * Every check is strict-gated, so a correct strictness determination is the one
      * invariant that keeps this from disturbing sloppy ({@code noStrict}) code.
      * Throws {@link ParserException} so the runner classifies it as {@code phase: parse}.
+     * <p>
+     * Runs the strict-mode checks for a single node (no recursion — {@link #earlyErrors}
+     * drives the traversal) and returns the strictness to propagate to that node's
+     * children (a {@code "use strict"} prologue or a class body raises it).
      */
-    private void checkStrictEarlyErrors(Node node, boolean strict) {
-        if (node == null) {
-            return;
-        }
+    private boolean strictNodeChecks(Node node, boolean strict) {
         boolean childStrict = strict;
         switch (node.type) {
             case PROGRAM -> {
@@ -406,18 +440,13 @@ public class JsParser extends BaseParser {
                 // Annex B.3.4 lets a FunctionDeclaration be an `if`/`else` clause body in
                 // sloppy code, but that extension is NOT honored in strict mode — there it
                 // is an early error (§13.6). The always-illegal loop bodies are handled
-                // mode-independently in validateEarlyErrors.
+                // mode-independently in earlyErrorNodeChecks.
                 case IF_STMT -> checkNoFunctionDeclarationBody(node, "an `if` statement in strict mode");
                 default -> {
                 }
             }
         }
-        for (int i = 0, n = node.size(); i < n; i++) {
-            Node child = node.get(i);
-            if (!child.isToken()) {
-                checkStrictEarlyErrors(child, childStrict);
-            }
-        }
+        return childStrict;
     }
 
     private static boolean isEvalOrArguments(String s) {
@@ -1006,32 +1035,15 @@ public class JsParser extends BaseParser {
         }
     }
 
-    /**
-     * Spec early error: a {@code CoverInitializedName} (the shorthand-with-default
-     * {@code IDENT = AssignmentExpression} inside object-literal braces) is only
-     * legal when the surrounding {@code {...}} ends up refined as an
-     * {@code ObjectAssignmentPattern} or {@code ObjectBindingPattern}. In a plain
-     * object literal it must be a SyntaxError (§12.2.6.1).
-     * <p>
-     * The parser accepts the cover form unconditionally in {@code object_elem()}
-     * because at parse time it can't yet tell whether {@code {...}} is the LHS of
-     * an assignment / a binding / an arrow param. This walk catches the cases
-     * where the surrounding shape never turns out to be a destructuring target.
-     */
-    private void validateCoverInitializedNames(Node node, boolean inPattern) {
-        if (node == null) return;
-        if (node.type == NodeType.OBJECT_ELEM && hasCoverInitForm(node) && !inPattern) {
-            throw new ParserException("invalid shorthand initializer: only allowed in destructuring pattern");
-        }
-        if (inPattern && node.type == NodeType.LIT_ARRAY) {
-            validateRestElementRules(node);
-        }
-        for (int i = 0, n = node.size(); i < n; i++) {
-            Node child = node.get(i);
-            if (child.isToken()) continue;
-            validateCoverInitializedNames(child, childInPatternContext(node, i, inPattern));
-        }
-    }
+    // CoverInitializedName early error (§12.2.6.1): a shorthand-with-default
+    // (`IDENT = AssignmentExpression`) inside object-literal braces is only legal
+    // when the surrounding `{...}` is refined as an ObjectAssignmentPattern /
+    // ObjectBindingPattern; in a plain object literal it is a SyntaxError. The
+    // parser accepts the cover form unconditionally in `object_elem()` (at parse
+    // time it can't yet tell whether `{...}` is an assignment LHS / binding / arrow
+    // param), so `earlyErrors` rejects it where pattern context never materializes.
+    // That check and the pattern-context rest-element rules below are applied inline
+    // by `earlyErrors`, which threads `inPattern` via `childInPatternContext`.
 
     /**
      * Spec early errors for {@code BindingRestElement} / {@code AssignmentRestElement}
