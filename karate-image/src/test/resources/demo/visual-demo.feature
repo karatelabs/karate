@@ -38,3 +38,14 @@ Feature: visual regression demo
     * image.rebase('home', 'classpath:demo/screenshots/home_v2.png')
     * def r = image.compare('home', 'classpath:demo/screenshots/home_v2.png')
     * match r.pass == true
+
+  Scenario: 5 - per-name options tune one screen
+    # A noisier screen ('home_mobile') gets its own tolerance. image.compare auto-loads
+    # <baselineDir>/home_mobile.json by name (no options on the step), and that file
+    # raises the threshold — so a difference that would fail the strict suite default
+    # (threshold 0) is tolerated here. Precedence: suite config < <name>.json < per-call.
+    * def established = image.compare('home_mobile', 'classpath:demo/screenshots/home_v1.png')
+    * match established.baselineEstablished == true
+    * def r = image.compare('home_mobile', 'classpath:demo/screenshots/home_v2.png')
+    * assert r.mismatchPercentage > 0
+    * match r.pass == true

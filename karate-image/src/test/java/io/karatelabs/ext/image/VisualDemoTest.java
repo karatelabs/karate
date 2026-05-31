@@ -70,6 +70,17 @@ class VisualDemoTest {
             image.threshold = 0.0;
             """.formatted(baselineDir.toString().replace("\\", "/")));
 
+        // Stage a per-name options file into the baseline dir. In a real project the
+        // baselineDir is committed and holds both baselines and their <name>.json
+        // tuning files side by side; here baselineDir is ephemeral (so "establish"
+        // fires), so we seed the committed fixture. Scenario 5 relies on this being
+        // auto-loaded by image.compare('home_mobile', ...).
+        Files.createDirectories(baselineDir);
+        try (var in = getClass().getResourceAsStream("/demo/options/home_mobile.json")) {
+            Files.copy(java.util.Objects.requireNonNull(in, "home_mobile.json fixture missing"),
+                    baselineDir.resolve("home_mobile.json"));
+        }
+
         Path reports = work.resolve("karate-reports");
         SuiteResult result = Runner.path("classpath:demo/visual-demo.feature")
                 .workingDir(work)
@@ -77,12 +88,14 @@ class VisualDemoTest {
                 .outputConsoleSummary(false)
                 .parallel(1);
 
-        // All four scenarios pass: establish + match + (inspected) regression + rebase.
-        assertEquals(4, result.getScenarioPassedCount(), "all four demo scenarios should pass");
+        // Five scenarios pass: establish + match + (inspected) regression + rebase +
+        // per-name-options tolerance.
+        assertEquals(5, result.getScenarioPassedCount(), "all five demo scenarios should pass");
         assertEquals(0, result.getScenarioFailedCount(), "no scenario should fail");
 
-        // Baseline was established, then rebased to v2 — file is on disk either way.
+        // Baselines were established (home rebased to v2; home_mobile from scenario 5).
         assertTrue(Files.exists(baselineDir.resolve("home.png")), "home baseline should exist");
+        assertTrue(Files.exists(baselineDir.resolve("home_mobile.png")), "home_mobile baseline should exist");
 
         // A real report was written with the image-comparison embed (the regression's
         // baseline/latest/diff). The feature-page filename is derived from the resource
