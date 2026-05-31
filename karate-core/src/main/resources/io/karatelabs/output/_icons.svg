@@ -1,4 +1,4 @@
-<!-- Karate report inline SVG sprite (Heroicons v2, MIT). See docs/IMAGE_SPIKE.md D21. -->
+<!-- Karate report inline SVG sprite (Heroicons v2, MIT). Spliced into the KARATE_ICONS placeholder by HtmlReportWriter. -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
 
     <!-- Status: passed -->

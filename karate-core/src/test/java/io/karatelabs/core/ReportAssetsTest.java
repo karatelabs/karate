@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Validation failure modes for the imperative {@link ReportAssets} spec
- * (IMAGE_SPIKE.md §3.3 — no JSON manifest; the spec is built in onBoot).
+ * (EXT.md § Report assets — no JSON manifest; the spec is built in onBoot).
  * The DummyExt fixture ships real assets under {@code META-INF/karate-ext/}, so
  * the test classloader resolves them.
  */

@@ -32,7 +32,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Wire-shape contract for {@link StepResult.Embed} (IMAGE_SPIKE.md §3.6). The shape is
+ * Wire-shape contract for {@link StepResult.Embed} (see EXT.md § Embeds). The shape is
  * uniform — {@code {name, parts:[{role, mime, data|url|file}], meta}} — for both single-
  * and multi-asset embeds. There is no legacy flat ({@code mime_type}) form (clean break;
  * v2 has no released embed consumers).

@@ -134,8 +134,8 @@ class ImageExtE2ETest {
         // not a static parse — see the karate-image README.)
         String extJsSrc = Files.readString(extJs);
         assertTrue(extJsSrc.contains("registerEmbed('image-comparison'"),
-                "ext.js should register the image-comparison renderer");
+                "image.js should register the image-comparison renderer");
         assertTrue(extJsSrc.contains("ki-dialog") && extJsSrc.contains("showModal"),
-                "ext.js should build the <dialog> lightbox (m3, not the m2 stub)");
+                "image.js should build the <dialog> lightbox (m3, not the m2 stub)");
     }
 }
