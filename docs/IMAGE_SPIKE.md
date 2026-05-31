@@ -433,6 +433,23 @@ Config keys: `baselineDir`, `engine` (`resemble` | `ssim` | `resemble,ssim` | `r
 >
 > **`image.builder('compare')` — reserved future pattern (not built).** A *generic* `builder(opName)` (vs a per-op `comparer()`) is the chosen forward-looking convention: it scales to any number of operations without new methods and maps cleanly onto the future MCP/curl "one API, many faces" projection (every op uniformly discoverable for tooling). It's stringly-typed, so it stays a power/programmatic escape-hatch — the first-class discoverable verbs remain `image.compare(...)` / `image.rebase(...)`. Documented here as the intended builder shape if/when a staged-construction tier is added.
 
+### 3.8 Milestone 3 — report frontend (pending spec)
+
+The server side is done (m1 engine + m2 API emit the `image-comparison` multi-part embed). m3 is the interactive report UI. **What core renders today:** `res/karate-report.js` `_renderEmbed` walks `embed.parts[]` and renders each by mime — so the baseline/latest/diff already show as three `<img>` inline, with no ext code. m3 *upgrades* that named embed into a lightbox.
+
+**(a) Embed-render extension hook — the one core-contract decision (locked: delegation hook).** §3.2's render contract sketched an Alpine component in a `data-slot="step.embed"` container, but that slot doesn't exist — embeds render inline via `_renderEmbed`, and there is no `alpine:init`/`Alpine.data` registration hook (D5's pattern was never wired). Rather than resurrect the slot or post-process the DOM, add a small **named-embed renderer registry** to core's report JS:
+- `KarateReport.registerEmbed(name, fn)` — exts register a renderer keyed by embed `name`.
+- In `_renderEmbed(embed)`: if a renderer is registered for `embed.name`, delegate to it (it returns the embed's markup); else fall through to the existing generic per-part rendering. Graceful no-op when no ext is loaded — the three images still render.
+- **Ordering:** ext.js loads via the `<!-- KARATE_EXTS -->` `<script defer>`; registration must run before the Alpine-driven render. Confirm defer-vs-render ordering during build; if render can precede registration, have `registerEmbed` trigger a re-render of already-mounted image embeds (or register at `alpine:init`). This is the timing detail to nail in m3.
+
+This mirrors the `nav.pages` fix (a small, general core report-JS affordance that every future ext reuses) and belongs in §3.2 once built.
+
+**(b) The lightbox (image ext `static/ext.js`, replacing the m2 stub).** Registered via `KarateReport.registerEmbed('image-comparison', fn)`. Reads `parts` (baseline/latest/diff `url`s or inline data) + `meta` (`mismatchPercentage`, `threshold`, `engine`, `passed`, `baselineEstablished`). Renders a thumbnail (diff, or latest when established) that opens a `<dialog>` lightbox with the three views and a **slider / blink / onion-skin** toolbar. Resemble.js is **lazy-loaded from CDN on lightbox open** (D11) — the server already wrote the precomputed diff PNG; Resemble powers only the interactive tools. CSS scoped under `.k-image-ext` (D20/O6). `meta.passed`/`baselineEstablished` drive a pass/fail/established badge.
+
+**(c) Optional `nav.pages` "all diffs in the run" index — under-specified, lower priority.** A static `pages/image-comparison.html` can't see the run's embeds on its own. Decide its data source before building: (i) read the suite/feature report JSON (`KARATE_DATA`) and filter `image-comparison` embeds, or (ii) have the ext accumulate a manifest written alongside assets. Ship the per-step lightbox (a/b) first; the index is additive and now unblocked by the `nav.pages` work.
+
+**Out of m3:** print CSS (`ext.print.css`) is Phase 5; the rebase "Accept as baseline" report affordance (§3.7c) rides on (a) and live-serve, also later.
+
 ---
 
 ## 4. Phased Implementation
