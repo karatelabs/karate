@@ -60,10 +60,15 @@ public class ImageExt implements Ext, SimpleObject {
         // Per-scenario instance: fresh ImageApi per scenario, seeded with a copy of
         // the boot defaults + that scenario's KarateJsContext.
         suite.registerGlobal("image", context -> new ImageApi(defaults, context));
+        // Asset files are named after the ext (image.js / image.css), not a generic
+        // ext.js, so each ext is self-identifying in browser DevTools / stack traces.
+        // The per-ext dir (ext/image/) already prevents collisions; this is for DX.
+        // Dest is ext/<name>/<source-leaf>, so naming the source aligns the URL too:
+        // boot.ext('image') → ext/image/image.js.
         suite.registerReportAssets(
                 ReportAssets.named("image")
-                        .js("static/ext.js")
-                        .css("static/ext.css"),
+                        .js("static/image.js")
+                        .css("static/image.css"),
                 getClass().getClassLoader());
     }
 

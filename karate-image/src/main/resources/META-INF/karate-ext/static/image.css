@@ -1,0 +1,184 @@
+/*
+ * karate-image report ext styles — hand-authored and scoped under .k-image-ext so
+ * ext-owned styles never collide with core's Tailwind utilities (IMAGE_SPIKE.md
+ * D20 / O6, channel b: the ext ships its own CSS, immune to core's Tailwind build).
+ */
+
+.k-image-ext.ki-card {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 1px solid var(--ki-border, #cbd5e1);
+    border-left-width: 4px;
+    border-radius: 6px;
+    padding: 8px;
+    background: var(--ki-surface, #f8fafc);
+    max-width: 240px;
+}
+.k-image-ext.ki-pass { border-left-color: #16a34a; }
+.k-image-ext.ki-fail { border-left-color: #dc2626; }
+.k-image-ext.ki-established { border-left-color: #60a5fa; }
+
+[data-theme="dark"] .k-image-ext.ki-card {
+    --ki-border: #334155;
+    --ki-surface: rgba(30, 41, 59, 0.5);
+    color: #e2e8f0;
+}
+
+.k-image-ext .ki-thumb {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: zoom-in;
+    line-height: 0;
+}
+.k-image-ext .ki-thumb img {
+    max-width: 100%;
+    max-height: 160px;
+    height: auto;
+    border-radius: 4px;
+    transition: opacity .15s;
+}
+.k-image-ext .ki-thumb:hover img { opacity: .9; }
+.k-image-ext .ki-noimg { font-size: 12px; color: #94a3b8; }
+
+.k-image-ext .ki-meta { display: flex; flex-direction: column; gap: 2px; }
+.k-image-ext .ki-name { font-size: 12px; font-weight: 600; }
+.k-image-ext .ki-sub { font-size: 11px; color: #64748b; }
+[data-theme="dark"] .k-image-ext .ki-sub { color: #94a3b8; }
+
+.k-image-ext .ki-badge {
+    align-self: flex-start;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 8px;
+    border-radius: 9999px;
+    color: #fff;
+}
+.k-image-ext .ki-badge-pass { background: #16a34a; }
+.k-image-ext .ki-badge-fail { background: #dc2626; }
+.k-image-ext .ki-badge-established { background: #2563eb; }
+
+/* ---- lightbox dialog ---- */
+.k-image-ext.ki-dialog {
+    width: min(94vw, 1100px);
+    max-width: 94vw;
+    max-height: 92vh;
+    border: 0;
+    border-radius: 8px;
+    padding: 0;
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+}
+[data-theme="dark"] .k-image-ext.ki-dialog { background: #0f172a; color: #e2e8f0; }
+.k-image-ext.ki-dialog::backdrop { background: rgba(0, 0, 0, .6); }
+
+.k-image-ext .ki-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    position: sticky;
+    top: 0;
+    background: inherit;
+}
+[data-theme="dark"] .k-image-ext .ki-head { border-bottom-color: #334155; }
+
+.k-image-ext .ki-tabs { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.k-image-ext .ki-tab {
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.4;
+    padding: 4px 12px;
+    margin: 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #f1f5f9;
+    color: #0f172a;
+    cursor: pointer;
+    transition: background-color .12s, border-color .12s, color .12s;
+}
+.k-image-ext .ki-tab:hover { background: #e2e8f0; }
+.k-image-ext .ki-tab:focus-visible { outline: 2px solid #60a5fa; outline-offset: 1px; }
+[data-theme="dark"] .k-image-ext .ki-tab { border-color: #334155; background: #1e293b; color: #e2e8f0; }
+[data-theme="dark"] .k-image-ext .ki-tab:hover { background: #334155; }
+/* Selected tab — qualified for BOTH themes so it always wins. (A bare
+   `.ki-tab-on` (0,2,0) loses to `[data-theme="dark"] .ki-tab` (0,3,0), which is why
+   the dark-theme selection looked unstyled before.) Bold + ring make it unmistakable. */
+.k-image-ext .ki-tab.ki-tab-on,
+[data-theme="dark"] .k-image-ext .ki-tab.ki-tab-on {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, .35);
+}
+.k-image-ext .ki-tab.ki-tab-on:hover,
+[data-theme="dark"] .k-image-ext .ki-tab.ki-tab-on:hover { background: #1d4ed8; }
+
+.k-image-ext .ki-close {
+    margin-left: auto;
+    font-size: 22px;
+    line-height: 1;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.k-image-ext .ki-body { padding: 14px; overflow: auto; }
+
+.k-image-ext .ki-pane-side {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+.k-image-ext .ki-fig { margin: 0; text-align: center; }
+.k-image-ext .ki-fig img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    background: repeating-conic-gradient(#e2e8f0 0% 25%, #ffffff 0% 50%) 50% / 16px 16px;
+}
+.k-image-ext .ki-fig figcaption { font-size: 12px; margin-top: 4px; color: #64748b; }
+.k-image-ext .ki-missing {
+    font-size: 12px; color: #94a3b8; padding: 24px; border: 1px dashed #cbd5e1; border-radius: 4px;
+}
+
+.k-image-ext .ki-stage {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    background: repeating-conic-gradient(#e2e8f0 0% 25%, #ffffff 0% 50%) 50% / 16px 16px;
+}
+.k-image-ext .ki-layer { display: block; max-width: 100%; height: auto; -webkit-user-drag: none; user-select: none; }
+.k-image-ext .ki-layer-top { position: absolute; inset: 0; max-width: none; width: 100%; }
+.k-image-ext .ki-stage-wipe { cursor: ew-resize; touch-action: none; }
+.k-image-ext .ki-divider {
+    position: absolute; top: 0; bottom: 0; width: 2px; left: 50%;
+    background: #2563eb; pointer-events: none; transform: translateX(-1px);
+}
+.k-image-ext .ki-grip {
+    position: absolute; top: 50%; left: 50%;
+    width: 22px; height: 22px;
+    transform: translate(-50%, -50%);
+    background: #2563eb;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+}
+.k-image-ext .ki-grip::before {
+    content: '\2194';   /* ↔ */
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 12px; line-height: 1;
+}
+.k-image-ext .ki-controls { margin-top: 10px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.k-image-ext .ki-range { font-size: 12px; display: inline-flex; align-items: center; gap: 8px; }
+.k-image-ext .ki-hint { font-size: 12px; color: #64748b; }

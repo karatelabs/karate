@@ -379,7 +379,47 @@ const KarateReport = {
         return html;
     },
 
+    // ext-contributed embed renderers keyed by embed name, plus a record of every
+    // embed rendered this page (so a late-registering ext can upgrade in place).
+    _embedRenderers: {},
+    _embeds: [],
+    _embedSeq: 0,
+
+    /**
+     * Register a renderer for a named embed. An ext — loaded via the KARATE_EXTS
+     * `<script defer>` splice — calls this to take over rendering of its own embed,
+     * e.g. `KarateReport.registerEmbed('image-comparison', (embed, api) => '<...>')`.
+     * The renderer is passed the embed ({name, parts, meta}) and `this` (so it can
+     * reuse `_embedPartSrc` / `_esc`) and returns a markup string.
+     *
+     * Ordering: alpine.min.js (defer) starts and renders the report *before* the ext
+     * `<script defer>` executes, so the ext's embeds are already in the DOM when this
+     * runs. We therefore upgrade any already-rendered embeds of this name in place,
+     * in addition to claiming future renders. Graceful: until (or unless) an ext
+     * registers, the generic per-part fallback (`_renderEmbedGeneric`) is shown.
+     */
+    registerEmbed(name, fn) {
+        this._embedRenderers[name] = fn;
+        if (typeof document === 'undefined') return;
+        this._embeds.forEach(({ id, embed }) => {
+            if (embed.name !== name) return;
+            const host = document.querySelector(`[data-embed-id="${id}"]`);
+            if (host) host.innerHTML = fn(embed, this);
+        });
+    },
+
     _renderEmbed(embed) {
+        const id = ++this._embedSeq;
+        this._embeds.push({ id, embed });
+        const renderer = embed.name ? this._embedRenderers[embed.name] : null;
+        const inner = renderer ? renderer(embed, this) : this._renderEmbedGeneric(embed);
+        // Stable host so a late-registering ext can find + upgrade this embed.
+        return `<div class="k-embed" data-embed-id="${id}">${inner}</div>`;
+    },
+
+    // Default per-part rendering when no ext claims the embed name — also the
+    // graceful fallback shown until an ext upgrades it.
+    _renderEmbedGeneric(embed) {
         const muted = 'text-slate-500 dark:text-slate-400';
         let html = `<div class="border border-slate-200 dark:border-slate-700 rounded p-2 bg-slate-50 dark:bg-slate-800/50">`;
         if (embed.name) {
@@ -759,4 +799,11 @@ const KarateReport = {
 };
 
 // Initialize theme immediately (before Alpine loads)
+// Expose on window so ext scripts can register embed renderers via
+// `window.KarateReport.registerEmbed(...)`. A top-level `const` is a global lexical
+// binding (visible to inline on* handlers and Alpine expressions) but is NOT a window
+// property — without this, a separate ext <script> reaching for window.KarateReport
+// would see undefined and silently skip registration.
+window.KarateReport = KarateReport;
+
 KarateReport.initTheme();

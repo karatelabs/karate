@@ -116,9 +116,26 @@ class ImageExtE2ETest {
         }
         String html = Files.readString(featureHtml);
         assertTrue(html.contains("image-comparison"), "report should carry the image-comparison embed");
+        assertTrue(html.contains("ext/image/image.js"), "feature page should splice the image.js script");
+        // The multi-part roles reached the wire (KARATE_DATA JSON) — baseline/latest/diff,
+        // the contract the m3 lightbox reads (ImageApi emits 'latest', not 'current').
+        assertTrue(html.contains("\"baseline\""), "embed should carry a baseline part");
+        assertTrue(html.contains("\"latest\""), "embed should carry a latest part");
+        assertTrue(html.contains("\"diff\""), "embed should carry a diff part (on the mismatch)");
 
-        // Ext assets were copied + spliced (asset pipeline end-to-end).
-        assertTrue(Files.exists(reports.resolve("ext/image/ext.js")), "ext.js should be copied");
-        assertTrue(Files.exists(reports.resolve("ext/image/ext.css")), "ext.css should be copied");
+        // Ext assets were copied + spliced (asset pipeline end-to-end). Files are named
+        // after the ext (ext/image/image.js) so they're self-identifying in DevTools.
+        Path extJs = reports.resolve("ext/image/image.js");
+        assertTrue(Files.exists(extJs), "image.js should be copied");
+        assertTrue(Files.exists(reports.resolve("ext/image/image.css")), "image.css should be copied");
+        // The shipped image.js is the m3 lightbox, not the m2 stub: it registers the
+        // 'image-comparison' renderer and builds the <dialog> lightbox. (The live DOM
+        // is rendered client-side, so the dialog itself is verified by the manual smoke,
+        // not a static parse — IMAGE_SPIKE.md §3.8b.)
+        String extJsSrc = Files.readString(extJs);
+        assertTrue(extJsSrc.contains("registerEmbed('image-comparison'"),
+                "ext.js should register the image-comparison renderer");
+        assertTrue(extJsSrc.contains("ki-dialog") && extJsSrc.contains("showModal"),
+                "ext.js should build the <dialog> lightbox (m3, not the m2 stub)");
     }
 }
