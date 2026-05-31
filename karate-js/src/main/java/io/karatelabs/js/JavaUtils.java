@@ -520,6 +520,13 @@ public class JavaUtils {
     }
 
     static Object convertIfArray(Object o) {
+        // byte[] is binary, not a generic array: wrap it as JsUint8Array (the same
+        // special-case Terms.toJsValue / toJsArray already make) so a Java method
+        // returning byte[] round-trips back to byte[] at the external-call boundary,
+        // instead of degrading to a List<Byte> that no longer reads as binary.
+        if (o instanceof byte[]) {
+            return Terms.toJsValue(o);
+        }
         if (o != null && o.getClass().isArray()) {
             List<Object> list = new ArrayList<>();
             int count = Array.getLength(o);

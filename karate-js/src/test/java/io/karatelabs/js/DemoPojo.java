@@ -74,6 +74,13 @@ public class DemoPojo {
         this.intArray = intArray;
     }
 
+    // Binary return: a byte[] must cross into JS as a Uint8Array (not a generic List).
+    // Deliberately not a bean getter (no get* prefix) so it doesn't add a property to
+    // the introspected POJO surface that other tests pin.
+    public byte[] bytes() {
+        return new byte[]{1, 2, 3};
+    }
+
     public void setStringValue(String stringValue) {
         this.stringValue = stringValue;
     }

@@ -210,6 +210,32 @@ class ExternalBridgeTest extends EvalBase {
     }
 
     @Test
+    void testJavaByteArrayReturnsAsBinary() {
+        // A Java method returning byte[] must cross into JS as a Uint8Array (binary),
+        // so it round-trips back to byte[] at the external-call boundary instead of
+        // degrading to a generic List<Byte>. Other Java arrays (int[], String[], ...)
+        // still become Lists — only byte[] is special-cased as binary.
+        Object result = eval("var DemoPojo = Java.type('io.karatelabs.js.DemoPojo'); new DemoPojo().bytes()");
+        assertInstanceOf(byte[].class, result, "byte[] return should be a Uint8Array, unwrapping to byte[] at the boundary");
+        assertArrayEquals(new byte[]{1, 2, 3}, (byte[]) result);
+    }
+
+    @Test
+    void testJavaByteArrayHasUint8ArraySemanticsInJs() {
+        // In JS the byte[] return reads as a Uint8Array: array .length + numeric
+        // indexing (a generic Java List would expose neither in this form).
+        assertEquals(true, eval("var DemoPojo = Java.type('io.karatelabs.js.DemoPojo');"
+                + " var b = new DemoPojo().bytes(); b.length === 3 && b[0] === 1 && b[2] === 3"));
+    }
+
+    @Test
+    void testJavaIntArrayStillBecomesList() {
+        // Guard the carve-out: non-byte arrays keep their List mapping (unchanged).
+        Object result = eval("var DemoPojo = Java.type('io.karatelabs.js.DemoPojo'); var p = new DemoPojo(); p.intArray = [1, 2]; p.getIntArray()");
+        assertInstanceOf(List.class, result, "int[] return should remain a List");
+    }
+
+    @Test
     void testJavaInteropException() {
         // Exceptions from Java methods now surface with the original message (was: masked as TypeError).
         // A JS try/catch can intercept them.
@@ -293,9 +319,11 @@ class ExternalBridgeTest extends EvalBase {
     void testStaticGetterPropertyAccess() {
         // V1 compatibility: Base64.encoder should work like Base64.getEncoder()
         assertEquals("aGVsbG8=", eval("var Base64 = Java.type('java.util.Base64'); Base64.encoder.encodeToString('hello'.getBytes())"));
-        // Also test decoder - note: byte[] is converted to List by JS engine
+        // Base64.decode returns byte[], which crosses into JS as a Uint8Array and
+        // unwraps to byte[] at the boundary (not a List<Byte>).
         Object result = eval("var Base64 = Java.type('java.util.Base64'); Base64.decoder.decode('aGVsbG8=')");
-        assertInstanceOf(List.class, result);
+        assertInstanceOf(byte[].class, result);
+        assertEquals("hello", new String((byte[]) result));
     }
 
     @Test

@@ -104,6 +104,8 @@ public interface JavaInvokable extends JavaCallable {
 | Set | JsSet | Set | extends JsObject |
 | Uint8Array | JsUint8Array | byte[] | JsBinaryValue → JsValue |
 
+> **Java → JS, the `byte[]` carve-out.** A Java array crossing *into* JS becomes a `JsArray` (→ `List` when unwrapped) — **except `byte[]`, which is wrapped as `JsUint8Array`** (binary). So a Java method returning `byte[]` round-trips back to `byte[]` at the external-call boundary instead of degrading to a `List<Byte>`. This carve-out holds on every inbound path: literal/value conversion (`Terms.toJsValue` / `toJsArray`) **and** reflective Java method returns + field reads (`JavaUtils.convertIfArray`). Locked by `ExternalBridgeTest` (`Base64.decode(...)` → `byte[]`; `DemoPojo.bytes()` → `byte[]` with `Uint8Array` `.length`/indexing in JS).
+
 ### Slot family — property descriptors and bindings
 
 ```java
