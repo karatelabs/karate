@@ -49,7 +49,7 @@ import java.util.Set;
  * resolves baseline / option-file / rebase paths through Karate's prefix system
  * ({@code this:}/{@code classpath:}/{@code file:}/relative) via the context.
  *
- * <p>API (IMAGE_SPIKE.md §3.7):</p>
+ * <p>API (see the karate-image README):</p>
  * <pre>
  *   image.baselineDir = 'baselines'                 // config: property-setter
  *   image.config = { threshold: 0.02, engine: 'resemble' }   // config: bulk overlay

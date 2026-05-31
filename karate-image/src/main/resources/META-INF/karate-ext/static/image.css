@@ -1,7 +1,8 @@
 /*
  * karate-image report ext styles — hand-authored and scoped under .k-image-ext so
- * ext-owned styles never collide with core's Tailwind utilities (IMAGE_SPIKE.md
- * D20 / O6, channel b: the ext ships its own CSS, immune to core's Tailwind build).
+ * ext-owned styles never collide with core's Tailwind utilities. The ext ships its own
+ * CSS, immune to core's Tailwind build (see EXT.md § Report assets — "scope it, don't
+ * Tailwind it").
  */
 
 .k-image-ext.ki-card {

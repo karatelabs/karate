@@ -2,9 +2,9 @@
 
 Source files for the Karate v2 report's Tailwind CSS build.
 
-See [`docs/IMAGE_SPIKE.md`](../../docs/IMAGE_SPIKE.md) §3.1 (production build),
-§3.1.1 (dev iteration loop), §3.1.2 (template architecture) and D20 (brand +
-utility-class-only constraints).
+Production build, dev iteration loop, and template architecture are documented in
+the sections below. Brand constraints: utility classes only (no `@layer components`),
+the Karate Labs slate-blue palette, and a system-font stack (zero font CDN).
 
 ## Files
 
@@ -16,8 +16,8 @@ utility-class-only constraints).
   `res/karate-report.js` (the JS file emits Tailwind class names inside
   HTML-string template literals — without scanning it, those classes would be
   missing from the generated CSS).
-- `input.css` — Tailwind entry point. No `@layer components` block (D20) —
-  utility classes only. One Alpine shim appended: `[x-cloak] { display: none !important; }`.
+- `input.css` — Tailwind entry point. No `@layer components` block — utility classes
+  only. One Alpine shim appended: `[x-cloak] { display: none !important; }`.
 - `tailwind.sh` — single build script. Downloads the Tailwind standalone CLI
   (v3.4.17) to `.cache/` on first run, then invokes it. No node / npm needed.
 - `.cache/` — gitignored; holds the downloaded CLI binary per platform.

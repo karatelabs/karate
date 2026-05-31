@@ -47,7 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *       {@link io.karatelabs.core.ExtGlobalFactory} so each scenario gets its own
  *       {@link ImageApi} seeded with a copy of these defaults plus the scenario's
  *       context — parallel-safe, and able to resolve {@code this:}/{@code classpath:}/
- *       {@code file:} paths. See IMAGE_SPIKE.md §3.7.</li>
+ *       {@code file:} paths. See the karate-image README.</li>
  * </ul>
  */
 public class ImageExt implements Ext, SimpleObject {

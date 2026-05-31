@@ -1,11 +1,11 @@
-// Karate report Tailwind config. See IMAGE_SPIKE.md D20 — utility classes only,
-// no @layer components, slate-blue Karate Labs brand palette, system fonts only
-// (zero CDN dependency for fonts).
+// Karate report Tailwind config. Utility classes only, no @layer components,
+// slate-blue Karate Labs brand palette, system fonts only (zero CDN dependency
+// for fonts). See etc/tailwind/README.md.
 //
 // Build it: `bash etc/tailwind/tailwind.sh` (downloads the Tailwind standalone
 // CLI on first run, caches under etc/tailwind/.cache/, no node toolchain).
 // CI runs the same script + `git diff --exit-code` on the generated CSS —
-// stale CSS fails the build. See IMAGE_SPIKE.md §3.1.
+// stale CSS fails the build. See etc/tailwind/README.md.
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -22,7 +22,7 @@ module.exports = {
         // won't be in the generated CSS.
         'karate-core/src/main/resources/io/karatelabs/output/res/karate-report.js',
     ],
-    // Ext-facing utility safelist (IMAGE_SPIKE.md O6). Exts live in separate JARs
+    // Ext-facing utility safelist (see EXT.md § Report assets). Exts live in separate JARs
     // the `content` globs above never scan, so any Tailwind utility an ext's
     // HTML/JS uses that core itself does NOT render gets purged from the output
     // and the ext renders unstyled. List such "promised" utilities here to force

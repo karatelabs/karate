@@ -448,7 +448,7 @@ public class Suite {
 
     /**
      * Built-in JS-scope names an ext global may not shadow. Registration of a
-     * colliding ext global fails the Suite loud at boot (per IMAGE_SPIKE §3.4).
+     * colliding ext global fails the Suite loud at boot (see EXT.md § Ext globals).
      */
     private static final Set<String> RESERVED_GLOBAL_NAMES = Set.of("karate", "read", "match", "driver");
 
@@ -503,7 +503,7 @@ public class Suite {
      * {@link Ext#onBoot(Suite)} with a fluent {@link ReportAssets} spec, e.g.
      * {@code suite.registerReportAssets(ReportAssets.named("image").js("static/ext.js"), getClass().getClassLoader())}.
      * Validates the spec against the classloader (referenced resources must exist);
-     * any failure throws and so fails the Suite loud at boot (IMAGE_SPIKE §3.3).
+     * any failure throws and so fails the Suite loud at boot (see EXT.md § Report assets).
      */
     public void registerReportAssets(ReportAssets assets, ClassLoader classLoader) {
         if (assets == null) {

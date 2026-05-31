@@ -131,7 +131,7 @@ class ImageExtE2ETest {
         // The shipped image.js is the m3 lightbox, not the m2 stub: it registers the
         // 'image-comparison' renderer and builds the <dialog> lightbox. (The live DOM
         // is rendered client-side, so the dialog itself is verified by the manual smoke,
-        // not a static parse — IMAGE_SPIKE.md §3.8b.)
+        // not a static parse — see the karate-image README.)
         String extJsSrc = Files.readString(extJs);
         assertTrue(extJsSrc.contains("registerEmbed('image-comparison'"),
                 "ext.js should register the image-comparison renderer");

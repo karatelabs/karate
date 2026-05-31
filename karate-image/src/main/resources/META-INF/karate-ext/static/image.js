@@ -2,7 +2,7 @@
  * karate-image report ext — client-side renderer for the `image-comparison` embed.
  *
  * Registers a renderer with core's report JS (KarateReport.registerEmbed, see
- * IMAGE_SPIKE.md §3.8a). Core emits the multi-part embed
+ * EXT.md § Embeds). Core emits the multi-part embed
  *   { name:"image-comparison", parts:[{role:"baseline"|"latest"|"diff", ...}], meta }
  * and delegates its rendering here. We draw a compact thumbnail + status badge that
  * opens a <dialog> lightbox with side-by-side / slider / blink / onion-skin tools.
@@ -11,9 +11,9 @@
  * baseline/latest/diff (NOT current); meta carries name, mismatchPercentage,
  * threshold, engine, passed, and (when a baseline was just created) baselineEstablished.
  *
- * Styling is hand-authored + scoped under .k-image-ext (IMAGE_SPIKE.md O6, channel b);
- * core runs no Tailwind build over this file. Resemble.js is lazy-loaded from CDN on
- * first lightbox open (D11) to power an optional live-diff view; the server already
+ * Styling is hand-authored + scoped under .k-image-ext (see EXT.md § Report assets —
+ * "scope it, don't Tailwind it"); core runs no Tailwind build over this file. Resemble.js
+ * is lazy-loaded from CDN on first lightbox open to power an optional live-diff view; the server already
  * wrote the precomputed diff PNG, so the core tools work with no network.
  */
 (function () {
@@ -222,7 +222,7 @@
             if (top) top.style.opacity = '';
         },
 
-        // Lazy-load Resemble.js from CDN on first lightbox open (D11). The core
+        // Lazy-load Resemble.js from CDN on first lightbox open. The core
         // slider/blink/onion tools work without it; this just makes the library
         // available for future live-diff use and fulfils the lazy-load contract.
         _loadResemble: function () {

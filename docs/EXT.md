@@ -264,3 +264,106 @@ Named DOM containers / splice points the report exposes for ext UI. Reality vs. 
 5. Activate from `karate-boot.js`: `const x = boot.ext('<name>'); x.someConfig = …`.
 
 See [`karate-image`](../karate-image/README.md) for a complete, shipping example.
+
+---
+
+## Backlog & open questions (not yet built)
+
+> Forward-looking design captured here so it isn't lost. These are **not** shipped. Items
+> are grouped by area; each is a one-liner with enough of the rationale to restart the work.
+> (This section absorbed the live forward-design of the now-deleted `IMAGE_SPIKE.md` —
+> Phases 1–3 of that spike are shipped and documented above / in DESIGN.md / the
+> `karate-image` README; only the unbuilt parts live on here.)
+
+### Ext SPI surface
+
+- **Multi-file JS/CSS per ext.** `ReportAssets` allows a single `.js()` / `.css()` today. An
+  ext bundling several capabilities must concat into one bundle (no SPI change) — decide
+  "concat-first" vs. growing the builder to lists. Surfaced by the `karate-xplorer` über-ext
+  (multiple report surfaces). Land the decision before/with the second real ext.
+- **`feature.panels` / `summary.cards` slots.** Declared in the slot model but the template
+  containers don't exist yet — add them only when a feature-page panel or extra KPI card is
+  actually wanted (see Slot model table above).
+- **Ext-global name shadowing (was O18).** Boot-time collision detection covers built-in
+  names (`karate`/`read`/…) only. A registered ext global also shadows a user `def`-bound
+  var of the same name — extend the seed-time check to warn (or error) on that. (`* image = 1`
+  is already invalid syntax, so only *shadowing*, not assignment, is the concern.)
+- **Auto-discovery stays rejected.** No `META-INF/services/...Ext` ServiceLoader discovery —
+  `boot.ext('name')` is the explicit, only activation path (surprise activation is a non-goal).
+
+### Keyword-authoring DSL (was O21 + §3.5) — the big one
+
+- Today an ext is driven by **property-setters** (`* image.threshold = 0.02`) and **JS method
+  calls** (`* def r = image.compare(...)`), both of which already work with no `StepExecutor`
+  change. Two richer forms are designed but **deferred (no ETA), to a separate spike**:
+  1. **JSON-arg dispatch** — `* image { compare: 'home.png', baseline: '...' }`: handler routes
+     by keys; needs a `StepHandler` functional interface + a branch in `StepExecutor.run`'s
+     keyword-switch `default` (the hot path — only matches when the first token is a registered
+     ext global implementing `StepHandler`, else falls through to JS eval).
+  2. **Cucumber-like pattern** — `* image compare "x.png" against "base/x.png" within 0.02`
+     matched against a JS-authored, runtime-registered pattern (no compile step, typed params).
+- Open sub-question (was O3): conflict policy when two exts want the same keyword/global.
+- Design all forms together rather than landing the JSON-arg form alone.
+
+### Channel resolver unification (was D18 / O11 / O17)
+
+- `karate.channel('grpc')` still resolves via `KarateConfig.getChannelFactoryClass(type)`;
+  unify onto the same `io.karatelabs.ext.<name>.<Name>Channel` name-convention resolver the
+  ext path uses. Factor a pure `ExtNameResolver` (`String → Class<?>`); `BootBinding.ext()` and
+  `KarateJs.channel()` both call it but wrap differently (per-call factory vs. Suite singleton).
+  Requires repackaging `karate-ext/karate-grpc` etc. — coordinate cross-repo.
+
+### Report data-model gaps (deferred from the Tailwind restyle)
+
+These need upstream `karate-core` wire/serializer changes before the report frontend can use them:
+- **Structured HTTP block** — `step.logs` is a free-form text blob with `1 > / 1 <` markers;
+  emit structured `request`/`response` on the step so the report can render a method/status/
+  headers/body block (and a copy-as-cURL button) without regex-parsing text.
+- **Expected-vs-actual match diff** — `HtmlReportWriter.buildStepData` only passes
+  `step.getError().getMessage()`; a structured (recursive) `Result.Failure` serializer is
+  needed for a side-by-side diff view.
+- **Outline examples table** — per-example var bindings aren't on the wire
+  (`buildScenarioData` omits the row's column values); needed to aggregate sibling outline
+  examples into one table.
+- **Per-tag pass-rate (was O13)** — needs `SuiteResult.tagStats`
+  (`Map<String,{passed,failed,skipped}>`); enables tag pass-rate rings.
+- **Thread-utilization on Timeline (was O15)** — busy-vs-idle per-thread timeline.
+
+### Wire / safety items
+
+- **Tag `@`-prefix inconsistency (was O23).** `SCENARIO_ENTER` emits tags via
+  `RunUtils.tagTexts` (no leading `@`) while `ScenarioResult` / `SCENARIO_EXIT` emit
+  `tag.toString()` (with `@`). Any consumer joining scenarios by tag must normalize — emit
+  uniformly across events to remove the foot-gun.
+- **`@report=false` × ext embeds (was O9).** `@report=false` strips step detail from
+  artifacts; verify ext-emitted embeds (e.g. image diffs of redacted scenarios) also don't
+  leak. Confirm with a test — not obviously covered today.
+
+### PDF rendering (was Phase 5 / D14)
+
+- New OSS submodule `karate-pdf`. Two paths kept open, both targeting the same print CSS so
+  ext content renders in both: **(A)** JSONL → printable HTML → browser print-to-PDF (default,
+  zero new deps, needs user interaction); **(B)** `boot.ext('pdf-export')` observes
+  `SUITE_EXIT`, renders the written `karate-summary.html` via the existing headless-Chrome CDP
+  infra (`Page.printToPDF`), with native bookmarks + `target-counter()` TOC.
+- Exts optionally ship `static/<name>.print.css` (print pipeline injects it); decide
+  auto-detection (was O4). karate-image's print CSS would stack the 3 images vertically.
+
+### Second real consumer — `karate-xplorer` über-ext (was Phase 4)
+
+- Proves the SPI on a separately-versioned proprietary ext (requirements + rules + coverage +
+  openapi folded into one, in the sibling `karate-ext` repo). Prereq `nav.pages` render is
+  done; the remaining SPI-side blocker is the multi-file-JS decision above. Detailed über-ext
+  design lives in the veriquant `unified-traceability-substrate` memo, not here.
+
+### Rollout / release (was O16 / O12 / §5)
+
+- **D17 rename rollout.** `karate-core` done; the sibling `karate-ext` repo still needs
+  repackaging `io.karatelabs.plugins.*` → `io.karatelabs.ext.*`, and the Rust launcher's
+  `~/.karate/ext/` recognition verified. A window where on-disk JARs say `karate-plugins`
+  against a core resolving `karate-ext` breaks user setups — coordinate with the first release
+  that requires it.
+- **RELEASING.md amendments (not yet applied).** Shipping the `karate-image` artifact adds:
+  publish `io.karatelabs:karate-image` to Maven Central; attach the `-Pfatjar` jar to the
+  GitHub release; add a `karate.sh` manifest entry; CI runs `mvn -pl karate-image test` + a
+  fatjar-build job. `karate-ext`'s monorepo version tracks `karate-core` exactly (O12).

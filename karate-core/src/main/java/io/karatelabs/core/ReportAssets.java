@@ -34,7 +34,7 @@ import java.util.List;
 /**
  * Imperative spec for one ext's report-asset contribution, built fluently inside
  * {@link Ext#onBoot(Suite)} and handed to
- * {@link Suite#registerReportAssets(ReportAssets, ClassLoader)} (see IMAGE_SPIKE.md §3.3).
+ * {@link Suite#registerReportAssets(ReportAssets, ClassLoader)} (see EXT.md § Report assets).
  *
  * <p>There is deliberately no {@code manifest.json} — the ext object is already live
  * at {@code onBoot}, so asset wiring is declared in one place (Java), type-safe, with

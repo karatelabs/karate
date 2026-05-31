@@ -46,7 +46,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *       {@code karate-image/target/visual-demo/karate-reports} — open
  *       {@code feature-html/visual-demo.html} to see the m3 diff lightbox (thumbnail →
  *       &lt;dialog&gt; with side-by-side / slider / blink / onion-skin). This is the
- *       manual smoke step (IMAGE_SPIKE.md §3.8b), runnable on demand.</li>
+ *       manual smoke step (see the karate-image README), runnable on demand.</li>
  * </ol>
  *
  * <p>This is the seed of the full m3(d) dev-flow test — it currently covers a core

@@ -247,7 +247,7 @@ public class StepResult {
 
     /**
      * A named report embed, generalised to one-or-more {@link Part}s plus optional
-     * {@code meta} (IMAGE_SPIKE.md §3.6). A legacy single-asset embed (screenshot,
+     * {@code meta} (see EXT.md § Embeds). A legacy single-asset embed (screenshot,
      * {@code doc} HTML, {@code karate.embed}) is one {@code "primary"} part carrying
      * inline bytes; a multi-asset embed (e.g. image-comparison: baseline / current /
      * diff) carries several parts, typically url-based.

@@ -8,7 +8,7 @@
 # changes during local iteration.
 #
 # CI invokes this and then `git diff --exit-code` on the output file — a stale
-# CSS in main fails the build. See docs/IMAGE_SPIKE.md §3.1.
+# CSS in main fails the build. See etc/tailwind/README.md.
 
 set -e
 

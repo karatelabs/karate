@@ -92,7 +92,8 @@ public final class HtmlReportWriter {
     };
 
     private static final String DATA_PLACEHOLDER = "/* KARATE_DATA */";
-    // Phase 1 (IMAGE_SPIKE.md §3.1.2 + D21): inline-SVG sprite splice.
+    // Heroicons inline-SVG sprite splice (see _icons.svg). One of three string-replace
+    // placeholders below; the placeholder model is the report's only server-side render seam.
     private static final String ICONS_PLACEHOLDER = "<!-- KARATE_ICONS -->";
     // Phase 2 (§3.3): per-ext <script>/<link> asset tags spliced into <head>.
     private static final String EXTS_PLACEHOLDER = "<!-- KARATE_EXTS -->";
@@ -371,9 +372,9 @@ public final class HtmlReportWriter {
 
     /**
      * Inline JSON data into an HTML template, splicing the icons sprite (and, via
-     * the overload, the per-ext asset + nav blocks). See IMAGE_SPIKE.md §3.1.2 for
-     * the placeholder model — `HtmlReportWriter` is the single string-replace point
-     * for every template. This no-ext overload is used by the direct
+     * the overload, the per-ext asset + nav blocks). The templates are static HTML with
+     * string-replace placeholders (not a template engine) — `HtmlReportWriter` is the
+     * single string-replace point for every template. This no-ext overload is used by the direct
      * {@link #write(SuiteResult, Path, String)} path, which has no registered exts.
      */
     private static String inlineJson(String template, Object data) {
@@ -508,7 +509,7 @@ public final class HtmlReportWriter {
     /**
      * Load the icons sprite once per JVM and cache it. Missing sprite is logged
      * at WARN and the splice yields the empty string — the report still renders,
-     * just without icons. See {@code _icons.svg} + IMAGE_SPIKE.md D21.
+     * just without icons. See {@code _icons.svg} (Heroicons v2, MIT).
      */
     private static String loadIconsSprite() {
         String cached = iconsSprite;
