@@ -344,39 +344,18 @@ public class ImageApi implements SimpleObject {
         if (o instanceof byte[] b) {
             return b;
         }
-        // Canonical unwrap: a JS Uint8Array (the idiomatic binary type — what
-        // `new Uint8Array(...)` and driver screenshots produce) arrives as a JsValue
-        // whose getJavaValue() is byte[]. Do this before the List branch, since a
-        // JsUint8Array also presents as a List (this is the efficient, exact path).
+        // A Uint8Array (driver screenshots / new Uint8Array(...)) is a JsValue whose
+        // getJavaValue() is byte[]. Top-level args are already unwrapped to byte[] at
+        // the external-call boundary; this branch also covers a Uint8Array nested in
+        // the map form (compare({ latest: ... })), where nested values aren't unwrapped.
         if (o instanceof io.karatelabs.js.JsValue jv) {
             return toBytes(jv.getJavaValue());
         }
         if (o instanceof String s) {
             return readBytes(s);
         }
-        // Fallback: a raw Java byte[] that crossed JS scope as a plain List<Number>
-        // (each element a byte value). byteValue() preserves the bit pattern whether
-        // elements are signed (-128..127) or unsigned (0..255).
-        if (o instanceof java.util.List<?> list) {
-            byte[] out = new byte[list.size()];
-            for (int i = 0; i < out.length; i++) {
-                Object el = list.get(i);
-                if (!(el instanceof Number n)) {
-                    throw new RuntimeException("image: 'latest' contains a non-numeric element: " + el);
-                }
-                out[i] = n.byteValue();
-            }
-            return out;
-        }
-        if (o instanceof int[] ints) {
-            byte[] out = new byte[ints.length];
-            for (int i = 0; i < ints.length; i++) {
-                out[i] = (byte) ints[i];
-            }
-            return out;
-        }
         throw new RuntimeException("image: unsupported 'latest' type "
-                + o.getClass().getName() + " (expected byte[], a number list, or a path string)");
+                + o.getClass().getName() + " (expected a Uint8Array, byte[], or a path string)");
     }
 
     private static String stripPng(String name) {

@@ -78,6 +78,10 @@ class ImageExtE2ETest {
             # same image vs the just-established baseline → matches
             * def same = image.compare('home', blue)
             * match same.pass == true
+            # one-shot map form with a Uint8Array nested in the arg (exercises the
+            # map path, where the nested latest isn't boundary-unwrapped)
+            * def viaMap = image.compare({ name: 'home', latest: blue })
+            * match viaMap.pass == true
             # different image, but failOnMismatch=false → returns a result to assert on
             * image.failOnMismatch = false
             * def diff = image.compare('home', green)
