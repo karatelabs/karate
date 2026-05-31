@@ -591,6 +591,10 @@ the JSONL file remains the source of truth for offline / async ingestion.
 
 ## Ext Architecture
 
+> **Authoring an ext?** See [EXT.md](./EXT.md) — the SPI reference for the types an ext
+> implements/calls (globals, `ReportAssets`, embeds, the `KarateReport.registerEmbed` UI
+> hook). This section covers the `karate-boot.js` activation surface + lifecycle.
+
 | Interface | Purpose | Discovery |
 |-----------|---------|-----------|
 | `CommandProvider` | CLI subcommands | ServiceLoader (`~/.karate/ext/` JARs) |
@@ -665,6 +669,7 @@ loading entirely — mock servers aren't tests, so exts don't activate.
 | Doc | Covers |
 |-----|--------|
 | [CLI.md](./CLI.md) | Two-tier CLI (Rust launcher + Java), subcommands, karate-pom.json |
+| [EXT.md](./EXT.md) | Ext SPI — authoring an extension: globals, report assets, embeds, the `registerEmbed` UI hook |
 | [JS_ENGINE.md](./JS_ENGINE.md) | Type system (JsValue hierarchy), Java interop, prototypes |
 | [DRIVER.md](./DRIVER.md) | Browser automation — CDP, W3C WebDriver, frame/window management |
 | [MOCKS.md](./MOCKS.md) | Mock server — feature-based definitions, proxy mode, stateful mocks |
