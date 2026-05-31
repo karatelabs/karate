@@ -156,11 +156,11 @@ Named DOM containers in templates; ext-owned rendering. Five slot conventions, a
 | `step.embed` | Step row | `data-step-id`, `data-embed-name` | renders one named embed payload | ◑ embeds render inline via `_renderEmbed`, not a `data-slot` host |
 | `nav.pages` | Topbar nav (Summary / Timeline / *ext pages*) | none | extra `<a href=ext/<name>/page.html>` tab | ✅ server-side splice via `<!-- KARATE_NAV -->` (see below) |
 
-> **Caveat — slot reality vs. design (O22 audit, [memo §6e](../../veriquant/docs/_wip/design-memos/unified-traceability-substrate-2026-05-29.md)).** The five slots above are the *design*; in the shipped templates, `summary.panels` (client-side container) and `nav.pages` (server-side splice) are wired; `summary.cards` and `feature.panels` are not yet. Per-step embeds render inline (`res/karate-report.js` `_renderEmbed`) rather than through a `step.embed` `data-slot` host — fine for Phase 3 (`karate-image` renders its lightbox off the embed name + `Alpine.data`, no container needed).
+> **Caveat — slot reality vs. design (O22 audit, [memo §6e](../../veriquant/docs/_wip/design-memos/unified-traceability-substrate-2026-05-29.md)).** The five slots above are the *design*; in the shipped templates, `summary.panels` (client-side container) and `nav.pages` (server-side splice) are wired; `summary.cards` and `feature.panels` are not yet. Per-step embeds render inline (`res/karate-report.js` `_renderEmbed`) rather than through a `step.embed` `data-slot` host — fine for Phase 3 (`karate-image` renders its lightbox off the embed name via the §3.8(a) `KarateReport.registerEmbed` hook, no container needed).
 >
 > **`nav.pages` — now wired (server-side splice).** `HtmlReportWriter` carries a third splice placeholder, `<!-- KARATE_NAV -->` (alongside `/* KARATE_DATA */` and `<!-- KARATE_EXTS -->`), in the topbar `<nav>` of all three templates (the nav is hardcoded per-page, not a shared fragment, so the placeholder is in each). `buildNavHtml(reportAssets, relPrefix)` emits one `<a href="<relPrefix>ext/<name>/<page.href>">title</a>` per ext `page("nav.pages", title, href)` contribution, registration-ordered, carrying the same utility classes as the built-in Summary/Timeline links, with the `../` prefix on feature pages — exactly mirroring the `KARATE_EXTS` asset splice so URLs agree. Page titles are HTML-escaped (ext-author strings). So an ext's `page("nav.pages", "Image diffs", "pages/image-comparison.html")` now produces a clickable topbar tab. Covered by `DummyExtE2ETest#extAssetsCopiedAndScriptSpliced` (asserts the tab on summary/feature/timeline with the right prefix, and that the placeholder is fully replaced). `karate-image`'s optional `pages/image-comparison.html` index is therefore unblocked.
 
-**Render contract.** Inside `alpine:init`, an ext script does:
+**Render contract.** *(⚠ SUPERSEDED for per-step embeds — see §3.8(a).* The `alpine:init` / `Alpine.data` + `data-slot="step.embed"` sketch below was never wired; embeds render inline via `_renderEmbed`, and m3 hooks them via `KarateReport.registerEmbed(name, fn)`, not Alpine. The sketch is retained only as reference for the still-unwired panel slots.) Inside `alpine:init`, an ext script does:
 
 ```js
 document.addEventListener('alpine:init', () => {
@@ -169,7 +169,7 @@ document.addEventListener('alpine:init', () => {
     init() {
       const parts = JSON.parse(this.$el.dataset.parts);
       this.baseline = parts.find(p => p.role === 'baseline').url;
-      this.current  = parts.find(p => p.role === 'current').url;
+      this.latest   = parts.find(p => p.role === 'latest').url;
       this.diff     = parts.find(p => p.role === 'diff').url;
       this.meta     = JSON.parse(this.$el.dataset.meta);
     },
@@ -186,7 +186,7 @@ The core report walks `step.embeds[]`, and for each embed emits:
      data-embed-name="image-comparison"
      x-data="imageComparison"
      data-parts='[{"role":"baseline","url":"ext/image/assets/abc.png"}, ...]'
-     data-meta='{"mismatchPercent":2.3,"threshold":0.05}'>
+     data-meta='{"mismatchPercentage":2.3,"threshold":0.05}'>
 </div>
 ```
 
@@ -360,7 +360,7 @@ public class Embed {
     public final Map<String,Object> meta;
 }
 public class Part {
-    public final String role;            // "baseline" | "current" | "diff" | "primary" | ...
+    public final String role;            // "baseline" | "latest" | "diff" | "primary" | ...
     public final String mime;
     public final String url;             // when bytes were written to assets/
     public final byte[] data;            // inline form (legacy)
@@ -374,10 +374,10 @@ public class Part {
   "name": "image-comparison",
   "parts": [
     {"role": "baseline", "mime": "image/png", "url": "ext/image/assets/abc.png"},
-    {"role": "current",  "mime": "image/png", "url": "ext/image/assets/def.png"},
+    {"role": "latest",   "mime": "image/png", "url": "ext/image/assets/def.png"},
     {"role": "diff",     "mime": "image/png", "url": "ext/image/assets/ghi.png"}
   ],
-  "meta": {"mismatchPercent": 2.3, "threshold": 0.05, "passed": false}
+  "meta": {"mismatchPercentage": 2.3, "threshold": 0.05, "passed": false}
 }
 ```
 
@@ -444,14 +444,14 @@ The server side is done (m1 engine + m2 API emit the `image-comparison` multi-pa
 
 This mirrors the `nav.pages` fix (a small, general core report-JS affordance that every future ext reuses) and belongs in §3.2 once built.
 
-**(b) The lightbox (image ext `static/ext.js`, replacing the m2 stub).** Registered via `KarateReport.registerEmbed('image-comparison', fn)`. Reads `parts` (baseline/latest/diff `url`s or inline data) + `meta` (`mismatchPercentage`, `threshold`, `engine`, `passed`, `baselineEstablished`). Renders a thumbnail (diff, or latest when established) that opens a `<dialog>` lightbox with the three views and a **slider / blink / onion-skin** toolbar. Resemble.js is **lazy-loaded from CDN on lightbox open** (D11) — the server already wrote the precomputed diff PNG; Resemble powers only the interactive tools. CSS scoped under `.k-image-ext` (D20/O6). `meta.passed`/`baselineEstablished` drive a pass/fail/established badge.
+**(b) The lightbox (image ext `static/ext.js`, replacing the m2 stub).** Registered via `KarateReport.registerEmbed('image-comparison', fn)`. Reads `parts` (baseline/latest/diff `url`s or inline data) + `meta` (`mismatchPercentage`, `threshold`, `engine`, `passed`, `baselineEstablished`). Renders a thumbnail (diff, or latest when established) that opens a `<dialog>` lightbox with the three views and a **slider / blink / onion-skin** toolbar. Resemble.js is **lazy-loaded from CDN on lightbox open** (D11) — the server already wrote the precomputed diff PNG; Resemble powers only the interactive tools. CSS scoped under `.k-image-ext` (D20/O6). `meta.passed`/`baselineEstablished` drive a pass/fail/established badge. **Source of truth for the wire shape is the shipped emitter — read `ImageApi.java` `emit(...)`/`meta(...)`: roles are `baseline`/`latest`/`diff` (NOT `current`) and the key is `mismatchPercentage` (NOT `mismatchPercent`); some older §3.2/§3.6 sketches predate this — trust the code.** **m3 view-loop (distinct from the core §3.1.1 loop):** the §3.1.1 loop uses `HtmlReportWriterTest`, which registers no ext — to see the *lightbox* you must run an ext suite. Run `ImageExtE2ETest` (or the new §3.8(d) dev-flow feature) → open the written `karate-image/target/.../karate-feature.html`. Iterate on `ext.js`/`ext.css` directly — no Tailwind rebuild (ext CSS is hand-authored under `.k-image-ext` per O6, not Tailwind-scanned).
 
 **(c) Optional `nav.pages` "all diffs in the run" index — under-specified, lower priority.** A static `pages/image-comparison.html` can't see the run's embeds on its own. Decide its data source before building: (i) read the suite/feature report JSON (`KARATE_DATA`) and filter `image-comparison` embeds, or (ii) have the ext accumulate a manifest written alongside assets. Ship the per-step lightbox (a/b) first; the index is additive and now unblocked by the `nav.pages` work.
 
 **Out of m3:** print CSS (`ext.print.css`) is Phase 5; the rebase "Accept as baseline" report affordance (§3.7c) rides on (a) and live-serve, also later.
 
 **(d) Deliverables to land with m3 (docs + dev-flow test):**
-- **Developer-flow test in `karate-image` itself — automated *and* demo.** Port the v1 `examples/image-comparison` progression (`1_establish_baseline` → `2_compare_baseline` → `3/4_rebase` → `5_custom_config` → `6_outline` → `7_api`) into a Karate feature + JUnit runner under `karate-image/src/test/` (driverless: pass `Uint8Array`/`byte[]` fixtures, not live screenshots). **Two jobs at once:** (i) it runs as part of the normal unit/CI suite and *asserts* the flow (establish → match → custom-config → rebase → re-match → outline/multi-name), locking behaviour end-to-end; (ii) it doubles as the runnable demo — readable, self-contained, and it writes a real HTML report (open it to see the m3 lightbox), so it's the live showcase of the v2 API. It supersedes the hand-written `screenGrab` walkthrough — the feature *is* the story now (`image.compare(name, latest)` + `image.rebase`). Keep small committed PNG fixtures + per-name `.json` options under `src/test/resources` so the run is deterministic and offline. Complements the existing focused `ImageExtE2ETest`.
+- **Developer-flow test in `karate-image` itself — automated *and* demo.** Port the v1 `examples/image-comparison` progression — `1_establish_baseline` → `2_compare_baseline` → `3_custom_rebase` → `4_generic_rebase` → `5_custom_config` → `6_outline` → `7_api` — into a Karate feature + JUnit runner under `karate-image/src/test/` (driverless: pass `Uint8Array`/`byte[]` fixtures, not live screenshots). **Source location:** the v1 example was removed from `main`; it lives on the **`v1` branch** — `git show origin/v1:examples/image-comparison/README.md` (the README walks the 1→7 progression) and `git checkout origin/v1 -- examples/image-comparison/` extracts the 7 `.feature` files, `ImageComparisonRunner.java`, `screenshots/*.png` fixtures, and per-name `screenshots/config/*.json` option files. **Mapping note:** v1 #3/#4 demo the `onShowRebase` *handler* (v1-only, no v2 equivalent) — port them to the explicit `image.rebase(name, latest)` shape (§3.7c), not 1:1. **Two jobs at once:** (i) it runs as part of the normal unit/CI suite and *asserts* the flow (establish → match → custom-config → rebase → re-match → outline/multi-name), locking behaviour end-to-end; (ii) it doubles as the runnable demo — readable, self-contained, and it writes a real HTML report (open it to see the m3 lightbox), so it's the live showcase of the v2 API. It supersedes the hand-written `screenGrab` walkthrough — the feature *is* the story now (`image.compare(name, latest)` + `image.rebase`). Keep small committed PNG fixtures + per-name `.json` options under `src/test/resources` so the run is deterministic and offline. Complements the existing focused `ImageExtE2ETest`.
 - **`karate-image/README.md`.** Document the main design: the `image` API (config → `compare`/`rebase`, §3.7), the per-scenario ext-global factory model, the embed/lightbox, and the engine credit (jkeys089 / resemble + ssim). Module has none today.
 - **TODO: user-facing docs in `../karate-docs`.** When Phase 3 is complete (frontend shipped), update the user-facing documentation site (`../karate-docs`) — the image-comparison guide, migration note from v1 `compareImage`, and the ext-authoring page (per-scenario factory + `KarateJsContext`). Track as the Phase 3 doc close-out; do *not* block m3 build on it.
 
@@ -553,7 +553,7 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 - `io.karatelabs.ext.image.ImageApi` — implements `io.karatelabs.js.SimpleObject` (§3.4). `jsGet("compare")` returns a `JavaCallable` (`compare(args)`); `putMember` accepts the config properties (`baselineDir`, `threshold`, `report`). Used as `* image.baselineDir = '...'` then `* image.compare('home.png')`. (The `* image { compare: ... }` keyword form is deferred — §3.5 / O21.)
 - `static/ext.js`, `static/ext.css` under `META-INF/karate-ext/` (no manifest — assets registered imperatively via `ReportAssets` in `onBoot`, §3.3).
 - `static/ext.js`:
-  - Registers `Alpine.data('imageComparison', ...)` per §3.2.
+  - Registers a renderer via `KarateReport.registerEmbed('image-comparison', fn)` (§3.8(a)) — not `Alpine.data`; that slot/hook was never wired.
   - Lightbox: `<dialog>` element + Alpine, no Bootstrap modal. Slider/blink/onion-skin toolbar.
   - On lightbox open, lazy-loads Resemble.js from `https://unpkg.com/resemblejs@5.0.0/resemble.js` (CDN per D11).
 - `static/ext.css`: scoped under `.k-image-ext` to avoid colliding with core Tailwind.
@@ -575,7 +575,7 @@ Five PRs. Each phase ends with a green build, manual smoke pass, and an explicit
 
 **Exit criteria** (each independently verifiable):
 - `mvn -pl karate-image test` green.
-- `ImageExtE2ETest` runs a Suite with a `karate-boot.js` that calls `boot.ext('image')`; test `.feature` calls `* image.compare('home.png')` (with baseline/threshold set via property-setters); HTML-parse asserts the diff `<dialog>` element and three `<img>` tags (baseline/current/diff) are present in the written `karate-feature.html`.
+- `ImageExtE2ETest` runs a Suite with a `karate-boot.js` that calls `boot.ext('image')`; test `.feature` calls `* image.compare('home.png')` (with baseline/threshold set via property-setters); HTML-parse asserts the diff `<dialog>` element and three `<img>` tags (roles `baseline`/`latest`/`diff` — the shipped `ImageApi` emits `latest`, not `current`) are present in the written `karate-feature.html`. (The m2 `ImageExtE2ETest` is assertion-style; this lightbox-DOM check is the m3 frontend test — extend it or add a sibling.)
 - **Manual smoke step** (mark explicit — no automation): open the generated report in a browser, click a diff thumbnail, confirm lightbox opens and slider/blink/onion-skin toolbar works.
 - Fatjar test: build `karate-image-X.Y.Z.jar`, then run in an **isolated home** so the test cannot pollute the developer's real `~/.karate/ext/`:
   ```bash
