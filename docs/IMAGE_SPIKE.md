@@ -450,6 +450,11 @@ This mirrors the `nav.pages` fix (a small, general core report-JS affordance tha
 
 **Out of m3:** print CSS (`ext.print.css`) is Phase 5; the rebase "Accept as baseline" report affordance (§3.7c) rides on (a) and live-serve, also later.
 
+**(d) Deliverables to land with m3 (docs + dev-flow test):**
+- **Developer-flow test in `karate-image` itself — automated *and* demo.** Port the v1 `examples/image-comparison` progression (`1_establish_baseline` → `2_compare_baseline` → `3/4_rebase` → `5_custom_config` → `6_outline` → `7_api`) into a Karate feature + JUnit runner under `karate-image/src/test/` (driverless: pass `Uint8Array`/`byte[]` fixtures, not live screenshots). **Two jobs at once:** (i) it runs as part of the normal unit/CI suite and *asserts* the flow (establish → match → custom-config → rebase → re-match → outline/multi-name), locking behaviour end-to-end; (ii) it doubles as the runnable demo — readable, self-contained, and it writes a real HTML report (open it to see the m3 lightbox), so it's the live showcase of the v2 API. It supersedes the hand-written `screenGrab` walkthrough — the feature *is* the story now (`image.compare(name, latest)` + `image.rebase`). Keep small committed PNG fixtures + per-name `.json` options under `src/test/resources` so the run is deterministic and offline. Complements the existing focused `ImageExtE2ETest`.
+- **`karate-image/README.md`.** Document the main design: the `image` API (config → `compare`/`rebase`, §3.7), the per-scenario ext-global factory model, the embed/lightbox, and the engine credit (jkeys089 / resemble + ssim). Module has none today.
+- **TODO: user-facing docs in `../karate-docs`.** When Phase 3 is complete (frontend shipped), update the user-facing documentation site (`../karate-docs`) — the image-comparison guide, migration note from v1 `compareImage`, and the ext-authoring page (per-scenario factory + `KarateJsContext`). Track as the Phase 3 doc close-out; do *not* block m3 build on it.
+
 ---
 
 ## 4. Phased Implementation
