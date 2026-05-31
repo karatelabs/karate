@@ -179,7 +179,13 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // evalConfig() below; applies to called features too (suite-level singletons).
         if (featureRuntime != null && featureRuntime.getSuite() != null) {
             for (var entry : featureRuntime.getSuite().getGlobals().entrySet()) {
-                karate.engine.putRootBinding(entry.getKey(), entry.getValue());
+                Object value = entry.getValue();
+                // A per-scenario ext global registers an ExtGlobalFactory (vs a shared
+                // singleton instance) — mint a fresh instance here with this runtime as
+                // its KarateJsContext, so its state is scenario-scoped and it can resolve
+                // this:/classpath:/file: paths + reach the runtime. See ExtGlobalFactory.
+                Object binding = value instanceof ExtGlobalFactory factory ? factory.create(this) : value;
+                karate.engine.putRootBinding(entry.getKey(), binding);
             }
         }
 

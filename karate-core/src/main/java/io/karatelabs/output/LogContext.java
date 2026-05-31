@@ -298,6 +298,18 @@ public class LogContext {
     }
 
     /**
+     * Add a pre-built embed (e.g. a multi-part {@code {name, parts[], meta}} from an
+     * ext like image-comparison) to the current step. Thread-local, so it targets
+     * the step executing on this thread.
+     */
+    public void embed(StepResult.Embed embed) {
+        if (embeds == null) {
+            embeds = new ArrayList<>();
+        }
+        embeds.add(embed);
+    }
+
+    /**
      * Collect and clear embeds.
      */
     public List<StepResult.Embed> collectEmbeds() {

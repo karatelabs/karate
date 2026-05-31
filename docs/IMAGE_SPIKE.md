@@ -387,6 +387,52 @@ public class Part {
 
 Karate's own readers were updated for the new shape in lock-step: `HtmlReportWriter.writeEmbedFile` walks `parts[]` (writing each inline part, naming multi-part files `NNN_<name>_<role>.ext`); `res/karate-report.js` `_renderEmbedPart` renders each part by mime (image/iframe/video/pdf/text/download), resolving `../embeds/<file>` or `../<url>`; `CucumberJsonWriter` emits one `{mime_type, data}` per inline part (the Cucumber JSON external spec is unchanged; url-only parts are skipped). Verified green: 37 `HtmlReportWriterTest`, 10 `CucumberJsonWriterTest`, `StepResultEmbedTest`.
 
+### 3.7 The `image` ext API — decided (Phase 3)
+
+> **Provenance.** Designed against the v1 `examples/image-comparison` walkthrough (the 7-feature progression: establish → compare → rebase → custom-config → outline → JS-API) and the Karate Labs channel idiom (`karate.channel('kafka'|'websocket'|'grpc')` — property-setters as builder, command verbs to execute, `configure x = {…}` for bulk). The v1 surface was low-level (`* compareImage { baseline, latest, options }` + `karate.compareImage(path, bytes, opts)`), forcing users to hand-write a `screenGrab(name)` orchestration (locate baseline by name → load per-name options → auto-establish if missing → compare). **v2 bakes that orchestration into `image.compare(name, latest)`.**
+
+The single ext-global `image` (Suite-singleton `SimpleObject`, seeded into scenario scope per §3.4) is **both** the config-holder/builder **and** the command executor. Decisions frozen: **latest is always explicit** (the ext never calls `driver`/`screenshot()` — stays decoupled; user passes bytes or a path); **no standalone builder object** (the one-line `compare({…})` map *is* the builder — a separate `comparer()` would just spread one map across setters with no reuse benefit, unlike kafka's long-lived `producer()`/`consumer()`); **per-name option files** auto-load; **rebase is explicit**.
+
+**(a) Config — three interchangeable ways, all writing the same config map (overlay, not replace).**
+
+```gherkin
+# boot-time suite defaults (karate-boot.js)
+* const image = boot.ext('image'); image.baselineDir = 'baselines'
+# per-scenario property-setters (the builder)
+* image.threshold = 0.02
+# bulk JSON overlay — preserves boot defaults
+* image.config = { engine: 'resemble', ignore: 'antialiasing', report: 'mismatched' }
+```
+
+Config keys: `baselineDir`, `engine` (`resemble` | `ssim` | `resemble,ssim` | `resemble|ssim`), `threshold` (max % mismatch; v1's `failureThreshold`), `failOnMismatch` (default `true`; v1's `mismatchShouldPass` inverted), `report` (`all` | `mismatched` | null — when to attach diff images), `ignore`, `allowScaling`, `tolerances`, `errorColor`, `errorType`, `transparency`. `ignoredBoxes` is usually per-name (see option files).
+
+**(b) Compare — latest always explicit; baseline auto-resolved by name.**
+
+```gherkin
+* image.compare('home', screenshot())          # name + explicit latest (bytes or path)
+* image.compare({ name: 'home', latest: shot, baseline: 'this:baselines/home.png', threshold: 0.05 })
+```
+
+`compare(name, latest)` resolves baseline = `<baselineDir>/<name>.png`, auto-loads options from `<baselineDir>/<name>.json` if present, **auto-establishes** the baseline (writes latest as the new baseline, passes with a note) when it's missing, **fails the step on mismatch** unless `failOnMismatch:false`, returns a result, and emits the multi-part diff embed. `latest` accepts a `Uint8Array` (the idiomatic binary type — driver `screenshot()` / `new Uint8Array(...)`, unwrapped canonically via `JsValue.getJavaValue()` → `byte[]`), a raw decoded `byte[]` (which crosses JS scope as a number list), or a path string (resolved through the same prefix system). The `compare({…})` map form is the one-shot full-control path (the "builder" collapsed to one line). **Options precedence (low → high): scenario/suite config → `<baselineDir>/<name>.json` → per-call inline.**
+
+**(c) Rebase — explicit, after an intentional UI change.**
+
+```gherkin
+* image.rebase('home', screenshot())     # overwrite baselines/home.png with this latest
+```
+
+`image.rebase(name, latest)` is the always-works programmatic path. A report-lightbox "Accept as baseline" affordance is a later add — note a *static* CI report can't write files, so it would show a copy-paste command / download the latest (v1's `onShowRebase` spirit, nicer UI); true one-click rebase only works under a live-serve host (xplorer).
+
+**(d) Result + embed shapes.** `compare()` returns `{ name, pass, mismatchPercentage, threshold, engine, isBaselineMissing, baselineEstablished }` (for `failOnMismatch:false` branching). The embed is `name:"image-comparison"` with `parts:[{role:"baseline"},{role:"latest"},{role:"diff"}]` + `meta:{ name, mismatchPercentage, threshold, engine, passed }` — `ImageExt`'s `static/ext.js` renders it into the lightbox by embed name (§3.2).
+
+**(e) Server engine.** `compare`/`rebase` delegate to the relocated `io.karatelabs.ext.image.ImageComparison` (the resemble/ssim math), mapping the config + resolved options into its `compare(baselineBytes, latestBytes, options, defaultOptions)` call and its `MismatchException`/result map back into the v2 result + embed. The engine itself is unchanged (Phase 3 m1).
+
+> **Status: built (Phase 3 m2).** `ImageExt` + `ImageApi` land, green (`ImageExtE2ETest`: establish → match → mismatch + report embed + asset splice; `ImageComparisonTest` 21). Two design points settled during the build:
+>
+> **Per-scenario instance, not a Suite singleton.** Phase 2 seeded ext globals as one shared singleton bound into every scenario — unsafe for `image`'s per-scenario config (`image.threshold = 0.02`) under parallel runs. New core affordance `ExtGlobalFactory` + `Suite.registerGlobal(name, ExtGlobalFactory)`: a stateful ext registers a factory, and `ScenarioRuntime` mints a fresh instance **per scenario** (the singleton form still works for stateless globals like `dummy`). Each `ImageApi` is created with the scenario's `KarateJsContext` in hand — mirroring how `karate.channel('kafka')` receives the runtime — so (i) config is scenario-scoped + parallel-safe, and (ii) it resolves `this:`/`classpath:`/`file:` paths via `context.getWorkingDir().resolve(...)` (reusing Karate's `Resource` prefix system — no bespoke path code, no thread-local). `ImageExt` itself is the boot-config holder (`boot.ext('image')` returns it; `image.baselineDir = …` in `karate-boot.js` sets defaults the factory copies per scenario). Multi-part embeds attach via the thread-local `LogContext.get().embed(Embed)`; mismatch fails the step via a thrown `RuntimeException`. This generalises: any future stateful ext uses the same factory + context affordance (the O22(c) gap, now closed).
+>
+> **`image.builder('compare')` — reserved future pattern (not built).** A *generic* `builder(opName)` (vs a per-op `comparer()`) is the chosen forward-looking convention: it scales to any number of operations without new methods and maps cleanly onto the future MCP/curl "one API, many faces" projection (every op uniformly discoverable for tooling). It's stringly-typed, so it stays a power/programmatic escape-hatch — the first-class discoverable verbs remain `image.compare(...)` / `image.rebase(...)`. Documented here as the intended builder shape if/when a staged-construction tier is added.
+
 ---
 
 ## 4. Phased Implementation

@@ -1,0 +1,8 @@
+/*
+ * karate-image report ext styles — scoped under .k-image-ext so ext-owned styles
+ * never collide with core's Tailwind utilities (IMAGE_SPIKE.md D20 / O6). Milestone 2
+ * placeholder; the lightbox / diff-toolbar styles land with the Milestone 3 UI.
+ */
+.k-image-ext {
+    display: contents;
+}

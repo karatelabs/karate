@@ -471,6 +471,23 @@ public class Suite {
         globals.put(name, instance);
     }
 
+    /**
+     * Register a <em>per-scenario</em> ext global: the {@link ExtGlobalFactory} is
+     * invoked once per scenario at seed time to mint a fresh instance bound with the
+     * scenario's {@link KarateJsContext}. Prefer this over the singleton
+     * {@link #registerGlobal(String, Object)} when the global carries per-scenario
+     * mutable state or needs runtime / path access — see {@link ExtGlobalFactory}.
+     */
+    public void registerGlobal(String name, ExtGlobalFactory factory) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("registerGlobal: name is null or empty");
+        }
+        if (RESERVED_GLOBAL_NAMES.contains(name)) {
+            throw new RuntimeException("ext global '" + name + "' collides with built-in '" + name + "'");
+        }
+        globals.put(name, factory);
+    }
+
     /** The ext global registered under {@code name}, or {@code null} if none. */
     public Object getGlobal(String name) {
         return globals.get(name);
