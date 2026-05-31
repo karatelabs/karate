@@ -93,10 +93,11 @@ public final class HtmlReportWriter {
 
     private static final String DATA_PLACEHOLDER = "/* KARATE_DATA */";
     // Phase 1 (IMAGE_SPIKE.md §3.1.2 + D21): inline-SVG sprite splice.
-    // Phase 2 will fill EXTS_PLACEHOLDER with <script>/<link> tags per registered ext;
-    // for now the splice substitutes the empty string, which is a no-op.
     private static final String ICONS_PLACEHOLDER = "<!-- KARATE_ICONS -->";
+    // Phase 2 (§3.3): per-ext <script>/<link> asset tags spliced into <head>.
     private static final String EXTS_PLACEHOLDER = "<!-- KARATE_EXTS -->";
+    // Phase 2 (§3.2 nav.pages): per-ext <a> tabs spliced into the topbar nav.
+    private static final String NAV_PLACEHOLDER = "<!-- KARATE_NAV -->";
 
     // Lazily-loaded sprite contents. Loaded once per JVM (sprite is small and
     // identical for every template + every run).
@@ -167,7 +168,7 @@ public final class HtmlReportWriter {
         Map<String, Object> featureData = buildFeatureData(result);
         String template = loadTemplate("karate-feature.html");
         // feature pages live under feature-html/, so ext refs need the "../" prefix
-        String html = inlineJson(template, featureData, buildExtsHtml(reportAssets, "../"));
+        String html = inlineJson(template, featureData, reportAssets, "../");
 
         String fileName = getFeatureFileName(featureData) + ".html";
         Files.writeString(featuresDir.resolve(fileName), html);
@@ -298,7 +299,7 @@ public final class HtmlReportWriter {
         Map<String, Object> summaryPageData = new LinkedHashMap<>(suiteData);
         summaryPageData.put("features", featureSummaryList);
         String summaryTemplate = loadTemplate("karate-summary.html");
-        String summaryHtml = inlineJson(summaryTemplate, summaryPageData, buildExtsHtml(reportAssets, ""));
+        String summaryHtml = inlineJson(summaryTemplate, summaryPageData, reportAssets, "");
         Files.writeString(outputDir.resolve("karate-summary.html"), summaryHtml);
 
         // Write index redirect
@@ -369,23 +370,32 @@ public final class HtmlReportWriter {
     }
 
     /**
-     * Inline JSON data into an HTML template, plus splice the icons sprite and
-     * the (currently empty) ext-asset block. See IMAGE_SPIKE.md §3.1.2 for the
-     * placeholder model — `HtmlReportWriter` is the single string-replace point
-     * for every template; Phase 2 will fill {@link #EXTS_PLACEHOLDER} with
-     * per-ext {@code <script>}/{@code <link>} tags assembled from
-     * {@code Suite.getReportAssets()}.
+     * Inline JSON data into an HTML template, splicing the icons sprite (and, via
+     * the overload, the per-ext asset + nav blocks). See IMAGE_SPIKE.md §3.1.2 for
+     * the placeholder model — `HtmlReportWriter` is the single string-replace point
+     * for every template. This no-ext overload is used by the direct
+     * {@link #write(SuiteResult, Path, String)} path, which has no registered exts.
      */
     private static String inlineJson(String template, Object data) {
-        return inlineJson(template, data, "");
+        return inlineJson(template, data, null, "");
     }
 
-    private static String inlineJson(String template, Object data, String extsHtml) {
+    /**
+     * Inline JSON + splice the per-ext asset ({@link #EXTS_PLACEHOLDER}) and
+     * nav-tab ({@link #NAV_PLACEHOLDER}) fragments assembled from
+     * {@code Suite.getReportAssets()}. {@code relPrefix} matches the page's depth —
+     * {@code ""} for root pages (summary, timeline), {@code "../"} for feature
+     * pages under {@code feature-html/} — mirroring how templates reference
+     * {@code res/}. Both ext fragments share the same prefix so their URLs agree.
+     */
+    private static String inlineJson(String template, Object data,
+                                     Map<String, ReportAssets> reportAssets, String relPrefix) {
         String json = Json.of(data).toStringPretty();
         json = json.replace("</", "<\\/"); // prevent </script> in JSON from closing the script tag
         String html = template.replace(DATA_PLACEHOLDER, json);
         html = html.replace(ICONS_PLACEHOLDER, loadIconsSprite());
-        html = html.replace(EXTS_PLACEHOLDER, extsHtml == null ? "" : extsHtml);
+        html = html.replace(EXTS_PLACEHOLDER, buildExtsHtml(reportAssets, relPrefix));
+        html = html.replace(NAV_PLACEHOLDER, buildNavHtml(reportAssets, relPrefix));
         return html;
     }
 
@@ -410,6 +420,43 @@ public final class HtmlReportWriter {
             sb.append("<script src=\"").append(base).append(assets.jsHref()).append("\" defer></script>\n");
         }
         return sb.toString();
+    }
+
+    /**
+     * Assemble the {@code <!-- KARATE_NAV -->} fragment: one topbar {@code <a>} tab
+     * per ext {@code page("nav.pages", title, href)} contribution, in registration
+     * order. The tab links to {@code <relPrefix>ext/<name>/<href>} — the same web
+     * path {@link ReportAssets#copyTo(Path)} writes the page to. Tabs carry the
+     * same utility classes as the built-in Summary/Timeline links so they read as
+     * peers. Non-{@code nav.pages} slots are ignored here (no other slot renders a
+     * tab); page titles are HTML-escaped since they are ext-author strings.
+     */
+    private static String buildNavHtml(Map<String, ReportAssets> reportAssets, String relPrefix) {
+        if (reportAssets == null || reportAssets.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (ReportAssets assets : reportAssets.values()) {
+            for (ReportAssets.Page page : assets.pages()) {
+                if (!"nav.pages".equals(page.slot()) || page.href() == null) {
+                    continue;
+                }
+                String href = relPrefix + "ext/" + assets.name() + "/" + page.href();
+                sb.append("<a class=\"text-sm text-slate-600 hover:text-slate-900 dark:text-white/80 dark:hover:text-white\" href=\"")
+                        .append(escapeHtml(href)).append("\">").append(escapeHtml(page.title())).append("</a>\n");
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String escapeHtml(String s) {
+        if (s == null) {
+            return "";
+        }
+        return s.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
     }
 
     /**
@@ -796,7 +843,7 @@ public final class HtmlReportWriter {
                                          int threadCount, Map<String, ReportAssets> reportAssets) throws IOException {
         Map<String, Object> timelineData = buildTimelineData(features, result, env, threadCount);
         String template = loadTemplate("karate-timeline.html");
-        String html = inlineJson(template, timelineData, buildExtsHtml(reportAssets, ""));
+        String html = inlineJson(template, timelineData, reportAssets, "");
         Files.writeString(outputDir.resolve("karate-timeline.html"), html);
     }
 

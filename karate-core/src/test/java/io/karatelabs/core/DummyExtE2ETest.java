@@ -132,6 +132,13 @@ class DummyExtE2ETest {
         assertTrue(summary.contains("<link rel=\"stylesheet\" href=\"ext/dummy/ext.css\">"),
                 "summary should reference ext.css");
 
+        // nav.pages: the ext's page("nav.pages", "Dummy", "pages/dummy.html") renders
+        // a topbar tab linking to the copied page (root-relative on the summary page).
+        assertTrue(summary.contains("href=\"ext/dummy/pages/dummy.html\">Dummy</a>"),
+                "summary nav should carry the ext page tab");
+        assertFalse(summary.contains("<!-- KARATE_NAV -->"),
+                "nav placeholder must be replaced, not left in the output");
+
         // Feature pages live under feature-html/, so refs carry the ../ prefix.
         Path featureHtml;
         try (var stream = Files.list(reports.resolve("feature-html"))) {
@@ -140,5 +147,12 @@ class DummyExtE2ETest {
         String featurePage = Files.readString(featureHtml);
         assertTrue(featurePage.contains("<script src=\"../ext/dummy/ext.js\" defer></script>"),
                 "feature page should reference ext.js with ../ prefix");
+        assertTrue(featurePage.contains("href=\"../ext/dummy/pages/dummy.html\">Dummy</a>"),
+                "feature page nav tab should carry the ../ prefix");
+
+        // Timeline page also renders the tab (root-relative).
+        String timeline = Files.readString(reports.resolve("karate-timeline.html"));
+        assertTrue(timeline.contains("href=\"ext/dummy/pages/dummy.html\">Dummy</a>"),
+                "timeline nav should carry the ext page tab");
     }
 }

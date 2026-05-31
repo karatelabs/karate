@@ -22,6 +22,17 @@ module.exports = {
         // won't be in the generated CSS.
         'karate-core/src/main/resources/io/karatelabs/output/res/karate-report.js',
     ],
+    // Ext-facing utility safelist (IMAGE_SPIKE.md O6). Exts live in separate JARs
+    // the `content` globs above never scan, so any Tailwind utility an ext's
+    // HTML/JS uses that core itself does NOT render gets purged from the output
+    // and the ext renders unstyled. List such "promised" utilities here to force
+    // them into karate-report.css regardless of core usage. Maintainer-managed and
+    // declared in config (not a scanned sentinel file) so prose/examples here can't
+    // accidentally generate stray utilities. Empty today: every class an ext needs
+    // is currently either already used by core (so already emitted) or ext-owned
+    // (scoped CSS in the ext's own ext.css / inlined). Entries may be bare class
+    // strings or `{ pattern: /.../, variants: [...] }` objects.
+    safelist: [],
     theme: {
         extend: {
             colors: {
