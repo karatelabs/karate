@@ -19,6 +19,7 @@
 | A JS-scope global (`* image.compare(...)`) | `Suite.registerGlobal(name, …)` in `onBoot` | per-Suite singleton **or** per-scenario instance |
 | Report assets (JS/CSS/pages) | `Suite.registerReportAssets(ReportAssets, ClassLoader)` in `onBoot` | copied + spliced at report-write time |
 | A custom embed payload + its UI | emit `StepResult.Embed` at runtime + `KarateReport.registerEmbed` in ext JS | embed on the wire; renderer in the browser |
+| An async channel (`karate.channel('grpc')`) | `Suite.registerChannelFactory(type, factory)` in `onBoot` | factory is suite-scoped; wins over the built-in fallback |
 
 All wiring is **imperative, from `onBoot(Suite)`** — there is no `manifest.json` and no
 annotation/ServiceLoader discovery for exts (activation is the explicit `boot.ext('name')`
@@ -120,6 +121,50 @@ no method-name churn when config keys are added.
 
 **Source:** `Suite.registerGlobal` / `getGlobal` / `getGlobals`, `ExtGlobalFactory.java`,
 `SimpleObject.java` (karate-js), `ScenarioRuntime.initEngine` (seeding).
+
+---
+
+## Channel factories — owning `karate.channel('<type>')`
+
+An ext can supply the `ChannelFactory` for an async channel type (`grpc`, `kafka`, …) by
+calling `Suite.registerChannelFactory(type, factory)` from `onBoot`. When a scenario evaluates
+`karate.channel('grpc')`, `KarateJs.channel()` looks up the suite-registered factory **first**,
+and only falls back to the **name convention** `io.karatelabs.ext.<type>.<Type>ChannelFactory`
+(e.g. `io.karatelabs.ext.grpc.GrpcChannelFactory`) — mirroring `boot.ext` resolution — if none is
+registered. There is **no hardcoded type→class map** in core. This lets a gated ext own its
+channel wiring end-to-end:
+
+```java
+// io.karatelabs.ext.grpc.GrpcExt
+public void onBoot(Suite suite) {
+    // 1. license gate (keycheck) — throws here fail the Suite
+    requireProduct("grpc");
+    // 2. register the factory; suite-scoped instance = natural home for suite/JVM-wide init
+    suite.registerChannelFactory("grpc", new GrpcChannelFactory());
+}
+```
+
+```js
+// karate-boot.js
+boot.ext('grpc');   // gates + registers the grpc channel factory
+```
+
+Because the factory instance is held on the Suite, the ext gets a single place to do
+**suite/JVM-wide init** (shared `ManagedChannel`s, connection pools, proto descriptor caches)
+that earlier Karate lacked — lazily, on first `channel()` use, or eagerly in `onBoot`. The
+name-convention fallback still resolves a factory from a bare classpath dep (no `boot.ext`), but
+that path is **ungated by the ext** — the factory itself remains responsible for its own license
+check. The `boot.ext('grpc')` path is canonical: it gates loudly at boot and owns init.
+
+Channels **self-configure via their rich JS object** — `karate.channel('kafka')` (or the
+`boot.ext('kafka')` ext object) exposes config setters/methods — not via a global
+`configure <type>`. Core's `configure` keyword is strict (unknown keys throw), so there is no
+hardcoded channel-type list and no map-valued config keys to typo-swallow. Connection-scoped
+state (Kafka `bootstrap.servers`, pooled `ManagedChannel`s) lives on the suite-scoped factory/ext
+for suite/JVM-wide reuse; per-scenario objects (consumers/producers) are created per `channel()` call.
+
+**Source:** `Suite.registerChannelFactory` / `getChannelFactory`, `KarateJs.channel()`
+(suite registry → name-convention fallback), `ChannelFactory.java`.
 
 ---
 
@@ -305,13 +350,14 @@ See [`karate-image`](../karate-image/README.md) for a complete, shipping example
 - Open sub-question (was O3): conflict policy when two exts want the same keyword/global.
 - Design all forms together rather than landing the JSON-arg form alone.
 
-### Channel resolver unification (was D18 / O11 / O17)
+### Channel resolver unification (was D18 / O11 / O17) — ✅ DONE
 
-- `karate.channel('grpc')` still resolves via `KarateConfig.getChannelFactoryClass(type)`;
-  unify onto the same `io.karatelabs.ext.<name>.<Name>Channel` name-convention resolver the
-  ext path uses. Factor a pure `ExtNameResolver` (`String → Class<?>`); `BootBinding.ext()` and
-  `KarateJs.channel()` both call it but wrap differently (per-call factory vs. Suite singleton).
-  Requires repackaging `karate-ext/karate-grpc` etc. — coordinate cross-repo.
+Resolved. `Suite.registerChannelFactory(type, factory)` lets `io.karatelabs.ext.grpc.GrpcExt` /
+`…kafka.KafkaExt` register their factory in `onBoot`; `KarateJs.channel()` checks the suite
+registry first, then falls back to the `io.karatelabs.ext.<type>.<Type>ChannelFactory` name
+convention. The hardcoded `KarateConfig.CHANNEL_FACTORIES` map (and `getChannelFactoryClass` /
+`isChannelType`) were **removed** — no back-compat. grpc/kafka repackaged to `io.karatelabs.ext.*`
+in the `karate-ext` monorepo.
 
 ### Report data-model gaps (deferred from the Tailwind restyle)
 

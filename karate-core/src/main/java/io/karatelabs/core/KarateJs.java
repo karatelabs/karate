@@ -1186,19 +1186,26 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 throw new RuntimeException("channel() needs a type argument, e.g. karate.channel('kafka')");
             }
             String type = args[0].toString();
-            String factoryClass = KarateConfig.getChannelFactoryClass(type);
-            if (factoryClass == null) {
-                throw new RuntimeException("unknown channel type: " + type);
-            }
             ScenarioRuntime rt = getRuntime();
             if (rt == null) {
                 throw new RuntimeException("channel() can only be called within a scenario");
             }
+            // An ext (e.g. boot.ext('grpc')) may have registered a factory on the Suite at boot;
+            // it wins over the name-convention fallback. See Suite#registerChannelFactory.
+            FeatureRuntime fr = rt.getFeatureRuntime();
+            Suite suite = fr != null ? fr.getSuite() : null;
+            ChannelFactory factory = suite != null ? suite.getChannelFactory(type) : null;
             try {
-                Class<?> clazz = Class.forName(factoryClass);
-                ChannelFactory factory = (ChannelFactory) clazz.getDeclaredConstructor().newInstance();
-                Map<String, Object> options = rt.getConfig().getChannelOptions(type);
-                Channel channel = factory.create(rt, options);
+                if (factory == null) {
+                    // No ext registered a factory for this type — resolve by name convention,
+                    // mirroring boot.ext: channel('grpc') -> io.karatelabs.ext.grpc.GrpcChannelFactory.
+                    String cap = Character.toUpperCase(type.charAt(0)) + type.substring(1);
+                    String factoryClass = "io.karatelabs.ext." + type + "." + cap + "ChannelFactory";
+                    Class<?> clazz = Class.forName(factoryClass);
+                    factory = (ChannelFactory) clazz.getDeclaredConstructor().newInstance();
+                }
+                // Channels self-configure via their rich JS object, not via global config.
+                Channel channel = factory.create(rt, new HashMap<>());
                 rt.registerChannel(channel);
                 return channel.init(rt);
             } catch (RuntimeException re) {

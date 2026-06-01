@@ -25,54 +25,29 @@ package io.karatelabs.core;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.Map;
-
 import static io.karatelabs.core.TestUtils.*;
-import static org.junit.jupiter.api.Assertions.*;
 
 class ChannelTest {
 
     @Test
-    void testConfigureKafkaStoresOptions() {
+    void testConfigureUnknownKeyFails() {
+        // 'configure' is strict — channels self-configure via their JS object, not global config,
+        // so any unrecognized key (incl. an old 'configure kafka = {...}') fails loudly as a typo
         ScenarioRuntime sr = run("""
             * configure kafka = { 'bootstrap.servers': '127.0.0.1:29092' }
-            * def cfg = karate.config
-            """);
-        assertPassed(sr);
-        KarateConfig config = sr.getConfig();
-        Map<String, Object> options = config.getChannelOptions("kafka");
-        assertNotNull(options);
-        assertEquals("127.0.0.1:29092", options.get("bootstrap.servers"));
-    }
-
-    @Test
-    void testConfigureGrpcStoresOptions() {
-        ScenarioRuntime sr = run("""
-            * configure grpc = { host: 'localhost', port: 50051 }
-            """);
-        assertPassed(sr);
-        KarateConfig config = sr.getConfig();
-        Map<String, Object> options = config.getChannelOptions("grpc");
-        assertNotNull(options);
-        assertEquals("localhost", options.get("host"));
-    }
-
-    @Test
-    void testConfigureUnknownKeyFails() {
-        ScenarioRuntime sr = run("""
-            * configure foobar = { x: 1 }
             """);
         assertFailed(sr);
-        assertFailedWith(sr, "unexpected 'configure' key: 'foobar'");
+        assertFailedWith(sr, "unexpected 'configure' key: 'kafka'");
     }
 
     @Test
     void testChannelUnknownTypeFails() {
+        // resolves by convention to io.karatelabs.ext.unknown.UnknownChannelFactory — not present
         ScenarioRuntime sr = run("""
             * def ch = karate.channel('unknown')
             """);
         assertFailed(sr);
-        assertFailedWith(sr, "unknown channel type: unknown");
+        assertFailedWith(sr, "cannot find [unknown]");
     }
 
     @Test
@@ -83,32 +58,6 @@ class ChannelTest {
             """);
         assertFailed(sr);
         assertFailedWith(sr, "karate-kafka");
-    }
-
-    @Test
-    void testChannelTypeRegistration() {
-        assertTrue(KarateConfig.isChannelType("kafka"));
-        assertTrue(KarateConfig.isChannelType("grpc"));
-        assertTrue(KarateConfig.isChannelType("websocket"));
-        assertFalse(KarateConfig.isChannelType("ftp"));
-        assertFalse(KarateConfig.isChannelType(""));
-    }
-
-    @Test
-    void testChannelFactoryClassMapping() {
-        assertEquals("io.karatelabs.kafka.KafkaChannelFactory", KarateConfig.getChannelFactoryClass("kafka"));
-        assertEquals("io.karatelabs.grpc.GrpcChannelFactory", KarateConfig.getChannelFactoryClass("grpc"));
-        assertNull(KarateConfig.getChannelFactoryClass("nonexistent"));
-    }
-
-    @Test
-    void testConfigureChannelNullRemoves() {
-        ScenarioRuntime sr = run("""
-            * configure kafka = { 'bootstrap.servers': '127.0.0.1:29092' }
-            * configure kafka = null
-            """);
-        assertPassed(sr);
-        assertNull(sr.getConfig().getChannelOptions("kafka"));
     }
 
 }

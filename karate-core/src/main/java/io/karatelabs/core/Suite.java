@@ -124,6 +124,13 @@ public class Suite {
     // Per-thread listeners
     private final ThreadLocal<List<RunListener>> threadListeners = new ThreadLocal<>();
 
+    // Channel factories registered by exts at boot (e.g. io.karatelabs.ext.grpc.GrpcExt,
+    // io.karatelabs.ext.kafka.KafkaExt) via registerChannelFactory(). These take precedence
+    // over the name-convention fallback in KarateJs.channel() (io.karatelabs.ext.<type>.
+    // <Type>ChannelFactory), letting an ext own its channel wiring + suite/JVM-wide init from
+    // onBoot() instead of relying on classpath presence alone. See docs/EXT.md § Channel factories.
+    private final Map<String, ChannelFactory> channelFactories = new ConcurrentHashMap<>();
+
     // Shared executor and semaphore for scenario-level parallelism
     private volatile ExecutorService scenarioExecutor;
     private volatile Semaphore scenarioSemaphore;
@@ -444,6 +451,26 @@ public class Suite {
      */
     public BootBinding getBootBinding() {
         return bootBinding;
+    }
+
+    /**
+     * Register a {@link ChannelFactory} for an async channel type (e.g. {@code "grpc"},
+     * {@code "kafka"}). Called by an ext from {@link Ext#onBoot(Suite)} — typically right
+     * after its license gate passes — so {@code karate.channel('grpc')} resolves to the
+     * ext-supplied factory instead of the {@code io.karatelabs.ext.<type>.<Type>ChannelFactory}
+     * name-convention fallback. The factory instance is suite-scoped, giving the ext a home for
+     * suite/JVM-wide init (shared channels, pools). Last registration for a type wins.
+     */
+    public void registerChannelFactory(String type, ChannelFactory factory) {
+        channelFactories.put(type, factory);
+    }
+
+    /**
+     * Ext-registered {@link ChannelFactory} for the given type, or {@code null} if none —
+     * in which case {@code karate.channel()} falls back to the built-in name->FQCN map.
+     */
+    public ChannelFactory getChannelFactory(String type) {
+        return channelFactories.get(type);
     }
 
     /**
