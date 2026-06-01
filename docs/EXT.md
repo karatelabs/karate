@@ -20,11 +20,14 @@
 | Report assets (JS/CSS/pages) | `Suite.registerReportAssets(ReportAssets, ClassLoader)` in `onBoot` | copied + spliced at report-write time |
 | A custom embed payload + its UI | emit `StepResult.Embed` at runtime + `KarateReport.registerEmbed` in ext JS | embed on the wire; renderer in the browser |
 | An async channel (`karate.channel('grpc')`) | `Suite.registerChannelFactory(type, factory)` in `onBoot` | factory is suite-scoped; wins over the built-in fallback |
+| A CLI subcommand (`karate serve`) | implement `CliCommandProvider`, register via `META-INF/services` | discovered at launch; see [CLI subcommands](#cli-subcommands--contributing-karate-serve) |
 
-All wiring is **imperative, from `onBoot(Suite)`** — there is no `manifest.json` and no
-annotation/ServiceLoader discovery for exts (activation is the explicit `boot.ext('name')`
-in `karate-boot.js`; see DESIGN.md). Resolution is by name convention:
-`boot.ext('image')` → `io.karatelabs.ext.image.ImageExt`.
+The **run-time** wiring above is **imperative, from `onBoot(Suite)`** — there is no `manifest.json`
+and no annotation/ServiceLoader discovery for ext *activation* (that is the explicit
+`boot.ext('name')` in `karate-boot.js`; see DESIGN.md). Resolution is by name convention:
+`boot.ext('image')` → `io.karatelabs.ext.image.ImageExt`. **CLI subcommands are the one
+exception** — they are a launch-time (pre-Suite) concern and *are* discovered via ServiceLoader
+(below).
 
 ---
 
@@ -165,6 +168,43 @@ for suite/JVM-wide reuse; per-scenario objects (consumers/producers) are created
 
 **Source:** `Suite.registerChannelFactory` / `getChannelFactory`, `KarateJs.channel()`
 (suite registry → name-convention fallback), `ChannelFactory.java`.
+
+---
+
+## CLI subcommands — contributing `karate serve`
+
+An ext JAR can add a top-level `karate` subcommand (e.g. `karate serve`) without any change to
+core per command. This is a **launch-time** concern (it runs before — or instead of — a Suite), so
+unlike ext activation it uses `java.util.ServiceLoader`, not `boot.ext`.
+
+```java
+// 1. a picocli @Command (picocli is a core dependency, so it's on your compile classpath)
+@Command(name = "serve", description = "Start the karate-max curl + MCP server")
+public class ServeCommand implements Callable<Integer> {
+    @Option(names = {"-p", "--port"}) int port = 4444;
+    @Override public Integer call() { /* gate, start server, block */ return 0; }
+}
+
+// 2. a provider returning the command instance(s)
+public class MaxCliCommandProvider implements CliCommandProvider {
+    @Override public List<Object> commands() { return List.of(new ServeCommand()); }
+}
+```
+
+Register the provider the standard ServiceLoader way — a file on the ext JAR:
+
+```
+META-INF/services/io.karatelabs.cli.CliCommandProvider
+  → io.karatelabs.ext.max.MaxCliCommandProvider
+```
+
+`io.karatelabs.Main.buildCommandLine()` loads every `CliCommandProvider` on the classpath and
+registers its commands as first-class `karate` subcommands. They show up in `--help`, parse their
+own flags, and are **not** swallowed by the legacy "bare path → `run`" default. The `karate`
+launcher already composes the classpath as *core jar → `ext/*.jar` → `--cp`*, so simply dropping
+the ext JAR in `.karate/ext/` makes its subcommand available.
+
+**Source:** `io.karatelabs.cli.CliCommandProvider`, `Main.buildCommandLine()` / `Main.defaultToRun`.
 
 ---
 

@@ -24,6 +24,7 @@
 package io.karatelabs;
 
 import io.karatelabs.cli.CleanCommand;
+import io.karatelabs.cli.CliCommandProvider;
 import io.karatelabs.cli.MockCommand;
 import io.karatelabs.cli.RunCommand;
 import io.karatelabs.output.Console;
@@ -34,6 +35,7 @@ import picocli.CommandLine.Option;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
@@ -61,8 +63,6 @@ import java.util.concurrent.Callable;
 )
 public class Main implements Callable<Integer> {
 
-    private static final Set<String> SUBCOMMANDS = Set.of("run", "mock", "clean");
-
     static class VersionProvider implements CommandLine.IVersionProvider {
         @Override
         public String[] getVersion() {
@@ -85,22 +85,41 @@ public class Main implements Callable<Integer> {
             }
         }
 
+        // Build the command tree (built-in subcommands + any ext-contributed ones).
+        CommandLine commandLine = buildCommandLine();
+
         // Default to "run" subcommand when no subcommand is specified.
         // This allows v1-style commands like: karate -g tests tests/
         // to work the same as: karate run -g tests tests/
-        args = defaultToRun(args);
+        args = defaultToRun(args, commandLine.getSubcommands().keySet());
 
-        int exitCode = new CommandLine(new Main())
+        int exitCode = commandLine
                 .setCaseInsensitiveEnumValuesAllowed(true)
                 .execute(args);
         System.exit(exitCode);
     }
 
     /**
-     * If args don't start with a known subcommand (or --help/-h/--version/-V),
-     * prepend "run" so PicoCLI routes through RunCommand with full flag parsing.
+     * Build the {@code karate} {@link CommandLine} with its built-in subcommands plus any
+     * contributed by ext JARs on the classpath via {@link CliCommandProvider} (ServiceLoader).
+     * This is how {@code karate serve} (karate-max) plugs in without a core edit per command.
      */
-    static String[] defaultToRun(String[] args) {
+    static CommandLine buildCommandLine() {
+        CommandLine commandLine = new CommandLine(new Main());
+        for (CliCommandProvider provider : ServiceLoader.load(CliCommandProvider.class, Main.class.getClassLoader())) {
+            for (Object command : provider.commands()) {
+                commandLine.addSubcommand(command);
+            }
+        }
+        return commandLine;
+    }
+
+    /**
+     * If args don't start with a registered subcommand (or --help/-h/--version/-V),
+     * prepend "run" so PicoCLI routes through RunCommand with full flag parsing.
+     * {@code subcommands} is the live set of names (built-in + ext-contributed).
+     */
+    static String[] defaultToRun(String[] args, Set<String> subcommands) {
         if (args.length == 0) {
             return args;
         }
@@ -119,7 +138,7 @@ public class Main implements Callable<Integer> {
         // Don't interfere with help/version flags or known subcommands
         if (first.equals("-h") || first.equals("--help")
                 || first.equals("-V") || first.equals("--version")
-                || SUBCOMMANDS.contains(first)) {
+                || subcommands.contains(first)) {
             return args;
         }
         // Prepend "run" so all flags are parsed by RunCommand
