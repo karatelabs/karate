@@ -22,7 +22,7 @@
     'use strict';
 
     var RESEMBLE_URL = '../ext/image/resemble.js';   // vendored next to this script
-    var VIEWS = [['baseline', 'Baseline'], ['latest', 'Latest'], ['side', 'Side by side'],
+    var VIEWS = [['diff', 'Diff'], ['side', 'Side by side'],
         ['slider', 'Slider'], ['blink', 'Blink'], ['onion', 'Onion']];
 
     var KarateImage = {
@@ -148,17 +148,20 @@
         },
 
         // ---- Advanced (editing) toggle ----
+        // _applyAdvanced only flips visibility/state (never calls setView) so it can't
+        // recurse with setView — the earlier mutual recursion made a view click look like
+        // it toggled Advanced.
+        _applyAdvanced: function (id, on) {
+            var dlg = document.getElementById(id);
+            this._data[id].advanced = on;
+            dlg.querySelectorAll('.ki-adv').forEach(function (el) { el.hidden = !on; });
+            dlg.querySelector('.ki-toggle').classList.toggle('ki-on', on);
+            if (on && this._resemble !== 'ready') this._loadResemble(id, function () { KarateImage._liveDiff(id); });
+        },
         toggleAdvanced: function (id) {
-            var d = this._data[id], dlg = document.getElementById(id);
-            d.advanced = !d.advanced;
-            dlg.querySelectorAll('.ki-adv').forEach(function (el) { el.hidden = !d.advanced; });
-            dlg.querySelector('.ki-toggle').classList.toggle('ki-on', d.advanced);
-            if (d.advanced) {
-                if (this._resemble !== 'ready') this._loadResemble(id, function () { KarateImage._liveDiff(id); });
-                this.setView(id, 'diff');     // editing operates on the diff
-            } else {
-                this.setView(id, d.view);
-            }
+            var on = !this._data[id].advanced;
+            this._applyAdvanced(id, on);
+            this.setView(id, on ? 'diff' : this._data[id].view);   // editing operates on the diff
         },
         toggleZoom: function (id) {
             var d = this._data[id], dlg = document.getElementById(id);
@@ -175,10 +178,9 @@
             var d = this._data[id], dlg = document.getElementById(id);
             if (!dlg) return;
             this._stopBlink(id);
-            // clicking the active view toggles back to the default diff; picking any view
-            // while editing exits Advanced (you're looking, not editing)
-            if (mode === d.view && mode !== 'diff') mode = 'diff';
-            if (mode !== 'diff' && d.advanced) this.toggleAdvanced(id);   // re-enters setView
+            // picking a non-diff view exits Advanced (you're looking, not editing) — flip
+            // state only, no setView recursion
+            if (mode !== 'diff' && d.advanced) this._applyAdvanced(id, false);
             d.view = mode;
             dlg.querySelectorAll('.ki-vbtn').forEach(function (b) {
                 b.classList.toggle('ki-on', b.getAttribute('data-view') === mode);
@@ -190,9 +192,10 @@
             canvas.onpointerdown = null;
             canvas.classList.remove('ki-canvas-wipe');
             if (mode === 'side') {
+                // diff first (primary), then baseline + latest; wraps for large images
                 canvas.classList.add('ki-side');
-                canvas.innerHTML = this._fig('Baseline', d.baseData) + this._fig('Latest', d.lateData)
-                    + this._fig('Diff', d.liveDiff || d.diffFile);
+                canvas.innerHTML = this._fig('Diff', d.liveDiff || d.diffFile)
+                    + this._fig('Baseline', d.baseData) + this._fig('Latest', d.lateData);
                 return;
             }
             canvas.classList.remove('ki-side');

@@ -89,9 +89,9 @@
 }
 [data-theme="dark"] .k-image-ext .ki-notice { color: #fcd34d; background: rgba(120, 53, 15, .3); border-color: #78350f; }
 
-/* side-by-side view */
-.k-image-ext .ki-side { display: flex; gap: 12px; align-items: flex-start; padding: 8px; }
-.k-image-ext .ki-fig { margin: 0; text-align: center; flex: 1 1 0; min-width: 0; }
+/* side-by-side view: diff (primary) + baseline + latest, wrapping for large images */
+.k-image-ext .ki-side { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; padding: 8px; }
+.k-image-ext .ki-fig { margin: 0; text-align: center; flex: 1 1 240px; min-width: 0; }
 .k-image-ext .ki-fig .ki-img { max-width: 100%; margin: 0 auto; }
 .k-image-ext .ki-fig figcaption { font-size: 12px; margin-top: 4px; color: #64748b; }
 
