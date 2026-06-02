@@ -6,23 +6,23 @@
  * KarateReport.registerEmbed (see EXT.md § Embeds). Core defers the WHOLE renderer until the
  * embed scrolls into view, so this draws a compact thumbnail + a <dialog> lightbox.
  *
- * Lightbox = ONE image stage + a "Tune" drawer. At rest the stage shows the (precomputed)
- * diff. Tune reveals: view-mode buttons (Diff / Baseline / Latest / Slider / Blink / Onion),
- * ignore-box authoring, and live re-diff controls (ignore / error type / error color) that
- * re-run the vendored Resemble.js as you change them. Resemble reads the baseline/latest as
- * base64 data URLs from meta (meta.baselineData / meta.latestData) — canvas-readable, so live
- * re-diff works even when the report is opened from file:// (file-based <img> would taint the
- * canvas). The base64 lives ONLY on this embed's meta; normal screenshots stay file-based.
+ * Lightbox = ONE image stage. "Look" is always available: view-toggle buttons (Baseline /
+ * Latest / Side by side / Slider / Blink / Onion) act on the same stage; the default (no
+ * toggle) is the diff. "Advanced" gates everything else — ignore-box authoring, the live
+ * re-diff options (ignore / error type / error color), and the Show options / Rebase write
+ * actions — and forces the Diff view since those operate on the diff.
  *
- * "Show options" emits the minimal tuning JSON; "Rebase" emits a copy-paste command — both via
- * the absolute paths the recipe put in meta + the optional optionsCommand/rebaseCommand
- * templates. Styling is hand-authored + scoped under .k-image-ext (image.css), not Tailwind.
+ * Live re-diff re-runs the vendored Resemble.js as you change options/boxes. Resemble reads
+ * baseline/latest as base64 data URLs from meta (meta.baselineData / meta.latestData) —
+ * canvas-readable, so tuning works even from file:// (file-based <img> would taint the
+ * canvas). That base64 lives ONLY on this embed's meta; normal screenshots stay file-based.
+ * Styling is hand-authored + scoped under .k-image-ext (image.css), not Tailwind.
  */
 (function () {
     'use strict';
 
     var RESEMBLE_URL = '../ext/image/resemble.js';   // vendored next to this script
-    var VIEWS = [['diff', 'Diff'], ['baseline', 'Baseline'], ['latest', 'Latest'],
+    var VIEWS = [['baseline', 'Baseline'], ['latest', 'Latest'], ['side', 'Side by side'],
         ['slider', 'Slider'], ['blink', 'Blink'], ['onion', 'Onion']];
 
     var KarateImage = {
@@ -42,6 +42,9 @@
             var meta = embed.meta || {};
             var id = 'kimg-' + (this._seq++);
             var pct = (typeof meta.mismatchPercentage === 'number') ? meta.mismatchPercentage : 0;
+            var boxes = (meta.ignoredBoxes || []).map(function (b, i) {
+                return { id: i, top: b.top, left: b.left, bottom: b.bottom, right: b.right };
+            });
             this._data[id] = {
                 name: meta.name || embed.name || 'image',
                 established: meta.baselineEstablished === true,
@@ -52,19 +55,16 @@
                 engine: meta.engine || 'resemble',
                 defaultEngine: meta.defaultEngine || 'resemble',
                 ignore: meta.ignore || 'less',
-                diffFile: fileSrc('diff'),          // precomputed diff PNG (file) for display
-                baseData: meta.baselineData || fileSrc('baseline'),   // base64 (canvas-safe)
+                diffFile: fileSrc('diff'),
+                baseData: meta.baselineData || fileSrc('baseline'),
                 lateData: meta.latestData || fileSrc('latest'),
-                boxes: (meta.ignoredBoxes || []).map(function (b, i) {
-                    return { id: i, top: b.top, left: b.left, bottom: b.bottom, right: b.right };
-                }),
+                boxes: boxes,
                 paths: { baseline: meta.baselinePath, latest: meta.latestPath, options: meta.optionsPath },
                 rebaseCommand: meta.rebaseCommand || null,
                 optionsCommand: meta.optionsCommand || null,
-                view: 'diff', tune: false, zoom: 'fit',
-                errorType: null, errorColor: null, liveDiff: null, boxSeq: 1000
+                view: 'diff', advanced: false, zoom: 'fit',
+                errorType: null, errorColor: null, liveDiff: null, boxSeq: boxes.length
             };
-            this._data[id].boxSeq = this._data[id].boxes.length;
             return this._cardHtml(id, api);
         },
 
@@ -89,38 +89,37 @@
         _dialogHtml: function (id, esc) {
             var d = this._data[id];
             var h = '<dialog id="' + id + '" class="k-image-ext ki-dialog">';
+            // header: title | views | spacer | Advanced | zoom | (adv) Show options / Rebase | close
             h += '<header class="ki-head"><strong>' + esc(d.name) + '</strong>';
-            h += '<span class="ki-spacer"></span>';
-            h += '<button type="button" class="ki-toggle" onclick="KarateImage.toggleTune(\'' + id + '\')">Tune</button>';
-            h += '<button type="button" class="ki-zoom" onclick="KarateImage.toggleZoom(\'' + id + '\')">100%</button>';
-            h += '<button type="button" class="ki-act" onclick="KarateImage.showOptions(\'' + id + '\')">Show options</button>';
-            h += '<button type="button" class="ki-act" onclick="KarateImage.rebase(\'' + id + '\')">Rebase</button>';
-            h += '<button type="button" class="ki-close" onclick="KarateImage.close(\'' + id + '\')" aria-label="Close">&times;</button>';
-            h += '</header>';
-
-            // Tune drawer (hidden until Tune): view modes + re-diff options + boxes
-            h += '<div class="ki-drawer" hidden>';
-            h += '<div class="ki-views">';
+            h += '<span class="ki-views">';
             VIEWS.forEach(function (v) {
                 h += '<button type="button" class="ki-vbtn" data-view="' + v[0] + '" onclick="KarateImage.setView(\'' + id + '\',\'' + v[0] + '\')">' + v[1] + '</button>';
             });
-            h += '</div>';
+            h += '</span><span class="ki-spacer"></span>';
+            h += '<button type="button" class="ki-toggle" onclick="KarateImage.toggleAdvanced(\'' + id + '\')">Advanced</button>';
+            h += '<button type="button" class="ki-zoom" onclick="KarateImage.toggleZoom(\'' + id + '\')">100%</button>';
+            h += '<button type="button" class="ki-act ki-adv" hidden onclick="KarateImage.showOptions(\'' + id + '\')">Show options</button>';
+            h += '<button type="button" class="ki-act ki-adv" hidden onclick="KarateImage.rebase(\'' + id + '\')">Rebase</button>';
+            h += '<button type="button" class="ki-close" onclick="KarateImage.close(\'' + id + '\')" aria-label="Close">&times;</button>';
+            h += '</header>';
+
+            // bar: blend slider (for slider/onion) + advanced edit controls
+            h += '<div class="ki-bar">';
             h += '<label class="ki-range" data-for="blend" hidden>Blend <input type="range" min="0" max="100" value="50" oninput="KarateImage.blend(\'' + id + '\', this.value)"></label>';
-            h += '<span class="ki-rediff">';
+            h += '<span class="ki-edit ki-adv" hidden>';
             h += this._sel(id, 'ignore', 'Ignore', ['nothing', 'less', 'colors', 'antialiasing', 'alpha'], 'less');
             h += this._sel(id, 'errorType', 'Error', ['movement', 'flat', 'diffOnly', 'flatDifferenceIntensity', 'movementDifferenceIntensity'], 'movement');
             h += 'Color <button type="button" class="ki-swatch ki-pink" title="pink" onclick="KarateImage.setColor(\'' + id + '\',\'pink\')"></button>';
             h += '<button type="button" class="ki-swatch ki-yellow" title="yellow" onclick="KarateImage.setColor(\'' + id + '\',\'yellow\')"></button>';
+            h += ' · Ignore boxes <button type="button" class="ki-mini" onclick="KarateImage.addBox(\'' + id + '\')">+ add</button>';
+            h += '<span class="ki-hint">drag on the image to draw</span>';
+            h += '<ul class="ki-boxlist"></ul>';   // inline, to the right of the Boxes controls
             h += '</span>';
-            h += '<span class="ki-boxctl">Boxes <button type="button" class="ki-mini" onclick="KarateImage.addBox(\'' + id + '\')">+ add</button></span>';
-            h += '<div class="ki-notice" hidden></div>';
+            h += '<div class="ki-notice ki-adv" hidden></div>';
             h += '</div>';
 
-            // the single stage
-            h += '<div class="ki-body"><div class="ki-stage ki-stage-fit"><div class="ki-canvas"></div></div>';
-            h += '<ul class="ki-boxlist" hidden></ul></div>';
+            h += '<div class="ki-body"><div class="ki-stage ki-stage-fit"><div class="ki-canvas"></div></div></div>';
 
-            // copy panel
             h += '<div class="ki-copy" hidden><div class="ki-copy-head"><span class="ki-copy-title"></span>'
                 + '<button type="button" class="ki-copy-btn" onclick="KarateImage.copy(\'' + id + '\')">Copy</button>'
                 + '<button type="button" class="ki-copy-x" onclick="KarateImage.hideCopy(\'' + id + '\')">&times;</button></div>'
@@ -148,14 +147,18 @@
             if (dlg) { dlg.close ? dlg.close() : dlg.removeAttribute('open'); }
         },
 
-        toggleTune: function (id) {
+        // ---- Advanced (editing) toggle ----
+        toggleAdvanced: function (id) {
             var d = this._data[id], dlg = document.getElementById(id);
-            d.tune = !d.tune;
-            dlg.querySelector('.ki-drawer').hidden = !d.tune;
-            dlg.querySelector('.ki-boxlist').hidden = !d.tune;
-            dlg.querySelector('.ki-toggle').classList.toggle('ki-on', d.tune);
-            if (d.tune && this._resemble !== 'ready') this._loadResemble(id, function () { KarateImage._liveDiff(id); });
-            this.setView(id, d.view);
+            d.advanced = !d.advanced;
+            dlg.querySelectorAll('.ki-adv').forEach(function (el) { el.hidden = !d.advanced; });
+            dlg.querySelector('.ki-toggle').classList.toggle('ki-on', d.advanced);
+            if (d.advanced) {
+                if (this._resemble !== 'ready') this._loadResemble(id, function () { KarateImage._liveDiff(id); });
+                this.setView(id, 'diff');     // editing operates on the diff
+            } else {
+                this.setView(id, d.view);
+            }
         },
         toggleZoom: function (id) {
             var d = this._data[id], dlg = document.getElementById(id);
@@ -172,54 +175,65 @@
             var d = this._data[id], dlg = document.getElementById(id);
             if (!dlg) return;
             this._stopBlink(id);
+            // clicking the active view toggles back to the default diff; picking any view
+            // while editing exits Advanced (you're looking, not editing)
+            if (mode === d.view && mode !== 'diff') mode = 'diff';
+            if (mode !== 'diff' && d.advanced) this.toggleAdvanced(id);   // re-enters setView
             d.view = mode;
             dlg.querySelectorAll('.ki-vbtn').forEach(function (b) {
                 b.classList.toggle('ki-on', b.getAttribute('data-view') === mode);
             });
             var blend = dlg.querySelector('.ki-range[data-for="blend"]');
             if (blend) blend.hidden = !(mode === 'slider' || mode === 'onion');
-            // re-diff options + boxes only make sense on the Diff view
-            var diffish = (mode === 'diff');
-            dlg.querySelector('.ki-rediff').style.display = diffish ? '' : 'none';
-            dlg.querySelector('.ki-boxctl').style.display = diffish ? '' : 'none';
 
             var canvas = dlg.querySelector('.ki-canvas');
+            canvas.onpointerdown = null;
+            canvas.classList.remove('ki-canvas-wipe');
+            if (mode === 'side') {
+                canvas.classList.add('ki-side');
+                canvas.innerHTML = this._fig('Baseline', d.baseData) + this._fig('Latest', d.lateData)
+                    + this._fig('Diff', d.liveDiff || d.diffFile);
+                return;
+            }
+            canvas.classList.remove('ki-side');
             var two = (mode === 'slider' || mode === 'blink' || mode === 'onion');
             if (two) {
                 canvas.innerHTML =
                     (d.baseData ? '<img class="ki-img ki-layer ki-layer-base" src="' + d.baseData + '" draggable="false" alt="baseline">' : '')
                     + (d.lateData ? '<img class="ki-img ki-layer ki-layer-top" src="' + d.lateData + '" draggable="false" alt="latest">' : '')
                     + '<div class="ki-divider" hidden><span class="ki-grip"></span></div>';
-                canvas.classList.toggle('ki-canvas-wipe', mode === 'slider');
                 var top = canvas.querySelector('.ki-layer-top');
                 if (top) { top.style.opacity = ''; top.style.clipPath = ''; }
-                if (mode === 'slider') { canvas.querySelector('.ki-divider').hidden = false; this.blend(id, 50); canvas.onpointerdown = function (ev) { KarateImage._wipeDrag(id, ev); }; }
-                else if (mode === 'onion') { this.blend(id, 50); canvas.onpointerdown = null; }
-                else { this._startBlink(id); canvas.onpointerdown = null; }
+                if (mode === 'slider') { canvas.classList.add('ki-canvas-wipe'); canvas.querySelector('.ki-divider').hidden = false; this.blend(id, 50); canvas.onpointerdown = function (ev) { KarateImage._wipeDrag(id, ev); }; }
+                else if (mode === 'onion') { this.blend(id, 50); }
+                else { this._startBlink(id); }
             } else {
-                canvas.classList.remove('ki-canvas-wipe');
-                canvas.onpointerdown = null;
                 var src = mode === 'baseline' ? d.baseData : mode === 'latest' ? d.lateData
                     : (d.liveDiff || d.diffFile || d.lateData);
                 canvas.innerHTML = src ? '<img class="ki-img" src="' + src + '" draggable="false" alt="' + mode + '">'
                     : '<div class="ki-missing">no ' + mode + '</div>';
-                if (diffish) {
+                if (mode === 'diff' && d.advanced) {
                     canvas.insertAdjacentHTML('beforeend', '<div class="ki-boxlayer"></div>');
                     this._renderBoxes(id);
-                    if (d.tune) this._liveDiff(id);
+                    this._liveDiff(id);
                 }
             }
         },
+        _fig: function (label, src) {
+            return '<figure class="ki-fig">'
+                + (src ? '<img class="ki-img" src="' + src + '" draggable="false" alt="' + label + '">' : '<div class="ki-missing">no ' + label.toLowerCase() + '</div>')
+                + '<figcaption>' + label + '</figcaption></figure>';
+        },
 
         // ---- live re-diff (Resemble over base64 — works from file://) ----
-        setOpt: function (id, k, v) { this._data[id][k] = v; if (this._data[id].view === 'diff') this._liveDiff(id); },
+        setOpt: function (id, k, v) { this._data[id][k] = v; this._liveDiff(id); },
         setColor: function (id, c) {
             this._data[id].errorColor = c === 'pink' ? { red: 255, green: 0, blue: 255 } : { red: 255, green: 255, blue: 0 };
-            if (this._data[id].view === 'diff') this._liveDiff(id);
+            this._liveDiff(id);
         },
         _liveDiff: function (id) {
             var d = this._data[id], dlg = document.getElementById(id);
-            if (!d.tune || this._resemble !== 'ready' || !window.resemble || !d.baseData || !d.lateData) return;
+            if (!d.advanced || d.view !== 'diff' || this._resemble !== 'ready' || !window.resemble || !d.baseData || !d.lateData) return;
             var ctl = window.resemble(d.lateData).compareTo(d.baseData);
             switch (d.ignore) {
                 case 'nothing': ctl.ignoreNothing(); break;
@@ -235,7 +249,7 @@
                 if (!data || !data.getImageDataUrl) return;
                 d.liveDiff = data.getImageDataUrl();
                 if (d.view === 'diff') {
-                    var img = dlg.querySelector('.ki-canvas .ki-img');
+                    var img = dlg.querySelector('.ki-canvas > .ki-img');
                     if (img) img.src = d.liveDiff;
                 }
             });
@@ -254,13 +268,13 @@
         },
         _notice: function (id, msg) {
             var el = document.getElementById(id).querySelector('.ki-notice');
-            if (el) { el.textContent = msg; el.hidden = !msg; }
+            if (el) { el.textContent = msg; }
         },
 
-        // ---- ignore-box authoring (pointer-events; coords in image px) ----
+        // ---- ignore-box authoring (coords in image px) ----
         addBox: function (id) {
             var d = this._data[id];
-            if (d.view !== 'diff') this.setView(id, 'diff');
+            if (!d.advanced) this.toggleAdvanced(id);
             d.boxes.push({ id: d.boxSeq++, left: 10, top: 10, right: 110, bottom: 90 });
             this._renderBoxes(id); this._liveDiff(id);
         },
@@ -270,7 +284,7 @@
             this._renderBoxes(id); this._liveDiff(id);
         },
         _scale: function (id) {
-            var img = document.getElementById(id).querySelector('.ki-canvas .ki-img');
+            var img = document.getElementById(id).querySelector('.ki-canvas > .ki-img');
             return (img && img.naturalWidth) ? img.clientWidth / img.naturalWidth : 1;
         },
         _renderBoxes: function (id) {
@@ -372,7 +386,7 @@
             if (this._blinkTimers[id]) { clearInterval(this._blinkTimers[id]); delete this._blinkTimers[id]; }
         },
 
-        // ---- actions: show options / rebase ----
+        // ---- actions: show options / rebase (Advanced only) ----
         showOptions: function (id) {
             var d = this._data[id], o = {};
             if (d.engine !== d.defaultEngine) o.engine = d.engine;

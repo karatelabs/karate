@@ -63,27 +63,37 @@
 }
 .k-image-ext .ki-close { font-size: 22px; line-height: 1; border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0 4px; }
 
-/* ---- Tune drawer ---- */
-.k-image-ext .ki-drawer {
-    display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 14px;
+/* view toggles live in the header */
+.k-image-ext .ki-views { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+
+/* ---- bar (blend slider + Advanced edit controls) ---- */
+.k-image-ext .ki-bar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 14px;
     border-bottom: 1px solid #e2e8f0; font-size: 12px;
 }
-[data-theme="dark"] .k-image-ext .ki-drawer { border-bottom-color: #334155; }
-.k-image-ext .ki-views { display: inline-flex; gap: 4px; flex-wrap: wrap; }
-.k-image-ext .ki-rediff, .k-image-ext .ki-boxctl { display: inline-flex; align-items: center; gap: 6px; }
-.k-image-ext .ki-drawer select {
+[data-theme="dark"] .k-image-ext .ki-bar { border-bottom-color: #334155; }
+.k-image-ext .ki-bar:not(:has(> :not([hidden]))) { display: none; }   /* collapse when empty */
+.k-image-ext .ki-edit { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.k-image-ext .ki-bar select {
     font: inherit; font-size: 12px; padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; color: #0f172a;
 }
-[data-theme="dark"] .k-image-ext .ki-drawer select { background: #1e293b; color: #e2e8f0; border-color: #475569; color-scheme: dark; }
+[data-theme="dark"] .k-image-ext .ki-bar select { background: #1e293b; color: #e2e8f0; border-color: #475569; color-scheme: dark; }
 .k-image-ext .ki-swatch { width: 18px; height: 18px; border: 1px solid #94a3b8; border-radius: 3px; cursor: pointer; padding: 0; }
 .k-image-ext .ki-pink { background: #ff00ff; }
 .k-image-ext .ki-yellow { background: #ffff00; }
 .k-image-ext .ki-range { display: inline-flex; align-items: center; gap: 8px; }
+.k-image-ext .ki-hint { font-size: 11px; color: #94a3b8; }
 .k-image-ext .ki-notice {
     flex-basis: 100%; font-size: 11px; line-height: 1.4; color: #92400e; background: #fffbeb;
     border: 1px solid #fde68a; border-radius: 4px; padding: 6px 8px;
 }
 [data-theme="dark"] .k-image-ext .ki-notice { color: #fcd34d; background: rgba(120, 53, 15, .3); border-color: #78350f; }
+
+/* side-by-side view */
+.k-image-ext .ki-side { display: flex; gap: 12px; align-items: flex-start; padding: 8px; }
+.k-image-ext .ki-fig { margin: 0; text-align: center; flex: 1 1 0; min-width: 0; }
+.k-image-ext .ki-fig .ki-img { max-width: 100%; margin: 0 auto; }
+.k-image-ext .ki-fig figcaption { font-size: 12px; margin-top: 4px; color: #64748b; }
 
 /* ---- the single stage ---- */
 .k-image-ext .ki-body { padding: 14px; overflow: auto; }
@@ -115,7 +125,7 @@
 .k-image-ext .ki-h-ne { right: -5px; top: -5px; cursor: nesw-resize; }
 .k-image-ext .ki-h-sw { left: -5px; bottom: -5px; cursor: nesw-resize; }
 .k-image-ext .ki-h-se { right: -5px; bottom: -5px; cursor: nwse-resize; }
-.k-image-ext .ki-boxlist { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.k-image-ext .ki-boxlist { list-style: none; margin: 0; padding: 0; display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .k-image-ext .ki-boxitem { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 2px 6px; }
 [data-theme="dark"] .k-image-ext .ki-boxitem { border-color: #334155; }
 .k-image-ext .ki-boxitem button { font: inherit; font-size: 11px; border: 0; background: transparent; color: #dc2626; cursor: pointer; padding: 0; }
