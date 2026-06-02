@@ -98,14 +98,14 @@
             // opacity slider sits next to the view buttons, shown only for Onion (Slider is
             // draggable on the image, so it needs no control)
             h += '<label class="ki-range" data-for="blend" hidden>Opacity <input type="range" min="0" max="100" value="50" oninput="KarateImage.blend(\'' + id + '\', this.value)"></label>';
-            h += '<span class="ki-spacer"></span>';
-            // right-aligned controls: Side-by-side toggle (distinct from the left view buttons),
-            // then Advanced / zoom / actions. Advanced is a single CSS class on the dialog
-            // (.ki-advanced) that reveals every .ki-adv element — no per-element JS toggling.
+            // right-aligned control group (one container with margin-left:auto). Advanced is a
+            // single CSS class on the dialog (.ki-advanced) that reveals every .ki-adv element.
+            h += '<span class="ki-right">';
             h += '<button type="button" class="ki-sidebtn" onclick="KarateImage.toggleSide(\'' + id + '\')">Side by side</button>';
             h += '<button type="button" class="ki-toggle" onclick="KarateImage.toggleAdvanced(\'' + id + '\')">Advanced</button>';
             h += '<button type="button" class="ki-zoom" onclick="KarateImage.toggleZoom(\'' + id + '\')">100%</button>';
             h += '<button type="button" class="ki-close" onclick="KarateImage.close(\'' + id + '\')" aria-label="Close">&times;</button>';
+            h += '</span>';
             h += '</header>';
 
             // edit bar — entirely advanced (.ki-adv): row 1 = re-diff options, row 2 = boxes + write actions
@@ -120,7 +120,6 @@
             h += '<button type="button" class="ki-act" onclick="KarateImage.showOptions(\'' + id + '\')">Show options</button>';
             h += '<button type="button" class="ki-act" onclick="KarateImage.rebase(\'' + id + '\')">Rebase</button>';
             h += ' · Ignore boxes <button type="button" class="ki-mini" onclick="KarateImage.addBox(\'' + id + '\')">+ add</button>';
-            h += '<span class="ki-hint">drag on the diff to draw</span>';
             h += '<ul class="ki-boxlist"></ul>';
             h += '</div>';
             h += '<span class="ki-notice"></span>';

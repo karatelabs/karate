@@ -38,16 +38,15 @@
 .k-image-ext.ki-dialog::backdrop { background: rgba(0, 0, 0, .6); }
 
 .k-image-ext .ki-head {
-    display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px;
     border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; background: inherit; z-index: 1;
 }
 [data-theme="dark"] .k-image-ext .ki-head { border-bottom-color: #334155; }
-.k-image-ext .ki-spacer { flex: 1 1 auto; }
+/* the right-aligned control group: one container pushed right (survives wrapping) */
+.k-image-ext .ki-right { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
 /* a CSS `display` beats the [hidden] attribute, so restore it for our scoped elements
    (e.g. the Opacity slider is display:inline-flex and would otherwise always show) */
 .k-image-ext [hidden] { display: none !important; }
-/* the Side-by-side button starts the right-aligned control group */
-.k-image-ext .ki-sidebtn { margin-left: auto; }
 
 /* toolbar + drawer buttons */
 .k-image-ext .ki-toggle, .k-image-ext .ki-zoom, .k-image-ext .ki-act,
