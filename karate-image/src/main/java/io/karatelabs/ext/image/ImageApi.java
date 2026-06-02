@@ -254,6 +254,16 @@ public class ImageApi implements SimpleObject {
         if (optionsPath != null) {
             meta.put("optionsPath", optionsPath);
         }
+        // Inline base64 of the source images — ONLY on this image-comparison embed (normal
+        // screenshots / other embeds stay file-based, no bloat). The report lightbox feeds
+        // these to client-side Resemble for live re-diff; data URLs are canvas-readable, so
+        // tuning works even when the report is opened from file:// (unlike file-based <img>).
+        if (baseline != null) {
+            meta.put("baselineData", dataUrl(baseline));
+        }
+        if (latest != null) {
+            meta.put("latestData", dataUrl(latest));
+        }
 
         Map<String, Object> embed = new LinkedHashMap<>();
         embed.put("name", "image-comparison");
@@ -479,6 +489,22 @@ public class ImageApi implements SimpleObject {
         }
         throw new RuntimeException("image: unsupported image value " + o.getClass().getName()
                 + " (expected a Uint8Array, byte[], or a path string)");
+    }
+
+    /** A base64 {@code data:} URL for raw image bytes (mime sniffed; for client-side re-diff). */
+    private static String dataUrl(byte[] b) {
+        return "data:" + sniffMime(b) + ";base64," + java.util.Base64.getEncoder().encodeToString(b);
+    }
+
+    private static String sniffMime(byte[] b) {
+        if (b != null && b.length >= 4) {
+            int b0 = b[0] & 0xFF, b1 = b[1] & 0xFF, b2 = b[2] & 0xFF, b3 = b[3] & 0xFF;
+            if (b0 == 0x89 && b1 == 'P' && b2 == 'N' && b3 == 'G') return "image/png";
+            if (b0 == 0xFF && b1 == 0xD8 && b2 == 0xFF) return "image/jpeg";
+            if (b0 == 'G' && b1 == 'I' && b2 == 'F' && b3 == '8') return "image/gif";
+            if (b0 == 'B' && b1 == 'M') return "image/bmp";
+        }
+        return "image/png";
     }
 
     private static byte[] pngBytes(Object img) {
