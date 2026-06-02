@@ -1603,20 +1603,61 @@ class HtmlReportWriterTest {
         return Files.readString(featuresDir.resolve(featureFiles[0]));
     }
 
-    /**
-     * Concatenate every captured "logs" string from every step in the per-feature
-     * HTML's inlined data. Returned with the original JSON-string escaping intact
-     * (newlines as {@code \n}, quotes as {@code \"}) so tests can match exactly what
-     * lives inside the report buffer.
-     */
-    private static String extractAllStepLogs(Path reportDir) throws Exception {
-        String html = readFeatureHtml(reportDir);
-        java.util.regex.Matcher m = java.util.regex.Pattern
-                .compile("\"logs\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"")
-                .matcher(html);
+    // Captured step logs now live in the data as `logSegments` — an ordered array of
+    // {text} / {lang, code} objects (the split that lets the HTML report syntax-highlight
+    // JSON bodies). These helpers reconstruct the flat captured-log text by concatenating
+    // the `text` and `code` values WITHIN each logSegments array (scoped so the step's own
+    // `text` source field isn't picked up), keeping the JSON-string escaping intact
+    // (newlines as {@code \n}, quotes as {@code \"}) so tests match what's in the buffer.
+    private static final java.util.regex.Pattern SEGMENT_VALUE =
+            java.util.regex.Pattern.compile("\"(?:text|code)\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+
+    /** The character span of the first {@code "logSegments": [ ... ]} array, or null if none. */
+    private static String firstLogSegmentsBlock(String html, int from) {
+        int k = html.indexOf("\"logSegments\"", from);
+        if (k < 0) {
+            return null;
+        }
+        int start = html.indexOf('[', k);
+        boolean inStr = false, esc = false;
+        int depth = 0;
+        for (int i = start; i < html.length(); i++) {
+            char c = html.charAt(i);
+            if (inStr) {
+                if (esc) esc = false;
+                else if (c == '\\') esc = true;
+                else if (c == '"') inStr = false;
+            } else if (c == '"') {
+                inStr = true;
+            } else if (c == '[') {
+                depth++;
+            } else if (c == ']' && --depth == 0) {
+                return html.substring(start, i + 1);
+            }
+        }
+        return html.substring(start);
+    }
+
+    private static String concatSegmentValues(String block) {
+        java.util.regex.Matcher m = SEGMENT_VALUE.matcher(block);
         StringBuilder sb = new StringBuilder();
         while (m.find()) {
-            sb.append(m.group(1)).append('\n');
+            sb.append(m.group(1));
+        }
+        return sb.toString();
+    }
+
+    /** Concatenated captured logs from every step that has any. */
+    private static String extractAllStepLogs(Path reportDir) throws Exception {
+        String html = readFeatureHtml(reportDir);
+        StringBuilder sb = new StringBuilder();
+        int from = 0;
+        int k;
+        while ((k = html.indexOf("\"logSegments\"", from)) >= 0) {
+            String block = firstLogSegmentsBlock(html, k);
+            sb.append(concatSegmentValues(block)).append('\n');
+            // advance past this array (block starts at its '[')
+            from = html.indexOf('[', k) + block.length();
         }
         return sb.toString();
     }
@@ -1624,13 +1665,11 @@ class HtmlReportWriterTest {
     /** Captured logs from the FIRST step in the report that has any (typically the HTTP method step). */
     private static String extractFirstHttpStepLog(Path reportDir) throws Exception {
         String html = readFeatureHtml(reportDir);
-        java.util.regex.Matcher m = java.util.regex.Pattern
-                .compile("\"logs\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"")
-                .matcher(html);
-        if (!m.find()) {
+        String block = firstLogSegmentsBlock(html, 0);
+        if (block == null) {
             throw new AssertionError("no captured step log found in: " + reportDir);
         }
-        return m.group(1);
+        return concatSegmentValues(block);
     }
 
     private static String extractAllHttpStepLogs(Path reportDir) throws Exception {

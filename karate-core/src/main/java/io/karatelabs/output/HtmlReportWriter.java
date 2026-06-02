@@ -85,6 +85,8 @@ public final class HtmlReportWriter {
 
     private static final String[] STATIC_RESOURCES = {
             "alpine.min.js",
+            "prism.min.js",
+            "prism-karate.css",
             "karate-report.css",
             "karate-report.js",
             "karate-logo.svg",
@@ -693,7 +695,7 @@ public final class HtmlReportWriter {
                 data.put("hook", step.getHookName());
             } else {
                 data.put("keyword", "*");
-                data.put("text", step.getLog() != null ? step.getLog() : "");
+                data.put("text", step.getLog() != null ? Console.stripAnsi(step.getLog()) : "");
             }
             data.put("line", 0);
         }
@@ -705,7 +707,9 @@ public final class HtmlReportWriter {
         data.put("hasLogs", hasLogs);
 
         if (hasLogs) {
-            data.put("logs", Console.stripAnsi(step.getLog()));
+            // Ordered segments: plain text runs + sentinel-wrapped code blocks (e.g. JSON
+            // bodies) carrying a `lang` for client-side Prism highlighting. See Console.splitLog.
+            data.put("logSegments", Console.splitLog(step.getLog()));
         }
 
         if (step.getError() != null) {

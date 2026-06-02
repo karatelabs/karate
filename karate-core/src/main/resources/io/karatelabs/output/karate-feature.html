@@ -4,7 +4,11 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <link rel="stylesheet" href="../res/karate-report.css"/>
+    <link rel="stylesheet" href="../res/prism-karate.css"/>
     <link rel="icon" href="../res/favicon.ico"/>
+    <!-- data-manual: content is injected by Alpine after load, so we highlight on
+         insert via KarateReport._highlightCode rather than Prism's auto-run. -->
+    <script src="../res/prism.min.js" data-manual></script>
     <script src="../res/alpine.min.js" defer></script>
     <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('karate-theme') || 'light');</script>
     <!-- KARATE_EXTS -->

@@ -88,6 +88,65 @@ class ConsoleTest {
         assertEquals(60, defaultLine.length());
     }
 
+    // A body wrapped in the report sentinels, mimicking what HttpLogger writes:
+    // <headers>\n  BODY_OPEN json BODY_LANG_END  <ansi-colored body>  BODY_CLOSE  \n<trailer>
+    private static String wrapped() {
+        return "request:\nContent-Type: app/json\n"
+                + Console.BODY_OPEN + "json" + Console.BODY_LANG_END
+                + Console.CYAN + "{ \"id\": 1 }" + Console.RESET
+                + Console.BODY_CLOSE + "\n";
+    }
+
+    @Test
+    void testStripAnsiAlsoStripsSentinels() {
+        String out = Console.stripAnsi(wrapped());
+        assertFalse(out.contains("\u0000"));
+        assertFalse(out.contains("\u0001"));
+        assertFalse(out.contains("\u0002"));
+        assertFalse(out.contains("\u001B"));   // no ANSI either
+        assertFalse(out.contains("json\u0001"));
+        // body text survives, lang marker does not leak as visible "json"
+        assertTrue(out.contains("{ \"id\": 1 }"));
+        assertEquals("request:\nContent-Type: app/json\n{ \"id\": 1 }\n", out);
+    }
+
+    @Test
+    void testStripSentinelsKeepsAnsi() {
+        String out = Console.stripSentinels(wrapped());
+        assertFalse(out.contains("\u0000"));
+        assertFalse(out.contains("\u0001"));
+        assertFalse(out.contains("\u0002"));
+        assertTrue(out.contains("\u001B"));     // ANSI preserved for the console
+    }
+
+    @Test
+    void testSplitLogSeparatesBody() {
+        var segments = Console.splitLog(wrapped());
+        assertEquals(3, segments.size());
+        // leading plain text (request line + headers), ANSI stripped, no sentinels
+        assertEquals("request:\nContent-Type: app/json\n", segments.get(0).get("text"));
+        // the body segment carries lang + plain (ANSI-free) code
+        assertEquals("json", segments.get(1).get("lang"));
+        assertEquals("{ \"id\": 1 }", segments.get(1).get("code"));
+        assertNull(segments.get(1).get("text"));
+        // trailing newline after the body
+        assertEquals("\n", segments.get(2).get("text"));
+    }
+
+    @Test
+    void testSplitLogPlainTextOnly() {
+        var segments = Console.splitLog("just a print line\n");
+        assertEquals(1, segments.size());
+        assertEquals("just a print line\n", segments.get(0).get("text"));
+        assertNull(segments.get(0).get("lang"));
+    }
+
+    @Test
+    void testSplitLogEmptyOrNull() {
+        assertTrue(Console.splitLog(null).isEmpty());
+        assertTrue(Console.splitLog("").isEmpty());
+    }
+
     @Test
     void testFeatureResultPrintSummary() {
         Console.setColorsEnabled(false);

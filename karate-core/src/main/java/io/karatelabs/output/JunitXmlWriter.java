@@ -218,7 +218,7 @@ public final class JunitXmlWriter {
                 sb.append("* ").append(sr.getHookName()).append("\n");
             } else if (sr.getLog() != null && !sr.getLog().isEmpty()) {
                 // fakeSuccess / fakeFailure: the log IS the description — render once, skip dup
-                sb.append("* ").append(sr.getLog().trim()).append("\n");
+                sb.append("* ").append(Console.stripAnsi(sr.getLog()).trim()).append("\n");
                 syntheticLogIsDescription = true;
             } else {
                 sb.append("*\n");

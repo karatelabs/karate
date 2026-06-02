@@ -98,7 +98,12 @@ public class HttpLogger {
                 String formatted = isPretty()
                         ? StringUtils.formatJson(parsed, true, false, false)
                         : io.karatelabs.common.Json.stringifyStrict(parsed);
+                // Wrap the body in invisible sentinels (lang = "json") so the HTML report
+                // can pull it out and apply client-side syntax highlighting. ANSI colorize
+                // stays for the console; both layers are stripped by the non-HTML consumers.
+                sb.append(Console.BODY_OPEN).append("json").append(Console.BODY_LANG_END);
                 sb.append(AnsiJson.colorize(formatted));
+                sb.append(Console.BODY_CLOSE);
             } catch (Exception e) {
                 sb.append(text);
             }
@@ -142,7 +147,7 @@ public class HttpLogger {
         }
         LogContext.get().log(LogLevel.INFO, full.toString());
         if (logger.isTraceEnabled()) {
-            logger.trace(full.toString());
+            logger.trace(Console.stripSentinels(full.toString()));
         } else if (logger.isDebugEnabled()) {
             logger.debug(full.substring(0, headersEnd));
         } else if (logger.isInfoEnabled()) {
@@ -172,7 +177,7 @@ public class HttpLogger {
         }
         LogContext.get().log(LogLevel.INFO, full.toString());
         if (logger.isTraceEnabled()) {
-            logger.trace(full.toString());
+            logger.trace(Console.stripSentinels(full.toString()));
         } else if (logger.isDebugEnabled()) {
             logger.debug(full.substring(0, headersEnd));
         } else if (logger.isInfoEnabled()) {

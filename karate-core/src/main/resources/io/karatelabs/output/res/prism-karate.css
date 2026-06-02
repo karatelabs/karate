@@ -1,0 +1,46 @@
+/*
+ * Prism token colors for Karate HTML reports.
+ *
+ * Deliberately NOT a stock Prism theme: those hard-code one palette and set
+ * pre/code backgrounds. We only color tokens (the report's slate body bg and
+ * the `whitespace-pre-wrap` <pre> layout stay untouched) and we key the palette
+ * on the report's existing `[data-theme="dark"]` attribute — the same switch
+ * Tailwind's dark mode uses. Because the colors live in CSS keyed on that
+ * attribute and Prism emits class-only spans (no inline styles), flipping the
+ * theme toggle re-colors tokens instantly with zero JS re-highlighting.
+ *
+ * Palette mirrors AnsiJson (console output) so report and terminal match:
+ * keys=cyan, strings=green, numbers=amber, booleans/null=magenta, punctuation=dim.
+ */
+
+/* light (default) */
+.token.property,
+.token.attr-name           { color: #0e7490; } /* keys — cyan */
+.token.string,
+.token.attr-value          { color: #15803d; } /* green */
+.token.number              { color: #b45309; } /* amber */
+.token.boolean,
+.token.null,
+.token.keyword,
+.token.constant            { color: #a21caf; } /* magenta */
+.token.punctuation,
+.token.operator            { color: #64748b; } /* dim slate */
+.token.comment             { color: #94a3b8; font-style: italic; }
+.token.function            { color: #1d4ed8; }
+.token.regex               { color: #be185d; }
+
+/* dark — brighter so it reads on the slate-800 body background */
+[data-theme="dark"] .token.property,
+[data-theme="dark"] .token.attr-name       { color: #22d3ee; }
+[data-theme="dark"] .token.string,
+[data-theme="dark"] .token.attr-value      { color: #4ade80; }
+[data-theme="dark"] .token.number          { color: #fbbf24; }
+[data-theme="dark"] .token.boolean,
+[data-theme="dark"] .token.null,
+[data-theme="dark"] .token.keyword,
+[data-theme="dark"] .token.constant        { color: #e879f9; }
+[data-theme="dark"] .token.punctuation,
+[data-theme="dark"] .token.operator        { color: #94a3b8; }
+[data-theme="dark"] .token.comment         { color: #64748b; }
+[data-theme="dark"] .token.function        { color: #60a5fa; }
+[data-theme="dark"] .token.regex           { color: #f472b6; }

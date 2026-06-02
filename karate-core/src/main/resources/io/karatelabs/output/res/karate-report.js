@@ -314,8 +314,20 @@ const KarateReport = {
         if (hasDetail) {
             html += `<div class="k-step-detail" style="display: none;">`;
 
-            if (step.logs) {
-                html += `<div class="mx-3 my-1 p-2 rounded bg-slate-100 dark:bg-slate-800 text-xs"><pre class="m-0 whitespace-pre-wrap">${this._esc(step.logs)}</pre></div>`;
+            if (step.logSegments && step.logSegments.length) {
+                // One contiguous <pre> so whitespace stays exactly as logged; code
+                // segments (e.g. JSON bodies) are wrapped in a language-tagged <code>
+                // that Prism colorizes in place (_highlightCode), leaving the request
+                // and header lines around them as plain text.
+                let inner = '';
+                step.logSegments.forEach(seg => {
+                    if (seg.lang) {
+                        inner += `<code class="language-${this._esc(seg.lang)}">${this._esc(seg.code)}</code>`;
+                    } else {
+                        inner += this._esc(seg.text);
+                    }
+                });
+                html += `<div class="mx-3 my-1 p-2 rounded bg-slate-100 dark:bg-slate-800 text-xs"><pre class="m-0 whitespace-pre-wrap">${inner}</pre></div>`;
             }
 
             if (step.embeds && step.embeds.length) {
@@ -461,6 +473,7 @@ const KarateReport = {
             if (root && root.querySelectorAll) {
                 root.querySelectorAll('[data-embed-id][data-defer]').forEach(h => self._observeDeferred(h));
             }
+            self._highlightCode(root);
         };
         if (typeof MutationObserver !== 'undefined' && document.body) {
             new MutationObserver(muts => {
@@ -475,6 +488,25 @@ const KarateReport = {
         window.addEventListener('beforeprint', () => {
             document.querySelectorAll('[data-embed-id][data-defer]').forEach(h => self._materializeEmbed(h));
         });
+    },
+
+    /**
+     * Run Prism over any language-tagged <code> blocks under `root` (HTTP JSON
+     * bodies today, JS snippets later). Called as Alpine inserts each scenario's
+     * x-html. Prism highlights hidden nodes fine, so we colorize at insert time
+     * regardless of whether the step detail is expanded. No-op if Prism is absent.
+     * Token colors come from prism-karate.css, keyed on the report's data-theme —
+     * so the theme toggle re-colors instantly with no re-highlight needed.
+     */
+    _highlightCode(root) {
+        if (typeof Prism === 'undefined' || !root) return;
+        if (root.matches && root.matches('code[class*="language-"]')) {
+            Prism.highlightElement(root);
+            return;
+        }
+        if (root.querySelectorAll) {
+            root.querySelectorAll('code[class*="language-"]').forEach(el => Prism.highlightElement(el));
+        }
     },
 
     _deferIO: null,

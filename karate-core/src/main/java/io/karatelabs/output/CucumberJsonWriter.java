@@ -268,7 +268,7 @@ public final class CucumberJsonWriter {
             if (sr.isHook()) {
                 name = sr.getHookName();
             } else if (sr.getLog() != null && !sr.getLog().isEmpty()) {
-                name = sr.getLog().trim();
+                name = Console.stripAnsi(sr.getLog()).trim();
             } else {
                 name = "";
             }

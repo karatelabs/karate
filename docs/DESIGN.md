@@ -476,6 +476,17 @@ Scenario: silence a noisy reusable
 
 `logging.pretty` applies to both console and report bodies. With `pretty: true` (default), JSON bodies are re-parsed and pretty-printed (multi-line, 2-space indent); `pretty: false` collapses to single-line. Non-JSON bodies pass through unchanged. The pretty pass also runs after `mask` so masked values stay masked.
 
+### Syntax highlighting in HTML reports
+
+The HTML report applies client-side **Prism.js** syntax highlighting to HTTP request/response JSON bodies — independent of pretty-printing, which controls whitespace; highlighting only colors tokens, never reflows. The mechanism is a pair of invisible **in-band sentinels** rather than a structured-log model, so the flat `StepResult.log` contract that JUnit / Cucumber / JSONL depend on is untouched:
+
+- `HttpLogger.logBody` wraps a JSON body in `Console.BODY_OPEN + "json" + BODY_LANG_END + <body> + BODY_CLOSE` (C0 control chars `U+0000`/`U+0001`/`U+0002` — never present literally in JSON/XML/text, which escape them). The lang token (`json` today, `javascript` etc. later) selects the Prism grammar.
+- The report buffer keeps the sentinels; **every other consumer strips them.** `Console.stripAnsi` now removes ANSI *and* sentinels (so JUnit / Cucumber / JSONL / `StepResult.toMap` stay clean); `Console.stripSentinels` removes only the markers, keeping ANSI, for the console/SLF4J `TRACE` mirror.
+- `Console.splitLog` parses the buffer into ordered segments — `{text}` plain runs (request line, headers) and `{lang, code}` body blocks — that `HtmlReportWriter.buildStepData` emits as `logSegments`. `karate-report.js` renders them into one contiguous `<pre>`, wrapping code blocks in `<code class="language-…">`, then `_highlightCode` runs Prism as Alpine inserts each scenario (piggybacking the deferred-embed MutationObserver; Prism highlights hidden/collapsed detail fine).
+- Token colors live in `res/prism-karate.css` keyed on the report's `[data-theme="dark"]` attribute (the same switch Tailwind dark mode uses) and mirror the `AnsiJson` console palette. Because Prism emits class-only spans, the theme toggle re-colors instantly with no JS re-highlight. Prism is vendored at `res/prism.min.js` (core + clike + javascript + json) and loaded `data-manual` since content is injected after page load.
+
+**Source files:** `HttpLogger.logBody`, `Console` (`BODY_OPEN`/`BODY_LANG_END`/`BODY_CLOSE`, `stripAnsi` / `stripSentinels` / `splitLog`), `AnsiJson.java`, `HtmlReportWriter.buildStepData`, `res/karate-report.js` (`_highlightCode`), `res/prism-karate.css`, `res/prism.min.js`.
+
 ### Mask scope
 
 `mask` applies **only** to HTTP request/response logging. It does NOT scan `* print` or `karate.log` output — those are user-controlled channels. If a scenario's body could leak via prints, raise `logging.report: 'warn'` to drop INFO captures, or tag it `@report=false`.
@@ -521,7 +532,7 @@ JSONL HTML Cucumber   JUnit
           JSON        XML
 ```
 
-All report formats derive from `FeatureResult.toJson()`. Generation is async via `ResultListener` implementations. HTML uses Alpine.js + Bootstrap 5 with inlined JSON.
+All report formats derive from `FeatureResult.toJson()`. Generation is async via `ResultListener` implementations. HTML uses Alpine.js + Tailwind CSS with inlined JSON, and Prism.js for client-side JSON body syntax highlighting (see [Logging § Syntax highlighting](#syntax-highlighting-in-html-reports)).
 
 ### Output Structure
 
