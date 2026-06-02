@@ -22,8 +22,8 @@
     'use strict';
 
     var RESEMBLE_URL = '../ext/image/resemble.js';   // vendored next to this script
-    var VIEWS = [['diff', 'Diff'], ['side', 'Side by side'],
-        ['slider', 'Slider'], ['blink', 'Blink'], ['onion', 'Onion']];
+    // the primary slot's mode; "Side by side" is a separate toggle that pins baseline+latest beside it
+    var VIEWS = [['diff', 'Diff'], ['slider', 'Slider'], ['blink', 'Blink'], ['onion', 'Onion']];
 
     var KarateImage = {
         _seq: 0,
@@ -62,7 +62,7 @@
                 paths: { baseline: meta.baselinePath, latest: meta.latestPath, options: meta.optionsPath },
                 rebaseCommand: meta.rebaseCommand || null,
                 optionsCommand: meta.optionsCommand || null,
-                view: 'diff', advanced: false, zoom: 'fit',
+                view: 'diff', side: false, advanced: false, zoom: 'fit',
                 errorType: null, errorColor: null, liveDiff: null, boxSeq: boxes.length
             };
             return this._cardHtml(id, api);
@@ -95,30 +95,35 @@
             VIEWS.forEach(function (v) {
                 h += '<button type="button" class="ki-vbtn" data-view="' + v[0] + '" onclick="KarateImage.setView(\'' + id + '\',\'' + v[0] + '\')">' + v[1] + '</button>';
             });
-            h += '</span><span class="ki-spacer"></span>';
+            // blend slider sits with the view buttons, shown only for slider/onion (relabeled)
+            h += '<label class="ki-range" data-for="blend" hidden><span class="ki-blend-label">Blend</span> <input type="range" min="0" max="100" value="50" oninput="KarateImage.blend(\'' + id + '\', this.value)"></label>';
+            h += '<span class="ki-spacer"></span>';
+            // right-aligned controls: Side-by-side toggle (distinct from the left view buttons),
+            // then Advanced / zoom / actions. Advanced is a single CSS class on the dialog
+            // (.ki-advanced) that reveals every .ki-adv element — no per-element JS toggling.
+            h += '<button type="button" class="ki-sidebtn" onclick="KarateImage.toggleSide(\'' + id + '\')">Side by side</button>';
             h += '<button type="button" class="ki-toggle" onclick="KarateImage.toggleAdvanced(\'' + id + '\')">Advanced</button>';
             h += '<button type="button" class="ki-zoom" onclick="KarateImage.toggleZoom(\'' + id + '\')">100%</button>';
-            h += '<button type="button" class="ki-act ki-adv" hidden onclick="KarateImage.showOptions(\'' + id + '\')">Show options</button>';
-            h += '<button type="button" class="ki-act ki-adv" hidden onclick="KarateImage.rebase(\'' + id + '\')">Rebase</button>';
+            h += '<button type="button" class="ki-act ki-adv" onclick="KarateImage.showOptions(\'' + id + '\')">Show options</button>';
+            h += '<button type="button" class="ki-act ki-adv" onclick="KarateImage.rebase(\'' + id + '\')">Rebase</button>';
             h += '<button type="button" class="ki-close" onclick="KarateImage.close(\'' + id + '\')" aria-label="Close">&times;</button>';
             h += '</header>';
 
-            // bar: blend slider (for slider/onion) + advanced edit controls
-            h += '<div class="ki-bar">';
-            h += '<label class="ki-range" data-for="blend" hidden>Blend <input type="range" min="0" max="100" value="50" oninput="KarateImage.blend(\'' + id + '\', this.value)"></label>';
-            h += '<span class="ki-edit ki-adv" hidden>';
+            // edit bar — entirely advanced (.ki-adv): re-diff options + ignore-box authoring
+            h += '<div class="ki-bar ki-adv">';
             h += this._sel(id, 'ignore', 'Ignore', ['nothing', 'less', 'colors', 'antialiasing', 'alpha'], 'less');
             h += this._sel(id, 'errorType', 'Error', ['movement', 'flat', 'diffOnly', 'flatDifferenceIntensity', 'movementDifferenceIntensity'], 'movement');
             h += 'Color <button type="button" class="ki-swatch ki-pink" title="pink" onclick="KarateImage.setColor(\'' + id + '\',\'pink\')"></button>';
             h += '<button type="button" class="ki-swatch ki-yellow" title="yellow" onclick="KarateImage.setColor(\'' + id + '\',\'yellow\')"></button>';
             h += ' · Ignore boxes <button type="button" class="ki-mini" onclick="KarateImage.addBox(\'' + id + '\')">+ add</button>';
-            h += '<span class="ki-hint">drag on the image to draw</span>';
-            h += '<ul class="ki-boxlist"></ul>';   // inline, to the right of the Boxes controls
-            h += '</span>';
-            h += '<div class="ki-notice ki-adv" hidden></div>';
+            h += '<span class="ki-hint">drag on the diff to draw</span>';
+            h += '<ul class="ki-boxlist"></ul>';
+            h += '<span class="ki-notice"></span>';
             h += '</div>';
 
-            h += '<div class="ki-body"><div class="ki-stage ki-stage-fit"><div class="ki-canvas"></div></div></div>';
+            h += '<div class="ki-body"><div class="ki-stage ki-stage-fit">'
+                + '<div class="ki-primary"><div class="ki-canvas"></div></div>'
+                + '<div class="ki-aside" hidden></div></div></div>';
 
             h += '<div class="ki-copy" hidden><div class="ki-copy-head"><span class="ki-copy-title"></span>'
                 + '<button type="button" class="ki-copy-btn" onclick="KarateImage.copy(\'' + id + '\')">Copy</button>'
@@ -140,6 +145,7 @@
             if (!dlg) return;
             if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
             this.setView(id, 'diff');
+            this.renderAside(id);
         },
         close: function (id) {
             this._stopBlink(id);
@@ -148,20 +154,33 @@
         },
 
         // ---- Advanced (editing) toggle ----
-        // _applyAdvanced only flips visibility/state (never calls setView) so it can't
-        // recurse with setView — the earlier mutual recursion made a view click look like
-        // it toggled Advanced.
-        _applyAdvanced: function (id, on) {
-            var dlg = document.getElementById(id);
-            this._data[id].advanced = on;
-            dlg.querySelectorAll('.ki-adv').forEach(function (el) { el.hidden = !on; });
-            dlg.querySelector('.ki-toggle').classList.toggle('ki-on', on);
-            if (on && this._resemble !== 'ready') this._loadResemble(id, function () { KarateImage._liveDiff(id); });
-        },
+        // Advanced is just a CSS class on the dialog (.ki-advanced) — CSS reveals every
+        // .ki-adv element. No per-element JS toggling, no forcing the view, no recursion:
+        // view / side / advanced are fully orthogonal. Editing still happens on the Diff view
+        // (the box layer + live re-diff only render there).
         toggleAdvanced: function (id) {
-            var on = !this._data[id].advanced;
-            this._applyAdvanced(id, on);
-            this.setView(id, on ? 'diff' : this._data[id].view);   // editing operates on the diff
+            var dlg = document.getElementById(id), d = this._data[id];
+            d.advanced = dlg.classList.toggle('ki-advanced');
+            dlg.querySelector('.ki-toggle').classList.toggle('ki-on', d.advanced);
+            if (d.advanced && this._resemble !== 'ready') this._loadResemble(id, function () { KarateImage._liveDiff(id); });
+            this.setView(id, d.view);   // re-render: the Diff view gains/loses its box layer
+        },
+        // ---- Side-by-side toggle: pin baseline+latest to the right of the primary ----
+        toggleSide: function (id) {
+            var d = this._data[id];
+            d.side = !d.side;
+            document.getElementById(id).querySelector('.ki-sidebtn').classList.toggle('ki-on', d.side);
+            this.renderAside(id);
+        },
+        renderAside: function (id) {
+            var d = this._data[id], aside = document.getElementById(id).querySelector('.ki-aside');
+            if (!aside) return;
+            if (d.side) {
+                aside.innerHTML = this._fig('Baseline', d.baseData) + this._fig('Latest', d.lateData);
+                aside.hidden = false;
+            } else {
+                aside.innerHTML = ''; aside.hidden = true;
+            }
         },
         toggleZoom: function (id) {
             var d = this._data[id], dlg = document.getElementById(id);
@@ -178,27 +197,18 @@
             var d = this._data[id], dlg = document.getElementById(id);
             if (!dlg) return;
             this._stopBlink(id);
-            // picking a non-diff view exits Advanced (you're looking, not editing) — flip
-            // state only, no setView recursion
-            if (mode !== 'diff' && d.advanced) this._applyAdvanced(id, false);
             d.view = mode;
             dlg.querySelectorAll('.ki-vbtn').forEach(function (b) {
                 b.classList.toggle('ki-on', b.getAttribute('data-view') === mode);
             });
             var blend = dlg.querySelector('.ki-range[data-for="blend"]');
             if (blend) blend.hidden = !(mode === 'slider' || mode === 'onion');
+            var bl = dlg.querySelector('.ki-blend-label');
+            if (bl) bl.textContent = (mode === 'onion') ? 'Opacity' : 'Wipe';
 
             var canvas = dlg.querySelector('.ki-canvas');
             canvas.onpointerdown = null;
             canvas.classList.remove('ki-canvas-wipe');
-            if (mode === 'side') {
-                // diff first (primary), then baseline + latest; wraps for large images
-                canvas.classList.add('ki-side');
-                canvas.innerHTML = this._fig('Diff', d.liveDiff || d.diffFile)
-                    + this._fig('Baseline', d.baseData) + this._fig('Latest', d.lateData);
-                return;
-            }
-            canvas.classList.remove('ki-side');
             var two = (mode === 'slider' || mode === 'blink' || mode === 'onion');
             if (two) {
                 canvas.innerHTML =
@@ -277,7 +287,8 @@
         // ---- ignore-box authoring (coords in image px) ----
         addBox: function (id) {
             var d = this._data[id];
-            if (!d.advanced) this.toggleAdvanced(id);
+            if (!d.advanced) this.toggleAdvanced(id);   // boxes are edited on the Diff view
+            if (d.view !== 'diff') this.setView(id, 'diff');
             d.boxes.push({ id: d.boxSeq++, left: 10, top: 10, right: 110, bottom: 90 });
             this._renderBoxes(id); this._liveDiff(id);
         },

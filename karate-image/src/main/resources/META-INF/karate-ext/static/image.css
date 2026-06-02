@@ -66,14 +66,16 @@
 /* view toggles live in the header */
 .k-image-ext .ki-views { display: inline-flex; gap: 4px; flex-wrap: wrap; }
 
-/* ---- bar (blend slider + Advanced edit controls) ---- */
+/* Advanced = one class on the dialog reveals every .ki-adv element (edit bar, Show
+   options / Rebase). No per-element JS toggling. */
+.k-image-ext.ki-dialog:not(.ki-advanced) .ki-adv { display: none !important; }
+
+/* ---- edit bar (Advanced only) ---- */
 .k-image-ext .ki-bar {
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 14px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 14px;
     border-bottom: 1px solid #e2e8f0; font-size: 12px;
 }
 [data-theme="dark"] .k-image-ext .ki-bar { border-bottom-color: #334155; }
-.k-image-ext .ki-bar:not(:has(> :not([hidden]))) { display: none; }   /* collapse when empty */
-.k-image-ext .ki-edit { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .k-image-ext .ki-bar select {
     font: inherit; font-size: 12px; padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; color: #0f172a;
 }
@@ -83,30 +85,29 @@
 .k-image-ext .ki-yellow { background: #ffff00; }
 .k-image-ext .ki-range { display: inline-flex; align-items: center; gap: 8px; }
 .k-image-ext .ki-hint { font-size: 11px; color: #94a3b8; }
-.k-image-ext .ki-notice {
+.k-image-ext .ki-notice:not(:empty) {
     flex-basis: 100%; font-size: 11px; line-height: 1.4; color: #92400e; background: #fffbeb;
     border: 1px solid #fde68a; border-radius: 4px; padding: 6px 8px;
 }
-[data-theme="dark"] .k-image-ext .ki-notice { color: #fcd34d; background: rgba(120, 53, 15, .3); border-color: #78350f; }
+[data-theme="dark"] .k-image-ext .ki-notice:not(:empty) { color: #fcd34d; background: rgba(120, 53, 15, .3); border-color: #78350f; }
 
-/* side-by-side view: diff (primary) + baseline + latest, wrapping for large images */
-.k-image-ext .ki-side { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; padding: 8px; }
-.k-image-ext .ki-fig { margin: 0; text-align: center; flex: 1 1 240px; min-width: 0; }
-.k-image-ext .ki-fig .ki-img { max-width: 100%; margin: 0 auto; }
-.k-image-ext .ki-fig figcaption { font-size: 12px; margin-top: 4px; color: #64748b; }
-
-/* ---- the single stage ---- */
+/* ---- the stage: a primary slot + an optional baseline/latest aside (Side by side) ---- */
 .k-image-ext .ki-body { padding: 14px; overflow: auto; }
-.k-image-ext .ki-stage {
-    position: relative; max-height: 70vh; overflow: auto; border: 1px solid #e2e8f0; border-radius: 4px;
+.k-image-ext .ki-stage { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.k-image-ext .ki-primary {
+    position: relative; flex: 1 1 320px; min-width: 0; max-height: 72vh; overflow: auto;
+    border: 1px solid #e2e8f0; border-radius: 4px;
     background: repeating-conic-gradient(#e2e8f0 0% 25%, #fff 0% 50%) 50% / 16px 16px;
 }
-[data-theme="dark"] .k-image-ext .ki-stage { border-color: #334155; }
+[data-theme="dark"] .k-image-ext .ki-primary { border-color: #334155; }
+.k-image-ext .ki-aside { flex: 1 1 240px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.k-image-ext .ki-fig { margin: 0; text-align: center; flex: 1 1 200px; min-width: 0; }
+.k-image-ext .ki-fig figcaption { font-size: 12px; margin-top: 4px; color: #64748b; }
+
 .k-image-ext .ki-canvas { position: relative; display: inline-block; line-height: 0; }
 .k-image-ext .ki-canvas-wipe { cursor: ew-resize; touch-action: none; }
-.k-image-ext .ki-img { display: block; height: auto; -webkit-user-drag: none; user-select: none; }
-.k-image-ext .ki-stage-fit .ki-img { max-width: 100%; }
-.k-image-ext .ki-stage-full .ki-img { max-width: none; }
+.k-image-ext .ki-img { display: block; height: auto; max-width: 100%; -webkit-user-drag: none; user-select: none; }
+.k-image-ext .ki-stage-full .ki-primary .ki-img { max-width: none; }   /* 1:1 — primary scrolls */
 .k-image-ext .ki-layer-top { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; }
 .k-image-ext .ki-missing { font-size: 12px; color: #94a3b8; padding: 24px; border: 1px dashed #cbd5e1; border-radius: 4px; }
 
