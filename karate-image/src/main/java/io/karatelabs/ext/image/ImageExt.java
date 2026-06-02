@@ -52,6 +52,19 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ImageExt implements Ext, SimpleObject {
 
+    static {
+        // Keep the JVM icon out of the macOS Dock when the AWT pixel engine
+        // (ImageIO / BufferedImage in ImageComparison) initializes. The property must be
+        // set before the AWT Toolkit loads; ImageExt is class-loaded at boot
+        // (boot.ext('image')), well before any image.diff(). It's a mac-only property —
+        // a harmless no-op on other OSes. We deliberately do NOT set
+        // java.awt.headless=true: that would break karate-robot's real-AWT desktop
+        // automation. Respect an explicit override if the user already set it.
+        if (System.getProperty("apple.awt.UIElement") == null) {
+            System.setProperty("apple.awt.UIElement", "true");
+        }
+    }
+
     // Suite-wide defaults set at boot (single-threaded). Copied per scenario.
     private final Map<String, Object> defaults = new ConcurrentHashMap<>();
 
