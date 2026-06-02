@@ -290,6 +290,26 @@ Emit from a global/step via the thread-local log context:
 LogContext.get().embed(new StepResult.Embed("image-comparison", parts, meta));
 ```
 
+…or **from JS** (so an ext recipe in user space can emit) via the multi-part form of
+`karate.embed`:
+
+```js
+karate.embed({
+  name: 'image-comparison',
+  parts: [
+    { role: 'baseline', path: 'this:baselines/home.png' },  // core reads it to bytes
+    { role: 'latest',   data: latestBytes },                // bytes / Uint8Array
+    { role: 'diff',     data: diffBytes }                   // mime auto-detected when omitted
+  ],
+  meta: { mismatchPercentage: 2.3, pass: false }
+});
+```
+
+Dispatch: a first-arg Map with a `parts` list → multi-part; otherwise the legacy
+`karate.embed(data, mime?, name?)` single-part form. Each part takes `data` (bytes), `path`
+(a `this:`/`classpath:`/`file:` resource core reads), or `url` (an asset the ext wrote);
+`role` is required, `mime` is auto-detected from the bytes when omitted.
+
 Embeds land **only** at `FEATURE_EXIT.data.scenarioResults[i].stepResults[j].embeds[]`
 (not duplicated onto `SCENARIO_EXIT`) — see DESIGN.md § Reports for why.
 
@@ -313,6 +333,13 @@ window.KarateReport.registerEmbed('image-comparison', (embed, api) => {
   registration is typically late. `registerEmbed` handles this by **upgrading
   already-rendered embeds in place** (each embed host carries a stable `data-embed-id`). Ext
   authors don’t manage ordering.
+- **Defer-until-visible:** `_renderEmbed` emits an empty placeholder host and runs the
+  renderer **only when the host scrolls into view** (IntersectionObserver), so large reports
+  (hundreds of image diffs) don’t build/decode every embed at first paint. Renderers stay a
+  single function — defer is transparent to ext authors. Embeds inside collapsed steps
+  materialize when expanded into view; everything is force-rendered on `beforeprint` (so
+  print / PDF / Ctrl-F don’t miss off-screen embeds). An ext can defer its own heavy
+  sub-content further (e.g. build a `<dialog>`’s full-res images only on open).
 - `KarateReport` is exposed on `window` precisely so a separate ext script can reach it (a
   top-level `const` is a global lexical binding, not a `window` property).
 
@@ -349,6 +376,16 @@ Named DOM containers / splice points the report exposes for ext UI. Reality vs. 
 5. Activate from `karate-boot.js`: `const x = boot.ext('<name>'); x.someConfig = …`.
 
 See [`karate-image`](../karate-image/README.md) for a complete, shipping example.
+
+**Pattern — primitives + a JS recipe (for stateful exts with orchestration).** Prefer pure,
+composable Java verbs (e.g. `image.diff` returns a result + an `embed` payload; it doesn't
+emit, fail, or write files) and ship the multi-step orchestration (capture → establish →
+compare → emit → fail) as a **scenario-scope JS recipe** the project copies and overrides —
+not as a baked-in method, and not as a function attached to the global in `karate-boot.js`
+(that closes over **boot** scope, so `screenshot()`/`karate` would bind wrong; the recipe
+must live where it's called — a `karate-config`-loaded `*.js` or a called feature). This keeps
+the engine testable and leaves policy (paths, thresholds, what counts as failure) in user
+space. `karate-image`'s `screenGrab` is the worked example.
 
 ---
 
