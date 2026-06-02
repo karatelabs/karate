@@ -65,6 +65,26 @@ A runnable, readable walkthrough lives in
 (establish → match → catch regression → rebase → per-name options); `VisualDemoTest` asserts
 it **and** writes a real report to `target/visual-demo/` — open it to drive the lightbox.
 
+## Report lightbox
+
+Each comparison renders a thumbnail + status badge; clicking it opens a `<dialog>` built around
+**one image stage**:
+
+- **View toggles** (header, always available — "looking"): **Diff** (default) · **Slider**
+  (drag to wipe) · **Blink** · **Onion** (opacity slider). **Side by side** is a separate
+  toggle that pins baseline + latest beside the stage. **100%** toggles fit ↔ 1:1 zoom.
+- **Advanced** (header) reveals "editing": **live re-diff** controls (ignore / errorType /
+  errorColor) that recompute the diff in-browser as you change them, **ignore-box authoring**
+  (drag on the diff to draw; resize handles; inline list + delete), and the **Show options** /
+  **Rebase** write actions.
+- **Show options** emits the minimal tuning JSON via your `optionsCommand` template; **Rebase**
+  via `rebaseCommand` (defaults: write `<name>.json` / `cp latest baseline`).
+- Live re-diff reads baseline/latest as **base64 inlined in this embed's `meta`** (image-ext
+  only — normal screenshots stay file-based, no bloat), so it works even from a `file://`
+  report (a file-based `<img>` would taint the canvas and block the pixel read).
+- Rendering is **deferred until the embed scrolls into view** (core hook); full-res images +
+  the vendored Resemble.js load on first open — large reports stay fast.
+
 ## Architecture
 
 ```
@@ -89,7 +109,8 @@ META-INF/karate-ext/static/image.js  ── KarateReport.registerEmbed ───
 | `ImageExt.java` | The `Ext`. Boot-config holder (`SimpleObject`) + registers the per-scenario global factory and report assets. |
 | `ImageApi.java` | The `image` global (`SimpleObject`), one **per scenario** (config is scenario-scoped, parallel-safe). `jsGet` exposes the `diff`/`resolve`/`write` verbs + config reads; `putMember` takes config writes. Resolves paths via the scenario `KarateJsContext`. `diff` is pure — it builds the `embed` payload but the recipe emits it. |
 | `ImageComparison.java` | Pixel-diff engine (resemble + ssim). Pure math; `run(...)` always returns a result (no control-flow exceptions). Credit: jkeys089 / Resemble. |
-| `META-INF/karate-ext/static/image.js` | Report renderer. Registers an `image-comparison` embed renderer (`KarateReport.registerEmbed`) → thumbnail + `<dialog>` lightbox: editable Diff tab (live re-diff + ignore-box authoring) + read-only side-by-side / slider / blink / onion-skin. Vendored (patched) Resemble.js. |
+| `META-INF/karate-ext/static/image.js` | Report renderer. Registers the `image-comparison` embed renderer (`KarateReport.registerEmbed`) → thumbnail + single-stage `<dialog>` lightbox (see [Report lightbox](#report-lightbox)). Vendored (patched) `resemble.js` for live re-diff. |
+| `META-INF/karate-ext/static/resemble.js` | jkeys089's patched Resemble.js (boxes may reach the image edge) — vendored, not a CDN. Loaded on first lightbox open to power live re-diff. |
 | `META-INF/karate-ext/static/image.css` | Lightbox styles, hand-authored + scoped under `.k-image-ext` (not Tailwind — see EXT.md). |
 
 ### Key decisions (why it looks like this)
@@ -111,6 +132,10 @@ META-INF/karate-ext/static/image.js  ── KarateReport.registerEmbed ───
   whether to fail. This keeps the engine testable and the policy in user space.
 - **Embed roles are `baseline`/`latest`/`diff`** and the meta key is `mismatchPercentage` —
   the wire contract the lightbox reads. Source of truth is `ImageApi` (`embed(...)`).
+- **Base64 source images ride on the embed `meta` (this ext only).** `meta.baselineData` /
+  `meta.latestData` are inlined so the lightbox's client-side Resemble can re-diff from a
+  `file://` report (canvas-readable). It's scoped to `image-comparison` embeds, so ordinary
+  screenshots/other embeds stay file-based with no report bloat.
 
 ## Build
 
