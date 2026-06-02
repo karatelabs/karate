@@ -95,8 +95,9 @@
             VIEWS.forEach(function (v) {
                 h += '<button type="button" class="ki-vbtn" data-view="' + v[0] + '" onclick="KarateImage.setView(\'' + id + '\',\'' + v[0] + '\')">' + v[1] + '</button>';
             });
-            // blend slider sits with the view buttons, shown only for slider/onion (relabeled)
-            h += '<label class="ki-range" data-for="blend" hidden><span class="ki-blend-label">Blend</span> <input type="range" min="0" max="100" value="50" oninput="KarateImage.blend(\'' + id + '\', this.value)"></label>';
+            // opacity slider sits next to the view buttons, shown only for Onion (Slider is
+            // draggable on the image, so it needs no control)
+            h += '<label class="ki-range" data-for="blend" hidden>Opacity <input type="range" min="0" max="100" value="50" oninput="KarateImage.blend(\'' + id + '\', this.value)"></label>';
             h += '<span class="ki-spacer"></span>';
             // right-aligned controls: Side-by-side toggle (distinct from the left view buttons),
             // then Advanced / zoom / actions. Advanced is a single CSS class on the dialog
@@ -202,9 +203,7 @@
                 b.classList.toggle('ki-on', b.getAttribute('data-view') === mode);
             });
             var blend = dlg.querySelector('.ki-range[data-for="blend"]');
-            if (blend) blend.hidden = !(mode === 'slider' || mode === 'onion');
-            var bl = dlg.querySelector('.ki-blend-label');
-            if (bl) bl.textContent = (mode === 'onion') ? 'Opacity' : 'Wipe';
+            if (blend) blend.hidden = (mode !== 'onion');   // slider drags on the image
 
             var canvas = dlg.querySelector('.ki-canvas');
             canvas.onpointerdown = null;
@@ -410,6 +409,10 @@
             if (d.boxes.length) o.ignoredBoxes = d.boxes.map(function (b) {
                 return { top: Math.round(b.top), left: Math.round(b.left), bottom: Math.round(b.bottom), right: Math.round(b.right) };
             });
+            if (Object.keys(o).length === 0) {
+                this._showCopy(id, 'Write options', 'Nothing to write yet — turn on Advanced and change an option (Ignore / Error / Color) or add an ignore box first.');
+                return;
+            }
             var json = JSON.stringify(o, null, 2);
             this._showCopy(id, 'Write options', this._fill(d.optionsCommand || 'cat <<EOF > ${optionsPath}\n${json}\nEOF', d.paths, json));
         },

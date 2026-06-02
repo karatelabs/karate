@@ -46,19 +46,22 @@
 
 /* toolbar + drawer buttons */
 .k-image-ext .ki-toggle, .k-image-ext .ki-zoom, .k-image-ext .ki-act,
-.k-image-ext .ki-mini, .k-image-ext .ki-vbtn, .k-image-ext .ki-copy-btn {
+.k-image-ext .ki-mini, .k-image-ext .ki-vbtn, .k-image-ext .ki-copy-btn, .k-image-ext .ki-sidebtn {
     font: inherit; font-size: 12px; padding: 4px 10px; border: 1px solid #cbd5e1;
     border-radius: 6px; background: #f1f5f9; color: #0f172a; cursor: pointer;
 }
 [data-theme="dark"] .k-image-ext .ki-toggle, [data-theme="dark"] .k-image-ext .ki-zoom,
 [data-theme="dark"] .k-image-ext .ki-act, [data-theme="dark"] .k-image-ext .ki-mini,
-[data-theme="dark"] .k-image-ext .ki-vbtn, [data-theme="dark"] .k-image-ext .ki-copy-btn {
+[data-theme="dark"] .k-image-ext .ki-vbtn, [data-theme="dark"] .k-image-ext .ki-copy-btn,
+[data-theme="dark"] .k-image-ext .ki-sidebtn {
     border-color: #334155; background: #1e293b; color: #e2e8f0;
 }
 .k-image-ext .ki-toggle.ki-on,
 .k-image-ext .ki-vbtn.ki-on,
+.k-image-ext .ki-sidebtn.ki-on,
 [data-theme="dark"] .k-image-ext .ki-toggle.ki-on,
-[data-theme="dark"] .k-image-ext .ki-vbtn.ki-on {
+[data-theme="dark"] .k-image-ext .ki-vbtn.ki-on,
+[data-theme="dark"] .k-image-ext .ki-sidebtn.ki-on {
     background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600;
 }
 .k-image-ext .ki-close { font-size: 22px; line-height: 1; border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0 4px; }
@@ -83,7 +86,7 @@
 .k-image-ext .ki-swatch { width: 18px; height: 18px; border: 1px solid #94a3b8; border-radius: 3px; cursor: pointer; padding: 0; }
 .k-image-ext .ki-pink { background: #ff00ff; }
 .k-image-ext .ki-yellow { background: #ffff00; }
-.k-image-ext .ki-range { display: inline-flex; align-items: center; gap: 8px; }
+.k-image-ext .ki-range { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; }
 .k-image-ext .ki-hint { font-size: 11px; color: #94a3b8; }
 .k-image-ext .ki-notice:not(:empty) {
     flex-basis: 100%; font-size: 11px; line-height: 1.4; color: #92400e; background: #fffbeb;
