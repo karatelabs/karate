@@ -116,6 +116,92 @@ class StepCallTest {
         assertEquals(2, result.getScenarioCount());
     }
 
+    // ========== Doc-string as the call argument ==========
+    // v2 convenience (v1 did not support this): when a call/callonce step has no inline
+    // argument but carries a doc-string, the doc-string IS the argument. It routes
+    // through the standard call-arg path, so embedded #(...) expressions resolve.
+
+    @Test
+    void testCallFeatureWithDocStringArgument() throws Exception {
+        Path calledFeature = tempDir.resolve("called.feature");
+        Files.writeString(calledFeature, """
+            Feature: Called with doc-string arg
+            Scenario: Use arguments
+            * match newId == '1'
+            * def doubled = inputValue * 2
+            """);
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller with doc-string arg
+            Scenario: Pass a doc-string argument with an embedded expression
+            * def resourceId = '1'
+            * def response = call read('called.feature')
+            \"\"\"
+            { newId: '#(resourceId)', inputValue: 21 }
+            \"\"\"
+            * match response.doubled == 42
+            """);
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+        assertTrue(result.isPassed(), "doc-string call arg should resolve: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallKeywordWithDocStringArgument() throws Exception {
+        // bare `call` keyword (shared scope, no result var) with a doc-string arg
+        Path calledFeature = tempDir.resolve("called.feature");
+        Files.writeString(calledFeature, """
+            Feature: Called
+            Scenario:
+            * match newId == '1'
+            """);
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def resourceId = '1'
+            * call read('called.feature')
+            \"\"\"
+            { newId: '#(resourceId)' }
+            \"\"\"
+            """);
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+        assertTrue(result.isPassed(), "bare call keyword doc-string arg should resolve: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallonceWithDocStringArgument() throws Exception {
+        Path calledFeature = tempDir.resolve("called.feature");
+        Files.writeString(calledFeature, """
+            Feature: Called
+            Scenario:
+            * match newId == '1'
+            """);
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def resourceId = '1'
+            * def response = callonce read('called.feature')
+            \"\"\"
+            { newId: '#(resourceId)' }
+            \"\"\"
+            """);
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+        assertTrue(result.isPassed(), "callonce doc-string arg should resolve: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallonceWhenCallerHasNoResourceUri() {
+        // Regression: FeatureRuntime.featureKey() NPE'd on getUri().toString() when the
+        // calling feature's resource had no URI (in-memory / synthetically-loaded). The
+        // inline runner produces exactly such a caller; callonce must still work.
+        ScenarioRuntime sr = run("""
+            * def res = callonce read('classpath:io/karatelabs/core/callonce-uri-fallback.feature')
+            * match res.value == 42
+            """);
+        assertPassed(sr);
+    }
+
     @Test
     void testCallSimple() throws Exception {
         // Create a simple feature that sets variables

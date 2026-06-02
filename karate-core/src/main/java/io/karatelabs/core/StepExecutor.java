@@ -332,18 +332,21 @@ public class StepExecutor {
         String name = text.substring(0, eqIndex).trim();
         validateVariableName(name);
         String expr = text.substring(eqIndex + 1).trim();
+        String docString = step.getDocString();
 
-        // Handle docstring if expression is empty
-        if (expr.isEmpty() && step.getDocString() != null) {
-            expr = step.getDocString();
+        // Handle docstring if expression is empty (docstring IS the RHS expression).
+        // Null it afterwards so it isn't ALSO treated as a separate call argument below.
+        if (expr.isEmpty() && docString != null) {
+            expr = docString;
+            docString = null;
         }
 
         // Check if RHS is a special karate expression (not standard JS)
         if (expr.startsWith("call ")) {
-            String callExpr = expr.substring(5).trim();
+            String callExpr = appendDocStringCallArg(expr.substring(5).trim(), docString);
             executeCallWithResult(callExpr, name);
         } else if (expr.startsWith("callonce ")) {
-            String callExpr = expr.substring(9).trim();
+            String callExpr = appendDocStringCallArg(expr.substring(9).trim(), docString);
             executeCallOnceWithResult(callExpr, name);
         } else {
             // Use common Karate expression evaluation which handles:
@@ -2430,8 +2433,30 @@ public class StepExecutor {
 
     // ========== Control Flow ==========
 
+    /**
+     * When a {@code call} / {@code callonce} step carries a doc-string and no inline
+     * argument, the doc-string IS the call argument:
+     * <pre>
+     * * call read('helper.feature')
+     *   """
+     *   { id: '#(userId)' }
+     *   """
+     * </pre>
+     * Append it so the standard call-arg path picks it up — that path routes through
+     * {@link #evalKarateExpression}, so inline JSON, embedded {@code #(...)}, lists and
+     * bare JS all resolve uniformly. An inline argument (if somehow also present) wins.
+     * Note: v1 did not support doc-string call args; this is a v2 convenience.
+     */
+    private static String appendDocStringCallArg(String callExpr, String docString) {
+        if (docString != null && !docString.isBlank()
+                && StepUtils.findCallArgSeparator(callExpr) < 0) {
+            return callExpr + " " + docString.trim();
+        }
+        return callExpr;
+    }
+
     private void executeCall(Step step) {
-        String text = step.getText().trim();
+        String text = appendDocStringCallArg(step.getText().trim(), step.getDocString());
 
         // Try to evaluate the first token to see if it's a JS function
         // Syntax: "call fun" or "call fun arg" where fun is a JS function variable
@@ -2611,7 +2636,10 @@ public class StepExecutor {
     }
 
     private void executeCallOnce(Step step) {
-        String text = step.getText().trim();
+        // Include the doc-string arg in the cache key so calls differing only by their
+        // doc-string argument cache separately. executeCall (invoked below) re-derives
+        // the same effective text from the step, so the actual call stays consistent.
+        String text = appendDocStringCallArg(step.getText().trim(), step.getDocString());
         String cacheKey = text;
 
         // Use feature-level cache (not suite-level) - callOnce is scoped per feature

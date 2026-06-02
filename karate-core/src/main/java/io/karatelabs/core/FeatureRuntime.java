@@ -978,7 +978,12 @@ public class FeatureRuntime implements Callable<FeatureResult> {
     }
 
     private String featureKey() {
-        return feature.getResource().getUri().toString();
+        Resource resource = feature.getResource();
+        java.net.URI uri = resource.getUri();
+        // getUri() is null for in-memory / synthetically-loaded features (and some
+        // classpath resources); fall back to the always-populated prefixed path so
+        // callonce/setuponce cache scoping still works instead of NPE-ing.
+        return uri != null ? uri.toString() : resource.getPrefixedPath();
     }
 
 }
