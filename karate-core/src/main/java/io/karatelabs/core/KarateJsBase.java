@@ -459,22 +459,87 @@ abstract class KarateJsBase implements SimpleObject {
     }
 
     /**
-     * Embed content in the report. Auto-detects MIME type if not provided.
+     * Embed content in the report. Two forms:
+     * <ul>
+     *   <li><b>Single-part (legacy):</b> {@code embed(data, mime?, name?)} — auto-detects MIME
+     *       when omitted.</li>
+     *   <li><b>Multi-part (object):</b> {@code embed({ name, parts:[{role, mime?, data|path|url}], meta })}
+     *       — for rich embeds (e.g. image-comparison). Dispatched when the first arg is a Map
+     *       carrying a {@code parts} list. Each part: {@code role} is required;
+     *       {@code data} (bytes / Uint8Array) or {@code path} (a resource string core reads to
+     *       bytes) or {@code url} (a report-relative asset the caller wrote); {@code mime} is
+     *       auto-detected from the bytes when omitted.</li>
+     * </ul>
      */
     JavaInvokable embed() {
         return args -> {
             if (args.length < 1) {
                 throw new RuntimeException("embed() needs at least one argument: data");
             }
-            Object dataArg = args[0];
+            Object first = unwrapJs(args[0]);
+            if (first instanceof Map<?, ?> map && map.get("parts") instanceof List) {
+                LogContext.get().embed(toMultiPartEmbed(map));
+                return null;
+            }
+            // single-part (legacy)
             String mimeType = args.length > 1 && args[1] != null
-                    ? args[1].toString() : KarateJsUtils.detectMimeType(dataArg);
+                    ? args[1].toString() : KarateJsUtils.detectMimeType(first);
             String name = args.length > 2 ? args[2].toString() : null;
-
-            byte[] data = KarateJsUtils.convertToBytes(dataArg);
+            byte[] data = KarateJsUtils.convertToBytes(first);
             LogContext.get().embed(data, mimeType, name);
             return null;
         };
+    }
+
+    private StepResult.Embed toMultiPartEmbed(Map<?, ?> map) {
+        String name = map.get("name") != null ? map.get("name").toString() : null;
+        List<StepResult.Part> parts = new ArrayList<>();
+        for (Object partObj : (List<?>) map.get("parts")) {
+            Object pu = unwrapJs(partObj);
+            if (!(pu instanceof Map<?, ?> pm)) {
+                throw new RuntimeException("embed(): each 'parts' entry must be an object");
+            }
+            Object roleObj = pm.get("role");
+            if (roleObj == null) {
+                throw new RuntimeException("embed(): each part needs a 'role'");
+            }
+            String role = roleObj.toString();
+            String mime = pm.get("mime") != null ? pm.get("mime").toString() : null;
+            Object url = pm.get("url");
+            if (url != null) {
+                parts.add(new StepResult.Part(role, mime, url.toString()));
+                continue;
+            }
+            byte[] bytes;
+            Object dataObj = pm.get("data");
+            Object pathObj = pm.get("path");
+            if (dataObj != null) {
+                bytes = KarateJsUtils.convertToBytes(unwrapJs(dataObj));
+            } else if (pathObj != null) {
+                bytes = readPathBytes(pathObj.toString());
+            } else {
+                throw new RuntimeException("embed(): part '" + role + "' needs 'data', 'path', or 'url'");
+            }
+            parts.add(new StepResult.Part(role, mime != null ? mime : KarateJsUtils.detectMimeType(bytes), bytes));
+        }
+        Object meta = map.get("meta");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> metaMap = meta instanceof Map ? (Map<String, Object>) meta : null;
+        return new StepResult.Embed(name, parts, metaMap);
+    }
+
+    /** Read an embed part's {@code path} (this:/classpath:/file:/relative) into bytes. */
+    private byte[] readPathBytes(String path) {
+        try (java.io.InputStream is = getCurrentResource().resolve(path).getStream()) {
+            return is.readAllBytes();
+        } catch (Exception e) {
+            throw new RuntimeException("embed(): failed to read part path '" + path + "': " + e.getMessage(), e);
+        }
+    }
+
+    /** Unwrap a JsValue (e.g. a nested Uint8Array / object) to its idiomatic Java value. */
+    private static Object unwrapJs(Object o) {
+        return o instanceof JsValue jv ? jv.getJavaValue() : o;
     }
 
     /**

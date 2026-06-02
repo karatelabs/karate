@@ -788,11 +788,33 @@ public class KarateJsUtils {
             return "application/json";
         } else if (obj instanceof Node) {
             return "application/xml";
-        } else if (obj instanceof byte[]) {
-            return "application/octet-stream";
+        } else if (obj instanceof byte[] bytes) {
+            return sniffBytesMime(bytes);
         } else {
             return "text/plain";
         }
+    }
+
+    /**
+     * Best-effort MIME detection from leading "magic" bytes — so an embed part given raw
+     * image bytes (a screenshot / diff PNG) is written with the right extension and rendered
+     * as an image. Falls back to {@code application/octet-stream}.
+     */
+    static String sniffBytesMime(byte[] b) {
+        if (b == null || b.length < 4) {
+            return "application/octet-stream";
+        }
+        int b0 = b[0] & 0xFF, b1 = b[1] & 0xFF, b2 = b[2] & 0xFF, b3 = b[3] & 0xFF;
+        if (b0 == 0x89 && b1 == 'P' && b2 == 'N' && b3 == 'G') return "image/png";
+        if (b0 == 0xFF && b1 == 0xD8 && b2 == 0xFF) return "image/jpeg";
+        if (b0 == 'G' && b1 == 'I' && b2 == 'F' && b3 == '8') return "image/gif";
+        if (b0 == 'B' && b1 == 'M') return "image/bmp";
+        if (b0 == '%' && b1 == 'P' && b2 == 'D' && b3 == 'F') return "application/pdf";
+        if (b.length >= 12 && b0 == 'R' && b1 == 'I' && b2 == 'F' && b3 == 'F'
+                && (b[8] & 0xFF) == 'W' && (b[9] & 0xFF) == 'E' && (b[10] & 0xFF) == 'B' && (b[11] & 0xFF) == 'P') {
+            return "image/webp";
+        }
+        return "application/octet-stream";
     }
 
     /**
