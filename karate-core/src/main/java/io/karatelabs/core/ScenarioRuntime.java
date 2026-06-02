@@ -1305,6 +1305,10 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         return config;
     }
 
+    public StepExecutor getExecutor() {
+        return executor;
+    }
+
     @Override
     public Resource getWorkingDir() {
         return scenario.getFeature().getResource();

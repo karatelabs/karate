@@ -1219,25 +1219,7 @@ public class StepExecutor {
     // ========== Assertions ==========
 
     private void executeMatch(Step step) {
-        String text = step.getText();
-        MatchExpression expr = GherkinParser.parseMatchExpression(text);
-
-        Object actual = evalMatchExpression(expr.getActualExpr());
-
-        // Check for docstring as expected value (e.g., match foo contains deep """ {...} """)
-        Object expected;
-        String docString = step.getDocString();
-        if (docString != null && (expr.getExpectedExpr() == null || expr.getExpectedExpr().isEmpty())) {
-            // DocString provides the expected value
-            expected = evalMatchExpression(docString);
-        } else {
-            expected = evalMatchExpression(expr.getExpectedExpr());
-        }
-
-        Match.Type matchType = Match.Type.valueOf(expr.getMatchTypeName());
-
-        boolean matchEachEmptyAllowed = runtime.getConfig().isMatchEachEmptyAllowed();
-        Result result = Match.execute(runtime.getEngine(), matchType, actual, expected, matchEachEmptyAllowed);
+        Result result = evalMatchString(step.getText(), step.getDocString());
         if (!result.pass) {
             String message = result.message;
             // Include comment as assertion label if present
@@ -1249,6 +1231,33 @@ public class StepExecutor {
             }
             throw new AssertionError(message);
         }
+    }
+
+    /**
+     * Parses and evaluates a full match-expression string (e.g. {@code "foo contains { a: 1 }"}
+     * or {@code "$json.orders[*].category contains 'electronics'"}) and returns the
+     * {@link Result}. Both operands route through {@link #evalMatchExpression}, so a `$`-prefixed
+     * JsonPath (wildcards included) resolves identically on either side — exactly as the `match`
+     * keyword does. This is the single entry point shared by the `match` keyword
+     * ({@link #executeMatch}) and the {@code karate.match("...")} JS API, so the two never drift.
+     *
+     * @param expression the match expression sans the leading {@code match} keyword
+     * @param docString   optional doc-string supplying the expected value (keyword path only;
+     *                    pass {@code null} from the JS API)
+     */
+    public Result evalMatchString(String expression, String docString) {
+        MatchExpression expr = GherkinParser.parseMatchExpression(expression);
+        Object actual = evalMatchExpression(expr.getActualExpr());
+        Object expected;
+        if (docString != null && (expr.getExpectedExpr() == null || expr.getExpectedExpr().isEmpty())) {
+            // DocString provides the expected value (e.g. match foo contains deep """ {...} """)
+            expected = evalMatchExpression(docString);
+        } else {
+            expected = evalMatchExpression(expr.getExpectedExpr());
+        }
+        Match.Type matchType = Match.Type.valueOf(expr.getMatchTypeName());
+        boolean matchEachEmptyAllowed = runtime.getConfig().isMatchEachEmptyAllowed();
+        return Match.execute(runtime.getEngine(), matchType, actual, expected, matchEachEmptyAllowed);
     }
 
     /**

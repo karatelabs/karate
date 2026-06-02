@@ -237,6 +237,45 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    // The one-arg karate.match("...") form delegates to the same evaluator the `match`
+    // keyword uses, so a $-prefixed JsonPath (wildcards included) resolves on either side
+    // exactly as the keyword does. Previously the JS API used engine.get()/engine.eval()
+    // and choked on $-paths and wildcards (issue #2894).
+
+    @Test
+    void testKarateMatchStringJsonPathWildcardOnLhs() {
+        ScenarioRuntime sr = run("""
+            * def json = { orders: [ { category: 'electronics' }, { category: 'books' } ] }
+            * def res = karate.match("$json.orders[*].category contains 'electronics'")
+            * match res.pass == true
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateMatchStringJsonPathWildcardOnRhs() {
+        // $-prefixed path on the RHS resolves via the shared expression evaluator,
+        // mirroring v1 (where the RHS ran through evalKarateExpression's $-branch).
+        ScenarioRuntime sr = run("""
+            * def json = { orders: [ { category: 'electronics' }, { category: 'books' } ] }
+            * def res = karate.match("['electronics', 'books', 'clothing'] contains $json.orders[*].category")
+            * match res.pass == true
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateMatchStringMirrorsKeywordForFailure() {
+        // A failing JS-API match returns pass=false with a message, not a parse error.
+        ScenarioRuntime sr = run("""
+            * def json = { orders: [ { category: 'electronics' } ] }
+            * def res = karate.match("$json.orders[*].category contains 'toys'")
+            * match res.pass == false
+            * match res.message != null
+            """);
+        assertPassed(sr);
+    }
+
     @Test
     void testGlobalMatchFluent() {
         // Global match() returns Value for fluent API

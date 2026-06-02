@@ -28,14 +28,12 @@ import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 import io.karatelabs.common.*;
 import io.karatelabs.gherkin.Feature;
-import io.karatelabs.gherkin.MatchExpression;
 import io.karatelabs.http.DefaultHttpClientFactory;
 import io.karatelabs.http.HttpClient;
 import io.karatelabs.http.HttpClientFactory;
 import io.karatelabs.http.HttpRequest;
 import io.karatelabs.http.HttpRequestBuilder;
 import io.karatelabs.http.HttpResponse;
-import io.karatelabs.gherkin.GherkinParser;
 import io.karatelabs.js.JavaInvokable;
 import io.karatelabs.markup.Markup;
 import io.karatelabs.js.JavaCallable;
@@ -657,16 +655,17 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 Result result = value._equals(expected);
                 return result.toMap();
             } else {
-                // One-argument string form: karate.match("foo == expected")
-                // Use GherkinParser for proper lexer-based parsing
+                // One-argument string form: karate.match("foo == expected").
+                // Delegate to the same evaluator the `match` keyword uses so both operands
+                // get identical handling — JsonPath ($-prefixed, wildcards), JSON literals,
+                // embedded expressions, etc. Reusing StepExecutor.evalMatchString keeps the
+                // JS API and the keyword from drifting (issue #2894).
+                ScenarioRuntime rt = getRuntime();
+                if (rt == null) {
+                    throw new RuntimeException("karate.match(String) is not available in this context");
+                }
                 String expression = args[0].toString();
-                MatchExpression parsed = GherkinParser.parseMatchExpression(expression);
-
-                Object actual = engine.get(parsed.getActualExpr());
-                Object expected = engine.eval(StepExecutor.wrapJsonLikeExpression(parsed.getExpectedExpr()));
-                Value value = Match.evaluate(actual, null, null);
-                Match.Type matchType = Match.Type.valueOf(parsed.getMatchTypeName());
-                Result result = value.is(matchType, expected);
+                Result result = rt.getExecutor().evalMatchString(expression, null);
                 return result.toMap();
             }
         };
