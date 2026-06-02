@@ -81,7 +81,11 @@ public class ImageExt implements Ext, SimpleObject {
         suite.registerReportAssets(
                 ReportAssets.named("image")
                         .js("static/image.js")
-                        .css("static/image.css"),
+                        .css("static/image.css")
+                        // jkeys089's patched Resemble.js (boxes may reach the image edge),
+                        // vendored — not a CDN. image.js loads it on first lightbox open to
+                        // power the live re-diff. Copied to ext/image/resemble.js.
+                        .asset("static/resemble.js"),
                 getClass().getClassLoader());
     }
 

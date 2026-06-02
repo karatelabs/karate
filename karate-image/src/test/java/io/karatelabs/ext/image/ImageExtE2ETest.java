@@ -146,6 +146,12 @@ class ImageExtE2ETest {
         Path extJs = reports.resolve("ext/image/image.js");
         assertTrue(Files.exists(extJs), "image.js should be copied");
         assertTrue(Files.exists(reports.resolve("ext/image/image.css")), "image.css should be copied");
+        // The vendored (patched) Resemble.js is copied as an extra asset (ReportAssets.asset)
+        // so the lightbox can load it for live re-diff — the edge-box patch must survive.
+        Path resemble = reports.resolve("ext/image/resemble.js");
+        assertTrue(Files.exists(resemble), "vendored resemble.js should be copied");
+        assertTrue(Files.readString(resemble).contains("reach edge of images"),
+                "resemble.js must keep jkeys089's edge-box patch");
         // The shipped image.js is the m3 lightbox, not the m2 stub: it registers the
         // 'image-comparison' renderer and builds the <dialog> lightbox. (The live DOM
         // is rendered client-side, so the dialog itself is verified by the manual smoke,

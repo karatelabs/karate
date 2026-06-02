@@ -69,6 +69,7 @@ public final class ReportAssets {
     private String js;                 // required; e.g. "static/ext.js"
     private String css;                // optional; e.g. "static/ext.css"
     private final List<Page> pages = new ArrayList<>();
+    private final List<String> assets = new ArrayList<>();   // extra static files copied verbatim
 
     // Bound at registration time by Suite.registerReportAssets.
     private ClassLoader classLoader;
@@ -106,6 +107,16 @@ public final class ReportAssets {
         return this;
     }
 
+    /**
+     * Add an extra static file copied verbatim to {@code ext/<name>/} (e.g. a vendored
+     * library the JS loads at runtime, like {@code static/resemble.js}). Not auto-injected
+     * into the page — the ext's own JS references it by its report-relative URL.
+     */
+    public ReportAssets asset(String path) {
+        assets.add(path);
+        return this;
+    }
+
     public String name() {
         return name;
     }
@@ -137,6 +148,9 @@ public final class ReportAssets {
         if (css != null) {
             requireResource(classLoader, css, "css");
         }
+        for (String a : assets) {
+            requireResource(classLoader, a, "asset");
+        }
         for (Page p : pages) {
             if (p.href() != null) {
                 requireResource(classLoader, p.href(), "page");
@@ -156,6 +170,9 @@ public final class ReportAssets {
         copyResource(js, extDir.resolve(stripStatic(js)));
         if (css != null) {
             copyResource(css, extDir.resolve(stripStatic(css)));
+        }
+        for (String a : assets) {
+            copyResource(a, extDir.resolve(stripStatic(a)));
         }
         for (Page p : pages) {
             if (p.href() != null) {
