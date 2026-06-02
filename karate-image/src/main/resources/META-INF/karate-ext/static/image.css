@@ -43,6 +43,11 @@
 }
 [data-theme="dark"] .k-image-ext .ki-head { border-bottom-color: #334155; }
 .k-image-ext .ki-spacer { flex: 1 1 auto; }
+/* a CSS `display` beats the [hidden] attribute, so restore it for our scoped elements
+   (e.g. the Opacity slider is display:inline-flex and would otherwise always show) */
+.k-image-ext [hidden] { display: none !important; }
+/* the Side-by-side button starts the right-aligned control group */
+.k-image-ext .ki-sidebtn { margin-left: auto; }
 
 /* toolbar + drawer buttons */
 .k-image-ext .ki-toggle, .k-image-ext .ki-zoom, .k-image-ext .ki-act,
@@ -75,10 +80,11 @@
 
 /* ---- edit bar (Advanced only) ---- */
 .k-image-ext .ki-bar {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 14px;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 8px 14px;
     border-bottom: 1px solid #e2e8f0; font-size: 12px;
 }
 [data-theme="dark"] .k-image-ext .ki-bar { border-bottom-color: #334155; }
+.k-image-ext .ki-bar-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .k-image-ext .ki-bar select {
     font: inherit; font-size: 12px; padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; color: #0f172a;
 }

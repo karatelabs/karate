@@ -105,20 +105,24 @@
             h += '<button type="button" class="ki-sidebtn" onclick="KarateImage.toggleSide(\'' + id + '\')">Side by side</button>';
             h += '<button type="button" class="ki-toggle" onclick="KarateImage.toggleAdvanced(\'' + id + '\')">Advanced</button>';
             h += '<button type="button" class="ki-zoom" onclick="KarateImage.toggleZoom(\'' + id + '\')">100%</button>';
-            h += '<button type="button" class="ki-act ki-adv" onclick="KarateImage.showOptions(\'' + id + '\')">Show options</button>';
-            h += '<button type="button" class="ki-act ki-adv" onclick="KarateImage.rebase(\'' + id + '\')">Rebase</button>';
             h += '<button type="button" class="ki-close" onclick="KarateImage.close(\'' + id + '\')" aria-label="Close">&times;</button>';
             h += '</header>';
 
-            // edit bar — entirely advanced (.ki-adv): re-diff options + ignore-box authoring
+            // edit bar — entirely advanced (.ki-adv): row 1 = re-diff options, row 2 = boxes + write actions
             h += '<div class="ki-bar ki-adv">';
+            h += '<div class="ki-bar-row">';
             h += this._sel(id, 'ignore', 'Ignore', ['nothing', 'less', 'colors', 'antialiasing', 'alpha'], 'less');
             h += this._sel(id, 'errorType', 'Error', ['movement', 'flat', 'diffOnly', 'flatDifferenceIntensity', 'movementDifferenceIntensity'], 'movement');
             h += 'Color <button type="button" class="ki-swatch ki-pink" title="pink" onclick="KarateImage.setColor(\'' + id + '\',\'pink\')"></button>';
             h += '<button type="button" class="ki-swatch ki-yellow" title="yellow" onclick="KarateImage.setColor(\'' + id + '\',\'yellow\')"></button>';
+            h += '</div>';
+            h += '<div class="ki-bar-row">';
+            h += '<button type="button" class="ki-act" onclick="KarateImage.showOptions(\'' + id + '\')">Show options</button>';
+            h += '<button type="button" class="ki-act" onclick="KarateImage.rebase(\'' + id + '\')">Rebase</button>';
             h += ' · Ignore boxes <button type="button" class="ki-mini" onclick="KarateImage.addBox(\'' + id + '\')">+ add</button>';
             h += '<span class="ki-hint">drag on the diff to draw</span>';
             h += '<ul class="ki-boxlist"></ul>';
+            h += '</div>';
             h += '<span class="ki-notice"></span>';
             h += '</div>';
 
