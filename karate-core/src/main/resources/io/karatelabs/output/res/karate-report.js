@@ -401,21 +401,84 @@ const KarateReport = {
     registerEmbed(name, fn) {
         this._embedRenderers[name] = fn;
         if (typeof document === 'undefined') return;
+        // Re-upgrade hosts that were ALREADY materialized (e.g. with the generic fallback
+        // before this ext registered). Still-deferred placeholders pick up `fn` when the
+        // IntersectionObserver later materializes them — see _materializeEmbed.
         this._embeds.forEach(({ id, embed }) => {
             if (embed.name !== name) return;
             const host = document.querySelector(`[data-embed-id="${id}"]`);
-            if (host) host.innerHTML = fn(embed, this);
+            if (host && host.dataset.rendered) host.innerHTML = fn(embed, this);
         });
     },
 
+    // Embeds render lazily: _renderEmbed emits an empty placeholder host; the renderer runs
+    // only when the host scrolls into view (initDeferredEmbeds wires the observers). This is
+    // what keeps very large reports from building every embed (and decoding every image) at
+    // first paint. The min-height stops zero-height placeholders from all intersecting at once.
     _renderEmbed(embed) {
         const id = ++this._embedSeq;
         this._embeds.push({ id, embed });
-        const renderer = embed.name ? this._embedRenderers[embed.name] : null;
-        const inner = renderer ? renderer(embed, this) : this._renderEmbedGeneric(embed);
-        // Stable host so a late-registering ext can find + upgrade this embed.
-        return `<div class="k-embed" data-embed-id="${id}">${inner}</div>`;
+        return `<div class="k-embed" data-embed-id="${id}" data-defer style="min-height:2rem"></div>`;
     },
+
+    _materializeEmbed(host) {
+        if (!host || host.dataset.rendered) return;
+        const id = Number(host.getAttribute('data-embed-id'));
+        const rec = this._embeds.find(x => x.id === id);
+        if (!rec) return;
+        const renderer = rec.embed.name ? this._embedRenderers[rec.embed.name] : null;
+        host.innerHTML = renderer ? renderer(rec.embed, this) : this._renderEmbedGeneric(rec.embed);
+        host.dataset.rendered = '1';
+        host.removeAttribute('data-defer');
+        host.style.minHeight = '';
+        if (this._deferIO) this._deferIO.unobserve(host);
+    },
+
+    _observeDeferred(host) {
+        if (!host || host.dataset.rendered || host.dataset.observed) return;
+        host.dataset.observed = '1';
+        if (this._deferIO) this._deferIO.observe(host);
+        else this._materializeEmbed(host);   // no IntersectionObserver support -> render now
+    },
+
+    /**
+     * Wire up lazy embed rendering for the current page. A MutationObserver catches the
+     * embed placeholders as Alpine inserts each scenario's `x-html`; an IntersectionObserver
+     * materializes each host when it scrolls into view (or when a collapsed step is expanded
+     * and becomes visible). Idempotent. On `beforeprint`, everything is force-rendered so
+     * print / PDF / Ctrl-F don't miss off-screen embeds.
+     */
+    initDeferredEmbeds() {
+        if (this._deferReady || typeof document === 'undefined') return;
+        this._deferReady = true;
+        const self = this;
+        if (typeof IntersectionObserver !== 'undefined') {
+            this._deferIO = new IntersectionObserver(entries => {
+                entries.forEach(e => { if (e.isIntersecting) self._materializeEmbed(e.target); });
+            }, { rootMargin: '200px' });
+        }
+        const scan = root => {
+            if (root && root.querySelectorAll) {
+                root.querySelectorAll('[data-embed-id][data-defer]').forEach(h => self._observeDeferred(h));
+            }
+        };
+        if (typeof MutationObserver !== 'undefined' && document.body) {
+            new MutationObserver(muts => {
+                muts.forEach(m => m.addedNodes && m.addedNodes.forEach(n => {
+                    if (n.nodeType !== 1) return;
+                    if (n.matches && n.matches('[data-embed-id][data-defer]')) self._observeDeferred(n);
+                    scan(n);
+                }));
+            }).observe(document.body, { childList: true, subtree: true });
+        }
+        scan(document);
+        window.addEventListener('beforeprint', () => {
+            document.querySelectorAll('[data-embed-id][data-defer]').forEach(h => self._materializeEmbed(h));
+        });
+    },
+
+    _deferIO: null,
+    _deferReady: false,
 
     // Default per-part rendering when no ext claims the embed name — also the
     // graceful fallback shown until an ext upgrades it.
@@ -489,6 +552,7 @@ const KarateReport = {
         const data = this.parseData();
         this.initStepExpanded(data);
         this.initTheme();
+        this.initDeferredEmbeds();   // lazy-render step embeds as they scroll into view
 
         const self = this;
         return {
