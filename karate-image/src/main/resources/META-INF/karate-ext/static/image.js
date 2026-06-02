@@ -173,6 +173,7 @@
                 return s + '</select></label>';
             };
             var h = '<div class="ki-ctl-title">Live re-diff</div>';
+            h += '<div class="ki-notice" hidden></div>';
             h += sel('ignore', 'Ignore', ['nothing', 'less', 'colors', 'antialiasing', 'alpha'], 'less');
             h += sel('errorType', 'Error', ['movement', 'flat', 'diffOnly', 'flatDifferenceIntensity', 'movementDifferenceIntensity'], 'movement');
             h += '<label class="ki-ctl">Color '
@@ -236,7 +237,21 @@
             dlg.querySelector('.ki-controls').hidden = !d.tune;
             dlg.querySelector('.ki-pane-diff').classList.toggle('ki-tuning', d.tune);
             dlg.querySelector('.ki-toggle').classList.toggle('ki-on', d.tune);
-            if (d.tune) { this._loadResemble(id, function () { KarateImage._liveDiff(id); }); this._renderBoxes(id); }
+            if (!d.tune) return;
+            this._renderBoxes(id);
+            if (window.location.protocol === 'file:') {
+                // Client-side Resemble can't read file:// image pixels (unique origin →
+                // tainted canvas), so live re-diff is disabled. Box authoring + Show options
+                // still work — they don't touch pixels. Serve the report over http for live.
+                this._notice(id, 'Live preview (ignore/error/color/transparency) needs the report served over HTTP — e.g. run  python3 -m http.server  inside karate-reports. Ignore boxes still draw and export.');
+            } else {
+                this._notice(id, '');
+                this._loadResemble(id, function () { KarateImage._liveDiff(id); });
+            }
+        },
+        _notice: function (id, msg) {
+            var el = document.getElementById(id).querySelector('.ki-notice');
+            if (el) { el.textContent = msg; el.hidden = !msg; }
         },
         toggleZoom: function (id) {
             var d = this._data[id], dlg = document.getElementById(id);
@@ -326,6 +341,8 @@
                 el.addEventListener('pointerdown', function (ev) { KarateImage._boxDown(id, b.id, ev); });
                 layer.appendChild(el);
             });
+            // draw-to-create: pointerdown on empty canvas drags out a new box
+            layer.onpointerdown = function (ev) { if (ev.target === layer) KarateImage._drawStart(id, ev); };
             if (list) {
                 list.innerHTML = '';
                 d.boxes.forEach(function (b) {
@@ -358,6 +375,31 @@
             var up = function () {
                 window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
                 self._liveDiff(id);
+            };
+            window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+        },
+        _drawStart: function (id, ev) {
+            ev.preventDefault();
+            var d = this._data[id], sc = this._scale(id), self = this;
+            var layer = document.getElementById(id).querySelector('.ki-boxlayer');
+            var r = layer.getBoundingClientRect();
+            var x0 = (ev.clientX - r.left) / sc, y0 = (ev.clientY - r.top) / sc;
+            var b = { id: d.boxSeq++, left: x0, top: y0, right: x0, bottom: y0 };
+            d.boxes.push(b);
+            var move = function (e) {
+                var x = (e.clientX - r.left) / sc, y = (e.clientY - r.top) / sc;
+                b.left = Math.min(x0, x); b.right = Math.max(x0, x);
+                b.top = Math.min(y0, y); b.bottom = Math.max(y0, y);
+                self._renderBoxes(id);
+            };
+            var up = function () {
+                window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+                if (b.right - b.left < 5 || b.bottom - b.top < 5) {   // too small → discard (treat as a click)
+                    d.boxes = d.boxes.filter(function (x) { return x.id !== b.id; });
+                    self._renderBoxes(id);
+                } else {
+                    self._liveDiff(id);
+                }
             };
             window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
         },

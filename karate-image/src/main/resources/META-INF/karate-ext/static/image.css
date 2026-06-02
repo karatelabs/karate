@@ -174,6 +174,14 @@
     border: 2px solid #2563eb; background: rgba(37, 99, 235, .15); box-sizing: border-box;
 }
 .k-image-ext .ki-pane-diff:not(.ki-tuning) .ki-boxlayer { display: none; }
+.k-image-ext .ki-pane-diff.ki-tuning .ki-boxlayer { pointer-events: auto; cursor: crosshair; }
+.k-image-ext .ki-notice {
+    font-size: 11px; line-height: 1.4; color: #92400e; background: #fffbeb;
+    border: 1px solid #fde68a; border-radius: 4px; padding: 6px 8px;
+}
+[data-theme="dark"] .k-image-ext .ki-notice {
+    color: #fcd34d; background: rgba(120, 53, 15, .3); border-color: #78350f;
+}
 .k-image-ext .ki-h {
     position: absolute; width: 10px; height: 10px; background: #2563eb; border: 1px solid #fff; box-sizing: border-box;
 }
@@ -186,7 +194,13 @@
 .k-image-ext .ki-controls { flex: 0 0 220px; display: flex; flex-direction: column; gap: 10px; font-size: 12px; }
 .k-image-ext .ki-ctl-title { font-weight: 600; display: flex; align-items: center; gap: 8px; }
 .k-image-ext .ki-ctl { display: flex; align-items: center; gap: 6px; }
-.k-image-ext .ki-ctl select { font: inherit; font-size: 12px; padding: 2px 4px; }
+.k-image-ext .ki-ctl select {
+    font: inherit; font-size: 12px; padding: 2px 6px; border: 1px solid #cbd5e1;
+    border-radius: 4px; background: #ffffff; color: #0f172a;
+}
+[data-theme="dark"] .k-image-ext .ki-ctl select {
+    background: #1e293b; color: #e2e8f0; border-color: #475569; color-scheme: dark;
+}
 .k-image-ext .ki-swatch { width: 18px; height: 18px; border: 1px solid #94a3b8; border-radius: 3px; cursor: pointer; }
 .k-image-ext .ki-pink { background: #ff00ff; }
 .k-image-ext .ki-yellow { background: #ffff00; }
