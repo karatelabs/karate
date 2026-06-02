@@ -95,6 +95,7 @@
             VIEWS.forEach(function (v) {
                 h += '<button type="button" class="ki-vbtn" data-view="' + v[0] + '" onclick="KarateImage.setView(\'' + id + '\',\'' + v[0] + '\')">' + v[1] + '</button>';
             });
+            h += '</span>';   // close .ki-views (was missing → nested the right group inside it)
             // opacity slider sits next to the view buttons, shown only for Onion (Slider is
             // draggable on the image, so it needs no control)
             h += '<label class="ki-range" data-for="blend" hidden>Opacity <input type="range" min="0" max="100" value="50" oninput="KarateImage.blend(\'' + id + '\', this.value)"></label>';
