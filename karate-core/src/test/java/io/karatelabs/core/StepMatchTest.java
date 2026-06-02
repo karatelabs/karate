@@ -732,4 +732,85 @@ class StepMatchTest {
         assertPassed(sr);
     }
 
+    // ========== Array-marker + schema-reference shortcut ('#[] schema') ==========
+    // The documented v1 shortcut is the BARE reference: '#[] schema' — after the
+    // array marker comes a raw expression (variable, property path, function call)
+    // that the match engine evaluates to the per-element schema. The '#(schema)'
+    // embedded-expression wrapper is a redundant synonym for the bare form.
+    //
+    // v1 never inline-interpolated embedded expressions (only whole-value #(...) /
+    // ##(...) strings were processed), so a marker like '#[] ##(schema)' survived
+    // verbatim to the match engine. v2 added inline interpolation, which used to
+    // stringify the resolved schema into the marker and corrupt it (parse error).
+    // processEmbeddedString now leaves any '#'-leading marker intact, restoring the
+    // behavior and keeping the marker well-formed for the match engine.
+
+    @Test
+    void testArrayMarkerBareSchemaReference() {
+        // Canonical / recommended form.
+        ScenarioRuntime sr = run("""
+            * def itemSchema = { id: '#number', name: '#string' }
+            * def response = { items: [ { id: 1, name: 'a' }, { id: 2, name: 'b' } ] }
+            * match response == { items: '#[] itemSchema' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testArrayMarkerEmbeddedSchemaReferenceIsSynonymOfBare() {
+        // '#[] #(schema)' behaves identically to '#[] schema' — the #(...) adds
+        // nothing here. Pinned so the embedded form no longer throws a parse error.
+        ScenarioRuntime sr = run("""
+            * def itemSchema = { id: '#number', name: '#string' }
+            * def response = { items: [ { id: 1, name: 'a' }, { id: 2, name: 'b' } ] }
+            * match response == { items: '#[] #(itemSchema)' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testOptionalArrayMarkerAllowsNullArray() {
+        // '##[]' makes the whole array optional — a null (or absent) value passes.
+        ScenarioRuntime sr = run("""
+            * def itemSchema = { id: '#number', name: '#string' }
+            * def response = { items: null }
+            * match response == { items: '##[] itemSchema' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testArrayMarkerRequiresPresentArray() {
+        // '#[]' (single hash) requires the array to be present — null fails.
+        ScenarioRuntime sr = run("""
+            * def itemSchema = { id: '#number', name: '#string' }
+            * def response = { items: null }
+            * match response == { items: '#[] itemSchema' }
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testPerElementOptionalSchemaAllowsNullElement() {
+        // The only thing the embedded form can express that the bare form can't:
+        // a per-element '##(schema)' lets an individual array element be null.
+        ScenarioRuntime sr = run("""
+            * def itemSchema = { id: '#number', name: '#string' }
+            * def response = { items: [ { id: 1, name: 'a' }, null ] }
+            * match response == { items: '#[] ##(itemSchema)' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testPerElementRequiredSchemaRejectsNullElement() {
+        // Complement of the above: bare / '#(schema)' per-element does NOT allow nulls.
+        ScenarioRuntime sr = run("""
+            * def itemSchema = { id: '#number', name: '#string' }
+            * def response = { items: [ { id: 1, name: 'a' }, null ] }
+            * match response == { items: '#[] itemSchema' }
+            """);
+        assertFailed(sr);
+    }
+
 }

@@ -3072,6 +3072,16 @@ public class StepExecutor {
                 return str;
             }
         }
+        // A string that *starts* with '#' is a fuzzy-match marker, not free text —
+        // e.g. '#string', '#[] schema', '#[] ##(itemSchema)'. Such a marker may embed
+        // a #(...) / ##(...) expression that the match engine resolves later (the #[]
+        // each-schema path). Inline-interpolating here would stringify the resolved
+        // schema into the marker and corrupt it. v1 never inline-interpolated (it only
+        // processed whole-value #(...)/##(...) strings), so markers survived verbatim;
+        // mirror that and leave the marker intact for the match engine.
+        if (str.startsWith("#")) {
+            return str;
+        }
         // Check for embedded expressions within a larger string
         // e.g., "Hello #(name)!" or "Value: ##(optional)"
         if (str.contains("#(")) {
