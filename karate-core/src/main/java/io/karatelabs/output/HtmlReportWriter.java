@@ -783,7 +783,20 @@ public final class HtmlReportWriter {
                     scenarioSummary.put("passed", scenarioPassed);
                     scenarioSummary.put("skipped", scenarioSkipped);
                     scenarioSummary.put("durationMillis", s.get("durationMillis"));
-                    scenarioSummary.put("tags", s.get("tags"));
+                    // The result map carries @-less machine-form tags (matching the event stream);
+                    // re-prefix '@' here so the HTML report's summary shows tags in the same display
+                    // form as the per-scenario detail view.
+                    Object rawTags = s.get("tags");
+                    if (rawTags instanceof List<?> tagList) {
+                        List<String> displayTags = new ArrayList<>(tagList.size());
+                        for (Object t : tagList) {
+                            String text = String.valueOf(t);
+                            displayTags.add(text.startsWith("@") ? text : "@" + text);
+                        }
+                        scenarioSummary.put("tags", displayTags);
+                    } else {
+                        scenarioSummary.put("tags", rawTags);
+                    }
                     scenarioSummaries.add(scenarioSummary);
                 }
             }

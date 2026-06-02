@@ -320,16 +320,19 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         map.put("startTime", startTime);
         map.put("endTime", endTime);
 
-        // Tags (effective = merged feature + scenario); synthetic @skipped added when isSkipped()
+        // Tags (effective = merged feature + scenario); synthetic 'skipped' added when isSkipped().
+        // Emit the @-less text form (Tag.getText()) so machine consumers see tags identically to
+        // the event stream (FeatureRunEvent / ScenarioRunEvent use RunUtils.tagTexts, also @-less);
+        // the @-prefixed display form is reserved for the HTML / Cucumber-JSON / JUnit writers.
         List<Tag> effectiveTags = scenario.getTagsEffective();
         List<String> tagNames = new ArrayList<>();
         if (effectiveTags != null) {
             for (Tag tag : effectiveTags) {
-                tagNames.add(tag.toString());
+                tagNames.add(tag.getText());
             }
         }
-        if (isSkipped() && !tagNames.contains("@skipped")) {
-            tagNames.add("@skipped");
+        if (isSkipped() && !tagNames.contains("skipped")) {
+            tagNames.add("skipped");
         }
         if (!tagNames.isEmpty()) {
             map.put("tags", tagNames);
