@@ -239,6 +239,67 @@ class StepDataTypesTest {
         assertPassed(sr);
     }
 
+    // ========== Hyphenated keys in a dot-notation set / remove LHS ==========
+    // V1 routed `set var.path` through Jayway, which tolerates hyphenated keys.
+    // v2 < 2.0.10 delegated dot paths to JS, where `obj.hyphen-key` is read as
+    // subtraction (`obj.hyphen - key`) and throws "MATH_ADD_EXPR is not a valid
+    // assignment target". `isPureJsonPath` now accepts '-' inside a dot segment so
+    // these route through Jayway. (Bracket notation `set obj['hyphen-key']` — the
+    // unambiguous, recommended form — was the separate fix in #2886.)
+
+    @Test
+    void testSetDotNotationHyphenatedKey() {
+        ScenarioRuntime sr = run("""
+            * def obj = { name: 'original', 'hyphen-key': 'default' }
+            * set obj.hyphen-key = 'updated'
+            * match obj['hyphen-key'] == 'updated'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testSetDotNotationHyphenatedKeyNested() {
+        ScenarioRuntime sr = run("""
+            * def headers = { auth: { 'x-custom-header': 'original' } }
+            * set headers.auth.x-custom-header = 'updated'
+            * match headers.auth['x-custom-header'] == 'updated'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testSetDotNotationHyphenInIntermediateSegment() {
+        // Jayway resolves the hyphen at any path position, not just the leaf.
+        ScenarioRuntime sr = run("""
+            * def doc = { 'a-b': { c: 1 } }
+            * set doc.a-b.c = 99
+            * match doc['a-b'].c == 99
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testSetDotNotationHyphenatedKeyAutoVivify() {
+        ScenarioRuntime sr = run("""
+            * def obj = {}
+            * set obj.new-key = 'v'
+            * match obj['new-key'] == 'v'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testRemoveDotNotationHyphenatedKey() {
+        // `remove` shares the same JsonPath LHS routing; without the fix it hit the
+        // `delete obj.hyphen-key` JS fallback and silently no-op'd.
+        ScenarioRuntime sr = run("""
+            * def obj = { 'hyphen-key': 1, keep: 2 }
+            * remove obj.hyphen-key
+            * match obj == { keep: 2 }
+            """);
+        assertPassed(sr);
+    }
+
     @Test
     void testCopy() {
         ScenarioRuntime sr = run("""

@@ -937,6 +937,17 @@ public class StepExecutor {
                     return;
                 }
             }
+            // Pure-JsonPath dot path — route through Jayway, mirroring `set`. Covers
+            // hyphenated keys like `remove obj.hyphen-key`, which would otherwise hit the
+            // `delete` JS-eval fallback below and be misread as subtraction (issue #2896).
+            if (StepUtils.isPureJsonPath(text)) {
+                StepUtils.VarAndPath vp = StepUtils.splitVarAndJsonPath(text);
+                Object target = runtime.getVariable(vp.var);
+                if (target instanceof Map || target instanceof List) {
+                    Json.of(target).remove(vp.path);
+                    return;
+                }
+            }
             // Check for dot notation: "varName.key" or just "varName"
             int dotIndex = text.indexOf('.');
             if (dotIndex < 0) {

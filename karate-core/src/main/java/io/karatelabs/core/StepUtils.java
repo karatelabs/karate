@@ -435,9 +435,15 @@ public class StepUtils {
                 char id = s.charAt(i);
                 if (!(Character.isLetter(id) || id == '_' || id == '$')) return false;
                 i++;
+                // Allow '-' inside a dot segment so a hyphenated JSON key like
+                // `obj.hyphen-key` routes through Jayway instead of the JS engine,
+                // which would read it as subtraction (`obj.hyphen - key`) and throw
+                // "MATH_ADD_EXPR is not a valid assignment target" (issue #2896).
+                // The segment must still start with an identifier char (above), so a
+                // bare `a - b` with spaces is unaffected — the space breaks the scan.
                 while (i < n) {
                     char cc = s.charAt(i);
-                    if (Character.isLetterOrDigit(cc) || cc == '_' || cc == '$') i++;
+                    if (Character.isLetterOrDigit(cc) || cc == '_' || cc == '$' || cc == '-') i++;
                     else break;
                 }
             } else if (c == '[') {
