@@ -68,6 +68,7 @@ class VisualDemoTest {
             const image = boot.ext('image');
             image.baselineDir = '%s';
             image.threshold = 0.0;
+            image.report = 'all';
             """.formatted(baselineDir.toString().replace("\\", "/")));
 
         // Stage a per-name options file into the baseline dir. In a real project the

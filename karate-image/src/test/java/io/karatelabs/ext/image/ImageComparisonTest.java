@@ -77,7 +77,7 @@ class ImageComparisonTest {
         box.put("top", 1);
         box.put("bottom", 2);
 
-        Map<String, Object> result = ImageComparison.compare(
+        Map<String, Object> result = ImageComparison.run(
                 B_3x3_IMG,
                 BG_3x3_IMG,
                 opts("ignoredBoxes", Collections.singletonList(box), "windowSize", 1),
@@ -89,7 +89,7 @@ class ImageComparisonTest {
     @ParameterizedTest
     @ValueSource(strings = {"resemble", "ssim"})
     void testIgnoreColors(String engine) {
-        Map<String, Object> result = ImageComparison.compare(
+        Map<String, Object> result = ImageComparison.run(
                 B_3x3_IMG,
                 BG_3x3_IMG,
                 opts("ignoreColors", true, "windowSize", 1),
@@ -105,7 +105,7 @@ class ImageComparisonTest {
         darkGreen.put("g", 100);
         darkGreen.put("b", 10);
 
-        Map<String, Object> result = ImageComparison.compare(
+        Map<String, Object> result = ImageComparison.run(
                 B_3x3_IMG,
                 BG_3x3_IMG,
                 opts("ignoreAreasColoredWith", darkGreen),
@@ -116,13 +116,13 @@ class ImageComparisonTest {
 
     @Test
     void testFailureThresholdTriggered() {
-        ImageComparison.MismatchException exception = assertThrows(ImageComparison.MismatchException.class, () ->
-                ImageComparison.compare(B_3x3_IMG, BG_3x3_IMG, opts(), opts()));
+        Map<String, Object> result = ImageComparison.run(B_3x3_IMG, BG_3x3_IMG, opts(), opts());
 
-        double mismatchPercentage = (double)exception.data.get("mismatchPercentage");
+        assertEquals(Boolean.TRUE, result.get("isMismatch"));
+        assertTrue(((String) result.get("error")).contains("more than allowable threshold"));
 
         // 3x3 = 9 pixels, 1 is different => 1/9 = 0.111111... => ~11.11%
-        assertEquals(11.11, round(mismatchPercentage));
+        assertEquals(11.11, round((double) result.get("mismatchPercentage")));
     }
 
     @ParameterizedTest
@@ -132,7 +132,7 @@ class ImageComparisonTest {
             "12, 1"  // set both and ensure we prefer options
     })
     void testSetFailureThreshold(double optionFailureThreshold, double configFailureThreshold) {
-        Map<String, Object> result = ImageComparison.compare(
+        Map<String, Object> result = ImageComparison.run(
                 B_3x3_IMG,
                 BG_3x3_IMG,
                 optionFailureThreshold == 0.0 ? opts() : opts("failureThreshold", optionFailureThreshold),
@@ -145,46 +145,42 @@ class ImageComparisonTest {
     }
 
     @Test
-    void testDataUrl() {
-        Map<String, Object> result = ImageComparison.compare(R_1x1_IMG, R_1x1_IMG, opts(), opts());
-        String dataUrl = "data:image/png;base64," + R_1x1_BASE64;
-
-        assertEquals(dataUrl, result.get("baseline"));
-        assertEquals(dataUrl, result.get("latest"));
+    void testNoBase64DataUrls() {
+        // base64 data URLs were stripped in v2 — embeds are file-based, not inline
+        Map<String, Object> result = ImageComparison.run(R_1x1_IMG, R_1x1_IMG, opts(), opts());
+        assertFalse(result.containsKey("baseline"));
+        assertFalse(result.containsKey("latest"));
     }
 
     @Test
     void testMissingBaseline() {
-        ImageComparison.MismatchException exception = assertThrows(ImageComparison.MismatchException.class, () ->
-                ImageComparison.compare(null, R_1x1_IMG, opts(), opts()));
+        Map<String, Object> result = ImageComparison.run(null, R_1x1_IMG, opts(), opts());
 
-        assertTrue(exception.getMessage().contains("baseline image was empty or not found"));
-        assertEquals(Boolean.TRUE, exception.data.get("isBaselineMissing"));
+        assertEquals(Boolean.TRUE, result.get("isBaselineMissing"));
+        assertTrue(((String) result.get("error")).contains("baseline image was empty or not found"));
     }
 
     @Test
     void testScale() {
-        Map<String, Object> result = ImageComparison.compare(R_1x1_IMG, R_2x2_IMG, opts(), opts("allowScaling", true));
+        Map<String, Object> result = ImageComparison.run(R_1x1_IMG, R_2x2_IMG, opts(), opts("allowScaling", true));
         assertEquals(0.0, result.get("mismatchPercentage"));
     }
 
     @Test
     void testScaleMismatch() {
-        ImageComparison.MismatchException exception = assertThrows(ImageComparison.MismatchException.class, () ->
-                ImageComparison.compare(R_1x1_IMG, R_2x2_IMG, opts(), opts()));
+        Map<String, Object> result = ImageComparison.run(R_1x1_IMG, R_2x2_IMG, opts(), opts());
 
-        assertTrue(exception.getMessage().contains("latest image dimensions != baseline image dimensions"));
-        assertEquals(Boolean.TRUE, exception.data.get("isScaleMismatch"));
+        assertEquals(Boolean.TRUE, result.get("isScaleMismatch"));
+        assertTrue(((String) result.get("error")).contains("latest image dimensions != baseline image dimensions"));
     }
 
     @Test
     void testInvalidEngine() {
-        ImageComparison.MismatchException exception = assertThrows(ImageComparison.MismatchException.class, () ->
-                ImageComparison.compare(R_1x1_IMG, R_1x1_IMG, opts("engine", "ng"), opts()));
+        Map<String, Object> result = ImageComparison.run(R_1x1_IMG, R_1x1_IMG, opts("engine", "ng"), opts());
 
-        assertTrue(exception.getMessage().contains("latest image differed from baseline more than allowable threshold"));
-        assertEquals(Boolean.TRUE, exception.data.get("isMismatch"));
-        assertEquals(100.0, exception.data.get("mismatchPercentage"));
+        assertEquals(Boolean.TRUE, result.get("isMismatch"));
+        assertEquals(100.0, result.get("mismatchPercentage"));
+        assertTrue(((String) result.get("error")).contains("more than allowable threshold"));
     }
 
     static boolean checkImage(BufferedImage image, byte[] raw) throws IOException {
@@ -196,33 +192,23 @@ class ImageComparisonTest {
 
     @Test
     void testDiffImage() throws IOException {
-        ImageComparison.MismatchException exception = assertThrows(ImageComparison.MismatchException.class, () ->
-                ImageComparison.compare(
-                        B_3x3_IMG,
-                        BG_3x3_IMG,
-                        opts(),
-                        opts("report", "all")));
+        Map<String, Object> result = ImageComparison.run(B_3x3_IMG, BG_3x3_IMG, opts(), opts("report", "all"));
 
-        assertTrue(checkImage((BufferedImage)exception.data.get("baselineImage"), B_3x3_IMG));
-        assertTrue(checkImage((BufferedImage)exception.data.get("latestImage"), BG_3x3_IMG));
-        assertTrue(checkImage((BufferedImage)exception.data.get("diffImage"), BP_3x3_IMG));
+        assertTrue(checkImage((BufferedImage) result.get("baselineImage"), B_3x3_IMG));
+        assertTrue(checkImage((BufferedImage) result.get("latestImage"), BG_3x3_IMG));
+        assertTrue(checkImage((BufferedImage) result.get("diffImage"), BP_3x3_IMG));
     }
 
     @Test
     void testNoReportDiffImageMissing() {
-        ImageComparison.MismatchException exception = assertThrows(ImageComparison.MismatchException.class, () ->
-                ImageComparison.compare(
-                        B_3x3_IMG,
-                        BG_3x3_IMG,
-                        opts(),
-                        opts()));
+        Map<String, Object> result = ImageComparison.run(B_3x3_IMG, BG_3x3_IMG, opts(), opts());
 
-        assertNull(exception.data.get("baselineImage"));
+        assertNull(result.get("baselineImage"));
     }
 
     @Test
     void testNoMismatchDiffImageMissing() {
-        Map<String, Object> result = ImageComparison.compare(
+        Map<String, Object> result = ImageComparison.run(
                 R_1x1_IMG,
                 R_1x1_IMG,
                 opts(),
@@ -233,7 +219,7 @@ class ImageComparisonTest {
 
     @Test
     void testNoMismatchDiffImage() throws IOException {
-        Map<String, Object> result = ImageComparison.compare(
+        Map<String, Object> result = ImageComparison.run(
                 R_1x1_IMG,
                 R_1x1_IMG,
                 opts(),
@@ -251,37 +237,25 @@ class ImageComparisonTest {
                 "alpha",  255
         );
 
-        ImageComparison.MismatchException exception = assertThrows(ImageComparison.MismatchException.class, () ->
-                ImageComparison.compare(
-                        B_3x3_IMG,
-                        BG_3x3_IMG,
-                        opts("errorColor", yellow),
-                        opts("report", "all")));
+        Map<String, Object> result = ImageComparison.run(
+                B_3x3_IMG, BG_3x3_IMG, opts("errorColor", yellow), opts("report", "all"));
 
-        assertTrue(checkImage((BufferedImage)exception.data.get("diffImage"), BY_3x3_IMG));
+        assertTrue(checkImage((BufferedImage) result.get("diffImage"), BY_3x3_IMG));
     }
 
     @Test
     void testErrorType() throws IOException {
-        ImageComparison.MismatchException exception = assertThrows(ImageComparison.MismatchException.class, () ->
-                ImageComparison.compare(
-                        B_3x3_IMG,
-                        BG_3x3_IMG,
-                        opts("errorType", "diffOnly"),
-                        opts("report", "mismatched")));
+        Map<String, Object> result = ImageComparison.run(
+                B_3x3_IMG, BG_3x3_IMG, opts("errorType", "diffOnly"), opts("report", "mismatched"));
 
-        assertTrue(checkImage((BufferedImage)exception.data.get("diffImage"), AG_3x3_IMG));
+        assertTrue(checkImage((BufferedImage) result.get("diffImage"), AG_3x3_IMG));
     }
 
     @Test
     void testTransparency() throws IOException {
-        ImageComparison.MismatchException exception = assertThrows(ImageComparison.MismatchException.class, () ->
-                ImageComparison.compare(
-                        B_3x3_IMG,
-                        BG_3x3_IMG,
-                        opts("transparency", 0.3),
-                        opts("report", "mismatched")));
+        Map<String, Object> result = ImageComparison.run(
+                B_3x3_IMG, BG_3x3_IMG, opts("transparency", 0.3), opts("report", "mismatched"));
 
-        assertTrue(checkImage((BufferedImage)exception.data.get("diffImage"), LBP_3x3_IMG));
+        assertTrue(checkImage((BufferedImage) result.get("diffImage"), LBP_3x3_IMG));
     }
 }

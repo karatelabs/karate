@@ -33,8 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.stream.ImageInputStream;
 import java.awt.image.BufferedImage;
 import java.awt.Image;
 import java.io.ByteArrayInputStream;
@@ -132,11 +130,6 @@ public class ImageComparison {
         this.baselinePixels = unpackPixels(baselineImage.getRGB(0, 0, width, height, null, 0, width));
         this.latestPixels = unpackPixels(latestImage.getRGB(0, 0, latestWidth, latestHeight, null, 0, latestWidth));
 
-        String latestDataUrl = getDataUrl(latestImg);
-        String baselineDataUrl = baselineMissing ? latestDataUrl : getDataUrl(baselineImg);
-
-        result.put("baseline", baselineDataUrl);
-        result.put("latest", latestDataUrl);
         result.put(BASELINE_IMAGE, baselineImage);
         result.put(LATEST_IMAGE, latestImage);
 
@@ -148,25 +141,6 @@ public class ImageComparison {
                 result.remove(LATEST_IMAGE);
             }
         }
-    }
-
-    private static String getDataUrl(byte[] img) {
-        String format = "png";
-
-        try {
-            ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(img));
-            Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
-
-            if (readers.hasNext()) {
-                ImageReader reader = readers.next();
-                reader.setInput(input);
-                format = reader.getFormatName();
-            }
-        } catch (Exception e) {
-            logger.error("image comparison failed to detect image type: {}", e.getMessage());
-        }
-
-        return "data:image/" + format + ";base64," + Base64.getEncoder().encodeToString(img);
     }
 
     private void configure(Map<String, Object> defaultOptions) {
@@ -207,19 +181,21 @@ public class ImageComparison {
         }
     }
 
-    public static Map<String, Object> compare(byte[] baselineImg, byte[] latestImg, Map<String, Object> options,
-                                              Map<String, Object> defaultOptions) throws MismatchException {
+    public static Map<String, Object> run(byte[] baselineImg, byte[] latestImg, Map<String, Object> options,
+                                          Map<String, Object> defaultOptions) {
 
         ImageComparison imageComparison = new ImageComparison(baselineImg, latestImg, options, defaultOptions);
 
         if (imageComparison.baselineMissing) {
             imageComparison.result.put("isBaselineMissing", true);
-            throw new MismatchException("baseline image was empty or not found", imageComparison.result);
+            imageComparison.result.put("error", "baseline image was empty or not found");
+            return imageComparison.result;
         }
 
         if (imageComparison.scaleMismatch) {
             imageComparison.result.put("isScaleMismatch", true);
-            throw new MismatchException("latest image dimensions != baseline image dimensions", imageComparison.result);
+            imageComparison.result.put("error", "latest image dimensions != baseline image dimensions");
+            return imageComparison.result;
         }
 
         double mismatchPercentage = 100.0;
@@ -271,12 +247,10 @@ public class ImageComparison {
             return result;
         }
 
-        String msg = "latest image differed from baseline more than allowable threshold: "
-                + mismatchPercentage + "% >= " + failureThreshold + "%";
-
         result.put("isMismatch", true);
-
-        throw new MismatchException(msg, result);
+        result.put("error", "latest image differed from baseline more than allowable threshold: "
+                + mismatchPercentage + "% >= " + failureThreshold + "%");
+        return result;
     }
 
     private double execResemble() {
@@ -484,17 +458,6 @@ public class ImageComparison {
         }
 
         return unpacked;
-    }
-
-    public static class MismatchException extends RuntimeException {
-
-        public Map<String, Object> data;
-
-        public MismatchException(String msg, Map<String, Object> data) {
-            super(msg);
-            data.put("error", getMessage());
-            this.data = data;
-        }
     }
 
 }

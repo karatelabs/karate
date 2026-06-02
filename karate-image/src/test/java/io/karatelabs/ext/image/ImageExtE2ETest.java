@@ -70,28 +70,46 @@ class ImageExtE2ETest {
             # green as raw decoded bytes (List<Number> fallback path) — exercise both
             * def blue = new Uint8Array(java.util.Base64.getDecoder().decode('%s'))
             * def green = java.util.Base64.getDecoder().decode('%s')
+            # the screenGrab-style recipe (see README), taking explicit bytes here instead of screenshot():
+            # resolve → auto-establish → diff (pure) → emit → fail-on-mismatch.
+            * def grab =
+            ""\"
+            function(name, latest) {
+              const p = image.resolve(name)
+              const established = !p.baselineExists
+              if (established) image.write(name, latest)
+              const r = image.diff(name, latest)
+              r.baselineEstablished = established
+              if (r.embed) {
+                r.embed.meta.baselineEstablished = established
+                karate.embed(r.embed)
+              }
+              if (!r.pass && image.failOnMismatch !== false) karate.fail(r.error.message)
+              return r
+            }
+            ""\"
 
             Scenario: establish, match, then inspect a mismatch without failing
             # no baseline yet → auto-established, passes
-            * def established = image.compare('home', blue)
+            * def established = grab('home', blue)
             * match established.baselineEstablished == true
             # same image vs the just-established baseline → matches
-            * def same = image.compare('home', blue)
+            * def same = grab('home', blue)
             * match same.pass == true
             # one-shot map form with a Uint8Array nested in the arg (exercises the
             # map path, where the nested latest isn't boundary-unwrapped)
-            * def viaMap = image.compare({ name: 'home', latest: blue })
+            * def viaMap = image.diff({ name: 'home', latest: blue })
             * match viaMap.pass == true
             # different image, but failOnMismatch=false → returns a result to assert on
             * image.failOnMismatch = false
-            * def diff = image.compare('home', green)
+            * def diff = grab('home', green)
             * match diff.pass == false
-            * match diff.isMismatch == true
+            * match diff.mismatch == true
             * assert diff.mismatchPercentage > 10
 
             Scenario: a mismatch fails the step by default
-            * image.compare('other', blue)
-            * image.compare('other', green)
+            * grab('other', blue)
+            * grab('other', green)
             """.formatted(BLUE, GREEN));
 
         Path reports = tempDir.resolve("reports");
