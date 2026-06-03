@@ -856,8 +856,14 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // alongside config-time karate.call / karate.callSingle results.
         // LogContext.get() lazy-creates an empty one if no thread-local is set, so this
         // is safe even on a cold thread — collect() / collectEmbeds() return ""/null.
-        String configTimeLog = LogContext.get().collect();
-        java.util.List<StepResult.Embed> configTimeEmbeds = LogContext.get().collectEmbeds();
+        // Hold onto the outer context: a nested call() (call/callonce in a Background or
+        // step) runs on the caller's thread, so on exit we must hand the caller back its
+        // own LogContext — mask, pretty and all — rather than clearing the thread-local
+        // and leaving the caller's later HTTP steps to lazy-create a mask-less one.
+        LogContext outerLogContext = LogContext.get();
+        String configTimeLog = outerLogContext.collect();
+        java.util.List<StepResult.Embed> configTimeEmbeds = outerLogContext.collectEmbeds();
+        boolean nestedCall = featureRuntime != null && featureRuntime.getCaller() != null;
         LogContext.set(new LogContext());
         // Repopulate the fresh LogContext from this scenario's KarateConfig — which is
         // the source of truth for mask + pretty. Without this, anything that
@@ -910,8 +916,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             stopped = true;
             result.setAborted(true);
             result.setEndTime(System.currentTimeMillis());
-            loggingSnapshot.restore();
-            LogContext.clear();
+            restoreLogContext(loggingSnapshot, outerLogContext, nestedCall);
             return result;
         }
 
@@ -1054,11 +1059,27 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             }
             // Restore the global logging state we snapshotted at scenario entry so any
             // mid-test `configure logging` change does not leak into the next scenario.
-            loggingSnapshot.restore();
-            LogContext.clear();
+            restoreLogContext(loggingSnapshot, outerLogContext, nestedCall);
         }
 
         return result;
+    }
+
+    /**
+     * Tear down this scenario's LogContext on exit. Always restores the global logging
+     * snapshot (report threshold, Logback level) taken at entry. Then, for a nested
+     * call/callonce, hands the caller back its original thread-local LogContext — keeping
+     * the caller's mask and pretty settings alive for its remaining HTTP steps — instead
+     * of clearing the thread-local and forcing a mask-less lazy-created one. Top-level
+     * scenarios clear, so a pooled thread does not leak this scenario's context.
+     */
+    private void restoreLogContext(LogContext.Snapshot loggingSnapshot, LogContext outerLogContext, boolean nestedCall) {
+        loggingSnapshot.restore();
+        if (nestedCall) {
+            LogContext.set(outerLogContext);
+        } else {
+            LogContext.clear();
+        }
     }
 
     /**

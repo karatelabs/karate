@@ -1261,6 +1261,70 @@ class HtmlReportWriterTest {
                 "Authorization header should be masked");
     }
 
+    // A callonce in the Background runs a nested feature on the same thread, which resets
+    // (and previously cleared) the thread-local LogContext. The scenario that *triggers*
+    // the callonce then made its own HTTP calls with a fresh, mask-less LogContext, so its
+    // Authorization header leaked while the callonce's own calls — and every later scenario
+    // reusing the cached result — stayed masked. The caller's LogContext (and its mask)
+    // must survive a nested call().
+    @Test
+    void testMaskSurvivesCallonceInBackground(@TempDir Path tempDir) throws Exception {
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+                function fn() {
+                  karate.configure('logging', { mask: { headers: ['Authorization'] } });
+                  return {};
+                }
+                """);
+        Path authSetup = tempDir.resolve("auth-setup.feature");
+        Files.writeString(authSetup, ("""
+                Feature: Auth setup (called via callonce)
+                Scenario: authenticate
+                * url 'http://127.0.0.1:__PORT__'
+                * path 'api/users'
+                * header Authorization = 'Bearer ' + karate.properties['test.callonce.token']
+                * method get
+                * status 200
+                * def token = 'fake-token'
+                """).replace("__PORT__", String.valueOf(harness.getPort())));
+        Path feature = tempDir.resolve("test.feature");
+        Files.writeString(feature, ("""
+                Feature: mask survives callonce in background
+                Background:
+                * def authResult = callonce read('auth-setup.feature')
+                * url 'http://127.0.0.1:__PORT__'
+                * header Authorization = 'Bearer ' + karate.properties['test.trigger.token']
+                Scenario: first scenario triggers the callonce
+                * path 'api/users'
+                * method get
+                * status 200
+                Scenario: second scenario reuses the cached callonce
+                * path 'api/users'
+                * method get
+                * status 200
+                """).replace("__PORT__", String.valueOf(harness.getPort())));
+        Path reportDir = loggingTestDir("mask-callonce-background");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .configDir(tempDir.toString())
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .systemProperty("test.callonce.token", "callonce-secret-aaa")
+                .systemProperty("test.trigger.token", "trigger-secret-bbb")
+                .parallel(1);
+        assertTrue(result.isPassed());
+
+        String allLogs = extractAllStepLogs(reportDir);
+        assertFalse(allLogs.contains("callonce-secret-aaa"),
+                "callonce's own Authorization token must be masked");
+        assertFalse(allLogs.contains("trigger-secret-bbb"),
+                "the triggering scenario's Authorization token must be masked too — "
+                        + "the nested callonce must not strip the caller's mask, got: " + allLogs);
+        assertTrue(allLogs.contains("Authorization: ***"),
+                "Authorization header should be masked");
+    }
+
     @Test
     void testLoggingMaskJsonPaths(@TempDir Path tempDir) throws Exception {
         Path feature = writeFeatureCallingHarness(tempDir, """
