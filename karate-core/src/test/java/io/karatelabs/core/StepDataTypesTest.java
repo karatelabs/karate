@@ -584,6 +584,57 @@ class StepDataTypesTest {
         assertPassed(sr);
     }
 
+    // ========== def var = $.path on a missing JSONPath ==========
+    // V1 parity: `def x = $.missing` assigns #notpresent (no error) when the path
+    // doesn't exist, so a value that may-or-may-not be present can be read and then
+    // conditionally acted on. v2 routed the def/assignment `$` path straight through
+    // Jayway, which threw "No results for path" / "Missing property in path". The match
+    // side already degraded to #notpresent; the def side now matches it.
+
+    @Test
+    void testDefDollarMissingLeafReturnsNotPresent() {
+        ScenarioRuntime sr = run("""
+            * def response = { data: { name: 'test' } }
+            * def missing = $.data.nonExistent
+            * match missing == '#notpresent'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testDefDollarMissingIntermediateReturnsNotPresent() {
+        // Intermediate segment absent — Jayway raises "Missing property in path"
+        // (also a PathNotFoundException), which must degrade to #notpresent too.
+        ScenarioRuntime sr = run("""
+            * def response = { name: 'test' }
+            * def deep = $.deeply.nested.path
+            * match deep == '#notpresent'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testDefDollarNamedVarMissingPathReturnsNotPresent() {
+        // The $varname.path form (not just the bare $. on response) degrades too.
+        ScenarioRuntime sr = run("""
+            * def foo = { a: 1 }
+            * def missing = $foo.b
+            * match missing == '#notpresent'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testDefDollarExistingPathStillResolves() {
+        // Control: a present path resolves to its value, unchanged.
+        ScenarioRuntime sr = run("""
+            * def response = { data: { name: 'test' } }
+            * def name = $.data.name
+            * match name == 'test'
+            """);
+        assertPassed(sr);
+    }
+
     // ========== Variable Name Validation ==========
 
     @Test

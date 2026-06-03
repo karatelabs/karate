@@ -1316,14 +1316,8 @@ public class StepExecutor {
         // Handle $varname patterns - could be jsonpath OR xpath on XML variable
         // $varname/xpath, $varname /xpath, $[...], $., $varname[*].path
         if (expr.startsWith("$")) {
-            // A missing JSONPath on the LHS of a match must surface as #notpresent
-            // (v1 evalJsonPath returned NOT_PRESENT) so `$.foo == '#notpresent'`
-            // passes instead of throwing "No results for path".
-            try {
-                return evalDollarPrefixedExpression(expr);
-            } catch (PathNotFoundException e) {
-                return "#notpresent";
-            }
+            // A missing JSONPath surfaces as #notpresent — see evalDollarPrefixedExpression.
+            return evalDollarPrefixedExpression(expr);
         }
 
         // Handle bare xpath on response: "//xpath" or "/xpath"
@@ -1552,14 +1546,29 @@ public class StepExecutor {
     }
 
     /**
-     * Handles $varname prefixed expressions.
-     * Could be:
+     * Evaluate a {@code $}-prefixed JSONPath/XPath expression. A missing JSONPath
+     * degrades to {@code #notpresent} (v1 parity) rather than throwing — this holds for
+     * both a match operand and a {@code def}/assignment RHS, so {@code def x = $.missing}
+     * continues and a later {@code match x == '#notpresent'} passes. Jayway raises
+     * {@link PathNotFoundException} for an absent leaf ("No results for path") and an
+     * absent intermediate ("Missing property in path"); both collapse to the same marker.
+     */
+    private Object evalDollarPrefixedExpression(String expr) {
+        try {
+            return evalDollarPrefixedExpressionInternal(expr);
+        } catch (PathNotFoundException e) {
+            return "#notpresent";
+        }
+    }
+
+    /**
+     * Resolves a $varname prefixed expression. Could be:
      * - $varname/xpath or $varname /xpath - XPath on XML variable
      * - $varname//xpath - double-slash XPath
      * - $[...] or $. - jsonpath on response
      * - $varname[*].path - jsonpath on variable
      */
-    private Object evalDollarPrefixedExpression(String expr) {
+    private Object evalDollarPrefixedExpressionInternal(String expr) {
         String withoutDollar = expr.substring(1);
 
         // Special case: bare $ means 'response' variable
