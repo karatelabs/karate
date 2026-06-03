@@ -229,6 +229,28 @@ public class Karate implements Iterable<DynamicNode> {
     }
 
     /**
+     * Enable or disable JUnit XML report generation.
+     *
+     * @param enabled true to generate JUnit XML reports
+     * @return this instance for chaining
+     */
+    public Karate outputJunitXml(boolean enabled) {
+        delegate.outputJunitXml(enabled);
+        return this;
+    }
+
+    /**
+     * Enable or disable Cucumber JSON report generation.
+     *
+     * @param enabled true to generate Cucumber JSON reports
+     * @return this instance for chaining
+     */
+    public Karate outputCucumberJson(boolean enabled) {
+        delegate.outputCucumberJson(enabled);
+        return this;
+    }
+
+    /**
      * Filter by scenario name (regex supported).
      *
      * @param name scenario name pattern

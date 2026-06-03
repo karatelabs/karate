@@ -24,9 +24,15 @@
 package io.karatelabs.junit6;
 
 import org.junit.jupiter.api.DynamicNode;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Integration tests for Karate JUnit 6 module.
@@ -62,6 +68,45 @@ class KarateJUnit6Test {
     @Karate.Test
     Iterable<DynamicNode> testAnnotation() {
         return Karate.run("sample").relativeTo(getClass());
+    }
+
+    /**
+     * The builder exposes outputJunitXml (v1 JUnit5 parity), and enabling it produces
+     * JUnit XML reports when run through the streaming bridge.
+     */
+    @Test
+    void testOutputJunitXml() throws IOException, InterruptedException {
+        Path outputDir = Path.of("target/junit6-xml-test");
+        if (Files.exists(outputDir)) {
+            try (Stream<Path> paths = Files.walk(outputDir)) {
+                paths.sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+            }
+        }
+        // drain the stream so the suite runs to completion and reports are flushed
+        Karate.run("sample")
+                .relativeTo(getClass())
+                .outputDir(outputDir.toString())
+                .outputJunitXml(true)
+                .stream()
+                .forEach(node -> { });
+        // per-feature XML is written asynchronously; the streaming consumer can be released
+        // (SuiteEnd) just before the last write lands, so poll briefly for the report file
+        Path junitXmlDir = outputDir.resolve("junit-xml");
+        assertTrue(hasXmlReport(junitXmlDir), "no JUnit XML report written to " + junitXmlDir);
+    }
+
+    private static boolean hasXmlReport(Path junitXmlDir) throws IOException, InterruptedException {
+        for (int i = 0; i < 50; i++) {
+            if (Files.isDirectory(junitXmlDir)) {
+                try (Stream<Path> paths = Files.list(junitXmlDir)) {
+                    if (paths.anyMatch(p -> p.toString().endsWith(".xml"))) {
+                        return true;
+                    }
+                }
+            }
+            Thread.sleep(100);
+        }
+        return false;
     }
 
 }
