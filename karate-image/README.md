@@ -148,6 +148,10 @@ For normal projects no fatjar is needed: declare a Maven/Gradle dependency on `k
 and the `resemble` + `ssim` engines come transitively (`karate-core` is `provided` — your
 project already has it). The `-Pfatjar` build is only for the `~/.karate/ext/` drop-in.
 
+To fold image comparison into your own standalone/uber jar (e.g. for a CI pipeline that runs a
+single self-contained jar), add `karate-image` to that module's dependencies and build the fat
+jar as usual — the ext registers itself off the classpath, no extra wiring needed.
+
 ## Status / not yet built
 
 - PDF (`static/image.print.css`) — deferred (core Phase 5).

@@ -24,6 +24,14 @@
 .k-image-ext .ki-name { font-size: 12px; font-weight: 600; }
 .k-image-ext .ki-sub { font-size: 11px; color: #64748b; }
 [data-theme="dark"] .k-image-ext .ki-sub { color: #94a3b8; }
+.k-image-ext .ki-expand {
+    align-self: flex-start; margin-top: 4px; font: inherit; font-size: 11px; font-weight: 600;
+    padding: 3px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9;
+    color: #0f172a; cursor: pointer;
+}
+.k-image-ext .ki-expand:hover { background: #e2e8f0; border-color: #94a3b8; }
+[data-theme="dark"] .k-image-ext .ki-expand { border-color: #334155; background: #1e293b; color: #e2e8f0; }
+[data-theme="dark"] .k-image-ext .ki-expand:hover { background: #334155; }
 .k-image-ext .ki-badge { align-self: flex-start; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 9999px; color: #fff; }
 .k-image-ext .ki-badge-pass { background: #16a34a; }
 .k-image-ext .ki-badge-fail { background: #dc2626; }
@@ -33,6 +41,9 @@
 .k-image-ext.ki-dialog {
     width: min(94vw, 1100px); max-width: 94vw; max-height: 92vh; border: 0; border-radius: 8px;
     padding: 0; background: #fff; color: #0f172a; box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+    /* live-resizable: drag the corner to resize the dialog — the "Fit" image rescales with it
+       (the 100% toggle still controls 1:1). overflow:auto is what enables the resize handle. */
+    resize: both; overflow: auto; min-width: 360px; min-height: 260px;
 }
 [data-theme="dark"] .k-image-ext.ki-dialog { background: #0f172a; color: #e2e8f0; }
 .k-image-ext.ki-dialog::backdrop { background: rgba(0, 0, 0, .6); }
@@ -79,6 +90,7 @@
 
 /* ---- edit bar (Advanced only) ---- */
 .k-image-ext .ki-bar {
+    position: relative;   /* anchors the .ki-copy command popover */
     display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 8px 14px;
     border-bottom: 1px solid #e2e8f0; font-size: 12px;
 }
@@ -91,6 +103,7 @@
 .k-image-ext .ki-swatch { width: 18px; height: 18px; border: 1px solid #94a3b8; border-radius: 3px; cursor: pointer; padding: 0; }
 .k-image-ext .ki-pink { background: #ff00ff; }
 .k-image-ext .ki-yellow { background: #ffff00; }
+.k-image-ext .ki-color { width: 24px; height: 22px; padding: 0; border: 1px solid #94a3b8; border-radius: 3px; background: none; cursor: pointer; vertical-align: middle; }
 .k-image-ext .ki-range { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; }
 .k-image-ext .ki-hint { font-size: 11px; color: #94a3b8; }
 .k-image-ext .ki-notice:not(:empty) {
@@ -139,10 +152,18 @@
 [data-theme="dark"] .k-image-ext .ki-boxitem { border-color: #334155; }
 .k-image-ext .ki-boxitem button { font: inherit; font-size: 11px; border: 0; background: transparent; color: #dc2626; cursor: pointer; padding: 0; }
 
-/* ---- copy panel (Show options / Rebase) ---- */
-.k-image-ext .ki-copy { border-top: 1px solid #e2e8f0; padding: 10px 14px; }
-[data-theme="dark"] .k-image-ext .ki-copy { border-top-color: #334155; }
-.k-image-ext .ki-copy-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+/* ---- command popover (Show options / Rebase) ---- */
+/* a floating panel anchored to the edit bar, parked on the RIGHT (over where the side-by-side
+   aside sits) so it doesn't cover the diff. Draggable by its header, resizable from the corner,
+   and visible the instant a button is clicked regardless of image height. */
+.k-image-ext .ki-copy {
+    position: absolute; top: 100%; right: 14px; left: auto; z-index: 5; margin-top: -4px;
+    width: min(440px, 46%); min-width: 240px; max-height: 60vh; overflow: auto; resize: both; padding: 10px 14px;
+    background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 12px 32px rgba(0, 0, 0, .28);
+}
+[data-theme="dark"] .k-image-ext .ki-copy { background: #1e293b; border-color: #334155; }
+.k-image-ext .ki-copy-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; cursor: move; touch-action: none; user-select: none; }
 .k-image-ext .ki-copy-title { font-size: 12px; font-weight: 600; }
+.k-image-ext .ki-copy-btn.ki-copied { background: #16a34a; border-color: #16a34a; color: #fff; }
 .k-image-ext .ki-copy-x { margin-left: auto; border: 0; background: transparent; font-size: 18px; line-height: 1; cursor: pointer; color: inherit; }
 .k-image-ext .ki-copy-pre { margin: 0; padding: 8px; font-size: 12px; white-space: pre-wrap; word-break: break-all; background: #0f172a; color: #e2e8f0; border-radius: 4px; }

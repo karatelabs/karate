@@ -218,16 +218,16 @@ const KarateReport = {
     },
 
     /**
-     * Map a Karate keyword to a text color class. Only two keywords get colored:
-     * `method` (the HTTP fire-the-request action) and `match` (the assertion).
+     * Map a Karate keyword to a text color class. Only a few keywords get colored:
+     * `method` (the HTTP fire-the-request action) and the assertions `match` / `assert`.
      * Everything else stays slate. Class strings stay literal so Tailwind's
      * content scanner picks them up.
      */
     _keywordColor(keyword) {
         const k = (keyword || '').toLowerCase();
-        if (k === 'method') return 'text-orange-600 dark:text-orange-400';
-        if (k === 'match')  return 'text-blue-700 dark:text-blue-400';
-        return                     'text-slate-700 dark:text-slate-300';
+        if (k === 'method')              return 'text-orange-600 dark:text-orange-400';
+        if (k === 'match' || k === 'assert') return 'text-blue-700 dark:text-blue-400';
+        return                                'text-slate-700 dark:text-slate-300';
     },
 
     _esc(s) {
@@ -278,7 +278,7 @@ const KarateReport = {
         }
 
         // Step row
-        html += `<div class="step-row flex items-start px-3 py-1 font-mono text-sm border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 ${clickable}" ${onclick}>`;
+        html += `<div class="step-row flex items-start px-3 py-1 font-mono text-xs border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 ${clickable}" ${onclick}>`;
         html += `<div class="${muted} mr-2 w-10 text-right shrink-0"><span class="text-xs">[${step.line}]</span></div>`;
         html += `<div class="flex-1 min-w-0 ${statusClass}">`;
         html += `<span class="${muted}">${this._esc(step.prefix)}</span> `;

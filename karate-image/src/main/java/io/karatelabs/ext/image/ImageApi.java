@@ -254,6 +254,19 @@ public class ImageApi implements SimpleObject {
         if (optionsPath != null) {
             meta.put("optionsPath", optionsPath);
         }
+        // user-configurable write/rebase command templates (placeholders filled by the UI)
+        if (options.get("optionsCommand") != null) {
+            meta.put("optionsCommand", str(options.get("optionsCommand")));
+        }
+        if (options.get("rebaseCommand") != null) {
+            meta.put("rebaseCommand", str(options.get("rebaseCommand")));
+        }
+        // effective re-diff options, so the Advanced UI opens on the values actually used
+        for (String k : new String[]{"ignore", "errorType", "errorColor", "transparency"}) {
+            if (options.get(k) != null) {
+                meta.put(k, options.get(k));
+            }
+        }
         // Inline base64 of the source images — ONLY on this image-comparison embed (normal
         // screenshots / other embeds stay file-based, no bloat). The report lightbox feeds
         // these to client-side Resemble for live re-diff; data URLs are canvas-readable, so

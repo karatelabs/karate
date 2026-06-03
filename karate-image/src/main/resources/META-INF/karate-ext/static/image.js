@@ -31,6 +31,7 @@
         _resemble: null,          // null | 'loading' | 'ready' | 'failed'
         _resembleCbs: [],
         _blinkTimers: {},
+        _ro: {},                  // per-dialog ResizeObserver (keeps boxes aligned on live resize)
 
         // ---- render (called by core via registerEmbed, only when visible) ----
         render: function (embed, api) {
@@ -63,7 +64,12 @@
                 rebaseCommand: meta.rebaseCommand || null,
                 optionsCommand: meta.optionsCommand || null,
                 view: 'diff', side: false, advanced: false, zoom: 'fit',
-                errorType: null, errorColor: null, liveDiff: null, boxSeq: boxes.length
+                // hydrate the re-diff options from meta so the Advanced UI opens on the values
+                // actually used for the comparison (not hard-coded defaults)
+                errorType: meta.errorType || null,
+                errorColor: meta.errorColor || null,
+                transparency: (typeof meta.transparency === 'number') ? meta.transparency : null,
+                liveDiff: null, boxSeq: boxes.length
             };
             return this._cardHtml(id, api);
         },
@@ -82,6 +88,8 @@
             if (!d.established) {
                 h += '<span class="ki-sub">' + d.pct.toFixed(2) + '% diff · threshold ' + d.threshold + ' · ' + esc(String(d.engine)) + '</span>';
             }
+            // explicit affordance — clicking the thumbnail also opens, but that isn't obvious
+            h += '<button type="button" class="ki-expand" onclick="KarateImage.open(\'' + id + '\')">Expand &#8599;</button>';
             h += '</div>' + this._dialogHtml(id, esc) + '</div>';
             return h;
         },
@@ -112,10 +120,13 @@
             // edit bar — entirely advanced (.ki-adv): row 1 = re-diff options, row 2 = boxes + write actions
             h += '<div class="ki-bar ki-adv">';
             h += '<div class="ki-bar-row">';
-            h += this._sel(id, 'ignore', 'Ignore', ['nothing', 'less', 'colors', 'antialiasing', 'alpha'], 'less');
-            h += this._sel(id, 'errorType', 'Error', ['movement', 'flat', 'diffOnly', 'flatDifferenceIntensity', 'movementDifferenceIntensity'], 'movement');
+            h += this._sel(id, 'ignore', 'Ignore', ['nothing', 'less', 'colors', 'antialiasing', 'alpha'], d.ignore || 'less');
+            h += this._sel(id, 'errorType', 'Error', ['movement', 'flat', 'diffOnly', 'flatDifferenceIntensity', 'movementDifferenceIntensity'], d.errorType || 'movement');
             h += 'Color <button type="button" class="ki-swatch ki-pink" title="pink" onclick="KarateImage.setColor(\'' + id + '\',\'pink\')"></button>';
             h += '<button type="button" class="ki-swatch ki-yellow" title="yellow" onclick="KarateImage.setColor(\'' + id + '\',\'yellow\')"></button>';
+            h += '<input type="color" class="ki-color" value="' + this._hex(d.errorColor) + '" title="custom error color" onchange="KarateImage.setColorHex(\'' + id + '\',this.value)">';
+            // Resemble "transparency" of the diff overlay (0 = transparent, 1 = opaque) — the v1 opaque/transparent knob
+            h += '<label class="ki-range">Transparency <input type="range" min="0" max="100" value="' + (d.transparency == null ? 100 : Math.round(d.transparency * 100)) + '" oninput="KarateImage.setTransparency(\'' + id + '\',this.value)"></label>';
             h += '</div>';
             h += '<div class="ki-bar-row">';
             h += '<button type="button" class="ki-act" onclick="KarateImage.showOptions(\'' + id + '\')">Show options</button>';
@@ -124,16 +135,17 @@
             h += '<ul class="ki-boxlist"></ul>';
             h += '</div>';
             h += '<span class="ki-notice"></span>';
+            // command popover — anchored to the bar (right under Show options / Rebase) so it is
+            // immediately visible no matter how tall the image is, instead of below the stage
+            h += '<div class="ki-copy" hidden><div class="ki-copy-head" onpointerdown="KarateImage._copyDrag(\'' + id + '\', event)"><span class="ki-copy-title"></span>'
+                + '<button type="button" class="ki-copy-btn" onclick="KarateImage.copy(\'' + id + '\')">Copy</button>'
+                + '<button type="button" class="ki-copy-x" onclick="KarateImage.hideCopy(\'' + id + '\')">&times;</button></div>'
+                + '<pre class="ki-copy-pre"></pre></div>';
             h += '</div>';
 
             h += '<div class="ki-body"><div class="ki-stage ki-stage-fit">'
                 + '<div class="ki-primary"><div class="ki-canvas"></div></div>'
                 + '<div class="ki-aside" hidden></div></div></div>';
-
-            h += '<div class="ki-copy" hidden><div class="ki-copy-head"><span class="ki-copy-title"></span>'
-                + '<button type="button" class="ki-copy-btn" onclick="KarateImage.copy(\'' + id + '\')">Copy</button>'
-                + '<button type="button" class="ki-copy-x" onclick="KarateImage.hideCopy(\'' + id + '\')">&times;</button></div>'
-                + '<pre class="ki-copy-pre"></pre></div>';
             h += '</dialog>';
             return h;
         },
@@ -151,9 +163,17 @@
             if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
             this.setView(id, 'diff');
             this.renderAside(id);
+            // the dialog is CSS-resizable (resize: both) and the image is "Fit", so it rescales
+            // live with the dialog — re-place the ignore boxes whenever the stage size changes
+            if (window.ResizeObserver && !this._ro[id]) {
+                var ro = new ResizeObserver(function () { KarateImage._renderBoxes(id); });
+                var primary = dlg.querySelector('.ki-primary');
+                if (primary) { ro.observe(primary); this._ro[id] = ro; }
+            }
         },
         close: function (id) {
             this._stopBlink(id);
+            if (this._ro[id]) { this._ro[id].disconnect(); delete this._ro[id]; }
             var dlg = document.getElementById(id);
             if (dlg) { dlg.close ? dlg.close() : dlg.removeAttribute('open'); }
         },
@@ -242,10 +262,33 @@
         },
 
         // ---- live re-diff (Resemble over base64 — works from file://) ----
-        setOpt: function (id, k, v) { this._data[id][k] = v; this._liveDiff(id); },
+        setOpt: function (id, k, v) { this._data[id][k] = v; this._liveDiff(id); this._refreshCopy(id); },
         setColor: function (id, c) {
             this._data[id].errorColor = c === 'pink' ? { red: 255, green: 0, blue: 255 } : { red: 255, green: 255, blue: 0 };
-            this._liveDiff(id);
+            this._syncColorInput(id);
+            this._liveDiff(id); this._refreshCopy(id);
+        },
+        setColorHex: function (id, hex) {
+            this._data[id].errorColor = this._rgb(hex);
+            this._liveDiff(id); this._refreshCopy(id);
+        },
+        setTransparency: function (id, v) {
+            this._data[id].transparency = Math.max(0, Math.min(100, Number(v))) / 100;
+            this._liveDiff(id); this._refreshCopy(id);
+        },
+        // hex <-> resemble {red,green,blue}; default swatch shown when no color set yet
+        _hex: function (c) {
+            if (!c) return '#ff00ff';
+            var h = function (n) { return ('0' + (Number(n) || 0).toString(16)).slice(-2); };
+            return '#' + h(c.red) + h(c.green) + h(c.blue);
+        },
+        _rgb: function (hex) {
+            var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex || ''));
+            return m ? { red: parseInt(m[1], 16), green: parseInt(m[2], 16), blue: parseInt(m[3], 16) } : null;
+        },
+        _syncColorInput: function (id) {
+            var inp = document.getElementById(id).querySelector('.ki-color');
+            if (inp) inp.value = this._hex(this._data[id].errorColor);
         },
         _liveDiff: function (id) {
             var d = this._data[id], dlg = document.getElementById(id);
@@ -261,6 +304,7 @@
             var out = { ignoredBoxes: d.boxes.map(function (b) { return { top: Math.round(b.top), left: Math.round(b.left), bottom: Math.round(b.bottom), right: Math.round(b.right) }; }) };
             if (d.errorType) out.errorType = d.errorType;
             if (d.errorColor) out.errorColor = d.errorColor;
+            if (d.transparency != null) out.transparency = d.transparency;
             ctl.outputSettings(out).onComplete(function (data) {
                 if (!data || !data.getImageDataUrl) return;
                 d.liveDiff = data.getImageDataUrl();
@@ -292,17 +336,33 @@
             var d = this._data[id];
             if (!d.advanced) this.toggleAdvanced(id);   // boxes are edited on the Diff view
             if (d.view !== 'diff') this.setView(id, 'diff');
-            d.boxes.push({ id: d.boxSeq++, left: 10, top: 10, right: 110, bottom: 90 });
-            this._renderBoxes(id); this._liveDiff(id);
+            var b = { id: d.boxSeq++, left: 10, top: 10, right: 110, bottom: 90 };
+            this._clampBox(id, b);
+            d.boxes.push(b);
+            this._renderBoxes(id); this._liveDiff(id); this._refreshCopy(id);
         },
         removeBox: function (id, boxId) {
             var d = this._data[id];
             d.boxes = d.boxes.filter(function (b) { return b.id !== boxId; });
-            this._renderBoxes(id); this._liveDiff(id);
+            this._renderBoxes(id); this._liveDiff(id); this._refreshCopy(id);
         },
         _scale: function (id) {
             var img = document.getElementById(id).querySelector('.ki-canvas > .ki-img');
             return (img && img.naturalWidth) ? img.clientWidth / img.naturalWidth : 1;
+        },
+        // natural (intrinsic) pixel size of the diff image, or null if not measurable yet
+        _imgDims: function (id) {
+            var img = document.getElementById(id).querySelector('.ki-canvas > .ki-img');
+            return (img && img.naturalWidth) ? { w: img.naturalWidth, h: img.naturalHeight } : null;
+        },
+        // keep a box inside [0,w] x [0,h] (image px), preserving the >=5px min size
+        _clampBox: function (id, b) {
+            var dim = this._imgDims(id);
+            if (!dim) return;
+            var w = dim.w, h = dim.h;
+            var bw = Math.min(b.right - b.left, w), bh = Math.min(b.bottom - b.top, h);
+            b.left = Math.max(0, Math.min(b.left, w - bw)); b.right = b.left + bw;
+            b.top = Math.max(0, Math.min(b.top, h - bh)); b.bottom = b.top + bh;
         },
         _renderBoxes: function (id) {
             var d = this._data[id], dlg = document.getElementById(id);
@@ -339,36 +399,46 @@
             if (!b) return;
             var handle = ev.target.getAttribute('data-h'), sc = this._scale(id), self = this;
             var sx = ev.clientX, sy = ev.clientY, o = { left: b.left, top: b.top, right: b.right, bottom: b.bottom };
+            var dim = this._imgDims(id);
             var move = function (e) {
                 var dx = (e.clientX - sx) / sc, dy = (e.clientY - sy) / sc;
-                if (!handle) { b.left = o.left + dx; b.right = o.right + dx; b.top = o.top + dy; b.bottom = o.bottom + dy; }
-                else {
+                if (!handle) {
+                    b.left = o.left + dx; b.right = o.right + dx; b.top = o.top + dy; b.bottom = o.bottom + dy;
+                    self._clampBox(id, b);   // shift whole box back inside bounds
+                } else {
                     if (handle.indexOf('w') >= 0) b.left = Math.min(o.left + dx, b.right - 5);
                     if (handle.indexOf('e') >= 0) b.right = Math.max(o.right + dx, b.left + 5);
                     if (handle.indexOf('n') >= 0) b.top = Math.min(o.top + dy, b.bottom - 5);
                     if (handle.indexOf('s') >= 0) b.bottom = Math.max(o.bottom + dy, b.top + 5);
+                    if (dim) {   // clamp the dragged edges to the image
+                        b.left = Math.max(0, b.left); b.top = Math.max(0, b.top);
+                        b.right = Math.min(dim.w, b.right); b.bottom = Math.min(dim.h, b.bottom);
+                    }
                 }
                 self._renderBoxes(id);
             };
-            var up = function () { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); self._liveDiff(id); };
+            var up = function () { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); self._liveDiff(id); self._refreshCopy(id); };
             window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
         },
         _drawStart: function (id, ev) {
             ev.preventDefault();
             var d = this._data[id], sc = this._scale(id), self = this;
             var layer = document.getElementById(id).querySelector('.ki-boxlayer'), r = layer.getBoundingClientRect();
-            var x0 = (ev.clientX - r.left) / sc, y0 = (ev.clientY - r.top) / sc;
+            var dim = this._imgDims(id);
+            var clampX = function (v) { return dim ? Math.max(0, Math.min(v, dim.w)) : v; };
+            var clampY = function (v) { return dim ? Math.max(0, Math.min(v, dim.h)) : v; };
+            var x0 = clampX((ev.clientX - r.left) / sc), y0 = clampY((ev.clientY - r.top) / sc);
             var b = { id: d.boxSeq++, left: x0, top: y0, right: x0, bottom: y0 };
             d.boxes.push(b);
             var move = function (e) {
-                var x = (e.clientX - r.left) / sc, y = (e.clientY - r.top) / sc;
+                var x = clampX((e.clientX - r.left) / sc), y = clampY((e.clientY - r.top) / sc);
                 b.left = Math.min(x0, x); b.right = Math.max(x0, x); b.top = Math.min(y0, y); b.bottom = Math.max(y0, y);
                 self._renderBoxes(id);
             };
             var up = function () {
                 window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
                 if (b.right - b.left < 5 || b.bottom - b.top < 5) { d.boxes = d.boxes.filter(function (x) { return x.id !== b.id; }); self._renderBoxes(id); }
-                else self._liveDiff(id);
+                else { self._liveDiff(id); self._refreshCopy(id); }
             };
             window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
         },
@@ -410,6 +480,8 @@
             if (d.threshold !== d.defaultThreshold) o.threshold = d.threshold;
             if (d.ignore && d.ignore !== 'less') o.ignore = d.ignore;
             if (d.errorType) o.errorType = d.errorType;
+            if (d.errorColor) o.errorColor = d.errorColor;
+            if (d.transparency != null) o.transparency = d.transparency;
             if (d.boxes.length) o.ignoredBoxes = d.boxes.map(function (b) {
                 return { top: Math.round(b.top), left: Math.round(b.left), bottom: Math.round(b.bottom), right: Math.round(b.right) };
             });
@@ -438,12 +510,39 @@
             box.hidden = false;
         },
         hideCopy: function (id) { document.getElementById(id).querySelector('.ki-copy').hidden = true; },
+        // drag the command popover by its header (so it can be moved off the diff area)
+        _copyDrag: function (id, ev) {
+            if (ev.target.closest('button')) return;   // let Copy / close work normally
+            ev.preventDefault();
+            var box = document.getElementById(id).querySelector('.ki-copy');
+            var sx = ev.clientX, sy = ev.clientY, ol = box.offsetLeft, ot = box.offsetTop;
+            box.style.left = ol + 'px'; box.style.top = ot + 'px'; box.style.right = 'auto';
+            var move = function (e) { box.style.left = (ol + e.clientX - sx) + 'px'; box.style.top = (ot + e.clientY - sy) + 'px'; };
+            var up = function () { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+            window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+        },
+        // re-render the command popover live when options change, but only while it is open and
+        // showing the (state-dependent) Write options panel — the Rebase command is static
+        _refreshCopy: function (id) {
+            var box = document.getElementById(id).querySelector('.ki-copy');
+            if (!box || box.hidden) return;
+            var title = box.querySelector('.ki-copy-title');
+            if (title && title.textContent === 'Write options') this.showOptions(id);
+        },
         copy: function (id) {
-            var txt = document.getElementById(id).querySelector('.ki-copy-pre').textContent;
-            if (navigator.clipboard) { navigator.clipboard.writeText(txt).catch(function () { }); }
+            var dlg = document.getElementById(id);
+            var txt = dlg.querySelector('.ki-copy-pre').textContent;
+            var btn = dlg.querySelector('.ki-copy-btn');
+            var flash = function () {
+                if (!btn) return;
+                btn.textContent = 'Copied!'; btn.classList.add('ki-copied');
+                setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('ki-copied'); }, 1200);
+            };
+            if (navigator.clipboard) { navigator.clipboard.writeText(txt).then(flash, flash); }
             else {
                 var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta);
                 ta.select(); try { document.execCommand('copy'); } catch (e) { } document.body.removeChild(ta);
+                flash();
             }
         }
     };
