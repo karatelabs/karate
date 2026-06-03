@@ -79,8 +79,19 @@ public class JUnitBridgeListener implements ResultListener {
         putEvent(new TestEvent.ScenarioEnd(result));
     }
 
-    @Override
-    public void onSuiteEnd(SuiteResult result) {
+    /**
+     * Signals that the suite has fully finished, terminating the stream.
+     * <p>
+     * Deliberately <em>not</em> driven by {@link #onSuiteEnd(SuiteResult)}: that callback
+     * fires while the suite is still running its listener chain, so report writers (JUnit
+     * XML, Cucumber JSON) registered after this bridge may not have flushed their
+     * asynchronous per-feature writes yet. Emitting the terminal event from here — invoked
+     * only once {@code Runner.Builder.parallel(...)} has fully returned — guarantees that
+     * when the JUnit {@code @TestFactory} stream completes, all report files are on disk.
+     *
+     * @param result the suite result (may be null if execution failed before completing)
+     */
+    public void complete(SuiteResult result) {
         putEvent(new TestEvent.SuiteEnd(result));
     }
 

@@ -307,8 +307,14 @@ public class Karate implements Iterable<DynamicNode> {
         // Disable console summary since we're in JUnit mode
         delegate.outputConsoleSummary(false);
 
-        // Start Karate execution in background thread
-        CompletableFuture.runAsync(() -> delegate.parallel(threads));
+        // Start Karate execution in a background thread. Signal stream completion only once
+        // parallel(...) has fully returned — by then every result listener's onSuiteEnd has
+        // run, including the report writers that flush their async per-feature writes there.
+        // whenComplete fires on both normal and exceptional completion so the consumer is
+        // never left blocking on the queue if execution fails.
+        CompletableFuture
+                .supplyAsync(() -> delegate.parallel(threads))
+                .whenComplete((result, error) -> bridge.complete(result));
 
         // Return streaming iterator
         return new StreamingTestIterator(queue, hierarchical, timeoutMinutes).stream();
