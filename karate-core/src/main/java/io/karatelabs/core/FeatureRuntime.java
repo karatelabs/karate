@@ -48,6 +48,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 
 public class FeatureRuntime implements Callable<FeatureResult> {
 
@@ -125,6 +126,37 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         return depth;
     }
 
+    /**
+     * A top-level feature is one executed directly (as a root feature), not via
+     * call/callonce. This is the canonical "not a called feature" predicate — many
+     * behaviours (result-listener notifications, locking, line filters, after-feature
+     * hooks, abort handling) are gated to top-level features only. Note that suite-level
+     * concerns additionally require {@code suite != null}; standalone usage has no suite
+     * but is still top-level.
+     */
+    public boolean isTopLevel() {
+        return caller == null;
+    }
+
+    /**
+     * The inverse of {@link #isTopLevel()} — true when this feature was reached via
+     * call/callonce from another feature.
+     */
+    public boolean isCalled() {
+        return caller != null;
+    }
+
+    private void notifyListeners(Consumer<ResultListener> action) {
+        // emitting these for nested called features corrupts consumers such as the JUnit
+        // bridge, which would otherwise treat a called feature's events as the caller's
+        if (suite == null || !isTopLevel()) {
+            return;
+        }
+        for (ResultListener listener : suite.getResultListeners()) {
+            action.accept(listener);
+        }
+    }
+
     public static FeatureRuntime of(Feature feature) {
         return new FeatureRuntime(feature);
     }
@@ -137,12 +169,8 @@ public class FeatureRuntime implements Callable<FeatureResult> {
     public FeatureResult call() {
         result.setStartTime(System.currentTimeMillis());
 
-        // Notify listeners of feature start
-        if (suite != null) {
-            for (ResultListener listener : suite.getResultListeners()) {
-                listener.onFeatureStart(feature);
-            }
-        }
+        // Notify listeners of feature start (only for top-level features, not nested calls)
+        notifyListeners(listener -> listener.onFeatureStart(feature));
 
         try {
             // Fire FEATURE_ENTER event
@@ -153,13 +181,13 @@ public class FeatureRuntime implements Callable<FeatureResult> {
             try {
                 // Use scenario-level parallelism for top-level features in parallel mode
                 // Must check BOTH executor AND semaphore to ensure proper synchronization
-                if (suite != null && suite.parallel && caller == null
+                if (suite != null && suite.parallel && isTopLevel()
                         && suite.getScenarioExecutor() != null && suite.getScenarioSemaphore() != null) {
                     logger.debug("Running scenarios in parallel mode for feature: {}", feature.getName());
                     runScenariosParallel();
                 } else {
                     // Sequential execution for called features or non-parallel mode
-                    if (suite != null && suite.parallel && caller == null) {
+                    if (suite != null && suite.parallel && isTopLevel()) {
                         logger.warn("Falling back to sequential execution for feature '{}' - executor: {}, semaphore: {}",
                                 feature.getName(), suite.getScenarioExecutor() != null, suite.getScenarioSemaphore() != null);
                     }
@@ -180,7 +208,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
             }
 
             // Invoke configured afterFeature hook if present (only for top-level features)
-            if (lastExecuted != null && caller == null) {
+            if (lastExecuted != null && isTopLevel()) {
                 invokeAfterFeatureHook(lastExecuted);
             }
 
@@ -194,11 +222,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         } finally {
 
             // Notify listeners of feature end (only for top-level features, not nested calls)
-            if (suite != null && caller == null) {
-                for (ResultListener listener : suite.getResultListeners()) {
-                    listener.onFeatureEnd(result);
-                }
-            }
+            notifyListeners(listener -> listener.onFeatureEnd(result));
         }
 
         return result;
@@ -263,10 +287,8 @@ public class FeatureRuntime implements Callable<FeatureResult> {
      * Returns the ScenarioResult for aggregation by the caller.
      */
     private ScenarioResult executeScenarioParallel(Scenario scenario) {
-        // Notify listeners of scenario start
-        for (ResultListener listener : suite.getResultListeners()) {
-            listener.onScenarioStart(scenario);
-        }
+        // Notify listeners of scenario start (parallel mode runs only for top-level features)
+        notifyListeners(listener -> listener.onScenarioStart(scenario));
 
         // Acquire locks for @lock tags
         ScenarioLockManager.LockHandle lockHandle = suite.getLockManager().acquire(scenario);
@@ -288,10 +310,9 @@ public class FeatureRuntime implements Callable<FeatureResult> {
             }
         }
 
-        // Notify listeners of scenario completion
-        for (ResultListener listener : suite.getResultListeners()) {
-            listener.onScenarioEnd(scenarioResult);
-        }
+        // Notify listeners of scenario completion (parallel mode runs only for top-level features)
+        ScenarioResult completed = scenarioResult;
+        notifyListeners(listener -> listener.onScenarioEnd(completed));
 
         return scenarioResult;
     }
@@ -303,15 +324,11 @@ public class FeatureRuntime implements Callable<FeatureResult> {
      */
     private void executeScenario(Scenario scenario) {
         // Notify listeners of scenario start (only for top-level features)
-        if (suite != null && caller == null) {
-            for (ResultListener listener : suite.getResultListeners()) {
-                listener.onScenarioStart(scenario);
-            }
-        }
+        notifyListeners(listener -> listener.onScenarioStart(scenario));
 
         // Acquire locks for @lock tags (only for top-level features)
         ScenarioLockManager.LockHandle lockHandle = null;
-        if (suite != null && caller == null) {
+        if (suite != null && isTopLevel()) {
             lockHandle = suite.getLockManager().acquire(scenario);
         }
 
@@ -322,7 +339,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
             lastExecuted = sr;
 
             // Check if this is the last scenario in an outline (only for top-level features)
-            if (caller == null && isLastScenarioInOutline(scenario)) {
+            if (isTopLevel() && isLastScenarioInOutline(scenario)) {
                 invokeAfterScenarioOutlineHook(sr);
             }
         } catch (Exception e) {
@@ -331,7 +348,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
             scenarioResult = createErrorScenarioResult(scenario, e);
         } finally {
             // Release locks (only for top-level features)
-            if (suite != null && caller == null && lockHandle != null) {
+            if (isTopLevel() && lockHandle != null) {
                 suite.getLockManager().release(lockHandle);
             }
         }
@@ -339,11 +356,8 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         result.addScenarioResult(scenarioResult);
 
         // Notify listeners of scenario completion (only for top-level features)
-        if (suite != null && caller == null) {
-            for (ResultListener listener : suite.getResultListeners()) {
-                listener.onScenarioEnd(scenarioResult);
-            }
-        }
+        ScenarioResult completed = scenarioResult;
+        notifyListeners(listener -> listener.onScenarioEnd(completed));
     }
 
     /**
@@ -725,7 +739,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
             if (callLineFilters != null && !callLineFilters.isEmpty()) {
                 lines = callLineFilters;
                 isCallScoped = true;
-            } else if (suite != null && !suite.lineFilters.isEmpty() && caller == null) {
+            } else if (suite != null && !suite.lineFilters.isEmpty() && isTopLevel()) {
                 String featureUri = feature.getResource().getUri().toString();
                 lines = suite.lineFilters.get(featureUri);
             }
@@ -749,20 +763,20 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                 return matchesCallTag(scenario, callTagSelector);
             }
 
-            // For called features (caller != null), don't apply user-facing filters
+            // For called features, don't apply user-facing filters
             // (@ignore, @env, scenarioName). These only exclude scenarios from
             // top-level runner selection. Without this, a called
             // feature's anonymous Scenario: would be filtered out whenever a
             // top-level scenarioName filter is active, causing variable-propagation
             // from Background `call read(...)` to silently break.
-            if (caller != null) {
+            if (isCalled()) {
                 return true;
             }
 
             // Scenario name filter (IDE plugins use this as a stable, line-independent key).
             // Same bypass semantics as line filter — if the user asked for a specific
             // scenario by name, @ignore / @env should not stop it. Only applies at
-            // the top level (the `caller != null` branch above handles called features).
+            // the top level (the `isCalled()` branch above handles called features).
             if (suite != null && suite.scenarioName != null) {
                 return matchesScenarioName(scenario);
             }

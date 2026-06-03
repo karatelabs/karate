@@ -192,14 +192,14 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // Evaluate config (only for top-level scenarios, not called features).
         // In dry-run mode, skip config JS for non-@setup scenarios - @setup scenarios
         // still run fully so scenario outlines can resolve their example data (V1 parity).
-        if (featureRuntime != null && featureRuntime.getSuite() != null && featureRuntime.getCaller() == null) {
+        if (featureRuntime != null && featureRuntime.getSuite() != null && featureRuntime.isTopLevel()) {
             if (!isDryRunSkip()) {
                 evalConfig();
             }
         }
 
         // Inherit parent variables if called from another feature
-        if (featureRuntime != null && featureRuntime.getCaller() != null) {
+        if (featureRuntime != null && featureRuntime.isCalled()) {
             inheritVariables();
         }
 
@@ -863,7 +863,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         LogContext outerLogContext = LogContext.get();
         String configTimeLog = outerLogContext.collect();
         java.util.List<StepResult.Embed> configTimeEmbeds = outerLogContext.collectEmbeds();
-        boolean nestedCall = featureRuntime != null && featureRuntime.getCaller() != null;
+        boolean nestedCall = featureRuntime != null && featureRuntime.isCalled();
         LogContext.set(new LogContext());
         // Repopulate the fresh LogContext from this scenario's KarateConfig — which is
         // the source of truth for mask + pretty. Without this, anything that
@@ -912,7 +912,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         result.setThreadName(threadName);
 
         // If suite has been aborted (abortSuiteOnFailure), skip this scenario
-        if (suite != null && suite.isAborted() && featureRuntime.getCaller() == null) {
+        if (suite != null && suite.isAborted() && featureRuntime.isTopLevel()) {
             stopped = true;
             result.setAborted(true);
             result.setEndTime(System.currentTimeMillis());
@@ -923,7 +923,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         boolean scenarioStarted = false;
         // Scenario-lifecycle hooks (beforeScenario/afterScenario) only fire for top-level
         // scenarios so a hook that uses karate.call() does not recurse into the called feature.
-        boolean topLevel = featureRuntime == null || featureRuntime.getCaller() == null;
+        boolean topLevel = featureRuntime == null || featureRuntime.isTopLevel();
         try {
             // Fire SCENARIO_ENTER event
             if (suite != null) {
@@ -957,7 +957,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             stepIndex = 0;
             while (stepIndex < count) {
                 if (stopped || aborted
-                        || (suite != null && suite.isAborted() && featureRuntime.getCaller() == null)) {
+                        || (suite != null && suite.isAborted() && featureRuntime.isTopLevel())) {
                     // Mark remaining steps as skipped
                     while (stepIndex < count) {
                         StepResult sr = StepResult.skipped(steps.get(stepIndex), System.currentTimeMillis());
@@ -1035,7 +1035,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // body in try/catch to suppress. The primary step error, if any, is preserved as the root
             // cause because the hook's fakeFailure step is appended after existing step results.
             // Skipped for called features (karate.call) so a hook that itself calls a feature
-            // does not recurse - matches afterFeature / afterScenarioOutline which also gate on caller == null.
+            // does not recurse - matches afterFeature / afterScenarioOutline which also gate on isTopLevel().
             if (scenarioStarted && topLevel && !isDryRunSkip()) {
                 Throwable hookError = invokeAndRecordHook(config.getAfterScenario(), "afterScenario");
                 if (hookError != null) {
@@ -1054,7 +1054,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             }
             // If scenario failed and abortSuiteOnFailure is set, signal suite to abort
             if (result.isFailed() && config.isAbortSuiteOnFailure()
-                    && suite != null && featureRuntime.getCaller() == null) {
+                    && suite != null && featureRuntime.isTopLevel()) {
                 suite.abort();
             }
             // Restore the global logging state we snapshotted at scenario entry so any
