@@ -592,6 +592,17 @@ public interface Resource {
     }
 
     /**
+     * Creates an in-memory Resource from raw bytes (e.g. a captured image / binary blob).
+     * The bytes are returned verbatim by {@link #getStream()}; {@link #getText()} decodes them.
+     *
+     * @param bytes the binary content
+     * @return MemoryResource instance
+     */
+    static Resource bytes(byte[] bytes) {
+        return new MemoryResource(bytes);
+    }
+
+    /**
      * Creates an in-memory Resource with a custom root.
      * Useful for planning where the resource would be materialized to disk.
      *
