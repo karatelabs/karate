@@ -147,12 +147,16 @@ META-INF/karate-ext/static/image.js  ── KarateReport.registerEmbed ───
 
 ```bash
 mvn -pl karate-image test                 # unit + e2e (ImageComparisonTest, ImageExtE2ETest, VisualDemoTest)
-mvn -pl karate-image -Pfatjar package     # fatjar for ~/.karate/ext/ drop-in (no Maven at run time)
+mvn -pl karate-image -Pfatjar package     # → target/karate-image-<version>.jar (~/.karate/ext/ drop-in)
 ```
 
-For normal projects no fatjar is needed: declare a Maven/Gradle dependency on `karate-image`
-and the `resemble` + `ssim` engines come transitively (`karate-core` is `provided` — your
-project already has it). The `-Pfatjar` build is only for the `~/.karate/ext/` drop-in.
+**Two delivery forms, two audiences:**
+
+- **Java teams** — declare a Maven/Gradle dependency on `io.karatelabs:karate-image`. The
+  `resemble` + `ssim` engines come transitively and `karate-core` is `provided` (your project
+  already has it). No fatjar needed.
+- **Non-Java teams (Rust CLI)** — use the `-Pfatjar` build's `karate-image-<version>.jar`
+  (engines bundled, `karate-core` excluded) as a `~/.karate/ext/` drop-in, no Maven at run time.
 
 To fold image comparison into your own standalone/uber jar (e.g. for a CI pipeline that runs a
 single self-contained jar), add `karate-image` to that module's dependencies and build the fat

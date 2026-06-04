@@ -363,6 +363,26 @@ Named DOM containers / splice points the report exposes for ext UI. Reality vs. 
 
 ---
 
+## Packaging & distribution — two delivery forms
+
+An ext ships in **two forms for two audiences**, from the same module:
+
+- **Maven Central thin jar** (e.g. `io.karatelabs:karate-image`) — for **Java teams**. Declared
+  as a normal Maven/Gradle test dependency; `karate-core` is `provided` (the consuming project
+  already has it) and engine deps come transitively. This is the default deploy artifact.
+- **Drop-in fatjar** (`karate-<name>-X.Y.Z.jar`, e.g. `karate-image-X.Y.Z.jar`) — for **non-Java
+  teams** driving Karate via the Rust CLI. Built with a `-Pfatjar` shade profile that bundles the
+  ext + its engine deps, **excludes** `karate-core` (provided), and is dropped into
+  `~/.karate/ext/` (the launcher classpaths every `ext/*.jar`). No Maven at run time.
+
+Both forms register the ext identically off the classpath (`boot.ext('<name>')`) — the only
+difference is how the bytes reach the JVM. See [`karate-image`'s pom](../karate-image/pom.xml)
+(`fatjar` profile) and [README](../karate-image/README.md#build) for the worked setup, and
+[RELEASING.md](./RELEASING.md) for the per-release publish steps (the CLI-side drop-in
+distribution is still being wired — see the TODO at the top of RELEASING.md).
+
+---
+
 ## Checklist: authoring a new ext
 
 1. `io.karatelabs.ext.<name>.<Name>Ext implements Ext`; in `onBoot`:

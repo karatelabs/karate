@@ -3,9 +3,15 @@
 Steps to publish a new Karate release. Replace `X.Y.Z` with the version being released.
 
 > **TODO (before/with the next release that ships an ext): ext distribution + CLI v2-only.**
-> `karate-image` is the first ext but for 2.0.10 we shipped core artifacts only and kept the
-> `karate-image-X.Y.Z.jar` drop-in local. (Drop-in jars are named per-ext: `karate-image-X.Y.Z.jar`,
-> `karate-max-X.Y.Z.jar`, etc.) To ship exts properly we still need to:
+> An ext has **two delivery forms for two audiences**: the Maven Central `io.karatelabs:karate-image`
+> thin jar is for **Java teams** (declare it as a Maven/Gradle test dependency; `karate-core` is
+> `provided`, engines come transitively) — this path already ships and is verified. The
+> `karate-image-X.Y.Z.jar` **drop-in fatjar** (engines bundled) is for **non-Java teams** driving
+> Karate via the Rust CLI. The deferred work below is only the CLI / non-Java side.
+>
+> For 2.0.10 we shipped core artifacts only and kept the `karate-image-X.Y.Z.jar` drop-in local.
+> (Drop-in jars are named per-ext: `karate-image-X.Y.Z.jar`, `karate-max-X.Y.Z.jar`, etc.) To ship
+> the drop-in path properly we still need to:
 > - Switch the Rust CLI (`../karate-cli`) to **v2 `io.karatelabs.Main` only** — drop the
 >   `com.intuit.karate.Main` v1 shim support in `delegate.rs`.
 > - Teach the CLI to **load exts from the manifest** (managed ext install), instead of the
