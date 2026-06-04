@@ -571,6 +571,10 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                         if (exampleRowIndex < rowCount) {
                             // Use getExampleData which handles type hints (columns ending with !)
                             Map<String, Object> exampleData = table.getTable().getExampleData(exampleRowIndex);
+                            // Raw cell text is used for <placeholder> substitution: for !-suffixed
+                            // (EVALUATED) columns the cell is a JS expression source, so splicing it
+                            // verbatim keeps strings quoted and inline JSON valid in a match RHS.
+                            Map<String, String> rawData = table.getTable().getRawExampleData(exampleRowIndex);
                             int exampleIndex = exampleRowIndex;
                             exampleRowIndex++;
 
@@ -585,8 +589,10 @@ public class FeatureRuntime implements Callable<FeatureResult> {
 
                             // Substitute placeholders in steps and name
                             for (String key : exampleData.keySet()) {
-                                Object value = exampleData.get(key);
-                                String resolved = value != null ? value.toString() : "";
+                                String resolved = rawData.get(key);
+                                if (resolved == null) {
+                                    resolved = "";
+                                }
                                 scenario.replace("<" + key + ">", resolved);
                                 scenario.replace("${" + key + "}", resolved);
                             }

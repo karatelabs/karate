@@ -222,6 +222,23 @@ public class Table {
         return map;
     }
 
+    /**
+     * Returns the verbatim cell text (keyed by column name) for the given example row.
+     * Used for {@code <placeholder>} substitution into step text: for {@code !}-suffixed
+     * (EVALUATED) columns the cell content is the JS expression source, so splicing it
+     * verbatim keeps quoted strings quoted and inline JSON valid in a match RHS context.
+     */
+    public Map<String, String> getRawExampleData(int exampleIndex) {
+        List<String> row = rows.get(exampleIndex + 1);
+        Map<String, String> map = new LinkedHashMap<>(cols.size());
+        for (Column col : cols) {
+            // Handle rows with fewer cells than headers (trailing empty cells)
+            String raw = col.index < row.size() ? row.get(col.index) : "";
+            map.put(col.key, raw);
+        }
+        return map;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

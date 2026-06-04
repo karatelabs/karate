@@ -1279,6 +1279,72 @@ public class OutlineTest {
         assertTrue(result.isPassed(), "All selected scenarios should pass: " + getFailureMessage(result));
     }
 
+    // ========== Type-hint (!) substitution into match RHS ==========
+
+    @Test
+    void testTypeHintSubstitutionInMatch() throws Exception {
+        // A !-suffixed Examples column should substitute into a match RHS such that
+        // strings stay quoted and inline JSON stays valid. Repro for the reported
+        // failures: string and inline-JSON type hints break when used as <placeholder>.
+        // Each outline asserts twice: once via the <placeholder> substitution and once
+        // via the column's auto-bound variable (Karate creates a variable per column).
+        Path feature = tempDir.resolve("typehint-match.feature");
+        Files.writeString(feature, """
+            Feature: type-hint substitution in match
+
+            Scenario Outline: string value
+            * def response = { message: 'Item not found' }
+            * match response.message == <msg>
+            * match response.message == msg
+
+            Examples:
+            | msg!             |
+            | 'Item not found' |
+
+            Scenario Outline: number value
+            * def response = { count: 42 }
+            * match response.count == <val>
+            * match response.count == val
+
+            Examples:
+            | val! |
+            | 42   |
+
+            Scenario Outline: boolean value
+            * def response = { active: true }
+            * match response.active == <val>
+            * match response.active == val
+
+            Examples:
+            | val! |
+            | true |
+
+            Scenario Outline: null value
+            * def response = { data: null }
+            * match response.data == <val>
+            * match response.data == val
+
+            Examples:
+            | val! |
+            | null |
+
+            Scenario Outline: inline JSON value
+            * def response = { item: { id: 1, name: 'test' } }
+            * match response.item == <val>
+            * match response.item == val
+
+            Examples:
+            | val!                    |
+            | { id: 1, name: 'test' } |
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+
+        assertTrue(result.isPassed(), getFailureMessage(result));
+        assertEquals(5, result.getScenarioCount());
+        assertEquals(5, result.getScenarioPassedCount());
+    }
+
     private String getFailureMessage(SuiteResult result) {
         if (result.isPassed()) return "none";
         for (FeatureResult fr : result.getFeatureResults()) {
