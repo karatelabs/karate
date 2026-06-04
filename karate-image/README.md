@@ -16,7 +16,13 @@ image.baselineDir = 'baselines';
 image.optionsDir  = 'baselines';   // where <name>.json tuning files live (defaults to baselineDir)
 image.threshold   = 0.02;          // max % mismatch tolerated
 image.report      = 'mismatched';  // attach diff images: 'all' | 'mismatched' | null
+image.engine      = 'resemble';    // 'resemble' | 'ssim' | 'resemble,ssim' | 'resemble|ssim'
 ```
+
+Multiple engines: the **smallest** mismatch wins (pass if any engine is within threshold). The
+separator picks how many run — `,` runs all of them every time (most thorough), `|` runs them in
+order and stops as soon as one comes in under the threshold (faster; later engines are a fallback
+for minor visual noise). See `ImageComparison.run(...)`.
 
 The ext exposes **primitives**; the establish→diff→embed→fail orchestration is an
 **overridable JS recipe** you keep in your own project (scenario scope, so `screenshot()` /
