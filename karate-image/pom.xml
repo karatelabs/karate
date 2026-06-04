@@ -44,8 +44,10 @@
     <profiles>
         <!-- Fatjar for ~/.karate/ext/ drop-in (Rust launcher, no Maven). Bundles
              the t12y diff engines + this module; karate-core stays out (provided).
-             Build: mvn package -pl karate-image -Pfatjar  →  target/karate-image.jar
-             (rename to karate-image-X.Y.Z.jar for the GitHub release upload). -->
+             Build: mvn package -pl karate-image -am -Pfatjar -DskipTests
+               →  target/karate-image-X.Y.Z.jar
+             Drop-in jars are named per-ext: karate-image-X.Y.Z.jar, karate-max-X.Y.Z.jar,
+             etc. The launcher classpaths every ext/*.jar regardless of name. -->
         <profile>
             <id>fatjar</id>
             <build>
@@ -61,7 +63,7 @@
                                     <goal>shade</goal>
                                 </goals>
                                 <configuration>
-                                    <finalName>karate-image</finalName>
+                                    <finalName>karate-image-${project.version}</finalName>
                                     <transformers>
                                         <transformer
                                                 implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer">

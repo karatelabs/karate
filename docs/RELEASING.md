@@ -2,6 +2,19 @@
 
 Steps to publish a new Karate release. Replace `X.Y.Z` with the version being released.
 
+> **TODO (before/with the next release that ships an ext): ext distribution + CLI v2-only.**
+> `karate-image` is the first ext but for 2.0.10 we shipped core artifacts only and kept the
+> `karate-image-X.Y.Z.jar` drop-in local. (Drop-in jars are named per-ext: `karate-image-X.Y.Z.jar`,
+> `karate-max-X.Y.Z.jar`, etc.) To ship exts properly we still need to:
+> - Switch the Rust CLI (`../karate-cli`) to **v2 `io.karatelabs.Main` only** — drop the
+>   `com.intuit.karate.Main` v1 shim support in `delegate.rs`.
+> - Teach the CLI to **load exts from the manifest** (managed ext install), instead of the
+>   current manual `~/.karate/ext/` drop-in only.
+> - Likely a matching change in **`../karate-vscode-v2`**.
+> - Then per-release: attach `karate-ext-image-X.Y.Z.jar` to the GitHub release, add a
+>   `karate.sh` manifest ext entry, and add a CI fatjar-build job
+>   (`mvn package -pl karate-image -am -Pfatjar -DskipTests`).
+
 ## 1. Prepare the Release
 
 - [ ] Verify `main` is green on CI
