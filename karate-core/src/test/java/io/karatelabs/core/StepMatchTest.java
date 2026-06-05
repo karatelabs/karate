@@ -597,6 +597,65 @@ class StepMatchTest {
         assertPassed(sr);
     }
 
+    // ========== #notpresent through an undefined/null intermediate path ==========
+    // A dot-notation chain like `a.b.c.d` is JS-evaluated. When a leaf is missing
+    // the result is null and the key-presence check degrades to #notpresent. But
+    // when an INTERMEDIATE segment is undefined or null, the JS eval throws a
+    // TypeError (property access on undefined/null) before that check — which used
+    // to surface as a match failure. v1 resolved the whole chain to #notpresent.
+
+    @Test
+    void testMatchNotPresentLeafMissing() {
+        // Control: leaf field missing — already worked.
+        ScenarioRuntime sr = run("""
+            * def response = { data: { parent: { name: 'test' } } }
+            * match response.data.parent.missing == '#notpresent'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchNotPresentThroughUndefinedIntermediate() {
+        // 'missingChild' does not exist, so '.success' accesses a prop on undefined.
+        ScenarioRuntime sr = run("""
+            * def response = { data: { parent: { existingChild: null } } }
+            * match response.data.parent.missingChild.success == '#notpresent'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchNotPresentThroughNullIntermediate() {
+        // 'child' exists but is null; accessing '.success' on null.
+        ScenarioRuntime sr = run("""
+            * def response = { data: { parent: { child: null } } }
+            * match response.data.parent.child.success == '#notpresent'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchNotPresentThroughMultipleMissingIntermediates() {
+        // 'deeply' doesn't exist, so '.nested.field' is chained on undefined.
+        ScenarioRuntime sr = run("""
+            * def response = { data: { name: 'test' } }
+            * match response.data.deeply.nested.field == '#notpresent'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchUndefinedRootStillErrors() {
+        // Boundary: degrading to #notpresent applies only when the chain's ROOT
+        // variable is defined. A genuinely undefined root (e.g. a typo'd variable)
+        // must still surface as an error, not silently pass as #notpresent.
+        ScenarioRuntime sr = run("""
+            * def response = { data: { name: 'test' } }
+            * match respose.data.name == '#notpresent'
+            """);
+        assertFailed(sr);
+    }
+
     // ========== Embedded variables on the RHS of match ==========
     // V2 evaluates the RHS as JS, so the v1 trick of writing { id: #(id) } is a
     // syntax error. The same alternatives that work for `def` also work here.

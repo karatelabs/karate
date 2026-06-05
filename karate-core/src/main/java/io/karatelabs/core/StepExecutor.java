@@ -1440,12 +1440,28 @@ public class StepExecutor {
             }
         }
 
-        // Default: evaluate as JS
-        Object result = runtime.eval(wrapJsonLikeExpression(expr));
+        // Default: evaluate as JS. A pure property-access chain (dots/brackets, no
+        // function call) is JSON navigation; v1 routed it through JsonPath and degraded
+        // a missing path to #notpresent. Mirror that for both shapes the JS engine can
+        // produce: a null leaf (eval returns null, handled below) and an undefined/null
+        // intermediate (eval throws a TypeError before reaching the leaf, handled here).
+        boolean propertyAccessChain = expr.contains(".") && !expr.contains("(");
+        Object result;
+        try {
+            result = runtime.eval(wrapJsonLikeExpression(expr));
+        } catch (Exception e) {
+            // Navigating through an undefined/null intermediate throws. Degrade to
+            // #notpresent — but only when the chain's root variable is actually defined,
+            // so a genuinely undefined root (e.g. a typo'd variable) still surfaces.
+            if (propertyAccessChain && rootVariableDefined(expr)) {
+                return "#notpresent";
+            }
+            throw e;
+        }
 
         // Check for "not present" case: if result is null and expression is property access
         // We need to distinguish between "property exists and is null" vs "property doesn't exist"
-        if (result == null && expr.contains(".") && !expr.contains("(")) {
+        if (result == null && propertyAccessChain) {
             // Check if it's a simple property access like "foo.bar"
             int lastDot = expr.lastIndexOf('.');
             if (lastDot > 0) {
@@ -1470,6 +1486,26 @@ public class StepExecutor {
             }
         }
         return result;
+    }
+
+    /**
+     * True when the leading identifier of a dotted/bracketed path is a currently
+     * defined variable. Distinguishes navigating into existing JSON — where a missing
+     * or null branch should degrade to {@code #notpresent} — from a genuinely undefined
+     * root (e.g. a typo'd variable name), which should still surface as an error.
+     */
+    private boolean rootVariableDefined(String expr) {
+        int i = 0;
+        while (i < expr.length()) {
+            char c = expr.charAt(i);
+            if (Character.isLetterOrDigit(c) || c == '_' || c == '$') {
+                i++;
+            } else {
+                break;
+            }
+        }
+        String root = expr.substring(0, i);
+        return !root.isEmpty() && runtime.getAllVariables().containsKey(root);
     }
 
     /** Sentinel value indicating XPath was evaluated but returned no result. */
