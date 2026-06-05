@@ -194,6 +194,7 @@ public class StepExecutor {
                     case "xml" -> executeXml(step);
                     case "xmlstring" -> executeXmlString(step);
                     case "string" -> executeString(step);
+                    case "bytes" -> executeBytes(step);
                     case "csv" -> executeCsv(step);
                     case "yaml" -> executeYaml(step);
                     case "copy" -> executeCopy(step);
@@ -1058,6 +1059,23 @@ public class StepExecutor {
             stringValue = Json.stringifyStrict(value);
         }
         runtime.setVariable(name, stringValue);
+    }
+
+    private void executeBytes(Step step) {
+        String text = step.getText();
+        int eqIndex = StepUtils.findAssignmentOperator(text);
+        String name = text.substring(0, eqIndex).trim();
+        Object value;
+        if (step.getDocString() != null) {
+            // Doc string: bytes data = """..."""
+            value = step.getDocString();
+        } else {
+            // Expression: bytes data = someVar / read('file')
+            String expr = text.substring(eqIndex + 1).trim();
+            value = runtime.eval(wrapJsonLikeExpression(expr));
+            value = processEmbeddedExpressions(value);
+        }
+        runtime.setVariable(name, Json.toBytes(value));
     }
 
     private void executeCsv(Step step) {

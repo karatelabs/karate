@@ -512,6 +512,51 @@ class StepDataTypesTest {
     }
 
     @Test
+    void testBytesKeywordFromString() {
+        // bytes keyword converts a string to a byte array
+        ScenarioRuntime sr = run("""
+            * bytes data = 'hello'
+            * match data == 'hello'.getBytes('UTF-8')
+            """);
+        assertPassed(sr);
+        assertArrayEquals("hello".getBytes(java.nio.charset.StandardCharsets.UTF_8), (byte[]) get(sr, "data"));
+    }
+
+    @Test
+    void testBytesKeywordFromJson() {
+        // bytes keyword serializes JSON to its byte representation
+        ScenarioRuntime sr = run("""
+            * bytes data = { foo: 'bar' }
+            """);
+        assertPassed(sr);
+        assertArrayEquals("{\"foo\":\"bar\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8), (byte[]) get(sr, "data"));
+    }
+
+    @Test
+    void testBytesKeywordFromByteArrayPassesThrough() {
+        // an existing byte array is returned unchanged
+        ScenarioRuntime sr = run("""
+            * def raw = 'hello'.getBytes('UTF-8')
+            * bytes data = raw
+            * match data == raw
+            """);
+        assertPassed(sr);
+        assertArrayEquals("hello".getBytes(java.nio.charset.StandardCharsets.UTF_8), (byte[]) get(sr, "data"));
+    }
+
+    @Test
+    void testBytesKeywordFromDocString() {
+        ScenarioRuntime sr = run("""
+            * bytes data =
+            \"\"\"
+            hello world
+            \"\"\"
+            """);
+        assertPassed(sr);
+        assertArrayEquals("hello world".getBytes(java.nio.charset.StandardCharsets.UTF_8), (byte[]) get(sr, "data"));
+    }
+
+    @Test
     void testYamlKeywordWithDocString() {
         // yaml keyword with doc string
         ScenarioRuntime sr = run("""
