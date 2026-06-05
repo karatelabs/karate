@@ -209,6 +209,62 @@ class HtmlReportWriterTest {
     }
 
     @Test
+    void testDonutPassRateMatchesTotalsRowWhenScenariosSkipped(@TempDir Path tempDir) throws Exception {
+        // A skipped scenario counts as passed (additive subset of passedCount). The donut
+        // and the per-feature/totals row must therefore agree on Pass%. The donut used to
+        // add scenario_skipped into its denominator a second time (skipped is already inside
+        // scenario_passed), deflating the donut % below the row's — this locks that in.
+        Path feature = tempDir.resolve("mixed.feature");
+        Files.writeString(feature, """
+                Feature: Mixed pass/fail/skip
+
+                Scenario: Passes one
+                * def a = 1
+                * match a == 1
+
+                Scenario: Passes two
+                * def b = 2
+                * match b == 2
+
+                Scenario: Skipped via abort
+                * karate.abort()
+                * match (1 == 2) == true
+
+                Scenario: Fails
+                * match 1 == 2
+                """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        // passed = 2 real + 1 skipped (skipped is an additive subset of passed); failed = 1
+        assertEquals(3, result.getScenarioPassedCount());
+        assertEquals(1, result.getScenarioFailedCount());
+        assertEquals(1, result.getScenarioSkippedCount());
+
+        // The donut center % and the totals row both compute passed / (passed + failed) — no
+        // skipped in the denominator (skipped is already inside passed). 3 / (3 + 1) = 75%.
+        // The old donut gave 3 / (3 + 1 + 1) = 60% by adding scenario_skipped a second time.
+        int passed = result.getScenarioPassedCount();
+        int failed = result.getScenarioFailedCount();
+        int donutTotal = passed + failed; // mirrors karate-report.js#donutTotal (no scenario_skipped)
+        assertEquals(75, Math.round((passed * 100.0) / donutTotal), "donut center % should treat skipped as passed");
+        assertEquals(Integer.valueOf(75), result.getScenarioPassedRate(), "totals row % must match the donut");
+
+        // The donut still renders a distinct amber skip arc; the green pass arc shows only the
+        // real passes (passed − skipped) so green and amber don't overlap and the three arcs
+        // (pass + skip + fail) sum to the real scenario count.
+        String html = Files.readString(reportDir.resolve("karate-summary.html"));
+        assertTrue(html.contains("donutSkip"), "donut should render a distinct skip arc");
+    }
+
+    @Test
     void testNoSkippedKeyWhenNoSkippedScenarios(@TempDir Path tempDir) throws Exception {
         Path feature = tempDir.resolve("clean.feature");
         Files.writeString(feature, """

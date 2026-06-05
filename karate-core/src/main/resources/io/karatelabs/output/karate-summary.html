@@ -52,19 +52,22 @@
                     <span x-show="data.threads" class="inline-flex items-center gap-1.5"><svg class="w-4 h-4"><use href="#icon-cpu"/></svg> <span x-text="data.threads"></span> threads</span>
                 </div>
             </div>
-            <!-- Pass-rate donut. Three <circle> segments are unrolled (no x-for in SVG, see karate-report.js#donutPass). -->
+            <!-- Pass-rate donut. Three <circle> segments (pass / skip / fail) are unrolled (no
+                 x-for in SVG, see karate-report.js#donutPass). The green pass arc shows only real
+                 passes and the amber arc shows skipped, so the arcs don't overlap; the center %
+                 still counts skipped as passed (see karate-report.js#donutPct). -->
             <div class="relative shrink-0" x-show="donutTotal > 0">
                 <svg class="w-32 h-32 -rotate-90" viewBox="0 0 120 120">
                     <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="14" class="text-slate-200 dark:text-slate-700"/>
                     <circle x-show="donutPass" cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="14"
                             pathLength="100" stroke-linecap="butt" class="text-green-600"
                             :stroke-dasharray="donutPass?.dash" :stroke-dashoffset="donutPass?.offset"/>
-                    <circle x-show="donutFail" cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="14"
-                            pathLength="100" stroke-linecap="butt" class="text-red-600"
-                            :stroke-dasharray="donutFail?.dash" :stroke-dashoffset="donutFail?.offset"/>
                     <circle x-show="donutSkip" cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="14"
                             pathLength="100" stroke-linecap="butt" class="text-amber-500"
                             :stroke-dasharray="donutSkip?.dash" :stroke-dashoffset="donutSkip?.offset"/>
+                    <circle x-show="donutFail" cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="14"
+                            pathLength="100" stroke-linecap="butt" class="text-red-600"
+                            :stroke-dasharray="donutFail?.dash" :stroke-dashoffset="donutFail?.offset"/>
                 </svg>
                 <div class="absolute inset-0 flex flex-col items-center justify-center">
                     <div class="text-2xl font-bold tabular-nums"><span x-text="donutPct"></span><span class="text-sm font-medium opacity-60">%</span></div>

@@ -678,42 +678,49 @@ const KarateReport = {
             // so stroke-dasharray is "<len> <gap>". Unrolled (not x-for) because
             // <template x-for> doesn't work inside <svg> (namespace mismatch:
             // Alpine can't importNode an HTML <template> into the SVG DOM).
-            // Three possible segments: pass / fail / skip; each getter returns
-            // {len, offset, dash} or null if that count is 0.
+            // Three segments — pass (green) / skip (amber) / fail (red) — laid out
+            // contiguously in that order; each getter returns {offset, dash} or null
+            // if that count is 0. scenario_passed already INCLUDES skipped scenarios
+            // (a skipped scenario counts as passed), so:
+            //   - the total is passed + failed (= every scenario; no double count),
+            //   - the green pass arc shows only the REAL passes (passed − skipped) so
+            //     it doesn't overlap the amber skip arc,
+            //   - but the center % (donutPct) still counts skipped as passed, matching
+            //     the per-feature/totals rows and getScenarioPassedRate().
             get donutTotal() {
                 const s = data.summary || {};
-                return (s.scenario_passed || 0) + (s.scenario_failed || 0) + (s.scenario_skipped || 0);
+                return (s.scenario_passed || 0) + (s.scenario_failed || 0);
+            },
+            get realPassed() {
+                return (data.summary?.scenario_passed || 0) - (data.summary?.scenario_skipped || 0);
             },
             get donutPass() {
                 const total = this.donutTotal;
-                const n = data.summary?.scenario_passed || 0;
-                if (total === 0 || n === 0) return null;
+                const n = this.realPassed;
+                if (total === 0 || n <= 0) return null;
                 const len = (n / total) * 100;
                 return { dash: len + ' ' + (100 - len), offset: 0 };
-            },
-            get donutFail() {
-                const total = this.donutTotal;
-                const n = data.summary?.scenario_failed || 0;
-                if (total === 0 || n === 0) return null;
-                const passed = data.summary?.scenario_passed || 0;
-                const len = (n / total) * 100;
-                return { dash: len + ' ' + (100 - len), offset: -(passed / total) * 100 };
             },
             get donutSkip() {
                 const total = this.donutTotal;
                 const n = data.summary?.scenario_skipped || 0;
                 if (total === 0 || n === 0) return null;
-                const before = (data.summary?.scenario_passed || 0) + (data.summary?.scenario_failed || 0);
+                const before = this.realPassed; // real passes precede the skip arc
+                const len = (n / total) * 100;
+                return { dash: len + ' ' + (100 - len), offset: -(before / total) * 100 };
+            },
+            get donutFail() {
+                const total = this.donutTotal;
+                const n = data.summary?.scenario_failed || 0;
+                if (total === 0 || n === 0) return null;
+                const before = data.summary?.scenario_passed || 0; // real passes + skipped precede fail
                 const len = (n / total) * 100;
                 return { dash: len + ' ' + (100 - len), offset: -(before / total) * 100 };
             },
 
             get donutPct() {
-                const s = data.summary || {};
-                const p = s.scenario_passed || 0;
-                const f = s.scenario_failed || 0;
-                const k = s.scenario_skipped || 0;
-                const total = p + f + k;
+                const total = this.donutTotal;
+                const p = data.summary?.scenario_passed || 0; // includes skipped
                 return total === 0 ? 0 : Math.round((p / total) * 100);
             },
 
