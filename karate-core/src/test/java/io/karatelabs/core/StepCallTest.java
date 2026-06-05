@@ -468,6 +468,60 @@ class StepCallTest {
     }
 
     @Test
+    void testArgVariableIsNullWhenCalledWithoutArguments() throws Exception {
+        // A called scenario invoked WITHOUT arguments must see __arg as null and
+        // __loop as -1 — not a "__arg is not defined" ReferenceError. The docs
+        // promise __arg is null when no argument is passed.
+        Path calledFeature = tempDir.resolve("called.feature");
+        Files.writeString(calledFeature, """
+            Feature: Called
+            Scenario:
+            * match __arg == null
+            * match __loop == -1
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * call read('called.feature')
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(), "__arg should be null when called without args: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testArgVariableNullViaSameFileTagCallWithoutArguments() throws Exception {
+        // The exact issue repro: an argument-less `call read('@tag')` to a same-file
+        // @ignore scenario. Runs with real tag filtering (not the skipTagFiltering test
+        // default) so @ignore keeps the callee from also running standalone.
+        Path feature = tempDir.resolve("sameFileNoArg.feature");
+        Files.writeString(feature, """
+            Feature: Same File Tag No-Arg Call
+
+            Scenario: Caller
+            * call read('@utils')
+
+            @ignore @utils
+            Scenario: Utils
+            * match __arg == null
+            * match __loop == -1
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(feature.toString())
+                .workingDir(tempDir)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .buildSuite().run();
+
+        assertTrue(result.isPassed(), "__arg should be null via same-file tag call without args: " + getFailureMessage(result));
+    }
+
+    @Test
     void testArgVariableWithAssignment() throws Exception {
         // Tests that __arg is available even when call result is assigned to a variable
         // See https://github.com/karatelabs/karate/pull/1436

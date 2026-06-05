@@ -203,20 +203,21 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             inheritVariables();
         }
 
-        // Apply call arguments if present
-        if (featureRuntime != null && featureRuntime.getCallArg() != null) {
+        // For any called scenario, always expose the call magic variables (V1 parity):
+        // __arg is the argument map (null when called without arguments) and __loop is
+        // the iteration index (-1 when not a loop call). Binding them unconditionally
+        // means a called scenario can read `__arg` / `__loop` as null / -1 instead of
+        // hitting a "__arg is not defined" ReferenceError.
+        if (featureRuntime != null && featureRuntime.isCalled()) {
             Map<String, Object> callArg = featureRuntime.getCallArg();
-            // Set __arg to the full argument map (V1 compatibility)
             karate.engine.putRootBinding("__arg", callArg);
-            // Also spread individual keys as variables
-            for (var entry : callArg.entrySet()) {
-                karate.engine.put(entry.getKey(), entry.getValue());
-            }
-        }
-
-        // Set __loop for loop calls (V1 compatibility)
-        if (featureRuntime != null && featureRuntime.getLoopIndex() >= 0) {
             karate.engine.putRootBinding("__loop", featureRuntime.getLoopIndex());
+            // Also spread the individual argument keys as variables
+            if (callArg != null) {
+                for (var entry : callArg.entrySet()) {
+                    karate.engine.put(entry.getKey(), entry.getValue());
+                }
+            }
         }
 
         // Set example data for outline scenarios
