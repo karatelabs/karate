@@ -203,20 +203,25 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             inheritVariables();
         }
 
-        // For any called scenario, always expose the call magic variables (V1 parity):
-        // __arg is the argument map (null when called without arguments) and __loop is
-        // the iteration index (-1 when not a loop call). Binding them unconditionally
-        // means a called scenario can read `__arg` / `__loop` as null / -1 instead of
-        // hitting a "__arg is not defined" ReferenceError.
-        if (featureRuntime != null && featureRuntime.isCalled()) {
-            Map<String, Object> callArg = featureRuntime.getCallArg();
+        // Expose the call magic variables (V1 parity).
+        // __arg is bound whenever an argument map is supplied — which includes the
+        // top-level runFeature(path, arg) / karate entry points that have no caller —
+        // and ALSO for every called scenario, where it is null when called without an
+        // argument so reading `__arg` yields null instead of a "__arg is not defined"
+        // ReferenceError. __loop is the iteration index for called scenarios (-1 when
+        // not a loop call).
+        Map<String, Object> callArg = featureRuntime != null ? featureRuntime.getCallArg() : null;
+        boolean isCalled = featureRuntime != null && featureRuntime.isCalled();
+        if (callArg != null || isCalled) {
             karate.engine.putRootBinding("__arg", callArg);
+        }
+        if (isCalled) {
             karate.engine.putRootBinding("__loop", featureRuntime.getLoopIndex());
-            // Also spread the individual argument keys as variables
-            if (callArg != null) {
-                for (var entry : callArg.entrySet()) {
-                    karate.engine.put(entry.getKey(), entry.getValue());
-                }
+        }
+        // Spread the individual argument keys as variables.
+        if (callArg != null) {
+            for (var entry : callArg.entrySet()) {
+                karate.engine.put(entry.getKey(), entry.getValue());
             }
         }
 
