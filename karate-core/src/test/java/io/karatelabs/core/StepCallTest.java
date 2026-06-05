@@ -522,6 +522,26 @@ class StepCallTest {
     }
 
     @Test
+    void testTopLevelRunFeatureWithArgSpreadsKeysAsVariables() throws Exception {
+        // The v2-native Runner.runFeature(path, arg) entry point — used by karate-gatling
+        // to inject session variables — spreads the argument map's keys as top-level
+        // variables even though the run has NO caller (isCalled() == false). This locks
+        // in that behavior independently of the v1 compatibility shim (V1CompatTest),
+        // so it survives even if the v1 shim is later removed.
+        Path feature = tempDir.resolve("topLevelArg.feature");
+        Files.writeString(feature, """
+            Feature:
+            Scenario:
+            * def result = input + 1
+            """);
+
+        FeatureResult fr = Runner.runFeature("file:" + feature, java.util.Map.of("input", 5));
+
+        assertTrue(fr.isPassed(), "top-level run with arg should pass: " + fr.getFailureMessage());
+        assertEquals(6, fr.getResultVariables().get("result"));
+    }
+
+    @Test
     void testArgVariableWithAssignment() throws Exception {
         // Tests that __arg is available even when call result is assigned to a variable
         // See https://github.com/karatelabs/karate/pull/1436
