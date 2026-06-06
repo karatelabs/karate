@@ -512,6 +512,76 @@ class JsonLinesEventWriterTest {
     }
 
     @Test
+    void testScenarioExitHonorsIdOverride() throws Exception {
+        // An author-set __id (a sibling of __row/__num) pins a rename-proof stable
+        // identity: set it via a `* def __id` step OR an Examples: column and it
+        // overrides the derived slug verbatim. Non-space punctuation common in
+        // ticket / story keys — '/', ':', '.' — must survive untouched (they ride
+        // through Gherkin tag values the same way; see RunUtilsTest).
+        Path feature = tempDir.resolve("stable-id.feature");
+        Files.writeString(feature, """
+            Feature: stable id
+
+            Scenario: with def id
+            * def __id = 'ID:plain.1'
+
+            Scenario: without id
+            * def x = 1
+
+            Scenario Outline: ordered
+            * def y = 1
+
+            Examples:
+              | __id        |
+              | ORD-001/2.1 |
+              | ORD-002.3   |
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+        Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        List<String> slugs = scenarioExitSlugs(reportDir);
+
+        // __id from a `* def` step wins verbatim — ':' and '.' preserved.
+        assertTrue(slugs.contains("ID:plain.1"),
+                "`* def __id` should override the slug verbatim: " + slugs);
+        // __id from an Examples: column wins verbatim — '/' and '.' preserved.
+        assertTrue(slugs.contains("ORD-001/2.1"),
+                "Examples: __id column should override the slug verbatim: " + slugs);
+        assertTrue(slugs.contains("ORD-002.3"),
+                "Examples: __id column should override the slug verbatim: " + slugs);
+        // No __id → derived feature-path:name slug stands as the fallback.
+        assertTrue(slugs.stream().anyMatch(s -> s.endsWith(":without id")),
+                "a scenario without __id must fall back to the derived slug: " + slugs);
+        // Outline-example fallback (<outline-slug>:<index>) must NOT appear — every
+        // example overrode its identity.
+        assertTrue(slugs.stream().noneMatch(s -> s.endsWith(":ordered:0") || s.endsWith(":ordered:1")),
+                "derived outline-example slugs should be fully overridden by __id: " + slugs);
+    }
+
+    /** All SCENARIO_EXIT slug fields from a run's JSONL, in stream order. */
+    private static List<String> scenarioExitSlugs(Path reportDir) throws Exception {
+        Path jsonlPath = reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl");
+        String[] lines = Files.readString(jsonlPath).trim().split("\n");
+        List<String> slugs = new java.util.ArrayList<>();
+        for (String line : lines) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> envelope = (Map<String, Object>) Json.of(line).value();
+            if ("SCENARIO_EXIT".equals(envelope.get("type"))) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> data = (Map<String, Object>) envelope.get("data");
+                slugs.add((String) data.get("slug"));
+            }
+        }
+        return slugs;
+    }
+
+    @Test
     void testJsonLinesOutlineEnterFiresOncePerOutline() throws Exception {
         // Scenario Outline emits one OUTLINE_ENTER (with name/description/tags/
         // numExamples) followed by N SCENARIO_ENTER/EXIT pairs, each carrying

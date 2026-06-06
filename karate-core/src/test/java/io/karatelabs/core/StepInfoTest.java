@@ -133,6 +133,32 @@ class StepInfoTest {
         assertPassed(sr);
     }
 
+    @Test
+    void testKarateScenarioSlugDerived() {
+        // With no __id bound, the slug a running test sees is the derived
+        // feature-path + scenario-name (the same identity receivers key on).
+        ScenarioRuntime sr = runFeature("""
+            Feature: Scenario Test
+            Scenario: derives the slug here
+            * def slug = karate.scenario.slug
+            * match slug contains 'derives the slug here'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateScenarioSlugHonoursIdOverride() {
+        // A running test can introspect its own stable identity, and an author-set
+        // __id overrides it verbatim — non-space punctuation ('/', '.') preserved.
+        ScenarioRuntime sr = runFeature("""
+            Feature: Scenario Test
+            Scenario: any name
+            * def __id = 'ORD-001/2.1'
+            * match karate.scenario.slug == 'ORD-001/2.1'
+            """);
+        assertPassed(sr);
+    }
+
     // ========== karate.feature ==========
 
     @Test

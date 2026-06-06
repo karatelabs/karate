@@ -50,9 +50,25 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     // scenario). Step detail is suppressed in HTML/Cucumber-JSON/JUnit/JSONL writers;
     // failures surface only a redacted message so secrets don't leak into CI artifacts.
     private boolean reportDisabled;
+    // Author-set __id (a sibling of __row/__num), resolved by ScenarioRuntime at
+    // scenario end while the engine is still live. When non-null it is the
+    // scenario's stable identity, overriding the derived slug verbatim on both the
+    // SCENARIO_EXIT event and the FEATURE_EXIT payload; null means derive the slug
+    // from feature path + scenario name. See RunUtils / ScenarioRunEvent.
+    private String stableId;
 
     public ScenarioResult(Scenario scenario) {
         this.scenario = scenario;
+    }
+
+    /** The author-set {@code __id} stable identity, or null when unset (derive the slug). */
+    public String getStableId() {
+        return stableId;
+    }
+
+    /** Set by {@link ScenarioRuntime} from the live {@code __id} variable before SCENARIO_EXIT fires. */
+    public void setStableId(String stableId) {
+        this.stableId = stableId;
     }
 
     public void setStartTime(long startTime) {
@@ -283,12 +299,12 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
      * Used for HTML reports, JSONL streaming, and report aggregation.
      */
     public Map<String, Object> toJson() {
-        Map<String, Object> map = new LinkedHashMap<>();
-
-        // Core identity
-        map.put("name", scenario.getName());
-        map.put("description", scenario.getDescription());
-        map.put("line", scenario.getLine());
+        // Core identity + metadata (name, slug, description, line, indices,
+        // exampleData) — the SAME routine that backs the karate.scenario JS API,
+        // so the two never drift. An author-set __id wins as the slug (rename-proof,
+        // per-row for outline examples), mirroring the SCENARIO_EXIT event's slug so
+        // streaming and FEATURE_EXIT consumers agree on one identity.
+        Map<String, Object> map = RunUtils.scenarioIdentity(scenario, stableId);
 
         // Status
         map.put("passed", isPassed());
@@ -305,15 +321,9 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
             map.put("reportDisabled", true);
         }
 
-        // RefId and outline info
+        // RefId and outline flag (the identity routine already carries the indices + exampleData)
         map.put("refId", scenario.getRefId());
-        map.put("sectionIndex", scenario.getSection().getIndex());
-        map.put("exampleIndex", scenario.getExampleIndex());
         map.put("isOutlineExample", scenario.isOutlineExample());
-        Map<String, Object> exampleData = scenario.getExampleData();
-        if (exampleData != null) {
-            map.put("exampleData", exampleData);
-        }
 
         // Execution info
         map.put("executorName", threadName);

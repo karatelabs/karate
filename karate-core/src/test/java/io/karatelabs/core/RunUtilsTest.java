@@ -28,10 +28,12 @@ import io.karatelabs.gherkin.Feature;
 import io.karatelabs.gherkin.FeatureSection;
 import io.karatelabs.gherkin.Scenario;
 import io.karatelabs.gherkin.ScenarioOutline;
+import io.karatelabs.gherkin.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -144,6 +146,45 @@ class RunUtilsTest {
         assertTrue(tags.contains("req=KEY-123"),
                 "key=value tag form should round-trip: " + tags);
         assertTrue(tags.contains("env=qa"), "feature key=value should appear: " + tags);
+    }
+
+    @Test
+    void tagValues_allowNonSpacePunctuation() {
+        // The lexer (GherkinLexer.scanGherkinTag) consumes a tag to the next
+        // whitespace, and Tag splits the name on the first '=' and values on ','
+        // only — so non-space punctuation common in ticket / story / hierarchical
+        // keys ('/', ':', '.') rides through tag values verbatim, and a single
+        // value is never split on those characters. Pins the full parse path
+        // (lexer -> Tag -> RunUtils.tagTexts) so a hierarchical @req= can never be
+        // silently mangled. This is the same identity alphabet honoured by the
+        // __id slug override (see JsonLinesEventWriterTest).
+        Feature feature = parse("""
+                Feature: orders
+
+                  @req=ORD-001/2.1 @cov=xray:STORE-106 @ver=v1.2.3 @ids=A/1,B:2,C.3
+                  Scenario: place order
+                    Given url 'x'
+                """);
+        Scenario scenario = firstScenario(feature);
+
+        // Parsed Tag name/value pairs: '/' ':' '.' survive inside a single value;
+        // only ',' delimits, so the multi-value tag splits into exactly three.
+        Map<String, List<String>> values = new java.util.LinkedHashMap<>();
+        for (Tag t : scenario.getTagsEffective()) {
+            if (t.getName() != null && !t.getValues().isEmpty()) {
+                values.put(t.getName(), t.getValues());
+            }
+        }
+        assertEquals(List.of("ORD-001/2.1"), values.get("req"), "'/' and '.' must survive in a tag value");
+        assertEquals(List.of("xray:STORE-106"), values.get("cov"), "':' must survive in a tag value");
+        assertEquals(List.of("v1.2.3"), values.get("ver"), "'.' must survive in a tag value");
+        assertEquals(List.of("A/1", "B:2", "C.3"), values.get("ids"),
+                "only ',' delimits; '/' ':' '.' stay inside each value");
+
+        // ...and the same survives the textual round-trip used on the JSONL wire.
+        List<String> texts = RunUtils.tagTexts(scenario.getTagsEffective());
+        assertTrue(texts.contains("req=ORD-001/2.1"), "punctuation must round-trip in tag text: " + texts);
+        assertTrue(texts.contains("cov=xray:STORE-106"), "punctuation must round-trip in tag text: " + texts);
     }
 
     // ========== helpers ==========

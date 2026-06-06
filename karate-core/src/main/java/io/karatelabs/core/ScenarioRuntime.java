@@ -1014,6 +1014,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // Set end time BEFORE firing SCENARIO_EXIT so the event contains correct duration
             result.setEndTime(System.currentTimeMillis());
 
+            // Capture the author-set __id (a sibling of __row/__num) as the scenario's
+            // stable identity while the engine is still live — it overrides the derived
+            // slug verbatim on both the SCENARIO_EXIT event and the FEATURE_EXIT payload.
+            result.setStableId(resolveStableId());
+
             // Fire SCENARIO_EXIT event
             if (suite != null) {
                 suite.fireEvent(ScenarioRunEvent.exit(this, result));
@@ -1236,6 +1241,29 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
     public Object getVariable(String name) {
         return karate.engine.get(name);
+    }
+
+    /**
+     * The author-set {@code __id} variable as this scenario's stable identity, or
+     * null when unset/blank (the slug then derives from feature path + name). Read
+     * once at scenario end while the engine is still live; an opt-in, rename-proof
+     * identity an author binds via a {@code * def __id} step or an {@code Examples:}
+     * column (so each row pins its own id). Fail-safe: any lookup error falls back
+     * to the derived slug rather than breaking event emission. Package-private so
+     * {@code karate.scenario.slug} (KarateJsBase) reports the same identity.
+     */
+    String resolveStableId() {
+        Object value;
+        try {
+            value = karate.engine.get("__id");
+        } catch (RuntimeException e) {
+            return null;
+        }
+        if (value == null) {
+            return null;
+        }
+        String id = value.toString();
+        return id.isBlank() ? null : id;
     }
 
     public Map<String, Object> getAllVariables() {

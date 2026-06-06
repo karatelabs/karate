@@ -86,8 +86,14 @@ public record ScenarioRunEvent(
                 map.put("feature", feature.getResource().getRelativePath());
             }
             // Cross-run-stable slug so receivers can upsert by identity without
-            // re-reading source. Merged effective tags (feature + scenario).
-            map.put("slug", RunUtils.scenarioSlug(scenario, feature));
+            // re-reading source. On EXIT, an author-set __id captured on the
+            // result (resolved by ScenarioRuntime while the engine was live)
+            // wins verbatim — it lets an Examples: column or a `* def __id` step
+            // pin a rename-proof identity. ENTER is provisional identity (the
+            // scenario body hasn't run yet) so it always uses the derived slug;
+            // the authoritative, possibly-overridden identity lands on EXIT.
+            String stableId = result != null ? result.getStableId() : null;
+            map.put("slug", RunUtils.effectiveSlug(stableId, scenario, feature));
             map.put("name", scenario.getName());
             // Description is redacted under @report=false so secrets in the
             // scenario's description block don't leak into uploaded CI artifacts.

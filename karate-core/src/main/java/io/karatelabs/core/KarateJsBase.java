@@ -183,22 +183,21 @@ abstract class KarateJsBase implements SimpleObject {
 
     /**
      * Returns scenario data map for karate.scenario.
-     * V1 compatible fields: name, sectionIndex, exampleIndex, exampleData, line, description
+     * V1 compatible fields: name, sectionIndex, exampleIndex, exampleData, line, description.
+     * Adds {@code slug} — the stable identity this scenario reports under: an
+     * author-set {@code __id} (once bound) wins, else the derived feature-path +
+     * name. Mirrors the JSONL {@code slug}, so a running test can introspect the
+     * same id receivers will key on.
      */
     Map<String, Object> getScenarioData() {
         Scenario s = getScenario();
         if (s == null) return Map.of();
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("name", s.getName());
-        data.put("description", s.getDescription());
-        data.put("line", s.getLine());
-        data.put("sectionIndex", s.getSection().getIndex());
-        data.put("exampleIndex", s.getExampleIndex());
-        Map<String, Object> exampleData = s.getExampleData();
-        if (exampleData != null) {
-            data.put("exampleData", exampleData);
-        }
-        return data;
+        ScenarioRuntime rt = getRuntime();
+        String stableId = rt != null ? rt.resolveStableId() : null;
+        // One identity routine shared with ScenarioResult.toJson (RunUtils) so the
+        // JS API and the JSONL/report payload never drift — same name, slug, line,
+        // indices, exampleData.
+        return RunUtils.scenarioIdentity(s, stableId);
     }
 
     /**

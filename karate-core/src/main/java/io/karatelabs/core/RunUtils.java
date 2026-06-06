@@ -30,7 +30,9 @@ import io.karatelabs.gherkin.ScenarioOutline;
 import io.karatelabs.gherkin.Tag;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Shared helpers for run-event JSON shaping — cross-run-stable slug computation
@@ -47,13 +49,16 @@ import java.util.List;
  *   <li>Outline-example → {@code <outline-slug>:<exampleIndex>}.</li>
  * </ol>
  *
- * <p>Rename / refactor stability is handled by a future slug-aliasing mechanism
- * on the receiver — not by a tag opt-in on the source. An earlier design used an
- * {@code @id=<value>} tag as a first-precedence override; that was removed because
- * {@code @id=} is a generic tag many teams already use for their own conventions
- * (ticket IDs, story keys, internal nomenclature), and silently co-opting it into
- * our cross-run-identity model coupled their tag conventions to our data model in
- * a way they never asked for.</p>
+ * <p>Rename / refactor stability is an opt-in via the author-set {@code __id}
+ * variable (a sibling of {@code __row}/{@code __num}), captured and applied in
+ * {@link ScenarioRunEvent}: when a scenario binds a non-blank {@code __id} it
+ * overrides the derived slug verbatim. An earlier design instead used an
+ * {@code @id=<value>} tag as a first-precedence override; that was removed
+ * because {@code @id=} is a generic tag many teams already use for their own
+ * conventions (ticket IDs, story keys, internal nomenclature), and silently
+ * co-opting it into our cross-run-identity model coupled their tag conventions
+ * to our data model in a way they never asked for. {@code __id} is explicit —
+ * the author binds it on purpose — so it carries no such surprise.</p>
  */
 public final class RunUtils {
 
@@ -64,6 +69,46 @@ public final class RunUtils {
             return "(unknown)";
         }
         return feature.getResource().getRelativePath();
+    }
+
+    /**
+     * The scenario's effective identity for the wire: a non-blank author-set
+     * {@code stableId} ({@code __id}) wins verbatim; otherwise the slug derives
+     * from feature path + scenario name. One rule, shared by every emit site —
+     * {@link ScenarioResult#toJson()}, {@link ScenarioRunEvent#toJson()} and
+     * {@code karate.scenario.slug} (KarateJsBase) — so they can never diverge.
+     * {@code stableId} is resolved once, while the engine is live, by
+     * {@link ScenarioRuntime#resolveStableId()}.
+     */
+    public static String effectiveSlug(String stableId, Scenario scenario, Feature feature) {
+        return stableId != null ? stableId : scenarioSlug(scenario, feature);
+    }
+
+    /**
+     * The scenario's shared identity + metadata fields — name, slug, description,
+     * line, section/example indices, and example data. One routine behind both the
+     * {@code karate.scenario} JS API ({@code KarateJsBase.getScenarioData}) and the
+     * {@code ScenarioResult} JSONL / report payload ({@link ScenarioResult#toJson()}),
+     * so the two can never drift. Callers layer their purpose-specific fields on the
+     * returned (mutable) map: {@code ScenarioResult} adds status / timing / steps /
+     * tags; {@code ScenarioRunEvent} keeps its own envelope (feature path, callDepth,
+     * redacted description, outline stitching) since those are wire-only. {@code stableId}
+     * is the resolved {@code __id} (null → derive the slug). {@code description} is the
+     * raw value; redaction is a wire concern applied by the event, not here.
+     */
+    public static Map<String, Object> scenarioIdentity(Scenario scenario, String stableId) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("name", scenario.getName());
+        data.put("slug", effectiveSlug(stableId, scenario, scenario.getFeature()));
+        data.put("description", scenario.getDescription());
+        data.put("line", scenario.getLine());
+        data.put("sectionIndex", scenario.getSection().getIndex());
+        data.put("exampleIndex", scenario.getExampleIndex());
+        Map<String, Object> exampleData = scenario.getExampleData();
+        if (exampleData != null) {
+            data.put("exampleData", exampleData);
+        }
+        return data;
     }
 
     public static String scenarioSlug(Scenario scenario, Feature feature) {
