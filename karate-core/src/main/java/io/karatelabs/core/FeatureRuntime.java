@@ -619,8 +619,13 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                     Scenario scenario = section.getScenario();
                     sectionIndex++;
 
-                    // Skip @setup scenarios - they're only run via karate.setup()
-                    if (scenario.isSetup()) {
+                    // Skip @setup scenarios - they're only run via karate.setup(),
+                    // unless this feature was called with an explicit selector that
+                    // targets them, e.g. `call read('@setup')` or call-by-line. The
+                    // selector is validated below in shouldSelect().
+                    boolean explicitlyTargeted = callTagSelector != null
+                            || (callLineFilters != null && !callLineFilters.isEmpty());
+                    if (scenario.isSetup() && !explicitlyTargeted) {
                         continue;
                     }
 

@@ -651,6 +651,37 @@ public class OutlineTest {
     }
 
     @Test
+    void testCallSetupScenarioByTag() throws Exception {
+        // A @setup scenario is skipped from direct top-level execution, but it must
+        // still be callable by tag, e.g. `call read('@setup')`. v1 allowed this since
+        // call-by-tag ignored the @setup exclusion. Regression for the v2 iterator
+        // unconditionally skipping @setup before the call-by-tag selector is consulted.
+        Path feature = tempDir.resolve("call-setup-by-tag.feature");
+        Files.writeString(feature, """
+            Feature: Call @setup scenario by tag
+
+            @setup
+            Scenario: Setup
+            * def fromSetup = 'setup-ran'
+
+            Scenario: Scenario with setup
+            * call read('@setup')
+            * match fromSetup == 'setup-ran'
+
+            Scenario: Scenario without setup
+            * def ok = true
+            * match ok == true
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+
+        assertTrue(result.isPassed(), getFailureMessage(result));
+        // @setup is not run directly, so only the 2 regular scenarios execute at top level
+        assertEquals(2, result.getScenarioCount());
+        assertEquals(2, result.getScenarioPassedCount());
+    }
+
+    @Test
     void testDynamicOutlineWithNamedSetup() throws Exception {
         Path feature = tempDir.resolve("dynamic-named-setup.feature");
         Files.writeString(feature, """
