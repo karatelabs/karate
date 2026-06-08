@@ -443,6 +443,42 @@ public class Suite {
     }
 
     /**
+     * The directory of the resolved {@code karate-config.js} — for a Java project this is the
+     * <b>classpath root</b> ({@code target/test-classes} / {@code src/test/resources}), since
+     * {@link #configResource} is filesystem-backed even when found via {@code classpath:}. The
+     * canonical anchor for resolving path <i>references</i> (an ext / boot-config path string), so a
+     * project's resources resolve with no {@code classpath:} prefix.
+     *
+     * <p>Fallbacks for the cases where {@code karate-config.js} is absent: when an explicit
+     * {@code configDir} was set on the CLI/Runner but holds no config file, the configured directory is
+     * still honoured (derived from {@link #configPath}); when there is no config at all (the default
+     * {@code classpath:} lookup found nothing), it falls back to {@link #workingDir}.
+     */
+    public Path getConfigDir() {
+        if (configResource != null) {
+            try {
+                Path p = configResource.getPath();
+                if (p != null && p.getParent() != null) {
+                    return p.getParent();         // resolved config (filesystem-backed even via classpath:)
+                }
+            } catch (RuntimeException e) {
+                // a non-filesystem resource (e.g. MemoryResource from a jar/jpackage classpath fallback)
+                // has no real path — fall through to the configPath / workingDir fallbacks below
+            }
+        }
+        // No config file found. Honour an explicit, filesystem configDir (configPath = <dir>/karate-config.js
+        // or <dir>/<name>.js); a classpath: configPath we cannot map to a real dir without the file → workdir.
+        if (configPath != null && !configPath.startsWith("classpath:")) {
+            String fsPath = configPath.startsWith("file:") ? configPath.substring("file:".length()) : configPath;
+            Path parent = Path.of(fsPath).getParent();
+            if (parent != null) {
+                return parent;
+            }
+        }
+        return workingDir;
+    }
+
+    /**
      * Returns the karate-boot.js {@link BootBinding} populated during {@link #run()},
      * or {@code null} when no boot file is present in the workdir. Surfaced so
      * {@link SuiteRunEvent#toJson()} can attach {@code exts[]} manifests to
