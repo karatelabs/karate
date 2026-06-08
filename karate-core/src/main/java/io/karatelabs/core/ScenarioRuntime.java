@@ -975,10 +975,14 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
                 currentStep = steps.get(stepIndex);
                 stepIndex++;
-                // In dry-run mode, mark steps as passed without executing them (V1 parity).
-                // @setup scenarios execute normally via isDryRunSkip() returning false.
+                // In dry-run mode (parse-only), mark steps SKIPPED — not passed — without executing
+                // them, so a dry-run scenario reports as not-executed (ScenarioResult.isSkipped()) rather
+                // than a misleading green. A dry-run that shows green is wrong: downstream consumers (the
+                // karate-ext trace graph) then derive a mapped-but-unrun requirement as NOTRUN, never a
+                // false COVERED. @setup scenarios still execute normally via isDryRunSkip() returning
+                // false, so dynamic outlines resolve.
                 StepResult sr = isDryRunSkip()
-                        ? StepResult.passed(currentStep, System.currentTimeMillis(), 0)
+                        ? StepResult.skipped(currentStep, System.currentTimeMillis())
                         : executor.execute(currentStep);
                 result.addStepResult(sr);
 

@@ -462,9 +462,13 @@ class HtmlReportWriterTest {
                 .dryRun(true)
                 .parallel(1);
 
-        assertTrue(result.isPassed(), "dry-run should mark all scenarios as passed");
+        assertTrue(result.isPassed(), "dry-run is never a failure (no step is executed)");
         assertEquals(0, result.getScenarioFailedCount());
-        // 1 regular + 2 outline rows resolved from @setup data = 3 passing non-setup scenarios
+        // Parse-only: every non-@setup scenario is SKIPPED (not executed), not falsely passed — a dry-run
+        // showing green is misleading. 1 regular + 2 outline rows resolved from @setup data = 3 scenarios.
+        assertEquals(3, result.getScenarioSkippedCount(),
+                "dry-run marks non-setup scenarios skipped, not passed");
+        // isSkipped() scenarios still count as passed for totals (no failure), so the outline still expands.
         assertEquals(3, result.getScenarioPassedCount(),
                 "setup-driven outline should still expand its rows under dry-run");
 
