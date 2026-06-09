@@ -300,6 +300,74 @@ class HtmlReportWriterTest {
     }
 
     @Test
+    void testExtSummaryCardsInlinedIntoHero(@TempDir Path tempDir) throws Exception {
+        Path feature = tempDir.resolve("cards.feature");
+        Files.writeString(feature, """
+                Feature: cards
+                Scenario: one
+                * def a = 1
+                """);
+        Path reportDir = tempDir.resolve("reports");
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        // an ext contributes a KPI tile via Suite.addSummaryCard → writeSummaryPages inlines it into the hero
+        Map<String, Object> card = Map.of(
+                "label", "API coverage", "value", "67%", "sub", "10/15 endpoints",
+                "href", "ext/coverage/pages/coverage.html", "status", "warn");
+        HtmlReportWriter.writeSummaryPages(List.of(), result, reportDir, null,
+                java.util.Collections.emptyMap(), List.of(card));
+
+        String html = Files.readString(reportDir.resolve("karate-summary.html"));
+        assertTrue(html.contains("\"summaryCards\""), "summaryCards should be inlined into the summary page data");
+        assertTrue(html.contains("API coverage") && html.contains("67%"),
+                "the contributed tile's label + value should be present");
+        assertTrue(html.contains("ext/coverage/pages/coverage.html"),
+                "the tile href should be inlined for click-through");
+    }
+
+    @Test
+    void testFeatureLevelTagIsInheritedByEveryScenarioInTheFeatureReport(@TempDir Path tempDir) throws Exception {
+        // a Feature-level tag applies to every scenario (Gherkin) — the feature report must show each
+        // scenario with its EFFECTIVE tags (own + inherited), via Scenario.getTagsEffective().
+        Path feature = tempDir.resolve("tagged.feature");
+        Files.writeString(feature, """
+                @scaffold
+                Feature: tagged
+
+                Scenario: no-own-tags
+                * def a = 1
+
+                @mine
+                Scenario: has-own-tag
+                * def b = 2
+                """);
+        Path reportDir = tempDir.resolve("reports");
+        Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        Path featureHtmlDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
+        Path page;
+        try (Stream<Path> s = Files.list(featureHtmlDir)) {
+            page = s.filter(p -> p.toString().endsWith(".html")).findFirst().orElseThrow();
+        }
+        String html = Files.readString(page);
+        // the inherited feature tag is inlined into the scenario tags array (a quoted JSON string),
+        // for the untagged scenario too; the scenario's own tag is still present
+        assertTrue(html.contains("\"@scaffold\""),
+                "feature-level @scaffold must be inherited into each scenario's tags in the report");
+        assertTrue(html.contains("\"@mine\""), "scenario-level tag still present");
+    }
+
+    @Test
     void testTagExcludedFeaturesAreNotReported(@TempDir Path tempDir) throws Exception {
         // Reproduces the karate-todo bug: a feature whose feature-level tag (e.g. @external)
         // causes every scenario to be excluded by a suite-level negative tag selector must not

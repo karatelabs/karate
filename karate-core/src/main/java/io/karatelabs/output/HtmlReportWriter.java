@@ -273,6 +273,13 @@ public final class HtmlReportWriter {
     public static void writeSummaryPages(List<Map<String, Object>> features,
                                          SuiteResult result, Path outputDir, String env,
                                          Map<String, ReportAssets> reportAssets) throws IOException {
+        writeSummaryPages(features, result, outputDir, env, reportAssets, java.util.Collections.emptyList());
+    }
+
+    public static void writeSummaryPages(List<Map<String, Object>> features,
+                                         SuiteResult result, Path outputDir, String env,
+                                         Map<String, ReportAssets> reportAssets,
+                                         List<Map<String, Object>> summaryCards) throws IOException {
         // Copy ext assets once at suite end — feature/summary/timeline pages all
         // reference ext/<name>/... so the files must be on disk before the report is viewed.
         copyExtAssets(reportAssets, outputDir);
@@ -301,6 +308,10 @@ public final class HtmlReportWriter {
         // Write summary page
         Map<String, Object> summaryPageData = new LinkedHashMap<>(suiteData);
         summaryPageData.put("features", featureSummaryList);
+        // ext-contributed KPI tiles (coverage %, requirements covered, …) — empty unless an ext added any
+        if (summaryCards != null && !summaryCards.isEmpty()) {
+            summaryPageData.put("summaryCards", summaryCards);
+        }
         String summaryTemplate = loadTemplate("karate-summary.html");
         String summaryHtml = inlineJson(summaryTemplate, summaryPageData, reportAssets, "");
         Files.writeString(outputDir.resolve("karate-summary.html"), summaryHtml);
@@ -629,13 +640,13 @@ public final class HtmlReportWriter {
             data.put("thread", sr.getThreadName());
         }
 
-        // Tags (plus synthetic @skipped when the scenario was aborted / never ran)
-        var tags = sr.getScenario().getTags();
+        // Tags = the scenario's EFFECTIVE tags (own + inherited feature tags, merged + deduped by
+        // Scenario.getTagsEffective — the one source the JSONL stream and JS `tags` var also use), plus
+        // synthetic @skipped when the scenario was aborted / never ran. So each scenario shows every tag
+        // it actually has, including a feature-level marker like @scaffold.
         List<String> tagNames = new ArrayList<>();
-        if (tags != null) {
-            for (var tag : tags) {
-                tagNames.add(tag.toString());
-            }
+        for (var tag : sr.getScenario().getTagsEffective()) {
+            tagNames.add(tag.toString());
         }
         if (sr.isSkipped() && !tagNames.contains("@skipped")) {
             tagNames.add("@skipped");

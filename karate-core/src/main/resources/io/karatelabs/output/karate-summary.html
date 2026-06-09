@@ -100,6 +100,20 @@
             </div>
         </div>
 
+        <!-- Ext-contributed KPI tiles (e.g. coverage %, requirements covered) — populated via
+             Suite.addSummaryCard() from an ext's onShutdown(); absent (row hidden) when none. -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" x-show="(data.summaryCards || []).length > 0">
+            <template x-for="(c, idx) in (data.summaryCards || [])" :key="idx">
+                <a :href="c.href || null"
+                   class="rounded-lg p-4 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 block"
+                   :class="c.href ? 'hover:border-accent transition-colors' : 'pointer-events-none'">
+                    <div class="text-sm text-slate-500 dark:text-slate-400" x-text="c.label"></div>
+                    <div class="text-3xl font-bold mt-1 tabular-nums" :class="summaryCardColor(c.status)" x-text="c.value"></div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5" x-show="c.sub" x-text="c.sub"></div>
+                </a>
+            </template>
+        </div>
+
         <!-- Tile row: Failures (baked-in) + ext-contributed tiles via summary.panels slot.
              Auto-fit grid means Failures spans full width when alone (Phase 1b) and
              shares the row when exts contribute (Phase 2). Container is always

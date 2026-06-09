@@ -199,15 +199,6 @@ public class Scenario {
         return temp;
     }
 
-//    private Tags tagsEffective; // cache
-//
-//    public Tags getTagsEffective() {
-//        if (tagsEffective == null) {
-//            tagsEffective = Tags.merge(feature.getTags(), tags);
-//        }
-//        return tagsEffective;
-//    }
-
     public FeatureSection getSection() {
         return section;
     }
@@ -321,15 +312,28 @@ public class Scenario {
      */
     public List<Tag> getTagsEffective() {
         List<Tag> featureTags = feature != null ? feature.getTags() : null;
-        if (featureTags == null || featureTags.isEmpty()) {
-            return tags != null ? tags : java.util.Collections.emptyList();
+        boolean noFeature = featureTags == null || featureTags.isEmpty();
+        boolean noScenario = tags == null || tags.isEmpty();
+        if (noFeature) {
+            return noScenario ? java.util.Collections.emptyList() : tags;
         }
-        if (tags == null || tags.isEmpty()) {
+        if (noScenario) {
             return featureTags;
         }
-        // Merge feature + scenario tags
+        // Merge feature + scenario tags — feature first, de-duplicated by tag text (a tag declared on
+        // BOTH the feature and the scenario appears once). This is the single source of "effective tags"
+        // every consumer reads (the JSONL event stream, the JS `tags` var, the HTML report), so they
+        // can never diverge — Gherkin semantics: a Feature tag applies to all its scenarios.
         List<Tag> merged = new java.util.ArrayList<>(featureTags);
-        merged.addAll(tags);
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (Tag t : featureTags) {
+            seen.add(t.getText());
+        }
+        for (Tag t : tags) {
+            if (seen.add(t.getText())) {
+                merged.add(t);
+            }
+        }
         return merged;
     }
 

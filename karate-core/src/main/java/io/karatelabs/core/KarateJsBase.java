@@ -245,22 +245,11 @@ abstract class KarateJsBase implements SimpleObject {
     List<String> getTags() {
         Scenario s = getScenario();
         if (s == null) return List.of();
+        // DRY: Scenario.getTagsEffective() is the single source of the feature+scenario merge (deduped,
+        // feature-first); the JSONL event stream and the HTML report read the same. V1-compatible text.
         List<String> result = new ArrayList<>();
-        // Feature-level tags first
-        List<Tag> featureTags = s.getFeature().getTags();
-        if (featureTags != null) {
-            for (Tag tag : featureTags) {
-                result.add(tag.getText());
-            }
-        }
-        // Scenario-level tags
-        List<Tag> scenarioTags = s.getTags();
-        if (scenarioTags != null) {
-            for (Tag tag : scenarioTags) {
-                if (!result.contains(tag.getText())) {
-                    result.add(tag.getText());
-                }
-            }
+        for (Tag tag : s.getTagsEffective()) {
+            result.add(tag.getText());
         }
         return result;
     }

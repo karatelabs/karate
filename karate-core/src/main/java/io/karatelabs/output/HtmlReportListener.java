@@ -69,6 +69,9 @@ public class HtmlReportListener implements ResultListener {
     // ext <script>/<link> tags get spliced and ext static dirs copied. Empty when
     // no exts registered assets.
     private Map<String, io.karatelabs.core.ReportAssets> reportAssets = java.util.Collections.emptyMap();
+    // Suite captured at start so onSuiteEnd can read getSummaryCards() — exts add those in
+    // onShutdown(), which runs after onSuiteStart but before this listener's onSuiteEnd write.
+    private Suite suite;
 
     /**
      * Create a new HTML report listener.
@@ -91,6 +94,7 @@ public class HtmlReportListener implements ResultListener {
         suiteStartTime = System.currentTimeMillis();
         threadCount = suite.threadCount;
         reportAssets = suite.getReportAssets();
+        this.suite = suite;
 
         // Embed file names use a 001_, 002_, ... sequence; reset per suite so
         // numbers don't bleed across runs in the same JVM (e.g. test suites).
@@ -131,7 +135,8 @@ public class HtmlReportListener implements ResultListener {
             ensureResourcesCopied();
 
             // Write summary pages using canonical feature maps
-            HtmlReportWriter.writeSummaryPages(featureMaps, result, outputDir, env, reportAssets);
+            List<Map<String, Object>> summaryCards = suite != null ? suite.getSummaryCards() : java.util.Collections.emptyList();
+            HtmlReportWriter.writeSummaryPages(featureMaps, result, outputDir, env, reportAssets, summaryCards);
 
             // Write timeline page using canonical feature maps
             HtmlReportWriter.writeTimelineHtml(featureMaps, result, outputDir, env, threadCount, reportAssets);

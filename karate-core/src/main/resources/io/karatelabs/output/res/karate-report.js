@@ -665,6 +665,15 @@ const KarateReport = {
             statusOf(item)       { return self.statusOf(item); },
             statusOfFeature(f)   { return self.statusOfFeature(f); },
 
+            // accent colour for an ext KPI tile's value, from its optional `status` field
+            summaryCardColor(status) {
+                return {
+                    ok:   'text-green-600 dark:text-green-400',
+                    warn: 'text-amber-600 dark:text-amber-400',
+                    fail: 'text-red-600 dark:text-red-400',
+                }[status] || '';
+            },
+
             get heroStatus() {
                 const s = data.summary || {};
                 return self.heroStatus({

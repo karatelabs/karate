@@ -162,6 +162,13 @@ public class Suite {
     // read-only thereafter.
     private final Map<String, ReportAssets> reportAssets = new LinkedHashMap<>();
 
+    // KPI summary cards an ext contributes for the summary-page hero (e.g. coverage %,
+    // requirements covered). Unlike reportAssets (static, boot-time), these carry post-run
+    // VALUES, so an ext adds them in onShutdown() — which runs before the report listener's
+    // onSuiteEnd() write (Suite.run finally-block ordering), so the values are ready in time.
+    // Read by HtmlReportListener at onSuiteEnd and inlined into the summary page data.
+    private final List<Map<String, Object>> summaryCards = new ArrayList<>();
+
     // ========== Constructor (package-private) ==========
 
     /**
@@ -579,6 +586,25 @@ public class Suite {
     /** Immutable view of all registered ext report-asset specs, in registration order. */
     public Map<String, ReportAssets> getReportAssets() {
         return Collections.unmodifiableMap(reportAssets);
+    }
+
+    /**
+     * Contribute one KPI summary card to the summary-page hero (a key/value tile, e.g.
+     * {@code {label:'Coverage', value:'53%', sub:'8/15 endpoints'}}). Called by an {@link Ext}
+     * from {@link Ext#onShutdown()} (the values are post-run), which the run loop invokes before
+     * the report listener writes the summary, so cards are inlined into the page. Optional keys
+     * the renderer understands: {@code sub} (a second line), {@code href} (click-through), and
+     * {@code status} ({@code ok}/{@code warn}/{@code fail}, for accent colour).
+     */
+    public void addSummaryCard(Map<String, Object> card) {
+        if (card != null) {
+            summaryCards.add(card);
+        }
+    }
+
+    /** The contributed KPI summary cards, in registration order (empty when no ext added any). */
+    public List<Map<String, Object>> getSummaryCards() {
+        return Collections.unmodifiableList(summaryCards);
     }
 
     private void removeJsonlListener(RunListener listener) {
