@@ -1032,10 +1032,10 @@ class EngineTest {
 
     @Test
     void testBuiltinConstructorStateResetBetweenEngines() {
-        // Built-in constructor singletons (JsNumberConstructor.INSTANCE etc.) live for the
-        // JVM's lifetime. Without per-Engine state reset, a user-set property or a delete
-        // on one Engine would leak into the next — propertyHelper.js does exactly this in
-        // a tight loop. Cover the user-set / delete / configurability-flip paths.
+        // Built-in constructors are per-Engine instances, so a user-set property or a
+        // delete on one Engine must never be visible in the next — propertyHelper.js
+        // does exactly this in a tight loop. Cover the user-set / delete /
+        // configurability-flip paths.
         Engine e1 = new Engine();
         e1.eval("Number.foo = 123");
         e1.eval("delete Number.isFinite");

@@ -32,14 +32,10 @@ import java.util.List;
  * user-overridden {@code Map.prototype.set} is honored during construction.
  */
 class JsMapConstructor extends JsFunction {
-
-    static final JsMapConstructor INSTANCE = new JsMapConstructor();
-
-    private JsMapConstructor() {
+    JsMapConstructor() {
         this.name = "Map";
         // length=0 — Map() takes optional iterable; spec arity is 0.
         installIntrinsics();
-        registerForEngineReset();
     }
 
     private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
@@ -56,12 +52,6 @@ class JsMapConstructor extends JsFunction {
         // coercion mode) — verified by negativeZero.js.
         return GroupByImpl.toMap(
                 GroupByImpl.run(items, callback, /* propertyMode= */ false, context));
-    }
-
-    @Override
-    protected void clearEngineState() {
-        super.clearEngineState();
-        installIntrinsics();
     }
 
     @Override

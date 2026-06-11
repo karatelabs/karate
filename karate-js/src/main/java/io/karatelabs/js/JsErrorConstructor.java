@@ -29,43 +29,24 @@ import java.util.List;
 /**
  * Per-spec constructor for Error and its native subclasses (§20.5).
  * <p>
- * One singleton per error type. Each carries its own {@link JsErrorPrototype}
- * as the {@code prototype} own intrinsic; instances created via
- * {@code Error("msg")} or {@code new Error("msg")} carry that prototype as
- * their {@code __proto__}. Per spec the call form and the construct form are
- * identical (§20.5.1.1 step 1).
+ * One instance per error type per Engine (created via
+ * {@code ContextRoot.builtinConstructor}). Each carries its error type's
+ * {@link JsErrorPrototype} singleton as the {@code prototype} own intrinsic;
+ * instances created via {@code Error("msg")} or {@code new Error("msg")}
+ * carry that prototype as their {@code __proto__}. Per spec the call form
+ * and the construct form are identical (§20.5.1.1 step 1).
  */
 class JsErrorConstructor extends JsFunction {
-
-    static final JsErrorConstructor ERROR = new JsErrorConstructor(JsErrorPrototype.ERROR, 1);
-    static final JsErrorConstructor TYPE_ERROR = new JsErrorConstructor(JsErrorPrototype.TYPE_ERROR, 1);
-    static final JsErrorConstructor RANGE_ERROR = new JsErrorConstructor(JsErrorPrototype.RANGE_ERROR, 1);
-    static final JsErrorConstructor SYNTAX_ERROR = new JsErrorConstructor(JsErrorPrototype.SYNTAX_ERROR, 1);
-    static final JsErrorConstructor REFERENCE_ERROR = new JsErrorConstructor(JsErrorPrototype.REFERENCE_ERROR, 1);
-    static final JsErrorConstructor URI_ERROR = new JsErrorConstructor(JsErrorPrototype.URI_ERROR, 1);
-    static final JsErrorConstructor EVAL_ERROR = new JsErrorConstructor(JsErrorPrototype.EVAL_ERROR, 1);
-    static final JsErrorConstructor AGGREGATE_ERROR = new JsErrorConstructor(JsErrorPrototype.AGGREGATE_ERROR, 2);
 
     private static final byte MESSAGE_ATTRS = WRITABLE | CONFIGURABLE;
 
     private final JsErrorPrototype errorPrototype;
 
-    private JsErrorConstructor(JsErrorPrototype prototype, int length) {
+    JsErrorConstructor(JsErrorPrototype prototype, int length) {
         this.name = prototype.getTypeName();
         this.length = length;
         this.errorPrototype = prototype;
-        installIntrinsics();
-        registerForEngineReset();
-    }
-
-    private void installIntrinsics() {
         defineOwn("prototype", errorPrototype, PropertySlot.INTRINSIC);
-    }
-
-    @Override
-    protected void clearEngineState() {
-        super.clearEngineState();
-        installIntrinsics();
     }
 
     @Override
@@ -157,19 +138,6 @@ class JsErrorConstructor extends JsFunction {
             if (o.isOwnProperty(name)) return true;
         }
         return false;
-    }
-
-    static JsErrorConstructor forName(String name) {
-        return switch (name) {
-            case "TypeError" -> TYPE_ERROR;
-            case "RangeError" -> RANGE_ERROR;
-            case "SyntaxError" -> SYNTAX_ERROR;
-            case "ReferenceError" -> REFERENCE_ERROR;
-            case "URIError" -> URI_ERROR;
-            case "EvalError" -> EVAL_ERROR;
-            case "AggregateError" -> AGGREGATE_ERROR;
-            default -> ERROR;
-        };
     }
 
 }

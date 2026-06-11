@@ -42,7 +42,7 @@ class JsFunctionPrototype extends Prototype {
         install("apply", 2, this::applyMethod);
         install("bind", 1, this::bindMethod);
         install("toString", 0, this::toStringMethod);
-        installLazy("constructor", () -> JsFunctionConstructor.INSTANCE);
+        installConstructor("Function");
     }
 
     // Helper to get JsCallable from this context (accepts both JsFunction and JsCallable)

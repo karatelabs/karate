@@ -41,16 +41,12 @@ import java.util.Map;
  * methods; all-false for {@code prototype}).
  */
 class JsObjectConstructor extends JsFunction {
-
-    static final JsObjectConstructor INSTANCE = new JsObjectConstructor();
-
     private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
 
-    private JsObjectConstructor() {
+    JsObjectConstructor() {
         this.name = "Object";
         this.length = 1;
         installIntrinsics();
-        registerForEngineReset();
     }
 
     private void installIntrinsics() {
@@ -116,12 +112,6 @@ class JsObjectConstructor extends JsFunction {
     @Override
     public boolean isConstructable() {
         return true;
-    }
-
-    @Override
-    protected void clearEngineState() {
-        super.clearEngineState();
-        installIntrinsics();
     }
 
     // -------------------------------------------------------------------------

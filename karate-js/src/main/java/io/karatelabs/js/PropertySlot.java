@@ -49,7 +49,8 @@ sealed abstract class PropertySlot permits DataSlot, AccessorSlot {
     static final byte ENUMERABLE = 0b0010;
     /** Bit 2: configurable. */
     static final byte CONFIGURABLE = 0b0100;
-    /** Bit 3: install-time intrinsic — survives {@code clearEngineState}. */
+    /** Bit 3: install-time intrinsic (vs user-set). Informational — used by
+     *  strict-mode checks and introspection, not by any reset machinery. */
     static final byte INTRINSIC = 0b1000;
     /** Default for newly-created own properties: W|E|C all-true, not intrinsic. */
     static final byte ATTRS_DEFAULT = WRITABLE | ENUMERABLE | CONFIGURABLE;

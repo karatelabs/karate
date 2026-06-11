@@ -30,12 +30,49 @@ import io.karatelabs.parser.NodeType;
 import io.karatelabs.parser.ParserException;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
 public class Engine {
 
     public static boolean DEBUG = false;
+
+    /**
+     * The Engine currently executing JS on this thread. Established with
+     * save/restore nesting by {@link #evalInternal} / {@link #evalRaw}, and by
+     * {@code JsFunctionNode.call} when a host invokes a function directly
+     * (possibly with a null caller context) — the function body then runs
+     * under its declaring Engine. Lets the JVM-wide built-in prototype
+     * singletons resolve their per-Engine mutable state (user-added
+     * properties, {@code constructor} cross-references) without threading a
+     * context through every property seam — including the ctx-less raw seams
+     * like the 1-arg {@code getMember}.
+     */
+    private static final ThreadLocal<Engine> CURRENT = new ThreadLocal<>();
+
+    /** The Engine currently executing JS on this thread, or null outside JS execution. */
+    static Engine current() {
+        return CURRENT.get();
+    }
+
+    /** Make {@code engine} current for this thread; returns the previous
+     *  value, which the caller MUST restore via {@link #exit} (try/finally). */
+    static Engine enter(Engine engine) {
+        Engine prev = CURRENT.get();
+        CURRENT.set(engine);
+        return prev;
+    }
+
+    static void exit(Engine prev) {
+        if (prev == null) {
+            // remove (not set-null) so pooled threads don't pin a stale entry
+            CURRENT.remove();
+        } else {
+            CURRENT.set(prev);
+        }
+    }
 
     // Single global store. Holds user-visible bindings (Engine.put / top-level
     // var / implicit globals) AND hidden entries (putRootBinding-injected
@@ -52,17 +89,41 @@ public class Engine {
 
     private final ContextRoot root = new ContextRoot(this);
 
-    public Engine() {
-        // Built-in prototype singletons (JsArrayPrototype, JsMapPrototype, …) accumulate
-        // user-added properties across the JVM's lifetime. Reset them per Engine so test
-        // harnesses that overwrite e.g. Map.prototype.set don't poison the next session.
-        Prototype.clearAllUserProps();
-        // Same problem on the JsObject side: built-in constructor singletons
-        // (JsNumberConstructor.INSTANCE, JsObjectConstructor.INSTANCE, …) accumulate
-        // user-set properties / attribute overrides / tombstones from `delete Number.x`
-        // across the JVM. Reset their per-Engine mutable state so propertyHelper-style
-        // destructive probes don't leak to subsequent tests.
-        JsObject.clearAllEngineState();
+    // Per-Engine user-added properties on the JVM-wide built-in prototype
+    // singletons (e.g. Array.prototype.foo = ...). Keyed by prototype
+    // identity, lazily allocated — almost no script mutates built-in
+    // prototypes. Dies with this Engine, so prototype pollution can neither
+    // leak into another Engine nor be destroyed by one (the historical
+    // clear-on-construct reset wiped this state JVM-wide, which corrupted
+    // engines mid-evaluation on other threads).
+    private Map<Prototype, Map<String, PropertySlot>> protoUserProps;
+
+    // True iff user code installed a canonical numeric key on a built-in
+    // prototype in this Engine session. See Prototype.isNumericPropPolluted.
+    boolean numericPropPolluted;
+
+    /** Per-Engine user-property overlay for {@code proto} — null when absent
+     *  and {@code create} is false. Engine instances are single-threaded at a
+     *  time (same posture as {@link BindingsStore}), so plain maps suffice. */
+    Map<String, PropertySlot> protoUserProps(Prototype proto, boolean create) {
+        if (protoUserProps == null) {
+            if (!create) {
+                return null;
+            }
+            protoUserProps = new HashMap<>();
+        }
+        Map<String, PropertySlot> map = protoUserProps.get(proto);
+        if (map == null && create) {
+            map = new LinkedHashMap<>();
+            protoUserProps.put(proto, map);
+        }
+        return map;
+    }
+
+    /** This Engine's instance of a built-in constructor global ("Array",
+     *  "TypeError", …) — created lazily, stable identity per Engine. */
+    JsFunction builtinConstructor(String name) {
+        return root.builtinConstructor(name);
     }
 
     public Object eval(Node program) {
@@ -194,7 +255,12 @@ public class Engine {
         JsParser parser = new JsParser(Resource.text(text));
         Node program = parser.parse();
         CoreContext context = new CoreContext(root, null, 0, program, ContextScope.GLOBAL, bindings);
-        return Interpreter.eval(program, context);
+        Engine prev = enter(this);
+        try {
+            return Interpreter.eval(program, context);
+        } finally {
+            exit(prev);
+        }
     }
 
     private Object evalInternal(Resource resource, Map<String, Object> localVars) {
@@ -203,6 +269,7 @@ public class Engine {
     }
 
     private Object evalInternal(Node program, Map<String, Object> localVars) {
+        Engine prevEngine = enter(this);
         try {
             root.evalId++;
             CoreContext context;
@@ -246,6 +313,8 @@ public class Engine {
             String jsErrorName = e instanceof EngineException ee ? ee.getJsErrorName() : null;
             String jsMessage = e instanceof EngineException ee ? ee.getJsMessage() : null;
             throw new EngineException(message, e, jsErrorName, jsMessage);
+        } finally {
+            exit(prevEngine);
         }
     }
 

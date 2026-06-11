@@ -31,23 +31,19 @@ import java.util.Map;
 /**
  * JavaScript Array constructor function.
  * <p>
- * Singleton; static methods + the {@code prototype} slot are eagerly
- * installed at construction time as own properties with spec attrs:
+ * One instance per Engine; static methods + the {@code prototype} slot are
+ * eagerly installed at construction time as own properties with spec attrs:
  * methods are {@code W | C} (non-enumerable), {@code prototype} is
- * all-false. {@link #clearEngineState} re-runs the install on per-Engine
- * reset so user mutations from a prior session don't leak.
+ * all-false. Per-Engine instances keep user mutations isolated to their
+ * session — no cross-Engine reset needed.
  */
 class JsArrayConstructor extends JsFunction {
-
-    static final JsArrayConstructor INSTANCE = new JsArrayConstructor();
-
     private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
 
-    private JsArrayConstructor() {
+    JsArrayConstructor() {
         this.name = "Array";
         this.length = 1;
         installIntrinsics();
-        registerForEngineReset();
     }
 
     private void installIntrinsics() {
@@ -55,12 +51,6 @@ class JsArrayConstructor extends JsFunction {
         defineOwn("isArray", new JsBuiltinMethod("isArray", 1, (JsInvokable) this::isArray), METHOD_ATTRS);
         defineOwn("of", new JsBuiltinMethod("of", 0, (JsInvokable) this::of), METHOD_ATTRS);
         defineOwn("prototype", JsArrayPrototype.INSTANCE, PropertySlot.INTRINSIC);
-    }
-
-    @Override
-    protected void clearEngineState() {
-        super.clearEngineState();
-        installIntrinsics();
     }
 
     @Override

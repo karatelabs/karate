@@ -30,16 +30,12 @@ import java.util.Date;
  * Provides static methods like Date.now, Date.parse, Date.UTC.
  */
 class JsDateConstructor extends JsFunction {
-
-    static final JsDateConstructor INSTANCE = new JsDateConstructor();
-
     private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
 
-    private JsDateConstructor() {
+    JsDateConstructor() {
         this.name = "Date";
         this.length = 7;
         installIntrinsics();
-        registerForEngineReset();
     }
 
     private void installIntrinsics() {
@@ -48,12 +44,6 @@ class JsDateConstructor extends JsFunction {
         defineOwn("UTC", new JsBuiltinMethod("UTC", 7, (JsCallable) (ctx, args) ->
                 utcWithContext(ctx instanceof CoreContext c ? c : null, args)), METHOD_ATTRS);
         defineOwn("prototype", JsDatePrototype.INSTANCE, PropertySlot.INTRINSIC);
-    }
-
-    @Override
-    protected void clearEngineState() {
-        super.clearEngineState();
-        installIntrinsics();
     }
 
     @Override
