@@ -31,6 +31,8 @@ import io.karatelabs.js.FlowControlSignal;
 import io.karatelabs.js.JsLazy;
 import io.karatelabs.markup.Markup;
 import io.karatelabs.markup.ResourceResolver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
@@ -45,6 +47,8 @@ import java.util.Map;
  * </pre>
  */
 public class ServerRequestCycle {
+
+    private static final Logger logger = LoggerFactory.getLogger(ServerRequestCycle.class);
 
     private static final ThreadLocal<ServerRequestCycle> THREAD_LOCAL = new ThreadLocal<>();
 
@@ -321,6 +325,11 @@ public class ServerRequestCycle {
     }
 
     private HttpResponse handleError(Exception e) {
+        // ALWAYS log server-side with the failing method + path — before this, a handler/template
+        // exception was swallowed silently and the only trace was the (prod-opaque) 500 body, so
+        // diagnosing a failing JS API handler required guessing. The response body still honours
+        // the devMode gate below; the log is for the operator and leaks nothing to the client.
+        logger.error("request handler failed: {} {}", request.getMethod(), request.getPath(), e);
         response.setStatus(500);
 
         // Try custom error template

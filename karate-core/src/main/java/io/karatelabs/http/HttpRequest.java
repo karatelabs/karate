@@ -185,6 +185,28 @@ public class HttpRequest implements SimpleObject {
         return FileUtils.toString(body);
     }
 
+    /**
+     * The body coerced to parsed JSON regardless of content-type: an already-parsed {@code Map} /
+     * {@code List} (a JSON content-type — {@link #getBodyConverted()} parses those eagerly) is
+     * returned as-is; a string body is parsed leniently; anything else (binary, blank, unparsable)
+     * is {@code null}. The body-side sibling of {@code paramJson(name)} — JS handlers read
+     * {@code request.bodyJson} instead of branching on {@code typeof request.body}.
+     */
+    public Object getBodyJson() {
+        Object converted = getBodyConverted();
+        if (converted instanceof Map || converted instanceof List) {
+            return converted;
+        }
+        if (converted instanceof String s && !s.isBlank()) {
+            try {
+                return Json.parseLenient(s);
+            } catch (RuntimeException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     public void setBody(byte[] body) {
         this.body = body;
     }
@@ -757,6 +779,8 @@ public class HttpRequest implements SimpleObject {
                 return getBodyConverted();
             case "bodyString":
                 return getBodyString();
+            case "bodyJson":
+                return getBodyJson();
             case "bodyBytes":
                 return body;
             case "url":

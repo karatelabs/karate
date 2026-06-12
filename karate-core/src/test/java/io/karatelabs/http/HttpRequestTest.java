@@ -274,4 +274,36 @@ class HttpRequestTest {
         assertEquals("john", ((Map<?, ?>) body).get("name"));
     }
 
+    @Test
+    void testBodyJson() {
+        // a JSON content-type body is already parsed — bodyJson returns it as-is
+        HttpRequest json = new HttpRequest();
+        json.setUrl("http://localhost/test");
+        json.setContentType("application/json");
+        json.setBody("{\"name\":\"john\"}".getBytes());
+        Object parsed = json.jsGet("bodyJson");
+        assertTrue(parsed instanceof Map);
+        assertEquals("john", ((Map<?, ?>) parsed).get("name"));
+
+        // a text/plain body that happens to be JSON is coerced (the paramJson-style lenient parse)
+        HttpRequest text = new HttpRequest();
+        text.setUrl("http://localhost/test");
+        text.setContentType("text/plain");
+        text.setBody("{\"count\": 2}".getBytes());
+        Object coerced = text.jsGet("bodyJson");
+        assertTrue(coerced instanceof Map);
+        assertEquals(2, ((Number) ((Map<?, ?>) coerced).get("count")).intValue());
+
+        // unparsable / blank / binary → null, never a throw (handlers guard with `|| {}`)
+        HttpRequest garbage = new HttpRequest();
+        garbage.setUrl("http://localhost/test");
+        garbage.setContentType("text/plain");
+        garbage.setBody("not json at all".getBytes());
+        assertNull(garbage.jsGet("bodyJson"));
+
+        HttpRequest empty = new HttpRequest();
+        empty.setUrl("http://localhost/test");
+        assertNull(empty.jsGet("bodyJson"));
+    }
+
 }

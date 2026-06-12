@@ -358,9 +358,11 @@ Same as feature file mocks:
 
 | Object | Description |
 |--------|-------------|
-| `request` | HTTP request with `get`, `post`, `put`, `delete`, `pathMatches()`, `pathParams`, `body`, `param()`, `header()`, `cookies`, `proceed()` |
+| `request` | HTTP request with `get`, `post`, `put`, `delete`, `pathMatches()`, `pathParams`, `body`, `bodyJson`, `bodyString`, `bodyBytes`, `param()`, `header()`, `cookies`, `proceed()` |
 | `response` | HTTP response with `status`, `body`, `headers` |
 | `session` | Persistent state across requests |
+
+**Body accessors:** `request.body` is *content-type-converted* — a JSON `Content-Type` (or, for V1 compatibility, any text body starting with `{`/`[`) arrives as an already-parsed Map/List, plain text as a string, binary as bytes. When the handler expects JSON, prefer **`request.bodyJson`**: it returns the parsed object/array in every case (already-parsed → as-is, string → lenient parse) and `null` for an unparsable/blank/binary body — never a throw. `request.bodyString` / `request.bodyBytes` give raw access. Assigning a Map/List to `response.body` serializes it as JSON and sets the `Content-Type` automatically; assigning a string sets `text/plain`.
 
 `request.cookies` mirrors the feature-file `requestCookies` shape — a `Map<String, { name, value }>` keyed by cookie name. Read a single cookie's value as `request.cookies['name'].value`. Returns an empty map when the request had no `Cookie` header.
 
