@@ -1461,7 +1461,9 @@ class Interpreter {
         if (context.isStopped()) {
             return null;
         }
-        if (Terms.isTruthy(condition)) {
+        boolean taken = Terms.isTruthy(condition);
+        context.event(EventType.BRANCH, node, taken);
+        if (taken) {
             return eval(node.get(4), context);
         } else {
             if (node.size() > 5) {
@@ -1785,6 +1787,9 @@ class Interpreter {
             return false;
         }
         TokenType logicOp = node.get(1).token.type;
+        if (context.root.listener != null) {
+            context.event(EventType.COMPARE, node, new Object[]{lhs, node.get(1).getText(), rhs});
+        }
         if (Terms.NAN.equals(lhs) || Terms.NAN.equals(rhs)) {
             if (logicOp == NOT_EQ || logicOp == NOT_EQ_EQ) {
                 return true;  // NaN is not equal to anything, including itself
@@ -1811,6 +1816,7 @@ class Interpreter {
             return null;
         }
         boolean lhs = Terms.isTruthy(lhsValue);
+        context.event(EventType.BRANCH, node, lhs);
         if (node.get(1).token.type == AMP_AMP) {
             if (lhs) {
                 return eval(node.get(2), context);
@@ -1833,7 +1839,9 @@ class Interpreter {
             return null;
         }
         // ?? returns lhs if it's not null/undefined, otherwise rhs
-        if (lhsValue == null || lhsValue == Terms.UNDEFINED) {
+        boolean defined = lhsValue != null && lhsValue != Terms.UNDEFINED;
+        context.event(EventType.BRANCH, node, defined);
+        if (!defined) {
             return eval(node.get(2), context);
         }
         return lhsValue;
@@ -1845,7 +1853,9 @@ class Interpreter {
         if (context.isStopped()) {
             return null;
         }
-        if (Terms.isTruthy(testValue)) {
+        boolean taken = Terms.isTruthy(testValue);
+        context.event(EventType.BRANCH, node, taken);
+        if (taken) {
             return eval(node.get(2), context);
         } else {
             return eval(node.get(4), context);
@@ -2133,7 +2143,9 @@ class Interpreter {
                     if (context.isStopped()) {
                         return null;
                     }
-                    if (Terms.eq(switchValue, caseValue, true)) {
+                    boolean matched = Terms.eq(switchValue, caseValue, true);
+                    context.event(EventType.BRANCH, caseNode, matched);
+                    if (matched) {
                         found = true;
                     }
                 }

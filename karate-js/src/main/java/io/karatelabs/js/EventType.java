@@ -30,6 +30,19 @@ public enum EventType {
     STATEMENT_ENTER,
     STATEMENT_EXIT,
     EXPRESSION_ENTER,
-    EXPRESSION_EXIT
+    EXPRESSION_EXIT,
+    /**
+     * Fired after a conditional construct (if / ternary / logical
+     * short-circuit / switch case) decides which arm to take. The event
+     * {@code value} is the {@link Boolean} outcome. Useful for coverage
+     * and debugger tooling.
+     */
+    BRANCH,
+    /**
+     * Fired when a comparison operator evaluates. The event {@code value}
+     * is an {@code Object[]} of {@code [lhs, operator, rhs]} with the
+     * concrete operand values. Useful for coverage and debugger tooling.
+     */
+    COMPARE
 
 }

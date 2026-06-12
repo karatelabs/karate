@@ -134,6 +134,13 @@ class CoreContext implements Context {
         }
     }
 
+    void event(EventType type, Node node, Object value) {
+        if (root.listener != null) {
+            Event event = new Event(type, this, node, value);
+            root.listener.onEvent(event);
+        }
+    }
+
     // public api ======================================================================================================
     //
     final CoreContext parent;

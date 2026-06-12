@@ -30,11 +30,22 @@ public class Event {
     public final EventType type;
     public final Context context;
     public final Node node;
+    /**
+     * Optional payload, present only for event types that carry one —
+     * {@link EventType#BRANCH} (a {@link Boolean} outcome) and
+     * {@link EventType#COMPARE} (an {@code Object[]} of lhs / operator / rhs).
+     */
+    public final Object value;
 
     Event(EventType type, Context context, Node node) {
+        this(type, context, node, null);
+    }
+
+    Event(EventType type, Context context, Node node, Object value) {
         this.type = type;
         this.context = context;
         this.node = node;
+        this.value = value;
     }
 
 }
