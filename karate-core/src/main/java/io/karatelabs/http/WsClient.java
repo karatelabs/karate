@@ -110,6 +110,17 @@ public class WsClient {
         this.callbackExecutor = options.getCallbackExecutor() != null
                 ? options.getCallbackExecutor()
                 : CALLBACK_EXECUTOR;
+        // options-registered listeners attach BEFORE the handshake so a server-speaks-first
+        // protocol (RFB/VNC) cannot race its opening frame past an empty listener list
+        if (options.getMessageListener() != null) {
+            messageListeners.add(options.getMessageListener());
+        }
+        if (options.getCloseListener() != null) {
+            closeListeners.add(options.getCloseListener());
+        }
+        if (options.getErrorListener() != null) {
+            errorListeners.add(options.getErrorListener());
+        }
     }
 
     private void doConnect() {

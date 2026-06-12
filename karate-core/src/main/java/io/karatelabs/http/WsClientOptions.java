@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
 
 /**
  * Configuration for WebSocket client connections using builder pattern.
@@ -46,6 +47,9 @@ public class WsClientOptions {
     private final boolean trustAllCerts;
     private final SslContext sslContext;
     private final ExecutorService callbackExecutor;
+    private final Consumer<WsFrame> messageListener;
+    private final Runnable closeListener;
+    private final Consumer<Throwable> errorListener;
 
     private WsClientOptions(Builder builder) {
         this.uri = builder.uri;
@@ -59,6 +63,9 @@ public class WsClientOptions {
         this.trustAllCerts = builder.trustAllCerts;
         this.sslContext = builder.sslContext;
         this.callbackExecutor = builder.callbackExecutor;
+        this.messageListener = builder.messageListener;
+        this.closeListener = builder.closeListener;
+        this.errorListener = builder.errorListener;
     }
 
     public static Builder builder(String uri) {
@@ -124,6 +131,18 @@ public class WsClientOptions {
         return callbackExecutor;
     }
 
+    public Consumer<WsFrame> getMessageListener() {
+        return messageListener;
+    }
+
+    public Runnable getCloseListener() {
+        return closeListener;
+    }
+
+    public Consumer<Throwable> getErrorListener() {
+        return errorListener;
+    }
+
     public static class Builder {
 
         private final URI uri;
@@ -135,6 +154,9 @@ public class WsClientOptions {
         private boolean trustAllCerts = true;
         private SslContext sslContext;
         private ExecutorService callbackExecutor;
+        private Consumer<WsFrame> messageListener;
+        private Runnable closeListener;
+        private Consumer<Throwable> errorListener;
 
         private Builder(URI uri) {
             if (uri == null) {
@@ -193,6 +215,28 @@ public class WsClientOptions {
 
         public Builder callbackExecutor(ExecutorService executor) {
             this.callbackExecutor = executor;
+            return this;
+        }
+
+        /**
+         * Register a message listener BEFORE the connection is opened. For server-speaks-first
+         * protocols (e.g. RFB/VNC behind websockify) a listener added after
+         * {@link WsClient#connect} returns can miss the server's opening frame.
+         */
+        public Builder onMessage(Consumer<WsFrame> listener) {
+            this.messageListener = listener;
+            return this;
+        }
+
+        /** Register a close listener before the connection is opened (see {@link #onMessage}). */
+        public Builder onClose(Runnable listener) {
+            this.closeListener = listener;
+            return this;
+        }
+
+        /** Register an error listener before the connection is opened (see {@link #onMessage}). */
+        public Builder onError(Consumer<Throwable> listener) {
+            this.errorListener = listener;
             return this;
         }
 

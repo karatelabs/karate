@@ -173,7 +173,9 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
 
     private void handleWsUpgrade(ChannelHandlerContext ctx, FullHttpRequest req, HttpRequest request) {
         String wsUrl = "ws://" + req.headers().get(HttpHeaderNames.HOST) + req.uri();
-        WebSocketServerHandshakerFactory factory = new WebSocketServerHandshakerFactory(wsUrl, null, true);
+        // 1 MB receive cap (Netty defaults to 64k) — proxied streams (e.g. a VNC clipboard paste
+        // through the websockify tunnel) can legitimately exceed the default
+        WebSocketServerHandshakerFactory factory = new WebSocketServerHandshakerFactory(wsUrl, null, true, HttpUtils.MEGABYTE);
         WebSocketServerHandshaker handshaker = factory.newHandshaker(req);
         if (handshaker == null) {
             WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
