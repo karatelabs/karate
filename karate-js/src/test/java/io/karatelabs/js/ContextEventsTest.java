@@ -31,8 +31,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for the {@link EventType#BRANCH} and {@link EventType#COMPARE}
- * events used by coverage and debugger tooling.
+ * Tests for the {@link EventType#BRANCH}, {@link EventType#COMPARE} and
+ * {@link EventType#PROPERTY_GET} events used by coverage and debugger tooling.
  */
 class ContextEventsTest {
 
@@ -40,6 +40,7 @@ class ContextEventsTest {
 
         final List<Event> branches = new ArrayList<>();
         final List<Event> compares = new ArrayList<>();
+        final List<Event> propertyGets = new ArrayList<>();
 
         @Override
         public void onEvent(Event event) {
@@ -47,6 +48,8 @@ class ContextEventsTest {
                 branches.add(event);
             } else if (event.type == EventType.COMPARE) {
                 compares.add(event);
+            } else if (event.type == EventType.PROPERTY_GET) {
+                propertyGets.add(event);
             }
         }
 
@@ -159,6 +162,40 @@ class ContextEventsTest {
         Engine engine = new Engine();
         Object result = engine.eval("var x = 5 > 3 ? (1 && 2) : 0; x");
         assertEquals(2, result);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testBracketReadFiresPropertyGet() {
+        // a keyed lookup over a small table — the bracket read should report [target, key, result]
+        String script = "var table = { a: { rate: 15 }, b: { rate: 20 } };\n"
+                + "var key = input;\n"
+                + "var row = table[key];\n"
+                + "row.rate";
+        EventCollector c = run(script, "b");
+        // exactly one bracket read: table[key]  (row.rate is dot access, table/key/input are refs)
+        assertEquals(1, c.propertyGets.size());
+        Object[] v = (Object[]) c.propertyGets.get(0).value;   // [target, key, result]
+        assertEquals("b", v[1]);
+        assertEquals(20, ((java.util.Map<String, Object>) v[2]).get("rate"));   // the selected row
+        assertTrue(((java.util.Map<String, Object>) v[0]).containsKey("a"));    // the table object
+    }
+
+    @Test
+    void testDotReadDoesNotFirePropertyGet() {
+        // dot access is intentionally not reported (kept cheap on hot paths)
+        EventCollector c = run("var o = { x: 1 }; o.x", null);
+        assertEquals(0, c.propertyGets.size());
+    }
+
+    @Test
+    void testArrayIndexReadFiresPropertyGet() {
+        // numeric bracket access reports too — key is the index, result the element
+        EventCollector c = run("var xs = [10, 20, 30]; xs[input]", 2);
+        assertEquals(1, c.propertyGets.size());
+        Object[] v = (Object[]) c.propertyGets.get(0).value;
+        assertEquals(2, v[1]);
+        assertEquals(30, v[2]);
     }
 
 }

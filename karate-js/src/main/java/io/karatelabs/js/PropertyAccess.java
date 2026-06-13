@@ -500,7 +500,13 @@ class PropertyAccess {
         Object object = Interpreter.eval(node.getFirst(), context);
         if (object == SHORT_CIRCUITED) return SHORT_CIRCUITED;
         Object index = Interpreter.eval(node.get(2), context);
-        return getByIndex(object, index, false, context, functionCall);
+        Object result = getByIndex(object, index, false, context, functionCall);
+        // PROPERTY_GET: a value read (not a method-call receiver fetch). Guarded so the
+        // Object[] is only built when a listener is attached (bracket reads are hot).
+        if (!functionCall && context.root.listener != null) {
+            context.event(EventType.PROPERTY_GET, node, new Object[]{object, index, result});
+        }
+        return result;
     }
 
     // Unwraps PAREN_EXPR -> [(, EXPR_LIST[EXPR[<inner>]], )] to preserve the

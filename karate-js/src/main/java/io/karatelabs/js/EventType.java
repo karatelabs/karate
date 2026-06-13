@@ -43,6 +43,16 @@ public enum EventType {
      * is an {@code Object[]} of {@code [lhs, operator, rhs]} with the
      * concrete operand values. Useful for coverage and debugger tooling.
      */
-    COMPARE
+    COMPARE,
+    /**
+     * Fired when a computed (bracket) member is READ — {@code obj[key]}. The event
+     * {@code value} is an {@code Object[]} of {@code [target, key, result]} with the
+     * concrete object, the evaluated key, and the value returned. The read counterpart of
+     * the {@code PROPERTY_SET} bind (writes ride {@code onBind}; reads, being observations
+     * like {@link #BRANCH}/{@link #COMPARE}, ride {@code onEvent}). Scoped to bracket access —
+     * dot reads ({@code obj.name}) do not fire — to stay cheap on hot paths while still
+     * capturing dynamic/keyed lookups. Useful for coverage, data-flow tracing and debugging.
+     */
+    PROPERTY_GET
 
 }
