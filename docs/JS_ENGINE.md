@@ -1512,6 +1512,23 @@ resolve per access through a `ConstructorRef` marker against the reading
 engine's instance — never cached in the shared `builtins` map. The
 `INTRINSIC` bit on the slot's attrs byte is informational.
 
+*Residual shared state (known corners, all narrow).* "Per-Engine isolation"
+covers prototype **user props** (overlay), **constructors** (per-Engine
+instances), and the **numeric-pollution** flag — the state real scripts
+mutate. Three things stay JVM-wide by design: (1) the built-in **method
+function objects** themselves (`Array.prototype.push` and friends) are cached
+inside their `LazyRef` and shared across engines, so own-property writes onto
+*them* (`[].push.foo = 1`) leak/persist cross-engine — rare, and unchanged
+from before this work. (2) The **engineless fallback** (`orphanUserProps` /
+`orphanNumericPropPolluted`) backs prototype mutations issued with no
+`Engine.current()` (i.e. outside any JS execution); it is shared and
+unsynchronized, so concurrent host-side prototype writes off the eval path
+would race it — hosts virtually never do this. (3) `Engine.current()` is
+eval-scoped, so a host reading a polyfilled prototype member off a *returned*
+`JsObject`/`JsArray` **after** `eval` returns sees no overlay (resolves
+against `orphanUserProps`, not that engine's) — own-property and `List`/`Map`
+interface reads are unaffected, only prototype-polyfill reads post-eval.
+
 **Function declarations hoist** at the start of the enclosing program / block
 scope. `Interpreter.hoistFunctionDeclarations` walks immediate `STATEMENT >
 FN_EXPR` children, evaluates each — binding the name. The main loop in

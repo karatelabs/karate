@@ -1051,12 +1051,13 @@ class EngineTest {
 
     @Test
     void testBuiltinPrototypeStateResetBetweenEngines() {
-        // Built-in prototype singletons (JsArrayPrototype.INSTANCE etc.) likewise live
-        // for the JVM. propertyHelper-style probes do
-        // `verifyProperty(Array.prototype, "push", {...})` which destructively deletes
-        // and re-tests; a tombstone left behind would leak to the next engine.
+        // Built-in prototype singletons (JsArrayPrototype.INSTANCE etc.) live for the
+        // JVM, but user mutations are per-Engine overlays (Engine.protoUserProps).
+        // propertyHelper-style probes do `verifyProperty(Array.prototype, "push", {...})`
+        // which destructively deletes and re-tests; the tombstone is confined to the
+        // Engine that made it and never reaches the next one.
         Engine e1 = new Engine();
-        // Override a built-in: should be visible in e1, gone in e2.
+        // Override a built-in: visible in e1, absent in e2.
         e1.eval("Array.prototype.foo = 'bar'");
         // Delete a built-in: tombstone hides the resolved method in e1, but e2 must
         // see the method again.
@@ -1067,6 +1068,35 @@ class EngineTest {
         assertEquals(Terms.UNDEFINED, e2.evalRaw("Array.prototype.foo"));
         // push is back — actually call it to prove the resolution path is restored.
         assertEquals(3.0, ((Number) e2.eval("var a = [1,2]; a.push(3); a.length")).doubleValue());
+    }
+
+    @Test
+    void testLivePrototypeIsolationBetweenConcurrentEngines() {
+        // The stronger contract the per-Engine overlay adds over the historical
+        // clear-on-construct reset: two engines ALIVE AT ONCE must not see or destroy
+        // each other's prototype state. The old model wiped e1's live polyfill the
+        // moment e2 was constructed (the root cause of the parallel-run
+        // "Object.keys is not a function" failures); the overlay makes that
+        // unrepresentable. Deterministic single-thread interleave — no race needed to
+        // pin it, since the failure mode was construction-order, not timing.
+        Engine e1 = new Engine();
+        e1.eval("Array.prototype.foo = 'one'");
+        e1.eval("delete Array.prototype.push");                 // tombstone, e1 only
+
+        Engine e2 = new Engine();                               // must NOT wipe e1's overlay
+        e2.eval("Array.prototype.foo = 'two'");
+
+        // e1 keeps its own polyfill + tombstone, untouched by e2's existence and writes
+        assertEquals("one", e1.eval("[].foo"));
+        assertEquals(Terms.UNDEFINED, e1.evalRaw("[].push"));
+        // e2 sees only its own polyfill; push is intact (e1's tombstone never leaked)
+        assertEquals("two", e2.eval("[].foo"));
+        assertEquals(3.0, ((Number) e2.eval("var a = [1,2]; a.push(3); a.length")).doubleValue());
+
+        // further e2 activity still cannot bleed into e1
+        e2.eval("Array.prototype.bar = 'b2'");
+        assertEquals(Terms.UNDEFINED, e1.evalRaw("[].bar"));
+        assertEquals("one", e1.eval("[].foo"));
     }
 
     @Test
