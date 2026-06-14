@@ -134,17 +134,38 @@ public class StepUtils {
     }
 
     /**
-     * Find the separator between call target and arguments in a call expression.
-     * Handles quoted strings in read() calls, e.g., read('foo bar.js') arg
-     *
-     * @return index of separator space, or -1 if not found
+     * The callable target and (optional) argument expression of a call step, e.g.
+     * {@code call read('x.feature') {...}} splits into {@code read('x.feature')} and
+     * {@code {...}}. {@code arg} is null when the step carries no argument.
      */
-    public static int findCallArgSeparator(String text) {
+    public record CallParts(String callable, String arg) {}
+
+    /**
+     * Split a call expression into its callable target and argument, mirroring v1's
+     * {@code parseCallArgs}. For a {@code read(...)} expression the split is at read()'s
+     * close paren, so the argument may be either space-separated ({@code read('x') arg})
+     * or directly appended ({@code read('x.js')(arg)} — the V1 immediately-invoke form).
+     * Otherwise the split is at the first space.
+     */
+    public static CallParts splitCallExpr(String text) {
+        int splitAfter; // index of the last char belonging to the callable target
         if (text.startsWith("read(")) {
             int closeParen = findReadCloseParen(text);
-            return closeParen < 0 ? -1 : text.indexOf(' ', closeParen + 1);
+            if (closeParen < 0) {
+                return new CallParts(text, null);
+            }
+            splitAfter = closeParen;
+        } else {
+            int space = text.indexOf(' ');
+            if (space < 0) {
+                return new CallParts(text, null);
+            }
+            // the space itself is a separator, not part of either side
+            splitAfter = space - 1;
         }
-        return text.indexOf(' ');
+        String callable = text.substring(0, splitAfter + 1).trim();
+        String arg = text.substring(splitAfter + 1).trim();
+        return new CallParts(callable, arg.isEmpty() ? null : arg);
     }
 
     /**

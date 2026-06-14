@@ -365,8 +365,8 @@ public class StepExecutor {
         // Try to evaluate the first token to see if it's a JS function or Feature
         // Syntax: "fun" or "fun arg" where fun is a JS function variable or Feature
         // Note: read('file.js') returns a JS function, read('file.feature') returns a Feature
-        int spaceIdx = StepUtils.findCallArgSeparator(callExpr);
-        String firstToken = spaceIdx > 0 ? callExpr.substring(0, spaceIdx) : callExpr;
+        StepUtils.CallParts parts = StepUtils.splitCallExpr(callExpr);
+        String firstToken = parts.callable();
 
         // Check if it's a read() call for a literal feature file path - use parseCallExpression
         // which properly handles embedded expressions like #(nodes)
@@ -387,15 +387,14 @@ public class StepExecutor {
                 // It's a JS function - invoke it and store result.
                 // evalKarateExpression handles inline JSON with `#(...)`, lists,
                 // variables, and bare JS — single shared path for all call args.
-                Object arg = spaceIdx > 0 ? evalKarateExpression(callExpr.substring(spaceIdx + 1).trim()) : null;
+                Object arg = parts.arg() != null ? evalKarateExpression(parts.arg()) : null;
                 Object result = arg != null
                         ? fn.call(null, new Object[]{arg})
                         : fn.call(null, new Object[0]);
                 runtime.setVariable(resultVar, result);
                 return;
             } else if (evaluated instanceof FeatureCall || evaluated instanceof Feature) {
-                String argExpr = spaceIdx > 0 ? callExpr.substring(spaceIdx + 1).trim() : null;
-                executeFeatureCall(evaluated, argExpr, resultVar);
+                executeFeatureCall(evaluated, parts.arg(), resultVar);
                 return;
             }
         }
@@ -2522,7 +2521,7 @@ public class StepExecutor {
      */
     private static String appendDocStringCallArg(String callExpr, String docString) {
         if (docString != null && !docString.isBlank()
-                && StepUtils.findCallArgSeparator(callExpr) < 0) {
+                && StepUtils.splitCallExpr(callExpr).arg() == null) {
             return callExpr + " " + docString.trim();
         }
         return callExpr;
@@ -2534,8 +2533,8 @@ public class StepExecutor {
         // Try to evaluate the first token to see if it's a JS function
         // Syntax: "call fun" or "call fun arg" where fun is a JS function variable
         // Note: read('file.js') returns a JS function, read('file.feature') returns a Feature
-        int spaceIdx = StepUtils.findCallArgSeparator(text);
-        String firstToken = spaceIdx > 0 ? text.substring(0, spaceIdx) : text;
+        StepUtils.CallParts parts = StepUtils.splitCallExpr(text);
+        String firstToken = parts.callable();
 
         // Check if it's a read() call for a literal feature file path - use parseCallExpression
         // which properly handles embedded expressions like #(nodes)
@@ -2556,7 +2555,7 @@ public class StepExecutor {
                 // It's a JS function - invoke it. Route the arg through the same
                 // karate-expression entry point used everywhere else (handles
                 // inline JSON with `#(...)`, lists, variables, bare JS).
-                Object arg = spaceIdx > 0 ? evalKarateExpression(text.substring(spaceIdx + 1).trim()) : null;
+                Object arg = parts.arg() != null ? evalKarateExpression(parts.arg()) : null;
                 Object result = arg != null
                         ? fn.call(null, arg)
                         : fn.call(null);
@@ -2570,7 +2569,7 @@ public class StepExecutor {
                 }
                 return;
             } else if (evaluated instanceof FeatureCall || evaluated instanceof Feature) {
-                executeFeatureCall(evaluated, spaceIdx > 0 ? text.substring(spaceIdx + 1).trim() : null, null);
+                executeFeatureCall(evaluated, parts.arg(), null);
                 return;
             }
         }

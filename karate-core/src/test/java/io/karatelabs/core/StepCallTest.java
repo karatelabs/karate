@@ -662,6 +662,34 @@ class StepCallTest {
     }
 
     @Test
+    void testCallReadJsImmediatelyInvoked() throws Exception {
+        // V1 syntax: call read('file.js')(arg) — the JS file is loaded and the returned
+        // function is immediately invoked with the argument. v1 split the expression at
+        // read()'s close paren, treating the trailing `(arg)` as the call argument. v2
+        // required a SPACE before the arg, so with the arg directly appended it tried to
+        // parse the .js file as a Gherkin feature and blew up.
+        Path jsFile = tempDir.resolve("helper.js");
+        Files.writeString(jsFile, """
+            function fn(input) {
+              return { processed: true, original: input };
+            }
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def input = { foo: 'bar' }
+            * def result = call read('helper.js')(input)
+            * match result == { processed: true, original: { foo: 'bar' } }
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(), "call read('file.js')(arg) should invoke the JS function: " + getFailureMessage(result));
+    }
+
+    @Test
     void testCallReadJsNamedFunction() throws Exception {
         // Tests calling a named JS function returned by read('file.js')
         Path jsFile = tempDir.resolve("helper.js");
