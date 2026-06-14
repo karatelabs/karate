@@ -3009,22 +3009,25 @@ public class StepExecutor {
             varName = "response";
             path = remainder;
         } else {
-            // Find space or bracket to split varname from path
             int spaceIdx = remainder.indexOf(' ');
+            int dotIdx = remainder.indexOf('.');
             int bracketIdx = remainder.indexOf('[');
 
-            if (spaceIdx > 0 && (bracketIdx < 0 || spaceIdx < bracketIdx)) {
-                // "varname path" format - e.g., "json $['sp ace']" or "json .foo" or "xml //xpath"
+            if (spaceIdx > 0
+                    && (dotIdx < 0 || spaceIdx < dotIdx)
+                    && (bracketIdx < 0 || spaceIdx < bracketIdx)) {
+                // "varname path" format with an explicit path - e.g. "json $['sp ace']",
+                // "json .foo" or the XPath shorthand "xml //xpath"
                 varName = remainder.substring(0, spaceIdx);
                 path = remainder.substring(spaceIdx).trim();
-            } else if (bracketIdx > 0) {
-                // "varname[*].path" format
-                varName = remainder.substring(0, bracketIdx);
-                path = remainder.substring(bracketIdx);
             } else {
-                // Just varname, no path
-                varName = remainder;
-                path = null;
+                // "varname", "varname.path" or "varname[*].path" - the variable is the leading
+                // identifier and the rest is a JsonPath continuation. Reuse the shared splitter
+                // so "response.data.items[?(@.title=='x')]" roots at "response", not the whole
+                // dotted chain (which getVariable can't resolve).
+                StepUtils.VarAndPath vp = StepUtils.splitVarAndJsonPath(remainder);
+                varName = vp.var;
+                path = vp.path; // already '$'-prefixed
             }
         }
 

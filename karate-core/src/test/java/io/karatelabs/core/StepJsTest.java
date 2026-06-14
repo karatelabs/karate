@@ -705,6 +705,27 @@ class StepJsTest {
     }
 
     @Test
+    void testGetWithDottedPath() {
+        ScenarioRuntime sr = run("""
+            * def response = { data: { items: [1, 2, 3] } }
+            * def items = get response.data.items
+            * match items == [1, 2, 3]
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testGetWithJsonPathFilterOnDottedPath() {
+        ScenarioRuntime sr = run("""
+            * def response = { data: { items: [{ title: 'First', id: 1 }, { title: 'Second', id: 2 }, { title: 'Target', id: 3 }] } }
+            * def filtered = get response.data.items[?(@.title=='Target')]
+            * assert filtered.length == 1
+            * match filtered[0].id == 3
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testGetLastArrayElement() {
         ScenarioRuntime sr = run("""
             * def list = [1, 2, 3, 4]
