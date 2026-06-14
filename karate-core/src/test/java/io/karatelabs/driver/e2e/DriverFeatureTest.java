@@ -156,6 +156,45 @@ class DriverFeatureTest {
     }
 
     /**
+     * Regression guard: OOPIF auto-attach must survive pooled-driver reuse.
+     *
+     * <p>{@code Target.setAutoAttach} is armed once at init on the tab's root
+     * session. Every {@code switchPage()}/{@code close()} drives a DIFFERENT tab
+     * through a fresh flattened CDP session where auto-attach defaults OFF, so
+     * unless the driver re-arms it on each session switch, cross-origin iframes
+     * silently stop attaching and {@code switchFrame()} fails with
+     * "could not find frame".
+     *
+     * <p>The failure is cross-scenario on a reused driver:
+     * {@code PooledDriverProvider.resetDriver()} navigates to {@code about:blank}
+     * but does not re-create the CDP session, so the unarmed session carries over.
+     * This runs the reproduction with a <b>pool of one</b> ({@code parallel(1)})
+     * so scenario 2 deterministically inherits the session scenario 1 left active
+     * on a non-root tab — the conditions seen in the wild with payment-provider
+     * card-field iframes at higher thread counts. Kept out of the {@code features/}
+     * directory (and thus out of {@link #testDriverFeatures()}'s {@code parallel(2)}
+     * sweep) because the reproduction needs a single shared driver and a
+     * deterministic scenario order.
+     */
+    @Test
+    void testOopifSurvivesPooledDriverReuse() {
+        ContainerDriverProvider provider = new ContainerDriverProvider(chrome);
+        SuiteResult result = Runner.path("classpath:io/karatelabs/driver/features-pool/oopif-pool-reuse.feature")
+                .configDir("classpath:io/karatelabs/driver/features/karate-config.js")
+                .outputDir(Path.of("target", "oopif-pool-reports"))
+                .outputConsoleSummary(true)
+                .driverProvider(provider)
+                .parallel(1);  // pool size 1 => scenario 2 reuses scenario 1's driver
+        logger.info("oopif pool-reuse scenarios passed: {}, failed: {}",
+                result.getScenarioPassedCount(), result.getScenarioFailedCount());
+        if (result.isFailed()) {
+            result.getErrors().forEach(error -> logger.error("Test error: {}", error));
+        }
+        assertTrue(result.isPassed(),
+                "cross-origin iframe must still attach on a pooled driver reused after a tab switch");
+    }
+
+    /**
      * Regression guard:
      * screenshot() from Gherkin must embed the image into the HTML report.
      *
