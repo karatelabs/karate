@@ -1466,6 +1466,66 @@ class StepCallTest {
         assertTrue(result.isPassed(), "Functions in object literals should be callable: " + getFailureMessage(result));
     }
 
+    @Test
+    void testCrossReferencedSchemasLoadedViaCall() throws Exception {
+        // Schemas defined in a shared feature reference each other through the
+        // result-variable prefix (schemaList.X). The placeholders cannot resolve
+        // at def-time inside the called feature (schemaList does not exist yet) —
+        // they must survive as raw placeholders and resolve later in the caller's
+        // scope where schemaList is bound. A fail-fast walk of the called feature's
+        // returned variable map would drop the cross-ref keys (resolving to null)
+        // or throw ReferenceError; v1 resolved these lazily.
+        Path schemas = tempDir.resolve("schemas.feature");
+        Files.writeString(schemas, """
+            Feature: Schema definitions with cross-references
+            Scenario: Define schemas
+            * def AddressSchema =
+            ""\"
+            ({
+            street: '##string',
+            city: '##string'
+            })
+            ""\"
+            * def ItemSchema =
+            ""\"
+            ({
+            id: '##number',
+            name: '##string'
+            })
+            ""\"
+            * def OrderSchema =
+            ""\"
+            ({
+            orderId: '#number',
+            shipTo: '##(schemaList.AddressSchema)',
+            items: '##[] schemaList.ItemSchema'
+            })
+            ""\"
+            """);
+
+        Path caller = tempDir.resolve("caller.feature");
+        Files.writeString(caller, """
+            Feature: Schema cross-reference loaded via call read
+            Scenario: cross-referencing schemas resolve from caller scope
+            * def schemaList = call read('schemas.feature')
+            * def testOrder =
+            ""\"
+            {
+              orderId: 123,
+              shipTo: { street: '456 Oak Ave', city: 'Springfield' },
+              items: [{ id: 1, name: 'Widget' }, { id: 2, name: 'Gadget' }]
+            }
+            ""\"
+            * match testOrder == schemaList.OrderSchema
+            # nested schema genuinely validates: a wrong-typed item id must not match
+            * def badOrder = { orderId: 1, shipTo: { street: 'a', city: 'b' }, items: [{ id: 'x', name: 'Y' }] }
+            * match badOrder != schemaList.OrderSchema
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, caller.toString());
+        assertTrue(result.isPassed(), "cross-referenced schemas via call read should resolve: " + getFailureMessage(result));
+    }
+
     private String getFailureMessage(SuiteResult result) {
         if (result.isPassed()) return "none";
         for (FeatureResult fr : result.getFeatureResults()) {

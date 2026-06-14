@@ -2077,9 +2077,7 @@ public class StepExecutor {
                 applyCookiesFromMap(cookieMap);
             }
         } else if (configCookies instanceof Map<?, ?> cookieMap) {
-            // Resolve embedded #(...) expressions on a fresh copy; the configured
-            // map is a live reference (see executeConfigure) and must not be mutated.
-            applyCookiesFromMap((Map<?, ?>) processEmbeddedExpressions(cookieMap, true));
+            applyCookiesFromMap(resolveConfigMap(cookieMap));
         }
 
         // Apply configured headers - may be a Map or a JsCallable
@@ -2092,13 +2090,7 @@ public class StepExecutor {
                 http().headers((Map<String, Object>) headersMap);
             }
         } else if (configHeaders instanceof Map<?, ?> headersMap) {
-            // The configured map is a live reference (see executeConfigure); resolve
-            // embedded #(...) expressions onto a fresh copy each request so later
-            // mutations to the source object are reflected and the config map is
-            // never polluted by per-request header additions.
-            @SuppressWarnings("unchecked")
-            Map<String, Object> resolved = (Map<String, Object>) processEmbeddedExpressions(headersMap, true);
-            http().headers(resolved);
+            http().headers(resolveConfigMap(headersMap));
         }
 
         // Apply configured auth handler
@@ -2940,14 +2932,11 @@ public class StepExecutor {
         }
         expr = expr.trim();
         // Inline relaxed-JSON literal: there is no external object to keep live, so
-        // resolve embedded #(...) expressions now. This preserves the v1 contract
-        // that karate.config.headers reflects resolved values immediately.
+        // evaluate it like any other RHS (resolving embedded #(...) now). This
+        // preserves the v1 contract that karate.config.headers reflects resolved
+        // values immediately.
         if (StringUtils.looksLikeJson(expr)) {
-            try {
-                return processEmbeddedExpressions(Json.of(expr).value(), true);
-            } catch (Exception e) {
-                // fall through to JS eval (e.g. ES6 shorthand)
-            }
+            return evalKarateExpression(expr);
         }
         // Bare variable / JS expression: return the live object so mutations made
         // after the configure step are reflected. Any embedded #(...) it carries is
@@ -3144,6 +3133,18 @@ public class StepExecutor {
             }
         }
         return expr;
+    }
+
+    /**
+     * Resolve a configured {@code headers}/{@code cookies} Map for the current
+     * request. The stored map is a live reference (see {@link #evalConfigReferenceExpression}),
+     * so embedded {@code #(...)} expressions are resolved onto a fresh copy each
+     * request: later mutations to the source object are reflected, and the config
+     * map is never polluted by per-request header/cookie additions.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> resolveConfigMap(Map<?, ?> configMap) {
+        return (Map<String, Object>) processEmbeddedExpressions(configMap, true);
     }
 
     /**
