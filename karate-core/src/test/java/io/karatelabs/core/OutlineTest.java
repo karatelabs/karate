@@ -1376,6 +1376,41 @@ public class OutlineTest {
         assertEquals(5, result.getScenarioPassedCount());
     }
 
+    @Test
+    void testDynamicOutlineObjectColumnExpansion() throws Exception {
+        // A dynamic outline whose row has an OBJECT column must splice that column
+        // into a step body as JSON (not Java Map.toString() `{k=v}`, which fails to
+        // parse). Inner string values stay quoted and embedded <token>s survive for
+        // a later `replace` step. Scalar columns keep their plain string form.
+        Path feature = tempDir.resolve("object-column.feature");
+        Files.writeString(feature, """
+            Feature: dynamic outline object column expansion
+
+            @setup
+            Scenario: data
+            * def testItems = [{ name: 'q1', variables: { input: { category: '<category>' } } }]
+
+            Scenario Outline: <name> - expand object column and replace tokens
+            * def requestVariables = <variables>
+            * replace requestVariables
+            | token    | value   |
+            | category | 'BOOKS' |
+            * json requestVariables = requestVariables
+            * match requestVariables.input.category == 'BOOKS'
+            * match __row.name == 'q1'
+
+            Examples:
+            | karate.setupOnce().testItems |
+            """);
+
+        Feature f = Feature.read(Resource.from(feature, tempDir));
+        FeatureRuntime fr = new FeatureRuntime(null, f);
+        FeatureResult result = fr.call();
+
+        assertEquals(1, result.getPassedCount(), "object column should expand as JSON and replace tokens");
+        assertEquals(0, result.getFailedCount());
+    }
+
     private String getFailureMessage(SuiteResult result) {
         if (result.isPassed()) return "none";
         for (FeatureResult fr : result.getFeatureResults()) {

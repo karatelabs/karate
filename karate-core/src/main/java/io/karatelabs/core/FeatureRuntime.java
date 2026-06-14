@@ -23,6 +23,7 @@
  */
 package io.karatelabs.core;
 
+import io.karatelabs.common.Json;
 import io.karatelabs.common.Resource;
 import io.karatelabs.gherkin.Feature;
 import io.karatelabs.gherkin.FeatureSection;
@@ -651,10 +652,14 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                     Scenario scenario = dynamicTemplateScenario.copy(rowIndex);
                     scenario.setExampleData(exampleData);
 
-                    // Substitute placeholders in steps and name
+                    // Substitute placeholders in steps and name. Object/array column
+                    // values are spliced as JSON (not Java's Map.toString() `{k=v}`,
+                    // which is not valid JSON/JS) so the result parses in a step body
+                    // and inner string values stay quoted; scalars keep their plain
+                    // string form. stringifyStrict does not escape angle brackets, so
+                    // embedded <token>s survive for a later `replace` step.
                     for (String key : exampleData.keySet()) {
-                        Object value = exampleData.get(key);
-                        String resolved = value != null ? value.toString() : "";
+                        String resolved = Json.stringifyStrict(exampleData.get(key));
                         scenario.replace("<" + key + ">", resolved);
                         scenario.replace("${" + key + "}", resolved);
                     }
