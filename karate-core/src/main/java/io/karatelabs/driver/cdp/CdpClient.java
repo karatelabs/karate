@@ -23,6 +23,7 @@
  */
 package io.karatelabs.driver.cdp;
 
+import io.karatelabs.common.ThreadUtils;
 import io.karatelabs.http.HttpUtils;
 import io.karatelabs.http.WsClient;
 import io.karatelabs.http.WsClientOptions;
@@ -56,6 +57,14 @@ public class CdpClient {
     private final Duration defaultTimeout;
     private volatile String sessionId;
 
+    // Two-lane dispatch (see connect() and handleMessage() for the why):
+    // frameRouter processes raw frames strictly in arrival order and completes
+    // response futures; eventDispatcher runs event handlers, also in order, on its
+    // own thread so a handler that issues a blocking send() cannot deadlock the
+    // router that must complete that send's response.
+    private final ExecutorService frameRouter;
+    private final ExecutorService eventDispatcher;
+
     static class PendingRequest {
         final CompletableFuture<CdpResponse> future;
         final String method;
@@ -73,19 +82,31 @@ public class CdpClient {
     }
 
     public static CdpClient connect(String webSocketUrl, Duration defaultTimeout) {
+        // CDP frames MUST be observed in arrival order. The WsClient default hands
+        // each frame to a shared cached pool as an independent task, so under load
+        // two frames from the same connection can be processed concurrently or out
+        // of order — e.g. Target.attachedToTarget / Target.detachedFromTarget pairs
+        // swapping, or Runtime.executionContextCreated racing a session switch.
+        // A dedicated single-thread executor restores per-connection ordering.
+        ExecutorService frameRouter = Executors.newSingleThreadExecutor(
+                ThreadUtils.daemonFactory("cdp-frame-"));
         WsClientOptions options = WsClientOptions.builder(webSocketUrl)
                 .disablePing() // CDP handles its own keepalive
                 .maxPayloadSize(HttpUtils.MEGABYTE * 16) // Screenshots can be large
+                .callbackExecutor(frameRouter)
                 .build();
         WsClient ws = WsClient.connect(options);
-        CdpClient client = new CdpClient(ws, defaultTimeout);
+        CdpClient client = new CdpClient(ws, defaultTimeout, frameRouter);
         client.waitForReady();
         return client;
     }
 
-    private CdpClient(WsClient ws, Duration defaultTimeout) {
+    private CdpClient(WsClient ws, Duration defaultTimeout, ExecutorService frameRouter) {
         this.ws = ws;
         this.defaultTimeout = defaultTimeout;
+        this.frameRouter = frameRouter;
+        this.eventDispatcher = Executors.newSingleThreadExecutor(
+                ThreadUtils.daemonFactory("cdp-event-"));
         setupMessageHandler();
     }
 
@@ -141,7 +162,10 @@ public class CdpClient {
         }
 
         if (map.containsKey("id")) {
-            // Response to a request
+            // Response to a request — complete the future right here on the router
+            // thread. Completing is cheap and never blocks, and it must NOT queue
+            // behind events: an event handler may be blocked in send() waiting for
+            // this very response.
             int id = ((Number) map.get("id")).intValue();
             PendingRequest pr = pending.remove(id);
             if (pr != null) {
@@ -152,10 +176,18 @@ public class CdpClient {
                 logger.trace("received response for fire-and-forget request id: {}", id);
             }
         } else if (map.containsKey("method")) {
-            // Event
+            // Event — hop to the dedicated dispatch thread, preserving order.
+            // Handlers must not run on the router thread: several of them issue
+            // blocking sends (dialog dismissal, Fetch interception), and the
+            // response to such a send is completed by the router — running the
+            // handler there would deadlock until the CDP timeout.
             String method = (String) map.get("method");
             CdpEvent event = new CdpEvent(map);
-            dispatchEvent(method, event);
+            try {
+                eventDispatcher.execute(() -> dispatchEvent(method, event));
+            } catch (RejectedExecutionException e) {
+                logger.trace("event dropped after close: {}", method);
+            }
         }
     }
 
@@ -353,6 +385,16 @@ public class CdpClient {
 
     public void close() {
         ws.close();
+        // The websocket close callback arrives asynchronously and may be rejected
+        // once the executors below are shut down — fail any still-pending futures
+        // here instead of relying on the onClose listener to do it.
+        for (PendingRequest pr : pending.values()) {
+            pr.future.completeExceptionally(
+                    new WsException(WsException.Type.CONNECTION_CLOSED, "cdp client closed"));
+        }
+        pending.clear();
+        frameRouter.shutdown();
+        eventDispatcher.shutdown();
     }
 
     public boolean isOpen() {

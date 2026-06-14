@@ -348,7 +348,7 @@ public class WsClient {
 
     void handleFrame(WsFrame frame) {
         for (Consumer<WsFrame> listener : messageListeners) {
-            callbackExecutor.execute(() -> {
+            dispatch(() -> {
                 try {
                     listener.accept(frame);
                 } catch (Exception e) {
@@ -361,7 +361,7 @@ public class WsClient {
     void handleDisconnect() {
         open = false;
         for (Runnable listener : closeListeners) {
-            callbackExecutor.execute(() -> {
+            dispatch(() -> {
                 try {
                     listener.run();
                 } catch (Exception e) {
@@ -374,13 +374,26 @@ public class WsClient {
 
     void handleError(Throwable cause) {
         for (Consumer<Throwable> listener : errorListeners) {
-            callbackExecutor.execute(() -> {
+            dispatch(() -> {
                 try {
                     listener.accept(cause);
                 } catch (Exception e) {
                     logger.error("error listener error: {}", e.getMessage());
                 }
             });
+        }
+    }
+
+    /**
+     * A caller-supplied callback executor is owned by the caller and may be shut
+     * down before Netty delivers the last frame / close callback — don't let the
+     * rejection propagate into the channel pipeline.
+     */
+    private void dispatch(Runnable task) {
+        try {
+            callbackExecutor.execute(task);
+        } catch (RejectedExecutionException e) {
+            logger.debug("callback dropped, executor already shut down");
         }
     }
 

@@ -616,7 +616,10 @@ public class CdpDriver implements Driver {
                 oopifSessions.put(targetId, attachedSessionId);
                 logger.debug("Attached to isolated iframe (OOPIF): {} session={}",
                         targetInfo.get("url"), attachedSessionId);
-                cdp.method("Runtime.enable").sessionId(attachedSessionId).send();
+                // Fire-and-forget: the response is unused, and this handler runs on
+                // the serialized CDP event-dispatch thread — a blocking send here
+                // would stall every queued event for a round-trip per OOPIF.
+                cdp.method("Runtime.enable").sessionId(attachedSessionId).sendWithoutWaiting();
             }
         });
 
@@ -3004,6 +3007,8 @@ public class CdpDriver implements Driver {
      * 3. Update sessionId - all subsequent CDP commands use this session
      * 4. Re-enable domains - Page/Runtime must be enabled per-session
      *    - This triggers Runtime.executionContextCreated events for new session
+     *    - Target.setAutoAttach is also per-session and must be re-armed, or
+     *      OOPIF (cross-origin iframe) tracking goes dark for this tab
      * 5. Get mainFrameId - each tab has its own frame tree
      * 6. Clear frameContexts - old contexts are invalid for new session
      * 7. Wait for context - ensures executionContextCreated event is processed
@@ -3040,6 +3045,25 @@ public class CdpDriver implements Driver {
         cdp.method("Runtime.enable").send();
         cdp.method("Page.setLifecycleEventsEnabled")
                 .param("enabled", true)
+                .send();
+
+        // Target.setAutoAttach is session-scoped: initialize() armed it on the
+        // websocket's root session, but this tab is driven through the fresh
+        // flattened session created above, where auto-attach is OFF by default.
+        // Without re-arming it here, cross-origin iframes (OOPIFs) in this tab
+        // never fire Target.attachedToTarget, oopifSessions stays empty, and
+        // switchFrame() on such an iframe fails with "could not find frame" —
+        // observed with payment-provider iframes on pooled drivers after a prior
+        // scenario called switchPage()/close(). Stale OOPIF entries belong to the
+        // previously-driven tab and are unreachable from this session, so drop
+        // them; Chrome re-fires attachedToTarget for this tab's existing OOPIFs
+        // as soon as auto-attach lands.
+        oopifTargets.clear();
+        oopifSessions.clear();
+        cdp.method("Target.setAutoAttach")
+                .param("autoAttach", true)
+                .param("waitForDebuggerOnStart", false)
+                .param("flatten", true)
                 .send();
 
         // Get new main frame ID (each tab has its own frame tree)
