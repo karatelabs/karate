@@ -1073,6 +1073,60 @@ class HtmlReportWriterTest {
     }
 
     @Test
+    void testJsKarateCallRendersNestedFeatureLikeDirectCall(@TempDir Path tempDir) throws Exception {
+        // A feature called from inside a JS function (karate.call(...)) must attach its call
+        // results to the invoking step exactly like a direct `call read(...)` keyword does, so the
+        // nested feature shows up in the report. (Was a v1 regression: JS-driven calls rendered
+        // nothing in the report while the direct-call form rendered the called feature.)
+        Path sub = tempDir.resolve("sub.feature");
+        Files.writeString(sub, """
+                Feature: Sub Feature
+
+                Scenario: sub scenario
+                * def result = 'from-sub'
+                * match result == 'from-sub'
+                """);
+        Path main = tempDir.resolve("main.feature");
+        Files.writeString(main, """
+                Feature: Main Feature
+
+                Scenario: call sub feature via JS
+                * def callSub = function(){ return karate.call('sub.feature') }
+                * call callSub
+
+                Scenario: call sub feature directly
+                * call read('sub.feature')
+                """);
+
+        Path reportDir = tempDir.resolve("reports");
+        SuiteResult result = Runner.path(main.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+
+        Path featuresDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
+        String[] featureFiles = featuresDir.toFile().list();
+        assertNotNull(featureFiles);
+        assertEquals(1, featureFiles.length);
+        String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
+
+        // Both scenarios (JS-driven and direct) produce a step carrying nested call results, so the
+        // marker must appear at least twice — once per scenario. A single occurrence would mean the
+        // JS-driven call was dropped from the report.
+        int callResultMarkers = featureHtml.split("\"hasCallResults\": true", -1).length - 1;
+        assertEquals(2, callResultMarkers,
+                "both the JS-driven and direct call should attach nested call results, got " + callResultMarkers);
+        assertTrue(featureHtml.contains("Sub Feature"),
+                "the called feature's name should appear in the report");
+        assertTrue(featureHtml.contains("sub scenario"),
+                "the called feature's scenario should appear in the report");
+    }
+
+    @Test
     void testBeforeScenarioFailureAppearsInReport(@TempDir Path tempDir) throws Exception {
         Path feature = tempDir.resolve("before-fail.feature");
         Files.writeString(feature, """
