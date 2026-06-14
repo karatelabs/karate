@@ -920,6 +920,60 @@ class CallSingleTest {
         assertTrue(callingStep.getCallResults().get(0).isFailed());
     }
 
+    @Test
+    void testCallSingleResultDoesNotEvalLeakedOutlineExamplePlaceholder() throws Exception {
+        // A Scenario Outline puts example-row values such as '#(config.itemId)' into scope as
+        // raw placeholder strings (resolved lazily where they are *used*, e.g. inside request JSON).
+        // When the scenario calls a setup feature that itself uses karate.callSingle(), those
+        // placeholder strings are inherited down into the called features and echoed back in the
+        // callSingle result variable map. The result map must NOT have its embedded expressions
+        // re-evaluated in a scope where 'config' isn't defined yet — that used to throw
+        // "ReferenceError: config is not defined". The placeholders still resolve correctly at
+        // their actual point of use, after the setup call has defined config / regionId.
+        Path initHelper = tempDir.resolve("initHelper.feature");
+        Files.writeString(initHelper, """
+            @ignore
+            Feature: Init helper (called via callSingle)
+            Scenario:
+            * def initialized = true
+            * def timestamp = java.lang.System.currentTimeMillis()
+            """);
+
+        Path setup = tempDir.resolve("setupWithCallSingle.feature");
+        Files.writeString(setup, """
+            @ignore
+            Feature: Setup feature with callSingle
+            Scenario:
+            * def initResult = karate.callSingle('initHelper.feature')
+            * def regionId = 'REGION-001'
+            * def config = { itemId: 'ITEM-12345', groupId: 'GRP-99' }
+            """);
+
+        Path main = tempDir.resolve("embeddedExprInExamples.feature");
+        Files.writeString(main, """
+            Feature: Outline #() in Examples + callSingle in called feature
+
+            Scenario Outline: Examples with variable references + callSingle in called feature
+            * call read('setupWithCallSingle.feature')
+            * def sent = { itemId: <itemId>, region: <region> }
+            * match sent == { itemId: 'ITEM-12345', region: 'REGION-001' }
+
+            Examples:
+            | itemId             | region        |
+            | '#(config.itemId)' | '#(regionId)' |
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(main.toString())
+                .workingDir(tempDir)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed(), "repro 2913: " + getFailureMessage(result));
+    }
+
     private static StepResult findStepWithCallResults(SuiteResult result) {
         for (FeatureResult fr : result.getFeatureResults()) {
             for (ScenarioResult sr : fr.getScenarioResults()) {

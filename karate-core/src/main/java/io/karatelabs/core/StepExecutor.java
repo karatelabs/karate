@@ -1795,10 +1795,15 @@ public class StepExecutor {
             }
         }
 
-        // Default: evaluate as JS
+        // Default: evaluate as JS. The result is data produced by a JS evaluation —
+        // read() JSON, a karate.call/callSingle variable map, a schema template variable —
+        // not a literal the user typed at this step. Resolve embedded expressions
+        // leniently (defer, don't fail-fast) so an unresolved placeholder carried inside
+        // the result (e.g. a Scenario-Outline example value '#(var)' echoed back through a
+        // called feature's returned variables) is left intact instead of crashing the step.
         Object value = runtime.eval(wrapJsonLikeExpression(expr));
         if (value instanceof Map || value instanceof List) {
-            value = processEmbeddedExpressions(value);
+            value = processEmbeddedExpressions(value, true);
         }
         return value;
     }
@@ -3097,6 +3102,27 @@ public class StepExecutor {
      * - ##(expr) evaluates expr; if null, removes the key (returns REMOVE_MARKER)
      */
     private Object processEmbeddedExpressions(Object value) {
+        return processEmbeddedExpressions(value, false);
+    }
+
+    /**
+     * Walk a value tree resolving embedded {@code #(...)} / {@code ##(...)} expressions.
+     *
+     * <p>{@code lenient} controls what happens when an expression cannot be evaluated
+     * (e.g. {@code ReferenceError} because a referenced variable isn't defined):
+     * <ul>
+     *   <li>{@code false} (user-authored data — inline JSON/XML literals, {@code def text},
+     *       etc.): inline {@code #(...)} fail-fast, matching v2's interpolation contract.</li>
+     *   <li>{@code true} (data returned by a JS evaluation — {@code read()} JSON, the
+     *       variable map from {@code karate.call}/{@code callSingle}, schema templates):
+     *       leave the placeholder untouched, mirroring v1's {@code recurseEmbeddedExpressions},
+     *       which always caught eval failures and left the node unchanged. This is what
+     *       lets a called feature's returned variables carry an unresolved Scenario-Outline
+     *       example placeholder (e.g. {@code '#(config.itemId)'}) without blowing up the
+     *       calling step.</li>
+     * </ul>
+     */
+    private Object processEmbeddedExpressions(Object value, boolean lenient) {
         if (value instanceof Node) {
             processXmlEmbeddedExpressions((Node) value);
             return value;
@@ -3108,7 +3134,7 @@ public class StepExecutor {
             Map<String, Object> map = (Map<String, Object>) value;
             Map<String, Object> result = new LinkedHashMap<>();
             for (Map.Entry<String, Object> entry : map.entrySet()) {
-                Object processed = processEmbeddedExpressions(entry.getValue());
+                Object processed = processEmbeddedExpressions(entry.getValue(), lenient);
                 if (processed != REMOVE_MARKER) {
                     result.put(entry.getKey(), processed);
                 }
@@ -3119,14 +3145,14 @@ public class StepExecutor {
             List<Object> list = (List<Object>) value;
             List<Object> result = new ArrayList<>();
             for (Object item : list) {
-                Object processed = processEmbeddedExpressions(item);
+                Object processed = processEmbeddedExpressions(item, lenient);
                 if (processed != REMOVE_MARKER) {
                     result.add(processed);
                 }
             }
             return result;
         } else if (value instanceof String str) {
-            return processEmbeddedString(str);
+            return processEmbeddedString(str, lenient);
         }
         return value;
     }
@@ -3134,7 +3160,7 @@ public class StepExecutor {
     /**
      * Process a string that may contain embedded expressions.
      */
-    private Object processEmbeddedString(String str) {
+    private Object processEmbeddedString(String str, boolean lenient) {
         // Check for optional embedded: ##(...)
         if (str.startsWith("##(") && str.endsWith(")")) {
             String expr = str.substring(3, str.length() - 1);
@@ -3142,6 +3168,10 @@ public class StepExecutor {
                 Object result = runtime.eval(expr);
                 return result == null ? REMOVE_MARKER : result;
             } catch (Exception e) {
+                // Lenient (JS-eval result): leave the placeholder untouched, like v1.
+                if (lenient) {
+                    return str;
+                }
                 // For optional ##() expressions, treat undefined variables as null (remove)
                 // V1 compatibility: undefined variables in ##() should result in removal
                 if (e instanceof EngineException ee && "ReferenceError".equals(ee.getJsErrorName())) {
@@ -3182,7 +3212,7 @@ public class StepExecutor {
         // Check for embedded expressions within a larger string
         // e.g., "Hello #(name)!" or "Value: ##(optional)"
         if (str.contains("#(")) {
-            return processInlineEmbedded(str);
+            return processInlineEmbedded(str, lenient);
         }
         return str;
     }
@@ -3190,14 +3220,23 @@ public class StepExecutor {
     /**
      * Process inline embedded expressions like "Hello #(name)!".
      *
-     * Note: the lazy-defer-on-eval-failure treatment applied to whole-value
-     * `#(...)` strings (see processEmbeddedString) is intentionally NOT applied
-     * here. For a whole-value placeholder, the match engine can resolve `#(...)`
+     * <p>Note: for user-authored strings ({@code lenient == false}) the lazy-defer-on-eval-failure
+     * treatment applied to whole-value `#(...)` strings (see processEmbeddedString) is intentionally
+     * NOT applied here. For a whole-value placeholder, the match engine can resolve `#(...)`
      * later (Operation.macroEqualsExpected); for an inline substitution there is
      * no such recovery — leaving a literal `#(name)` inside the string would be
      * surprising rather than helpful. So eval failures here fail fast.
+     *
+     * <p>When {@code lenient == true} the string is incidental data produced by a JS
+     * evaluation (e.g. a variable map returned by {@code karate.call}/{@code callSingle}),
+     * not something the user wrote at this step. A failing token is then left verbatim,
+     * matching v1's data-tree handling, so a leaked unresolved placeholder doesn't fail the step.
      */
     private Object processInlineEmbedded(String str) {
+        return processInlineEmbedded(str, false);
+    }
+
+    private Object processInlineEmbedded(String str, boolean lenient) {
         StringBuilder result = new StringBuilder();
         int i = 0;
         while (i < str.length()) {
@@ -3246,7 +3285,18 @@ public class StepExecutor {
             }
 
             String expr = str.substring(exprStart, j - 1);
-            Object value = runtime.eval(expr);
+            Object value;
+            try {
+                value = runtime.eval(expr);
+            } catch (Exception e) {
+                if (lenient) {
+                    // Leave the failing token (#(...) / ##(...)) verbatim and move on.
+                    result.append(str, hashPos, j);
+                    i = j;
+                    continue;
+                }
+                throw e;
+            }
             if (optional && value == null) {
                 // For inline optional, substitute empty string
                 // (key removal only applies to whole-value expressions)
