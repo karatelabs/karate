@@ -71,6 +71,10 @@ Feature: Out-of-Process Iframe (OOPIF) Support
     * def frameText = text('#frame-text')
     * match frameText == 'This content is inside the cross-origin iframe.'
     * switchFrame(null)
-    # close the popup so later scenarios see a clean slate
-    * script('window.__popup.close(), null')
+    # close the popup so later scenarios see a clean slate — switch to it and
+    # close via the driver rather than a window.__popup JS handle, which is not
+    # reliably reachable from the parent tab's execution context after the
+    # switchPage/switchFrame dance above (it threw "undefined" intermittently)
+    * switchPage(crossOriginUrl + '/oopif')
+    * driver.close()
     * delay(200)
