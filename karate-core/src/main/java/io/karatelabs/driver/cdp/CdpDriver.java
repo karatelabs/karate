@@ -1090,10 +1090,8 @@ public class CdpDriver implements Driver {
         // spurious waitUntil/waitFor timeouts under parallel load. Poll fast instead, but
         // keep the SAME overall time budget (retryCount * retryInterval) so a genuinely
         // slow context swap on a loaded CI box still recovers.
-        int retryInterval = options.getRetryInterval();
-        int transientInterval = Math.min(retryInterval, 100);
-        int maxRetries = Math.max(options.getRetryCount(),
-                (int) Math.ceil((double) options.getRetryCount() * retryInterval / Math.max(1, transientInterval)));
+        int transientInterval = fastPollInterval();
+        int maxRetries = fastPollAttempts();
 
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
             CdpMessage message = cdp.method("Runtime.evaluate")
@@ -2897,24 +2895,45 @@ public class CdpDriver implements Driver {
      */
     public void switchPage(String titleOrUrl) {
         logger.debug("switch page by title/url: {}", titleOrUrl);
+        // Retry the enumeration: Target.getTargets can transiently lag a freshly
+        // opened/closed tab, or report a page whose url/title field is not yet
+        // populated while it is still loading - especially under parallel load. A
+        // single-shot lookup then spuriously throws "no page found" (observed flaky
+        // on tab-switch under CI). Poll within the same budget as other auto-waits.
+        int interval = fastPollInterval();
+        int maxAttempts = fastPollAttempts();
+        for (int attempt = 0; ; attempt++) {
+            String targetId = findPageTarget(titleOrUrl);
+            if (targetId != null) {
+                activateTarget(targetId);
+                return;
+            }
+            if (attempt >= maxAttempts) {
+                break;
+            }
+            sleep(interval);
+        }
+        throw new DriverException("no page found matching: " + titleOrUrl);
+    }
+
+    /**
+     * Find a page target whose title or URL contains the given substring, or null.
+     */
+    private String findPageTarget(String titleOrUrl) {
         CdpResponse response = cdp.method("Target.getTargets").send();
         List<Map<String, Object>> targets = response.getResult("targetInfos");
         if (targets != null) {
             for (Map<String, Object> target : targets) {
-                String type = (String) target.get("type");
-                if (!"page".equals(type)) continue;
-
+                if (!"page".equals(target.get("type"))) continue;
                 String title = (String) target.get("title");
                 String url = (String) target.get("url");
                 if ((title != null && title.contains(titleOrUrl)) ||
                         (url != null && url.contains(titleOrUrl))) {
-                    String targetId = (String) target.get("targetId");
-                    activateTarget(targetId);
-                    return;
+                    return (String) target.get("targetId");
                 }
             }
         }
-        throw new DriverException("no page found matching: " + titleOrUrl);
+        return null;
     }
 
     /**
@@ -2927,12 +2946,21 @@ public class CdpDriver implements Driver {
         if (targetId == null) {
             throw new DriverException("targetId is null");
         }
-        // Verify the target exists as a page target before activating
-        List<String> pages = getPages();
-        if (!pages.contains(targetId)) {
-            throw new DriverException("no page found with targetId: " + targetId);
+        // Verify the target exists as a page target before activating, retrying within
+        // the auto-wait budget: Target.getTargets can briefly lag a freshly opened tab.
+        int interval = fastPollInterval();
+        int maxAttempts = fastPollAttempts();
+        for (int attempt = 0; ; attempt++) {
+            if (getPages().contains(targetId)) {
+                activateTarget(targetId);
+                return;
+            }
+            if (attempt >= maxAttempts) {
+                break;
+            }
+            sleep(interval);
         }
-        activateTarget(targetId);
+        throw new DriverException("no page found with targetId: " + targetId);
     }
 
     /**
@@ -3147,6 +3175,26 @@ public class CdpDriver implements Driver {
     }
 
     // ========== Utilities ==========
+
+    /**
+     * Fast poll interval (ms) for transient driver conditions (execution-context
+     * recovery, target enumeration lag). Capped well below the element-poll interval
+     * so a routine post-navigation hiccup recovers quickly instead of burning ~500ms.
+     */
+    private int fastPollInterval() {
+        return Math.min(options.getRetryInterval(), 100);
+    }
+
+    /**
+     * Number of fast-poll attempts that preserve the configured retry time budget
+     * (retryCount * retryInterval) - so a genuinely slow box still gets the full wait,
+     * but a fast recovery returns promptly.
+     */
+    private int fastPollAttempts() {
+        int interval = fastPollInterval();
+        return Math.max(options.getRetryCount(),
+                (int) Math.ceil((double) options.getRetryCount() * options.getRetryInterval() / Math.max(1, interval)));
+    }
 
     /**
      * Centralized retry mechanism with warning logging.
