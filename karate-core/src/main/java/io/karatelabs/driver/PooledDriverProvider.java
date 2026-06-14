@@ -360,6 +360,12 @@ public class PooledDriverProvider implements DriverProvider {
             }
             driver.setUrl("about:blank");
             driver.clearCookies();
+            // Barrier on readiness before reuse: setUrl("about:blank") returns early
+            // (about: URLs skip waitForPageLoad), so the fresh execution context may
+            // still be settling. waitUntilReady() blocks until it is live so the next
+            // scenario's first call never races a not-yet-ready context. No-op on
+            // backends that establish readiness synchronously.
+            driver.waitUntilReady();
         } catch (Exception e) {
             // Reset itself failed — channel is already sick (setUrl timeout, websocket closed, etc.)
             logger.warn("Error resetting driver state, will discard: {}", e.getMessage());

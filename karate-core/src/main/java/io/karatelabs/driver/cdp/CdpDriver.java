@@ -52,7 +52,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
@@ -101,6 +103,22 @@ public class CdpDriver implements Driver {
     // Frame tracking
     private Frame currentFrame;
     private final Map<String, Integer> frameContexts = new ConcurrentHashMap<>();
+
+    // Readiness of the main frame's default execution context, modelled as an
+    // event-completed future rather than a polled map read. This is the single
+    // authoritative "the page can run script now" signal:
+    //   - Runtime.executionContextCreated for the main frame COMPLETES it (the id).
+    //   - executionContextsCleared / a tab switch / a cross-document navigation
+    //     INVALIDATES it (a fresh, incomplete future), so any operation that needs
+    //     the context simply awaits the NEXT one instead of racing a stale/absent id.
+    // Replaces the old poll-with-timeout (waitForMainFrameContext) + null/stale
+    // getFrameContext + transient-context-error retry duct tape, all of which existed
+    // only because there was no reliable readiness signal.
+    private volatile CompletableFuture<Integer> mainContextReady = new CompletableFuture<>();
+    // Short bound for the per-eval context wait (getFrameContext). The context normally
+    // settles in well under this; if it is exceeded we fall back to CDP's default
+    // context rather than block the eval. Explicit barriers use the full timeout.
+    private static final long CONTEXT_READY_POLL_MS = 2000;
 
     // OOPIF (Out-of-Process Iframe) tracking
     private final Map<String, Map<String, Object>> oopifTargets = new ConcurrentHashMap<>();
@@ -323,46 +341,67 @@ public class CdpDriver implements Driver {
         // This handles the case where DOMContentLoaded fired before we were listening
         checkIfPageAlreadyLoaded();
 
-        // Wait for main frame execution context to be ready
-        // This prevents transient context errors on the first script() call
-        waitForMainFrameContext();
+        // Block until the main frame execution context is live (completed by the
+        // Runtime.executionContextCreated that Runtime.enable above triggers). This is
+        // the readiness gate that prevents transient context errors on first script().
+        awaitMainContext(options.getTimeoutDuration().toMillis());
     }
 
     /**
-     * Wait for the main frame's execution context to be registered.
-     * Called during initialization to prevent transient errors on first use.
-     *
-     * After Runtime.enable, CDP sends executionContextCreated events asynchronously.
-     * Without this wait, the first script() call might happen before the context
-     * is registered, causing a transient error and retry.
+     * Record that the main frame's default execution context is live (driven by
+     * Runtime.executionContextCreated). Completes the readiness future so any thread
+     * blocked in {@link #awaitMainContext} proceeds immediately.
      */
-    private void waitForMainFrameContext() {
-        int maxWaitMs = 1000;
-        int pollInterval = 50;
-        long deadline = System.currentTimeMillis() + maxWaitMs;
-
-        while (System.currentTimeMillis() < deadline) {
-            Integer contextId = frameContexts.get(mainFrameId);
-            if (contextId != null) {
-                // Verify the context works
-                try {
-                    CdpResponse response = cdp.method("Runtime.evaluate")
-                            .param("expression", "1")
-                            .param("returnByValue", true)
-                            .param("contextId", contextId)
-                            .send();
-                    if (!response.isError()) {
-                        logger.debug("main frame context ready: contextId={}", contextId);
-                        return;
-                    }
-                } catch (Exception e) {
-                    // Context not ready yet
-                }
-            }
-            sleep(pollInterval);
+    private void completeMainContext(int contextId) {
+        // Kept in frameContexts for diagnostics/consistency; the main-frame READ path is
+        // the readiness future below, not this map entry.
+        frameContexts.put(mainFrameId, contextId);
+        CompletableFuture<Integer> f = mainContextReady;
+        if (f.isDone()) {
+            // A new context for an already-ready frame (re-enable / same-frame replace).
+            mainContextReady = CompletableFuture.completedFuture(contextId);
+        } else {
+            f.complete(contextId);
         }
-        // Timeout is not fatal - retry logic will handle it, but log for diagnostics
-        logger.warn("timeout waiting for main frame context during init (will retry on first use)");
+    }
+
+    /**
+     * Invalidate the main frame's execution context (navigation / tab switch tore it
+     * down). Installs a fresh, incomplete future so the next {@link #awaitMainContext}
+     * blocks until the replacement context arrives, instead of handing out a dead id.
+     * <p>
+     * CONCURRENCY INVARIANT: this is called from the CDP event-dispatch thread
+     * (executionContextsCleared) and from the scenario thread (activateTarget). The
+     * scenario-thread caller (activateTarget) ALWAYS issues Runtime.enable immediately
+     * after, which guarantees a fresh executionContextCreated that completes the new
+     * future. Do NOT add a scenario-thread invalidate WITHOUT a following Runtime.enable
+     * (or other guaranteed context creation) or the future will strand incomplete and
+     * every later main-frame eval will wait out the bound before falling back.
+     */
+    private void invalidateMainContext() {
+        if (mainFrameId != null) {
+            frameContexts.remove(mainFrameId);
+        }
+        if (mainContextReady.isDone()) {
+            mainContextReady = new CompletableFuture<>();
+        }
+        // if already incomplete, a replacement context is already being awaited
+    }
+
+    /**
+     * Block until the main frame's default execution context is live, returning its
+     * id, or {@code null} if it does not become ready within {@code timeoutMs} (the
+     * caller then falls back to CDP's default context). When the context is already
+     * live this returns immediately. This is the replacement for the old poll loop:
+     * it waits exactly as long as needed (the executionContextCreated event), never a
+     * fixed 1s that the event can miss under load.
+     */
+    private Integer awaitMainContext(long timeoutMs) {
+        try {
+            return mainContextReady.get(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
@@ -533,7 +572,12 @@ public class CdpDriver implements Driver {
                     String frameId = (String) auxData.get("frameId");
                     Boolean isDefault = (Boolean) auxData.get("isDefault");
                     if (frameId != null && Boolean.TRUE.equals(isDefault)) {
-                        frameContexts.put(frameId, contextId.intValue());
+                        if (frameId.equals(mainFrameId)) {
+                            // Authoritative readiness signal for the main frame.
+                            completeMainContext(contextId.intValue());
+                        } else {
+                            frameContexts.put(frameId, contextId.intValue());
+                        }
                         logger.trace("execution context created: frameId={}, contextId={}", frameId, contextId);
                     }
                 }
@@ -549,6 +593,9 @@ public class CdpDriver implements Driver {
                 return;
             }
             frameContexts.clear();
+            // Main context is gone until the new document creates one - flip the
+            // readiness future to incomplete so callers await the replacement.
+            invalidateMainContext();
             logger.trace("execution contexts cleared");
         });
 
@@ -821,66 +868,29 @@ public class CdpDriver implements Driver {
     }
 
     /**
-     * Verify that JS execution works in the current context.
-     * This ensures the execution context is properly set up after page load.
+     * Verify that JS execution works in the context script() will actually use.
+     * <p>
+     * The page is only truly "loaded" once the main frame's default execution context
+     * is live - that is the single thing the readiness future tracks. We await it
+     * briefly (it is usually already complete; during a navigation swap it settles in
+     * milliseconds) and probe THAT context, not CDP's default. This keeps
+     * waitForPageLoad() from declaring success while a navigation is mid-swap, which
+     * previously let the first script() race a dead context.
      */
     private boolean verifyJsExecution() {
+        Integer contextId = awaitMainContext(1000);
         try {
-            CdpResponse response = cdp.method("Runtime.evaluate")
+            CdpMessage probe = cdp.method("Runtime.evaluate")
                     .param("expression", "typeof document !== 'undefined'")
-                    .param("returnByValue", true)
-                    .send();
-            if (!Boolean.TRUE.equals(response.getResult("result.value"))) {
-                return false;
+                    .param("returnByValue", true);
+            if (contextId != null) {
+                probe.param("contextId", contextId);
             }
+            CdpResponse response = probe.send();
+            return !response.isError() && Boolean.TRUE.equals(response.getResult("result.value"));
         } catch (Exception e) {
             logger.warn("JS execution verification failed: {}", e.getMessage());
             return false;
-        }
-        // The default-context probe above only proves the session can run JS - but
-        // script() targets the EXPLICIT per-frame context from frameContexts (see
-        // getFrameContext). After a cross-document navigation a dead contextId can
-        // linger in that map until Runtime.executionContextsCleared is processed, and
-        // the single-threaded CDP event dispatch can delay that under load (e.g. OOPIF
-        // churn on the same driver). Returning "loaded" here while a stale id is still
-        // mapped lets the first real script() race a dead context - the source of the
-        // "transient context error" retries that then cascade into waitUntil/waitFor
-        // timeouts. Probe+evict the stale main-frame entry so getFrameContext() falls
-        // back to the live default context instead. We do NOT block on a fresh context
-        // arriving (that would risk a navigation timeout if the event is lost); evicting
-        // is enough to make the next script() use a good context.
-        evictStaleMainFrameContext();
-        return true;
-    }
-
-    /**
-     * If the main frame has an execution context mapped but that context is already
-     * dead, remove it. Scoped to the main frame only: for a switched same-process
-     * iframe the per-frame context is the ONLY way to reach it, so evicting there would
-     * silently retarget script() at the main frame. OOPIFs use their session's default
-     * context (no explicit id), so they are skipped too.
-     */
-    private void evictStaleMainFrameContext() {
-        if (currentFrame != null || mainFrameId == null) {
-            return;
-        }
-        Integer contextId = frameContexts.get(mainFrameId);
-        if (contextId == null) {
-            return; // nothing mapped; getFrameContext() will use the live default context
-        }
-        try {
-            CdpResponse probe = cdp.method("Runtime.evaluate")
-                    .param("expression", "1")
-                    .param("returnByValue", true)
-                    .param("contextId", contextId)
-                    .send();
-            if (isTransientContextError(probe)) {
-                frameContexts.remove(mainFrameId, contextId);
-                logger.debug("evicted stale main-frame execution context: {}", contextId);
-            }
-        } catch (Exception e) {
-            frameContexts.remove(mainFrameId, contextId);
-            logger.debug("evicted main-frame execution context after probe error: {}", contextId);
         }
     }
 
@@ -1125,17 +1135,15 @@ public class CdpDriver implements Driver {
             // Check for transient context errors that should be retried
             if (isTransientContextError(response)) {
                 if (attempt < maxRetries) {
-                    // The contextId we just used is dead (e.g. a click triggered a
-                    // navigation between getFrameContext() and now). For the main frame,
-                    // drop the dead entry so the retry resolves a fresh context - or the
-                    // live session default - instead of reusing the known-dead id every
-                    // attempt. Scoped to the main frame: a switched same-process iframe's
-                    // context is the only handle to it, so we let the sleep-and-retry wait
-                    // for executionContextCreated to refresh it rather than retargeting.
-                    if (contextId != null && currentFrame == null) {
-                        frameContexts.remove(mainFrameId, contextId);
-                    }
-                    // Fast poll with sleep - let CDP events update context in background
+                    // Safety net only: the readiness future (getFrameContext awaits it)
+                    // normally guarantees a live context here. A context can still die
+                    // between the await and the send (e.g. a click triggered a navigation);
+                    // the navigation's executionContextsCleared event invalidates the
+                    // future, so the retry's getFrameContext() blocks for the replacement
+                    // context on its own. We deliberately do NOT invalidate from here: a
+                    // -32000 that is NOT a navigation would otherwise strand the future
+                    // incomplete (no new executionContextCreated would ever arrive) and
+                    // make every later eval wait out the full timeout.
                     logger.warn("transient context error, retry {}/{}: {}", attempt + 1, maxRetries, truncate(expression, 100));
                     sleep(transientInterval);
                     continue;
@@ -1191,17 +1199,26 @@ public class CdpDriver implements Driver {
      * Get execution context ID for the current frame.
      *
      * DESIGN NOTES:
-     * - When in main frame (currentFrame == null), we explicitly use mainFrameId context
-     * - Previously returned null for main frame, relying on CDP's "default" context
-     * - This caused flaky "Switch back to main frame" tests because CDP's default context
-     *   is unreliable immediately after frame navigation (switchFrame(null))
-     * - The frameContexts map is updated by Runtime.executionContextCreated events
-     * - Returns null if context not yet registered (rare, handled by retry logic)
+     * - When in main frame (currentFrame == null), we AWAIT the readiness future so we
+     *   never hand out a stale or not-yet-registered id. When the context is already
+     *   live this returns immediately; during the brief window after a navigation it
+     *   blocks until the replacement executionContextCreated arrives. This replaced the
+     *   old "return possibly-null/stale map value and let retry logic cope" approach,
+     *   which was the source of the transient-context-error flakiness under load.
+     * - Using CDP's default context for the main frame is unreliable right after a
+     *   frame switch (switchFrame(null)), hence the explicit id.
+     * - Returns null if the context is not ready within a SHORT bound, in which case
+     *   the caller falls back to CDP's default context. The bound is deliberately short
+     *   (not the full page-load timeout): this is a per-eval hot path, so if a
+     *   navigation ever clears the context without a replacement arriving (download,
+     *   204, aborted/blocked navigation) we degrade to the default context quickly
+     *   rather than blocking every eval for the full timeout. The long, authoritative
+     *   wait lives only in the explicit barriers (initialize / activateTarget /
+     *   waitUntilReady).
      */
     private Integer getFrameContext() {
         if (currentFrame == null) {
-            // Explicit main frame context - more reliable than CDP's default after frame switches
-            return frameContexts.get(mainFrameId);
+            return awaitMainContext(CONTEXT_READY_POLL_MS);
         }
         // For OOPIFs, cdp.sessionId is routed to the iframe's own CDP session. Each session
         // has its own "default" execution context, which IS the OOPIF's main world. Passing
@@ -1768,8 +1785,9 @@ public class CdpDriver implements Driver {
     }
 
     /**
-     * Wait for a frame's execution context to be ready for JS execution.
-     * Similar to waitForMainFrameContext() but for iframe contexts.
+     * Wait for a (non-main) frame's execution context to be ready for JS execution.
+     * The main frame uses the event-completed readiness future (awaitMainContext);
+     * iframe contexts still use this bounded poll of the frameContexts map.
      */
     private void waitForFrameContextReady(String frameId) {
         int maxWaitMs = 1000;
@@ -1813,6 +1831,12 @@ public class CdpDriver implements Driver {
         ACTIVE.remove(this);
 
         logger.debug("quitting CDP driver");
+
+        // Unblock anyone awaiting readiness (e.g. a script() racing this quit) - once
+        // the CDP connection is closed no executionContextCreated will ever complete it.
+        if (!mainContextReady.isDone()) {
+            mainContextReady.completeExceptionally(new DriverException("driver quit"));
+        }
 
         // Close CDP connection
         if (cdp != null) {
@@ -1913,6 +1937,20 @@ public class CdpDriver implements Driver {
 
     public boolean isTerminated() {
         return terminated;
+    }
+
+    @Override
+    public boolean isReady() {
+        CompletableFuture<Integer> f = mainContextReady;
+        return f.isDone() && !f.isCompletedExceptionally();
+    }
+
+    @Override
+    public void waitUntilReady() {
+        // The main frame execution context being live is the authoritative readiness
+        // signal (see mainContextReady). Block on it up to the configured timeout;
+        // returns immediately when already ready.
+        awaitMainContext(options.getTimeoutDuration().toMillis());
     }
 
     /**
@@ -3103,13 +3141,20 @@ public class CdpDriver implements Driver {
      *    - Target.setAutoAttach is also per-session and must be re-armed, or
      *      OOPIF (cross-origin iframe) tracking goes dark for this tab
      * 5. Get mainFrameId - each tab has its own frame tree
-     * 6. Clear frameContexts - old contexts are invalid for new session
-     * 7. Wait for context - ensures executionContextCreated event is processed
-     *    before returning (prevents "context not found" errors on first script())
+     * 6. Invalidate the readiness future - old context is invalid for the new session
+     * 7. Enable domains - Runtime.enable triggers executionContextCreated for the new
+     *    main frame, which COMPLETES the readiness future
+     * 8. Await readiness - block until that context is live before returning
+     *
+     * ORDER MATTERS: mainFrameId is resolved and the readiness future invalidated
+     * BEFORE Runtime.enable, so the executionContextCreated that Runtime.enable triggers
+     * is attributed to the correct (new) main frame and completes the fresh future. The
+     * previous code cleared the context map AFTER Runtime.enable, racing the event it had
+     * just triggered (the event could populate then be wiped), which is why switchPage()
+     * intermittently timed out waiting for a context that never re-fired.
      *
      * CRITICAL: Session filtering in event handlers (see setupEventHandlers) ensures
-     * that only events from the CURRENT session update frameContexts. Without this,
-     * events from old sessions would corrupt the context map.
+     * that only events from the CURRENT session update frame state.
      */
     private void activateTarget(String targetId) {
         this.currentTargetId = targetId;
@@ -3132,6 +3177,15 @@ public class CdpDriver implements Driver {
             // Sync the new page session
             this.pageSessionId = sessionId;
         }
+
+        // Resolve the new tab's main frame id BEFORE enabling domains (works without
+        // Page.enable, same as initialize()), then invalidate the readiness future so
+        // the executionContextCreated that Runtime.enable triggers below completes a
+        // fresh future for THIS frame rather than racing a clear() afterwards.
+        CdpResponse frameResponse = cdp.method("Page.getFrameTree").send();
+        mainFrameId = frameResponse.getResult("frameTree.frame.id");
+        currentFrame = null;
+        invalidateMainContext();
 
         // Re-enable required domains on new target (triggers executionContextCreated)
         cdp.method("Page.enable").send();
@@ -3159,19 +3213,9 @@ public class CdpDriver implements Driver {
                 .param("flatten", true)
                 .send();
 
-        // Get new main frame ID (each tab has its own frame tree)
-        CdpResponse frameResponse = cdp.method("Page.getFrameTree").send();
-        mainFrameId = frameResponse.getResult("frameTree.frame.id");
-
-        // Reset frame state (old contexts are invalid for new session)
-        currentFrame = null;
-        frameContexts.clear();
-
-        // Wait for execution context to be ready before returning
-        // Without this, script() calls immediately after switchPage() fail
-        // with "Cannot find context" errors because the executionContextCreated
-        // event hasn't been processed yet
-        waitForMainFrameContext();
+        // Block until the new tab's execution context is live before returning, so a
+        // script() immediately after switchPage() never races a "context not found".
+        awaitMainContext(options.getTimeoutDuration().toMillis());
     }
 
     // ========== Utilities ==========

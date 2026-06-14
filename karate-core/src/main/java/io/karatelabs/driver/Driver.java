@@ -1460,6 +1460,26 @@ public interface Driver extends CoreDriver, SimpleObject {
         return true;
     }
 
+    /**
+     * Whether the driver is ready to accept script/element calls right now — i.e. the
+     * page's execution context is live (not mid-navigation / mid-tab-switch). Cheap and
+     * non-blocking. Backends without an explicit readiness signal report true.
+     */
+    default boolean isReady() {
+        return true;
+    }
+
+    /**
+     * Block until the driver is ready to accept calls (execution context live), or the
+     * configured timeout elapses. Idempotent and safe to call when already ready (returns
+     * immediately). Intended for clients, pools, and providers that want an explicit
+     * barrier before driving — e.g. {@link PooledDriverProvider} after acquiring/reusing
+     * a driver, so a scenario's first call never races a not-yet-ready context. The
+     * default is a no-op for backends that establish readiness synchronously.
+     */
+    default void waitUntilReady() {
+    }
+
     // ========== Accessors ==========
 
     /**
