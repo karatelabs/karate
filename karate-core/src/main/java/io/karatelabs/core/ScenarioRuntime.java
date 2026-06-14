@@ -1038,13 +1038,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // This must happen before the scenario ends so Gatling receives all HTTP metrics
             logLastPerfEvent(result.getFailureMessageForDisplay());
 
-            // Close channels (kafka, grpc, etc.)
-            closeChannels();
-
-            // Close driver if it was initialized
-            closeDriver();
-
             // Invoke afterScenario hook - runs on both pass and fail paths so teardown always executes.
+            // Must run BEFORE closeChannels/closeDriver: the hook still owns the scenario's
+            // resources, so a teardown body can take an error screenshot or drain a channel.
+            // Running it after closeDriver() released the driver to the pool meant the hook
+            // raced whichever scenario acquired that driver next under parallel execution.
             // Skipped when the scenario never actually started (SCENARIO_ENTER vetoed or suite aborted).
             // A hook exception fails the scenario (same convention as a step failure); wrap the hook
             // body in try/catch to suppress. The primary step error, if any, is preserved as the root
@@ -1058,6 +1056,12 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                     result.setEndTime(System.currentTimeMillis());
                 }
             }
+
+            // Close channels (kafka, grpc, etc.)
+            closeChannels();
+
+            // Close driver if it was initialized
+            closeDriver();
 
             // Handle @fail tag - invert pass/fail result
             if (scenario.isFail()) {
