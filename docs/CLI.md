@@ -179,7 +179,7 @@ karate run -n "Parameterized check" tests/outline.feature:9
 | `-D, --dryrun` | Skip step execution; @setup scenarios still run. See [Dry Run](#dry-run). |
 | `--no-color` | Disable colored output |
 | `--log-report <level>` | Threshold for what gets captured into reports (HTML/JSONL/Cucumber/JUnit). Default: `debug`. |
-| `--log-console <level>` | Threshold for SLF4J/console output via Logback. Default: `info` (inherited from logback.xml). |
+| `--log-console <level>` | Threshold for SLF4J/console output via Logback: `trace`/`debug`/`info`/`warn`/`error`/`off` (alias `none`). Default: `info`. Use `off`/`none` to silence the console completely (HTTP traffic still reaches the HTML report — see [DESIGN.md § Logging](./DESIGN.md#two-thresholds-report-vs-console)). |
 | `-f, --format <formats>` | Output formats (see below) |
 | `--listener <classes>` | Comma-separated RunListener class names |
 | `--listener-factory <classes>` | Comma-separated RunListenerFactory class names |

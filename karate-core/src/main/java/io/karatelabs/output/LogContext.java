@@ -28,7 +28,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Thread-local log collector for scenario execution.
@@ -62,6 +64,21 @@ public class LogContext {
     public static final Logger CONSOLE_LOGGER = LoggerFactory.getLogger("karate.console");
 
     private static LogLevel threshold = LogLevel.INFO;
+
+    /**
+     * Logger names mutated by {@link #setRuntimeLogLevel} and captured/restored by
+     * {@link #snapshot()}. The "karate" parent alone is not enough: the bundled
+     * {@code logback.xml} pins child categories to explicit levels (notably
+     * {@code karate.http=DEBUG}), and in Logback a child with an explicit level
+     * ignores its ancestor's level. Setting only "karate" therefore left HTTP
+     * request/response lines on the console at every {@code logging.console} setting
+     * (issue #2917). Fanning the level out to every category makes the knob actually
+     * silence — including {@code console: 'off'} / {@code 'none'}.
+     */
+    private static final String[] RUNTIME_LOGGERS = {
+            "karate", "karate.runtime", "karate.http", "karate.mock",
+            "karate.server", "karate.scenario", "karate.console", "io.karatelabs"
+    };
 
     private final StringBuilder buffer = new StringBuilder();
     private List<StepResult.Embed> embeds;
@@ -119,44 +136,38 @@ public class LogContext {
     /**
      * Set the runtime log level for SLF4J/Logback.
      * Uses reflection to avoid compile-time dependency on Logback.
-     * Sets the level on the "karate" logger, which affects all subcategories
-     * (karate.runtime, karate.http, karate.mock, karate.server, karate.scenario, karate.console).
+     * Sets the level on the "karate" parent AND every child category
+     * (karate.runtime, karate.http, karate.mock, karate.server, karate.scenario,
+     * karate.console) plus io.karatelabs — see {@link #RUNTIME_LOGGERS} for why the
+     * parent alone is not enough.
+     * <p>
+     * Accepts the standard levels (trace, debug, info, warn, error) plus {@code off}
+     * and {@code none} (an alias for {@code off}) to silence the console completely.
      *
-     * @param level the log level (trace, debug, info, warn, error)
+     * @param level the log level (trace, debug, info, warn, error, off, none)
      * @return true if the level was set successfully, false if Logback is not available
      */
     public static boolean setRuntimeLogLevel(String level) {
         if (level == null || level.isEmpty()) {
             return false;
         }
+        // "none" is a friendlier alias for Logback's "off" — the issue asked for it by name.
+        String normalized = level.equalsIgnoreCase("none") ? "off" : level;
         try {
-            // Get the ILoggerFactory
-            Object factory = LoggerFactory.getILoggerFactory();
-            if (!factory.getClass().getName().equals("ch.qos.logback.classic.LoggerContext")) {
+            Object ctx = logbackContext();
+            if (ctx == null) {
                 RUNTIME_LOGGER.debug("Runtime log level not supported: not using Logback");
                 return false;
             }
-
-            // Get the "karate" logger from the context
-            // LoggerContext.getLogger(String name) returns ch.qos.logback.classic.Logger
-            Object logger = factory.getClass()
-                    .getMethod("getLogger", String.class)
-                    .invoke(factory, "karate");
-
-            // Get the Level class and parse the level string
             Class<?> levelClass = Class.forName("ch.qos.logback.classic.Level");
             Object levelValue = levelClass
                     .getMethod("toLevel", String.class)
-                    .invoke(null, level.toUpperCase());
-
-            // Set the level on the logger
-            logger.getClass()
-                    .getMethod("setLevel", levelClass)
-                    .invoke(logger, levelValue);
-
+                    .invoke(null, normalized.toUpperCase());
+            for (String name : RUNTIME_LOGGERS) {
+                setLevelOn(ctx, levelClass, name, levelValue);
+            }
             RUNTIME_LOGGER.debug("Set runtime log level to: {}", level);
             return true;
-
         } catch (Exception e) {
             RUNTIME_LOGGER.debug("Failed to set runtime log level: {}", e.getMessage());
             return false;
@@ -164,53 +175,91 @@ public class LogContext {
     }
 
     /**
-     * Read the current Logback level on the "karate" logger as a lowercase string,
-     * or null if the level is unset (inherits from root) or Logback is not available.
-     * Used by {@link Snapshot} to capture state before a scenario runs so any mid-test
-     * {@code configure logging = { console: ... }} change can be restored on exit.
+     * The Logback {@code LoggerContext} (an {@code ILoggerFactory}), or null when
+     * Logback is not the bound SLF4J backend — in which case runtime level changes
+     * are silently unsupported.
      */
-    public static String getRuntimeLogLevel() {
+    private static Object logbackContext() {
+        Object factory = LoggerFactory.getILoggerFactory();
+        if (!factory.getClass().getName().equals("ch.qos.logback.classic.LoggerContext")) {
+            return null;
+        }
+        return factory;
+    }
+
+    private static void setLevelOn(Object ctx, Class<?> levelClass, String name, Object levelValue) throws Exception {
+        // LoggerContext.getLogger(String) returns ch.qos.logback.classic.Logger
+        Object logger = ctx.getClass().getMethod("getLogger", String.class).invoke(ctx, name);
+        // levelValue may be null — restoring a logger that had no explicit level resets
+        // it to inherit from its parent, which is exactly the pre-snapshot state.
+        logger.getClass().getMethod("setLevel", levelClass).invoke(logger, levelValue);
+    }
+
+    /**
+     * Capture the explicit level (or null = inherited) of every {@link #RUNTIME_LOGGERS}
+     * entry, as a lowercase-string map. Used by {@link Snapshot} so a mid-test
+     * {@code configure logging = { console: ... }} change can be fully restored on exit
+     * across all categories — not just the parent. Returns null if Logback is unavailable.
+     */
+    private static Map<String, String> captureRuntimeLevels() {
         try {
-            Object factory = LoggerFactory.getILoggerFactory();
-            if (!factory.getClass().getName().equals("ch.qos.logback.classic.LoggerContext")) {
+            Object ctx = logbackContext();
+            if (ctx == null) {
                 return null;
             }
-            Object logger = factory.getClass()
-                    .getMethod("getLogger", String.class)
-                    .invoke(factory, "karate");
-            Object level = logger.getClass().getMethod("getLevel").invoke(logger);
-            return level == null ? null : level.toString().toLowerCase();
+            Map<String, String> levels = new LinkedHashMap<>();
+            for (String name : RUNTIME_LOGGERS) {
+                Object logger = ctx.getClass().getMethod("getLogger", String.class).invoke(ctx, name);
+                Object level = logger.getClass().getMethod("getLevel").invoke(logger);
+                levels.put(name, level == null ? null : level.toString().toLowerCase());
+            }
+            return levels;
         } catch (Exception e) {
             return null;
         }
     }
 
+    private static void restoreRuntimeLevels(Map<String, String> levels) {
+        try {
+            Object ctx = logbackContext();
+            if (ctx == null) {
+                return;
+            }
+            Class<?> levelClass = Class.forName("ch.qos.logback.classic.Level");
+            java.lang.reflect.Method toLevel = levelClass.getMethod("toLevel", String.class);
+            for (Map.Entry<String, String> e : levels.entrySet()) {
+                Object levelValue = e.getValue() == null ? null
+                        : toLevel.invoke(null, e.getValue().toUpperCase());
+                setLevelOn(ctx, levelClass, e.getKey(), levelValue);
+            }
+        } catch (Exception e) {
+            RUNTIME_LOGGER.debug("Failed to restore runtime log levels: {}", e.getMessage());
+        }
+    }
+
     /**
-     * Snapshot of the report-buffer threshold and the Logback "karate" logger level.
+     * Snapshot of the report-buffer threshold and the per-category Logback levels.
      * Take one before a scenario runs and {@link #restore()} after, so any mid-test
      * {@code configure logging = {...}} change does not leak across scenarios.
      */
     public static final class Snapshot {
 
         private final LogLevel reportLevel;
-        private final String consoleLevel;
+        private final Map<String, String> consoleLevels;
         private final LogMask mask;
         private final boolean pretty;
 
-        private Snapshot(LogLevel reportLevel, String consoleLevel, LogMask mask, boolean pretty) {
+        private Snapshot(LogLevel reportLevel, Map<String, String> consoleLevels, LogMask mask, boolean pretty) {
             this.reportLevel = reportLevel;
-            this.consoleLevel = consoleLevel;
+            this.consoleLevels = consoleLevels;
             this.mask = mask;
             this.pretty = pretty;
         }
 
         public void restore() {
             LogContext.setLogLevel(reportLevel);
-            // setRuntimeLogLevel ignores null; if there was no level (inherited) we cannot
-            // distinguish "unset" from "DEBUG" via reflection, so the captured string is
-            // the best we can do. Tests using the default level rarely change it mid-flow.
-            if (consoleLevel != null) {
-                LogContext.setRuntimeLogLevel(consoleLevel);
+            if (consoleLevels != null) {
+                restoreRuntimeLevels(consoleLevels);
             }
             LogContext ctx = get();
             ctx.setMask(mask);
@@ -220,7 +269,7 @@ public class LogContext {
 
     public static Snapshot snapshot() {
         LogContext ctx = get();
-        return new Snapshot(getLogLevel(), getRuntimeLogLevel(), ctx.mask, ctx.pretty);
+        return new Snapshot(getLogLevel(), captureRuntimeLevels(), ctx.mask, ctx.pretty);
     }
 
     public LogMask getMask() {

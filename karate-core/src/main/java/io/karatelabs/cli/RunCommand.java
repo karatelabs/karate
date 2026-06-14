@@ -171,7 +171,7 @@ public class RunCommand implements Callable<Integer> {
     @Option(
             names = {"--log-console"},
             description = "Threshold for SLF4J/console output via Logback: "
-                    + "trace, debug, info, warn, error (default: info)"
+                    + "trace, debug, info, warn, error, off/none (default: info)"
     )
     String logConsole;
 
