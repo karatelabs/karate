@@ -594,6 +594,67 @@ class StepConfigureTest {
         assertEquals("new-value", seenOther.get(2));
     }
 
+    /**
+     * In v1, {@code configure headers = obj} holds a live reference: mutating
+     * {@code obj} after the configure step is reflected on the wire. v2 regressed
+     * to snapshotting the value at configure time, so post-configure mutations
+     * were dropped. All three orderings (mutate-before, mutate-after, re-configure)
+     * must send the latest value.
+     */
+    @Test
+    void testConfigureHeadersReflectsLaterMutation() throws Exception {
+        List<String> seen = new ArrayList<>();
+        InMemoryHttpClient.Factory factory = new InMemoryHttpClient.Factory(req -> {
+            seen.add(req.getHeader("X-Custom-Header"));
+            return InMemoryHttpClient.json("{ \"ok\": true }");
+        });
+
+        Path feature = tempDir.resolve("feature.feature");
+        Files.writeString(feature, """
+            Feature: configure headers reflects later mutation
+
+            Scenario: mutate BEFORE configure headers
+            * def myHeaders = { 'X-Custom-Header': 'original' }
+            * myHeaders['X-Custom-Header'] = 'updated-before'
+            * configure headers = myHeaders
+            * url 'http://test'
+            * method get
+            * status 200
+
+            Scenario: configure headers THEN mutate
+            * def myHeaders = { 'X-Custom-Header': 'original' }
+            * configure headers = myHeaders
+            * myHeaders['X-Custom-Header'] = 'updated-after'
+            * url 'http://test'
+            * method get
+            * status 200
+
+            Scenario: mutate THEN re-configure headers (workaround)
+            * def myHeaders = { 'X-Custom-Header': 'original' }
+            * configure headers = myHeaders
+            * myHeaders['X-Custom-Header'] = 'updated-reconfig'
+            * configure headers = myHeaders
+            * url 'http://test'
+            * method get
+            * status 200
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(feature.toString())
+                .workingDir(tempDir)
+                .httpClientFactory(factory)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed(), "suite should pass");
+        assertEquals(3, seen.size());
+        assertEquals("updated-before", seen.get(0));
+        assertEquals("updated-after", seen.get(1), "mutation after configure headers must reach the wire");
+        assertEquals("updated-reconfig", seen.get(2));
+    }
+
     @Test
     void testConfigureHeadersFunctionPreservesFormBody() throws Exception {
         InMemoryHttpClient.Factory factory = new InMemoryHttpClient.Factory(req -> {

@@ -2077,7 +2077,9 @@ public class StepExecutor {
                 applyCookiesFromMap(cookieMap);
             }
         } else if (configCookies instanceof Map<?, ?> cookieMap) {
-            applyCookiesFromMap(cookieMap);
+            // Resolve embedded #(...) expressions on a fresh copy; the configured
+            // map is a live reference (see executeConfigure) and must not be mutated.
+            applyCookiesFromMap((Map<?, ?>) processEmbeddedExpressions(cookieMap, true));
         }
 
         // Apply configured headers - may be a Map or a JsCallable
@@ -2090,7 +2092,13 @@ public class StepExecutor {
                 http().headers((Map<String, Object>) headersMap);
             }
         } else if (configHeaders instanceof Map<?, ?> headersMap) {
-            http().headers((Map<String, Object>) headersMap);
+            // The configured map is a live reference (see executeConfigure); resolve
+            // embedded #(...) expressions onto a fresh copy each request so later
+            // mutations to the source object are reflected and the config map is
+            // never polluted by per-request header additions.
+            @SuppressWarnings("unchecked")
+            Map<String, Object> resolved = (Map<String, Object>) processEmbeddedExpressions(headersMap, true);
+            http().headers(resolved);
         }
 
         // Apply configured auth handler
@@ -2903,8 +2911,48 @@ public class StepExecutor {
         if (expr.isEmpty() && step.getDocString() != null) {
             expr = step.getDocString();
         }
-        Object value = evalKarateExpression(expr);
+        Object value;
+        if (key.equals("headers") || key.equals("cookies")) {
+            // v1 parity: `configure headers = obj` (and cookies) must hold a live
+            // reference to the source object so mutations made after the configure
+            // step are reflected on the wire. evalKarateExpression rebuilds Maps via
+            // processEmbeddedExpressions, which detaches the value into a snapshot;
+            // skip that here and instead resolve embedded #(...) expressions per
+            // request on a fresh copy (where config headers/cookies are applied).
+            value = evalConfigReferenceExpression(expr);
+        } else {
+            value = evalKarateExpression(expr);
+        }
         runtime.configure(key, value);
+    }
+
+    /**
+     * Evaluate a {@code configure headers}/{@code configure cookies} RHS while
+     * preserving object identity. Unlike {@link #evalKarateExpression(String)},
+     * this does NOT walk the result to resolve embedded {@code #(...)} expressions
+     * (which would rebuild Maps/Lists into a detached snapshot). For a bare variable
+     * reference this returns the live object the user can keep mutating; embedded
+     * expressions are left intact and resolved at request-build time.
+     */
+    private Object evalConfigReferenceExpression(String expr) {
+        if (expr == null || expr.isEmpty()) {
+            return null;
+        }
+        expr = expr.trim();
+        // Inline relaxed-JSON literal: there is no external object to keep live, so
+        // resolve embedded #(...) expressions now. This preserves the v1 contract
+        // that karate.config.headers reflects resolved values immediately.
+        if (StringUtils.looksLikeJson(expr)) {
+            try {
+                return processEmbeddedExpressions(Json.of(expr).value(), true);
+            } catch (Exception e) {
+                // fall through to JS eval (e.g. ES6 shorthand)
+            }
+        }
+        // Bare variable / JS expression: return the live object so mutations made
+        // after the configure step are reflected. Any embedded #(...) it carries is
+        // left intact and resolved per-request on a fresh copy.
+        return runtime.eval(wrapJsonLikeExpression(expr));
     }
 
     // ========== Browser Driver ==========
