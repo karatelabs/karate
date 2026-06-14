@@ -33,16 +33,12 @@ package io.karatelabs.js;
  * the {@code prototype} slot per spec.
  */
 class JsStringConstructor extends JsFunction {
-
-    static final JsStringConstructor INSTANCE = new JsStringConstructor();
-
     private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
 
-    private JsStringConstructor() {
+    JsStringConstructor() {
         this.name = "String";
         this.length = 1;
         installIntrinsics();
-        registerForEngineReset();
     }
 
     private void installIntrinsics() {
@@ -50,12 +46,6 @@ class JsStringConstructor extends JsFunction {
         defineOwn("fromCodePoint", new JsBuiltinMethod("fromCodePoint", 1, (JsInvokable) this::fromCodePoint), METHOD_ATTRS);
         defineOwn("raw", new JsBuiltinMethod("raw", 1, this::raw), METHOD_ATTRS);
         defineOwn("prototype", JsStringPrototype.INSTANCE, PropertySlot.INTRINSIC);
-    }
-
-    @Override
-    protected void clearEngineState() {
-        super.clearEngineState();
-        installIntrinsics();
     }
 
     @Override

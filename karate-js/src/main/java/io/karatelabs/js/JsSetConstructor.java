@@ -30,24 +30,14 @@ package io.karatelabs.js;
  * {@code Set.prototype.add} is honored.
  */
 class JsSetConstructor extends JsFunction {
-
-    static final JsSetConstructor INSTANCE = new JsSetConstructor();
-
-    private JsSetConstructor() {
+    JsSetConstructor() {
         this.name = "Set";
         // length=0 — Set() takes optional iterable; spec arity is 0.
         installIntrinsics();
-        registerForEngineReset();
     }
 
     private void installIntrinsics() {
         defineOwn("prototype", JsSetPrototype.INSTANCE, PropertySlot.INTRINSIC);
-    }
-
-    @Override
-    protected void clearEngineState() {
-        super.clearEngineState();
-        installIntrinsics();
     }
 
     @Override

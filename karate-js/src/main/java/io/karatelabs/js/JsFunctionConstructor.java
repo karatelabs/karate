@@ -36,24 +36,14 @@ package io.karatelabs.js;
  * resolves to for any user or built-in function, satisfying spec identity.
  */
 class JsFunctionConstructor extends JsFunction {
-
-    static final JsFunctionConstructor INSTANCE = new JsFunctionConstructor();
-
-    private JsFunctionConstructor() {
+    JsFunctionConstructor() {
         this.name = "Function";
         this.length = 1;
         installIntrinsics();
-        registerForEngineReset();
     }
 
     private void installIntrinsics() {
         defineOwn("prototype", JsFunctionPrototype.INSTANCE, PropertySlot.INTRINSIC);
-    }
-
-    @Override
-    protected void clearEngineState() {
-        super.clearEngineState();
-        installIntrinsics();
     }
 
     @Override

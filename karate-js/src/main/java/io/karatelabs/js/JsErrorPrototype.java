@@ -49,9 +49,9 @@ class JsErrorPrototype extends Prototype {
         super(parent);
         this.typeName = name;
         install("name", name);
-        // Lazy ref — JsErrorConstructor singletons aren't initialized at this point in the
-        // static-init cycle. Resolved on first JS-side read (Error.prototype.constructor).
-        installLazy("constructor", () -> JsErrorConstructor.forName(name));
+        // Resolved per access against the reading Engine's constructor instance
+        // for this error type ("Error", "TypeError", ...).
+        installConstructor(name);
         if (isRoot) {
             install("message", "");
             install("toString", 0, JsErrorPrototype::toStringMethod);

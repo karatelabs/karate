@@ -31,27 +31,17 @@ package io.karatelabs.js;
  * by {@code new RegExp(pattern, flags)} and {@code /foo/} literals.
  */
 class JsRegexConstructor extends JsFunction {
-
-    static final JsRegexConstructor INSTANCE = new JsRegexConstructor();
-
     private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
 
-    private JsRegexConstructor() {
+    JsRegexConstructor() {
         this.name = "RegExp";
         this.length = 2;
         installIntrinsics();
-        registerForEngineReset();
     }
 
     private void installIntrinsics() {
         defineOwn("escape", new JsBuiltinMethod("escape", 1, (JsInvokable) this::escape), METHOD_ATTRS);
         defineOwn("prototype", JsRegexPrototype.INSTANCE, PropertySlot.INTRINSIC);
-    }
-
-    @Override
-    protected void clearEngineState() {
-        super.clearEngineState();
-        installIntrinsics();
     }
 
     @Override

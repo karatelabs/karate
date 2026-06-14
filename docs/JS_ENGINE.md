@@ -145,9 +145,9 @@ Two distinct families:
   `attrs` / `attrsExplicit` / `tombstoned` fields so `JsGlobalThis` can
   surface every observable globalThis state from a single store.
 
-The `INTRINSIC` bit on `attrs` lets per-Engine reset (`clearEngineState()`)
-distinguish install-time intrinsics (preserve across engine reuse) from
-user-set entries (clear on reset). The `WRITABLE` bit is meaningless for
+The `INTRINSIC` bit on `attrs` marks install-time intrinsics (vs user-set
+entries) — informational for strict-mode checks and introspection; nothing
+resets on it. The `WRITABLE` bit is meaningless for
 accessors and not consulted by `AccessorSlot`; the spec's "omit `writable`
 from descriptor output for accessors" is handled in
 `JsObjectConstructor.buildDescriptor` by branching on the slot family.
@@ -157,7 +157,8 @@ from descriptor output for accessors" is handled in
 The engine uses singleton prototype objects for method inheritance, matching JavaScript's prototype chain:
 
 ```
-Singleton Prototypes (shared JVM-wide; userProps reset per Engine):
+Singleton Prototypes (shared JVM-wide and immutable; user props are
+per-Engine overlays resolved via Engine.current()):
     JsObjectPrototype.INSTANCE   ← null (root of chain)
     JsArrayPrototype.INSTANCE    ← JsObjectPrototype.INSTANCE
     JsStringPrototype.INSTANCE   ← JsObjectPrototype.INSTANCE
@@ -174,34 +175,41 @@ Singleton Prototypes (shared JVM-wide; userProps reset per Engine):
                                  ← JsErrorPrototype.ERROR
 
 Constructor Functions (for static methods like Array.isArray, Date.UTC):
-    JsObjectConstructor.INSTANCE   → prototype: JsObjectPrototype.INSTANCE
-    JsArrayConstructor.INSTANCE    → prototype: JsArrayPrototype.INSTANCE
-    JsStringConstructor.INSTANCE   → prototype: JsStringPrototype.INSTANCE
-    JsNumberConstructor.INSTANCE   → prototype: JsNumberPrototype.INSTANCE
-    JsBigIntConstructor.INSTANCE   → prototype: JsBigIntPrototype.INSTANCE
-    JsDateConstructor.INSTANCE     → prototype: JsDatePrototype.INSTANCE
-    JsFunctionConstructor.INSTANCE → prototype: JsFunctionPrototype.INSTANCE
-    JsMapConstructor.INSTANCE      → prototype: JsMapPrototype.INSTANCE
-    JsSetConstructor.INSTANCE      → prototype: JsSetPrototype.INSTANCE
-    JsErrorConstructor.{ERROR,TYPE_ERROR,RANGE_ERROR,SYNTAX_ERROR,
-        REFERENCE_ERROR,URI_ERROR,EVAL_ERROR,AGGREGATE_ERROR}
-                                   → prototype: matching JsErrorPrototype.*
-    (JsBoolean has a prototype but no constructor wrapper class — the
-     Boolean global is registered directly as a callable in ContextRoot.)
+    PER-ENGINE instances (not JVM singletons), created lazily by
+    ContextRoot.builtinConstructor(name) and cached in the engine's
+    bindings — like JsMath always was:
+    JsObjectConstructor   → prototype: JsObjectPrototype.INSTANCE
+    JsArrayConstructor    → prototype: JsArrayPrototype.INSTANCE
+    JsStringConstructor   → prototype: JsStringPrototype.INSTANCE
+    JsNumberConstructor   → prototype: JsNumberPrototype.INSTANCE
+    JsBooleanConstructor  → prototype: JsBooleanPrototype.INSTANCE
+    JsBigIntConstructor   → prototype: JsBigIntPrototype.INSTANCE
+    JsDateConstructor     → prototype: JsDatePrototype.INSTANCE
+    JsFunctionConstructor → prototype: JsFunctionPrototype.INSTANCE
+    JsMapConstructor      → prototype: JsMapPrototype.INSTANCE
+    JsSetConstructor      → prototype: JsSetPrototype.INSTANCE
+    JsRegexConstructor    → prototype: JsRegexPrototype.INSTANCE
+    JsErrorConstructor ×8 (Error, TypeError, RangeError, SyntaxError,
+        ReferenceError, URIError, EvalError, AggregateError)
+                          → prototype: matching JsErrorPrototype.*
 ```
 
 **Built-in prototypes accept user-added properties** per spec — `Array.prototype`
 methods are configurable + writable, so `Array.prototype.foo = ...` works and
-overrides on lookup. The `Prototype` base class carries a `userProps` map for
-this; the built-in methods themselves are immutable (cannot be removed via
+overrides on lookup. User props live in a per-Engine overlay
+(`Engine.protoUserProps`, resolved through `Prototype.userProps()`); the
+built-in methods themselves are immutable (cannot be removed via
 `removeMember` unless tombstoned-on-delete per the
 [Spec Invariants § Property attributes](#property-attributes) rules).
 
-**Per-Engine isolation.** The prototypes are JVM-wide singletons but their
-`userProps` reset on every `new Engine()` via `Prototype.clearAllUserProps()`
-+ `JsObject.clearAllEngineState()` — otherwise a previous test that did
-`Map.prototype.set = function() { throw ... }` would poison the next session.
-See [Spec Invariants § Prototype machinery](#prototype-machinery) for the
+**Per-Engine isolation.** The prototypes are JVM-wide singletons, but all
+their mutable state is per-Engine: user props resolve through the thread's
+current engine (`Engine.current()`, an eval-scoped ThreadLocal) and die with
+it, so `Map.prototype.set = function() { throw ... }` in one Engine can
+neither poison another Engine nor be wiped by one — concurrent engines are
+fully isolated with no reset step. The constructors are per-Engine instances
+outright, so their mutable state needs no special handling. See
+[Spec Invariants § Prototype machinery](#prototype-machinery) for the
 full mechanism.
 
 User-created objects, arrays, and functions remain fully mutable:
@@ -222,25 +230,34 @@ function f() {}; f.meta = "data";        // OK
 // Base class for built-in prototype objects
 abstract class Prototype implements ObjectLike {
     private final Prototype __proto__;
-    // Each entry is a PropertySlot — DataSlot for user-added values,
+    // Install-time built-in members; immutable post-construction (lazy
+    // entries cache inside their LazyRef holder, never written back), so
+    // the map is safe under concurrent engines. User mutations land in the
+    // per-Engine overlay and shadow these.
+    private final Map<String, Object> builtins = new LinkedHashMap<>();
+
+    // The current Engine's user-prop overlay for this prototype (null when
+    // none). Each entry is a PropertySlot — DataSlot for user-added values,
     // AccessorSlot for accessor descriptors installed via
     // Object.defineProperty(Foo.prototype, "x", {get: ...}). The slot's
     // tombstoned flag shadows a built-in deleted via
-    // delete Foo.prototype.bar (was a separate Set<String> pre-refactor B).
-    private Map<String, PropertySlot> userProps;
-    // Install-time built-in members; immutable post-construction. User
-    // mutations land in userProps and shadow these.
-    private final Map<String, Object> builtins = new LinkedHashMap<>();
+    // delete Foo.prototype.bar. Resolved via Engine.current() (eval-scoped
+    // ThreadLocal); a JVM-wide monotonic anyUserProps flag short-circuits
+    // the lookup until any engine actually polyfills a prototype.
+    private Map<String, PropertySlot> userProps() { ... }
+    private Map<String, PropertySlot> userPropsForWrite() { ... }
 
     public final Object getMember(String name) {
-        // 1. User slot wins (data, accessor, or tombstone)
+        // 1. Per-Engine user slot wins (data, accessor, or tombstone)
+        Map<String, PropertySlot> userProps = userProps();
         PropertySlot s = userProps == null ? null : userProps.get(name);
         if (s != null) {
             if (s.tombstoned) return walkProto(name);
             return s instanceof DataSlot ds ? ds.value : null; // accessor → null at this seam
         }
-        // 2. Built-in lookup (resolves + caches LazyRef on first access)
-        Object builtin = resolveBuiltin(name);
+        // 2. Built-in lookup (LazyRef self-caches; ConstructorRef resolves
+        //    per access against the reading Engine's constructor instance)
+        Object builtin = resolveBuiltin(name, null);
         if (builtin != null) return builtin;
         // 3. Delegate to __proto__ chain
         return walkProto(name);
@@ -250,7 +267,7 @@ abstract class Prototype implements ObjectLike {
     public Object getMember(String name, Object receiver, CoreContext ctx) { ... }
 
     public void putMember(String name, Object value) {
-        if (userProps == null) userProps = new LinkedHashMap<>();
+        Map<String, PropertySlot> userProps = userPropsForWrite();
         PropertySlot existing = userProps.get(name);
         if (existing instanceof DataSlot ds) {
             ds.value = value;
@@ -291,7 +308,7 @@ class JsArrayPrototype extends Prototype {
 **Benefits:**
 - Single instance per type (memory efficient)
 - Spec-conformant: `Array.prototype.foo = ...` polyfill patterns work
-- Per-Engine reset prevents cross-session pollution
+- Per-Engine state isolation prevents cross-session (and cross-thread) pollution
 - Clean separation of constructor vs prototype
 - Methods inherited via standard prototype chain
 - `ObjectLike.getPrototype()` enables uniform chain walking
@@ -1459,27 +1476,41 @@ properties-of-the-X-prototype-object.js tests across Map / Set / Array /
 RegExp / Error / Date / Function / Number / Boolean / String / BigInt.
 
 **Per-Engine prototype isolation.** Built-in prototypes are JVM-wide
-singletons (e.g. `JsArrayPrototype.INSTANCE`), but their `userProps` must
-reset each time a new `Engine` is constructed — otherwise a previous test
-that did `Map.prototype.set = function() { throw ... }` poisons the next
-session. `Prototype` constructor registers each singleton in a static `ALL`
-list; `Engine()` calls `Prototype.clearAllUserProps()` which walks the list
-and clears each `userProps` map. Spec-compliant for sequential single-Engine
-usage (the realistic case); concurrent Engines in the same JVM still share
-the underlying singleton during overlapping windows. Performance impact:
-invisible — the loop is ~10 entries with usually-empty maps, lost in noise at
-script-eval scale.
+singletons (e.g. `JsArrayPrototype.INSTANCE`), but user mutations
+(`Map.prototype.set = function() { throw ... }`) are per-Engine state: they
+live in an overlay on the `Engine` (`Engine.protoUserProps`, keyed by
+prototype identity) and are resolved through the thread's *current engine*
+(`Engine.current()`, an eval-scoped ThreadLocal established with
+save/restore nesting by `Engine.evalInternal` / `evalRaw` and by
+`JsFunctionNode.call` for host-initiated invocations). One engine's
+prototype pollution is therefore invisible to — and indestructible by —
+every other engine, with no reset step at all; the overlay dies with its
+Engine. This replaced the historical clear-on-construct model
+(`Prototype.clearAllUserProps()` walking a static registry from
+`Engine.<init>`), which was correct only for sequential single-Engine usage:
+under concurrent engines, one thread's `new Engine()` wiped singleton state
+out from under another thread mid-evaluation (manifesting as intermittent
+`TypeError: Object.keys is not a function` in parallel suite runs — pinned
+by `EngineConcurrencyTest`). Hot-path cost: zero until any engine polyfills
+a prototype (a JVM-wide monotonic `anyUserProps` flag short-circuits the
+overlay lookup), one ThreadLocal read per prototype-level lookup after.
+The `builtins` install map on each prototype singleton is immutable
+post-construction (lazy entries cache inside their `LazyRef` holder rather
+than writing back), so concurrent readers never observe structural mutation.
 
-The same pattern holds on the constructor side via `JsObject.ENGINE_RESET_LIST`
-+ `clearEngineState()`. All nine built-in constructor singletons (Array /
-BigInt / Date / Function / Map / Number / Object / Set / String) register
-themselves; `Engine.<init>` invokes `JsObject.clearAllEngineState()` right
-after `Prototype.clearAllUserProps()`. Default `clearEngineState()` wipes
-`props` / extensibility flags; subclasses with intrinsic install routines
-override, call `super.clearEngineState()` first, then re-run
-`installIntrinsics()` (the install code is the single source of truth for
-what gets restored). The `INTRINSIC` bit on the slot's attrs byte is
-informational — it doesn't gate reset behavior.
+On the constructor side the problem dissolved rather than moved: the
+built-in constructors (Array / BigInt / Boolean / Date / Function / Map /
+Number / Object / RegExp / Set / String and the eight Error types) are
+**per-Engine instances**, not JVM singletons — created lazily by
+`ContextRoot.builtinConstructor(name)` and cached in the engine's bindings
+like `JsMath` always was. User mutations, tombstones, and freezes on
+`Object` / `Array` / etc. ride the ordinary `JsObject` machinery and are
+naturally engine-isolated; `JsObject.ENGINE_RESET_LIST` /
+`clearEngineState()` are gone. The `constructor` back-references on the
+shared prototype singletons (`Array.prototype.constructor === Array`)
+resolve per access through a `ConstructorRef` marker against the reading
+engine's instance — never cached in the shared `builtins` map. The
+`INTRINSIC` bit on the slot's attrs byte is informational.
 
 **Function declarations hoist** at the start of the enclosing program / block
 scope. `Interpreter.hoistFunctionDeclarations` walks immediate `STATEMENT >
@@ -1682,9 +1713,9 @@ backed `JsUint8Array` routes through the slow path so its
 was ever installed on a prototype's userProps in this Engine
 (`Prototype.isNumericPropPolluted == false`), HasProperty reduces to an
 in-bounds non-HOLE check on the dense list — no per-element
-`String.valueOf` or chain walk. The `numericPropPolluted` bit flips on
-the first `Array.prototype[i] = …` / `Object.prototype[i] = …` write in
-the session and resets per-Engine in `Prototype.clearAllUserProps`. Slow
+`String.valueOf` or chain walk. The `numericPropPolluted` bit lives on
+the Engine, flips on the first `Array.prototype[i] = …` /
+`Object.prototype[i] = …` write in the session, and dies with it. Slow
 path (proto pollution, custom proto, descriptors, generic ObjectLike
 receiver) walks `hasPropertyChain` and `getMember` per index.
 
@@ -1821,17 +1852,17 @@ through `Interpreter.bindThisForCall` (lenient sloppy substitution).
 
 ### Built-in accessor descriptors on prototypes
 
-**Spec accessor getters live in `Prototype.builtins` so they survive
-per-Engine reset.** ECMA-262 declares
+**Spec accessor getters live in `Prototype.builtins` — the shared,
+immutable, install-time tier.** ECMA-262 declares
 `RegExp.prototype.{source, flags, global, ignoreCase, multiline, dotAll,
 sticky, unicode}` as accessor descriptors on the prototype, NOT as own
 properties of instances — `Object.getOwnPropertyDescriptor(RegExp.prototype,
 'source').get` must be a function with `.length === 0` and the proto-self
 sentinel branch (`get.call(RegExp.prototype) === "(?:)"`). User-installed
 accessors via `Object.defineProperty` go through `defineOwnAccessor`
-into `userProps` and shadow these (consistent with the data-slot
-shadowing rule); built-in accessors go through `installAccessor` into
-`builtins`, which is NOT cleared by `Prototype.clearAllUserProps`. The
+into the per-Engine user props and shadow these (consistent with the
+data-slot shadowing rule); built-in accessors go through `installAccessor`
+into `builtins`, the immutable shared tier. The
 read seam `Prototype.getMember(name, receiver, ctx)` walks userProps →
 builtins (with `AccessorSlot.read` dispatch) → proto chain;
 `getOwnSlot` and `getOwnAttrs` mirror the precedence so descriptor
@@ -2460,8 +2491,8 @@ public final class JsUndefined implements JsValue {
 - Cleaner type hierarchy with compiler-enforced exhaustive handling
 - Single `instanceof JsValue` check replaces scattered type checks
 - `getJsValue()` provides uniform unwrapping for internal operations
-- Singleton prototypes shared across Engine instances (`userProps` reset per
-  Engine — see [Spec Invariants § Prototype machinery](#prototype-machinery))
+- Singleton prototypes shared across Engine instances (user props are
+  per-Engine overlays — see [Spec Invariants § Prototype machinery](#prototype-machinery))
 
 ---
 

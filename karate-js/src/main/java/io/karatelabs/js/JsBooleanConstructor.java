@@ -33,24 +33,14 @@ package io.karatelabs.js;
  * by {@code new Boolean(x)}.
  */
 class JsBooleanConstructor extends JsFunction {
-
-    static final JsBooleanConstructor INSTANCE = new JsBooleanConstructor();
-
-    private JsBooleanConstructor() {
+    JsBooleanConstructor() {
         this.name = "Boolean";
         this.length = 1;
         installIntrinsics();
-        registerForEngineReset();
     }
 
     private void installIntrinsics() {
         defineOwn("prototype", JsBooleanPrototype.INSTANCE, PropertySlot.INTRINSIC);
-    }
-
-    @Override
-    protected void clearEngineState() {
-        super.clearEngineState();
-        installIntrinsics();
     }
 
     @Override

@@ -133,7 +133,9 @@ class JsObjectPrototype extends Prototype {
         desc.put(isGetter ? "get" : "set", callable);
         desc.put("enumerable", true);
         desc.put("configurable", true);
-        JsObjectConstructor.INSTANCE.defineProperty(context, new Object[]{thisObj, key, desc});
+        JsObjectConstructor objectConstructor =
+                (JsObjectConstructor) context.getEngine().builtinConstructor("Object");
+        objectConstructor.defineProperty(context, new Object[]{thisObj, key, desc});
         return Terms.UNDEFINED;
     }
 

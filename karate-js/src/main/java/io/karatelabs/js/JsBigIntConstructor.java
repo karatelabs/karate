@@ -32,28 +32,18 @@ import java.math.BigInteger;
  * Provides {@code BigInt(value)} conversion plus {@code asIntN}/{@code asUintN}.
  */
 class JsBigIntConstructor extends JsFunction {
-
-    static final JsBigIntConstructor INSTANCE = new JsBigIntConstructor();
-
     private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
 
-    private JsBigIntConstructor() {
+    JsBigIntConstructor() {
         this.name = "BigInt";
         this.length = 1;
         installIntrinsics();
-        registerForEngineReset();
     }
 
     private void installIntrinsics() {
         defineOwn("asIntN", new JsBuiltinMethod("asIntN", 2, this::asIntN), METHOD_ATTRS);
         defineOwn("asUintN", new JsBuiltinMethod("asUintN", 2, this::asUintN), METHOD_ATTRS);
         defineOwn("prototype", JsBigIntPrototype.INSTANCE, PropertySlot.INTRINSIC);
-    }
-
-    @Override
-    protected void clearEngineState() {
-        super.clearEngineState();
-        installIntrinsics();
     }
 
     @Override

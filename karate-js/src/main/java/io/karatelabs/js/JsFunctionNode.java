@@ -139,7 +139,21 @@ class JsFunctionNode extends JsFunction {
         functionContext.activeFunction = arrow
                 ? (declaredContext != null ? declaredContext.activeFunction : null)
                 : this;
-        return bindArgsAndExecute(functionContext, parentContext, args);
+        // Hosts may invoke a shared function directly (null / foreign caller
+        // context, outside any Engine.eval). The body executes against the
+        // declaring Engine's globals, so make that engine current for
+        // singleton-overlay resolution. Common case (JS-to-JS call under the
+        // same engine's eval) pays one ThreadLocal read and skips the switch.
+        Engine declaringEngine = declaredContext == null ? null : declaredContext.getEngine();
+        if (declaringEngine == null || declaringEngine == Engine.current()) {
+            return bindArgsAndExecute(functionContext, parentContext, args);
+        }
+        Engine prevEngine = Engine.enter(declaringEngine);
+        try {
+            return bindArgsAndExecute(functionContext, parentContext, args);
+        } finally {
+            Engine.exit(prevEngine);
+        }
     }
 
     // Called by Interpreter when context is pre-prepared with closure info

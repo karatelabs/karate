@@ -61,7 +61,7 @@ class JsRegexPrototype extends Prototype {
         installFlagAccessor("dotAll", Terms.UNDEFINED, r -> r.flags.contains("s"));
         installFlagAccessor("sticky", Terms.UNDEFINED, r -> r.flags.contains("y"));
         installFlagAccessor("unicode", Terms.UNDEFINED, r -> r.flags.contains("u"));
-        installLazy("constructor", () -> JsRegexConstructor.INSTANCE);
+        installConstructor("RegExp");
     }
 
     // Spec §22.2.6.4 etc. shared shape: TypeError on non-object receiver,

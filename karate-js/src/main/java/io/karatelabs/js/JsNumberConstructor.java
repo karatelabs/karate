@@ -28,11 +28,10 @@ package io.karatelabs.js;
  * <p>
  * Static methods (isFinite / isInteger / isNaN / isSafeInteger) are wrapped in
  * {@link JsBuiltinMethod} so they expose spec {@code length} and {@code name}
- * as own properties. Method instances are cached per-Engine in {@code methodCache}
- * so {@code Number.isFinite === Number.isFinite} holds within a session and
- * tombstones from {@code delete Number.isFinite} are applied to a stable instance.
- * The cache is wiped per-Engine via {@link #clearEngineState()} (see the
- * {@code ENGINE_RESET_LIST} mechanism on {@link JsObject}).
+ * as own properties. One instance per Engine (created via
+ * {@code ContextRoot.builtinConstructor}), so {@code Number.isFinite ===
+ * Number.isFinite} holds within a session and user mutations / tombstones
+ * ({@code delete Number.isFinite}) stay isolated to their Engine.
  * <p>
  * {@link #hasOwnIntrinsic} and {@link #getOwnAttrs} declare each method, constant
  * and the {@code prototype} slot per spec so {@code getOwnPropertyDescriptor}
@@ -42,20 +41,16 @@ package io.karatelabs.js;
  * constructor's {@code prototype} is all-false.
  */
 class JsNumberConstructor extends JsFunction {
-
-    static final JsNumberConstructor INSTANCE = new JsNumberConstructor();
-
     private static final long MAX_SAFE_INTEGER = 9007199254740991L;
     private static final long MIN_SAFE_INTEGER = -9007199254740991L;
 
     private static final byte CONSTANT_ATTRS = PropertySlot.INTRINSIC;
     private static final byte METHOD_ATTRS = WRITABLE | CONFIGURABLE | PropertySlot.INTRINSIC;
 
-    private JsNumberConstructor() {
+    JsNumberConstructor() {
         this.name = "Number";
         this.length = 1;
         installIntrinsics();
-        registerForEngineReset();
     }
 
     private void installIntrinsics() {
@@ -76,12 +71,6 @@ class JsNumberConstructor extends JsFunction {
         defineOwn("parseInt", ContextRoot.PARSE_INT, METHOD_ATTRS);
         defineOwn("parseFloat", ContextRoot.PARSE_FLOAT, METHOD_ATTRS);
         defineOwn("prototype", JsNumberPrototype.INSTANCE, PropertySlot.INTRINSIC);
-    }
-
-    @Override
-    protected void clearEngineState() {
-        super.clearEngineState();
-        installIntrinsics();
     }
 
     @Override

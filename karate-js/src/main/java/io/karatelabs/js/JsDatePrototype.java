@@ -68,7 +68,7 @@ class JsDatePrototype extends Prototype {
         super(JsObjectPrototype.INSTANCE);
         // Spec lengths from §21.4.4: most getters and toFoo helpers take 0,
         // setters take their own arity (setMilliseconds=1, setMinutes=3, etc.).
-        installLazy("constructor", () -> JsDateConstructor.INSTANCE);
+        installConstructor("Date");
         install("getTime", 0, this::getTime);
         install("valueOf", 0, this::getTime);
         install("toString", 0, this::toStringMethod);

@@ -28,6 +28,8 @@ import io.karatelabs.parser.Node;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -226,6 +228,50 @@ class ContextRoot implements Context {
 
     //=== Built-in globals ==============================================================================================
 
+    // This Engine's built-in constructor instances (Object, Array, …,
+    // AggregateError). Per-Engine — NOT JVM singletons — so user mutations,
+    // tombstones, and freezes on one engine's constructors can be neither
+    // observed nor destroyed by another engine running concurrently. Lazily
+    // created per name; identity is stable within the Engine so
+    // `Array.prototype.constructor === Array` holds. The prototype objects
+    // they expose (`Array.prototype` etc.) remain JVM-wide singletons.
+    private Map<String, JsFunction> builtinConstructors;
+
+    JsFunction builtinConstructor(String name) {
+        if (builtinConstructors == null) {
+            builtinConstructors = new HashMap<>();
+        }
+        JsFunction c = builtinConstructors.get(name);
+        if (c == null) {
+            c = switch (name) {
+                case "Array" -> new JsArrayConstructor();
+                case "BigInt" -> new JsBigIntConstructor();
+                case "Boolean" -> new JsBooleanConstructor();
+                case "Date" -> new JsDateConstructor();
+                case "Function" -> new JsFunctionConstructor();
+                case "Map" -> new JsMapConstructor();
+                case "Number" -> new JsNumberConstructor();
+                case "Object" -> new JsObjectConstructor();
+                case "RegExp" -> new JsRegexConstructor();
+                case "Set" -> new JsSetConstructor();
+                case "String" -> new JsStringConstructor();
+                case "Error" -> new JsErrorConstructor(JsErrorPrototype.ERROR, 1);
+                case "TypeError" -> new JsErrorConstructor(JsErrorPrototype.TYPE_ERROR, 1);
+                case "RangeError" -> new JsErrorConstructor(JsErrorPrototype.RANGE_ERROR, 1);
+                case "SyntaxError" -> new JsErrorConstructor(JsErrorPrototype.SYNTAX_ERROR, 1);
+                case "ReferenceError" -> new JsErrorConstructor(JsErrorPrototype.REFERENCE_ERROR, 1);
+                case "URIError" -> new JsErrorConstructor(JsErrorPrototype.URI_ERROR, 1);
+                case "EvalError" -> new JsErrorConstructor(JsErrorPrototype.EVAL_ERROR, 1);
+                case "AggregateError" -> new JsErrorConstructor(JsErrorPrototype.AGGREGATE_ERROR, 2);
+                default -> null;
+            };
+            if (c != null) {
+                builtinConstructors.put(name, c);
+            }
+        }
+        return c;
+    }
+
     private Object initGlobal(String key) {
         return switch (key) {
             case "console" -> new JsConsole(this);
@@ -277,30 +323,14 @@ class ContextRoot implements Context {
                 // indirect-eval semantics: evaluate in the global (root) scope
                 return engine.evalRaw(s);
             };
-            case "Array" -> JsArrayConstructor.INSTANCE;
-            case "Date" -> JsDateConstructor.INSTANCE;
-            case "Function" -> JsFunctionConstructor.INSTANCE;
-            case "Error" -> JsErrorConstructor.ERROR;
+            case "Array", "Date", "Function", "Error", "Map", "Number", "BigInt", "Boolean",
+                 "Object", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
+                 "SyntaxError", "URIError", "EvalError", "AggregateError" -> builtinConstructor(key);
             case "Infinity" -> Double.POSITIVE_INFINITY;
             case "Java" -> new JsJava(bridge);
             case "JSON" -> new JsJson();
-            case "Map" -> JsMapConstructor.INSTANCE;
             case "Math" -> new JsMath();
             case "NaN" -> Double.NaN;
-            case "Number" -> JsNumberConstructor.INSTANCE;
-            case "BigInt" -> JsBigIntConstructor.INSTANCE;
-            case "Boolean" -> JsBooleanConstructor.INSTANCE;
-            case "Object" -> JsObjectConstructor.INSTANCE;
-            case "RegExp" -> JsRegexConstructor.INSTANCE;
-            case "Set" -> JsSetConstructor.INSTANCE;
-            case "String" -> JsStringConstructor.INSTANCE;
-            case "TypeError" -> JsErrorConstructor.TYPE_ERROR;
-            case "ReferenceError" -> JsErrorConstructor.REFERENCE_ERROR;
-            case "RangeError" -> JsErrorConstructor.RANGE_ERROR;
-            case "SyntaxError" -> JsErrorConstructor.SYNTAX_ERROR;
-            case "URIError" -> JsErrorConstructor.URI_ERROR;
-            case "EvalError" -> JsErrorConstructor.EVAL_ERROR;
-            case "AggregateError" -> JsErrorConstructor.AGGREGATE_ERROR;
             case "TextDecoder" -> new JsTextDecoder();
             case "TextEncoder" -> new JsTextEncoder();
             case "Uint8Array" -> new JsUint8Array(0);

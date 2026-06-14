@@ -25,9 +25,7 @@ package io.karatelabs.js;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 
 /**
@@ -36,15 +34,16 @@ import java.util.function.Supplier;
  * <ul>
  *   <li>{@link #builtins} — install-time map populated by the subclass
  *       constructor via {@link #install(String, int, JsCallable)} /
- *       {@link #install(String, Object)}. Survives across Engine sessions
- *       (re-built only on first class-load); no per-Engine reset needed.</li>
- *   <li>{@link #userProps} — user-added entries via {@code putMember}; cleared
- *       per-Engine via {@link #clearAllUserProps}. Wins over {@link #builtins}
- *       per spec ({@code Array.prototype} methods are configurable + writable).
- *       Each entry is a {@link PropertySlot} ({@link DataSlot} for plain values,
- *       {@link AccessorSlot} for accessor descriptors); the slot's
- *       {@link PropertySlot#tombstoned} flag shadows a built-in deleted via
- *       {@code delete Foo.prototype.bar}.</li>
+ *       {@link #install(String, Object)}. Shared JVM-wide and immutable
+ *       post-construction; safe under concurrent engines.</li>
+ *   <li>per-Engine user props ({@link #userProps()}) — user-added entries via
+ *       {@code putMember}, stored on the current {@link Engine} so prototype
+ *       mutations are invisible to (and indestructible by) other engines.
+ *       Wins over {@link #builtins} per spec ({@code Array.prototype} methods
+ *       are configurable + writable). Each entry is a {@link PropertySlot}
+ *       ({@link DataSlot} for plain values, {@link AccessorSlot} for accessor
+ *       descriptors); the slot's {@link PropertySlot#tombstoned} flag shadows
+ *       a built-in deleted via {@code delete Foo.prototype.bar}.</li>
  * </ul>
  * <p>
  * Method identity ({@code Foo.prototype.bar === Foo.prototype.bar}) follows
@@ -54,43 +53,82 @@ import java.util.function.Supplier;
 abstract class Prototype implements ObjectLike {
 
     /**
-     * Built-in prototype singletons register themselves here at construction.
-     * {@link Engine#Engine()} walks this list to clear each one's user-side
-     * state ({@link #userProps}) so prototype mutations inside one Engine
-     * instance don't bleed into the next. Required for test262 isolation.
+     * JVM-wide monotonic fast-path flag: false until ANY engine installs a
+     * user property on ANY built-in prototype. While false — the
+     * overwhelmingly common case, since real scripts rarely polyfill
+     * built-in prototypes — property lookups skip per-Engine overlay
+     * resolution entirely, so the hot path pays no ThreadLocal read.
+     * Never reset: once some engine polyfills, every engine pays the
+     * (small) overlay-lookup cost for the rest of the JVM's life.
      */
-    private static final List<Prototype> ALL = new CopyOnWriteArrayList<>();
+    private static volatile boolean anyUserProps = false;
 
     /**
-     * Per-Engine flag: set when a canonical numeric property is installed on
-     * any prototype's userProps via {@link #putMember} or
-     * {@link #defineOwnAccessor}. Lets {@code Array.prototype.*} iteration
-     * helpers ({@code every} / {@code map} / {@code forEach} / …) skip the
-     * full HasProperty proto-walk per element on the hot path: when this is
-     * false (the common case — no user code did
-     * {@code Array.prototype[i] = …} or {@code Object.prototype[i] = …}),
-     * the spec's HasProperty reduces to an own-only check.
-     * <p>
-     * Monotonic within an Engine (we don't track when it stops being polluted
-     * — once true, fast path is bypassed for the remainder of the session).
-     * Reset to false in {@link #clearAllUserProps} so the next Engine starts
-     * clean — required for test262 isolation.
+     * Engineless fallback for user-prop writes issued outside any JS
+     * execution (no {@link Engine#current()}); hosts virtually never do
+     * this. Shared JVM-wide like the pre-overlay storage was.
      */
-    private static volatile boolean numericPropPolluted = false;
+    private Map<String, PropertySlot> orphanUserProps;
 
-    /** True iff any user code installed a canonical numeric key on a prototype
-     *  in this Engine session. See {@link #numericPropPolluted}. */
+    /** Engineless counterpart of {@link Engine#numericPropPolluted}. */
+    private static volatile boolean orphanNumericPropPolluted = false;
+
+    /**
+     * True iff user code installed a canonical numeric key on a built-in
+     * prototype in the current Engine session. Lets {@code Array.prototype.*}
+     * iteration helpers ({@code every} / {@code map} / {@code forEach} / …)
+     * skip the full HasProperty proto-walk per element on the hot path: when
+     * false (the common case — no user code did {@code Array.prototype[i] = …}
+     * or {@code Object.prototype[i] = …}), the spec's HasProperty reduces to
+     * an own-only check. Monotonic within an Engine.
+     */
     static boolean isNumericPropPolluted() {
-        return numericPropPolluted;
+        if (orphanNumericPropPolluted) {
+            return true;
+        }
+        Engine engine = Engine.current();
+        return engine != null && engine.numericPropPolluted;
     }
 
-    static void clearAllUserProps() {
-        for (Prototype p : ALL) {
-            if (p.userProps != null) {
-                p.userProps.clear();
-            }
+    private static void markNumericPolluted() {
+        Engine engine = Engine.current();
+        if (engine != null) {
+            engine.numericPropPolluted = true;
+        } else {
+            orphanNumericPropPolluted = true;
         }
-        numericPropPolluted = false;
+    }
+
+    /**
+     * The current Engine's user-property overlay for this prototype — null
+     * when none. Built-in prototypes are JVM-wide singletons, but user
+     * mutations ({@code Array.prototype.foo = …}) are per-Engine state: they
+     * live on the Engine (see {@link Engine#protoUserProps}) and are resolved
+     * through the thread's current engine, so one engine's pollution is
+     * invisible to every other engine and no cross-engine reset is needed.
+     */
+    private Map<String, PropertySlot> userProps() {
+        if (!anyUserProps) {
+            return null;
+        }
+        Engine engine = Engine.current();
+        if (engine != null) {
+            return engine.protoUserProps(this, false);
+        }
+        return orphanUserProps;
+    }
+
+    /** Same resolution as {@link #userProps()} but creates the overlay on demand. */
+    private Map<String, PropertySlot> userPropsForWrite() {
+        anyUserProps = true;
+        Engine engine = Engine.current();
+        if (engine != null) {
+            return engine.protoUserProps(this, true);
+        }
+        if (orphanUserProps == null) {
+            orphanUserProps = new LinkedHashMap<>();
+        }
+        return orphanUserProps;
     }
 
     /** Canonical-integer key check for the {@link #numericPropPolluted}
@@ -108,15 +146,17 @@ abstract class Prototype implements ObjectLike {
     }
 
     private final Prototype __proto__;
-    private Map<String, PropertySlot> userProps;
     /** Install-time built-in members. Populated by subclass constructors via
-     *  {@link #install} helpers. Treated as immutable post-construction —
-     *  user mutations land in {@link #userProps} and shadow these. */
+     *  {@link #install} helpers. Immutable post-construction — user mutations
+     *  land in the per-Engine overlay ({@link #userProps()}) and shadow
+     *  these. Structural immutability is load-bearing: the map is read
+     *  concurrently by every engine on every thread, with no per-Engine
+     *  reset; {@link LazyRef} / {@link ConstructorRef} entries resolve
+     *  without writing back. */
     private final Map<String, Object> builtins = new LinkedHashMap<>();
 
     Prototype(Prototype __proto__) {
         this.__proto__ = __proto__;
-        ALL.add(this);
     }
 
     @Override
@@ -126,10 +166,8 @@ abstract class Prototype implements ObjectLike {
 
     @Override
     public void putMember(String name, Object value) {
-        if (userProps == null) {
-            userProps = new LinkedHashMap<>();
-        }
-        if (isCanonicalNumericKey(name)) numericPropPolluted = true;
+        Map<String, PropertySlot> userProps = userPropsForWrite();
+        if (isCanonicalNumericKey(name)) markNumericPolluted();
         PropertySlot existing = userProps.get(name);
         if (existing instanceof DataSlot ds) {
             ds.value = value;
@@ -142,6 +180,7 @@ abstract class Prototype implements ObjectLike {
 
     @Override
     public void removeMember(String name) {
+        Map<String, PropertySlot> userProps = userProps();
         PropertySlot existing = userProps == null ? null : userProps.get(name);
         if (existing != null && existing.tombstoned) {
             return;
@@ -170,12 +209,9 @@ abstract class Prototype implements ObjectLike {
                 ds.value = null;
                 ds.tombstoned = true;
             } else {
-                if (userProps == null) {
-                    userProps = new LinkedHashMap<>();
-                }
                 DataSlot ts = new DataSlot(name);
                 ts.tombstoned = true;
-                userProps.put(name, ts);
+                userPropsForWrite().put(name, ts);
             }
         } else {
             // No built-in to shadow; just drop the user slot entirely.
@@ -185,6 +221,7 @@ abstract class Prototype implements ObjectLike {
 
     @Override
     public Map<String, Object> toMap() {
+        Map<String, PropertySlot> userProps = userProps();
         if (userProps == null || userProps.isEmpty()) return Collections.emptyMap();
         Map<String, Object> view = new LinkedHashMap<>(userProps.size());
         for (PropertySlot s : userProps.values()) {
@@ -196,18 +233,20 @@ abstract class Prototype implements ObjectLike {
 
     @Override
     public final Object getMember(String name) {
+        Map<String, PropertySlot> userProps = userProps();
         PropertySlot s = userProps == null ? null : userProps.get(name);
         if (s != null) {
             if (s.tombstoned) return walkProto(name);
             return s instanceof DataSlot ds ? ds.value : null;
         }
-        Object builtin = resolveBuiltin(name);
+        Object builtin = resolveBuiltin(name, null);
         if (builtin != null) return builtin;
         return walkProto(name);
     }
 
     @Override
     public Object getMember(String name, Object receiver, CoreContext ctx) {
+        Map<String, PropertySlot> userProps = userProps();
         PropertySlot s = userProps == null ? null : userProps.get(name);
         if (s != null) {
             if (s.tombstoned) {
@@ -215,7 +254,7 @@ abstract class Prototype implements ObjectLike {
             }
             return s.read(receiver, ctx);
         }
-        Object builtin = resolveBuiltin(name);
+        Object builtin = resolveBuiltin(name, ctx);
         // Built-in accessor slot (installed via {@link #installAccessor}) —
         // dispatch through {@link AccessorSlot#read} so the getter sees the
         // user receiver and the prototype-self sentinel branch fires for
@@ -229,20 +268,27 @@ abstract class Prototype implements ObjectLike {
         return __proto__ == null ? null : __proto__.getMember(name);
     }
 
-    private Object resolveBuiltin(String name) {
+    private Object resolveBuiltin(String name, CoreContext ctx) {
         Object result = builtins.get(name);
         if (result instanceof LazyRef lr) {
-            // Cross-reference (e.g. `constructor` → JsXxxConstructor.INSTANCE)
-            // — resolved on first access since both singletons must exist
-            // by then. Cache the resolution to drop the indirection.
-            result = lr.supplier.get();
-            builtins.put(name, result);
+            // Lazily-allocated built-in (e.g. JsBuiltinMethod wrapper) —
+            // cached inside the LazyRef itself, NOT written back into
+            // builtins, so the shared map stays structurally immutable
+            // under concurrent readers.
+            return lr.resolve();
+        }
+        if (result instanceof ConstructorRef cr) {
+            // `constructor` cross-reference — each Engine has its own
+            // constructor instances, so resolve per access against the
+            // reading engine and never cache.
+            Engine engine = ctx != null ? ctx.getEngine() : Engine.current();
+            return engine == null ? null : engine.builtinConstructor(cr.globalName);
         }
         return result;
     }
 
     /** Installs (or updates) a data descriptor at {@code name} in
-     *  {@link #userProps}. Used by {@code Object.defineProperty} when the
+     *  the per-Engine user props. Used by {@code Object.defineProperty} when the
      *  target is a prototype with a data descriptor (e.g.
      *  {@code Object.defineProperty(Function.prototype, "prop",
      *  {value: 1001, enumerable: false, configurable: true})} — the attrs
@@ -252,10 +298,8 @@ abstract class Prototype implements ObjectLike {
      *  through to {@link #putMember} which carries no attrs and leaves the
      *  slot at {@link PropertySlot#ATTRS_DEFAULT} (W|E|C). */
     final void defineOwn(String name, Object value, byte attrs) {
-        if (userProps == null) {
-            userProps = new LinkedHashMap<>();
-        }
-        if (isCanonicalNumericKey(name)) numericPropPolluted = true;
+        Map<String, PropertySlot> userProps = userPropsForWrite();
+        if (isCanonicalNumericKey(name)) markNumericPolluted();
         PropertySlot existing = userProps.get(name);
         DataSlot s;
         if (existing instanceof DataSlot ds) {
@@ -271,14 +315,12 @@ abstract class Prototype implements ObjectLike {
     }
 
     /** Installs (or updates) an accessor descriptor at {@code name} in
-     *  {@link #userProps}. Used by {@code Object.defineProperty} when the
+     *  the per-Engine user props. Used by {@code Object.defineProperty} when the
      *  target is a prototype (e.g.
      *  {@code Object.defineProperty(String.prototype, "x", {get: …})}). */
     final void defineOwnAccessor(String name, JsCallable getter, JsCallable setter, byte attrs) {
-        if (userProps == null) {
-            userProps = new LinkedHashMap<>();
-        }
-        if (isCanonicalNumericKey(name)) numericPropPolluted = true;
+        Map<String, PropertySlot> userProps = userPropsForWrite();
+        if (isCanonicalNumericKey(name)) markNumericPolluted();
         PropertySlot existing = userProps.get(name);
         AccessorSlot s;
         if (existing instanceof AccessorSlot as) {
@@ -296,13 +338,14 @@ abstract class Prototype implements ObjectLike {
     /** Returns the own slot at {@code name} (data or accessor) when one is
      *  installed via {@link #defineOwnAccessor} / {@link #putMember} or
      *  via the install-time {@link #installAccessor}, or {@code null}
-     *  when absent or tombstoned. User slots in {@link #userProps} shadow
+     *  when absent or tombstoned. User slots in the per-Engine user props shadow
      *  built-in slots in {@link #builtins} — same precedence as
      *  {@link #getMember}. Mirrors
      *  {@link JsObject#getOwnSlot(String)} / {@link JsArray#getOwnSlot(String)}
      *  so {@link PropertyAccess#findAccessorInChain} and descriptor-inspection
      *  paths can use a single signature across all three storage shapes. */
     final PropertySlot getOwnSlot(String name) {
+        Map<String, PropertySlot> userProps = userProps();
         if (userProps != null) {
             PropertySlot s = userProps.get(name);
             if (s != null) return s.tombstoned ? null : s;
@@ -323,27 +366,18 @@ abstract class Prototype implements ObjectLike {
         builtins.put(name, new LazyRef(() -> new JsBuiltinMethod(name, length, delegate)));
     }
 
-    /** Install a built-in data slot (e.g. {@code constructor} pointer). */
+    /** Install a built-in data slot (e.g. the {@code name} string on an
+     *  error prototype). For {@code constructor} back-references use
+     *  {@link #installConstructor} — constructor instances are per-Engine. */
     protected final void install(String name, Object value) {
         builtins.put(name, value);
-    }
-
-    /** Install a built-in data slot whose value is resolved lazily on first
-     *  access. Use for cross-references between prototypes and constructors
-     *  (e.g. {@code Function.prototype.constructor} → {@code JsFunctionConstructor.INSTANCE})
-     *  where the {@code INSTANCE} field is still being initialized at the
-     *  moment of install but will be live by the time JS code reads it. */
-    protected final void installLazy(String name, Supplier<Object> resolver) {
-        builtins.put(name, new LazyRef(resolver));
     }
 
     /** Install a built-in accessor descriptor at {@code name}. Spec
      *  prototype getters (e.g. {@code RegExp.prototype.source},
      *  {@code Map.prototype.size}) live here; user-defined accessors via
      *  {@code Object.defineProperty} go through {@link #defineOwnAccessor}
-     *  into {@link #userProps} instead. {@link #builtins} survives
-     *  per-Engine reset, which is required so the spec accessors don't
-     *  vanish between {@code new Engine()} cycles. The
+     *  into the per-Engine user props instead. The
      *  {@link AccessorSlot} is materialized eagerly because lambdas / the
      *  spec sentinel closures don't need the static-init deferral that
      *  {@link #install(String, int, JsCallable)}'s LazyRef pattern protects
@@ -356,17 +390,59 @@ abstract class Prototype implements ObjectLike {
         builtins.put(name, s);
     }
 
-    private record LazyRef(Supplier<Object> supplier) {
+    /** Lazily-resolved built-in entry. Caches its own resolution (instead of
+     *  writing back into {@link #builtins}) so the shared builtins map never
+     *  structurally mutates after construction — it is read concurrently by
+     *  every engine on every thread. The synchronized resolve keeps method
+     *  identity ({@code Foo.prototype.bar === Foo.prototype.bar}) stable
+     *  JVM-wide even when two engines race the first access. */
+    private static final class LazyRef {
+        private final Supplier<Object> supplier;
+        private volatile Object resolved;
+
+        LazyRef(Supplier<Object> supplier) {
+            this.supplier = supplier;
+        }
+
+        Object resolve() {
+            Object result = resolved;
+            if (result == null) {
+                synchronized (this) {
+                    result = resolved;
+                    if (result == null) {
+                        result = supplier.get();
+                        resolved = result;
+                    }
+                }
+            }
+            return result;
+        }
+    }
+
+    /** Marker for the {@code constructor} cross-reference on a built-in
+     *  prototype. Resolved per access against the reading Engine's
+     *  constructor registry (see {@link Engine#builtinConstructor}) and
+     *  never cached — constructor instances are per-Engine, so caching one
+     *  engine's instance in the shared builtins map would leak it to all. */
+    private record ConstructorRef(String globalName) {
+    }
+
+    /** Install the spec {@code constructor} back-reference, pointing at the
+     *  built-in constructor registered under {@code globalName} ("Array",
+     *  "TypeError", …) in each Engine. */
+    protected final void installConstructor(String globalName) {
+        builtins.put("constructor", new ConstructorRef(globalName));
     }
 
     /**
      * Spec attribute byte for an own property. Reads the per-property attrs
-     * stored on the slot when one exists in {@link #userProps}; otherwise
+     * stored on the slot when one exists in the per-Engine user props; otherwise
      * falls back to the class default returned by {@link #defaultAttrs(String)}
      * (built-in methods carry {@code {writable: true, enumerable: false,
      * configurable: true}} on every standard prototype).
      */
     public final byte getOwnAttrs(String name) {
+        Map<String, PropertySlot> userProps = userProps();
         PropertySlot s = userProps == null ? null : userProps.get(name);
         if (s != null && !s.tombstoned) {
             return s.attrs;
@@ -394,6 +470,7 @@ abstract class Prototype implements ObjectLike {
      */
     @Override
     public boolean isOwnProperty(String name) {
+        Map<String, PropertySlot> userProps = userProps();
         PropertySlot s = userProps == null ? null : userProps.get(name);
         if (s != null) {
             return !s.tombstoned;
