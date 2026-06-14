@@ -830,11 +830,57 @@ public class CdpDriver implements Driver {
                     .param("expression", "typeof document !== 'undefined'")
                     .param("returnByValue", true)
                     .send();
-            Object value = response.getResult("result.value");
-            return Boolean.TRUE.equals(value);
+            if (!Boolean.TRUE.equals(response.getResult("result.value"))) {
+                return false;
+            }
         } catch (Exception e) {
             logger.warn("JS execution verification failed: {}", e.getMessage());
             return false;
+        }
+        // The default-context probe above only proves the session can run JS - but
+        // script() targets the EXPLICIT per-frame context from frameContexts (see
+        // getFrameContext). After a cross-document navigation a dead contextId can
+        // linger in that map until Runtime.executionContextsCleared is processed, and
+        // the single-threaded CDP event dispatch can delay that under load (e.g. OOPIF
+        // churn on the same driver). Returning "loaded" here while a stale id is still
+        // mapped lets the first real script() race a dead context - the source of the
+        // "transient context error" retries that then cascade into waitUntil/waitFor
+        // timeouts. Probe+evict the stale main-frame entry so getFrameContext() falls
+        // back to the live default context instead. We do NOT block on a fresh context
+        // arriving (that would risk a navigation timeout if the event is lost); evicting
+        // is enough to make the next script() use a good context.
+        evictStaleMainFrameContext();
+        return true;
+    }
+
+    /**
+     * If the main frame has an execution context mapped but that context is already
+     * dead, remove it. Scoped to the main frame only: for a switched same-process
+     * iframe the per-frame context is the ONLY way to reach it, so evicting there would
+     * silently retarget script() at the main frame. OOPIFs use their session's default
+     * context (no explicit id), so they are skipped too.
+     */
+    private void evictStaleMainFrameContext() {
+        if (currentFrame != null || mainFrameId == null) {
+            return;
+        }
+        Integer contextId = frameContexts.get(mainFrameId);
+        if (contextId == null) {
+            return; // nothing mapped; getFrameContext() will use the live default context
+        }
+        try {
+            CdpResponse probe = cdp.method("Runtime.evaluate")
+                    .param("expression", "1")
+                    .param("returnByValue", true)
+                    .param("contextId", contextId)
+                    .send();
+            if (isTransientContextError(probe)) {
+                frameContexts.remove(mainFrameId, contextId);
+                logger.debug("evicted stale main-frame execution context: {}", contextId);
+            }
+        } catch (Exception e) {
+            frameContexts.remove(mainFrameId, contextId);
+            logger.debug("evicted main-frame execution context after probe error: {}", contextId);
         }
     }
 
@@ -1037,8 +1083,17 @@ public class CdpDriver implements Driver {
         if (dialogHandler == null && currentDialog != null && !currentDialog.isHandled()) {
             throw new DialogOpenedException("dialog is blocking Runtime.evaluate");
         }
-        int maxRetries = options.getRetryCount();
+        // A destroyed execution context (navigation tore it down) is re-created by Chrome
+        // within tens of milliseconds, NOT the 500ms element-poll interval. Sleeping the
+        // full retryInterval per transient error makes every post-navigation eval cost
+        // ~500ms+, and with wildcard locators / waitUntil polling that snowballs into
+        // spurious waitUntil/waitFor timeouts under parallel load. Poll fast instead, but
+        // keep the SAME overall time budget (retryCount * retryInterval) so a genuinely
+        // slow context swap on a loaded CI box still recovers.
         int retryInterval = options.getRetryInterval();
+        int transientInterval = Math.min(retryInterval, 100);
+        int maxRetries = Math.max(options.getRetryCount(),
+                (int) Math.ceil((double) options.getRetryCount() * retryInterval / Math.max(1, transientInterval)));
 
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
             CdpMessage message = cdp.method("Runtime.evaluate")
@@ -1072,9 +1127,19 @@ public class CdpDriver implements Driver {
             // Check for transient context errors that should be retried
             if (isTransientContextError(response)) {
                 if (attempt < maxRetries) {
-                    // Simple retry with sleep - let CDP events update context in background
+                    // The contextId we just used is dead (e.g. a click triggered a
+                    // navigation between getFrameContext() and now). For the main frame,
+                    // drop the dead entry so the retry resolves a fresh context - or the
+                    // live session default - instead of reusing the known-dead id every
+                    // attempt. Scoped to the main frame: a switched same-process iframe's
+                    // context is the only handle to it, so we let the sleep-and-retry wait
+                    // for executionContextCreated to refresh it rather than retargeting.
+                    if (contextId != null && currentFrame == null) {
+                        frameContexts.remove(mainFrameId, contextId);
+                    }
+                    // Fast poll with sleep - let CDP events update context in background
                     logger.warn("transient context error, retry {}/{}: {}", attempt + 1, maxRetries, truncate(expression, 100));
-                    sleep(retryInterval);
+                    sleep(transientInterval);
                     continue;
                 }
                 logger.warn("retry exhausted for transient context error: {}", truncate(expression, 100));
