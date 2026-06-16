@@ -678,6 +678,14 @@ try {
 
 The call-site path (`Interpreter.evalFnCall`) is intentionally left as plain Java throw/propagate. This preserves the existing behavior for **uncaught** exceptions: they continue to bubble up through the expression chain, pick up the helpful `expression: <code> - <message>` framing at `PropertyAccess.getRefDotExpr`, and finally become the usual `js failed:` wrapper at the statement boundary. Only entering a `try` block changes the outcome.
 
+### Host invocations surface uncaught throws
+
+When a Java host invokes a JS function **directly** — `someFunction.call(hostCtx, args)` on a `JavaCallable`, with no JS caller context (a `null` or otherwise non-`CoreContext` caller) — an uncaught JS `throw` inside the body surfaces to the host as a Java `EngineException`, exactly as `engine.eval` surfaces one at the statement boundary. The structured `jsErrorName` / `jsMessage` are preserved, so `throw new TypeError('x')` and `throw 'x'` both reach the host with a JS-native shape.
+
+**Implementation.** `JsFunctionNode.call` detects the host-invocation case (the caller is not a `CoreContext`) and, after running the body, converts a function context left in JS-error state into an `EngineException` via the shared `Interpreter.errorAsException(context, node)` helper (the same conversion `evalProgram` applies at the top-level statement boundary). The error is then cleared from the declaring context (`CoreContext.reset()`) so a throwing host call does not leave the shared engine context dirty for the next call. The **JS-to-JS** path is unchanged: when the caller *is* a `CoreContext`, the error still propagates via `parentContext.updateFrom(...)` so a surrounding JS `try/catch` intercepts it. Pinned in `HostCallThrowTest`.
+
+Before this boundary existed, a direct `call(...)` silently swallowed the throw and returned normally — a latent bug for any host that drives a user-supplied JS function (e.g. a rule oracle that rejects an impossible input with `throw`).
+
 ### Abrupt completions in control-flow tests
 
 **Errors propagate via `context.stopAndThrow`, not via Java

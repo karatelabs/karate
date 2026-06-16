@@ -1944,44 +1944,59 @@ class Interpreter {
             progResult = eval(child, context);
             anyNonDecl = true;
             if (context.isError()) {
-                Object errorThrown = context.getErrorThrown();
-                String errorMessage = null;
-                String errorName = null;
-                if (errorThrown instanceof JsObject jsError) {
-                    Object message = jsError.getMember("message");
-                    if (message instanceof String) {
-                        errorMessage = (String) message;
-                    }
-                    Object name = jsError.getMember("name");
-                    if (name instanceof String s && !s.isEmpty()) {
-                        errorName = s;
-                    } else if (jsError.getMember("constructor") instanceof JsFunction ctor
-                            && ctor.getMember("name") instanceof String ctorName
-                            && !ctorName.isEmpty()) {
-                        // User-defined error classes (e.g. test262's Test262Error) often omit
-                        // .name on the prototype; fall back to constructor.name so host callers
-                        // still see a meaningful error type.
-                        errorName = ctorName;
-                    }
-                }
-                // jsMessage is the unframed JS-side surface — what `e.message` in a
-                // JS catch would see. Prefer the structured payload .message; fall
-                // back to errorThrown.toString() for non-Error throws (`throw 42`,
-                // `throw "x"`). No "<Name>: " prefix here — that's a getMessage()
-                // logging convenience, not the JS-side .message contract.
-                String jsMessage = errorMessage == null ? errorThrown.toString() : errorMessage;
-                String rawMessage = jsMessage;
-                // Keep a readable prefix in the host-facing message for logging,
-                // but the structured errorName is what callers (like the test262
-                // runner) should consult.
-                if (errorName != null && !rawMessage.startsWith(errorName + ":")) {
-                    rawMessage = errorName + ": " + rawMessage;
-                }
-                String message = child.toStringError(rawMessage);
-                throw new EngineException(message, null, errorName, jsMessage);
+                throw errorAsException(context, child);
             }
         }
         return anyNonDecl ? progResult : lastFnDecl;
+    }
+
+    /**
+     * Convert a context left in JS-error state ({@link CoreContext#isError()}) into the host-facing
+     * {@link EngineException} — the single conversion that makes an uncaught JS {@code throw} look
+     * JS-native to a Java caller (structured {@code jsErrorName} + {@code jsMessage}). Applied at the
+     * top-level statement boundary ({@link #evalProgram}) and at the host-invocation boundary
+     * ({@link JsFunctionNode#call} when a host calls a JS function directly, with no JS caller context),
+     * so {@code someFn.call(null, args)} surfaces an uncaught throw exactly like {@code engine.eval}.
+     *
+     * @param node frames the host-facing (logging) message; the structured {@code jsErrorName}/
+     *             {@code jsMessage} are framing-independent
+     */
+    static EngineException errorAsException(CoreContext context, Node node) {
+        Object errorThrown = context.getErrorThrown();
+        String errorMessage = null;
+        String errorName = null;
+        if (errorThrown instanceof JsObject jsError) {
+            Object message = jsError.getMember("message");
+            if (message instanceof String) {
+                errorMessage = (String) message;
+            }
+            Object name = jsError.getMember("name");
+            if (name instanceof String s && !s.isEmpty()) {
+                errorName = s;
+            } else if (jsError.getMember("constructor") instanceof JsFunction ctor
+                    && ctor.getMember("name") instanceof String ctorName
+                    && !ctorName.isEmpty()) {
+                // User-defined error classes (e.g. test262's Test262Error) often omit
+                // .name on the prototype; fall back to constructor.name so host callers
+                // still see a meaningful error type.
+                errorName = ctorName;
+            }
+        }
+        // jsMessage is the unframed JS-side surface — what `e.message` in a
+        // JS catch would see. Prefer the structured payload .message; fall
+        // back to errorThrown.toString() for non-Error throws (`throw 42`,
+        // `throw "x"`). No "<Name>: " prefix here — that's a getMessage()
+        // logging convenience, not the JS-side .message contract.
+        String jsMessage = errorMessage == null ? errorThrown.toString() : errorMessage;
+        String rawMessage = jsMessage;
+        // Keep a readable prefix in the host-facing message for logging,
+        // but the structured errorName is what callers (like the test262
+        // runner) should consult.
+        if (errorName != null && !rawMessage.startsWith(errorName + ":")) {
+            rawMessage = errorName + ": " + rawMessage;
+        }
+        String message = node.toStringError(rawMessage);
+        return new EngineException(message, null, errorName, jsMessage);
     }
 
     private static Object evalRefExpr(Node node, CoreContext context) {

@@ -128,10 +128,17 @@ class JsFunctionNode extends JsFunction {
     @Override
     public Object call(Context callerContext, Object[] args) {
         final CoreContext parentContext;
+        // A host (Java) caller invokes us directly with no JS caller context (null / a foreign,
+        // non-CoreContext caller). There is no surrounding JS statement boundary to convert an
+        // uncaught `throw` into an EngineException the way evalProgram does, so we apply that same
+        // conversion here — otherwise `someFn.call(null, args)` silently swallows a JS throw.
+        final boolean hostCall;
         if (callerContext instanceof CoreContext cc) {
             parentContext = cc;
+            hostCall = false;
         } else {
             parentContext = declaredContext;
+            hostCall = true;
         }
         // Create lightweight function context with captured bindings
         CoreContext functionContext = new CoreContext(parentContext, node, args, declaredContext, capturedBindings);
@@ -146,14 +153,35 @@ class JsFunctionNode extends JsFunction {
         // same engine's eval) pays one ThreadLocal read and skips the switch.
         Engine declaringEngine = declaredContext == null ? null : declaredContext.getEngine();
         if (declaringEngine == null || declaringEngine == Engine.current()) {
-            return bindArgsAndExecute(functionContext, parentContext, args);
+            Object result = bindArgsAndExecute(functionContext, parentContext, args);
+            return hostCall ? hostResult(functionContext, parentContext, result) : result;
         }
         Engine prevEngine = Engine.enter(declaringEngine);
         try {
-            return bindArgsAndExecute(functionContext, parentContext, args);
+            Object result = bindArgsAndExecute(functionContext, parentContext, args);
+            return hostCall ? hostResult(functionContext, parentContext, result) : result;
         } finally {
             Engine.exit(prevEngine);
         }
+    }
+
+    /**
+     * Host-invocation boundary: when a Java caller (no JS caller context) runs us and the body left
+     * an uncaught JS throw, surface it as a Java {@link EngineException} — the same conversion
+     * {@code engine.eval} applies at the statement boundary — instead of returning normally. The
+     * error was already propagated onto {@code parentContext} (the declaring context) by
+     * {@link #bindArgsAndExecute}; clear it so the shared declaring context is not left dirty for the
+     * next host call. A clean (non-error) completion returns the value unchanged.
+     */
+    private Object hostResult(CoreContext functionContext, CoreContext parentContext, Object result) {
+        if (functionContext.isError()) {
+            EngineException ex = Interpreter.errorAsException(functionContext, node);
+            if (parentContext != null) {
+                parentContext.reset();
+            }
+            throw ex;
+        }
+        return result;
     }
 
     // Called by Interpreter when context is pre-prepared with closure info
