@@ -124,6 +124,31 @@ public class GatlingDslTest {
     }
 
     @Test
+    void testKarateEnvFromSystemProperty() {
+        // A Gatling simulation run with -Dkarate.env=... must pick it up automatically, with NO
+        // explicit protocol.runner.karateEnv(...). runner-env.feature asserts karate.env == 'perf'.
+        String saved = System.getProperty("karate.env");
+        System.setProperty("karate.env", "perf");
+        try {
+            KarateProtocolBuilder protocolBuilder = karateProtocol(); // note: no karateEnv set
+            FeatureResult result = Runner.runFeature(
+                    "classpath:features/runner-env.feature",
+                    new HashMap<>(),
+                    null,
+                    null,
+                    protocolBuilder.build().getRunner());
+            assertFalse(result.isFailed(),
+                    "karate.env should resolve from -Dkarate.env without explicit protocol.runner.karateEnv");
+        } finally {
+            if (saved == null) {
+                System.clearProperty("karate.env");
+            } else {
+                System.setProperty("karate.env", saved);
+            }
+        }
+    }
+
+    @Test
     void testCallSingleSharedAcrossRunsViaProtocolCache() {
         // Simulates two Gatling virtual users running the same feature: with the
         // protocol-scoped callSingle cache wired through, the helper feature should

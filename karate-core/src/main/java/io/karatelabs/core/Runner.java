@@ -181,6 +181,10 @@ public final class Runner {
         if (tags != null && !tags.isEmpty()) {
             builder.tags(tags.toArray(new String[0]));
         }
+        // This single-feature path bypasses Builder.parallel(), so apply the karate.env /
+        // karate.config.dir sysprop+envvar overrides here too — otherwise a Gatling simulation
+        // run with -Dkarate.env=... would not pick it up (it would resolve to the config default).
+        KarateOptionsHandler.applyEnvAndConfigDir(builder);
         Suite suite = builder.buildSuite();
 
         // Set PerfHook if provided (for Gatling integration)

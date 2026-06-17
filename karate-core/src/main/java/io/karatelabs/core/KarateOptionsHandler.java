@@ -81,8 +81,7 @@ public final class KarateOptionsHandler {
      */
     public static int apply(Runner.Builder builder, int threadCount) {
         // Step 1: individual sysprops (lower precedence than karate.options)
-        applyIndividualEnv(builder);
-        applyIndividualConfigDir(builder);
+        applyEnvAndConfigDir(builder);
 
         // Step 2: karate.options sysprop / env var (higher precedence — applied last)
         String source = null;
@@ -100,6 +99,17 @@ public final class KarateOptionsHandler {
         }
         logger.info("using {}: {}", source, raw);
         return parseAndApplyOptions(builder, raw, threadCount);
+    }
+
+    /**
+     * Apply only the individual {@code karate.env} / {@code karate.config.dir} sysprop and
+     * environment-variable overrides to the builder — without parsing {@code karate.options}.
+     * Used by single-feature entry points (e.g. karate-gatling's {@code Runner.runFeature})
+     * that build a {@link Suite} directly and so never go through {@link #apply}.
+     */
+    public static void applyEnvAndConfigDir(Runner.Builder builder) {
+        applyIndividualEnv(builder);
+        applyIndividualConfigDir(builder);
     }
 
     private static void applyIndividualEnv(Runner.Builder builder) {
