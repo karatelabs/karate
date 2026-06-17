@@ -98,6 +98,16 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     // Cookie jar for auto-sending responseCookies on subsequent requests (V1 compatibility)
     private final Map<String, Map<String, Object>> cookieJar = new LinkedHashMap<>();
 
+    // Identity set of values that originated from an untrusted HTTP request (Mock Server only).
+    // Such values must not have their `#(...)` strings evaluated as embedded expressions — that
+    // would let a client inject Karate/Java code. Only MockHandler populates this; it stays empty
+    // (and the guard below is free) for ordinary execution. See markRequestDerived / isRequestDerived.
+    private final java.util.Set<Object> requestDerived =
+            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+    // When true a mock evaluates request-derived embedded expressions (the pre-fix behavior) -
+    // opt-in only, since it re-opens the injection surface. Defaults to off (request data is data).
+    private boolean requestExpressionsEnabled;
+
     // Debug support - step navigation
     private List<Step> steps;
     private int stepIndex;
@@ -1288,6 +1298,51 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
     public KarateJs getKarate() {
         return karate;
+    }
+
+    /**
+     * Whether a mock should evaluate embedded expressions found in request-derived data.
+     * Off by default (request data is treated as inert data); a mock can opt in via the
+     * {@code MockServer.Builder} flag or {@code configure requestExpressionsEnabled = true}.
+     */
+    public boolean isRequestExpressionsEnabled() {
+        return requestExpressionsEnabled;
+    }
+
+    public void setRequestExpressionsEnabled(boolean requestExpressionsEnabled) {
+        this.requestExpressionsEnabled = requestExpressionsEnabled;
+    }
+
+    /** Forget all request-derived values; called by the Mock Server at the start of each request. */
+    public void clearRequestDerived() {
+        if (!requestDerived.isEmpty()) {
+            requestDerived.clear();
+        }
+    }
+
+    /**
+     * Deep-mark a value (and every nested Map/List) as having originated from an untrusted HTTP
+     * request, so {@code processEmbeddedExpressions} will leave its {@code #(...)} strings inert.
+     */
+    public void markRequestDerived(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            if (requestDerived.add(value)) { // add returns false if already present - stops cycles
+                for (Object v : map.values()) {
+                    markRequestDerived(v);
+                }
+            }
+        } else if (value instanceof List<?> list) {
+            if (requestDerived.add(value)) {
+                for (Object v : list) {
+                    markRequestDerived(v);
+                }
+            }
+        }
+    }
+
+    /** True if the value was marked by {@link #markRequestDerived}. Free when nothing is marked. */
+    public boolean isRequestDerived(Object value) {
+        return !requestDerived.isEmpty() && requestDerived.contains(value);
     }
 
     /**

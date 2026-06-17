@@ -80,6 +80,17 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
     private final ReentrantLock requestLock = new ReentrantLock();
     private final String pathPrefix;
 
+    // Java interop (Java.type) is OFF by default for mocks: a mock can assign attacker-controlled
+    // request data (request/requestHeaders/requestParams), which is then processed for embedded
+    // expressions — leaving the Java bridge on would make that a remote code execution vector.
+    // A trusted mock can opt back in via the builder flag or `configure javaBridgeEnabled = true`.
+    private final boolean javaBridgeEnabled;
+
+    // Whether request-derived data (request/requestHeaders/requestParams) has its embedded
+    // `#(...)` expressions evaluated. OFF by default so attacker-controlled request data stays
+    // inert; opt back in via the builder flag or `configure requestExpressionsEnabled = true`.
+    private final boolean requestExpressionsEnabled;
+
     // Runtime per feature (like V1's scenarioRuntimes map)
     private final Map<Feature, ScenarioRuntime> runtimes = new LinkedHashMap<>();
 
@@ -97,7 +108,14 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
     }
 
     public MockHandler(List<Feature> features, Map<String, Object> args, String pathPrefix) {
+        this(features, args, pathPrefix, false, false);
+    }
+
+    public MockHandler(List<Feature> features, Map<String, Object> args, String pathPrefix,
+                       boolean javaBridgeEnabled, boolean requestExpressionsEnabled) {
         this.pathPrefix = pathPrefix;
+        this.javaBridgeEnabled = javaBridgeEnabled;
+        this.requestExpressionsEnabled = requestExpressionsEnabled;
 
         // Initialize each feature with its own runtime
         for (Feature feature : features) {
@@ -126,6 +144,13 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
 
         // Wire up MockHandler reference for karate.proceed()
         runtime.getKarate().setMockHandler(this);
+
+        // Disable Java interop by default for the mock engine (see javaBridgeEnabled). Done
+        // before Background runs so that a `configure javaBridgeEnabled = true` step there can
+        // opt back in. When the builder flag is set, leave the default (enabled) bridge in place.
+        runtime.getKarate().setJavaBridgeEnabled(javaBridgeEnabled);
+        // Likewise treat request-derived data as inert by default; Background may opt back in.
+        runtime.setRequestExpressionsEnabled(requestExpressionsEnabled);
 
         // Register matcher functions (lambdas read from currentRequest field)
         Engine engine = runtime.getEngine();
@@ -194,7 +219,7 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         // Register lazy request variables (resolved via JsLazy when accessed)
         // These read from currentRequest field which is set per-request
         engine.put("request", (JsLazy) () ->
-            currentRequest != null ? currentRequest.getBodyConverted() : null);
+            currentRequest != null ? markRequestDerived(runtime, currentRequest.getBodyConverted()) : null);
         engine.put("requestBytes", (JsLazy) () ->
             currentRequest != null ? currentRequest.getBody() : null);
         engine.put("requestPath", (JsLazy) () ->
@@ -206,13 +231,13 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         engine.put("requestMethod", (JsLazy) () ->
             currentRequest != null ? currentRequest.getMethod() : null);
         engine.put("requestHeaders", (JsLazy) () ->
-            currentRequest != null ? currentRequest.getHeaders() : null);
+            currentRequest != null ? markRequestDerived(runtime, currentRequest.getHeaders()) : null);
         engine.put("requestParams", (JsLazy) () ->
-            currentRequest != null ? currentRequest.getParams() : null);
+            currentRequest != null ? markRequestDerived(runtime, currentRequest.getParams()) : null);
         engine.put("requestParts", (JsLazy) () ->
-            currentRequest != null ? currentRequest.getMultiParts() : null);
+            currentRequest != null ? markRequestDerived(runtime, currentRequest.getMultiParts()) : null);
         engine.put("requestCookies", (JsLazy) () ->
-            currentRequest != null ? currentRequest.getCookies() : null);
+            currentRequest != null ? markRequestDerived(runtime, currentRequest.getCookies()) : null);
 
         // Put args into globals if provided
         if (args != null) {
@@ -322,6 +347,10 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
             ScenarioRuntime runtime = runtimes.get(feature);
             Engine engine = runtime.getEngine();
 
+            // Drop any values marked request-derived by a previous request before this one's
+            // bindings are read again, so the identity set never accumulates stale entries.
+            runtime.clearRequestDerived();
+
             // Set up request variables (includes storing HttpRequest for matcher functions)
             setupRequestVariables(engine, request);
 
@@ -354,6 +383,15 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
             response.setHeader("Access-Control-Allow-Headers", requestHeaders.toArray(new String[0]));
         }
         return response;
+    }
+
+    // Tag request-derived data so its embedded #(...) expressions stay inert (unless the mock
+    // opted in via requestExpressionsEnabled). Returns the value for inline use in the bindings.
+    private static Object markRequestDerived(ScenarioRuntime runtime, Object value) {
+        if (!runtime.isRequestExpressionsEnabled()) {
+            runtime.markRequestDerived(value);
+        }
+        return value;
     }
 
     private void setupRequestVariables(Engine engine, HttpRequest request) {

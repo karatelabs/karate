@@ -2904,6 +2904,21 @@ public class StepExecutor {
             expr = step.getDocString();
         }
         Object value;
+        if (key.equals("javaBridgeEnabled")) {
+            // Toggle Java interop (Java.type) for this engine. Mocks disable it by default
+            // so untrusted request data evaluated as embedded expressions cannot reach Java
+            // class loading; a trusted feature opts back in with `configure javaBridgeEnabled = true`.
+            Object enabled = evalKarateExpression(expr);
+            runtime.getKarate().setJavaBridgeEnabled(Boolean.parseBoolean(String.valueOf(enabled)));
+            return;
+        }
+        if (key.equals("requestExpressionsEnabled")) {
+            // Opt a mock back in to evaluating embedded expressions in request-derived data
+            // (off by default). Re-opens the injection surface - only for trusted mocks.
+            Object enabled = evalKarateExpression(expr);
+            runtime.setRequestExpressionsEnabled(Boolean.parseBoolean(String.valueOf(enabled)));
+            return;
+        }
         if (key.equals("headers") || key.equals("cookies")) {
             // v1 parity: `configure headers = obj` (and cookies) must hold a live
             // reference to the source object so mutations made after the configure
@@ -3174,6 +3189,13 @@ public class StepExecutor {
      * </ul>
      */
     private Object processEmbeddedExpressions(Object value, boolean lenient) {
+        // Untrusted HTTP request data (Mock Server) must never be evaluated as embedded
+        // expressions - returning it verbatim leaves any `#(...)` it carries as inert data.
+        // Short-circuiting at the first request-derived container protects every nested value.
+        // No-op for ordinary execution, where nothing is ever marked request-derived.
+        if (runtime.isRequestDerived(value)) {
+            return value;
+        }
         if (value instanceof Node) {
             processXmlEmbeddedExpressions((Node) value);
             return value;

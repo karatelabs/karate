@@ -185,6 +185,8 @@ public class MockServer implements SimpleObject {
         private String keyPath;
         private SslContext customSslContext;
         private boolean watch;
+        private boolean javaBridgeEnabled;
+        private boolean requestExpressionsEnabled;
 
         private Builder() {
         }
@@ -284,6 +286,31 @@ public class MockServer implements SimpleObject {
         }
 
         /**
+         * Enable Java interop ({@code Java.type(...)}) for mock features. OFF by default: a
+         * mock that assigns request-derived data (request/requestHeaders/requestParams) would
+         * otherwise evaluate attacker-controlled embedded expressions with full Java access,
+         * which is a remote code execution risk. Only enable for mocks that are not exposed to
+         * untrusted clients and genuinely need Java interop. Individual features can also opt in
+         * with {@code configure javaBridgeEnabled = true}.
+         */
+        public Builder javaBridgeEnabled(boolean javaBridgeEnabled) {
+            this.javaBridgeEnabled = javaBridgeEnabled;
+            return this;
+        }
+
+        /**
+         * Evaluate embedded {@code #(...)} expressions found in request-derived data
+         * (request/requestHeaders/requestParams). OFF by default: attacker-controlled request
+         * data is treated as inert data, not Karate code. Only enable for trusted mocks that
+         * intentionally template off request content. Individual features can also opt in with
+         * {@code configure requestExpressionsEnabled = true}.
+         */
+        public Builder requestExpressionsEnabled(boolean requestExpressionsEnabled) {
+            this.requestExpressionsEnabled = requestExpressionsEnabled;
+            return this;
+        }
+
+        /**
          * Start the mock server.
          */
         public MockServer start() {
@@ -296,12 +323,12 @@ public class MockServer implements SimpleObject {
             MockHandler handler;
 
             if (watch) {
-                ReloadingHandler reloadingHandler = new ReloadingHandler(features, args, pathPrefix);
+                ReloadingHandler reloadingHandler = new ReloadingHandler(features, args, pathPrefix, javaBridgeEnabled, requestExpressionsEnabled);
                 handler = reloadingHandler.getHandler();
                 requestHandler = reloadingHandler;
                 logger.info("watch mode enabled - features will be reloaded when modified");
             } else {
-                handler = new MockHandler(features, args, pathPrefix);
+                handler = new MockHandler(features, args, pathPrefix, javaBridgeEnabled, requestExpressionsEnabled);
                 requestHandler = handler;
             }
 
@@ -334,12 +361,16 @@ public class MockServer implements SimpleObject {
 
         private final Map<String, Object> args;
         private final String pathPrefix;
+        private final boolean javaBridgeEnabled;
+        private final boolean requestExpressionsEnabled;
         private final Map<Resource, Long> watchedFiles = new LinkedHashMap<>();
         private MockHandler handler;
 
-        ReloadingHandler(List<Feature> features, Map<String, Object> args, String pathPrefix) {
+        ReloadingHandler(List<Feature> features, Map<String, Object> args, String pathPrefix, boolean javaBridgeEnabled, boolean requestExpressionsEnabled) {
             this.args = args;
             this.pathPrefix = pathPrefix;
+            this.javaBridgeEnabled = javaBridgeEnabled;
+            this.requestExpressionsEnabled = requestExpressionsEnabled;
 
             // Track file modification times for each feature
             for (Feature feature : features) {
@@ -358,7 +389,7 @@ public class MockServer implements SimpleObject {
             }
 
             // Initialize handler
-            handler = new MockHandler(features, args, pathPrefix);
+            handler = new MockHandler(features, args, pathPrefix, javaBridgeEnabled, requestExpressionsEnabled);
         }
 
         MockHandler getHandler() {
@@ -400,7 +431,7 @@ public class MockServer implements SimpleObject {
                 watchedFiles.putAll(newWatchedFiles);
 
                 // Create new handler with reloaded features
-                handler = new MockHandler(reloadedFeatures, args, pathPrefix);
+                handler = new MockHandler(reloadedFeatures, args, pathPrefix, javaBridgeEnabled, requestExpressionsEnabled);
                 logger.info("reloaded {} feature(s)", reloadedFeatures.size());
             }
 

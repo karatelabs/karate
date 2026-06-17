@@ -87,16 +87,36 @@ abstract class KarateJsBase implements SimpleObject {
     io.karatelabs.http.HttpResponse prevResponse; // tracks previous HTTP response (for karate.response)
     KarateJsLog logFacade; // lazy-initialized
 
+    // The default bridge enables full Java interop (Java.type(), reflective dispatch on
+    // plain Java objects). It is the normal mode for trusted feature files run by the test
+    // engine. The Mock Server disables it by default — see setJavaBridgeEnabled — because a
+    // mock can evaluate attacker-controlled request data as embedded expressions, and Java
+    // interop would turn that into arbitrary code execution.
+    // TODO: implement whitelisting for safety - the default bridge allows access to all Java classes
+    static final io.karatelabs.js.ExternalBridge DEFAULT_BRIDGE = new io.karatelabs.js.ExternalBridge() {
+    };
+
     KarateJsBase(Resource root, HttpClient client) {
         this.root = root;
         this.client = client;
         http = new HttpRequestBuilder(client);
         this.engine = new Engine();
         engine.setOnConsoleLog(s -> SCENARIO_LOG.info(s));
-        // TODO: implement whitelisting for safety - currently allows access to all Java classes
-        engine.setExternalBridge(new io.karatelabs.js.ExternalBridge() {
-        });
+        engine.setExternalBridge(DEFAULT_BRIDGE);
         // Note: engine.put() for karate, read, match is done in KarateJs constructor
+    }
+
+    /**
+     * Enable or disable Java interop ({@code Java.type(...)} and reflective dispatch) for
+     * this engine. When disabled the external bridge is removed: {@code Java.type(...)} throws
+     * "java bridge not enabled" and a bare fully-qualified class reference resolves to null.
+     * The Mock Server disables this by default so that embedded expressions found in
+     * untrusted HTTP request data cannot reach Java class loading / command execution; a mock
+     * feature that genuinely needs Java interop can opt back in with
+     * {@code configure javaBridgeEnabled = true}.
+     */
+    public void setJavaBridgeEnabled(boolean enabled) {
+        engine.setExternalBridge(enabled ? DEFAULT_BRIDGE : null);
     }
 
     public void setOnDoc(Consumer<String> onDoc) {
