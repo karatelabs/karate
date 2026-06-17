@@ -47,6 +47,10 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
 - [ ] Write release notes following the template below — one-line bullets, issue refs at the end (e.g. `#2843`), milestone link, compare link, 2.0.0 migration note, then `### Artifacts`. See [v2.0.8](https://github.com/karatelabs/karate/releases/tag/v2.0.8) / [v2.0.9](https://github.com/karatelabs/karate/releases/tag/v2.0.9) for reference renderings.
 
   ```markdown
+  ## ⚠️ Breaking Changes
+  * <one-line description of the behavior change AND the migration needed to keep old behavior, ending with the issue ref> #NNNN
+  * ...
+
   ## Important Fixes
   * <one-line description of the fix, ending with the issue ref> #NNNN
   * ...
@@ -68,6 +72,7 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
   ```
 
   Style notes:
+  - **Breaking Changes** = changes that require user action to preserve existing behavior (new defaults, removed/renamed APIs, changed semantics). Lead the notes with this section and state the migration inline on each bullet. Omit the section entirely when there are none.
   - **Important Fixes** = user-visible bugs, regressions, and v1→v2 parity restorations. Almost always carries an issue ref.
   - **New Features & Enhancements** = additive changes, internal improvements, dep bumps worth surfacing. Issue ref optional.
   - Keep each bullet to one line. Lead with the change, not the file/module. Put the issue ref at the end.
