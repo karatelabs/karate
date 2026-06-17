@@ -586,13 +586,12 @@ class PropertyAccess {
     private static Object getByName(Object object, String name, boolean optional,
                                      CoreContext context, boolean functionCall) {
         if (object == null || object == Terms.UNDEFINED) {
-            if (context.hasKey(name)) {
-                Object result = context.get(name);
-                if (functionCall && context.root.bridge != null && result instanceof ExternalAccess ea) {
-                    return (JsConstructor) (c, args) -> ea.construct(args);
-                }
-                return result;
-            }
+            // Reading a property of null/undefined is a TypeError (or undefined under ?.).
+            // Do NOT fall back to a same-named scope variable: `a.b.c` where `a.b` is null
+            // must not silently resolve to a variable `c` that happens to be in scope. That
+            // false resolution made `match obj.nullNode.id == '...'` pass by reading an
+            // unrelated `id` binding (e.g. a Scenario-Outline Examples column) instead of
+            // degrading to #notpresent.
             if (optional) return Terms.UNDEFINED;
             throw JsErrorException.typeError("cannot read properties of " + object + " (reading '" + name + "')");
         }

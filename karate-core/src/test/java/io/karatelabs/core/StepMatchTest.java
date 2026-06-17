@@ -645,6 +645,31 @@ class StepMatchTest {
     }
 
     @Test
+    void testMatchNotPresentNotShadowedByVariableInScope() {
+        // A variable in scope with the same name as the trailing path segment must NOT be
+        // resolved when an intermediate is null. `nullNode.id` degrades to #notpresent even
+        // though `id` is defined — so matching it against the value of `id` must FAIL.
+        // (Scenario-Outline Examples columns bind such variables; see OutlineTest.)
+        ScenarioRuntime sr = run("""
+            * def response = { data: { a: { nullNode: null } } }
+            * def id = 'ABC-123'
+            * match response.data.a.nullNode.id == 'ABC-123'
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testMatchNotPresentThroughNullIntermediateWithShadowVarPasses() {
+        // The complement: the same path correctly matches #notpresent even with `id` in scope.
+        ScenarioRuntime sr = run("""
+            * def response = { data: { a: { nullNode: null } } }
+            * def id = 'ABC-123'
+            * match response.data.a.nullNode.id == '#notpresent'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testMatchUndefinedRootStillErrors() {
         // Boundary: degrading to #notpresent applies only when the chain's ROOT
         // variable is defined. A genuinely undefined root (e.g. a typo'd variable)

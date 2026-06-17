@@ -29,6 +29,34 @@ class EngineTest {
     }
 
     @Test
+    void testPropertyAccessOnNullDoesNotResolveScopeVariable() {
+        // Reading a property of null/undefined must throw a TypeError — it must NOT fall back
+        // to a same-named variable in scope. Regression: `obj.nullNode.id` used to return the
+        // value of a scope variable `id` when `nullNode` was null.
+        Engine engine = new Engine();
+        engine.put("id", "ABC-123");
+        Map<String, Object> obj = new HashMap<>();
+        obj.put("nullNode", null);
+        engine.put("obj", obj);
+        assertThrows(Exception.class, () -> engine.eval("obj.nullNode.id"));
+        assertThrows(Exception.class, () -> engine.eval("null.id"));
+        assertThrows(Exception.class, () -> engine.eval("undefined.id"));
+    }
+
+    @Test
+    void testOptionalChainingOnNullStillReturnsUndefined() {
+        // The fix must not affect `?.` — optional chaining on null/undefined still short-circuits.
+        Engine engine = new Engine();
+        engine.put("id", "ABC-123");
+        Map<String, Object> obj = new HashMap<>();
+        obj.put("nullNode", null);
+        engine.put("obj", obj);
+        // short-circuits (does not throw, does not resolve the scope `id`); null at the boundary
+        assertNull(engine.eval("obj.nullNode?.id"));
+        assertNull(engine.eval("null?.id"));
+    }
+
+    @Test
     void testEvalWith() {
         Engine engine = new Engine();
         engine.put("x", 10);

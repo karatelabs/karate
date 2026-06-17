@@ -93,6 +93,54 @@ public class OutlineTest {
     }
 
     @Test
+    void testMatchOnNullIntermediateDoesNotResolveExamplesColumn() throws Exception {
+        // An Examples column binds a variable (e.g. `id`) in scope. Matching a child of a
+        // null/absent intermediate path against that column must still degrade to #notpresent
+        // and FAIL — it must not resolve the trailing path segment to the same-named column
+        // variable. Previously `nullNode.id` read the `id` column value and falsely passed.
+        Path feature = tempDir.resolve("null-intermediate.feature");
+        Files.writeString(feature, """
+            Feature: match on null intermediate path must not pass
+
+            Scenario Outline: <scenario>
+            * def response = { data: { a: { nullNode: null } } }
+            * match response.data.a.nullNode.id == '<id>'
+            * match response.data.a.nullNode.count == <count>
+
+            Examples:
+            | scenario | id      | count |
+            | s1       | ABC-123 | 42    |
+            """);
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+        assertTrue(result.isFailed(), "expected the scenario to fail (path does not exist)");
+        assertEquals(1, result.getScenarioFailedCount());
+        assertEquals(0, result.getScenarioPassedCount());
+    }
+
+    @Test
+    void testNotPresentAcrossMultipleExamplesColumnsOnAbsentPaths() throws Exception {
+        // Two+ Examples columns whose value is "#notpresent", used against absent paths, must
+        // pass. The absent leaves degrade to #notpresent and match the #notpresent markers —
+        // the column variables must not shadow the path resolution.
+        Path feature = tempDir.resolve("notpresent-multi-col.feature");
+        Files.writeString(feature, """
+            Feature: notpresent across multiple example columns
+
+            Scenario Outline: <scenario>
+            * def response = { data: { parent: { child: { existingNode: null } } } }
+            * match response.data.parent.child.missingNode.value == <expected>
+            * match response.data.parent.child.missingNode.id == <id>
+
+            Examples:
+            | scenario | expected      | id            |
+            | row 1    | "#notpresent" | "#notpresent" |
+            """);
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+        assertTrue(result.isPassed(), getFailureMessage(result));
+        assertEquals(1, result.getScenarioPassedCount());
+    }
+
+    @Test
     void testOutlineWithStringSubstitution() throws Exception {
         Path feature = tempDir.resolve("outline-string.feature");
         Files.writeString(feature, """
