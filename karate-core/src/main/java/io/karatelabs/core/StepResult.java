@@ -148,6 +148,11 @@ public class StepResult {
         this.log = log;
     }
 
+    /** The display text of a synthetic step ({@link #synthetic}); null for a parsed/hook step. */
+    public String getSyntheticText() {
+        return syntheticText;
+    }
+
     public void appendLog(String message) {
         if (log == null || log.isEmpty()) {
             log = message + "\n";

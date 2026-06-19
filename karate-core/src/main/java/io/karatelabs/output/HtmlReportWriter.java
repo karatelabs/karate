@@ -704,6 +704,12 @@ public final class HtmlReportWriter {
                 data.put("keyword", "");
                 data.put("text", step.getHookName());
                 data.put("hook", step.getHookName());
+            } else if (step.getSyntheticText() != null) {
+                // A synthetic step appended at runtime via LogContext.step (an evidence / screenshot /
+                // milestone row — D136): its display text is the syntheticText, NOT a log line. Empty
+                // keyword slot so it renders `* <text>`, not `* * <text>` (mirrors the JSONL toJson path).
+                data.put("keyword", "");
+                data.put("text", step.getSyntheticText());
             } else {
                 data.put("keyword", "*");
                 data.put("text", step.getLog() != null ? Console.stripAnsi(step.getLog()) : "");
