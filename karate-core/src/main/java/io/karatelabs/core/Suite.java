@@ -216,6 +216,11 @@ public class Suite {
                 : null;
         this.listeners = List.copyOf(builder.getListeners());
         this.listenerFactories = List.copyOf(builder.getListenerFactories());
+        // Programmatic ext globals injected via Runner.Builder.global(...) — the run-free binding
+        // seam (an embedder binds a JS global for a no-feature-file run, e.g. the loop-report
+        // synthesizer's replay object). Registered like an ext's onBoot globals: visible to every
+        // scenario before karate-config.js; a reserved-name collision fails the suite loud here.
+        builder.getProgrammaticGlobals().forEach(this::registerGlobal);
         this.resultListeners = new ArrayList<>(builder.getResultListeners());
         // Auto-create PooledDriverProvider if none is set (default pooling behavior)
         DriverProvider configuredProvider = builder.getDriverProvider();

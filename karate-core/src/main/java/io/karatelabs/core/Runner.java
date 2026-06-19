@@ -236,6 +236,7 @@ public final class Runner {
         private boolean backupOutputDir = true;
         private boolean outputConsoleSummary = true;
         private Map<String, String> systemProperties;
+        private final Map<String, Object> globals = new java.util.LinkedHashMap<>();
         private LogLevel logLevel = LogLevel.DEBUG;
         private String consoleLevel; // SLF4J/Logback level; null = inherit (logback.xml default)
         private io.karatelabs.driver.DriverProvider driverProvider;
@@ -508,6 +509,21 @@ public final class Runner {
         }
 
         /**
+         * Bind a JS global (an ext-global-shaped object, typically a
+         * {@link io.karatelabs.js.SimpleObject}) into every scenario of this run — the
+         * <b>run-free / programmatic</b> equivalent of an {@link Ext} calling
+         * {@link Suite#registerGlobal(String, Object)} in {@code onBoot}. Lets an embedder
+         * stand up a one-off {@code Runner.features(...)} run that binds a global without
+         * authoring an ext or a {@code karate-boot.js} — e.g. a synthesizer whose single
+         * synthetic step replays recorded events through {@link LogContext#step}. Seeded before
+         * {@code karate-config.js}; a reserved-name collision fails the suite loud at construction.
+         */
+        public Builder global(String name, Object instance) {
+            globals.put(name, instance);
+            return this;
+        }
+
+        /**
          * Add a run event listener.
          */
         public Builder listener(RunListener listener) {
@@ -737,6 +753,7 @@ public final class Runner {
         boolean isBackupOutputDir() { return backupOutputDir; }
         boolean isOutputConsoleSummary() { return outputConsoleSummary; }
         Map<String, String> getSystemProperties() { return systemProperties; }
+        Map<String, Object> getProgrammaticGlobals() { return globals; }
         List<RunListener> getListeners() { return listeners; }
         List<RunListenerFactory> getListenerFactories() { return listenerFactories; }
         List<ResultListener> getResultListeners() { return resultListeners; }
