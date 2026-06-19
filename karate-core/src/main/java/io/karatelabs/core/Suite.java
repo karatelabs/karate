@@ -371,6 +371,11 @@ public class Suite {
 
         try {
             // Notify listeners
+            // Reset the embed file sequence (001_, 002_, …) for THIS run, regardless of whether HTML
+            // reporting is on — embeds are externalized from the FEATURE_EXIT seam (see fireEvent) so the
+            // counter must restart even for a JSONL-only run.
+            HtmlReportWriter.resetEmbedCounter();
+
             for (ResultListener listener : resultListeners) {
                 listener.onSuiteStart(this);
             }
@@ -833,6 +838,18 @@ public class Suite {
     }
 
     public boolean fireEvent(RunEvent event) {
+        // Externalize embed bytes to embeds/ BEFORE any listener serializes the result, so neither the
+        // JSONL event stream nor the HTML data JSON inlines base64 — large screenshots stay on-disk files
+        // the report references off a folder / file:// (D136). One shared counter, done once on the
+        // canonical FeatureResult; the HTML writer's later pass is idempotent. Only the TOP-LEVEL feature
+        // (callDepth 0) externalizes: its walk recurses nested call results, so a called feature's own
+        // FEATURE_EXIT must not number them first (that would invert the embed sequence).
+        if (event.getType() == RunEventType.FEATURE_EXIT
+                && event instanceof FeatureRunEvent fre && fre.result() != null
+                && fre.source() != null && fre.source().getCallDepth() == 0) {
+            HtmlReportWriter.externalizeEmbeds(fre.result(), outputDir);
+        }
+
         boolean proceed = true;
 
         // Global listeners (immutable list)

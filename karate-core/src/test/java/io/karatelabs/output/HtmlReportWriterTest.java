@@ -714,6 +714,96 @@ class HtmlReportWriterTest {
         assertTrue(featureHtml.contains("x-data=\"KarateReport.featureData()\""));
     }
 
+    @Test
+    void testJsonEmbedStaysInline(@TempDir Path tempDir) throws Exception {
+        // A structured-JSON embed must stay inline (carry `data`, not an externalized `file`):
+        // the report renders off the filesystem (file://), where a content read of an externalized
+        // embed is blocked, so an ext renderer / the generic JSON fallback would otherwise find
+        // nothing on expand. A text/plain embed still externalizes (the contrast case).
+        Path feature = tempDir.resolve("test.feature");
+        Files.writeString(feature, """
+            Feature: Json Embed Inline Test
+
+            Scenario: Test scenario
+            * karate.embed('{"label":"premium = oracle","pass":true}', 'application/json', 'evidence')
+            * karate.embed('a plain note', 'text/plain', 'note')
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        Path embedsDir = reportDir.resolve("embeds");
+        // The text/plain embed externalizes to a file; the JSON one must NOT.
+        try (Stream<Path> files = Files.list(embedsDir)) {
+            assertEquals(0, files.filter(p -> p.getFileName().toString().endsWith(".json")).count(),
+                    "an application/json embed must stay inline, not externalize to embeds/*.json");
+        }
+        try (Stream<Path> files = Files.list(embedsDir)) {
+            assertEquals(1, files.filter(p -> p.getFileName().toString().endsWith(".txt")).count(),
+                    "a text/plain embed still externalizes to embeds/*.txt");
+        }
+
+        Path featuresDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
+        String[] featureFiles = featuresDir.toFile().list();
+        assertNotNull(featureFiles);
+        String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
+        // The JSON rides inline as base64 `data`; no `file` ref points at a *.json embed.
+        assertTrue(featureHtml.contains("\"mime\": \"application/json\""),
+                "the evidence embed part should be present");
+        assertTrue(featureHtml.contains("\"data\":"),
+                "the JSON embed should carry inline base64 `data`");
+        assertFalse(featureHtml.contains(".json\""),
+                "no externalized *.json embed file should be referenced");
+    }
+
+    @Test
+    void testImageEmbedNotInlinedInJsonlStream(@TempDir Path tempDir) throws Exception {
+        // An image embed must be externalized to embeds/ for EVERY serializer — not just the HTML report
+        // but the karate-events.jsonl event stream too — so large screenshots never bloat the JSON as
+        // base64. The bytes "hello" (base64 'aGVsbG8=') stand in for a PNG.
+        Path feature = tempDir.resolve("test.feature");
+        Files.writeString(feature, """
+            Feature: Image Embed Externalize Test
+
+            Scenario: Test scenario
+            * karate.embed('hello', 'image/png', 'shot')
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+
+        Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputJsonLines(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        // externalized to embeds/00N_shot.png
+        Path embeds = reportDir.resolve("embeds");
+        try (Stream<Path> files = Files.list(embeds)) {
+            assertEquals(1, files.filter(p -> p.getFileName().toString().endsWith("_shot.png")).count(),
+                    "the image embed is externalized to embeds/00N_shot.png");
+        }
+
+        // the JSONL event stream references the file, never the base64 bytes
+        String jsonl = Files.readString(reportDir.resolve(Suite.KARATE_JSON_SUBFOLDER).resolve("karate-events.jsonl"));
+        assertTrue(jsonl.contains("_shot.png"), "the JSONL references the externalized image file");
+        assertFalse(jsonl.contains("aGVsbG8="), "the image bytes must NOT be inlined as base64 in the JSONL stream");
+
+        // the HTML report likewise references the file, not base64
+        Path featuresDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
+        String featureHtml = Files.readString(featuresDir.resolve(featuresDir.toFile().list()[0]));
+        assertTrue(featureHtml.contains("_shot.png"), "the HTML references the externalized image file");
+        assertFalse(featureHtml.contains("aGVsbG8="), "the image bytes must NOT be inlined as base64 in the HTML");
+    }
+
     // ========== Scenario Name Substitution Tests ==========
 
     @Test

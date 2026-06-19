@@ -203,8 +203,23 @@ public final class HtmlReportWriter {
         List<StepResult.Part> parts = embed.getParts();
         boolean multi = parts.size() > 1;
         for (StepResult.Part part : parts) {
+            // already externalized — e.g. by the FEATURE_EXIT seam (Suite.fireEvent) before any listener
+            // serialized the result. Skipping keeps the embed numbered once across the JSONL + HTML passes.
+            if (part.getFileName() != null) {
+                continue;
+            }
             // url-only parts (ext-written assets) are already on disk; nothing to copy
             if (part.getData() == null) {
+                continue;
+            }
+            // Keep small structured JSON inline (leave fileName null so toMap emits `data`,
+            // not `file`). The report is designed to render off the filesystem (file://), where
+            // a content read of an externalized embed is blocked — only <img>/<iframe> url-embeds
+            // work there. JSON is the structured-evidence carrier (an ext renderer, or core's own
+            // generic JSON fallback, draws it from the inline `data`); externalizing it would
+            // leave the expanded card blank on file://. Binary/large parts (images, etc.) still
+            // externalize as before.
+            if (isJsonMime(part.getMime())) {
                 continue;
             }
             String ext = getExtensionForMimeType(part.getMime());
@@ -213,6 +228,23 @@ public final class HtmlReportWriter {
                     embedCounter.incrementAndGet(), baseName, suffix, ext);
             Files.write(embedsDir.resolve(fileName), part.getData());
             part.setFileName(fileName);
+        }
+    }
+
+    /**
+     * Externalize a feature result's inline-bytes embeds to {@code <outputDir>/embeds/} and set each
+     * part's {@code fileName}, so EVERY downstream serializer — the JSONL event stream <em>and</em> the
+     * HTML data JSON — references the file rather than inlining base64 (large screenshots stay on disk,
+     * the report still works off a folder / {@code file://}). Called from the {@code FEATURE_EXIT} seam
+     * ({@code Suite.fireEvent}) before any listener serializes the result; idempotent (a part with a
+     * fileName is skipped), so the HTML writer's later pass numbers each embed exactly once. Best-effort
+     * — a write failure never breaks the run. JSON evidence stays inline (see {@link #writeEmbedFile}).
+     */
+    public static void externalizeEmbeds(FeatureResult result, Path outputDir) {
+        try {
+            writeEmbedFiles(result, outputDir.resolve("embeds"));
+        } catch (IOException e) {
+            logger.warn("Failed to externalize embeds: {}", e.getMessage());
         }
     }
 
@@ -242,6 +274,14 @@ public final class HtmlReportWriter {
                 }
             }
         }
+    }
+
+    /**
+     * Whether a part's mime is JSON (kept inline, not externalized — see {@link #writeEmbedFile}).
+     * Tolerant of a charset suffix and JSON sub-types (e.g. {@code application/ld+json}).
+     */
+    private static boolean isJsonMime(String mimeType) {
+        return mimeType != null && mimeType.toLowerCase().contains("json");
     }
 
     /**
