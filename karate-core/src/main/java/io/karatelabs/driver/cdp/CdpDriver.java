@@ -120,6 +120,12 @@ public class CdpDriver implements Driver {
     // context rather than block the eval. Explicit barriers use the full timeout.
     private static final long CONTEXT_READY_POLL_MS = 2000;
 
+    // Short bound for the best-effort failure-path screenshot (failureScreenshot).
+    // A healthy renderer encodes a full-page PNG in well under a second; this cap
+    // exists so a stalled renderer can't turn a swallowed diagnostic capture into a
+    // full-timeout hang (seen in CI as "CDP timeout for: Page.captureScreenshot").
+    private static final Duration FAILURE_SCREENSHOT_TIMEOUT = Duration.ofSeconds(5);
+
     // OOPIF (Out-of-Process Iframe) tracking
     private final Map<String, Map<String, Object>> oopifTargets = new ConcurrentHashMap<>();
     private final Map<String, String> oopifSessions = new ConcurrentHashMap<>();
@@ -1300,9 +1306,21 @@ public class CdpDriver implements Driver {
      * Take screenshot, optionally embed in report.
      */
     public byte[] screenshot(boolean embed) {
-        CdpResponse response = cdp.method("Page.captureScreenshot")
-                .param("format", "png")
-                .send();
+        return screenshot(embed, null);
+    }
+
+    /**
+     * Take screenshot, optionally embed, with an optional CDP timeout override.
+     * A null timeout uses the default CDP timeout (the regular, user-requested
+     * path). The failure path passes a short bound — see {@link #failureScreenshot()}.
+     */
+    private byte[] screenshot(boolean embed, Duration timeout) {
+        CdpMessage message = cdp.method("Page.captureScreenshot")
+                .param("format", "png");
+        if (timeout != null) {
+            message.timeout(timeout);
+        }
+        CdpResponse response = message.send();
 
         String base64 = response.getResultAsString("data");
         byte[] bytes = Base64.getDecoder().decode(base64);
@@ -1313,6 +1331,15 @@ public class CdpDriver implements Driver {
         }
 
         return bytes;
+    }
+
+    /**
+     * Best-effort failure-path screenshot, bounded by {@link #FAILURE_SCREENSHOT_TIMEOUT}
+     * so a stalled renderer can't turn a swallowed diagnostic into a full-timeout hang.
+     */
+    @Override
+    public byte[] failureScreenshot() {
+        return screenshot(false, FAILURE_SCREENSHOT_TIMEOUT);
     }
 
     /**

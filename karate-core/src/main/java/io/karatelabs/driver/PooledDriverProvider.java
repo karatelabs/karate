@@ -240,6 +240,25 @@ public class PooledDriverProvider implements DriverProvider {
             return;
         }
 
+        // Eagerly discard a driver whose channel went sick mid-scenario instead of
+        // returning it to the pool. The acquire-time resetDriver() probe would catch
+        // it eventually, but only AFTER the next scenario inherits the poisoned driver
+        // and eats its own timeout — which is how a single renderer stall under a slow
+        // CI container ("CDP timeout for: Page.captureScreenshot") cascaded into a batch
+        // of failures on the same pooled driver. Probing here (cheap, bounded — see
+        // isResponsive()) caps that cross-scenario contagion. We probe BEFORE
+        // cleanScenarioState() so a dead channel can't hang the stopIntercept/onDialog
+        // teardown calls on the full CDP timeout. Note: an eval-based probe can still
+        // pass on a renderer stalled only on compositor/paint work (the screenshot path),
+        // so this is insurance, not a guarantee — the bounded failureScreenshot timeout
+        // covers that case.
+        if (!driver.isResponsive()) {
+            logger.warn("Driver failed liveness probe on release, discarding instead of returning to pool");
+            closeDriverQuietly(driver);
+            createdCount.decrementAndGet();
+            return;
+        }
+
         // Tear down scenario-scoped state BEFORE returning to the pool. This is the
         // "top-level scenario exit" hook per DRIVER.md — the owner scenario is done,
         // so any driver state it installed (intercept handler, dialog handler, etc.)

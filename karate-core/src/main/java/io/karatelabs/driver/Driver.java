@@ -691,6 +691,25 @@ public interface Driver extends CoreDriver, SimpleObject {
         return screenshot(embed);
     }
 
+    /**
+     * Best-effort screenshot for the failure path (screenshotOnFailure). MUST be
+     * bounded by a SHORT timeout so a stalled renderer can't turn a swallowed
+     * diagnostic capture into a long hang.
+     *
+     * <p>Why this is separate from {@link #screenshot(boolean)}: the regular API
+     * uses the full operation timeout because a user explicitly asked for the
+     * image. The failure path is the opposite — the scenario has already failed,
+     * the bytes are best-effort, and the capture is wrapped in a catch-and-continue.
+     * Yet it inherited the same long timeout, so a renderer that stalled (seen in
+     * CI as "CDP timeout for: Page.captureScreenshot" under a slow container) made
+     * every failed scenario pay the full timeout for an image it then discards —
+     * widening a brief renderer blip into a long cascade. The default delegates to
+     * {@code screenshot(false)}; CDP overrides with a short CDP timeout.</p>
+     */
+    default byte[] failureScreenshot() {
+        return screenshot(false);
+    }
+
     // ========== Dialog Handling ==========
 
     /**

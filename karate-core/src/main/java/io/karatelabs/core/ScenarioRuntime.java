@@ -1647,7 +1647,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             if (!isScreenshotOnFailureEnabled()) {
                 return;
             }
-            byte[] bytes = driver.screenshot(false);
+            byte[] bytes = driver.failureScreenshot();
             if (bytes != null && bytes.length > 0) {
                 sr.addEmbed(new StepResult.Embed(bytes, "image/png", "screenshot.png"));
             }
