@@ -276,17 +276,6 @@ class StepJsTest {
         assertPassed(sr);
     }
 
-    @Test
-    void testGlobalMatchFluent() {
-        // Global match() returns Value for fluent API
-        ScenarioRuntime sr = run("""
-            * def foo = { name: 'test' }
-            * def res = match(foo).contains({ name: '#string' })
-            * match res.pass == true
-            """);
-        assertPassed(sr);
-    }
-
     // ========== karate.jsonPath / karate.get ==========
 
     @Test

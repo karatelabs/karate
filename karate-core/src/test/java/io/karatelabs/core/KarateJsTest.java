@@ -62,44 +62,6 @@ class KarateJsTest {
     }
 
     @Test
-    void testMatch() {
-        KarateJs context = new KarateJs(Resource.path("src/test/resources"));
-        String js = """
-                var cat = read('json/cat.json');
-                var result = match(cat).contains({ name: 'Billie' });
-                """;
-        context.engine.eval(js);
-        assertEquals(Json.of("{ pass: true, message: null }").asMap(), context.engine.get("result"));
-    }
-
-    @Test
-    void testMatchFail() {
-        KarateJs context = new KarateJs(Resource.path("src/test/resources"));
-        String js = """
-                var cat = read('json/cat.json');
-                match(cat).equals({ name: 'Billie', age: 4 });
-                """;
-        try {
-            context.engine.eval(js);
-        } catch (Exception e) {
-            assertEquals("""
-                    js failed:
-                    ==========
-                    match(cat).equals({ name: 'Billie', age: 4 });
-                    2:1 match failed: EQUALS
-                      $ | not equal | match failed for name: 'age' (MAP:MAP)
-                      {"name":"Billie","age":5}
-                      {"name":"Billie","age":4}
-
-                        $.age | not equal (NUMBER:NUMBER)
-                        5
-                        4
-                    ----------
-                    """, e.getMessage());
-        }
-    }
-
-    @Test
     void testSysenv() {
         KarateJs context = new KarateJs(Resource.path("src/test/resources"));
         // PATH is virtually always set on the platforms we ship to.

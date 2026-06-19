@@ -520,7 +520,9 @@ public class Suite {
      * Built-in JS-scope names an ext global may not shadow. Registration of a
      * colliding ext global fails the Suite loud at boot (see EXT.md § Ext globals).
      */
-    private static final Set<String> RESERVED_GLOBAL_NAMES = Set.of("karate", "read", "match", "driver");
+    // `match` is intentionally NOT reserved — core no longer ships a global `match` (assertions are the
+    // Gherkin `match` keyword + `karate.match`); a consumer may register its own `match` global.
+    private static final Set<String> RESERVED_GLOBAL_NAMES = Set.of("karate", "read", "driver");
 
     /**
      * Register an ext global under {@code name}, seeded into every scenario's JS

@@ -181,7 +181,7 @@ Source: `ScenarioRuntime.isDryRunSkip()`, `KarateJsBase.getSuiteData()`.
 | **HTTP** | `http(url)`, `prevRequest`, `request`, `response` |
 | **Data** | `read()`, `readAsBytes()`, `readAsString()`, `write()`, `fromJson()`, `toJson()`, `toCsv()` |
 | **Collections** | `append()`, `distinct()`, `filter()`, `map()`, `sort()`, `merge()`, `keysOf()`, `valuesOf()`, `range()`, `repeat()` |
-| **Assertions** | `match()`, `expect()` (Chai-style BDD API) |
+| **Assertions** | the `match` keyword, `karate.match()`, `expect()` (Chai-style BDD API) |
 | **Process** | `exec()`, `fork()`, `signal()`, `waitForHttp()`, `waitForPort()` |
 | **Mock** | `start()`, `proceed()`, `stop()` |
 | **Test data** | `faker.*` (names, emails, addresses, numbers, timestamps, etc.), `uuid()` |

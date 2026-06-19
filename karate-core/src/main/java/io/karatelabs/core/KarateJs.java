@@ -88,7 +88,9 @@ public class KarateJs extends KarateJsBase implements PerfContext {
         super(root, client);
         engine.putRootBinding("karate", this);
         engine.putRootBinding("read", read = initRead());
-        engine.putRootBinding("match", matchFluent());
+        // NOTE: there is deliberately no global `match` binding. Assertions are the Gherkin `match`
+        // keyword and `karate.match(actual, expected)` (returns a {pass, message} Result). A consumer that
+        // wants a throwing JS-global `match()` registers its own; core stays minimal.
     }
 
     /**
@@ -250,22 +252,6 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 case "pdf", "png", "jpg", "jpeg", "gif", "ico", "mp4", "bin", "zip", "gz", "tar" -> FileUtils.toBytes(resource.getStream());
                 default -> resource.getText();
             };
-        };
-    }
-
-    /**
-     * Fluent match API for global match() function.
-     */
-    private JavaInvokable matchFluent() {
-        return args -> {
-            if (args.length == 0) {
-                throw new RuntimeException("match() needs at least one argument");
-            }
-            return Match.evaluate(args[0], null, (ctx, result) -> {
-                if (onMatch != null) {
-                    onMatch.accept(ctx, result);
-                }
-            });
         };
     }
 
