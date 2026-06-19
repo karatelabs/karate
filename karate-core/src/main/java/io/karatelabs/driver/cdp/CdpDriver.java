@@ -1110,8 +1110,35 @@ public class CdpDriver implements Driver {
 
             // Use explicit context ID for reliable frame targeting (see getFrameContext notes)
             Integer contextId = getFrameContext();
+            // We INTEND to run in the main frame but its execution context is not
+            // confirmed live (currentFrame == null && getFrameContext() == null). This
+            // is distinct from the OOPIF null (currentFrame != null) and the same-origin
+            // child-frame null, both of which legitimately fall through to the default
+            // context below.
+            boolean mainContextUnresolved = currentFrame == null && contextId == null;
+            if (mainContextUnresolved && attempt < maxRetries) {
+                // Do NOT silently fall back to CDP's ambient default context here. Right
+                // after a switchFrame(null), the ambient default can still resolve to the
+                // child frame we just left, so the script runs in the wrong world and
+                // returns a misleading null instead of the main-frame value - the source
+                // of a rare CI flake (frame.feature "Multiple switches" reading
+                // window.mainValue as null under a slow context swap). Self-heal instead:
+                // give the replacement executionContextCreated more time via the retry
+                // loop, which re-awaits the readiness future on the next getFrameContext().
+                // Logged at WARN so a recurrence is visible in CI for the next investigation.
+                logger.warn("main-frame context not ready, retry {}/{}: {}", attempt + 1, maxRetries, truncate(expression, 100));
+                sleep(transientInterval);
+                continue;
+            }
             if (contextId != null) {
                 message.param("contextId", contextId);
+            } else if (mainContextUnresolved) {
+                // Retries exhausted and the main context never registered - e.g. a
+                // download / 204 / aborted navigation that clears the context without a
+                // replacement. Degrade to CDP's default context as a last resort rather
+                // than hard-failing, matching the documented graceful-degradation intent,
+                // but log loudly so a recurrence stands out in CI logs.
+                logger.warn("main-frame context never became ready after {} attempts, falling back to default context: {}", maxRetries, truncate(expression, 100));
             }
 
             CdpResponse response;
@@ -1207,14 +1234,16 @@ public class CdpDriver implements Driver {
      *   which was the source of the transient-context-error flakiness under load.
      * - Using CDP's default context for the main frame is unreliable right after a
      *   frame switch (switchFrame(null)), hence the explicit id.
-     * - Returns null if the context is not ready within a SHORT bound, in which case
-     *   the caller falls back to CDP's default context. The bound is deliberately short
-     *   (not the full page-load timeout): this is a per-eval hot path, so if a
-     *   navigation ever clears the context without a replacement arriving (download,
-     *   204, aborted/blocked navigation) we degrade to the default context quickly
-     *   rather than blocking every eval for the full timeout. The long, authoritative
-     *   wait lives only in the explicit barriers (initialize / activateTarget /
-     *   waitUntilReady).
+     * - Returns null if the context is not ready within a SHORT bound. The bound is
+     *   deliberately short (not the full page-load timeout): this is a per-eval hot path.
+     *   For the MAIN frame, a null return does NOT mean "use CDP's default context" - the
+     *   caller (cdpEval) treats main-frame-unresolved as a retriable condition and only
+     *   degrades to the default context as a last resort after exhausting retries (a
+     *   download / 204 / aborted navigation that clears the context without a
+     *   replacement). Falling back to the default context eagerly was unsafe: right after
+     *   a switchFrame(null) the default can still resolve to the child frame just left,
+     *   silently running in the wrong world. The long, authoritative wait lives only in
+     *   the explicit barriers (initialize / activateTarget / waitUntilReady).
      */
     private Integer getFrameContext() {
         if (currentFrame == null) {
