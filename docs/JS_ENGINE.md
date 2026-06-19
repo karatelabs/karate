@@ -2108,6 +2108,36 @@ For `JsObject`, property presence is detected using `Map.containsKey()` before c
 
 For `SimpleObject`, there is no `hasMember()` API. When `jsGet()` returns `null`, it's treated as "property not found". This simplifies implementation for Java interop classes that don't need to declare all keys upfront - they only need `jsKeys()` for serialization and `jsGet()` for access. If a property genuinely needs to hold `null`, consider using a sentinel value or implementing the full `JsObject` interface instead.
 
+### Dual: a host object that is both a namespace and directly callable
+
+A `SimpleObject` may **also** implement `JavaCallable` (the native call interface, `call(Context, Object...)`). The single object is then *bimodal* — both directly callable **and** a namespace with members:
+
+```java
+static class Match implements SimpleObject, JavaCallable {
+    @Override
+    public Object call(Context context, Object... args) {   // match(actual, expected) — the default
+        return equals(args);
+    }
+    @Override
+    public Object jsGet(String name) {                      // match.contains(...), match.each(...), ...
+        return switch (name) {
+            case "contains" -> (JavaInvokable) a -> contains(a);
+            case "each"     -> (JavaInvokable) a -> each(a);
+            default -> null;
+        };
+    }
+    @Override
+    public Collection<String> jsKeys() { return List.of("contains", "each"); }
+}
+```
+
+```javascript
+match({ a: 1 }, { a: 1 })            // direct call — the object is JsCallable
+match.contains({ a: 1, b: 2 }, { a: 1 })  // member call — the object is ObjectLike
+```
+
+No special wiring is needed: the engine resolves a **call** by `instanceof JsCallable` (`Interpreter` call sites) and a **member read** by `instanceof ObjectLike` — two independent checks, so an object satisfying both interfaces works on both paths. This is the right shape for an API with a terse common case plus named variants (e.g. a `match` assertion: `match(a, b)` for equals, `match.contains(a, b)` / `match.within(a, b)` for the rest). Pinned by `EngineTest.testBimodalCallableNamespace`.
+
 ---
 
 ## Lazy Variables with JsLazy

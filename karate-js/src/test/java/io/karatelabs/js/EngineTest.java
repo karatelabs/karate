@@ -21,6 +21,40 @@ class EngineTest {
 
     static final Logger logger = LoggerFactory.getLogger(EngineTest.class);
 
+    /** A host object that is BOTH a namespace (SimpleObject member access) AND directly callable
+     *  ({@link JavaCallable} — the native call interface, {@code call(Context, args...)}) — the
+     *  "bimodal" shape: {@code dual(...)} and {@code dual.member(...)}. */
+    static class Dual implements SimpleObject, JavaCallable {
+        @Override
+        public Object call(Context context, Object... args) {
+            return "called:" + args.length;
+        }
+        @Override
+        public Object jsGet(String name) {
+            if ("greet".equals(name)) {
+                return (JavaInvokable) a -> "hi:" + a[0];
+            }
+            return null;
+        }
+        @Override
+        public java.util.Collection<String> jsKeys() {
+            return java.util.List.of("greet");
+        }
+    }
+
+    @Test
+    void testBimodalCallableNamespace() {
+        Engine engine = new Engine();
+        engine.put("dual", new Dual());
+        // direct call — the object is JsCallable
+        assertEquals("called:2", engine.eval("dual(1, 2)"));
+        assertEquals("called:0", engine.eval("dual()"));
+        // member call — the object is ObjectLike
+        assertEquals("hi:bob", engine.eval("dual.greet('bob')"));
+        // both in one expression
+        assertEquals("called:1hi:x", engine.eval("dual(9) + dual.greet('x')"));
+    }
+
     @Test
     void testLazyContextVariables() {
         Engine engine = new Engine();
