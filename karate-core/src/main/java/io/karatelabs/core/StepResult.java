@@ -47,6 +47,7 @@ public class StepResult {
     private List<Embed> embeds;
     private List<FeatureResult> callResults;  // For call steps - called feature results (V1 style)
     private String hookName;  // "beforeScenario" / "afterScenario" when this represents a lifecycle hook
+    private String syntheticText;  // display text for a synthetic step (see synthetic()) — kept separate from log
 
     private StepResult(Step step, Status status, long startTime, long durationNanos, Throwable error) {
         this.step = step;
@@ -95,6 +96,23 @@ public class StepResult {
                                   long durationNanos, Throwable error) {
         StepResult sr = new StepResult(null, status, startTime, durationNanos, error);
         sr.hookName = hookName;
+        return sr;
+    }
+
+    /**
+     * Create a synthetic step result that an out-of-band producer appends to a scenario at runtime
+     * (not parsed from a {@code .feature}). Unlike {@link #fakeSuccess}/{@link #fakeFailure} — which
+     * reuse the log as the step text — {@code text} is the step's display text and {@code log}/embeds
+     * stay separate and optional. A {@code FAILED} synthetic step is reported as a failed step row and,
+     * because {@link ScenarioResult#isFailed()} scans the step list, fails its scenario without a throw;
+     * a {@code PASSED} one is a green step row that does not affect the verdict. The optional
+     * {@code error} surfaces as the failed step's message.
+     *
+     * @see io.karatelabs.output.LogContext#step(String, boolean, java.util.List)
+     */
+    public static StepResult synthetic(String text, Status status, long startTime, Throwable error) {
+        StepResult sr = new StepResult(null, status, startTime, 0, error);
+        sr.syntheticText = text;
         return sr;
     }
 
@@ -204,6 +222,8 @@ public class StepResult {
             if (hookName != null) {
                 fakeStep.put("text", hookName);
                 fakeStep.put("hook", hookName);
+            } else if (syntheticText != null) {
+                fakeStep.put("text", syntheticText);
             } else {
                 fakeStep.put("text", log != null ? log : "");
             }

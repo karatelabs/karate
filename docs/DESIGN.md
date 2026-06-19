@@ -414,6 +414,8 @@ SLF4J-based with category hierarchy — `karate.runtime`, `karate.http`, `karate
 
 Thread-local collector that captures all test output (print, karate.log, HTTP logs) for reports. Also collects embeds (HTML, images) via `LogContext.get().embed()`.
 
+**Synthetic steps — `LogContext.get().step(text, passed[, embeds])`.** Symmetric with `embed()`: an out-of-band producer running inside a step (e.g. an ext binding mid-`* eval`) can contribute a **real, named step row** to the current scenario without parsing a `.feature`. Buffered steps are flushed into the scenario's result immediately after the in-flight step completes (`ScenarioRuntime` drains `collectPendingSteps()`), so they render as sibling step rows right where they were produced — in the HTML report and the `FEATURE_EXIT` JSONL, like any step. The status is reported and, because `ScenarioResult.isFailed()` scans the step list, a **failed** synthetic step fails its scenario with no exception — so a producer can signal a pass/fail purely by appending a step. Embeds passed to `step(...)` attach to that synthetic step (not the producing step); `StepResult.synthetic(text, status, startTime, error)` is the escape hatch for a failure message / custom log via `LogContext.get().step(StepResult)`. Built on the same fake-step machinery as `@fail` and lifecycle-hook steps (`StepResult` with a null gherkin `step`).
+
 ### `configure logging`
 
 Single bucket for all logging behavior. Deep-merges with parent values so a partial update (e.g., flipping just the level) preserves mask + pretty.

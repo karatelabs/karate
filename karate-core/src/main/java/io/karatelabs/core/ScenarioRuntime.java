@@ -996,6 +996,16 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                         : executor.execute(currentStep);
                 result.addStepResult(sr);
 
+                // Flush any synthetic steps an out-of-band producer appended while this step ran
+                // (LogContext.step) so they land as sibling step rows right after their producing
+                // step, in the report and JSONL. A failed appended step makes isFailed() true below.
+                List<StepResult> appended = LogContext.get().collectPendingSteps();
+                if (appended != null) {
+                    for (StepResult ap : appended) {
+                        result.addStepResult(ap);
+                    }
+                }
+
                 if (sr.isFailed()) {
                     boolean softAssert = runStepFailurePipeline(sr);
                     if (softAssert) {

@@ -82,6 +82,7 @@ public class LogContext {
 
     private final StringBuilder buffer = new StringBuilder();
     private List<StepResult.Embed> embeds;
+    private List<StepResult> pendingSteps;
     // Per-thread HTTP logging config, set via `configure logging = { mask, pretty }`.
     // HttpLogger reads these on each request so changes take effect immediately
     // without needing to rebuild the HTTP client. Defaults: pretty=true, no mask.
@@ -364,6 +365,61 @@ public class LogContext {
     public List<StepResult.Embed> collectEmbeds() {
         List<StepResult.Embed> result = embeds;
         embeds = null;
+        return result;
+    }
+
+    // ========== Synthetic steps ==========
+
+    /**
+     * Append a synthetic step to the scenario currently executing on this thread — symmetric with
+     * {@link #embed}: an out-of-band producer (e.g. running inside an {@code * eval}) contributes a
+     * real, named step row to the report/JSONL without parsing a {@code .feature}. The buffered steps
+     * are flushed into the scenario's result immediately after the in-flight step completes, so they
+     * appear as sibling step rows right where they were produced.
+     *
+     * <p>The step's {@code status} is reported and, for {@code FAILED}, fails the scenario (it joins
+     * the step list {@link io.karatelabs.core.ScenarioResult#isFailed()} scans) — so a producer can
+     * <b>signal a pass/fail purely by appending a step</b>, no exception required.
+     *
+     * @param text   the step's display text
+     * @param passed {@code true} → a passed (green) step; {@code false} → a failed step that fails the scenario
+     * @param embeds optional embeds attached to THIS step (e.g. a screenshot or a JSON payload); may be {@code null}
+     * @return the created {@link StepResult} (for further customization, e.g. {@code setLog})
+     */
+    public StepResult step(String text, boolean passed, List<StepResult.Embed> embeds) {
+        StepResult sr = StepResult.synthetic(text,
+                passed ? StepResult.Status.PASSED : StepResult.Status.FAILED,
+                System.currentTimeMillis(), null);
+        if (embeds != null) {
+            for (StepResult.Embed e : embeds) {
+                sr.addEmbed(e);
+            }
+        }
+        return step(sr);
+    }
+
+    /** Append a synthetic step with no embeds (see {@link #step(String, boolean, List)}). */
+    public StepResult step(String text, boolean passed) {
+        return step(text, passed, null);
+    }
+
+    /**
+     * Append a fully-built synthetic step — the escape hatch for full control (a failure message via
+     * {@link StepResult#synthetic} with a {@code Throwable}, a custom log, multi-part embeds). See
+     * {@link #step(String, boolean, List)}.
+     */
+    public StepResult step(StepResult sr) {
+        if (pendingSteps == null) {
+            pendingSteps = new ArrayList<>();
+        }
+        pendingSteps.add(sr);
+        return sr;
+    }
+
+    /** Collect and clear the synthetic steps buffered since the last call (flushed per step by the runtime). */
+    public List<StepResult> collectPendingSteps() {
+        List<StepResult> result = pendingSteps;
+        pendingSteps = null;
         return result;
     }
 
