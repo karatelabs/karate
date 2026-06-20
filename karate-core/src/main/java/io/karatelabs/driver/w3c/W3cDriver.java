@@ -477,14 +477,20 @@ public class W3cDriver implements Driver {
     // ========== Locators ==========
 
     @Override
+    @SuppressWarnings("unchecked")
     public List<Element> locateAll(String locator) {
-        // Use JS to find all and count
-        Object countResult = eval(Locators.countJs(locator));
-        int count = countResult instanceof Number ? ((Number) countResult).intValue() : 0;
+        // Reuse Locators.findAllJs so each handle carries a GLOBALLY-unique
+        // selector that re-resolves to its element. The old per-index
+        // "<locator>:nth-of-type(i+1)" form was wrong for any selector whose
+        // matches are not same-parent siblings (it counts among same-type
+        // siblings, not globally) — locators that resolved to null under W3C
+        // executeScript (see positional.feature notes).
+        Object result = eval(Locators.findAllJs(locator));
         List<Element> elements = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
-            String indexedLocator = locator + ":nth-of-type(" + (i + 1) + ")";
-            elements.add(new BaseElement(this, indexedLocator, true));
+        if (result instanceof List<?> locs) {
+            for (Object loc : locs) {
+                elements.add(new BaseElement(this, String.valueOf(loc), true));
+            }
         }
         return elements;
     }

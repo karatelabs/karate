@@ -522,9 +522,21 @@ class LocatorsTest {
     void testFindAllJsCss() {
         String result = Locators.findAllJs("li.item");
         assertTrue(result.contains("querySelectorAll"));
-        assertTrue(result.contains("forEach"));
-        assertTrue(result.contains("nth-of-type"));
+        // Each match resolves to a GLOBALLY-unique selector via __kjs.uniqueCss,
+        // not an unscoped "<sel>:nth-of-type(i+1)" (which only counts among
+        // same-type siblings and breaks for non-sibling matches).
+        assertTrue(result.contains("uniqueCss"));
         assertTrue(result.contains("return result"));
+    }
+
+    @Test
+    void testFindAllJsCssDoesNotEmitUnscopedNthOfType() {
+        // Regression guard for the locator round-trip bug: the generated script
+        // must NOT build the naive unscoped "li.item:nth-of-type(" form as the
+        // primary locator. (A bare ":nth-of-type(" may survive only inside the
+        // __kjs-absent fallback string.)
+        String result = Locators.findAllJs("li.item");
+        assertFalse(result.contains("\"li.item:nth-of-type(\" + (i+1)"));
     }
 
     @Test
@@ -620,7 +632,7 @@ class LocatorsTest {
     void testFindAllJsShadowFallback() {
         String result = Locators.findAllJs("li.item");
         assertTrue(result.contains("qsaDeep"));
-        assertTrue(result.contains("nth-of-type"));
+        assertTrue(result.contains("uniqueCss"));
     }
 
     // ========== Navigation: closestJs / matchesJs ==========

@@ -119,6 +119,70 @@
     };
 
     /**
+     * Escape a string for use as a CSS identifier (id / class), with a
+     * minimal fallback for engines lacking CSS.escape.
+     */
+    kjs.cssEscapeIdent = function(s) {
+        s = String(s);
+        if (window.CSS && CSS.escape) return CSS.escape(s);
+        return s.replace(/[^a-zA-Z0-9_-]/g, function(c) { return '\\' + c; });
+    };
+
+    /**
+     * Build a GLOBALLY-unique CSS selector that re-resolves to exactly this
+     * element via document.querySelector. Walks ancestors building a
+     * descendant path, scoping each step by :nth-of-type ONLY among same-tag
+     * siblings (which is what :nth-of-type actually means), and short-circuits
+     * at the nearest ancestor (or the element itself) carrying a unique id.
+     *
+     * This replaces the old "<selector>:nth-of-type(i+1)" enumeration form,
+     * which was wrong: an UNSCOPED :nth-of-type counts among an element's
+     * same-type siblings, not globally across the document, so any selector
+     * whose matches are not same-parent siblings produced locators that
+     * resolve to the wrong element or to null. Used by Locators.findAllJs.
+     *
+     * Light-DOM only: an element inside a shadow root yields a path relative
+     * to that root (a plain CSS selector cannot cross shadow boundaries) —
+     * the same limitation the previous form had.
+     */
+    kjs.uniqueCss = function(el) {
+        if (!el || el.nodeType !== 1) return null;
+        if (el.id) {
+            var idSel = '#' + this.cssEscapeIdent(el.id);
+            try { if (document.querySelectorAll(idSel).length === 1) return idSel; } catch (e) {}
+        }
+        var parts = [];
+        var node = el;
+        while (node && node.nodeType === 1 && node !== document.documentElement) {
+            if (node.id) {
+                var anchor = '#' + this.cssEscapeIdent(node.id);
+                try {
+                    if (document.querySelectorAll(anchor).length === 1) {
+                        parts.unshift(anchor);
+                        return parts.join(' > ');
+                    }
+                } catch (e) {}
+            }
+            var seg = node.tagName.toLowerCase();
+            var parent = node.parentNode;
+            if (parent && parent.nodeType === 1) {
+                var total = 0, index = 0;
+                for (var i = 0; i < parent.children.length; i++) {
+                    var c = parent.children[i];
+                    if (c.tagName === node.tagName) {
+                        total++;
+                        if (c === node) index = total;
+                    }
+                }
+                if (total > 1) seg += ':nth-of-type(' + index + ')';
+            }
+            parts.unshift(seg);
+            node = parent;
+        }
+        return parts.join(' > ');
+    };
+
+    /**
      * Extract visible text from a shadow root's content.
      */
     kjs._getShadowText = function(shadowRoot) {

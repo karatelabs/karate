@@ -24,9 +24,12 @@
 package io.karatelabs.driver.e2e;
 
 import io.karatelabs.driver.Element;
+import io.karatelabs.driver.Locators;
 import io.karatelabs.driver.e2e.support.DriverTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -331,6 +334,45 @@ class LocatorsE2eTest extends DriverTestBase {
     void testLocateAllWithXpath() {
         var items = driver.locateAll("//li");
         assertEquals(3, items.size());
+    }
+
+    // ========== findAll enumeration: every locator must re-resolve (round-trip) ==========
+
+    /**
+     * Regression for the {@link Locators#findAllJs} locator bug: the enumeration
+     * must return, for each match, a selector that re-resolves to <em>that</em>
+     * element via {@code document.querySelector}. On the locators page "button"
+     * and "input" match elements scattered across many sections / wrapper divs,
+     * so the old unscoped {@code <sel>:nth-of-type(i+1)} form yielded locators
+     * that resolved to a different element or to null (silently breaking
+     * {@code findAll().eval()} / {@code act()} on those handles). Driven through
+     * a real browser so the page-side {@code __kjs.uniqueCss} path is exercised.
+     */
+    @Test
+    void testFindAllJsLocatorsRoundTrip() {
+        verifyFindAllRoundTrip("button");
+        verifyFindAllRoundTrip("input");
+    }
+
+    @SuppressWarnings("unchecked")
+    private void verifyFindAllRoundTrip(String selector) {
+        List<Object> locs = (List<Object>) driver.script(Locators.findAllJs(selector));
+        int count = ((Number) driver.script(
+                "document.querySelectorAll(" + jsStr(selector) + ").length")).intValue();
+        assertEquals(count, locs.size(), "findAllJs locator count mismatch for: " + selector);
+        assertTrue(count > 1, "expected several scattered matches for: " + selector + " (got " + count + ")");
+        for (int i = 0; i < locs.size(); i++) {
+            String loc = String.valueOf(locs.get(i));
+            Object ok = driver.script(
+                    "(function(){ var el = document.querySelector(" + jsStr(loc) + ");"
+                            + " return el !== null && el === document.querySelectorAll(" + jsStr(selector) + ")[" + i + "]; })()");
+            assertEquals(Boolean.TRUE, ok,
+                    "findAllJs locator[" + i + "] '" + loc + "' must re-resolve to the matched element for: " + selector);
+        }
+    }
+
+    private static String jsStr(String s) {
+        return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     // ========== Edge Cases ==========

@@ -585,14 +585,21 @@ public class Locators {
      * Returns an array of CSS selectors that can be used to re-locate each element.
      */
     public static String findAllJs(String locator) {
-        // For CSS selectors, generate nth-of-type selectors
+        // For CSS selectors, generate a GLOBALLY-unique selector per match via
+        // __kjs.uniqueCss (driver.js). The earlier "<selector>:nth-of-type(i+1)"
+        // form was a correctness bug: an unscoped :nth-of-type counts among an
+        // element's same-type SIBLINGS, not globally, so any selector whose
+        // matches are not same-parent siblings (e.g. inputs each in their own
+        // wrapper div) produced locators that re-resolve to the wrong element or
+        // to null — silently breaking eval()/act()/at() on those handles.
         if (!isXpath(locator) && !locator.startsWith("{")) {
             String escaped = escapeForJs(locator);
             String js = "var els = (window.__kjs && window.__kjs.qsaDeep ? window.__kjs.qsaDeep(\"" + escaped + "\") : document.querySelectorAll(\"" + escaped + "\"));" +
                     " var result = [];" +
-                    " els.forEach(function(el, i) {" +
-                    "   result.push(\"" + escaped + ":nth-of-type(\" + (i+1) + \")\");" +
-                    " });" +
+                    " for (var i = 0; i < els.length; i++) {" +
+                    "   var uniq = (window.__kjs && window.__kjs.uniqueCss) ? window.__kjs.uniqueCss(els[i]) : null;" +
+                    "   result.push(uniq || (\"" + escaped + ":nth-of-type(\" + (i + 1) + \")\"));" +
+                    " }" +
                     " return result";
             return wrapInFunctionInvoke(js);
         }
