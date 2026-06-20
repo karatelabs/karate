@@ -535,13 +535,18 @@ public class CdpDriver implements Driver {
                 currentDialogText = null;
             }
             if (dialogHandler == null) {
-                // An explicit navigation (setUrl/go) past a page's beforeunload
-                // handler blocks Page.navigate until the CDP timeout (a stateful
-                // wizard with a "Leave page?" prompt). The caller asked to leave,
-                // so confirm it — Chrome only raises beforeunload after a trusted
-                // gesture (typing), which is why it bites form-driven flows.
-                if ("beforeunload".equals(type) && pendingNavigationUrl != null) {
-                    logger.debug("auto-accepting beforeunload for navigation to: {}", pendingNavigationUrl);
+                // A beforeunload prompt ("Leave page?") with no handler registered is
+                // always auto-confirmed: it only ever fires on an unload/navigation, so
+                // "proceed" is the only sane default. We must NOT gate this on
+                // pendingNavigationUrl — that flag is cleared as soon as setUrl returns,
+                // and for data:/about: navigations setUrl returns synchronously (no
+                // page-load wait), so the gate can already be null by the time the
+                // (async) dialog event lands on the cdp-event thread. A missed accept
+                // leaves the dialog OPEN, and an open beforeunload blocks every later
+                // Runtime.evaluate on this driver — which, on a pooled driver, then
+                // poisons the next scenario ("dialog is blocking Runtime.evaluate").
+                if ("beforeunload".equals(type)) {
+                    logger.debug("auto-accepting beforeunload (no handler), pendingNavigation={}", pendingNavigationUrl);
                     try {
                         dialog.accept();
                     } catch (Exception e) {
