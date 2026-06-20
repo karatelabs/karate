@@ -70,6 +70,18 @@ Feature: Dialog Tests
     * def cleared = driver.dialogText
     * match cleared == null
 
+  # Regression guard: an explicit navigation past a page's beforeunload handler
+  # must not hang. With no onDialog handler the driver auto-confirms the
+  # "Leave page?" prompt (the caller asked to leave). Chrome only raises
+  # beforeunload after a trusted gesture, so input() (CDP keypresses) primes it;
+  # the navigation must then land instead of blocking to the CDP timeout.
+  Scenario: Navigate away from a page with a beforeunload handler
+    * driver 'data:text/html,<body><input id="x"><script>window.onbeforeunload=function(e){e.preventDefault();return "stay"}</script></body>'
+    * input('#x', 'hello')
+    * driver 'data:text/html,<h1 id="landed">Landed</h1>'
+    * waitFor('#landed')
+    * match text('#landed') == 'Landed'
+
   # Regression guard for click() on an element whose onclick opens a blocking dialog
   # click() on an element whose onclick opens a blocking dialog must not throw.
   # Previously the post-action BaseElement.of() re-ran exists(), which hit the

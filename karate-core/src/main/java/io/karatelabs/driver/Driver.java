@@ -902,7 +902,10 @@ public interface Driver extends CoreDriver, SimpleObject {
      * Select an option from a dropdown by text or value.
      */
     default Element select(String locator, String text) {
-        script(Locators.optionSelector(locator, text));
+        Object matched = script(Locators.optionSelector(locator, text));
+        if (!Boolean.TRUE.equals(matched)) {
+            throw new DriverException("select failed, no option matching: '" + text + "' for: " + locator);
+        }
         return BaseElement.of(this, locator);
     }
 

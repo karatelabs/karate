@@ -534,10 +534,26 @@ public class CdpDriver implements Driver {
                 currentDialog = null;
                 currentDialogText = null;
             }
-            // If no handler registered, cancel pending Runtime.evaluate calls so they
-            // fail fast instead of waiting for the 30-second CDP timeout
             if (dialogHandler == null) {
-                cdp.cancelPendingEvaluations();
+                // An explicit navigation (setUrl/go) past a page's beforeunload
+                // handler blocks Page.navigate until the CDP timeout (a stateful
+                // wizard with a "Leave page?" prompt). The caller asked to leave,
+                // so confirm it — Chrome only raises beforeunload after a trusted
+                // gesture (typing), which is why it bites form-driven flows.
+                if ("beforeunload".equals(type) && pendingNavigationUrl != null) {
+                    logger.debug("auto-accepting beforeunload for navigation to: {}", pendingNavigationUrl);
+                    try {
+                        dialog.accept();
+                    } catch (Exception e) {
+                        logger.trace("beforeunload accept failed (likely already handled): {}", e.getMessage());
+                    }
+                    currentDialog = null;
+                    currentDialogText = null;
+                } else {
+                    // No handler registered - cancel pending Runtime.evaluate calls so they
+                    // fail fast instead of waiting for the 30-second CDP timeout
+                    cdp.cancelPendingEvaluations();
+                }
             }
         });
 
@@ -801,10 +817,28 @@ public class CdpDriver implements Driver {
         domContentEventFired = false;
         framesStillLoading.clear();
 
-        // Navigate
-        cdp.method("Page.navigate")
-                .param("url", url)
-                .send();
+        // Navigate, with a bounded retry on a transient CDP timeout — Page.navigate
+        // can intermittently time out on a busy/stateful page; a fresh send to the
+        // same URL is idempotent and usually succeeds. (A beforeunload prompt is
+        // auto-accepted in the dialog handler above, so this retry is for genuine
+        // transient timeouts, not the leave-page case.)
+        int navRetries = 1;
+        for (int attempt = 0; ; attempt++) {
+            try {
+                cdp.method("Page.navigate")
+                        .param("url", url)
+                        .send();
+                break;
+            } catch (RuntimeException e) {
+                boolean transientNavTimeout = e.getMessage() != null
+                        && e.getMessage().contains("CDP timeout for: Page.navigate");
+                if (transientNavTimeout && attempt < navRetries) {
+                    logger.warn("Page.navigate timed out, retrying ({}/{}): {}", attempt + 1, navRetries, url);
+                    continue;
+                }
+                throw e;
+            }
+        }
 
         // Skip page load wait for data: and about: URLs - they load synchronously
         // and don't fire normal lifecycle events
@@ -2137,7 +2171,10 @@ public class CdpDriver implements Driver {
     public Element select(String locator, String text) {
         logger.debug("select: {} <- {}", locator, text);
         retryIfNeeded(locator);
-        script(Locators.optionSelector(locator, text));
+        Object matched = script(Locators.optionSelector(locator, text));
+        if (!Boolean.TRUE.equals(matched)) {
+            throw new DriverException("select failed, no option matching: '" + text + "' for: " + locator);
+        }
         return BaseElement.existing(this, locator);
     }
 

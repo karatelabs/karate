@@ -193,6 +193,17 @@ class ElementE2eTest extends DriverTestBase {
         assertEquals("us", value);
     }
 
+    @Test
+    @Order(34)
+    void testSelectNoMatchThrows() {
+        // A select with no matching option must fail loudly, not silently no-op
+        // (the value must be unchanged and the call must throw).
+        driver.select("#country", "us");
+        assertThrows(io.karatelabs.driver.DriverException.class,
+                () -> driver.select("#country", "this-option-does-not-exist"));
+        assertEquals("us", driver.value("#country"), "value must be unchanged after a no-match select");
+    }
+
     // ========== Checkbox Operations ==========
 
     @Test

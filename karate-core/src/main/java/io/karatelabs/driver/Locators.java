@@ -376,11 +376,17 @@ public class Locators {
             condition = "e.options[i].value === t || e.options[i].text === t";
         }
         String escapedText = escapeForJs(text);
-        String js = "var e = " + selector(locator) + "; var t = \"" + escapedText + "\";" +
+        // Return whether an option actually matched so select() can fail loudly
+        // on a no-match instead of silently no-opping (the change event is only
+        // worth firing when the value really changed).
+        String js = "var e = " + selector(locator) + "; var t = \"" + escapedText + "\"; var matched = false;" +
                 " for (var i = 0; i < e.options.length; ++i)" +
-                " if (" + condition + ") { e.options[i].selected = true; break }" +
+                " if (" + condition + ") { e.options[i].selected = true; matched = true; break }" +
+                " if (matched) {" +
                 " e.dispatchEvent(new Event('input', {bubbles: true}));" +
-                " e.dispatchEvent(new Event('change', {bubbles: true}))";
+                " e.dispatchEvent(new Event('change', {bubbles: true}));" +
+                " }" +
+                " return matched";
         return wrapInFunctionInvoke(js);
     }
 

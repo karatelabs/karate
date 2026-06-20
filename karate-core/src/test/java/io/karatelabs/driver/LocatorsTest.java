@@ -406,6 +406,15 @@ class LocatorsTest {
     }
 
     @Test
+    void testOptionSelectorReportsMatch() {
+        // The generated script must report whether an option matched so select()
+        // can throw on a no-match instead of silently no-opping.
+        String result = Locators.optionSelector("#dropdown", "us");
+        assertTrue(result.contains("matched = true"));
+        assertTrue(result.contains("return matched"));
+    }
+
+    @Test
     void testGetPositionJs() {
         String result = Locators.getPositionJs("#element");
         assertTrue(result.contains("getBoundingClientRect"));
