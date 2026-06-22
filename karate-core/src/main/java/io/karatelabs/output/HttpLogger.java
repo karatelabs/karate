@@ -147,15 +147,15 @@ public class HttpLogger {
         }
         LogContext.get().log(LogLevel.INFO, full.toString());
         if (logger.isTraceEnabled()) {
-            logger.trace(Console.stripSentinels(full.toString()));
+            logger.trace(forLog(full.toString()));
         } else if (logger.isDebugEnabled()) {
-            logger.debug(full.substring(0, headersEnd));
+            logger.debug(forLog(full.substring(0, headersEnd)));
         } else if (logger.isInfoEnabled()) {
             StringBuilder line = new StringBuilder();
             line.append(Console.DIM).append(requestCount).append(" > ").append(Console.RESET);
             line.append(Console.CYAN).append(Console.BOLD).append(request.getMethod()).append(Console.RESET);
             line.append(' ').append(request.getUrlAndPath());
-            logger.info(line.toString());
+            logger.info(forLog(line.toString()));
         }
     }
 
@@ -177,9 +177,9 @@ public class HttpLogger {
         }
         LogContext.get().log(LogLevel.INFO, full.toString());
         if (logger.isTraceEnabled()) {
-            logger.trace(Console.stripSentinels(full.toString()));
+            logger.trace(forLog(full.toString()));
         } else if (logger.isDebugEnabled()) {
-            logger.debug(full.substring(0, headersEnd));
+            logger.debug(forLog(full.substring(0, headersEnd)));
         } else if (logger.isInfoEnabled()) {
             StringBuilder line = new StringBuilder();
             line.append(Console.DIM).append(requestCount).append(" < ").append(Console.RESET);
@@ -187,8 +187,19 @@ public class HttpLogger {
             line.append(Console.CYAN).append(request.getMethod()).append(Console.RESET);
             line.append(' ').append(request.getUrlAndPath());
             line.append(Console.DIM).append(" (").append(response.getResponseTime()).append(" ms)").append(Console.RESET);
-            logger.info(line.toString());
+            logger.info(forLog(line.toString()));
         }
+    }
+
+    /**
+     * Prepare HTTP log text for the SLF4J mirror. Always strips the body sentinels
+     * (no consumer of the logger wants them). ANSI colour codes are kept only when
+     * colours are enabled (interactive console); when disabled — no TTY, {@code NO_COLOR},
+     * CI, Gatling — they are stripped so log files don't accumulate escape sequences.
+     * The report buffer keeps the fully-coloured copy independently for the HTML report.
+     */
+    private static String forLog(String text) {
+        return Console.isColorsEnabled() ? Console.stripSentinels(text) : Console.stripAnsi(text);
     }
 
     private static String colorStatus(int status) {

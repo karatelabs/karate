@@ -11,7 +11,7 @@ This document describes the plan to port karate-gatling from v1 to karate.
 | Integration approach | v2 PerfHook + RunListener event system |
 | DSL strategy | Java-only DSL (Scala users use Java DSL directly) |
 | Async runtime | Match Gatling's execution model with PerfHook.submit() |
-| Session variables | Keep `__karate`/`__gatling` pattern |
+| Session variables | `__karate`/`__gatling` prefix only — **breaking vs v1** (no unprefixed top-level access) |
 | Module location | Separate `karate-gatling` module |
 | Scope | V1 parity first, then profiling validation |
 | Failure handling | Abort immediately on first failure, report partial results |
@@ -448,7 +448,19 @@ This approach:
 
 ## 5. Session Variable Flow
 
-Maintain v1 compatibility with `__karate` and `__gatling` maps.
+Gatling session variables and chained Karate variables are exposed under the
+`__gatling` and `__karate` maps respectively — access is **prefix-only**.
+
+> **Breaking change vs v1 (intentional).** v1 also flattened these to top-level
+> variables, so `userId` resolved as well as `__gatling.userId`. v2 drops the
+> flattening: only `__gatling.userId` / `__karate.catId` work. This is a
+> deliberate breaking change — flattening top-level re-introduces name
+> collisions with Karate built-ins (a Gatling attribute named `request` /
+> `response` would shadow them) and the hashCode / circular-reference hazards of
+> placing JS-backed objects directly into the Gatling Session (the bridge keeps
+> them under a single `__karate` key via a mutable map view specifically to
+> avoid this). **User-facing docs / migration guide must call this out when the
+> tracking fix lands.**
 
 ```
 Gatling Session                    Karate Context
@@ -703,6 +715,25 @@ public static void myRpc(Map args, PerfContext ctx) {
 }
 ```
 **No changes needed** - just update the import from `com.intuit.karate.PerfContext` to `io.karatelabs.core.PerfContext`.
+
+### Session Variable Access (breaking change)
+
+v1 flattened Gatling and chained variables to the top level, so unprefixed access
+worked. v2 namespaces them under `__gatling` / `__karate` only — update any feature
+files that relied on the unprefixed form.
+
+```gherkin
+# v1 - unprefixed access worked
+* def id = userId
+* def catId = catId
+
+# v2 - prefix required
+* def id = __gatling.userId
+* def catId = __karate.catId
+```
+
+Also note: Gatling variables are injected as call-args, which apply *after*
+`karate-config.js` runs — they are not available during config initialization.
 
 ---
 

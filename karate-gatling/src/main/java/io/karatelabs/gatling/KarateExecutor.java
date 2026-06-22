@@ -102,7 +102,15 @@ public class KarateExecutor {
 
         if (result.isFailed()) {
             success = false;
-            log.error("Feature failed: {}", featurePath);
+            // Surface the actual failure detail (match message + file:line + step), not just
+            // the path. The single-feature Gatling run has HTML report and console summary
+            // disabled, so this is the only place the failure reason reaches the logs.
+            String failureMessage = result.getFailureMessage();
+            if (failureMessage != null) {
+                log.error("Feature failed: {} - {}", featurePath, failureMessage);
+            } else {
+                log.error("Feature failed: {}", featurePath);
+            }
         } else {
             // Update karateVars for chaining into subsequent exec() calls
             Map<String, Object> resultVars = result.getResultVariables();

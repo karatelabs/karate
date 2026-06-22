@@ -189,6 +189,20 @@ import static io.karatelabs.gatling.KarateDsl.*;
 
 The DSL methods (`karateProtocol`, `karateFeature`, `karateSet`, `uri`) are the same — only the package changes.
 
+**Session variable access is now prefix-only (breaking change).** v1 flattened Gatling session variables and chained Karate results to the top level, so an unprefixed `userId` resolved as well as `__gatling.userId`. v2 namespaces them strictly under the `__gatling` and `__karate` maps — only the prefixed form works. This avoids collisions with Karate built-ins (a Gatling attribute named `request`/`response` would otherwise shadow them) and the circular-reference hazards of placing JS-backed objects directly into the Gatling Session.
+
+```gherkin
+# v1 — unprefixed access worked
+* def id = userId
+* def catId = catId
+
+# v2 — prefix required
+* def id = __gatling.userId
+* def catId = __karate.catId
+```
+
+Gatling variables are injected as call-args, which apply *after* `karate-config.js` runs — so they are not available during config initialization (use `karate.get('__gatling.x', default)` inside a scenario instead).
+
 **Java 17+ `--add-opens` requirement.** Gatling 4.7+ calls `MethodHandles.privateLookupIn` on `java.lang` internals, which the JVM blocks unless `java.base/java.lang` is opened to unnamed modules. Add this to the `gatling-maven-plugin` configuration:
 
 ```xml
@@ -253,6 +267,35 @@ Two channels, two thresholds. **The HTML report has full bodies by default — y
 | Manual `LoggerFactory.getLogger('com.intuit.karate').setLevel(...)` for mid-test silencing | `* configure logging = { console: 'error' }` — auto-restored at scenario end |
 
 The four v1 keys above (`logPrettyRequest`, `logPrettyResponse`, `printEnabled`, `lowerCaseResponseHeaders`) are silent no-ops with deprecation warnings — your tests still run, you just see a one-line WARN per process pointing at the new shape. `logModifier` likewise warns; rewrite the masking declaratively as shown above.
+
+### Capturing only `print` / `karate.log` + HTTP (e.g. for Gatling)
+
+v2 routes each kind of output to its own SLF4J category, so you can assemble a focused log
+file with a Logback config — no `configure logging` needed:
+
+| Logger | What it carries |
+|---|---|
+| `karate.scenario` | `print` and `karate.log(...)` output |
+| `karate.http` | HTTP request/response logs (level-tiered: `INFO`=one-liner, `DEBUG`=headers, `TRACE`=full body) |
+| `karate.runtime` | engine internals (callSingle, config eval, driver lifecycle, …) |
+| `io.karatelabs.gatling.KarateExecutor` | one `ERROR` per failed feature, including the failure detail |
+
+To keep only your prints, the HTTP traffic, and Gatling feature-failure errors in a file:
+
+```xml
+<root level="OFF">
+    <appender-ref ref="FILE"/>
+</root>
+<logger name="karate.scenario" level="INFO"  additivity="false"><appender-ref ref="FILE"/></logger>
+<logger name="karate.http"     level="TRACE" additivity="false"><appender-ref ref="FILE"/></logger>
+<logger name="io.karatelabs.gatling.KarateExecutor" level="ERROR" additivity="false"><appender-ref ref="FILE"/></logger>
+```
+
+**No ANSI escape codes in log files.** The SLF4J/console mirror keeps colour only when a
+colour-capable console is detected (a TTY, or `FORCE_COLOR`). Under Gatling, CI, or with
+`NO_COLOR` set, colour codes are stripped automatically — you no longer need an
+ANSI-stripping `%replace(...)` regex in your Logback pattern. The HTML report keeps its own
+coloured copy regardless.
 
 ---
 
