@@ -517,7 +517,18 @@ public class CdpDriver implements Driver {
                 try {
                     dialogHandler.handle(dialog);
                 } catch (Exception e) {
-                    logger.error("dialog handler error: {}", e.getMessage());
+                    // A handler that calls accept()/dismiss() can lose a race with the
+                    // dialog already being gone — auto-dismissed, or resolved by another
+                    // event on the cdp-event thread — for which CDP returns "No dialog is
+                    // showing" (-32602). That is benign (the dialog IS resolved, just not
+                    // by this call), so don't surface it at ERROR; only genuine handler
+                    // failures should be loud.
+                    String msg = e.getMessage();
+                    if (msg != null && msg.contains("No dialog is showing")) {
+                        logger.debug("dialog handler: dialog already resolved (benign race): {}", msg);
+                    } else {
+                        logger.error("dialog handler error: {}", msg);
+                    }
                 }
                 // If handler didn't resolve the dialog, auto-dismiss
                 // Use local 'dialog' reference, not 'currentDialog' which may be null due to race
