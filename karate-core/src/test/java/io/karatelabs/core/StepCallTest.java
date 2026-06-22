@@ -713,6 +713,68 @@ class StepCallTest {
     }
 
     @Test
+    void testKarateCallJsApiInvokesJsFile() throws Exception {
+        // The karate.call() JS API must invoke a .js target and return its result, exactly
+        // like read()/callSingle and the `call` keyword (and v1, which dispatched on the
+        // resolved type). It previously parsed the .js as a feature and returned an empty
+        // result — so functions on the returned object silently went missing, breaking the
+        // common "helpers in a util.js attached to config" pattern.
+        Path jsFile = tempDir.resolve("util.js");
+        Files.writeString(jsFile, """
+            function fn() {
+              return {
+                add: function(a, b){ return a + b },
+                greeting: 'hello'
+              };
+            }
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def util = karate.call('util.js')
+            * match util.greeting == 'hello'
+            * def sum = util.add(2, 3)
+            * match sum == 5
+            * call util.add
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(),
+                "karate.call('file.js') should invoke the JS function and keep its returned functions callable: "
+                        + getFailureMessage(result));
+    }
+
+    @Test
+    void testKarateCallOnceJsApiInvokesJsFile() throws Exception {
+        // karate.callonce() delegates to the same path as karate.call(), so it must also
+        // invoke a .js target rather than mis-parsing it as a feature.
+        Path jsFile = tempDir.resolve("once.js");
+        Files.writeString(jsFile, """
+            function fn() {
+              return { token: 'abc-123' };
+            }
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def first = karate.callonce('once.js')
+            * match first.token == 'abc-123'
+            * def second = karate.callonce('once.js')
+            * match second.token == 'abc-123'
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(),
+                "karate.callonce('file.js') should invoke the JS function: " + getFailureMessage(result));
+    }
+
+    @Test
     void testCallReadJsWithMultipleLines() throws Exception {
         // Tests calling a JS function with multiple lines and var declarations
         Path jsFile = tempDir.resolve("multi-line.js");

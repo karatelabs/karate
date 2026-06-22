@@ -57,6 +57,21 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
     private static final Logger logger = LogContext.RUNTIME_LOGGER;
 
+    // The scenario actually executing on this thread, set for the duration of call().
+    // Report collection (logs and embeds via LogContext, and feature-call results via
+    // StepExecutor) follows this live scenario rather than the runtime captured by a
+    // karate bridge — so a JS function defined in one scenario and reused in another
+    // (e.g. a helper loaded once via callSingle and shared through config) still attaches
+    // its karate.call results to the scenario that actually invoked it. Deliberately NOT
+    // consulted by getRuntime(): execution and variable scope keep honoring the bridge's
+    // captured context, leaving room to honor the closure for future async JS calls.
+    private static final ThreadLocal<ScenarioRuntime> CURRENT = new ThreadLocal<>();
+
+    /** The scenario executing on the current thread, or null outside a scenario's call(). */
+    public static ScenarioRuntime currentOrNull() {
+        return CURRENT.get();
+    }
+
     private final FeatureRuntime featureRuntime;
     private final Scenario scenario;
     private final KarateJs karate;
@@ -440,6 +455,18 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             calledFeature = featureRuntime.getFeature();
         } else {
             Resource calledResource = featureRuntime.resolve(parsed.path());
+            // A .js target is a callable helper, not a feature — evaluate and invoke it,
+            // mirroring read()/callSingle and the `call` keyword (and v1, which dispatched
+            // on the resolved type). Blindly parsing it as a feature silently returned an
+            // empty result, dropping the helper's functions.
+            if ("js".equals(calledResource.getExtension())) {
+                Object jsTarget = karate.engine.eval(calledResource);
+                if (jsTarget instanceof JavaCallable fn) {
+                    return arg == null ? fn.call(null) : fn.call(null, arg);
+                }
+                // Non-callable JS (e.g. an object/JSON literal file) — return as-is.
+                return jsTarget;
+            }
             calledFeature = Feature.read(calledResource);
         }
 
@@ -880,6 +907,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         String configTimeLog = outerLogContext.collect();
         java.util.List<StepResult.Embed> configTimeEmbeds = outerLogContext.collectEmbeds();
         boolean nestedCall = featureRuntime != null && featureRuntime.isCalled();
+        // Mark this scenario as the live one on this thread so report collection (call
+        // results, logs, embeds) attaches here. A nested call/callonce runs on the
+        // caller's thread, so save the caller's runtime and hand it back on exit.
+        ScenarioRuntime outerRuntime = CURRENT.get();
+        CURRENT.set(this);
         LogContext.set(new LogContext());
         // Repopulate the fresh LogContext from this scenario's KarateConfig — which is
         // the source of truth for mask + pretty. Without this, anything that
@@ -932,7 +964,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             stopped = true;
             result.setAborted(true);
             result.setEndTime(System.currentTimeMillis());
-            restoreLogContext(loggingSnapshot, outerLogContext, nestedCall);
+            restoreLogContext(loggingSnapshot, outerLogContext, nestedCall, outerRuntime);
             return result;
         }
 
@@ -1112,7 +1144,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             }
             // Restore the global logging state we snapshotted at scenario entry so any
             // mid-test `configure logging` change does not leak into the next scenario.
-            restoreLogContext(loggingSnapshot, outerLogContext, nestedCall);
+            restoreLogContext(loggingSnapshot, outerLogContext, nestedCall, outerRuntime);
         }
 
         return result;
@@ -1126,12 +1158,20 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      * of clearing the thread-local and forcing a mask-less lazy-created one. Top-level
      * scenarios clear, so a pooled thread does not leak this scenario's context.
      */
-    private void restoreLogContext(LogContext.Snapshot loggingSnapshot, LogContext outerLogContext, boolean nestedCall) {
+    private void restoreLogContext(LogContext.Snapshot loggingSnapshot, LogContext outerLogContext,
+                                   boolean nestedCall, ScenarioRuntime outerRuntime) {
         loggingSnapshot.restore();
         if (nestedCall) {
             LogContext.set(outerLogContext);
         } else {
             LogContext.clear();
+        }
+        // Hand the thread back to the caller's scenario (a nested call) or clear it
+        // (top-level) so a pooled thread does not leak this scenario as "current".
+        if (outerRuntime != null) {
+            CURRENT.set(outerRuntime);
+        } else {
+            CURRENT.remove();
         }
     }
 

@@ -1108,6 +1108,82 @@ class HtmlReportWriterTest {
     }
 
     @Test
+    void testSharedHelperJsCallRendersNestedFeatureForEveryScenario(@TempDir Path tempDir) throws Exception {
+        // A helper function defined in a util.js, loaded ONCE via callSingle and attached to the
+        // config object, is reused by every scenario. Its karate.call() bridge is captured in the
+        // single scenario that won the callSingle race — so naive routing attaches the called
+        // feature's result to that originating (now finished) scenario, and it shows up in the
+        // report for exactly one scenario while vanishing for all the others (#2928). Report
+        // collection must follow the scenario actually invoking the helper, so the called feature
+        // renders for every scenario — including each row of an outline.
+        Path sub = tempDir.resolve("sub.feature");
+        Files.writeString(sub, """
+                Feature: Sub Feature
+
+                Scenario: sub scenario
+                * def result = 'from-sub'
+                * match result == 'from-sub'
+                """);
+        Path util = tempDir.resolve("util.js");
+        Files.writeString(util, """
+                function fn() {
+                  var lib = {};
+                  lib.callSub = function(){ return karate.call('sub.feature') };
+                  return lib;
+                }
+                """);
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+                function fn() {
+                  var util = karate.callSingle('util.js');
+                  return { callSub: util.callSub };
+                }
+                """);
+        Path main = tempDir.resolve("main.feature");
+        Files.writeString(main, """
+                Feature: Main Feature
+
+                Scenario: first shared-helper call
+                * def r = callSub()
+
+                Scenario: second shared-helper call
+                * def r = callSub()
+
+                Scenario Outline: outline shared-helper call
+                * def r = callSub()
+                Examples:
+                | x |
+                | 1 |
+                | 2 |
+                """);
+
+        Path reportDir = tempDir.resolve("reports");
+        SuiteResult result = Runner.path(main.toString())
+                .workingDir(tempDir)
+                .configDir(tempDir.toString())
+                .outputDir(reportDir)
+                .outputHtmlReport(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed());
+        assertEquals(4, result.getScenarioPassedCount());
+
+        Path featuresDir = reportDir.resolve(HtmlReportListener.SUBFOLDER);
+        String[] featureFiles = featuresDir.toFile().list();
+        assertNotNull(featureFiles);
+        assertEquals(1, featureFiles.length);
+        String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
+
+        // Two plain scenarios + two outline rows = four invocations, each must carry the nested call.
+        int callResultMarkers = featureHtml.split("\"hasCallResults\": true", -1).length - 1;
+        assertEquals(4, callResultMarkers,
+                "every scenario invoking the shared helper should attach nested call results, got " + callResultMarkers);
+        assertTrue(featureHtml.contains("Sub Feature"),
+                "the called feature's name should appear in the report");
+    }
+
+    @Test
     void testHookCallRendersNestedFeature(@TempDir Path tempDir) throws Exception {
         Path setup = tempDir.resolve("setup.feature");
         Files.writeString(setup, """

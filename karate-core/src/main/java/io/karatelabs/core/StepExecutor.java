@@ -77,10 +77,30 @@ public class StepExecutor {
     }
 
     void addCallResult(FeatureResult result) {
-        if (stepCallResults == null) {
-            stepCallResults = new ArrayList<>();
+        // Attach to the scenario actually running on this thread, not necessarily this
+        // executor's. When karate.call() is reached through a JS function whose bridge was
+        // captured in another scenario (a helper loaded once via callSingle and shared via
+        // config), getRuntime() resolves to that originating — and now dead — scenario, so
+        // its executor's buffer is never drained into a live step and the called feature
+        // vanishes from the report. Routing the result to the live scenario's executor
+        // makes it surface under the step that invoked the helper (#2928). For the ordinary
+        // call / keyword paths the live scenario IS this executor's, so this is a no-op.
+        StepExecutor target = collectingExecutor();
+        if (target.stepCallResults == null) {
+            target.stepCallResults = new ArrayList<>();
         }
-        stepCallResults.add(result);
+        target.stepCallResults.add(result);
+    }
+
+    /**
+     * The executor whose step is currently collecting report output on this thread — the
+     * live scenario's, falling back to this one outside a scenario's call() (e.g. config
+     * evaluation, mock handling). Mirrors how logs and embeds already follow the thread via
+     * LogContext rather than the karate bridge's captured runtime.
+     */
+    private StepExecutor collectingExecutor() {
+        ScenarioRuntime current = ScenarioRuntime.currentOrNull();
+        return current != null ? current.getExecutor() : this;
     }
 
     /**
@@ -2603,29 +2623,11 @@ public class StepExecutor {
             return;
         }
 
-        // Determine if shared scope (no resultVar) or isolated scope (has resultVar)
+        // Scope: a bare `call` (no result var) shares scope with the caller; `def x = call ...`
+        // isolates. Build, run, report-attach, and result-check via the shared helper.
         boolean sharedScope = call.resultVar == null;
-
-        // Create nested FeatureRuntime with optional tag selector and line filter
-        FeatureRuntime nestedFr = new FeatureRuntime(
-                fr != null ? fr.getSuite() : null,
-                calledFeature,
-                fr,
-                runtime,
-                sharedScope,
-                call.arg,
-                call.tagSelector,
-                call.lineFilters
-        );
-
-        // Execute the called feature
-        FeatureResult result = nestedFr.call();
-
-        // Capture feature result for HTML report display (V1 style)
-        addCallResult(result);
-
-        // Propagate failure from called feature to caller
-        checkFeatureResult(result);
+        FeatureRuntime nestedFr = runNestedFeature(calledFeature, call.arg, sharedScope,
+                call.tagSelector, call.lineFilters, -1);
 
         // Propagate results back to caller
         propagateFromCallee(nestedFr.getLastExecuted(), call.resultVar);
