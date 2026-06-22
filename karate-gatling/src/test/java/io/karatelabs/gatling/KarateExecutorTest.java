@@ -30,6 +30,7 @@ import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,5 +86,41 @@ class KarateExecutorTest {
             execLogger.detachAppender(appender);
             appender.stop();
         }
+    }
+
+    /**
+     * A scenario that fails <em>before</em> issuing any HTTP request has no deferred HTTP perf
+     * event to carry the failure, so without a synthetic event Gatling records no KO and the
+     * failure is invisible in the load report. Assert exactly one KO is reported, named after
+     * the feature and carrying the failure detail.
+     */
+    @Test
+    void failureBeforeAnyHttpRequestIsReportedAsKo() {
+        List<String> reported = new ArrayList<>();
+        List<String> kos = new ArrayList<>();
+        // capturing reporter: GatlingStatsReporter is a functional interface (logResponse)
+        GatlingStatsReporter reporter =
+                (scenario, groups, requestName, startTime, endTime, ok, statusCode, errorMessage) -> {
+                    reported.add(requestName + " ok=" + ok);
+                    if (!ok) {
+                        kos.add(requestName + " :: " + errorMessage);
+                    }
+                };
+
+        // silent=false so the reporter actually receives events
+        KarateExecutor executor = new KarateExecutor(
+                "classpath:features/pre-http-fail.feature", null, null, false);
+
+        KarateExecutor.ExecutionResult result =
+                executor.execute(new HashMap<>(), new HashMap<>(), reporter, "test", NO_GROUPS);
+
+        assertFalse(result.success, "feature was expected to fail");
+        assertEquals(1, kos.size(),
+                "expected exactly one synthetic KO; reported=" + reported);
+        String ko = kos.get(0);
+        assertTrue(ko.contains("pre-http-fail.feature"),
+                "KO should be named after the feature: " + ko);
+        assertTrue(ko.contains("goodbye"),
+                "KO should carry the failure detail (failed match step): " + ko);
     }
 }

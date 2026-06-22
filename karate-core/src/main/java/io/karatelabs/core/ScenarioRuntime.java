@@ -1054,9 +1054,23 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         } finally {
             // Note: SCENARIO_EXIT event was already fired above
 
-            // Report the last perf event (with any failure message including file:line info)
-            // This must happen before the scenario ends so Gatling receives all HTTP metrics
-            logLastPerfEvent(result.getFailureMessageForDisplay());
+            // Report (and drain) the last held perf event before teardown so Gatling receives
+            // all HTTP metrics. The deferred model attaches a scenario failure to the last HTTP
+            // request; logLastPerfEvent reports whether it actually did.
+            String perfFailureMessage = null;
+            if (result.isFailed()) {
+                String display = result.getFailureMessageForDisplay();
+                perfFailureMessage = display != null ? display : "scenario failed";
+            }
+            boolean perfFailureReported = logLastPerfEvent(perfFailureMessage);
+            // If the scenario failed but no HTTP perf event carried the failure — it failed
+            // before its first request, or via a non-HTTP step — synthesize one so the failure
+            // still surfaces as a Gatling KO instead of vanishing. Top-level only: a called
+            // feature's failure propagates to its caller, which reports it (avoids double KOs).
+            if (perfFailureMessage != null && !perfFailureReported
+                    && isPerfMode() && featureRuntime != null && featureRuntime.isTopLevel()) {
+                reportSyntheticFailurePerfEvent(perfFailureMessage);
+            }
 
             // Invoke afterScenario hook - runs on both pass and fail paths so teardown always executes.
             // Must run BEFORE closeChannels/closeDriver: the hook still owns the scenario's
@@ -2168,17 +2182,22 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      * If failureMessage is non-null, the event is marked as failed.
      *
      * @param failureMessage the failure message (null if successful)
+     * @return true if a <em>failed</em> event was reported — i.e. the failure was carried by a
+     *         real HTTP perf event. False if there was no held event or it was reported as OK.
+     *         The caller uses this to decide whether a scenario failure still needs a synthetic
+     *         perf event (a failure before the first HTTP request would otherwise vanish).
      */
-    public void logLastPerfEvent(String failureMessage) {
+    public boolean logLastPerfEvent(String failureMessage) {
         if (prevPerfEvent == null) {
-            return;
+            return false;
         }
         if (!isPerfMode()) {
             prevPerfEvent = null;
-            return;
+            return false;
         }
         // Mark as failed if there's a failure message
-        if (failureMessage != null) {
+        boolean failed = failureMessage != null;
+        if (failed) {
             prevPerfEvent.setFailed(true);
             prevPerfEvent.setMessage(failureMessage);
         }
@@ -2188,6 +2207,32 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             hook.reportPerfEvent(prevPerfEvent);
         }
         prevPerfEvent = null;
+        return failed;
+    }
+
+    /**
+     * Report a synthetic failed perf event for a scenario that failed without an HTTP request to
+     * attach the failure to — e.g. a bad {@code path}/{@code def}/{@code match} before the first
+     * call. Without this, such failures never reach Gatling's StatsEngine (no HTTP request → no
+     * deferred event to flag), so they vanish from the load report's KO count even though the
+     * scenario clearly failed. The event is named after the feature so these aggregate per
+     * feature, distinct from the URI-pattern names used for real requests.
+     */
+    private void reportSyntheticFailurePerfEvent(String failureMessage) {
+        PerfHook hook = getPerfHook();
+        if (hook == null) {
+            return;
+        }
+        long start = result.getStartTime();
+        long end = result.getEndTime();
+        if (end < start) {
+            end = start;
+        }
+        String name = scenario.getFeature().getResource().getRelativePath();
+        PerfEvent event = new PerfEvent(start, end, name, 0);
+        event.setFailed(true);
+        event.setMessage(failureMessage);
+        hook.reportPerfEvent(event);
     }
 
     /**
