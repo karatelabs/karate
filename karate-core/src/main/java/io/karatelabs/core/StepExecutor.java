@@ -2725,28 +2725,18 @@ public class StepExecutor {
                 return;
             }
 
-            // Snapshot caller bindings before the call so we can cache only the
-            // callee's contribution. Capturing the full post-call binding set leaks
-            // pre-existing caller vars — notably Scenario Outline example-row vars
-            // set during scenario init — into the cache, where they would overwrite
-            // the next row's value on cache hit.
+            // Snapshot caller bindings before the call so we cache only the callee's
+            // contribution — the full post-call binding set echoes back pre-existing caller
+            // vars (notably Scenario Outline example-row vars), which would then overwrite the
+            // next row's value on a cache hit. callonce shares scope with the caller, so the
+            // snapshot must be taken before the call (unlike isolated-scope callSingle, which
+            // diffs against the caller's still-current vars). See StepUtils.calleeDelta.
             Map<String, Object> preCallVars = runtime.getAllVariables();
 
             // Not cached - execute the call
             executeCall(step);
 
-            // Cache only the delta: bindings that the callee added or replaced.
-            // Identity comparison is intentional — an untouched caller binding keeps
-            // the same Object reference, while a callee def/assign produces a new one.
-            Map<String, Object> postCallVars = runtime.getAllVariables();
-            Map<String, Object> delta = new LinkedHashMap<>();
-            for (Map.Entry<String, Object> entry : postCallVars.entrySet()) {
-                String key = entry.getKey();
-                Object after = entry.getValue();
-                if (!preCallVars.containsKey(key) || preCallVars.get(key) != after) {
-                    delta.put(key, after);
-                }
-            }
+            Map<String, Object> delta = StepUtils.calleeDelta(preCallVars, runtime.getAllVariables());
             @SuppressWarnings("unchecked")
             Map<String, Object> vars = (Map<String, Object>) StepUtils.deepCopy(delta);
             @SuppressWarnings("unchecked")

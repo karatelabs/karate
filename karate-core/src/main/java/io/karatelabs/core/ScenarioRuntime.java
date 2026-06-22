@@ -715,25 +715,15 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             }
 
             if (nestedFr.getLastExecuted() != null) {
-                // Cache only the delta: variables the called feature actually added or
-                // replaced. Returning the callee's full binding set leaks pre-existing
-                // caller vars — notably Scenario Outline example-row vars set during
-                // scenario init — into the Suite-scoped cache, where a cache hit would
-                // overwrite the next row's value (#2934). Mirrors the same fix already
-                // applied to callonce. Identity comparison is intentional: an untouched
-                // inherited binding keeps the same Object reference, while a callee
-                // def/assign produces a new one.
-                Map<String, Object> calleeVars = nestedFr.getLastExecuted().getAllVariables();
-                Map<String, Object> callerVars = getAllVariables();
-                Map<String, Object> delta = new LinkedHashMap<>();
-                for (Map.Entry<String, Object> entry : calleeVars.entrySet()) {
-                    String key = entry.getKey();
-                    Object value = entry.getValue();
-                    if (!callerVars.containsKey(key) || callerVars.get(key) != value) {
-                        delta.put(key, value);
-                    }
-                }
-                return delta;
+                // Cache only the delta — the variables the called feature actually added or
+                // replaced — not its full binding set. A called feature inherits the caller's
+                // visible variables, so the full set echoes back caller state: Scenario Outline
+                // example-row columns (frozen to row 1 and replayed onto later rows via a
+                // karate.set(...) spread — #2934) and config-level refs like Java.type(...)
+                // (serialized into the disk cache, then deserialized as broken values that
+                // clobber the live ref on a warm run — #2933). callSingle runs in isolated
+                // scope, so the caller's vars are still current here; see StepUtils.calleeDelta.
+                return StepUtils.calleeDelta(getAllVariables(), nestedFr.getLastExecuted().getAllVariables());
             }
             return new HashMap<>();
         } else if (content instanceof JavaCallable) {

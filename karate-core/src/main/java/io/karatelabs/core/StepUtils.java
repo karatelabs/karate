@@ -186,6 +186,30 @@ public class StepUtils {
     }
 
     /**
+     * The bindings a called feature actually added or replaced — its contribution minus the
+     * caller state it merely inherited. A called feature runs with the caller's visible
+     * variables in scope, so {@code calleeVars} echoes them back; caching that full set leaks
+     * caller state into a shared cache (Scenario Outline example-row columns frozen to the
+     * first row, config-level {@code Java.type(...)} refs, etc.). Shared by the {@code callonce}
+     * and {@code callSingle} caches so both isolate the callee's delta the same way.
+     * <p>
+     * Identity comparison is intentional: an untouched inherited binding keeps the same Object
+     * reference, while a callee {@code def}/assign produces a new one — so a key absent from the
+     * caller, or present but pointing at a different object, is part of the delta.
+     */
+    public static Map<String, Object> calleeDelta(Map<String, Object> callerVars, Map<String, Object> calleeVars) {
+        Map<String, Object> delta = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : calleeVars.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            if (!callerVars.containsKey(key) || callerVars.get(key) != value) {
+                delta.put(key, value);
+            }
+        }
+        return delta;
+    }
+
+    /**
      * Deep copy a value (Map, List, or primitive).
      */
     @SuppressWarnings("unchecked")
