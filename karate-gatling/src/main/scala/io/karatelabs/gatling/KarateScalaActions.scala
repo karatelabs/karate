@@ -138,9 +138,16 @@ class KarateScalaAction(
       }
     }
 
-    // Get previous Karate variables
+    // Get previous Karate variables. The value was stored below as a
+    // scala.collection.mutable.Map, so match scala.collection.Map (the common supertype of
+    // mutable and immutable) — matching the bare `Map` (= immutable.Map) silently dropped the
+    // mutable map and broke feature chaining (__karate.* came back empty). Keep a
+    // java.util.Map fallback in case a value is ever stored in that form.
     val karateVars: java.util.Map[String, Object] = session.attributes.get(KarateProtocol.KARATE_KEY) match {
-      case Some(m: Map[_, _]) => new java.util.HashMap[String, Object](m.asInstanceOf[Map[String, Object]].asJava)
+      case Some(m: scala.collection.Map[_, _]) =>
+        new java.util.HashMap[String, Object](m.asInstanceOf[scala.collection.Map[String, Object]].asJava)
+      case Some(m: java.util.Map[_, _]) =>
+        new java.util.HashMap[String, Object](m.asInstanceOf[java.util.Map[String, Object]])
       case _ => new java.util.HashMap[String, Object]()
     }
 

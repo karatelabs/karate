@@ -85,8 +85,14 @@ public class GatlingSmokeSimulation extends Simulation {
                 .assertions(
                         // All scenarios must succeed (no KO)
                         global().failedRequests().count().is(0L),
-                        // All scenarios should complete
-                        global().allRequests().count().gte(0L)
+                        // Feature chaining must actually drive the read: cats-read fetches
+                        // GET /cats/{id} using __karate.catId carried over from cats-create.
+                        // 2 crud reads + 2 chained reads = 4. A broken __karate round-trip
+                        // makes cats-read fail BEFORE its HTTP call (no KO recorded), which a
+                        // failedRequests assertion can't see — so assert the read count directly.
+                        details("GET /cats/{id}").successfulRequests().count().is(4L),
+                        // Full request volume: 4 POST + 4 GET
+                        global().allRequests().count().is(8L)
                 );
     }
 
