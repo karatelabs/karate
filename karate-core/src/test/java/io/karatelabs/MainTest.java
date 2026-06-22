@@ -71,23 +71,43 @@ class MainTest {
     }
 
     @Test
-    void testDefaultToRunSkipsNoColorBeforeDecision() {
-        // --no-color is a Main-level flag, should be skipped when finding the first real arg
-        String[] result = defaultToRun(new String[]{"--no-color", "-g", "tests", "tests/"});
-        assertArrayEquals(new String[]{"run", "--no-color", "-g", "tests", "tests/"}, result);
+    void testHasNoColor() {
+        assertTrue(Main.hasNoColor(new String[]{"-g", "tests", "--no-color", "tests/"}));
+        assertTrue(Main.hasNoColor(new String[]{"--no-color"}));
+        assertFalse(Main.hasNoColor(new String[]{"-g", "tests", "tests/"}));
+        assertFalse(Main.hasNoColor(new String[]{}));
     }
 
     @Test
-    void testDefaultToRunNoColorWithSubcommand() {
-        String[] result = defaultToRun(new String[]{"--no-color", "run", "tests/"});
-        assertArrayEquals(new String[]{"--no-color", "run", "tests/"}, result);
+    void testStripNoColorRemovesEveryOccurrence() {
+        assertArrayEquals(new String[]{"-g", "tests", "tests/"},
+                Main.stripNoColor(new String[]{"--no-color", "-g", "tests", "tests/"}));
+        assertArrayEquals(new String[]{"run", "tests/"},
+                Main.stripNoColor(new String[]{"run", "--no-color", "tests/"}));
+        assertArrayEquals(new String[]{},
+                Main.stripNoColor(new String[]{"--no-color"}));
+    }
+
+    // --no-color must be stripped BEFORE defaultToRun so picocli never routes it to a
+    // subcommand parser (which would fail with "Unknown option: '--no-color'"). These
+    // assert the real main() ordering: stripNoColor(...) then defaultToRun(...).
+
+    @Test
+    void testNoColorStrippedThenPrependsRunForFlags() {
+        String[] result = defaultToRun(Main.stripNoColor(new String[]{"--no-color", "-g", "tests", "tests/"}));
+        assertArrayEquals(new String[]{"run", "-g", "tests", "tests/"}, result);
     }
 
     @Test
-    void testDefaultToRunNoColorOnly() {
-        // Only --no-color, no real args — should not prepend
-        String[] result = defaultToRun(new String[]{"--no-color"});
-        assertArrayEquals(new String[]{"--no-color"}, result);
+    void testNoColorStrippedThenDoesNotPrependForSubcommand() {
+        String[] result = defaultToRun(Main.stripNoColor(new String[]{"--no-color", "run", "tests/"}));
+        assertArrayEquals(new String[]{"run", "tests/"}, result);
+    }
+
+    @Test
+    void testNoColorOnlyStrippedToEmpty() {
+        String[] result = defaultToRun(Main.stripNoColor(new String[]{"--no-color"}));
+        assertEquals(0, result.length);
     }
 
 }

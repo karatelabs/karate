@@ -35,6 +35,7 @@ import picocli.CommandLine.Option;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -77,12 +78,13 @@ public class Main implements Callable<Integer> {
     boolean noColor;
 
     public static void main(String[] args) {
-        // Handle color settings early
-        for (String arg : args) {
-            if ("--no-color".equals(arg)) {
-                Console.setColorsEnabled(false);
-                break;
-            }
+        // --no-color is a top-level option, but defaultToRun() may prepend "run" and the
+        // subcommands (run/mock/clean) don't declare it — so apply it here and strip it
+        // before picocli parses, otherwise picocli rejects it as an unknown subcommand
+        // option ("Unknown option: '--no-color'").
+        if (hasNoColor(args)) {
+            Console.setColorsEnabled(false);
+            args = stripNoColor(args);
         }
 
         // Build the command tree (built-in subcommands + any ext-contributed ones).
@@ -114,27 +116,34 @@ public class Main implements Callable<Integer> {
         return commandLine;
     }
 
+    /** True if {@code --no-color} appears anywhere in the args. */
+    static boolean hasNoColor(String[] args) {
+        for (String arg : args) {
+            if ("--no-color".equals(arg)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Remove every {@code --no-color} token; the colour setting is applied separately. */
+    static String[] stripNoColor(String[] args) {
+        return Arrays.stream(args).filter(a -> !"--no-color".equals(a)).toArray(String[]::new);
+    }
+
     /**
      * If args don't start with a registered subcommand (or --help/-h/--version/-V),
      * prepend "run" so PicoCLI routes through RunCommand with full flag parsing.
      * {@code subcommands} is the live set of names (built-in + ext-contributed).
+     * <p>
+     * Top-level-only options such as {@code --no-color} must already be stripped by the
+     * caller — picocli would otherwise reject them against the RunCommand parser.
      */
     static String[] defaultToRun(String[] args, Set<String> subcommands) {
         if (args.length == 0) {
             return args;
         }
-        // Find the first arg that isn't a Main-level option
-        String first = null;
-        for (String arg : args) {
-            if ("--no-color".equals(arg)) {
-                continue;
-            }
-            first = arg;
-            break;
-        }
-        if (first == null) {
-            return args;
-        }
+        String first = args[0];
         // Don't interfere with help/version flags or known subcommands
         if (first.equals("-h") || first.equals("--help")
                 || first.equals("-V") || first.equals("--version")
