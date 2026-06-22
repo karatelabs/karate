@@ -29,8 +29,10 @@ Feature: Mouse Tests
     * def yDiff = m.getY() - expectedY
     * assert Math.abs(xDiff) < 2
     * assert Math.abs(yDiff) < 2
-    # Ensure element has hover state - i.e. don't trust mouse impl to self report x,y
-    * assert script('#submit-btn', '(b) => getComputedStyle(b).backgroundColor === "rgb(0, 82, 163)"')
+    # Ensure element has hover state - i.e. don't trust mouse impl to self report x,y.
+    # The :hover style recompute is async w.r.t. the CDP mouseMoved ack, so poll
+    # instead of a one-shot read (a bare assert here is racy on a loaded CI runner).
+    * waitUntil('#submit-btn', '(b) => getComputedStyle(b).backgroundColor === "rgb(0, 82, 163)"')
 
   Scenario: Mouse move
     * def m = mouse()
