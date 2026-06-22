@@ -73,35 +73,12 @@ public class ChromeContainer extends GenericContainer<ChromeContainer> {
     public ChromeContainer() {
         super(DockerImageName.parse(IMAGE));
         withExposedPorts(CDP_PORT);
-
-        // Give Chrome a generous /dev/shm. The base image inherits Docker's 64MB
-        // default, which renderers/the compositor exhaust under parallel load on the
-        // 2-vCPU CI runner — the renderer then stalls, which shows up as garbled
-        // keystrokes (events coalesced) and Page.captureScreenshot CDP timeouts.
-        // We enlarge shm rather than --disable-dev-shm-usage: shm is tmpfs (RAM),
-        // whereas falling back to /tmp is disk-backed and slower. (Setting both would
-        // make this size dead config, so we intentionally keep Chrome using shm.)
-        withSharedMemorySize(1024L * 1024 * 1024); // 1GB
-
         // Chrome flags:
         // --remote-allow-origins=* — accept WebSocket connections from any origin
         // --site-per-process — force process-per-site isolation in headless Chrome so
         //   cross-origin iframes become OOPIFs (matches real-world Stripe/PayPal setup).
         //   Same-origin iframes are unaffected.
-        // --renderer-process-limit=4 — --site-per-process is on for ALL features (only
-        //   OOPIF needs it) and multiplies renderer processes; cap the blast radius so a
-        //   feature with several iframes can't starve the 2-vCPU runner.
-        // --disable-gpu — no GPU in the container; skip the doomed GPU init path.
-        // --disable-background-timer-throttling / --disable-renderer-backgrounding /
-        //   --disable-backgrounding-occluded-windows — a backgrounded or throttled tab is
-        //   exactly when input events get coalesced and arrive out of order; keep every
-        //   pooled tab running at foreground priority so keystroke timing stays correct.
-        withCommand("--remote-allow-origins=* --site-per-process"
-                + " --renderer-process-limit=4"
-                + " --disable-gpu"
-                + " --disable-background-timer-throttling"
-                + " --disable-renderer-backgrounding"
-                + " --disable-backgrounding-occluded-windows");
+        withCommand("--remote-allow-origins=* --site-per-process");
         waitingFor(Wait.forHttp("/json/version").forPort(CDP_PORT));
         withStartupTimeout(Duration.ofMinutes(2));
 

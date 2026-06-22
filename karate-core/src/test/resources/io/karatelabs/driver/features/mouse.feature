@@ -1,5 +1,9 @@
+@lock=*
 Feature: Mouse Tests
   Mouse operations and positioning
+  Runs each scenario exclusively (@lock=*): mouse-move/position reads and the
+  :hover style are timing-sensitive and drift when a concurrent scenario starves
+  the runner.
 
   Background:
     * configure driver = driverConfig
@@ -18,6 +22,10 @@ Feature: Mouse Tests
   Scenario: Mouse at element
     # Scroll to element so it is in the viewport
     * scroll('#submit-btn')
+    # Let the scroll settle so position() and mouse() read a stable bounding box -
+    # otherwise the center computed by mouse() can differ from the post-scroll
+    # position() read and the coordinate diff exceeds tolerance.
+    * delay(100)
     # Ensure element does NOT have hover state at start
     * assert script('#submit-btn', '(b) => getComputedStyle(b).backgroundColor != "rgb(0, 82, 163)"')
     * def m = mouse('#submit-btn')

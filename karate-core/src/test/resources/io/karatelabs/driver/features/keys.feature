@@ -1,5 +1,9 @@
+@lock=*
 Feature: Keyboard Tests
   Keyboard operations and key presses
+  Runs each scenario exclusively (@lock=*): keystroke ordering is timing-sensitive,
+  and a concurrent scenario on a constrained runner starves the CDP input pipeline
+  so key events arrive coalesced/out-of-order (e.g. 'heeplllaoced' for 'replaced').
 
   Background:
     * configure driver = driverConfig
