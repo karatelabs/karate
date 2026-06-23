@@ -40,6 +40,7 @@ public class WsClientOptions {
 
     private final URI uri;
     private final Map<String, String> headers;
+    private final String subProtocol;
     private final boolean compression;
     private final int maxPayloadSize;
     private final Duration connectTimeout;
@@ -56,6 +57,7 @@ public class WsClientOptions {
         this.headers = builder.headers != null
                 ? Collections.unmodifiableMap(new LinkedHashMap<>(builder.headers))
                 : Collections.emptyMap();
+        this.subProtocol = builder.subProtocol;
         this.compression = builder.compression;
         this.maxPayloadSize = builder.maxPayloadSize;
         this.connectTimeout = builder.connectTimeout;
@@ -103,6 +105,10 @@ public class WsClientOptions {
         return headers;
     }
 
+    public String getSubProtocol() {
+        return subProtocol;
+    }
+
     public boolean isCompression() {
         return compression;
     }
@@ -147,6 +153,7 @@ public class WsClientOptions {
 
         private final URI uri;
         private Map<String, String> headers;
+        private String subProtocol;
         private boolean compression = false;
         private int maxPayloadSize = HttpUtils.MEGABYTE;
         private Duration connectTimeout = Duration.ofSeconds(30);
@@ -175,6 +182,12 @@ public class WsClientOptions {
                 this.headers = new LinkedHashMap<>();
             }
             this.headers.put(name, value);
+            return this;
+        }
+
+        /** The WebSocket subprotocol to negotiate during the handshake (Sec-WebSocket-Protocol). */
+        public Builder subProtocol(String subProtocol) {
+            this.subProtocol = subProtocol;
             return this;
         }
 

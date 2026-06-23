@@ -151,7 +151,7 @@ public class WsClient {
         WebSocketClientHandshaker handshaker = WebSocketClientHandshakerFactory.newHandshaker(
                 uri,
                 WebSocketVersion.V13,
-                null,
+                options.getSubProtocol(),
                 options.isCompression(),
                 headers,
                 options.getMaxPayloadSize()
