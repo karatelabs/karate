@@ -106,4 +106,37 @@ class CdpDriverTest {
         assertEquals("__probe", message.getParams().get("name"));
     }
 
+    @Test
+    void testFrameOwnerMessageWireShape() {
+        CdpMessage message = new CdpMessage(null, 1, "DOM.getFrameOwner")
+                .param("frameId", "FRAME-7");
+        assertEquals("DOM.getFrameOwner", message.getMethod());
+        assertEquals("FRAME-7", message.getParams().get("frameId"));
+    }
+
+    @Test
+    void testFrameOwnerBackendNodeIdExtracted() {
+        // DOM.getFrameOwner → {backendNodeId} of the owner <iframe> in the parent document
+        CdpResponse response = new CdpResponse(Map.of(
+                "id", 7,
+                "result", Map.of("backendNodeId", 42)
+        ));
+        assertEquals(42, response.getResultAsInt("backendNodeId"));
+    }
+
+    @Test
+    void testDescribeNodeYieldsNodeDescriptor() {
+        // DOM.describeNode → {node:{nodeName, attributes:[name,val,…]}} the owner-selector derives from
+        CdpResponse response = new CdpResponse(Map.of(
+                "id", 8,
+                "result", Map.of("node", Map.of(
+                        "nodeName", "IFRAME",
+                        "attributes", java.util.List.of("id", "gw-content", "name", "main")))
+        ));
+        Map<String, Object> node = response.getResult("node");
+        assertNotNull(node);
+        assertEquals("IFRAME", node.get("nodeName"));
+        assertEquals(java.util.List.of("id", "gw-content", "name", "main"), node.get("attributes"));
+    }
+
 }

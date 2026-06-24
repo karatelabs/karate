@@ -231,6 +231,42 @@ public class CdpDriver implements Driver {
         return response == null ? null : response.getResultAsString("identifier");
     }
 
+    // ========== Frame ownership (DOM) ==========
+
+    /**
+     * The {@code backendNodeId} of the {@code <iframe>}/{@code <frame>} element that owns the given
+     * frame ({@code DOM.getFrameOwner}). The owner element always lives in the <i>parent</i> document
+     * — only its <i>content</i> may be cross-origin — so this resolves even for an out-of-process
+     * (OOPIF) child frame, which is what lets the caller name a within-parent selector for a frame it
+     * cannot reach from inside. Enables the DOM domain lazily (idempotent). Returns {@code null} for the
+     * top-level frame (no owner) or on any error.
+     *
+     * @param frameId the CDP frame id (e.g. correlated from {@code Runtime.executionContextCreated})
+     * @return the owner element's backend node id, or {@code null}
+     */
+    public Integer getFrameOwnerBackendNodeId(String frameId) {
+        if (frameId == null) {
+            return null;
+        }
+        cdp.method("DOM.enable").send();
+        CdpResponse response = cdp.method("DOM.getFrameOwner")
+                .param("frameId", frameId)
+                .send();
+        return response == null || response.isError() ? null : response.getResultAsInt("backendNodeId");
+    }
+
+    /**
+     * Describe a node by backend node id ({@code DOM.describeNode}) → the node descriptor map
+     * ({@code {nodeName, attributes:[name,val,…], …}}), or {@code null} on error. Pairs with
+     * {@link #getFrameOwnerBackendNodeId(String)} to derive an owner-{@code <iframe>} selector.
+     */
+    public Map<String, Object> describeNode(int backendNodeId) {
+        CdpResponse response = cdp.method("DOM.describeNode")
+                .param("backendNodeId", backendNodeId)
+                .send();
+        return response == null || response.isError() ? null : response.getResult("node");
+    }
+
     /**
      * Internal representation of a frame.
      */
