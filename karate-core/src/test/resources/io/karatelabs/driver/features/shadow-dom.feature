@@ -42,6 +42,10 @@ Feature: Shadow DOM Tests
 
   Scenario: Input into shadow element via CSS
     * input('[aria-label="Shadow Input"]', 'shadow text')
+    # The input commits to the shadow input's .value asynchronously w.r.t. the CDP
+    # ack, so a one-shot value() read can beat the commit and return '' on a starved
+    # runner. Poll the element until the value lands instead of reading once.
+    * waitUntil('[aria-label="Shadow Input"]', '(e) => e.value === "shadow text"')
     * def v = value('[aria-label="Shadow Input"]')
     * match v == 'shadow text'
 
@@ -71,6 +75,9 @@ Feature: Shadow DOM Tests
 
   Scenario: Input into nested shadow element
     * input('[aria-label="Nested Shadow Input"]', 'nested text')
+    # See "Input into shadow element via CSS": poll until the value commits rather
+    # than reading once, which can return '' before the input lands on a starved runner.
+    * waitUntil('[aria-label="Nested Shadow Input"]', '(e) => e.value === "nested text"')
     * def v = value('[aria-label="Nested Shadow Input"]')
     * match v == 'nested text'
 
