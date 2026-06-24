@@ -143,6 +143,14 @@ public class CdpDriver implements Driver {
     private final Set<String> knownTargetIds = ConcurrentHashMap.newKeySet();
     private final java.util.Queue<Map<String, Object>> openedTargets = new java.util.concurrent.ConcurrentLinkedQueue<>();
 
+    // Named init-script modules registered via addInitScript() (insertion-ordered = install order).
+    private final Map<String, InitScript> initScripts = new LinkedHashMap<>();
+    private final Object initScriptLock = new Object();
+    private String runtimeInitId; // install id of the built-in runtime as an on-new-document script (null until first registration)
+
+    private record InitScript(String source, List<String> deps, String cdpId) {
+    }
+
     // Keyboard state (reused to maintain modifier state across calls)
     private CdpKeys keysInstance;
 
@@ -229,6 +237,65 @@ public class CdpDriver implements Driver {
      */
     static String scriptIdentifier(CdpResponse response) {
         return response == null ? null : response.getResultAsString("identifier");
+    }
+
+    /**
+     * Register a named JavaScript module to run in every new document and inject it into the
+     * document that is already open. Modules are installed after the built-in page runtime and
+     * after any modules named in {@code deps}, so a module can rely on the shared {@code window}
+     * utilities the runtime and its dependencies provide without managing injection order itself.
+     * The built-in runtime is installed (once) on the first registration; with no modules
+     * registered it stays injected lazily on demand, so the default page footprint is unchanged.
+     * <p>
+     * Idempotent by {@code name} — a second call for an already-registered name is a no-op (so a
+     * module may carry its own re-entry guard and be safely re-evaluated on each navigation).
+     * Pair with {@link #removeInitScript(String)}.
+     *
+     * @param name   a stable identifier for the module
+     * @param source the JavaScript source
+     * @param deps   names of already-registered modules that must run before this one
+     * @throws DriverException if a declared dependency has not been registered
+     */
+    public void addInitScript(String name, String source, String... deps) {
+        synchronized (initScriptLock) {
+            if (initScripts.containsKey(name)) {
+                return;
+            }
+            for (String dep : deps) {
+                if (!initScripts.containsKey(dep)) {
+                    throw new DriverException("init script '" + name + "' depends on unregistered '" + dep + "'");
+                }
+            }
+            // install the built-in runtime first so every module can rely on its window utilities
+            if (runtimeInitId == null) {
+                runtimeInitId = addScriptToEvaluateOnNewDocument(DRIVER_JS);
+            }
+            String cdpId = addScriptToEvaluateOnNewDocument(source);
+            initScripts.put(name, new InitScript(source, List.of(deps), cdpId));
+            // new-document installs fire on the NEXT document — also inject into the current one
+            try {
+                ensureKjsRuntime();
+                evalDirect(source);
+            } catch (Exception e) {
+                logger.debug("init script '{}' inject into current document deferred: {}", name, e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Unregister a module added with {@link #addInitScript(String, String, String...)} so it no
+     * longer installs on future navigations. The copy already running in the current document is
+     * left in place. No-op if {@code name} is not registered.
+     *
+     * @param name the module identifier passed to {@code addInitScript}
+     */
+    public void removeInitScript(String name) {
+        synchronized (initScriptLock) {
+            InitScript script = initScripts.remove(name);
+            if (script != null && script.cdpId() != null) {
+                removeScriptToEvaluateOnNewDocument(script.cdpId());
+            }
+        }
     }
 
     // ========== Frame ownership (DOM) ==========
@@ -1194,7 +1261,13 @@ public class CdpDriver implements Driver {
      */
     private void ensureKjsRuntime() {
         try {
-            Boolean exists = (Boolean) evalDirect("typeof window.__kjs !== 'undefined'");
+            // Guard on __kjs.resolve (the wildcard resolver this runtime owns), not merely __kjs:
+            // a co-installed helper (e.g. karate-max's agent-look.js) may seed a PARTIAL window.__kjs
+            // without resolve, and a bare existence check would then skip driver.js injection,
+            // leaving "{tag}text" wildcard locators unresolvable. driver.js extends (never clobbers)
+            // an existing __kjs, so re-injecting to add resolve is safe and idempotent.
+            Boolean exists = (Boolean) evalDirect(
+                    "typeof window.__kjs !== 'undefined' && typeof window.__kjs.resolve === 'function'");
             if (!Boolean.TRUE.equals(exists)) {
                 evalDirect(DRIVER_JS);
             }

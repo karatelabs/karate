@@ -1041,7 +1041,10 @@ public class W3cDriver implements Driver {
      */
     private void ensureKjsRuntime() {
         try {
-            Object exists = session.executeScript("return typeof window.__kjs !== 'undefined'");
+            // Guard on __kjs.resolve (the wildcard resolver), not merely __kjs — a co-installed
+            // helper may seed a partial window.__kjs without it; driver.js extends, never clobbers.
+            Object exists = session.executeScript(
+                    "return typeof window.__kjs !== 'undefined' && typeof window.__kjs.resolve === 'function'");
             if (!Boolean.TRUE.equals(exists)) {
                 session.executeScript(DRIVER_JS);
                 logger.debug("Injected __kjs runtime into browser");

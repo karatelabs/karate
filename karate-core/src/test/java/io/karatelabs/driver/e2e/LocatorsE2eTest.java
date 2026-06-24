@@ -427,4 +427,23 @@ class LocatorsE2eTest extends DriverTestBase {
         assertEquals("btn", el.attribute("id"));
     }
 
+    /**
+     * Regression: {@code ensureKjsRuntime} must guard on {@code __kjs.resolve}, not merely the
+     * existence of {@code window.__kjs}. A co-installed helper (karate-max's {@code agent-look.js},
+     * installed via {@code Page.addScriptToEvaluateOnNewDocument} so capture survives navigation)
+     * seeds a <em>partial</em> {@code window.__kjs} that lacks the wildcard resolver. With a bare
+     * {@code typeof window.__kjs !== 'undefined'} guard, driver.js injection is then skipped and any
+     * {@code {tag}text} locator throws "window.__kjs.resolve is not a function". Here we simulate
+     * that partial seed and assert the wildcard still resolves (driver.js extends, never clobbers).
+     */
+    @Test
+    void testWildcardResolvesAfterPartialKjsSeed() {
+        driver.setUrl("data:text/html,<button id='go'>Log In</button>");
+        // mimic agent-look's partial seed landing on the document before any resolver injection
+        // (the assignment overwrites whatever driver.js this script() call may have injected first)
+        driver.script("window.__kjs = { look: {}, log: function(){} };");
+        Element el = driver.locate("{button}Log In");
+        assertEquals("go", el.attribute("id"));
+    }
+
 }
