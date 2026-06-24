@@ -167,6 +167,70 @@ public class CdpDriver implements Driver {
         cdp.removeExternalListener(listener);
     }
 
+    // ========== Script & binding injection ==========
+
+    /**
+     * Install a JavaScript source that is evaluated in every new document — the
+     * top frame and same-process child frames — before the page's own scripts
+     * run, and re-applied on each navigation. Returns an identifier that
+     * {@link #removeScriptToEvaluateOnNewDocument(String)} takes to uninstall it.
+     *
+     * @param source the JavaScript source to install
+     * @return the install identifier, or {@code null} if none was returned
+     */
+    public String addScriptToEvaluateOnNewDocument(String source) {
+        CdpResponse response = cdp.method("Page.addScriptToEvaluateOnNewDocument")
+                .param("source", source)
+                .send();
+        return scriptIdentifier(response);
+    }
+
+    /**
+     * Uninstall a script previously added with
+     * {@link #addScriptToEvaluateOnNewDocument(String)}.
+     *
+     * @param identifier the install identifier returned at add time
+     */
+    public void removeScriptToEvaluateOnNewDocument(String identifier) {
+        cdp.method("Page.removeScriptToEvaluateOnNewDocument")
+                .param("identifier", identifier)
+                .send();
+    }
+
+    /**
+     * Expose a global function {@code window.<name>(payload)} in every execution
+     * context. Each call from page script surfaces as a {@code Runtime.bindingCalled}
+     * CDP event delivered to listeners registered via
+     * {@link #addCdpEventListener(CdpEventListener)} — a one-way channel for page
+     * code to push string payloads back to the driver.
+     *
+     * @param name the global function name to expose
+     */
+    public void addBinding(String name) {
+        cdp.method("Runtime.addBinding")
+                .param("name", name)
+                .send();
+    }
+
+    /**
+     * Remove a binding previously added with {@link #addBinding(String)}.
+     *
+     * @param name the global function name to remove
+     */
+    public void removeBinding(String name) {
+        cdp.method("Runtime.removeBinding")
+                .param("name", name)
+                .send();
+    }
+
+    /**
+     * Extract the install identifier from a {@code Page.addScriptToEvaluateOnNewDocument}
+     * response, or {@code null} if the command returned no result (e.g. an error).
+     */
+    static String scriptIdentifier(CdpResponse response) {
+        return response == null ? null : response.getResultAsString("identifier");
+    }
+
     /**
      * Internal representation of a frame.
      */

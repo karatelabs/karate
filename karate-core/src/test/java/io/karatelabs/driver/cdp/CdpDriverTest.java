@@ -67,4 +67,43 @@ class CdpDriverTest {
         assertFalse(CdpDriver.isTransientContextError(response));
     }
 
+    @Test
+    void testScriptIdentifierExtracted() {
+        CdpResponse response = new CdpResponse(Map.of(
+                "id", 5,
+                "result", Map.of("identifier", "1")
+        ));
+        assertEquals("1", CdpDriver.scriptIdentifier(response));
+    }
+
+    @Test
+    void testScriptIdentifierNullWhenNoResult() {
+        CdpResponse response = new CdpResponse(Map.of(
+                "id", 6,
+                "error", Map.of("code", -32000, "message", "boom")
+        ));
+        assertNull(CdpDriver.scriptIdentifier(response));
+        assertNull(CdpDriver.scriptIdentifier(null));
+    }
+
+    @Test
+    void testInjectedScriptSourceNotSlashEscaped() {
+        // a script source carrying regex / closing tags must serialize verbatim
+        // (forward slashes not escaped to \/) so injected JS stays valid
+        String source = "if (/a\\/b/.test('</x>')) {}";
+        CdpMessage message = new CdpMessage(null, 1, "Page.addScriptToEvaluateOnNewDocument")
+                .param("source", source);
+        String json = message.toJson();
+        assertTrue(json.contains("</x>"));
+        assertFalse(json.contains("<\\/x>"));
+    }
+
+    @Test
+    void testBindingMessageWireShape() {
+        CdpMessage message = new CdpMessage(null, 1, "Runtime.addBinding")
+                .param("name", "__probe");
+        assertEquals("Runtime.addBinding", message.getMethod());
+        assertEquals("__probe", message.getParams().get("name"));
+    }
+
 }
