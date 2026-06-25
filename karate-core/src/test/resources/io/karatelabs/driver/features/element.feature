@@ -143,6 +143,24 @@ Feature: Element Tests
     * def changed = script("window.selectChanged")
     * match changed == true
 
+  @cdp
+  Scenario: Select commits a field that validates on blur (enterprise lazy-commit, e.g. Guidewire)
+    # #state stays "required" until it commits, and it commits ONLY on blur — NOT on change. A select
+    # that fired just input+change would leave it stale; select() fires the full real-selection sequence
+    # (input, change, blur, focusout), so the field commits at select time. Regression for Locators
+    # .commitFieldEventsJs — without the blur pair this scenario fails ("required" never clears).
+    * match script("document.getElementById('state-status').textContent") == 'required'
+    * select('#state', 'Kentucky')
+    * match value('#state') == 'KY'
+    * match script("window.stateCommitted") == 'KY'
+    * match script("document.getElementById('state-status').textContent") == 'committed'
+    * match script("document.getElementById('state-committed').textContent") == 'KY'
+    # the blur + focusout events actually fired on the select (the commit triggers)
+    * def fired = script("window.inputEvents.filter(function(e){return e.target==='state'}).map(function(e){return e.type})")
+    * match fired contains 'change'
+    * match fired contains 'blur'
+    * match fired contains 'focusout'
+
   # ========== Checkbox Operations ==========
 
   Scenario: Checkbox click
@@ -324,8 +342,8 @@ Feature: Element Tests
     * match result == true
 
   Scenario: Wait for result count
-    * def elements = waitForResultCount('.form-group', 8)
-    * match elements.length == 8
+    * def elements = waitForResultCount('.form-group', 9)
+    * match elements.length == 9
 
   # ========== Scroll and Highlight ==========
 

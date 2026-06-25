@@ -354,8 +354,25 @@ public class Locators {
     }
 
     /**
+     * The full event sequence a real {@code <select>} change produces, fired on the element expression
+     * {@code e}. {@code input}+{@code change} update the value; {@code blur}+{@code focusout} trigger a
+     * framework's field-level <b>commit/validation</b> — so a form that only commits (or clears a "required"
+     * error) on blur (Guidewire, SAP and many enterprise UIs) commits at select time, instead of lazily on
+     * the next interaction. Without the blur pair, a programmatic select sets the value but leaves the
+     * framework's field state stale, which reads as "the select didn't stick". (Native semantics: {@code
+     * blur} does not bubble; {@code focusout} does — fire both so direct and delegated listeners run.)
+     */
+    public static String commitFieldEventsJs(String e) {
+        return e + ".dispatchEvent(new Event('input', {bubbles: true}));"
+                + e + ".dispatchEvent(new Event('change', {bubbles: true}));"
+                + e + ".dispatchEvent(new FocusEvent('blur', {bubbles: false}));"
+                + e + ".dispatchEvent(new FocusEvent('focusout', {bubbles: true}));";
+    }
+
+    /**
      * Generate JS to select a dropdown option.
-     * Dispatches both 'input' and 'change' events with bubbles:true for framework compatibility.
+     * Dispatches the full real-selection event sequence (input, change, blur, focusout) so a framework
+     * that commits or validates a field on blur commits at select time (see {@link #commitFieldEventsJs}).
      * <ul>
      *   <li>"{}" prefix: select by exact text only</li>
      *   <li>"{^}" prefix: select by text contains</li>
@@ -383,8 +400,7 @@ public class Locators {
                 " for (var i = 0; i < e.options.length; ++i)" +
                 " if (" + condition + ") { e.options[i].selected = true; matched = true; break }" +
                 " if (matched) {" +
-                " e.dispatchEvent(new Event('input', {bubbles: true}));" +
-                " e.dispatchEvent(new Event('change', {bubbles: true}));" +
+                " " + commitFieldEventsJs("e") +
                 " }" +
                 " return matched";
         return wrapInFunctionInvoke(js);

@@ -87,6 +87,23 @@
         </div>
 
         <div class="form-group">
+            <!-- A GW-style field that COMMITS/VALIDATES on blur (focusout), NOT on change — many enterprise
+                 UIs (Guidewire, SAP) defer field commit to blur, so a programmatic select that fires only
+                 'change' sets the value but leaves the field showing its "required" error until the next
+                 interaction. select() must fire the full real-selection sequence (…, blur, focusout) so the
+                 field commits at select time. #state-status stays "required" until commit. -->
+            <label for="state">License State (commits on blur)</label>
+            <select id="state" name="state">
+                <option value="">Select a state</option>
+                <option value="CA">California</option>
+                <option value="KY">Kentucky</option>
+                <option value="TX">Texas</option>
+            </select>
+            <div id="state-status">required</div>
+            <div id="state-committed"></div>
+        </div>
+
+        <div class="form-group">
             <label for="meeting-time">Meeting Time</label>
             <input type="time" id="meeting-time" name="meeting-time">
         </div>
@@ -138,7 +155,8 @@
             document.getElementById('form-output').textContent = 'Form cleared.';
         }
 
-        // Track input events for testing
+        // Track input events for testing (input, change, AND blur/focusout — the latter prove a select
+        // fired the full real-selection sequence, the enterprise commit-on-blur case below).
         window.inputEvents = [];
         document.querySelectorAll('input, textarea, select').forEach(function(el) {
             el.addEventListener('input', function(e) {
@@ -155,7 +173,30 @@
                     value: e.target.type === 'checkbox' ? e.target.checked : e.target.value
                 });
             });
+            ['blur', 'focusout'].forEach(function(evt) {
+                el.addEventListener(evt, function(e) {
+                    window.inputEvents.push({ type: evt, target: e.target.name || e.target.id });
+                });
+            });
         });
+
+        // The GW-style #state field: 'change' updates the raw value but DELIBERATELY does not commit —
+        // the "required" error clears + the value commits ONLY on blur. A programmatic select that fires
+        // only 'change' therefore leaves it "required"; one that fires blur/focusout commits it. This is
+        // the regression case for select() firing the full event sequence.
+        (function () {
+            var sel = document.getElementById('state');
+            var status = document.getElementById('state-status');
+            var committed = document.getElementById('state-committed');
+            sel.addEventListener('change', function () {
+                // intentionally NO commit here — mimic a framework that defers commit/validation to blur
+            });
+            sel.addEventListener('blur', function () {
+                window.stateCommitted = sel.value;
+                status.textContent = sel.value ? 'committed' : 'required';
+                committed.textContent = sel.value;
+            });
+        })();
     </script>
 </body>
 </html>
