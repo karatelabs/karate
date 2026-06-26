@@ -1314,6 +1314,16 @@ public class CdpDriver implements Driver {
      * - Multiple retries may indicate a real problem worth investigating
      */
     private CdpResponse cdpEval(String expression) {
+        return cdpEval(expression, true);
+    }
+
+    /**
+     * As {@link #cdpEval(String)}, but lets the caller choose the serialization mode.
+     * {@code returnByValue=false} yields a CDP {@code RemoteObject} handle (its {@code objectId})
+     * instead of the value — required when the result is a live DOM node that a CDP domain method
+     * must address by reference (see {@link #objectId(String)}).
+     */
+    private CdpResponse cdpEval(String expression, boolean returnByValue) {
         // Fail fast if a dialog is already open and blocking. A pre-existing
         // unhandled dialog means any new Runtime.evaluate would be cancelled
         // by our Page.javascriptDialogOpening handler (or hang until the 30s
@@ -1335,7 +1345,7 @@ public class CdpDriver implements Driver {
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
             CdpMessage message = cdp.method("Runtime.evaluate")
                     .param("expression", expression)
-                    .param("returnByValue", true);
+                    .param("returnByValue", returnByValue);
 
             // Use explicit context ID for reliable frame targeting (see getFrameContext notes)
             Integer contextId = getFrameContext();
@@ -2557,6 +2567,25 @@ public class CdpDriver implements Driver {
         retryIfNeeded(locator);
         String js = Locators.scriptSelector(locator, expression);
         return script(js);
+    }
+
+    /**
+     * Resolve a locator to the CDP {@code RemoteObject} id ({@code objectId}) of its DOM node, or
+     * {@code null} if it does not resolve. {@link #script(String, Object)} returns a node BY VALUE
+     * (no remote handle); a CDP domain method that addresses a node by reference — e.g.
+     * {@code DOM.setFileInputFiles} for a file upload — needs the live {@code objectId}. This is the
+     * one locator→CDP-node primitive those operations require. It runs in the resolved frame context
+     * (same as {@link #script(String)}) and, unlike the click/input path, does NOT require the element
+     * to be visible — a file {@code <input>} is routinely {@code display:none}. Does not poll/retry for
+     * existence; the caller decides how to handle a {@code null}.
+     */
+    public String objectId(String locator) {
+        String expression = Locators.wrapInFunctionInvoke("return " + Locators.selector(locator) + ";");
+        if (expression.contains("__kjs")) {
+            ensureKjsRuntime();
+        }
+        CdpResponse response = cdpEval(expression, false);
+        return response == null || response.isError() ? null : response.getResultAsString("result.objectId");
     }
 
     /**
