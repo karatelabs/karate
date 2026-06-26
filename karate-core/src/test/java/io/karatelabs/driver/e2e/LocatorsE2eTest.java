@@ -446,4 +446,20 @@ class LocatorsE2eTest extends DriverTestBase {
         assertEquals("go", el.attribute("id"));
     }
 
+    /**
+     * Robustness: {@link Locators#SCROLL_JS_FUNCTION} run on a locator that resolves to NOTHING (a missing or
+     * stale element) must be a graceful no-op — not a cryptic
+     * "Failed to execute 'getComputedStyle' on 'Window': parameter 1 is not of type 'Element'" that masks the
+     * real "element not found". Without the null/non-element guard, {@code getComputedStyle(null)} threw; the
+     * unguarded {@code while(d=='none')} climb could likewise step past {@code <html>} onto {@code null}.
+     */
+    @Test
+    void testScrollJsOnMissingElementIsNoOpNotCrash() {
+        driver.setUrl("data:text/html,<div id='present'>here</div>");
+        assertDoesNotThrow(() -> driver.script(Locators.scrollJs("#totally-absent")),
+                "scrolling a missing element must degrade to a no-op, not throw getComputedStyle(null)");
+        assertDoesNotThrow(() -> driver.script(Locators.scrollJs("#present")),
+                "a present element must still scroll without error");
+    }
+
 }

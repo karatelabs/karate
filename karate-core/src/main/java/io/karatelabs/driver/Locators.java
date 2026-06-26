@@ -54,10 +54,15 @@ public class Locators {
 
     // ========== Reusable JS Functions ==========
 
+    // Robust against a locator that resolved to nothing (or a non-element): scrolling a missing element is a
+    // no-op, NOT a crash — without the guards, getComputedStyle(null) throws a cryptic
+    // "parameter 1 is not of type 'Element'", masking the real "element not found". The climb also stops at
+    // the root (e.parentElement of <html> is null) instead of stepping onto null and calling getComputedStyle.
     public static final String SCROLL_JS_FUNCTION =
-            "function(e){ var d = window.getComputedStyle(e).display;" +
-                    " while(d == 'none'){ e = e.parentElement; d = window.getComputedStyle(e).display }" +
-                    " e.scrollIntoView({block: 'center'}) }";
+            "function(e){ if (!e || e.nodeType !== 1) return;" +
+                    " var d = window.getComputedStyle(e).display;" +
+                    " while (d == 'none' && e.parentElement) { e = e.parentElement; d = window.getComputedStyle(e).display }" +
+                    " if (e && e.nodeType === 1) e.scrollIntoView({block: 'center'}) }";
 
     // ========== Main Selector Transformation ==========
 
