@@ -78,6 +78,32 @@ public final class BootLoader {
         return boot;
     }
 
+    /**
+     * Boot-only evaluation: run {@code karate-boot.js} for a project working dir and return the
+     * {@link BootBinding} <b>without running any features</b> (no {@code SUITE_ENTER}/{@code SUITE_EXIT},
+     * no scenarios). The boot side effects — exts constructed + configured via {@code boot.ext(name)} +
+     * {@code .putMember(...)} during the JS eval — are the whole point, so a caller that lives outside a
+     * run (e.g. a persistent serve engine re-deriving a project's per-run {@code cov.*} config) can reach
+     * the booted, configured exts on demand.
+     *
+     * <p>Constructs the minimal {@link Suite} the boot phase needs (this package owns the package-private
+     * Suite construction, so callers don't have to) anchored at {@code workingDir} for both config + boot
+     * discovery, then delegates to {@link #loadIfPresent}. Returns {@code null} when {@code workingDir} is
+     * null or no {@code karate-boot.js} is present (the no-ext zero-cost path is preserved).</p>
+     *
+     * @throws RuntimeException when a boot file IS present but its evaluation fails (fail-loud per K43).
+     */
+    public static BootBinding bootOnly(Path workingDir, String env) {
+        if (workingDir == null) {
+            return null;
+        }
+        Suite suite = Runner.builder()
+                .configDir(workingDir.toString())
+                .workingDir(workingDir)
+                .buildSuite();
+        return loadIfPresent(suite, env);
+    }
+
     private static Resource locate(Suite suite) {
         // 1. Workdir root (typical: customer drops karate-boot.js next to pom.xml /
         //    karate-config.js).
