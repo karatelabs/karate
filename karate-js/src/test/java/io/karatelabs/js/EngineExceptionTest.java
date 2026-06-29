@@ -241,4 +241,18 @@ class EngineExceptionTest {
         assertTrue(((String) map.get("msg")).contains("host-side boom"));
         assertEquals(Boolean.TRUE, map.get("isError"));
     }
+
+    @Test
+    void testNullMessageJavaExceptionNamesItsType() {
+        // A leaked Java throwable with a null message (the classic: mutating an immutable collection
+        // throws UnsupportedOperationException(null)) must NOT render as the dead-end "Error: null" —
+        // the decorated frame names the exception TYPE so the failure is self-describing. Repro the
+        // real scenario: a host-bound immutable Map.of() written through from JS.
+        Engine engine = new Engine();
+        engine.put("frozen", Map.of());
+        EngineException e = assertThrows(EngineException.class, () -> engine.eval("frozen.x = 1"));
+        assertFalse(e.getMessage().contains("Error: null"), "must not surface a bare 'Error: null'");
+        assertTrue(e.getMessage().contains("UnsupportedOperationException"),
+                () -> "should name the exception type, was: " + e.getMessage());
+    }
 }

@@ -2122,6 +2122,12 @@ class Interpreter {
                 jsMessage = (msgVal == null || msgVal == Terms.UNDEFINED) ? null : msgVal.toString();
             }
             String body = e.getMessage();
+            if (body == null || body.isEmpty()) {
+                // A leaked Java throwable with no message (e.g. UnsupportedOperationException from
+                // mutating an immutable collection, or a bare NPE) would render as "Error: null" — name
+                // the exception type so the failure is self-describing instead of a dead end.
+                body = e.getClass().getSimpleName();
+            }
             StringBuilder sb = new StringBuilder();
             sb.append("js failed:\n");
             sb.append("==========\n");
