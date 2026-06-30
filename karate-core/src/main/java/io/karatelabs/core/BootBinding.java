@@ -210,6 +210,17 @@ public class BootBinding {
         return exts;
     }
 
+    /**
+     * The ext globals registered during boot (each ext's {@code onBoot} ran eagerly in {@link #ext}, e.g.
+     * RulesExt's {@code Rule}/{@code Schema}/{@code match} instances + a {@code Check} factory) — the
+     * seedable scenario globals a caller OUTSIDE a run can apply to its own engine to reach an ext the same
+     * way a real run's {@link ScenarioRuntime} does (it seeds this very map). A value is a shared singleton
+     * instance, or an {@link ExtGlobalFactory} the caller mints per-context. Empty when no boot file ran.
+     */
+    public Map<String, Object> getGlobals() {
+        return suite == null ? java.util.Collections.emptyMap() : suite.getGlobals();
+    }
+
     /** Collected manifest array shape for SUITE_ENTER.data.exts[]. */
     public java.util.List<Map<String, Object>> manifests() {
         java.util.List<Map<String, Object>> out = new java.util.ArrayList<>();
