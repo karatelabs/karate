@@ -160,6 +160,14 @@ public class MemoryResource implements Resource {
         if (path.startsWith(Resource.CLASSPATH_COLON) || path.startsWith(Resource.FILE_COLON)) {
             return Resource.path(path);
         }
+        // A leading "/" is root-relative (the project/working root — webapp context-path style), NOT the
+        // OS filesystem root: identical to PathResource.resolve. Without this strip, root.resolve("/x")
+        // would discard root (Path.resolve of an absolute arg returns the arg) and leak "/x" as OS-absolute
+        // — the divergence that broke a leading-"/" read() during config-eval, where the "current resource"
+        // is a MemoryResource (use "file:" to force a real filesystem-absolute path).
+        if (path.startsWith("/")) {
+            return new PathResource(root.resolve(path.substring(1)), root);
+        }
         return new PathResource(root.resolve(path), root);
     }
 

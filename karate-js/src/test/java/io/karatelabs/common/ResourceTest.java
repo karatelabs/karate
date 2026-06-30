@@ -151,6 +151,23 @@ class ResourceTest {
     }
 
     @Test
+    void testMemoryResourceResolveLeadingSlashIsRootRelative() {
+        // A leading "/" is project/working-root-relative (webapp context-path style), identical to
+        // PathResource.resolve — NOT the OS filesystem root. Regression: during config-eval the "current
+        // resource" is a MemoryResource, so read('/x') must anchor at the project root, not leak to "/x".
+        Resource root = Resource.text("content", tempDir);
+        Resource resolved = root.resolve("/sub/data.json");
+
+        assertNotNull(resolved.getPath());
+        assertEquals(tempDir.resolve("sub/data.json").toAbsolutePath().normalize(),
+                resolved.getPath().toAbsolutePath().normalize(),
+                "leading-slash resolves under the resource root, not the filesystem root");
+        // a bare path stays root-relative the same way (no leading slash to strip)
+        assertEquals(tempDir.resolve("sub/data.json").toAbsolutePath().normalize(),
+                root.resolve("sub/data.json").getPath().toAbsolutePath().normalize());
+    }
+
+    @Test
     void testMemoryResourceResolveClasspathPrefix() {
         // MemoryResource.resolve() should handle classpath: prefix
         Resource resource = Resource.text("Feature: test");
