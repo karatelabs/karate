@@ -1,12 +1,13 @@
-@lock=render
+@lock=*
 Feature: Multi-feature call chain (V1-style reusable flows)
   Tests that driver auto-propagates across a chain of called features
   without needing scope: 'caller' - the common V1 migration pattern
-  Shares the @lock=render lock with the other renderer-heavy features so two
-  never starve the CDP pipeline at once. The called features navigate and
-  immediately drive the freshly-loaded page (e.g. input('#username')); a
-  concurrent heavy renderer on a 2-vCPU runner leaves that page not yet loaded
-  when the called step runs.
+  Runs each scenario exclusively (@lock=*): these scenarios drive several
+  navigations in a row across called features (e.g. /index -> /wait -> /index)
+  and read driver.title right after each. The shared @lock=render (which still
+  allows a light neighbour) was not enough — a navigation lost its race on a
+  2-vCPU runner and driver.title still read the previous page. This needs the
+  renderer to itself.
 
 Background:
 * url serverUrl

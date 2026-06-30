@@ -1,6 +1,11 @@
+@lock=*
 Feature: Screenshot Tests
   Regression guard:
   `screenshot()` from Gherkin must embed the image into the HTML report.
+  Runs each scenario exclusively (@lock=*): Page.captureScreenshot is a heavy,
+  renderer-bound CDP call. The shared @lock=render (which still allows a light
+  neighbour) was not enough — even one competing tab starves the capture on a
+  2-vCPU runner and it times out. This needs the renderer to itself.
 
   Background:
     * configure driver = driverConfig

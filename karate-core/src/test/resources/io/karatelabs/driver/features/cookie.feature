@@ -1,8 +1,11 @@
-@lock=cookies
+@lock=*
 Feature: Cookie Tests
   Cookie management operations
-  All scenarios use @lock=cookies to ensure mutual exclusion since cookies
-  are shared at the browser level and parallel execution causes interference.
+  Runs each scenario exclusively (@lock=*): cookies are shared at the browser
+  level (so scenarios must not overlap), and the cookie set/get CDP ops are
+  heavy enough that the shared @lock=render (which still allows a light
+  neighbour) let a set race its read on a 2-vCPU runner — the cookie read back
+  null. Exclusive locking gives both the mutual exclusion and the isolation.
 
   Background:
     * configure driver = driverConfig
