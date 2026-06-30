@@ -297,39 +297,57 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         return suite != null && suite.dryRun && !scenario.isSetup();
     }
 
+    /** The merged config map (karate-base.js + karate-config.js + env config) produced by
+     *  {@link #evalConfig()} — exposed via {@link #getConfigVars()} so a caller can evaluate config
+     *  STANDALONE and harvest it (the config sibling of {@code BootLoader.bootOnly}). */
+    private final Map<String, Object> configVars = new java.util.LinkedHashMap<>();
+
+    /** The merged config-phase variables (base + config + env), populated during init when config is
+     *  evaluated (a top-level scenario); empty otherwise. Used by {@code ConfigLoader.configOnly}. */
+    public Map<String, Object> getConfigVars() {
+        return configVars;
+    }
+
     /**
      * Evaluate karate-base.js, karate-config.js (and env-specific config) in this scenario's context.
-     * This allows callSingle and other karate.* functions to work during config.
+     * This allows callSingle and other karate.* functions to work during config. The applied variables
+     * are also harvested into {@link #configVars} (see {@link #getConfigVars()}).
      */
-    @SuppressWarnings("unchecked")
     private void evalConfig() {
         Suite suite = featureRuntime.getSuite();
 
         // Evaluate karate-base.js first (shared functions available to configs)
         if (suite.baseResource != null) {
-            evalConfigJs(suite.baseResource);
+            mergeConfig(evalConfigJs(suite.baseResource));
         }
 
         // Evaluate main config
         if (suite.configResource != null) {
-            evalConfigJs(suite.configResource);
+            mergeConfig(evalConfigJs(suite.configResource));
         }
 
         // Evaluate env-specific config
         if (suite.configEnvResource != null) {
-            evalConfigJs(suite.configEnvResource);
+            mergeConfig(evalConfigJs(suite.configEnvResource));
+        }
+    }
+
+    private void mergeConfig(Map<String, Object> vars) {
+        if (vars != null) {
+            configVars.putAll(vars);
         }
     }
 
     /**
-     * Evaluate a config JS and apply its result to the engine.
+     * Evaluate a config JS, apply its result to the engine, and RETURN the applied variable map (or
+     * null when the script returned no object) so {@link #evalConfig} can harvest the merged config.
      * Supports multiple patterns:
      * 1. Function definition only: function fn() { return {...}; } - will call it
      * 2. Self-executing: function fn() { return {...}; } fn(); - returns result directly
      * 3. Object literal: ({ key: value }) - already an object
      */
     @SuppressWarnings("unchecked")
-    private void evalConfigJs(io.karatelabs.common.Resource resource) {
+    private Map<String, Object> evalConfigJs(io.karatelabs.common.Resource resource) {
         String displayName = resource.getRelativePath();
         if (displayName == null) {
             displayName = resource.getPrefixedPath();
@@ -364,14 +382,16 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
             // Apply config variables to engine
             if (result instanceof Map) {
-                Map<String, Object> configVars = (Map<String, Object>) result;
-                for (var entry : configVars.entrySet()) {
+                Map<String, Object> vars = (Map<String, Object>) result;
+                for (var entry : vars.entrySet()) {
                     karate.engine.put(entry.getKey(), entry.getValue());
                 }
-                logger.debug("Evaluated {}: {} variables", displayName, configVars.size());
+                logger.debug("Evaluated {}: {} variables", displayName, vars.size());
+                return vars;
             } else if (result != null) {
                 logger.warn("{} did not return an object, got: {}", displayName, result.getClass().getSimpleName());
             }
+            return null;
         } catch (Exception e) {
             logger.warn("Failed to evaluate {}: {}", displayName, e.getMessage());
             throw new RuntimeException("Config evaluation failed: " + displayName + " - " + e.getMessage(), e);
