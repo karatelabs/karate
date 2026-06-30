@@ -1,5 +1,11 @@
+@lock=render
 Feature: Retry Tests
   Tests for retry() chaining with wait methods (v1 compatibility)
+  Shares the @lock=render lock with the other renderer-heavy features so two
+  never starve the CDP pipeline at once. These assert on page-side timers
+  (elements enabled/shown after a setTimeout); under a concurrent heavy renderer
+  on a 2-vCPU runner those timers fire late and even the retry budget here can
+  lapse before the element is ready.
 
   Background:
     * configure driver = driverConfig

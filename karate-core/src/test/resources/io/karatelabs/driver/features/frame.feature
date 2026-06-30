@@ -1,6 +1,13 @@
-@lock=frames
+@lock=render
 Feature: Frame Tests
   Frame switching operations
+  Shares the @lock=render lock with the other renderer-heavy features so no two
+  of them run at once. This feature previously used a per-feature lock
+  (@lock=frames) and still failed under load: a named lock is a *read* lock, so
+  differently-named scenarios still ran concurrently and starved the CDP pipeline
+  on a 2-vCPU runner, leaving the page JS unrun and per-frame reads
+  (window.mainValue) coming back null. Only a shared name actually serializes the
+  heavy features; light scenarios still fill the other slot.
 
   Background:
     * configure driver = driverConfig

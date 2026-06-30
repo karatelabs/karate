@@ -1,4 +1,9 @@
+@lock=render
 Feature: waitUntil with JS callable (regression for 2.0.4)
+  Shares the @lock=render lock with the other renderer-heavy features so two
+  never starve the CDP pipeline at once. The waitUntil conditions here resolve on
+  page-side timers (e.g. window.asyncValue flips after a setTimeout); a concurrent
+  heavy renderer on a 2-vCPU runner delays those timers past the wait budget.
 
   # Before the fix, waitUntil(fn) where fn is a karate-js function always
   # dispatched to waitUntil(String) — the function was stringified and the

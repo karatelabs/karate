@@ -1,7 +1,12 @@
+@lock=render
 Feature: Window & Lifecycle Globals
   Locks in v1-compatible bare-keyword bindings for window state, lifecycle,
   navigation, and timing helpers — these used to work as `* maximize` in v1
   and would silently fail if not bound at the JS root.
+  Shares the @lock=render lock with the other renderer-heavy features so two
+  never starve the CDP pipeline at once. reload/navigation re-load the page, and
+  a concurrent heavy renderer on a 2-vCPU runner leaves the reloaded DOM not yet
+  ready (DOMContentLoaded unfired) when the next step runs.
 
   Background:
     * configure driver = driverConfig
