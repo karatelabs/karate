@@ -42,14 +42,27 @@ public class SseConnection {
 
     private final ChannelHandlerContext ctx;
     private volatile boolean open;
+    private volatile boolean headersSent;
 
     SseConnection(ChannelHandlerContext ctx) {
         this.ctx = ctx;
         this.open = true;
-        sendHeaders();
+        // headers are NOT sent here: the handler may instead reject() this as not-an-SSE-route
+        // (e.g. a GET to a POST-only endpoint) with a real HTTP status. They are committed lazily on
+        // the first send/sendComment, or eagerly via open() for a stream that wants the 200 up front.
     }
 
-    private void sendHeaders() {
+    /** Commit the SSE response head (200, {@code text/event-stream}) now. Idempotent; auto-called on the
+     *  first {@code send}/{@code sendComment}. Call it explicitly to open the stream before any event. */
+    public void open() {
+        ensureHeaders();
+    }
+
+    private void ensureHeaders() {
+        if (headersSent) {
+            return;
+        }
+        headersSent = true;
         DefaultHttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/event-stream");
         response.headers().set(HttpHeaderNames.CACHE_CONTROL, "no-cache");
@@ -57,6 +70,27 @@ public class SseConnection {
         response.headers().set(HttpHeaderNames.TRANSFER_ENCODING, "chunked");
         response.headers().set(HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
         ctx.writeAndFlush(response);
+    }
+
+    /**
+     * Reject this would-be SSE connection with a normal HTTP error response, before any event is sent —
+     * for an {@code Accept: text/event-stream} request that is not actually an event-source route (the
+     * MCP Streamable-HTTP spec wants {@code 405} for a GET to a POST-only endpoint). No-op once the stream
+     * has been opened.
+     */
+    public void reject(int status, String message) {
+        if (headersSent) {
+            close();
+            return;
+        }
+        headersSent = true;
+        open = false;
+        byte[] body = (message == null ? "" : message).getBytes(StandardCharsets.UTF_8);
+        FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
+                HttpResponseStatus.valueOf(status), Unpooled.copiedBuffer(body));
+        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=utf-8");
+        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, body.length);
+        ctx.writeAndFlush(response).addListener(future -> ctx.close());
     }
 
     /**
@@ -70,6 +104,7 @@ public class SseConnection {
             open = false;
             return;
         }
+        ensureHeaders();
         StringBuilder sb = new StringBuilder();
         if (event != null) {
             sb.append("event: ").append(event).append('\n');
@@ -99,6 +134,7 @@ public class SseConnection {
             open = false;
             return;
         }
+        ensureHeaders();
         String frame = ": " + comment + "\n\n";
         ctx.writeAndFlush(new DefaultHttpContent(
                 Unpooled.copiedBuffer(frame, StandardCharsets.UTF_8)));
@@ -112,6 +148,7 @@ public class SseConnection {
             return;
         }
         open = false;
+        ensureHeaders();   // a never-used stream still closes as a valid (empty) 200 SSE response
         ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
                 .addListener(future -> ctx.close());
     }
