@@ -730,12 +730,39 @@ public final class Runner {
          */
         public List<Feature> getResolvedFeatures() {
             if (resolvedFeatures == null) {
-                resolvedFeatures = new ArrayList<>(features);
+                resolvedFeatures = new ArrayList<>();
+                for (Feature feature : features) {
+                    resolvedFeatures.add(reRootToWorkingDir(feature));
+                }
                 for (String path : paths) {
                     resolveFeatures(path, resolvedFeatures, workingDir);
                 }
             }
             return Collections.unmodifiableList(resolvedFeatures);
+        }
+
+        /**
+         * Re-anchor a pre-built, filesystem-backed {@link Feature}'s {@link Resource} root to this Builder's
+         * {@code workingDir}, so a leading-{@code /} reference (read / callSingle / karate.start — including
+         * during config-eval, which anchors on the running feature's resource root) resolves to the project
+         * root, exactly like the path-loading flow that already builds features via
+         * {@code Resource.from(file, workingDir)}. This closes the gap where {@code Runner.features(feature)}
+         * ran a feature whose resource was rooted at the process CWD (e.g. built via
+         * {@code Feature.read(Resource.path(...))}), ignoring an explicit {@code .workingDir(...)}.
+         * Classpath / in-memory features (no filesystem path) and features already rooted at
+         * {@code workingDir} are returned unchanged; best-effort — never fails resolution over a re-root.
+         */
+        private Feature reRootToWorkingDir(Feature feature) {
+            Resource resource = feature.getResource();
+            if (resource == null || !resource.isFile() || workingDir == null
+                    || workingDir.equals(resource.getRoot())) {
+                return feature;
+            }
+            try {
+                return Feature.read(Resource.from(resource.getPath(), workingDir));
+            } catch (Exception e) {
+                return feature;
+            }
         }
 
         // ========== Package-private accessors for Suite constructor ==========

@@ -48,6 +48,24 @@ class RunnerTest {
     }
 
     @Test
+    void prebuiltFeaturesAreReRootedToWorkingDirForLeadingSlashRefs() throws Exception {
+        // Runner.features(prebuiltFeature) must anchor a leading-'/' reference (read/callSingle/karate.start,
+        // incl. config-eval) at the Builder's workingDir — the same anchoring the path-loading flow gets via
+        // Resource.from(file, workingDir). A feature built from a CWD-rooted Resource (Feature.read(
+        // Resource.path(...))) and run under an explicit workingDir gets re-rooted to it. Regression guard for
+        // the Runner.features() gap where an explicit .workingDir(...) was ignored and '/' leaked to the CWD.
+        Path featureFile = Files.createDirectories(tempDir.resolve("checks")).resolve("t.feature");
+        Files.writeString(featureFile, "Feature: t\n\n  Scenario: s\n    * def x = 1\n");
+        Feature prebuilt = Feature.read(Resource.path(featureFile.toString()));   // CWD-rooted (the precondition)
+        assertNotEquals(tempDir.toAbsolutePath().normalize(), prebuilt.getResource().getRoot(),
+                "precondition: a prebuilt feature is not workingDir-rooted");
+
+        Feature resolved = Runner.features(prebuilt).workingDir(tempDir).getResolvedFeatures().get(0);
+        assertEquals(tempDir.toAbsolutePath().normalize(), resolved.getResource().getRoot(),
+                "the prebuilt feature is re-rooted to workingDir so a leading-'/' ref anchors at the project root");
+    }
+
+    @Test
     void testRunnerWithSingleFeature() throws Exception {
         Path feature = tempDir.resolve("simple.feature");
         Files.writeString(feature, """
