@@ -101,6 +101,8 @@ public final class HtmlReportWriter {
     private static final String EXTS_PLACEHOLDER = "<!-- KARATE_EXTS -->";
     // Phase 2 (§3.2 nav.pages): per-ext <a> tabs spliced into the topbar nav.
     private static final String NAV_PLACEHOLDER = "<!-- KARATE_NAV -->";
+    // The top-bar CTA slot: the OSS enterprise upsell by default, or an ext-registered CTA (who made this).
+    private static final String CTA_PLACEHOLDER = "<!-- KARATE_CTA -->";
 
     // Lazily-loaded sprite contents. Loaded once per JVM (sprite is small and
     // identical for every template + every run).
@@ -450,7 +452,40 @@ public final class HtmlReportWriter {
         html = html.replace(ICONS_PLACEHOLDER, loadIconsSprite());
         html = html.replace(EXTS_PLACEHOLDER, buildExtsHtml(reportAssets, relPrefix));
         html = html.replace(NAV_PLACEHOLDER, buildNavHtml(reportAssets, relPrefix));
+        html = html.replace(CTA_PLACEHOLDER, buildCtaHtml(reportAssets));
         return html;
+    }
+
+    /**
+     * The top-bar CTA fragment. Default is the OSS "Try Karate Enterprise" upsell (accent-filled). If any
+     * ext registered a CTA via {@link ReportAssets#cta} (first one wins), render THAT instead — a subtle,
+     * neutral-outlined link that marks which product produced the report (e.g. Karate Agent) rather than
+     * pitching an upgrade. Both variants use the shared icon sprite, present on every core page.
+     */
+    private static String buildCtaHtml(Map<String, ReportAssets> reportAssets) {
+        if (reportAssets != null) {
+            for (ReportAssets a : reportAssets.values()) {
+                if (a.ctaHref() != null && a.ctaLabel() != null) {
+                    String label = escapeHtml(a.ctaLabel());
+                    String href = escapeHtml(a.ctaHref());
+                    // subtle: neutral outline, no accent fill, no arrow — "who made this", not an upsell.
+                    return "<a href=\"" + href + "\" target=\"_blank\" rel=\"noopener\" title=\"" + label + "\""
+                            + " class=\"inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium"
+                            + " border border-slate-300 dark:border-white/20 text-slate-500 dark:text-white/60"
+                            + " hover:text-slate-800 dark:hover:text-white hover:border-slate-400 dark:hover:border-white/40 transition-colors\">"
+                            + "<svg class=\"w-3.5 h-3.5\"><use href=\"#icon-sparkle\"/></svg>"
+                            + "<span>" + label + "</span></a>";
+                }
+            }
+        }
+        // OSS default — the enterprise upsell (accent-filled, with arrow).
+        return "<a href=\"https://karatelabs.io/karate-enterprise?utm_source=karate-os&utm_medium=report&utm_campaign=enterprise-cta\""
+                + " target=\"_blank\" rel=\"noopener\""
+                + " class=\"group inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-accent text-white hover:bg-accent-dark transition-colors\""
+                + " title=\"Karate Open Source vs Karate Enterprise — see what's included\">"
+                + "<svg class=\"w-3.5 h-3.5\"><use href=\"#icon-sparkle\"/></svg>"
+                + "<span><span class=\"hidden md:inline\">Try </span>Karate Enterprise</span>"
+                + "<svg class=\"w-3 h-3 transition-transform group-hover:translate-x-0.5\"><use href=\"#icon-arrow-right\"/></svg></a>";
     }
 
     /**

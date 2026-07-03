@@ -26,14 +26,7 @@
                 <svg x-show="theme === 'dark'" class="w-4 h-4"><use href="#icon-sun"/></svg>
             </button>
             <span class="hidden sm:inline-block w-px h-5 bg-slate-300 dark:bg-white/20"></span>
-            <a href="https://karatelabs.io/karate-enterprise?utm_source=karate-os&utm_medium=report&utm_campaign=enterprise-cta&utm_content=summary"
-               target="_blank" rel="noopener"
-               class="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-accent text-white hover:bg-accent-dark transition-colors"
-               title="Karate Open Source vs Karate Enterprise — see what's included">
-                <svg class="w-3.5 h-3.5"><use href="#icon-sparkle"/></svg>
-                <span><span class="hidden md:inline">Try </span>Karate Enterprise</span>
-                <svg class="w-3 h-3 transition-transform group-hover:translate-x-0.5"><use href="#icon-arrow-right"/></svg>
-            </a>
+            <!-- KARATE_CTA -->
         </div>
     </nav>
 
@@ -90,7 +83,9 @@
                 <div class="text-sm opacity-90">Scenarios Failed</div>
                 <div class="text-3xl font-bold mt-1" x-text="data.summary?.scenario_failed || 0">0</div>
             </div>
-            <div class="rounded-lg p-4 bg-amber-500 text-white" x-show="data.summary?.scenario_skipped > 0">
+            <!-- Always shown so the 5-col KPI grid never leaves a trailing gap; greyed out when there
+                 are no skipped scenarios (0), amber when some were skipped. -->
+            <div class="rounded-lg p-4 text-white" :class="(data.summary?.scenario_skipped > 0) ? 'bg-amber-500' : 'bg-slate-500 dark:bg-slate-700 opacity-60'">
                 <div class="text-sm opacity-90">Scenarios Skipped</div>
                 <div class="text-3xl font-bold mt-1" x-text="data.summary?.scenario_skipped || 0">0</div>
             </div>

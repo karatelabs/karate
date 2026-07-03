@@ -70,6 +70,8 @@ public final class ReportAssets {
     private String css;                // optional; e.g. "static/ext.css"
     private final List<Page> pages = new ArrayList<>();
     private final List<String> assets = new ArrayList<>();   // extra static files copied verbatim
+    private String ctaLabel;           // optional top-bar CTA override (label + href); default is the OSS upsell
+    private String ctaHref;
 
     // Bound at registration time by Suite.registerReportAssets.
     private ClassLoader classLoader;
@@ -108,6 +110,18 @@ public final class ReportAssets {
     }
 
     /**
+     * Override the report's top-bar call-to-action. Core pages ship a default "Try Karate Enterprise"
+     * upsell; an ext (e.g. a licensed product) can replace it with its own subtle link — the report then
+     * signals which product produced it rather than pitching an upgrade. The first ext to register a CTA
+     * wins ({@code HtmlReportWriter.buildCtaHtml}); {@code label} is the button text, {@code href} its target.
+     */
+    public ReportAssets cta(String label, String href) {
+        this.ctaLabel = label;
+        this.ctaHref = href;
+        return this;
+    }
+
+    /**
      * Add an extra static file copied verbatim to {@code ext/<name>/} (e.g. a vendored
      * library the JS loads at runtime, like {@code static/resemble.js}). Not auto-injected
      * into the page — the ext's own JS references it by its report-relative URL.
@@ -133,6 +147,16 @@ public final class ReportAssets {
     /** Web-relative path of the CSS, {@code static/} stripped; null when no CSS. */
     public String cssHref() {
         return css == null ? null : stripStatic(css);
+    }
+
+    /** The ext-supplied CTA label, or null if this ext registered none. */
+    public String ctaLabel() {
+        return ctaLabel;
+    }
+
+    /** The ext-supplied CTA href, or null if this ext registered none. */
+    public String ctaHref() {
+        return ctaHref;
     }
 
     /**
