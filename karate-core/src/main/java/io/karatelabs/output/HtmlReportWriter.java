@@ -473,7 +473,7 @@ public final class HtmlReportWriter {
                             + " class=\"inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium"
                             + " border border-slate-300 dark:border-white/20 text-slate-500 dark:text-white/60"
                             + " hover:text-slate-800 dark:hover:text-white hover:border-slate-400 dark:hover:border-white/40 transition-colors\">"
-                            + "<svg class=\"w-3.5 h-3.5\"><use href=\"#icon-sparkle\"/></svg>"
+                            + "<svg class=\"w-4 h-4\"><use href=\"#icon-sparkle\"/></svg>"
                             + "<span>" + label + "</span></a>";
                 }
             }
@@ -483,7 +483,7 @@ public final class HtmlReportWriter {
                 + " target=\"_blank\" rel=\"noopener\""
                 + " class=\"group inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-accent text-white hover:bg-accent-dark transition-colors\""
                 + " title=\"Karate Open Source vs Karate Enterprise — see what's included\">"
-                + "<svg class=\"w-3.5 h-3.5\"><use href=\"#icon-sparkle\"/></svg>"
+                + "<svg class=\"w-4 h-4\"><use href=\"#icon-sparkle\"/></svg>"
                 + "<span><span class=\"hidden md:inline\">Try </span>Karate Enterprise</span>"
                 + "<svg class=\"w-3 h-3 transition-transform group-hover:translate-x-0.5\"><use href=\"#icon-arrow-right\"/></svg></a>";
     }
