@@ -207,6 +207,9 @@ const KarateReport = {
         // A row click shows EVERYTHING — clear any per-kind filter a badge set, so all embeds show.
         detail.querySelectorAll('.k-embed').forEach(el => { el.style.display = ''; });
         delete detail.dataset.kindFilter;
+        // Highlighting is deferred (see initDeferredEmbeds): now that this detail is visible,
+        // colorize its code blocks immediately rather than waiting for the on-view observer.
+        if (!expanded) detail.querySelectorAll('code[class*="language-"]').forEach(el => this._highlightEl(el));
         // The collapsed badges STAY as a persistent handle (they used to be hidden on expand — you then
         // lost track of what the row carried and had nothing to click to collapse). Just clear the
         // per-kind active highlight; the badges remain visible in both states.
@@ -365,8 +368,8 @@ const KarateReport = {
             if (step.logSegments && step.logSegments.length) {
                 // One contiguous <pre> so whitespace stays exactly as logged; code
                 // segments (e.g. JSON bodies) are wrapped in a language-tagged <code>
-                // that Prism colorizes in place (_highlightCode), leaving the request
-                // and header lines around them as plain text.
+                // that Prism colorizes on-view (_observeCode/_highlightEl), leaving the
+                // request and header lines around them as plain text.
                 let inner = '';
                 step.logSegments.forEach(seg => {
                     if (seg.lang) {
@@ -551,12 +554,22 @@ const KarateReport = {
             this._deferIO = new IntersectionObserver(entries => {
                 entries.forEach(e => { if (e.isIntersecting) self._materializeEmbed(e.target); });
             }, { rootMargin: '200px' });
+            // Prism highlighting is deferred the same way embeds are. Highlighting every
+            // code block eagerly at insert time is what makes large feature reports (100s
+            // of scenarios, each with HTTP JSON bodies) explode: Prism turns each body into
+            // thousands of <span> nodes, and 99% of them sit inside collapsed step details
+            // nobody ever opens. Observing instead of highlighting keeps hidden bodies as
+            // plain text until they actually scroll into view / a step is expanded.
+            this._hlIO = new IntersectionObserver(entries => {
+                entries.forEach(e => { if (e.isIntersecting) { self._highlightEl(e.target); self._hlIO.unobserve(e.target); } });
+            }, { rootMargin: '200px' });
         }
         const scan = root => {
             if (root && root.querySelectorAll) {
                 root.querySelectorAll('[data-embed-id][data-defer]').forEach(h => self._observeDeferred(h));
+                root.querySelectorAll('code[class*="language-"]').forEach(el => self._observeCode(el));
             }
-            self._highlightCode(root);
+            if (root && root.matches && root.matches('code[class*="language-"]')) self._observeCode(root);
         };
         if (typeof MutationObserver !== 'undefined' && document.body) {
             new MutationObserver(muts => {
@@ -570,7 +583,28 @@ const KarateReport = {
         scan(document);
         window.addEventListener('beforeprint', () => {
             document.querySelectorAll('[data-embed-id][data-defer]').forEach(h => self._materializeEmbed(h));
+            document.querySelectorAll('code[class*="language-"]').forEach(el => self._highlightEl(el));
         });
+    },
+
+    /**
+     * Register a code block for on-view Prism highlighting via {@link #_hlIO}.
+     * Observing a still-hidden (display:none) block is fine — IntersectionObserver
+     * simply reports it as not-intersecting and fires later, when a step is expanded
+     * or it scrolls into view. Falls back to highlighting immediately when the browser
+     * has no IntersectionObserver.
+     */
+    _observeCode(el) {
+        if (!el || el.dataset.hlDone || el.dataset.hlObserved) return;
+        if (this._hlIO) { el.dataset.hlObserved = '1'; this._hlIO.observe(el); }
+        else this._highlightEl(el);
+    },
+
+    /** Highlight a single code block at most once. */
+    _highlightEl(el) {
+        if (typeof Prism === 'undefined' || !el || el.dataset.hlDone) return;
+        Prism.highlightElement(el);
+        el.dataset.hlDone = '1';
     },
 
     /**
@@ -593,6 +627,7 @@ const KarateReport = {
     },
 
     _deferIO: null,
+    _hlIO: null,
     _deferReady: false,
 
     // Default per-part rendering when no ext claims the embed name — also the

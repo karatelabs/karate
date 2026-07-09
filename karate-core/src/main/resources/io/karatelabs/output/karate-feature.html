@@ -6,8 +6,9 @@
     <link rel="stylesheet" href="../res/karate-report.css"/>
     <link rel="stylesheet" href="../res/prism-karate.css"/>
     <link rel="icon" href="../res/favicon.ico"/>
-    <!-- data-manual: content is injected by Alpine after load, so we highlight on
-         insert via KarateReport._highlightCode rather than Prism's auto-run. -->
+    <!-- data-manual: content is injected by Alpine after load, and we highlight code
+         blocks lazily on-view (KarateReport._observeCode) rather than Prism's auto-run,
+         so collapsed/off-screen HTTP bodies aren't tokenized until actually shown. -->
     <script src="../res/prism.min.js" data-manual></script>
     <script src="../res/alpine.min.js" defer></script>
     <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('karate-theme') || 'light');</script>
