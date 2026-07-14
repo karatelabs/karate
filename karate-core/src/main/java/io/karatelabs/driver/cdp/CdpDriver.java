@@ -172,6 +172,12 @@ public class CdpDriver implements Driver {
     private final Set<String> knownTargetIds = ConcurrentHashMap.newKeySet();
     private final java.util.Queue<Map<String, Object>> openedTargets = new java.util.concurrent.ConcurrentLinkedQueue<>();
 
+    // Pending tab-removal futures keyed by targetId, completed by the
+    // Target.targetDestroyed handler. close() registers the future BEFORE sending
+    // Target.closeTarget — registering after the send would race the event and
+    // strand the waiter on its timeout.
+    private final Map<String, CompletableFuture<Void>> pendingTargetRemovals = new ConcurrentHashMap<>();
+
     // Named init-script modules registered via addInitScript() (insertion-ordered = install order).
     private final Map<String, InitScript> initScripts = new LinkedHashMap<>();
     private final Object initScriptLock = new Object();
@@ -901,6 +907,10 @@ public class CdpDriver implements Driver {
             if (targetId == null) return;
             knownTargetIds.remove(targetId);
             openedTargets.removeIf(entry -> targetId.equals(entry.get("targetId")));
+            CompletableFuture<Void> removal = pendingTargetRemovals.remove(targetId);
+            if (removal != null) {
+                removal.complete(null);
+            }
         });
 
         // Catch cross-origin iframes as they attach. Runtime.enable on the OOPIF session
@@ -2173,48 +2183,47 @@ public class CdpDriver implements Driver {
      * The {@code document.URL} match is the "the new doc is now real" signal.</p>
      */
     private void waitForOopifReady(String frameId, String expectedUrl) {
-        int maxWaitMs = 2000;
-        int pollInterval = 50;
-        long deadline = System.currentTimeMillis() + maxWaitMs;
         boolean checkUrl = expectedUrl != null && !expectedUrl.isEmpty();
         String script = checkUrl
                 ? "({r: document.readyState, u: document.URL})"
                 : "document.readyState";
-        while (System.currentTimeMillis() < deadline) {
+        boolean ready = pollUntil(2000, 50, () -> {
             try {
                 CdpResponse response = cdp.method("Runtime.evaluate")
                         .param("expression", script)
                         .param("returnByValue", true)
                         .send();
-                if (!response.isError()) {
-                    if (checkUrl) {
-                        Map<String, Object> value = response.getResult("result.value");
-                        if (value != null) {
-                            Object r = value.get("r");
-                            Object u = value.get("u");
-                            if (r instanceof String && !"loading".equals(r)
-                                    && u instanceof String && ((String) u).contains(expectedUrl)) {
-                                logger.trace("OOPIF ready: frameId={}, readyState={}, url={}",
-                                        frameId, r, u);
-                                return;
-                            }
+                if (response.isError()) {
+                    return false;
+                }
+                if (checkUrl) {
+                    Map<String, Object> value = response.getResult("result.value");
+                    if (value != null) {
+                        Object r = value.get("r");
+                        Object u = value.get("u");
+                        if (r instanceof String && !"loading".equals(r)
+                                && u instanceof String && ((String) u).contains(expectedUrl)) {
+                            logger.trace("OOPIF ready: frameId={}, readyState={}, url={}", frameId, r, u);
+                            return true;
                         }
-                    } else {
-                        Object value = response.getResult("result.value");
-                        if (value instanceof String && !"loading".equals(value)) {
-                            logger.trace("OOPIF ready: frameId={}, readyState={}", frameId, value);
-                            return;
-                        }
+                    }
+                } else {
+                    Object value = response.getResult("result.value");
+                    if (value instanceof String && !"loading".equals(value)) {
+                        logger.trace("OOPIF ready: frameId={}, readyState={}", frameId, value);
+                        return true;
                     }
                 }
             } catch (Exception e) {
                 logger.trace("OOPIF readiness check failed (will retry): {}", e.getMessage());
             }
-            sleep(pollInterval);
+            return false;
+        });
+        if (!ready) {
+            // Not fatal — element-level retry in retryIfNeeded() will absorb any remainder.
+            logger.warn("timeout waiting for OOPIF readiness: frameId={}, expectedUrl={} (will retry on first use)",
+                    frameId, expectedUrl);
         }
-        // Not fatal — element-level retry in retryIfNeeded() will absorb any remainder.
-        logger.warn("timeout waiting for OOPIF readiness: frameId={}, expectedUrl={} (will retry on first use)",
-                frameId, expectedUrl);
     }
 
     /**
@@ -2336,34 +2345,39 @@ public class CdpDriver implements Driver {
         activateTarget(nextTarget);
         logger.debug("close() - switched to: {}, now closing: {}", nextTarget, targetToClose);
 
-        // Now safe to close the old target (browser-level command)
-        cdp.browserMethod("Target.closeTarget")
-                .param("targetId", targetToClose)
-                .send();
-        logger.debug("close() - closed: {}", targetToClose);
-
-        // Wait for target to actually be removed from the page list
-        // Target.closeTarget returns before the target is fully removed, causing
-        // race conditions where getPages() still sees the old tab
-        waitForTargetRemoved(targetToClose);
+        // Register the removal future BEFORE sending closeTarget, then close.
+        // Target.closeTarget returns before the target is fully removed, so callers
+        // that enumerate tabs right after close() would still see the old one.
+        CompletableFuture<Void> removed = new CompletableFuture<>();
+        pendingTargetRemovals.put(targetToClose, removed);
+        try {
+            cdp.browserMethod("Target.closeTarget")
+                    .param("targetId", targetToClose)
+                    .send();
+            logger.debug("close() - closed: {}", targetToClose);
+            waitForTargetRemoved(targetToClose, removed);
+        } finally {
+            pendingTargetRemovals.remove(targetToClose);
+        }
     }
 
     /**
-     * Wait for a target to be removed from the page list after closing.
-     * This prevents race conditions where getPages() is called immediately after close().
+     * Wait for a closed target to actually disappear, event-driven: the future is
+     * completed by the Target.targetDestroyed handler. That event's delivery depends
+     * on Target.setDiscoverTargets, which initialize() arms best-effort — so on
+     * timeout, fall back to ONE page-list check before declaring a problem.
      */
-    private void waitForTargetRemoved(String targetId) {
-        int maxWaitMs = 1000;
-        int pollInterval = 50;
-        long deadline = System.currentTimeMillis() + maxWaitMs;
-
-        while (System.currentTimeMillis() < deadline) {
-            List<String> pages = getPages();
-            if (!pages.contains(targetId)) {
-                logger.trace("target removed from page list: {}", targetId);
-                return;
-            }
-            sleep(pollInterval);
+    private void waitForTargetRemoved(String targetId, CompletableFuture<Void> removed) {
+        try {
+            removed.get(1000, TimeUnit.MILLISECONDS);
+            logger.trace("target removal confirmed by event: {}", targetId);
+            return;
+        } catch (Exception e) {
+            // fall through to the direct check
+        }
+        if (!getPages().contains(targetId)) {
+            logger.trace("target removed from page list: {}", targetId);
+            return;
         }
         logger.warn("timeout waiting for target to be removed: {}", targetId);
     }
@@ -2773,17 +2787,12 @@ public class CdpDriver implements Driver {
      * Wait for an element to exist with custom timeout.
      */
     public Element waitFor(String locator, Duration timeout) {
-        long deadline = System.currentTimeMillis() + timeout.toMillis();
-        int pollInterval = options.getRetryInterval();
-
-        while (System.currentTimeMillis() < deadline) {
-            if (exists(locator)) {
-                return BaseElement.existing(this, locator);
-            }
-            sleep(pollInterval);
+        Element found = pollFor(timeout.toMillis(), options.getRetryInterval(),
+                () -> exists(locator) ? BaseElement.existing(this, locator) : null);
+        if (found == null) {
+            throw new DriverException("timeout waiting for element: " + locator);
         }
-
-        throw new DriverException("timeout waiting for element: " + locator);
+        return found;
     }
 
     /**
@@ -2804,19 +2813,18 @@ public class CdpDriver implements Driver {
      * Wait for any of the locators to match with custom timeout.
      */
     public Element waitForAny(String[] locators, Duration timeout) {
-        long deadline = System.currentTimeMillis() + timeout.toMillis();
-        int pollInterval = options.getRetryInterval();
-
-        while (System.currentTimeMillis() < deadline) {
+        Element found = pollFor(timeout.toMillis(), options.getRetryInterval(), () -> {
             for (String locator : locators) {
                 if (exists(locator)) {
                     return BaseElement.existing(this, locator);
                 }
             }
-            sleep(pollInterval);
+            return null;
+        });
+        if (found == null) {
+            throw new DriverException("timeout waiting for any element: " + String.join(", ", locators));
         }
-
-        throw new DriverException("timeout waiting for any element: " + String.join(", ", locators));
+        return found;
     }
 
     /**
@@ -2830,20 +2838,19 @@ public class CdpDriver implements Driver {
      * Wait for an element to contain specific text with custom timeout.
      */
     public Element waitForText(String locator, String expected, Duration timeout) {
-        long deadline = System.currentTimeMillis() + timeout.toMillis();
-        int pollInterval = options.getRetryInterval();
-
-        while (System.currentTimeMillis() < deadline) {
+        Element found = pollFor(timeout.toMillis(), options.getRetryInterval(), () -> {
             if (exists(locator)) {
                 String text = text(locator);
                 if (text != null && text.contains(expected)) {
                     return BaseElement.existing(this, locator);
                 }
             }
-            sleep(pollInterval);
+            return null;
+        });
+        if (found == null) {
+            throw new DriverException("timeout waiting for text '" + expected + "' in element: " + locator);
         }
-
-        throw new DriverException("timeout waiting for text '" + expected + "' in element: " + locator);
+        return found;
     }
 
     /**
@@ -2857,17 +2864,12 @@ public class CdpDriver implements Driver {
      * Wait for an element to be enabled with custom timeout.
      */
     public Element waitForEnabled(String locator, Duration timeout) {
-        long deadline = System.currentTimeMillis() + timeout.toMillis();
-        int pollInterval = options.getRetryInterval();
-
-        while (System.currentTimeMillis() < deadline) {
-            if (exists(locator) && enabled(locator)) {
-                return BaseElement.existing(this, locator);
-            }
-            sleep(pollInterval);
+        Element found = pollFor(timeout.toMillis(), options.getRetryInterval(),
+                () -> exists(locator) && enabled(locator) ? BaseElement.existing(this, locator) : null);
+        if (found == null) {
+            throw new DriverException("timeout waiting for element to be enabled: " + locator);
         }
-
-        throw new DriverException("timeout waiting for element to be enabled: " + locator);
+        return found;
     }
 
     /**
@@ -2881,18 +2883,14 @@ public class CdpDriver implements Driver {
      * Wait for URL to contain expected string with custom timeout.
      */
     public String waitForUrl(String expected, Duration timeout) {
-        long deadline = System.currentTimeMillis() + timeout.toMillis();
-        int pollInterval = options.getRetryInterval();
-
-        while (System.currentTimeMillis() < deadline) {
+        String found = pollFor(timeout.toMillis(), options.getRetryInterval(), () -> {
             String url = getUrl();
-            if (url != null && url.contains(expected)) {
-                return url;
-            }
-            sleep(pollInterval);
+            return url != null && url.contains(expected) ? url : null;
+        });
+        if (found == null) {
+            throw new DriverException("timeout waiting for URL to contain: " + expected);
         }
-
-        throw new DriverException("timeout waiting for URL to contain: " + expected);
+        return found;
     }
 
     /**
@@ -2907,20 +2905,13 @@ public class CdpDriver implements Driver {
      * Wait until a JavaScript expression on an element evaluates to truthy.
      */
     public Element waitUntil(String locator, String expression, Duration timeout) {
-        long deadline = System.currentTimeMillis() + timeout.toMillis();
-        int pollInterval = options.getRetryInterval();
-
-        while (System.currentTimeMillis() < deadline) {
-            if (exists(locator)) {
-                Object result = script(locator, expression);
-                if (Terms.isTruthy(result)) {
-                    return BaseElement.existing(this, locator);
-                }
-            }
-            sleep(pollInterval);
+        Element found = pollFor(timeout.toMillis(), options.getRetryInterval(),
+                () -> exists(locator) && Terms.isTruthy(script(locator, expression))
+                        ? BaseElement.existing(this, locator) : null);
+        if (found == null) {
+            throw new DriverException("timeout waiting for condition '" + expression + "' on element: " + locator);
         }
-
-        throw new DriverException("timeout waiting for condition '" + expression + "' on element: " + locator);
+        return found;
     }
 
     /**
@@ -2934,18 +2925,12 @@ public class CdpDriver implements Driver {
      * Wait until a JavaScript expression evaluates to truthy with custom timeout.
      */
     public boolean waitUntil(String expression, Duration timeout) {
-        long deadline = System.currentTimeMillis() + timeout.toMillis();
-        int pollInterval = options.getRetryInterval();
-
-        while (System.currentTimeMillis() < deadline) {
-            Object result = script(expression);
-            if (Terms.isTruthy(result)) {
-                return true;
-            }
-            sleep(pollInterval);
+        boolean met = pollUntil(timeout.toMillis(), options.getRetryInterval(),
+                () -> Terms.isTruthy(script(expression)));
+        if (!met) {
+            throw new DriverException("timeout waiting for condition: " + expression);
         }
-
-        throw new DriverException("timeout waiting for condition: " + expression);
+        return true;
     }
 
     /**
@@ -2959,18 +2944,14 @@ public class CdpDriver implements Driver {
      * Wait until a supplier returns a truthy value with custom timeout.
      */
     public Object waitUntil(Supplier<Object> condition, Duration timeout) {
-        long deadline = System.currentTimeMillis() + timeout.toMillis();
-        int pollInterval = options.getRetryInterval();
-
-        while (System.currentTimeMillis() < deadline) {
-            Object result = condition.get();
-            if (Terms.isTruthy(result)) {
-                return result;
-            }
-            sleep(pollInterval);
+        Object result = pollFor(timeout.toMillis(), options.getRetryInterval(), () -> {
+            Object r = condition.get();
+            return Terms.isTruthy(r) ? r : null;
+        });
+        if (result == null) {
+            throw new DriverException("timeout waiting for condition");
         }
-
-        throw new DriverException("timeout waiting for condition");
+        return result;
     }
 
     /**
@@ -2984,19 +2965,12 @@ public class CdpDriver implements Driver {
      * Wait for a specific number of elements to match with custom timeout.
      */
     public List<Element> waitForResultCount(String locator, int count, Duration timeout) {
-        long deadline = System.currentTimeMillis() + timeout.toMillis();
-        int pollInterval = options.getRetryInterval();
-
-        while (System.currentTimeMillis() < deadline) {
-            Object result = script(Locators.countJs(locator));
-            int actual = ((Number) result).intValue();
-            if (actual == count) {
-                return locateAll(locator);
-            }
-            sleep(pollInterval);
+        boolean met = pollUntil(timeout.toMillis(), options.getRetryInterval(),
+                () -> ((Number) script(Locators.countJs(locator))).intValue() == count);
+        if (!met) {
+            throw new DriverException("timeout waiting for " + count + " elements: " + locator);
         }
-
-        throw new DriverException("timeout waiting for " + count + " elements: " + locator);
+        return locateAll(locator);
     }
 
     // ========== Cookies ==========
@@ -3753,6 +3727,13 @@ public class CdpDriver implements Driver {
 
         // Retry loop
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            // Abort on interruption instead of degrading into a busy spin: sleep()
+            // preserves the interrupt flag, so every later sleep would return
+            // instantly and the remaining attempts would hammer CDP back-to-back.
+            if (Thread.currentThread().isInterrupted()) {
+                logger.warn("retry aborted (thread interrupted): {}", description);
+                return false;
+            }
             sleep(interval);
             if (Boolean.TRUE.equals(condition.get())) {
                 logger.warn("retry succeeded after {} attempt(s): {}", attempt, description);
@@ -3802,6 +3783,44 @@ public class CdpDriver implements Driver {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    /**
+     * Deadline-based value poll shared by the wait machinery: {@code attempt} runs
+     * immediately, then every {@code intervalMs} until it returns non-null or the
+     * deadline passes — with one final attempt after the last sleep so a condition
+     * that lands right at the deadline is not missed. Returns {@code null} on
+     * timeout.
+     * <p>
+     * Iterations are deliberately silent — unlike {@link #retry}, whose per-attempt
+     * WARN is a flaky-test diagnostic for the element auto-wait and whose
+     * attempt-count budget ({@code retryCount × retryInterval}) is a documented,
+     * user-configurable contract. The two are intentionally separate.
+     * <p>
+     * Interruption ABORTS the wait (null return). {@link #sleep} preserves the
+     * interrupt flag, so without this check an interrupted thread would sail through
+     * every subsequent sleep instantly and burn the rest of the budget as a busy
+     * spin of CDP round trips.
+     */
+    private static <T> T pollFor(long timeoutMs, long intervalMs, Supplier<T> attempt) {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (true) {
+            T result = attempt.get();
+            if (result != null) {
+                return result;
+            }
+            if (System.currentTimeMillis() >= deadline || Thread.currentThread().isInterrupted()) {
+                return null;
+            }
+            sleep(intervalMs);
+        }
+    }
+
+    /**
+     * Boolean-condition form of {@link #pollFor}.
+     */
+    private static boolean pollUntil(long timeoutMs, long intervalMs, Supplier<Boolean> condition) {
+        return pollFor(timeoutMs, intervalMs, () -> Boolean.TRUE.equals(condition.get()) ? Boolean.TRUE : null) != null;
     }
 
 }
