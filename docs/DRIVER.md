@@ -267,8 +267,17 @@ BFCache restores, which never re-fire DOMContentLoaded; same-document history tr
 `location.href` against the target history entry's URL). A download/204 navigation
 returns `errorText: net::ERR_ABORTED` from `Page.navigate` and keeps the current
 document — `setUrl()` returns promptly instead of arming a wait that can never complete.
-Any future backend or refactor of the load-wait must preserve this document-identity
-binding — a boolean "DOM ready" flag is not enough under pooled parallel execution.
+Chrome can also commit the requested navigation under a *different* loaderId than the one
+`Page.navigate` returned — it restarts/replaces the navigation internally — which strands
+the exact-loader match on a page that is fully loaded (seen in CI as a 30s page-load
+timeout whose diagnostic shows `expectedLoaderId != committedLoaderId` with
+`readyState: complete` and the requested URL live). The `readyState` fallback recovers
+from this by accepting a *newly committed* document (committed loader advanced past the
+one showing before `setUrl()` snapshotted `preNavCommittedLoaderId`) once its
+`location.href` matches the requested URL — a stale document (about:blank, previous page)
+has a different URL and is still rejected, so the anti-stale guarantee holds. Any future
+backend or refactor of the load-wait must preserve this document-identity binding — a
+boolean "DOM ready" flag is not enough under pooled parallel execution.
 
 **Readiness waits are event-completed futures, poll fallbacks stay.** The scenario
 thread never spins on fixed-interval polls for event-announced state: the main frame's

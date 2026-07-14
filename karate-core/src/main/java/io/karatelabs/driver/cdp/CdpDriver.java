@@ -110,6 +110,17 @@ public class CdpDriver implements Driver {
     private volatile String supersededLoaderId; // loader that refresh/reload/back/forward must replace
     private volatile String domContentLoaderId; // loader of the last main-frame DOMContentLoaded
     private volatile String committedLoaderId;  // loader of the last committed main-frame document (Page.frameNavigated)
+    // The committed loader as it stood the instant before the current setUrl() issued
+    // Page.navigate. Chrome can commit the requested navigation under a DIFFERENT
+    // loaderId than the one Page.navigate returned (it restarts/replaces the navigation
+    // internally) — observed in CI as expectedLoaderId never matching committedLoaderId
+    // while the requested URL is fully loaded, deadlocking BOTH the isDomReady() match
+    // and the readyState-fallback gate until the wait times out on a ready page. This
+    // snapshot lets the readyState fallback recognise "a NEW document has committed"
+    // (committed loader advanced past this) even when the exact-loader match can't be
+    // made, and gate acceptance on the committed document being the requested URL so a
+    // stale document (pooled-reset about:blank / previous page) is still rejected.
+    private volatile String preNavCommittedLoaderId;
     // Set only during a back()/forward() wait: the target history entry's URL. A
     // same-document history traversal (pushState/fragment entries) produces NO loader
     // activity at all — no frameStartedLoading, no frameNavigated, no DOMContentLoaded —
@@ -1154,6 +1165,12 @@ public class CdpDriver implements Driver {
         domContentEventFired = false;
         framesStillLoading.clear();
 
+        // Snapshot the currently-committed loader BEFORE navigating so the readyState
+        // fallback can tell a freshly-committed document from the one showing now — even
+        // when Chrome commits this navigation under a loaderId other than the one
+        // Page.navigate returns (see preNavCommittedLoaderId / checkDocumentReadyState).
+        preNavCommittedLoaderId = committedLoaderId;
+
         // Navigate, with a bounded retry on a transient CDP timeout — Page.navigate
         // can intermittently time out on a busy/stateful page; a fresh send to the
         // same URL is idempotent and usually succeeds. (A beforeunload prompt is
@@ -1414,15 +1431,33 @@ public class CdpDriver implements Driver {
         // specific navigation owns this wait, the old document's 'complete' must not
         // count — require the requested loader to have committed (Page.frameNavigated)
         // before trusting the read.
+        String requireUrl = null;
         String expected = expectedLoaderId;
         if (expected != null && !expected.equals(committedLoaderId)) {
-            return false;
+            // The loader that committed is not the one Page.navigate returned. Usually
+            // that means the requested document has simply not committed yet, so reject.
+            // But Chrome sometimes commits the requested navigation under a DIFFERENT
+            // loaderId than it returned (it restarts/replaces the navigation) — seen in
+            // CI as expected != committed with the requested URL fully loaded, which
+            // would otherwise deadlock this gate (and isDomReady()) until the wait times
+            // out on a ready page. Recover only when a NEW document has actually
+            // committed (the committed loader advanced past the pre-navigation one) AND
+            // it is the requested URL: a stale document (pooled-reset about:blank, the
+            // previous scenario's page) has a different URL and is still rejected, so the
+            // anti-stale guarantee the exact-loader match provides is preserved.
+            String committed = committedLoaderId;
+            if (committed == null || committed.equals(preNavCommittedLoaderId)) {
+                return false; // no new document has committed yet — still the old page
+            }
+            requireUrl = pendingNavigationUrl;
+            if (requireUrl == null) {
+                return false;
+            }
         }
         // Same gate for the superseded-loader wait (refresh/reload/back/forward):
         // until a DIFFERENT document commits, any 'complete' read is the old one.
         // (BFCache restores don't re-fire DOMContentLoaded, so this fallback is the
         // path that completes a back()/forward() wait on a cache-restored document.)
-        String requireUrl = null;
         String superseded = supersededLoaderId;
         if (superseded != null) {
             String committed = committedLoaderId;
@@ -1453,7 +1488,7 @@ public class CdpDriver implements Driver {
             logger.trace("readyState check returned: {}", readyState); // keep trace, this is success path
             boolean ready = "complete".equals(readyState) || "interactive".equals(readyState);
             if (ready && requireUrl != null) {
-                ready = requireUrl.equals(response.getResultAsString("result.value.u"));
+                ready = urlsEquivalent(requireUrl, response.getResultAsString("result.value.u"));
             }
             return ready;
         } catch (Exception e) {
@@ -1465,6 +1500,25 @@ public class CdpDriver implements Driver {
             }
             return false;
         }
+    }
+
+    /**
+     * Whether a requested navigation/history URL and the document's live
+     * {@code location.href} name the same resource, tolerating a lone trailing-slash
+     * difference (a request for {@code …/path} commonly settles as {@code …/path/}).
+     * Exact otherwise — this gates accepting a readyState=complete read as the target
+     * document, so it must not treat genuinely different URLs as equal.
+     */
+    static boolean urlsEquivalent(String requested, String actual) {
+        if (requested == null || actual == null) {
+            return false;
+        }
+        if (requested.equals(actual)) {
+            return true;
+        }
+        String r = requested.endsWith("/") ? requested.substring(0, requested.length() - 1) : requested;
+        String a = actual.endsWith("/") ? actual.substring(0, actual.length() - 1) : actual;
+        return r.equals(a);
     }
 
     /**

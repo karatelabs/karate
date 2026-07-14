@@ -139,4 +139,24 @@ class CdpDriverTest {
         assertEquals(java.util.List.of("id", "gw-content", "name", "main"), node.get("attributes"));
     }
 
+    @Test
+    void testUrlsEquivalentExactAndTrailingSlash() {
+        // the readyState fallback accepts a loader-replaced navigation only when the live
+        // location.href names the requested URL — exact, or differing only by a lone
+        // trailing slash (a request for …/path commonly settles as …/path/)
+        assertTrue(CdpDriver.urlsEquivalent("http://host:18081/input", "http://host:18081/input"));
+        assertTrue(CdpDriver.urlsEquivalent("http://host:18081/input", "http://host:18081/input/"));
+        assertTrue(CdpDriver.urlsEquivalent("http://host:18081/input/", "http://host:18081/input"));
+    }
+
+    @Test
+    void testUrlsEquivalentRejectsDifferentAndNull() {
+        // a stale document (about:blank / previous page) must NOT be treated as the
+        // requested URL, or the anti-stale-document guarantee collapses
+        assertFalse(CdpDriver.urlsEquivalent("http://host:18081/input", "about:blank"));
+        assertFalse(CdpDriver.urlsEquivalent("http://host:18081/input", "http://host:18081/other"));
+        assertFalse(CdpDriver.urlsEquivalent(null, "http://host:18081/input"));
+        assertFalse(CdpDriver.urlsEquivalent("http://host:18081/input", null));
+    }
+
 }
