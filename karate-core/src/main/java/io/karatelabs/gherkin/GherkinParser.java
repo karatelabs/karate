@@ -654,7 +654,8 @@ public class GherkinParser extends BaseParser {
                             }
                             expectingCell = true;
                         } else if (cellNode.token.type == G_TABLE_CELL) {
-                            cells.add(cellNode.token.getText().trim());
+                            // "\|" is an escaped pipe, unescape it to a literal pipe
+                            cells.add(cellNode.token.getText().trim().replace("\\|", "|"));
                             expectingCell = false;
                         }
                     }

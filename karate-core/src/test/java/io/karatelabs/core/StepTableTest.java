@@ -78,6 +78,18 @@ class StepTableTest {
         assertPassed(sr);
     }
 
+    @Test
+    void testTableWithEscapedPipe() {
+        // A backslash-escaped pipe "\|" is a literal pipe, not a column delimiter
+        ScenarioRuntime sr = run("""
+            * table data
+                | message           |
+                | 'Hello \\| World' |
+            * match data == [{ message: 'Hello | World' }]
+            """);
+        assertPassed(sr);
+    }
+
     // ========== Set Via Table (path/value format) ==========
 
     @Test

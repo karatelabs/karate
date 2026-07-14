@@ -257,6 +257,27 @@ class GherkinParserTest {
     }
 
     @Test
+    void testTableWithEscapedPipe() {
+        // A backslash-escaped pipe "\|" inside a cell is a literal pipe, not a column delimiter
+        parseWithAst("""
+                Feature: test
+                Scenario: with escaped pipe
+                  * def data =
+                    | message           |
+                    | Hello \\| World    |
+                """);
+        assertNotNull(scenario);
+        Step step = scenario.getSteps().getFirst();
+        assertNotNull(step.getTable());
+        List<List<String>> rows = step.getTable().getRows();
+        assertEquals(2, rows.size()); // header + 1 data row
+        assertEquals(1, rows.get(0).size()); // single column, pipe was not a delimiter
+        assertEquals("message", rows.get(0).get(0));
+        assertEquals(1, rows.get(1).size());
+        assertEquals("Hello | World", rows.get(1).get(0));
+    }
+
+    @Test
     void testScenarioOutlineWithExamples() {
         parseWithAst("""
                 Feature: outline test

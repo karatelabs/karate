@@ -332,8 +332,12 @@ public class GherkinLexer extends BaseLexer {
             advance();
             return G_PIPE;
         }
-        // Table cell content
+        // Table cell content - a backslash escapes the following pipe so that
+        // "\|" is kept inside the cell rather than treated as a column delimiter
         while (!isAtEnd() && peek() != '|' && peek() != '\r' && peek() != '\n') {
+            if (peek() == '\\' && peek(1) == '|') {
+                advance(); // consume the backslash, the escaped pipe is consumed below
+            }
             advance();
         }
         return G_TABLE_CELL;

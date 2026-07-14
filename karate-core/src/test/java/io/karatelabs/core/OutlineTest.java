@@ -564,6 +564,28 @@ public class OutlineTest {
         assertEquals(3, result.getScenarioCount());
     }
 
+    @Test
+    void testOutlineWithEscapedPipeInExamples() throws Exception {
+        // A backslash-escaped pipe "\|" in an Examples cell is a literal pipe, not a delimiter
+        Path feature = tempDir.resolve("escaped-pipe.feature");
+        Files.writeString(feature, """
+            Feature: escaped pipe in examples
+
+            Scenario Outline: value with escaped pipe
+            * def expected = 'Hello | World'
+            * match message == expected
+
+            Examples:
+            | message!          |
+            | "Hello \\| World" |
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+
+        assertTrue(result.isPassed(), getFailureMessage(result));
+        assertEquals(1, result.getScenarioCount());
+    }
+
     // ========== Dynamic Outline Tests ==========
 
     @Test
