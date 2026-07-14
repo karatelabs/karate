@@ -190,9 +190,13 @@ public class StreamingTestIterator implements Iterator<DynamicNode> {
 
         return DynamicTest.dynamicTest(displayName, testSourceUri, () -> {
             if (result.isFailed()) {
-                Throwable error = result.getError();
+                // Decorated so the feature-file location (path.feature:line) rides on the
+                // Throwable's message + stack trace — surefire / the IDE console print the raw
+                // exception, so without this the failure points only at HTTP-client / engine
+                // internals and the reader can't tell which step failed. The original stack
+                // frames are preserved beneath a synthetic <feature> frame.
+                Throwable error = result.getErrorWithLocation();
                 if (error != null) {
-                    // Preserve original stack trace
                     throw error;
                 }
                 // Fallback to assertion failure with descriptive message

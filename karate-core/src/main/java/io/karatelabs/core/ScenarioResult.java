@@ -169,12 +169,33 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
                 .sum();
     }
 
-    public String getFailureMessage() {
+    /** The first failed step, or null if the scenario has no failure. Shared by every failed-step accessor. */
+    private StepResult firstFailedStep() {
         return stepResults.stream()
                 .filter(StepResult::isFailed)
                 .findFirst()
-                .map(StepResult::getErrorMessage)
                 .orElse(null);
+    }
+
+    public String getFailureMessage() {
+        StepResult failedStep = firstFailedStep();
+        return failedStep == null ? null : failedStep.getErrorMessage();
+    }
+
+    /**
+     * The feature file path (without the {@code :line} suffix) of the failed step, preferring the
+     * absolute path for IDE click-to-navigate and falling back to the relative/classpath path.
+     * Null when there is no failure or the failure is not tied to a parsed step (hook/synthetic).
+     */
+    private String failedFeaturePath() {
+        StepResult failedStep = firstFailedStep();
+        if (failedStep == null || failedStep.getStep() == null) {
+            return null;
+        }
+        var resource = scenario.getFeature().getResource();
+        return resource.getPath() != null
+                ? resource.getPath().toString()
+                : resource.getRelativePath();
     }
 
     /**
@@ -185,24 +206,30 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
      * @return location string "path:line", or null if no failure
      */
     public String getFailedStepLocation() {
-        StepResult failedStep = stepResults.stream()
-                .filter(StepResult::isFailed)
-                .findFirst()
-                .orElse(null);
-        if (failedStep == null) {
+        String featurePath = failedFeaturePath();
+        if (featurePath == null) {
             return null;
         }
-        Step step = failedStep.getStep();
-        if (step == null) {
-            return null;
-        }
-        // Prefer absolute path for IDE click-to-navigate; fall back to relative
-        var resource = scenario.getFeature().getResource();
-        String featurePath = resource.getPath() != null
-                ? resource.getPath().toString()
-                : resource.getRelativePath();
         // Gherkin line numbers are 1-indexed (human-readable)
-        return featurePath + ":" + step.getLine();
+        return featurePath + ":" + firstFailedStep().getStep().getLine();
+    }
+
+    /**
+     * The Gherkin comment immediately above the failed step (the assertion label), e.g.
+     * {@code "# user profile should match expected values"}, or null if the step has no comment.
+     * The console summary renders this above the step line — where it sits in the feature — and
+     * strips the same label from the front of the failure message so it isn't shown twice.
+     */
+    public String getFailedStepComment() {
+        StepResult failedStep = firstFailedStep();
+        if (failedStep == null || failedStep.getStep() == null) {
+            return null;
+        }
+        List<String> comments = failedStep.getStep().getComments();
+        if (comments == null || comments.isEmpty()) {
+            return null;
+        }
+        return comments.getLast();
     }
 
     /**
@@ -213,10 +240,7 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
      * @return "<prefix> <text>", or null if no failure
      */
     public String getFailedStepText() {
-        StepResult failedStep = stepResults.stream()
-                .filter(StepResult::isFailed)
-                .findFirst()
-                .orElse(null);
+        StepResult failedStep = firstFailedStep();
         if (failedStep == null) {
             return null;
         }
@@ -237,6 +261,26 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     }
 
     /**
+     * The docstring (triple-quoted block) of the failed step, rendered with its {@code """}
+     * delimiters exactly as it appears in the feature, or null if the step has none. Rendered
+     * under the step line in the console summary so a {@code match}/{@code assert} whose RHS is a
+     * docstring (e.g. {@code * match actual ==} followed by a JSON block) shows the expected block
+     * instead of a step line that looks truncated. Kept separate from {@link #getFailedStepText()}
+     * so the single-line step text still feeds the stack-frame label and perf/KO messages.
+     */
+    public String getFailedStepDocString() {
+        StepResult failedStep = firstFailedStep();
+        if (failedStep == null || failedStep.getStep() == null) {
+            return null;
+        }
+        String docString = failedStep.getStep().getDocString();
+        if (docString == null) {
+            return null;
+        }
+        return "\"\"\"\n" + docString + "\n\"\"\"";
+    }
+
+    /**
      * Get the failure message with feature file path and line number for display.
      * Format: "path/to/feature.feature:LINE step text"
      *
@@ -252,11 +296,32 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     }
 
     public Throwable getError() {
-        return stepResults.stream()
-                .filter(StepResult::isFailed)
-                .findFirst()
-                .map(StepResult::getError)
-                .orElse(null);
+        StepResult failedStep = firstFailedStep();
+        return failedStep == null ? null : failedStep.getError();
+    }
+
+    /**
+     * The failure decorated so the feature-file location travels with the {@link Throwable}
+     * itself — for surfaces that re-throw or dump the error raw (JUnit / surefire, the fluent
+     * {@code Runner} API). Unlike {@link #getError()} (the untouched step error), the returned
+     * {@link KarateException} carries {@code path.feature:line} on its own message line (the
+     * IDE-hyperlinkable shape) and a synthetic {@code <feature>} frame on top of the preserved
+     * original stack. Falls back to the raw error when the failure is not tied to a parsed step
+     * (hook / synthetic), and null when there is no failure.
+     *
+     * @see io.karatelabs.core.KarateException#forStep
+     */
+    public Throwable getErrorWithLocation() {
+        StepResult failedStep = firstFailedStep();
+        if (failedStep == null) {
+            return null;
+        }
+        Throwable error = failedStep.getError();
+        String featurePath = failedFeaturePath();
+        if (error == null || featurePath == null) {
+            return error;
+        }
+        return KarateException.forStep(error, featurePath, failedStep.getStep().getLine(), getFailedStepText());
     }
 
     public int getPassedCount() {

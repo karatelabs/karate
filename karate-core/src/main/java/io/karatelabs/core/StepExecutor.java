@@ -1277,16 +1277,24 @@ public class StepExecutor {
     private void executeMatch(Step step) {
         Result result = evalMatchString(step.getText(), step.getDocString());
         if (!result.pass) {
-            String message = result.message;
-            // Include comment as assertion label if present
-            List<String> comments = step.getComments();
-            if (comments != null && !comments.isEmpty()) {
-                // Use the last comment as the label (closest to the step)
-                String label = comments.getLast();
-                message = label + "\n" + message;
-            }
-            throw new AssertionError(message);
+            throw new AssertionError(withCommentLabel(step, result.message));
         }
+    }
+
+    /**
+     * Prepend the step's closest preceding Gherkin comment as an assertion label, so a
+     * {@code # explains what this checks} line above a {@code match} / {@code assert} rides
+     * along in the failure message. The console summary lifts this label back out and renders
+     * it above the step line (where it sits in the feature). Shared by {@code match} and
+     * {@code assert} so the two analogous assertions behave identically.
+     */
+    private static String withCommentLabel(Step step, String message) {
+        List<String> comments = step.getComments();
+        if (comments != null && !comments.isEmpty()) {
+            // the last comment is the one closest to the step
+            return comments.getLast() + "\n" + message;
+        }
+        return message;
     }
 
     /**
@@ -1831,7 +1839,7 @@ public class StepExecutor {
         Object result = runtime.eval(step.getText());
         if (result instanceof Boolean b) {
             if (!b) {
-                throw new AssertionError("assert failed: " + step.getText());
+                throw new AssertionError(withCommentLabel(step, "assert failed: " + step.getText()));
             }
         } else {
             throw new RuntimeException("assert expression must return boolean: " + step.getText());

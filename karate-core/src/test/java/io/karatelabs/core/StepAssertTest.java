@@ -81,4 +81,40 @@ class StepAssertTest {
         assertPassed(sr);
     }
 
+    // ========== Comment as Assertion Label (parity with match) ==========
+
+    @Test
+    void testAssertFailureIncludesCommentLabel() {
+        // A comment on the line before an assert should appear in the failure message,
+        // exactly like the match keyword does.
+        ScenarioRuntime sr = run("""
+            * def n = 1
+            # the counter must reach two
+            * assert n == 2
+            """);
+        assertFailedWith(sr, "the counter must reach two");
+    }
+
+    @Test
+    void testAssertFailureWithMultipleComments() {
+        // Only the last comment (closest to the step) is used as the label.
+        ScenarioRuntime sr = run("""
+            * def status = 'pending'
+            # first comment
+            # status must be active
+            * assert status == 'active'
+            """);
+        assertFailedWith(sr, "status must be active");
+    }
+
+    @Test
+    void testAssertPassWithCommentNoEffect() {
+        ScenarioRuntime sr = run("""
+            * def n = 2
+            # the counter must reach two
+            * assert n == 2
+            """);
+        assertPassed(sr);
+    }
+
 }
