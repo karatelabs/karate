@@ -308,6 +308,19 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         return configVars;
     }
 
+    /** Snapshot of the caller-scope variables seeded into this (isolated-scope) called scenario by
+     *  {@link #inheritVariables()} — key to the seeded value (a shallow copy). A called feature runs
+     *  with the caller's visible variables in scope so it can read them, but those inherited entries
+     *  must not echo back in the {@code call}/{@code callonce} result. The result is the callee's delta
+     *  (see {@link StepUtils#calleeDelta}); an untouched inherited binding still holds this exact value
+     *  (identity), while a callee {@code def}/assign replaces it, so the delta keeps only what the
+     *  called feature actually contributed. Empty for shared-scope and top-level scenarios. */
+    private final Map<String, Object> inheritedVariables = new java.util.LinkedHashMap<>();
+
+    public Map<String, Object> getInheritedVariables() {
+        return inheritedVariables;
+    }
+
     /**
      * Evaluate karate-base.js, karate-config.js (and env-specific config) in this scenario's context.
      * This allows callSingle and other karate.* functions to work during config. The applied variables
@@ -821,6 +834,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 if (!sharedScope) {
                     // Isolated scope - shallow copy maps and lists so mutations don't affect parent
                     value = shallowCopy(value);
+                    // Remember what we seeded so the call result can exclude inherited scope
+                    inheritedVariables.put(entry.getKey(), value);
                 }
                 karate.engine.put(entry.getKey(), value);
             }
@@ -842,6 +857,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 Object value = entry.getValue();
                 if (!sharedScope) {
                     value = shallowCopy(value);
+                    inheritedVariables.put(entry.getKey(), value);
                 }
                 karate.engine.put(entry.getKey(), value);
             }

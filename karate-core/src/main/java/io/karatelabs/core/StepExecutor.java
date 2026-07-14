@@ -530,7 +530,23 @@ public class StepExecutor {
     }
 
     private static Map<String, Object> lastVars(FeatureRuntime nestedFr) {
-        return nestedFr.getLastExecuted() != null ? nestedFr.getLastExecuted().getAllVariables() : null;
+        return calleeResult(nestedFr.getLastExecuted());
+    }
+
+    /**
+     * The result map for an isolated-scope feature call: only the variables the called
+     * feature actually added or replaced, not the caller/config scope it merely inherited
+     * to read. A called feature runs with the caller's visible variables in scope, so its
+     * full binding set echoes them back; returning that would leak caller locals and
+     * config-level values into the result (and bloat logs). Matches v1, where inherited
+     * scope lived in a separate namespace excluded from the returned variables. Returns
+     * null when no scenario executed.
+     */
+    static Map<String, Object> calleeResult(ScenarioRuntime callee) {
+        if (callee == null) {
+            return null;
+        }
+        return StepUtils.calleeDelta(callee.getInheritedVariables(), callee.getAllVariables());
     }
 
     /**
@@ -582,12 +598,13 @@ public class StepExecutor {
         if (calleeRuntime == null) {
             return;
         }
-        Map<String, Object> resultVars = calleeRuntime.getAllVariables();
         if (resultVar != null) {
-            // Isolated scope - store result in the specified variable
-            runtime.setVariable(resultVar, resultVars);
+            // Isolated scope - store only the callee's own contribution (delta), not the
+            // caller/config scope it inherited to read. See calleeResult.
+            runtime.setVariable(resultVar, calleeResult(calleeRuntime));
         } else {
             // Shared scope - propagate all variables back to caller
+            Map<String, Object> resultVars = calleeRuntime.getAllVariables();
             for (Map.Entry<String, Object> entry : resultVars.entrySet()) {
                 runtime.setVariable(entry.getKey(), entry.getValue());
             }

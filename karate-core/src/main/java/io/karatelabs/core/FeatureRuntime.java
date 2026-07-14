@@ -1000,16 +1000,25 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         return result;
     }
 
+    // callonce/setuponce is scoped to the FEATURE INSTANCE, not the feature FILE. The
+    // Suite-level, URI-keyed store is used only for top-level features — that is where a
+    // feature's parallel scenarios share this one FeatureRuntime, and where karate-gatling
+    // shares results across virtual-user runs of the same feature (Runner passes a shared
+    // store; each run is top-level). A CALLED feature (caller != null) gets a fresh
+    // FeatureRuntime per `call`/`callonce read()` invocation and must use the instance-local
+    // cache — otherwise a `callonce` inside a feature invoked repeatedly (e.g. once per
+    // Scenario Outline row) would be frozen to the first invocation's caller scope. This
+    // mirrors v1, which used the per-FeatureRuntime cache except in gatling perfMode.
     public ReentrantLock getCallOnceLock() {
-        return suite != null ? suite.getCallOnceLock(featureKey()) : callOnceLock;
+        return (suite != null && isTopLevel()) ? suite.getCallOnceLock(featureKey()) : callOnceLock;
     }
 
     public Map<String, Object> getCallOnceCache() {
-        return suite != null ? suite.getCallOnceCache(featureKey()) : CALLONCE_CACHE_LOCAL;
+        return (suite != null && isTopLevel()) ? suite.getCallOnceCache(featureKey()) : CALLONCE_CACHE_LOCAL;
     }
 
     public Map<String, Object> getSetupOnceCache() {
-        return suite != null ? suite.getSetupOnceCache(featureKey()) : SETUPONCE_CACHE_LOCAL;
+        return (suite != null && isTopLevel()) ? suite.getSetupOnceCache(featureKey()) : SETUPONCE_CACHE_LOCAL;
     }
 
     private String featureKey() {
