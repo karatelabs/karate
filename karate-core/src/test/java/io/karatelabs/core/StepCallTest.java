@@ -980,6 +980,55 @@ class StepCallTest {
     }
 
     @Test
+    void testCallArgBareIdentifierIsStringNotVariable() throws Exception {
+        // An unquoted bare identifier on the VALUE side of an inline call arg is Karate
+        // relaxed JSON, so it reads as the literal *string* with that name — NOT the
+        // variable's value. This is the documented v2 rule (see MIGRATION_GUIDE.md,
+        // "Karate-JSON vs JavaScript on the right-hand side") and is uniform across
+        // def/match/configure and call args alike. v2.0.9 happened to JS-eval call args,
+        // so a bare `{ locationId: locationId }` resolved the variable there; that call-arg
+        // path was the odd one out and was unified with the relaxed-JSON path, which is
+        // what this test pins down. The two documented ways to inject the variable's value
+        // — `#(...)` substitution and paren-wrapping to force JS — are asserted below.
+        Path calledFeature = tempDir.resolve("called.feature");
+        Files.writeString(calledFeature, """
+            Feature: Called
+            @list
+            Scenario:
+            * def received = __arg
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller
+            Scenario:
+            * def locationId = '01484'
+
+            # bare identifier -> the literal string 'locationId', NOT the variable
+            * def bare = call read('called.feature') { locationId: locationId }
+            * match bare.received == { locationId: 'locationId' }
+
+            # documented escape #1: #(...) substitution resolves the variable
+            * def viaHash = call read('called.feature') { locationId: '#(locationId)' }
+            * match viaHash.received == { locationId: '01484' }
+
+            # documented escape #2: paren-wrap forces JavaScript, so the identifier resolves
+            * def viaParen = call read('called.feature') ({ locationId: locationId })
+            * match viaParen.received == { locationId: '01484' }
+
+            # the recommended escape composes with call-by-tag too
+            * def viaTagParen = call read('called.feature@list') ({ locationId: locationId })
+            * match viaTagParen.received == { locationId: '01484' }
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(),
+                "bare identifier in call arg is a string; #(...) and paren-wrap resolve it: "
+                        + getFailureMessage(result));
+    }
+
+    @Test
     void testCallFeatureWithSpacesInPathAndInlineArg() throws Exception {
         // Path with a space + inline JSON arg — exercises the quote-aware close-paren
         // finder. Before the fix, parseCallExpression used indexOf(')') which works

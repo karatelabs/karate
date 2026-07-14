@@ -374,7 +374,7 @@ Most feature files work unchanged. Known differences:
 
 ### Karate-JSON vs JavaScript on the right-hand side
 
-Anything on the right-hand side of `def` (or `set`, `configure`, `match`, …) that starts with `{` or `[` goes through Karate's relaxed JSON parser — hyphenated keys work, `#(expr)` is substituted, and a bare identifier on the value side is read as the **string** with that name. To get JavaScript / ES6 evaluation instead, wrap the literal in parens.
+Anything on the right-hand side of `def` (or `set`, `configure`, `match`, …) **or in an inline `call` / `callonce` argument** that starts with `{` or `[` goes through Karate's relaxed JSON parser — hyphenated keys work, `#(expr)` is substituted, and a bare identifier on the value side is read as the **string** with that name. To get JavaScript / ES6 evaluation instead, wrap the literal in parens.
 
 ```gherkin
 * def id = 123
@@ -390,9 +390,14 @@ Anything on the right-hand side of `def` (or `set`, `configure`, `match`, …) t
 # Paren-wrap forces JavaScript evaluation
 * def c = ({ id, name })                        # ES6 shorthand
 * def d = ({ id: id, name: name })              # explicit reference
+
+# The same rule applies to inline call arguments
+* def r1 = call read('x.feature') { id: id }        # __arg.id == 'id' (the string)
+* def r2 = call read('x.feature') { id: '#(id)' }   # __arg.id == 123  (resolved)
+* def r3 = call read('x.feature') ({ id: id })      # __arg.id == 123  (resolved, JS)
 ```
 
-This matches v1 behavior — most v1 feature files work unchanged. The only thing to watch for is feature/test code that intentionally relied on JS semantics for an unwrapped literal (e.g., `* def response = { id: pathParams.id }`) — those need paren-wrapping (`* def response = ({ id: pathParams.id })`) or rewriting with `#(...)`.
+This matches v1 behavior — most v1 feature files work unchanged. The one thing to watch for is feature/test code that relied on JS semantics for an unwrapped literal, whether on a `def` RHS or in an inline `call` argument — e.g. `* def response = { id: pathParams.id }` or `call read('sub.feature') { locationId: locationId }`. Rewrite the value with `#(...)`, or paren-wrap the whole literal: `({ id: pathParams.id })`, `({ locationId: locationId })`.
 
 ---
 
