@@ -260,6 +260,51 @@ class StepCallTest {
     }
 
     @Test
+    void testKarateMatchStringResolvesInCallingScopeAcrossFeatures() throws Exception {
+        // A condition closure is built in the caller feature (which owns `expectedResult`)
+        // and passed into a shared utility feature via `call ... filter`. The utility
+        // defines its own `response` and invokes condition(response). The string form
+        // karate.match("response.result contains expectedResult") inside the closure must
+        // resolve BOTH operands against the utility's (currently executing) scope — not
+        // the scope where the closure was defined. Using the defining scope surfaced a
+        // "ReferenceError: response is not defined". This is the standard reusable
+        // "poll until condition(response) is true" idiom.
+        Path utils = tempDir.resolve("user_utils.feature");
+        Files.writeString(utils, """
+            Feature: user utils
+
+              @getUserById
+              Scenario: applies the caller-provided condition to its own response
+                * def response = { result: { id: 'u-123', email: 'jane@example.com' } }
+                * def outcome = condition(response)
+            """);
+
+        Path caller = tempDir.resolve("check_user_updated.feature");
+        Files.writeString(caller, """
+            Feature: check user updated
+
+              Scenario: build a condition closure and hand it to the shared utility
+                * def expectedResult = { id: 'u-123', email: 'jane@example.com' }
+                * def condition =
+                  \"\"\"
+                  function(response){
+                    var isFound = karate.match("response.result contains expectedResult")
+                    return isFound.pass
+                  }
+                  \"\"\"
+                * def filter = { condition: "#(condition)", expectedResult: "#(expectedResult)" }
+                * def result = call read('user_utils.feature@getUserById') filter
+                * match result.outcome == true
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, caller.toString());
+
+        assertTrue(result.isPassed(),
+                "karate.match(String) in a cross-feature closure should resolve the calling scope: "
+                        + getFailureMessage(result));
+    }
+
+    @Test
     void testKarateCallWithArguments() throws Exception {
         // Create called feature that uses arguments
         Path calledFeature = tempDir.resolve("called.feature");

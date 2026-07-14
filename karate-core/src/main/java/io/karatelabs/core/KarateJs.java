@@ -646,7 +646,19 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 // get identical handling — JsonPath ($-prefixed, wildcards), JSON literals,
                 // embedded expressions, etc. Reusing StepExecutor.evalMatchString keeps the
                 // JS API and the keyword from drifting (issue #2894).
-                ScenarioRuntime rt = getRuntime();
+                //
+                // The string operands are resolved against the *currently executing*
+                // scenario, not the scenario where this `karate` bridge was defined. A
+                // condition closure built in feature A and passed to feature B (via
+                // `call read('B.feature') filter`) must see B's variables when B invokes
+                // it — the caller's `response` lives in B's scope, not A's. Using the
+                // captured getRuntime() (A) surfaced a "ReferenceError: response is not
+                // defined". Fall back to the captured runtime outside a live scenario
+                // (e.g. mock context).
+                ScenarioRuntime rt = ScenarioRuntime.currentOrNull();
+                if (rt == null) {
+                    rt = getRuntime();
+                }
                 if (rt == null) {
                     throw new RuntimeException("karate.match(String) is not available in this context");
                 }
