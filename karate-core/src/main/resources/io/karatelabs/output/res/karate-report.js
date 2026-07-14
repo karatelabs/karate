@@ -249,6 +249,10 @@ const KarateReport = {
         detail.querySelectorAll('.k-embed[data-defer]').forEach(h => {
             if (h.style.display !== 'none') this._materializeEmbed(h);
         });
+        // Same as toggleStep: the detail is now visible, so colorize its code blocks
+        // (log-segment HTTP bodies aren't .k-embeds, so the kind filter never hides them)
+        // immediately rather than waiting for the on-view observer.
+        detail.querySelectorAll('code[class*="language-"]').forEach(el => this._highlightEl(el));
     },
 
     /**
@@ -605,25 +609,6 @@ const KarateReport = {
         if (typeof Prism === 'undefined' || !el || el.dataset.hlDone) return;
         Prism.highlightElement(el);
         el.dataset.hlDone = '1';
-    },
-
-    /**
-     * Run Prism over any language-tagged <code> blocks under `root` (HTTP JSON
-     * bodies today, JS snippets later). Called as Alpine inserts each scenario's
-     * x-html. Prism highlights hidden nodes fine, so we colorize at insert time
-     * regardless of whether the step detail is expanded. No-op if Prism is absent.
-     * Token colors come from prism-karate.css, keyed on the report's data-theme —
-     * so the theme toggle re-colors instantly with no re-highlight needed.
-     */
-    _highlightCode(root) {
-        if (typeof Prism === 'undefined' || !root) return;
-        if (root.matches && root.matches('code[class*="language-"]')) {
-            Prism.highlightElement(root);
-            return;
-        }
-        if (root.querySelectorAll) {
-            root.querySelectorAll('code[class*="language-"]').forEach(el => Prism.highlightElement(el));
-        }
     },
 
     _deferIO: null,
