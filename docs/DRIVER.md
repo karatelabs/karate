@@ -267,6 +267,13 @@ BFCache restores, which never re-fire DOMContentLoaded; same-document history tr
 `location.href` against the target history entry's URL). A download/204 navigation
 returns `errorText: net::ERR_ABORTED` from `Page.navigate` and keeps the current
 document — `setUrl()` returns promptly instead of arming a wait that can never complete.
+Chrome also returns `ERR_ABORTED` for a *legitimate* top-level navigation that merely lost
+a race (e.g. against the pooled-reset `about:blank` still settling under 2-vCPU load), which
+would strand the scenario on the stale reset document (seen in CI as `/wait`, `/input`
+aborting, then every step failing with element-not-found / waitUntil timeouts). `setUrl()`
+therefore *retries* an aborted navigation a few times: a spurious abort commits on a fresh
+attempt, while a deliberate download/204 re-aborts every attempt and is then accepted as a
+document-retaining navigation (history.feature's 204 test still passes).
 Chrome can also commit the requested navigation under a *different* loaderId than the one
 `Page.navigate` returned — it restarts/replaces the navigation internally — which strands
 the exact-loader match on a page that is fully loaded (seen in CI as a 30s page-load

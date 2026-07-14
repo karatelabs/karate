@@ -1171,38 +1171,54 @@ public class CdpDriver implements Driver {
         // Page.navigate returns (see preNavCommittedLoaderId / checkDocumentReadyState).
         preNavCommittedLoaderId = committedLoaderId;
 
-        // Navigate, with a bounded retry on a transient CDP timeout — Page.navigate
-        // can intermittently time out on a busy/stateful page; a fresh send to the
-        // same URL is idempotent and usually succeeds. (A beforeunload prompt is
-        // auto-accepted in the dialog handler above, so this retry is for genuine
-        // transient timeouts, not the leave-page case.)
-        int navRetries = 1;
-        CdpResponse navResponse;
-        for (int attempt = 0; ; attempt++) {
+        // Navigate, retrying on two transient conditions that a fresh send resolves:
+        //  (1) a CDP timeout on the Page.navigate command itself (busy/stateful page);
+        //  (2) an ERR_ABORTED response for a URL that SHOULD load. Chrome returns
+        //      ERR_ABORTED both for a deliberate download / 204-205 / window.stop()
+        //      (the current document is retained on purpose) AND for a legitimate
+        //      top-level navigation that merely lost a race — e.g. against the
+        //      pooled-reset about:blank still settling under 2-vCPU load. The latter
+        //      was seen in CI as /wait, /input, /shadow-dom aborting, after which the
+        //      scenario ran against the STALE reset document and every step failed
+        //      (element-not-found, waitUntil timeouts, value mismatches). A deliberate
+        //      abort re-aborts on every attempt, so after the bounded retries we accept
+        //      the retention (history.feature's 204 test still passes); a spurious
+        //      abort commits on a retry and the scenario gets the document it asked for.
+        // (A beforeunload prompt is auto-accepted in the dialog handler above, so the
+        // timeout retry is for genuine transient timeouts, not the leave-page case.)
+        int navAttempts = 3;
+        CdpResponse navResponse = null;
+        boolean aborted = false;
+        for (int attempt = 0; attempt < navAttempts; attempt++) {
             try {
                 navResponse = cdp.method("Page.navigate")
                         .param("url", url)
                         .send();
-                break;
             } catch (RuntimeException e) {
                 boolean transientNavTimeout = e.getMessage() != null
                         && e.getMessage().contains("CDP timeout for: Page.navigate");
-                if (transientNavTimeout && attempt < navRetries) {
-                    logger.warn("Page.navigate timed out, retrying ({}/{}): {}", attempt + 1, navRetries, url);
+                if (transientNavTimeout && attempt < navAttempts - 1) {
+                    logger.warn("Page.navigate timed out, retrying ({}/{}): {}", attempt + 1, navAttempts - 1, url);
                     continue;
                 }
                 throw e;
             }
+            aborted = "net::ERR_ABORTED".equals(navResponse.getResultAsString("errorText"));
+            if (!aborted) {
+                break; // committed, an error page under the same loader, or a normal response
+            }
+            if (attempt < navAttempts - 1) {
+                logger.warn("Page.navigate returned ERR_ABORTED, retrying ({}/{}): {}", attempt + 1, navAttempts - 1, url);
+                sleep(150); // let an in-flight/racing navigation (e.g. pooled-reset about:blank) settle
+            }
         }
 
-        // A download / 204-205 / window.stop() navigation is deliberately aborted by
-        // Chrome and the CURRENT document stays: the returned loader never commits,
-        // never fires DOMContentLoaded, and a loader-bound wait for it could only end
-        // in a timeout. Chrome reports this as errorText net::ERR_ABORTED on the
-        // Page.navigate response (genuine load failures instead commit an error page
-        // under the SAME loader, so the normal wait below handles those). Return with
-        // the page as-is, matching pre-loader-binding behavior.
-        if ("net::ERR_ABORTED".equals(navResponse.getResultAsString("errorText"))) {
+        // Every attempt aborted — a deliberate download / 204-205 / window.stop() that
+        // retains the current document. The returned loader never commits, never fires
+        // DOMContentLoaded, and a loader-bound wait for it could only end in a timeout,
+        // so return with the page as-is (genuine load failures instead commit an error
+        // page under the SAME loader, and the normal wait below handles those).
+        if (aborted) {
             logger.warn("navigation aborted by browser, current document retained: {}", url);
             pendingNavigationUrl = null;
             return;
@@ -1344,7 +1360,12 @@ public class CdpDriver implements Driver {
         if (!domReady) {
             domReady = checkDocumentReadyState();
             if (domReady) {
-                logger.warn("retry succeeded: document.readyState fallback (event was missed)");
+                // Expected, benign recovery: the DOMContentLoaded lifecycle EVENT lagged
+                // the document's real readyState (routine under CI renderer load), so the
+                // direct readyState probe completed the wait first. This is a success, not
+                // a fault — kept at DEBUG so it doesn't bury genuine warnings (a real
+                // failure surfaces as the page-load-timeout diagnostic, logged at WARN).
+                logger.debug("page-load wait completed via document.readyState fallback (DOMContentLoaded event lagged)");
                 // Update flag + loader so we don't keep checking. Tagging the committed
                 // loader is safe: checkDocumentReadyState only returned true after
                 // verifying the committed document satisfies the wait (exact match for
