@@ -1330,12 +1330,39 @@ public class CdpDriver implements Driver {
      * The page is only truly "loaded" once the main frame's default execution context
      * is live - that is the single thing the readiness future tracks. We await it
      * briefly (it is usually already complete; during a navigation swap it settles in
-     * milliseconds) and probe THAT context, not CDP's default. This keeps
-     * waitForPageLoad() from declaring success while a navigation is mid-swap, which
-     * previously let the first script() race a dead context.
+     * milliseconds) and probe THAT context.
+     * <p>
+     * Crucially, an <i>error</i> from the explicit-context probe is NOT taken as "JS not
+     * ready": {@link #mainContextReady} can hand out a contextId that a loader
+     * replacement has already torn down when the matching executionContextsCleared was
+     * never delivered (routine under CI load). The stale id then errors forever and, on
+     * a fully-loaded page, wedges waitForPageLoad() to a 30s timeout — observed in CI as
+     * "page load complete but JS context not ready yet" while the timeout diagnostic
+     * reports {@code jsExec: ok} (it probes the default context). So on an explicit-
+     * context error we re-probe the default context: this is a liveness check
+     * ({@code typeof document}), not a document-identity check — identity is already
+     * established by isPageLoadComplete (loaderId / readyState + URL) — so a live default
+     * context is a valid confirmation that the renderer can run script. A stale readiness
+     * id must not be able to veto a page that is demonstrably executing JS.
      */
     private boolean verifyJsExecution() {
         Integer contextId = awaitMainContext(1000);
+        JsProbe probe = probeJsAlive(contextId);
+        if (probe == JsProbe.ERROR && contextId != null) {
+            // explicit context is dead/missing — fall back to the default context
+            probe = probeJsAlive(null);
+        }
+        return probe == JsProbe.ALIVE;
+    }
+
+    private enum JsProbe { ALIVE, DEAD, ERROR }
+
+    /**
+     * Probe whether script runs in the given context ({@code null} = CDP default context).
+     * ALIVE = ran and saw a document; DEAD = ran but returned false; ERROR = the context
+     * was missing/torn down or the send failed (the caller may retry the default context).
+     */
+    private JsProbe probeJsAlive(Integer contextId) {
         try {
             CdpMessage probe = cdp.method("Runtime.evaluate")
                     .param("expression", "typeof document !== 'undefined'")
@@ -1344,10 +1371,13 @@ public class CdpDriver implements Driver {
                 probe.param("contextId", contextId);
             }
             CdpResponse response = probe.send();
-            return !response.isError() && Boolean.TRUE.equals(response.getResult("result.value"));
+            if (response.isError()) {
+                return JsProbe.ERROR;
+            }
+            return Boolean.TRUE.equals(response.getResult("result.value")) ? JsProbe.ALIVE : JsProbe.DEAD;
         } catch (Exception e) {
-            logger.warn("JS execution verification failed: {}", e.getMessage());
-            return false;
+            logger.debug("JS execution probe failed (contextId={}): {}", contextId, e.getMessage());
+            return JsProbe.ERROR;
         }
     }
 
@@ -1434,7 +1464,24 @@ public class CdpDriver implements Driver {
     private boolean isDomReady() {
         String expected = expectedLoaderId;
         if (expected != null) {
-            return expected.equals(domContentLoaderId);
+            if (expected.equals(domContentLoaderId)) {
+                return true;
+            }
+            // Chrome can commit the requested navigation under a loaderId OTHER than the
+            // one Page.navigate returned (it restarts/replaces the navigation internally).
+            // The exact-loader match then never lands and the wait times out on a fully
+            // loaded page (seen in CI: expectedLoaderId != committedLoaderId with
+            // readyState complete and the requested URL live). Accept the replacement
+            // purely from event state — no eval, no URL round-trip: the NEWLY-committed
+            // main document (its loader advanced past the one showing when setUrl()
+            // snapshotted preNavCommittedLoaderId) has fired its OWN DOMContentLoaded
+            // (domContentLoaderId == committedLoaderId). A stale document (pooled-reset
+            // about:blank, the previous page) commits no loader newer than the snapshot,
+            // so it is still rejected and the anti-stale guarantee holds.
+            String committed = committedLoaderId;
+            return committed != null
+                    && committed.equals(domContentLoaderId)
+                    && !committed.equals(preNavCommittedLoaderId);
         }
         String superseded = supersededLoaderId;
         if (superseded != null) {

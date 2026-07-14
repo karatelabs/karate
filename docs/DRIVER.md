@@ -278,13 +278,24 @@ Chrome can also commit the requested navigation under a *different* loaderId tha
 `Page.navigate` returned — it restarts/replaces the navigation internally — which strands
 the exact-loader match on a page that is fully loaded (seen in CI as a 30s page-load
 timeout whose diagnostic shows `expectedLoaderId != committedLoaderId` with
-`readyState: complete` and the requested URL live). The `readyState` fallback recovers
-from this by accepting a *newly committed* document (committed loader advanced past the
-one showing before `setUrl()` snapshotted `preNavCommittedLoaderId`) once its
-`location.href` matches the requested URL — a stale document (about:blank, previous page)
-has a different URL and is still rejected, so the anti-stale guarantee holds. Any future
-backend or refactor of the load-wait must preserve this document-identity binding — a
-boolean "DOM ready" flag is not enough under pooled parallel execution.
+`readyState: complete` and the requested URL live). The wait recovers from this purely
+from event state (no eval/URL round-trip, which races the stale-document context during
+the swap): the *newly committed* main document — committed loader advanced past the one
+`setUrl()` snapshotted into `preNavCommittedLoaderId` — is accepted once it has fired its
+OWN DOMContentLoaded (`domContentLoaderId == committedLoaderId`). A stale document
+(about:blank, previous page) commits no loader newer than the snapshot, so it is still
+rejected and the anti-stale guarantee holds. Any future backend or refactor of the
+load-wait must preserve this document-identity binding — a boolean "DOM ready" flag is not
+enough under pooled parallel execution.
+
+The final gate, `verifyJsExecution()`, is a *liveness* check (`typeof document`) — the
+page can only be "loaded" if the renderer runs script. It probes the main frame's
+readiness context but, on an explicit-context error, re-probes CDP's default context:
+`mainContextReady` can hold a contextId that a loader replacement already tore down when
+its `executionContextsCleared` was never delivered, and a stale id must not veto a page
+that is demonstrably executing JS (the same CI timeout above reports `jsExec: ok`, which
+uses the default context). Document *identity* is already settled by the loader/URL logic
+above, so a default-context liveness confirmation is sufficient here.
 
 **Readiness waits are event-completed futures, poll fallbacks stay.** The scenario
 thread never spins on fixed-interval polls for event-announced state: the main frame's
