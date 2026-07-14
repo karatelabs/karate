@@ -395,6 +395,91 @@ public class ScenarioHooksTest {
                 "beforeScenario set in Background should not fire for the current scenario - must be set in karate-config.js");
     }
 
+    // ===== afterFeature must fire in parallel mode (multi-thread) too =====
+
+    @Test
+    void testAfterFeatureFiresInParallel() throws Exception {
+        // afterFeature configured in Background must fire once per top-level feature,
+        // whether the suite runs single-threaded or with multiple threads.
+        Path feature = tempDir.resolve("after-feature-parallel.feature");
+        Files.writeString(feature, """
+            Feature: afterFeature fires in parallel
+
+            Background:
+              * configure afterFeature = function(){ Java.type('io.karatelabs.core.ScenarioHooksTest').incrementHookCount() }
+
+            Scenario Outline: <name>
+              * def x = <value>
+              * match x == <value>
+
+            Examples:
+              | name | value |
+              | one  | 1     |
+              | two  | 2     |
+            """);
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .configDir(tempDir.toString())
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .skipTagFiltering(true)
+                .parallel(2);
+
+        assertTrue(result.isPassed(), getFailureMessage(result));
+        assertEquals(1, hookCount, "afterFeature should fire exactly once per feature, even with multiple threads");
+    }
+
+    @Test
+    void testAfterFeatureCallWithVariableInParallel() throws Exception {
+        // Mirrors the reported scenario: afterFeature configured in Background does a
+        // karate.call to a cleanup feature, passing a variable set earlier in the feature.
+        // In parallel mode the hook must still fire AND resolve the variable from a live
+        // scenario context. The cleanup feature records the id it received.
+        Path cleanup = tempDir.resolve("cleanup.feature");
+        Files.writeString(cleanup, """
+            @ignore
+            Feature: cleanup
+
+              Scenario: delete
+                * assert element_id == 42
+                * Java.type('io.karatelabs.core.ScenarioHooksTest').incrementBeforeHookCount()
+            """);
+        Path feature = tempDir.resolve("after-feature-call.feature");
+        Files.writeString(feature, """
+            Feature: afterFeature karate.call in parallel
+
+            Background:
+              * def id = 42
+              * configure afterFeature =
+              \"\"\"
+              function(){ karate.call('cleanup.feature', { element_id: id }) }
+              \"\"\"
+
+            Scenario Outline: <name>
+              * match id == 42
+
+            Examples:
+              | name |
+              | one  |
+              | two  |
+            """);
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .configDir(tempDir.toString())
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .skipTagFiltering(true)
+                .parallel(2);
+
+        assertTrue(result.isPassed(), getFailureMessage(result));
+        assertEquals(1, beforeHookCount,
+                "afterFeature karate.call should fire once and resolve the scenario variable, even with multiple threads");
+    }
+
     private String getFailureMessage(SuiteResult result) {
         if (result.isPassed()) return "none";
         for (FeatureResult fr : result.getFeatureResults()) {

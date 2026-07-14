@@ -74,7 +74,9 @@ public class FeatureRuntime implements Callable<FeatureResult> {
     private final ReentrantLock callOnceLock = new ReentrantLock();
 
     // State
-    private ScenarioRuntime lastExecuted;
+    // Written from scenario threads in parallel mode (executeScenarioParallel) and read
+    // single-threaded after the futures join, to drive the afterFeature hook - hence volatile.
+    private volatile ScenarioRuntime lastExecuted;
     private FeatureResult result;
     private final Map<Integer, Integer> outlineCompletedCounts = new HashMap<>();  // section index -> completed count
     // Outline sections we've already fired OUTLINE_ENTER for. Iteration is
@@ -298,8 +300,11 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         try {
             ScenarioRuntime sr = new ScenarioRuntime(this, scenario);
             scenarioResult = sr.call();
-            // Note: lastExecuted tracking not meaningful in parallel mode
-            // afterScenarioOutline hook is also not applicable in parallel mode
+            // Track a completed runtime so the afterFeature hook still fires in parallel mode.
+            // Order is non-deterministic across threads (last writer wins), which is fine: the
+            // hook only needs a live scenario context to resolve its variables against.
+            // afterScenarioOutline is intentionally not fired here - it is not applicable in parallel mode.
+            lastExecuted = sr;
 
         } catch (Exception e) {
             logger.error("Error executing scenario '{}': {}", scenario.getName(), e.getMessage());
