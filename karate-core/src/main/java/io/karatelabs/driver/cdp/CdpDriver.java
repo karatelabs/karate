@@ -118,6 +118,16 @@ public class CdpDriver implements Driver {
     // rescues cross-document traversals whose events were lost.
     private volatile String historyTargetUrl;
 
+    // Wake-up latch for waitForPageLoad(). Every load-relevant event (main-frame
+    // DOMContentLoaded / frameNavigated, frameStoppedLoading, frameDetached, main
+    // context arrival) rotates-then-completes it via nudgeLoadWaiter(), so the wait
+    // loop reacts to the event instead of discovering it on the next fixed-interval
+    // poll. It is a NUDGE, not the completion signal itself: the waiter re-evaluates
+    // isPageLoadComplete()/verifyJsExecution() after every wake-up, and its wait on
+    // the latch is capped (2s) so the readyState fallback and pruneStaleFrames still
+    // run even if every event is lost (the CI condition those safety nets exist for).
+    private volatile CompletableFuture<Void> loadTick = new CompletableFuture<>();
+
     // Lifecycle
     private volatile boolean terminated = false;
 
@@ -567,6 +577,21 @@ public class CdpDriver implements Driver {
     }
 
     /**
+     * Wake the waitForPageLoad() loop so it re-evaluates its completion conditions
+     * now instead of on its next capped wait. Rotate BEFORE completing: a waiter
+     * snapshots the latch before checking conditions, so a signal landing between
+     * its check and its wait completes the snapshot it holds — never lost. Called
+     * only from the single-threaded CDP event dispatcher (no rotation race). Only
+     * complete() is ever invoked — no work is chained on the future, so nothing
+     * executes on the event-dispatch thread.
+     */
+    private void nudgeLoadWaiter() {
+        CompletableFuture<Void> tick = loadTick;
+        loadTick = new CompletableFuture<>();
+        tick.complete(null);
+    }
+
+    /**
      * Record that the main frame's default execution context is live (driven by
      * Runtime.executionContextCreated). Completes the readiness future so any thread
      * blocked in {@link #awaitMainContext} proceeds immediately.
@@ -582,6 +607,9 @@ public class CdpDriver implements Driver {
         } else {
             f.complete(contextId);
         }
+        // The verifyJsExecution() gate inside waitForPageLoad may have been the last
+        // thing holding the wait open — wake it to re-probe now.
+        nudgeLoadWaiter();
     }
 
     /**
@@ -707,6 +735,7 @@ public class CdpDriver implements Driver {
             if ("DOMContentLoaded".equals(name) && mainFrameId.equals(frameId)) {
                 domContentLoaderId = event.get("loaderId");
                 domContentEventFired = true;
+                nudgeLoadWaiter();
                 logger.trace("DOMContentLoaded on main frame (via lifecycleEvent)");
             }
         });
@@ -715,6 +744,7 @@ public class CdpDriver implements Driver {
         cdp.on("Page.domContentEventFired", event -> {
             if (isFromOtherSession(event)) return;
             domContentEventFired = true;
+            nudgeLoadWaiter();
             logger.trace("domContentEventFired (fallback)");
         });
 
@@ -741,6 +771,7 @@ public class CdpDriver implements Driver {
             String frameId = event.get("frameId");
             if (frameId != null) {
                 framesStillLoading.remove(frameId);
+                nudgeLoadWaiter(); // frames barrier may just have emptied
             }
             logger.trace("frameStoppedLoading: {}, remaining: {}", frameId, framesStillLoading);
         });
@@ -755,6 +786,7 @@ public class CdpDriver implements Driver {
             String frameId = event.get("frame.id");
             if (frameId != null && frameId.equals(mainFrameId)) {
                 committedLoaderId = event.get("frame.loaderId");
+                nudgeLoadWaiter(); // commit unblocks the readyState-fallback gate
                 logger.trace("frameNavigated (main frame): loaderId={}, url={}",
                         committedLoaderId, (String) event.get("frame.url"));
             }
@@ -772,6 +804,7 @@ public class CdpDriver implements Driver {
                 framesStillLoading.remove(frameId);
                 frameContexts.remove(frameId);
                 releaseFrameContextWaiters(frameId);
+                nudgeLoadWaiter(); // frames barrier may just have emptied
             }
             logger.trace("frameDetached: {}, remaining: {}", frameId, framesStillLoading);
         });
@@ -1196,10 +1229,14 @@ public class CdpDriver implements Driver {
      */
     public void waitForPageLoad(PageLoadStrategy strategy, Duration timeout) {
         long deadline = System.currentTimeMillis() + timeout.toMillis();
-        int pollInterval = 50;
         long lastStaleCheck = 0;
 
-        while (System.currentTimeMillis() < deadline) {
+        while (true) {
+            // Snapshot the wake-up latch BEFORE evaluating conditions: an event
+            // landing between the check below and the wait completes THIS snapshot,
+            // so the signal cannot be lost (see nudgeLoadWaiter).
+            CompletableFuture<Void> tick = loadTick;
+
             if (isPageLoadComplete(strategy)) {
                 // Verify JS execution works (execution context is ready)
                 // This handles the case where page events fired but context isn't ready
@@ -1218,7 +1255,23 @@ public class CdpDriver implements Driver {
                     pruneStaleFrames();
                 }
             }
-            sleep(pollInterval);
+
+            long remaining = deadline - System.currentTimeMillis();
+            if (remaining <= 0 || Thread.currentThread().isInterrupted()) {
+                break;
+            }
+            // Event-driven wait with a CAP, not a pure future wait: the conditions
+            // above include polling fallbacks (document.readyState, pruneStaleFrames)
+            // that exist precisely because load events get lost under CI load — a
+            // capped wait guarantees they still run with no event traffic at all.
+            try {
+                tick.get(Math.min(remaining, 500), TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            } catch (Exception e) {
+                // timeout (or exceptional completion): fall through and re-check
+            }
         }
 
         // Build diagnostic message with comprehensive state info
