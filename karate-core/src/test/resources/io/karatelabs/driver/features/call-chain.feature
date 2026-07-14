@@ -1,13 +1,12 @@
-@lock=*
 Feature: Multi-feature call chain (V1-style reusable flows)
   Tests that driver auto-propagates across a chain of called features
   without needing scope: 'caller' - the common V1 migration pattern
-  Runs each scenario exclusively (@lock=*): these scenarios drive several
-  navigations in a row across called features (e.g. /index -> /wait -> /index)
-  and read driver.title right after each. The shared @lock=render (which still
-  allows a light neighbour) was not enough — a navigation lost its race on a
-  2-vCPU runner and driver.title still read the previous page. This needs the
-  renderer to itself.
+  Previously @lock=* because these scenarios drive several navigations in a row
+  (e.g. /index -> /wait -> /index) and read driver.title right after each, and
+  under concurrent load a navigation could lose its race so driver.title still
+  read the previous page. The driver's page-load waits are now bound to the
+  navigation's own loaderId, closing that race at the source — deliberately
+  unlocked as a regression sentinel for it.
 
 Background:
 * url serverUrl

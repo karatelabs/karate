@@ -262,9 +262,34 @@ against the wrong document (seen in CI as `exists()` returning false, `waitFor()
 `Page.frameNavigated` shows that loader committed. `refresh()`/`reload()`/`back()`/
 `forward()` get no loaderId from CDP, so they instead record the current committed loader
 and wait for it to be **superseded** by a different one (the fallback path also covers
-BFCache restores, which never re-fire DOMContentLoaded). Any future backend or refactor
-of the load-wait must preserve this document-identity binding — a boolean "DOM ready"
-flag is not enough under pooled parallel execution.
+BFCache restores, which never re-fire DOMContentLoaded; same-document history traversals
+— pushState/fragment entries — fire no loader events at all, so the fallback verifies
+`location.href` against the target history entry's URL). A download/204 navigation
+returns `errorText: net::ERR_ABORTED` from `Page.navigate` and keeps the current
+document — `setUrl()` returns promptly instead of arming a wait that can never complete.
+Any future backend or refactor of the load-wait must preserve this document-identity
+binding — a boolean "DOM ready" flag is not enough under pooled parallel execution.
+
+**Readiness waits are event-completed futures, poll fallbacks stay.** The scenario
+thread never spins on fixed-interval polls for event-announced state: the main frame's
+execution context (`mainContextReady`), per-iframe contexts (`frameContextReady`,
+completed by `Runtime.executionContextCreated`), tab removal after `close()`
+(`Target.targetDestroyed` completes a pending-removal future), and the page-load wait
+(a wake-up latch nudged by every load-relevant event, capped at 500ms per wait) are all
+future-based. The deliberate exceptions are probes of state no CDP event announces —
+`document.readyState` fallback (events get lost under CI load), `pruneStaleFrames`
+(lost `frameStoppedLoading`), OOPIF document readiness (Page.* events are intentionally
+not enabled on OOPIF sessions), and the per-frame "can this context run script yet"
+probe — which run on the shared `pollFor`/`pollUntil` helpers (silent iterations,
+interrupt aborts the wait instead of busy-spinning). The element auto-wait `retry()`
+helper stays separate on purpose: its per-attempt WARN logging and
+`retryCount × retryInterval` budget are a user-facing diagnostic contract.
+
+`window.feature` and `call-chain.feature` were previously `@lock`'d because navigations
+could lose their race under concurrent load; with the loader binding they run unlocked
+as regression sentinels. The remaining locks guard genuinely shared state (cookies,
+dialogs blocking the renderer) or 2-vCPU renderer starvation (keys/mouse/screenshot
+timing), which no driver-side wait can fix.
 
 ```java
 void setUrl(String url)                          // Navigate and wait
