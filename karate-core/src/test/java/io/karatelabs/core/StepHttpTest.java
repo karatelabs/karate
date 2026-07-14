@@ -661,6 +661,51 @@ class StepHttpTest {
     }
 
     @Test
+    void testSingleParamWithNullValueOmitted() {
+        // V1 behavior: `param name = value` where value is null should omit the
+        // query parameter instead of throwing an NPE on value.toString()
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> {
+            String reason = req.getParam("reason");
+            if (reason == null) {
+                return json("{ \"ok\": true }");
+            }
+            return json("{ \"error\": \"reason should be null\" }");
+        });
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test/get'
+            * def value = null
+            * param reason = value
+            * method get
+            * status 200
+            * match response.ok == true
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testSingleParamWithNullInList() {
+        // V1 behavior: null items in a list value should be skipped, not stringified
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> {
+            java.util.List<String> values = req.getParams().get("items");
+            if (values != null && values.size() == 2
+                && "a".equals(values.get(0)) && "b".equals(values.get(1))) {
+                return json("{ \"ok\": true }");
+            }
+            return json("{ \"error\": \"unexpected items\" }");
+        });
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test/search'
+            * param items = ['a', null, 'b']
+            * method get
+            * status 200
+            * match response.ok == true
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testParamsWithNullValues() {
         // V1 behavior: params with null values should be skipped
         InMemoryHttpClient client = new InMemoryHttpClient(req -> {

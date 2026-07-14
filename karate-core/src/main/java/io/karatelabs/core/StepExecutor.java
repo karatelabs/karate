@@ -1956,9 +1956,15 @@ public class StepExecutor {
         int eqIndex = StepUtils.findAssignmentOperator(text);
         String name = text.substring(0, eqIndex).trim();
         Object value = runtime.eval(wrapJsonLikeExpression(text.substring(eqIndex + 1).trim()));
+        // V1 behavior: a null value omits the query parameter instead of failing
+        if (value == null) {
+            return;
+        }
         if (value instanceof List<?> list) {
             for (Object item : list) {
-                http().param(name, item.toString());
+                if (item != null) {
+                    http().param(name, item.toString());
+                }
             }
         } else {
             http().param(name, value.toString());
