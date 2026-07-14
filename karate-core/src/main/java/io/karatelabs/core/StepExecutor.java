@@ -3135,7 +3135,16 @@ public class StepExecutor {
             jsonPath = "$" + path;
         }
 
-        Object result = JsonPath.read(target, jsonPath);
+        Object result;
+        try {
+            result = JsonPath.read(target, jsonPath);
+        } catch (PathNotFoundException e) {
+            // v1 parity: a missing property in the JsonPath (e.g. a filter like
+            // `get[0] $.items[?(@.type=='x')].id` where `items` is absent) degrades to
+            // #notpresent rather than throwing — mirroring evalDollarPrefixedExpression
+            // for the bare `$`-path form. Holds for both `def x = get ...` and a match operand.
+            return "#notpresent";
+        }
 
         // Apply index if specified
         if (index >= 0 && result instanceof List) {

@@ -714,6 +714,42 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    // v1 parity: a `get` with a JsonPath filter whose root property is absent degrades
+    // to #notpresent instead of throwing "Missing property in path". Sibling of the
+    // bare `$`-path degradation (see StepDataTypesTest.testDefDollarMissing*).
+    @Test
+    void testGetWithJsonPathFilterOnMissingPropertyReturnsNotPresent() {
+        ScenarioRuntime sr = run("""
+            * def response = { name: 'test', status: 'active' }
+            * def result = get[0] $.items[?(@.type == 'special')].id
+            * match result == '#notpresent'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testGetWithJsonPathFilterNoMatchReturnsNull() {
+        // Control: the root property exists but the filter matches nothing — get[0] on the
+        // empty result is null (unchanged; distinct from the missing-property case).
+        ScenarioRuntime sr = run("""
+            * def response = { items: [{ type: 'normal', id: 'A1' }] }
+            * def result = get[0] $.items[?(@.type == 'special')].id
+            * match result == null
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testGetWithJsonPathFilterMatchReturnsValue() {
+        // Control: filter matches — get[0] returns the value.
+        ScenarioRuntime sr = run("""
+            * def response = { items: [{ type: 'special', id: 'B2' }] }
+            * def result = get[0] $.items[?(@.type == 'special')].id
+            * match result == 'B2'
+            """);
+        assertPassed(sr);
+    }
+
     @Test
     void testGetLastArrayElement() {
         ScenarioRuntime sr = run("""
