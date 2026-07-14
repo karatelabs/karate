@@ -29,6 +29,7 @@ import com.jayway.jsonpath.PathNotFoundException;
 import net.minidev.json.JSONStyle;
 import net.minidev.json.JSONValue;
 import net.minidev.json.parser.JSONParser;
+import net.minidev.json.reader.JsonWriterI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Node;
@@ -41,6 +42,20 @@ import static net.minidev.json.JSONValue.defaultReader;
 public class Json {
 
     private static final Logger logger = LoggerFactory.getLogger(Json.class);
+
+    static {
+        // json-smart's reflective bean writer (BeansWriterASM) cannot serialize a xerces DOM node on
+        // JDK 21+: java.xml does not export its internal DOM impl to the unnamed module, so it throws
+        // IllegalAccessError. A DOM node reaches the writer whenever an XML HTTP response is nested in
+        // an eval/MCP/report result Map. Render any org.w3c.dom.Node as its XML text — consistent with
+        // toBytes' top-level Node branch — instead of letting the bean writer blow up on it.
+        JSONValue.defaultWriter.registerWriterInterfaceFirst(Node.class, new JsonWriterI<Node>() {
+            @Override
+            public <E extends Node> void writeJSONString(E node, Appendable out, JSONStyle style) throws java.io.IOException {
+                JSONValue.writeJSONString(Xml.toString(node), out, style);
+            }
+        });
+    }
 
     private final DocumentContext doc;
     private final boolean array;

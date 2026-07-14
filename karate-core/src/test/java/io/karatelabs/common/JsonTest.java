@@ -233,6 +233,33 @@ class JsonTest {
     }
 
     @Test
+    void testStringifyMapWithNestedXmlNode() {
+        // a Map whose value is a DOM node — the shape an XML HTTP response takes when it lands in
+        // an eval/MCP result. json-smart's reflective bean writer blows up on a xerces DOM node
+        // (JPMS: java.xml does not export the internal DOM impl) — Json must render it as XML text.
+        org.w3c.dom.Node node = Xml.toXmlDoc("<teError><errorMessage>401 Not Authorized</errorMessage></teError>");
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("status", 401);
+        map.put("response", node);
+        String json = Json.stringifyStrict(map);
+        assertTrue(json.contains("\"status\":401"), json);
+        assertTrue(json.contains("401 Not Authorized"), json);
+        // round-trips as valid JSON (the node became a JSON string value, not a crash)
+        Object reparsed = Json.of(json).value();
+        assertTrue(reparsed instanceof Map);
+    }
+
+    @Test
+    void testToBytesMapWithNestedXmlNode() {
+        org.w3c.dom.Node node = Xml.toXmlDoc("<a><b>hi</b></a>");
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("body", node);
+        String json = new String(Json.toBytes(map));
+        assertTrue(json.contains("hi"), json);
+        assertTrue(Json.of(json).value() instanceof Map);
+    }
+
+    @Test
     void testJsonOfNullThrows() {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> {
             Json.of(null);
