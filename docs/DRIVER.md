@@ -247,6 +247,25 @@ Runner.path("features/")
 ## Driver Interface
 
 ### Navigation
+
+**Loader-bound page-load waits (CdpDriver).** CDP's load signals (`Page.lifecycleEvent`
+DOMContentLoaded, `document.readyState`) are document-anonymous — on their own they can't
+say *which* document they describe. On a pooled driver the reset navigation to
+`about:blank` returns without waiting (about:/data: URLs skip the page-load wait), so its
+late DOMContentLoaded — or the still-showing previous document's `readyState=complete` —
+used to satisfy the *next* scenario's `setUrl()` wait, and the scenario would start
+against the wrong document (seen in CI as `exists()` returning false, `waitFor()`/
+`driver.title` reading the stale page). Every document load in CDP is named by a
+**loaderId**: `Page.navigate` returns the loaderId it started, and `Page.lifecycleEvent`
+/ `Page.frameNavigated` carry the loaderId they belong to. `setUrl()` therefore waits for
+*its own* loader's DOMContentLoaded, and the `readyState` fallback only counts once
+`Page.frameNavigated` shows that loader committed. `refresh()`/`reload()`/`back()`/
+`forward()` get no loaderId from CDP, so they instead record the current committed loader
+and wait for it to be **superseded** by a different one (the fallback path also covers
+BFCache restores, which never re-fire DOMContentLoaded). Any future backend or refactor
+of the load-wait must preserve this document-identity binding — a boolean "DOM ready"
+flag is not enough under pooled parallel execution.
+
 ```java
 void setUrl(String url)                          // Navigate and wait
 String getUrl()                                  // Get current URL
