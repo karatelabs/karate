@@ -133,6 +133,14 @@ public class CdpDriver implements Driver {
     private Frame currentFrame;
     private final Map<String, Integer> frameContexts = new ConcurrentHashMap<>();
 
+    // Readiness futures for NON-main frames, keyed by frameId and completed by the
+    // Runtime.executionContextCreated handler — the same event-completed-future
+    // pattern as mainContextReady, replacing the old poll of the frameContexts map.
+    // A waiter (ensureFrameContext) awaits the frame's future for a short bound; a
+    // frame that detaches completes its future with null so the waiter fails fast
+    // to the isolated-world last resort instead of sleeping out the bound.
+    private final Map<String, CompletableFuture<Integer>> frameContextReady = new ConcurrentHashMap<>();
+
     // Readiness of the main frame's default execution context, modelled as an
     // event-completed future rather than a polled map read. This is the single
     // authoritative "the page can run script now" signal:
@@ -616,6 +624,46 @@ public class CdpDriver implements Driver {
     }
 
     /**
+     * Record that a non-main frame's default execution context is live, completing
+     * (or, for a same-frame replacement context, re-seeding) its readiness future.
+     * Mirrors {@link #completeMainContext} for iframe frames.
+     */
+    private void completeFrameContext(String frameId, int contextId) {
+        CompletableFuture<Integer> f = frameContextReady.computeIfAbsent(frameId, k -> new CompletableFuture<>());
+        if (f.isDone()) {
+            frameContextReady.put(frameId, CompletableFuture.completedFuture(contextId));
+        } else {
+            f.complete(contextId);
+        }
+    }
+
+    /**
+     * A frame is gone (detached from the DOM, or its OOPIF session detached) —
+     * drop its readiness entry, completing any in-flight future with {@code null}
+     * so a waiter fails fast to its fallback instead of sleeping out the bound.
+     */
+    private void releaseFrameContextWaiters(String frameId) {
+        CompletableFuture<Integer> f = frameContextReady.remove(frameId);
+        if (f != null && !f.isDone()) {
+            f.complete(null);
+        }
+    }
+
+    /**
+     * Block until a non-main frame's default execution context arrives via
+     * Runtime.executionContextCreated, returning its id or {@code null} on timeout
+     * or frame detach. The caller falls back to an isolated world on null.
+     */
+    private Integer awaitFrameContext(String frameId, long timeoutMs) {
+        CompletableFuture<Integer> f = frameContextReady.computeIfAbsent(frameId, k -> new CompletableFuture<>());
+        try {
+            return f.get(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
      * Check if the current page is already loaded (document.readyState is 'complete' or 'interactive').
      * This handles the case where we connect to an already-loaded page or the event was missed.
      */
@@ -723,6 +771,7 @@ public class CdpDriver implements Driver {
             if (frameId != null) {
                 framesStillLoading.remove(frameId);
                 frameContexts.remove(frameId);
+                releaseFrameContextWaiters(frameId);
             }
             logger.trace("frameDetached: {}, remaining: {}", frameId, framesStillLoading);
         });
@@ -840,7 +889,10 @@ public class CdpDriver implements Driver {
                             // Authoritative readiness signal for the main frame.
                             completeMainContext(contextId.intValue());
                         } else {
+                            // Map first, then future: an awaitFrameContext return
+                            // implies the frameContexts entry is already readable.
                             frameContexts.put(frameId, contextId.intValue());
+                            completeFrameContext(frameId, contextId.intValue());
                         }
                         logger.trace("execution context created: frameId={}, contextId={}", frameId, contextId);
                     }
@@ -860,6 +912,11 @@ public class CdpDriver implements Driver {
             // Main context is gone until the new document creates one - flip the
             // readiness future to incomplete so callers await the replacement.
             invalidateMainContext();
+            // Same for iframe frames: replace COMPLETED futures with fresh incomplete
+            // ones so the next waiter blocks for the replacement context. In-flight
+            // futures stay put — the replacement executionContextCreated will complete
+            // them; swapping them out here would strand their waiters.
+            frameContextReady.replaceAll((id, f) -> f.isDone() ? new CompletableFuture<>() : f);
             logger.trace("execution contexts cleared");
         });
 
@@ -956,6 +1013,7 @@ public class CdpDriver implements Driver {
                 oopifSessions.remove(detachedFrameId);
                 oopifTargets.remove(detachedFrameId);
                 frameContexts.remove(detachedFrameId);
+                releaseFrameContextWaiters(detachedFrameId);
                 logger.debug("OOPIF detached: frameId={}, sessionId={}", detachedFrameId, detachedSessionId);
             }
             if (detachedSessionId.equals(cdp.getSessionId()) && pageSessionId != null) {
@@ -2125,22 +2183,19 @@ public class CdpDriver implements Driver {
             waitForOopifReady(frameId, expectedUrl);
             return;
         }
-        // First, wait for the main world context to arrive via Runtime.executionContextCreated.
+        // First, wait for the main world context to arrive via Runtime.executionContextCreated —
+        // event-completed future (awaitFrameContext), same pattern as the main frame's
+        // mainContextReady, with the SAME 1s bound the old map-poll had so stranding can
+        // never be worse than before.
         // IMPORTANT: Do NOT immediately fall back to Page.createIsolatedWorld - isolated worlds
         // are separate JS contexts where variables set by page scripts (e.g., window.frameValue)
         // are not visible. This caused flaky "Switch back to main frame" tests where
         // script('window.frameValue') returned null because it ran in an isolated world
         // instead of the iframe's main world.
         if (!frameContexts.containsKey(frameId)) {
-            int maxWaitMs = 1000;
-            int pollInterval = 50;
-            long deadline = System.currentTimeMillis() + maxWaitMs;
-            while (System.currentTimeMillis() < deadline) {
-                if (frameContexts.containsKey(frameId)) {
-                    logger.debug("frame context arrived via event: frameId={}", frameId);
-                    break;
-                }
-                sleep(pollInterval);
+            Integer contextId = awaitFrameContext(frameId, 1000);
+            if (contextId != null) {
+                logger.debug("frame context arrived via event: frameId={}", frameId);
             }
         }
         // Last resort: create an isolated world if the main world context never arrived.
@@ -2154,6 +2209,9 @@ public class CdpDriver implements Driver {
                 Integer contextId = response.getResult("executionContextId");
                 if (contextId != null) {
                     frameContexts.put(frameId, contextId);
+                    // Complete the readiness future too, so a concurrent waiter on the
+                    // same frame observes the isolated world instead of timing out.
+                    completeFrameContext(frameId, contextId);
                     logger.debug("created isolated world for frame {}: contextId={}", frameId, contextId);
                 }
             } catch (Exception e) {
@@ -2227,37 +2285,38 @@ public class CdpDriver implements Driver {
     }
 
     /**
-     * Wait for a (non-main) frame's execution context to be ready for JS execution.
-     * The main frame uses the event-completed readiness future (awaitMainContext);
-     * iframe contexts still use this bounded poll of the frameContexts map.
+     * Verify a (non-main) frame's execution context is actually ready for JS
+     * execution. Context-id ARRIVAL is event-driven (see awaitFrameContext); this
+     * probe is deliberately still a poll — "the id exists" does not mean "the
+     * frame's document is ready to run script" (it may still be loading), and no
+     * CDP event announces that transition for a contextId-addressed world.
      */
     private void waitForFrameContextReady(String frameId) {
-        int maxWaitMs = 1000;
-        int pollInterval = 50;
-        long deadline = System.currentTimeMillis() + maxWaitMs;
-
-        while (System.currentTimeMillis() < deadline) {
+        boolean ready = pollUntil(1000, 50, () -> {
             Integer contextId = frameContexts.get(frameId);
-            if (contextId != null) {
-                try {
-                    CdpResponse response = cdp.method("Runtime.evaluate")
-                            .param("expression", "typeof document !== 'undefined'")
-                            .param("returnByValue", true)
-                            .param("contextId", contextId)
-                            .send();
-                    if (!response.isError() && Boolean.TRUE.equals(response.getResult("result.value"))) {
-                        logger.trace("frame context ready: frameId={}, contextId={}", frameId, contextId);
-                        return;
-                    }
-                } catch (Exception e) {
-                    // Context not ready yet, will retry
-                    logger.trace("frame context not ready yet: {}", e.getMessage());
-                }
+            if (contextId == null) {
+                return false;
             }
-            sleep(pollInterval);
+            try {
+                CdpResponse response = cdp.method("Runtime.evaluate")
+                        .param("expression", "typeof document !== 'undefined'")
+                        .param("returnByValue", true)
+                        .param("contextId", contextId)
+                        .send();
+                if (!response.isError() && Boolean.TRUE.equals(response.getResult("result.value"))) {
+                    logger.trace("frame context ready: frameId={}, contextId={}", frameId, contextId);
+                    return true;
+                }
+            } catch (Exception e) {
+                // Context not ready yet, will retry
+                logger.trace("frame context not ready yet: {}", e.getMessage());
+            }
+            return false;
+        });
+        if (!ready) {
+            // Timeout is not fatal - retry logic in script() will handle it
+            logger.warn("timeout waiting for frame context: frameId={} (will retry on first use)", frameId);
         }
-        // Timeout is not fatal - retry logic in script() will handle it
-        logger.warn("timeout waiting for frame context: frameId={} (will retry on first use)", frameId);
     }
 
     // ========== Lifecycle ==========
@@ -3673,6 +3732,10 @@ public class CdpDriver implements Driver {
         // as soon as auto-attach lands.
         oopifTargets.clear();
         oopifSessions.clear();
+        // Frame-context readiness entries belong to the previously-driven tab's
+        // frames — unreachable from this session, so drop them. No waiter can be
+        // in flight here (frame waits happen on this same scenario thread).
+        frameContextReady.clear();
         cdp.method("Target.setAutoAttach")
                 .param("autoAttach", true)
                 .param("waitForDebuggerOnStart", false)
