@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Client Redirect</title>
+    <script>
+        // Delayed client-side redirect: the driver's page-load wait completes on
+        // THIS document (its own loader), and the redirect that follows is the
+        // page's business — an explicit waitForUrl() in the test crosses it.
+        setTimeout(function () {
+            window.location.href = '/navigation';
+        }, 200);
+    </script>
+</head>
+<body>
+<h1>Redirecting shortly</h1>
+</body>
+</html>

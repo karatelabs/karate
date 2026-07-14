@@ -86,7 +86,9 @@ public class CdpDriver implements Driver {
     // Page load state
     private volatile boolean domContentEventFired;
     private final Set<String> framesStillLoading = ConcurrentHashMap.newKeySet();
-    private String mainFrameId;
+    // volatile: written on the scenario thread (initialize / activateTarget), read by
+    // every Page.* event handler on the CDP dispatch thread for main-frame filtering
+    private volatile String mainFrameId;
     private volatile String pendingNavigationUrl; // for better timeout diagnostics
 
     // Document identity for page-load waits. The load signals above are
@@ -108,6 +110,13 @@ public class CdpDriver implements Driver {
     private volatile String supersededLoaderId; // loader that refresh/reload/back/forward must replace
     private volatile String domContentLoaderId; // loader of the last main-frame DOMContentLoaded
     private volatile String committedLoaderId;  // loader of the last committed main-frame document (Page.frameNavigated)
+    // Set only during a back()/forward() wait: the target history entry's URL. A
+    // same-document history traversal (pushState/fragment entries) produces NO loader
+    // activity at all — no frameStartedLoading, no frameNavigated, no DOMContentLoaded —
+    // so the superseded-loader wait above could never complete for it. The readyState
+    // fallback instead verifies window.location.href against this URL, which also
+    // rescues cross-document traversals whose events were lost.
+    private volatile String historyTargetUrl;
 
     // Lifecycle
     private volatile boolean terminated = false;
@@ -642,8 +651,6 @@ public class CdpDriver implements Driver {
             logger.trace("lifecycleEvent: name={}, frameId={}", name, frameId);
             // DOMContentLoaded on main frame signals DOM is ready
             if ("DOMContentLoaded".equals(name) && mainFrameId.equals(frameId)) {
-                // Record the loader FIRST: waitForPageLoad reads the flag then the
-                // loader, so the reverse write order here keeps the pair consistent.
                 domContentLoaderId = event.get("loaderId");
                 domContentEventFired = true;
                 logger.trace("DOMContentLoaded on main frame (via lifecycleEvent)");
@@ -1070,6 +1077,19 @@ public class CdpDriver implements Driver {
             }
         }
 
+        // A download / 204-205 / window.stop() navigation is deliberately aborted by
+        // Chrome and the CURRENT document stays: the returned loader never commits,
+        // never fires DOMContentLoaded, and a loader-bound wait for it could only end
+        // in a timeout. Chrome reports this as errorText net::ERR_ABORTED on the
+        // Page.navigate response (genuine load failures instead commit an error page
+        // under the SAME loader, so the normal wait below handles those). Return with
+        // the page as-is, matching pre-loader-binding behavior.
+        if ("net::ERR_ABORTED".equals(navResponse.getResultAsString("errorText"))) {
+            logger.warn("navigation aborted by browser, current document retained: {}", url);
+            pendingNavigationUrl = null;
+            return;
+        }
+
         // Skip page load wait for data: and about: URLs - they load synchronously
         // and don't fire normal lifecycle events
         if (url.startsWith("data:") || url.startsWith("about:")) {
@@ -1191,6 +1211,11 @@ public class CdpDriver implements Driver {
                 // loader is safe: checkDocumentReadyState only returned true after
                 // verifying the committed document satisfies the wait (exact match for
                 // setUrl, superseded for refresh/back/forward, anything when unbound).
+                // Known TOCTOU: a client-side redirect committing between that check
+                // and this tag mis-tags the redirect's loader — the worst outcome is a
+                // LOUD page-load timeout (loader fields in the diagnostic expose it),
+                // never a silent wrong-document success, because isDomReady requires
+                // an exact match and the gate re-checks the commit on every poll.
                 domContentLoaderId = committedLoaderId;
                 domContentEventFired = true;
             }
@@ -1276,16 +1301,26 @@ public class CdpDriver implements Driver {
         // until a DIFFERENT document commits, any 'complete' read is the old one.
         // (BFCache restores don't re-fire DOMContentLoaded, so this fallback is the
         // path that completes a back()/forward() wait on a cache-restored document.)
+        String requireUrl = null;
         String superseded = supersededLoaderId;
         if (superseded != null) {
             String committed = committedLoaderId;
             if (committed == null || superseded.equals(committed)) {
-                return false;
+                // No new document has committed. For refresh()/reload() the old
+                // document is still showing and its readyState must not count. A
+                // back()/forward() traversal to a same-document history entry
+                // (pushState/fragment) commits nothing at all, though — verify by URL
+                // instead: location.href only becomes the target entry's URL once the
+                // traversal has actually happened.
+                requireUrl = historyTargetUrl;
+                if (requireUrl == null) {
+                    return false;
+                }
             }
         }
         try {
             CdpResponse response = cdp.method("Runtime.evaluate")
-                    .param("expression", "document.readyState")
+                    .param("expression", "({r: document.readyState, u: window.location.href})")
                     .param("returnByValue", true)
                     .send();
             if (response.isError()) {
@@ -1293,9 +1328,13 @@ public class CdpDriver implements Driver {
                 logger.warn("readyState check CDP error: {}", response.getErrorMessage());
                 return false;
             }
-            String readyState = response.getResultAsString("result.value");
+            String readyState = response.getResultAsString("result.value.r");
             logger.trace("readyState check returned: {}", readyState); // keep trace, this is success path
-            return "complete".equals(readyState) || "interactive".equals(readyState);
+            boolean ready = "complete".equals(readyState) || "interactive".equals(readyState);
+            if (ready && requireUrl != null) {
+                ready = requireUrl.equals(response.getResultAsString("result.value.u"));
+            }
+            return ready;
         } catch (Exception e) {
             String msg = e.getMessage();
             if (msg != null && msg.contains("websocket not open")) {
@@ -3195,6 +3234,12 @@ public class CdpDriver implements Driver {
      * (Page.reload, Page.navigateToHistoryEntry): reset the load flags and record the
      * current committed loader as the one the new document must supersede, so a stale
      * signal from the still-showing document cannot satisfy the coming wait.
+     * <p>
+     * Deliberately lax in one direction: ANY different loader satisfies the wait, so a
+     * stray navigation racing the reload (page JS setting location.href) can complete
+     * it against that document instead. That is inherent to Page.reload returning no
+     * loaderId, and is strictly no worse than the pre-binding behavior, which accepted
+     * even the same still-showing document.
      */
     private void beginSupersedingNavigation() {
         domContentEventFired = false;
@@ -3215,6 +3260,7 @@ public class CdpDriver implements Driver {
             Integer entryId = (Integer) prevEntry.get("id");
             if (entryId != null) {
                 beginSupersedingNavigation();
+                historyTargetUrl = (String) prevEntry.get("url");
                 try {
                     cdp.method("Page.navigateToHistoryEntry")
                             .param("entryId", entryId)
@@ -3222,6 +3268,7 @@ public class CdpDriver implements Driver {
                     waitForPageLoad(options.getPageLoadStrategy());
                 } finally {
                     supersededLoaderId = null;
+                    historyTargetUrl = null;
                 }
             }
         }
@@ -3240,6 +3287,7 @@ public class CdpDriver implements Driver {
             Integer entryId = (Integer) nextEntry.get("id");
             if (entryId != null) {
                 beginSupersedingNavigation();
+                historyTargetUrl = (String) nextEntry.get("url");
                 try {
                     cdp.method("Page.navigateToHistoryEntry")
                             .param("entryId", entryId)
@@ -3247,6 +3295,7 @@ public class CdpDriver implements Driver {
                     waitForPageLoad(options.getPageLoadStrategy());
                 } finally {
                     supersededLoaderId = null;
+                    historyTargetUrl = null;
                 }
             }
         }

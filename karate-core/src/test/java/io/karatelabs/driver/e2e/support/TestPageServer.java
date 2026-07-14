@@ -105,6 +105,19 @@ public class TestPageServer {
 
         HttpResponse response = new HttpResponse();
 
+        // Dynamic routes for navigation edge-case tests (history.feature):
+        // a 204 makes Chrome abort the navigation and keep the current document,
+        // and a 302 exercises the redirect-chain page-load wait.
+        if (path.equals("/no-content")) {
+            response.setStatus(204);
+            return response;
+        }
+        if (path.equals("/redirect-302")) {
+            response.setStatus(302);
+            response.setHeader("Location", "/navigation");
+            return response;
+        }
+
         // Normalize path
         if (path.equals("/")) {
             path = "/index.html";
