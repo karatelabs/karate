@@ -821,6 +821,48 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    // karate.remove(name, path) must remove nested fields, not just root keys.
+    // v1 delegated to set(name, path, null) which treats the path as JsonPath.
+    @Test
+    void testKarateRemoveNestedFieldFromJs() {
+        ScenarioRuntime sr = run("""
+            * def payload = { field1: 'test', field2: 'test', props: { field3: 'test', field4: 'test' } }
+            * karate.remove('payload', 'props.field3')
+            * match payload == { field1: 'test', field2: 'test', props: { field4: 'test' } }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateRemoveRootFieldFromJs() {
+        ScenarioRuntime sr = run("""
+            * def payload = { field1: 'test', field2: 'test', props: { field3: 'test', field4: 'test' } }
+            * karate.remove('payload', 'field1')
+            * match payload == { field2: 'test', props: { field3: 'test', field4: 'test' } }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateRemoveNestedFieldWithJsonPathFromJs() {
+        ScenarioRuntime sr = run("""
+            * def payload = { props: { field3: 'test', field4: 'test' } }
+            * karate.remove('payload', '$.props.field3')
+            * match payload == { props: { field4: 'test' } }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateRemoveArrayElementFromJs() {
+        ScenarioRuntime sr = run("""
+            * def payload = { items: [1, 2, 3] }
+            * karate.remove('payload', 'items[1]')
+            * match payload == { items: [1, 3] }
+            """);
+        assertPassed(sr);
+    }
+
     // ========== Embedded Expressions ==========
 
     @Test

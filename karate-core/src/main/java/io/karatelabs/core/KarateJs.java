@@ -739,10 +739,11 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 // XPath remove on XML
                 Document doc = var instanceof Document ? (Document) var : ((Node) var).getOwnerDocument();
                 Xml.removeByPath(doc, path);
-            } else if (var instanceof Map && path != null) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> map = (Map<String, Object>) var;
-                map.remove(path);
+            } else if ((var instanceof Map || var instanceof List) && path != null) {
+                // Route through Json so nested paths (props.field3), JsonPath ($.props.field3)
+                // and bracketed keys all resolve - mirroring the `remove` keyword. A bare
+                // top-level key is normalized to a JsonPath by Json.prefix().
+                Json.of(var).remove(path);
             }
             return null;
         };
