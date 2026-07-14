@@ -2637,10 +2637,10 @@ public class CdpDriver implements Driver {
     /**
      * Bounded liveness probe for {@link PooledDriverProvider} reset.
      * <p>
-     * Sends a trivial {@code Runtime.evaluate("1")} with a 3-second CDP timeout (vs
-     * the default 30s). Returns false on any error, timeout, or closed socket — the
-     * caller treats false as "discard this driver, create a fresh one for the next
-     * scenario."
+     * Evaluates {@code new Promise(r => setTimeout(() => r(true), 0))} with
+     * {@code awaitPromise} and a 3-second CDP timeout (vs the default 30s). Returns
+     * false on any error, timeout, or closed socket — the caller treats false as
+     * "discard this driver, create a fresh one for the next scenario."
      * </p>
      * <p>
      * <b>Why this exists (context for future maintainers):</b> observed in CI as
@@ -2655,8 +2655,17 @@ public class CdpDriver implements Driver {
      * getting handed back out and every other cookie scenario timed out at 30s.
      * </p>
      * <p>
-     * We probe Runtime.evaluate rather than Page.navigate because it's cheap and
-     * local (no network). If even that is stuck, the driver is definitively done.
+     * <b>Why a timer, not {@code evaluate("1")}:</b> a CPU-starved renderer under a
+     * slow CI container can evaluate synchronous JS instantly yet never fire a
+     * {@code setTimeout} — the "timer never fires" degradation that starves
+     * page-driven {@code waitUntil} conditions and lets a poisoned tab go back into
+     * the pool. Gating on a {@code setTimeout(…, 0)} that must resolve through the
+     * macrotask queue makes the probe fail for a stalled timer queue as well as a
+     * wedged channel (a microtask like {@code Promise.resolve()} would not — it can
+     * settle while timers are starved). {@code awaitPromise} blocks the CDP call
+     * until the timer resolves, so a stuck renderer trips the bounded timeout. We
+     * probe Runtime.evaluate rather than Page.navigate because it's cheap and local
+     * (no network).
      * </p>
      */
     @Override
@@ -2666,11 +2675,12 @@ public class CdpDriver implements Driver {
         }
         try {
             CdpResponse response = cdp.method("Runtime.evaluate")
-                    .param("expression", "1")
+                    .param("expression", "new Promise(function(r){ setTimeout(function(){ r(true); }, 0); })")
+                    .param("awaitPromise", true)
                     .param("returnByValue", true)
                     .timeout(Duration.ofSeconds(3))
                     .send();
-            return !response.isError();
+            return !response.isError() && Boolean.TRUE.equals(response.getResult("result.value"));
         } catch (Exception e) {
             logger.warn("isResponsive check failed: {}", e.getMessage());
             return false;
