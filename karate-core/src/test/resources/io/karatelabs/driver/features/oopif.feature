@@ -41,7 +41,6 @@ Feature: Out-of-Process Iframe (OOPIF) Support
     * def parentValue = script('window.parentValue')
     * match parentValue == 'parent-data'
 
-  @lock=tabs
   Scenario: Cross-origin iframe reachable after switching tabs
     # switchPage() drives the tab through a fresh CDP session, and OOPIF
     # auto-attach is session-scoped — the driver must re-arm it on every
@@ -49,8 +48,9 @@ Feature: Out-of-Process Iframe (OOPIF) Support
     # and switchFrame fails with "could not find frame". Seen in the wild
     # with payment-provider card-field iframes on pooled drivers reused
     # after a scenario that switched or closed tabs.
-    # (also holds the tabs lock: the popup opened here would skew the
-    # page-count assertions in the tab tests if they ran concurrently)
+    # No longer holds @lock=tabs: the popup opens in THIS driver's browser
+    # context, and tab enumeration is context-scoped, so it cannot skew the
+    # page-count assertions in the tab tests.
     * script("window.__popup = window.open('" + crossOriginUrl + "/oopif'), null")
     * delay(500)
     * switchPage(crossOriginUrl + '/oopif')

@@ -1,5 +1,9 @@
-@lock=tabs
 Feature: Tab Switch Tests
+  Runs unlocked: tab enumeration is scoped to the driver's own browser context, so
+  getPages()/switchPage() cannot see or land on a sibling driver's tabs and the count
+  assertions below are stable under parallel load. Previously @lock=tabs because
+  Target.getTargets is browser-wide and unfiltered, which made every count a race
+  against whatever the other pooled slot was opening.
 
   Scenario: Tab switching operations
     * configure driver = driverConfig

@@ -51,6 +51,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -198,6 +199,14 @@ public class CdpDriver implements Driver {
     // attached to a caller-supplied page (the caller owns that tab's lifetime).
     private volatile String ownedBrowserContextId;
     private volatile String browserWebSocketUrl;
+
+    // The browser context this driver's tab LIVES in — resolved at init for every driver,
+    // however it was created, and independent of ownedBrowserContextId (which is only set
+    // when we also created the context and must dispose it). Null means the default
+    // context, which is the normal case for start()/connect(). Scopes tab enumeration:
+    // Target.getTargets is browser-wide, so without this filter a pooled driver sees —
+    // and can switch to — sibling drivers' tabs.
+    private volatile String browserContextId;
 
     // Tab-opened tracking — pushed by Target.targetCreated events.
     // knownTargetIds is seeded at init from Target.getTargets so existing tabs are
@@ -609,6 +618,13 @@ public class CdpDriver implements Driver {
         } else {
             logger.debug("current target ID (from URL): {}", currentTargetId);
         }
+
+        // Resolve which browser context our tab lives in, so tab enumeration can be scoped
+        // to it. Done by lookup rather than trusting ownedBrowserContextId: a driver that
+        // merely connected to a page did not create that page's context but still must not
+        // enumerate across into someone else's.
+        browserContextId = lookupBrowserContextId(currentTargetId);
+        logger.debug("browser context ID: {}", browserContextId == null ? "<default>" : browserContextId);
 
         // Setup event handlers BEFORE enabling domains
         // This prevents race conditions where events fire before handlers are registered
@@ -3766,16 +3782,67 @@ public class CdpDriver implements Driver {
      */
     @SuppressWarnings("unchecked")
     public List<String> getPages() {
+        List<String> pages = new ArrayList<>();
+        for (Map<String, Object> target : pageTargets()) {
+            pages.add((String) target.get("targetId"));
+        }
+        return pages;
+    }
+
+    /**
+     * Resolve the browser context a target belongs to. Null for the default context (and
+     * for a target the browser no longer knows about).
+     */
+    private String lookupBrowserContextId(String targetId) {
+        if (targetId == null) {
+            return null;
+        }
+        try {
+            CdpResponse response = cdp.browserMethod("Target.getTargets").send();
+            List<Map<String, Object>> targets = response.getResult("targetInfos");
+            if (targets != null) {
+                for (Map<String, Object> target : targets) {
+                    if (targetId.equals(target.get("targetId"))) {
+                        return (String) target.get("browserContextId");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("could not resolve browser context for target {}: {}", targetId, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Every page target in THIS driver's browser context.
+     * <p>
+     * {@code Target.getTargets} is browser-wide, so this filter is what keeps tab
+     * enumeration scoped to the driver that asked. Without it a pooled driver counts —
+     * and {@code switchPage} can land on — a sibling driver's tabs, which is why the tab
+     * scenarios had to be serialized against each other.
+     * </p>
+     * <p>
+     * Scoping by context rather than by "tabs I opened" is deliberate: a popup the driven
+     * page opens belongs to the opener's context, so it stays visible, which is the flow
+     * {@code switchPage}/{@code drainOpenedTargets} exist to serve. For a driver in the
+     * default context (the normal {@code start()}/{@code connect()} case) every ordinary
+     * tab is in that same default context, so this is a no-op and enumeration stays
+     * browser-wide exactly as before.
+     * </p>
+     */
+    private List<Map<String, Object>> pageTargets() {
         CdpResponse response = cdp.browserMethod("Target.getTargets").send();
         List<Map<String, Object>> targets = response.getResult("targetInfos");
-        List<String> pages = new ArrayList<>();
+        List<Map<String, Object>> pages = new ArrayList<>();
         if (targets != null) {
             for (Map<String, Object> target : targets) {
-                String type = (String) target.get("type");
-                if ("page".equals(type)) {
-                    String targetId = (String) target.get("targetId");
-                    pages.add(targetId);
+                if (!"page".equals(target.get("type"))) {
+                    continue;
                 }
+                if (!Objects.equals(browserContextId, target.get("browserContextId"))) {
+                    continue;
+                }
+                pages.add(target);
             }
         }
         return pages;
@@ -3790,20 +3857,15 @@ public class CdpDriver implements Driver {
      */
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> getTargetInfos() {
-        CdpResponse response = cdp.browserMethod("Target.getTargets").send();
-        List<Map<String, Object>> targets = response.getResult("targetInfos");
         List<Map<String, Object>> result = new ArrayList<>();
-        if (targets != null) {
-            for (Map<String, Object> target : targets) {
-                if (!"page".equals(target.get("type"))) continue;
-                Map<String, Object> info = new LinkedHashMap<>();
-                String targetId = (String) target.get("targetId");
-                info.put("targetId", targetId);
-                info.put("url", target.get("url"));
-                info.put("title", target.get("title"));
-                info.put("active", targetId != null && targetId.equals(currentTargetId));
-                result.add(info);
-            }
+        for (Map<String, Object> target : pageTargets()) {
+            Map<String, Object> info = new LinkedHashMap<>();
+            String targetId = (String) target.get("targetId");
+            info.put("targetId", targetId);
+            info.put("url", target.get("url"));
+            info.put("title", target.get("title"));
+            info.put("active", targetId != null && targetId.equals(currentTargetId));
+            result.add(info);
         }
         return result;
     }
@@ -3841,17 +3903,12 @@ public class CdpDriver implements Driver {
      * Find a page target whose title or URL contains the given substring, or null.
      */
     private String findPageTarget(String titleOrUrl) {
-        CdpResponse response = cdp.method("Target.getTargets").send();
-        List<Map<String, Object>> targets = response.getResult("targetInfos");
-        if (targets != null) {
-            for (Map<String, Object> target : targets) {
-                if (!"page".equals(target.get("type"))) continue;
-                String title = (String) target.get("title");
-                String url = (String) target.get("url");
-                if ((title != null && title.contains(titleOrUrl)) ||
-                        (url != null && url.contains(titleOrUrl))) {
-                    return (String) target.get("targetId");
-                }
+        for (Map<String, Object> target : pageTargets()) {
+            String title = (String) target.get("title");
+            String url = (String) target.get("url");
+            if ((title != null && title.contains(titleOrUrl)) ||
+                    (url != null && url.contains(titleOrUrl))) {
+                return (String) target.get("targetId");
             }
         }
         return null;

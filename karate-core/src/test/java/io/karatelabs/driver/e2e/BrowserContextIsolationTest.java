@@ -121,4 +121,33 @@ class BrowserContextIsolationTest {
                 "another driver's clearCookies() must not touch alice's jar — this is the"
                         + " pooled reset, and it runs while other scenarios are mid-flight");
     }
+
+    /**
+     * {@code Target.getTargets} is browser-wide, so tab enumeration has to be filtered by
+     * browser context or a driver counts its siblings' tabs. That is what forced
+     * tab-switch.feature to be serialized: its assertions are of the form
+     * {@code getPages().length == initialCount + 1}, which any parallel slot opening a tab
+     * would break.
+     */
+    @Test
+    void testTabEnumerationIsScopedToOwnContext() {
+        alice.setUrl(url("/tab-main"));
+        bob.setUrl(url("/tab-main"));
+
+        int aliceBefore = alice.getPages().size();
+        int bobBefore = bob.getPages().size();
+
+        alice.click("#open-tab");
+
+        // the new tab shows up asynchronously — poll alice rather than sleep
+        long deadline = System.currentTimeMillis() + 5000;
+        while (alice.getPages().size() == aliceBefore && System.currentTimeMillis() < deadline) {
+            Thread.onSpinWait();
+        }
+
+        assertEquals(aliceBefore + 1, alice.getPages().size(), "alice must see the tab she opened");
+        assertEquals(bobBefore, bob.getPages().size(),
+                "bob must NOT see alice's new tab — an unscoped count is what made the tab"
+                        + " scenarios race each other");
+    }
 }
