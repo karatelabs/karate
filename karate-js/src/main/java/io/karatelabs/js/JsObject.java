@@ -184,7 +184,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
 
     /**
      * Subclass extension hook for "own" intrinsic members that are not stored
-     * in {@link #props} — e.g. {@code JsString.length}, {@code JsRegex.source},
+     * in {@code props} — e.g. {@code JsString.length}, {@code JsRegex.source},
      * {@code JsFunction.name} / {@code length} / {@code prototype}. Returns
      * the intrinsic value at this level only (no prototype walk); {@code null}
      * means "not an own intrinsic", letting the caller fall through to the
@@ -234,7 +234,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
     /**
      * True iff {@code name} is an own property on this object — covers
      * non-tombstoned own slots and intrinsic properties declared by subclasses
-     * (via {@link #hasOwnIntrinsic}). Use this for
+     * (via {@code hasOwnIntrinsic}). Use this for
      * {@code Object.getOwnPropertyDescriptor} / {@code hasOwn} / {@code in}
      * semantics; raw {@code props.containsKey} would include tombstones.
      */
@@ -361,7 +361,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
 
     /**
      * Spec-correct attribute byte for an intrinsic own property. Default reads
-     * the slot's attrs via {@link #getAttrs(String)}. Subclasses (especially
+     * the slot's attrs via {@code getAttrs(String)}. Subclasses (especially
      * built-in constructors / prototypes / the {@link JsFunction} hierarchy)
      * override to return tighter attributes for intrinsic members declared via
      * {@link #hasOwnIntrinsic(String)} — e.g. built-in method properties default
@@ -532,7 +532,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
     /**
      * Sugar for the canonical {@code new JsBuiltinMethod(name, length, delegate)}
      * call used by built-in constructor singletons in their {@code resolveMember}
-     * switches. Same shape as {@link Prototype#method(String, int, JsCallable)}
+     * switches. Same shape as {@code Prototype.install(String, int, JsCallable)}
      * — written so that each switch case reads
      * {@code case "isFinite" -> method(name, 1, (JsInvokable) this::isFinite)}
      * with the case label value flowing into the wrap as a single source of truth.
@@ -771,12 +771,12 @@ class JsObject implements ObjectLike, Map<String, Object> {
      * which is the back-end for {@code Object.keys / values / entries / assign}
      * and {@code for...in}. All of those filter by enumerable per spec.
      * <p>
-     * Iterates {@link #props} directly so each yielded value reads the slot's
+     * Iterates {@code props} directly so each yielded value reads the slot's
      * current value at next() time — callback-driven mutations during iteration
      * are visible (test262 {@code Array.prototype.map}'s "callback mutates
      * earlier index, later index sees update" semantics rely on this).
      * Subclasses with alternate storage ({@link JsGlobalThis}) override.
-     * Routes through {@link #isEnumerable} so subclass {@code getOwnAttrs}
+     * Routes through {@code isEnumerable} so subclass {@code getOwnAttrs}
      * overrides (e.g. JsMath returning {@code WRITABLE | CONFIGURABLE} — no
      * enumerable bit — for its built-in methods) win.
      * <p>
@@ -830,7 +830,7 @@ class JsObject implements ObjectLike, Map<String, Object> {
     /**
      * JS-semantic iteration variant — accessor descriptors invoke their
      * getters with {@code ctx} when {@code ctx != null}; otherwise behaves as
-     * the no-arg {@link #jsEntries()} (raw values, accessors → null). This is
+     * the no-arg {@code jsEntries()} (raw values, accessors → null). This is
      * the back-end called from {@code Object.keys / values / entries / assign}
      * via {@link Terms#toIterable(Object, CoreContext)} so accessor
      * descriptors observe their spec invocation.
