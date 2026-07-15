@@ -401,7 +401,9 @@ public class Locators {
         // Return whether an option actually matched so select() can fail loudly
         // on a no-match instead of silently no-opping (the change event is only
         // worth firing when the value really changed).
-        String js = "var e = " + selector(locator) + "; var t = \"" + escapedText + "\"; var matched = false;" +
+        String js = "var e = " + selector(locator) + ";" +
+                notFoundGuard("e", locator) +
+                " var t = \"" + escapedText + "\"; var matched = false;" +
                 " for (var i = 0; i < e.options.length; ++i)" +
                 " if (" + condition + ") { e.options[i].selected = true; matched = true; break }" +
                 " if (matched) {" +
@@ -412,10 +414,39 @@ public class Locators {
     }
 
     /**
+     * Marker in the page-side {@code Error} thrown by an action whose locator resolved
+     * to null. {@link io.karatelabs.driver.cdp.CdpDriver} matches on this to tell a
+     * transient re-resolve miss (the document swapped under us — retryable) apart from
+     * a genuine JS error in the page under test.
+     */
+    public static final String ELEMENT_NOT_FOUND = "KARATE_ELEMENT_NOT_FOUND";
+
+    /**
+     * Generate a null guard for a resolved element variable, naming the locator.
+     * <p>
+     * Action JS must fail loudly on a null resolve. The two alternatives are both worse:
+     * a silent no-op strands the caller with a downstream symptom far from the cause (an
+     * empty field, an unfired event), and an unguarded deref reports a cryptic
+     * "Cannot read properties of null" against generated source with no locator in it.
+     * </p>
+     * <p>
+     * {@link #SCROLL_JS_FUNCTION} deliberately keeps its no-op-on-missing contract
+     * instead — scrolling something absent is harmless, and that behavior is pinned by
+     * a test. Read actions ({@link #textJs}, {@link #valueJs}, …) likewise stay
+     * null-tolerant and return null.
+     * </p>
+     */
+    private static String notFoundGuard(String var, String locator) {
+        return " if (!" + var + ") throw new Error(\"" + ELEMENT_NOT_FOUND + ": " + escapeForJs(locator) + "\");";
+    }
+
+    /**
      * Generate JS to get element position.
      */
     public static String getPositionJs(String locator) {
-        String js = "var r = " + selector(locator) + ".getBoundingClientRect();" +
+        String js = "var e = " + selector(locator) + ";" +
+                notFoundGuard("e", locator) +
+                " var r = e.getBoundingClientRect();" +
                 " var dx = window.scrollX; var dy = window.scrollY;" +
                 " return { x: r.x + dx, y: r.y + dy, width: r.width, height: r.height }";
         return wrapInFunctionInvoke(js);
@@ -425,15 +456,20 @@ public class Locators {
      * Generate JS to focus an element with cursor at end.
      */
     public static String focusJs(String locator) {
-        return "var e = " + selector(locator) +
-                "; e.focus(); try { e.selectionStart = e.selectionEnd = e.value.length } catch(x) {}";
+        String js = "var e = " + selector(locator) + ";" +
+                notFoundGuard("e", locator) +
+                " e.focus(); try { e.selectionStart = e.selectionEnd = e.value.length } catch(x) {}";
+        return wrapInFunctionInvoke(js);
     }
 
     /**
      * Generate JS to click an element.
      */
     public static String clickJs(String locator) {
-        return selector(locator) + ".click()";
+        String js = "var e = " + selector(locator) + ";" +
+                notFoundGuard("e", locator) +
+                " e.click()";
+        return wrapInFunctionInvoke(js);
     }
 
     /**
@@ -450,7 +486,7 @@ public class Locators {
     public static String inputJs(String locator, String value) {
         String escapedValue = escapeForJs(value);
         String js = "var e = " + selector(locator) + ";" +
-                " if (!e) return;" +
+                notFoundGuard("e", locator) +
                 " e.focus();" +
                 " var proto = e.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;" +
                 " var setter = Object.getOwnPropertyDescriptor(proto, 'value');" +
@@ -466,7 +502,7 @@ public class Locators {
      */
     public static String clearJs(String locator) {
         String js = "var e = " + selector(locator) + ";" +
-                " if (!e) return;" +
+                notFoundGuard("e", locator) +
                 " e.focus();" +
                 " var proto = e.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;" +
                 " var setter = Object.getOwnPropertyDescriptor(proto, 'value');" +

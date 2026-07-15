@@ -462,4 +462,37 @@ class LocatorsE2eTest extends DriverTestBase {
                 "a present element must still scroll without error");
     }
 
+    /**
+     * Action JS on a locator that resolves to NOTHING must fail loudly and name the locator.
+     * Two regressions are pinned here. An unguarded deref reported a cryptic
+     * "Cannot read properties of null (reading 'focus')" against generated source with no
+     * locator anywhere in it. Worse, input/clear silently no-opped, stranding the caller with
+     * a downstream symptom far from the cause — an empty field failing a match many steps
+     * later. The marker also has to survive, since it is what makes a transient re-resolve
+     * miss retryable rather than fatal.
+     * <p>
+     * Contrast {@link #testScrollJsOnMissingElementIsNoOpNotCrash} — scroll deliberately keeps
+     * its no-op contract, because scrolling something absent is harmless.
+     * </p>
+     */
+    @Test
+    void testActionJsOnMissingElementFailsLoudlyNamingLocator() {
+        driver.setUrl("data:text/html,<div id='present'>here</div>");
+        List<String> actions = List.of(
+                Locators.focusJs("#totally-absent"),
+                Locators.clickJs("#totally-absent"),
+                Locators.inputJs("#totally-absent", "x"),
+                Locators.clearJs("#totally-absent"),
+                Locators.getPositionJs("#totally-absent"),
+                Locators.optionSelector("#totally-absent", "x"));
+        for (String js : actions) {
+            RuntimeException e = assertThrows(RuntimeException.class, () -> driver.script(js),
+                    "action on a missing element must throw, not no-op: " + js);
+            assertTrue(e.getMessage().contains(Locators.ELEMENT_NOT_FOUND),
+                    "must carry the retryable marker, got: " + e.getMessage());
+            assertTrue(e.getMessage().contains("#totally-absent"),
+                    "must name the locator, got: " + e.getMessage());
+        }
+    }
+
 }

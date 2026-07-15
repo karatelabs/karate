@@ -2712,8 +2712,7 @@ public class CdpDriver implements Driver {
      */
     public Element click(String locator) {
         logger.debug("click: {}", locator);
-        retryIfNeeded(locator);
-        script(Locators.clickJs(locator));
+        elementAction(locator, Locators.clickJs(locator));
         return BaseElement.existing(this, locator);
     }
 
@@ -2722,8 +2721,7 @@ public class CdpDriver implements Driver {
      */
     public Element focus(String locator) {
         logger.debug("focus: {}", locator);
-        retryIfNeeded(locator);
-        script(Locators.focusJs(locator));
+        elementAction(locator, Locators.focusJs(locator));
         return BaseElement.existing(this, locator);
     }
 
@@ -2732,8 +2730,7 @@ public class CdpDriver implements Driver {
      */
     public Element clear(String locator) {
         logger.debug("clear: {}", locator);
-        retryIfNeeded(locator);
-        script(Locators.clearJs(locator));
+        elementAction(locator, Locators.clearJs(locator));
         return BaseElement.existing(this, locator);
     }
 
@@ -2743,12 +2740,11 @@ public class CdpDriver implements Driver {
      */
     public Element input(String locator, String value) {
         logger.debug("input: {} <- {}", locator, value);
-        retryIfNeeded(locator);
         focus(locator);
         Boolean isDateTimeInput = (Boolean) script(locator,
             "_ && ['time','date','datetime-local','month','week'].indexOf(_.type) >= 0");
         if (Boolean.TRUE.equals(isDateTimeInput)) {
-            script(Locators.inputJs(locator, value));
+            elementAction(locator, Locators.inputJs(locator, value));
         } else {
             clear(locator);
             keys().type(value);
@@ -2761,8 +2757,7 @@ public class CdpDriver implements Driver {
      */
     public Element value(String locator, String value) {
         logger.debug("value: {} <- {}", locator, value);
-        retryIfNeeded(locator);
-        script(Locators.inputJs(locator, value));
+        elementAction(locator, Locators.inputJs(locator, value));
         return BaseElement.existing(this, locator);
     }
 
@@ -2771,8 +2766,7 @@ public class CdpDriver implements Driver {
      */
     public Element select(String locator, String text) {
         logger.debug("select: {} <- {}", locator, text);
-        retryIfNeeded(locator);
-        Object matched = script(Locators.optionSelector(locator, text));
+        Object matched = elementAction(locator, Locators.optionSelector(locator, text));
         if (!Boolean.TRUE.equals(matched)) {
             throw new DriverException("select failed, no option matching: '" + text + "' for: " + locator);
         }
@@ -2877,8 +2871,7 @@ public class CdpDriver implements Driver {
      */
     @SuppressWarnings("unchecked")
     public Map<String, Object> position(String locator) {
-        retryIfNeeded(locator);
-        return (Map<String, Object>) script(Locators.getPositionJs(locator));
+        return (Map<String, Object>) elementAction(locator, Locators.getPositionJs(locator));
     }
 
     /**
@@ -3016,6 +3009,56 @@ public class CdpDriver implements Driver {
             throw new DriverException("element not found after " + options.getRetryCount() +
                     " retries: " + locator + " | " + getDriverState());
         }
+    }
+
+    /**
+     * Re-resolve attempts for an element that vanished between the existence check and
+     * the action eval. Small on purpose: each attempt already carries a full
+     * {@link #retryIfNeeded} poll, and a locator that keeps vanishing is a genuinely
+     * unstable page, not a transient worth papering over.
+     */
+    private static final int ELEMENT_ACTION_ATTEMPTS = 3;
+
+    /**
+     * Wait for {@code locator} to exist, then run an action script that re-resolves it
+     * inside the page, retrying if it vanished in between.
+     * <p>
+     * The locator is resolved twice — once here by {@link #retryIfNeeded} (existence)
+     * and again by the action JS itself — so a document that swaps between the two evals
+     * leaves the action resolving null. Observed in CI as input() reporting
+     * "TypeError: Cannot read properties of null (reading 'focus')" against generated
+     * source, on a page still settling under a slow container. The action JS now names
+     * the locator (see {@link Locators#ELEMENT_NOT_FOUND}) so a transient miss can be
+     * re-resolved rather than surfaced.
+     * </p>
+     * <p>
+     * Only the element-not-found marker is retried. Any other page-side JS error
+     * propagates untouched — a real bug in the page under test must not be retried into
+     * silence.
+     * </p>
+     */
+    private Object elementAction(String locator, String js) {
+        RuntimeException lastError = null;
+        for (int i = 0; i < ELEMENT_ACTION_ATTEMPTS; i++) {
+            retryIfNeeded(locator);
+            try {
+                return script(js);
+            } catch (RuntimeException e) {
+                if (!isElementVanished(e)) {
+                    throw e;
+                }
+                lastError = e;
+                logger.warn("element vanished between existence check and action, re-resolving ({}/{}): {}",
+                        i + 1, ELEMENT_ACTION_ATTEMPTS, locator);
+                sleep(options.getRetryInterval());
+            }
+        }
+        throw new DriverException("element vanished during action after " + ELEMENT_ACTION_ATTEMPTS
+                + " re-resolve attempts: " + locator + " | " + getDriverState(), lastError);
+    }
+
+    private static boolean isElementVanished(RuntimeException e) {
+        return e.getMessage() != null && e.getMessage().contains(Locators.ELEMENT_NOT_FOUND);
     }
 
     // ========== Wait Methods ==========
