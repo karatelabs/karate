@@ -167,6 +167,10 @@
                         <version>12.2.2</version>
                         <configuration>
                             <dataDirectory>${user.home}/.dependency-check/data</dataDirectory>
+                            <!-- absolute: a relative path resolves against each module's basedir -->
+                            <suppressionFiles>
+                                <suppressionFile>${session.executionRootDirectory}/etc/cve-suppressions.xml</suppressionFile>
+                            </suppressionFiles>
                             <skipProvidedScope>true</skipProvidedScope>
                             <skipTestScope>true</skipTestScope>
                             <nvdApiDelay>3000</nvdApiDelay>
