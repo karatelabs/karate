@@ -139,16 +139,48 @@ jobs:
             -DnvdValidForHours=144 \
             -Dformat=JSON
 
-      # Gate on dep-check's own outcome, not job status. A partial DB from an
-      # interrupted/timed-out update must never be saved (it shows up as a cache
-      # far smaller than the typical 500MB-1GB, then silently returns zero CVEs
-      # on every subsequent run) - but dep-check succeeding means the DB is sound
-      # no matter what a later step does, and the report step exits 1 on critical
-      # CVEs. Gating on job status discards a good multi-hour NVD download.
+      # A partial DB fails silently - dep-check reports zero CVEs and the job goes
+      # green, which is worse than any red build. The live risk is a restored-but-
+      # partial cache: if its recorded timestamp is inside nvdValidForHours, the
+      # step above skips the update and scans against it. Prove the DB is real
+      # before caching it. Check and update share one step here, so the scan has
+      # already run by this point - this cannot stop a bad scan, only make it loud
+      # and keep the bad DB out of the cache (a red job also blocks the deploy).
+      - name: Verify NVD database is populated
+        id: nvdcheck
+        if: steps.depcheck.outcome == 'success'
+        run: |
+          DATA="${HOME}/.dependency-check/data"
+          DB=$(find "${DATA}" -name '*.mv.db' -print -quit)
+          if [ -z "${DB}" ]; then
+            echo "::error::no H2 database found under ${DATA} - dep-check would report zero CVEs"
+            ls -laR "${DATA}" || true
+            exit 1
+          fi
+          BYTES=$(stat -c%s "${DB}")
+          echo "NVD database : ${DB}"
+          echo "NVD size     : ${BYTES} bytes ($((BYTES / 1048576)) MB)"
+          du -sh "${DATA}" || true
+          # Provisional floor, deliberately far below any plausible complete DB: a
+          # schema-only ODC database is a few MB, while a populated one holds ~350k
+          # records (the compressed cache alone runs to 111MB+). 200MB cannot
+          # false-positive on a good DB but still catches the empty/near-empty case
+          # this guards. The step logs the real size above - once a known-good run
+          # reports it, raise this to something that also catches a half-built DB.
+          MIN=$((200 * 1048576))
+          if [ "${BYTES}" -lt "${MIN}" ]; then
+            echo "::error::NVD database is only $((BYTES / 1048576)) MB (floor: $((MIN / 1048576)) MB) - looks partial, refusing to cache it"
+            exit 1
+          fi
+
+      # Gated on the verify step, which only runs when dep-check succeeded, so this
+      # one condition means "the DB both built and looks real". A good multi-hour
+      # NVD download has to survive whatever a later step does - the report step
+      # exits 1 on critical CVEs - so this must never gate on job status.
       # always() is load-bearing: a bare `if:` is implicitly wrapped in success(),
       # which would re-couple the save to unrelated steps.
       - name: Save NVD database cache
-        if: always() && steps.depcheck.outcome == 'success'
+        if: always() && steps.nvdcheck.outcome == 'success'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.dependency-check/data
