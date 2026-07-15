@@ -34,13 +34,46 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
   git push
   ```
 
-## 2. Publish Maven Artifacts
+## 2. Generate the CVE & SBOM Report
 
-- [ ] Trigger the Maven release CI/CD job **manually**
-- [ ] Use version `X.Y.Z` (must match the tag exactly)
+The scan lives in its own workflow (`.github/workflows/cve.yml`), separate from the release. It is
+deliberately **not** on the release path — an NVD scan can take hours and a release should not wait
+on one, so the release does **not** block on CVEs. `cve.yml` is the gate: it fails on CVSS >= 9.0.
+
+- [ ] Trigger **CVE & SBOM** manually (`workflow_dispatch`) on `main`. Do this *after* step 1 — the
+      workflow reads the version from the pom, so dispatching before the version commit stamps the
+      report header `X.Y.Z.RC1`. It can run in parallel with step 3.
+- [ ] Expect minutes on a warm NVD cache, but **2+ hours on a cold one** (the cache is keyed
+      `nvd-db-` and only a completed run saves it). If the wait is unacceptable, use the local
+      fallback below.
+- [ ] Download the `cve-sbom-report-X.Y.Z` artifact from the run — you want `cve-sbom-report.html`
+- [ ] Confirm the CVE Summary shows **no active Critical (>= 9)** rows. Criticals under
+      **Suppressed** are fine — those are declared false positives, see `etc/cve-suppressions.xml`
+
+  Local fallback — produces the identical report without waiting on CI:
+  ```bash
+  mvn -B -ntp org.owasp:dependency-check-maven:12.2.2:check \
+    -DossIndexAnalyzerEnabled=false -DskipProvidedScope=true -DskipTestScope=true \
+    -DsuppressionFiles=etc/cve-suppressions.xml -Dformat=JSON
+  python3 etc/generate-cve-report.py --version X.Y.Z
+  ```
+  The report lands at `target/cve-sbom-report.html`. Pass `--version` explicitly — unlike CI it does
+  not read the pom, and an omitted flag drops the version from the header entirely.
+
+  If dep-check flags a **false positive** (a CVE for a same-named library in another ecosystem is
+  the usual culprit), add a rule to `etc/cve-suppressions.xml` rather than waving the release
+  through — the suppression is what makes the gate meaningful on the next run.
+
+## 3. Publish Maven Artifacts
+
+- [ ] Trigger the **maven-release** job **manually** (`workflow_dispatch`)
+- [ ] Use version `X.Y.Z` (must match the tag exactly), `maven: enabled`, `tests: enabled`
+- [ ] The job sets the pom version itself — it does not rely on the commit from step 1
 - [ ] Verify artifacts appear on Maven Central
+- [ ] Download the `karate-release-X.Y.Z` artifact — it holds `karate-X.Y.Z.zip`, which unzips to the
+      `karate-X.Y.Z.jar` fat jar you attach in step 4
 
-## 3. GitHub Release
+## 4. GitHub Release
 
 - [ ] Go to https://github.com/karatelabs/karate/releases/new and create tag `vX.Y.Z` on the release form (target: `main`) — this creates the tag as part of publishing the release
 - [ ] Set the **release title** to `vX.Y.Z` explicitly (must match the tag) — if left blank, the GitHub UI defaults the title to the most recent commit message
@@ -79,10 +112,10 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
   - Skip dependabot-only / chore-only releases of either section if there's nothing in it — don't ship empty headers.
 
 - [ ] Upload release assets (attach to the GitHub release):
-  - `karate-X.Y.Z.jar` (fat jar)
-  - `cve-sbom-report.html`
+  - `karate-X.Y.Z.jar` (fat jar — unzipped from the step 3 `karate-release-X.Y.Z` artifact)
+  - `cve-sbom-report.html` (from step 2)
 
-## 4. Close Issues and Milestone
+## 5. Close Issues and Milestone
 
 - [ ] Close each fixed issue on the `X.Y.Z` milestone, leaving a `vX.Y.Z released` comment on each (always — including issues already labeled `fixed`):
   ```bash
@@ -91,7 +124,7 @@ Steps to publish a new Karate release. Replace `X.Y.Z` with the version being re
 - [ ] Move any remaining open issues to the next milestone
 - [ ] Close the GitHub milestone for `X.Y.Z`
 
-## 5. Update karate.sh CLI Manifest
+## 6. Update karate.sh CLI Manifest
 
 This is critical — the CLI installer pulls versions from this manifest.
 
@@ -111,14 +144,14 @@ This is critical — the CLI installer pulls versions from this manifest.
 - [ ] Verify: `curl -s https://karate.sh/manifest.json | jq '.channel_defaults.stable'`
 - [ ] Refer to `../karate-sh/README.md` for full manifest schema details
 
-## 6. Update Reference Projects
+## 7. Update Reference Projects
 
 - [ ] Update `../karate-template` to use version `X.Y.Z`
 - [ ] Update `../karate-todo` to use version `X.Y.Z`
 - [ ] Verify both projects build and tests pass
 - [ ] Commit and push both repos
 
-## 7. Update karate-examples
+## 8. Update karate-examples
 
 > **TODO**: Automate this step with CI/CD — a workflow that bumps the Karate version
 > across all example projects and runs their tests.
@@ -127,7 +160,7 @@ This is critical — the CLI installer pulls versions from this manifest.
 - [ ] Build and test all examples to catch any breaking changes
 - [ ] Commit and push
 
-## 8. Bump to Next Development Version
+## 9. Bump to Next Development Version
 
 - [ ] Update `pom.xml` to the next RC version:
   ```bash
@@ -139,7 +172,7 @@ This is critical — the CLI installer pulls versions from this manifest.
   git push
   ```
 
-## 9. Announce
+## 10. Announce
 
 - [ ] LinkedIn
 - [ ] Twitter / X
