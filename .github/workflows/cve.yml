@@ -113,8 +113,8 @@ jobs:
             -DdataDirectory=${HOME}/.dependency-check/data \
             -DnvdValidForHours=144
 
-      # Cheap insurance, and the only thing that logs the DB size - which is why the
-      # floor below is still a guess. The "partial DB silently reports zero CVEs"
+      # Cheap insurance, and the only thing that logs the DB size - which is what the
+      # floor below is baselined on. The "partial DB silently reports zero CVEs"
       # story is dep-check lore and looks weaker than its reputation: with
       # autoUpdate=false and no database dep-check throws NoDataException rather
       # than passing, and it records the update timestamp only after a *completed*
@@ -135,13 +135,16 @@ jobs:
           echo "NVD database : ${DB}"
           echo "NVD size     : ${BYTES} bytes ($((BYTES / 1048576)) MB)"
           du -sh "${DATA}" || true
-          # Provisional floor, deliberately far below any plausible complete DB: a
-          # schema-only ODC database is a few MB, while a populated one holds ~350k
-          # records (the compressed cache alone runs to 111MB+). 200MB cannot
-          # false-positive on a good DB but still catches the empty/near-empty case
-          # this guards. The step logs the real size above - once a known-good run
-          # reports it, raise this to something that also catches a half-built DB.
-          MIN=$((200 * 1048576))
+          # Floor for a complete DB. A schema-only ODC database is a few MB; a
+          # populated one holds ~364k records and measures ~231MB as the raw .mv.db
+          # this stats. Do not sanity-check that against the ~112MB cache entry -
+          # that number is the compressed archive, and reasoning from it is how the
+          # floor first landed at 200MB (a 14% gap that a 86%-built DB sailed
+          # through). 220MB sits just under a known-good DB, which only grows as
+          # CVEs accumulate, so it cannot false-positive while still catching a
+          # partial build. Re-baseline if DEPCHECK_VERSION changes - a schema
+          # change moves the size.
+          MIN=$((220 * 1048576))
           if [ "${BYTES}" -lt "${MIN}" ]; then
             echo "::error::NVD database is only $((BYTES / 1048576)) MB (floor: $((MIN / 1048576)) MB) - looks partial, refusing to cache it or scan against it"
             exit 1
