@@ -16,6 +16,11 @@ name: CVE & SBOM
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: Version to scan (e.g. 2.1.1) — blank scans the pom version as-is
+        required: false
+        default: ''
   schedule:
     # Weekly CVE & SBOM scan on Saturdays (30 min after OpenSSF Scorecard)
     - cron: '0 2 * * 6'
@@ -43,6 +48,22 @@ jobs:
           java-version: 21
           cache: maven
 
+      # Release reports are cut before the version commit lands (or off a pom still
+      # carrying .RC1), so the dispatch takes the version to stamp. It must rewrite the
+      # pom rather than only feed --version to the report: dep-check reads the built
+      # jars off disk, so the SBOM lists karate's own modules at whatever the pom says
+      # (io.karatelabs:karate-core:X.Y.Z, and asset entries like
+      # "karate-core-X.Y.Z.jar: alpine.min.js"). Stamping the header alone would ship a
+      # report whose title and component list disagree.
+      #
+      # Nothing is pushed - the rewrite is ephemeral, local to the runner's checkout.
+      # Empty on a schedule run, which then scans the pom as-is.
+      - name: Set version
+        if: github.event.inputs.version != ''
+        run: mvn versions:set versions:commit -B -ntp -DnewVersion=${{ github.event.inputs.version }}
+
+      # Always read back from the pom, so the report header, the SBOM components and the
+      # artifact name cannot drift from each other or from what was actually scanned.
       - name: Determine version
         id: version
         run: |

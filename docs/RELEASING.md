@@ -40,9 +40,11 @@ The scan lives in its own workflow (`.github/workflows/cve.yml`), separate from 
 deliberately **not** on the release path — an NVD scan can take hours and a release should not wait
 on one, so the release does **not** block on CVEs. `cve.yml` is the gate: it fails on CVSS >= 9.0.
 
-- [ ] Trigger **CVE & SBOM** manually (`workflow_dispatch`) on `main`. Do this *after* step 1 — the
-      workflow reads the version from the pom, so dispatching before the version commit stamps the
-      report header `X.Y.Z.RC1`. It can run in parallel with step 3.
+- [ ] Trigger **CVE & SBOM** manually (`workflow_dispatch`) on `main` with `version: X.Y.Z`. The
+      input rewrites the pom inside the runner before the scan (nothing is pushed), so the report
+      header, the SBOM's own `io.karatelabs:*` component entries and the artifact name all agree on
+      `X.Y.Z`. Leave it blank — as the weekly schedule does — to scan the pom as-is. Can run in
+      parallel with step 3.
 - [ ] Expect minutes on a warm NVD cache, but **2+ hours on a cold one** (the cache is keyed
       `nvd-db-` and only a completed run saves it). If the wait is unacceptable, use the local
       fallback below.
@@ -58,7 +60,9 @@ on one, so the release does **not** block on CVEs. `cve.yml` is the gate: it fai
   python3 etc/generate-cve-report.py --version X.Y.Z
   ```
   The report lands at `target/cve-sbom-report.html`. Pass `--version` explicitly — unlike CI it does
-  not read the pom, and an omitted flag drops the version from the header entirely.
+  not read the pom, and an omitted flag drops the version from the header entirely. Note it stamps
+  only the *header*: the SBOM's own `io.karatelabs:*` entries come from the jars on disk, so build
+  from a pom already at `X.Y.Z` if you need the two to agree.
 
   If dep-check flags a **false positive** (a CVE for a same-named library in another ecosystem is
   the usual culprit), add a rule to `etc/cve-suppressions.xml` rather than waving the release
