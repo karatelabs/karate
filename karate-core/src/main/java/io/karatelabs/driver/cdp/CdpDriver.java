@@ -1155,6 +1155,13 @@ public class CdpDriver implements Driver {
     /**
      * Navigate to URL and wait for page load.
      */
+    /**
+     * How long to wait for a local (data:/about:) navigation to report its commit. A
+     * local document commits in milliseconds; this bound exists only so a browser that
+     * never reports frameNavigated cannot stall the caller.
+     */
+    private static final long LOCAL_NAV_COMMIT_TIMEOUT_MS = 2000;
+
     public void setUrl(String url) {
         logger.debug("navigating to: {}", url);
 
@@ -1224,9 +1231,24 @@ public class CdpDriver implements Driver {
             return;
         }
 
-        // Skip page load wait for data: and about: URLs - they load synchronously
-        // and don't fire normal lifecycle events
+        // data: and about: URLs commit locally and don't fire the normal load lifecycle,
+        // so the full waitForPageLoad below would only ever time out on them. Returning
+        // with no barrier at all is what let the pooled reset's about:blank still be in
+        // flight when the scenario's first real navigation was issued: Chrome aborted one
+        // against the other (net::ERR_ABORTED clustered on the post-reset /input, /wait,
+        // /shadow-dom navigations) and the scenario continued against whichever document
+        // won that race. Barrier on THIS navigation actually committing instead — cheap,
+        // since a local document commits in milliseconds.
+        //
+        // Best-effort and bounded: if the commit signal never arrives we proceed anyway,
+        // which is no worse than the unconditional return this replaces.
         if (url.startsWith("data:") || url.startsWith("about:")) {
+            String localLoaderId = navResponse.getResultAsString("loaderId");
+            if (localLoaderId != null && !pollUntil(LOCAL_NAV_COMMIT_TIMEOUT_MS, 10,
+                    () -> localLoaderId.equals(committedLoaderId))) {
+                logger.debug("local navigation did not report commit within {}ms: {}",
+                        LOCAL_NAV_COMMIT_TIMEOUT_MS, url);
+            }
             pendingNavigationUrl = null;
             return;
         }
