@@ -33,11 +33,19 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 
 /**
- * Driver provider for Testcontainers Chrome that creates a new tab per pooled slot.
- * This enables parallel execution within a single Chrome container.
+ * Driver provider for Testcontainers Chrome that gives each pooled slot its own
+ * incognito browser context (with its own page) inside a single Chrome container.
+ * This enables parallel execution that is actually isolated.
  * <p>
  * Pool size is auto-detected from Runner.parallel(N), ensuring the pool always
  * matches the parallelism level.
+ * </p>
+ * <p>
+ * Slots previously got a bare tab in the browser's DEFAULT context. That shares one
+ * cookie jar across every tab, so the pooled reset's {@code clearCookies()} — which is
+ * browser-context-wide — wiped the cookies of whichever scenarios were running in
+ * parallel at the time. A context per slot is what makes the reset scenario-local.
+ * </p>
  */
 public class ContainerDriverProvider extends PooledDriverProvider {
 
@@ -58,10 +66,10 @@ public class ContainerDriverProvider extends PooledDriverProvider {
 
     @Override
     protected Driver createDriver(Map<String, Object> config) {
-        String wsUrl = container.getCdpUrl();
-        logger.info("Created new tab in container: {}", wsUrl);
         CdpDriverOptions options = CdpDriverOptions.fromMap(config);
-        return CdpDriver.connect(wsUrl, options);
+        Driver driver = CdpDriver.connectNewContext(container.getBrowserCdpUrl(), options);
+        logger.info("Created driver in its own browser context in container");
+        return driver;
     }
 
 }

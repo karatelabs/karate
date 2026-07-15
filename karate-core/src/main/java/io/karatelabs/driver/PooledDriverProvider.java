@@ -405,6 +405,21 @@ public class PooledDriverProvider implements DriverProvider {
     /**
      * Create a new driver from config.
      * Subclasses should override for custom driver creation (e.g., Testcontainers).
+     * <p>
+     * With no {@code webSocketUrl} each pooled driver launches its own browser process,
+     * so slots are isolated by construction. Against a SHARED browser the isolation has
+     * to be asked for: a browser-level endpoint gets each slot its own incognito context
+     * via {@link CdpDriver#connectNewContext}, because pooled slots sharing one browser
+     * context share its cookie jar, and the per-acquire {@code clearCookies()} in
+     * {@link #resetDriver} is context-wide — one slot resetting would wipe the cookies of
+     * every other slot mid-scenario.
+     * </p>
+     * <p>
+     * A page-level endpoint is taken at face value and attached to directly: the caller
+     * named a specific tab, so it owns that tab's lifetime and isolation. Pointing a pool
+     * of more than one slot at a single page endpoint means every slot drives the SAME
+     * tab — that is inherent to the request, not something this method can fix.
+     * </p>
      */
     protected Driver createDriver(Map<String, Object> config) {
         String type = (String) config.getOrDefault("type", "chrome");
@@ -414,11 +429,17 @@ public class PooledDriverProvider implements DriverProvider {
         // CDP (default)
         CdpDriverOptions options = CdpDriverOptions.fromMap(config);
         String wsUrl = options.getWebSocketUrl();
-        if (wsUrl != null && !wsUrl.isEmpty()) {
-            return CdpDriver.connect(wsUrl, options);
-        } else {
+        if (wsUrl == null || wsUrl.isEmpty()) {
             return CdpDriver.start(options);
         }
+        if (wsUrl.contains("/devtools/browser/")) {
+            return CdpDriver.connectNewContext(wsUrl, options);
+        }
+        if (poolSize > 1) {
+            logger.warn("pool size {} but webSocketUrl names a single page — all slots will drive the SAME tab."
+                    + " Pass a browser-level endpoint (see /json/version) for isolated slots: {}", poolSize, wsUrl);
+        }
+        return CdpDriver.connect(wsUrl, options);
     }
 
     private void closeDriverQuietly(Driver driver) {

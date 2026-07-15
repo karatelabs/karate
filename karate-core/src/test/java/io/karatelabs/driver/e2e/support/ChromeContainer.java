@@ -90,11 +90,53 @@ public class ChromeContainer extends GenericContainer<ChromeContainer> {
 
     /**
      * Get the WebSocket URL for CDP connection.
+     * <p>
+     * Creates a new tab in the browser's DEFAULT context. Callers running drivers in
+     * parallel should use {@link #getBrowserCdpUrl()} with
+     * {@link CdpDriver#connectNewContext} instead — tabs in the default context share a
+     * cookie jar, so they are not isolated from each other.
+     * </p>
      */
     public String getCdpUrl() {
         String host = getHost();
         int port = getMappedPort(CDP_PORT);
         return fetchWebSocketUrl(host, port);
+    }
+
+    /**
+     * Get the BROWSER-level WebSocket URL (ws://host:port/devtools/browser/...).
+     * Pair with {@link CdpDriver#connectNewContext} to get a driver in its own isolated
+     * incognito browser context.
+     */
+    @SuppressWarnings("unchecked")
+    public String getBrowserCdpUrl() {
+        String host = getHost();
+        int port = getMappedPort(CDP_PORT);
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://" + host + ":" + port + "/json/version"))
+                    .timeout(Duration.ofSeconds(10))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                Map<String, Object> version = (Map<String, Object>) JSONValue.parse(response.body());
+                if (version != null) {
+                    String wsUrl = (String) version.get("webSocketDebuggerUrl");
+                    if (wsUrl != null) {
+                        return wsUrl.replace("localhost", host).replace("127.0.0.1", host);
+                    }
+                }
+            }
+            throw new RuntimeException("Failed to get browser WebSocket URL from /json/version");
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to fetch browser WebSocket URL: " + e.getMessage(), e);
+        }
     }
 
     /**

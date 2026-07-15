@@ -1,11 +1,11 @@
-@lock=*
 Feature: Cookie Tests
   Cookie management operations
-  Runs each scenario exclusively (@lock=*): cookies are shared at the browser
-  level (so scenarios must not overlap), and the cookie set/get CDP ops are
-  heavy enough that the shared @lock=render (which still allows a light
-  neighbour) let a set race its read on a 2-vCPU runner — the cookie read back
-  null. Exclusive locking gives both the mutual exclusion and the isolation.
+  Runs unlocked: each pooled driver owns an incognito browser context, so it has
+  its own cookie jar and these scenarios cannot see or clear each other's cookies.
+  Previously @lock=* because cookies were shared browser-wide — every scenario's
+  pooled reset called clearCookies(), which was context-wide, so it wiped whatever
+  was running in parallel. The "set races its read, cookie reads back null" that
+  outlived @lock=render was that same wipe, not a timing race.
 
   Background:
     * configure driver = driverConfig
@@ -61,10 +61,10 @@ Feature: Cookie Tests
     * match cookie('bulk1').value == 'v1'
     * match cookie('bulk2').value == 'v2'
 
-  Scenario: Cookie stress test - would cause parallel interference without @lock
-    # This scenario clears cookies repeatedly. Without @lock=cookies at feature level,
-    # this would interfere with other cookie tests running in parallel.
-    # The @lock=cookies ensures mutual exclusion.
+  Scenario: Cookie stress test - repeated clears must stay scenario-local
+    # Clears cookies repeatedly. This used to interfere with every other cookie
+    # scenario running in parallel, because the clear was browser-context-wide.
+    # The driver's own incognito context now bounds the blast radius to this scenario.
     * clearCookies()
     * delay(50)
     * clearCookies()

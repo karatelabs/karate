@@ -192,6 +192,13 @@ public class CdpDriver implements Driver {
     // Tab/target tracking for close() support
     private String currentTargetId;
 
+    // Set only by connectNewContext(): the incognito browser context this driver owns
+    // outright, and the browser-level endpoint needed to dispose it at quit(). Null for
+    // a driver that launched its own browser (process isolation already) or that merely
+    // attached to a caller-supplied page (the caller owns that tab's lifetime).
+    private volatile String ownedBrowserContextId;
+    private volatile String browserWebSocketUrl;
+
     // Tab-opened tracking — pushed by Target.targetCreated events.
     // knownTargetIds is seeded at init from Target.getTargets so existing tabs are
     // not reported as "new". openedTargets is the drain queue consumed by
@@ -496,6 +503,77 @@ public class CdpDriver implements Driver {
      */
     public static CdpDriver connect(String webSocketUrl, CdpDriverOptions options) {
         return new CdpDriver(webSocketUrl, options);
+    }
+
+    /**
+     * Connect to an existing browser and create a driver that owns a fresh incognito
+     * browser context, with its own page inside it. This is the isolation primitive for
+     * running drivers in parallel against ONE browser.
+     * <p>
+     * Prefer this over {@link #connect(String, CdpDriverOptions)} whenever several
+     * drivers share a browser. Tabs opened in the DEFAULT browser context share one
+     * cookie jar and one storage partition, so they are not isolated in any meaningful
+     * sense: {@code Network.clearBrowserCookies} — which the pooled reset calls on every
+     * acquire — is browser-context-wide, so one scenario resetting silently wipes the
+     * cookies of every other scenario running concurrently in that context. Per-tab
+     * clearing cannot fix that; there is only one jar to clear. A per-driver context
+     * gives each driver its own jar, so the reset only ever affects its own scenario.
+     * </p>
+     * <p>
+     * The returned driver owns the context and disposes it (closing its tab with it) on
+     * {@link #quit()}.
+     * </p>
+     *
+     * @param browserWebSocketUrl a BROWSER-level endpoint (ws://host:port/devtools/browser/...),
+     *                            not a page endpoint — see /json/version
+     */
+    public static CdpDriver connectNewContext(String browserWebSocketUrl, CdpDriverOptions options) {
+        CdpClient browser = CdpClient.connect(browserWebSocketUrl, options.getTimeoutDuration());
+        try {
+            String contextId = browser.browserMethod("Target.createBrowserContext")
+                    .send().getResultAsString("browserContextId");
+            if (contextId == null) {
+                throw new DriverException("browser did not return a browserContextId: " + browserWebSocketUrl);
+            }
+            try {
+                String targetId = browser.browserMethod("Target.createTarget")
+                        .param("url", "about:blank")
+                        .param("browserContextId", contextId)
+                        .send().getResultAsString("targetId");
+                if (targetId == null) {
+                    throw new DriverException("browser did not return a targetId for context: " + contextId);
+                }
+                CdpDriver driver = new CdpDriver(pageWsUrlFrom(browserWebSocketUrl, targetId), options);
+                driver.ownedBrowserContextId = contextId;
+                driver.browserWebSocketUrl = browserWebSocketUrl;
+                logger.debug("created driver in browser context {} target {}", contextId, targetId);
+                return driver;
+            } catch (RuntimeException e) {
+                // Never leave an orphan context behind on a half-built driver — it would
+                // pin its storage partition for the life of the browser.
+                try {
+                    browser.browserMethod("Target.disposeBrowserContext")
+                            .param("browserContextId", contextId).send();
+                } catch (Exception ignored) {
+                    logger.debug("could not dispose orphan browser context: {}", contextId);
+                }
+                throw e;
+            }
+        } finally {
+            browser.close();
+        }
+    }
+
+    /**
+     * Derive the page endpoint for a target from a browser endpoint on the same browser.
+     * ws://host:port/devtools/browser/&lt;id&gt; → ws://host:port/devtools/page/&lt;targetId&gt;
+     */
+    private static String pageWsUrlFrom(String browserWebSocketUrl, String targetId) {
+        int index = browserWebSocketUrl.indexOf("/devtools/");
+        if (index == -1) {
+            throw new DriverException("not a devtools websocket url: " + browserWebSocketUrl);
+        }
+        return browserWebSocketUrl.substring(0, index) + "/devtools/page/" + targetId;
     }
 
     /**
@@ -2545,9 +2623,43 @@ public class CdpDriver implements Driver {
             }
         }
 
+        // Dispose the context we own, which closes its tab with it. Done AFTER the page
+        // connection is closed and over a short-lived browser connection on purpose:
+        // disposing the context tears down the very target our page socket is attached
+        // to, so issuing it on that socket would race its own disconnect.
+        //
+        // This is also what keeps tabs from accumulating. quit() closes the websocket but
+        // a merely-connected driver never closed its tab, so every recycled pooled driver
+        // leaked a live renderer into the browser — real memory and CPU pressure on a
+        // small CI box, where the pool churns through far more drivers than its size.
+        disposeOwnedBrowserContext();
+
         // Close browser if we launched it
         if (launcher != null) {
             launcher.closeAndWait();
+        }
+    }
+
+    private void disposeOwnedBrowserContext() {
+        String contextId = ownedBrowserContextId;
+        String browserUrl = browserWebSocketUrl;
+        if (contextId == null || browserUrl == null) {
+            return;
+        }
+        ownedBrowserContextId = null;
+        try {
+            CdpClient browser = CdpClient.connect(browserUrl, Duration.ofSeconds(5));
+            try {
+                browser.browserMethod("Target.disposeBrowserContext")
+                        .param("browserContextId", contextId)
+                        .send();
+                logger.debug("disposed browser context: {}", contextId);
+            } finally {
+                browser.close();
+            }
+        } catch (Exception e) {
+            // Best-effort: a browser already going down takes its contexts with it.
+            logger.debug("could not dispose browser context {}: {}", contextId, e.getMessage());
         }
     }
 

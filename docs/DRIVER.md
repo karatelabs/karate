@@ -765,6 +765,30 @@ Runner.path("features/")
 - Works correctly with virtual threads
 - Resets state between scenarios (`about:blank`, clear cookies)
 
+### Pool isolation model
+
+Each slot runs one scenario at a time, so **slots must not be able to observe or
+corrupt each other**. How that is achieved depends on how the driver reaches a browser:
+
+| `createDriver` path | Isolation | Notes |
+|---|---|---|
+| `CdpDriver.start()` (no `webSocketUrl`) | Own browser **process** | Default. Strongest, heaviest. |
+| `CdpDriver.connectNewContext(browserUrl)` | Own **incognito browser context** | Use for a shared browser. Own cookie jar + storage. |
+| `CdpDriver.connect(pageUrl)` | **None** | Caller named a specific tab and owns it. |
+
+**A tab is not an isolation boundary.** Tabs in the browser's default context share one
+cookie jar and one storage partition. This matters more than it looks, because
+`resetDriver()` calls `clearCookies()` on *every acquire*, and `clearCookies()` is
+`Network.clearBrowserCookies` — **browser-context-wide**. Slots sharing a context
+therefore wipe each other's cookies mid-scenario, at high frequency. Per-tab clearing
+cannot fix this; there is only one jar. This is why sharing a browser requires
+`connectNewContext`, and it is pinned by `BrowserContextIsolationTest`.
+
+What contexts do **not** buy you: CPU. Every context in one browser competes for the same
+cores, so renderer starvation (timers not firing, slow paints) is unaffected — that is a
+function of runner size and parallelism, not isolation. Separate browser processes make
+CPU contention *worse*, not better.
+
 ### Custom Provider (Testcontainers)
 
 ```java
@@ -778,7 +802,10 @@ public class ContainerDriverProvider extends PooledDriverProvider {
 
     @Override
     protected Driver createDriver(Map<String, Object> config) {
-        return CdpDriver.connect(container.getCdpUrl(), CdpDriverOptions.fromMap(config));
+        // browser-level endpoint + own context per slot — NOT container.getCdpUrl(),
+        // which hands out a tab in the shared default context (see isolation model)
+        return CdpDriver.connectNewContext(
+                container.getBrowserCdpUrl(), CdpDriverOptions.fromMap(config));
     }
 }
 ```
