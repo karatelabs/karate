@@ -105,7 +105,7 @@ Verified against git history and GitHub Actions logs at baseline:
 | F5 | **`drainOpenedTargets()` cross-driver pollution.** `Target.targetCreated` is browser-wide; every pooled driver queues every new tab in the shared browser, including tabs the pool creates for sibling drivers. Latent in this repo (only `TabE2eTest` uses the API) but the API is load-bearing downstream (§4). Correct filter: `TargetInfo.openerId` ∈ {this driver's target, its OOPIF targets} — which by construction preserves the documented "popup opened by the driven page" flow. | `onTargetCreated` handler |
 | F6 | **`Network.enable` is load-bearing for the external event stream — and is LOST on tab switch.** The init comment ("Required for cookie operations", origin `0682c0065`) is stale: cookie *commands* work without it (`activateTarget` never re-enables it, cookie scenarios still pass). But external `CdpEventListener` consumers — the API is documented for traffic recording — depend on the Network event stream, so the enable must **stay** (an earlier draft of this plan proposed removing it as vestigial; the §4 sweep reversed that). The actual bug is the inverse: `activateTarget()` re-arms Runtime/Page/lifecycle/auto-attach but **not Network**, so after any `switchPage`/`switchPageById`/`close()` the stream goes dark on the new session. Same class: `Fetch.enable` isn't re-armed either — an active `intercept()` silently stops pausing requests after a tab switch. | `CdpDriver.initialize` (~line 546), `activateTarget` |
 | F7 | Minor inconsistencies: `waitForPageLoad` throws raw `RuntimeException` where everything else throws `DriverException`; `findPageTarget` uses session-scoped `Target.getTargets` while `getPages` uses the browser-level form. | `waitForPageLoad`, `findPageTarget` |
-| F8 | **Closing the transport tab kills the driver.** The WebSocket is page-bound (`/devtools/page/<id>`); closing that tab — directly, or via `switchPageById` + `close()` — drops the connection, and every later CDP call fails with CONNECTION_CLOSED with nothing pointing at the cause. `CdpDriver` knows the transport targetId (extracted at connect) but neither guards `close()` against it nor exposes it, so multi-tab callers are left re-deriving it by parsing the ws URL themselves. | `close()`, `extractTargetIdFromUrl` |
+| F8 | **Closing the transport tab kills the driver.** The WebSocket is page-bound (`/devtools/page/<id>`); closing that tab — directly, or via `switchPageById` + `close()` — drops the connection, and every later CDP call fails with CONNECTION_CLOSED with nothing pointing at the cause. The transport targetId is extracted at connect into `currentTargetId`, but every `activateTarget` overwrites that field — so the value is not durably retained, `close()` has no guard against it, and there is no public accessor; multi-tab callers are left re-deriving it by parsing the ws URL themselves. | `close()`, `extractTargetIdFromUrl` |
 
 Also load-bearing context: the `Driver` interface already has default implementations for
 the entire element-op surface (`Driver.java:804-1035`); `CdpDriver` re-implements ~15 of
@@ -146,8 +146,9 @@ listed behaviors are contracts, not implementation details.**
   drive dialogs without registering an `onDialog` handler.
 - `drainOpenedTargets()` keeps reporting popups/new tabs opened *by the driven page* (the
   openerId scoping in B5 preserves exactly that flow).
-- `switchPage(String)` substring-matches title/url browser-wide; `getTargetInfos()` marks the
-  driven tab `active`.
+- `switchPage(String)` substring-matches title/url browser-wide (post-A8 — today
+  `findPageTarget` uses the session-scoped `Target.getTargets`, the F7 inconsistency A8
+  fixes); `getTargetInfos()` marks the driven tab `active`.
 - `PageLoadStrategy.DOMCONTENT` is a first-class strategy downstream — not just the
   `DOMCONTENT_AND_FRAMES` default this repo's suite runs (see test additions below).
 
@@ -184,11 +185,11 @@ W3C changes). Validated by the full e2e suite; each item is independently revert
 | # | Status | Change | Detail |
 |---|--------|--------|--------|
 | A1 | ⬜ | Extract event handlers into named methods | `setupEventHandlers()` (~340 lines of inline lambdas) becomes a registration list — `cdp.on("Page.lifecycleEvent", this::onLifecycleEvent)` etc. — plus focused private methods. The dialog handler alone is ~70 inline lines. `onRequestPaused` already shows the pattern. Biggest readability win. |
-| A2 | ⬜ | Collapse element-op wrappers via two private helpers | `interact(locator, js)` = `retryIfNeeded` → `script` → `BaseElement.existing`; `read(locator, js)` = `retryIfNeeded` → `script` cast. Covers click/focus/clear/value-set/scroll/highlight + text/html/value/attribute/property/enabled/position. `input`/`select` keep bespoke bodies. |
+| A2 | ⬜ | Collapse element-op wrappers via two private helpers | `interact(locator, js)` = `retryIfNeeded` → `script` → `BaseElement.existing`; `read(locator, js)` = `retryIfNeeded` → `script` cast. Covers click/focus/clear/value-set/scroll/highlight + text/html/value/attribute/property/enabled/position. `input`/`select` keep bespoke bodies. The read helper must stay generic — `property()` returns raw `Object`, `enabled()` collapses to `Boolean.TRUE.equals(...)`, and `position(locator, relative)` keeps its bespoke relative branch. |
 | A3 | ⬜ | Window management | One `windowId()` lookup + one `setWindowState(String)`; `maximize`/`minimize`/`fullscreen` differ by one string; `getDimensions`/`setDimensions` share the lookup. |
 | A4 | ⬜ | Navigation twins | `refresh()`/`reload()` → private `reload(boolean ignoreCache)`; `back()`/`forward()` → private `traverseHistory(int delta)` (bodies are copy-paste with `±1`). Superseding-navigation arm/clear semantics unchanged. |
 | A5 | ⬜ | Generic `retryFor<T>` | Value-returning variant of `retry()` with the same WARN-logging contract. Kills both holder-array hacks: `waitForChildFrames`'s `List[] holder` and the OOPIF match's `String[3] matched`. |
-| A6 | ⬜ | `rawEval(expression, contextId)` helper | Eight call sites hand-roll one-shot no-retry `Runtime.evaluate` (probes, diagnostics, readyState fallback, OOPIF checks, frame-context probe). Centralize; keep the "bypasses the retry pipeline" distinction explicit in the helper's javadoc. |
+| A6 | ⬜ | `rawEval(expression, contextId)` helper | ~10 literal call sites hand-roll one-shot no-retry `Runtime.evaluate` (probes, diagnostics, readyState fallback, OOPIF checks, frame-context probe). Centralize; keep the "bypasses the retry pipeline" distinction explicit in the helper's javadoc. (`isResponsive`'s `awaitPromise` form stays bespoke.) |
 | A7 | ⬜ | `waitOrThrow` helper for the `waitFor*` family | Every wait method repeats `pollFor(...); if (null) throw new DriverException("timeout waiting for …")`. Bodies become 1–3 lines. `retry()` vs `pollFor()` separation stays. |
 | A8 | ⬜ | Single target enumeration | One private `pageTargets()` (browser-level) powering `getPages`/`getTargetInfos`/`findPageTarget` (fixes F7's session-scoped inconsistency); one shared fast-poll loop for `switchPage(String)`/`switchPageById`. |
 | A9 | ⬜ | Screenshot unification | `screenshot(embed, timeout)` and `screenshot(locator, embed)` share one private `capture(clip, timeout, embed)`. |
@@ -202,12 +203,12 @@ cleanly.
 | # | Status | Fix | Validation |
 |---|--------|-----|------------|
 | B1 | ⬜ | `volatile` on `currentTargetId` and `currentFrame`, with a comment naming the threads that touch each (F3). | Full suite. |
-| B2 | ⬜ | `PooledDriverProvider.resetDriver()`: call `driver.switchFrame(null)` before `setUrl("about:blank")` (F4). Provider-level, backend-agnostic, inside the existing try/catch. | Full suite; `oopif.feature` + `OopifPooledReuseTest` specifically. |
+| B2 | ⬜ | `PooledDriverProvider.resetDriver()`: call `driver.switchFrame((String) null)` before `setUrl("about:blank")` (F4) — the cast matches house style (`Driver.java:191/534`); only the String overload accepts null. Provider-level, backend-agnostic, inside the existing try/catch. | Full suite; `oopif.feature` + `OopifPooledReuseTest` specifically. |
 | B3 | ⬜ | Wire `waitIfSubmitRequested()` into `CdpDriver.click` and `W3cDriver.click` (F1); add ONE scenario to `element.feature` (`submit().click()` on the existing form page) so it can't silently die again. (Alternative considered and rejected: deleting `submit()` — it's documented v1 parity.) | Full suite + `-Pw3c`. |
 | B4 | ⬜ | `Driver.select(int)` default → `Locators.commitFieldEventsJs` (F2). One line; heals W3C. | `-Pw3c` + `element.feature`. |
-| B5 | ⬜ | Filter `Target.targetCreated` queueing by `openerId` ∈ {current target, known OOPIF targets} (F5). Must preserve the popup-from-the-driven-page flow — a §4 contract. | `TabE2eTest` (its popups have `openerId` = its tab), `tab-switch.feature`, downstream e2e (§4). |
+| B5 | ⬜ | Filter `Target.targetCreated` queueing by `openerId` ∈ {current target, known OOPIF targets} (F5). Prerequisite: the handler does not capture `openerId` today — extract it from `targetInfo` first (`onTargetCreated`, ~`CdpDriver.java:986`). Must preserve the popup-from-the-driven-page flow — a §4 contract. | Caveat: no OSS test observes `openerId` yet — FIRST add an assertion to `TabE2eTest` that a `window.open`/`target=_blank` popup's `openerId` equals the driver's `currentTargetId`, and only then rely on it as the filter. Also `tab-switch.feature` + downstream e2e (§4). |
 | B6 | ⬜ | **Keep** `Network.enable` and **re-arm it in `activateTarget()`**; fix the stale init comment to name the real dependent (the external `CdpEventListener` stream, not cookies). Audit `Fetch.enable` the same way: an active `interceptHandler` should re-arm across a tab switch (F6). NOTE: an earlier draft proposed *removing* `Network.enable` as vestigial — the §4 sweep reversed that; do not remove it. | Full suite; the §4 "Network events after `switchPage`" contract pin; `intercept.feature` + a tab-switch/intercept combo check. |
-| B7 | ⬜ | Track the transport targetId; make `close()` on that tab throw a clear `DriverException` instead of leaving a dead driver that fails opaquely on the next call, and expose `getConnectedTargetId()` so multi-tab callers can pick a survivor deliberately (F8). | Full suite; `tab-switch.feature`; a small negative test asserting the loud failure. |
+| B7 | ⬜ | Track the transport targetId **in a new final field captured at connect** — `currentTargetId` starts as that value but is overwritten by every `activateTarget`, so it cannot be read back. Make `close()` on that tab throw a clear `DriverException` instead of leaving a dead driver that fails opaquely on the next call, and expose `getConnectedTargetId()` so multi-tab callers can pick a survivor deliberately (F8). | Full suite; `tab-switch.feature`; a small negative test asserting the loud failure. |
 
 ### Tranche C — structural decomposition (state machines → unit-testable collaborators)
 
@@ -219,7 +220,7 @@ orchestration + eval pipeline + API) with three small package-private collaborat
 
 | # | Status | Extraction | Contents / API sketch |
 |---|--------|-----------|----------------------|
-| C1 | ⬜ | `PageLoadTracker` | Owns `domContentEventFired`, `framesStillLoading`, the five loaderId fields (`expectedLoaderId`, `supersededLoaderId`, `domContentLoaderId`, `committedLoaderId`, `preNavCommittedLoaderId`), `historyTargetUrl`, `loadTick`. Event-side: `onDomContentLoaded(loaderId)`, `onMainFrameNavigated(loaderId)`, `onFrameStarted/Stopped/Detached(frameId)`, `nudge()`. Scenario-side: `beginNavigation(loaderId)`, `beginSupersedingNavigation(historyUrl)`, `clearNavigation()`, `seedCommitted(loaderId)` (init / activateTarget), `isDomReady()`, `framesIdle()`, `readyStateGate()` → {REJECT, ACCEPT, ACCEPT_IF_URL(url)}, `awaitTick(ms)`, `describe()` (timeout diagnostic). Evals stay in the driver. |
+| C1 | ⬜ | `PageLoadTracker` | Owns `domContentEventFired`, `framesStillLoading`, the five loaderId fields (`expectedLoaderId`, `supersededLoaderId`, `domContentLoaderId`, `committedLoaderId`, `preNavCommittedLoaderId`), `historyTargetUrl`, `loadTick`. Event-side: `onDomContentLoaded(loaderId)`, `onMainFrameNavigated(loaderId)`, `onFrameStarted/Stopped/Detached(frameId)`, `nudge()`. Scenario-side: `beginNavigation(loaderId)`, `beginSupersedingNavigation(historyUrl)`, `clearNavigation()`, `seedCommitted(loaderId)` (init / activateTarget), `isDomReady()`, `framesIdle()`, `readyStateGate()` → {REJECT, ACCEPT, ACCEPT_IF_URL(url)}, `awaitTick(ms)`, `describe()` (timeout diagnostic). Eval/ownership split: `readyStateGate()` reads only tracker-owned loader/history state and returns the decision plus — for ACCEPT_IF_URL on the superseded branch — the tracker-owned `historyTargetUrl` to match; the driver performs the `Runtime.evaluate` and the `urlsEquivalent` comparison, and supplies `pendingNavigationUrl` (which stays driver-side) itself for the `expectedLoaderId` branch. |
 | C2 | ⬜ | `ContextRegistry` | `mainContextReady` + `frameContextReady` + `frameContexts`; `completeMain/Frame`, `invalidateMain`, `awaitMain/Frame`, `releaseFrameWaiters`, quit-unblocking. The documented invariant ("never invalidate from the scenario thread without a following `Runtime.enable`") becomes a method contract. |
 | C3 | ⬜ | `TargetTracker` | `knownTargetIds`, `openedTargets`, `pendingTargetRemovals` + the handler logic; likely absorbs OOPIF session routing (`oopifSessions`, `oopifTargets`, `pageSessionId`, `isFromOtherSession`). |
 | C4 | ⬜ | Unit tests for C1–C3 | Deterministic event-ordering cases CI produces only probabilistically: loader replaced mid-navigation; late DOMContentLoaded from the previous document; superseded-loader reload; same-document history traversal; total event loss (readyState-gate paths); invalidate/complete interleavings; detach-completes-waiter. Plain JUnit, no browser. |
@@ -247,7 +248,7 @@ orchestration + eval pipeline + API) with three small package-private collaborat
 
 ## 6. Tranche D — test-suite reduction (LAST, after CI soak)
 
-Inventory at baseline: **227 Gherkin scenarios** (~1,780 lines, ~35s green under
+Inventory at baseline: **227 Gherkin scenarios** (1,835 lines, ~35s green under
 `parallel(2)`) + **200 Java `@Test` methods** (~192 serial on one shared driver, ~38s).
 
 Principle: the Gherkin suite is the concurrency crucible — every scenario is a pool
@@ -260,7 +261,7 @@ behavior.
 
 | Status | Java class | Now | Keep | What survives |
 |--------|-----------|----:|-----:|---------------|
-| ⬜ | ElementE2eTest | 39 | ~5 | `select()`-no-match negative; Java-only `Predicate` overloads (`locateAll`/`scriptAll`) |
+| ⬜ | ElementE2eTest | 39 | ~3 | Keep the `select()`-no-match negative. The existing `locateAll`/`scriptAll` tests use String overloads (Gherkin-duplicable) — cut them and **add** one new Java test exercising the `Predicate<Element>`/`Predicate<Object>` overloads (`Driver.java:1058`/`1073`), which have no Gherkin form and zero coverage today. |
 | ⬜ | KeysE2eTest | 22 | ~3 | numpad keys, `combo()` modifier arrays (not in Gherkin) |
 | ⬜ | FrameE2eTest | 19 | ~4 | `DriverException` negative paths (bad index / locator / non-frame element) |
 | ⬜ | DialogE2eTest | 12 | ~4 | prompt-default/empty, multi-dialog sequence, `DialogOpenedException` fail-fast |
@@ -273,8 +274,9 @@ behavior.
 | — | OopifPooledReuseTest / CallMultiScenarioTest / StepFailureFeatureTest | 3 | 3 | bespoke harnesses (pool-of-1 determinism, `@Timeout` tripwire, `@expect-failure` isolation) — keep |
 
 Net: 200 → ~90 Java tests. The ~20 survivors from the twin classes may consolidate into
-one `DriverEdgeCaseE2eTest`. Gherkin side: cut only `navigation.feature` (3 scenarios,
-strictly subsumed by `history.feature` + every Background). Do **not** thin
+one `DriverEdgeCaseE2eTest`. Gherkin side: cut only `navigation.feature` (3 scenarios: one
+duplicated by `history.feature`, the other two — `script()` return-value asserts — covered
+across `element.feature` and the broader suite). Do **not** thin
 `element.feature` — its 76 scenarios are cheap and are the pool's load generator. Leave
 the W3C job untouched (parallel-lane protocol regression). C4's unit tests add the
 dimension e2e can't: deterministic event orderings.
@@ -307,4 +309,17 @@ CI run link/status), surprises.
   rewritten (`Network.enable` stays; re-arm on `activateTarget`; `Fetch.enable` audit), F8/B7
   added (transport-tab close hazard), B5 popup-flow note, browser-level-transport parked in
   not-in-scope. Sections renumbered (execution plan now §5, tests §6, sequencing §7). Still no
+  implementation started.
+- 2026-07-15 — Executability audit by a second model (cold read of the two plan docs, then
+  adversarial code verification in both repos): Tranches A/B EXECUTABLE (HIGH confidence),
+  C/D EXECUTABLE-WITH-GAPS; 11/12 factual spot-checks confirmed exactly; validation commands
+  verified correct; sanitization clean on both sides. Gaps folded back in: ElementE2eTest
+  survivor list corrected (the `Predicate`-overload tests do not exist — cut the String-overload
+  tests and ADD a new Predicate pin); B5 gains the openerId-capture prerequisite and a
+  verify-`openerId`-in-`TabE2eTest`-first caveat; C1 gains the `readyStateGate` eval/ownership
+  split (`historyTargetUrl` tracker-owned, `pendingNavigationUrl` driver-side); B7/F8 note the
+  transport id needs a new final field (`currentTargetId` is overwritten on tab switch);
+  `navigation.feature` cut-justification corrected; counts trued (1,835 Gherkin lines, ~10
+  raw-eval sites); B2 uses the house-style `(String) null` cast; §4's browser-wide
+  `switchPage` marked post-A8; A2 notes the generic read-helper return types. Still no
   implementation started.
