@@ -6,23 +6,19 @@
 > tracker: update the Status columns and the Progress Log as work lands, so any session can
 > pick up where the last one stopped.
 >
-> **Analysis baseline:** 2026-07-15, HEAD `96c9f950a` (the final commit of the 2026-07-14
-> refactoring burst). `CdpDriver.java` = 4,074 lines; `cdp/` package = 6,716 lines.
-> Line references below are as-of-baseline and will drift — method names are authoritative.
+> **Analysis baseline:** 2026-07-15, HEAD `a24051c4e`. `CdpDriver.java` = 4,308 lines;
+> `cdp/` package = 6,950 lines. Line references below drift — method names are authoritative.
 >
-> **Amended same day** by a dependency sweep of the known external consumer of the CDP surface
-> (§4): it *reversed* one planned fix (`Network.enable` stays and must be re-armed on tab switch
-> — F6/B6), added the transport-tab hazard (F8/B7), and froze the extension-surface API through
-> all tranches. Read §4 before touching anything the sweep names.
->
-> **Amended again same day** by a parallel-isolation fix that landed ahead of the tranches
-> (see Progress Log, `1f2b5f9b9`/`f38e9c4be`/`5dbb9d707`). It invalidated assumptions this plan
-> was written on: pooled slots now get **their own incognito browser context** instead of a tab
-> in the shared default context. Consequences, all already applied below: A8 is **done**, F7 is
-> **fixed**, F5/B5's filter is superseded by context scoping, A2's helper now **exists** as
-> `elementAction`, the "keep every `@lock`" ground rule is **retired** (two locks removed, both
-> proven unnecessary), and §4's `switchPage` contract **changed** (browser-wide → context-wide)
-> and therefore owes the §4 downstream validation.
+> **Two things happened after the plan was first written; both are already folded into the
+> text below, and the Progress Log has the chronology.** (1) A dependency sweep of the known
+> external consumer of the CDP surface produced §4 — it *reversed* one planned fix
+> (`Network.enable` stays and must be re-armed on tab switch, F6/B6), added the transport-tab
+> hazard (F8/B7), and froze the extension-surface API through all tranches. **Read §4 before
+> touching anything it names.** (2) A parallel-isolation fix landed ahead of the tranches:
+> pooled slots now get **their own incognito browser context** rather than sharing the default
+> one. That closed F7, reduced F5/B5 to a residual, half-landed A2 and A8, retired the
+> "keep every `@lock`" ground rule, and changed one §4 contract (`switchPage` is now
+> context-scoped, not browser-wide).
 
 ---
 
@@ -58,10 +54,12 @@
    - Keep `parallel(2)`. **`@lock` tags are no longer frozen** — but a lock may only be removed
      against a *test that proves the shared state is gone*, never against a green run (a green
      local run proves nothing here; see the cookie/tab entries in the Progress Log, both of
-     which pass locally even on the broken code). Remaining locks are CPU-contention locks
-     (`@lock=render`, and the `@lock=*` on keys/mouse/screenshot/dialog): renderer starvation
-     is a function of runner size, not isolation, so **no isolation work will ever retire
-     them.** Do not try.
+     which pass locally even on the broken code). The 9 surviving tags are not isolation locks
+     and no further isolation work will retire them: `@lock=render` (frame/retry/wait-callable)
+     and the `@lock=*` on keys/mouse/screenshot/dialog are **CPU-contention** locks — renderer
+     starvation is a function of runner size, not of what state drivers share; `call-driver`'s
+     scenario-level `@lock=*` is a **driver-lifecycle** lock (it quits and re-inits the driver);
+     `@lock=oopif` has no recorded rationale — establish one before touching it.
    - **The CDP extension surface is public API** (§4): signatures frozen through A–C, and the
      behavioral contracts listed there are load-bearing for at least one external consumer. A
      tranche isn't done until that consumer has been rebuilt against the change and its driver
@@ -117,9 +115,9 @@ Verified against git history and GitHub Actions logs at baseline:
 | F2 | **`Driver.select(int)` default drifted**: dispatches only `input`+`change`, while the CDP override uses `Locators.commitFieldEventsJs` (full `input/change/blur/focusout`, added by `20467b5c8` for blur-committing frameworks). W3C inherits the stale default. | `Driver.java:915-923` |
 | F3 | **Cross-thread fields not `volatile`**: `currentTargetId` written by `activateTarget` (scenario thread), read by the `Target.targetCreated` handler (event thread); `currentFrame` written to `null` by the `Target.detachedFromTarget` handler (event thread), read/written by the scenario thread. | `CdpDriver` fields |
 | F4 | **Pool reset doesn't reset frame state.** A scenario ending switched into an OOPIF makes `resetDriver()`'s `setUrl("about:blank")` go out on the *iframe's* CDP session — navigating the iframe, not the page; the main page keeps the previous scenario's document. Same-origin case leaves `currentFrame` stale into the next scenario. Currently masked by loader binding, but the reset silently isn't doing its job. | `PooledDriverProvider.resetDriver` |
-| F5 | ~~**`drainOpenedTargets()` cross-driver pollution.**~~ **Largely resolved** by per-driver browser contexts: sibling pooled drivers now live in *different* contexts, so the `browserContextId` filter (already applied to `getPages`/`getTargetInfos`/`findPageTarget` via `pageTargets()`) excludes their tabs by construction — no `openerId` bookkeeping needed, and it is pinned by a test (`BrowserContextIsolationTest`), which `openerId` never was. **Residual, still open:** the `onTargetCreated` *handler* is not yet context-filtered, so `drainOpenedTargets()` can still queue an unrelated tab opened in the driver's OWN context (only reachable for default-context drivers sharing a browser). Fix = same `browserContextId` check in the handler; `openerId` is now an optional refinement (distinguishing "popup from the driven page" from "any tab in my context"), not the mechanism. | `onTargetCreated` handler |
+| F5 | **`drainOpenedTargets()` queues tabs the driver did not open.** The `onTargetCreated` handler is not context-filtered, so any new tab in the driver's own context lands in its queue. *Reduced by the isolation fix* — cross-*driver* pollution is gone (siblings are in other contexts, and `pageTargets()` already filters enumeration by `browserContextId`, pinned by `BrowserContextIsolationTest`), leaving only the same-context case, which is reachable only for default-context drivers sharing a browser. Fix = the same `browserContextId` check in the handler (B5). | `onTargetCreated` handler |
 | F6 | **`Network.enable` is load-bearing for the external event stream — and is LOST on tab switch.** The init comment ("Required for cookie operations", origin `0682c0065`) is stale: cookie *commands* work without it (`activateTarget` never re-enables it, cookie scenarios still pass). But external `CdpEventListener` consumers — the API is documented for traffic recording — depend on the Network event stream, so the enable must **stay** (an earlier draft of this plan proposed removing it as vestigial; the §4 sweep reversed that). The actual bug is the inverse: `activateTarget()` re-arms Runtime/Page/lifecycle/auto-attach but **not Network**, so after any `switchPage`/`switchPageById`/`close()` the stream goes dark on the new session. Same class: `Fetch.enable` isn't re-armed either — an active `intercept()` silently stops pausing requests after a tab switch. | `CdpDriver.initialize` (~line 546), `activateTarget` |
-| F7 | Minor inconsistencies: `waitForPageLoad` throws raw `RuntimeException` where everything else throws `DriverException` — **still open**. ~~`findPageTarget` uses session-scoped `Target.getTargets` while `getPages` uses the browser-level form~~ — **fixed**: both now go through `pageTargets()` (see A8). | `waitForPageLoad` |
+| F7 | `waitForPageLoad` throws raw `RuntimeException` where everything else throws `DriverException`. (F7's other half — `findPageTarget` session-scoped while `getPages` was browser-level — is fixed; both go through `pageTargets()` now.) | `waitForPageLoad` |
 | F8 | **Closing the transport tab kills the driver.** The WebSocket is page-bound (`/devtools/page/<id>`); closing that tab — directly, or via `switchPageById` + `close()` — drops the connection, and every later CDP call fails with CONNECTION_CLOSED with nothing pointing at the cause. The transport targetId is extracted at connect into `currentTargetId`, but every `activateTarget` overwrites that field — so the value is not durably retained, `close()` has no guard against it, and there is no public accessor; multi-tab callers are left re-deriving it by parsing the ws URL themselves. | `close()`, `extractTargetIdFromUrl` |
 
 Also load-bearing context: the `Driver` interface already has default implementations for
@@ -161,15 +159,16 @@ listed behaviors are contracts, not implementation details.**
   drive dialogs without registering an `onDialog` handler.
 - `drainOpenedTargets()` keeps reporting popups/new tabs opened *by the driven page* (context
   scoping preserves exactly that flow — a popup lives in its opener's context).
-- ⚠️ **CHANGED — owes downstream validation.** `switchPage(String)` substring-matches title/url
-  **within the driver's own browser context**, not browser-wide; same for `getPages()` and
-  `getTargetInfos()` (which still marks the driven tab `active`). For a driver in the DEFAULT
-  context — every `start()` / `connect(pageUrl)` caller, i.e. the expected downstream shape —
-  every ordinary tab is in that same default context, so this is a **no-op** and matching stays
-  effectively browser-wide. It diverges only for drivers in their own incognito context (the
-  pooled case), which is the entire point. **But this is a §4 contract that changed, so it is
-  exactly the "breaks silently" class this section exists to catch: confirm downstream does not
-  create its own incognito contexts and expect to enumerate across them.**
+- **CHANGED (`a24051c4e`).** `switchPage(String)` substring-matches title/url **within the
+  driver's own browser context**, not browser-wide; same for `getPages()` and `getTargetInfos()`
+  (which still marks the driven tab `active`). It diverges from the old behavior only for a
+  driver in its own incognito context (the pooled case) — which is the entire point. For a
+  driver in the DEFAULT context every ordinary tab is in that same context, so it is a no-op.
+  **Downstream impact: none, verified by inspection** — the known consumer builds drivers only
+  via `CdpDriver.connect(wsUrl, …)` / `CdpDriver.start(…)` and never creates a browser context,
+  so all of its drivers are default-context and its enumeration/`switchPage` calls are
+  unaffected. The rebuild + e2e leg of the validation protocol is still owed; the contract
+  question it was flagged for is settled.
 - `PageLoadStrategy.DOMCONTENT` is a first-class strategy downstream — not just the
   `DOMCONTENT_AND_FRAMES` default this repo's suite runs (see test additions below).
 
@@ -206,13 +205,13 @@ W3C changes). Validated by the full e2e suite; each item is independently revert
 | # | Status | Change | Detail |
 |---|--------|--------|--------|
 | A1 | ⬜ | Extract event handlers into named methods | `setupEventHandlers()` (~340 lines of inline lambdas) becomes a registration list — `cdp.on("Page.lifecycleEvent", this::onLifecycleEvent)` etc. — plus focused private methods. The dialog handler alone is ~70 inline lines. `onRequestPaused` already shows the pattern. Biggest readability win. |
-| A2 | 🟨 | Collapse element-op wrappers via two private helpers | **Half landed already:** the write helper exists as `elementAction(locator, js)` (`retryIfNeeded` → `script` → re-resolve on `Locators.ELEMENT_NOT_FOUND`) and click/focus/clear/value-set/select/position already route through it. It returns `Object`, not `Element` — callers still do their own `BaseElement.existing`. **Remaining:** add the `read(locator, js)` helper (`retryIfNeeded` → `script` cast) for text/html/value/attribute/property/enabled; fold in scroll/highlight. The read helper must stay generic — `property()` returns raw `Object`, `enabled()` collapses to `Boolean.TRUE.equals(...)`, and `position(locator, relative)` keeps its bespoke relative branch. `input` keeps its bespoke body (`select` no longer does). Do **not** re-add a separate `interact` — extend `elementAction`, whose retry is load-bearing (it fixes a real TOCTOU, see Progress Log). |
+| A2 | 🟨 | Collapse element-op wrappers via two private helpers | The write helper already exists as `elementAction(locator, js)` (`retryIfNeeded` → `script` → re-resolve on `Locators.ELEMENT_NOT_FOUND`); click/focus/clear/value-set/select/position route through it, and it returns `Object`, not `Element`, so callers still do their own `BaseElement.existing`. **Remaining:** add the `read(locator, js)` helper (`retryIfNeeded` → `script` cast) for text/html/value/attribute/property/enabled, and fold in scroll/highlight. Keep the read helper generic — `property()` returns raw `Object`, `enabled()` collapses to `Boolean.TRUE.equals(...)`, `position(locator, relative)` keeps its bespoke relative branch; `input` keeps its bespoke body. Do **not** re-add a separate `interact` — extend `elementAction`, whose retry is load-bearing (it fixes a real TOCTOU, see Progress Log). |
 | A3 | ⬜ | Window management | One `windowId()` lookup + one `setWindowState(String)`; `maximize`/`minimize`/`fullscreen` differ by one string; `getDimensions`/`setDimensions` share the lookup. |
 | A4 | ⬜ | Navigation twins | `refresh()`/`reload()` → private `reload(boolean ignoreCache)`; `back()`/`forward()` → private `traverseHistory(int delta)` (bodies are copy-paste with `±1`). Superseding-navigation arm/clear semantics unchanged. |
 | A5 | ⬜ | Generic `retryFor<T>` | Value-returning variant of `retry()` with the same WARN-logging contract. Kills both holder-array hacks: `waitForChildFrames`'s `List[] holder` and the OOPIF match's `String[3] matched`. |
 | A6 | ⬜ | `rawEval(expression, contextId)` helper | ~10 literal call sites hand-roll one-shot no-retry `Runtime.evaluate` (probes, diagnostics, readyState fallback, OOPIF checks, frame-context probe). Centralize; keep the "bypasses the retry pipeline" distinction explicit in the helper's javadoc. (`isResponsive`'s `awaitPromise` form stays bespoke.) |
 | A7 | ⬜ | `waitOrThrow` helper for the `waitFor*` family | Every wait method repeats `pollFor(...); if (null) throw new DriverException("timeout waiting for …")`. Bodies become 1–3 lines. `retry()` vs `pollFor()` separation stays. |
-| A8 | 🟨 | Single target enumeration | **Enumeration half DONE** (landed with the isolation fix, not as a refactor): `pageTargets()` exists, is browser-level, filters by `browserContextId`, and powers `getPages`/`getTargetInfos`/`findPageTarget` — F7's session-scoped inconsistency is fixed. Note it turned out **not** to be zero-behavior-change (see the ⚠️ §4 `switchPage` contract), which is why it did not stay in Tranche A. **Remaining:** the shared fast-poll loop for `switchPage(String)`/`switchPageById`. |
+| A8 | 🟨 | Single target enumeration | Enumeration done (landed with the isolation fix, not as a refactor): `pageTargets()` is browser-level, filters by `browserContextId`, and powers `getPages`/`getTargetInfos`/`findPageTarget`, closing F7's session-scoped inconsistency. It turned out **not** to be zero-behavior-change (see the §4 `switchPage` contract), which is why it did not stay in Tranche A. **Remaining:** the shared fast-poll loop for `switchPage(String)`/`switchPageById`. |
 | A9 | ⬜ | Screenshot unification | `screenshot(embed, timeout)` and `screenshot(locator, embed)` share one private `capture(clip, timeout, embed)`. |
 | A10 | ⬜ | Hygiene | `Frame` → record; fully-qualified `java.util.*` → imports; magic numbers (150ms abort backoff, 1000/2000ms context bounds) → named constants; `waitForPageLoad` throws `DriverException` (F7). |
 
@@ -227,7 +226,7 @@ cleanly.
 | B2 | ⬜ | `PooledDriverProvider.resetDriver()`: call `driver.switchFrame((String) null)` before `setUrl("about:blank")` (F4) — the cast matches house style (`Driver.java:191/534`); only the String overload accepts null. Provider-level, backend-agnostic, inside the existing try/catch. | Full suite; `oopif.feature` + `OopifPooledReuseTest` specifically. |
 | B3 | ⬜ | Wire `waitIfSubmitRequested()` into `CdpDriver.click` and `W3cDriver.click` (F1); add ONE scenario to `element.feature` (`submit().click()` on the existing form page) so it can't silently die again. (Alternative considered and rejected: deleting `submit()` — it's documented v1 parity.) | Full suite + `-Pw3c`. |
 | B4 | ⬜ | `Driver.select(int)` default → `Locators.commitFieldEventsJs` (F2). One line; heals W3C. | `-Pw3c` + `element.feature`. |
-| B5 | 🟨 | **Scope reduced by context isolation (F5).** Filter `Target.targetCreated` queueing by `browserContextId` — the same check `pageTargets()` already uses — rather than by `openerId`. This is the residual half of F5: cross-*driver* pollution is already gone (siblings are in other contexts), leaving only same-context tabs the driver did not open. `openerId` ∈ {current target, known OOPIF targets} is now an **optional refinement** on top, not the mechanism; take it only if "any tab in my context" proves too broad. Prerequisite if pursued: the handler captures neither field today — extract from `targetInfo` first (`onTargetCreated`). Must preserve the popup-from-the-driven-page flow — a §4 contract (context scoping preserves it for free; a popup shares its opener's context). | `tab-switch.feature` + downstream e2e (§4). If refining by `openerId`, FIRST add an assertion to `TabE2eTest` that a `window.open`/`target=_blank` popup's `openerId` equals the driver's `currentTargetId` — no OSS test observes it yet. |
+| B5 | ⬜ | Filter `Target.targetCreated` queueing by `browserContextId` — the same check `pageTargets()` already uses (F5). Scope reduced by context isolation: only same-context tabs remain. `openerId` ∈ {current target, known OOPIF targets} is an **optional refinement** on top, not the mechanism — take it only if "any tab in my context" proves too broad. The handler captures neither field today; extract from `targetInfo` first (`onTargetCreated`). Must preserve the popup-from-the-driven-page flow, a §4 contract — context scoping preserves it for free, since a popup shares its opener's context. | `tab-switch.feature` + downstream e2e (§4). If refining by `openerId`, FIRST add an assertion to `TabE2eTest` that a `window.open`/`target=_blank` popup's `openerId` equals the driver's `currentTargetId` — no OSS test observes it yet. |
 | B6 | ⬜ | **Keep** `Network.enable` and **re-arm it in `activateTarget()`**; fix the stale init comment to name the real dependent (the external `CdpEventListener` stream, not cookies). Audit `Fetch.enable` the same way: an active `interceptHandler` should re-arm across a tab switch (F6). NOTE: an earlier draft proposed *removing* `Network.enable` as vestigial — the §4 sweep reversed that; do not remove it. | Full suite; the §4 "Network events after `switchPage`" contract pin; `intercept.feature` + a tab-switch/intercept combo check. |
 | B7 | ⬜ | Track the transport targetId **in a new final field captured at connect** — `currentTargetId` starts as that value but is overwritten by every `activateTarget`, so it cannot be read back. Make `close()` on that tab throw a clear `DriverException` instead of leaving a dead driver that fails opaquely on the next call, and expose `getConnectedTargetId()` so multi-tab callers can pick a survivor deliberately (F8). | Full suite; `tab-switch.feature`; a small negative test asserting the loud failure. |
 
@@ -349,7 +348,7 @@ CI run link/status), surprises.
   implementation started.
 - 2026-07-15 — **Parallel-isolation work landed ahead of the tranches** (unplanned — it came out
   of chasing the CI flakes the plan's §1 describes, and it changed enough of the plan's
-  foundations that §§2–6 were amended in place; see the third header note). Commits, in order:
+  foundations that §§2–6 were amended in place; see the header note). Commits, in order:
   - `5dbb9d707` — element actions resolve the locator twice (`retryIfNeeded` then the action JS),
     so a document swapping in between left the action dereferencing null. `Locators` disagreed on
     what to do about it: `inputJs`/`clearJs` silently returned, the rest threw a raw TypeError.
@@ -370,21 +369,25 @@ CI run link/status), surprises.
     closed the socket but never the tab (CI logs showed 7–8 tabs against a pool of 2). Product
     bug found alongside: `PooledDriverProvider` with a `webSocketUrl` had every slot
     `connect()`ing to the SAME page.
-  - (this entry) — tab enumeration scoped by `browserContextId` via a new `pageTargets()`
-    (= A8's enumeration half, F7 fixed, F5 largely resolved). **`tab-switch.feature` unlocked.**
+  - `a24051c4e` — tab enumeration scoped by `browserContextId` via a new `pageTargets()`
+    (= A8's enumeration half; F7's inconsistency fixed; F5 reduced to its residual).
+    **`tab-switch.feature` unlocked.**
   - Locks removed: **cookie.feature `@lock=*`**, **tab-switch.feature `@lock=tabs`**, and
     oopif.feature's scenario-level **`@lock=tabs`** (whose own comment said it existed only so its
-    popup would not "skew the page-count assertions in the tab tests") — 13 tags → 10, and the
-    `tabs` lock no longer exists at all. All three were isolation locks and both are now proven unnecessary by
-    `BrowserContextIsolationTest`, which fails on the pre-fix code (`bob must NOT see alice's
-    cookie` → was `true`; `clearCookies must not touch alice's jar` → was `false`; `bob must NOT
-    see alice's new tab` → `expected: <3> but was: <4>`). Note cookie.feature's second stated
-    reason ("a set races its read, reads back null", which survived `@lock=render`) was never a
-    timing race — it was another scenario's reset wiping the jar. The lock had been masking the
-    bug, and the misdiagnosis is why it got escalated to `@lock=*`.
+    popup would not "skew the page-count assertions in the tab tests") — **12 tags → 9**, and the
+    `tabs` lock no longer exists at all. All three were isolation locks, and all three are now
+    proven unnecessary by `BrowserContextIsolationTest`, which fails on the pre-fix code (`bob
+    must NOT see alice's cookie` → was `true`; `clearCookies must not touch alice's jar` → was
+    `false`; `bob must NOT see alice's new tab` → `expected: <3> but was: <4>`). Note
+    cookie.feature's second stated reason ("a set races its read, reads back null", which
+    survived `@lock=render`) was never a timing race — it was another scenario's reset wiping the
+    jar. The lock had been masking the bug, and the misdiagnosis is why it got escalated to
+    `@lock=*`.
   - **Lesson for whoever removes the next lock:** both features pass unlocked *on the broken
     code* on a fast dev box. Local green is not evidence. The unlocks rest entirely on the
     isolation being proven by a test that fails on the old code.
-  - Validation: full `cicd` suite green (2,595 tests), `DriverFeatureTest` 218/218 ×3 with both
-    locks off. **Owed:** the §4 downstream validation, because `switchPage`'s contract changed
-    (browser-wide → context-wide).
+  - Validation: full `cicd` suite green (2,595 tests), `DriverFeatureTest` 218/218 ×3 with the
+    three locks off. **Owed:** the §4 downstream rebuild + e2e, because `switchPage`'s contract
+    changed (browser-wide → context-wide). The *contract* question is since settled by
+    inspection — the consumer never creates a browser context, so its drivers are all
+    default-context and the change is a no-op there (see §4).
