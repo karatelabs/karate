@@ -21,25 +21,13 @@ on:
         options:
           - 'enabled'
           - 'disabled'
-      cve_check:
-        description: OWASP CVE check (blocks on critical CVEs)
-        required: true
-        type: choice
-        options:
-          - 'enabled'
-          - 'disabled'
-      email_report:
-        description: Email CVE & SBOM report
-        required: true
-        type: choice
-        options:
-          - 'disabled'
-          - 'enabled'
-  schedule:
-    # Weekly CVE & SBOM scan on Saturdays (30 min after OpenSSF Scorecard)
-    - cron: '0 2 * * 6'
 
 permissions: read-all
+
+# The CVE & SBOM scan lives in cve.yml — its own weekly-scheduled workflow. It is
+# deliberately not on the release path: an NVD scan can take hours, and a release
+# should not wait on one. A release therefore does NOT block on critical CVEs;
+# cve.yml is the gate, and it fails on CVSS >= 9.0.
 
 # Note: Docker image build has been removed from the release workflow.
 #
@@ -65,10 +53,11 @@ permissions: read-all
 
 jobs:
   release:
-    timeout-minutes: 240
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     permissions:
-      security-events: write
+      # security-events: write dropped along with the CVE steps - nothing here
+      # writes security events any more. id-token stays for Maven Central.
       id-token: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -89,137 +78,18 @@ jobs:
 
       - name: Determine version
         id: version
-        run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout -B -ntp)
-          else
-            VERSION="${{ github.event.inputs.version }}"
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        run: echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
 
       - name: Set release version
-        if: github.event_name != 'schedule'
         run: mvn versions:set versions:commit -B -ntp -DnewVersion=${{ steps.version.outputs.version }}
 
       - name: Build and install
         run: >
           mvn -B -ntp clean install -Pcicd
-          ${{ (github.event_name == 'schedule' || github.event.inputs.tests == 'disabled') && '-DskipTests' || '' }}
-
-      - name: Restore NVD database cache
-        if: github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled'
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.dependency-check/data
-          key: nvd-db-${{ github.run_id }}
-          restore-keys: |
-            nvd-db-
-
-      # Pin dep-check version explicitly (rather than inheriting 12.2.1 from
-      # the depcheck profile in pom.xml), so CI is decoupled from pom drift.
-      # nvdApiResultsPerPage=1000 works around dep-check#8371 (NVD blocks
-      # requests where resultsPerPage>1000 with HTTP 404; plugin defaults
-      # to 2000 - "closed as not planned" upstream).
-      - name: OWASP dependency check
-        id: depcheck
-        if: github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled'
-        timeout-minutes: 180
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: |
-          mvn -B -ntp org.owasp:dependency-check-maven:12.2.2:check \
-            -DnvdApiKey=${NVD_API_KEY} \
-            -DossIndexAnalyzerEnabled=false \
-            -DskipProvidedScope=true \
-            -DskipTestScope=true \
-            -DnvdApiDelay=3000 \
-            -DnvdApiResultsPerPage=1000 \
-            -DsuppressionFiles=${GITHUB_WORKSPACE}/etc/cve-suppressions.xml \
-            -DdataDirectory=${HOME}/.dependency-check/data \
-            -DnvdValidForHours=144 \
-            -Dformat=JSON
-
-      # A partial DB fails silently - dep-check reports zero CVEs and the job goes
-      # green, which is worse than any red build. The live risk is a restored-but-
-      # partial cache: if its recorded timestamp is inside nvdValidForHours, the
-      # step above skips the update and scans against it. Prove the DB is real
-      # before caching it. Check and update share one step here, so the scan has
-      # already run by this point - this cannot stop a bad scan, only make it loud
-      # and keep the bad DB out of the cache (a red job also blocks the deploy).
-      - name: Verify NVD database is populated
-        id: nvdcheck
-        if: steps.depcheck.outcome == 'success'
-        run: |
-          DATA="${HOME}/.dependency-check/data"
-          DB=$(find "${DATA}" -name '*.mv.db' -print -quit)
-          if [ -z "${DB}" ]; then
-            echo "::error::no H2 database found under ${DATA} - dep-check would report zero CVEs"
-            ls -laR "${DATA}" || true
-            exit 1
-          fi
-          BYTES=$(stat -c%s "${DB}")
-          echo "NVD database : ${DB}"
-          echo "NVD size     : ${BYTES} bytes ($((BYTES / 1048576)) MB)"
-          du -sh "${DATA}" || true
-          # Provisional floor, deliberately far below any plausible complete DB: a
-          # schema-only ODC database is a few MB, while a populated one holds ~350k
-          # records (the compressed cache alone runs to 111MB+). 200MB cannot
-          # false-positive on a good DB but still catches the empty/near-empty case
-          # this guards. The step logs the real size above - once a known-good run
-          # reports it, raise this to something that also catches a half-built DB.
-          MIN=$((200 * 1048576))
-          if [ "${BYTES}" -lt "${MIN}" ]; then
-            echo "::error::NVD database is only $((BYTES / 1048576)) MB (floor: $((MIN / 1048576)) MB) - looks partial, refusing to cache it"
-            exit 1
-          fi
-
-      # Gated on the verify step, which only runs when dep-check succeeded, so this
-      # one condition means "the DB both built and looks real". A good multi-hour
-      # NVD download has to survive whatever a later step does - the report step
-      # exits 1 on critical CVEs - so this must never gate on job status.
-      # always() is load-bearing: a bare `if:` is implicitly wrapped in success(),
-      # which would re-couple the save to unrelated steps.
-      - name: Save NVD database cache
-        if: always() && steps.nvdcheck.outcome == 'success'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.dependency-check/data
-          key: nvd-db-${{ github.run_id }}
-
-      - name: Generate CVE & SBOM report
-        if: always() && (github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled')
-        run: python3 etc/generate-cve-report.py --version ${{ steps.version.outputs.version }}
-
-      - name: Upload CVE & SBOM report
-        if: always() && (github.event_name == 'schedule' || github.event.inputs.cve_check == 'enabled')
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: cve-sbom-report-${{ steps.version.outputs.version }}
-          retention-days: 10
-          path: |
-            target/cve-sbom-report.html
-            target/sbom.json
-            karate-core/target/dependency-check-report.json
-            karate-junit6/target/dependency-check-report.json
-            karate-gatling/target/dependency-check-report.json
-
-      - name: Email CVE & SBOM report
-        if: always() && (github.event_name == 'schedule' || github.event.inputs.email_report == 'enabled')
-        uses: dawidd6/action-send-mail@94de994a9f6fffee200243214e17002e2920bb59 # v18
-        with:
-          server_address: ${{ secrets.SMTP_SERVER }}
-          server_port: 465
-          secure: true
-          username: ${{ secrets.SMTP_USERNAME }}
-          password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "Karate Weekly CVE & SBOM Report - ${{ steps.version.outputs.version }}"
-          to: ${{ secrets.CVE_ALERT_EMAIL }}
-          from: ${{ secrets.SMTP_USERNAME }}
-          body: "Weekly CVE & SBOM scan completed for Karate ${{ steps.version.outputs.version }}. See attached report."
-          attachments: target/cve-sbom-report.html,target/sbom.json
+          ${{ github.event.inputs.tests == 'disabled' && '-DskipTests' || '' }}
 
       - name: Deploy to Maven Central
-        if: github.event_name != 'schedule' && github.event.inputs.maven == 'enabled'
+        if: github.event.inputs.maven == 'enabled'
         env:
           CENTRAL_TOKEN_USERNAME: ${{ secrets.OSSRH_TOKEN_USER }}
           CENTRAL_TOKEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
@@ -227,11 +97,9 @@ jobs:
         run: mvn -B -ntp deploy -DskipTests -P release
 
       - name: Build fatjar
-        if: github.event_name != 'schedule'
         run: mvn -B -ntp package -DskipTests -P fatjar -f karate-core/pom.xml
 
       - name: Package release ZIP
-        if: github.event_name != 'schedule'
         run: |
           VERSION=${{ steps.version.outputs.version }}
           mkdir -p target/karate-${VERSION}
@@ -239,7 +107,6 @@ jobs:
           cd target && zip -r karate-${VERSION}.zip karate-${VERSION}/
 
       - name: Upload release ZIP
-        if: github.event_name != 'schedule'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: karate-release-${{ steps.version.outputs.version }}

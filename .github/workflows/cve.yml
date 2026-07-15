@@ -1,0 +1,187 @@
+name: CVE & SBOM
+
+# Weekly OWASP dependency-check across the karate reactor, consolidated into one CVE + CycloneDX
+# SBOM report by etc/generate-cve-report.py. Runs standalone (workflow_dispatch) or on the weekly
+# Saturday schedule — the dedicated, schedulable security scan, separate from maven-release.yml.
+#
+# Deliberately NOT part of the release: the release must not wait hours on an NVD scan, so it no
+# longer blocks on critical CVEs. This workflow is the CVE gate, and it fails on CVSS >= 9.0 via
+# etc/generate-cve-report.py.
+#
+# Mirrors karate-ext/.github/workflows/cve.yml — keep the two in step when changing either.
+#
+# Secrets:
+#   NVD_API_KEY        — NVD API key (faster, rate-limit-friendly dep-check updates)
+#   SMTP_SERVER / SMTP_USERNAME / SMTP_PASSWORD / CVE_ALERT_EMAIL — weekly email (schedule only)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly CVE & SBOM scan on Saturdays (30 min after OpenSSF Scorecard)
+    - cron: '0 2 * * 6'
+
+permissions: read-all
+
+jobs:
+  cve-scan:
+    runs-on: ubuntu-latest
+    # must exceed the NVD update step's own timeout plus the build around it, or a
+    # cold bootstrap dies at the job level before it can cache the DB. 360 is the
+    # GitHub-hosted maximum; only a cold run goes anywhere near it.
+    timeout-minutes: 355
+    env:
+      DEPCHECK_VERSION: 12.2.2
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5.4.0
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Determine version
+        id: version
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout -B -ntp)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build and install
+        run: mvn -B -ntp clean install -DskipTests
+
+      - name: Restore NVD database cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.dependency-check/data
+          key: nvd-db-${{ github.run_id }}
+          restore-keys: |
+            nvd-db-
+
+      # Update the NVD DB as its own step, before the scan, separating the slow
+      # cacheable work from the fast scan. A cold bootstrap pulls ~350k records and
+      # takes hours; the scan then runs offline against the cached DB in minutes.
+      #
+      # Keeping the update inside the scan step couples the two: a scan that fails
+      # (the report exits 1 on critical CVEs) would discard a good multi-hour NVD
+      # download, and an update that overruns the scan's timeout can never cache
+      # what it did fetch — which deadlocks the workflow permanently cold.
+      #
+      # nvdApiResultsPerPage=1000 works around dep-check#8371 (NVD blocks requests
+      # where resultsPerPage>1000 with HTTP 404; plugin defaults to 2000 — "closed
+      # as not planned" upstream). It halves the records per request and so doubles
+      # the request count: revisit if NVD ever accepts 2000 again.
+      #
+      # nvdApiDelay=3000 is already *more* aggressive than the plugin default (3500
+      # with an API key, 8000 without); NVD itself documents 50 requests per rolling
+      # 30s with a key and recommends a 6s sleep. Do not lower it chasing runtime -
+      # the delay is a small fraction of a cold bootstrap, which is dominated by NVD
+      # throttling and retries, and going faster invites the retry storms upstream
+      # reports. The real lever is the cache below (and see nvdDatafeedUrl).
+      - name: Update NVD database
+        timeout-minutes: 300
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          mvn -B -ntp org.owasp:dependency-check-maven:${DEPCHECK_VERSION}:update-only \
+            -DnvdApiKey=${NVD_API_KEY} \
+            -DnvdApiDelay=3000 \
+            -DnvdApiResultsPerPage=1000 \
+            -DdataDirectory=${HOME}/.dependency-check/data \
+            -DnvdValidForHours=144
+
+      # Cheap insurance, and the only thing that logs the DB size - which is why the
+      # floor below is still a guess. The "partial DB silently reports zero CVEs"
+      # story is dep-check lore and looks weaker than its reputation: with
+      # autoUpdate=false and no database dep-check throws NoDataException rather
+      # than passing, and it records the update timestamp only after a *completed*
+      # update (dependency-check#524), so an interrupted update should re-run rather
+      # than be trusted. Unverified for a DB that exists but is underpopulated, so
+      # keep the guard - it costs seconds - but do not read it as a known live bug.
+      - name: Verify NVD database is populated
+        id: nvdcheck
+        run: |
+          DATA="${HOME}/.dependency-check/data"
+          DB=$(find "${DATA}" -name '*.mv.db' -print -quit)
+          if [ -z "${DB}" ]; then
+            echo "::error::no H2 database found under ${DATA} - dep-check would report zero CVEs"
+            ls -laR "${DATA}" || true
+            exit 1
+          fi
+          BYTES=$(stat -c%s "${DB}")
+          echo "NVD database : ${DB}"
+          echo "NVD size     : ${BYTES} bytes ($((BYTES / 1048576)) MB)"
+          du -sh "${DATA}" || true
+          # Provisional floor, deliberately far below any plausible complete DB: a
+          # schema-only ODC database is a few MB, while a populated one holds ~350k
+          # records (the compressed cache alone runs to 111MB+). 200MB cannot
+          # false-positive on a good DB but still catches the empty/near-empty case
+          # this guards. The step logs the real size above - once a known-good run
+          # reports it, raise this to something that also catches a half-built DB.
+          MIN=$((200 * 1048576))
+          if [ "${BYTES}" -lt "${MIN}" ]; then
+            echo "::error::NVD database is only $((BYTES / 1048576)) MB (floor: $((MIN / 1048576)) MB) - looks partial, refusing to cache it or scan against it"
+            exit 1
+          fi
+
+      # Gated on the verify step, which is itself implicitly gated on success() and
+      # so only runs when the update succeeded - meaning this one condition means
+      # "the DB both built and looks real". always() is load-bearing: a bare `if:` is
+      # implicitly wrapped in success(), which would re-couple the save to whatever
+      # runs later, and the report step exits 1 on critical CVEs.
+      - name: Save NVD database cache
+        if: always() && steps.nvdcheck.outcome == 'success'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.dependency-check/data
+          key: nvd-db-${{ github.run_id }}
+
+      # -DautoUpdate=false: the DB is already current, and the scan must never
+      # re-enter the update path. Pin the plugin version explicitly (rather than
+      # inheriting from the depcheck profile in pom.xml) so CI is decoupled from
+      # pom drift.
+      - name: CVE check
+        timeout-minutes: 30
+        run: |
+          mvn -B -ntp org.owasp:dependency-check-maven:${DEPCHECK_VERSION}:check \
+            -DautoUpdate=false \
+            -DossIndexAnalyzerEnabled=false \
+            -DskipProvidedScope=true \
+            -DskipTestScope=true \
+            -DsuppressionFiles=${GITHUB_WORKSPACE}/etc/cve-suppressions.xml \
+            -DdataDirectory=${HOME}/.dependency-check/data \
+            -Dformat=JSON
+
+      - name: Generate CVE & SBOM report
+        if: always()
+        run: python3 etc/generate-cve-report.py --version ${{ steps.version.outputs.version }}
+
+      - name: Upload CVE & SBOM report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cve-sbom-report-${{ steps.version.outputs.version }}
+          retention-days: 30
+          path: |
+            target/cve-sbom-report.html
+            target/sbom.json
+            karate-core/target/dependency-check-report.json
+            karate-junit6/target/dependency-check-report.json
+            karate-gatling/target/dependency-check-report.json
+
+      - name: Email CVE & SBOM report
+        if: always() && github.event_name == 'schedule'
+        uses: dawidd6/action-send-mail@94de994a9f6fffee200243214e17002e2920bb59 # v18
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: 465
+          secure: true
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Karate Weekly CVE & SBOM Report - ${{ steps.version.outputs.version }}"
+          to: ${{ secrets.CVE_ALERT_EMAIL }}
+          from: ${{ secrets.SMTP_USERNAME }}
+          body: "Weekly CVE & SBOM scan completed for Karate ${{ steps.version.outputs.version }}. See attached report."
+          attachments: target/cve-sbom-report.html,target/sbom.json
