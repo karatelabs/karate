@@ -175,9 +175,12 @@ jobs:
             -DdataDirectory=${HOME}/.dependency-check/data \
             -Dformat=JSON
 
+      # Quoted: this step is always(), so a failed/skipped Determine version would
+      # otherwise expand to a bare --version and argparse would die on the missing
+      # argument, burying the real failure. An empty string is a valid version here.
       - name: Generate CVE & SBOM report
         if: always()
-        run: python3 etc/generate-cve-report.py --version ${{ steps.version.outputs.version }}
+        run: python3 etc/generate-cve-report.py --version "${{ steps.version.outputs.version }}"
 
       - name: Upload CVE & SBOM report
         if: always()
