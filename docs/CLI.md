@@ -20,7 +20,7 @@ Karate v2 CLI has a two-tier architecture:
                               ▼ delegates
 ┌─────────────────────────────────────────────────────────────┐
 │  Java CLI (karate-core Main.java)                           │
-│  - Runtime commands: run, mock, mcp, init, clean            │
+│  - Runtime commands: run, mock, init, clean                 │
 │  - Receives args from Rust launcher                         │
 │  - Uses PicoCLI for parsing                                 │
 └─────────────────────────────────────────────────────────────┘
@@ -40,7 +40,6 @@ karate <command> [options] [args]
 Runtime Commands (implemented in Java):
   run              Run Karate tests
   mock             Start mock server
-  mcp              MCP server commands
   clean            Clean output directories
 
 Management Commands (implemented in Rust):
@@ -60,8 +59,10 @@ The Java CLI (`io.karatelabs.Main`) implements:
 |---------|-------------|--------|
 | `run` | Run Karate tests | Priority 1 |
 | `clean` | Clean output directories | Priority 2 |
-| `mock` | Start mock server | Future |
-| `mcp` | MCP server mode | Future |
+| `mock` | Start mock server | Available |
+
+> **MCP:** there is deliberately no `karate mcp` in core — the MCP server (LLM integration) is part of
+> **karate-agent**, the commercial layer in the open-core model (`karate serve` exposes `/api/mcp`).
 
 > **Note:** `init` is implemented in Rust (not Java) because it needs to scaffold different project types (Maven, Gradle, standalone) before Java/JVM is involved. See [Rust Launcher Spec](../../karate-cli/docs/spec.md).
 
@@ -177,7 +178,7 @@ karate run -n "Parameterized check" tests/outline.feature:9
 | `--no-pom` | Ignore karate-pom.json even if present |
 | `-C, --clean` | Clean output directory before running |
 | `-D, --dryrun` | Skip step execution; @setup scenarios still run. See [Dry Run](#dry-run). |
-| `--no-color` | Disable colored output |
+| `--no-color` | Disable colored output. Color is also environment-driven: a set `NO_COLOR` env var disables it (https://no-color.org/ — agents and CIs commonly export `NO_COLOR=1`), a non-`0` `FORCE_COLOR` forces it on, and otherwise `TERM`/`COLORTERM` are consulted. |
 | `--log-report <level>` | Threshold for what gets captured into reports (HTML/JSONL/Cucumber/JUnit). Default: `debug`. |
 | `--log-console <level>` | Threshold for SLF4J/console output via Logback: `trace`/`debug`/`info`/`warn`/`error`/`off` (alias `none`). Default: `info`. Use `off`/`none` to silence the console completely (HTTP traffic still reaches the HTML report — see [DESIGN.md § Logging](./DESIGN.md#two-thresholds-report-vs-console)). |
 | `-f, --format <formats>` | Output formats (see below) |
@@ -586,23 +587,29 @@ Configured via `karate-cli.json`:
 
 ---
 
+## The `mock` Command
+
+Start a mock server from one or more mock feature files (`-m` is required — features are not
+positional args):
+
+```bash
+karate mock -m mocks/payments.feature -p 8080
+karate mock -m a.feature -m b.feature -p 8443 --ssl --cert cert.pem --key key.pem
+```
+
+| Option | Description |
+|--------|-------------|
+| `-m, --mock <file>` | Mock feature file (repeatable, required) |
+| `-p, --port <port>` | Port to listen on (default: 0 = dynamic) |
+| `-s, --ssl` | Enable HTTPS |
+| `-c, --cert <file>` | SSL certificate (PEM) |
+| `-k, --key <file>` | SSL private key (PEM) |
+| `--path-prefix <prefix>` | URL path prefix to strip from incoming requests |
+| `-W, --watch` | Hot-reload when feature files change |
+
+---
+
 ## Future Commands (Java)
-
-### `karate mock`
-
-Start a mock server:
-
-```bash
-karate mock --port 8080 mocks/
-```
-
-### `karate mcp`
-
-Start MCP server mode for LLM integration:
-
-```bash
-karate mcp --stdio
-```
 
 > **Note:** `karate init` is implemented in Rust. See [Rust Launcher Spec](../../karate-cli/docs/spec.md) for details.
 
