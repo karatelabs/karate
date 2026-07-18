@@ -83,6 +83,19 @@ public interface Ext extends RunListener {
     }
 
     /**
+     * An ext whose output is computed from the {@code karate-events.jsonl} stream
+     * (e.g. a coverage analyzer) returns {@code true} so the Suite auto-enables the
+     * JSONL event writer — exactly as if {@code -f karate:jsonl} /
+     * {@code Runner...outputJsonLines(true)} had been passed. Without this, a run
+     * that boots such an ext would pass green yet silently produce none of the
+     * ext's output. Evaluated once, after {@code karate-boot.js} evaluation and
+     * before the writer is wired.
+     */
+    default boolean requiresJsonlEvents() {
+        return false;
+    }
+
+    /**
      * Manifest entry recorded under {@code SUITE_ENTER.data.exts[]} so receivers
      * know which exts were active for this run and with what config. Returned map
      * is serialised to JSON verbatim — keep keys primitive ({@code String},

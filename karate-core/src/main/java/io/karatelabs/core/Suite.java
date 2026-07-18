@@ -348,9 +348,28 @@ public class Suite {
             resultListeners.add(new JunitXmlReportListener(outputDir));
         }
 
-        // Optionally register JSON Lines event stream writer
+        // Load karate-boot.js if present (workdir root, then classpath). Ext SPI
+        // per K43: boot file evaluates ext-scripting only; the side effect is
+        // ext registration through BootBinding.ext(...). Returns null when
+        // no boot file exists — preserves the zero-cost path for projects that
+        // don't use exts. Must evaluate BEFORE the JSONL writer is wired so an
+        // ext can request the event stream (Ext.requiresJsonlEvents()).
+        this.bootBinding = BootLoader.loadIfPresent(this, env);
+
+        // Optionally register JSON Lines event stream writer — explicitly requested
+        // (-f karate:jsonl / outputJsonLines(true)) or required by a booted ext.
         JsonLinesEventWriter jsonlWriter = null;
-        if (outputJsonLines) {
+        boolean jsonlEnabled = outputJsonLines;
+        if (!jsonlEnabled && bootBinding != null) {
+            for (Ext ext : bootBinding.getExts()) {
+                if (ext.requiresJsonlEvents()) {
+                    logger.info("JSONL event stream auto-enabled by ext: {}", ext.getClass().getSimpleName());
+                    jsonlEnabled = true;
+                    break;
+                }
+            }
+        }
+        if (jsonlEnabled) {
             jsonlWriter = new JsonLinesEventWriter(outputDir, env, threadCount);
             try {
                 jsonlWriter.init();
@@ -361,13 +380,6 @@ public class Suite {
                 jsonlWriter = null;
             }
         }
-
-        // Load karate-boot.js if present (workdir root, then classpath). Ext SPI
-        // per K43: boot file evaluates ext-scripting only; the side effect is
-        // ext registration through BootBinding.ext(...). Returns null when
-        // no boot file exists — preserves the zero-cost path for projects that
-        // don't use exts.
-        this.bootBinding = BootLoader.loadIfPresent(this, env);
 
         try {
             // Notify listeners

@@ -388,6 +388,38 @@ public interface Resource {
     }
 
     /**
+     * Resolves a {@code classpath:} reference with a project-root fallback: the classloader
+     * lookup wins when it hits (the Java-project case, unchanged), but on a miss the stripped
+     * path is retried against the given root before failing. In "project mode" (a bare folder
+     * run — serve / MCP / a packaged runtime) there is no Java classpath carrying the project's
+     * files, so a {@code classpath:} ref copied from Java-project docs would otherwise hard-fail
+     * on first use; the fallback anchors it to the same root a leading-"/" ref resolves against,
+     * so one mental model holds across both modes.
+     *
+     * @param path a {@code classpath:}-prefixed reference
+     * @param root the project/working root to fall back to (null = no fallback)
+     * @return the resolved Resource
+     * @throws ResourceNotFoundException when neither the classloader nor the root has it
+     */
+    static Resource classpathWithRootFallback(String path, Path root) {
+        try {
+            return path(path, null);
+        } catch (ResourceNotFoundException e) {
+            if (root != null) {
+                String stripped = normalizePath(removePrefix(path));
+                if (stripped.startsWith("/")) {
+                    stripped = stripped.substring(1);
+                }
+                Path candidate = root.resolve(stripped);
+                if (java.nio.file.Files.exists(candidate)) {
+                    return new PathResource(candidate, root);
+                }
+            }
+            throw e;
+        }
+    }
+
+    /**
      * Creates a Resource from a path string, with optional ClassLoader for classpath resources.
      *
      * @param path        the resource path (supports "classpath:" prefix)

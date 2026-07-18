@@ -156,8 +156,13 @@ public class MemoryResource implements Resource {
 
     @Override
     public Resource resolve(String path) {
-        // Handle classpath: and file: prefixes using Resource.path()
-        if (path.startsWith(Resource.CLASSPATH_COLON) || path.startsWith(Resource.FILE_COLON)) {
+        // Handle classpath: prefix - classloader lookup, falling back to this resource's
+        // root in project mode (no Java classpath carries the project's files there)
+        if (path.startsWith(Resource.CLASSPATH_COLON)) {
+            return Resource.classpathWithRootFallback(path, root);
+        }
+        // Handle file: prefix using Resource.path()
+        if (path.startsWith(Resource.FILE_COLON)) {
             return Resource.path(path);
         }
         // A leading "/" is root-relative (the project/working root — webapp context-path style), NOT the

@@ -137,9 +137,10 @@ public class PathResource implements Resource {
 
     @Override
     public Resource resolve(String childPath) {
-        // Handle classpath: prefix - delegate to Resource.path() for classpath lookup
+        // Handle classpath: prefix - classloader lookup, falling back to this resource's
+        // root in project mode (no Java classpath carries the project's files there)
         if (childPath.startsWith(Resource.CLASSPATH_COLON)) {
-            return Resource.path(childPath);
+            return Resource.classpathWithRootFallback(childPath, root);
         }
         // Handle file: prefix - delegate to Resource.path()
         if (childPath.startsWith(Resource.FILE_COLON)) {
