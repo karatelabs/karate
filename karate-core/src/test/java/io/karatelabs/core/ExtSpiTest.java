@@ -75,6 +75,24 @@ class ExtSpiTest {
     }
 
     @Test
+    void bootHasProbesTheClasspathWithoutBootingAnything() {
+        List<Ext> registered = new ArrayList<>();
+        BootBinding boot = newBinding(tmp, "test", registered);
+
+        assertTrue(boot.has("noop"), "resolvable by the same name convention as ext()");
+        assertFalse(boot.has("does-not-exist"));
+        assertFalse(boot.has(null));
+        assertFalse(boot.has("  "));
+        // the whole point of a probe: it must not construct, register, or fire onBoot
+        assertTrue(registered.isEmpty(), "has() registers nothing");
+        assertTrue(boot.getExts().isEmpty(), "has() boots nothing");
+
+        // ...and an already-booted ext still reports true (answered from the booted set, no class lookup)
+        boot.ext("noop");
+        assertTrue(boot.has("noop"));
+    }
+
+    @Test
     void bootBindingMissingExtFailsLoud() {
         BootBinding boot = newBinding(tmp, null, new ArrayList<>());
         RuntimeException ex = assertThrows(RuntimeException.class,

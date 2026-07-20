@@ -650,7 +650,8 @@ class → boot-time failure that fails the Suite loud.
 | `boot.sysprop(name [, default])` | Read a JVM system property; reads from the Suite's merged property map (CLI `-D` plus `Runner.Builder.systemProperties`) when available. |
 | `boot.read(path)` | Read a text file relative to workdir (e.g. an OpenAPI spec). |
 | `boot.log(msg)` | INFO log with `[boot]` prefix. |
-| `boot.ext(name)` | Construct + register an ext; returns the instance for configuration. |
+| `boot.ext(name)` | Construct + register an ext; returns the instance for configuration. Missing ext ⇒ the Suite fails loudly. |
+| `boot.has(name)` | Is this ext on the classpath? A pure probe (constructs nothing, registers nothing) for an ext whose *absence is a valid configuration* — `if (boot.has('grpc')) { … }`. Not a way to soften a dependency the project genuinely needs. |
 
 **Lifecycle.**
 

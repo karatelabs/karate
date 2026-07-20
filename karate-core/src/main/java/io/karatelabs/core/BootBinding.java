@@ -206,6 +206,37 @@ public class BootBinding {
         return ext;
     }
 
+    /**
+     * {@code boot.has('name')} — is this ext available to boot? A pure classpath probe using the same
+     * name convention as {@link #ext(String)}; constructs nothing and registers nothing.
+     *
+     * <p>Exists because {@code boot.ext} is deliberately strict — a typo, or a missing ext the project
+     * genuinely depends on, must fail the suite loudly. But a project may legitimately depend on an ext
+     * <i>only when it is present</i>: a kit whose gRPC/Kafka beat is optional still has to run on a
+     * runtime that ships without those leaves. Before this, the only way to express that was an external
+     * switch (an env var) — which the project cannot see, cannot default correctly, and which nobody
+     * driving the console can set, so the whole project would fail to boot with an error naming a class
+     * rather than the switch. {@code if (boot.has('grpc')) { … }} lets the project decide for itself.</p>
+     *
+     * <p>An already-booted ext reports {@code true} without a class lookup.</p>
+     */
+    public boolean has(String name) {
+        if (name == null || name.isBlank()) {
+            return false;
+        }
+        for (Ext existing : exts) {
+            if (name.equals(extShortName(existing))) {
+                return true;
+            }
+        }
+        try {
+            Class.forName("io.karatelabs.ext." + name + "." + capitalize(name) + "Ext");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
     public Set<Ext> getExts() {
         return exts;
     }

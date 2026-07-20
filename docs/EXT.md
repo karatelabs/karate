@@ -29,6 +29,27 @@ and no annotation/ServiceLoader discovery for ext *activation* (that is the expl
 exception** — they are a launch-time (pre-Suite) concern and *are* discovered via ServiceLoader
 (below).
 
+**Optional exts — `boot.has('name')`.** `boot.ext` is deliberately strict: a missing ext fails the
+Suite loudly, because a typo or a genuinely-absent dependency must not degrade into a project that
+runs and quietly tests less than it claims. But a project may legitimately want an ext *only when
+it is present* — a kit whose gRPC or Kafka beat is optional still has to run on a runtime that
+ships without those leaves. `boot.has('name')` is the pure classpath probe for that case (same name
+convention, constructs nothing, registers nothing, fires no `onBoot`):
+
+```js
+// karate-boot.js — the protocol beat is a bonus, not a prerequisite
+if (boot.has('grpc')) {
+  const grpc = boot.ext('grpc');
+  grpc.protoRoots = ['.'];
+}
+```
+
+Reach for it only when absence is a **valid** configuration. Do **not** use it to paper over an ext
+the project actually needs — there, the loud `boot.ext` failure is the right answer. The
+alternative it replaces is an external switch (an env var), which the project cannot see, cannot
+default correctly, and which nobody driving a served console can set — so "the leaf isn't on this
+runtime" turns into "every run dies at boot", with an error naming a class rather than the switch.
+
 ---
 
 ## `Ext` interface
