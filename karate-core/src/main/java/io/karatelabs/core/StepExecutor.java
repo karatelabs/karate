@@ -638,12 +638,17 @@ public class StepExecutor {
         int eqIndex = StepUtils.findAssignmentOperator(text);
         if (eqIndex > 0) {
             String leftPart = text.substring(0, eqIndex).trim();
+            String valueExpr = text.substring(eqIndex + 1).trim();
+            // Handle docstring if expression is empty (docstring IS the RHS expression).
+            if (valueExpr.isEmpty() && step.getDocString() != null) {
+                valueExpr = step.getDocString();
+            }
+
             // Look for "varname /xpath" pattern (space followed by /)
             int spaceSlashIdx = leftPart.indexOf(" /");
             if (spaceSlashIdx > 0) {
                 String varName = leftPart.substring(0, spaceSlashIdx).trim();
                 String xpath = leftPart.substring(spaceSlashIdx + 1).trim();
-                String valueExpr = text.substring(eqIndex + 1).trim();
 
                 Object target = runtime.getVariable(varName);
                 if (target == null) {
@@ -676,7 +681,6 @@ public class StepExecutor {
                 StepUtils.VarAndPath vp = StepUtils.splitVarAndJsonPath(leftPart);
                 Object target = runtime.getVariable(vp.var);
                 if (target instanceof Map || target instanceof List) {
-                    String valueExpr = text.substring(eqIndex + 1).trim();
                     Object value = evalKarateExpression(valueExpr);
                     Json.of(target).set(vp.path, value);
                     return;
@@ -688,7 +692,6 @@ public class StepExecutor {
             // `configure`. Without this, `set foo = { id: #(id) }` fails JS parsing on
             // the `#`. This matches the broader RHS-semantics handling.
             if (StepUtils.isPlainIdentifier(leftPart)) {
-                String valueExpr = text.substring(eqIndex + 1).trim();
                 Object value = evalKarateExpression(valueExpr);
                 runtime.setVariable(leftPart, value);
                 return;
