@@ -69,7 +69,7 @@ class ImageComparisonTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"resemble", "ssim"})
+    @ValueSource(strings = {"resemble", "ssim", "pixelmatch"})
     void testIgnoredBoxes(String engine) {
         Map<String, Integer> box = new HashMap<>();
         box.put("left", 1);

@@ -39,6 +39,11 @@
             <artifactId>ssim</artifactId>
             <version>1.0.0</version>
         </dependency>
+        <dependency>
+            <groupId>io.github.t12y</groupId>
+            <artifactId>pixelmatch</artifactId>
+            <version>1.0.0</version>
+        </dependency>
     </dependencies>
 
     <profiles>

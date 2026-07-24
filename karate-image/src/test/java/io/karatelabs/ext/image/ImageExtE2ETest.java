@@ -54,6 +54,55 @@ class ImageExtE2ETest {
     Path tempDir;
 
     @Test
+    void reportModeGatesEmbedsByVerdict() throws Exception {
+        Files.writeString(tempDir.resolve("karate-boot.js"), """
+            const image = boot.ext('image');
+            image.report = 'mismatched';
+            image.threshold = 0.1;
+            // no ssim: its default 11x11 window degenerates to ~0% difference on the
+            // tiny 3x3 fixtures here, short-circuiting the fallback chain
+            image.engine = 'resemble|pixelmatch';
+            image.clusters = true;
+            """);
+
+        Path feature = tempDir.resolve("report-mode.feature");
+        Files.writeString(feature, """
+            Feature: report mode gates embeds
+
+            Scenario: mismatched report omits passing embeds entirely
+            * def blue = new Uint8Array(java.util.Base64.getDecoder().decode('%s'))
+            * def green = new Uint8Array(java.util.Base64.getDecoder().decode('%s'))
+
+            # passing comparison: no embed, hence nothing for the HTML/PDF reports
+            * def passing = image.diff({ baseline: blue, latest: blue })
+            * match passing.pass == true
+            * match passing.embed == null
+
+            # failing comparison (clusters off per-call: a single changed pixel is below
+            # minThinArea, so the suite-wide verdict would classify it as noise and pass)
+            * def failing = image.diff({ baseline: blue, latest: green, clusters: false })
+            * match failing.pass == false
+            * match failing.embed == '#notnull'
+
+            # report=all embeds passing comparisons too, diff image included
+            * image.report = 'all'
+            * def passingAll = image.diff({ baseline: blue, latest: blue })
+            * match passingAll.pass == true
+            * match passingAll.embed == '#notnull'
+            * match passingAll.embed.parts == '#[3]'
+            """.formatted(BLUE, GREEN));
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertEquals(1, result.getScenarioPassedCount(), "report-mode scenario should pass");
+        assertEquals(0, result.getScenarioFailedCount());
+    }
+
+    @Test
     void establishMatchAndMismatch() throws Exception {
         Path baselineDir = tempDir.resolve("baselines");
         Files.writeString(tempDir.resolve("karate-boot.js"), """
