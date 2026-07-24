@@ -127,4 +127,44 @@ class StepSetRhsTest {
                 """);
         assertPassed(sr);
     }
+
+    @Test
+    void testSetJsonPathWithDocString() {
+        ScenarioRuntime sr = run("""
+                * def v = {}
+                * set v.sub =
+                \"\"\"
+                {a:b}
+                \"\"\"
+                * match v == {sub: {a:b}}
+                """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testSetFullReplacementWithDocString() {
+        ScenarioRuntime sr = run("""
+                * def foo = { id: 0 }
+                * set foo =
+                \"\"\"
+                { id: 1, name: 'doc' }
+                \"\"\"
+                * match foo == { id: 1, name: 'doc' }
+                """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testSetJsonPathDocStringWithEmbeddedExpr() {
+        ScenarioRuntime sr = run("""
+                * def id = 42
+                * def foo = { meta: {} }
+                * set foo.meta =
+                \"\"\"
+                { id: #(id), name: 'new' }
+                \"\"\"
+                * match foo.meta == { id: 42, name: 'new' }
+                """);
+        assertPassed(sr);
+    }
 }
