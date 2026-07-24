@@ -495,4 +495,76 @@ class LocatorsE2eTest extends DriverTestBase {
         }
     }
 
+    // ========== Resolve ranker (the __kjs.setResolveRanker extension seam) ==========
+    // A downstream runtime (e.g. an agent layer that knows an open menu item should
+    // beat an ambient same-text label) can register a candidate ranker instead of
+    // monkeypatching __kjs.resolve. The seam's contract: with no ranker — or a
+    // broken one — resolution is EXACTLY the default (first visible leaf match in
+    // DOM order); a registered ranker reorders or augments the matched candidate
+    // list, and index selection applies to the ranked list.
+
+    @Test
+    void testResolveRankerReordersTieAndUnregisters() {
+        driver.setUrl("data:text/html," +
+                "<div id='ambient'>Ray</div>" +
+                "<div id='menu-item'>Ray</div>");
+        // default: first visible match in DOM order
+        assertEquals("ambient", driver.attribute("{div}Ray", "id"));
+        driver.script("window.__kjs.setResolveRanker(function(matches, ctx){"
+                + " return matches.slice().reverse(); })");
+        assertEquals("menu-item", driver.attribute("{div}Ray", "id"));
+        // unregister restores the default order
+        driver.script("window.__kjs.setResolveRanker(null)");
+        assertEquals("ambient", driver.attribute("{div}Ray", "id"));
+    }
+
+    @Test
+    void testResolveRankerIndexAppliesToRankedList() {
+        driver.setUrl("data:text/html," +
+                "<b id='one'>X</b><b id='two'>X</b><b id='three'>X</b>");
+        // rotate: [two, three, one]
+        driver.script("window.__kjs.setResolveRanker(function(m){ m.push(m.shift()); return m; })");
+        assertEquals("two", driver.attribute("{b:1}X", "id"));
+        assertEquals("three", driver.attribute("{b:2}X", "id"));
+        assertEquals("one", driver.attribute("{b:3}X", "id"));
+        // index beyond the ranked list still misses
+        assertFalse(driver.exists("{b:4}X"));
+    }
+
+    @Test
+    void testResolveRankerIdentityKeepsDefaultBehavior() {
+        driver.script("window.__kjs.setResolveRanker(function(m){ return m; })");
+        assertEquals("1", driver.attribute("{li:1}Item", "data-index"));
+        assertEquals("2", driver.attribute("{li:2}Item", "data-index"));
+        assertEquals("3", driver.attribute("{li:3}Item", "data-index"));
+        assertEquals("Click Me", driver.text("{button}Click Me"));
+        assertFalse(driver.exists("{button}NonExistentText"));
+    }
+
+    @Test
+    void testResolveRankerFailuresFallBackToDefaultOrder() {
+        driver.setUrl("data:text/html," +
+                "<div id='first'>Twin</div>" +
+                "<div id='second'>Twin</div>");
+        // a throwing ranker must not break resolution
+        driver.script("window.__kjs.setResolveRanker(function(){ throw new Error('boom'); })");
+        assertEquals("first", driver.attribute("{div}Twin", "id"));
+        // a non-array return is ignored
+        driver.script("window.__kjs.setResolveRanker(function(){ return 'nope'; })");
+        assertEquals("first", driver.attribute("{div}Twin", "id"));
+    }
+
+    @Test
+    void testResolveRankerMayAddCandidatesTheDefaultFilterExcluded() {
+        // the ranker may inject candidates of its own — e.g. a hidden element it
+        // knows how to reveal — which the default visible-only filter never emits
+        driver.setUrl("data:text/html," +
+                "<div id='visible-twin'>Save</div>" +
+                "<div id='hidden-menu' style='display:none'>Save</div>");
+        assertEquals("visible-twin", driver.attribute("{div}Save", "id"));
+        driver.script("window.__kjs.setResolveRanker(function(m){"
+                + " m.unshift(document.getElementById('hidden-menu')); return m; })");
+        assertEquals("hidden-menu", driver.attribute("{div}Save", "id"));
+    }
+
 }

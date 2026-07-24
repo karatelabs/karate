@@ -308,12 +308,35 @@
     // Public API: __kjs.resolve(tag, text, index, contains)
 
     /**
+     * Extension seam: register a candidate ranker consulted by resolve().
+     *
+     * The ranker receives (matches, ctx) where matches is the full list of
+     * elements satisfying the resolve criteria in DOM order (visible,
+     * leaf-text match \u2014 the same predicate the default path applies) and
+     * ctx is {tag, text, index, contains, selector} with text normalized.
+     * It returns the ranked candidate list; index selection then applies to
+     * that list. The ranker may reorder matches or add candidates of its own
+     * (e.g. elements the default visibility filter excluded). A ranker that
+     * throws or returns a non-array is ignored for that resolution.
+     *
+     * With no ranker registered, resolution behavior is unchanged (first
+     * visible leaf match in DOM order, short-circuit preserved).
+     * Pass null to unregister.
+     */
+    kjs.setResolveRanker = function(fn) {
+        this._resolveRanker = (typeof fn === 'function') ? fn : null;
+    };
+
+    /**
      * Match candidates against text criteria.
      * Shared logic for light DOM and shadow DOM resolution.
      */
     kjs._resolveFromCandidates = function(candidates, tag, text, index, contains) {
         var selector = this.getSelector(tag);
         text = text.replace(/\s+/g, ' ').trim(); // normalize whitespace (including \u00a0)
+        if (this._resolveRanker) {
+            return this._resolveRanked(candidates, tag, text, index, contains, selector);
+        }
         var count = 0;
         for (var i = 0; i < candidates.length; i++) {
             var el = candidates[i];
@@ -333,6 +356,46 @@
                 count++;
                 if (count === index) return el;
             }
+        }
+        return null;
+    };
+
+    /**
+     * Ranked resolution path (active only when a ranker is registered).
+     * Collects ALL matches with the same predicate the default path applies,
+     * hands them to the ranker, then applies the same index selection to the
+     * ranked list \u2014 so an identity ranker reproduces default behavior exactly.
+     */
+    kjs._resolveRanked = function(candidates, tag, text, index, contains, selector) {
+        var matches = [];
+        for (var i = 0; i < candidates.length; i++) {
+            var el = candidates[i];
+            if (!this.isVisible(el)) continue;
+            if (text === '') {
+                matches.push(el);
+                continue;
+            }
+            var elText = this.getVisibleText(el);
+            if (!elText) continue;
+            var ok = contains
+                ? elText.indexOf(text) !== -1
+                : elText === text;
+            if (ok && !this.hasMatchingDescendant(el, text, contains, selector)) {
+                matches.push(el);
+            }
+        }
+        var ranked = matches;
+        try {
+            var result = this._resolveRanker(matches.slice(), {
+                tag: tag, text: text, index: index, contains: contains, selector: selector
+            });
+            if (Array.isArray(result)) ranked = result;
+        } catch (e) {
+            this.log('resolve ranker failed, using default order', {error: '' + e});
+        }
+        // same selection semantics as the default path: the index-th match, 1-based
+        for (var j = 0; j < ranked.length; j++) {
+            if (j + 1 === index) return ranked[j];
         }
         return null;
     };
