@@ -282,13 +282,16 @@
         var descendants = el.querySelectorAll(selector);
         for (var i = 0; i < descendants.length; i++) {
             var desc = descendants[i];
-            if (!this.isVisible(desc)) continue;
+            // Text BEFORE visibility, deliberately: isVisible() ends in getBoundingClientRect +
+            // elementFromPoint — a layout flush and a hit test — while getVisibleText() only reads
+            // styles. Same result set, but the expensive half now runs only for elements whose text
+            // actually matches, instead of for every node on the page. (See _matchList.)
             var descText = this.getVisibleText(desc);
             if (!descText) continue;
             var matches = contains
                 ? descText.indexOf(text) !== -1
                 : descText === text;
-            if (matches) return true;
+            if (matches && this.isVisible(desc)) return true;
         }
         return false;
     };
@@ -340,18 +343,19 @@
         var count = 0;
         for (var i = 0; i < candidates.length; i++) {
             var el = candidates[i];
-            if (!this.isVisible(el)) continue;
             if (text === '') {
+                if (!this.isVisible(el)) continue;
                 count++;
                 if (count === index) return el;
                 continue;
             }
+            // text first, then the layout-forcing visibility test — see _matchList
             var elText = this.getVisibleText(el);
             if (!elText) continue;
             var matches = contains
                 ? elText.indexOf(text) !== -1
                 : elText === text;
-            if (matches) {
+            if (matches && this.isVisible(el)) {
                 if (this.hasMatchingDescendant(el, text, contains, selector)) continue;
                 count++;
                 if (count === index) return el;
@@ -361,29 +365,74 @@
     };
 
     /**
+     * The predicate itself, as a list: every candidate satisfying (tag, text),
+     * in DOM order. The unranked path above keeps its own short-circuiting copy
+     * (it can stop at the index-th match); everything that needs the WHOLE list
+     * comes through here, so there is one implementation of "what matches".
+     */
+    kjs._matchList = function(candidates, tag, text, contains, selector) {
+        var matches = [];
+        for (var i = 0; i < candidates.length; i++) {
+            var el = candidates[i];
+            if (text === '') {
+                if (this.isVisible(el)) matches.push(el);
+                continue;
+            }
+            // Cheap test first. isVisible() forces layout (getBoundingClientRect) and hit-tests
+            // (elementFromPoint) — on a `*` resolve over an enterprise page that is thousands of
+            // layout flushes, and all but a handful are spent on elements whose text never matched.
+            // getVisibleText() reads styles only. The set is identical; the order is not.
+            var elText = this.getVisibleText(el);
+            if (!elText) continue;
+            var ok = contains
+                ? elText.indexOf(text) !== -1
+                : elText === text;
+            if (ok && this.isVisible(el) && !this.hasMatchingDescendant(el, text, contains, selector)) {
+                matches.push(el);
+            }
+        }
+        return matches;
+    };
+
+    /**
+     * Every candidate resolve() would consider for (tag, text), in resolve()'s
+     * own order — same visibility + leaf-text predicate, same ranker seam, same
+     * shadow-DOM fallback (the deep sweep runs when the light DOM matched none).
+     *
+     * This exists for the caller that needs an element's INDEX rather than the
+     * element at an index: without it, "which index am I?" is answered by calling
+     * resolve() for 1, 2, 3 … n, and every one of those re-scans the document.
+     * On a page whose text repeats — an enterprise screen with the same column
+     * header in six list views — that walk dominates the caller's whole run.
+     * `resolveAll(tag, text, contains)[i - 1] === resolve(tag, text, i, contains)`.
+     */
+    kjs.resolveAll = function(tag, text, contains) {
+        var selector = this.getSelector(tag);
+        text = ('' + (text || '')).replace(/\s+/g, ' ').trim();
+        var matches = this._matchList(document.querySelectorAll(selector), tag, text, contains, selector);
+        if (!matches.length && this.hasShadowDOM()) {
+            matches = this._matchList(this.querySelectorAllDeep(selector), tag, text, contains, selector);
+        }
+        if (!this._resolveRanker) return matches;
+        try {
+            var ranked = this._resolveRanker(matches.slice(), {
+                tag: tag, text: text, index: 1, contains: contains, selector: selector
+            });
+            if (Array.isArray(ranked)) return ranked;
+        } catch (e) {
+            this.log('resolve ranker failed, using default order', {error: '' + e});
+        }
+        return matches;
+    };
+
+    /**
      * Ranked resolution path (active only when a ranker is registered).
      * Collects ALL matches with the same predicate the default path applies,
      * hands them to the ranker, then applies the same index selection to the
      * ranked list \u2014 so an identity ranker reproduces default behavior exactly.
      */
     kjs._resolveRanked = function(candidates, tag, text, index, contains, selector) {
-        var matches = [];
-        for (var i = 0; i < candidates.length; i++) {
-            var el = candidates[i];
-            if (!this.isVisible(el)) continue;
-            if (text === '') {
-                matches.push(el);
-                continue;
-            }
-            var elText = this.getVisibleText(el);
-            if (!elText) continue;
-            var ok = contains
-                ? elText.indexOf(text) !== -1
-                : elText === text;
-            if (ok && !this.hasMatchingDescendant(el, text, contains, selector)) {
-                matches.push(el);
-            }
-        }
+        var matches = this._matchList(candidates, tag, text, contains, selector);
         var ranked = matches;
         try {
             var result = this._resolveRanker(matches.slice(), {

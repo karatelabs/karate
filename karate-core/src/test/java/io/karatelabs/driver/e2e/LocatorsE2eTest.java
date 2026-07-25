@@ -567,4 +567,64 @@ class LocatorsE2eTest extends DriverTestBase {
         assertEquals("hidden-menu", driver.attribute("{div}Save", "id"));
     }
 
+    // ========== resolveAll (the candidate list behind resolve) ==========
+    // Asking "which index am I?" used to mean calling resolve() for 1, 2, 3 … n, and each of
+    // those re-scans the document — on an enterprise page whose text repeats, that walk cost
+    // hundreds of ms PER ELEMENT and dominated the caller's run. resolveAll answers it in one
+    // scan, and is only worth having if it is EXACTLY what resolve() would have said.
+
+    @Test
+    void testResolveAllIsIndexByIndexWhatResolveReturns() {
+        driver.setUrl("data:text/html,"
+                + "<b id='one'>Status</b><i>skip</i><b id='two'>Status</b>"
+                + "<b id='three'>Status</b><b id='other'>Elsewhere</b>");
+        // the equivalence, asserted in the page so it compares element IDENTITY, not ids
+        Object verdict = driver.script("(function(){"
+                + " var all = window.__kjs.resolveAll('b', 'Status', false);"
+                + " for (var i = 0; i < all.length; i++) {"
+                + "   if (all[i] !== window.__kjs.resolve('b', 'Status', i + 1, false)) return 'differs at ' + (i + 1);"
+                + " }"
+                + " if (window.__kjs.resolve('b', 'Status', all.length + 1, false)) return 'resolve saw one past the list';"
+                + " return 'ok:' + all.length; })()");
+        assertEquals("ok:3", String.valueOf(verdict));
+    }
+
+    @Test
+    void testResolveAllReportsNonCandidatesAsAbsentRatherThanGuessing() {
+        driver.setUrl("data:text/html,<b id='hit'>Status</b><b id='miss'>Other</b>");
+        Object verdict = driver.script("(function(){"
+                + " var all = window.__kjs.resolveAll('b', 'Status', false);"
+                + " return [all.length,"
+                + "  all.indexOf(document.getElementById('hit')),"
+                + "  all.indexOf(document.getElementById('miss')),"
+                + "  window.__kjs.resolveAll('b', 'NothingHere', false).length].join(','); })()");
+        assertEquals("1,0,-1,0", String.valueOf(verdict));
+    }
+
+    @Test
+    void testResolveAllHonoursTheRankerSoItStillAgreesWithResolve() {
+        driver.setUrl("data:text/html,<b id='one'>X</b><b id='two'>X</b><b id='three'>X</b>");
+        driver.script("window.__kjs.setResolveRanker(function(m){ m.push(m.shift()); return m; })");
+        Object ranked = driver.script("(function(){"
+                + " var all = window.__kjs.resolveAll('b', 'X', false);"
+                + " var ids = []; for (var i = 0; i < all.length; i++) ids.push(all[i].id);"
+                + " return ids.join(','); })()");
+        assertEquals("two,three,one", String.valueOf(ranked));
+        // …and index-for-index that is still what resolve() hands back under the same ranker
+        assertEquals("two", driver.attribute("{b:1}X", "id"));
+        assertEquals("one", driver.attribute("{b:3}X", "id"));
+    }
+
+    @Test
+    void testResolveAllFallsBackToTheDeepSweepLikeResolveDoes() {
+        driver.setUrl("data:text/html,<div id='host'></div>");
+        driver.script("(function(){ var h = document.getElementById('host').attachShadow({mode:'open'});"
+                + " h.innerHTML = \"<b id='inner'>Shadowed</b>\"; })()");
+        Object verdict = driver.script("(function(){"
+                + " var all = window.__kjs.resolveAll('b', 'Shadowed', false);"
+                + " if (all.length !== 1) return 'list length ' + all.length;"
+                + " return all[0] === window.__kjs.resolve('b', 'Shadowed', 1, false) ? 'same' : 'different'; })()");
+        assertEquals("same", String.valueOf(verdict));
+    }
+
 }
