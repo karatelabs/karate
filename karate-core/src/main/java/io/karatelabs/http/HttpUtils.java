@@ -204,6 +204,9 @@ public class HttpUtils {
         switch (trimmed.charAt(0)) {
             case '{':
             case '[':
+                if (resourceType != null && resourceType.isText() && !resourceType.isJson()) {
+                    return raw;
+                }
                 if (strict) {
                     return Json.parseStrict(raw);
                 }
