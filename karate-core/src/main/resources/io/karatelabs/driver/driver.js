@@ -219,10 +219,64 @@
         return text.trim().replace(/\s+/g, ' ');
     };
 
+    // ==================== Quiescent-scan memo ====================
+
+    /**
+     * A scan is a bracket during which the caller guarantees the DOM and its computed styles
+     * are holding still. While one is open, getVisibleText() / isVisible() / the hidden-ancestor
+     * walks answer from a per-element memo instead of recomputing.
+     *
+     * Why this exists: resolve()/resolveAll() evaluate the text predicate over EVERY candidate,
+     * and getVisibleText() walks each candidate's subtree asking getComputedStyle per ancestor
+     * per text node — so one document-wide resolve costs O(nodes x depth) style reads. A caller
+     * that resolves once per element pays that whole cost once PER ELEMENT, and it is the same
+     * few thousand answers every time. Measured on a live enterprise page (1152 nodes, 57
+     * elements derived, one derivation pass): 2,832,252 getComputedStyle calls and 1500 ms with
+     * no scan, against 8,886 calls and 27 ms inside one — the same answers, 55x faster.
+     *
+     * The memo is only sound while nothing moves, and only the CALLER knows that: a passive
+     * derivation pass does by construction, a click does not. So the window is caller-owned —
+     * and it is a single function taking a callback rather than a begin/end pair, so it cannot
+     * be left open, and (JS being single-threaded) it cannot outlive the synchronous call that
+     * opened it. Nesting re-uses the outer scan.
+     *
+     * A CLOSED scan must cost nothing: getVisibleText/isVisible consult the memo once per call
+     * and their inner loops are untouched, so a caller that never opens one runs the same code
+     * it always did.
+     */
+    var _scan = null;
+
+    kjs.withScan = function(fn) {
+        if (_scan) return fn();                     // nested — the outer bracket owns the memo
+        _scan = {text: new Map(), vis: new Map()};
+        try {
+            return fn();
+        } finally {
+            _scan = null;
+        }
+    };
+
+    /** Whether a scan is currently open — for a caller keeping its own derived memo alongside. */
+    kjs.inScan = function() {
+        return !!_scan;
+    };
+
     // ==================== Shared Utilities ====================
 
     kjs.isVisible = function(el) {
         if (!el) return false;
+        if (_scan) {
+            var memo = _scan.vis.get(el);
+            if (memo === undefined) {
+                memo = _isVisible(el);
+                _scan.vis.set(el, memo);
+            }
+            return memo;
+        }
+        return _isVisible(el);
+    };
+
+    function _isVisible(el) {
         if (el.getAttribute('aria-hidden') === 'true') return false;
         var style = window.getComputedStyle(el);
         if (style.display === 'none') return false;
@@ -247,34 +301,45 @@
 
     kjs.getVisibleText = function(el) {
         if (!el) return '';
+        // The memo is consulted ONCE per call, never inside the walk below: the ancestor loop
+        // is the hottest code in the whole driver (tens of millions of iterations on a dense
+        // page), and routing it through a lookup taxed callers who never open a scan by ~8%.
+        if (_scan) {
+            var memo = _scan.text.get(el);
+            if (memo !== undefined) return memo;
+        }
+        var result = '';
         // Self-visibility — the walker below only inspects ancestors STRICTLY
         // BETWEEN the text node and `el` (parent !== el is the loop guard), so
         // `el` itself was never checked. A display:none `el` would leak all its
         // text. Match the same triple of checks the walker performs on ancestors.
-        if (el.getAttribute && el.getAttribute('aria-hidden') === 'true') return '';
-        if (el.nodeType === 1) {
+        var selfHidden = !!(el.getAttribute && el.getAttribute('aria-hidden') === 'true');
+        if (!selfHidden && el.nodeType === 1) {
             var selfStyle = window.getComputedStyle(el);
-            if (selfStyle.display === 'none' || selfStyle.visibility === 'hidden') return '';
+            selfHidden = selfStyle.display === 'none' || selfStyle.visibility === 'hidden';
         }
-        var text = '';
-        var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
-        var node;
-        while ((node = walker.nextNode())) {
-            var parent = node.parentElement;
-            var hidden = false;
-            while (parent && parent !== el) {
-                if (parent.getAttribute('aria-hidden') === 'true') { hidden = true; break; }
-                var style = window.getComputedStyle(parent);
-                if (style.display === 'none' || style.visibility === 'hidden') { hidden = true; break; }
-                parent = parent.parentElement;
+        if (!selfHidden) {
+            var text = '';
+            var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+            var node;
+            while ((node = walker.nextNode())) {
+                var parent = node.parentElement;
+                var hidden = false;
+                while (parent && parent !== el) {
+                    if (parent.getAttribute('aria-hidden') === 'true') { hidden = true; break; }
+                    var style = window.getComputedStyle(parent);
+                    if (style.display === 'none' || style.visibility === 'hidden') { hidden = true; break; }
+                    parent = parent.parentElement;
+                }
+                if (!hidden) text += node.textContent;
             }
-            if (!hidden) text += node.textContent;
+            result = text.trim().replace(/\s+/g, ' ');
+            // Fallback: if no light DOM text and element has shadow root, try shadow content
+            if (!result && el.shadowRoot) {
+                result = this._getShadowText(el.shadowRoot);
+            }
         }
-        var result = text.trim().replace(/\s+/g, ' ');
-        // Fallback: if no light DOM text and element has shadow root, try shadow content
-        if (!result && el.shadowRoot) {
-            result = this._getShadowText(el.shadowRoot);
-        }
+        if (_scan) _scan.text.set(el, result);
         return result;
     };
 

@@ -30,6 +30,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -625,6 +626,161 @@ class LocatorsE2eTest extends DriverTestBase {
                 + " if (all.length !== 1) return 'list length ' + all.length;"
                 + " return all[0] === window.__kjs.resolve('b', 'Shadowed', 1, false) ? 'same' : 'different'; })()");
         assertEquals("same", String.valueOf(verdict));
+    }
+
+    // ========== withScan (the quiescent-scan memo) ==========
+    // resolve()/resolveAll() evaluate the text predicate over EVERY candidate, and extracting one
+    // candidate's visible text walks each of its text nodes' ancestors asking getComputedStyle. So
+    // one document-wide resolve costs O(nodes x depth) style reads — and a caller that resolves
+    // once per element pays that whole cost per element, re-deriving the same few thousand answers
+    // every time. On a live enterprise page (2298 nodes, 48 elements) that was 9.4 seconds.
+    //
+    // withScan() lets a caller that KNOWS the page is holding still pay for those answers once.
+    // The tests below pin the three things that makes it safe to rely on rather than the wall
+    // clock, which no CI box can promise: the answers do not change, the work actually drops, and
+    // a closed scan leaves nothing behind.
+
+    /** A page dense and deep enough for O(nodes x depth) to dominate — 60 rows of repeated text,
+     *  each nested a realistic number of levels down (a real enterprise screen puts its text nodes
+     *  15-25 levels deep, and depth is the multiplier). Built in the page so the fixture sits next
+     *  to the assertions that depend on its shape. */
+    private static final String DENSE_PAGE = "(function(){"
+            + " var host = document.createElement('div'); host.id = 'dense';"
+            + " var shell = host;"
+            + " for (var w = 0; w < 6; w++) { var lvl = document.createElement('div'); shell.appendChild(lvl); shell = lvl; }"
+            + " var LABELS = ['Edit', 'Delete', 'View', 'Approve', 'Reject'];"
+            + " for (var r = 0; r < 60; r++) {"
+            + "   var row = document.createElement('div');"
+            + "   for (var c = 0; c < LABELS.length; c++) {"
+            + "     var cell = document.createElement('div');"
+            + "     var inner = document.createElement('div');"
+            + "     var span = document.createElement('span');"
+            + "     span.appendChild(document.createTextNode(LABELS[c]));"
+            + "     inner.appendChild(span); cell.appendChild(inner); row.appendChild(cell);"
+            + "   }"
+            + "   shell.appendChild(row);"
+            + " }"
+            + " document.body.appendChild(host);"
+            + " return document.getElementsByTagName('*').length; })()";
+
+    /** The shape a caller's derivation pass has: for every distinct repeated text, ask which
+     *  candidates match and which index each one is. Returns the answers as a fingerprint plus the
+     *  getComputedStyle count it took to produce them — the count is the deterministic cost
+     *  measure, identical on any machine, where wall clock is not. */
+    private static final String WORKLOAD = "function(useScan){"
+            + " var k = window.__kjs;"
+            + " var LABELS = ['Edit', 'Delete', 'View', 'Approve', 'Reject'];"
+            + " var styles = 0, origStyle = window.getComputedStyle;"
+            + " window.getComputedStyle = function(){ styles++; return origStyle.apply(this, arguments); };"
+            + " var body = function(){"
+            + "   var out = [];"
+            + "   var all = document.getElementsByTagName('*');"
+            + "   for (var i = 0; i < all.length; i++) { if (k.getVisibleText(all[i])) out.push(i); }"
+            + "   for (var q = 0; q < LABELS.length; q++) {"
+            // the wildcard tag deliberately: a '*' resolve is what a caller deriving a {tag}text
+            // locator actually issues, and it is the shape whose cost is O(nodes x depth) — a
+            // tag-scoped resolve over leaf <span>s would walk almost nothing and prove nothing
+            + "     var list = k.resolveAll('*', LABELS[q], false);"
+            + "     out.push(LABELS[q] + '#' + list.length);"
+            + "     for (var j = 0; j < list.length; j++) {"
+            + "       out.push(k.resolve('*', LABELS[q], j + 1, false) === list[j] ? 1 : 'MISMATCH@' + j);"
+            + "       out.push(k.isVisible(list[j]) ? 1 : 0);"
+            + "     }"
+            + "   }"
+            + "   return out.join(',');"
+            + " };"
+            + " var fingerprint, t0 = performance.now();"
+            + " try { fingerprint = useScan ? k.withScan(body) : body(); }"
+            + " finally { window.getComputedStyle = origStyle; }"
+            + " return {fp: fingerprint, styles: styles, ms: performance.now() - t0,"
+            + "         open: k.inScan(), nodes: document.getElementsByTagName('*').length};"
+            + "}";
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> measure(boolean useScan) {
+        return (Map<String, Object>) driver.script("(" + WORKLOAD + ")(" + useScan + ")");
+    }
+
+    @Test
+    void testWithScanReturnsTheSameAnswersForFarLessWorkAndLeavesNoResidue() {
+        driver.setUrl(testUrl("/locators"));
+        Object nodes = driver.script(DENSE_PAGE);
+        assertTrue(Integer.parseInt(String.valueOf(nodes)) > 900,
+                "the dense fixture must actually be dense, got " + nodes + " nodes");
+
+        Map<String, Object> closedBefore = measure(false);
+        Map<String, Object> open = measure(true);
+        Map<String, Object> closedAfter = measure(false);
+
+        long stylesClosed = ((Number) closedBefore.get("styles")).longValue();
+        long stylesOpen = ((Number) open.get("styles")).longValue();
+        long stylesAfter = ((Number) closedAfter.get("styles")).longValue();
+        logger.info("withScan: {} nodes, getComputedStyle {} closed -> {} open ({}x), {} ms -> {} ms",
+                closedBefore.get("nodes"), stylesClosed, stylesOpen,
+                stylesClosed / Math.max(stylesOpen, 1), closedBefore.get("ms"), open.get("ms"));
+
+        // 1. the answers are identical — a memo that changes what resolve() says is a bug, not a
+        //    speedup, and this is the assertion that would catch it
+        assertEquals(closedBefore.get("fp"), open.get("fp"),
+                "withScan must not change what the resolver answers");
+        assertFalse(String.valueOf(open.get("fp")).contains("MISMATCH"),
+                "resolveAll/resolve disagreed inside a scan");
+
+        // 2. the work actually drops. The bound is deliberately loose (10x, against ~20x measured
+        //    on this fixture and 250x+ on a real enterprise page) so it fails only if the memo has
+        //    stopped memoizing — the thing worth a regression test — and not on Chrome-version drift.
+        assertTrue(stylesOpen * 10 < stylesClosed,
+                "a scan must cut the style reads by an order of magnitude: " + stylesClosed + " -> " + stylesOpen);
+
+        // 3. a closed scan costs exactly what it cost before one was ever opened. This is the
+        //    guarantee for every caller that never opens a scan — OSS driver.click()/waitFor() —
+        //    and it is also how a leaked memo (state surviving the bracket) would show up.
+        assertEquals(stylesClosed, stylesAfter,
+                "a closed scan must do the same work it always did — no residue from the open one");
+        assertEquals(closedBefore.get("fp"), closedAfter.get("fp"));
+    }
+
+    @Test
+    void testScanClosesOnTheWayOutEvenWhenTheCallbackThrows() {
+        driver.setUrl("data:text/html,<b id='one'>Status</b>");
+        Object verdict = driver.script("(function(){"
+                + " var k = window.__kjs;"
+                + " if (k.inScan()) return 'open before';"
+                + " var inside = k.withScan(function(){ return k.inScan(); });"
+                + " if (!inside) return 'not open inside';"
+                + " if (k.inScan()) return 'still open after return';"
+                // nesting re-uses the outer bracket rather than opening a second one
+                + " var nested = k.withScan(function(){ return k.withScan(function(){ return k.inScan(); }) && k.inScan(); });"
+                + " if (!nested) return 'nesting broke the bracket';"
+                + " if (k.inScan()) return 'still open after nesting';"
+                + " try { k.withScan(function(){ throw new Error('boom'); }); } catch (e) { /* expected */ }"
+                + " return k.inScan() ? 'LEAKED after throw' : 'ok'; })()");
+        assertEquals("ok", String.valueOf(verdict));
+    }
+
+    @Test
+    void testScanSeesTheSameHiddenAndShadowTextTheClosedPathDoes() {
+        // the two shapes the memo could plausibly get wrong: text excluded because an ancestor is
+        // hidden, and text that only exists inside a shadow root (getVisibleText's fallback)
+        driver.setUrl("data:text/html,"
+                + "<div id='vis'><span>Shown</span><span style='display:none'>Gone</span></div>"
+                + "<div id='off' style='visibility:hidden'><span>Invisible</span></div>"
+                + "<div id='aria' aria-hidden='true'><span>Excluded</span></div>"
+                + "<div id='host'></div>");
+        driver.script("(function(){ var h = document.getElementById('host').attachShadow({mode:'open'});"
+                + " h.innerHTML = \"<b>Shadowed</b>\"; })()");
+        Object verdict = driver.script("(function(){"
+                + " var k = window.__kjs;"
+                + " var read = function(){ return ['vis','off','aria','host'].map(function(id){"
+                + "   var el = document.getElementById(id);"
+                + "   return id + '=' + k.getVisibleText(el) + '/' + k.isVisible(el); }).join('|'); };"
+                + " var closed = read();"
+                + " var open = k.withScan(read);"
+                + " var closedAgain = read();"
+                + " if (closed !== open) return 'open differs: ' + closed + ' vs ' + open;"
+                + " if (closed !== closedAgain) return 'residue: ' + closed + ' vs ' + closedAgain;"
+                + " return closed; })()");
+        assertEquals("vis=Shown/true|off=/false|aria=/false|host=Shadowed/true", String.valueOf(verdict));
     }
 
 }
