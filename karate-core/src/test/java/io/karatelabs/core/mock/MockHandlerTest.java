@@ -327,4 +327,43 @@ class MockHandlerTest {
         assertEquals(404, response.getStatus());
     }
 
+    @Test
+    void everyFabricatedResponseDisclosesThatAMockAnsweredIt() {
+        // The responder has to say so itself: an address proves nothing (a real service on localhost is
+        // ordinary), so without this header a consumer — above all the coverage graph — cannot tell a
+        // stand-in from the real system. Presence is certainty; absence proves nothing.
+        Feature feature = parseFeature("""
+            Feature: disclosure
+
+            Scenario: pathMatches('/hello')
+              * def response = { message: 'world' }
+            """);
+
+        MockHandler handler = new MockHandler(feature);
+        HttpResponse response = handler.apply(createRequest("GET", "/hello"));
+        assertEquals("true", response.getHeader(MockHandler.KARATE_MOCK_HEADER));
+
+        // it rides every response the mock fabricates, including the no-scenario-matched 404
+        HttpResponse notFound = handler.apply(createRequest("GET", "/nope"));
+        assertEquals(404, notFound.getStatus());
+        assertEquals("true", notFound.getHeader(MockHandler.KARATE_MOCK_HEADER));
+    }
+
+    @Test
+    void theDisclosureHeaderCanBeSuppressedForAMockThatMustImpersonateExactly() {
+        Feature feature = parseFeature("""
+            Feature: disclosure off
+
+            Scenario: pathMatches('/hello')
+              * def response = { message: 'world' }
+            """);
+
+        MockHandler handler = new MockHandler(feature);
+        handler.getConfig().setMockHeaderEnabled(false);
+        HttpResponse response = handler.apply(createRequest("GET", "/hello"));
+
+        assertNull(response.getHeader(MockHandler.KARATE_MOCK_HEADER),
+                "a mock asserting on an exact header set can opt out");
+    }
+
 }

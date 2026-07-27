@@ -67,8 +67,22 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
 
     private static final String ALLOWED_METHODS = "GET, HEAD, POST, PUT, DELETE, PATCH, OPTIONS";
 
+    /**
+     * The disclosure header every karate-fabricated mock response carries: {@code Karate-Mock: true}.
+     * It exists so a consumer can distinguish a stand-in from the real system <b>as a fact reported by
+     * the responder</b>, not as an inference from its address — a real service on {@code localhost} is
+     * ordinary, so nothing about a URL can carry this. Read it that way in both directions: its presence
+     * is certain, its absence proves nothing (any non-karate stub answers exactly like a real server).
+     * Suppressible via {@code MockConfig#setMockHeaderEnabled(false)}.
+     */
+    public static final String KARATE_MOCK_HEADER = "Karate-Mock";
+
     // Current request being processed (protected by requestLock)
     private HttpRequest currentRequest;
+
+    // Set when the current request was served by karate.proceed(): the body came from the REAL upstream,
+    // so the response must not claim to be mock-fabricated (protected by requestLock, like currentRequest)
+    private boolean proceeded;
 
     public HttpRequest getCurrentRequest() {
         return currentRequest;
@@ -322,7 +336,17 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
     public HttpResponse apply(HttpRequest request) {
         requestLock.lock();
         try {
-            return handleRequest(request);
+            proceeded = false;
+            HttpResponse response = handleRequest(request);
+            // Disclose that this response was FABRICATED by a karate mock. Downstream — above all the
+            // coverage graph — cannot otherwise tell a stand-in from the real system: an address is no
+            // signal (a real service is routinely on localhost), so the mock has to say so itself.
+            // Presence is certainty; absence proves nothing (any other stub answers no differently).
+            // A karate.proceed() response came from the real upstream, so it is deliberately NOT stamped.
+            if (config.isMockHeaderEnabled() && !proceeded) {
+                response.setHeader(KARATE_MOCK_HEADER, "true");
+            }
+            return response;
         } finally {
             requestLock.unlock();
         }
@@ -505,6 +529,8 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
 
         // Handle karate.proceed() result - if response is an HttpResponse, pass it through
         if (responseBody instanceof HttpResponse proceedResponse) {
+            // the real upstream answered this one — apply() must not stamp it as mock-fabricated
+            proceeded = true;
             // Pass through the proceed response directly
             response.setStatus(proceedResponse.getStatus());
             response.setStatusText(proceedResponse.getStatusText());

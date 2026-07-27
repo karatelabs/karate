@@ -34,12 +34,26 @@ import java.util.Map;
 public class MockConfig {
 
     private boolean corsEnabled;
+    /** Emit the {@link MockHandler#KARATE_MOCK_HEADER} disclosure header on every response this mock
+     *  <b>fabricates</b>. ON by default: a consumer of the response — above all the coverage graph —
+     *  must be able to tell that the thing that answered was a stand-in, not the real system. Turn it
+     *  off for a mock that has to impersonate a real service byte-for-byte (a contract test asserting
+     *  on the exact header set). */
+    private boolean mockHeaderEnabled = true;
     private Map<String, Object> responseHeaders;
     private JavaCallable beforeScenario;
     private JavaCallable afterScenario;
 
     public boolean isCorsEnabled() {
         return corsEnabled;
+    }
+
+    public boolean isMockHeaderEnabled() {
+        return mockHeaderEnabled;
+    }
+
+    public void setMockHeaderEnabled(boolean mockHeaderEnabled) {
+        this.mockHeaderEnabled = mockHeaderEnabled;
     }
 
     public void setCorsEnabled(boolean corsEnabled) {
