@@ -835,4 +835,31 @@ class RunnerTest {
         assertTrue(result.isPassed());
     }
 
+    @Test
+    void aDryRunResultKnowsItWasParseOnlySoNothingReadsAsAPass() throws Exception {
+        // A dry run cannot fail (no step executes) and its skipped scenarios count toward `passed`, so
+        // every consumer of the result — the console summary, a CI gate, a coverage ext — would otherwise
+        // see an ordinary green for a suite that never touched the system under test. The result carries
+        // the parse-only fact so it can be reported honestly.
+        Path feature = tempDir.resolve("declared.feature");
+        Files.writeString(feature, """
+            Feature: declared
+
+            Scenario: would fail if it ran
+            * match 1 == 2
+            """);
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .dryRun(true)
+                .parallel(1);
+
+        assertTrue(result.isDryRun(), "the result reports that nothing was executed");
+        assertEquals(0, result.getScenarioFailedCount(), "the failing scenario never ran");
+        assertEquals(1, result.getScenarioSkippedCount(), "it was skipped, not passed");
+        assertTrue(result.isPassed(), "and the suite still settles clean — exactly why isDryRun() exists");
+    }
+
 }

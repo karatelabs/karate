@@ -39,6 +39,10 @@ public class SuiteResult {
     private long endTime;
     private Path reportDir;
     private boolean htmlReportEnabled;
+    /** Parse-only run ({@code -D} / {@code Runner.Builder.dryRun}): no step executed. Every scenario is
+     *  skipped, and a skip counts toward {@code passed} (nothing failed) — so the summary MUST say so
+     *  rather than print "all passed" for a run that never touched the system under test. */
+    private boolean dryRun;
 
     public SuiteResult() {
     }
@@ -69,6 +73,15 @@ public class SuiteResult {
 
     public void setHtmlReportEnabled(boolean htmlReportEnabled) {
         this.htmlReportEnabled = htmlReportEnabled;
+    }
+
+    public void setDryRun(boolean dryRun) {
+        this.dryRun = dryRun;
+    }
+
+    /** True when this suite ran parse-only — nothing was executed, so no result here is evidence. */
+    public boolean isDryRun() {
+        return dryRun;
     }
 
     public boolean isHtmlReportEnabled() {
@@ -280,9 +293,11 @@ public class SuiteResult {
         int featureTotal = getFeatureCount();
         int featurePassed = getFeaturePassedCount();
         int featureFailed = getFeatureFailedCount();
+        // a dry run cannot fail (nothing runs) and its skips count as passed — printing "all passed" for it
+        // would report a green for a suite that never touched the system under test
         String featureStatus = featureFailed > 0
                 ? Console.fail(featureFailed + " failed")
-                : Console.pass("all passed");
+                : dryRun ? Console.warn("parsed only") : Console.pass("all passed");
 
         Console.println(String.format("features: %4d | passed: %4d | %s",
                 featureTotal, featurePassed, featureStatus));
@@ -294,7 +309,7 @@ public class SuiteResult {
         int scenarioSkipped = getScenarioSkippedCount();
         String scenarioStatus = scenarioFailed > 0
                 ? Console.fail(scenarioFailed + " failed")
-                : Console.pass("all passed");
+                : dryRun ? Console.warn("DRY RUN — nothing was executed") : Console.pass("all passed");
 
         if (scenarioSkipped > 0) {
             Console.println(String.format("scenarios: %3d | passed: %4d | skipped: %4d | %s",

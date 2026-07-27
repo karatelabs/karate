@@ -300,6 +300,12 @@ public class FeatureResult {
      * Print a summary of this feature's results to the console.
      */
     public void printSummary() {
+        printSummary(false);
+    }
+
+    /** @param dryRun parse-only ({@code -D}) — every scenario is skipped and skips count toward
+     *  {@code passed}, so the status word must say "parsed", not "passed". */
+    public void printSummary(boolean dryRun) {
         String path = getDisplayName();
         int passed = getPassedCount();
         int failed = getFailedCount();
@@ -309,7 +315,7 @@ public class FeatureResult {
 
         String status = failed > 0
                 ? Console.red(failed + " failed")
-                : Console.green("passed");
+                : dryRun ? Console.yellow("parsed, not run") : Console.green("passed");
 
         String featureLine = failed > 0
                 ? Console.red(path)

@@ -323,6 +323,7 @@ public class Suite {
         result.setStartTime(System.currentTimeMillis());
         result.setReportDir(outputDir);
         result.setHtmlReportEnabled(outputHtmlReport);
+        result.setDryRun(dryRun);
 
         // Clear any per-Scenario selection cache from a prior run against the same
         // parsed Feature objects. The pre-filter below will repopulate for this run.
@@ -647,7 +648,7 @@ public class Suite {
                 FeatureResult featureResult = runFeatureSafely(feature);
                 result.addFeatureResult(featureResult);
                 if (outputConsoleSummary) {
-                    featureResult.printSummary();
+                    featureResult.printSummary(dryRun);
                 }
             }
         } finally {
@@ -689,7 +690,7 @@ public class Suite {
                     try {
                         FeatureResult featureResult = runFeatureSafely(feature);
                         if (outputConsoleSummary) {
-                            featureResult.printSummary();
+                            featureResult.printSummary(dryRun);
                         }
                         return featureResult;
                     } finally {
