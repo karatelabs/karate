@@ -296,7 +296,12 @@ public class StepExecutor {
 
         } catch (AssertionError | Exception e) {
             long elapsedNanos = System.nanoTime() - startNanos;
-            StepResult result = StepResult.failed(step, startTime, elapsedNanos, e);
+            // A `<Global> is not defined` whose ext the project forgot to declare gets that named here —
+            // the last point every step failure passes through, and after the recovery paths that branch
+            // on a raw ReferenceError (the ##() optional-embedded skip). Any other failure passes through
+            // untouched.
+            Throwable failure = ExtHint.decorate(e, suite);
+            StepResult result = StepResult.failed(step, startTime, elapsedNanos, failure);
             collectLogsAndEmbeds(result);
 
             // Notify interceptor of failed step execution
@@ -306,7 +311,7 @@ public class StepExecutor {
                     String sourcePath = step.getFeature().getResource().getRelativePath();
                     afterPoint = finalPointFactory.create(io.karatelabs.js.DebugPointFactory.GHERKIN_STEP, step.getLine(), sourcePath, step, null);
                 }
-                finalInterceptor.afterExecute(afterPoint, result, e);
+                finalInterceptor.afterExecute(afterPoint, result, failure);
             }
 
             // Fire STEP_EXIT event

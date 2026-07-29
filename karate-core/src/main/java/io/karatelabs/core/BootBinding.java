@@ -178,7 +178,7 @@ public class BootBinding {
                 return existing;
             }
         }
-        String className = "io.karatelabs.ext." + name + "." + capitalize(name) + "Ext";
+        String className = extClassName(name);
         Ext ext;
         try {
             Class<?> cls = Class.forName(className);
@@ -229,8 +229,25 @@ public class BootBinding {
                 return true;
             }
         }
+        return extAvailable(name);
+    }
+
+    /** The name-convention class of an ext: {@code 'openapi'} → {@code io.karatelabs.ext.openapi.OpenapiExt}. */
+    static String extClassName(String name) {
+        return "io.karatelabs.ext." + name + "." + capitalize(name) + "Ext";
+    }
+
+    /**
+     * Is an ext of this name on the classpath? The raw probe behind {@link #has} — constructs nothing,
+     * registers nothing. Also how {@link ExtHint} decides whether a missing global is worth naming an
+     * ext for, without either place hard-coding the convention twice.
+     */
+    static boolean extAvailable(String name) {
+        if (name == null || name.isBlank()) {
+            return false;
+        }
         try {
-            Class.forName("io.karatelabs.ext." + name + "." + capitalize(name) + "Ext");
+            Class.forName(extClassName(name));
             return true;
         } catch (ClassNotFoundException e) {
             return false;
