@@ -144,20 +144,23 @@ public final class Runner {
      */
     public static FeatureResult runFeature(String path, Map<String, Object> arg, PerfHook perfHook,
                                            List<String> tags, Builder template) {
-        Resource resource = Resource.path(path);
-        Feature feature = Feature.read(resource);
-
         // Create the suite using Builder, seeding with template settings if provided
         Builder builder = Runner.builder()
-                .features(feature)
                 .outputHtmlReport(false)
                 .outputConsoleSummary(false);
+        // this lane has never evaluated karate-boot.js — a Gatling simulation boots nothing
+        builder.setSkipBootFile(true);
         if (template != null) {
             if (template.getEnv() != null) {
                 builder.karateEnv(template.getEnv());
             }
             if (template.getConfigDir() != null) {
                 builder.configDir(template.getConfigDir());
+            }
+            // carry the template's anchor so the feature — and every reference inside it —
+            // resolves against the project, not the process CWD
+            if (template.getWorkingDir() != null) {
+                builder.workingDir(template.getWorkingDir());
             }
             Map<String, String> sysProps = template.getSystemProperties();
             if (sysProps != null) {
@@ -186,6 +189,10 @@ public final class Runner {
         // run with -Dkarate.env=... would not pick it up (it would resolve to the config default).
         KarateOptionsHandler.applyEnvAndConfigDir(builder);
         Suite suite = builder.buildSuite();
+
+        // read the feature AFTER the Suite exists, so it is anchored on THE root the same way
+        // every other lane's features are (this is the one place that used to root at the CWD)
+        Feature feature = Feature.read(Resource.path(path, suite.getRoot(), suite.getClasspathRoot()));
 
         // Set PerfHook if provided (for Gatling integration)
         if (perfHook != null) {
@@ -227,7 +234,10 @@ public final class Runner {
         private String scenarioName;
         private String configDir;
         private Path outputDir; // Default set in getOutputDir() using FileUtils.getBuildDir()
-        private Path workingDir = FileUtils.WORKING_DIR.toPath();
+        // null until explicitly set — "was a working dir chosen?" is what decides whether a
+        // boot.classpath declaration may re-anchor it (Suite ctor). Default applied there.
+        private Path workingDir;
+        private boolean skipBootFile;
         private boolean dryRun;
         private boolean outputHtmlReport = true;
         private boolean outputJsonLines;
@@ -729,37 +739,51 @@ public final class Runner {
          * Mirror that logic if you need parity with what would actually run.
          */
         public List<Feature> getResolvedFeatures() {
+            return resolveFeaturesAt(workingDir != null ? workingDir : FileUtils.WORKING_DIR.toPath(), null);
+        }
+
+        /**
+         * Resolve this Builder's paths + pre-built features at the given anchors. Called from the
+         * {@link Suite} constructor <b>after</b> {@code karate-boot.js} has evaluated, so features are
+         * rooted at the FINAL working dir and carry the boot-declared {@code classpath:} fallback dir
+         * into every reference made from inside them. Memoized — the first call wins.
+         *
+         * @param root          the working dir features anchor on
+         * @param classpathRoot the {@code classpath:}-miss fallback dir (null = root)
+         */
+        List<Feature> resolveFeaturesAt(Path root, Path classpathRoot) {
             if (resolvedFeatures == null) {
                 resolvedFeatures = new ArrayList<>();
                 for (Feature feature : features) {
-                    resolvedFeatures.add(reRootToWorkingDir(feature));
+                    resolvedFeatures.add(reRoot(feature, root, classpathRoot));
                 }
                 for (String path : paths) {
-                    resolveFeatures(path, resolvedFeatures, workingDir);
+                    resolveFeatures(path, resolvedFeatures, root, classpathRoot);
                 }
             }
             return Collections.unmodifiableList(resolvedFeatures);
         }
 
         /**
-         * Re-anchor a pre-built, filesystem-backed {@link Feature}'s {@link Resource} root to this Builder's
-         * {@code workingDir}, so a leading-{@code /} reference (read / callSingle / karate.start — including
-         * during config-eval, which anchors on the running feature's resource root) resolves to the project
-         * root, exactly like the path-loading flow that already builds features via
-         * {@code Resource.from(file, workingDir)}. This closes the gap where {@code Runner.features(feature)}
-         * ran a feature whose resource was rooted at the process CWD (e.g. built via
-         * {@code Feature.read(Resource.path(...))}), ignoring an explicit {@code .workingDir(...)}.
-         * Classpath / in-memory features (no filesystem path) and features already rooted at
-         * {@code workingDir} are returned unchanged; best-effort — never fails resolution over a re-root.
+         * Re-anchor a pre-built, filesystem-backed {@link Feature}'s {@link Resource} root, so a
+         * leading-{@code /} reference (read / callSingle / karate.start — including during config-eval,
+         * which anchors on the running feature's resource root) resolves to the project root, exactly like
+         * the path-loading flow that already builds features via {@code Resource.from(file, root)}.
+         * This closes the gap where {@code Runner.features(feature)} ran a feature whose resource was
+         * rooted at the process CWD (e.g. built via {@code Feature.read(Resource.path(...))}), ignoring an
+         * explicit {@code .workingDir(...)}. Classpath / in-memory features (no filesystem path) and
+         * features already correctly anchored are returned unchanged; best-effort — never fails
+         * resolution over a re-root.
          */
-        private Feature reRootToWorkingDir(Feature feature) {
+        private static Feature reRoot(Feature feature, Path root, Path classpathRoot) {
             Resource resource = feature.getResource();
-            if (resource == null || !resource.isFile() || workingDir == null
-                    || workingDir.equals(resource.getRoot())) {
+            Path cpRoot = classpathRoot != null ? classpathRoot : root;
+            if (resource == null || !resource.isFile() || root == null
+                    || (root.equals(resource.getRoot()) && cpRoot.equals(resource.getClasspathRoot()))) {
                 return feature;
             }
             try {
-                return Feature.read(Resource.from(resource.getPath(), workingDir));
+                return Feature.read(Resource.from(resource.getPath(), root, cpRoot));
             } catch (Exception e) {
                 return feature;
             }
@@ -771,7 +795,9 @@ public final class Runner {
         List<String> getTags() { return tags; }
         String getConfigDir() { return configDir; }
         Path getOutputDir() { return outputDir; }
+        /** The EXPLICITLY-set working dir, or null — the Suite applies the default. */
         Path getWorkingDir() { return workingDir; }
+        boolean isSkipBootFile() { return skipBootFile; }
         boolean isDryRun() { return dryRun; }
         boolean isOutputHtmlReport() { return outputHtmlReport; }
         boolean isOutputJsonLines() { return outputJsonLines; }
@@ -806,6 +832,8 @@ public final class Runner {
         void setTags(List<String> tags) { this.tags = tags; }
         void setScenarioName(String name) { this.scenarioName = name; }
         void setConfigDir(String dir) { this.configDir = dir; }
+        /** Gatling's single-feature lane has never booted karate-boot.js — keep it that way. */
+        void setSkipBootFile(boolean skip) { this.skipBootFile = skip; }
         void setOutputDir(Path dir) { this.outputDir = dir; }
         void setDryRun(boolean dryRun) { this.dryRun = dryRun; }
         void setOutputHtmlReport(boolean enabled) { this.outputHtmlReport = enabled; }
@@ -939,7 +967,7 @@ public final class Runner {
             return new Suite(this, Math.max(1, threadCount));
         }
 
-        private void resolveFeatures(String path, List<Feature> target, Path root) {
+        private void resolveFeatures(String path, List<Feature> target, Path root, Path classpathRoot) {
             // Parse line number from path (e.g., "test.feature:10" or "test.feature:10:15")
             String actualPath = path;
             Set<Integer> lines = new HashSet<>();
@@ -992,9 +1020,9 @@ public final class Runner {
             File file = new File(actualPath);
 
             if (file.isDirectory()) {
-                resolveDirectory(file, target, root);
+                resolveDirectory(file, target, root, classpathRoot);
             } else if (file.exists() && file.getName().endsWith(".feature")) {
-                Feature feature = Feature.read(Resource.from(file.toPath(), root));
+                Feature feature = Feature.read(Resource.from(file.toPath(), root, classpathRoot));
                 target.add(feature);
                 // Store line filter for this feature
                 if (!lines.isEmpty()) {
@@ -1008,8 +1036,11 @@ public final class Runner {
                 }
 
                 if (classpathPath.endsWith(".feature")) {
-                    // Single feature file
-                    Resource resource = Resource.path(actualPath);
+                    // Single feature file — anchored on the project root, symmetrically with the
+                    // directory-scan branch below (which has always passed root through). Without
+                    // it, one classpath: feature ran rooted at the process CWD and every leading-"/"
+                    // reference inside it leaked out of the project.
+                    Resource resource = Resource.path(actualPath, root, classpathRoot);
                     Feature feature = Feature.read(resource);
                     target.add(feature);
                     // Store line filter for this feature
@@ -1020,22 +1051,24 @@ public final class Runner {
                     // Directory - scan for .feature files
                     List<Resource> resources = Resource.scanClasspath(classpathPath, "feature", null, root);
                     for (Resource resource : resources) {
-                        Feature feature = Feature.read(resource);
+                        // a jar-scanned hit is in-memory (no Path) — take it as-is
+                        Feature feature = Feature.read(resource.getPath() == null
+                                ? resource : Resource.from(resource.getPath(), root, classpathRoot));
                         target.add(feature);
                     }
                 }
             }
         }
 
-        private void resolveDirectory(File dir, List<Feature> target, Path root) {
+        private void resolveDirectory(File dir, List<Feature> target, Path root, Path classpathRoot) {
             File[] files = dir.listFiles();
             if (files == null) return;
 
             for (File file : files) {
                 if (file.isDirectory()) {
-                    resolveDirectory(file, target, root);
+                    resolveDirectory(file, target, root, classpathRoot);
                 } else if (file.getName().endsWith(".feature")) {
-                    Feature feature = Feature.read(Resource.from(file.toPath(), root));
+                    Feature feature = Feature.read(Resource.from(file.toPath(), root, classpathRoot));
                     target.add(feature);
                 }
             }

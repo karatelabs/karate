@@ -32,6 +32,7 @@ public class PathResource implements Resource {
 
     private final Path path;
     private final Path root;
+    private final Path classpathRoot;
     private final boolean classpath;
     private final String relativePath;
 
@@ -67,9 +68,23 @@ public class PathResource implements Resource {
      * @param classpath whether this is a classpath resource
      */
     public PathResource(Path path, Path root, boolean classpath) {
+        this(path, root, classpath, null);
+    }
+
+    /**
+     * Creates a PathResource with custom root, classpath flag and an explicit
+     * {@code classpath:}-fallback dir (see {@link Resource#getClasspathRoot()}).
+     *
+     * @param path          the path
+     * @param root          the root path for computing relative paths
+     * @param classpath     whether this is a classpath resource
+     * @param classpathRoot the {@code classpath:}-miss fallback dir (null = root)
+     */
+    public PathResource(Path path, Path root, boolean classpath, Path classpathRoot) {
         // Always work with absolute normalized paths internally for consistency
         this.path = path.toAbsolutePath().normalize();
         this.root = root != null ? root.toAbsolutePath().normalize() : FileUtils.WORKING_DIR.toPath();
+        this.classpathRoot = classpathRoot != null ? classpathRoot.toAbsolutePath().normalize() : this.root;
         this.classpath = classpath;
         this.relativePath = computeRelativePath();
     }
@@ -136,11 +151,16 @@ public class PathResource implements Resource {
     }
 
     @Override
+    public Path getClasspathRoot() {
+        return classpathRoot;
+    }
+
+    @Override
     public Resource resolve(String childPath) {
         // Handle classpath: prefix - classloader lookup, falling back to this resource's
-        // root in project mode (no Java classpath carries the project's files there)
+        // classpath root in project mode (no Java classpath carries the project's files there)
         if (childPath.startsWith(Resource.CLASSPATH_COLON)) {
-            return Resource.classpathWithRootFallback(childPath, root);
+            return Resource.classpathWithRootFallback(childPath, root, classpathRoot);
         }
         // Handle file: prefix - delegate to Resource.path()
         if (childPath.startsWith(Resource.FILE_COLON)) {
@@ -154,8 +174,8 @@ public class PathResource implements Resource {
         // Leading "/" resolves relative to working directory (root), not filesystem root
         // Users who want filesystem root should use "file:" prefix
         if (childPath.startsWith("/")) {
-            Path resolved = root.resolve(childPath.substring(1));
-            return new PathResource(resolved, root, classpath);
+            Path resolved = root.resolve(Resource.stripLeadingSlashes(childPath));
+            return new PathResource(resolved, root, classpath, classpathRoot);
         }
 
         // Resolve from parent if this path is explicitly a file, otherwise from itself
@@ -172,13 +192,13 @@ public class PathResource implements Resource {
             base = hasExtension ? path.getParent() : path;
         }
         Path resolved = base.resolve(childPath);
-        return new PathResource(resolved, root, classpath);
+        return new PathResource(resolved, root, classpath, classpathRoot);
     }
 
     @Override
     public Resource getParent() {
         Path parentPath = path.getParent();
-        return parentPath != null ? new PathResource(parentPath, root, classpath) : null;
+        return parentPath != null ? new PathResource(parentPath, root, classpath, classpathRoot) : null;
     }
 
     @Override

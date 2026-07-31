@@ -47,7 +47,10 @@ import java.util.Set;
  *   <li>{@code boot.sysprop(name)} / {@code boot.sysprop(name, default)} — read a
  *       JVM system property; reads from the Suite's merged property map when
  *       available.</li>
- *   <li>{@code boot.read(path)} — read a file (relative paths resolve against workdir).</li>
+ *   <li>{@code boot.classpath(dir)} — declare the resource root: where a {@code classpath:}
+ *       miss falls back to, and (Runner lane) what the working dir re-anchors on.</li>
+ *   <li>{@code boot.read(path)} — read a file on the unified reference rule (leading {@code /}
+ *       anchors the project root).</li>
  *   <li>{@code boot.log(msg)} — INFO log line, prefixed {@code [boot]}.</li>
  *   <li>{@code boot.ext(name)} — resolve + construct the named ext via the
  *       {@code io.karatelabs.ext.<name>.<Name>Ext} convention, fire its
@@ -60,27 +63,25 @@ public class BootBinding {
     private static final Logger logger = LoggerFactory.getLogger(BootBinding.class);
 
     private final Suite suite;
-    private final java.nio.file.Path workingDir;
+    private final java.nio.file.Path root;
     private final String env;
     private final java.util.function.Consumer<Ext> registrar;
     private final Set<Ext> exts = new LinkedHashSet<>();
-
-    /** Production constructor — wires a live Suite for ext registration. */
-    public BootBinding(Suite suite, String env) {
-        this(suite, suite == null ? null : suite.getWorkingDir(), env,
-                suite == null ? e -> {} : suite::registerExtListener);
-    }
+    private String classpathDir;
 
     /**
-     * Explicit constructor for tests + advanced callers — decouples workingDir +
-     * listener registration from a fully-instantiated Suite.
+     * Constructor for tests + advanced callers — decouples the root + listener
+     * registration from a fully-instantiated Suite (the production caller,
+     * {@link BootLoader#evalIfPresent}, runs while the Suite is still being built).
+     *
+     * @param root THE project root every {@code boot.*} reference resolves against
      */
     public BootBinding(Suite suite,
-                       java.nio.file.Path workingDir,
+                       java.nio.file.Path root,
                        String env,
                        java.util.function.Consumer<Ext> registrar) {
         this.suite = suite;
-        this.workingDir = workingDir;
+        this.root = root;
         this.env = env;
         this.registrar = registrar == null ? e -> {} : registrar;
     }
@@ -130,28 +131,67 @@ public class BootBinding {
         return (value == null || value.isEmpty()) ? defaultValue : value;
     }
 
-    /** {@code boot.read('path')} — read text file relative to the Suite's workdir. */
+    /**
+     * {@code boot.classpath('src/test/resources')} — <b>declare the resource root</b>: the directory
+     * a {@code classpath:} reference retries against when the classloader misses, and (in a Java
+     * Runner-lane run that did not set an explicit working dir) the directory the working dir
+     * re-anchors to. One committed line makes a Maven/Gradle project resolve its references
+     * identically under a JVM run — where the classloader hits and this mapping stays inert — and
+     * under a bare-folder serve run, where the fallback carries {@code classpath:} refs to the
+     * declared dir.
+     *
+     * <p>The argument is a <b>root-relative reference</b>, so {@code file:} / {@code classpath:} /
+     * {@code this:} and Windows drive-letter absolutes are rejected. {@code ''} is valid and means
+     * the root itself (the "unify only, map nothing" spelling) — which is also what an undeclared
+     * project gets, so a bare-folder project never needs this call. Last call wins.</p>
+     */
+    public void classpath(String dir) {
+        if (dir == null) {
+            throw new IllegalArgumentException("boot.classpath: dir is null — pass a project-relative "
+                    + "directory such as 'src/test/resources', or '' for the project root");
+        }
+        if (dir.startsWith(Resource.FILE_COLON) || dir.startsWith(Resource.CLASSPATH_COLON)
+                || dir.startsWith(Resource.THIS_COLON)
+                || (!dir.startsWith("/") && java.nio.file.Path.of(dir).isAbsolute())) {
+            throw new IllegalArgumentException("boot.classpath('" + dir + "'): expected a directory "
+                    + "RELATIVE to the project root (e.g. 'src/test/resources'), not an absolute or "
+                    + "prefixed reference");
+        }
+        this.classpathDir = Resource.stripLeadingSlashes(dir);
+    }
+
+    /**
+     * The directory declared by {@link #classpath(String)}, root-relative and de-slashed, or
+     * {@code null} when the project declared nothing (then the fallback dir IS the root).
+     */
+    public String getClasspathDir() {
+        return classpathDir;
+    }
+
+    /**
+     * {@code boot.read('path')} — read a text file, on the one unified rule: a leading {@code /}
+     * anchors THE project root, a bare ref is root-relative, {@code classpath:} is
+     * classloader-first then the {@link #classpath(String)} fallback, and {@code file:} is a host
+     * path. Declare {@code boot.classpath(...)} before reading a {@code classpath:} ref that is
+     * not on the real classpath.
+     */
     public String read(String path) {
         if (path == null) throw new IllegalArgumentException("boot.read: path is null");
+        java.nio.file.Path classpathRoot = classpathDir == null || root == null
+                ? root : root.resolve(classpathDir).normalize();
         try {
-            Resource r = Resource.path(path);
+            Resource r = Resource.path(path, root, classpathRoot);
             if (r.exists()) {
-                return r.toString();
+                return r.getText();
             }
-        } catch (Exception e) {
-            // try workdir fallback below
+            throw new RuntimeException("boot.read: file not found: " + path
+                    + " (resolved to " + r + "; root is " + root
+                    + " — a leading '/' anchors the project root, 'file:' is a host path)");
+        } catch (io.karatelabs.common.ResourceNotFoundException e) {
+            throw new RuntimeException("boot.read: file not found: " + path
+                    + " (root is " + root + " — a leading '/' anchors the project root, "
+                    + "'file:' is a host path; declare boot.classpath(dir) to map 'classpath:' refs)", e);
         }
-        try {
-            java.nio.file.Path absolute = workingDir == null
-                    ? java.nio.file.Paths.get(path)
-                    : workingDir.resolve(path);
-            if (java.nio.file.Files.exists(absolute)) {
-                return new String(java.nio.file.Files.readAllBytes(absolute), java.nio.charset.StandardCharsets.UTF_8);
-            }
-        } catch (Exception e) {
-            // fall through to the throw below
-        }
-        throw new RuntimeException("boot.read: file not found: " + path);
     }
 
     /** {@code boot.log('...')} — INFO log with [boot] prefix. */

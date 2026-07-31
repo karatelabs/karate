@@ -149,4 +149,36 @@ class ClasspathProjectModeTest {
         assertThrows(ResourceNotFoundException.class,
                 () -> Resource.classpathWithRootFallback("classpath:no/such/thing.json", tempDir));
     }
+
+    @Test
+    void theStaticDoorReachesTheFallbackToo() throws Exception {
+        // Resource.path(String) is classloader-only — every serve-lane namespace used to come in
+        // through it, so the "one mental model" stopped exactly where karate-max's own namespaces
+        // started. The root-carrying overload is that same door with the fallback wired in.
+        Files.writeString(tempDir.resolve("data.json"), "{ \"id\": 42 }");
+        assertThrows(ResourceNotFoundException.class, () -> Resource.path("classpath:data.json"));
+        assertEquals(tempDir.resolve("data.json"),
+                Resource.path("classpath:data.json", tempDir).getPath());
+    }
+
+    @Test
+    void theStaticDoorResolvesEverySpellingToTheSameFile() throws Exception {
+        Files.createDirectories(tempDir.resolve("api"));
+        Path spec = Files.writeString(tempDir.resolve("api/openapi.yaml"), "openapi: 3.0.0");
+        assertEquals(spec, Resource.path("/api/openapi.yaml", tempDir).getPath());
+        assertEquals(spec, Resource.path("api/openapi.yaml", tempDir).getPath());
+        assertEquals(spec, Resource.path("classpath:api/openapi.yaml", tempDir).getPath());
+        assertEquals(spec, Resource.path("file:" + spec, tempDir).getPath());
+    }
+
+    @Test
+    void aClassloaderHitIsReAnchoredOnTheCallersRoot() {
+        // the hit still wins (see above) — but the Resource it yields carries the caller's root,
+        // so a leading-"/" reference made from INSIDE it stays in the project instead of leaking
+        // to the process CWD
+        Resource hit = Resource.path("classpath:json/cat.json", tempDir);
+        assertTrue(hit.isClassPath());
+        assertEquals(tempDir, hit.getRoot());
+        assertEquals(tempDir.resolve("other.json"), hit.resolve("/other.json").getPath());
+    }
 }

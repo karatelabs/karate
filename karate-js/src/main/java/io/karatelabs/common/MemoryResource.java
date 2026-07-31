@@ -34,6 +34,7 @@ public class MemoryResource implements Resource {
     private static final Path SYSTEM_TEMP = Path.of(System.getProperty("java.io.tmpdir"));
 
     private final Path root;
+    private final Path classpathRoot;
     private final byte[] bytes;
     private final String relativePath;
     private final int lineOffset;
@@ -51,6 +52,7 @@ public class MemoryResource implements Resource {
 
     MemoryResource(String text, Path root) {
         this.root = root != null ? root : SYSTEM_TEMP;
+        this.classpathRoot = this.root;
         this.text = text;
         this.bytes = FileUtils.toBytes(text);
         this.relativePath = "";
@@ -59,6 +61,7 @@ public class MemoryResource implements Resource {
 
     MemoryResource(byte[] bytes, Path root) {
         this.root = root != null ? root : SYSTEM_TEMP;
+        this.classpathRoot = this.root;
         this.bytes = bytes;
         this.relativePath = "";
         this.lineOffset = 0;
@@ -72,23 +75,25 @@ public class MemoryResource implements Resource {
      * @param relativePath the relative path (e.g., "features/test.feature")
      */
     MemoryResource(String text, String relativePath) {
-        this.root = SYSTEM_TEMP;
-        this.text = text;
-        this.bytes = FileUtils.toBytes(text);
-        this.relativePath = relativePath != null ? relativePath : "";
-        this.lineOffset = 0;
+        this(text, relativePath, 0, null, null);
     }
 
     /**
-     * Creates an in-memory resource with a relative path and line offset.
-     * Used for code embedded within another source file (e.g., JS inside a feature file).
+     * Creates an in-memory resource with a relative path, line offset and the host file's
+     * anchors. Used for code embedded within another source file (e.g., JS inside a feature
+     * file, or karate-config.js wrapped for evaluation) — carrying {@code root} /
+     * {@code classpathRoot} is what makes a reference made from inside the embedded code
+     * resolve against the same project the host file belongs to.
      *
-     * @param text         the embedded code text
-     * @param relativePath the host file's relative path
-     * @param lineOffset   0-indexed line in the host file where this code starts
+     * @param text          the embedded code text
+     * @param relativePath  the host file's relative path
+     * @param lineOffset    0-indexed line in the host file where this code starts
+     * @param root          THE project root (null = system temp)
+     * @param classpathRoot the {@code classpath:}-miss fallback dir (null = root)
      */
-    MemoryResource(String text, String relativePath, int lineOffset) {
-        this.root = SYSTEM_TEMP;
+    MemoryResource(String text, String relativePath, int lineOffset, Path root, Path classpathRoot) {
+        this.root = root != null ? root : SYSTEM_TEMP;
+        this.classpathRoot = classpathRoot != null ? classpathRoot : this.root;
         this.text = text;
         this.bytes = FileUtils.toBytes(text);
         this.relativePath = relativePath != null ? relativePath : "";
@@ -145,6 +150,11 @@ public class MemoryResource implements Resource {
     }
 
     @Override
+    public Path getClasspathRoot() {
+        return classpathRoot;
+    }
+
+    @Override
     public URI getUri() {
         return null;
     }
@@ -157,9 +167,9 @@ public class MemoryResource implements Resource {
     @Override
     public Resource resolve(String path) {
         // Handle classpath: prefix - classloader lookup, falling back to this resource's
-        // root in project mode (no Java classpath carries the project's files there)
+        // classpath root in project mode (no Java classpath carries the project's files there)
         if (path.startsWith(Resource.CLASSPATH_COLON)) {
-            return Resource.classpathWithRootFallback(path, root);
+            return Resource.classpathWithRootFallback(path, root, classpathRoot);
         }
         // Handle file: prefix using Resource.path()
         if (path.startsWith(Resource.FILE_COLON)) {
@@ -170,10 +180,7 @@ public class MemoryResource implements Resource {
         // would discard root (Path.resolve of an absolute arg returns the arg) and leak "/x" as OS-absolute
         // — the divergence that broke a leading-"/" read() during config-eval, where the "current resource"
         // is a MemoryResource (use "file:" to force a real filesystem-absolute path).
-        if (path.startsWith("/")) {
-            return new PathResource(root.resolve(path.substring(1)), root);
-        }
-        return new PathResource(root.resolve(path), root);
+        return new PathResource(root.resolve(Resource.stripLeadingSlashes(path)), root, false, classpathRoot);
     }
 
     /**

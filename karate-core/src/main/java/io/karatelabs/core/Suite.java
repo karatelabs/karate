@@ -76,6 +76,10 @@ public class Suite {
     public final String configPath;
     public final Path outputDir;
     public final Path workingDir;
+    /** THE project root — see {@link #getRoot()}. Computed before config discovery. */
+    public final Path root;
+    /** The {@code classpath:}-miss fallback dir — see {@link #getClasspathRoot()}. Never null. */
+    public final Path classpathRoot;
     public final boolean outputHtmlReport;
     public final boolean outputJsonLines;
     public final boolean outputJunitXml;
@@ -145,10 +149,10 @@ public class Suite {
     // Performance testing hook (for Gatling integration)
     private PerfHook perfHook;
 
-    // karate-boot.js exts, evaluated by BootLoader.loadIfPresent() at run() start.
+    // karate-boot.js exts, evaluated by BootLoader.evalIfPresent() in the constructor.
     // Exposed via getBootBinding() so SuiteRunEvent can surface ext manifests on
     // SUITE_ENTER. Null when no karate-boot.js file is present in the workdir.
-    private BootBinding bootBinding;
+    private final BootBinding bootBinding;
 
     // Ext globals registered by exts in their onBoot(Suite) — name → instance
     // (typically a SimpleObject). Seeded into every scenario's JS scope before
@@ -190,7 +194,6 @@ public class Suite {
                 ? builder.getSetupOnceCacheStore() : new ConcurrentHashMap<>();
 
         // Core configuration
-        this.features = List.copyOf(builder.getResolvedFeatures());
         this.env = builder.getEnv();
         this.tagSelector = builder.getTags() != null && !builder.getTags().isEmpty()
                 ? TagSelector.fromKarateOptionsTags(builder.getTags())
@@ -202,9 +205,6 @@ public class Suite {
         this.outputDir = builder.getOutputDir() != null
                 ? builder.getOutputDir()
                 : Path.of(FileUtils.getBuildDir(), "karate-reports");
-        this.workingDir = builder.getWorkingDir() != null
-                ? builder.getWorkingDir()
-                : FileUtils.WORKING_DIR.toPath();
         this.outputHtmlReport = builder.isOutputHtmlReport();
         this.outputJsonLines = builder.isOutputJsonLines();
         this.outputJunitXml = builder.isOutputJunitXml();
@@ -233,9 +233,6 @@ public class Suite {
         }
         this.httpClientFactory = builder.getHttpClientFactory();
         this.skipTagFiltering = builder.isSkipTagFiltering();
-        this.lineFilters = builder.getLineFilters() != null
-                ? Collections.unmodifiableMap(new HashMap<>(builder.getLineFilters()))
-                : Collections.emptyMap();
         // Trim to null so downstream shouldSelect() checks are simple (null = no filter)
         String rawScenarioName = builder.getScenarioName();
         this.scenarioName = rawScenarioName == null || rawScenarioName.trim().isEmpty()
@@ -243,6 +240,31 @@ public class Suite {
                 : rawScenarioName.trim();
         this.debugInterceptor = builder.getDebugInterceptor();
         this.debugPointFactory = builder.getDebugPointFactory();
+
+        // THE root — computed BEFORE config discovery and boot, from the explicit configDir /
+        // a classloader probe / the explicit workingDir / the CWD. Deliberately never derived
+        // from where karate-config.js was eventually FOUND: a project that maps its resources
+        // (boot.classpath) has its config under the mapped dir, and letting the root drift there
+        // would silently re-anchor every reference one level in. See getRoot().
+        this.root = computeRoot(builder, this.configPath);
+
+        // Boot BEFORE config discovery and feature resolution — karate-boot.js is what declares
+        // the resource mapping (boot.classpath) that both of those then honour.
+        this.bootBinding = builder.isSkipBootFile()
+                ? null
+                : BootLoader.evalIfPresent(this,
+                        builder.getWorkingDir() != null ? builder.getWorkingDir() : FileUtils.WORKING_DIR.toPath(),
+                        this.env);
+        String declaredClasspathDir = bootBinding == null ? null : bootBinding.getClasspathDir();
+        this.classpathRoot = declaredClasspathDir == null
+                ? this.root
+                : this.root.resolve(Resource.stripLeadingSlashes(declaredClasspathDir)).normalize();
+        // An explicit workingDir always wins. Otherwise a declared classpath dir re-anchors the
+        // working dir on the root, so a Java project behaves identically under a JVM run and a
+        // bare-folder (serve) run; with nothing declared, the process CWD is the default.
+        this.workingDir = builder.getWorkingDir() != null
+                ? builder.getWorkingDir()
+                : (declaredClasspathDir != null ? this.root : FileUtils.WORKING_DIR.toPath());
 
         // Load config resources (all inputs are now available)
         this.baseResource = tryLoadConfigResource(getBasePath(this.configPath), false);
@@ -262,6 +284,15 @@ public class Suite {
         } else {
             this.configEnvResource = null;
         }
+
+        // Features LAST — they are resolved at the FINAL workingDir and carry the classpath root,
+        // so a boot-declared mapping reaches every reference made from inside a feature.
+        this.features = List.copyOf(builder.resolveFeaturesAt(this.workingDir, this.classpathRoot));
+        // read AFTER resolution: "file.feature:LINE" filters are keyed by the resolved resource URI,
+        // so the Builder only knows them once the features have been read
+        this.lineFilters = builder.getLineFilters() != null
+                ? Collections.unmodifiableMap(new HashMap<>(builder.getLineFilters()))
+                : Collections.emptyMap();
     }
 
     private String resolveConfigPath(String configDir) {
@@ -269,6 +300,40 @@ public class Suite {
             return "classpath:karate-config.js";
         }
         return configDir.endsWith(".js") ? configDir : configDir + "/karate-config.js";
+    }
+
+    /**
+     * THE root, per the lane that built this Suite. Depends only on inputs that are known before
+     * anything is loaded — an explicit {@code configDir}, a classloader probe of the config path, an
+     * explicit {@code workingDir}, or the process CWD.
+     */
+    private static Path computeRoot(Runner.Builder builder, String configPath) {
+        String configDir = builder.getConfigDir();
+        if (configDir != null && !configDir.startsWith(Resource.CLASSPATH_COLON)) {
+            String fsPath = configDir.startsWith(Resource.FILE_COLON)
+                    ? configDir.substring(Resource.FILE_COLON.length()) : configDir;
+            // launch semantics: a relative configDir is CWD-relative, as typed
+            Path given = Path.of(fsPath).toAbsolutePath().normalize();
+            Path dir = fsPath.endsWith(".js") ? given.getParent() : given;
+            if (dir != null) {
+                return dir;
+            }
+        }
+        // A Java project: karate-config.js is on the real classpath, so its parent is the
+        // classpath root (target/test-classes). A jar-backed hit maps to no directory — skip it.
+        if (configPath != null) {
+            try {
+                Resource probe = Resource.path(configPath);
+                Path found = probe.isFile() ? probe.getPath() : null;
+                if (found != null && found.getFileSystem() == java.nio.file.FileSystems.getDefault()
+                        && found.getParent() != null) {
+                    return found.getParent().toAbsolutePath().normalize();
+                }
+            } catch (Exception e) {
+                // not on the classpath — fall through
+            }
+        }
+        return builder.getWorkingDir() != null ? builder.getWorkingDir() : FileUtils.WORKING_DIR.toPath();
     }
 
     private String getBasePath(String configPath) {
@@ -285,7 +350,10 @@ public class Suite {
         try {
             Resource resource = Resource.path(path);
             if (resource.exists()) {
-                return resource;
+                return resource.isFile() && resource.getPath() != null
+                        && resource.getPath().getFileSystem() == java.nio.file.FileSystems.getDefault()
+                        ? Resource.from(resource.getPath(), root, classpathRoot)
+                        : resource;
             }
         } catch (ResourceNotFoundException e) {
             // Not found at explicit path - continue to fallbacks
@@ -294,19 +362,20 @@ public class Suite {
             return null;
         }
 
-        // V2 enhancement: Try working directory as fallback
-        String fileName = path;
-        if (path.startsWith("classpath:")) {
-            fileName = path.substring("classpath:".length());
-        }
-        if (!fileName.startsWith("/")) {
-            try {
-                Path workingDirConfig = workingDir.resolve(fileName);
-                if (Files.exists(workingDirConfig)) {
-                    return Resource.from(workingDirConfig);
+        String fileName = configFallbackName(path);
+        if (fileName != null) {
+            // the working dir, then the boot-declared classpath dir — a served Maven project keeps
+            // its karate-config.js under src/test/resources while THE root stays the project dir
+            for (Path dir : classpathRoot.equals(workingDir)
+                    ? List.of(workingDir) : List.of(workingDir, classpathRoot)) {
+                try {
+                    Path candidate = dir.resolve(fileName);
+                    if (Files.exists(candidate)) {
+                        return Resource.from(candidate, root, classpathRoot);
+                    }
+                } catch (Exception e) {
+                    logger.debug("Could not load config from {}: {}", dir, e.getMessage());
                 }
-            } catch (Exception e) {
-                logger.debug("Could not load config from working dir: {}", e.getMessage());
             }
         }
 
@@ -314,6 +383,23 @@ public class Suite {
             logger.trace("Config not found: {}", path);
         }
         return null;
+    }
+
+    /**
+     * The root-relative name to retry a missed config path under. An explicit configDir yields an
+     * absolute {@code configPath}: relativize it against the root so {@code <root>/karate-config.js}
+     * retries as {@code karate-config.js} under the working dir / the mapped classpath dir. Returns
+     * null when the path points somewhere else entirely — the caller asked for THAT file, and a
+     * silent retry elsewhere would be a surprise.
+     */
+    private String configFallbackName(String path) {
+        String stripped = Resource.removePrefix(path);
+        Path asGiven = Path.of(stripped);
+        if (!asGiven.isAbsolute()) {
+            return stripped;
+        }
+        Path normalized = asGiven.normalize();
+        return normalized.startsWith(root) ? root.relativize(normalized).toString() : null;
     }
 
     // ========== Execution ==========
@@ -349,13 +435,10 @@ public class Suite {
             resultListeners.add(new JunitXmlReportListener(outputDir));
         }
 
-        // Load karate-boot.js if present (workdir root, then classpath). Ext SPI
-        // per K43: boot file evaluates ext-scripting only; the side effect is
-        // ext registration through BootBinding.ext(...). Returns null when
-        // no boot file exists — preserves the zero-cost path for projects that
-        // don't use exts. Must evaluate BEFORE the JSONL writer is wired so an
-        // ext can request the event stream (Ext.requiresJsonlEvents()).
-        this.bootBinding = BootLoader.loadIfPresent(this, env);
+        // karate-boot.js already evaluated in the constructor — before config discovery and
+        // feature resolution, since boot.classpath(dir) is what those two honour. Its exts are
+        // therefore registered well before the JSONL writer is wired below, so an ext that
+        // requests the event stream (Ext.requiresJsonlEvents()) is seen here.
 
         // Optionally register JSON Lines event stream writer — explicitly requested
         // (-f karate:jsonl / outputJsonLines(true)) or required by a booted ext.
@@ -467,22 +550,40 @@ public class Suite {
         addJsonlListener(ext);
     }
 
-    /** Workdir for boot.js discovery + per-ext file resolution. */
+    /** The launch/output anchor. Equals {@link #getRoot()} when the project declares {@code boot.classpath}. */
     public Path getWorkingDir() {
         return workingDir;
     }
 
     /**
-     * The directory of the resolved {@code karate-config.js} — for a Java project this is the
-     * <b>classpath root</b> ({@code target/test-classes} / {@code src/test/resources}), since
-     * {@link #configResource} is filesystem-backed even when found via {@code classpath:}. The
-     * canonical anchor for resolving path <i>references</i> (an ext / boot-config path string), so a
-     * project's resources resolve with no {@code classpath:} prefix.
+     * <b>THE root</b> — the single anchor every path <i>reference</i> resolves against: a leading
+     * {@code /} means this directory, a bare ref is relative to it, and a {@code classpath:} miss
+     * falls back under {@link #getClasspathRoot()}. Resolution is fully deterministic — no
+     * filesystem probing — so one spelling lands on the same file on every machine.
      *
-     * <p>Fallbacks for the cases where {@code karate-config.js} is absent: when an explicit
-     * {@code configDir} was set on the CLI/Runner but holds no config file, the configured directory is
-     * still honoured (derived from {@link #configPath}); when there is no config at all (the default
-     * {@code classpath:} lookup found nothing), it falls back to {@link #workingDir}.
+     * <p>Assigned before config discovery and before {@code karate-boot.js} evaluates, from the
+     * explicit {@code configDir} (a {@code *.js} value contributes its parent), else a classloader
+     * probe of the config path (a Java project's {@code target/test-classes}), else the explicit
+     * {@code workingDir}, else the process CWD. It is deliberately NOT derived from where the config
+     * file was found, so a mapped config dir cannot silently move the root.</p>
+     */
+    public Path getRoot() {
+        return root;
+    }
+
+    /**
+     * The directory a {@code classpath:} reference retries against when the classloader misses,
+     * declared by {@code boot.classpath(dir)} in {@code karate-boot.js}. Equals {@link #getRoot()}
+     * when nothing is declared — so a bare-folder project needs no declaration at all. Never null.
+     */
+    public Path getClasspathRoot() {
+        return classpathRoot;
+    }
+
+    /**
+     * The directory of the resolved {@code karate-config.js}. Retained for reporting/diagnostics
+     * only — <b>{@link #getRoot()} is the anchor for path references</b>; this value can differ
+     * from it (a project that maps its resources keeps its config under the mapped dir).
      */
     public Path getConfigDir() {
         if (configResource != null) {
@@ -509,7 +610,7 @@ public class Suite {
     }
 
     /**
-     * Returns the karate-boot.js {@link BootBinding} populated during {@link #run()},
+     * Returns the karate-boot.js {@link BootBinding} populated during construction,
      * or {@code null} when no boot file is present in the workdir. Surfaced so
      * {@link SuiteRunEvent#toJson()} can attach {@code exts[]} manifests to
      * SUITE_ENTER — receivers read this to know which exts were active and which

@@ -47,21 +47,33 @@ public final class BootLoader {
     private BootLoader() {}
 
     /**
-     * Discover + evaluate {@code karate-boot.js} for the given Suite. Returns the
-     * {@link BootBinding} so the caller can surface registered exts on
-     * {@code SUITE_ENTER}. Returns {@code null} when no boot file is present (the
-     * common case — boot is opt-in).
+     * Discover + evaluate {@code karate-boot.js} for a Suite <b>under construction</b> — called from
+     * the {@link Suite} constructor, before config discovery and feature resolution, because
+     * {@code boot.classpath(dir)} is what both of those honour. Returns the {@link BootBinding} so
+     * the Suite can read the declared mapping and later surface registered exts on
+     * {@code SUITE_ENTER}. Returns {@code null} when no boot file is present (the common case —
+     * boot is opt-in).
      *
+     * <p>The boot file lives at the <b>project root</b>: discovery looks at
+     * {@code bootstrapWorkingDir} (the explicitly-set working dir, else the process CWD), then
+     * {@link Suite#getRoot()}, then the real classpath. It cannot depend on
+     * {@code suite.getWorkingDir()} — that is assigned <i>after</i> boot, precisely because boot
+     * may re-anchor it.</p>
+     *
+     * @param suite               the Suite being constructed — {@code getRoot()} is already final
+     * @param bootstrapWorkingDir where to look for the boot file
+     * @param env                 the {@code karate.env} value, exposed as {@code boot.env}
      * @throws RuntimeException when boot is present but evaluation fails (Suite
      *                          must fail loud per K43).
      */
-    public static BootBinding loadIfPresent(Suite suite, String env) {
-        Resource resource = locate(suite);
+    public static BootBinding evalIfPresent(Suite suite, Path bootstrapWorkingDir, String env) {
+        Resource resource = locate(bootstrapWorkingDir, suite == null ? null : suite.getRoot());
         if (resource == null) {
             return null;
         }
         logger.info("{} processed", BOOT_FILE_NAME);
-        BootBinding boot = new BootBinding(suite, env);
+        BootBinding boot = new BootBinding(suite, suite == null ? bootstrapWorkingDir : suite.getRoot(), env,
+                suite == null ? e -> {} : suite::registerExtListener);
         Engine engine = new Engine();
         // ExternalBridge enables reflective dispatch for plain Java methods on
         // the bound objects — required for boot.ext(name) / boot.read(path) etc.
@@ -87,8 +99,8 @@ public final class BootLoader {
      * the booted, configured exts on demand.
      *
      * <p>Constructs the minimal {@link Suite} the boot phase needs (this package owns the package-private
-     * Suite construction, so callers don't have to) anchored at {@code workingDir} for both config + boot
-     * discovery, then delegates to {@link #loadIfPresent}. Returns {@code null} when {@code workingDir} is
+     * Suite construction, so callers don't have to) anchored at {@code workingDir}, and returns the
+     * binding the Suite constructor already evaluated. Returns {@code null} when {@code workingDir} is
      * null or no {@code karate-boot.js} is present (the no-ext zero-cost path is preserved).</p>
      *
      * @throws RuntimeException when a boot file IS present but its evaluation fails (fail-loud per K43).
@@ -97,24 +109,29 @@ public final class BootLoader {
         if (workingDir == null) {
             return null;
         }
-        Suite suite = Runner.builder()
+        Runner.Builder builder = Runner.builder()
                 .configDir(workingDir.toString())
-                .workingDir(workingDir)
-                .buildSuite();
-        return loadIfPresent(suite, env);
+                .workingDir(workingDir);
+        if (env != null && !env.isBlank()) {
+            builder.karateEnv(env);
+        }
+        return builder.buildSuite().getBootBinding();
     }
 
-    private static Resource locate(Suite suite) {
-        // 1. Workdir root (typical: customer drops karate-boot.js next to pom.xml /
-        //    karate-config.js).
-        Path workingDir = suite.getWorkingDir();
-        if (workingDir != null) {
-            Path bootAtRoot = workingDir.resolve(BOOT_FILE_NAME);
-            if (Files.exists(bootAtRoot)) {
-                return Resource.from(bootAtRoot);
+    private static Resource locate(Path bootstrapWorkingDir, Path root) {
+        // 1. The launch dir, then THE root (typical: customer drops karate-boot.js next to
+        //    pom.xml / karate-config.js). Both, because the two differ exactly in the case the
+        //    boot file exists to serve: a Java project launched from its module dir whose root
+        //    probes to the classpath root.
+        for (Path dir : new Path[]{bootstrapWorkingDir, root}) {
+            if (dir != null) {
+                Path bootAtRoot = dir.resolve(BOOT_FILE_NAME);
+                if (Files.exists(bootAtRoot)) {
+                    return Resource.from(bootAtRoot, root != null ? root : dir);
+                }
             }
         }
-        // 2. Classpath root fallback (e.g. inside a JAR-bundled test suite).
+        // 2. Classpath fallback (e.g. inside a JAR-bundled test suite).
         try {
             Resource r = Resource.path("classpath:" + BOOT_FILE_NAME);
             if (r.exists()) {

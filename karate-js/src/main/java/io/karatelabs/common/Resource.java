@@ -117,6 +117,16 @@ public interface Resource {
     Path getRoot();
 
     /**
+     * The directory a {@code classpath:} reference falls back to when the classloader misses —
+     * declared by {@code boot.classpath(dir)} for a project whose resources live under a build
+     * layout ({@code src/test/resources}). Defaults to {@link #getRoot()}, so a bare-folder project
+     * needs no declaration: {@code classpath:x} and {@code /x} land on the same file.
+     */
+    default Path getClasspathRoot() {
+        return getRoot();
+    }
+
+    /**
      * Computes the relative path from a given root to this resource.
      * Only works for file-based resources.
      * Falls back to absolute path if relativization fails (e.g., cross-drive on Windows).
@@ -383,8 +393,66 @@ public interface Resource {
         }
     }
 
+    /**
+     * Strips every leading {@code /} from a reference. A leading {@code /} anchors THE root
+     * (webapp context-path style), so it is removed before the ref is resolved against a root —
+     * {@code Path.resolve} of an absolute argument would otherwise discard the root entirely.
+     */
+    static String stripLeadingSlashes(String s) {
+        if (s == null) {
+            return null;
+        }
+        int i = 0;
+        while (i < s.length() && s.charAt(i) == '/') {
+            i++;
+        }
+        return s.substring(i);
+    }
+
     static Resource path(String path) {
-        return path(path, null);
+        return path(path, (ClassLoader) null);
+    }
+
+    /**
+     * Resolves a path <b>reference</b> against a project root — the one rule, from any door:
+     * {@code classpath:} is classloader-first then root-fallback, {@code file:} is the host
+     * machine, a leading {@code /} anchors {@code root}, and a bare ref is root-relative.
+     * A Windows drive-letter absolute ({@code C:\x}) passes through — it cannot collide with
+     * the {@code /}-form. With a {@code null} root this collapses to the classloader/CWD
+     * behaviour of {@link #path(String)}.
+     *
+     * @param path the reference
+     * @param root THE project root
+     */
+    static Resource path(String path, Path root) {
+        return path(path, root, root);
+    }
+
+    /**
+     * {@link #path(String, Path)} with a separate {@code classpath:}-fallback dir, as declared by
+     * {@code boot.classpath(dir)} — for a project whose resources sit under a build layout
+     * ({@code src/test/resources}) while THE root stays the project dir.
+     */
+    static Resource path(String path, Path root, Path classpathRoot) {
+        if (path == null) {
+            path = "";
+        }
+        Path cpRoot = classpathRoot != null ? classpathRoot : root;
+        if (path.startsWith(CLASSPATH_COLON)) {
+            return classpathWithRootFallback(path, root, cpRoot);
+        }
+        if (root == null) {
+            return path(path, (ClassLoader) null);
+        }
+        String normalized = normalizePath(path);
+        if (normalized.startsWith(FILE_COLON)) {
+            return new PathResource(Path.of(removePrefix(normalized)), root, false, cpRoot);
+        }
+        Path asGiven = Path.of(normalized);
+        if (asGiven.isAbsolute() && !normalized.startsWith("/")) {
+            return new PathResource(asGiven, root, false, cpRoot);   // Windows drive letter
+        }
+        return new PathResource(root.resolve(stripLeadingSlashes(normalized)), root, false, cpRoot);
     }
 
     /**
@@ -402,17 +470,32 @@ public interface Resource {
      * @throws ResourceNotFoundException when neither the classloader nor the root has it
      */
     static Resource classpathWithRootFallback(String path, Path root) {
+        return classpathWithRootFallback(path, root, root);
+    }
+
+    /**
+     * {@link #classpathWithRootFallback(String, Path)} where the fallback dir is separate from
+     * THE root — the {@code boot.classpath(dir)} case. The resolved Resource still carries
+     * {@code root}, so a nested leading-{@code /} ref inside it anchors the project, not the
+     * mapped dir.
+     */
+    static Resource classpathWithRootFallback(String path, Path root, Path classpathRoot) {
+        Path fallbackDir = classpathRoot != null ? classpathRoot : root;
         try {
-            return path(path, null);
+            Resource hit = path(path, (ClassLoader) null);
+            // A classloader hit always wins. Re-anchor it on the caller's root so a reference made
+            // from INSIDE it (a leading-"/" read) resolves against the project rather than the
+            // process CWD — the same anchoring the classpath directory-scan already does.
+            Path hitPath = root == null || !hit.isFile() ? null : hit.getPath();
+            if (hitPath != null && hitPath.getFileSystem() == java.nio.file.FileSystems.getDefault()) {
+                return new PathResource(hitPath, root, true, fallbackDir);
+            }
+            return hit;
         } catch (ResourceNotFoundException e) {
-            if (root != null) {
-                String stripped = normalizePath(removePrefix(path));
-                if (stripped.startsWith("/")) {
-                    stripped = stripped.substring(1);
-                }
-                Path candidate = root.resolve(stripped);
+            if (fallbackDir != null) {
+                Path candidate = fallbackDir.resolve(stripLeadingSlashes(normalizePath(removePrefix(path))));
                 if (java.nio.file.Files.exists(candidate)) {
-                    return new PathResource(candidate, root);
+                    return new PathResource(candidate, root != null ? root : fallbackDir, false, fallbackDir);
                 }
             }
             throw e;
@@ -652,6 +735,11 @@ public interface Resource {
      * relative to the host file. Use lineOffset=0 when the content starts at the
      * beginning of the parent file (e.g., wrapping karate-config.js in parentheses).
      *
+     * <p>The parent's {@link #getRoot()} / {@link #getClasspathRoot()} are carried over: a reference
+     * made from inside the embedded code (a {@code read('/x')} during config-eval) must anchor the
+     * same project the host file belongs to. Without the carry the embedded resource fell back to
+     * the system temp dir and every root-anchored ref inside it resolved outside the project.</p>
+     *
      * @param text       the embedded code text
      * @param parent     the host file Resource (for source path)
      * @param lineOffset 0-indexed line number where the embedded code starts in the host file
@@ -664,7 +752,7 @@ public interface Resource {
         if (relativePath == null || relativePath.isEmpty()) {
             relativePath = parent.getPrefixedPath();
         }
-        return new MemoryResource(text, relativePath, lineOffset);
+        return new MemoryResource(text, relativePath, lineOffset, parent.getRoot(), parent.getClasspathRoot());
     }
 
     /**
@@ -687,6 +775,19 @@ public interface Resource {
      */
     static Resource from(Path path, Path root) {
         return new PathResource(path, root);
+    }
+
+    /**
+     * Creates a Path-based Resource carrying both THE root and the {@code classpath:}-fallback dir
+     * declared by {@code boot.classpath(dir)}, so every reference resolved <i>through</i> this
+     * resource (feature reads, config-eval) sees the same two anchors.
+     *
+     * @param path          the path
+     * @param root          THE project root
+     * @param classpathRoot the {@code classpath:}-miss fallback dir (null = root)
+     */
+    static Resource from(Path path, Path root, Path classpathRoot) {
+        return new PathResource(path, root, false, classpathRoot);
     }
 
     /**

@@ -67,6 +67,13 @@ public interface Ext extends RunListener {
      * Called once per Suite when the {@code boot.ext('name')} expression evaluates
      * in {@code karate-boot.js}. Throws from here fail the Suite.
      *
+     * <p><b>The Suite is still under construction here</b> — boot runs before config discovery
+     * and feature resolution, because {@code boot.classpath(dir)} is what those honour.
+     * {@link Suite#getRoot()} is final and is the anchor an ext must resolve its configured
+     * paths against; {@link Suite#getWorkingDir()}, {@link Suite#features} and the
+     * {@code config*Resource} fields are <b>not yet assigned</b>. Resolve lazily (at first use,
+     * or from {@code onEvent}) if you need anything beyond the root.</p>
+     *
      * <p>Default no-op so exts that only need to observe events ({@code onEvent})
      * can stay terse.</p>
      */
