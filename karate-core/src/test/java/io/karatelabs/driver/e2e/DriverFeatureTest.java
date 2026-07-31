@@ -176,8 +176,11 @@ class DriverFeatureTest {
         assertTrue(pngCount >= 2,
                 "expected >= 2 PNG embeds from screenshot.feature, found " + pngCount);
 
+        // the report identity of a feature is its path relative to THE root — here the configDir
+        // the run names, so the build-layout prefix a classpath: feature used to carry
+        // (target.test-classes.…) is gone. A classpath: DIRECTORY scan already named files this way.
         Path featureHtml = reportDir.resolve("feature-html")
-                .resolve("target.test-classes.io.karatelabs.driver.features.screenshot.html");
+                .resolve("screenshot.html");
         assertTrue(Files.exists(featureHtml), "screenshot feature HTML not found: " + featureHtml);
         String html = Files.readString(featureHtml);
         assertTrue(html.contains("\"mime\": \"image/png\""),

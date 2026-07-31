@@ -126,8 +126,11 @@ class StepFailureFeatureTest {
                         + "none from the screenshotOnFailure=false scenario; got " + pngCount);
 
         // The per-feature HTML must inline the embed JSON for the surviving screenshot.
+        // the report identity of a feature is its path relative to THE root — here the configDir
+        // the run names, so the build-layout prefix a classpath: feature used to carry
+        // (target.test-classes.…) is gone. A classpath: DIRECTORY scan already named files this way.
         Path featureHtml = reportDir.resolve("feature-html")
-                .resolve("target.test-classes.io.karatelabs.driver.features.screenshot-on-failure.html");
+                .resolve("screenshot-on-failure.html");
         assertTrue(Files.exists(featureHtml),
                 "feature HTML not found: " + featureHtml);
         String html = Files.readString(featureHtml);
