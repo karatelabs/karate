@@ -745,10 +745,11 @@ public final class Runner {
         /**
          * Resolve this Builder's paths + pre-built features at the given anchors. Called from the
          * {@link Suite} constructor <b>after</b> {@code karate-boot.js} has evaluated, so features are
-         * rooted at the FINAL working dir and carry the boot-declared {@code classpath:} fallback dir
-         * into every reference made from inside them. Memoized — the first call wins.
+         * rooted at THE root and carry the boot-declared {@code classpath:} fallback dir into every
+         * reference made from inside them — a leading-{@code /} read inside a feature then means the
+         * same directory an ext's config means. Memoized — the first call wins.
          *
-         * @param root          the working dir features anchor on
+         * @param root          THE root features anchor on (see {@code Suite.getRoot()})
          * @param classpathRoot the {@code classpath:}-miss fallback dir (null = root)
          */
         List<Feature> resolveFeaturesAt(Path root, Path classpathRoot) {

@@ -305,6 +305,14 @@ The project file name is `karate-pom.json` (inspired by Maven's POM concept). Wh
 
 This means if you set `workingDir: "src/test/java"` and `output.dir: "target/karate-reports"`, reports go to `./target/karate-reports` (not `./src/test/java/target/karate-reports`).
 
+**Feature paths vs file references.** A path you *invoke* — a positional feature path, `workingDir`, `configDir` — keeps ordinary operating-system meaning: a leading `/` is the filesystem root. A path a test *points at* — `read('/data/x.json')`, `karate.callSingle('/mock/start.js')` — is a **reference**, and there a leading `/` means the **project root**, never a host path; spell a genuine host path `file:/abs/path`. The project root is the directory `karate-config.js` was found in (for a Java build, the classpath root); a `classpath:` reference asks the classloader first and then falls back under that root, and a project can declare a different resource dir with one line in `karate-boot.js`:
+
+```js
+boot.classpath('src/test/resources');
+```
+
+That declaration also re-anchors `workingDir` on the project root when none was set explicitly, so a project resolves identically whether it is run by the JVM or served as a folder.
+
 **Best practice:** When the process working directory may vary (CI/CD, IDE integrations), use **absolute paths** for `output.dir`:
 
 ```json

@@ -252,9 +252,7 @@ public class Suite {
         // the resource mapping (boot.classpath) that both of those then honour.
         this.bootBinding = builder.isSkipBootFile()
                 ? null
-                : BootLoader.evalIfPresent(this,
-                        builder.getWorkingDir() != null ? builder.getWorkingDir() : FileUtils.WORKING_DIR.toPath(),
-                        this.env);
+                : BootLoader.evalIfPresent(this, bootstrapWorkingDir(builder), this.env);
         String declaredClasspathDir = bootBinding == null ? null : bootBinding.getClasspathDir();
         this.classpathRoot = declaredClasspathDir == null
                 ? this.root
@@ -285,9 +283,11 @@ public class Suite {
             this.configEnvResource = null;
         }
 
-        // Features LAST — they are resolved at the FINAL workingDir and carry the classpath root,
-        // so a boot-declared mapping reaches every reference made from inside a feature.
-        this.features = List.copyOf(builder.resolveFeaturesAt(this.workingDir, this.classpathRoot));
+        // Features LAST, anchored on THE root (not the working dir) and carrying the classpath root —
+        // this is what makes read('/x') inside a feature and cov.openapi='/x' in karate-boot.js the SAME
+        // file in a Maven bolt-on, where the root is the classpath root and the working dir is the module
+        // dir. Relative CLI paths still resolve CWD-relative (launch semantics) inside resolveFeatures.
+        this.features = List.copyOf(builder.resolveFeaturesAt(this.root, this.classpathRoot));
         // read AFTER resolution: "file.feature:LINE" filters are keyed by the resolved resource URI,
         // so the Builder only knows them once the features have been read
         this.lineFilters = builder.getLineFilters() != null
@@ -300,6 +300,29 @@ public class Suite {
             return "classpath:karate-config.js";
         }
         return configDir.endsWith(".js") ? configDir : configDir + "/karate-config.js";
+    }
+
+    /**
+     * Where {@code karate-boot.js} is looked for: the dir the USER named as the project — the explicit
+     * working dir, else an explicit filesystem config dir, else the process CWD. Never the
+     * classloader-probed root, so a Java project whose resources are copied to {@code target/test-classes}
+     * does not start booting a file it never asked to boot.
+     */
+    private static Path bootstrapWorkingDir(Runner.Builder builder) {
+        if (builder.getWorkingDir() != null) {
+            return builder.getWorkingDir();
+        }
+        String configDir = builder.getConfigDir();
+        if (configDir != null && !configDir.startsWith(Resource.CLASSPATH_COLON)) {
+            String fsPath = configDir.startsWith(Resource.FILE_COLON)
+                    ? configDir.substring(Resource.FILE_COLON.length()) : configDir;
+            Path given = Path.of(fsPath).toAbsolutePath().normalize();
+            Path dir = fsPath.endsWith(".js") ? given.getParent() : given;
+            if (dir != null) {
+                return dir;
+            }
+        }
+        return FileUtils.WORKING_DIR.toPath();
     }
 
     /**

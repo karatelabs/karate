@@ -86,15 +86,18 @@ class BootClasspathTest {
     }
 
     @Test
-    void anExplicitWorkingDirSuppressesTheReAnchor(@TempDir Path elsewhere) throws Exception {
+    void anExplicitWorkingDirSuppressesTheReAnchor() throws Exception {
+        // configDir points one level in, so THE root and the working dir genuinely differ: without an
+        // explicit working dir the declaration would re-anchor it onto the root
         write("karate-boot.js", "boot.classpath('src/test/resources');\n");
         Suite suite = Runner.builder()
-                .configDir(project.toString())
-                .workingDir(elsewhere)
+                .configDir(project.resolve("cfg").toString())
+                .workingDir(project)
                 .buildSuite();
-        assertEquals(elsewhere, suite.getWorkingDir(), "an explicit choice always wins");
-        assertEquals(project.resolve("src/test/resources"), suite.getClasspathRoot(),
-                "…but the classpath mapping still applies");
+        assertEquals(project.resolve("cfg"), suite.getRoot());
+        assertEquals(project, suite.getWorkingDir(), "an explicit choice always wins");
+        assertEquals(project.resolve("cfg/src/test/resources"), suite.getClasspathRoot(),
+                "…but the classpath mapping still applies, against THE root");
     }
 
     @Test

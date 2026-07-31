@@ -54,11 +54,13 @@ public final class BootLoader {
      * {@code SUITE_ENTER}. Returns {@code null} when no boot file is present (the common case —
      * boot is opt-in).
      *
-     * <p>The boot file lives at the <b>project root</b>: discovery looks at
-     * {@code bootstrapWorkingDir} (the explicitly-set working dir, else the process CWD), then
-     * {@link Suite#getRoot()}, then the real classpath. It cannot depend on
-     * {@code suite.getWorkingDir()} — that is assigned <i>after</i> boot, precisely because boot
-     * may re-anchor it.</p>
+     * <p>The boot file lives at the <b>project root</b> — and discovery only ever looks where the USER
+     * named the project: {@code bootstrapWorkingDir} (the explicitly-set working dir, else the explicitly-set
+     * config dir, else the process CWD), then the real classpath. It deliberately does NOT follow the
+     * classloader-probed {@link Suite#getRoot()}: a Java project's root is {@code target/test-classes}, and
+     * booting a file that landed there as a copied resource would change behaviour for a project that never
+     * asked for it. It also cannot depend on {@code suite.getWorkingDir()} — that is assigned <i>after</i>
+     * boot, precisely because boot may re-anchor it.</p>
      *
      * @param suite               the Suite being constructed — {@code getRoot()} is already final
      * @param bootstrapWorkingDir where to look for the boot file
@@ -67,7 +69,7 @@ public final class BootLoader {
      *                          must fail loud per K43).
      */
     public static BootBinding evalIfPresent(Suite suite, Path bootstrapWorkingDir, String env) {
-        Resource resource = locate(bootstrapWorkingDir, suite == null ? null : suite.getRoot());
+        Resource resource = locate(bootstrapWorkingDir);
         if (resource == null) {
             return null;
         }
@@ -118,17 +120,13 @@ public final class BootLoader {
         return builder.buildSuite().getBootBinding();
     }
 
-    private static Resource locate(Path bootstrapWorkingDir, Path root) {
-        // 1. The launch dir, then THE root (typical: customer drops karate-boot.js next to
-        //    pom.xml / karate-config.js). Both, because the two differ exactly in the case the
-        //    boot file exists to serve: a Java project launched from its module dir whose root
-        //    probes to the classpath root.
-        for (Path dir : new Path[]{bootstrapWorkingDir, root}) {
-            if (dir != null) {
-                Path bootAtRoot = dir.resolve(BOOT_FILE_NAME);
-                if (Files.exists(bootAtRoot)) {
-                    return Resource.from(bootAtRoot, root != null ? root : dir);
-                }
+    private static Resource locate(Path bootstrapWorkingDir) {
+        // 1. The dir the user named as the project (typical: customer drops karate-boot.js next to
+        //    pom.xml / karate-config.js).
+        if (bootstrapWorkingDir != null) {
+            Path bootAtRoot = bootstrapWorkingDir.resolve(BOOT_FILE_NAME);
+            if (Files.exists(bootAtRoot)) {
+                return Resource.from(bootAtRoot, bootstrapWorkingDir);
             }
         }
         // 2. Classpath fallback (e.g. inside a JAR-bundled test suite).
