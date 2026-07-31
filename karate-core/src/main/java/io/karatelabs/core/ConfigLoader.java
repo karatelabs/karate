@@ -63,6 +63,24 @@ public final class ConfigLoader {
      * {@code workingDir} is null. Throws when a config file is present but its evaluation fails.
      */
     public static Map<String, Object> configOnly(Path workingDir, String env) {
+        return configOnly(workingDir, env, null);
+    }
+
+    /**
+     * As {@link #configOnly(Path, String)}, plus a <b>system-property overlay</b> for this evaluation
+     * only — the properties the enclosing run is using, so config resolved on its behalf sees the same
+     * {@code karate.sysprop(...)} / {@code karate.properties[...]} values that run sees.
+     *
+     * <p>Without it, config evaluated <i>inside</i> a run (a nested check that re-resolves the project's
+     * config on its own engine) reads the JVM's ambient properties — and therefore the project's
+     * DEFAULTS — while the enclosing feature reads the run's overlay. The two then disagree on exactly
+     * the values a launch script sets to point a suite elsewhere: a base URL, or the port a
+     * just-served SUT is on. Pass the enclosing {@code Suite#getSystemProperties()} to keep them
+     * in agreement.</p>
+     *
+     * @param systemProperties overlay for this evaluation; null → the ambient JVM properties (unchanged behaviour)
+     */
+    public static Map<String, Object> configOnly(Path workingDir, String env, Map<String, String> systemProperties) {
         if (workingDir == null) {
             return new LinkedHashMap<>();
         }
@@ -71,6 +89,9 @@ public final class ConfigLoader {
                 .workingDir(workingDir);
         if (env != null && !env.isBlank()) {
             builder.karateEnv(env);
+        }
+        if (systemProperties != null) {
+            systemProperties.forEach(builder::systemProperty);
         }
         Suite suite = builder.buildSuite();
         // a synthetic, stepless, TOP-LEVEL scenario: constructing its ScenarioRuntime runs the config
