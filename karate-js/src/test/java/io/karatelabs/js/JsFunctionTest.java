@@ -79,6 +79,48 @@ class JsFunctionTest extends EvalBase {
     }
 
     @Test
+    void testFunctionCompletionValueIsUndefinedNotNull() {
+        // A valueless `return` and falling off the end of a body both complete
+        // with undefined. The distinction is observable from inside JS — `typeof`
+        // and `===` are evaluated by the interpreter, before any Java boundary.
+        assertEquals("undefined", eval("typeof (function(){ return; })()"));
+        assertEquals("undefined", eval("typeof (function(){})()"));
+        assertEquals(true, eval("(function(){ return; })() === undefined"));
+        assertEquals(true, eval("(function(){})() === undefined"));
+        assertEquals(false, eval("(function(){ return; })() === null"));
+        assertEquals(false, eval("(function(){})() === null"));
+        // arrows, block-bodied
+        assertEquals("undefined", eval("typeof (() => { return; })()"));
+        assertEquals(true, eval("(() => {})() === undefined"));
+        // a `return` nested in a branch or loop is the same completion
+        assertEquals(true, eval("(function(){ if (true) { return; } })() === undefined"));
+        assertEquals(true, eval("(function(){ for (;;) { return; } })() === undefined"));
+        // an explicit `return null` still yields null — the two stay distinct
+        assertEquals("object", eval("typeof (function(){ return null; })()"));
+        assertEquals(true, eval("(function(){ return null; })() === null"));
+        assertEquals(false, eval("(function(){ return null; })() === undefined"));
+        // methods and named declarations behave identically
+        assertEquals("undefined", eval("var o = { f: function(){ return; } }; typeof o.f()"));
+        assertEquals("undefined", eval("function f(){ return; }; typeof f()"));
+        // a valueless return through `finally` must survive as undefined
+        assertEquals(true, eval("(function(){ try { return; } finally { } })() === undefined"));
+    }
+
+    @Test
+    void testFunctionCompletionValueUnwrapsToNullAtJavaBoundary() {
+        // The documented JS/Java boundary conversion is unchanged: an undefined
+        // completion value still surfaces to Java as null. Only the in-JS view
+        // distinguishes them.
+        assertNull(eval("(function(){ return; })()"));
+        assertNull(eval("(function(){})()"));
+        assertNull(eval("var a = function(){ }; a()"));
+        // invoking via a Java-facing reference unwraps undefined to null as well
+        eval("var f = function(){ return; }");
+        JsCallable fn = (JsCallable) get("f");
+        assertNull(fn.call(null, new Object[0]));
+    }
+
+    @Test
     void testFunctionArgsMissing() {
         assertEquals(true, eval("var a = function(b){ return b }; a() === undefined"));
     }

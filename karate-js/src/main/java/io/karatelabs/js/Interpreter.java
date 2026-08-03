@@ -2021,7 +2021,10 @@ class Interpreter {
         if (node.size() > 1) {
             return context.stopAndReturn(eval(node.get(1), context));
         } else {
-            return context.stopAndReturn(null);
+            // a valueless `return` completes with undefined, not null — the two are
+            // distinct in JS-land (typeof, ===) even though the Java boundary
+            // collapses undefined to null on the way out
+            return context.stopAndReturn(Terms.UNDEFINED);
         }
     }
 

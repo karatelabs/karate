@@ -224,7 +224,12 @@ class JsFunctionNode extends JsFunction {
         if (functionContext.isError()) {
             parentContext.updateFrom(functionContext);
         }
-        return body.type == NodeType.BLOCK ? functionContext.getReturnValue() : result;
+        if (body.type != NodeType.BLOCK) {
+            return result;
+        }
+        // falling off the end of a block body completes with undefined — only an
+        // explicit `return null` yields null, so key off the exit type, not the value
+        return functionContext.getExitType() == null ? Terms.UNDEFINED : functionContext.getReturnValue();
     }
 
     @Override
