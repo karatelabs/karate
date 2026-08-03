@@ -401,17 +401,53 @@ public abstract class BaseParser {
     }
 
     /**
-     * Is the next token on the same line as the one just consumed?
+     * Is there <b>no</b> LineTerminator between the token just consumed and the next one?
      *
-     * <p>What the ECMAScript grammar's <b>restricted productions</b> need: after {@code return} (and
-     * {@code throw}, {@code break}, {@code continue}, {@code yield}, and before a postfix {@code ++}) a
-     * LineTerminator is not whitespace — it ends the statement. Without this check {@code return} followed by
-     * a newline and a call swallows the call as its argument, which parses fine and means something else.</p>
+     * <p>What the ECMAScript grammar's <b>restricted productions</b> need: in a handful of places a
+     * LineTerminator is not whitespace, it ends the statement. Without the check, {@code return} followed by a
+     * newline and a call swallows the call as its argument — which parses fine and means something else.</p>
+     *
+     * <p><b>Which productions actually consult this today: {@code return} and {@code throw}.</b> The grammar
+     * also restricts {@code break}/{@code continue} before a label, {@code yield} before its operand, and a
+     * postfix {@code ++}/{@code --} after its operand; none of those is enforced here, because karate-js
+     * supports neither labels nor generators, and the postfix case is a separate, unfixed gap. Do not read
+     * this javadoc as a claim that they are covered.</p>
+     *
+     * <p><b>Reusing it needs one caution.</b> It measures the gap after the <i>last token of the current
+     * node</i>, so a caller whose preceding element is an expression rather than a keyword — the postfix case
+     * — gets the right token only because {@link Node#getLastToken()} recurses to it. And the scan start is
+     * clamped: {@code Token.length} is a {@code short}, so a token longer than 32767 characters reports a
+     * negative length (a limitation this engine already has in {@code Token.getText()}). The clamp makes that
+     * fail toward <i>terminating</i> the statement, which is the safe direction — the unsafe one is silently
+     * swallowing the next expression.</p>
      */
     protected boolean noLineTerminatorBefore() {
-        Token last = nodeStack[stackPointer - 1].getLast().token;
+        Token last = nodeStack[stackPointer - 1].getLastToken();
         Token next = peekToken();
-        return next == Token.EMPTY || next.line == last.line;
+        if (next == Token.EMPTY) {
+            return true;
+        }
+        // the SOURCE between the two tokens, not their line numbers. Three reasons, and each one is a case
+        // where comparing lines silently gives the wrong answer: `Token.line` is a `short`, so past 32768
+        // lines it wraps and two genuinely-distant tokens compare equal — reinstating the exact swallowed-
+        // expression bug this check exists to prevent; a lone CR and U+2028/U+2029 are LineTerminators the
+        // lexer's line counter does not all track; and a terminator inside a block comment
+        // (`return /*\n*/ x`) terminates the statement per spec but moves no token onto a new line the
+        // counter agrees about. The gap is normally one character, so scanning it costs nothing.
+        String text = last.getResource().getText();
+        int from = Math.max(last.pos, Math.min(last.pos + last.length, text.length()));
+        int to = Math.min(next.pos, text.length());
+        for (int i = from; i < to; i++) {
+            if (isLineTerminator(text.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** ECMAScript 11.3 — LF, CR, LINE SEPARATOR, PARAGRAPH SEPARATOR. Vertical tab is <b>not</b> one. */
+    private static boolean isLineTerminator(char c) {
+        return c == '\n' || c == '\r' || c == '\u2028' || c == '\u2029';
     }
 
     protected int getPosition() {

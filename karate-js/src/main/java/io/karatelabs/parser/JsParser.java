@@ -1486,6 +1486,12 @@ public class JsParser extends BaseParser {
         if (!enter(NodeType.THROW_STMT, THROW)) {
             return false;
         }
+        // `throw` is a restricted production too, and unlike `return` the spec makes a line terminator after
+        // it an early SyntaxError rather than a silent ASI — there is no such thing as throwing nothing. So
+        // this reports rather than inventing an operand; `throw\n'boom'` used to throw 'boom'.
+        if (!noLineTerminatorBefore()) {
+            error("a line terminator after 'throw' is not allowed — put the expression on the same line");
+        }
         expr_list(true);
         return exit();
     }

@@ -1262,4 +1262,42 @@ class SpecPinTest extends EvalBase {
         // and a return whose expression genuinely continues on the same line is untouched
         assertEquals(3, eval("(function () {\n  return (\n    1 + 2\n  )\n})()"));
     }
+
+    @Test
+    void return_everyLineTerminatorCountsAndNothingElseDoes() {
+        // ES 11.3 lists four, and the three beyond LF are the ones a line-counter quietly misses
+        assertEquals(null, eval("(function () { return\r1 + 1 })()"), "a lone CR is a LineTerminator");
+        assertEquals(null, eval("(function () { return\r\n1 + 1 })()"));
+        assertEquals(null, eval("(function () { return\u20281 + 1 })()"), "U+2028 LINE SEPARATOR");
+        assertEquals(null, eval("(function () { return\u20291 + 1 })()"), "U+2029 PARAGRAPH SEPARATOR");
+        // a terminator hidden inside a block comment still terminates the statement
+        assertEquals(null, eval("(function () { return /*\n*/ 1 + 1 })()"));
+        assertEquals(null, eval("(function () { return /*\r*/ 1 + 1 })()"));
+        assertEquals(null, eval("(function () { return /*\u2028*/ 1 + 1 })()"));
+        // ...and a vertical tab is NOT one, so this return really does carry its expression
+        assertEquals(2, eval("(function () { return\u000B1 + 1 })()"));
+    }
+
+    @Test
+    void throw_aLineTerminatorAfterItIsAnError() {
+        // the spec makes this an EARLY error, not an ASI: there is no such thing as throwing nothing, so
+        // `throw` + newline is a mistake to report rather than a statement to silently complete
+        assertParseError("try { throw\n'boom' } catch (e) { e }");
+        assertParseError("throw\nnew Error('x')");
+        // ...and the ordinary form is untouched, including a multi-line expression that genuinely continues
+        assertEquals("boom", eval("try { throw 'boom' } catch (e) { e }"));
+        assertEquals("boom", eval("try { throw (\n  'boom'\n) } catch (e) { e }"));
+    }
+
+    @Test
+    void return_theCheckIsOnTheSourceNotOnALineNumberThatCanWrap() {
+        // `Token.line` is a short. Past 32768 lines it wraps, so a guard clause whose body sits 65536 lines
+        // below its `return` would compare EQUAL and have the body swallowed as the return's argument —
+        // silently, and in the direction that runs code the guard exists to skip.
+        StringBuilder sb = new StringBuilder(400_000);
+        sb.append("var log = 'none'\nfunction f(x) {\n  if (!x) return\n");
+        sb.append("//\n".repeat(65535));
+        sb.append("  log = 'ran'\n}\nf(null)\nlog");
+        assertEquals("none", eval(sb.toString()));
+    }
 }
