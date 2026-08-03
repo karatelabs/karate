@@ -1239,4 +1239,27 @@ class SpecPinTest extends EvalBase {
         // top-level function + var share var scope — legal.
         assertEquals(1, eval("function f() {} var f; 1"));
     }
+
+    // -------------------------------------------------------------------------
+    // ASI restricted productions — a LineTerminator after `return` is not
+    // whitespace, it ends the statement. Getting this wrong is SILENT: the
+    // wrong reading parses, runs, and returns the next expression instead of
+    // undefined, which is how a guard clause quietly stops guarding.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void return_aLineTerminatorEndsTheStatement() {
+        // the failure this pins: `return\n f()` must NOT read as `return f()`
+        assertEquals(null, eval("(function () {\n  return\n  1 + 1\n})()"));
+        assertEquals(2, eval("(function () {\n  return 1 + 1\n})()"));
+        // the shape every guard clause is written in — the call below must still run
+        assertEquals("guarded", eval("var log = 'none'\n"
+                + "function f(x) {\n  if (!x) return\n  log = 'ran'\n}\n"
+                + "f(null)\n log === 'none' ? 'guarded' : 'leaked'"));
+        assertEquals("ran", eval("var log = 'none'\n"
+                + "function f(x) {\n  if (!x) return\n  log = 'ran'\n}\n"
+                + "f(1)\n log"));
+        // and a return whose expression genuinely continues on the same line is untouched
+        assertEquals(3, eval("(function () {\n  return (\n    1 + 2\n  )\n})()"));
+    }
 }

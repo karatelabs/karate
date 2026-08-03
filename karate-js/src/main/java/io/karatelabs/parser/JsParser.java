@@ -1472,6 +1472,12 @@ public class JsParser extends BaseParser {
         if (!enter(NodeType.RETURN_STMT, RETURN)) {
             return false;
         }
+        // `return` is a RESTRICTED PRODUCTION: a line terminator after it ends the statement, so
+        // `if (x) return` followed by `foo()` on the next line is `return; foo()` and NOT `return foo()`.
+        // Getting this wrong is silent — the second form parses, runs, and returns something else.
+        if (!noLineTerminatorBefore()) {
+            return exit();
+        }
         expr_list(false);
         return exit();
     }

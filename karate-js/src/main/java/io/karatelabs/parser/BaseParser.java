@@ -400,6 +400,20 @@ public abstract class BaseParser {
         return nodeStack[stackPointer - 1].getLast().token.getText();
     }
 
+    /**
+     * Is the next token on the same line as the one just consumed?
+     *
+     * <p>What the ECMAScript grammar's <b>restricted productions</b> need: after {@code return} (and
+     * {@code throw}, {@code break}, {@code continue}, {@code yield}, and before a postfix {@code ++}) a
+     * LineTerminator is not whitespace — it ends the statement. Without this check {@code return} followed by
+     * a newline and a call swallows the call as its argument, which parses fine and means something else.</p>
+     */
+    protected boolean noLineTerminatorBefore() {
+        Token last = nodeStack[stackPointer - 1].getLast().token;
+        Token next = peekToken();
+        return next == Token.EMPTY || next.line == last.line;
+    }
+
     protected int getPosition() {
         return position;
     }
