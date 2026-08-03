@@ -47,7 +47,6 @@ public class Terms {
     // JsUndefined singleton for undefined - used for identity comparison
     public static final JsUndefined UNDEFINED = JsUndefined.INSTANCE;
 
-    static final Number POSITIVE_ZERO = 0;
     static final Number NEGATIVE_ZERO = -0.0;
 
     static final Object NAN = Double.NaN;
@@ -565,18 +564,8 @@ public class Terms {
             }
             return narrowBigInt(((BigInteger) lhs).divide(r));
         }
-        if (rhs.equals(POSITIVE_ZERO)) {
-            return lhs.doubleValue() > 0 ? Double.POSITIVE_INFINITY : Double.NEGATIVE_INFINITY;
-        }
-        if (rhs.equals(NEGATIVE_ZERO)) {
-            return lhs.doubleValue() < 0 ? Double.POSITIVE_INFINITY : Double.NEGATIVE_INFINITY;
-        }
-        if (rhs.equals(Double.POSITIVE_INFINITY)) {
-            return lhs.doubleValue() > 0 ? POSITIVE_ZERO : NEGATIVE_ZERO;
-        }
-        if (rhs.equals(Double.NEGATIVE_INFINITY)) {
-            return lhs.doubleValue() < 0 ? POSITIVE_ZERO : NEGATIVE_ZERO;
-        }
+        // no special-casing for zero / Infinity operands: IEEE 754 double division is
+        // exactly what the spec's Number::divide mandates, and narrow() preserves -0.0
         double result = lhs.doubleValue() / rhs.doubleValue();
         return narrow(result);
     }

@@ -36,6 +36,40 @@ class JsMathTest extends EvalBase {
     }
 
     @Test
+    void testDivisionSpecial() {
+        // spec Number::divide — NaN when both operands are zero, or both infinite
+        assertEquals(true, eval("isNaN(0 / 0)"));
+        assertEquals(true, eval("isNaN(-0 / 0)"));
+        assertEquals(true, eval("isNaN(0 / -0)"));
+        assertEquals(true, eval("isNaN(-0 / -0)"));
+        assertEquals(true, eval("isNaN(Infinity / Infinity)"));
+        assertEquals(true, eval("isNaN(-Infinity / Infinity)"));
+        assertEquals(true, eval("isNaN(Infinity / -Infinity)"));
+        // a NaN operand poisons the result, whatever the other side is
+        assertEquals(true, eval("isNaN(NaN / 0)"));
+        assertEquals(true, eval("isNaN(NaN / 1)"));
+        assertEquals(true, eval("isNaN(NaN / Infinity)"));
+        assertEquals(true, eval("isNaN(1 / NaN)"));
+        // non-zero numerator over signed zero — signs multiply
+        assertEquals(true, eval("1 / 0 === Infinity"));
+        assertEquals(true, eval("-1 / 0 === -Infinity"));
+        assertEquals(true, eval("1 / -0 === -Infinity"));
+        assertEquals(true, eval("-1 / -0 === Infinity"));
+        // finite numerator over infinity — Object.is distinguishes -0 from +0
+        assertEquals(true, eval("Object.is(0 / Infinity, 0)"));
+        assertEquals(true, eval("Object.is(1 / Infinity, 0)"));
+        assertEquals(true, eval("Object.is(-1 / Infinity, -0)"));
+        assertEquals(true, eval("Object.is(0 / -Infinity, -0)"));
+        assertEquals(true, eval("Object.is(1 / -Infinity, -0)"));
+        assertEquals(true, eval("Object.is(-1 / -Infinity, 0)"));
+        // infinite numerator over a finite divisor
+        assertEquals(true, eval("Infinity / 0 === Infinity"));
+        assertEquals(true, eval("Infinity / -0 === -Infinity"));
+        assertEquals(true, eval("Infinity / 2 === Infinity"));
+        assertEquals(true, eval("-Infinity / 2 === -Infinity"));
+    }
+
+    @Test
     void testMathApi() {
         assertEquals(Math.E, eval("Math.E"));
         assertEquals(2.302585092994046, eval("Math.LN10"));
