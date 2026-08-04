@@ -53,7 +53,21 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req) {
-        HttpRequest request = toRequest(req);
+        HttpRequest request;
+        try {
+            request = toRequest(req);
+        } catch (Exception e) {
+            // A malformed REQUEST LINE fails here, before any handler exists to answer it — a bad
+            // percent-escape in the query string (`?state=%zz`) makes Netty's QueryStringDecoder throw
+            // while we are still building the request. This used to escape channelRead0 into the pipeline
+            // tail, which logs the exception and writes NOTHING: the client then waits for a response that
+            // will never come, while the server happily serves every other connection. A hung request is
+            // worse than any wrong status, so say 400 — the client sent something we cannot parse.
+            logger.warn("bad request '{}': {}", req.uri(), e.getMessage());
+            ctx.writeAndFlush(error(HttpResponseStatus.BAD_REQUEST,
+                    "cannot parse the request URI: " + e.getMessage()));
+            return;
+        }
         if (server.wsHandler != null && isWsUpgrade(req)) {
             try {
                 handleWsUpgrade(ctx, req, request);
@@ -158,12 +172,38 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
     }
 
     static FullHttpResponse error(String message) {
-        FullHttpResponse res = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+        return error(HttpResponseStatus.INTERNAL_SERVER_ERROR, message);
+    }
+
+    static FullHttpResponse error(HttpResponseStatus status, String message) {
+        FullHttpResponse res = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
         res.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain");
-        ByteBuf content = Unpooled.copiedBuffer(message.getBytes(StandardCharsets.UTF_8));
+        // never NPE while building the apology: an exception with a null message is ordinary (an NPE, an
+        // IllegalStateException with no text), and every caller here passes `e.getMessage()` straight in.
+        // Throwing from the error path leaves the request unanswered, which is the failure this response
+        // exists to prevent.
+        String text = message == null ? String.valueOf(status.reasonPhrase()) : message;
+        ByteBuf content = Unpooled.copiedBuffer(text.getBytes(StandardCharsets.UTF_8));
         res.headers().set(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
         res.content().writeBytes(content);
         return res;
+    }
+
+    /**
+     * The backstop: <b>no request leaves this server unanswered.</b> Netty's default sends an uncaught
+     * exception to the pipeline tail, which logs it and writes nothing — so a client waits out its own
+     * timeout while the server looks healthy. Anything that reaches here is a bug we have not handled
+     * above, and the honest answer is a 500 and a closed connection rather than silence.
+     */
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        logger.error("http server pipeline error: {}", cause.toString());
+        if (ctx.channel().isActive()) {
+            ctx.writeAndFlush(error(cause.getMessage()))
+                    .addListener(io.netty.channel.ChannelFutureListener.CLOSE);
+        } else {
+            ctx.close();
+        }
     }
 
     static boolean isWsUpgrade(FullHttpRequest req) {
