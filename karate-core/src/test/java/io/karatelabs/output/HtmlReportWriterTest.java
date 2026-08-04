@@ -204,7 +204,7 @@ class HtmlReportWriterTest {
         // Inlined JSON in HTML should contain the synthetic @skipped tag
         String html = Files.readString(reportDir.resolve("karate-summary.html"));
         assertTrue(html.contains("@skipped"), "synthetic @skipped tag should appear in summary JSON");
-        assertTrue(html.contains("\"scenario_skipped\": 1"),
+        assertTrue(html.contains("\"scenario_skipped\":1"),
                 "scenario_skipped count should appear in summary JSON");
     }
 
@@ -293,7 +293,7 @@ class HtmlReportWriterTest {
         assertEquals(0, result.getScenarioSkippedCount());
 
         String html = Files.readString(reportDir.resolve("karate-summary.html"));
-        assertTrue(html.contains("\"scenario_skipped\": 0"),
+        assertTrue(html.contains("\"scenario_skipped\":0"),
                 "scenario_skipped: 0 should be present (hero card x-show hides it)");
         assertFalse(html.contains("@skipped"),
                 "synthetic @skipped tag should not appear when no scenarios are skipped");
@@ -708,9 +708,9 @@ class HtmlReportWriterTest {
 
         String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
         assertTrue(featureHtml.contains("<script id=\"karate-data\" type=\"application/json\">"));
-        assertTrue(featureHtml.contains("\"file\": \"001_level-zero.txt\""));
-        assertTrue(featureHtml.contains("\"file\": \"002_level-one.txt\""));
-        assertTrue(featureHtml.contains("\"file\": \"003_level-two.txt\""));
+        assertTrue(featureHtml.contains("\"file\":\"001_level-zero.txt\""));
+        assertTrue(featureHtml.contains("\"file\":\"002_level-one.txt\""));
+        assertTrue(featureHtml.contains("\"file\":\"003_level-two.txt\""));
         assertTrue(featureHtml.contains("x-data=\"KarateReport.featureData()\""));
     }
 
@@ -754,7 +754,7 @@ class HtmlReportWriterTest {
         assertNotNull(featureFiles);
         String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
         // The JSON rides inline as base64 `data`; no `file` ref points at a *.json embed.
-        assertTrue(featureHtml.contains("\"mime\": \"application/json\""),
+        assertTrue(featureHtml.contains("\"mime\":\"application/json\""),
                 "the evidence embed part should be present");
         assertTrue(featureHtml.contains("\"data\":"),
                 "the JSON embed should carry inline base64 `data`");
@@ -1101,9 +1101,9 @@ class HtmlReportWriterTest {
         assertEquals(1, featureFiles.length);
         String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
 
-        assertTrue(featureHtml.contains("\"hook\": \"beforeScenario\""),
+        assertTrue(featureHtml.contains("\"hook\":\"beforeScenario\""),
                 "feature HTML should expose beforeScenario hook marker");
-        assertTrue(featureHtml.contains("\"hook\": \"afterScenario\""),
+        assertTrue(featureHtml.contains("\"hook\":\"afterScenario\""),
                 "feature HTML should expose afterScenario hook marker");
     }
 
@@ -1176,7 +1176,7 @@ class HtmlReportWriterTest {
         String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
 
         // Two plain scenarios + two outline rows = four invocations, each must carry the nested call.
-        int callResultMarkers = featureHtml.split("\"hasCallResults\": true", -1).length - 1;
+        int callResultMarkers = featureHtml.split("\"hasCallResults\":true", -1).length - 1;
         assertEquals(4, callResultMarkers,
                 "every scenario invoking the shared helper should attach nested call results, got " + callResultMarkers);
         assertTrue(featureHtml.contains("Sub Feature"),
@@ -1230,11 +1230,11 @@ class HtmlReportWriterTest {
         assertEquals(1, featureFiles.length);
         String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
 
-        assertTrue(featureHtml.contains("\"hook\": \"beforeScenario\""),
+        assertTrue(featureHtml.contains("\"hook\":\"beforeScenario\""),
                 "feature HTML should expose beforeScenario hook marker");
         assertTrue(featureHtml.contains("Setup Helper"),
                 "feature HTML should include the nested called feature's name");
-        assertTrue(featureHtml.contains("\"hasCallResults\": true"),
+        assertTrue(featureHtml.contains("\"hasCallResults\":true"),
                 "hook step should carry nested call results");
     }
 
@@ -1283,7 +1283,7 @@ class HtmlReportWriterTest {
         // Both scenarios (JS-driven and direct) produce a step carrying nested call results, so the
         // marker must appear at least twice — once per scenario. A single occurrence would mean the
         // JS-driven call was dropped from the report.
-        int callResultMarkers = featureHtml.split("\"hasCallResults\": true", -1).length - 1;
+        int callResultMarkers = featureHtml.split("\"hasCallResults\":true", -1).length - 1;
         assertEquals(2, callResultMarkers,
                 "both the JS-driven and direct call should attach nested call results, got " + callResultMarkers);
         assertTrue(featureHtml.contains("Sub Feature"),
@@ -1330,11 +1330,11 @@ class HtmlReportWriterTest {
         assertNotNull(featureFiles);
         String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
 
-        assertTrue(featureHtml.contains("\"hook\": \"beforeScenario\""));
+        assertTrue(featureHtml.contains("\"hook\":\"beforeScenario\""));
         assertTrue(featureHtml.contains("before boom"),
                 "feature HTML should surface the hook failure message");
         // Body steps that never ran must be marked skipped so the report shows them greyed out.
-        assertTrue(featureHtml.contains("\"status\": \"skipped\""),
+        assertTrue(featureHtml.contains("\"status\":\"skipped\""),
                 "body steps should be marked skipped when before-hook halts the scenario");
     }
 
@@ -1375,7 +1375,7 @@ class HtmlReportWriterTest {
         assertNotNull(featureFiles);
         String featureHtml = Files.readString(featuresDir.resolve(featureFiles[0]));
 
-        assertTrue(featureHtml.contains("\"hook\": \"afterScenario\""));
+        assertTrue(featureHtml.contains("\"hook\":\"afterScenario\""));
         assertTrue(featureHtml.contains("E2E validation failed"),
                 "feature HTML should surface the hook failure message");
     }
@@ -1844,7 +1844,7 @@ class HtmlReportWriterTest {
                 "the un-tagged scenario's steps should render normally");
         assertFalse(html.contains("TOP_SECRET_VALUE"),
                 "@report=false scenario's step content must not appear in the HTML");
-        assertTrue(html.contains("\"reportDisabled\": true") || html.contains("\"reportDisabled\":true"),
+        assertTrue(html.contains("\"reportDisabled\":true") || html.contains("\"reportDisabled\":true"),
                 "scenario row should carry the reportDisabled marker");
 
         // JSONL must also redact step results

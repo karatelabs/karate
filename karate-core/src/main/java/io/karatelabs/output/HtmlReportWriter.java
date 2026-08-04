@@ -38,6 +38,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -193,11 +194,9 @@ public final class HtmlReportWriter {
         Path featuresDir = outputDir.resolve(HtmlReportListener.SUBFOLDER);
         Files.createDirectories(featuresDir);
         String template = loadTemplate("karate-feature.html");
-        // feature pages live under feature-html/, so ext refs need the "../" prefix
-        String html = inlineJson(template, featureData, reportAssets, "../");
-
         String fileName = getFeatureFileName(featureData) + ".html";
-        Files.writeString(featuresDir.resolve(fileName), html);
+        // feature pages live under feature-html/, so ext refs need the "../" prefix
+        writeInlined(featuresDir.resolve(fileName), template, featureData, reportAssets, "../");
     }
 
     private static boolean hasEmbeds(FeatureResult result) {
@@ -376,8 +375,7 @@ public final class HtmlReportWriter {
             summaryPageData.put("summaryCards", summaryCards);
         }
         String summaryTemplate = loadTemplate("karate-summary.html");
-        String summaryHtml = inlineJson(summaryTemplate, summaryPageData, reportAssets, "");
-        Files.writeString(outputDir.resolve("karate-summary.html"), summaryHtml);
+        writeInlined(outputDir.resolve("karate-summary.html"), summaryTemplate, summaryPageData, reportAssets, "");
 
         // Write index redirect
         writeIndexRedirect(outputDir);
@@ -419,16 +417,13 @@ public final class HtmlReportWriter {
         pageData.put("features", buildFeatureSummaryList(features));
 
         String template = loadTemplate("karate-summary.html");
-        String html = inlineJson(template, pageData);
-        Files.writeString(outputDir.resolve("karate-summary.html"), html);
+        writeInlined(outputDir.resolve("karate-summary.html"), template, pageData);
     }
 
     private static void writeFeatureHtml(Map<String, Object> feature, Path featuresDir) throws IOException {
         String template = loadTemplate("karate-feature.html");
-        String html = inlineJson(template, feature);
-
         String fileName = getFeatureFileName(feature) + ".html";
-        Files.writeString(featuresDir.resolve(fileName), html);
+        writeInlined(featuresDir.resolve(fileName), template, feature);
     }
 
     private static void writeIndexRedirect(Path outputDir) throws IOException {
@@ -453,8 +448,8 @@ public final class HtmlReportWriter {
      * single string-replace point for every template. This no-ext overload is used by the direct
      * {@link #write(SuiteResult, Path, String)} path, which has no registered exts.
      */
-    private static String inlineJson(String template, Object data) {
-        return inlineJson(template, data, null, "");
+    private static void writeInlined(Path target, String template, Object data) throws IOException {
+        writeInlined(target, template, data, null, "");
     }
 
     /**
@@ -465,16 +460,54 @@ public final class HtmlReportWriter {
      * pages under {@code feature-html/} — mirroring how templates reference
      * {@code res/}. Both ext fragments share the same prefix so their URLs agree.
      */
-    private static String inlineJson(String template, Object data,
-                                     Map<String, ReportAssets> reportAssets, String relPrefix) {
-        String json = Json.of(data).toStringPretty();
-        json = json.replace("</", "<\\/"); // prevent </script> in JSON from closing the script tag
-        String html = template.replace(DATA_PLACEHOLDER, json);
-        html = html.replace(ICONS_PLACEHOLDER, loadIconsSprite());
-        html = html.replace(EXTS_PLACEHOLDER, buildExtsHtml(reportAssets, relPrefix));
-        html = html.replace(NAV_PLACEHOLDER, buildNavHtml(reportAssets, relPrefix));
-        html = html.replace(CTA_PLACEHOLDER, buildCtaHtml(reportAssets));
-        return html;
+    private static void writeInlined(Path target, String template, Object data,
+                                     Map<String, ReportAssets> reportAssets, String relPrefix)
+            throws IOException {
+        // Splice the small fragments into the TEMPLATE first, and the report data last.
+        // String.replace() copies everything it walks, so inlining the data first made each of
+        // these four a full copy of template-plus-data — and a feature page's data can run to
+        // hundreds of megabytes on a call-heavy suite. Ordering it this way also means report
+        // content can no longer be mistaken for a placeholder: a scenario named
+        // "<!-- KARATE_ICONS -->" used to be substitutable.
+        String shell = template
+                .replace(ICONS_PLACEHOLDER, loadIconsSprite())
+                .replace(EXTS_PLACEHOLDER, buildExtsHtml(reportAssets, relPrefix))
+                .replace(NAV_PLACEHOLDER, buildNavHtml(reportAssets, relPrefix))
+                .replace(CTA_PLACEHOLDER, buildCtaHtml(reportAssets));
+        int at = shell.indexOf(DATA_PLACEHOLDER);
+        try (Writer writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
+            if (at < 0) {
+                writer.write(shell);
+                return;
+            }
+            // Write the page in three pieces rather than building it. Concatenating them would
+            // still materialise the whole page as one String — the largest single allocation in
+            // report generation — so peak here is the serialized data alone.
+            writer.write(shell, 0, at);
+            // Compact, not pretty. Nothing reads this blob but the page's own JavaScript, and
+            // indentation on a deeply nested result tree is a large fraction of the bytes —
+            // it was showing up as StringUtils.pad in the allocation profile. Same serializer
+            // as before, only without the padding, so escaping is unchanged.
+            writeScriptSafe(writer, Json.of(data).toString(false, false, false));
+            int rest = at + DATA_PLACEHOLDER.length();
+            writer.write(shell, rest, shell.length() - rest);
+        }
+    }
+
+    /**
+     * Write JSON into a {@code <script>} body, escaping {@code </} so a string containing
+     * {@code </script>} cannot close the tag. Done during the write rather than by
+     * {@code json.replace(...)} beforehand, which would copy the whole serialized report again.
+     */
+    private static void writeScriptSafe(Writer writer, String json) throws IOException {
+        int from = 0;
+        int at;
+        while ((at = json.indexOf("</", from)) >= 0) {
+            writer.write(json, from, at - from);
+            writer.write("<\\/");
+            from = at + 2;
+        }
+        writer.write(json, from, json.length() - from);
     }
 
     /**
@@ -974,8 +1007,7 @@ public final class HtmlReportWriter {
                                          int threadCount, Map<String, ReportAssets> reportAssets) throws IOException {
         Map<String, Object> timelineData = buildTimelineData(features, result, env, threadCount);
         String template = loadTemplate("karate-timeline.html");
-        String html = inlineJson(template, timelineData, reportAssets, "");
-        Files.writeString(outputDir.resolve("karate-timeline.html"), html);
+        writeInlined(outputDir.resolve("karate-timeline.html"), template, timelineData, reportAssets, "");
     }
 
     /**

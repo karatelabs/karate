@@ -26,6 +26,7 @@ package io.karatelabs.profiling.workload;
 import io.karatelabs.core.Runner;
 import io.karatelabs.core.SuiteResult;
 import io.karatelabs.profiling.JvmConfig;
+import io.karatelabs.profiling.ReportMode;
 import io.karatelabs.profiling.RunShape;
 import io.karatelabs.profiling.Workload;
 import io.karatelabs.profiling.WorkloadContext;
@@ -107,17 +108,15 @@ public class CallAccumulationWorkload implements Workload {
     public void iterate(int vu, long iteration) {
         long scenarios = context.iterations() > 0 ? context.iterations() : 1000;
         // Reporting is off by default so the measurement is of execution, not of report
-        // building. Turn it on with -Dkarate.profiling.reports=true: the HTML listener keeps
+        // building. -Dkarate.profiling.reports=html|all turns it on: a report listener keeps
         // its own copy of every feature result, so "retention with reports on" is a different
-        // — and more representative — question than "retention with reports off".
-        boolean reports = Boolean.getBoolean("karate.profiling.reports");
-        SuiteResult result = Runner.path(FEATURE)
+        // — and more representative — question than "retention with reports off". html is the
+        // shipped default config; all is what bounded reporting is specified against.
+        ReportMode reports = ReportMode.current();
+        System.out.println("[workload] reports=" + reports);
+        SuiteResult result = reports.applyTo(Runner.path(FEATURE))
                 .systemProperty("profiling.scenarios", String.valueOf(scenarios))
-                .outputHtmlReport(reports)
-                .outputJsonLines(false)
-                .outputJunitXml(false)
-                .outputCucumberJson(false)
-                .outputConsoleSummary(true)
+                .outputConsoleSummary(false)
                 .parallel(context.threads());
         System.out.println("[workload] scenarios=" + result.getScenarioCount()
                 + " passed=" + result.getScenarioPassedCount()

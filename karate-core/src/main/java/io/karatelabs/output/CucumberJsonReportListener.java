@@ -25,25 +25,20 @@ package io.karatelabs.output;
 
 import io.karatelabs.core.FeatureResult;
 import io.karatelabs.core.Suite;
-import io.karatelabs.core.SuiteResult;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
- * A {@link ResultListener} that generates Cucumber JSON reports asynchronously.
+ * A {@link ResultListener} that generates Cucumber JSON reports.
  * <p>
- * This listener writes per-feature Cucumber JSON files as features complete using
- * a single-thread executor. Each feature produces a separate JSON file named
+ * This listener writes each feature's Cucumber JSON file as that feature completes.
+ * Each feature produces a separate JSON file named
  * {@code {packageQualifiedName}.json}. This approach:
  * <ul>
- *   <li>Does not block test execution during report generation</li>
  *   <li>Makes partial results available as tests complete</li>
  *   <li>Compatible with third-party tools (Allure, ReportPortal, etc.)</li>
  * </ul>
@@ -55,7 +50,6 @@ public class CucumberJsonReportListener implements ResultListener {
     public static final String SUBFOLDER = "cucumber-json";
 
     private final Path outputDir;
-    private final ExecutorService executor;
 
     /**
      * Create a new Cucumber JSON report listener.
@@ -64,11 +58,6 @@ public class CucumberJsonReportListener implements ResultListener {
      */
     public CucumberJsonReportListener(Path outputDir) {
         this.outputDir = outputDir.resolve(SUBFOLDER);
-        this.executor = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "karate-cucumber-json");
-            t.setDaemon(true);
-            return t;
-        });
     }
 
     @Override
@@ -88,31 +77,16 @@ public class CucumberJsonReportListener implements ResultListener {
         // Sort scenarios for deterministic ordering
         result.sortScenarioResults();
 
-        // Serialize NOW, while the result is still whole — the suite releases nested
-        // call-result trees as soon as this callback returns. Only the file write is deferred.
-        String fileName = CucumberJsonWriter.fileNameFor(result);
-        String content = CucumberJsonWriter.serializeFeature(result);
-        executor.submit(() -> {
-            try {
-                CucumberJsonWriter.writeSerialized(fileName, content, outputDir);
-            } catch (Exception e) {
-                logger.warn("Failed to write Cucumber JSON for {}: {}", result.getDisplayName(), e.getMessage());
-            }
-        });
-    }
-
-    @Override
-    public void onSuiteEnd(SuiteResult result) {
-        // Wait for all Cucumber JSON writes to complete
-        executor.shutdown();
+        // Serialize AND write here, on the feature's own thread. The write used to be handed
+        // to a single-thread executor with an unbounded queue; measured over a many-feature
+        // suite that thread was idle — its share of the work was a few percent of wall-clock —
+        // so the queue could only ever grow, never help. Writing inline also means a feature
+        // cannot complete until its report is on disk, which bounds what is held in memory.
         try {
-            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
-                logger.warn("Cucumber JSON executor did not complete in time");
-                executor.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            executor.shutdownNow();
+            CucumberJsonWriter.writeSerialized(CucumberJsonWriter.fileNameFor(result),
+                    CucumberJsonWriter.serializeFeature(result), outputDir);
+        } catch (Exception e) {
+            logger.warn("Failed to write Cucumber JSON for {}: {}", result.getDisplayName(), e.getMessage());
         }
     }
 

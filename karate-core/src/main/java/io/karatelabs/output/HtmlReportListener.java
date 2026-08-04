@@ -37,18 +37,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
- * A {@link ResultListener} that generates HTML reports asynchronously.
+ * A {@link ResultListener} that generates HTML reports.
  * <p>
- * This listener writes feature HTML files as features complete using a single-thread
- * executor, then generates summary pages at suite end. This approach:
+ * This listener writes each feature's HTML file as that feature completes, then generates
+ * summary pages at suite end. This approach:
  * <ul>
  *   <li>Keeps only small summary data in memory</li>
- *   <li>Does not block test execution during report generation</li>
  *   <li>Makes partial results available as tests complete</li>
  * </ul>
  */
@@ -60,7 +56,6 @@ public class HtmlReportListener implements ResultListener {
 
     private final Path outputDir;
     private final String env;
-    private final ExecutorService executor;
     // One entry per completed feature, kept until onSuiteEnd builds the summary and
     // timeline pages. Held in the SHALLOW form produced by summaryJson() — see there for
     // why the full tree must not be retained here.
@@ -86,11 +81,6 @@ public class HtmlReportListener implements ResultListener {
     public HtmlReportListener(Path outputDir, String env) {
         this.outputDir = outputDir;
         this.env = env;
-        this.executor = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "karate-html-report");
-            t.setDaemon(true);
-            return t;
-        });
     }
 
     @Override
@@ -123,26 +113,27 @@ public class HtmlReportListener implements ResultListener {
         // itself, so nothing here needs the step detail.
         featureMaps.add(summaryJson(result));
 
-        // Extract the page model NOW, while the result is still whole. The suite releases
-        // nested call-result trees as soon as this callback returns, so deferring the
-        // extraction to the background thread would cost the report its nested step detail.
-        // Templating and IO — the expensive part — still happen off the hot path.
-        Map<String, Object> featureData;
+        // Extract the page model and render it, both here, on the feature's own thread.
+        //
+        // Rendering used to be handed to a single-thread executor with an unbounded queue, on
+        // the reasoning that templating and IO should stay off the hot path. Measured, the
+        // opposite was true: rendering a feature page cost ~3x the suite's entire wall-clock
+        // when summed over all features, so that one thread could never keep up and its queue
+        // grew for the whole run — holding a complete page model per queued feature. Peak heap
+        // then tracked the number of features, not the number in flight. It was the single
+        // largest memory consumer with reports on, and it was noisy run-to-run because what
+        // was really being measured was a race between producer and writer.
+        //
+        // Inline, the cost is shared across every feature thread instead of serialized onto
+        // one, and a feature cannot complete until its page is on disk — so the page model is
+        // live for one feature per thread rather than for the whole suite.
         try {
-            featureData = HtmlReportWriter.prepareFeatureData(result, outputDir);
+            ensureResourcesCopied();
+            HtmlReportWriter.renderFeatureHtml(
+                    HtmlReportWriter.prepareFeatureData(result, outputDir), outputDir, reportAssets);
         } catch (Exception e) {
-            logger.warn("Failed to prepare feature data for {}: {}", result.getDisplayName(), e.getMessage());
-            return;
+            logger.warn("Failed to write feature HTML for {}: {}", result.getDisplayName(), e.getMessage());
         }
-        String displayName = result.getDisplayName();
-        executor.submit(() -> {
-            try {
-                ensureResourcesCopied();
-                HtmlReportWriter.renderFeatureHtml(featureData, outputDir, reportAssets);
-            } catch (Exception e) {
-                logger.warn("Failed to write feature HTML for {}: {}", displayName, e.getMessage());
-            }
-        });
     }
 
     /**
@@ -201,18 +192,6 @@ public class HtmlReportListener implements ResultListener {
 
         } catch (Exception e) {
             logger.warn("Failed to write HTML summary: {}", e.getMessage());
-        } finally {
-            // Wait for all feature HTML writes to complete
-            executor.shutdown();
-            try {
-                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
-                    logger.warn("HTML report executor did not complete in time");
-                    executor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                executor.shutdownNow();
-            }
         }
     }
 

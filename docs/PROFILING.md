@@ -2,13 +2,14 @@
 
 > Runbook for JFR-based profiling of karate-core, the mock server and the JS engine.
 > Written for an LLM operator: every step is a command you run and an artifact you read.
-> Companion to [PROFILING_PLAN.md](./PROFILING_PLAN.md) (build-out status — what of this
-> exists yet).
 >
 > **Everything here reports. Nothing asserts.** There is no CI job, no committed baseline
 > file and no pass/fail gate. An OOM is a legitimate outcome — for some workloads it is
 > the *expected* one. Judgement lives with the reader, and last-known numbers live in
 > [Current baseline](#6-current-baseline) below.
+>
+> §8 records what the parallel-execution memory investigation settled, and §9 records what
+> was deliberately **not** built and why — read those before re-opening either.
 
 ---
 
@@ -17,9 +18,9 @@
 ```bash
 cd karate-profiling
 
-etc/run.sh --list                        # what can I run?
-etc/run.sh leak-callonce --iterations 50 # smoke: is the harness alive?
-etc/run.sh scope-capture-bound           # the real thing
+etc/run.sh --list                          # what can I run?
+etc/run.sh harness-smoke --iterations 50000 # smoke: is the harness alive?
+etc/run.sh call-accumulation                # the real thing
 ```
 
 Every invocation writes one self-contained, never-overwritten directory:
@@ -54,6 +55,54 @@ The mock server is a **sibling process** deliberately. If it shared a JVM with t
 driver, its CPU samples and allocations would land in the same recording and every number
 below would be a blend of client and server. Forking costs a localhost socket hop, which
 is closer to reality anyway.
+
+### Disk hygiene — prune after every result
+
+**A sweep will fill your disk, and nothing prunes anything automatically.** Getting one
+result costs on the order of a gigabyte, and getting a trend costs a run per data point.
+A single afternoon of sweeps reached **19 GB** and hit ENOSPC mid-matrix, which does not
+fail cleanly — it aborts the run *and* the tooling around it, and the partial matrix is
+worthless because the runs that did complete were competing for a full disk.
+
+Three consumers, in order of size:
+
+| What | Where | Size |
+|---|---|---|
+| Per-run HTML/Cucumber/JUnit reports | `karate-profiling/target/karate-reports*` | ~1 GB per run **on memory workloads** |
+| JFR recording + live chunk repository | `target/profiling/<run>/{run.jfr,jfr-repo/}` | up to `maxsize` (512m) per run |
+| Heap dump, when a run OOMs | `target/profiling/<run>/heapdump.hprof` | roughly `--xmx` — so 3 GB at `--xmx 3g` |
+
+The report directory is the one that surprises people. Karate's `backupOutputDir` defaults
+to **true**, which *renames* the previous `karate-reports/` to a timestamped backup rather
+than replacing it — correct for a test run, wrong for a sweep, where it silently keeps
+every run you have ever done. The profiling workloads disable it (`ReportMode.applyTo`);
+if you write a workload that builds its own `Runner`, disable it there too.
+
+**The rule: extract the numbers into the baseline table below, then delete the run.** A
+`digest.md` is kilobytes and is the durable artifact; `run.jfr` and the reports are working
+files with a lifetime of one analysis. Keep a `.jfr` only while you are actively running
+`jfr` recipes (§5) against it, and a heap dump only while Eclipse MAT is open on it.
+
+```bash
+# after recording a result — keeps digests, drops the bulk
+find karate-profiling/target/profiling -name 'run.jfr' -delete
+find karate-profiling/target/profiling -name 'heapdump.hprof' -delete
+rm -rf karate-profiling/target/profiling/*/jfr-repo
+
+# before a sweep — start from clean, and never keep report backups
+rm -rf karate-profiling/target/profiling karate-profiling/target/karate-reports*
+
+# check before committing to a long matrix; a 3x3 sweep wants ~10 GB free
+df -h .
+```
+
+Workloads that generate features or scratch output write under the system temp directory
+and clean up in `teardown()` — but `teardown()` is skipped when a run times out or is
+killed, which during an investigation is often. Sweep those too:
+
+```bash
+rm -rf "${TMPDIR:-/tmp}"/karate-feature-spread-* "${TMPDIR:-/tmp}"/karate-report-cost-*
+```
 
 ### Flags
 
@@ -118,8 +167,64 @@ This workload owns its suite (it declares `drivesOwnConcurrency`), so `--iterati
 usual way would build a fresh `Suite` per iteration, letting each one become garbage
 immediately — collecting the very accumulation being hunted and reporting all clear.
 
+Its shape is **one feature holding an N-row `Scenario Outline`**, which makes feature-end
+and suite-end the same instant. That is deliberate — it is the worst case for anything that
+releases per feature — but it also means this workload alone cannot tell you how an ordinary
+suite behaves. Always run it paired with `feature-spread`.
+
 *Healthy result:* peak heap roughly flat as scenario count rises. See
 [Current baseline](#6-current-baseline) for what it does today.
+
+### `feature-spread` — the same work, many features
+
+The same total scenario count as `call-accumulation`, spread over many features (default
+10 scenarios each) instead of concentrated in one. **Run them as a pair — neither number
+means much alone.** They are the two extremes of identical work, so a change that moves one
+and not the other has told you exactly which bound it achieved:
+
+```bash
+etc/run.sh call-accumulation --iterations 2000   #   1 feature x 2000 scenarios
+etc/run.sh feature-spread    --iterations 2000   # 200 features x   10 scenarios
+```
+
+This is the only workload that exercises per-feature report writing more than once, which
+is what makes it the one that catches queueing and per-feature-lifetime problems. Knobs:
+`-Dprofiling.spread.scenarios=N` (per feature, default 10) and
+`-Dprofiling.spread.calls=N` (per scenario, default 60, matching `call-accumulation` so the
+two differ only in distribution). Features are generated into a temp directory rather than
+committed, because how many there are is the variable under study.
+
+### Report modes — `off` | `html` | `all`
+
+Both memory workloads take `-Dkarate.profiling.reports=off|html|all`, or a comma-separated
+subset of `html,jsonl,junit,cucumber`. This is three experiments, not a boolean, and the
+distinction is load-bearing:
+
+- **`off`** — no `ResultListener` at all. Measures execution.
+- **`html`** — what `Runner.Builder` gives you by default, i.e. the config users actually
+  ship. This is the one to check against a reported OOM.
+- **`all`** — every format. Costs the most work but not the most memory.
+
+A run recorded only as "reports on" cannot be told apart afterwards, which cost one round
+of measurement. `-Dkarate.profiling.reportCost=true` additionally attaches a listener that
+times each report operation per feature and prints whether a single writer thread could keep
+up with the suite — see §8.
+
+### Leak-watch family — NOT BUILT
+
+`leak-watch` (a realistic soak: `karate-config.js` doing a call, `callSingle`, `callonce` in
+`Background`, `call read()` with an args object, JS function defs, HTTP against the forked
+mock, `match` assertions) plus thin single-mechanism variants `leak-callonce`,
+`leak-callsingle`, `leak-shared-scope`, `leak-isolated-scope`.
+
+**None of these exist yet.** They are the right shape for the question "is Karate leaking
+over a long run" — which the current workloads, all iteration-bounded reproductions, do not
+answer. Build them when that question comes up; the shape to copy is v1's
+`examples/profiling-test/src/test/java/perf/{main,called,mock}.feature`, driven with
+`--duration` rather than `--iterations`, with the mock in the sibling JVM.
+
+*Healthy result, when they exist:* a **flat** heap-after-GC floor across the whole run, at
+any sawtooth amplitude. See §4.
 
 ### The bound-scope-capture pair — regression guard
 
@@ -156,24 +261,6 @@ java -cp "target/classes:$(cat target/cp.txt)" io.karatelabs.profiling.Probe \
 Use it whenever a memory theory depends on how much a call hands back. That is a one-run
 question about object-graph shape, and answering it directly beats inferring it from a heap
 curve — as the scope-capture pair above demonstrates.
-
-### Leak-watch family — does a realistic suite retain over time?
-
-| Workload | Exercises |
-|---|---|
-| `leak-watch` | The realistic soak, and the canary: `karate-config.js` doing a call, `callSingle`, `callonce` in `Background`, `call read()` with an args object, a bare `karate.call()` sharing scope, JS function defs, HTTP against the forked mock, `match` assertions. |
-| `leak-callonce` | `callonce` only. |
-| `leak-callsingle` | `karate.callSingle()` only. |
-| `leak-shared-scope` | Bare `karate.call()`, no args object — callee inherits caller scope. |
-| `leak-isolated-scope` | `call` **with** an args object — the control for the above. |
-
-Run `leak-watch` when you want to know "is Karate leaking". Run the thin variants when
-`leak-watch` has moved and you need to know *which mechanism* moved it — that is the only
-reason they exist. `leak-shared-scope` and `leak-isolated-scope` are a matched pair in the
-same sense as the scope-capture workloads.
-
-*Healthy result:* a **flat** heap-after-GC floor across the whole run, at any sawtooth
-amplitude. See §4.
 
 ---
 
@@ -293,6 +380,29 @@ constant floor       rising floor          flat floor, then a cliff
    work over live scope, and the number of *bound collections* is the driver — not the
    number of calls.
 
+### "Turning reports on costs far more memory than running the tests"
+
+Check for a **producer/consumer race before assuming retention**. The tell is that the
+number is *unstable*: two identical runs differing by hundreds of MB means you are measuring
+a queue depth, not a live set. Retention is boringly reproducible; races are not.
+
+The mechanism to look for is work handed to a background writer faster than it can drain.
+Confirm it rather than infer it:
+
+1. Run with `-Dkarate.profiling.reportCost=true` and read **writer-thread load** — total
+   deferred work divided by suite wall-clock. Above 1.0, one thread cannot keep up and its
+   queue grows for the entire run, holding one whole-feature payload per entry.
+2. In the digest's *Retained objects*, a race shows up as retained bytes dominated by `[B`
+   attributed to a **rendering or serializing** site, not to result-model classes. Result
+   objects mean retention; rendered strings mean a queue.
+3. The counter-intuitive confirmation: enable *more* formats. If peak heap goes **down**,
+   there is no leak — the extra work slowed the producer enough for the writer to keep up,
+   which is backpressure arriving by accident.
+
+The fix for this class of problem is not to bound the queue but to remove it: do the work on
+the thread that produced it. That trades a background thread for N-way parallelism across
+the feature threads and makes memory O(threads) instead of O(features). See §8.
+
 ### "Karate got slower"
 
 1. `etc/run.sh leak-watch --duration 5m` on the suspect commit and on its parent.
@@ -394,12 +504,40 @@ held for the whole suite. After, it is flat: a 4x increase in scenarios moves pe
 barely at all. Flat is the property to check on any future run; the absolute numbers are
 machine-specific.
 
-With reports **on** the picture is different by design, and worth understanding before
-reading a regression into it. The HTML feature page is written per feature and shows the
-nested steps of every call, so a suite whose report contains 300,000 nested call trees
-holds them until that feature completes. Pruning the retained per-feature summary
-(`summaryJson`) cut this ~16-19%, but memory with reporting on remains proportional to
-report content. That is inherent, not a leak.
+#### Reports on — machine A, `-Xmx3g`, 16 threads, 60 calls per scenario
+
+Peak heap, before and after the report-writing changes in §8. `html` is the shipped default
+config; `all` adds Cucumber, JUnit and JSONL.
+
+**`feature-spread` — 200 features x 10 scenarios (the ordinary suite shape):**
+
+| scenarios | off | **html before → after** | all before → after |
+|---:|---:|---|---|
+| 500 | 222 MB | 564 → **349 MB** | 210 → 372 MB |
+| 1000 | 331 MB | 1231 → **415 MB** | 297 → 242 MB |
+| 2000 | 482 MB | 2093–2489 → **618 MB** | 426–475 → 400 MB |
+
+**`call-accumulation` — 1 feature x N scenarios (the mega-outline shape):**
+
+| scenarios | off | **html before → after** | all before → after |
+|---:|---:|---|---|
+| 500 | 230 MB | 1330 → **502 MB** | 1755 → 1121 MB |
+| 1000 | 253 MB | 2852 → **1108 MB** | 2334 → 1984 MB |
+| 2000 | 355 MB | 2690 (saturating) → **2079 MB** | 2995 → 3017 MB |
+
+Read these together, because they say two different things:
+
+- **The ordinary shape is bounded.** Reporting now costs ~1.3x running the tests, down from
+  ~4.5x, and wall-clock *fell* (5200 → 3223 ms at 2000 scenarios) — the work removed was
+  larger than the parallelism lost. The before-numbers for `html` are quoted as a range
+  because they were not reproducible run to run; that instability was itself the symptom.
+- **The single mega-outline shape is still linear** — 502 / 1108 / 2079. Improved ~2.5x, but
+  with one feature there is no feature-end seam to release at, so nothing short of releasing
+  per *scenario* changes its slope. This is a known, accepted limit; see §9.
+
+A `feature-spread html` run at `-Xmx768m` and 2000 scenarios peaked at 739 MB before the
+change — 96% of the heap, no headroom, on a suite that needs 248 MB to execute. That is the
+shape a reported OOM takes.
 
 #### Cross-check against the external reproducer — machine A, `-Xmx768m`, 5000 scenarios
 
@@ -444,6 +582,139 @@ linear trend and the ratios are what travel.*
   window.
 - **Warmup matters.** The recording is delayed past the workload's warmup. A digest
   dominated by class loading and JIT means the warmup was too short for what you ran.
-- **These runs eat disk.** Each OOM leaves a heap dump roughly the size of `--xmx`
-  (a 768m run leaves ~768 MB), and run directories are never overwritten. Prune
-  `target/profiling/` periodically, or `mvn clean` the module.
+- **These runs eat disk, and a full disk ruins a matrix.** See
+  [Disk hygiene](#disk-hygiene--prune-after-every-result) — it is not housekeeping advice,
+  it is a precondition for a sweep completing.
+
+---
+
+## 8. What the parallel-execution memory investigation settled
+
+Kept because two of these findings reversed a confident, well-argued reading of the code,
+and the reasoning is worth more than the conclusions.
+
+### Three mechanisms, only one of which was the reported one
+
+A user reported an `OutOfMemoryError` under parallel execution on 2.0.10, with a heap dump
+putting 89% of a 3.87 GB live heap in the stack locals of a 13-deep self-recursion — the
+geometric-decay signature of nesting described in §4.
+
+| Mechanism | Verdict |
+|---|---|
+| Scope-capture nesting (each capture containing all previous ones) | **Already fixed before the investigation began.** No call form returns the caller's scope on main, so the nest cannot form. `Probe` measured this directly instead of inferring it: every call form returns 2 container nodes. |
+| Retained call results, `SuiteResult` → `FeatureResult` → `stepResults` → `callResults` | **Real.** ~143 KB per scenario held for the whole suite. Fixed by releasing at scenario end when nothing will read it. |
+| Report writing | **Real, and the largest.** Not retention at all — see below. |
+
+The reporter had *retracted* the second as a rounding error and pointed at the first. Both
+judgements were inverted. Only measurement separated them, and the reason the harness was
+built before any fix was attempted is that every code reading was consistent with the
+reported cause while still pointing at the wrong thing.
+
+### The reports-on problem was a queue, not a leak
+
+With reports enabled, peak heap was ~4.5x the reports-off run and grew with suite size. It
+read exactly like retention. It was not.
+
+Each of the three report listeners owned a single-thread executor with an **unbounded**
+queue. Rendering one feature's HTML cost ~3.4x the suite's entire wall-clock when summed
+over all features, so that thread could never keep up: the queue grew for the whole run,
+holding a complete page model per queued feature. Peak heap tracked the number of features
+rather than the number in flight.
+
+Three pieces of evidence, none conclusive alone:
+
+- **Format isolation.** Every mode containing JSONL peaked at ~340–475 MB; every mode
+  without it, up to 2023 MB — with HTML *alone* the worst. Enabling more formats used less
+  memory, because JSONL slowed the producer enough for the writer to keep up.
+- **The digest.** 99.6% of retained bytes were `[B` attributed to `inlineJson` (51.6%) and
+  `renderFeatureHtml` (27.8%) — rendered strings, not result objects.
+- **Timing.** Writer-thread load of 3.4, with HTML render at 92% of all deferred work
+  (p50 21 ms, p99 1023 ms per feature) while the Cucumber and JUnit writer threads sat
+  idle at 23% and 4% of wall-clock.
+
+**What changed:** all three listeners now write on the feature's own thread. The worry that
+this would block scenario execution was measured first and proved backwards — spreading the
+work across N feature threads beat one background thread, and wall-clock *fell*.
+
+Also in `HtmlReportWriter`: the report data was spliced into the page **first** and four
+smaller fragments after it, so each of those four `String.replace()` calls copied the whole
+page. Reordering to splice the small fragments into the template and the data last, then
+writing prefix / data / suffix straight to the file rather than building the page at all,
+removed roughly six full copies of every page. The inlined JSON is also no longer
+pretty-printed — nothing but the page's own JavaScript reads it, and indentation on a deeply
+nested result tree was showing up as `StringUtils.pad` in the allocation profile.
+
+### Lessons that generalise
+
+- **An unstable number is a race.** Retention reproduces; queue depth does not. Two
+  identical runs 400 MB apart is a diagnosis, not noise to average away.
+- **Allocation-site attribution names the allocator, never the holder.** It is a ranking of
+  where bytes were born. Deciding *what to change* needs the holder — enable
+  `path-to-gc-roots` and report by root.
+- **One workload shape will mislead you.** `call-accumulation` is a single mega-feature, so
+  it silently scores every per-feature strategy at zero. `feature-spread` exists because a
+  design was nearly chosen on the evidence of the one shape that forced it.
+- **Measure the cost before designing around it.** "Writing HTML inline would block
+  execution" was the premise behind the queue that caused the leak. It took one measurement
+  to disprove and would have taken the same measurement at any point in the preceding years.
+
+---
+
+## 9. Parked, and not built
+
+Recorded so none of it is re-derived from scratch. Nothing here is scheduled.
+
+### Per-scenario spill — designed, reviewed, deliberately not built
+
+The remaining unbounded case is a **single feature holding thousands of scenarios** (a
+data-driven `Scenario Outline` with many rows). Feature-end is suite-end there, so no
+feature-scoped release helps; only releasing per *scenario* changes the slope.
+
+The design that would fix it: at scenario end, serialize each scenario's record, append it
+to one temp file per in-flight feature, strip `callResults` / step logs / binary embed bytes
+from the retained skeleton, then at feature end assemble each output format by streaming
+those records back in `compareTo` order and delete the temp file.
+
+**Three adversarial reviews found enough to stop.** Recorded so the next person weighing it
+starts from the objections rather than the idea:
+
+- **v2 has no deserialization layer.** v1's equivalent worked because every result class had
+  a `fromKarateJson` twin maintained in lockstep. v2 deleted all of it, and all three writers
+  consume live objects. The spill therefore needs either that layer rebuilt or Map-consuming
+  twins of three writers — the largest cost in the design, and it appeared in no estimate.
+- **A `toJson()` spill record cannot reproduce today's HTML.** `StepResult.toJson()` passes
+  the step log through `stripAnsi`, which removes the syntax-highlight sentinels the page
+  model needs. Every HTTP body would lose its highlighting.
+- **Ten-plus load-bearing special cases**, including: post-spill mutation of the last
+  scenario by the afterFeature hook, feature-level synthetic scenarios that never pass the
+  scenario seam, JSON-mime embeds that must survive the strip, JUnit stack traces absent from
+  `toJson()`, and synthetic step display text that lives in the `log` field being stripped.
+- **The concurrency bound is not what it looks like.** Every feature and every scenario is
+  submitted to the executor immediately, with the semaphore acquired *inside* the task, so
+  nearly every feature is in flight for most of a run. "One temp file per in-flight feature"
+  is O(all features) in practice, not O(threads).
+
+**If it is ever revived:** bound feature dispatch first, spill per-format *fragments*
+produced by today's writer code rather than a canonical record (which makes output fidelity
+structural instead of test-enforced), and replace "merge spilled with never-spilled" with the
+invariant *every scenario is spilled exactly once, when it becomes final*, handling the two
+known exceptions explicitly.
+
+A cheaper partial alternative, also unbuilt: strip the `FeatureResult` at feature end, after
+the listeners have returned. Bounds memory at O(threads x feature size) with no compatibility
+break — but scores exactly zero on the mega-outline shape, which is the only case left.
+
+### Other deferred items
+
+| Item | Note |
+|---|---|
+| Copy-on-first-change in `processEmbeddedExpressions` | A real inefficiency independent of any leak: a fresh `LinkedHashMap`/`ArrayList` is rebuilt for every Map/List node walked, unconditionally, with no check for whether `#(...)` appears at all — v1 never copied the payload. Three traps if revived: `processInlineEmbedded` returns a *new equal String* for every string, defeating identity-based change detection unless it returns the original when nothing substituted; the XML branch mutates in place, so "source intact" holds for Maps and Lists only; and `resolveConfigMap` has a javadoc promising a defensive copy. Pursue on allocation numbers, not on a leak report. |
+| Leak-watch family | See §2. The soak question is genuinely unanswered — every current workload is an iteration-bounded reproduction. |
+| JS-engine workloads | `js-array`, `js-object`, `js-engine-init` built from `EngineBenchmark`'s generators, so JS tuning gets forking, JFR and digests too. |
+| Mock throughput tiers | Raw Java handler vs JS handler vs feature mock, as a floor-and-multiplier table. `--record mock` already exists to support this. |
+| Gatling parity | Null-workload overhead probe, realistic parity sim, throughput ceiling, allocation-rate comparison. Behind `-Pgatling`, launched programmatically via `io.gatling.app.Gatling.fromMap` so the single entry point survives. Absorbs [GATLING.md](./GATLING.md) Phase 6, which is untouched. |
+| Custom JFR events | `karate.Step` / `karate.Call` / `karate.HttpRequest`, so a recording carries Karate semantics and allocation attributes to a *feature line*. **A CPU-tuning need, not a memory one.** The virtual-thread gap is specific to `jdk.ExecutionSample`; everything the memory work relied on attributes correctly regardless of thread model. Build these when the question becomes "where is the CPU going during a parallel run" — exactly where `ExecutionSample` goes blind. |
+| `profiler compare A B` | Side-by-side delta table from two run directories. |
+| Machine-readable baselines + CI | Committed `baselines/*.json`, a scheduled job, regression thresholds. Out of scope until the manual playbook has proven itself. |
+| `jcmd GC.class_histogram` checkpoints | Per-class growth over time. Forces a GC, so it perturbs the measurement. |
+| Heap-dump class histogram in `JfrDigest` | Deliberately not implemented: no JDK API or CLI reads an `.hprof` (`jhat` removed in Java 9, `jmap -histo` is live-process only). The digest points at Eclipse MAT instead. Revisit only by hand-rolling a histogram-only reader or taking a dependency. |

@@ -24,6 +24,7 @@
 package io.karatelabs.profiling;
 
 import io.karatelabs.profiling.workload.CallAccumulationWorkload;
+import io.karatelabs.profiling.workload.FeatureSpreadWorkload;
 import io.karatelabs.profiling.workload.HarnessSmokeWorkload;
 import io.karatelabs.profiling.workload.ScopeCaptureWorkload;
 
@@ -46,7 +47,9 @@ public final class Workloads {
         // The matched pair — neither number means anything without the other.
         register(new ScopeCaptureWorkload.Bound());
         register(new ScopeCaptureWorkload.Unbound());
+        // Also a matched pair: same total scenarios, opposite distribution across features.
         register(new CallAccumulationWorkload());
+        register(new FeatureSpreadWorkload());
     }
 
     private Workloads() {
