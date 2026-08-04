@@ -694,6 +694,7 @@ loading entirely — mock servers aren't tests, so exts don't activate.
 | [EXT.md](./EXT.md) | Ext SPI — authoring an extension: globals, report assets, embeds, the `registerEmbed` UI hook |
 | [JS_ENGINE.md](./JS_ENGINE.md) | Type system (JsValue hierarchy), Java interop, prototypes |
 | [DRIVER.md](./DRIVER.md) | Browser automation — CDP, W3C WebDriver, frame/window management |
+| [DRIVER_PLAN.md](./DRIVER_PLAN.md) | Open CDP driver defects + the CDP extension surface treated as public API |
 | [MOCKS.md](./MOCKS.md) | Mock server — feature-based definitions, proxy mode, stateful mocks |
 | [GATLING.md](./GATLING.md) | Performance testing — Java DSL, session chaining, HTTP pooling |
 | [TEMPLATING.md](./TEMPLATING.md) | HTML templating — Thymeleaf + JS expressions, HTMX, server/static modes |
