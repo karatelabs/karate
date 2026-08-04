@@ -680,6 +680,72 @@ class StepDataTypesTest {
         assertPassed(sr);
     }
 
+    // ========== get on a variable holding a JSON string ==========
+    // V1 parity: v1 ran both the `$`-path and the `get` forms through one evalJsonPath that
+    // force-parsed the target as JSON, so a variable holding a JSON string was walkable
+    // either way. v2 handed `get` the raw target, and Jayway treats a String as a scalar
+    // leaf — so the path silently answered #notpresent (or [] for an indefinite path)
+    // instead of erroring, while the sibling `$json.a.b` resolved correctly.
+
+    @Test
+    void testGetOnJsonStringVariable() {
+        ScenarioRuntime sr = run("""
+            * def json = '{ "a": { "b": 1 } }'
+            * def viaDollar = $json.a.b
+            * def viaGet = get json.a.b
+            * match viaDollar == 1
+            * match viaGet == 1
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testGetOnJsonStringVariableSpaceSeparatedPath() {
+        // The "varname path" form resolves the same way.
+        ScenarioRuntime sr = run("""
+            * def json = '{ "a": { "b": 1 } }'
+            * def value = get json $.a.b
+            * match value == 1
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testGetOnJsonStringResponse() {
+        // The implicit-response form (`get $.path`) too — a raw string response body is
+        // exactly the case that made this reachable in practice.
+        ScenarioRuntime sr = run("""
+            * def response = '{ "a": { "b": 1 } }'
+            * def value = get $.a.b
+            * match value == 1
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testGetIndexedOnJsonStringVariable() {
+        // An indefinite path over a JSON string used to answer [] with no error at all,
+        // which is the silent-wrong-answer version of the same bug.
+        ScenarioRuntime sr = run("""
+            * def json = '[{ "a": 1 }, { "a": 2 }]'
+            * def value = get[1] json[*].a
+            * match value == 2
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testGetOnNonJsonStringVariableStillNotPresent() {
+        // Control: a string that isn't JSON-like is left alone, so the path simply
+        // doesn't resolve rather than blowing up.
+        ScenarioRuntime sr = run("""
+            * def text = 'hello world'
+            * def value = get text.a.b
+            * match value == '#notpresent'
+            """);
+        assertPassed(sr);
+    }
+
     // ========== Variable Name Validation ==========
 
     @Test

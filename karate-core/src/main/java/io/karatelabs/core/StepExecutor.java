@@ -3148,7 +3148,11 @@ public class StepExecutor {
 
         Object result;
         try {
-            result = JsonPath.read(target, jsonPath);
+            // toJsonForJsonPath, not the raw target: a variable holding a JSON string has to be
+            // parsed first or jayway treats it as a scalar leaf. v1 force-parsed here too, and
+            // the sibling `$`-path form already does - without it `get json.a.b` silently
+            // answers #notpresent (or [] for an indefinite path) where `$json.a.b` answers 1.
+            result = JsonPath.read(toJsonForJsonPath(target), jsonPath);
         } catch (PathNotFoundException e) {
             // v1 parity: a missing property in the JsonPath (e.g. a filter like
             // `get[0] $.items[?(@.type=='x')].id` where `items` is absent) degrades to
