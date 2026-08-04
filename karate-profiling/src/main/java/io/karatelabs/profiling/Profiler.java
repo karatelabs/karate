@@ -1,0 +1,468 @@
+/*
+ * The MIT License
+ *
+ * Copyright 2026 Karate Labs Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+package io.karatelabs.profiling;
+
+import io.karatelabs.profiling.jfr.JfrDigest;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * CLI and forking parent. Does no measuring itself.
+ *
+ * <pre>
+ * [parent]  etc/run.sh &lt;workload&gt;
+ *    ├─ mock JVM      (no JFR)   → prints its port, then serves
+ *    └─ workload JVM  (JFR on)   -Xmx… -XX:+UseG1GC -Dkarate.profiling.mockUrl=…
+ *                                 └─ on exit → JfrDigest → digest.md
+ * </pre>
+ *
+ * <p>Everything here exists so that a run is reproducible and its recording is
+ * <em>usable</em>. The heap size and collector belong to the workload, not the shell.
+ * The mock is a sibling process so it never pollutes the recording. And several JFR
+ * details below are load-bearing rather than decorative — see {@link #jfrFlags}.
+ */
+public final class Profiler {
+
+    private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss");
+    private static final String DEFAULT_MAX_SIZE = "512m";
+    private static final int STACK_DEPTH = 128;
+
+    public static void main(String[] args) throws Exception {
+        List<String> argv = new ArrayList<>(List.of(args));
+        if (argv.isEmpty() || argv.contains("--help") || argv.contains("-h")) {
+            usage();
+            return;
+        }
+        if (argv.get(0).equals("--list") || argv.get(0).equals("list")) {
+            list();
+            return;
+        }
+        if (argv.get(0).equals("run")) {
+            argv.remove(0);
+        }
+        if (argv.isEmpty()) {
+            usage();
+            System.exit(2);
+        }
+        System.exit(run(argv));
+    }
+
+    private static void usage() {
+        System.out.println("""
+                usage: profiler [run] <workload> [flags]
+                       profiler --list
+
+                flags:
+                  --threads N            concurrency (virtual threads)
+                  --iterations N         iteration-bounded run
+                  --duration 10m         duration-bounded run (mutually exclusive with --iterations)
+                  --warmup 5s            excluded from the measured window
+                  --timeout 15m          wall-clock cap; child is dumped and killed on expiry
+                  --xmx 768m             child heap
+                  --gc g1|zgc            collector (see docs/PROFILING.md)
+                  --record workload|mock which JVM gets the recording
+                  --gc-roots             enable OldObjectSample reference chains (costly)
+                """);
+    }
+
+    private static void list() {
+        System.out.println();
+        for (Map.Entry<String, Workload> entry : Workloads.all().entrySet()) {
+            Workload w = entry.getValue();
+            RunShape shape = w.shape();
+            JvmConfig jvm = w.jvm();
+            System.out.println("  " + entry.getKey());
+            System.out.println("      " + w.describe());
+            System.out.println("      defaults: threads=" + shape.threads()
+                    + (shape.isDurationBounded()
+                    ? " duration=" + RunShape.format(shape.duration())
+                    : " iterations=" + shape.iterations())
+                    + " xmx=" + jvm.xmx() + " gc=" + jvm.gc().name().toLowerCase()
+                    + (w.needsMock() ? " mock=yes" : ""));
+            System.out.println();
+        }
+    }
+
+    private static int run(List<String> argv) throws Exception {
+        String name = argv.remove(0);
+        Workload workload = Workloads.get(name);
+
+        Args flags = Args.parse(argv);
+        RunShape shape = workload.shape()
+                .withThreads(flags.threads)
+                .withIterations(flags.iterations)
+                .withDuration(flags.duration)
+                .withWarmup(flags.warmup)
+                .withTimeout(flags.timeout);
+        JvmConfig jvm = workload.jvm().withXmx(flags.xmx).withGc(flags.gc);
+        boolean recordMock = "mock".equals(flags.record);
+
+        Path runDir = Path.of("target", "profiling", name + "-" + LocalDateTime.now().format(STAMP));
+        Files.createDirectories(runDir);
+        System.out.println("[parent] run dir: " + runDir.toAbsolutePath());
+
+        String classpath = resolveClasspath();
+        Children children = new Children();
+        Runtime.getRuntime().addShutdownHook(new Thread(children::killAll, "profiler-cleanup"));
+
+        String mockUrl = null;
+        if (workload.needsMock()) {
+            mockUrl = startMock(workload, classpath, runDir, children, recordMock ? jfrFlags(runDir, shape, flags) : List.of());
+            System.out.println("[parent] mock ready at " + mockUrl);
+        } else if (recordMock) {
+            System.err.println("[parent] --record mock requested but " + name + " does not use a mock");
+            return 2;
+        }
+
+        List<String> command = childCommand(classpath, name, shape, jvm, mockUrl,
+                recordMock ? List.of() : jfrFlags(runDir, shape, flags), runDir);
+        writeRunMeta(runDir, name, shape, jvm, command, mockUrl);
+
+        System.out.println("[parent] forking: " + String.join(" ", command));
+        Process child = new ProcessBuilder(command).redirectErrorStream(true).start();
+        children.add(child);
+
+        Path stdoutLog = runDir.resolve("stdout.log");
+        CompletableFuture<Void> pump = pump(child, stdoutLog);
+
+        Duration timeout = shape.effectiveTimeout();
+        System.out.println("[parent] timeout: " + RunShape.format(timeout));
+        boolean finished = child.waitFor(timeout.toSeconds(), TimeUnit.SECONDS);
+        boolean timedOut = !finished;
+        if (timedOut) {
+            System.err.println("[parent] TIMED OUT after " + RunShape.format(timeout) + " — dumping and killing");
+            rescue(child, runDir, stdoutLog);
+            child.destroyForcibly();
+            child.waitFor(30, TimeUnit.SECONDS);
+        }
+        pump.get(30, TimeUnit.SECONDS);
+        int exit = child.exitValue();
+        children.killAll();
+
+        boolean heapDump = Files.exists(runDir.resolve("heapdump.hprof"));
+        System.out.println("[parent] child exited " + exit
+                + (heapDump ? " (heap dump written — the run OOM'd)" : "")
+                + (timedOut ? " (after timeout)" : ""));
+
+        JfrDigest.write(runDir, new JfrDigest.RunInfo(name, exit, timedOut, heapDump, shape, jvm, command));
+        System.out.println("[parent] digest: " + runDir.resolve("digest.md").toAbsolutePath());
+        return timedOut ? 1 : 0;
+    }
+
+    /**
+     * JFR flags for the recorded JVM. Four details here are deliberate:
+     *
+     * <ul>
+     *   <li>{@code repository=} keeps live chunks on disk, so {@code jfr assemble} can
+     *       rescue a run whose {@code run.jfr} was never written.</li>
+     *   <li>{@code maxsize=} is required — the default is 0, meaning unbounded, and a long
+     *       soak at {@code settings=profile} produces a very large file.</li>
+     *   <li>{@code delay=} is what actually makes "the measured window excludes warmup"
+     *       true. Without it the recording starts at JVM launch and is dominated by class
+     *       loading and JIT.</li>
+     *   <li>{@code stackdepth=128} — the default 64 truncates Karate-through-JS stacks,
+     *       which silently collapses distinct allocation sites into one.</li>
+     * </ul>
+     *
+     * <p>Note what is <em>absent</em>: {@code -XX:+ExitOnOutOfMemoryError}. It halts the
+     * JVM without flushing, leaving a zero-byte recording — on precisely the workloads
+     * whose expected outcome is an OOM.
+     */
+    private static List<String> jfrFlags(Path runDir, RunShape shape, Args flags) {
+        StringBuilder start = new StringBuilder("-XX:StartFlightRecording=settings=profile");
+        long warmupSeconds = shape.warmup().toSeconds();
+        if (warmupSeconds >= 1) {
+            start.append(",delay=").append(warmupSeconds).append("s");
+        }
+        start.append(",maxsize=").append(DEFAULT_MAX_SIZE);
+        if (flags.gcRoots) {
+            start.append(",path-to-gc-roots=true");
+        }
+        start.append(",filename=").append(runDir.resolve("run.jfr").toAbsolutePath());
+
+        String options = "-XX:FlightRecorderOptions:repository="
+                + runDir.resolve("jfr-repo").toAbsolutePath() + ",stackdepth=" + STACK_DEPTH;
+
+        return List.of(start.toString(), options,
+                "-XX:+HeapDumpOnOutOfMemoryError",
+                "-XX:HeapDumpPath=" + runDir.resolve("heapdump.hprof").toAbsolutePath());
+    }
+
+    private static List<String> childCommand(String classpath, String name, RunShape shape,
+                                             JvmConfig jvm, String mockUrl,
+                                             List<String> jfr, Path runDir) {
+        List<String> command = new ArrayList<>();
+        command.add(javaBinary());
+        command.add("-Xmx" + jvm.xmx());
+        command.addAll(jvm.flags(Runtime.version().feature()));
+        command.addAll(jfr);
+        command.add("-Dkarate.profiling.workload=" + name);
+        command.add("-Dkarate.profiling.threads=" + shape.threads());
+        if (shape.isDurationBounded()) {
+            command.add("-Dkarate.profiling.duration=" + RunShape.format(shape.duration()));
+        } else {
+            command.add("-Dkarate.profiling.iterations=" + shape.iterations());
+        }
+        command.add("-Dkarate.profiling.warmup=" + RunShape.format(shape.warmup()));
+        if (mockUrl != null) {
+            command.add("-Dkarate.profiling.mockUrl=" + mockUrl);
+        }
+        command.add("-Dkarate.profiling.runDir=" + runDir.toAbsolutePath());
+        command.add("-cp");
+        command.add(classpath);
+        command.add(Child.class.getName());
+        return command;
+    }
+
+    private static String startMock(Workload workload, String classpath, Path runDir,
+                                    Children children, List<String> jfr) throws Exception {
+        List<String> command = new ArrayList<>();
+        command.add(javaBinary());
+        command.addAll(jfr);
+        command.add("-cp");
+        command.add(classpath);
+        command.add(MockJvm.class.getName());
+        command.add(workload.mockFeature());
+
+        Process mock = new ProcessBuilder(command).redirectErrorStream(true).start();
+        children.add(mock);
+
+        CompletableFuture<String> ready = new CompletableFuture<>();
+        Path log = runDir.resolve("mock.log");
+        Thread.ofVirtual().name("mock-pump").start(() -> {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(mock.getInputStream(), StandardCharsets.UTF_8));
+                 PrintWriter out = new PrintWriter(Files.newBufferedWriter(log), true)) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    out.println(line);
+                    if (line.startsWith(MockJvm.READY_PREFIX)) {
+                        ready.complete(line.substring(MockJvm.READY_PREFIX.length()).trim());
+                    }
+                }
+            } catch (IOException e) {
+                ready.completeExceptionally(e);
+            }
+            ready.completeExceptionally(new IllegalStateException("mock exited before signalling ready"));
+        });
+        return ready.get(60, TimeUnit.SECONDS);
+    }
+
+    /** Forward child output to console and {@code stdout.log} at once. */
+    private static CompletableFuture<Void> pump(Process child, Path log) {
+        CompletableFuture<Void> done = new CompletableFuture<>();
+        Thread.ofVirtual().name("child-pump").start(() -> {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8));
+                 PrintWriter out = new PrintWriter(Files.newBufferedWriter(log), true)) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    System.out.println(line);
+                    out.println(line);
+                }
+                done.complete(null);
+            } catch (IOException e) {
+                done.completeExceptionally(e);
+            }
+        });
+        return done;
+    }
+
+    /**
+     * Last rites for a hung child: capture where it is stuck and salvage the recording
+     * before killing it. Without this a hang leaves nothing at all to look at — the digest
+     * is only written on exit, so the operator is left waiting on a file that will never
+     * appear.
+     */
+    private static void rescue(Process child, Path runDir, Path stdoutLog) {
+        long pid = child.pid();
+        jcmd(pid, stdoutLog, "Thread.print");
+        jcmd(pid, runDir.resolve("jcmd-jfr-dump.log"),
+                "JFR.dump", "filename=" + runDir.resolve("run.jfr").toAbsolutePath());
+    }
+
+    private static void jcmd(long pid, Path appendTo, String... command) {
+        List<String> argv = new ArrayList<>();
+        argv.add(Path.of(System.getProperty("java.home"), "bin", "jcmd").toString());
+        argv.add(String.valueOf(pid));
+        argv.addAll(List.of(command));
+        try {
+            Process p = new ProcessBuilder(argv)
+                    .redirectErrorStream(true)
+                    .redirectOutput(ProcessBuilder.Redirect.appendTo(appendTo.toFile()))
+                    .start();
+            p.waitFor(30, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            System.err.println("[parent] jcmd " + String.join(" ", command) + " failed: " + e);
+        }
+    }
+
+    private static void writeRunMeta(Path runDir, String name, RunShape shape, JvmConfig jvm,
+                                     List<String> command, String mockUrl) throws IOException {
+        String meta = """
+                workload:     %s
+                threads:      %d
+                bound:        %s
+                warmup:       %s
+                timeout:      %s
+                xmx:          %s
+                gc:           %s
+                gc expansion: %s
+                mock url:     %s
+
+                parent jdk:   %s (%s)
+                child jdk:    same as parent
+                os:           %s %s (%s)
+                cpus:         %d
+
+                child command:
+                %s
+                """.formatted(
+                name,
+                shape.threads(),
+                shape.isDurationBounded()
+                        ? "duration=" + RunShape.format(shape.duration())
+                        : "iterations=" + shape.iterations(),
+                RunShape.format(shape.warmup()),
+                RunShape.format(shape.effectiveTimeout()),
+                jvm.xmx(),
+                jvm.gc().name().toLowerCase(),
+                String.join(" ", jvm.flags(Runtime.version().feature())),
+                mockUrl == null ? "(none)" : mockUrl,
+                Runtime.version(), System.getProperty("java.vendor"),
+                System.getProperty("os.name"), System.getProperty("os.version"),
+                System.getProperty("os.arch"),
+                Runtime.getRuntime().availableProcessors(),
+                String.join(" \\\n  ", command));
+        Files.writeString(runDir.resolve("run-meta.txt"), meta);
+    }
+
+    /**
+     * The child needs an exact classpath, and the parent cannot borrow its own: under
+     * {@code exec:java} this JVM is Maven's, with a custom classloader, so
+     * {@code java.class.path} points at Maven rather than at us. {@code etc/run.sh}
+     * materialises the real one with {@code dependency:build-classpath}.
+     */
+    private static String resolveClasspath() throws IOException {
+        String override = System.getProperty("karate.profiling.classpath");
+        if (override != null) {
+            return override;
+        }
+        Path cpFile = Path.of("target", "cp.txt");
+        if (!Files.exists(cpFile)) {
+            throw new IllegalStateException("target/cp.txt not found — run via etc/run.sh, or pass "
+                    + "-Dkarate.profiling.classpath=…");
+        }
+        return Path.of("target", "classes").toAbsolutePath() + java.io.File.pathSeparator
+                + Files.readString(cpFile).trim();
+    }
+
+    private static String javaBinary() {
+        return Path.of(System.getProperty("java.home"), "bin", "java").toString();
+    }
+
+    /** Kills every child we started, however the parent is going down. */
+    private static final class Children {
+
+        private final List<Process> processes = new ArrayList<>();
+
+        synchronized void add(Process process) {
+            processes.add(process);
+        }
+
+        synchronized void killAll() {
+            for (Process process : processes) {
+                if (process.isAlive()) {
+                    process.destroy();
+                    try {
+                        if (!process.waitFor(10, TimeUnit.SECONDS)) {
+                            process.destroyForcibly();
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        process.destroyForcibly();
+                    }
+                }
+            }
+            processes.clear();
+        }
+
+    }
+
+    private static final class Args {
+
+        Integer threads;
+        Long iterations;
+        Duration duration;
+        Duration warmup;
+        Duration timeout;
+        String xmx;
+        JvmConfig.Gc gc;
+        String record = "workload";
+        boolean gcRoots;
+
+        static Args parse(List<String> argv) {
+            Args args = new Args();
+            for (int i = 0; i < argv.size(); i++) {
+                String flag = argv.get(i);
+                switch (flag) {
+                    case "--gc-roots" -> args.gcRoots = true;
+                    case "--threads" -> args.threads = Integer.parseInt(next(argv, ++i, flag));
+                    case "--iterations" -> args.iterations = Long.parseLong(next(argv, ++i, flag));
+                    case "--duration" -> args.duration = RunShape.parseDuration(next(argv, ++i, flag));
+                    case "--warmup" -> args.warmup = RunShape.parseDuration(next(argv, ++i, flag));
+                    case "--timeout" -> args.timeout = RunShape.parseDuration(next(argv, ++i, flag));
+                    case "--xmx" -> args.xmx = next(argv, ++i, flag);
+                    case "--gc" -> args.gc = JvmConfig.Gc.parse(next(argv, ++i, flag));
+                    case "--record" -> args.record = next(argv, ++i, flag);
+                    default -> throw new IllegalArgumentException("unknown flag: " + flag);
+                }
+            }
+            return args;
+        }
+
+        private static String next(List<String> argv, int index, String flag) {
+            if (index >= argv.size()) {
+                throw new IllegalArgumentException(flag + " requires a value");
+            }
+            return argv.get(index);
+        }
+
+    }
+
+}

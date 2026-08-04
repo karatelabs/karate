@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.karatelabs</groupId>
+        <artifactId>karate-parent</artifactId>
+        <version>2.1.2.RC1</version>
+    </parent>
+
+    <artifactId>karate-profiling</artifactId>
+    <packaging>jar</packaging>
+    <name>${project.artifactId}</name>
+    <description>JFR-based profiling harness for karate-core</description>
+
+    <!--
+      This module is an internal profiling harness. It must NOT be published to
+      Maven Central when running the release workflow (see
+      .github/workflows/maven-release.yml). Same treatment as karate-js-test262.
+    -->
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>false</maven.install.skip>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <maven.source.skip>true</maven.source.skip>
+        <gpg.skip>true</gpg.skip>
+        <skipPublishing>true</skipPublishing>
+        <!-- Default main class for `mvn exec:java`. Property substitution here is
+             what makes a `-Dexec.mainClass=...` CLI override take effect — a bare
+             POM-literal would not. -->
+        <exec.mainClass>io.karatelabs.profiling.Profiler</exec.mainClass>
+    </properties>
+
+    <build>
+        <plugins>
+            <!-- Belt-and-braces: explicitly skip the source-attach execution
+                 inherited from the parent pom for this internal module. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.6.3</version>
+                <configuration>
+                    <mainClass>${exec.mainClass}</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.karatelabs</groupId>
+            <artifactId>karate-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- SLF4J binding. Workload logging is pinned to WARN via
+             src/main/resources/logback.xml — a profiling run that spends its time
+             formatting log lines is measuring the logger, not Karate. -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+    </dependencies>
+
+    <profiles>
+        <!--
+          Scaffold only — no workload uses it yet. When the Gatling-parity
+          workloads land they will be launched programmatically from the forked
+          child (io.gatling.app.Gatling.fromMap), which is why this module needs
+          neither scala-maven-plugin nor gatling-maven-plugin: karate-gatling
+          already provides the Scala bits.
+        -->
+        <profile>
+            <id>gatling</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.karatelabs</groupId>
+                    <artifactId>karate-gatling</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+
+</project>
