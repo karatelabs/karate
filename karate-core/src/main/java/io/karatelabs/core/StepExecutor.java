@@ -3133,15 +3133,7 @@ public class StepExecutor {
         // Handle XPath for XML nodes
         if (target instanceof Node && path != null && path.startsWith("/")) {
             Object result = KarateJsUtils.evalXmlPath((Node) target, path);
-            // Apply index if specified
-            if (index >= 0 && result instanceof List) {
-                List<?> list = (List<?>) result;
-                if (index < list.size()) {
-                    return list.get(index);
-                }
-                return null;
-            }
-            return result;
+            return applyGetIndex(result, index);
         }
 
         // Default to JsonPath
@@ -3165,15 +3157,26 @@ public class StepExecutor {
             return "#notpresent";
         }
 
-        // Apply index if specified
+        return applyGetIndex(result, index);
+    }
+
+    /**
+     * Applies the optional {@code get[N]} index to a path result. An empty result set is
+     * handed back untouched instead of collapsing to null - v1 parity, and it keeps the
+     * common `get[0] $..items[?(...)]` idiom chainable, since `[].id` is undefined in JS
+     * whereas `null.id` throws.
+     */
+    private static Object applyGetIndex(Object result, int index) {
         if (index >= 0 && result instanceof List) {
             List<?> list = (List<?>) result;
+            if (list.isEmpty()) {
+                return list;
+            }
             if (index < list.size()) {
                 return list.get(index);
             }
             return null;
         }
-
         return result;
     }
 

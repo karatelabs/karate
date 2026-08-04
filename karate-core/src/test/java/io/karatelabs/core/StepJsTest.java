@@ -727,13 +727,39 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    // v1 parity: the root property exists but the filter matches nothing — get[N] hands back
+    // the empty result set instead of collapsing it to null. Distinct from the
+    // missing-property case above, which degrades to #notpresent.
     @Test
-    void testGetWithJsonPathFilterNoMatchReturnsNull() {
-        // Control: the root property exists but the filter matches nothing — get[0] on the
-        // empty result is null (unchanged; distinct from the missing-property case).
+    void testGetWithJsonPathFilterNoMatchReturnsEmptyList() {
         ScenarioRuntime sr = run("""
             * def response = { items: [{ type: 'normal', id: 'A1' }] }
             * def result = get[0] $.items[?(@.type == 'special')].id
+            * match result == []
+            """);
+        assertPassed(sr);
+    }
+
+    // A recursive-descent filter that matches nothing is an empty list, not a missing path,
+    // so it stays chainable — `[].id` is undefined in JS whereas `null.id` throws.
+    @Test
+    void testGetIndexedRecursiveFilterNoMatchStaysChainable() {
+        ScenarioRuntime sr = run("""
+            * def response = { data: { parent: { child: null } } }
+            * def result = get[0] $..items[?(@.status == 'ACTIVE')]
+            * match result == []
+            * def id = result.id
+            * match id == null
+            """);
+        assertPassed(sr);
+    }
+
+    // An index beyond the end of a non-empty result set is still null.
+    @Test
+    void testGetIndexOutOfRangeReturnsNull() {
+        ScenarioRuntime sr = run("""
+            * def response = { items: [{ id: 'A1' }] }
+            * def result = get[3] $.items[*].id
             * match result == null
             """);
         assertPassed(sr);
