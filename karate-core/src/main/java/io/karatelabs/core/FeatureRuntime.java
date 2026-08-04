@@ -328,6 +328,7 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         // Notify listeners of scenario completion (parallel mode runs only for top-level features)
         ScenarioResult completed = scenarioResult;
         notifyListeners(listener -> listener.onScenarioEnd(completed));
+        releaseCallResultsIfUnwatched(completed);
 
         return scenarioResult;
     }
@@ -373,6 +374,21 @@ public class FeatureRuntime implements Callable<FeatureResult> {
         // Notify listeners of scenario completion (only for top-level features)
         ScenarioResult completed = scenarioResult;
         notifyListeners(listener -> listener.onScenarioEnd(completed));
+        releaseCallResultsIfUnwatched(completed);
+    }
+
+    /**
+     * Drop a completed scenario's nested call trees when nothing will read them.
+     *
+     * <p>Deliberately not guarded on {@link #isTopLevel()}, unlike the listener callbacks:
+     * when there is no consumer, a called feature's own nesting is just as unread as the
+     * caller's, and a suite whose features each hold thousands of scenarios only stays
+     * bounded if the inner levels go too.
+     */
+    private void releaseCallResultsIfUnwatched(ScenarioResult completed) {
+        if (completed != null && suite != null && suite.canReleaseCallResultsAtScenarioEnd()) {
+            completed.releaseCallResults();
+        }
     }
 
     /**

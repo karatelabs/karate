@@ -377,38 +377,41 @@ Hand-maintained. Update it when you take a run you trust, and always record the 
 
 **Machine A** — Apple Silicon (aarch64), macOS 25.5, 10 cores, JDK 24.0.2, G1.
 
-#### `call-accumulation` scale sweep — 2026-08-04, machine A, karate 2.1.2.RC1
+#### `call-accumulation` scale sweep — machine A, 60 calls per scenario, 16 threads
 
-60 calls per scenario, 16 threads, `-Xmx768m`.
+Peak heap, reports off. **Before** = 2026-08-04, karate 2.1.2.RC1 as released.
+**After** = the same build with completed call results released at scenario end.
 
-| scenarios | peak heap | Δ per +1000 scenarios | elapsed |
-|---:|---:|---:|---:|
-| 250 | 206 MB | — | 1.5s |
-| 500 | 281 MB | +75 MB | 2.0s |
-| 1000 | 420 MB | +139 MB | 3.2s |
-| 2000 | 706 MB | +286 MB | 4.5s |
+| scenarios | before (`-Xmx3g`) | after (`-Xmx3g`) |
+|---:|---:|---:|
+| 500 | 343 MB | 209 MB |
+| 1000 | — | 299 MB |
+| 2000 | 859 MB | 272 MB |
+| 5000 | exceeds 768m, saturates | **233 MB at `-Xmx768m`, 5.3s** |
 
-**Peak heap grows linearly with scenario count — roughly 143 KB retained per scenario,
-held for the whole suite run.** This is accumulation, not churn: nothing is released
-between scenarios. Extrapolating, ~5000 scenarios of this shape needs more than 768 MB,
-which matches the independent observation below.
+Before, peak grew linearly with scenario count — roughly 143 KB retained per scenario,
+held for the whole suite. After, it is flat: a 4x increase in scenarios moves peak heap
+barely at all. Flat is the property to check on any future run; the absolute numbers are
+machine-specific.
 
-#### Cross-check against the external reproducer — 2026-08-04, machine A
+With reports **on** the picture is different by design, and worth understanding before
+reading a regression into it. The HTML feature page is written per feature and shows the
+nested steps of every call, so a suite whose report contains 300,000 nested call trees
+holds them until that feature completes. Pruning the retained per-feature summary
+(`summaryJson`) cut this ~16-19%, but memory with reporting on remains proportional to
+report content. That is inherent, not a leak.
 
-Their harness, unchanged, varying only the karate version:
+#### Cross-check against the external reproducer — machine A, `-Xmx768m`, 5000 scenarios
 
-| variant | karate | `-Xmx` | scenarios | result |
-|---|---|---:|---:|---|
-| J (13 bound captures) | 2.0.10 | 768m | 5000 | heap pinned at 785,383K of 786,432K, ~760% CPU, killed at 10 min |
-| J | 2.1.2.RC1 | 768m | 5000 | **all passed, 1.96s** |
-| E (60 calls/scenario) | 2.1.2.RC1 | 768m | 500 | passed, 4.5s |
-| E | 2.1.2.RC1 | 768m | 2000 | passed, 7.5s |
-| E | 2.1.2.RC1 | 768m | 5000 | heap pinned at 99.8%, ~805% CPU, killed at 12 min |
-| E | 2.1.2.RC1 | **3g** | 5000 | **all passed, 8.8s** |
+| variant | karate 2.0.10 | 2.1.2.RC1 as released | with the fix |
+|---|---|---|---|
+| J (13 bound captures) | heap pinned at 785,383K of 786,432K, killed at 10 min | passed, 1.96s | passed, 2.7s |
+| C (60 calls via `karate.repeat`) | OOM | saturates | **passed, 6.5s** |
+| E (60 calls, individual statements) | OOM | heap pinned at 99.8%, killed at 12 min | **passed, 6.7s** |
 
-Two conclusions, and they point in opposite directions — which is why both runs matter:
-the scope-nesting mechanism is gone on current main, and the call-result accumulation
-mechanism is not.
+Two distinct mechanisms, and only measurement separated them: the scope-capture nesting
+J was written to demonstrate was already gone before this work started, while the
+call-result accumulation the reporter had retracted was the one still live.
 
 *Baselines are shapes, not thresholds. Absolute numbers move with hardware and JDK; the
 linear trend and the ratios are what travel.*

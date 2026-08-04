@@ -107,6 +107,13 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         return stepResults;
     }
 
+    /** Drop this scenario's nested call trees. See {@link FeatureResult#releaseCallResults()}. */
+    public void releaseCallResults() {
+        for (StepResult stepResult : stepResults) {
+            stepResult.setCallResults(null);
+        }
+    }
+
     public void addStepResult(StepResult sr) {
         stepResults.add(sr);
     }

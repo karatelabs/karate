@@ -1130,6 +1130,25 @@ public class Suite {
         return result;
     }
 
+    /**
+     * Whether a scenario's nested call trees can be dropped the moment the scenario ends,
+     * rather than waiting for its feature to finish.
+     *
+     * <p>This is what bounds memory for the shape that actually hurts: a single feature
+     * holding thousands of scenarios — a {@code Scenario Outline} — where feature end is
+     * the end of the whole run and releasing there frees nothing.
+     *
+     * <p>Only safe when nothing will want the detail later. The report writers build their
+     * output per <em>feature</em>, so they need every scenario's nesting still attached when
+     * the feature completes; a suite with any result listener therefore holds on until then.
+     * With no listeners — load runs, karate-gatling, reporting explicitly disabled — nothing
+     * ever reads it and it can go immediately. Custom listeners count as consumers, since
+     * there is no way to know what a caller's listener reads.
+     */
+    public boolean canReleaseCallResultsAtScenarioEnd() {
+        return !retainCallResults && resultListeners.isEmpty();
+    }
+
     public List<ResultListener> getResultListeners() {
         return resultListeners;
     }
