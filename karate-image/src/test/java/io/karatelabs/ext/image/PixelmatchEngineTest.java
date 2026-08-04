@@ -200,6 +200,21 @@ class PixelmatchEngineTest {
     }
 
     @Test
+    void testClustersEnabledByNumericFlag() {
+        // clusters: 1 out of a <name>.json file enables the verdict, same as true
+        BufferedImage baseline = image(200, 100, WHITE);
+        fill(baseline, 0, 50, 200, 1, BLACK);
+        BufferedImage latest = image(200, 100, WHITE);
+        fill(latest, 0, 51, 200, 1, BLACK);
+
+        Map<String, Object> result = ImageComparison.run(
+                png(baseline), png(latest), opts("clusters", 1), opts("engine", "pixelmatch"));
+
+        assertEquals(0.0, result.get("mismatchPercentage"));
+        assertEquals(2.0, round((double) result.get(ImageComparison.PIXELMATCH_RAW_MISMATCH_PERCENT)));
+    }
+
+    @Test
     void testDiffImageIsAlwaysResembles() {
         // pixelmatch never draws: when a report wants a diff image, the resemble engine
         // produces it (that is what the HTML lightbox and its live re-diff render)

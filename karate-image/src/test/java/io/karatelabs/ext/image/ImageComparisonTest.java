@@ -98,6 +98,31 @@ class ImageComparisonTest {
         assertEquals(0.0, result.get("mismatchPercentage"));
     }
 
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2})
+    void testNumericFlagIsTrue(int truthy) {
+        // a flag written as a number (idiomatic in JS and in a <name>.json file)
+        // means what it looks like - it used to read as false
+        Map<String, Object> result = ImageComparison.run(
+                B_3x3_IMG,
+                BG_3x3_IMG,
+                opts("ignoreColors", truthy, "windowSize", 1),
+                opts("engine", "resemble"));
+
+        assertEquals(0.0, result.get("mismatchPercentage"));
+    }
+
+    @Test
+    void testZeroFlagIsFalse() {
+        Map<String, Object> result = ImageComparison.run(
+                B_3x3_IMG,
+                BG_3x3_IMG,
+                opts("ignoreColors", 0, "windowSize", 1),
+                opts("engine", "resemble"));
+
+        assertEquals(11.11, round((double) result.get("mismatchPercentage")));
+    }
+
     @Test
     void testIgnoreAreasColoredWith() {
         Map<String, Integer> darkGreen = new HashMap<>();

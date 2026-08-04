@@ -306,7 +306,7 @@ public class ImageComparison {
             result.put(PIXELMATCH_REGIONS, regionMaps(analysis));
         } else {
             int mismatched = Pixelmatch.pixelmatch(baselinePixels, latestPixels, null, width, height, opts);
-            mismatchPercentage = 100.0 * mismatched / (width * height);
+            mismatchPercentage = 100.0 * mismatched / ((long) width * height);
         }
 
         result.put(PIXELMATCH_MISMATCH_PERCENT, mismatchPercentage);
@@ -446,6 +446,15 @@ public class ImageComparison {
     private static boolean toBool(Object obj) {
         if (obj == null) {
             return false;
+        }
+        if (obj instanceof Boolean) {
+            return (Boolean) obj;
+        }
+        // every flag here can arrive from JS or from a <name>.json file, where 1 / 0
+        // are an idiomatic way to write a flag - and parseBoolean reads "1" as false,
+        // so a numeric true would silently turn the option off
+        if (obj instanceof Number) {
+            return ((Number) obj).doubleValue() != 0;
         }
         return Boolean.parseBoolean(asString(obj));
     }
