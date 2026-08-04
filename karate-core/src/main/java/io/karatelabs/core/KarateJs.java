@@ -483,7 +483,10 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             String expr = args[0] + "";
 
             Object result;
-            if (isSimpleIdentifier(expr)) {
+            // a $-prefix always means a path expression, never a variable name - isSimpleIdentifier
+            // accepts '$' as a leading char, so without this `karate.get('$x')` would hunt for a
+            // variable literally called "$x" instead of resolving the bare `$varname` form
+            if (!expr.startsWith("$") && isSimpleIdentifier(expr)) {
                 result = engine.get(expr);
             } else {
                 // Anything else - a $-prefixed JsonPath, an XPath, `get[N] foo[*].a`, or a
@@ -503,14 +506,16 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                     result = null;
                 }
             }
-            // The second argument is what "absent" maps to, and a JsonPath that did not
-            // resolve is absent just like a JS path that threw. v1 only ever substituted for
-            // null, which left the $ form self-inconsistent: karate.get('$nope.a', 'D') gave
-            // 'D' because the *variable* was missing, while karate.get('$x.missing', 'D') gave
-            // the raw '#notpresent' because the *property* was. With no second argument there
-            // is nothing to substitute, so the marker still surfaces - which is precisely what
-            // the `$x.missing` keyword answers.
-            if (args.length > 1 && (result == null || "#notpresent".equals(result))) {
+            if ("#notpresent".equals(result)) {
+                // #notpresent is a match-domain marker - it exists so `match x == '#notpresent'`
+                // can assert absence. There is no match in JS, where absence is null, so the
+                // marker is translated at the boundary rather than leaking into user code as a
+                // truthy string. Deliberately unlike v1, which returned the marker verbatim and
+                // so never fired the default below for an unresolved $-path (while firing it for
+                // an unresolved variable - the same question answered two ways).
+                result = null;
+            }
+            if (result == null && args.length > 1) {
                 return args[1];
             }
             return result;

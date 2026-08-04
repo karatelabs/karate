@@ -311,18 +311,17 @@ class StepJsTest {
         assertPassed(sr);
     }
 
-    // v1 parity: a missing segment makes jayway raise PathNotFoundException (v1 registered
-    // its jayway defaults with EnumSet.noneOf, i.e. exceptions NOT suppressed), which
-    // degrades to the #notpresent marker. karate.get answers exactly what the `$foo...`
-    // keyword answers - the JS API and the keyword read the same expression the same way.
+    // A missing segment makes jayway raise PathNotFoundException (v1 registered its jayway
+    // defaults with EnumSet.noneOf, i.e. exceptions NOT suppressed), which the keyword
+    // degrades to #notpresent - and the JS API then reports as null.
     @Test
     void testKarateGetMissingFieldWithJsonPath() {
         ScenarioRuntime sr = run("""
             * def foo = { x: [{baz: 1}, {baz: 2}, {baz: 3}]}
             * def fun = function(){ return karate.get('$foo.bar[*].baz') }
             * def res = call fun
-            * match res == '#notpresent'
-            * match res == $foo.bar[*].baz
+            * match res == null
+            * match $foo.bar[*].baz == '#notpresent'
             """);
         assertPassed(sr);
     }
@@ -409,15 +408,30 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    // Deliberately unlike v1 and unlike the keyword: #notpresent is a match-domain marker,
+    // and JS spells absence as null. Translating it at the boundary keeps a truthy string
+    // out of user code - `if (karate.get('$x.missing'))` must not be true.
     @Test
-    void testKarateGetMissingJsonPathWithoutDefaultStillNotPresent() {
-        // No second argument means nothing to substitute, so the marker surfaces - keeping
-        // the one-arg form identical to what the `$x.missing` keyword answers.
+    void testKarateGetMissingJsonPathWithoutDefaultIsNull() {
         ScenarioRuntime sr = run("""
             * def x = { a: 1 }
             * def viaApi = karate.get('$x.missing')
-            * match viaApi == '#notpresent'
-            * match viaApi == $x.missing
+            * match viaApi == null
+            * def truthy = karate.get('$x.missing') ? 'TRUTHY' : 'FALSY'
+            * match truthy == 'FALSY'
+            * def viaKeyword = $x.missing
+            * match viaKeyword == '#notpresent'
+            """);
+        assertPassed(sr);
+    }
+
+    // A bare $varname is a path expression, not a variable literally named "$varname".
+    @Test
+    void testKarateGetBareDollarVariable() {
+        ScenarioRuntime sr = run("""
+            * def x = { a: 1 }
+            * def viaApi = karate.get('$x')
+            * match viaApi == { a: 1 }
             """);
         assertPassed(sr);
     }
