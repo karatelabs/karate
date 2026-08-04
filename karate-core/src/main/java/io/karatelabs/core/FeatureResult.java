@@ -204,6 +204,32 @@ public class FeatureResult {
         return scenarioResults.stream().noneMatch(ScenarioResult::isFailed);
     }
 
+    /**
+     * Drop the nested {@code karate.call()} result trees hanging off this feature's steps.
+     *
+     * <p>Every call attaches the callee's entire {@link FeatureResult} to the calling
+     * {@link StepResult}, and a {@link SuiteResult} holds every feature for the whole run —
+     * so without this the live set grows with total scenarios times calls per scenario, and
+     * a long suite exhausts the heap on retention alone rather than on anything it is
+     * actually doing.
+     *
+     * <p>Called once a feature has completed and every listener has consumed it, so the
+     * HTML report — which extracts its page model synchronously — keeps full nested step
+     * detail. What is lost is the ability to walk into a called feature's steps from a
+     * {@code SuiteResult} <em>after</em> the run; {@code Runner.Builder.retainCallResults(true)}
+     * keeps that for callers who need it.
+     *
+     * <p>Only the nesting is dropped. Each step's own status, timing, log and embeds are
+     * untouched, so summaries, failure messages and the report itself are unaffected.
+     */
+    public void releaseCallResults() {
+        for (ScenarioResult scenarioResult : scenarioResults) {
+            for (StepResult stepResult : scenarioResult.getStepResults()) {
+                stepResult.setCallResults(null);
+            }
+        }
+    }
+
     public boolean isFailed() {
         return scenarioResults.stream().anyMatch(ScenarioResult::isFailed);
     }

@@ -86,6 +86,7 @@ public class Suite {
     public final boolean outputCucumberJson;
     public final boolean backupReportDir;
     public final boolean outputConsoleSummary;
+    public final boolean retainCallResults;
     public final Map<String, String> systemProperties;
     public final List<RunListener> listeners;
     public final List<RunListenerFactory> listenerFactories;
@@ -211,6 +212,7 @@ public class Suite {
         this.outputCucumberJson = builder.isOutputCucumberJson();
         this.backupReportDir = builder.isBackupOutputDir();
         this.outputConsoleSummary = builder.isOutputConsoleSummary();
+        this.retainCallResults = builder.isRetainCallResults();
         this.systemProperties = builder.getSystemProperties() != null
                 ? Collections.unmodifiableMap(new HashMap<>(builder.getSystemProperties()))
                 : null;

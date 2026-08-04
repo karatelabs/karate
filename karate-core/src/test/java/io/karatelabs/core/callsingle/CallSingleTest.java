@@ -776,6 +776,8 @@ class CallSingleTest {
                 .workingDir(tempDir)
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
+                // nested call results are the assertion subject here; keep them past feature end
+                .retainCallResults(true)
                 .backupOutputDir(false)
                 .parallel(1);
 
@@ -818,6 +820,8 @@ class CallSingleTest {
                 .configDir(configJs.toString())
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
+                // nested call results are the assertion subject here; keep them past feature end
+                .retainCallResults(true)
                 .backupOutputDir(false)
                 .parallel(1);
 
@@ -869,6 +873,8 @@ class CallSingleTest {
                 .configDir(configJs.toString())
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
+                // nested call results are the assertion subject here; keep them past feature end
+                .retainCallResults(true)
                 .backupOutputDir(false)
                 .parallel(4);
 
@@ -909,6 +915,8 @@ class CallSingleTest {
                 .workingDir(tempDir)
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
+                // nested call results are the assertion subject here; keep them past feature end
+                .retainCallResults(true)
                 .backupOutputDir(false)
                 .parallel(1));
 
@@ -1012,6 +1020,8 @@ class CallSingleTest {
                 .configDir(configJs.toString())
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
+                // nested call results are the assertion subject here; keep them past feature end
+                .retainCallResults(true)
                 .backupOutputDir(false)
                 .parallel(1));
 
@@ -1107,6 +1117,8 @@ class CallSingleTest {
                 .configDir(configJs.toString())
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
+                // nested call results are the assertion subject here; keep them past feature end
+                .retainCallResults(true)
                 .backupOutputDir(false)
                 .parallel(1));
 
@@ -1157,6 +1169,8 @@ class CallSingleTest {
                 .karateEnv("dev")
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
+                // nested call results are the assertion subject here; keep them past feature end
+                .retainCallResults(true)
                 .backupOutputDir(false)
                 .parallel(1);
 

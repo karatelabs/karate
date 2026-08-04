@@ -88,10 +88,13 @@ public class JunitXmlReportListener implements ResultListener {
         // Sort scenarios for deterministic ordering
         result.sortScenarioResults();
 
-        // Queue JUnit XML generation (async)
+        // Serialize NOW, while the result is still whole — the suite releases nested
+        // call-result trees as soon as this callback returns. Only the file write is deferred.
+        String fileName = JunitXmlWriter.fileNameFor(result);
+        String content = JunitXmlWriter.serializeFeature(result);
         executor.submit(() -> {
             try {
-                JunitXmlWriter.writeFeature(result, outputDir);
+                JunitXmlWriter.writeSerialized(fileName, content, outputDir);
             } catch (Exception e) {
                 logger.warn("Failed to write JUnit XML for {}: {}", result.getDisplayName(), e.getMessage());
             }

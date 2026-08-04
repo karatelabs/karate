@@ -24,7 +24,6 @@
 package io.karatelabs.profiling;
 
 import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryPoolMXBean;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,6 +73,7 @@ public final class Child {
                 + " warmup=" + RunShape.format(warmup));
 
         workload.setup(context);
+        startHeapSampler();
 
         if (workload.drivesOwnConcurrency()) {
             // The workload owns the suite, so it owns the concurrency too. Warmup is skipped:
@@ -218,18 +218,36 @@ public final class Child {
     }
 
     /**
-     * Peak across heap pools. Reported for orientation only — the authoritative view of
-     * how memory behaved over the run is the heap-after-GC series in the digest, because
-     * a peak alone cannot distinguish churn from retention.
+     * Highest used-heap reading observed by the sampler.
+     *
+     * <p>Deliberately <em>not</em> the sum of {@code MemoryPoolMXBean.getPeakUsage()} across
+     * heap pools: those peaks occur at different moments, so summing them double-counts and
+     * can report more than {@code -Xmx}, which is how the flaw announces itself. A sampled
+     * maximum is bounded by the real heap and comparable between runs.
+     *
+     * <p>Reported for orientation only. The authoritative view of how memory behaved is the
+     * heap-after-GC series in the digest — a peak alone cannot distinguish churn from
+     * retention, and under saturation it just pins to the ceiling and stops discriminating.
      */
     private static long peakHeapBytes() {
-        long total = 0;
-        for (MemoryPoolMXBean pool : ManagementFactory.getMemoryPoolMXBeans()) {
-            if (pool.getType() == java.lang.management.MemoryType.HEAP && pool.getPeakUsage() != null) {
-                total += pool.getPeakUsage().getUsed();
+        return PEAK_HEAP.get();
+    }
+
+    private static final AtomicLong PEAK_HEAP = new AtomicLong();
+
+    /** Samples used heap continuously; a 5s progress tick alone would miss most of the curve. */
+    private static Thread startHeapSampler() {
+        Thread sampler = Thread.ofVirtual().name("heap-sampler").start(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                PEAK_HEAP.accumulateAndGet(usedHeapBytes(), Math::max);
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    return;
+                }
             }
-        }
-        return total;
+        });
+        return sampler;
     }
 
     private static String required(String key) {

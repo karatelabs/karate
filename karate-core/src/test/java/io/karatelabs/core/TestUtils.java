@@ -231,6 +231,13 @@ public class TestUtils {
      * <p>
      * Test defaults: no console summary, no HTML reports, no backup, skip tag filtering.
      */
+    /**
+     * Suites built here retain nested {@code karate.call()} results, which production runs
+     * release once a feature's listeners have consumed it (see
+     * {@code Runner.Builder.retainCallResults}). Tests routinely assert on the nested tree
+     * after the run, and these suites are small enough that keeping it costs nothing. The
+     * release path itself is covered by {@code CallResultReleaseTest}.
+     */
     public static Suite createTestSuite(Feature... features) {
         return Runner.builder()
                 .features(features)
@@ -238,6 +245,7 @@ public class TestUtils {
                 .outputHtmlReport(false)
                 .backupOutputDir(false)
                 .skipTagFiltering(true)
+                .retainCallResults(true)
                 .buildSuite();
     }
 
@@ -253,6 +261,7 @@ public class TestUtils {
                 .outputHtmlReport(false)
                 .backupOutputDir(false)
                 .skipTagFiltering(true)
+                .retainCallResults(true)
                 .buildSuite();
     }
 

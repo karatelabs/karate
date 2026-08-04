@@ -97,6 +97,7 @@ public final class Profiler {
                   --gc g1|zgc            collector (see docs/PROFILING.md)
                   --record workload|mock which JVM gets the recording
                   --gc-roots             enable OldObjectSample reference chains (costly)
+                  -Dkey=value            passed through to the child JVM (repeatable)
                 """);
     }
 
@@ -150,7 +151,7 @@ public final class Profiler {
         }
 
         List<String> command = childCommand(classpath, name, shape, jvm, mockUrl,
-                recordMock ? List.of() : jfrFlags(runDir, shape, flags), runDir);
+                recordMock ? List.of() : jfrFlags(runDir, shape, flags), runDir, flags.systemProperties);
         writeRunMeta(runDir, name, shape, jvm, command, mockUrl);
 
         System.out.println("[parent] forking: " + String.join(" ", command));
@@ -225,12 +226,14 @@ public final class Profiler {
 
     private static List<String> childCommand(String classpath, String name, RunShape shape,
                                              JvmConfig jvm, String mockUrl,
-                                             List<String> jfr, Path runDir) {
+                                             List<String> jfr, Path runDir,
+                                             List<String> systemProperties) {
         List<String> command = new ArrayList<>();
         command.add(javaBinary());
         command.add("-Xmx" + jvm.xmx());
         command.addAll(jvm.flags(Runtime.version().feature()));
         command.addAll(jfr);
+        command.addAll(systemProperties);
         command.add("-Dkarate.profiling.workload=" + name);
         command.add("-Dkarate.profiling.threads=" + shape.threads());
         if (shape.isDurationBounded()) {
@@ -435,6 +438,7 @@ public final class Profiler {
         JvmConfig.Gc gc;
         String record = "workload";
         boolean gcRoots;
+        final List<String> systemProperties = new ArrayList<>();
 
         static Args parse(List<String> argv) {
             Args args = new Args();
@@ -450,7 +454,16 @@ public final class Profiler {
                     case "--xmx" -> args.xmx = next(argv, ++i, flag);
                     case "--gc" -> args.gc = JvmConfig.Gc.parse(next(argv, ++i, flag));
                     case "--record" -> args.record = next(argv, ++i, flag);
-                    default -> throw new IllegalArgumentException("unknown flag: " + flag);
+                    default -> {
+                        // A bare -Dkey=value goes straight to the child. Cheap, and the
+                        // difference between "I have a hypothesis" and "I can test it" —
+                        // an experimental toggle in core needs no harness change to exercise.
+                        if (flag.startsWith("-D")) {
+                            args.systemProperties.add(flag);
+                        } else {
+                            throw new IllegalArgumentException("unknown flag: " + flag);
+                        }
+                    }
                 }
             }
             return args;

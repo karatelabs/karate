@@ -106,9 +106,14 @@ public class CallAccumulationWorkload implements Workload {
     @Override
     public void iterate(int vu, long iteration) {
         long scenarios = context.iterations() > 0 ? context.iterations() : 1000;
+        // Reporting is off by default so the measurement is of execution, not of report
+        // building. Turn it on with -Dkarate.profiling.reports=true: the HTML listener keeps
+        // its own copy of every feature result, so "retention with reports on" is a different
+        // — and more representative — question than "retention with reports off".
+        boolean reports = Boolean.getBoolean("karate.profiling.reports");
         SuiteResult result = Runner.path(FEATURE)
                 .systemProperty("profiling.scenarios", String.valueOf(scenarios))
-                .outputHtmlReport(false)
+                .outputHtmlReport(reports)
                 .outputJsonLines(false)
                 .outputJunitXml(false)
                 .outputCucumberJson(false)

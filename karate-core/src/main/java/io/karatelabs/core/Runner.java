@@ -245,6 +245,7 @@ public final class Runner {
         private boolean outputCucumberJson;
         private boolean backupOutputDir = true;
         private boolean outputConsoleSummary = true;
+        private boolean retainCallResults = false;
         private Map<String, String> systemProperties;
         private final Map<String, Object> globals = new java.util.LinkedHashMap<>();
         private LogLevel logLevel = LogLevel.DEBUG;
@@ -505,6 +506,25 @@ public final class Runner {
          * When disabled, no summary is printed to console, but results
          * are still available in the returned SuiteResult.
          */
+        /**
+         * Keep the nested {@code karate.call()} result trees reachable after the run.
+         *
+         * <p>Off by default. Every call attaches the callee's whole result tree to the
+         * calling step, and the suite holds every feature until it ends, so retaining them
+         * makes memory scale with total scenarios times calls per scenario — enough to
+         * exhaust the heap on a long suite. They are released once each feature has
+         * completed and every listener has consumed it.
+         *
+         * <p>Reports are unaffected either way: the HTML report extracts its page model,
+         * nested step detail included, while the result is still whole. Turn this on only
+         * to walk into a called feature's steps from a {@link SuiteResult} programmatically
+         * after the run.
+         */
+        public Builder retainCallResults(boolean enabled) {
+            this.retainCallResults = enabled;
+            return this;
+        }
+
         public Builder outputConsoleSummary(boolean enabled) {
             this.outputConsoleSummary = enabled;
             return this;
@@ -806,6 +826,8 @@ public final class Runner {
         boolean isOutputCucumberJson() { return outputCucumberJson; }
         boolean isBackupOutputDir() { return backupOutputDir; }
         boolean isOutputConsoleSummary() { return outputConsoleSummary; }
+
+        boolean isRetainCallResults() { return retainCallResults; }
         Map<String, String> getSystemProperties() { return systemProperties; }
         Map<String, Object> getProgrammaticGlobals() { return globals; }
         List<RunListener> getListeners() { return listeners; }

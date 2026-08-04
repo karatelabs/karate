@@ -163,6 +163,20 @@ public final class HtmlReportWriter {
 
     public static void writeFeatureHtml(FeatureResult result, Path outputDir,
                                         Map<String, ReportAssets> reportAssets) throws IOException {
+        renderFeatureHtml(prepareFeatureData(result, outputDir), outputDir, reportAssets);
+    }
+
+    /**
+     * Extract everything the feature page needs from a live {@link FeatureResult}.
+     *
+     * <p>Split out from the render so a caller can do this <em>synchronously</em>, while the
+     * feature result is still whole, and defer only templating and IO. That ordering is
+     * what lets a suite release the nested {@code karate.call()} result trees as soon as a
+     * feature completes: everything the report needs has already been copied out. Do the
+     * extraction late — on a background thread, say — and the report silently loses its
+     * nested step detail.
+     */
+    public static Map<String, Object> prepareFeatureData(FeatureResult result, Path outputDir) throws IOException {
         Path featuresDir = outputDir.resolve(HtmlReportListener.SUBFOLDER);
         Path embedsDir = outputDir.resolve("embeds");
         Files.createDirectories(featuresDir);
@@ -170,7 +184,14 @@ public final class HtmlReportWriter {
         // Write embed files first (sets fileName on each Embed)
         writeEmbedFiles(result, embedsDir);
 
-        Map<String, Object> featureData = buildFeatureData(result);
+        return buildFeatureData(result);
+    }
+
+    /** Template + IO only. Safe to run after the source {@link FeatureResult} has been released. */
+    public static void renderFeatureHtml(Map<String, Object> featureData, Path outputDir,
+                                         Map<String, ReportAssets> reportAssets) throws IOException {
+        Path featuresDir = outputDir.resolve(HtmlReportListener.SUBFOLDER);
+        Files.createDirectories(featuresDir);
         String template = loadTemplate("karate-feature.html");
         // feature pages live under feature-html/, so ext refs need the "../" prefix
         String html = inlineJson(template, featureData, reportAssets, "../");

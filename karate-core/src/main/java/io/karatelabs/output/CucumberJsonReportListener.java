@@ -88,10 +88,13 @@ public class CucumberJsonReportListener implements ResultListener {
         // Sort scenarios for deterministic ordering
         result.sortScenarioResults();
 
-        // Queue Cucumber JSON generation (async)
+        // Serialize NOW, while the result is still whole — the suite releases nested
+        // call-result trees as soon as this callback returns. Only the file write is deferred.
+        String fileName = CucumberJsonWriter.fileNameFor(result);
+        String content = CucumberJsonWriter.serializeFeature(result);
         executor.submit(() -> {
             try {
-                CucumberJsonWriter.writeFeature(result, outputDir);
+                CucumberJsonWriter.writeSerialized(fileName, content, outputDir);
             } catch (Exception e) {
                 logger.warn("Failed to write Cucumber JSON for {}: {}", result.getDisplayName(), e.getMessage());
             }

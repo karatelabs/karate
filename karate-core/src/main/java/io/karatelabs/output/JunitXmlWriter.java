@@ -72,6 +72,36 @@ public final class JunitXmlWriter {
      * @param result    the feature result to convert
      * @param outputDir the directory to write the report
      */
+    /**
+     * Serialize a feature result to its XML text.
+     *
+     * <p>Separated from the file write so a listener can do this <em>synchronously</em>,
+     * while the result is still whole. The suite releases nested {@code karate.call()}
+     * trees once a feature's listeners have returned, and this output flattens called
+     * features' steps into its own — so serializing on a background thread would silently
+     * drop them.
+     */
+    public static String serializeFeature(FeatureResult result) {
+        return featureToXml(result);
+    }
+
+    /** File name this feature's output is written under. */
+    public static String fileNameFor(FeatureResult result) {
+        return result.getFeature().getResource().getPackageQualifiedName() + ".xml";
+    }
+
+    /** Write pre-serialized content. Safe after the source result has been released. */
+    public static void writeSerialized(String fileName, String content, Path outputDir) {
+        try {
+            if (!Files.exists(outputDir)) {
+                Files.createDirectories(outputDir);
+            }
+            Files.writeString(outputDir.resolve(fileName), content);
+        } catch (Exception e) {
+            logger.warn("Failed to write xml for {}: {}", fileName, e.getMessage());
+        }
+    }
+
     public static void writeFeature(FeatureResult result, Path outputDir) {
         try {
             if (!Files.exists(outputDir)) {

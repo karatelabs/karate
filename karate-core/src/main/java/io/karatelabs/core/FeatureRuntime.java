@@ -226,6 +226,15 @@ public class FeatureRuntime implements Callable<FeatureResult> {
 
             // Notify listeners of feature end (only for top-level features, not nested calls)
             notifyListeners(listener -> listener.onFeatureEnd(result));
+
+            // Every consumer has now had the whole result, so the nested call trees can go.
+            // Without this the suite keeps one per call for its entire run and memory scales
+            // with total scenarios times calls per scenario. Guarded on isTopLevel() for the
+            // same reason notifyListeners is: releasing inside a called feature would destroy
+            // the very tree the caller is about to attach.
+            if (suite != null && isTopLevel() && !suite.retainCallResults) {
+                result.releaseCallResults();
+            }
         }
 
         return result;
