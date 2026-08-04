@@ -539,6 +539,49 @@ public class ScenarioHooksTest {
                 "afterScenario must see the current scenario's variables, not the first scenario's");
     }
 
+    @Test
+    void testAfterScenarioSetInsideCallonceCalleeKeepsCalleeScope() throws Exception {
+        // The mirror of the test above: the hook is configured INSIDE the callonce'd feature, so
+        // the function is created in the callee's JS context. A cache hit does propagate it - the
+        // callee genuinely changed that config key - and it fires once per scenario. But the
+        // closure still resolves variables against the scope it was born in: it sees the callee's
+        // own `token`, never the invoking scenario's `marker`, not even for the scenario that ran
+        // the callee. That is the standing reason to keep functions out of callonce results;
+        // pinned here so the limitation is visible if anyone revisits it.
+        Files.writeString(tempDir.resolve("once.feature"), """
+            @ignore
+            Feature: once
+
+              Scenario: once
+                * def token = 'abc'
+                * configure afterScenario =
+                \"\"\"
+                function() {
+                  Java.type('io.karatelabs.core.ScenarioHooksTest').record(karate.get('marker') + '/' + karate.get('token'));
+                }
+                \"\"\"
+            """);
+        Path feature = tempDir.resolve("callee-hook.feature");
+        Files.writeString(feature, """
+            Feature: afterScenario configured by the callonce callee
+
+              Background:
+                * callonce read('once.feature')
+
+              Scenario: one
+                * def marker = 'one'
+
+              Scenario: two
+                * def marker = 'two'
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, feature.toString());
+
+        assertTrue(result.isPassed(), getFailureMessage(result));
+        assertEquals(List.of("null/abc", "null/abc"), recorded,
+                "a callee-set hook should still fire per scenario, resolving vars in the callee's scope");
+    }
+
     private String getFailureMessage(SuiteResult result) {
         if (result.isPassed()) return "none";
         for (FeatureResult fr : result.getFeatureResults()) {

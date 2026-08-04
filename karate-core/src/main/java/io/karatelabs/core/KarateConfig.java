@@ -242,6 +242,13 @@ public class KarateConfig implements SimpleObject {
      * function is re-created per scenario by karate-config.js and is bound to that scenario's JS
      * context. Replaying the first scenario's instance made every later {@code afterScenario} hook
      * read the first scenario's variables (e.g. {@code karate.get('response')} stayed frozen).
+     * <p>
+     * Known limitation: this diffs by value, where {@link StepUtils#calleeDelta} diffs variables by
+     * identity. So a callee that sets a key to exactly the value the caller already had at that
+     * moment is indistinguishable from a callee that left it alone, and later scenarios keep their
+     * own value for it. Reaching that needs config that varies per scenario (an outline row) plus a
+     * callee setting the same key to one row's value - narrow enough to leave alone; closing it
+     * would mean tracking which keys were explicitly configured rather than comparing values.
      *
      * @param before config snapshot taken just before the cached execution ran
      * @param after  config snapshot taken just after it completed
