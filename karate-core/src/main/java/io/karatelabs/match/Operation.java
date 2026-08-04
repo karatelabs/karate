@@ -30,6 +30,7 @@ import io.karatelabs.js.Engine;
 import io.karatelabs.js.Terms;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -286,15 +287,30 @@ public class Operation {
                 // we need to check if any element in the list matches the expected value
                 // using the nestedType. This is different from "list contains exact element".
                 // When evalResult is also a List, we use normal list-contains-list logic.
+                // #(!^expr) is the negation of #(^expr), so it searches the same way and
+                // inverts the verdict - it must not degrade to a per-element NOT_CONTAINS,
+                // which would only mean "some element does not contain expected".
+                boolean negated = nestedType == Match.Type.NOT_CONTAINS;
+                Match.Type searchType = negated ? Match.Type.CONTAINS : nestedType;
                 if (actual.isList() && evalResult instanceof java.util.Map
-                        && (nestedType == Match.Type.CONTAINS || nestedType == Match.Type.CONTAINS_ANY)) {
+                        && (searchType == Match.Type.CONTAINS || searchType == Match.Type.CONTAINS_ANY)) {
                     Value expectedValue = new Value(evalResult);
+                    int failuresBeforeSearch = failures.size();
                     for (int i = 0; i < actual.getListSize(); i++) {
                         Value elem = new Value(actual.getListElement(i));
-                        Operation mo = new Operation(context.descend(i), nestedType, elem, expectedValue, matchEachEmptyAllowed);
+                        Operation mo = new Operation(context.descend(i), searchType, elem, expectedValue, matchEachEmptyAllowed);
                         if (mo.execute()) {
+                            if (negated) {
+                                return fail("an array element matches expected");
+                            }
                             return true;
                         }
+                    }
+                    if (negated) { // no element matched, discard the per-element search failures
+                        while (failures.size() > failuresBeforeSearch) {
+                            failures.removeLast();
+                        }
+                        return true;
                     }
                     return fail("no array element matches expected");
                 }
@@ -434,15 +450,11 @@ public class Operation {
                 boolean expBoolean = expected.getValue();
                 return actBoolean == expBoolean;
             case NUMBER:
-                if (actual.getValue() instanceof BigDecimal || expected.getValue() instanceof BigDecimal) {
-                    BigDecimal actBigDecimal = toBigDecimal(actual.getValue());
-                    BigDecimal expBigDecimal = toBigDecimal(expected.getValue());
-                    return actBigDecimal.compareTo(expBigDecimal) == 0;
-                } else {
-                    Number actNumber = actual.getValue();
-                    Number expNumber = expected.getValue();
-                    return actNumber.doubleValue() == expNumber.doubleValue();
-                }
+                // a double holds only 53 bits of integer precision, so widening to double
+                // would collapse distinct large integers onto the same value
+                BigDecimal actBigDecimal = toBigDecimal(actual.getValue());
+                BigDecimal expBigDecimal = toBigDecimal(expected.getValue());
+                return actBigDecimal.compareTo(expBigDecimal) == 0;
             case STRING:
                 return actual.getValue().equals(expected.getValue());
             case BYTES:
@@ -628,7 +640,9 @@ public class Operation {
                                 return true; // exit early
                             }
                             // contains only : If element is found also check its occurrence in actVisitedList
-                            else if (type == Match.Type.CONTAINS_ONLY) {
+                            // the deep variant differs only in how nested elements compare, so it has
+                            // to account for multiplicity the same way
+                            else if (type == Match.Type.CONTAINS_ONLY || type == Match.Type.CONTAINS_ONLY_DEEP) {
                                 // if not yet visited
                                 if (!actVisitedList[i]) {
                                     // mark it visited
@@ -765,10 +779,14 @@ public class Operation {
     }
 
     private static BigDecimal toBigDecimal(Object o) {
-        if (o instanceof BigDecimal) {
-            return (BigDecimal) o;
-        } else if (o instanceof Number) {
-            Number n = (Number) o;
+        if (o instanceof BigDecimal bd) {
+            return bd;
+        } else if (o instanceof BigInteger bi) {
+            return new BigDecimal(bi);
+        } else if (o instanceof Long || o instanceof Integer || o instanceof Short || o instanceof Byte) {
+            // integral types convert exactly, going via doubleValue() would lose bits beyond 2^53
+            return BigDecimal.valueOf(((Number) o).longValue());
+        } else if (o instanceof Number n) {
             return BigDecimal.valueOf(n.doubleValue());
         } else {
             throw new RuntimeException("expected number instead of: " + o);

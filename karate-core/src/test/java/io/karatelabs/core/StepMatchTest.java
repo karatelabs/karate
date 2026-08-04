@@ -220,6 +220,43 @@ class StepMatchTest {
     }
 
     @Test
+    void testMatchLargeIntegerPrecision() {
+        // ids beyond 2^53 must not collapse onto the same double
+        ScenarioRuntime sr = run("""
+            * def response = { id: 9007199254740993 }
+            * match response == { id: 9007199254740992 }
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testMatchLargeIntegerEqualPasses() {
+        ScenarioRuntime sr = run("""
+            * def response = { id: 9007199254740993 }
+            * match response == { id: 9007199254740993 }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchContainsOnlyDeepMultiplicity() {
+        ScenarioRuntime sr = run("""
+            * def actual = [1, 1, 2]
+            * match actual contains only deep [1, 2, 2]
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testMatchContainsOnlyDeepReorderedPasses() {
+        ScenarioRuntime sr = run("""
+            * def actual = [{ a: 1 }, { a: 1 }, { a: 2 }]
+            * match actual contains only deep [{ a: 2 }, { a: 1 }, { a: 1 }]
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testMatchContainsAny() {
         ScenarioRuntime sr = run("""
             * def arr = [1, 2, 3]
@@ -366,6 +403,57 @@ class StepMatchTest {
             * match actual contains '#(^+part)'
             """);
         assertPassed(sr);
+    }
+
+    @Test
+    void testMatchNotContainsPartialMacro() {
+        // #(!^part) is the negation of #(^part) - when an array element is a superset
+        // of part, the positive form passes so the negation has to fail
+        ScenarioRuntime sr = run("""
+            * def part = { a: 1 }
+            * def actual = [{ a: 1, b: 2 }, { c: 9 }]
+            * match actual contains '#(^part)'
+            """);
+        assertPassed(sr);
+        sr = run("""
+            * def part = { a: 1 }
+            * def actual = [{ a: 1, b: 2 }, { c: 9 }]
+            * match actual contains '#(!^part)'
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testMatchNotContainsPartialMacroSingleElement() {
+        // single element removes any exists / for-all ambiguity, the two are strict negations
+        ScenarioRuntime sr = run("""
+            * def part = { a: 1 }
+            * def actual = [{ a: 1, b: 2 }]
+            * match actual contains '#(!^part)'
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testMatchNotContainsPartialMacroPassesWhenNoElementContains() {
+        // control - no element contains part, so the negation holds
+        ScenarioRuntime sr = run("""
+            * def part = { a: 99 }
+            * def actual = [{ a: 1, b: 2 }, { c: 9 }]
+            * match actual contains '#(!^part)'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMatchNotContainsPartialMacroOnMap() {
+        // control - a plain map actual (not a list) already negates correctly
+        ScenarioRuntime sr = run("""
+            * def part = { a: 1 }
+            * def actual = { a: 1, b: 2 }
+            * match actual == '#(!^part)'
+            """);
+        assertFailed(sr);
     }
 
     @Test

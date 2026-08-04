@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -96,6 +97,27 @@ class MatchTest {
     void testBigDecimal() {
         match(new BigDecimal("1000"), EQUALS, 1000);
         match(300, NOT_EQUALS, new BigDecimal("300"), FAILS);
+    }
+
+    @Test
+    void testLargeIntegersCompareExactly() {
+        // a double holds only 53 bits of integer precision, so widening both sides
+        // collapses distinct integers above 2^53 onto the same value
+        match(9007199254740993L, EQUALS, 9007199254740992L, FAILS);
+        match(9007199254740993L, NOT_EQUALS, 9007199254740992L);
+        match(9007199254740993L, EQUALS, 9007199254740993L);
+        match(new BigInteger("100000000000000000000000000001"), EQUALS,
+                new BigInteger("100000000000000000000000000002"), FAILS);
+        match(new BigInteger("100000000000000000000000000001"), EQUALS,
+                new BigInteger("100000000000000000000000000001"));
+        // the BigDecimal branch and the plain-Number branch must agree on the same value
+        match(new BigDecimal("9007199254740993"), EQUALS, 9007199254740993L);
+        match(9007199254740993L, EQUALS, new BigDecimal("9007199254740993"));
+        match(new BigDecimal("9007199254740993"), EQUALS, 9007199254740992L, FAILS);
+        // floating point still compares by value, and int / float cross-compare is unchanged
+        match(0.1 + 0.2, EQUALS, 0.30000000000000004);
+        match(1, EQUALS, 1.0);
+        match(new BigDecimal("1.0"), EQUALS, 1);
     }
 
     @Test
@@ -190,6 +212,21 @@ class MatchTest {
         match("[{ a: [1, 2, 3] }]", CONTAINS_ONLY_DEEP, "{ a: [3, 2, 1] }");
         match("{ foo: ['a', 'b'] }", CONTAINS_ONLY_DEEP, "{ foo: ['b', 'a'] }");
         match("[{ foo: ['a', 'b'] }]", CONTAINS_ONLY_DEEP, "{ foo: ['b', 'a'] }");
+    }
+
+    @Test
+    void testContainsOnlyDeepRespectsMultiplicity() {
+        // 'deep' changes only how nested elements compare, so on flat data it must
+        // agree with plain contains only - equal length is not enough, the element
+        // multiplicities have to line up too
+        match("[1, 1, 2]", CONTAINS_ONLY, "[1, 2, 2]", FAILS);
+        match("[1, 1, 2]", CONTAINS_ONLY_DEEP, "[1, 2, 2]", FAILS);
+        match("[1, 2, 3]", CONTAINS_ONLY_DEEP, "[2, 2, 3]", FAILS);
+        match("[{ a: 1 }, { a: 1 }, { a: 2 }]", CONTAINS_ONLY_DEEP, "[{ a: 1 }, { a: 2 }, { a: 2 }]", FAILS);
+        // reordered equal multisets still pass
+        match("[1, 2, 3]", CONTAINS_ONLY_DEEP, "[3, 2, 1]");
+        match("[1, 2, 2]", CONTAINS_ONLY_DEEP, "[2, 1, 2]");
+        match("[{ a: 1 }, { a: 1 }, { a: 2 }]", CONTAINS_ONLY_DEEP, "[{ a: 2 }, { a: 1 }, { a: 1 }]");
     }
 
     @ParameterizedTest
