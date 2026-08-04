@@ -731,6 +731,28 @@ class StepJsTest {
     }
 
     @Test
+    void testKarateSortNaturalOrdering() {
+        ScenarioRuntime sr = run("""
+            * def dates = ['2026-03-15', '2026-01-10', '2026-07-20']
+            * match karate.sort(dates) == ['2026-01-10', '2026-03-15', '2026-07-20']
+            * match karate.sort([3, 1, 2]) == [1, 2, 3]
+            * match karate.sort([3, 1.5, 2]) == [1.5, 2, 3]
+            * match karate.sort([]) == []
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateSortKeyFunctionGetsIndex() {
+        ScenarioRuntime sr = run("""
+            * def foo = ['a', 'b', 'c']
+            * def bar = karate.sort(foo, (x, i) => 0 - i)
+            * match bar == ['c', 'b', 'a']
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testKarateSizeOfKeysOfValuesOf() {
         ScenarioRuntime sr = run("""
             * def foo = [1, 2, 3]

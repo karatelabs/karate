@@ -478,25 +478,44 @@ public class KarateJsUtils {
         };
     }
 
-    @SuppressWarnings("unchecked")
     static JavaInvokable sort() {
         return args -> {
-            if (args.length < 2) {
-                throw new RuntimeException("sort() needs two arguments: list and key function");
+            if (args.length == 0) {
+                throw new RuntimeException("sort() needs at least one argument: the list to sort");
             }
             List<?> list = (List<?>) args[0];
-            JavaCallable fn = (JavaCallable) args[1];
-            List<Object> result = new ArrayList<>(list);
-            result.sort((a, b) -> {
-                Object keyA = fn.call(null, new Object[]{a});
-                Object keyB = fn.call(null, new Object[]{b});
-                if (keyA instanceof Comparable && keyB instanceof Comparable) {
-                    return ((Comparable<Object>) keyA).compareTo(keyB);
-                }
-                return 0;
-            });
+            // the key function is optional, without it items are compared as-is (natural ordering)
+            JavaCallable fn = args.length > 1 && args[1] instanceof JavaCallable ? (JavaCallable) args[1] : null;
+            int count = list.size();
+            // extract keys once up front instead of on every comparison
+            List<Object[]> pairs = new ArrayList<>(count);
+            for (int i = 0; i < count; i++) {
+                Object item = list.get(i);
+                Object key = fn == null ? item : fn.call(null, new Object[]{item, i});
+                pairs.add(new Object[]{key, item});
+            }
+            pairs.sort((a, b) -> compareKeys(a[0], b[0]));
+            List<Object> result = new ArrayList<>(count);
+            for (Object[] pair : pairs) {
+                result.add(pair[1]);
+            }
             return result;
         };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static int compareKeys(Object a, Object b) {
+        if (a == null || b == null) {
+            return a == b ? 0 : (a == null ? -1 : 1);
+        }
+        if (a instanceof Number && b instanceof Number) {
+            return Double.compare(((Number) a).doubleValue(), ((Number) b).doubleValue());
+        }
+        if (a instanceof Comparable && a.getClass().isInstance(b)) {
+            return ((Comparable<Object>) a).compareTo(b);
+        }
+        // last resort for mixed or non-comparable keys, at least the order is stable
+        return String.valueOf(a).compareTo(String.valueOf(b));
     }
 
     static JavaInvokable toBean() {
