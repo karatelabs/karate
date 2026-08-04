@@ -278,6 +278,11 @@ public class KarateJsUtils {
                 throw new RuntimeException("jsonPath() needs two arguments: object and path");
             }
             Object json = args[0];
+            if (json instanceof Node node) {
+                // v1 parity: an XML argument is converted to a Map first, otherwise jayway
+                // sees an opaque scalar and no path can match
+                json = Xml.toObject(node);
+            }
             String path = args[1].toString();
             return JsonPath.using(jsonPathConfig).parse(json).read(path);
         };

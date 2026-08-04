@@ -23,9 +23,6 @@
  */
 package io.karatelabs.core;
 
-import com.jayway.jsonpath.Configuration;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.Option;
 import io.karatelabs.common.*;
 import io.karatelabs.gherkin.Feature;
 import io.karatelabs.http.DefaultHttpClientFactory;
@@ -73,8 +70,6 @@ public class KarateJs extends KarateJsBase implements PerfContext {
     private static final Faker FAKER = new Faker();
 
     private final JavaCallable read;
-    private final Configuration jsonPathConfig = Configuration.defaultConfiguration()
-            .addOptions(Option.SUPPRESS_EXCEPTIONS);
 
     public KarateJs(Resource root) {
         this(root, new DefaultHttpClientFactory());
@@ -487,46 +482,24 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             }
             String expr = args[0] + "";
 
-            // Check if it's a jsonpath expression like $varname.path or $varname[*].path
-            if (expr.startsWith("$") && expr.length() > 1) {
-                String withoutDollar = expr.substring(1);
-                // Find where the path starts (at . or [)
-                int pathStart = -1;
-                for (int i = 0; i < withoutDollar.length(); i++) {
-                    char c = withoutDollar.charAt(i);
-                    if (c == '.' || c == '[') {
-                        pathStart = i;
-                        break;
-                    }
-                }
-                if (pathStart > 0) {
-                    String varName = withoutDollar.substring(0, pathStart);
-                    String jsonPath = "$" + withoutDollar.substring(pathStart);
-                    Object target = engine.get(varName);
-                    if (target != null) {
-                        return JsonPath.using(jsonPathConfig).parse(target).read(jsonPath);
-                    }
-                    return null;
-                } else if (pathStart == 0) {
-                    // $. or $[ means use 'response'
-                    Object target = engine.get("response");
-                    if (target != null) {
-                        return JsonPath.using(jsonPathConfig).parse(target).read("$" + withoutDollar);
-                    }
-                    return null;
-                }
-                // Just $varname - return the variable
-                return engine.get(withoutDollar);
-            }
-
             Object result;
             if (isSimpleIdentifier(expr)) {
                 result = engine.get(expr);
             } else {
-                // dot / bracket path traversal e.g. 'foo.bar.baz' or 'foo["bar"]' (v1 parity)
+                // Anything else - a $-prefixed JsonPath, an XPath, `get[N] foo[*].a`, or a
+                // plain dot / bracket chain like 'foo.bar.baz' - goes to the same evaluator
+                // the Gherkin RHS uses, which is what v1 did (karate.get delegated straight
+                // to evalKarateExpression). The hand-rolled JsonPath split that used to live
+                // here understood none of the other forms, and handed jayway the raw target
+                // so an XML or JSON-string variable silently answered nothing.
+                ScenarioRuntime rt = ScenarioRuntime.currentOrNull();
+                if (rt == null) {
+                    rt = getRuntime();
+                }
                 try {
-                    result = engine.eval(expr);
+                    result = rt == null ? engine.eval(expr) : rt.getExecutor().evalKarateExpression(expr);
                 } catch (Exception e) {
+                    // v1 parity: karate.get swallows evaluation errors and answers null
                     result = null;
                 }
             }

@@ -311,13 +311,66 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    // v1 parity: a missing segment makes jayway raise PathNotFoundException (v1 registered
+    // its jayway defaults with EnumSet.noneOf, i.e. exceptions NOT suppressed), which
+    // degrades to the #notpresent marker. karate.get answers exactly what the `$foo...`
+    // keyword answers - the JS API and the keyword read the same expression the same way.
     @Test
     void testKarateGetMissingFieldWithJsonPath() {
         ScenarioRuntime sr = run("""
             * def foo = { x: [{baz: 1}, {baz: 2}, {baz: 3}]}
             * def fun = function(){ return karate.get('$foo.bar[*].baz') }
             * def res = call fun
-            * match res == []
+            * match res == '#notpresent'
+            * match res == $foo.bar[*].baz
+            """);
+        assertPassed(sr);
+    }
+
+    // v1 routed karate.get through the same evalKarateExpression as a Gherkin RHS, so the
+    // JS API understood every form the keywords do. v2 hand-rolled a JsonPath split here
+    // that knew only $var.path, handed jayway the raw target, and had its own
+    // SUPPRESS_EXCEPTIONS config - so the two drifted on targets and on missing paths.
+    @Test
+    void testKarateGetMatchesKeywordOnJsonStringTarget() {
+        ScenarioRuntime sr = run("""
+            * def json = '{ "a": { "b": 1 } }'
+            * def viaKeyword = $json.a.b
+            * def viaApi = karate.get('$json.a.b')
+            * match viaApi == 1
+            * match viaApi == viaKeyword
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateGetMatchesKeywordOnXmlTarget() {
+        ScenarioRuntime sr = run("""
+            * def xml = <root><a><b>1</b></a></root>
+            * def viaApi = karate.get('$xml.root.a.b')
+            * match viaApi == '1'
+            * match viaApi == $xml.root.a.b
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateGetSupportsGetIndexSyntax() {
+        // `get[N] ...` is a keyword form the old hand-rolled split could not parse at all.
+        ScenarioRuntime sr = run("""
+            * def foo = [{a: 1, b: 'x'}, {a: 2, b: 'y'}]
+            * def viaApi = karate.get('get[1] foo[*].a')
+            * match viaApi == 2
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateGetSupportsXPath() {
+        ScenarioRuntime sr = run("""
+            * def xml = <root><a><b>1</b></a></root>
+            * def viaApi = karate.get('xml /root/a/b')
+            * match viaApi == '1'
             """);
         assertPassed(sr);
     }

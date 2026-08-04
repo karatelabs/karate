@@ -1694,10 +1694,6 @@ public class StepExecutor {
         // Special case: $[...] or $. means use 'response' variable for jsonpath
         if (withoutDollar.startsWith("[") || withoutDollar.startsWith(".")) {
             Object target = runtime.getVariable("response");
-            if (target instanceof Node) {
-                // Response is XML - shouldn't use jsonpath
-                return target;
-            }
             String path = "$" + withoutDollar;
             return JsonPath.read(toJsonForJsonPath(target), path);
         }
@@ -1755,10 +1751,19 @@ public class StepExecutor {
     }
 
     /**
-     * Converts a String to JSON (Map/List) if it looks like JSON, for JSONPath evaluation.
-     * V1 compatibility: allows JSONPath on strings that contain JSON-like content.
+     * Coerces a variable into something a JSONPath can actually be walked over, mirroring
+     * v1's Variable.getValueAndForceParsingAsJson(): XML becomes a Map, bytes become text,
+     * and text that looks like JSON is parsed. Jayway treats anything it doesn't recognise
+     * as an opaque scalar leaf, so without this a path over an XML or JSON-string target
+     * silently answers nothing instead of the value.
      */
     private Object toJsonForJsonPath(Object value) {
+        if (value instanceof Node node) {
+            return Xml.toObject(node);
+        }
+        if (value instanceof byte[] bytes) {
+            value = new String(bytes, StandardCharsets.UTF_8);
+        }
         if (value instanceof String s) {
             if (StringUtils.looksLikeJson(s)) {
                 try {
@@ -1793,7 +1798,7 @@ public class StepExecutor {
      * - varname/xpath (XML XPath shorthand)
      * - Regular JS expressions with embedded expression processing
      */
-    private Object evalKarateExpression(String expr) {
+    Object evalKarateExpression(String expr) {
         if (expr == null || expr.isEmpty()) {
             return null;
         }

@@ -746,6 +746,56 @@ class StepDataTypesTest {
         assertPassed(sr);
     }
 
+    // ========== JsonPath over an XML target ==========
+    // V1 parity: Variable.getValueAndForceParsingAsJson() converted XML to a Map before
+    // running a JsonPath, so a DOM variable was walkable with either an XPath or a
+    // JsonPath. v2 handed the Node straight to jayway, which sees an opaque scalar.
+
+    @Test
+    void testJsonPathOnXmlVariable() {
+        ScenarioRuntime sr = run("""
+            * def xml = <root><a><b>1</b></a></root>
+            * def viaDollar = $xml.root.a.b
+            * def viaGet = get xml.root.a.b
+            * match viaDollar == '1'
+            * match viaGet == '1'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testJsonPathOnXmlResponse() {
+        ScenarioRuntime sr = run("""
+            * def response = <root><a><b>1</b></a></root>
+            * def value = $.root.a.b
+            * match value == '1'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testXPathOnXmlVariableStillWins() {
+        // Control: a path that looks like an XPath still goes to the XPath evaluator, the
+        // XML is not diverted through the JSON conversion.
+        ScenarioRuntime sr = run("""
+            * def xml = <root><a><b>1</b></a></root>
+            * def value = get xml /root/a/b
+            * match value == '1'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testJsonPathFilterOverRepeatedXmlElements() {
+        // Repeated child elements collapse into a list, so a filter can select over them.
+        ScenarioRuntime sr = run("""
+            * def xml = <root><item><id>1</id></item><item><id>2</id></item></root>
+            * def value = get[0] xml.root.item[?(@.id == '2')].id
+            * match value == '2'
+            """);
+        assertPassed(sr);
+    }
+
     // ========== Variable Name Validation ==========
 
     @Test
