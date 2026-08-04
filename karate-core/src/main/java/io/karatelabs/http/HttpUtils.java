@@ -204,12 +204,21 @@ public class HttpUtils {
         switch (trimmed.charAt(0)) {
             case '{':
             case '[':
-                if (resourceType != null && resourceType.isText() && !resourceType.isJson()) {
-                    return raw;
-                }
                 if (strict) {
                     return Json.parseStrict(raw);
                 }
+                if (resourceType != null && !resourceType.isJson()) {
+                    // the content-type says this is not JSON, so the leading '{' or '[' is a
+                    // coincidence until proven otherwise - a TOML document opening with a table
+                    // header would be truncated to a one-element list by the lenient parser below
+                    try {
+                        return Json.parseStrict(raw);
+                    } catch (Exception e) {
+                        logger.trace("not json despite the leading brace: {}", e.getMessage());
+                        return raw;
+                    }
+                }
+                // only when the content-type is JSON, or absent and we have to guess (V1 compatibility)
                 try {
                     Object parsed = JSONValue.parseKeepingOrder(raw);
                     // JSONValue returns null for invalid JSON instead of throwing

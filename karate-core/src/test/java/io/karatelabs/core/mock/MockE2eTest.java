@@ -227,6 +227,11 @@ class MockE2eTest {
               * def lf = String.fromCharCode(10)
               * def response = lf + '    ' + lf
 
+            # text/plain that merely starts with '[' - must stay a string
+            Scenario: pathMatches('/toml')
+              * def lf = String.fromCharCode(10)
+              * def response = '[agent]' + lf + 'interval = "1s"' + lf + 'round_interval = true'
+
             # ===== Form and multipart scenarios =====
 
             Scenario: pathMatches('/form')
@@ -833,6 +838,23 @@ class MockE2eTest {
             * method get
             * status 200
             * match response == '\\n    \\n'
+            """.formatted(port));
+
+        assertPassed(sr);
+    }
+
+    @Test
+    void testTextResponseStartingWithSquareBracket() {
+        ScenarioRuntime sr = runFeature(new ApacheHttpClient(), """
+            Feature: Test Text Response
+
+            Scenario: a text/plain body that starts with '[' is not JSON
+            * url 'http://localhost:%d'
+            * path '/toml'
+            * method get
+            * status 200
+            * match responseType == 'string'
+            * match response contains 'round_interval'
             """.formatted(port));
 
         assertPassed(sr);

@@ -1,5 +1,6 @@
 package io.karatelabs.http;
 
+import io.karatelabs.common.ResourceType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -120,6 +121,27 @@ class HttpUtilsTest {
         String invalidJson = "{ \"foo\": }";
         Object result = HttpUtils.fromString(invalidJson, false, null);
         assertEquals(invalidJson, result);
+    }
+
+    @Test
+    void testTextBodyThatOnlyLooksLikeJson() {
+        // a TOML document opens with a table header, and the lenient parser would happily
+        // truncate it to a one-element list - an explicit non-JSON content-type has to be believed
+        String toml = "[agent]\n\tinterval = \"1s\"\n\tround_interval = true\n\n[[processors.date]]\n\torder=1";
+        assertEquals(toml, HttpUtils.fromString(toml, false, ResourceType.TEXT));
+        assertEquals(toml, HttpUtils.fromString(toml, false, ResourceType.HTML));
+        // with no content-type at all there is nothing to believe, so the guess stands (V1 compatibility)
+        assertEquals(List.of("agent"), HttpUtils.fromString(toml, false, null));
+    }
+
+    @Test
+    void testTextBodyThatIsWhollyJson() {
+        // a server mislabelling JSON as text/plain is common enough that the body still wins,
+        // provided the WHOLE document parses - here with a leading linefeed for good measure
+        String json = "\n{ \"success\": true }";
+        assertEquals(Map.of("success", true), HttpUtils.fromString(json, false, ResourceType.TEXT));
+        assertEquals(Map.of("success", true), HttpUtils.fromString(json, false, ResourceType.JSON));
+        assertEquals(Map.of("success", true), HttpUtils.fromString(json, false, null));
     }
 
 }
