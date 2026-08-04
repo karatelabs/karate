@@ -697,6 +697,7 @@ loading entirely — mock servers aren't tests, so exts don't activate.
 | [DRIVER_PLAN.md](./DRIVER_PLAN.md) | Open CDP driver defects + the CDP extension surface treated as public API |
 | [MOCKS.md](./MOCKS.md) | Mock server — feature-based definitions, proxy mode, stateful mocks |
 | [GATLING.md](./GATLING.md) | Performance testing — Java DSL, session chaining, HTTP pooling |
+| [PROFILING.md](./PROFILING.md) | Profiling runbook — JFR workloads, reading a digest, leak vs churn |
 | [TEMPLATING.md](./TEMPLATING.md) | HTML templating — Thymeleaf + JS expressions, HTMX, server/static modes |
 | [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) | V1 → V2 migration guide |
 | [RELEASING.md](./RELEASING.md) | Release checklist |
