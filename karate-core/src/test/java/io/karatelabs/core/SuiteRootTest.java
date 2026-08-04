@@ -126,6 +126,23 @@ class SuiteRootTest {
     }
 
     @Test
+    void configOnlyThrowsWhenAPresentConfigFails() throws Exception {
+        // documented fail-loud contract: configOnly never goes through ScenarioRuntime.call(),
+        // so a config failure captured during init must still be surfaced to this caller
+        write("karate-config.js", "function fn() { throw 'config is broken'; }\n");
+        RuntimeException e = assertThrows(RuntimeException.class, () -> ConfigLoader.configOnly(project, null));
+        assertTrue(e.getMessage().contains("Config evaluation failed"), e.getMessage());
+    }
+
+    @Test
+    void configOnlyContributesNothingForAHelpersOnlyConfig() throws Exception {
+        // no fn() to invoke: the file only declares helpers, so it returns nothing. The eval result is
+        // a function object — which IS a Map — and must not be mistaken for a config variable map.
+        write("karate-config.js", "function helperOne() { return 1; }\nfunction helperTwo() { return 2; }\n");
+        assertTrue(ConfigLoader.configOnly(project, null).isEmpty());
+    }
+
+    @Test
     void bootOnlyReturnsTheBindingTheSuiteAlreadyEvaluated() throws Exception {
         write("karate-boot.js", "boot.classpath('res');\n");
         BootBinding boot = BootLoader.bootOnly(project, null);

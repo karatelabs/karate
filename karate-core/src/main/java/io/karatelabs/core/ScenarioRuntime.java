@@ -322,6 +322,13 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      *  step that carries those buffers. */
     private Throwable configError;
 
+    /** The config-phase failure captured during init, or null. For callers that evaluate config STANDALONE
+     *  and never reach {@link #call()} (see {@code ConfigLoader.configOnly}) — they must rethrow this
+     *  themselves to keep failing loud, since the constructor no longer throws. */
+    Throwable getConfigError() {
+        return configError;
+    }
+
     /** The merged config-phase variables (base + config + env), populated during init when config is
      *  evaluated (a top-level scenario); empty otherwise. Used by {@code ConfigLoader.configOnly}. */
     public Map<String, Object> getConfigVars() {
@@ -403,6 +410,12 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             }
 
             if (parseFailed) {
+                // base / config / env-config all evaluate on ONE engine, so an fn bound here may belong
+                // to an earlier file. Snapshot it to tell "this file declared fn" from "an earlier one
+                // did". Must read the RAW binding: engine.get() mints a fresh callable wrapper per call,
+                // so its identity says nothing, while the raw JsFunctionNode is stable and is replaced
+                // exactly when a file redeclares fn.
+                Object fnBefore = karate.engine.getRawBindings().get("fn");
                 // Self-invoking pattern: function fn() { ... } fn();
                 result = karate.engine.eval(resource);
                 // A helper declared alongside fn() is not a single parenthesizable expression, so the
@@ -414,9 +427,12 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 // first: a JS function IS an object, so it also satisfies `instanceof Map`. Look fn up
                 // by name rather than trusting the eval result, which is whichever declaration came last.
                 if (result instanceof JavaCallable) {
-                    Object declared = karate.engine.get("fn");
-                    // No fn() to invoke means the config only declared helpers and returned nothing —
-                    // yield null rather than spreading the function object's own properties as variables.
+                    // Only invoke an fn THIS file contributed. A declarations-only env config leaves an
+                    // earlier file's fn bound; re-invoking it would repeat that config's side effects.
+                    // No fn of our own means the file declared only helpers and returned nothing — yield
+                    // null rather than spreading the function object's own properties as variables.
+                    boolean declaredHere = karate.engine.getRawBindings().get("fn") != fnBefore;
+                    Object declared = declaredHere ? karate.engine.get("fn") : null;
                     result = declared instanceof JavaCallable callable ? callable.call(null) : null;
                 }
             } else if (fn instanceof JavaCallable callable) {

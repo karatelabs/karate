@@ -1118,11 +1118,27 @@ class CallSingleTest {
     }
 
     @Test
-    void testConfigJsDeclaringOnlyHelpersContributesNoVariables() throws Exception {
-        // A config that declares helpers but no fn() returns nothing. It must not spread the
-        // function object's own properties (a JS function IS an object) into scope as variables.
+    void testEnvConfigDeclaringOnlyHelpersDoesNotReinvokeTheMainConfigFn() throws Exception {
+        // base / config / env-config share one engine scope, so a fn declared by an EARLIER file is
+        // still bound when a later declarations-only file is evaluated. The fallback must only invoke
+        // an fn that THIS file contributed - otherwise the main config's fn runs a second time and its
+        // side effects (a login call, a counter) happen twice.
+        io.karatelabs.core.parallel.CallOnceCounter.reset();
+
+        // self-invoking pattern: also unparseable when wrapped, so it takes the same fallback path
         Path configJs = tempDir.resolve("karate-config.js");
         Files.writeString(configJs, """
+            function fn() {
+                var Counter = Java.type('io.karatelabs.core.parallel.CallOnceCounter');
+                Counter.incrementAndGet();
+                return { fromMain: true };
+            }
+            fn();
+            """);
+
+        // env config declares helpers only - it contributes no fn of its own
+        Path envConfigJs = tempDir.resolve("karate-config-dev.js");
+        Files.writeString(envConfigJs, """
             function helperOne() { return 1; }
             function helperTwo() { return 2; }
             """);
@@ -1130,21 +1146,23 @@ class CallSingleTest {
         Path mainFeature = tempDir.resolve("main.feature");
         Files.writeString(mainFeature, """
             Feature: main
-            Scenario: no config variables leaked
-            * def x = 1
-            * match x == 1
+            Scenario: config applied once
+            * match fromMain == true
             """);
 
         SuiteResult result = Runner.builder()
                 .path(mainFeature.toString())
                 .workingDir(tempDir)
-                .configDir(configJs.toString())
+                .configDir(tempDir.toString())
+                .karateEnv("dev")
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
                 .backupOutputDir(false)
                 .parallel(1);
 
         assertTrue(result.isPassed(), getFailureMessage(result));
+        assertEquals(1, io.karatelabs.core.parallel.CallOnceCounter.get(),
+                "the main config's fn() must run exactly once, not again for the env config");
     }
 
     private static StepResult findStepWithCallResults(SuiteResult result) {
