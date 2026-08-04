@@ -13,49 +13,25 @@
 
 Three threads converge.
 
-**1. Issue #2972 is a real, unfixed memory bug.** A user hits `OutOfMemoryError` under
-parallel execution with `karate-junit6:2.0.10`. Their first diagnosis — unbounded
+**1. Issue #2972 reports an `OutOfMemoryError` under parallel execution** on
+`karate-junit6:2.0.10`. The reporter gave two analyses. Their first — unbounded
 `ScenarioResult.stepResults` / `SuiteResult.featureResults` accumulation — they later
-overturned themselves with a MAT heap dump: 89% of a 3.87 GB live heap sat in the **stack
-locals of a 13-deep self-recursion of `StepExecutor.processEmbeddedExpressions`**, each
-frame holding a `LinkedHashMap` roughly half the size of the one above it
-(1.08 GB → 798 MB → 407 MB → 205 MB → …). That geometric decay is the tell: level N
-*contains* level N+1. Live, mid-copy — not stranded in a stale cache.
+described as a rounding error, having captured a MAT heap dump putting 89% of a 3.87 GB
+live heap in the stack locals of a 13-deep self-recursion of
+`StepExecutor.processEmbeddedExpressions`, each frame holding a `LinkedHashMap` about half
+the size of the one above it. That geometric decay is the signature of nesting: level N
+contains level N+1.
 
-Reading the code confirms the mechanism. `StepExecutor.evalKarateExpression`
-(`StepExecutor.java:1859-1869`) is the *fallback* branch — it fires after `call`,
-`$jsonpath`, `get`, XML literals, xpath and JSON literals have all been ruled out, i.e.
-for **every `* def x = <plain expression>` whose result is a Map or List**:
-
-```java
-Object value = runtime.eval(wrapJsonLikeExpression(expr));
-if (value instanceof Map || value instanceof List) {
-    value = processEmbeddedExpressions(value, true);   // unconditional deep copy
-}
-```
-
-`processEmbeddedExpressions` (`StepExecutor.java:3254-3296`) rebuilds a fresh
-`LinkedHashMap`/`ArrayList` for every Map/List node it walks — **unconditionally**, with
-no check for whether a `#(...)`/`##(...)` string appears anywhere in the value. Combined
-with a bare `karate.call('f.feature')` (no args object), which runs the callee in the
-caller's scope and returns that scope wholesale, each bound capture contains every
-previous capture — so the copy cost is geometric in capture count, not linear in call
-count. The reporter measured 768 MB saturated / OOM at 8 s (13 bound captures) against
-331 MB / 14 s passing (same 13 calls, captures nulled).
-
-Two supporting facts found while reading:
-
-- **v1 never copied the payload.** v1's `ScenarioEngine.recurseEmbeddedExpressions`
-  mutated the tree in place and returned `null` to mean "nothing changed" — the same
-  reference came back. It was not allocation-free (a `Variable` wrapper per node, a
-  `HashSet`/`ArrayList` per container, and it *did* copy a List when `##()` removed an
-  element — v1 `ScenarioEngine.java:1427-1434`), but that garbage is small and fixed-size,
-  never payload-sized. **v2's payload copy is the regression; the aliasing is not.**
-- **The copy already needed an escape hatch.** `configure headers`/`cookies` routes around
-  it via `evalConfigReferenceExpression` (`StepExecutor.java:2991+`; the routing block and
-  its rationale are at 2969-2989) precisely because "evalKarateExpression rebuilds Maps via
-  processEmbeddedExpressions, which detaches the value into a snapshot" — and that detach
-  broke v1 parity.
+> **Phase 4 measured both, and reversed the verdict.** The nesting mechanism does not exist
+> on current main — a bare `karate.call()` no longer returns the caller's scope, so captures
+> cannot nest, and the reproducer's J variant passes in 1.96s where it saturates a 768m heap
+> on 2.0.10. The mechanism they retracted is the one still live: retained call results grow
+> linearly with suite size, ~143 KB per scenario. Details and numbers in
+> [Phase 4](#phase-4--demonstrate-the-problem--done-2026-08-04).
+>
+> This is why the plan put the harness before the fix. Every code reading below was
+> consistent with the reported cause and still pointed at the wrong thing; only measurement
+> separated them.
 
 **2. There is no way to demonstrate or measure any of this.** v1 had
 `examples/profiling-test` (a headless `Main.java` loop plus a Gatling
@@ -67,9 +43,11 @@ vanilla Gatling and to port v1's profiling-test. Same machinery, so it eventuall
 here — but Gatling workloads are **not** in the first cut, and GATLING.md is left untouched
 for now.
 
-**Order is deliberate: harness and runbook first, demonstrate the problem, then fix.**
-The fix is not attempted until the harness has independently reproduced the reported
-behaviour and the digest points at `processEmbeddedExpressions` on its own evidence.
+**Order is deliberate: harness and runbook first, demonstrate the problem, then fix.** No
+core change is attempted until the harness has reproduced the behaviour on its own evidence.
+Phase 4 is the vindication of that ordering — the reported cause was already fixed, and
+changing code on the strength of the report alone would have been wasted work aimed at the
+wrong mechanism.
 
 ---
 
@@ -88,14 +66,13 @@ behaviour and the digest points at `processEmbeddedExpressions` on its own evide
 | Leak detection | Heap-after-GC series + `jdk.OldObjectSample`, heap dump on OOM | The series is what distinguishes churn from retention — the exact confusion that cost #2972 several rounds. `jcmd GC.class_histogram` deferred: it forces a GC and perturbs the measurement |
 | Analysis | Built-in `JfrDigest` → `digest.md`, plus raw `jfr` recipes in the runbook | A `.jfr` is binary and enormous; the reader is an LLM with a context budget |
 | Custom JFR events | **Deferred** | Reconsider `karate.Step` / `karate.Call` events in karate-core and karate-js once initial results show whether JDK events are insufficient. The virtual-thread CPU-sampling gap (below) is an argument in favour |
-| Outcomes | Always report, never assert | OOM is the *expected* outcome for `scope-capture-bound` pre-fix. Assertions and baselines can come later |
+| Outcomes | Always report, never assert | Saturation is a legitimate outcome for some workloads. Assertions and baselines can come later |
 | Baselines / CI | None. Runbook holds the numbers | No CI job, no committed baseline files, no automation. LLM-assisted manual playbook to start |
 | GC | G1 default, `--gc zgc` opt-in | G1 is what most users get; ZGC reproduces the reporter's environment. Expansion is JDK-dependent — see runbook |
-| Repro fidelity | Native workloads, cross-checked **once** against the reporter's repo | Ours to maintain, but validated — if ours doesn't OOM where theirs does, ours is wrong |
+| Repro fidelity | Native workloads, cross-checked **once** against the reporter's repo | Ours to maintain, but validated. This earned its keep immediately: our workload did not reproduce, and the cross-check is what turned that into a finding rather than a false all-clear |
 | JS-engine workloads | Deferred to phase 2 | Keep the first cut on the problem that motivated it |
-| Fix shape | Copy-on-first-change | v1's payload-allocation behaviour without v1's in-place-mutation hazard |
-| Fix scope | All **eight** callsites, one change | The walker itself becomes identity-preserving, so they all benefit |
-| Issue write-up | Commit message + GitHub issue only | No case-study section in the docs |
+| Fix shape | **Retargeted after Phase 4** — see [Phase 5](#phase-5--the-fix-retargeted) | The original copy-on-first-change plan lost its justification when the nesting turned out not to exist |
+| Issue write-up | Commit message only for now | Ask the reporter to re-verify against the 2.1.2 release rather than asking them to build from source |
 
 ---
 
@@ -250,126 +227,92 @@ Output must be stable-sectioned so two digests diff cleanly.
 
 ---
 
-## Phase 4 — Demonstrate the problem
+## Phase 4 — Demonstrate the problem ✅ DONE (2026-08-04)
 
-- [ ] Run `scope-capture-bound` and `scope-capture-unbound` under JFR.
-- [ ] Record both in the runbook's baseline table, with machine and child JDK.
-- [ ] **Gate:** do not start Phase 5 until the digest independently fingers
-      `processEmbeddedExpressions`.
+The gate was: do not touch core until the harness reproduces the reported behaviour on its
+own evidence. It ran, and it overturned the premise. **Both halves below were measured on
+machine A (see the runbook baseline); the numbers live there, not here.**
+
+### The reported mechanism is already fixed
+
+The scope-capture nesting this plan was built around **does not occur on current main**.
+Running the external reproducer unchanged, varying only `-Dkarate.version`, its J variant
+pins a 768m heap at 99.9% on 2.0.10 and passes 5000 scenarios in 1.96s on 2.1.2.RC1.
+
+The reason is structural, and `Probe` measured it directly rather than inferring it: on
+main, *every* call form returns only the callee's own variables — 2 container nodes —
+where the reported mechanism requires a bare call to return the caller's entire scope so
+that capture N contains captures 1..N-1.
+
+```
+karate.call('f.feature')               -> Map(3) keys=[sawCallerBase, marker, fn]  nodes=2
+call read('f.feature')                 -> Map(3) keys=[sawCallerBase, marker, fn]  nodes=2
+call read('f.feature') { seed: 1 }     -> Map(4) ...                               nodes=2
+karate.call('f.feature', { seed: 1 })  -> Map(4) ...                               nodes=2
+base (100-record payload, for scale)   -> Map(1)                                   nodes=302
+```
+
+The nest cannot form, so the geometric copy cost cannot arise. `scope-capture-bound` peaked
+at 173 MB against a 768m heap — a failed reproduction, which is the cross-check doing its
+job. Reporting "no problem found" from that alone would have been right by accident and
+wrong in reasoning.
+
+### A different mechanism is live
+
+`call-accumulation` — many sequential calls from one long scenario, across many scenarios
+in one suite — shows **peak heap growing linearly with scenario count, ~143 KB retained per
+scenario, held for the whole run**. The external reproducer agrees independently: its E
+variant needs more than 768m for 5000 scenarios and passes comfortably at 3g.
+
+This is the reporter's *first* analysis, the one they later described as a rounding error.
+Against their production profile it may well have been. As a bug in its own right it is
+real, and it is the one still worth fixing.
 
 ---
 
-## Phase 5 — The fix
+## Phase 5 — The fix (RETARGETED)
 
-**Copy-on-first-change** in `StepExecutor.processEmbeddedExpressions`
-(`StepExecutor.java:3254-3296`). A node returns **itself** when nothing beneath it
-changed; a new `LinkedHashMap`/`ArrayList` is built only along paths that actually
-contained a resolvable `#(...)`/`##(...)`.
+> The original plan here was copy-on-first-change in
+> `StepExecutor.processEmbeddedExpressions`. **Phase 4 removed its justification**: without
+> scope nesting the copy is linear in the value's own size, not geometric. It remains a
+> genuine inefficiency — an unconditional deep copy of every Map/List-valued `def`, with no
+> check for whether a `#(...)` is present — but it is an optimisation, not an OOM fix, and
+> it should be argued on allocation numbers rather than on this issue. The analysis is kept
+> under [Deferred](#deferred) so it is not re-derived.
+
+The target is the append-only retention chain, every link of which grows without bound:
 
 ```
-clean tree (the overwhelming majority of steps):
-  v1        → same ref, small fixed-size garbage
-  proposed  → same ref, no garbage                     ← at least as good as v1
-
-Map/List containing #(x):
-  v1        → same ref, SOURCE MUTATED
-  proposed  → new nodes on that path, source Map/List intact
+SuiteResult.featureResults        SuiteResult.java:37   synchronizedList, whole-run lifetime
+  └─ FeatureResult
+       └─ ScenarioResult.stepResults      ScenarioResult.java:43   ArrayList, append-only
+            └─ StepResult.callResults     StepResult.java:48       List<FeatureResult>
 ```
 
-```java
-Map<String, Object> out = null;                       // created lazily
-for (var e : map.entrySet()) {
-    Object p = walk(e.getValue(), lenient);
-    if (out == null && p != e.getValue()) {
-        out = new LinkedHashMap<>(map);               // copy on first change
-    }
-    if (out != null) { … }                            // incl. REMOVE_MARKER handling
-}
-return out == null ? value : out;                     // identity when clean
-```
+`StepResult.callResults` is commented "For call steps — called feature results (V1 style)".
+Every `karate.call()` retains the callee's entire result tree; nothing is released until
+the suite ends. At 60 calls × 5000 scenarios that is 300,000 nested trees live at once.
 
-### Callsites — there are eight, not seven
+Open question, to settle before writing code: **who actually consumes these?** They exist
+for nested call display in the HTML report. If that is the only consumer, then a run with
+reporting disabled has no reason to retain them at all — and the measured sweep above was
+taken with every output format off. Options, in rough order of appetite:
 
-| Line | Method | Note |
-|---|---|---|
-| 1051 | `executeJson` | **Not literal-only** — `* json foo = someMapVar` accepts an arbitrarily large variable-referenced tree |
-| 1106 | `executeString` | stringified afterwards |
-| 1129 | `executeBytes` | byte-ified afterwards |
-| 1377 | `evalMatchExpression` | inline JSON literal |
-| 1829 | `evalKarateExpression` | inline XML literal |
-| 1853 | `evalKarateExpression` | inline JSON literal |
-| 1867 | `evalKarateExpression` | **the geometric case** — JS eval result, `lenient=true` |
-| **3225** | **`resolveConfigMap`** | **was missed in the first draft — see below** |
+- [ ] Retain call results only when a consumer needs them (reporting on), drop otherwise.
+- [ ] Stream completed feature results to disk and release the in-memory tree, keeping
+      only the counts `SuiteResult` needs for its summary.
+- [ ] Bound the depth or breadth of retained nested call results.
 
-- [ ] Preserve exactly: `REMOVE_MARKER` handling for `##()`, the `lenient`
-      fail-fast-vs-defer contract, the `runtime.isRequestDerived` short-circuit, `Node`
-      (XML) in-place handling, `JavaCallable` pass-through.
-
-### Three correctness traps in the sketch
-
-1. **`processInlineEmbedded` breaks identity for every string.**
-   `StepExecutor.java:3377` builds a `StringBuilder` unconditionally and returns
-   `.toString()`, so it hands back a **new, equal** String even when nothing substituted.
-   Under identity-based change detection that marks every string node as changed, which
-   marks every containing Map/List as changed, which copies the whole spine — on exactly
-   the lenient call-result path the fix targets. **It must return the original `str`
-   reference when no substitution occurred.** Without this the fix does nothing.
-2. **The XML branch mutates in place** (`StepExecutor.java:3264-3266`): it walks a `Node`,
-   rewrites it, and returns the same reference. So a Map containing XML can report
-   "unchanged" while its XML child *was* mutated. That is pre-existing behaviour and is
-   preserved, but the "source intact" guarantee above applies to Maps and Lists only —
-   don't state it more broadly.
-3. **List removal needs index bookkeeping.** The Map case can copy-then-overwrite; the
-   List case must skip `REMOVE_MARKER` entries while copying, so the lazily-created copy
-   is built by appending survivors, not by `set(i, …)`.
-
-Also: an explicit `p == REMOVE_MARKER` test in the change check is redundant —
-`REMOVE_MARKER` is a private sentinel that can never equal an entry's existing value, so
-`p != e.getValue()` already covers it.
-
-### `resolveConfigMap` (line 3225) — the callsite whose contract depends on the copy
-
-Its javadoc (`StepExecutor.java:3216-3222`) promises the config map "is never polluted by
-per-request header/cookie additions", and that promise currently rests on the copy. Under
-copy-on-first-change, a headers map with no embedded expressions comes back as the **same
-live reference the user configured**.
-
-Verified safe today: `HttpRequestBuilder.headers` (`HttpRequestBuilder.java:273-281`)
-copies entries out, and `applyCookiesFromMap` (`StepExecutor.java:1909-1913`) only reads.
-So no current consumer mutates it.
-
-- [ ] Update the 3216-3222 javadoc to state the real invariant — the map is not copied
-      defensively, and consumers must not mutate it — so a future consumer doesn't
-      silently start polluting user config.
-
-### Behaviour change, accepted
-
-Returning the original reference for clean trees means `* def b = a` aliases (as it did in
-v1), and a Map/List result of a JS eval is no longer silently detached into a plain
-`LinkedHashMap` — the variable holds whatever the engine returned (e.g. a `JsObject`,
-which is itself a `Map`). Watch for fallout in serialization, `match` and equality.
-
-`configure headers`/`cookies` routes around the copy via `evalConfigReferenceExpression`
-(`StepExecutor.java:2991+`) *because* of the detach. Once the walker preserves identity
-that escape hatch may be redundant — verify, and retire it only in a separate follow-up
-commit, and only if the tests agree.
-
-- [ ] Full `mvn test` across all modules green. Watch karate-core HTTP/config tests
-      (`configure headers`), match/assertion tests, and the karate-gatling smoke simulation.
-- [ ] **Recorded fallback:** if aliasing proves load-bearing somewhere, narrow the change
-      to lines 1867 and 1051 — the JS-result path (the geometric case) and `executeJson`
-      (which also accepts an arbitrarily large variable reference). The remaining six fire
-      only on literals the user typed inline at that step, or on values that get
-      stringified immediately afterwards.
-- [ ] Commit message carries the `#2972` backlink and the before/after numbers. Per house
-      practice the issue stays open until the Maven Central release.
+- [ ] Whatever is chosen, re-run the `call-accumulation` sweep and require the peak-heap
+      line to go flat. A single run cannot show this — the trend is the test.
 
 ---
 
 ## Phase 6 — Prove it
 
-- [ ] Re-run `scope-capture-bound` / `-unbound`; both should complete, with allocation
-      dominated by something other than `processEmbeddedExpressions`.
+- [ ] Re-run the `call-accumulation` sweep at 250 / 500 / 1000 / 2000 scenarios; the
+      peak-heap line must go flat instead of rising ~143 KB per scenario.
+- [ ] Confirm the external reproducer's E variant passes 5000 scenarios at `-Xmx768m`.
 - [ ] `leak-watch --duration 10m` before and after — the heap-after-GC floor must be flat
       in both. The fix must not have introduced retention.
 - [ ] Update the runbook's baseline table.
@@ -404,6 +347,7 @@ Recorded so they aren't re-derived. None are in the first cut.
 
 | Item | Note |
 |---|---|
+| Copy-on-first-change in `processEmbeddedExpressions` | The original Phase 5. Still a real inefficiency: `StepExecutor.java:3254-3296` rebuilds a fresh `LinkedHashMap`/`ArrayList` for every Map/List node it walks, unconditionally, with no check for whether `#(...)` appears anywhere — and v1 never copied the payload at all. Eight callsites (1051, 1106, 1129, 1377, 1829, 1853, 1867, **3225**). Three traps if revived: `processInlineEmbedded` (`StepExecutor.java:3377`) returns a *new equal String* for every string, which defeats identity-based change detection unless it returns the original when nothing substituted; the XML branch mutates in place so "source intact" holds for Maps and Lists only; and `resolveConfigMap` (3225) has a javadoc promising a defensive copy. Pursue on allocation numbers, not on this issue |
 | Call-heavy result-retention workload | The reporter's C–I shape, targeting `ScenarioResult.stepResults` / `SuiteResult.featureResults` unbounded accumulation. Their production heap dump put these at 0.76% of the live set, so it may be a rounding error at realistic scale — but it is untested at other shapes |
 | JS-engine workloads | `js-array`, `js-object`, `js-engine-init` built from `EngineBenchmark`'s generators, so JS tuning gets forking, JFR and digests too. Phase 2 |
 | Mock throughput tiers | Raw Java handler vs JS handler vs feature mock, as a floor-and-multiplier table |

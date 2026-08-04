@@ -23,7 +23,9 @@
  */
 package io.karatelabs.profiling;
 
+import io.karatelabs.profiling.workload.CallAccumulationWorkload;
 import io.karatelabs.profiling.workload.HarnessSmokeWorkload;
+import io.karatelabs.profiling.workload.ScopeCaptureWorkload;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -41,6 +43,10 @@ public final class Workloads {
 
     static {
         register(new HarnessSmokeWorkload());
+        // The matched pair — neither number means anything without the other.
+        register(new ScopeCaptureWorkload.Bound());
+        register(new ScopeCaptureWorkload.Unbound());
+        register(new CallAccumulationWorkload());
     }
 
     private Workloads() {

@@ -1,0 +1,1604 @@
+{
+ "records": [
+  {
+   "id": 0,
+   "name": "record-000",
+   "active": false,
+   "score": 0.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-01",
+    "region": "r0",
+    "version": 0
+   }
+  },
+  {
+   "id": 1,
+   "name": "record-001",
+   "active": true,
+   "score": 1.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-02",
+    "region": "r1",
+    "version": 1
+   }
+  },
+  {
+   "id": 2,
+   "name": "record-002",
+   "active": true,
+   "score": 3.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-03",
+    "region": "r2",
+    "version": 2
+   }
+  },
+  {
+   "id": 3,
+   "name": "record-003",
+   "active": false,
+   "score": 4.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-04",
+    "region": "r3",
+    "version": 3
+   }
+  },
+  {
+   "id": 4,
+   "name": "record-004",
+   "active": true,
+   "score": 6.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-05",
+    "region": "r4",
+    "version": 4
+   }
+  },
+  {
+   "id": 5,
+   "name": "record-005",
+   "active": true,
+   "score": 7.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-06",
+    "region": "r0",
+    "version": 5
+   }
+  },
+  {
+   "id": 6,
+   "name": "record-006",
+   "active": false,
+   "score": 9.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-07",
+    "region": "r1",
+    "version": 6
+   }
+  },
+  {
+   "id": 7,
+   "name": "record-007",
+   "active": true,
+   "score": 10.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-08",
+    "region": "r2",
+    "version": 7
+   }
+  },
+  {
+   "id": 8,
+   "name": "record-008",
+   "active": true,
+   "score": 12.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-09",
+    "region": "r3",
+    "version": 8
+   }
+  },
+  {
+   "id": 9,
+   "name": "record-009",
+   "active": false,
+   "score": 13.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-10",
+    "region": "r4",
+    "version": 9
+   }
+  },
+  {
+   "id": 10,
+   "name": "record-010",
+   "active": true,
+   "score": 15.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-11",
+    "region": "r0",
+    "version": 10
+   }
+  },
+  {
+   "id": 11,
+   "name": "record-011",
+   "active": true,
+   "score": 16.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-12",
+    "region": "r1",
+    "version": 11
+   }
+  },
+  {
+   "id": 12,
+   "name": "record-012",
+   "active": false,
+   "score": 18.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-13",
+    "region": "r2",
+    "version": 12
+   }
+  },
+  {
+   "id": 13,
+   "name": "record-013",
+   "active": true,
+   "score": 19.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-14",
+    "region": "r3",
+    "version": 13
+   }
+  },
+  {
+   "id": 14,
+   "name": "record-014",
+   "active": true,
+   "score": 21.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-15",
+    "region": "r4",
+    "version": 14
+   }
+  },
+  {
+   "id": 15,
+   "name": "record-015",
+   "active": false,
+   "score": 22.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-16",
+    "region": "r0",
+    "version": 15
+   }
+  },
+  {
+   "id": 16,
+   "name": "record-016",
+   "active": true,
+   "score": 24.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-17",
+    "region": "r1",
+    "version": 16
+   }
+  },
+  {
+   "id": 17,
+   "name": "record-017",
+   "active": true,
+   "score": 25.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-18",
+    "region": "r2",
+    "version": 17
+   }
+  },
+  {
+   "id": 18,
+   "name": "record-018",
+   "active": false,
+   "score": 27.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-19",
+    "region": "r3",
+    "version": 18
+   }
+  },
+  {
+   "id": 19,
+   "name": "record-019",
+   "active": true,
+   "score": 28.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-20",
+    "region": "r4",
+    "version": 19
+   }
+  },
+  {
+   "id": 20,
+   "name": "record-020",
+   "active": true,
+   "score": 30.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-21",
+    "region": "r0",
+    "version": 20
+   }
+  },
+  {
+   "id": 21,
+   "name": "record-021",
+   "active": false,
+   "score": 31.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-22",
+    "region": "r1",
+    "version": 21
+   }
+  },
+  {
+   "id": 22,
+   "name": "record-022",
+   "active": true,
+   "score": 33.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-23",
+    "region": "r2",
+    "version": 22
+   }
+  },
+  {
+   "id": 23,
+   "name": "record-023",
+   "active": true,
+   "score": 34.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-24",
+    "region": "r3",
+    "version": 23
+   }
+  },
+  {
+   "id": 24,
+   "name": "record-024",
+   "active": false,
+   "score": 36.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-25",
+    "region": "r4",
+    "version": 24
+   }
+  },
+  {
+   "id": 25,
+   "name": "record-025",
+   "active": true,
+   "score": 37.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-26",
+    "region": "r0",
+    "version": 25
+   }
+  },
+  {
+   "id": 26,
+   "name": "record-026",
+   "active": true,
+   "score": 39.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-27",
+    "region": "r1",
+    "version": 26
+   }
+  },
+  {
+   "id": 27,
+   "name": "record-027",
+   "active": false,
+   "score": 40.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-28",
+    "region": "r2",
+    "version": 27
+   }
+  },
+  {
+   "id": 28,
+   "name": "record-028",
+   "active": true,
+   "score": 42.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-01",
+    "region": "r3",
+    "version": 28
+   }
+  },
+  {
+   "id": 29,
+   "name": "record-029",
+   "active": true,
+   "score": 43.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-02",
+    "region": "r4",
+    "version": 29
+   }
+  },
+  {
+   "id": 30,
+   "name": "record-030",
+   "active": false,
+   "score": 45.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-03",
+    "region": "r0",
+    "version": 30
+   }
+  },
+  {
+   "id": 31,
+   "name": "record-031",
+   "active": true,
+   "score": 46.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-04",
+    "region": "r1",
+    "version": 31
+   }
+  },
+  {
+   "id": 32,
+   "name": "record-032",
+   "active": true,
+   "score": 48.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-05",
+    "region": "r2",
+    "version": 32
+   }
+  },
+  {
+   "id": 33,
+   "name": "record-033",
+   "active": false,
+   "score": 49.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-06",
+    "region": "r3",
+    "version": 33
+   }
+  },
+  {
+   "id": 34,
+   "name": "record-034",
+   "active": true,
+   "score": 51.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-07",
+    "region": "r4",
+    "version": 34
+   }
+  },
+  {
+   "id": 35,
+   "name": "record-035",
+   "active": true,
+   "score": 52.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-08",
+    "region": "r0",
+    "version": 35
+   }
+  },
+  {
+   "id": 36,
+   "name": "record-036",
+   "active": false,
+   "score": 54.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-09",
+    "region": "r1",
+    "version": 36
+   }
+  },
+  {
+   "id": 37,
+   "name": "record-037",
+   "active": true,
+   "score": 55.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-10",
+    "region": "r2",
+    "version": 37
+   }
+  },
+  {
+   "id": 38,
+   "name": "record-038",
+   "active": true,
+   "score": 57.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-11",
+    "region": "r3",
+    "version": 38
+   }
+  },
+  {
+   "id": 39,
+   "name": "record-039",
+   "active": false,
+   "score": 58.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-12",
+    "region": "r4",
+    "version": 39
+   }
+  },
+  {
+   "id": 40,
+   "name": "record-040",
+   "active": true,
+   "score": 60.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-13",
+    "region": "r0",
+    "version": 40
+   }
+  },
+  {
+   "id": 41,
+   "name": "record-041",
+   "active": true,
+   "score": 61.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-14",
+    "region": "r1",
+    "version": 41
+   }
+  },
+  {
+   "id": 42,
+   "name": "record-042",
+   "active": false,
+   "score": 63.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-15",
+    "region": "r2",
+    "version": 42
+   }
+  },
+  {
+   "id": 43,
+   "name": "record-043",
+   "active": true,
+   "score": 64.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-16",
+    "region": "r3",
+    "version": 43
+   }
+  },
+  {
+   "id": 44,
+   "name": "record-044",
+   "active": true,
+   "score": 66.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-17",
+    "region": "r4",
+    "version": 44
+   }
+  },
+  {
+   "id": 45,
+   "name": "record-045",
+   "active": false,
+   "score": 67.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-18",
+    "region": "r0",
+    "version": 45
+   }
+  },
+  {
+   "id": 46,
+   "name": "record-046",
+   "active": true,
+   "score": 69.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-19",
+    "region": "r1",
+    "version": 46
+   }
+  },
+  {
+   "id": 47,
+   "name": "record-047",
+   "active": true,
+   "score": 70.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-20",
+    "region": "r2",
+    "version": 47
+   }
+  },
+  {
+   "id": 48,
+   "name": "record-048",
+   "active": false,
+   "score": 72.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-21",
+    "region": "r3",
+    "version": 48
+   }
+  },
+  {
+   "id": 49,
+   "name": "record-049",
+   "active": true,
+   "score": 73.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-22",
+    "region": "r4",
+    "version": 49
+   }
+  },
+  {
+   "id": 50,
+   "name": "record-050",
+   "active": true,
+   "score": 75.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-23",
+    "region": "r0",
+    "version": 50
+   }
+  },
+  {
+   "id": 51,
+   "name": "record-051",
+   "active": false,
+   "score": 76.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-24",
+    "region": "r1",
+    "version": 51
+   }
+  },
+  {
+   "id": 52,
+   "name": "record-052",
+   "active": true,
+   "score": 78.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-25",
+    "region": "r2",
+    "version": 52
+   }
+  },
+  {
+   "id": 53,
+   "name": "record-053",
+   "active": true,
+   "score": 79.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-26",
+    "region": "r3",
+    "version": 53
+   }
+  },
+  {
+   "id": 54,
+   "name": "record-054",
+   "active": false,
+   "score": 81.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-27",
+    "region": "r4",
+    "version": 54
+   }
+  },
+  {
+   "id": 55,
+   "name": "record-055",
+   "active": true,
+   "score": 82.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-28",
+    "region": "r0",
+    "version": 55
+   }
+  },
+  {
+   "id": 56,
+   "name": "record-056",
+   "active": true,
+   "score": 84.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-01",
+    "region": "r1",
+    "version": 56
+   }
+  },
+  {
+   "id": 57,
+   "name": "record-057",
+   "active": false,
+   "score": 85.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-02",
+    "region": "r2",
+    "version": 57
+   }
+  },
+  {
+   "id": 58,
+   "name": "record-058",
+   "active": true,
+   "score": 87.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-03",
+    "region": "r3",
+    "version": 58
+   }
+  },
+  {
+   "id": 59,
+   "name": "record-059",
+   "active": true,
+   "score": 88.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-04",
+    "region": "r4",
+    "version": 59
+   }
+  },
+  {
+   "id": 60,
+   "name": "record-060",
+   "active": false,
+   "score": 90.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-05",
+    "region": "r0",
+    "version": 60
+   }
+  },
+  {
+   "id": 61,
+   "name": "record-061",
+   "active": true,
+   "score": 91.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-06",
+    "region": "r1",
+    "version": 61
+   }
+  },
+  {
+   "id": 62,
+   "name": "record-062",
+   "active": true,
+   "score": 93.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-07",
+    "region": "r2",
+    "version": 62
+   }
+  },
+  {
+   "id": 63,
+   "name": "record-063",
+   "active": false,
+   "score": 94.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-08",
+    "region": "r3",
+    "version": 63
+   }
+  },
+  {
+   "id": 64,
+   "name": "record-064",
+   "active": true,
+   "score": 96.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-09",
+    "region": "r4",
+    "version": 64
+   }
+  },
+  {
+   "id": 65,
+   "name": "record-065",
+   "active": true,
+   "score": 97.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-10",
+    "region": "r0",
+    "version": 65
+   }
+  },
+  {
+   "id": 66,
+   "name": "record-066",
+   "active": false,
+   "score": 99.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-11",
+    "region": "r1",
+    "version": 66
+   }
+  },
+  {
+   "id": 67,
+   "name": "record-067",
+   "active": true,
+   "score": 100.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-12",
+    "region": "r2",
+    "version": 67
+   }
+  },
+  {
+   "id": 68,
+   "name": "record-068",
+   "active": true,
+   "score": 102.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-13",
+    "region": "r3",
+    "version": 68
+   }
+  },
+  {
+   "id": 69,
+   "name": "record-069",
+   "active": false,
+   "score": 103.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-14",
+    "region": "r4",
+    "version": 69
+   }
+  },
+  {
+   "id": 70,
+   "name": "record-070",
+   "active": true,
+   "score": 105.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-15",
+    "region": "r0",
+    "version": 70
+   }
+  },
+  {
+   "id": 71,
+   "name": "record-071",
+   "active": true,
+   "score": 106.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-16",
+    "region": "r1",
+    "version": 71
+   }
+  },
+  {
+   "id": 72,
+   "name": "record-072",
+   "active": false,
+   "score": 108.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-17",
+    "region": "r2",
+    "version": 72
+   }
+  },
+  {
+   "id": 73,
+   "name": "record-073",
+   "active": true,
+   "score": 109.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-18",
+    "region": "r3",
+    "version": 73
+   }
+  },
+  {
+   "id": 74,
+   "name": "record-074",
+   "active": true,
+   "score": 111.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-19",
+    "region": "r4",
+    "version": 74
+   }
+  },
+  {
+   "id": 75,
+   "name": "record-075",
+   "active": false,
+   "score": 112.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-20",
+    "region": "r0",
+    "version": 75
+   }
+  },
+  {
+   "id": 76,
+   "name": "record-076",
+   "active": true,
+   "score": 114.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-21",
+    "region": "r1",
+    "version": 76
+   }
+  },
+  {
+   "id": 77,
+   "name": "record-077",
+   "active": true,
+   "score": 115.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-22",
+    "region": "r2",
+    "version": 77
+   }
+  },
+  {
+   "id": 78,
+   "name": "record-078",
+   "active": false,
+   "score": 117.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-23",
+    "region": "r3",
+    "version": 78
+   }
+  },
+  {
+   "id": 79,
+   "name": "record-079",
+   "active": true,
+   "score": 118.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-24",
+    "region": "r4",
+    "version": 79
+   }
+  },
+  {
+   "id": 80,
+   "name": "record-080",
+   "active": true,
+   "score": 120.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-25",
+    "region": "r0",
+    "version": 80
+   }
+  },
+  {
+   "id": 81,
+   "name": "record-081",
+   "active": false,
+   "score": 121.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-26",
+    "region": "r1",
+    "version": 81
+   }
+  },
+  {
+   "id": 82,
+   "name": "record-082",
+   "active": true,
+   "score": 123.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-27",
+    "region": "r2",
+    "version": 82
+   }
+  },
+  {
+   "id": 83,
+   "name": "record-083",
+   "active": true,
+   "score": 124.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-28",
+    "region": "r3",
+    "version": 83
+   }
+  },
+  {
+   "id": 84,
+   "name": "record-084",
+   "active": false,
+   "score": 126.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-01",
+    "region": "r4",
+    "version": 84
+   }
+  },
+  {
+   "id": 85,
+   "name": "record-085",
+   "active": true,
+   "score": 127.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-02",
+    "region": "r0",
+    "version": 85
+   }
+  },
+  {
+   "id": 86,
+   "name": "record-086",
+   "active": true,
+   "score": 129.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-03",
+    "region": "r1",
+    "version": 86
+   }
+  },
+  {
+   "id": 87,
+   "name": "record-087",
+   "active": false,
+   "score": 130.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-04",
+    "region": "r2",
+    "version": 87
+   }
+  },
+  {
+   "id": 88,
+   "name": "record-088",
+   "active": true,
+   "score": 132.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-05",
+    "region": "r3",
+    "version": 88
+   }
+  },
+  {
+   "id": 89,
+   "name": "record-089",
+   "active": true,
+   "score": 133.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-06",
+    "region": "r4",
+    "version": 89
+   }
+  },
+  {
+   "id": 90,
+   "name": "record-090",
+   "active": false,
+   "score": 135.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-07",
+    "region": "r0",
+    "version": 90
+   }
+  },
+  {
+   "id": 91,
+   "name": "record-091",
+   "active": true,
+   "score": 136.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-08",
+    "region": "r1",
+    "version": 91
+   }
+  },
+  {
+   "id": 92,
+   "name": "record-092",
+   "active": true,
+   "score": 138.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-09",
+    "region": "r2",
+    "version": 92
+   }
+  },
+  {
+   "id": 93,
+   "name": "record-093",
+   "active": false,
+   "score": 139.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-10",
+    "region": "r3",
+    "version": 93
+   }
+  },
+  {
+   "id": 94,
+   "name": "record-094",
+   "active": true,
+   "score": 141.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-11",
+    "region": "r4",
+    "version": 94
+   }
+  },
+  {
+   "id": 95,
+   "name": "record-095",
+   "active": true,
+   "score": 142.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-12",
+    "region": "r0",
+    "version": 95
+   }
+  },
+  {
+   "id": 96,
+   "name": "record-096",
+   "active": false,
+   "score": 144.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-13",
+    "region": "r1",
+    "version": 96
+   }
+  },
+  {
+   "id": 97,
+   "name": "record-097",
+   "active": true,
+   "score": 145.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-14",
+    "region": "r2",
+    "version": 97
+   }
+  },
+  {
+   "id": 98,
+   "name": "record-098",
+   "active": true,
+   "score": 147.0,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-15",
+    "region": "r3",
+    "version": 98
+   }
+  },
+  {
+   "id": 99,
+   "name": "record-099",
+   "active": false,
+   "score": 148.5,
+   "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "meta": {
+    "created": "2026-01-16",
+    "region": "r4",
+    "version": 99
+   }
+  }
+ ]
+}

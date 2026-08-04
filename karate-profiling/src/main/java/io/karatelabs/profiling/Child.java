@@ -67,13 +67,31 @@ public final class Child {
         String mockUrl = System.getProperty("karate.profiling.mockUrl");
 
         Workload workload = Workloads.get(name);
-        WorkloadContext context = new WorkloadContext(threads, mockUrl);
+        WorkloadContext context = new WorkloadContext(threads, iterations, mockUrl);
 
         System.out.println("[child] workload=" + name + " threads=" + threads
                 + (duration == null ? " iterations=" + iterations : " duration=" + RunShape.format(duration))
                 + " warmup=" + RunShape.format(warmup));
 
         workload.setup(context);
+
+        if (workload.drivesOwnConcurrency()) {
+            // The workload owns the suite, so it owns the concurrency too. Warmup is skipped:
+            // there is exactly one unit of work and running it twice would double the run.
+            System.out.println("[child] workload drives its own concurrency — one pass, no warmup");
+            long selfStart = System.nanoTime();
+            Result self = driveOnce(workload);
+            System.out.println(SUMMARY_PREFIX
+                    + "completed=" + self.completed
+                    + " errors=" + self.errors
+                    + " elapsedMs=" + ((System.nanoTime() - selfStart) / 1_000_000)
+                    + " peakHeapBytes=" + peakHeapBytes()
+                    + " oom=" + self.oom);
+            if (self.firstFailure != null) {
+                self.firstFailure.printStackTrace(System.out);
+            }
+            System.exit(self.oom || self.errors > 0 ? 1 : 0);
+        }
 
         if (!warmup.isZero()) {
             System.out.println("[child] warmup " + RunShape.format(warmup) + " (excluded from the recording)");
@@ -106,6 +124,18 @@ public final class Child {
         // Explicit, so a lingering non-daemon thread somewhere in Karate cannot keep the
         // JVM alive past the point where the run is over.
         System.exit(result.oom || result.errors > 0 ? 1 : 0);
+    }
+
+    /** One pass, on this thread, for a workload that drives its own concurrency. */
+    private static Result driveOnce(Workload workload) {
+        try {
+            workload.iterate(0, 0);
+            return new Result(1, 0, false, null);
+        } catch (OutOfMemoryError e) {
+            return new Result(0, 0, true, e);
+        } catch (Throwable t) {
+            return new Result(0, 1, false, t);
+        }
     }
 
     /**

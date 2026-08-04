@@ -69,6 +69,22 @@ public interface Workload {
         return false;
     }
 
+    /**
+     * When true, {@link #iterate} is called exactly once on one thread, and the requested
+     * threads and iterations are handed to the workload through {@link WorkloadContext}
+     * instead of being used to drive it.
+     *
+     * <p>This exists because some things can only be observed across a whole suite. Anything
+     * retained for the lifetime of a {@code Suite} is invisible to a workload that builds a
+     * fresh {@code Suite} per iteration — each one becomes garbage as soon as the iteration
+     * ends, so suite-lifetime accumulation collects harmlessly and the workload reports that
+     * all is well. A workload hunting that has to own the suite, and therefore the
+     * concurrency inside it.
+     */
+    default boolean drivesOwnConcurrency() {
+        return false;
+    }
+
     /** Classpath-relative feature that {@link MockJvm} serves. Only read when {@link #needsMock()}. */
     default String mockFeature() {
         return "classpath:mock/profiling-mock.feature";

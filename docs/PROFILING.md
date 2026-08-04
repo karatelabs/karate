@@ -92,23 +92,70 @@ the reasoning behind each. (The `#2972` framing below is doc-side only — per
 [CLAUDE.md](../CLAUDE.md), the `describe()` strings in source must describe *behaviour*,
 not cite issue numbers.)
 
-### The bound-scope-capture pair — deep-copy of live scope
+### `call-accumulation` — are completed call results ever released?
+
+60 sequential `karate.call()`s per scenario, results never bound, across many scenarios in
+**one** suite. Targets an append-only retention chain:
+
+```
+SuiteResult.featureResults        (whole-run lifetime)
+  └─ FeatureResult
+       └─ ScenarioResult.stepResults
+            └─ StepResult.callResults : List<FeatureResult>
+```
+
+**The measurement is the scale sweep, not any single run.** Run it at several sizes and
+compare peak heap — flat means no accumulation, proportional means there is:
+
+```bash
+etc/run.sh call-accumulation --iterations 250
+etc/run.sh call-accumulation --iterations 1000
+etc/run.sh call-accumulation --iterations 2000
+```
+
+This workload owns its suite (it declares `drivesOwnConcurrency`), so `--iterations` means
+*scenarios in the suite* and `--threads` is the suite's own parallelism. Driving it the
+usual way would build a fresh `Suite` per iteration, letting each one become garbage
+immediately — collecting the very accumulation being hunted and reporting all clear.
+
+*Healthy result:* peak heap roughly flat as scenario count rises. See
+[Current baseline](#6-current-baseline) for what it does today.
+
+### The bound-scope-capture pair — regression guard
 
 | Workload | Shape |
 |---|---|
-| `scope-capture-bound` | 13 sequential bare `karate.call()`s (no args object, so the callee inherits and returns the *caller's whole scope*), each result **bound** to a variable, over a ~100-record base payload, followed by many more steps. |
+| `scope-capture-bound` | 13 sequential bare `karate.call()`s, each result **bound** to a variable, over a ~100-record base payload. |
 | `scope-capture-unbound` | Identical, plus `* def capN = null` after each capture. |
 
 Defaults: 16 threads, 5000 iterations, `-Xmx768m`, G1.
 
-These exist as a **pair**, and the pair is the measurement. Both make exactly 13 calls, so
-any mechanism that scales with *call count* is held constant between them. The only
-difference is whether large collections stay bound across subsequent steps. If `bound`
-saturates and `unbound` doesn't, the cost is per-step copying of live scope, not result
-accumulation.
+These were written to reproduce a reported geometric blow-up in which each capture contains
+all previous ones. **That shape does not occur on current main** — a bare
+`karate.call('f.feature')` returns only the callee's own variables, not the caller's scope,
+so the nest never forms and both variants behave identically.
 
-*Healthy result after the fix:* both complete, with comparable peak heap. *Expected result
-before it:* `bound` saturates and OOMs early; `unbound` completes at a fraction of the heap.
+They are kept as a **regression guard**: if a change ever made a call return the caller's
+scope again, `bound` would diverge sharply from `unbound` and this pair would catch it.
+Do not read a passing `scope-capture-bound` as evidence that memory is fine generally —
+it only says this particular nesting is absent. Verify the shape directly with `Probe`
+(below) rather than inferring it from a heap curve.
+
+### `Probe` — what does a call actually return?
+
+Not a workload; a one-shot diagnostic that prints the *shape* of the variables a feature
+leaves in scope, counting distinct container nodes by identity so shared substructure is
+counted once.
+
+```bash
+mvn -q compile
+java -cp "target/classes:$(cat target/cp.txt)" io.karatelabs.profiling.Probe \
+     classpath:workload/probe-forms.feature
+```
+
+Use it whenever a memory theory depends on how much a call hands back. That is a one-run
+question about object-graph shape, and answering it directly beats inferring it from a heap
+curve — as the scope-capture pair above demonstrates.
 
 ### Leak-watch family — does a realistic suite retain over time?
 
@@ -328,9 +375,43 @@ Hand-maintained. Update it when you take a run you trust, and always record the 
 **and the child JDK** — absolute numbers are meaningless without them, only *shapes* and
 *ratios* travel.
 
-| Date | Machine / JDK | Workload | Config | Outcome | Peak heap | Notes |
-|---|---|---|---|---|---|---|
-| — | — | — | — | — | — | *No runs recorded yet — the harness is being built. See [PROFILING_PLAN.md](./PROFILING_PLAN.md).* |
+**Machine A** — Apple Silicon (aarch64), macOS 25.5, 10 cores, JDK 24.0.2, G1.
+
+#### `call-accumulation` scale sweep — 2026-08-04, machine A, karate 2.1.2.RC1
+
+60 calls per scenario, 16 threads, `-Xmx768m`.
+
+| scenarios | peak heap | Δ per +1000 scenarios | elapsed |
+|---:|---:|---:|---:|
+| 250 | 206 MB | — | 1.5s |
+| 500 | 281 MB | +75 MB | 2.0s |
+| 1000 | 420 MB | +139 MB | 3.2s |
+| 2000 | 706 MB | +286 MB | 4.5s |
+
+**Peak heap grows linearly with scenario count — roughly 143 KB retained per scenario,
+held for the whole suite run.** This is accumulation, not churn: nothing is released
+between scenarios. Extrapolating, ~5000 scenarios of this shape needs more than 768 MB,
+which matches the independent observation below.
+
+#### Cross-check against the external reproducer — 2026-08-04, machine A
+
+Their harness, unchanged, varying only the karate version:
+
+| variant | karate | `-Xmx` | scenarios | result |
+|---|---|---:|---:|---|
+| J (13 bound captures) | 2.0.10 | 768m | 5000 | heap pinned at 785,383K of 786,432K, ~760% CPU, killed at 10 min |
+| J | 2.1.2.RC1 | 768m | 5000 | **all passed, 1.96s** |
+| E (60 calls/scenario) | 2.1.2.RC1 | 768m | 500 | passed, 4.5s |
+| E | 2.1.2.RC1 | 768m | 2000 | passed, 7.5s |
+| E | 2.1.2.RC1 | 768m | 5000 | heap pinned at 99.8%, ~805% CPU, killed at 12 min |
+| E | 2.1.2.RC1 | **3g** | 5000 | **all passed, 8.8s** |
+
+Two conclusions, and they point in opposite directions — which is why both runs matter:
+the scope-nesting mechanism is gone on current main, and the call-result accumulation
+mechanism is not.
+
+*Baselines are shapes, not thresholds. Absolute numbers move with hardware and JDK; the
+linear trend and the ratios are what travel.*
 
 ---
 

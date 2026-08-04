@@ -28,10 +28,15 @@ package io.karatelabs.profiling;
  * workload should not be able to observe the measurement apparatus, only the shape of
  * the work it has been asked to do.
  *
- * @param threads   concurrency it will be driven at
- * @param mockUrl   base URL of the sibling mock JVM, or null when {@code needsMock()} is false
+ * @param threads    concurrency it will be driven at — or, for a workload that
+ *                   {@link Workload#drivesOwnConcurrency() drives itself}, the concurrency it
+ *                   should apply internally
+ * @param iterations total iterations requested, or -1 for a duration-bounded run. Only
+ *                   meaningful to a self-driving workload, which decides what an "iteration"
+ *                   means for it (a scenario, say, rather than a feature execution)
+ * @param mockUrl    base URL of the sibling mock JVM, or null when {@code needsMock()} is false
  */
-public record WorkloadContext(int threads, String mockUrl) {
+public record WorkloadContext(int threads, long iterations, String mockUrl) {
 
     /** Fails loudly rather than letting a workload silently build requests against "null/path". */
     public String requireMockUrl() {
