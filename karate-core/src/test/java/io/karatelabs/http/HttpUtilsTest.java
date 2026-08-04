@@ -131,8 +131,21 @@ class HttpUtilsTest {
         assertEquals(toml, HttpUtils.fromString(toml, false, ResourceType.TEXT));
         assertEquals(toml, HttpUtils.fromString(toml, false, ResourceType.HTML));
         assertEquals(toml, HttpUtils.fromString(toml, false, ResourceType.fromContentType("application/toml")));
-        // with no content-type at all there is nothing to believe, so the guess stands (V1 compatibility)
-        assertEquals(List.of("agent"), HttpUtils.fromString(toml, false, null));
+        // with no content-type there is nothing to believe, but the guess still has to cover the
+        // WHOLE body - the lenient parser used to stop after "[agent]" and hand back a one-element list
+        assertEquals(toml, HttpUtils.fromString(toml, false, null));
+    }
+
+    @Test
+    void testNdJsonIsNotTruncatedToItsFirstLine() {
+        // newline-delimited json is not one json document, and the lenient parser silently kept
+        // only the first line - the whole body has to survive as a string so it can be split
+        String ndJson = "{\"id\":0}\n{\"id\":1}\n{\"id\":2}\n";
+        assertEquals(ndJson, HttpUtils.fromString(ndJson, false, ResourceType.JSON));
+        assertEquals(ndJson, HttpUtils.fromString(ndJson, false, null));
+        assertEquals(ndJson, HttpUtils.fromString(ndJson, false, ResourceType.fromContentType("application/x-ndjson")));
+        // and the leniency that a json content-type does buy is untouched
+        assertEquals(Map.of("a", 1), HttpUtils.fromString("{a:1,}", false, ResourceType.JSON));
     }
 
     @Test

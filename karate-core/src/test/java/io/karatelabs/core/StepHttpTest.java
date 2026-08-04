@@ -1480,4 +1480,21 @@ class StepHttpTest {
         assertPassed(sr);
     }
 
+    @Test
+    void testNdJsonResponseStaysAString() {
+        // newline-delimited json is served as application/json by the likes of httpbin /stream/N,
+        // and the lenient parser used to keep only the first line - the rest vanished silently
+        InMemoryHttpClient client = new InMemoryHttpClient(req ->
+                HttpResponse.json("{ \"id\": 0 }\n{ \"id\": 1 }\n{ \"id\": 2 }\n"));
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test/stream/3'
+            * method get
+            * def lines = response.split('\\n').filter(line => line)
+            * match lines.length == 3
+            * match karate.get('responseType') == 'string'
+            """);
+        assertPassed(sr);
+    }
+
 }

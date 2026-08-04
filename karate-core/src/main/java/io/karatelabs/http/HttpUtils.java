@@ -25,6 +25,7 @@ package io.karatelabs.http;
 
 import io.karatelabs.common.*;
 import net.minidev.json.JSONValue;
+import net.minidev.json.parser.JSONParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +45,11 @@ public class HttpUtils {
 
     public static final byte[] ZERO_BYTES = new byte[0];
     public static final int MEGABYTE = 1024 * 1024;
+
+    // the lenient guess (unquoted keys, single quotes, trailing commas) minus the one thing
+    // that makes it lie: minidev otherwise stops at the first complete value and discards the
+    // rest, so NDJSON arrives as its first line and the caller never learns the body was more
+    private static final int LENIENT_WHOLE_DOCUMENT = JSONParser.MODE_PERMISSIVE & ~JSONParser.ACCEPT_TAILLING_DATA;
 
     public enum Method {
 
@@ -220,8 +226,9 @@ public class HttpUtils {
                 }
                 // only when the content-type is JSON, or absent and we have to guess (V1 compatibility)
                 try {
-                    Object parsed = JSONValue.parseKeepingOrder(raw);
-                    // JSONValue returns null for invalid JSON instead of throwing
+                    Object parsed = new JSONParser(LENIENT_WHOLE_DOCUMENT)
+                            .parse(raw, JSONValue.defaultReader.DEFAULT_ORDERED);
+                    // the parser returns null for invalid JSON instead of throwing
                     return parsed != null ? parsed : raw;
                 } catch (Exception e) {
                     logger.trace("failed to parse json: {}", e.getMessage());
