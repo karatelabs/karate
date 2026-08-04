@@ -200,9 +200,10 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
             return false;
         });
         engine.put("headerValue", (JavaInvokable) a ->
-            currentRequest != null && a.length > 0 ? currentRequest.getHeader(a[0] + "") : null);
+            currentRequest != null && a.length > 0
+                ? markRequestDerived(runtime, currentRequest.getHeader(a[0] + "")) : null);
         engine.put("paramValue", (JavaInvokable) a ->
-            currentRequest != null ? currentRequest.getParam(a[0] + "") : null);
+            currentRequest != null ? markRequestDerived(runtime, currentRequest.getParam(a[0] + "")) : null);
         engine.put("paramExists", (JavaInvokable) a -> {
             if (currentRequest == null) return false;
             List<String> values = currentRequest.getParamValues(a[0] + "");
@@ -216,13 +217,13 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
             if (path.startsWith("/")) {
                 // XPath for XML
                 if (body instanceof Node) {
-                    return Xml.getTextValueByPath((Node) body, path);
+                    return markRequestDerived(runtime, Xml.getTextValueByPath((Node) body, path));
                 }
                 return null;
             } else {
                 // JsonPath for JSON
                 try {
-                    return JsonPath.read(body, path);
+                    return markRequestDerived(runtime, JsonPath.read(body, path));
                 } catch (Exception e) {
                     logger.debug("bodyPath evaluation failed: {}", e.getMessage());
                     return null;
@@ -237,9 +238,9 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         engine.put("requestBytes", (JsLazy) () ->
             currentRequest != null ? currentRequest.getBody() : null);
         engine.put("requestPath", (JsLazy) () ->
-            currentRequest != null ? currentRequest.getPath() : null);
+            currentRequest != null ? markRequestDerived(runtime, currentRequest.getPath()) : null);
         engine.put("requestUri", (JsLazy) () ->
-            currentRequest != null ? currentRequest.getPathRaw() : null);
+            currentRequest != null ? markRequestDerived(runtime, currentRequest.getPathRaw()) : null);
         engine.put("requestUrlBase", (JsLazy) () ->
             currentRequest != null ? currentRequest.jsGet("urlBase") : null);
         engine.put("requestMethod", (JsLazy) () ->

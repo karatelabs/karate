@@ -119,6 +119,12 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     // (and the guard below is free) for ordinary execution. See markRequestDerived / isRequestDerived.
     private final java.util.Set<Object> requestDerived =
             java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+    // Identity alone is not enough: a step that *extracts* a scalar out of the request
+    // (`request.foo`, `bodyPath('$.foo')`, `headerValue('x')`) yields a String that was never
+    // in the set above. So untrusted strings are additionally tracked by value. Only strings
+    // that could actually be evaluated (they contain `#(`) are kept, which is why this set is
+    // empty for every ordinary request and the lookup below costs nothing.
+    private final java.util.Set<String> requestDerivedStrings = new java.util.HashSet<>();
     // When true a mock evaluates request-derived embedded expressions (the pre-fix behavior) -
     // opt-in only, since it re-opens the injection surface. Defaults to off (request data is data).
     private boolean requestExpressionsEnabled;
@@ -1426,11 +1432,16 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         if (!requestDerived.isEmpty()) {
             requestDerived.clear();
         }
+        if (!requestDerivedStrings.isEmpty()) {
+            requestDerivedStrings.clear();
+        }
     }
 
     /**
      * Deep-mark a value (and every nested Map/List) as having originated from an untrusted HTTP
      * request, so {@code processEmbeddedExpressions} will leave its {@code #(...)} strings inert.
+     * Containers are marked by identity; strings that carry an embedded expression are also
+     * remembered by value, so they stay inert after a step extracts them out of the container.
      */
     public void markRequestDerived(Object value) {
         if (value instanceof Map<?, ?> map) {
@@ -1445,12 +1456,20 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                     markRequestDerived(v);
                 }
             }
+        } else if (value instanceof String str) {
+            if (str.contains("#(")) { // the only strings processEmbeddedString would ever evaluate
+                requestDerivedStrings.add(str);
+            }
         }
     }
 
     /** True if the value was marked by {@link #markRequestDerived}. Free when nothing is marked. */
     public boolean isRequestDerived(Object value) {
-        return !requestDerived.isEmpty() && requestDerived.contains(value);
+        if (!requestDerived.isEmpty() && requestDerived.contains(value)) {
+            return true;
+        }
+        return !requestDerivedStrings.isEmpty()
+                && value instanceof String str && requestDerivedStrings.contains(str);
     }
 
     /**

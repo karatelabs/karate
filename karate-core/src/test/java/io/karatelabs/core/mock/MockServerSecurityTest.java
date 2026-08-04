@@ -45,6 +45,11 @@ import static org.junit.jupiter.api.Assertions.*;
  *   <li>request-derived data is treated as inert data ({@code requestExpressionsEnabled});</li>
  *   <li>Java interop is disabled ({@code javaBridgeEnabled}).</li>
  * </ul>
+ *
+ * <p>The first protection has to survive <em>extraction</em>: a mock that reads a scalar out of
+ * the request ({@code request.poc}, {@code bodyPath('$.poc')}, {@code headerValue('x')}) and
+ * places it into a JS-built object hands the runtime a value the request container never held,
+ * so marking containers by identity alone is not enough — see the extraction tests below.
  */
 class MockServerSecurityTest {
 
@@ -128,5 +133,73 @@ class MockServerSecurityTest {
     void testJavaPayloadEvaluatesWithBothOptedInViaBuilder() {
         MockServer server = echoMock(null).javaBridgeEnabled(true).requestExpressionsEnabled(true).start();
         assertEquals(JAVA_VERSION, roundTrip(server, JAVA_EXPR));
+    }
+
+    // ---- extraction: a scalar pulled out of the request is a different object than the container ----
+
+    /** A mock that builds its response in JS from a value it read out of the request. */
+    private MockServer.Builder extractMock(String reader, String configure) {
+        String feature = "Feature: echo\n"
+                + (configure == null ? "" : "Background:\n" + configure + "\n")
+                + "Scenario: pathMatches('/echo')\n"
+                + "* def response = ({ poc: " + reader + " })\n";
+        return MockServer.featureString(feature).port(0);
+    }
+
+    @Test
+    void testExtractedBodyScalarInertByDefault() {
+        assertEquals(JS_EXPR, roundTrip(extractMock("request.poc", null).start(), JS_EXPR));
+    }
+
+    @Test
+    void testExtractedBodyPathScalarInertByDefault() {
+        assertEquals(JS_EXPR, roundTrip(extractMock("bodyPath('$.poc')", null).start(), JS_EXPR));
+    }
+
+    @Test
+    void testExtractedJavaPayloadInertByDefault() {
+        assertEquals(JAVA_EXPR, roundTrip(extractMock("request.poc", null).start(), JAVA_EXPR));
+    }
+
+    @Test
+    void testExtractedBodyScalarEvaluatedWhenOptedIn() {
+        MockServer server = extractMock("request.poc", "* configure requestExpressionsEnabled = true").start();
+        assertEquals(2, roundTrip(server, JS_EXPR));
+    }
+
+    /** A header the attacker controls, read back out with headerValue(). */
+    @Test
+    void testExtractedHeaderInertByDefault() {
+        MockServer server = extractMock("headerValue('x-poc')", null).start();
+        try {
+            HttpResponse res = new HttpRequestBuilder(client)
+                    .url(server.getUrl()).path("/echo").method("POST")
+                    .header("x-poc", JS_EXPR)
+                    .body(Map.of("ignored", true))
+                    .invoke();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> echoed = (Map<String, Object>) res.getBodyConverted();
+            assertEquals(JS_EXPR, echoed.get("poc"));
+        } finally {
+            server.stopAsync();
+        }
+    }
+
+    /** A query parameter the attacker controls, read back out with paramValue(). */
+    @Test
+    void testExtractedParamInertByDefault() {
+        MockServer server = extractMock("paramValue('poc')", null).start();
+        try {
+            HttpResponse res = new HttpRequestBuilder(client)
+                    .url(server.getUrl()).path("/echo").method("POST")
+                    .param("poc", JS_EXPR)
+                    .body(Map.of("ignored", true))
+                    .invoke();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> echoed = (Map<String, Object>) res.getBodyConverted();
+            assertEquals(JS_EXPR, echoed.get("poc"));
+        } finally {
+            server.stopAsync();
+        }
     }
 }
