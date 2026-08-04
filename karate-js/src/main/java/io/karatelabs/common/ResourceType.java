@@ -47,7 +47,11 @@ public enum ResourceType {
     WOFF2("application/font-woff2", vals("woff2"), vals("woff2")),
     MULTIPART("multipart/form-data", vals("multipart"), vals()),
     URLENCODED("application/x-www-form-urlencoded", vals("urlencoded"), vals()),
-    BINARY("application/octet-stream", vals("octet"), vals());
+    BINARY("application/octet-stream", vals("octet"), vals()),
+    CSV("text/csv", vals("csv"), vals("csv")),
+    YAML("application/yaml", vals("yaml", "yml"), vals("yaml", "yml")),
+    TOML("application/toml", vals("toml"), vals("toml")),
+    MARKDOWN("text/markdown", vals("markdown"), vals("md", "markdown"));
 
     private static String[] vals(String... values) {
         return values;

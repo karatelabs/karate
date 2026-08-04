@@ -130,6 +130,7 @@ class HttpUtilsTest {
         String toml = "[agent]\n\tinterval = \"1s\"\n\tround_interval = true\n\n[[processors.date]]\n\torder=1";
         assertEquals(toml, HttpUtils.fromString(toml, false, ResourceType.TEXT));
         assertEquals(toml, HttpUtils.fromString(toml, false, ResourceType.HTML));
+        assertEquals(toml, HttpUtils.fromString(toml, false, ResourceType.fromContentType("application/toml")));
         // with no content-type at all there is nothing to believe, so the guess stands (V1 compatibility)
         assertEquals(List.of("agent"), HttpUtils.fromString(toml, false, null));
     }

@@ -209,7 +209,7 @@ public class HttpResponse implements ObjectLike {
      */
     private static String applyCharset(ResourceType type) {
         return switch (type) {
-            case TEXT, HTML, XML, JSON, JS, CSS -> type.contentType + "; charset=UTF-8";
+            case TEXT, HTML, XML, JSON, JS, CSS, CSV, YAML, TOML, MARKDOWN -> type.contentType + "; charset=UTF-8";
             default -> type.contentType;
         };
     }
