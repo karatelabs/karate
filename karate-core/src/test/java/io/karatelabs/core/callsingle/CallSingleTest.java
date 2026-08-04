@@ -974,6 +974,179 @@ class CallSingleTest {
         assertTrue(result.isPassed(), "repro 2913: " + getFailureMessage(result));
     }
 
+    @Test
+    void testCallSingleFailureFromConfigStillAttachesForVisibility() throws Exception {
+        // A callSingle invoked during karate-config.js resolution that FAILS. The config
+        // exception aborts ScenarioRuntime construction, so no step ever runs and the whole
+        // runtime (with the called feature's FeatureResult buffered on its executor) is
+        // discarded - the report collapses to one "Scenario execution failed: ..." line.
+        // The called feature's steps and HTTP traffic must survive into the report.
+        Path nestedFeature = tempDir.resolve("nested.feature");
+        Files.writeString(nestedFeature, """
+            Feature: nested feature that fails
+            Scenario: fails on the last step
+            * def a = 1
+            * def b = 2
+            * match a == b
+            """);
+
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+            function fn() {
+                var setup = karate.callSingle('nested.feature');
+                return {};
+            }
+            """);
+
+        Path mainFeature = tempDir.resolve("main.feature");
+        Files.writeString(mainFeature, """
+            Feature: main
+            Scenario: trivial
+            * def x = 1
+            * match x == 1
+            """);
+
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.builder()
+                .path(mainFeature.toString())
+                .workingDir(tempDir)
+                .configDir(configJs.toString())
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1));
+
+        assertTrue(result.isFailed(), "callSingle failing during config should fail the scenario");
+
+        StepResult callingStep = findStepWithCallResults(result);
+        assertNotNull(callingStep,
+                "config-time callSingle failure should still attach its FeatureResult so the nested "
+                        + "steps are visible in the report");
+        FeatureResult attached = callingStep.getCallResults().get(0);
+        assertTrue(attached.isFailed());
+        assertEquals("nested.feature", attached.getFeature().getResource().getRelativePath());
+        // the whole point: per-step detail of the called feature, not one collapsed message
+        assertEquals(3, attached.getScenarioResults().get(0).getStepResults().size());
+    }
+
+    @Test
+    void testConfigJsWithHelperFunctionBeforeFnIsNotSilentlySkipped() throws Exception {
+        // karate-config.js declaring a helper alongside fn() is not a single parenthesizable
+        // expression, so the "(" + js + ")" wrap fails to parse and evaluation falls back to a
+        // plain eval that only DECLARES the functions - fn() is never invoked. Config silently
+        // returns nothing: variables are missing and any failure inside fn() disappears.
+        Path nestedFeature = tempDir.resolve("nested.feature");
+        Files.writeString(nestedFeature, """
+            Feature: nested
+            Scenario:
+            * def token = 'from-nested'
+            """);
+
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+            function setupCallSingle() {
+                return karate.callSingle('nested.feature');
+            }
+            function fn() {
+                var setup = setupCallSingle();
+                return { token: setup.token };
+            }
+            """);
+
+        Path mainFeature = tempDir.resolve("main.feature");
+        Files.writeString(mainFeature, """
+            Feature: main
+            Scenario: uses config
+            * match token == 'from-nested'
+            """);
+
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.builder()
+                .path(mainFeature.toString())
+                .workingDir(tempDir)
+                .configDir(configJs.toString())
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1));
+
+        assertTrue(result.isPassed(), "fn() must be invoked even when a helper is declared beside it: "
+                + getFailureMessage(result));
+    }
+
+    @Test
+    void testConfigJsWithHelperFunctionDoesNotSwallowCallSingleFailure() throws Exception {
+        // The visible symptom of fn() never being invoked: fn() returns {} anyway, so nothing looks
+        // missing and a callSingle failure inside it disappears entirely - the run passes instantly.
+        Path failFeature = tempDir.resolve("fail.feature");
+        Files.writeString(failFeature, """
+            Feature: failing setup
+            Scenario:
+            * def x = karate.fail('boom')
+            """);
+
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+            function setupCallSingle() {
+                return karate.callSingle('fail.feature');
+            }
+            function fn() {
+                var setup = setupCallSingle();
+                return {};
+            }
+            """);
+
+        Path mainFeature = tempDir.resolve("main.feature");
+        Files.writeString(mainFeature, """
+            Feature: main
+            Scenario: trivial
+            * def x = 1
+            """);
+
+        SuiteResult result = LogSilencer.silenced("karate.runtime", () -> Runner.builder()
+                .path(mainFeature.toString())
+                .workingDir(tempDir)
+                .configDir(configJs.toString())
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1));
+
+        assertTrue(result.isFailed(), "a callSingle failure inside a helper-invoking fn() must not vanish");
+        // and the nested detail must survive, same as the direct-in-fn() case
+        StepResult callingStep = findStepWithCallResults(result);
+        assertNotNull(callingStep, "the swallowed failure should now carry its nested FeatureResult");
+        assertTrue(callingStep.getCallResults().get(0).isFailed());
+    }
+
+    @Test
+    void testConfigJsDeclaringOnlyHelpersContributesNoVariables() throws Exception {
+        // A config that declares helpers but no fn() returns nothing. It must not spread the
+        // function object's own properties (a JS function IS an object) into scope as variables.
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+            function helperOne() { return 1; }
+            function helperTwo() { return 2; }
+            """);
+
+        Path mainFeature = tempDir.resolve("main.feature");
+        Files.writeString(mainFeature, """
+            Feature: main
+            Scenario: no config variables leaked
+            * def x = 1
+            * match x == 1
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(mainFeature.toString())
+                .workingDir(tempDir)
+                .configDir(configJs.toString())
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed(), getFailureMessage(result));
+    }
+
     private static StepResult findStepWithCallResults(SuiteResult result) {
         for (FeatureResult fr : result.getFeatureResults()) {
             for (ScenarioResult sr : fr.getScenarioResults()) {

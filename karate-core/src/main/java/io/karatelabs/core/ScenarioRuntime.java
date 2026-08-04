@@ -225,7 +225,13 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // still run fully so scenario outlines can resolve their example data (V1 parity).
         if (featureRuntime != null && featureRuntime.getSuite() != null && featureRuntime.isTopLevel()) {
             if (!isDryRunSkip()) {
-                evalConfig();
+                try {
+                    evalConfig();
+                } catch (Exception e) {
+                    // Do NOT let this escape the constructor — see configError. call() reports it.
+                    configError = e;
+                    return;
+                }
             }
         }
 
@@ -307,6 +313,14 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      *  {@link #evalConfig()} — exposed via {@link #getConfigVars()} so a caller can evaluate config
      *  STANDALONE and harvest it (the config sibling of {@code BootLoader.bootOnly}). */
     private final Map<String, Object> configVars = new java.util.LinkedHashMap<>();
+
+    /** Set when karate-base.js / karate-config.js / env-config evaluation threw during {@link #initEngine()},
+     *  instead of letting the exception escape the constructor. A constructor throw left {@link FeatureRuntime}
+     *  with no runtime reference, so everything the config phase had already buffered on this runtime — a
+     *  karate.call / karate.callSingle {@link FeatureResult} and its steps, HTTP traffic and log output — was
+     *  unreachable and the report collapsed to a single error line. {@link #call()} turns this into a failed
+     *  step that carries those buffers. */
+    private Throwable configError;
 
     /** The merged config-phase variables (base + config + env), populated during init when config is
      *  evaluated (a top-level scenario); empty otherwise. Used by {@code ConfigLoader.configOnly}. */
@@ -391,6 +405,20 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             if (parseFailed) {
                 // Self-invoking pattern: function fn() { ... } fn();
                 result = karate.engine.eval(resource);
+                // A helper declared alongside fn() is not a single parenthesizable expression, so the
+                // wrap above cannot parse it and this direct eval merely DECLARES both functions —
+                // nothing invokes fn(). Left alone, config silently contributes no variables and any
+                // failure inside fn() (a karate.callSingle that threw) vanishes without a trace.
+                // A trailing function declaration is what distinguishes this from the self-invoking
+                // pattern, whose eval yields the call's return value. Note the callable test must come
+                // first: a JS function IS an object, so it also satisfies `instanceof Map`. Look fn up
+                // by name rather than trusting the eval result, which is whichever declaration came last.
+                if (result instanceof JavaCallable) {
+                    Object declared = karate.engine.get("fn");
+                    // No fn() to invoke means the config only declared helpers and returned nothing —
+                    // yield null rather than spreading the function object's own properties as variables.
+                    result = declared instanceof JavaCallable callable ? callable.call(null) : null;
+                }
             } else if (fn instanceof JavaCallable callable) {
                 // It's a function definition - invoke it
                 result = callable.call(null);
@@ -1014,6 +1042,34 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             stopped = true;
             result.setAborted(true);
             result.setEndTime(System.currentTimeMillis());
+            restoreLogContext(loggingSnapshot, outerLogContext, nestedCall, outerRuntime);
+            return result;
+        }
+
+        // Config JS failed during init. Report it as a failed step on THIS scenario so everything
+        // the config phase produced survives into the report — above all the FeatureResult of a
+        // karate.call / karate.callSingle that failed, whose own steps and HTTP traffic are the
+        // only way to see WHICH call in a shared-setup chain broke. The config-time log and embeds
+        // were already replayed into the fresh LogContext above, so collecting here picks them up.
+        if (configError != null) {
+            long now = System.currentTimeMillis();
+            StepResult failure = StepResult.synthetic(
+                    "Scenario execution failed: " + configError.getMessage(), StepResult.Status.FAILED, now, configError);
+            LogContext ctx = LogContext.get();
+            failure.setLog(ctx.collect());
+            List<StepResult.Embed> configEmbeds = ctx.collectEmbeds();
+            if (configEmbeds != null) {
+                for (StepResult.Embed e : configEmbeds) {
+                    failure.addEmbed(e);
+                }
+            }
+            List<FeatureResult> configCallResults = executor.drainCallResults();
+            if (configCallResults != null && !configCallResults.isEmpty()) {
+                failure.setCallResults(configCallResults);
+            }
+            result.addStepResult(failure);
+            result.setEndTime(now);
+            stopped = true;
             restoreLogContext(loggingSnapshot, outerLogContext, nestedCall, outerRuntime);
             return result;
         }
