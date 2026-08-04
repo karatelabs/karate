@@ -6,6 +6,10 @@
 > tranches were settled.
 >
 > Written 2026-08-04. Line references verified against the tree at that date.
+>
+> **This document now carries the full Phase 6 design**, its sources, its measured numbers
+> and a review brief — enough to resume the work cold in a new session without re-deriving
+> anything. Start at [Resuming in a new session](#resuming-in-a-new-session).
 
 ---
 
@@ -76,7 +80,9 @@ wrong mechanism.
 
 ---
 
-## Phase 1 — The module
+## Phase 1 — The module ✅ DONE (2026-08-04)
+
+> Built and committed (`359916a2c`). Checklist kept as the record of what each decision was for.
 
 ```
 karate-profiling/
@@ -172,7 +178,9 @@ profiling mode, median-of-N rather than mean.
 
 ---
 
-## Phase 2 — `JfrDigest`
+## Phase 2 — `JfrDigest` ✅ DONE (2026-08-04)
+
+> Built. The heap-dump histogram panel was deliberately **not** implemented — no JDK API or CLI reads an `.hprof`; the digest points at Eclipse MAT instead.
 
 `jdk.jfr.consumer.RecordingFile` for everything JFR-sourced. Panels, in order:
 
@@ -204,7 +212,9 @@ Output must be stable-sectioned so two digests diff cleanly.
 
 ---
 
-## Phase 3 — First-cut workloads
+## Phase 3 — First-cut workloads ✅ PARTIALLY DONE (2026-08-04)
+
+> `harness-smoke`, `scope-capture-bound`/`-unbound`, `call-accumulation` and `Probe` are built and committed (`0b1f8e370`). **The leak-watch family is NOT built** — still open, see below.
 
 - [ ] `scope-capture-bound` / `scope-capture-unbound` — native re-implementation of the
       reporter's J/K variants. 13 sequential bare `karate.call()`s over a ~100-record base
@@ -270,74 +280,260 @@ real, and it is the one still worth fixing.
 
 ---
 
-## Phase 5 — The fix (RETARGETED)
+## Phase 5 — Retention fix, part 1 ✅ DONE (2026-08-04)
 
-> The original plan here was copy-on-first-change in
-> `StepExecutor.processEmbeddedExpressions`. **Phase 4 removed its justification**: without
-> scope nesting the copy is linear in the value's own size, not geometric. It remains a
-> genuine inefficiency — an unconditional deep copy of every Map/List-valued `def`, with no
-> check for whether a `#(...)` is present — but it is an optimisation, not an OOM fix, and
-> it should be argued on allocation numbers rather than on this issue. The analysis is kept
-> under [Deferred](#deferred) so it is not re-derived.
+Three commits landed. All of karate-core is green (2483 tests).
 
-The target is the append-only retention chain, every link of which grows without bound:
+| Commit | What |
+|---|---|
+| `3ffda3fc7` | `HtmlReportListener` stops retaining the full `toJson()` per feature; all three report listeners extract/serialize synchronously instead of racing an async read; `retainCallResults` flag + `CallResultReleaseTest` |
+| `596d14155` | Nested call results released at **scenario** end when no listener will read them |
 
-```
-SuiteResult.featureResults        SuiteResult.java:37   synchronizedList, whole-run lifetime
-  └─ FeatureResult
-       └─ ScenarioResult.stepResults      ScenarioResult.java:43   ArrayList, append-only
-            └─ StepResult.callResults     StepResult.java:48       List<FeatureResult>
-```
+**Measured, machine A, `call-accumulation`, reports OFF, `-Xmx3g`:**
 
-`StepResult.callResults` is commented "For call steps — called feature results (V1 style)".
-Every `karate.call()` retains the callee's entire result tree; nothing is released until
-the suite ends. At 60 calls × 5000 scenarios that is 300,000 nested trees live at once.
+| scenarios | before | after |
+|---:|---:|---:|
+| 500 | 343 MB | 209 MB |
+| 1000 | — | 299 MB |
+| 2000 | 859 MB | 272 MB |
+| 5000 @`-Xmx768m` | saturated, killed at 12 min | **233 MB, 5.3s** |
 
-Open question, to settle before writing code: **who actually consumes these?** They exist
-for nested call display in the HTML report. If that is the only consumer, then a run with
-reporting disabled has no reason to retain them at all — and the measured sweep above was
-taken with every output format off. Options, in rough order of appetite:
+External reproducer at `-Xmx768m` / 5000 scenarios / 16 threads: variants **C and E both go
+from saturated-and-killed to passing in under 7 s**. Variant J: 2.7 s.
 
-- [ ] Retain call results only when a consumer needs them (reporting on), drop otherwise.
-- [ ] Stream completed feature results to disk and release the in-memory tree, keeping
-      only the counts `SuiteResult` needs for its summary.
-- [ ] Bound the depth or breadth of retained nested call results.
-
-- [ ] Whatever is chosen, re-run the `call-accumulation` sweep and require the peak-heap
-      line to go flat. A single run cannot show this — the trend is the test.
+**What is NOT fixed: reports ON.** The release is gated on
+`Suite.canReleaseCallResultsAtScenarioEnd()` (`Suite.java:1148-1150`) which returns false
+whenever any `ResultListener` is registered — and HTML is one by default. Reports-ON peak
+heap is still linear: ~1330 MB @500, ~2550 MB @2000 (`-Xmx3g`). That is Phase 7.
 
 ---
 
-## Phase 6 — Prove it
+## Phase 6 — Bounded-memory reporting (THE NEXT WORK)
 
-- [ ] Re-run the `call-accumulation` sweep at 250 / 500 / 1000 / 2000 scenarios; the
-      peak-heap line must go flat instead of rising ~143 KB per scenario.
-- [ ] Confirm the external reproducer's E variant passes 5000 scenarios at `-Xmx768m`.
-- [ ] `leak-watch --duration 10m` before and after — the heap-after-GC floor must be flat
-      in both. The fix must not have introduced retention.
-- [ ] Update the runbook's baseline table.
+**Goal: peak memory O(concurrent scenarios), not O(suite size), with HTML + Cucumber +
+JUnit + JSONL all enabled.**
+
+### Why the obvious answer is wrong
+
+v1's design was: write every format at feature completion, keep only a `File` handle,
+rehydrate from disk for the summary. Verified: `Suite.saveFeatureResults`
+(v1 `Suite.java:264-279`) → `ReportUtils.saveKarateJson` + per-feature HTML render +
+cucumber + junit, all synchronous; only `Set<File> featureResultFiles` (v1 `Suite.java:85`)
+survives; `getFeatureResults()` (v1 `Suite.java:315-319`) returns a `Stream` that
+deserializes one file at a time; `Results` keeps counters + `List<String> errors` +
+`List<Map>` summary rows (v1 `Results.java:45-54, 60-107`). Design intent is stated in v1
+commit `93562156a`.
+
+**But v1 bounded memory per *feature*, not per scenario.** `FeatureRuntime.processScenario`
+does `result.addResult(sr.result)` (v1 `FeatureRuntime.java:190-197`) with no per-scenario
+release anywhere; the only `callResults = null` (v1 `ScenarioRuntime.java:540`) is the
+per-step buffer reset. So **v1 would fail this benchmark too** — one Scenario Outline with
+N rows means feature-end *is* run-end. Copying v1 as-is fixes nothing here.
+
+Also note v1 wrote embed bytes to disk at capture time and held only a `File`
+(v1 `ScenarioRuntime.java:166-170`, `Embed.java:39-45`). v2 holds `byte[]` in memory.
+
+### The design
+
+**Spill unit: the scenario. Spill file: one temp file per IN-FLIGHT feature, deleted once
+that feature's outputs are written.** Nothing accumulates on disk; concurrently-open files
+track concurrent features.
+
+1. **At scenario end**, after listeners have seen the live object — same seam as today's
+   `releaseCallResultsIfUnwatched` (`FeatureRuntime.java:374-377, 388-392`; note
+   `SCENARIO_EXIT` fires earlier still, inside `ScenarioRuntime.java:1224-1234`) —
+   serialize the already-redacted scenario record, append it to the in-flight feature's
+   temp spill file, then **unconditionally strip** from the retained skeleton:
+   `callResults`, per-step `log`, binary embed `byte[]`. The listener gate goes away.
+2. **Retained in memory:** `FeatureResult`/`ScenarioResult`/`StepResult` skeletons (status,
+   timing, `Step` ref, failure `Throwable`) plus small per-scenario summary rows for the
+   suite-end pages, **built directly** — never via full `toJson()`-then-prune.
+3. **At feature end:** assemble the per-feature HTML page, Cucumber JSON, JUnit XML and
+   (if enabled) JSONL `FEATURE_EXIT` by streaming the temp file's records back in
+   `compareTo` order (`ScenarioResult.java:437-463`) via an in-memory offset index. Write
+   outputs, delete the temp file.
+4. **At suite end:** summary + timeline from the retained summary rows only. Verified
+   sufficient: `buildFeatureSummaryList` and `buildTimelineData` read feature identity /
+   status / duration and per-scenario name, refId, passed, skipped, duration, tags,
+   start/end, executorName — and never touch `stepResults`.
+5. **`SuiteResult.toJson()` becomes summary-only.** This also fixes a real bug:
+   `SuiteRunEvent.java:61` returns `result.toJson()` for SUITE_EXIT, which at
+   `SuiteResult.java:159-160` serializes **every feature in full** — duplicating every
+   FEATURE_EXIT payload and contradicting DESIGN.md:590's "heavy payload lands exactly
+   once" rule.
+6. **Public JSONL stays an opt-in product surface fed from the spill** — never *becomes*
+   the spill. It is a frozen public schema (schemaVersion 1) consumed by IDEs/exts; an
+   internal memory mechanism must not be coupled to it. There is currently **no reader** of
+   `karate-events.jsonl` anywhere in the repo — `HtmlReportWriter.writeReports`' comment
+   about "both JSON Lines and SuiteResult paths" is aspirational; its only caller is
+   `write(SuiteResult…)` (`HtmlReportWriter.java:134-151`), which has no production callers.
+
+### Six amendments — all load-bearing, all verified
+
+1. **Spill record = scenario `toJson()` + a stack-trace field on failed steps.** JUnit
+   renders `getStackTrace(sr.getError())` (`JunitXmlWriter.java:289-295, 322-325`) but
+   `StepResult.toJson()` emits only `error.getMessage()` (`StepResult.java:246-248`).
+   Without this every JUnit failure silently loses its stack.
+2. **Hold the last-completed scenario live until feature end, and assemble by MERGING**
+   spill records with any in-memory result that was never spilled. Two reasons, both
+   verified: `invokeAfterFeatureHook` (`FeatureRuntime.java:214-216`) on failure calls
+   `appendHookFailure` (`:502-507`) which does `addStepResult` + `setEndTime` on the
+   last-executed scenario **after** it was spilled and stripped; and synthetic
+   iteration-error scenarios are created at feature level (`FeatureRuntime.java:209-210`,
+   `:287-291`) and never pass through the scenario seam at all.
+3. **Exempt JSON-mime embed parts from the strip.** They are deliberately kept inline
+   (`HtmlReportWriter.java:245-247`) as the structured-evidence carrier for exts
+   (`openapi-match`, `grpc-match` — DESIGN.md:598). Blanket-nulling embed bytes breaks
+   those pipelines silently. Strip **binary** parts only, after externalising.
+4. **Cucumber must read externalised embed bytes back from `embeds/`.** It inlines base64
+   today and skips data-less parts (`CucumberJsonWriter.java:358-370`); it also walks
+   `getCallResults()` for synthetic call steps (`:253`) and base64s step logs (`:345-352`).
+   Ships in the same commit as the embed change or Cucumber output regresses invisibly.
+5. **Build `FEATURE_EXIT` by splicing pre-serialized spill strings** into the envelope —
+   never materialize the feature as one Map and `Json.stringifyStrict` it. That whole-feature
+   String is one of the transients being removed. In-process `RunListener`s receiving the
+   event see a skeleton; hydrate from spill on demand if `toJson()` is called.
+6. **"O(threads) temp files" is a SOFT bound.** `Suite.runParallel` submits one virtual
+   thread per feature immediately (`Suite.java:813-834`) against an unfair
+   `Semaphore(threadCount)` (`:809`), so worst case is O(features started − finished).
+   Mitigate with lazy file creation + open-append-close so *file descriptors* stay O(1);
+   bounding feature dispatch is optional hardening.
+
+### Rejected alternatives (do not re-derive)
+
+- **No spill, fully incremental writers.** Scenarios complete out of order and all three
+  writers guarantee `compareTo` order, so this needs an unbounded reorder buffer — the
+  memory problem reintroduced through the back door. Also `FEATURE_EXIT` would have no
+  whole-feature data, and a crash leaves syntactically broken output files per format.
+- **Persistent per-feature spill files (v1 style).** Rejected by the maintainer as file
+  explosion; the temp variant also cleanly avoids read-while-write, since all of a feature's
+  appends complete before assembly opens the file.
+- **One suite-wide spill file.** Considered; loses the write-then-read separation and gains
+  nothing once skeletons stay in memory.
+
+### Sequencing, with honest expected outcomes
+
+| # | Work | Expected effect on the benchmark |
+|---|---|---|
+| 1 | Remove transient giants: `HtmlReportListener.summaryJson`'s full-`toJson()`-then-prune (`HtmlReportListener.java:168-185`), the full page-model map held in the executor closure (`:130-145`), and the whole-feature Strings queued by the cucumber/junit listeners | reports-ON ~3026 MB → ~900 MB @2000. **Still linear** |
+| 2 | Embed externalisation: make `Part.data` non-final (`StepResult.java:374`), write bytes at capture or scenario end, null the array, move it out of `HtmlReportWriter` so it runs format-independently — **plus** amendment 4 | **Zero** on this benchmark (a 60-call workload has no embeds). Required spill-prep; bounds UI/driver suites |
+| 3 | Scenario spill + strip + merge-at-assembly (amendments 1, 2, 5, 6) | reports-ON goes **flat**, ~270 MB |
+| 4 | Summary-only `SuiteResult.toJson()` + the SUITE_EXIT duplication fix | Removes a second full serialization of the whole suite when JSONL is on |
+
+Empirical attribution for reports-ON retention (`--gc-roots`, 2000 scenarios, by allocating
+site): `StringUtils.formatRecurse` 57.5%, `HtmlReportWriter.buildFeatureData` 12.8%,
+`buildStepData` 12.2%, `inlineJson` 11.9%, `renderFeatureHtml` 4.7%. Read as a ranking, not
+as retained sizes — `OldObjectSample` weighting is a proxy.
+
+### What breaks, and the compat story
+
+- Custom `ResultListener.onFeatureEnd` sees a **stripped** result (logs, call trees, binary
+  embeds gone; statuses, timings, failure Throwables, JSON embeds intact). `onScenarioEnd`
+  still sees everything. Needs a loud MIGRATION_GUIDE entry.
+- `retainCallResults(true)` (`Runner.java:248, 523`) widens to mean "retain full detail" —
+  consider renaming to `retainResultDetail`.
+- `SuiteResult.getFeatureResults()` keeps returning real objects. `printSummary`
+  (`SuiteResult.java:216-275`), `getErrors()` (`:366-376`) and the junit6 bridge
+  (`JUnitBridgeListener.java:94`) read only skeleton fields — unaffected.
+- Tests asserting `getCallResults()` / step logs post-run flip to the retain flag;
+  `TestUtils.createTestSuite` already opts in.
+- `HtmlReportWriter.write(SuiteResult…)` would render hollow step detail — deprecate or gate
+  it rather than leave a public entry point producing empty reports.
+- Exclude `exampleData` from retained summary rows (it rides in via
+  `ScenarioResult.java:373-379`) or fat data-driven outlines re-inflate the accumulation.
+
+### Open questions for the next review
+
+- **Mega-features.** Retained step skeletons are ~80 bytes each: 100k steps ≈ 8 MB (fine),
+  3M steps (50k generated scenarios × 60 steps) ≈ 240 MB (not fine). Proposal: keep
+  skeletons by default, add a flag to drop passed-step skeletons if it bites. Is that the
+  right call, or should summary rows replace skeletons outright from the start?
+- **Called-feature `FEATURE_EXIT` duplication.** `FeatureRuntime.java:222-224` fires the
+  event unguarded while `notifyListeners` is `isTopLevel()`-gated (`:152-161`), so a nested
+  call's tree goes on the wire twice — once as its own FEATURE_EXIT, once inside the
+  caller's `callResults`. Thin the payload for `callDepth > 0`, or document that consumers
+  filter? Decide while the schema is being touched.
+- **Per-feature HTML page for a mega-feature** is inherently enormous (all scenarios inlined
+  as JSON). Pagination is a product question, deliberately out of scope here.
+- **Disk-full / spill write failure** must degrade per scenario (keep that one un-stripped,
+  warn once), never fail the run.
+- **Orphan temp files** after a hard kill: put them under `outputDir/karate-json/` and sweep
+  stale ones at suite start, reusing the existing backup/truncate flow (`Suite.java:1033-1051`).
 
 ---
 
-## Verification
+## Phase 7 — Prove it
 
-1. `mvn -q install -DskipTests` — module builds, joins the reactor cleanly.
-2. `etc/run.sh --list` — catalogue prints with descriptions.
-3. `etc/run.sh leak-callonce --iterations 50` — smoke: parent forks mock and child, port
-   handshake works, all artifacts appear, both children are gone afterwards.
-4. Kill the parent mid-run (Ctrl-C) — confirm no orphan mock or workload JVM survives.
-5. `etc/run.sh scope-capture-bound` — expect saturation and OOM; confirm `heapdump.hprof`
-   is written, **`run.jfr` is non-empty and readable**, and the digest's allocation panel
-   names `processEmbeddedExpressions`.
-6. `etc/run.sh scope-capture-unbound` — expect completion at a fraction of peak heap. The
-   gap between 5 and 6 is the reproduction.
-7. Cross-check once against the reporter's reproducer (Phase 3).
-8. `etc/run.sh scope-capture-bound --gc zgc` — reproduces under the reporter's collector;
-   confirm `run-meta.txt` records what `zgc` expanded to on this JDK.
-9. Apply the fix; re-run 5 and 6.
-10. `mvn test` across all modules green.
-11. `etc/run.sh leak-watch --duration 10m` before and after.
-12. Record every number from 5, 6, 9 and 11 in the runbook, with machine and child JDK.
+- [ ] `call-accumulation` sweep at 500 / 1000 / 2000 scenarios with **reports ON**: the
+      peak-heap line must go flat, matching the reports-OFF curve (~270 MB @2000).
+- [ ] Same sweep with reports OFF must not regress from its current 209 / 299 / 272 MB.
+- [ ] External reproducer variants C and E still pass at `-Xmx768m` / 5000 scenarios, with
+      **every** report format enabled (they currently run with reports off).
+- [ ] A run with HTML + Cucumber + JUnit + JSONL all on produces byte-identical report
+      content to a pre-change run of the same suite — the whole point is that only *when*
+      data is held changes, not *what* is reported.
+- [ ] `leak-watch --duration 10m` before and after — heap-after-GC floor flat in both.
+- [ ] `mvn test` across all modules green.
+- [ ] Update the runbook's baseline table with machine and child JDK.
+
+---
+
+## Running one more design review
+
+The Phase 6 design has already had two adversarial passes. Both changed it materially — the
+first established that v1 bounded per *feature* not per scenario (so copying v1 fixes
+nothing here), the second found two silent-data-loss defects (JUnit stack traces, the
+`appendHookFailure` mutation). A third pass should be aimed at what those two did **not**
+cover, or it will just re-derive them.
+
+Paste this as the brief:
+
+> Review the Phase 6 design in `docs/PROFILING_PLAN.md` (repo `/Users/peter/dev/zcode/karate`;
+> v1 for comparison at `/Users/peter/dev/ycode/karate`). The design and every code citation
+> in it are in that document — verify the citations rather than trusting them. Two prior
+> reviews already established: (a) v1 bounded memory per feature, not per scenario; (b) the
+> six amendments listed. Do not re-litigate those; attack what they missed.
+>
+> Specifically:
+> 1. **Correctness of the strip.** Walk every consumer of `StepResult.log`,
+>    `StepResult.callResults` and `Embed.Part.data` in karate-core, karate-junit6 and
+>    karate-gatling. Is there any reader between scenario end and suite end that the design
+>    does not account for? Include `@report=false`, `continueOnStepFailure`, `@fail`, retry,
+>    driver teardown, `karate.abort()`, suite-abort, and the mock server.
+> 2. **Ordering and merge.** The design assembles a feature from spill records plus
+>    never-spilled in-memory results. Enumerate every way a `ScenarioResult` can reach a
+>    `FeatureResult` and confirm each is either spilled or merged. Outline expansion,
+>    dynamic `@setup` outlines, and called features are the likely gaps.
+> 3. **Concurrency.** Scenarios of one feature run on many virtual threads and append to one
+>    temp file. Specify the exact synchronization, and prove the offset index cannot be
+>    corrupted or interleaved. Consider a scenario failing mid-serialize.
+> 4. **Is the spill needed at all for HTML specifically?** HTML's per-feature page is one
+>    template + one inlined JSON blob. Could it be stream-spliced scenario-by-scenario at
+>    scenario end, removing HTML from the spill path entirely and leaving spill only for
+>    Cucumber/JUnit/JSONL? What would that cost in report fidelity?
+> 5. **Numbers.** The design predicts ~900 MB @2000 after step 1 and ~270 MB flat after
+>    step 3. Sanity-check those against the attribution table in Phase 6. If they are
+>    optimistic, say by how much and why.
+> 6. **Anything that makes this not worth doing** — a simpler change that gets most of the
+>    win, or a reason the whole approach is wrong.
+>
+> Be blunt, cite file:line, do not edit files.
+
+---
+
+## Resuming in a new session
+
+1. Read this file, then [PROFILING.md](./PROFILING.md) §6 for the current baseline numbers.
+2. Reproduce the starting point:
+   ```bash
+   cd karate-profiling
+   etc/run.sh call-accumulation --iterations 2000 --xmx 3g -Dkarate.profiling.reports=true
+   etc/run.sh call-accumulation --iterations 2000 --xmx 3g          # reports off, for contrast
+   ```
+   Expect ~2550 MB with reports on, ~272 MB with them off. The gap is Phase 7's target.
+3. Start at Phase 6 sequencing step 1 (transient giants). Each step is independently
+   verifiable — re-run the sweep after each and record it in the runbook before moving on.
+4. `mvn -o test -pl karate-core` must stay green (2483 tests) at every step.
 
 ---
 
