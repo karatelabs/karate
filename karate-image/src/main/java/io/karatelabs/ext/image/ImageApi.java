@@ -67,6 +67,15 @@ public class ImageApi implements SimpleObject {
     private static final Set<String> STRUCTURAL = Set.of("name", "latest", "baseline");
     private static final String[] IMAGE_EXTS = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
 
+    // reported only for the engines that actually ran; the raw one only when
+    // pixelmatch was asked for a cluster verdict (see perEngineDetail)
+    private static final String[] ENGINE_PERCENT_KEYS = {
+            ImageComparison.RESEMBLE_MISMATCH_PERCENT,
+            ImageComparison.SSIM_MISMATCH_PERCENT,
+            ImageComparison.PIXELMATCH_MISMATCH_PERCENT,
+            ImageComparison.PIXELMATCH_RAW_MISMATCH_PERCENT
+    };
+
     private final Map<String, Object> config;   // per-scenario copy of suite defaults
     private final KarateJsContext context;
 
@@ -173,24 +182,7 @@ public class ImageApi implements SimpleObject {
         }
         out.put("pass", pass);
         out.put("mismatchPercentage", pct);
-        if (r.containsKey(ImageComparison.RESEMBLE_MISMATCH_PERCENT)) {
-            out.put("resembleMismatchPercentage", num(r.get(ImageComparison.RESEMBLE_MISMATCH_PERCENT)));
-        }
-        if (r.containsKey(ImageComparison.SSIM_MISMATCH_PERCENT)) {
-            out.put("ssimMismatchPercentage", num(r.get(ImageComparison.SSIM_MISMATCH_PERCENT)));
-        }
-        if (r.containsKey(ImageComparison.PIXELMATCH_MISMATCH_PERCENT)) {
-            out.put("pixelmatchMismatchPercentage", num(r.get(ImageComparison.PIXELMATCH_MISMATCH_PERCENT)));
-        }
-        if (r.containsKey(ImageComparison.PIXELMATCH_RAW_MISMATCH_PERCENT)) {
-            out.put("pixelmatchRawMismatchPercentage", num(r.get(ImageComparison.PIXELMATCH_RAW_MISMATCH_PERCENT)));
-        }
-        if (r.containsKey(ImageComparison.PIXELMATCH_SUMMARY)) {
-            out.put("pixelmatchSummary", str(r.get(ImageComparison.PIXELMATCH_SUMMARY)));
-        }
-        if (r.containsKey(ImageComparison.PIXELMATCH_REGIONS)) {
-            out.put("pixelmatchRegions", r.get(ImageComparison.PIXELMATCH_REGIONS));
-        }
+        perEngineDetail(r, out);
         out.put("mismatch", mismatch);
         out.put("scaleMismatch", scaleMismatch);
         out.put("threshold", threshold);
@@ -207,6 +199,27 @@ public class ImageApi implements SimpleObject {
         }
         out.put("embed", embed(r, name, options, pass, baseline, latest, baselinePath, optionsPath));
         return out;
+    }
+
+    /**
+     * Copy whichever per-engine numbers the comparison actually produced onto a result
+     * or embed-meta map: one percentage per engine that ran, plus the cluster-verdict
+     * diagnostics when pixelmatch was asked for a verdict. The comparison keys are
+     * already the api key names, so they pass through unrenamed.
+     */
+    private static void perEngineDetail(Map<String, Object> r, Map<String, Object> out) {
+        for (String key : ENGINE_PERCENT_KEYS) {
+            if (r.containsKey(key)) {
+                out.put(key, num(r.get(key)));
+            }
+        }
+        if (r.containsKey(ImageComparison.PIXELMATCH_SUMMARY)) {
+            out.put(ImageComparison.PIXELMATCH_SUMMARY, str(r.get(ImageComparison.PIXELMATCH_SUMMARY)));
+        }
+        // significant-region bounding boxes; TODO draw them on the diff in the lightbox
+        if (r.containsKey(ImageComparison.PIXELMATCH_REGIONS)) {
+            out.put(ImageComparison.PIXELMATCH_REGIONS, r.get(ImageComparison.PIXELMATCH_REGIONS));
+        }
     }
 
     /**
@@ -243,25 +256,7 @@ public class ImageApi implements SimpleObject {
         meta.put("mismatch", Boolean.TRUE.equals(r.get("isMismatch")));
         meta.put("scaleMismatch", Boolean.TRUE.equals(r.get("isScaleMismatch")));
         meta.put("mismatchPercentage", num(r.get("mismatchPercentage")));
-        if (r.containsKey(ImageComparison.RESEMBLE_MISMATCH_PERCENT)) {
-            meta.put("resembleMismatchPercentage", num(r.get(ImageComparison.RESEMBLE_MISMATCH_PERCENT)));
-        }
-        if (r.containsKey(ImageComparison.SSIM_MISMATCH_PERCENT)) {
-            meta.put("ssimMismatchPercentage", num(r.get(ImageComparison.SSIM_MISMATCH_PERCENT)));
-        }
-        if (r.containsKey(ImageComparison.PIXELMATCH_MISMATCH_PERCENT)) {
-            meta.put("pixelmatchMismatchPercentage", num(r.get(ImageComparison.PIXELMATCH_MISMATCH_PERCENT)));
-        }
-        if (r.containsKey(ImageComparison.PIXELMATCH_RAW_MISMATCH_PERCENT)) {
-            meta.put("pixelmatchRawMismatchPercentage", num(r.get(ImageComparison.PIXELMATCH_RAW_MISMATCH_PERCENT)));
-        }
-        if (r.containsKey(ImageComparison.PIXELMATCH_SUMMARY)) {
-            meta.put("pixelmatchSummary", str(r.get(ImageComparison.PIXELMATCH_SUMMARY)));
-        }
-        // significant-region bounding boxes; TODO draw them on the diff in the lightbox
-        if (r.containsKey(ImageComparison.PIXELMATCH_REGIONS)) {
-            meta.put("pixelmatchRegions", r.get(ImageComparison.PIXELMATCH_REGIONS));
-        }
+        perEngineDetail(r, meta);
         meta.put("threshold", num(r.get("failureThreshold")));
         meta.put("defaultThreshold", num(r.get("defaultFailureThreshold")));
         if (r.get("engine") != null) {

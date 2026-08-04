@@ -122,9 +122,9 @@ reason: 'CORE'|'THIN_VIVID'}`) — in both the `diff()` result and the embed `me
 | `flatFraction` | 0.5 | Share of a thin cluster's pixels that must sit on flat baseline | Thin changes overlapping existing edges (e.g. text recolor) missed. | Noise straddling a flat area may be counted. |
 | `minThinArea` | 8 | Smallest thin cluster the safety net will consider | Small thin marks (a text caret is ~2x16 px) ignored → false negatives. | Isolated vivid speckles (dead pixels, dithering) counted → false positives. |
 
-Notes: `clusters` cannot be combined with ssim's `windowSize` option on the same call when
-both engines run (pixelmatch ignores `windowSize`; it belongs to ssim). The lightbox does
-not yet draw the significant-region boxes on the diff — the coordinates ride on the embed
+Engine options are per-engine and simply ignored by the others, so an engine combo can carry
+all of them on one call — `clusters` is pixelmatch's, `windowSize` is ssim's. The lightbox does
+not yet draw the significant-region boxes on the diff; the coordinates ride on the embed
 `meta` (`pixelmatchRegions`) for when it does.
 
 A runnable, readable walkthrough lives in

@@ -59,10 +59,6 @@ class ImageExtE2ETest {
             const image = boot.ext('image');
             image.report = 'mismatched';
             image.threshold = 0.1;
-            // no ssim: its default 11x11 window degenerates to ~0% difference on the
-            // tiny 3x3 fixtures here, short-circuiting the fallback chain
-            image.engine = 'resemble|pixelmatch';
-            image.clusters = true;
             """);
 
         Path feature = tempDir.resolve("report-mode.feature");
@@ -78,9 +74,7 @@ class ImageExtE2ETest {
             * match passing.pass == true
             * match passing.embed == null
 
-            # failing comparison (clusters off per-call: a single changed pixel is below
-            # minThinArea, so the suite-wide verdict would classify it as noise and pass)
-            * def failing = image.diff({ baseline: blue, latest: green, clusters: false })
+            * def failing = image.diff({ baseline: blue, latest: green })
             * match failing.pass == false
             * match failing.embed == '#notnull'
 
@@ -99,6 +93,45 @@ class ImageExtE2ETest {
                 .parallel(1);
 
         assertEquals(1, result.getScenarioPassedCount(), "report-mode scenario should pass");
+        assertEquals(0, result.getScenarioFailedCount());
+    }
+
+    @Test
+    void clusterVerdictFlowsFromBootConfig() throws Exception {
+        Files.writeString(tempDir.resolve("karate-boot.js"), """
+            const image = boot.ext('image');
+            image.engine = 'pixelmatch';
+            image.clusters = true;
+            image.threshold = 0.1;
+            """);
+
+        Path feature = tempDir.resolve("clusters.feature");
+        Files.writeString(feature, """
+            Feature: suite-wide cluster verdict
+
+            Scenario: the verdict reaches the engine from boot, and a call can opt out
+            * def blue = new Uint8Array(java.util.Base64.getDecoder().decode('%s'))
+            * def green = new Uint8Array(java.util.Base64.getDecoder().decode('%s'))
+
+            # one changed pixel is below minThinArea, so the verdict calls it noise
+            * def noise = image.diff({ baseline: blue, latest: green })
+            * match noise.pass == true
+            * match noise.mismatchPercentage == 0
+
+            # per-call clusters=false falls back to the raw count, which fails
+            * def raw = image.diff({ baseline: blue, latest: green, clusters: false })
+            * match raw.pass == false
+            * match raw.mismatchPercentage == noise.pixelmatchRawMismatchPercentage
+            * match raw.pixelmatchRawMismatchPercentage == '#notpresent'
+            """.formatted(BLUE, GREEN));
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertEquals(1, result.getScenarioPassedCount(), "cluster-verdict scenario should pass");
         assertEquals(0, result.getScenarioFailedCount());
     }
 
