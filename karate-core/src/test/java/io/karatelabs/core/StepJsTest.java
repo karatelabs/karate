@@ -389,6 +389,39 @@ class StepJsTest {
         assertPassed(sr);
     }
 
+    // The $-prefixed form must honour the default exactly like the dot-path form does - a
+    // JsonPath that did not resolve is absent, and that is what the second argument is for.
+    // v1 substituted only for null, so the $ form was inconsistent with itself: a missing
+    // variable took the default, a missing property surfaced the raw marker instead.
+    @Test
+    void testKarateGetMissingJsonPathReturnsDefault() {
+        ScenarioRuntime sr = run("""
+            * def x = { a: 1 }
+            * def missingProperty = karate.get('$x.missing', 'DEFAULT')
+            * def missingVariable = karate.get('$nope.a', 'DEFAULT')
+            * def missingIndefinite = karate.get('$x.missing[*].y', 'DEFAULT')
+            * def missingDotPath = karate.get('x.missing', 'DEFAULT')
+            * match missingProperty == 'DEFAULT'
+            * match missingVariable == 'DEFAULT'
+            * match missingIndefinite == 'DEFAULT'
+            * match missingDotPath == 'DEFAULT'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateGetMissingJsonPathWithoutDefaultStillNotPresent() {
+        // No second argument means nothing to substitute, so the marker surfaces - keeping
+        // the one-arg form identical to what the `$x.missing` keyword answers.
+        ScenarioRuntime sr = run("""
+            * def x = { a: 1 }
+            * def viaApi = karate.get('$x.missing')
+            * match viaApi == '#notpresent'
+            * match viaApi == $x.missing
+            """);
+        assertPassed(sr);
+    }
+
     @Test
     void testKarateGetMissingDotPathReturnsDefault() {
         ScenarioRuntime sr = run("""

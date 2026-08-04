@@ -503,7 +503,14 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                     result = null;
                 }
             }
-            if (result == null && args.length > 1) {
+            // The second argument is what "absent" maps to, and a JsonPath that did not
+            // resolve is absent just like a JS path that threw. v1 only ever substituted for
+            // null, which left the $ form self-inconsistent: karate.get('$nope.a', 'D') gave
+            // 'D' because the *variable* was missing, while karate.get('$x.missing', 'D') gave
+            // the raw '#notpresent' because the *property* was. With no second argument there
+            // is nothing to substitute, so the marker still surfaces - which is precisely what
+            // the `$x.missing` keyword answers.
+            if (args.length > 1 && (result == null || "#notpresent".equals(result))) {
                 return args[1];
             }
             return result;
