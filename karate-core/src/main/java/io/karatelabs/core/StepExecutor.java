@@ -3256,7 +3256,9 @@ public class StepExecutor {
         // expressions - returning it verbatim leaves any `#(...)` it carries as inert data.
         // Short-circuiting at the first request-derived container protects every nested value.
         // No-op for ordinary execution, where nothing is ever marked request-derived.
-        if (runtime.isRequestDerived(value)) {
+        // (the marking is pure provenance — the opt-in is applied HERE, so a mock that opted in still
+        // knows which values came off the wire)
+        if (!runtime.isRequestExpressionsEnabled() && runtime.isRequestDerived(value)) {
             return value;
         }
         if (value instanceof Node) {

@@ -410,12 +410,14 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         return response;
     }
 
-    // Tag request-derived data so its embedded #(...) expressions stay inert (unless the mock
-    // opted in via requestExpressionsEnabled). Returns the value for inline use in the bindings.
+    // Tag request-derived data so its embedded #(...) expressions stay inert (unless the mock opted in
+    // via requestExpressionsEnabled — the OPT-IN is applied where the expression would be evaluated, not
+    // here, so this stays a pure PROVENANCE record). Two consumers now depend on that separation: the
+    // inertness short-circuit, and the stranded-placeholder guard in buildResponse, which must never
+    // mistake attacker-supplied text echoed back for a mock author's own broken expression.
+    // Returns the value for inline use in the bindings.
     private static Object markRequestDerived(ScenarioRuntime runtime, Object value) {
-        if (!runtime.isRequestExpressionsEnabled()) {
-            runtime.markRequestDerived(value);
-        }
+        runtime.markRequestDerived(value);
         return value;
     }
 
@@ -497,7 +499,7 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         }
 
         // Build response from variables
-        return buildResponse(engine, request);
+        return buildResponse(runtime, engine, request);
     }
 
     private Exception invokeMockHook(JavaCallable hook, String hookName) {
@@ -518,7 +520,7 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
     }
 
     @SuppressWarnings("unchecked")
-    private HttpResponse buildResponse(Engine engine, HttpRequest request) {
+    private HttpResponse buildResponse(ScenarioRuntime runtime, Engine engine, HttpRequest request) {
         HttpResponse response = new HttpResponse();
 
         // Get response variables from engine
@@ -571,6 +573,18 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         }
 
         if (responseBody != null) {
+            // A `#(expr)` that throws is deliberately left as its own SOURCE TEXT (StepExecutor) — the
+            // schema-as-template pattern, where the match engine re-resolves it later with the right
+            // context. A mock response is the one place that recovery can never happen: nothing matches a
+            // mock body, so the placeholder is written to the wire AS DATA. That is silent corruption of
+            // the exact kind a mock exists to avoid — a mock whose id helper threw served every consumer
+            // the literal string "#(uuid())" and no test could see it. So a placeholder surviving into a
+            // response body is an error here, and the message re-evaluates the expression to name the
+            // real cause rather than just the symptom.
+            String stranded = strandedEmbedded(runtime, responseBody, "");
+            if (stranded != null) {
+                return HttpResponse.error(500, strandedMessage(engine, stranded));
+            }
             response.setBodyDynamic(responseBody);
         }
 
@@ -583,6 +597,64 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         }
 
         return response;
+    }
+
+    /**
+     * The first whole-value {@code #(...)} / {@code ##(...)} placeholder still standing in a mock response
+     * body, as {@code <json-pointer>=<placeholder>} — or null when the body is clean. Only a WHOLE-value
+     * placeholder counts: an inline one is interpolated into surrounding text and a string that merely
+     * contains the sequence is ordinary content.
+     */
+    @SuppressWarnings("unchecked")
+    private static String strandedEmbedded(ScenarioRuntime runtime, Object value, String path) {
+        // request-derived text is echoed data, never an authored expression — a `#(...)` in it is INERT
+        // BY DESIGN (MockServerSecurityTest: the documented RCE vector stays literal). Flagging it would
+        // turn a security property into a 500 an attacker can trigger at will.
+        if (runtime.isRequestDerived(value)) {
+            return null;
+        }
+        if (value instanceof String s) {
+            String t = s.trim();
+            return (t.startsWith("#(") || t.startsWith("##(")) && t.endsWith(")") ? path + "=" + t : null;
+        }
+        if (value instanceof Map<?, ?> map) {
+            for (Map.Entry<String, Object> e : ((Map<String, Object>) map).entrySet()) {
+                String found = strandedEmbedded(runtime, e.getValue(), path + "/" + e.getKey());
+                if (found != null) {
+                    return found;
+                }
+            }
+            return null;
+        }
+        if (value instanceof List<?> list) {
+            for (int i = 0; i < list.size(); i++) {
+                String found = strandedEmbedded(runtime, list.get(i), path + "/" + i);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Name the cause, not just the symptom — re-evaluate the stranded expression to recover its error. */
+    private static String strandedMessage(Engine engine, String stranded) {
+        int eq = stranded.indexOf('=');
+        String at = stranded.substring(0, eq);
+        String placeholder = stranded.substring(eq + 1);
+        String expr = placeholder.substring(placeholder.startsWith("##(") ? 3 : 2, placeholder.length() - 1);
+        String cause;
+        try {
+            engine.eval(expr);
+            cause = "it evaluated to nothing usable";
+        } catch (Exception e) {
+            cause = e.getMessage();
+        }
+        return "mock response would have served an UNEVALUATED embedded expression as data"
+                + (at.isEmpty() ? "" : " at " + at) + ": " + placeholder + " — " + cause
+                + ". A mock body is never re-resolved by the match engine, so this would have gone out on "
+                + "the wire as the literal string. Fix the expression, or quote it differently if the "
+                + "literal text really is what you meant to return.";
     }
 
     private HttpResponse createNotFoundResponse() {

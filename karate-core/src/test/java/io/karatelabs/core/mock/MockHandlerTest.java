@@ -366,4 +366,48 @@ class MockHandlerTest {
                 "a mock asserting on an exact header set can opt out");
     }
 
+    @Test
+    void anEmbeddedExpressionThatThrowsNeverReachesTheWireAsItsOwnSourceText() {
+        // a `#(expr)` that fails is left as its source text for the match engine to retry — but nothing
+        // ever matches a mock body, so without this guard the literal placeholder is served AS DATA
+        Feature feature = parseFeature("""
+            Feature: broken helper
+
+            Background:
+              * def uuid = function(){ return java.util.UUID.randomUUID() + '' }
+
+            Scenario: pathMatches('/quotes')
+              * def responseStatus = 201
+              * def response = { id: '#(uuid())', currency: 'USD' }
+            """);
+
+        HttpResponse response = new MockHandler(feature).apply(createRequest("GET", "/quotes"));
+
+        assertEquals(500, response.getStatus(), "silently serving the placeholder is the defect");
+        String body = new String(response.getBodyBytes());
+        assertTrue(body.contains("#(uuid())"), "names the placeholder that was stranded: " + body);
+        assertTrue(body.contains("/id"), "names WHERE in the body it stranded: " + body);
+        assertTrue(body.contains("java"), "names the real cause, not just the symptom: " + body);
+    }
+
+    @Test
+    void aWorkingEmbeddedExpressionIsUnaffected() {
+        Feature feature = parseFeature("""
+            Feature: working helper
+
+            Background:
+              * def label = function(){ return 'ok' }
+
+            Scenario: pathMatches('/hello')
+              * def response = { a: '#(label())', b: '#(1 + 1)', c: 'plain #(not-a-whole-value) text' }
+            """);
+
+        HttpResponse response = new MockHandler(feature).apply(createRequest("GET", "/hello"));
+
+        assertEquals(200, response.getStatus());
+        String body = new String(response.getBodyBytes());
+        assertTrue(body.contains("\"a\":\"ok\""), body);
+        assertTrue(body.contains("\"b\":2"), body);
+    }
+
 }
