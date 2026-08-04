@@ -578,12 +578,18 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
             // context. A mock response is the one place that recovery can never happen: nothing matches a
             // mock body, so the placeholder is written to the wire AS DATA. That is silent corruption of
             // the exact kind a mock exists to avoid — a mock whose id helper threw served every consumer
-            // the literal string "#(uuid())" and no test could see it. So a placeholder surviving into a
-            // response body is an error here, and the message re-evaluates the expression to name the
-            // real cause rather than just the symptom.
-            String stranded = strandedEmbedded(runtime, responseBody, "");
-            if (stranded != null) {
-                return HttpResponse.error(500, strandedMessage(engine, stranded));
+            // the literal string "#(uuid())" and no test could see it.
+            //
+            // The check is over the failures the RUNTIME RECORDED, never over "does this look like a
+            // placeholder". The difference is the whole safety of it: a `#(...)` in a finished body may
+            // be echoed request data (`#(pathParams.id)` over a path a client chose), or a value some
+            // other expression computed, and neither was ever an expression of this mock's. Judging by
+            // appearance turns text a caller controls into a 500 they can trigger at will.
+            if (runtime.hasFailedEmbedded()) {
+                String stranded = strandedEmbedded(runtime, responseBody, "");
+                if (stranded != null) {
+                    return HttpResponse.error(500, strandedMessage(runtime, stranded));
+                }
             }
             response.setBodyDynamic(responseBody);
         }
@@ -600,22 +606,29 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
     }
 
     /**
-     * The first whole-value {@code #(...)} / {@code ##(...)} placeholder still standing in a mock response
-     * body, as {@code <json-pointer>=<placeholder>} — or null when the body is clean. Only a WHOLE-value
-     * placeholder counts: an inline one is interpolated into surrounding text and a string that merely
-     * contains the sequence is ordinary content.
+     * The first value in a mock response body that is a placeholder <b>this run recorded a failure for</b>
+     * — as {@code <json-pointer> <placeholder>} — or null when the body is clean.
+     *
+     * <p>Membership in the recorded set is the whole test. Looking for something that merely <i>reads</i>
+     * like a placeholder would fire on echoed request data and on values other expressions produced, which
+     * is a 500 a caller can trigger; and it would still be wrong in the other direction, since an
+     * {@code ##(...)} that failed leniently means <i>may be absent</i> and is not an error at all.</p>
      */
     @SuppressWarnings("unchecked")
     private static String strandedEmbedded(ScenarioRuntime runtime, Object value, String path) {
-        // request-derived text is echoed data, never an authored expression — a `#(...)` in it is INERT
-        // BY DESIGN (MockServerSecurityTest: the documented RCE vector stays literal). Flagging it would
-        // turn a security property into a 500 an attacker can trigger at will.
-        if (runtime.isRequestDerived(value)) {
-            return null;
+        if (value instanceof String s && runtime.failedEmbedded(s) != null) {
+            return path + ' ' + s;
         }
-        if (value instanceof String s) {
-            String t = s.trim();
-            return (t.startsWith("#(") || t.startsWith("##(")) && t.endsWith(")") ? path + "=" + t : null;
+        if (value instanceof Node node) {
+            // an XML body is text under the hood — the placeholder survives in a node value, and the same
+            // recorded-failure test applies
+            String xml = Xml.toString(node, false);
+            for (String placeholder : runtime.failedEmbeddedKeys()) {
+                if (xml.contains(placeholder)) {
+                    return path + ' ' + placeholder;
+                }
+            }
+            return null;
         }
         if (value instanceof Map<?, ?> map) {
             for (Map.Entry<String, Object> e : ((Map<String, Object>) map).entrySet()) {
@@ -637,21 +650,19 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
         return null;
     }
 
-    /** Name the cause, not just the symptom — re-evaluate the stranded expression to recover its error. */
-    private static String strandedMessage(Engine engine, String stranded) {
-        int eq = stranded.indexOf('=');
-        String at = stranded.substring(0, eq);
-        String placeholder = stranded.substring(eq + 1);
-        String expr = placeholder.substring(placeholder.startsWith("##(") ? 3 : 2, placeholder.length() - 1);
-        String cause;
-        try {
-            engine.eval(expr);
-            cause = "it evaluated to nothing usable";
-        } catch (Exception e) {
-            cause = e.getMessage();
-        }
+    /**
+     * Name the cause, not just the symptom — reporting the ORIGINAL throwable. It is not re-evaluated:
+     * re-running a user expression on an error path would repeat any side effect outside the engine, and
+     * an expression that blocks would stall every other request, since this runs under the request lock.
+     */
+    private static String strandedMessage(ScenarioRuntime runtime, String stranded) {
+        int sep = stranded.indexOf(' ');
+        String at = stranded.substring(0, sep);
+        String placeholder = stranded.substring(sep + 1);
+        Exception error = runtime.failedEmbedded(placeholder);
         return "mock response would have served an UNEVALUATED embedded expression as data"
-                + (at.isEmpty() ? "" : " at " + at) + ": " + placeholder + " — " + cause
+                + (at.isEmpty() ? "" : " at " + at) + ": " + placeholder
+                + (error == null || error.getMessage() == null ? "" : " — " + error.getMessage())
                 + ". A mock body is never re-resolved by the match engine, so this would have gone out on "
                 + "the wire as the literal string. Fix the expression, or quote it differently if the "
                 + "literal text really is what you meant to return.";

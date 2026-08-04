@@ -3334,6 +3334,18 @@ public class StepExecutor {
                 // surfaces with the right scenario context.
                 // This is the schema-as-template pattern — schemas are loaded ahead
                 // of the variables they reference and resolved on use.
+                //
+                // But RECORD it. Some consumers — a mock response above all — never
+                // get the second chance this leniency is banking on, and for them a
+                // surviving placeholder goes out on the wire as data. Recording it
+                // HERE is what makes that detectable precisely: it is the only point
+                // that knows an evaluation was attempted and failed. Re-deriving the
+                // same fact downstream by scanning a body cannot work, because a
+                // `#(...)` in a body may equally be text that was never an expression
+                // at all — echoed request data, or a value some other expression
+                // computed — and 500ing on those would turn attacker-supplied text
+                // into a denial of service.
+                runtime.recordFailedEmbedded(str, e);
                 return str;
             }
         }
@@ -3475,7 +3487,10 @@ public class StepExecutor {
                                 attrib.setValue(result == null ? "" : StepUtils.stringify(result));
                             }
                         } catch (Exception e) {
-                            // Leave as-is on error
+                            // Leave as-is on error — and record it, so a consumer that EMITS this
+                            // document rather than matching it can tell a failed expression from
+                            // ordinary text (see ScenarioRuntime.recordFailedEmbedded)
+                            runtime.recordFailedEmbedded(value, e);
                         }
                     } else {
                         // Inline embedded in attribute
@@ -3522,7 +3537,8 @@ public class StepExecutor {
                             child.setNodeValue(strResult);
                         }
                     } catch (Exception e) {
-                        // Leave as-is on error
+                        // Leave as-is on error — and record it (see above)
+                        runtime.recordFailedEmbedded(value, e);
                     }
                 } else if (value.contains("#(")) {
                     // Inline embedded in text

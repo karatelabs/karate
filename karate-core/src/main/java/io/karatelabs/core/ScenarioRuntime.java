@@ -126,6 +126,10 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     // that could actually be evaluated (they contain `#(`) are kept, which is why this set is
     // empty for every ordinary request and the lookup below costs nothing.
     private final java.util.Set<String> requestDerivedStrings = new java.util.HashSet<>();
+    // Placeholder text -> the error its expression threw with. See recordFailedEmbedded: this is what
+    // lets a consumer that EMITS a value (rather than matching it) tell a failed expression apart from
+    // text that merely looks like one. Empty for every run where nothing threw.
+    private final java.util.Map<String, Exception> failedEmbedded = new java.util.HashMap<>();
     // When true a mock evaluates request-derived embedded expressions (the pre-fix behavior) -
     // opt-in only, since it re-opens the injection surface. Defaults to off (request data is data).
     private boolean requestExpressionsEnabled;
@@ -1536,6 +1540,47 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         if (!requestDerivedStrings.isEmpty()) {
             requestDerivedStrings.clear();
         }
+        if (!failedEmbedded.isEmpty()) {
+            failedEmbedded.clear();
+        }
+    }
+
+    /**
+     * An embedded expression that was <b>evaluated and threw</b>, keyed by the placeholder text it was
+     * left as. {@code StepExecutor} preserves such a placeholder deliberately (the schema-as-template
+     * pattern lets the match engine retry it later with the right context) — but a consumer that emits
+     * the value instead of matching it never gets that second chance, and the placeholder becomes data.
+     *
+     * <p>The record is kept <b>here, at the failure</b>, rather than re-derived by inspecting a value
+     * later, because the two are not the same question. A {@code #(...)} string in a finished value may
+     * be a failed expression, or it may be text that was never an expression at all — echoed request
+     * data, or the output of some other expression. Only this side knows which.</p>
+     */
+    public void recordFailedEmbedded(String placeholder, Exception error) {
+        // ...but only for an expression that was the AUTHOR's. With `requestExpressionsEnabled` a mock
+        // opts into evaluating request-derived text too, and that text failing is the security guarantee
+        // working (the documented RCE payload throws because the Java bridge is off) — not a defect to
+        // report. Here the value is still the untransformed original, so provenance is exact; downstream,
+        // after a step has extracted or reshaped it, it no longer is.
+        if (isRequestDerived(placeholder)) {
+            return;
+        }
+        failedEmbedded.put(placeholder, error);
+    }
+
+    /** The error a surviving placeholder failed with, or null if it was never evaluated at all. */
+    public Exception failedEmbedded(String placeholder) {
+        return failedEmbedded.get(placeholder);
+    }
+
+    /** True if any embedded expression was evaluated and threw since the last clear. */
+    public boolean hasFailedEmbedded() {
+        return !failedEmbedded.isEmpty();
+    }
+
+    /** The placeholders recorded as failed — for a consumer whose value is text rather than a tree. */
+    public java.util.Set<String> failedEmbeddedKeys() {
+        return failedEmbedded.keySet();
     }
 
     /**

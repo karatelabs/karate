@@ -391,6 +391,82 @@ class MockHandlerTest {
     }
 
     @Test
+    void anXmlBodyIsCoveredToo() {
+        // an XML response is text under the hood, so the placeholder reaches the wire the same way —
+        // and this is the body type SOAP-style mocks use
+        Feature feature = parseFeature("""
+            Feature: broken helper, xml
+
+            Background:
+              * def uuid = function(){ return java.util.UUID.randomUUID() + '' }
+
+            Scenario: pathMatches('/soap')
+              * def response = <root><id>#(uuid())</id></root>
+            """);
+
+        HttpResponse response = new MockHandler(feature).apply(createRequest("GET", "/soap"));
+
+        assertEquals(500, response.getStatus(), "" + new String(response.getBodyBytes()));
+    }
+
+    /**
+     * <b>The guard may never be something a caller can trigger.</b> A mock that echoes a path segment
+     * back is ordinary and the value is entirely client-chosen, so a check that fired on anything merely
+     * SHAPED like a placeholder would hand any caller a 500 — turning an inertness guarantee into a
+     * denial of service. The test is whether an expression was evaluated and threw, which this was not.
+     */
+    @Test
+    void aClientChosenValueThatLooksLikeAPlaceholderIsServedNotRefused() {
+        Feature feature = parseFeature("""
+            Feature: echo
+
+            Scenario: pathMatches('/policies/{id}')
+              * def responseStatus = 404
+              * def response = { error: 'no such policy', id: '#(pathParams.id)' }
+            """);
+
+        HttpResponse response = new MockHandler(feature).apply(createRequest("GET", "/policies/#(boom)"));
+
+        assertEquals(404, response.getStatus(), "the client picked that text; it is data: "
+                + new String(response.getBodyBytes()));
+        assertTrue(new String(response.getBodyBytes()).contains("#(boom)"), "and it is echoed inert");
+    }
+
+    /** The same, one transformation removed — the case value-identity provenance cannot see. */
+    @Test
+    void aDerivedValueThatLooksLikeAPlaceholderIsServedNotRefused() {
+        Feature feature = parseFeature("""
+            Feature: derived echo
+
+            Scenario: pathMatches('/echo')
+              * def shout = headerValue('X-Thing').toUpperCase()
+              * def response = { got: '#(shout)' }
+            """);
+
+        HttpRequest request = createRequest("GET", "/echo");
+        request.putHeader("X-Thing", "#(boom)");
+        HttpResponse response = new MockHandler(feature).apply(request);
+
+        assertEquals(200, response.getStatus(), "" + new String(response.getBodyBytes()));
+        assertTrue(new String(response.getBodyBytes()).contains("#(BOOM)"), "" + new String(response.getBodyBytes()));
+    }
+
+    /** {@code ##(...)} means "may be absent" — a lenient failure there is the feature, not a defect. */
+    @Test
+    void anOptionalEmbeddedExpressionIsNotAnError() {
+        Feature feature = parseFeature("""
+            Feature: optional
+
+            Scenario: pathMatches('/opt')
+              * def response = { a: 1, b: '##(nope())' }
+            """);
+
+        HttpResponse response = new MockHandler(feature).apply(createRequest("GET", "/opt"));
+
+        assertEquals(200, response.getStatus(), "" + new String(response.getBodyBytes()));
+    }
+
+    @Test
     void aWorkingEmbeddedExpressionIsUnaffected() {
         Feature feature = parseFeature("""
             Feature: working helper
