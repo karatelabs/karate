@@ -37,6 +37,7 @@
         <java.release.version>21</java.release.version>
         <maven.compiler.version>3.15.0</maven.compiler.version>
         <netty.version>4.2.16.Final</netty.version>
+        <jackson.version>2.21.5</jackson.version>
         <junit.version>6.1.2</junit.version>
         <slf4j.version>2.0.18</slf4j.version>
         <logback.version>1.6.1</logback.version>
@@ -64,6 +65,19 @@
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
                 <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Same story as netty, one module over: gatling drags in jackson, and the
+                 2.21.3 it resolves to carries the PolymorphicTypeValidator bypass pair
+                 (CVE-2026-54512 / -54513, both CVSS 8.1), fixed in 2.21.4. Nothing here
+                 declares jackson directly - karate-core has none of it - so pin the bom
+                 rather than a lone databind, keeping databind/core/annotations on one
+                 version. Drop this once gatling ships a jackson past the fix. -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
