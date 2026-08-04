@@ -2774,6 +2774,8 @@ public class StepExecutor {
             // snapshot must be taken before the call (unlike isolated-scope callSingle, which
             // diffs against the caller's still-current vars). See StepUtils.calleeDelta.
             Map<String, Object> preCallVars = runtime.getAllVariables();
+            // Config is cached as a before/after pair for the same reason - see CallOnceResult.
+            KarateConfig preCallConfig = runtime.getConfig().copy();
 
             // Not cached - execute the call
             executeCall(step);
@@ -2783,7 +2785,7 @@ public class StepExecutor {
             Map<String, Object> vars = (Map<String, Object>) StepUtils.deepCopy(delta);
             @SuppressWarnings("unchecked")
             Map<String, Map<String, Object>> cookieJarCopy = (Map<String, Map<String, Object>>) StepUtils.deepCopy(runtime.getCookieJar());
-            cache.put(cacheKey, new CallOnceResult(vars, runtime.getConfig().copy(), cookieJarCopy));
+            cache.put(cacheKey, new CallOnceResult(vars, preCallConfig, runtime.getConfig().copy(), cookieJarCopy));
         } finally {
             lock.unlock();
         }
@@ -2791,8 +2793,13 @@ public class StepExecutor {
 
     /**
      * Cached result from a callonce execution, containing variables, config, and cookie jar.
+     * Config is held as the snapshot pair taken around the one real execution so that a replay
+     * applies only what the callee itself changed (KarateConfig.copyChangedFrom) - the caller's
+     * own config at that moment must not leak into later scenarios, which is exactly the
+     * variables/calleeDelta rule applied to config.
      */
-    private record CallOnceResult(Map<String, Object> vars, KarateConfig config, Map<String, Map<String, Object>> cookieJar) {}
+    private record CallOnceResult(Map<String, Object> vars, KarateConfig configBefore, KarateConfig configAfter,
+                                  Map<String, Map<String, Object>> cookieJar) {}
 
     @SuppressWarnings("unchecked")
     private void applyCachedCallOnceResult(CallOnceResult cached) {
@@ -2800,7 +2807,7 @@ public class StepExecutor {
         for (Map.Entry<String, Object> entry : copies.entrySet()) {
             runtime.setVariable(entry.getKey(), entry.getValue());
         }
-        runtime.getConfig().copyFrom(cached.config());
+        runtime.getConfig().copyChangedFrom(cached.configBefore(), cached.configAfter());
         // Push the restored config to the HTTP client so callonce hits made
         // earlier (e.g. that set a proxy or token-derived auth) still apply
         // to the cached-replay scenario's requests.

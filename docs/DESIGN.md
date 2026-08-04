@@ -380,11 +380,11 @@ Three sites push the typed `KarateConfig` to the relevant `HttpClient` after `co
 
 - `ScenarioRuntime.inheritConfigFromCaller` — caller → callee on `call read(...)`. Both scopes.
 - `StepExecutor.propagateFromCallee` — callee → caller on shared scope. Isolated scope skips this by design.
-- `StepExecutor.applyCachedCallOnceResult` — restores `KarateConfig` (and re-projects to the client) when replaying a cached `callonce`.
+- `StepExecutor.applyCachedCallOnceResult` — restores `KarateConfig` (and re-projects to the client) when replaying a cached `callonce`. This one merges rather than copies: the cache holds the before/after snapshot pair taken around the single real execution, and `KarateConfig.copyChangedFrom` applies only the keys the callee itself changed — the config analogue of the `StepUtils.calleeDelta` rule for variables. A wholesale copy would also stamp the *first* scenario's own config over every later scenario, which is invisible for plain data but wrong for JS-function values: a lifecycle hook or `configure headers` function is re-created per scenario by karate-config.js and is bound to that scenario's JS context, so replaying the first instance froze every later `afterScenario` hook on the first scenario's variables (`karate.get('response')`, `karate.prevRequest`).
 
 Mid-test `* configure ...` mutations are auto-snapshotted at scenario entry and restored in the `finally` of `ScenarioRuntime.call()` so they don't leak into the next scenario.
 
-**Adding a new `configure` key:** add the field + typed getter to `KarateConfig`, add a `case` in `KarateConfig.configure(...)`, and if it affects HTTP client state, return `true` (rebuild required) and read it in `ApacheHttpClient.apply`. Nothing else dispatches on key name.
+**Adding a new `configure` key:** add the field + typed getter to `KarateConfig`, add a `case` in `KarateConfig.configure(...)`, mirror it in `copyFrom` *and* `copyChangedFrom`, and if it affects HTTP client state, return `true` (rebuild required) and read it in `ApacheHttpClient.apply`. Nothing else dispatches on key name.
 
 **Source files:** `KarateConfig.java`, `HttpClient.java`, `ApacheHttpClient.apply`, `ScenarioRuntime.inheritConfigFromCaller` / `configure`, `StepExecutor.propagateFromCallee` / `applyCachedCallOnceResult`.
 

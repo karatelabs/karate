@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Holds runtime configuration settings set via the 'configure' keyword.
@@ -227,6 +228,73 @@ public class KarateConfig implements SimpleObject {
         this.onStepFailure = other.onStepFailure;
         // Driver
         this.driverConfig = other.driverConfig;
+    }
+
+    /**
+     * Three-way merge used when a cached {@code callonce} result is replayed into a later
+     * scenario. Only the keys the callee actually changed are applied — that is, the ones
+     * that differ between the {@code before} and {@code after} snapshots taken around the one
+     * real execution. Everything else keeps this config's current (per-scenario) value.
+     * <p>
+     * A wholesale {@link #copyFrom(KarateConfig)} would also stamp the *caller's* state at the
+     * time of that first execution over every later scenario. That is invisible for plain data
+     * but wrong for values that are JS functions - a lifecycle hook or a {@code configure headers}
+     * function is re-created per scenario by karate-config.js and is bound to that scenario's JS
+     * context. Replaying the first scenario's instance made every later {@code afterScenario} hook
+     * read the first scenario's variables (e.g. {@code karate.get('response')} stayed frozen).
+     *
+     * @param before config snapshot taken just before the cached execution ran
+     * @param after  config snapshot taken just after it completed
+     */
+    public void copyChangedFrom(KarateConfig before, KarateConfig after) {
+        if (after == null) return;
+        if (before == null) {
+            copyFrom(after);
+            return;
+        }
+        // HTTP client settings
+        if (!Objects.equals(before.url, after.url)) this.url = after.url;
+        if (before.readTimeout != after.readTimeout) this.readTimeout = after.readTimeout;
+        if (before.connectTimeout != after.connectTimeout) this.connectTimeout = after.connectTimeout;
+        if (before.followRedirects != after.followRedirects) this.followRedirects = after.followRedirects;
+        if (!Objects.equals(before.localAddress, after.localAddress)) this.localAddress = after.localAddress;
+        if (!Objects.equals(before.charset, after.charset)) this.charset = after.charset;
+        // Grouped settings (deep copy Maps)
+        if (!before.ssl.equals(after.ssl)) this.ssl = new HashMap<>(after.ssl);
+        if (!before.proxy.equals(after.proxy)) {
+            this.proxy = new HashMap<>(after.proxy);
+            if (after.proxy.get("nonProxyHosts") instanceof List<?> list) {
+                this.proxy.put("nonProxyHosts", new ArrayList<>(list));
+            }
+        }
+        if (!before.auth.equals(after.auth)) this.auth = new HashMap<>(after.auth);
+        if (!before.retry.equals(after.retry)) this.retry = new HashMap<>(after.retry);
+        if (!before.report.equals(after.report)) this.report = new HashMap<>(after.report);
+        if (!before.logging.equals(after.logging)) {
+            this.logging = new HashMap<>(after.logging);
+            this.compiledMask = after.compiledMask;
+        }
+        if (!before.callSingleCache.equals(after.callSingleCache)) this.callSingleCache = new HashMap<>(after.callSingleCache);
+        // Headers/Cookies (shallow copy - could be function refs)
+        if (!Objects.equals(before.headers, after.headers)) this.headers = after.headers;
+        if (!Objects.equals(before.cookies, after.cookies)) this.cookies = after.cookies;
+        // HTTP retry
+        if (before.httpRetryEnabled != after.httpRetryEnabled) this.httpRetryEnabled = after.httpRetryEnabled;
+        // Execution control
+        if (before.continueOnStepFailure != after.continueOnStepFailure) this.continueOnStepFailure = after.continueOnStepFailure;
+        if (before.abortedStepsShouldPass != after.abortedStepsShouldPass) this.abortedStepsShouldPass = after.abortedStepsShouldPass;
+        if (before.abortSuiteOnFailure != after.abortSuiteOnFailure) this.abortSuiteOnFailure = after.abortSuiteOnFailure;
+        if (before.matchEachEmptyAllowed != after.matchEachEmptyAllowed) this.matchEachEmptyAllowed = after.matchEachEmptyAllowed;
+        // Mock settings
+        if (before.corsEnabled != after.corsEnabled) this.corsEnabled = after.corsEnabled;
+        if (!Objects.equals(before.responseHeaders, after.responseHeaders)) this.responseHeaders = after.responseHeaders;
+        if (!Objects.equals(before.beforeScenario, after.beforeScenario)) this.beforeScenario = after.beforeScenario;
+        if (!Objects.equals(before.afterScenario, after.afterScenario)) this.afterScenario = after.afterScenario;
+        if (!Objects.equals(before.afterScenarioOutline, after.afterScenarioOutline)) this.afterScenarioOutline = after.afterScenarioOutline;
+        if (!Objects.equals(before.afterFeature, after.afterFeature)) this.afterFeature = after.afterFeature;
+        if (!Objects.equals(before.onStepFailure, after.onStepFailure)) this.onStepFailure = after.onStepFailure;
+        // Driver
+        if (!Objects.equals(before.driverConfig, after.driverConfig)) this.driverConfig = after.driverConfig;
     }
 
     /**

@@ -30,6 +30,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import static io.karatelabs.core.TestUtils.runTestSuite;
 import static org.junit.jupiter.api.Assertions.*;
@@ -44,11 +47,17 @@ public class ScenarioHooksTest {
 
     private static int hookCount;
     private static int beforeHookCount;
+    private static final List<Object> recorded = Collections.synchronizedList(new ArrayList<>());
 
     @BeforeEach
     void resetCounters() {
         hookCount = 0;
         beforeHookCount = 0;
+        recorded.clear();
+    }
+
+    public static void record(Object value) {
+        recorded.add(value);
     }
 
     public static void incrementHookCount() {
@@ -478,6 +487,56 @@ public class ScenarioHooksTest {
         assertTrue(result.isPassed(), getFailureMessage(result));
         assertEquals(1, beforeHookCount,
                 "afterFeature karate.call should fire once and resolve the scenario variable, even with multiple threads");
+    }
+
+    // ===== callonce in Background must not freeze the hook to the first scenario =====
+
+    @Test
+    void testAfterScenarioSeesOwnScenarioVarsWithCallonceInBackground() throws Exception {
+        Files.writeString(tempDir.resolve("karate-config.js"), """
+            function fn() {
+              karate.configure('afterScenario', function() {
+                Java.type('io.karatelabs.core.ScenarioHooksTest').record(karate.get('marker'));
+              });
+              return {};
+            }
+            """);
+        Files.writeString(tempDir.resolve("once.feature"), """
+            @ignore
+            Feature: once
+
+              Scenario: once
+                * def token = 'abc'
+            """);
+        Path feature = tempDir.resolve("callonce-hook.feature");
+        Files.writeString(feature, """
+            Feature: afterScenario with callonce in Background
+
+              Background:
+                * callonce read('once.feature')
+
+              Scenario: one
+                * def marker = 'one'
+
+              Scenario: two
+                * def marker = 'two'
+
+              Scenario: three
+                * def marker = 'three'
+            """);
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .configDir(tempDir.toString())
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .skipTagFiltering(true)
+                .parallel(1);
+
+        assertTrue(result.isPassed(), getFailureMessage(result));
+        assertEquals(List.of("one", "two", "three"), recorded,
+                "afterScenario must see the current scenario's variables, not the first scenario's");
     }
 
     private String getFailureMessage(SuiteResult result) {

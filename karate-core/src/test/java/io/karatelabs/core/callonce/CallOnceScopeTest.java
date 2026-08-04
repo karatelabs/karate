@@ -361,6 +361,90 @@ class CallOnceScopeTest {
                 "callonce should still cache within a single call instance: " + getFailureMessage(result));
     }
 
+    // ========== Config: a cache hit replays only what the callee changed ==========
+
+    @Test
+    void testCallOnceConfigChangedByCalleeIsRestoredOnCacheHit() throws Exception {
+        // The whole point of caching config: an auth token (or timeout, proxy, ...) set inside the
+        // called feature must still apply to every later scenario, which never re-runs the callee.
+        Path auth = tempDir.resolve("auth.feature");
+        Files.writeString(auth, """
+            @ignore
+            Feature: Auth
+            Scenario:
+            * configure readTimeout = 12345
+            * configure headers = { Authorization: 'token' }
+            """);
+
+        Path main = tempDir.resolve("config-restore.feature");
+        Files.writeString(main, """
+            Feature: callonce config restored on cache hit
+
+            Background:
+            * callonce read('auth.feature')
+
+            Scenario: one
+            * match karate.config.readTimeout == 12345
+            * match karate.config.headers == { Authorization: 'token' }
+
+            Scenario: two
+            * match karate.config.readTimeout == 12345
+            * match karate.config.headers == { Authorization: 'token' }
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(main.toString())
+                .workingDir(tempDir)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed(),
+                "config set by the callee should survive a callonce cache hit: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallOnceCacheHitDoesNotClobberCallerConfig() throws Exception {
+        // The caller's own config is per-scenario state - replaying the first scenario's snapshot
+        // over the second one froze it (the afterScenario hook symptom is the same root cause).
+        Path noop = tempDir.resolve("noop.feature");
+        Files.writeString(noop, """
+            @ignore
+            Feature: Noop
+            Scenario:
+            * def ignored = true
+            """);
+
+        Path main = tempDir.resolve("config-caller.feature");
+        Files.writeString(main, """
+            Feature: callonce cache hit keeps the caller's own config
+
+            Background:
+            * configure readTimeout = timeout
+            * callonce read('noop.feature')
+
+            Scenario Outline: timeout <timeout>
+            * match karate.config.readTimeout == <timeout>
+
+            Examples:
+            | timeout |
+            | 11111   |
+            | 22222   |
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(main.toString())
+                .workingDir(tempDir)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed(),
+                "a callonce cache hit should not overwrite config the caller set itself: " + getFailureMessage(result));
+    }
+
     private String getFailureMessage(SuiteResult result) {
         if (result.isPassed()) return "none";
         for (FeatureResult fr : result.getFeatureResults()) {
