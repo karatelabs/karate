@@ -43,8 +43,10 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLException;
 import java.net.URI;
+import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -95,6 +97,8 @@ public class WsClient {
 
     private final WsClientOptions options;
     private final ExecutorService callbackExecutor;
+    /** This connection's callbacks, serialised — see {@link SerialExecutor}. */
+    private final Executor callbacks;
     private final List<Consumer<WsFrame>> messageListeners = new CopyOnWriteArrayList<>();
     private final List<Runnable> closeListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<Throwable>> errorListeners = new CopyOnWriteArrayList<>();
@@ -110,6 +114,9 @@ public class WsClient {
         this.callbackExecutor = options.getCallbackExecutor() != null
                 ? options.getCallbackExecutor()
                 : CALLBACK_EXECUTOR;
+        // one queue per CONNECTION, so this socket's frames reach a listener in the order the wire
+        // delivered them — while still running off the event loop, so a slow listener never stalls I/O
+        this.callbacks = new SerialExecutor(this.callbackExecutor);
         // options-registered listeners attach BEFORE the handshake so a server-speaks-first
         // protocol (RFB/VNC) cannot race its opening frame past an empty listener list
         if (options.getMessageListener() != null) {
@@ -391,9 +398,77 @@ public class WsClient {
      */
     private void dispatch(Runnable task) {
         try {
-            callbackExecutor.execute(task);
+            callbacks.execute(task);
         } catch (RejectedExecutionException e) {
             logger.debug("callback dropped, executor already shut down");
+        }
+    }
+
+    /**
+     * <b>One connection's callbacks, run one at a time and in submission order</b>, over a shared pool.
+     *
+     * <p>WebSocket delivers frames in order (RFC 6455 §1.5) and a listener is entitled to see them that way.
+     * Handing each frame straight to a cached thread pool discards that guarantee silently: two frames land
+     * on two pool threads and race, so a consumer collecting N messages can observe them shuffled, and a
+     * listener that mutates state per frame can interleave with itself. Both were live — a shuffled collect
+     * was written off as "interleaving under load", and an unsynchronised consumer lost messages outright.</p>
+     *
+     * <p>A dedicated thread per connection would also serialise, but costs a thread per socket. This queues
+     * instead and borrows a pool thread only while it has work, so callbacks stay <b>off the event loop</b>
+     * (a slow listener cannot stall Netty's I/O) without a per-connection thread. The trade is deliberate
+     * and is what ordering means: a listener that blocks holds up that connection's later frames — the same
+     * back-pressure a single-threaded consumer would have.</p>
+     */
+    private static final class SerialExecutor implements Executor {
+
+        private final Executor delegate;
+        private final Queue<Runnable> queue = new ArrayDeque<>();
+        private boolean draining;
+
+        private SerialExecutor(Executor delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void execute(Runnable task) {
+            synchronized (this) {
+                queue.add(task);
+                if (draining) {
+                    return;         // the running drain will pick it up, in order
+                }
+                draining = true;
+            }
+            try {
+                drain();
+            } catch (RuntimeException e) {
+                // the pool is gone: stop claiming a drain is in flight, and let dispatch() log the drop
+                synchronized (this) {
+                    draining = false;
+                    queue.clear();
+                }
+                throw e;
+            }
+        }
+
+        private void drain() {
+            delegate.execute(() -> {
+                while (true) {
+                    Runnable next;
+                    synchronized (this) {
+                        next = queue.poll();
+                        if (next == null) {
+                            draining = false;
+                            return;
+                        }
+                    }
+                    try {
+                        next.run();
+                    } catch (Throwable t) {
+                        // one listener's failure must not strand the queue behind it
+                        logger.error("websocket callback error: {}", t.getMessage());
+                    }
+                }
+            });
         }
     }
 
