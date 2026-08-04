@@ -403,7 +403,14 @@ public class Suite {
         }
 
         if (warnIfMissing) {
-            logger.trace("Config not found: {}", path);
+            // Loud on purpose. A standalone (CLI) run has no JVM classpath to fall back on, so a
+            // project whose config does not sit under the working dir loses every config variable
+            // and only fails much later, as a bare ReferenceError in the first step that reads one.
+            // Name the dirs actually probed — that is what points at the fix (--workingdir).
+            String probed = fileName == null ? path
+                    : path + " (also looked in: " + (classpathRoot.equals(workingDir)
+                    ? workingDir : workingDir + ", " + classpathRoot) + ")";
+            logger.warn("{} not found - no config variables will be set", probed);
         }
         return null;
     }
