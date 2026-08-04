@@ -23,6 +23,9 @@
  */
 package io.karatelabs.ext.image;
 
+import io.github.t12y.pixelmatch.ClusterAnalysis;
+import io.github.t12y.pixelmatch.ClusterOptions;
+import io.github.t12y.pixelmatch.Pixelmatch;
 import io.github.t12y.resemble.ErrorType;
 import io.github.t12y.resemble.Resemble;
 import io.github.t12y.resemble.Result;
@@ -43,9 +46,9 @@ import static io.github.t12y.ssim.SSIM.ssim;
 
 /**
  * Server-side pixel-diff engine for the image-comparison ext. Reads a baseline +
- * latest PNG/JPEG, runs the resemble and/or ssim engine over the unpacked RGBA
- * pixels, and returns a result map carrying the mismatch percentage and (when a
- * report is requested) the baseline / latest / diff {@link BufferedImage}s.
+ * latest PNG/JPEG, runs the resemble, ssim and/or pixelmatch engine over the
+ * unpacked RGBA pixels, and returns a result map carrying the mismatch percentage
+ * and (when a report is requested) the baseline / latest / diff {@link BufferedImage}s.
  * <p>
  * The pixel-comparison logic was contributed by jkeys089 (github.com/jkeys089),
  * who also authors the underlying {@code io.github.t12y:resemble} / {@code :ssim}
@@ -56,11 +59,18 @@ public class ImageComparison {
 
     public static final String RESEMBLE = "resemble";
     public static final String SSIM = "ssim";
+    public static final String PIXELMATCH = "pixelmatch";
     public static final String BASELINE_IMAGE = "baselineImage";
     public static final String LATEST_IMAGE = "latestImage";
     public static final String DIFF_IMAGE = "diffImage";
     public static final String RESEMBLE_MISMATCH_PERCENT = "resembleMismatchPercentage";
     public static final String SSIM_MISMATCH_PERCENT = "ssimMismatchPercentage";
+    public static final String PIXELMATCH_MISMATCH_PERCENT = "pixelmatchMismatchPercentage";
+    // present only when the cluster verdict is enabled: the raw (unfiltered) percentage
+    // stays visible as a diagnostic alongside the significant one that drives pass/fail
+    public static final String PIXELMATCH_RAW_MISMATCH_PERCENT = "pixelmatchRawMismatchPercentage";
+    public static final String PIXELMATCH_SUMMARY = "pixelmatchSummary";
+    public static final String PIXELMATCH_REGIONS = "pixelmatchRegions";
 
     private static final String[] IGNORED_BOX_KEYS = new String[]{"left", "right", "top", "bottom"};
     private static final String[] IGNORED_COLOR_KEYS = new String[]{"r", "g", "b"};
@@ -79,6 +89,7 @@ public class ImageComparison {
     private boolean includeDiffImageOnSuccess;
     private boolean includeDiffImageOnFailure;
     private String[] engines;
+    private Object clustersConfig;
     private final Map<String, Object> options;
     private final Map<String, Object> result;
 
@@ -172,6 +183,9 @@ public class ImageComparison {
             engines = engineConfig.split(",");
         }
 
+        // per-call/name.json options win over the suite-wide default (same precedence as engine)
+        clustersConfig = options.containsKey("clusters") ? options.get("clusters") : defaultOptions.get("clusters");
+
         String reportFormat = asString(defaultOptions.get("report"));
         if ("all".equalsIgnoreCase(reportFormat)) {
             includeDiffImageOnSuccess = true;
@@ -208,6 +222,9 @@ public class ImageComparison {
                     break;
                 case SSIM:
                     currentMismatchPercentage = imageComparison.execSSIM();
+                    break;
+                case PIXELMATCH:
+                    currentMismatchPercentage = imageComparison.execPixelmatch();
                     break;
                 default:
                     logger.error("skipping unsupported image comparison engine: {}", engine);
@@ -270,6 +287,78 @@ public class ImageComparison {
         result.put(SSIM_MISMATCH_PERCENT, mismatchPercentage);
 
         return mismatchPercentage;
+    }
+
+    private double execPixelmatch() {
+        io.github.t12y.pixelmatch.Options opts = pixelmatchOptions();
+
+        // pixelmatch is count-only: the diff image is always resemble's, which is what the
+        // HTML report lightbox (and its client-side live re-diff) renders. checkMismatch
+        // runs the resemble engine whenever a diff image is needed and none exists yet.
+        double mismatchPercentage;
+        if (opts.clusters != null) {
+            // cluster verdict: the significant-diff percentage drives pass/fail; rendering
+            // noise (AA halos, sub-pixel shifts) reports as ~0. Raw numbers stay visible.
+            ClusterAnalysis analysis = Pixelmatch.analyze(baselinePixels, latestPixels, null, width, height, opts);
+            mismatchPercentage = analysis.significantPercentage;
+            result.put(PIXELMATCH_RAW_MISMATCH_PERCENT, analysis.rawPercentage);
+            result.put(PIXELMATCH_SUMMARY, analysis.summary());
+            result.put(PIXELMATCH_REGIONS, regionMaps(analysis));
+        } else {
+            int mismatched = Pixelmatch.pixelmatch(baselinePixels, latestPixels, null, width, height, opts);
+            mismatchPercentage = 100.0 * mismatched / (width * height);
+        }
+
+        result.put(PIXELMATCH_MISMATCH_PERCENT, mismatchPercentage);
+        return mismatchPercentage;
+    }
+
+    private static List<Map<String, Object>> regionMaps(ClusterAnalysis analysis) {
+        List<Map<String, Object>> regions = new ArrayList<>();
+        for (ClusterAnalysis.Region region : analysis.significantRegions) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("x", region.x);
+            m.put("y", region.y);
+            m.put("width", region.width);
+            m.put("height", region.height);
+            m.put("area", region.area);
+            m.put("coreArea", region.coreArea);
+            m.put("meanDelta", region.meanDelta);
+            m.put("reason", region.reason.name());
+            regions.add(m);
+        }
+        return regions;
+    }
+
+    private io.github.t12y.pixelmatch.Options pixelmatchOptions() {
+        io.github.t12y.pixelmatch.Options opts = io.github.t12y.pixelmatch.Options.defaults();
+
+        // 'threshold' already means the failure threshold throughout karate-image,
+        // so the per-pixel OKLab HyAB matching threshold gets its own key.
+        // (pixelmatch's diff-rendering options are not exposed: it never draws here)
+        opts.threshold = getDouble("matchingThreshold", opts.threshold);
+        opts.includeAA = getBool("includeAA", opts.includeAA);
+        opts.checkerboard = getBool("checkerboard", opts.checkerboard);
+        opts.ignoredBoxes = getIgnoredBoxes();
+        opts.clusters = clusterOptions();
+
+        return opts;
+    }
+
+    /** {@code clusters: true} enables the verdict with defaults; a map tunes it; absent/false/null disables. */
+    private ClusterOptions clusterOptions() {
+        if (clustersConfig instanceof Map) {
+            Map cfg = (Map) clustersConfig;
+            ClusterOptions clusters = ClusterOptions.defaults();
+            clusters.coreRadius = toInt(cfg.get("coreRadius"), clusters.coreRadius);
+            clusters.minCoreArea = toInt(cfg.get("minCoreArea"), clusters.minCoreArea);
+            clusters.hardDelta = toDouble(cfg.get("hardDelta"), clusters.hardDelta);
+            clusters.flatness = toDouble(cfg.get("flatness"), clusters.flatness);
+            clusters.flatFraction = toDouble(cfg.get("flatFraction"), clusters.flatFraction);
+            clusters.minThinArea = toInt(cfg.get("minThinArea"), clusters.minThinArea);
+            return clusters;
+        }
+        return toBool(clustersConfig) ? ClusterOptions.defaults() : null;
     }
 
     private io.github.t12y.resemble.Options resembleOptions() {
@@ -373,11 +462,14 @@ public class ImageComparison {
     }
 
     private int getInt(String name, int defaultValue) {
-        Object val = options.get(name);
-        if (!(val instanceof Number)) {
+        return toInt(options.get(name), defaultValue);
+    }
+
+    private static int toInt(Object obj, int defaultValue) {
+        if (!(obj instanceof Number)) {
             return defaultValue;
         }
-        return ((Number) val).intValue();
+        return ((Number) obj).intValue();
     }
 
     private String getString(String name, String defaultValue) {

@@ -179,6 +179,18 @@ public class ImageApi implements SimpleObject {
         if (r.containsKey(ImageComparison.SSIM_MISMATCH_PERCENT)) {
             out.put("ssimMismatchPercentage", num(r.get(ImageComparison.SSIM_MISMATCH_PERCENT)));
         }
+        if (r.containsKey(ImageComparison.PIXELMATCH_MISMATCH_PERCENT)) {
+            out.put("pixelmatchMismatchPercentage", num(r.get(ImageComparison.PIXELMATCH_MISMATCH_PERCENT)));
+        }
+        if (r.containsKey(ImageComparison.PIXELMATCH_RAW_MISMATCH_PERCENT)) {
+            out.put("pixelmatchRawMismatchPercentage", num(r.get(ImageComparison.PIXELMATCH_RAW_MISMATCH_PERCENT)));
+        }
+        if (r.containsKey(ImageComparison.PIXELMATCH_SUMMARY)) {
+            out.put("pixelmatchSummary", str(r.get(ImageComparison.PIXELMATCH_SUMMARY)));
+        }
+        if (r.containsKey(ImageComparison.PIXELMATCH_REGIONS)) {
+            out.put("pixelmatchRegions", r.get(ImageComparison.PIXELMATCH_REGIONS));
+        }
         out.put("mismatch", mismatch);
         out.put("scaleMismatch", scaleMismatch);
         out.put("threshold", threshold);
@@ -236,6 +248,19 @@ public class ImageApi implements SimpleObject {
         }
         if (r.containsKey(ImageComparison.SSIM_MISMATCH_PERCENT)) {
             meta.put("ssimMismatchPercentage", num(r.get(ImageComparison.SSIM_MISMATCH_PERCENT)));
+        }
+        if (r.containsKey(ImageComparison.PIXELMATCH_MISMATCH_PERCENT)) {
+            meta.put("pixelmatchMismatchPercentage", num(r.get(ImageComparison.PIXELMATCH_MISMATCH_PERCENT)));
+        }
+        if (r.containsKey(ImageComparison.PIXELMATCH_RAW_MISMATCH_PERCENT)) {
+            meta.put("pixelmatchRawMismatchPercentage", num(r.get(ImageComparison.PIXELMATCH_RAW_MISMATCH_PERCENT)));
+        }
+        if (r.containsKey(ImageComparison.PIXELMATCH_SUMMARY)) {
+            meta.put("pixelmatchSummary", str(r.get(ImageComparison.PIXELMATCH_SUMMARY)));
+        }
+        // significant-region bounding boxes; TODO draw them on the diff in the lightbox
+        if (r.containsKey(ImageComparison.PIXELMATCH_REGIONS)) {
+            meta.put("pixelmatchRegions", r.get(ImageComparison.PIXELMATCH_REGIONS));
         }
         meta.put("threshold", num(r.get("failureThreshold")));
         meta.put("defaultThreshold", num(r.get("defaultFailureThreshold")));
@@ -375,6 +400,9 @@ public class ImageApi implements SimpleObject {
         d.put("report", config.getOrDefault("report", "mismatched"));
         if (config.containsKey("allowScaling")) {
             d.put("allowScaling", config.get("allowScaling"));
+        }
+        if (config.containsKey("clusters")) {
+            d.put("clusters", config.get("clusters"));
         }
         return d;
     }

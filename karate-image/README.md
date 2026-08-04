@@ -16,7 +16,7 @@ image.baselineDir = 'baselines';
 image.optionsDir  = 'baselines';   // where <name>.json tuning files live (defaults to baselineDir)
 image.threshold   = 0.02;          // max % mismatch tolerated
 image.report      = 'mismatched';  // attach diff images: 'all' | 'mismatched' | null
-image.engine      = 'resemble';    // 'resemble' | 'ssim' | 'resemble,ssim' | 'resemble|ssim'
+image.engine      = 'resemble';    // 'resemble' | 'ssim' | 'pixelmatch' | combos: 'resemble,ssim' | 'resemble|pixelmatch'
 ```
 
 Multiple engines: the **smallest** mismatch wins (pass if any engine is within threshold). The
@@ -65,6 +65,67 @@ Baselines resolve at `<baselineDir>/<name>.<ext>` (any ImageIO format; defaults 
 per-name options at `<optionsDir>/<name>.json` — so options can live locally while baselines
 live in, say, S3. Options precedence (low→high): suite/scenario config → `<name>.json` →
 per-call inline.
+
+## The pixelmatch engine
+
+The third engine, `pixelmatch`, is a Java port of
+[mapbox/pixelmatch](https://github.com/mapbox/pixelmatch) v7 (`io.github.t12y:pixelmatch`):
+per-pixel OKLab/HyAB perceptual color difference with built-in anti-aliasing detection.
+Options (per-call, `<name>.json`, all optional):
+
+- `matchingThreshold` (default `0.1`) — per-pixel OKLab HyAB color threshold, 0..1 where
+  black↔white = 1.0; smaller is more sensitive. (Named to avoid clashing with `threshold`,
+  which is the *failure* threshold everywhere in karate-image.)
+- `includeAA` (default `false`) — count anti-aliased pixels as differences.
+- `checkerboard` (default `true`) — blend semi-transparent pixels against a checkerboard
+  pattern (vs plain white) when comparing.
+- `ignoredBoxes` — the same `[{left, right, top, bottom}, …]` boxes (all bounds inclusive)
+  as the resemble/ssim engines; pixels inside are excluded from the comparison entirely,
+  including the cluster verdict's raw and significant counts. Use for dynamic regions
+  (transaction ids, timestamps).
+
+The pixelmatch engine is **count-only**: the diff image in reports is always produced by
+resemble (that is what the HTML lightbox and its live re-diff render), so pixelmatch's own
+diff-rendering options are not exposed. The pixelmatch percentages ride on the `diff()`
+result and the embed `meta` (`pixelmatchMismatchPercentage`, plus the raw/summary/region
+diagnostics when clusters are enabled).
+
+### Cluster verdict (`clusters`)
+
+Pixelmatch-only, **off by default**: a significance layer that separates rendering noise
+(anti-aliasing halos, sub-pixel shifts, font hinting changes between browser versions) from
+real regressions. Enable with `clusters: true` (defaults) or a tuning map:
+
+```js
+image.engine   = 'pixelmatch';
+image.clusters = true;             // suite-wide; or per-call / per-name in <name>.json:
+// { clusters: { coreRadius: 1, minCoreArea: 16, hardDelta: 2.5,
+//               flatness: 0.5, flatFraction: 0.5, minThinArea: 8 } }
+```
+
+With clusters on, the reported `mismatchPercentage` becomes the **significant-diff
+percentage** — pixels in regions classified as real changes (interior mass surviving
+erosion, or thin-but-vivid changes on a flat baseline) — and your existing failure
+`threshold` applies to that. Pure rendering noise reports ~0.0% and passes; a missing
+button reports its true area share. Because noise no longer inflates the number, you can
+tighten `threshold` aggressively (0.01% becomes practical). The raw percentage stays
+visible as `pixelmatchRawMismatchPercentage`, a human-readable `pixelmatchSummary`, and
+per-region boxes in `pixelmatchRegions` (`{x, y, width, height, area, coreArea, meanDelta,
+reason: 'CORE'|'THIN_VIVID'}`) — in both the `diff()` result and the embed `meta`.
+
+| Param | Default | Controls | Raising it | Lowering it |
+|---|---|---|---|---|
+| `coreRadius` | 1 | Max thickness (2r+1 px) treated as potentially noise | Thicker real changes must rely on the safety net; risk of missing small solid changes rises. Use 2 for 2x/retina captures. | (min 1) Thinner noise survives erosion and is counted as significant; false positives return. |
+| `minCoreArea` | 16 | Smallest interior "core" that counts as significant | Small solid changes (icons, single glyphs) may be ignored → false negatives. | Residual noise that survives erosion gets counted → false positives. |
+| `hardDelta` | 2.5 | How vivid a thin change must be for the safety net (× `matchingThreshold`) | Real thin changes (underlines, dividers, recolored text) missed → false negatives. | Strong-ish rendering noise gets rescued as significant → false positives. |
+| `flatness` | 0.5 | How flat the baseline must be under a thin change (× `matchingThreshold`) | More of the baseline qualifies as "flat" → safety net fires more often. | Stricter flatness → thin changes near existing detail are ignored. |
+| `flatFraction` | 0.5 | Share of a thin cluster's pixels that must sit on flat baseline | Thin changes overlapping existing edges (e.g. text recolor) missed. | Noise straddling a flat area may be counted. |
+| `minThinArea` | 8 | Smallest thin cluster the safety net will consider | Small thin marks (a text caret is ~2x16 px) ignored → false negatives. | Isolated vivid speckles (dead pixels, dithering) counted → false positives. |
+
+Notes: `clusters` cannot be combined with ssim's `windowSize` option on the same call when
+both engines run (pixelmatch ignores `windowSize`; it belongs to ssim). The lightbox does
+not yet draw the significant-region boxes on the diff — the coordinates ride on the embed
+`meta` (`pixelmatchRegions`) for when it does.
 
 A runnable, readable walkthrough lives in
 [`src/test/resources/demo/visual-demo.feature`](src/test/resources/demo/visual-demo.feature)
