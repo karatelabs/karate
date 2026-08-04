@@ -134,7 +134,8 @@ class StepFailureFeatureTest {
         assertTrue(Files.exists(featureHtml),
                 "feature HTML not found: " + featureHtml);
         String html = Files.readString(featureHtml);
-        assertTrue(html.contains("\"mime\": \"image/png\""),
+        // whitespace-tolerant: the inlined blob is compact JSON, and it is machine-read
+        assertTrue(html.matches("(?s).*\"mime\":\\s*\"image/png\".*"),
                 "feature HTML should carry the embed part with image/png mime type");
     }
 }
