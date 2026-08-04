@@ -167,4 +167,33 @@ class StepSetRhsTest {
                 """);
         assertPassed(sr);
     }
+
+    @Test
+    void testSetXmlXpathWithDocString() {
+        ScenarioRuntime sr = run("""
+                * def x = <root><a>1</a></root>
+                * set x /root/a =
+                \"\"\"
+                <b>2</b>
+                \"\"\"
+                * match x == <root><a><b>2</b></a></root>
+                """);
+        assertPassed(sr);
+    }
+
+    // A dynamic index isn't pure JsonPath, so it falls through to the JS engine.
+    // That path re-reads the step text, which has nothing after the `=`.
+    @Test
+    void testSetDynamicIndexWithDocString() {
+        ScenarioRuntime sr = run("""
+                * def i = 0
+                * def arr = [1]
+                * set arr[i] =
+                \"\"\"
+                { a: 'b' }
+                \"\"\"
+                * match arr == [{ a: 'b' }]
+                """);
+        assertPassed(sr);
+    }
 }

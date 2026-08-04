@@ -644,9 +644,12 @@ public class StepExecutor {
         if (eqIndex > 0) {
             String leftPart = text.substring(0, eqIndex).trim();
             String valueExpr = text.substring(eqIndex + 1).trim();
-            // Handle docstring if expression is empty (docstring IS the RHS expression).
+            // An empty RHS means the docstring IS the expression — same rule as `def`.
+            // Splice it back into `text` as well, because the JS fall-through at the
+            // bottom re-reads `text` and would otherwise parse a dangling `=`.
             if (valueExpr.isEmpty() && step.getDocString() != null) {
                 valueExpr = step.getDocString();
+                text = leftPart + " = " + valueExpr;
             }
 
             // Look for "varname /xpath" pattern (space followed by /)
