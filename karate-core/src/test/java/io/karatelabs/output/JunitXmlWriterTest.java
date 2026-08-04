@@ -350,4 +350,40 @@ class JunitXmlWriterTest {
                 "synthetic step description should appear in system-out");
     }
 
+    @Test
+    void aSyntheticStepRendersItsTextAndKeepsItsLog() throws Exception {
+        // A synthetic step keeps display text and log separate, so both belong in system-out —
+        // the text as the "* ..." step line, the log as its output underneath.
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+            function fn() {
+                karate.log('some config-time chatter');
+                throw 'config is broken';
+            }
+            """);
+
+        Path feature = tempDir.resolve("synthname.feature");
+        Files.writeString(feature, """
+            Feature: Synthetic step naming
+            Scenario: never runs
+            * def a = 1
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+        Runner.builder()
+                .path(feature.toString())
+                .workingDir(tempDir)
+                .configDir(configJs.toString())
+                .outputDir(reportDir)
+                .outputJunitXml(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        String xml = Files.readString(reportDir.resolve("junit-xml/synthname.xml"));
+        assertTrue(xml.contains("* Scenario execution failed:"),
+                "synthetic step should render its display text as the step line:\n" + xml);
+        assertTrue(xml.contains("some config-time chatter"),
+                "the step's log is separate content and must still be emitted:\n" + xml);
+    }
+
 }

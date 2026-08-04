@@ -968,4 +968,46 @@ class ScenarioConfigTest {
         assertTrue(result.isPassed(), "call of feature should inherit functions from karate-config.js");
     }
 
+    @Test
+    void aConfigFailureInTheSetupRuntimeIsReportedAtItsCause() throws Exception {
+        // karate.setup() builds a second runtime, which re-evaluates config. If that evaluation fails
+        // its variables are empty, and without surfacing the cause the run dies much later with a
+        // "not defined" for whatever the setup was supposed to provide. Config here succeeds on the
+        // first evaluation (the main scenario's) and fails on the second (the setup runtime's).
+        io.karatelabs.core.parallel.CallOnceCounter.reset();
+        Path configFile = tempDir.resolve("karate-config.js");
+        Files.writeString(configFile, """
+            function fn() {
+              var Counter = Java.type('io.karatelabs.core.parallel.CallOnceCounter');
+              if (Counter.incrementAndGet() > 1) {
+                throw 'config is broken on re-evaluation';
+              }
+              return {};
+            }
+            """);
+
+        Path featureFile = tempDir.resolve("test.feature");
+        Files.writeString(featureFile, """
+            Feature: setup with a failing config re-eval
+
+              @setup
+              Scenario:
+                * def token = 'from-setup'
+
+              Scenario: uses setup
+                * def s = karate.setup()
+                * match s.token == 'from-setup'
+            """);
+
+        SuiteResult result = LogSilencer.silenced("karate.runtime",
+                () -> runTestSuite(tempDir, featureFile.toString()));
+
+        assertTrue(result.isFailed(), "a config failure in the setup runtime must not pass silently");
+        String message = result.getErrors().toString();
+        assertTrue(message.contains("Config evaluation failed"),
+                "the config error should be the reported cause, got: " + message);
+        assertFalse(message.contains("token is not defined"),
+                "the config error must not surface as a downstream symptom: " + message);
+    }
+
 }

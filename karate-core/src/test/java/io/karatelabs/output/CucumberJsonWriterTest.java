@@ -572,4 +572,47 @@ class CucumberJsonWriterTest {
         assertTrue(sawDepth2Step, "expected '>> * ' step for depth-2 sub-feature");
     }
 
+    @Test
+    void aSyntheticStepIsNamedByItsTextNotItsRawLog() throws Exception {
+        // A synthetic step keeps display text and log separate. Naming it from the log dumps
+        // whatever the config phase printed into the step name; the text is what belongs there.
+        Path configJs = tempDir.resolve("karate-config.js");
+        Files.writeString(configJs, """
+            function fn() {
+                karate.log('some config-time chatter');
+                throw 'config is broken';
+            }
+            """);
+
+        Path feature = tempDir.resolve("test.feature");
+        Files.writeString(feature, """
+            Feature: Synthetic step naming
+            Scenario: never runs
+            * def a = 1
+            """);
+
+        Path reportDir = tempDir.resolve("reports");
+        Runner.builder()
+                .path(feature.toString())
+                .workingDir(tempDir)
+                .configDir(configJs.toString())
+                .outputDir(reportDir)
+                .outputCucumberJson(true)
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        String jsonStr = Files.readString(reportDir.resolve("cucumber-json/test.json"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> features = (List<Map<String, Object>>) (List<?>) Json.of(jsonStr).asList();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> elements = (List<Map<String, Object>>) features.get(0).get("elements");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> steps = (List<Map<String, Object>>) elements.get(0).get("steps");
+
+        String name = (String) steps.get(0).get("name");
+        assertTrue(name.startsWith("Scenario execution failed:"), "step name should be the synthetic text, got: " + name);
+        assertTrue(name.contains("config is broken"), name);
+        assertFalse(name.contains("some config-time chatter"), "the log must not be used as the step name: " + name);
+    }
+
 }

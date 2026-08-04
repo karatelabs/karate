@@ -267,6 +267,10 @@ public final class CucumberJsonWriter {
             String name;
             if (sr.isHook()) {
                 name = sr.getHookName();
+            } else if (sr.getSyntheticText() != null) {
+                // A synthetic step's display text is kept separate from its log — use it as the step
+                // name rather than dumping the raw log (which stays available as the step's output).
+                name = sr.getSyntheticText();
             } else if (sr.getLog() != null && !sr.getLog().isEmpty()) {
                 name = Console.stripAnsi(sr.getLog()).trim();
             } else {

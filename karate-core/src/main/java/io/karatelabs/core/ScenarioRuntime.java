@@ -480,6 +480,14 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         ScenarioRuntime sr = new ScenarioRuntime(featureRuntime, setupScenario);
         sr.setSkipBackground(true);
         sr.call();
+        // The setup runtime re-evaluates config, and a failure there is now captured rather than
+        // thrown from the constructor. call()'s failed result is discarded here, so without this the
+        // caller gets an empty variable map and the config error resurfaces as a baffling
+        // "x is not defined" wherever a setup variable was expected. Fail where the cause is.
+        Throwable setupConfigError = sr.getConfigError();
+        if (setupConfigError != null) {
+            throw setupConfigError instanceof RuntimeException re ? re : new RuntimeException(setupConfigError);
+        }
         return sr.getAllVariables();
     }
 

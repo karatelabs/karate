@@ -216,6 +216,11 @@ public final class JunitXmlWriter {
                 sb.append(sr.getStep().getPrefix()).append(" ").append(sr.getStep().getText()).append("\n");
             } else if (sr.isHook()) {
                 sb.append("* ").append(sr.getHookName()).append("\n");
+            } else if (sr.getSyntheticText() != null) {
+                // A synthetic step keeps its display text separate from its log, so unlike the
+                // fakeSuccess / fakeFailure case below the log is NOT the description — it is real
+                // content (config-time output, an HTTP exchange) and still gets emitted after this.
+                sb.append("* ").append(sr.getSyntheticText()).append("\n");
             } else if (sr.getLog() != null && !sr.getLog().isEmpty()) {
                 // fakeSuccess / fakeFailure: the log IS the description — render once, skip dup
                 sb.append("* ").append(Console.stripAnsi(sr.getLog()).trim()).append("\n");
