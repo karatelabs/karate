@@ -361,6 +361,59 @@ class CallOnceScopeTest {
                 "callonce should still cache within a single call instance: " + getFailureMessage(result));
     }
 
+    // ========== A callee def must survive even when it collides with a caller name ==========
+
+    @Test
+    void testCalleeDefIsInResultEvenWhenItReassignsACallerValue() throws Exception {
+        // The delta that keeps inherited caller scope out of the result used to compare by
+        // identity alone. A callee that assigns the very object it was handed - `def x = seed`
+        // where the caller passed its own `x` in as `seed` - left the binding identity-equal to
+        // the inherited one, so the callee's own def dropped out of the result entirely. Generic
+        // names (id, name, serial) shared between a caller and a helper hit this routinely.
+        Path callee = tempDir.resolve("callee.feature");
+        Files.writeString(callee, """
+            @ignore
+            Feature: callee
+            Scenario:
+            * def x = seed
+            * def y = 'other-new-value'
+            """);
+
+        Path caller = tempDir.resolve("caller.feature");
+        Files.writeString(caller, """
+            Feature: caller
+
+            Scenario: a callee def survives a name collision with the caller
+            * def x = 'seed-value'
+            * def arg = { seed: '#(x)' }
+
+            * def viaCall = call read('callee.feature') arg
+            * match viaCall == { seed: 'seed-value', x: 'seed-value', y: 'other-new-value' }
+
+            * def viaCallOnce = callonce read('callee.feature') arg
+            * match viaCallOnce == { seed: 'seed-value', x: 'seed-value', y: 'other-new-value' }
+
+            * def viaJs = karate.call('callee.feature', arg)
+            * match viaJs == { seed: 'seed-value', x: 'seed-value', y: 'other-new-value' }
+
+            # callSingle diffs the same way - and against what the callee was seeded with, so the
+            # caller's own maps (arg, and the results defined above) stay out of it
+            * def viaCallSingle = karate.callSingle('callee.feature', arg)
+            * match viaCallSingle == { seed: 'seed-value', x: 'seed-value', y: 'other-new-value' }
+            """);
+
+        SuiteResult result = Runner.builder()
+                .path(caller.toString())
+                .workingDir(tempDir)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .backupOutputDir(false)
+                .parallel(1);
+
+        assertTrue(result.isPassed(),
+                "a variable defined by the called feature must be in the result: " + getFailureMessage(result));
+    }
+
     // ========== Config: a cache hit replays only what the callee changed ==========
 
     @Test

@@ -45,6 +45,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -255,9 +256,12 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         if (isCalled) {
             karate.engine.putRootBinding("__loop", featureRuntime.getLoopIndex());
         }
-        // Spread the individual argument keys as variables.
+        // Spread the individual argument keys as variables. Counted as this scenario's own
+        // bindings (not inherited scope) so they stay in the call result even when the caller
+        // happens to hold the same value under the same name - see assignedVariables.
         if (callArg != null) {
             for (var entry : callArg.entrySet()) {
+                assignedVariables.add(entry.getKey());
                 karate.engine.put(entry.getKey(), entry.getValue());
             }
         }
@@ -346,6 +350,20 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
     public Map<String, Object> getInheritedVariables() {
         return inheritedVariables;
+    }
+
+    /** Names this scenario bound for itself — every step-level write routed through
+     *  {@link #setVariable} ({@code def}, {@code set}, {@code text}, the HTTP response vars, ...)
+     *  plus the spread {@code call} argument keys. Identity alone cannot see such a write when the
+     *  value assigned IS the object the caller already had under that name — {@code def x = seed}
+     *  where the caller passed its own {@code x} in as {@code seed} — so the callee's own
+     *  {@code def} silently vanished from the call result. Tracking the names makes that
+     *  contribution explicit; see {@link StepUtils#calleeDelta}. Writes that bypass setVariable
+     *  (JS assignment, {@code karate.set}) still rely on the identity comparison. */
+    private final Set<String> assignedVariables = new LinkedHashSet<>();
+
+    public Set<String> getAssignedVariables() {
+        return assignedVariables;
     }
 
     /**
@@ -812,9 +830,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 // example-row columns (frozen to row 1 and replayed onto later rows via a
                 // karate.set(...) spread — #2934) and config-level refs like Java.type(...)
                 // (serialized into the disk cache, then deserialized as broken values that
-                // clobber the live ref on a warm run — #2933). callSingle runs in isolated
-                // scope, so the caller's vars are still current here; see StepUtils.calleeDelta.
-                return StepUtils.calleeDelta(getAllVariables(), nestedFr.getLastExecuted().getAllVariables());
+                // clobber the live ref on a warm run — #2933). Diffed against what the callee
+                // was actually seeded with (isolated scope shallow-copies maps and lists, so
+                // comparing against the caller's own live vars read every inherited map as
+                // "replaced" and leaked it back) — the same helper the call keyword uses.
+                return StepExecutor.calleeResult(nestedFr.getLastExecuted());
             }
             return new HashMap<>();
         } else if (content instanceof JavaCallable) {
@@ -1440,6 +1460,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     }
 
     public void setVariable(String name, Object value) {
+        assignedVariables.add(name);
         karate.engine.put(name, value);
     }
 

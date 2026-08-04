@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Static utility methods for step execution.
@@ -196,13 +197,25 @@ public class StepUtils {
      * Identity comparison is intentional: an untouched inherited binding keeps the same Object
      * reference, while a callee {@code def}/assign produces a new one — so a key absent from the
      * caller, or present but pointing at a different object, is part of the delta.
+     * <p>
+     * Identity alone is not enough, though: a callee that assigns the very object it was handed
+     * ({@code * def x = seed}, where the caller passed its own {@code x} in as {@code seed}) leaves
+     * the binding identity-equal to the inherited one, so its own {@code def} vanished from the
+     * result. {@code assignedNames} carries the names the callee bound for itself
+     * ({@link ScenarioRuntime#getAssignedVariables()}) and is unioned in. The two rules only ever
+     * add to the delta; an inherited binding the callee never touched still stays out.
      */
     public static Map<String, Object> calleeDelta(Map<String, Object> callerVars, Map<String, Object> calleeVars) {
+        return calleeDelta(callerVars, calleeVars, Set.of());
+    }
+
+    public static Map<String, Object> calleeDelta(Map<String, Object> callerVars, Map<String, Object> calleeVars,
+                                                  Set<String> assignedNames) {
         Map<String, Object> delta = new LinkedHashMap<>();
         for (Map.Entry<String, Object> entry : calleeVars.entrySet()) {
             String key = entry.getKey();
             Object value = entry.getValue();
-            if (!callerVars.containsKey(key) || callerVars.get(key) != value) {
+            if (!callerVars.containsKey(key) || callerVars.get(key) != value || assignedNames.contains(key)) {
                 delta.put(key, value);
             }
         }

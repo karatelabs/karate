@@ -551,7 +551,8 @@ public class StepExecutor {
         if (callee == null) {
             return null;
         }
-        return StepUtils.calleeDelta(callee.getInheritedVariables(), callee.getAllVariables());
+        return StepUtils.calleeDelta(callee.getInheritedVariables(), callee.getAllVariables(),
+                callee.getAssignedVariables());
     }
 
     /**

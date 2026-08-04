@@ -376,6 +376,8 @@ Variables and configuration have different scope semantics for `call read(...)`:
 
 This is intentional: a `def foo = call bar` (isolated) explicitly opts out of variable mutation but still needs the caller's proxy/SSL/auth to reach the callee's HTTP client (issue #2839).
 
+**The isolated-call result is a delta — `StepUtils.calleeDelta`, via the one funnel `StepExecutor.calleeResult`.** A called feature runs with the caller's visible variables in scope so it can read them, so its full binding set echoes caller state back; returning that leaks caller locals and config-level refs into the result, into the `callonce` cache, and into the `callSingle` disk cache. The delta is computed against `ScenarioRuntime.getInheritedVariables()` — what the callee was actually *seeded* with, not the caller's live vars, since isolated scope shallow-copies maps and lists and a live-vars comparison reads every inherited map as "replaced". Two rules, unioned, both additive: **identity** (an untouched inherited binding keeps the same object reference) and **`ScenarioRuntime.getAssignedVariables()`**, the names the callee bound for itself through `setVariable` plus the spread call-arg keys. The second rule exists because identity alone cannot see `* def x = seed` when the caller passed its own `x` in as `seed` — the callee's own `def` is identity-equal to the inherited binding and used to vanish from the result. Writes that bypass `setVariable` (raw JS assignment, `karate.set`) are covered only by the identity rule.
+
 Three sites push the typed `KarateConfig` to the relevant `HttpClient` after `copyFrom`:
 
 - `ScenarioRuntime.inheritConfigFromCaller` — caller → callee on `call read(...)`. Both scopes.
