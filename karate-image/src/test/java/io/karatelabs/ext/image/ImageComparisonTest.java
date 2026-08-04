@@ -183,6 +183,31 @@ class ImageComparisonTest {
         assertTrue(((String) result.get("error")).contains("more than allowable threshold"));
     }
 
+    @Test
+    void testFallbackChainShortCircuits() {
+        // 'a|b' is a fallback chain: the first engine to come in under the failure
+        // threshold wins outright and the rest never run. resemble sees 11.11% here.
+        Map<String, Object> stopped = ImageComparison.run(
+                B_3x3_IMG, BG_3x3_IMG, opts("failureThreshold", 50.0), opts("engine", "resemble|ssim"));
+
+        assertEquals(11.11, round((double) stopped.get("mismatchPercentage")));
+        assertTrue(stopped.containsKey(ImageComparison.RESEMBLE_MISMATCH_PERCENT));
+        assertFalse(stopped.containsKey(ImageComparison.SSIM_MISMATCH_PERCENT), "ssim should not have run");
+    }
+
+    @Test
+    void testFallbackChainFallsThroughAndTakesTheSmallest() {
+        // resemble's 11.11% is over the threshold, so the chain keeps going and the
+        // smallest number across the engines that ran is the one that counts
+        Map<String, Object> result = ImageComparison.run(
+                B_3x3_IMG, BG_3x3_IMG,
+                opts("failureThreshold", 5.0, "windowSize", 1), opts("engine", "resemble|ssim"));
+
+        double resemble = (double) result.get(ImageComparison.RESEMBLE_MISMATCH_PERCENT);
+        double ssim = (double) result.get(ImageComparison.SSIM_MISMATCH_PERCENT);
+        assertEquals(Math.min(resemble, ssim), (double) result.get("mismatchPercentage"));
+    }
+
     static boolean checkImage(BufferedImage image, byte[] raw) throws IOException {
         BufferedImage rawImage = ImageIO.read(new ByteArrayInputStream(raw));
         int[] imgRGB = image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth());
