@@ -1549,5 +1549,7 @@ exceptions on its happy path, and `ApacheHttpClient.initHttpClient` shows up per
 i.e. §2.1's `PooledHttpClientFactory` was never built and this is what that costs. The
 "< 5% vs plain Gatling" target above is not a meaningful gate as written: Karate allocates
 ~2.9x plain Gatling for the same requests, because it parses and structurally matches every
-response rather than extracting one JSONPath. Compare like for like, or state what the
-number includes.
+response rather than extracting one JSONPath — a ratio between two tools doing different
+work. The criterion that answers a load tester's actual question is whether the overhead
+disappears into the network time of the system under test; see
+[PROFILING.md](./PROFILING.md) §2, "What acceptable overhead should mean here".

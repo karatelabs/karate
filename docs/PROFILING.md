@@ -281,6 +281,28 @@ hide. The `null` pair has no HTTP at all and so is the one whose wall-clock numb
 quoting. A throughput comparison needs a mock tier cheap enough to stay out of the way — see
 §9.
 
+#### What "acceptable overhead" should mean here
+
+Not a ratio against plain Gatling. That comparison is unavoidably apples-to-oranges — Karate
+parses each response into a document and runs a structural `match` where the Gatling variant
+extracts one JSONPath — so a ratio measures *different work*, and picking a threshold for it
+(GATLING.md's "< 5% vs plain Gatling") invites tuning towards a number that was never the
+question.
+
+**The question a load tester actually has is whether the client's overhead disappears into the
+network time of the system under test.** A localhost mock answers 1000 µs away; a real API is
+one to two orders of magnitude further. Against a service with a 50 ms median response, the
+~0.7 ms of CPU a `karateFeature()` exec costs is ~1.4% of one user's iteration — and the
+faster the target, the more it matters, which is why the number to quote is the fixed cost in
+milliseconds, not a percentage against another tool.
+
+What would settle it, and is not built: give the mock a **configurable injected latency**, then
+run the `http` pair at a fixed concurrency against, say, 0 / 10 / 50 ms. The gap between the
+two variants should stay roughly constant in absolute terms while shrinking as a share of the
+iteration — and if it does not, the overhead is proportional to something and is worth
+chasing. That is a small change to the mock feature and a knob, and it is the honest version
+of the "< 5%" claim.
+
 ### `Probe` — what does a call actually return?
 
 Not a workload; a one-shot diagnostic that prints the *shape* of the variables a feature
@@ -784,6 +806,27 @@ known exceptions explicitly.
 A cheaper partial alternative, also unbuilt: strip the `FeatureResult` at feature end, after
 the listeners have returned. Bounds memory at O(threads x feature size) with no compatibility
 break — but scores exactly zero on the mega-outline shape, which is the only case left.
+
+### Prior art — the 0.9.x-era overhead thread
+
+[karatelabs/karate#845](https://github.com/karatelabs/karate/issues/845) is a long thread from
+the karate 0.9.x days about exactly this question, and it has not been mined. The recollection
+going in is that **Karate's overhead came out roughly comparable to Gatling's** — which, if the
+thread bears it out, is a prior that the numbers in §6 should be reconciled against rather than
+replacing silently. Worth extracting before any deeper measurement work:
+
+- what was measured, on what shape of workload, and against what baseline — a "comparable"
+  from a thread that only ever drove a saturated localhost mock says less than one taken
+  against a realistic target;
+- which specific costs were identified and whether they still exist (v2 rewrote the engine, so
+  a v1-era hot spot may be gone, moved, or newly introduced);
+- the failure modes and dead ends, which are the part that does not go stale.
+
+The decision it leaves open is bigger than the measurement: keep paying the cost of driving
+Karate through Gatling's actor model and Scala runtime, or **write a perf framework native to
+Karate** that starts from what both the thread and this document have already learned. Nothing
+here forecloses either; the parity workloads exist precisely so that choice can be made on
+numbers.
 
 ### Other deferred items
 
