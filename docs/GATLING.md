@@ -1223,7 +1223,62 @@ When `.silent()` is set on a `karateFeature()`:
 
 Use for warm-up scenarios before actual load test.
 
-### 14.9 Failure Visibility
+### 14.9 Default Fidelity — DECIDED, NOT BUILT
+
+**The decision: under Gatling, assume the user wants no HTML report and no logging except on
+errors.** Anything beyond that is opt-in. This is a product decision, already taken — what
+follows is what it costs today and what implementing it involves.
+
+**Already off** (`Runner.runFeature`, the Gatling lane): HTML report, console summary, boot
+file, call-result retention. JSONL / JUnit / Cucumber are off by default anyway. Report
+*writing* — the largest cost in the whole memory investigation — is fully disabled.
+
+**Still on, and nothing reads it:** the per-step log capture. `HttpLogger` says so in its own
+comment — *"Report buffer always gets the full version … so HTML reports stay rich regardless
+of SLF4J level"* — but under Gatling there is no HTML report. So for every request Karate
+re-parses the JSON body, pretty-prints it, ANSI-colourises it, wraps it in sentinels, appends
+it to a thread-local buffer and hangs it off `StepResult.log`, where it is retained and never
+read. Measured on `gatling-http-karate` with a throwaway guard (PROFILING.md §6):
+
+| site | with capture | without |
+|---|---:|---:|
+| `Json.parseLenient` | 3.7% | 0.9% |
+| `ApacheHttpClient.buildResponse` | 8.6% | 3.5% |
+| `LogContext.log` | 1.6% | — |
+| `LogContext.collect` | 1.2% | — |
+
+Roughly **6–8 percentage points of allocation**, in a workload where the HTTP client itself is
+~22%. The residual `parseLenient` is Karate's own response parsing; the rest was the logger
+parsing the same body a second time.
+
+**Design, and the three things that make it non-trivial:**
+
+1. **The check must happen before the string is built.** The threshold test inside
+   `LogContext.log` is too late — the cost is already paid by the time it is reached. The
+   producer (`HttpLogger`) has to ask first.
+2. **`logReplay` must switch capture back on.** It replays exactly this buffer, so replay
+   without capture is a feature that silently does nothing. Wiring it in
+   `KarateProtocolBuilder.build()` turns today's documented footgun ("replay is bounded by the
+   report threshold") into automatic behaviour. Note replay is *already* opt-in and free when
+   `OFF` — it returns before rendering anything and allocates no buffer — so this adds no cost
+   to the default path.
+3. **`print` / `karate.log()` must keep reaching the console.** They go through `LogWriter`,
+   which writes to SLF4J *and* the buffer, so they survive capture being off at whatever level
+   the user's Logback config allows. That is what makes "unless the user opts into logging"
+   true rather than aspirational — but it is the thing to verify, not assume.
+
+A sketch that compiled: a `capture` flag on `LogContext` (thread-local, so no cross-Suite
+races), defaulted per scenario from the Suite — capture unless `isPerfMode()` — with
+`Runner.Builder.captureStepLogs(boolean)` as the override that karate-gatling sets when replay
+is on. Left unbuilt deliberately; it is a karate-core behaviour change and wanted its own
+session.
+
+Still unaddressed and separate: the per-scenario Logback level snapshot/restore
+(`LogContext.captureRuntimeLevels` + `setLevelOn`, ~2–3% of allocation), a reflective walk over
+eight logger names on every scenario. The obvious fix is to snapshot lazily — on the first
+`configure logging` — rather than unconditionally.
+
+### 14.10 Failure Visibility
 
 A Gatling run has no HTML report and no console summary, so a failure has exactly two surfaces —
 and both must name **where** and **why**:
@@ -1235,7 +1290,7 @@ and both must name **where** and **why**:
 - **The failure log** (`KarateExecutor`): the same summary line, then the IDE-clickable absolute
   location, the assertion comment, and the full diff.
 
-### 14.10 Log Replay
+### 14.11 Log Replay
 
 Per-step Karate output (HTTP blocks, `print`) is captured into `FeatureResult` in perf mode
 regardless of the Logback level — `LogContext` has its own threshold. `LogReplayer` uses that to

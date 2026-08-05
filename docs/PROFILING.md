@@ -956,6 +956,27 @@ The ranking is not close, and it is the same lesson as §8: the expensive option
 that changes semantics, and none of them should be started before a number says which
 constraint is actually binding.
 
+### Default log fidelity under Gatling — decided and measured, not built
+
+The product decision is taken: **under Gatling, assume no HTML report and no logging except on
+errors**, everything else opt-in. Report writing is already off in that lane; the per-step log
+capture is not, and nothing reads it — every request re-parses and pretty-prints its response
+body to build a string that is retained and discarded.
+
+Measured on `gatling-http-karate` with a throwaway guard (numbers in §6's Gatling baseline
+discussion): `Json.parseLenient` 3.7% → 0.9%, `ApacheHttpClient.buildResponse` 8.6% → 3.5%,
+`LogContext.log` and `collect` gone entirely — **6–8 points of allocation** in a workload where
+the HTTP client itself is ~22%.
+
+The design, the three things that make it non-trivial (the check must precede the string build;
+`logReplay` must switch capture back on; `print` must keep reaching SLF4J), and the sketch that
+compiled are all in **[GATLING.md §14.9](./GATLING.md)**. Also noted there: the per-scenario
+Logback level snapshot, a reflective walk over eight logger names on every scenario, ~2–3%.
+
+This is the best-specified piece of open work in either document — decided, measured, designed,
+and with an existing test (`LogReplayerTest`) that will catch the coupling if it is wired
+wrongly.
+
 ### Prior art — the 0.9.x-era overhead thread
 
 [karatelabs/karate#845](https://github.com/karatelabs/karate/issues/845) is a long thread from
