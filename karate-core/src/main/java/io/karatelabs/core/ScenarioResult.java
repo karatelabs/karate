@@ -345,9 +345,14 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         if (reason == null) {
             return null;
         }
-        int newLine = reason.indexOf('\n');
-        String firstLine = (newLine < 0 ? reason : reason.substring(0, newLine)).trim();
-        if (firstLine.isEmpty()) {
+        // the first line that actually says something — a message that opens with a blank line
+        // would otherwise report no reason at all, when there plainly is one
+        String firstLine = reason.lines()
+                .map(String::trim)
+                .filter(line -> !line.isEmpty())
+                .findFirst()
+                .orElse(null);
+        if (firstLine == null) {
             return null;
         }
         return firstLine.length() > REASON_SUMMARY_MAX

@@ -143,6 +143,76 @@ class FailureReportingTest {
         assertTrue(fr.getFailureMessageForDisplay().contains("reason.feature:6"));
     }
 
+    /**
+     * A failure whose message runs long — a JS error with a stack, a big match diff — must not drag
+     * that length into the one-line summary. A performance tool groups its errors table by that
+     * string, so it has to stay bounded no matter what the message looks like.
+     */
+    @Test
+    void testFailureReasonSummaryIsCapped() throws Exception {
+        Path feature = tempDir.resolve("long.feature");
+        // a single-line failure message far past the cap, with no newline to cut it short
+        Files.writeString(feature, """
+                Feature: Failing test
+
+                Scenario: long message
+                * def a = 'x'
+                * assert a == '%s'
+                """.formatted("y".repeat(500)));
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isFailed());
+        ScenarioResult sr = result.getFeatureResults().get(0).getScenarioResults().get(0);
+
+        String summary = sr.getFailureReasonSummary();
+        assertTrue(summary.length() <= 203, "expected the summary to be capped, was: " + summary.length());
+        assertTrue(summary.endsWith("..."), "a truncated summary should say so: " + summary);
+        // the untruncated reason is still available for the log
+        assertTrue(sr.getFailureReason().length() > 203);
+    }
+
+    /**
+     * A failure not tied to a parsed step — a lifecycle hook, or a synthetic step appended by an
+     * ext — has no line and no step text. Every accessor has to degrade to something usable rather
+     * than a half-formed message, because this is what a perf KO falls back to.
+     */
+    @Test
+    void testFailureAccessorsDegradeWhenThereIsNoParsedStep() throws Exception {
+        // a config-time failure is reported as a synthetic step: it belongs to no line of any feature
+        Files.writeString(tempDir.resolve("karate-config.js"), """
+                function fn() {
+                  throw 'config blew up';
+                }
+                """);
+        Path feature = tempDir.resolve("hook.feature");
+        Files.writeString(feature, """
+                Feature: Never gets to run
+
+                Scenario: config fails first
+                * def a = 1
+                """);
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isFailed());
+        ScenarioResult sr = result.getFeatureResults().get(0).getScenarioResults().get(0);
+
+        assertEquals(-1, sr.getFailedStepLine(), "a synthetic step has no feature-file line");
+        assertNull(sr.getFailedStepLocation());
+        // no location to lead with, so the KO message falls back to the reason alone rather than
+        // reporting nothing at all
+        assertEquals(sr.getFailureReasonSummary(), sr.getPerfFailureMessage());
+    }
+
     @Test
     void testFailedStepTextNullWhenScenarioPasses() throws Exception {
         Path feature = tempDir.resolve("ok.feature");

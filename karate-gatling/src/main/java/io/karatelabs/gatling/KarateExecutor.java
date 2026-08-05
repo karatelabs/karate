@@ -148,11 +148,12 @@ public class KarateExecutor {
     /**
      * The failure rendered for the log: a summary line naming <em>where</em> and <em>why</em> —
      * {@code path/to.feature:LINE - match failed: EQUALS} — followed by the same detail the console
-     * summary shows. The summary line intentionally carries the same location and reason as the
+     * summary shows. The summary line carries the same {@code filename:LINE} and reason as the
      * Gatling KO message ({@code ScenarioResult.getPerfFailureMessage()}) so the load report and the
      * log can be lined up; the full match diff follows underneath, where it does not have to stay
-     * short. The location is repeated in absolute form because that is the IDE-clickable one, while
-     * the summary keeps the path exactly as the simulation declared it.
+     * short. The paths differ in form on purpose: the summary keeps the path exactly as the
+     * simulation declared it (usually {@code classpath:}), and the line below repeats it in the
+     * absolute form the KO uses, which is the IDE-clickable one.
      */
     private String describeFailure(FeatureResult result) {
         StringBuilder sb = new StringBuilder(featurePath);

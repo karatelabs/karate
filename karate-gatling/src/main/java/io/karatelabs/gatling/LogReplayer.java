@@ -92,21 +92,32 @@ public class LogReplayer {
         if (!isEnabled()) {
             return null;
         }
-        String rendered = render(featurePath, result);
         if (!result.isFailed()) {
-            // nothing to retain in FAILED mode: only the failing feature is ever replayed
-            return mode == KarateLogReplay.ALL ? Buffer.of(buffer).with(rendered, limit) : buffer;
+            if (mode != KarateLogReplay.ALL) {
+                // FAILED mode retains nothing, so rendering this feature would only be thrown away —
+                // and this is the healthy path of a load run, once per feature per virtual user
+                return buffer;
+            }
+            return Buffer.of(buffer).with(render(featurePath, result), limit);
         }
+        // one log event, not one per feature: under load several virtual users fail at once, and
+        // separate events would interleave into a log where no block can be tied to its failure
+        StringBuilder sb = new StringBuilder();
         if (mode == KarateLogReplay.ALL && buffer != null) {
             if (buffer.dropped > 0) {
-                emit(buffer.dropped + " earlier karate feature log(s) dropped — logReplayLimit is " + limit);
+                sb.append(buffer.dropped).append(" earlier karate feature log(s) dropped — logReplayLimit is ")
+                        .append(limit).append('\n');
             }
             for (String entry : buffer.entries) {
-                emit(entry);
+                sb.append(entry).append('\n');
             }
         }
+        String rendered = render(featurePath, result);
         if (rendered != null) {
-            emit(rendered);
+            sb.append(rendered);
+        }
+        if (!sb.isEmpty()) {
+            emit(sb.toString().stripTrailing());
         }
         // start the next iteration clean — the failure this output explains has been logged
         return Buffer.EMPTY;

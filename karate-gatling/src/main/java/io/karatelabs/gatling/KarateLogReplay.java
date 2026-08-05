@@ -58,7 +58,7 @@ public enum KarateLogReplay {
             return OFF;
         }
         try {
-            return valueOf(value.trim().toUpperCase());
+            return valueOf(value.trim().toUpperCase(java.util.Locale.ROOT));
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("invalid log replay mode: '" + value
                     + "', expected one of: off, failed, all");

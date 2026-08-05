@@ -29,6 +29,7 @@ import io.karatelabs.http.HttpRequest;
 import io.karatelabs.output.LogLevel;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -125,7 +126,7 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
      */
     public KarateProtocolBuilder logReplayLevel(String level) {
         try {
-            this.logReplayLevel = LogLevel.valueOf(level.trim().toUpperCase());
+            this.logReplayLevel = LogLevel.valueOf(level.trim().toUpperCase(Locale.ROOT));
         } catch (Exception e) {
             throw new IllegalArgumentException("invalid log replay level: '" + level
                     + "', expected one of: trace, debug, info, warn, error");
@@ -144,6 +145,12 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
      * @return this builder for chaining
      */
     public KarateProtocolBuilder logReplayLimit(int limit) {
+        if (limit < 1) {
+            // zero would retain nothing AND report nothing dropped, quietly turning ALL into
+            // FAILED — which is a mode you can just ask for
+            throw new IllegalArgumentException("logReplayLimit must be at least 1, was: " + limit
+                    + " (use logReplay(FAILED) to replay only the failing feature)");
+        }
         this.logReplayLimit = limit;
         return this;
     }

@@ -133,9 +133,14 @@ class LogReplayerTest {
         KarateExecutor.ExecutionResult failed = run(FAIL_FEATURE, protocol, passed.logBuffer);
 
         List<String> events = replayed();
-        assertEquals(2, events.size(), "the passed feature and the failed one: " + events);
-        assertTrue(events.get(0).contains(">>> karate: " + PASS_FEATURE + " [passed]"), events.get(0));
-        assertTrue(events.get(1).contains(">>> karate: " + FAIL_FEATURE + " [failed]"), events.get(1));
+        // ONE event, not one per feature: under load several virtual users fail at once, and
+        // separate events would interleave into a log where no block can be tied to its failure
+        assertEquals(1, events.size(), "a replay must reach the log as a single event: " + events);
+        String replay = events.get(0);
+        assertTrue(replay.contains(">>> karate: " + PASS_FEATURE + " [passed]"), replay);
+        assertTrue(replay.contains(">>> karate: " + FAIL_FEATURE + " [failed]"), replay);
+        assertTrue(replay.indexOf(PASS_FEATURE) < replay.indexOf(FAIL_FEATURE),
+                "what led up to the failure comes first: " + replay);
         // the buffer is cleared once its contents have explained a failure, so the next iteration
         // does not re-log output that has already been seen
         assertNotNull(failed.logBuffer);
@@ -165,9 +170,19 @@ class LogReplayerTest {
         run(FAIL_FEATURE, protocol, buffer);
 
         List<String> events = replayed();
-        assertEquals(3, events.size(), "the drop notice, the retained feature, the failed one: " + events);
+        assertEquals(1, events.size(), "the drop notice rides the same event: " + events);
         // a cap that silently swallows context reads as "this is everything" when it is not
-        assertTrue(events.get(0).contains("1 earlier karate feature log(s) dropped"), events.get(0));
-        assertTrue(events.get(0).contains("logReplayLimit is 1"), events.get(0));
+        String replay = events.get(0);
+        assertTrue(replay.startsWith("1 earlier karate feature log(s) dropped"), replay);
+        assertTrue(replay.contains("logReplayLimit is 1"), replay);
+        assertTrue(replay.contains(">>> karate: " + PASS_FEATURE + " [passed]"), replay);
+        assertTrue(replay.contains(">>> karate: " + FAIL_FEATURE + " [failed]"), replay);
+    }
+
+    /** A limit that retains nothing would quietly turn ALL into FAILED — ask for FAILED instead. */
+    @Test
+    void aLimitBelowOneIsRejected() {
+        assertThrows(IllegalArgumentException.class, () -> karateProtocol().logReplayLimit(0));
+        assertThrows(IllegalArgumentException.class, () -> karateProtocol().logReplayLimit(-1));
     }
 }
