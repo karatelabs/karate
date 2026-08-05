@@ -297,6 +297,12 @@ colour-capable console is detected (a TTY, or `FORCE_COLOR`). Under Gatling, CI,
 ANSI-stripping `%replace(...)` regex in your Logback pattern. The HTML report keeps its own
 coloured copy regardless.
 
+**New in v2, beyond v1 parity:** a Gatling failure now names both *where* and *why* — the KO
+message and the `KarateExecutor` error log both carry `feature.feature:LINE`, the step, and the
+reason. And `karateProtocol().logReplay(...)` can hold the per-step Karate output that a quiet
+Logback config would otherwise swallow, logging it only when a feature fails — optionally
+including the features that already passed for that virtual user.
+
 ---
 
 ## Reports
