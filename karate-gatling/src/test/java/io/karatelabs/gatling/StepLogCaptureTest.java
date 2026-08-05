@@ -131,7 +131,9 @@ class StepLogCaptureTest {
 
     @Test
     void printStillReachesTheConsoleWithCaptureOff() {
-        run(null);
+        // assert the run itself was healthy, so a feature that broke before the print step
+        // reads as a broken feature rather than as a missing log line
+        assertFalse(run(null).isFailed());
 
         // this is what makes "no logging unless you ask for it" a default rather than a gag:
         // the user's own output still goes wherever the Logback config sends it

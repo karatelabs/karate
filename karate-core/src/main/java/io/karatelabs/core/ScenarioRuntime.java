@@ -1041,8 +1041,10 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         LogContext.set(new LogContext());
         // Does anything read the per-step log for this run? Under Gatling nothing does — no HTML
         // report, and log replay (which does read it) turns capture back on for itself. Decided
-        // here, before any producer runs, so the expensive text is never built at all rather than
-        // built and dropped at the threshold check. See Runner.Builder.captureStepLogs.
+        // here, ahead of the steps, so the expensive text is never built at all rather than built
+        // and dropped at the threshold check. Config JS ran earlier, in the constructor, so an
+        // HTTP call made directly there is still built — and then dropped by appendCaptured
+        // below, which is gated too. See Runner.Builder.captureStepLogs.
         Suite suite = featureRuntime != null ? featureRuntime.getSuite() : null;
         if (suite != null) {
             LogContext.get().setCapture(suite.isCaptureStepLogs());

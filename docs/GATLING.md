@@ -1292,6 +1292,19 @@ fixed startup (`initHttpClient`, parser init, config eval). The claim this suppo
 sites are gone", not "the workload allocates measurably less" — that would need a longer run,
 or `--duration`, which is unbuilt.
 
+**Two things the flag does not cover**, both worth knowing before quoting "nothing is built":
+
+- **`karate.http()` called directly in `karate-config.js`.** Config JS is evaluated in the
+  `ScenarioRuntime` constructor, before `call()` installs the fresh `LogContext` the flag is
+  set on, so those blocks are still built (and then dropped by the gated `appendCaptured`). A
+  `karate-config-perf.js` that fetches a token that way pays the full capture cost per
+  scenario. A `karate.call` / `callSingle` of a *feature* does go through `call()` and is
+  gated; only direct config-time HTTP escapes.
+- **Embeds and synthetic steps.** `LogContext.embed` / `step` still attach to the
+  `StepResult` with capture off, so a perf feature calling `karate.embed(screenshot)` retains
+  every image for a report that will not be written. Pre-existing, and the flag is scoped to
+  `StepResult.log` on purpose — but it is the same class of waste.
+
 Still unaddressed and separate: the per-scenario Logback level snapshot/restore
 (`LogContext.captureRuntimeLevels` + `setLevelOn`, ~2–3% of allocation, and still visible in
 the after-runs), a reflective walk over eight logger names on every scenario. The obvious fix
