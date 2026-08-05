@@ -23,6 +23,11 @@ etc/run.sh harness-smoke --iterations 50000 # smoke: is the harness alive?
 etc/run.sh call-accumulation                # the real thing
 ```
 
+`run.sh` drives Maven **offline** (`-o`) throughout, deliberately: a profiling run should not
+depend on the network, and a surprise dependency download inside a measured window is exactly
+the kind of thing that ruins a comparison. The cost is that a machine with an unpopulated
+`~/.m2` fails at the first step — build the project once online before profiling it.
+
 Every invocation writes one self-contained, never-overwritten directory:
 
 ```
@@ -108,14 +113,15 @@ rm -rf "${TMPDIR:-/tmp}"/karate-feature-spread-* "${TMPDIR:-/tmp}"/karate-report
 
 | Flag | Default | Notes |
 |---|---|---|
-| `--threads N` | per workload | Concurrency (virtual threads). |
+| `--threads N` | per workload | Concurrency (virtual threads). For `gatling-*` these become Gatling virtual users instead — see §2. |
 | `--iterations N` | per workload | Fixed iteration count. Mutually exclusive with `--duration`. |
 | `--duration 10m` | per workload | Run for a wall-clock window instead. Use for soaks. |
 | `--xmx 768m` | per workload | Child heap. **The single most important knob** — a leak that OOMs at 768m may never surface at 4g. |
 | `--gc g1\|zgc` | `g1` | See [Reproducing a specific collector](#reproducing-a-specific-collector). |
 | `--warmup Ns` | per workload | Excluded from the measured window — the recording is delayed past it. A workload that drives its own concurrency runs no warmup, so nothing is delayed for it. |
 | `--timeout` | duration + slack | Wall-clock cap. On expiry the parent dumps the recording and thread state, then kills the child. See §4. |
-| `--record workload\|mock` | `workload` | Flips which JVM gets the recording. `mock` profiles the Karate mock server itself, driven by a deliberately cheap raw-`java.net.http` client. |
+| `--record workload\|mock` | `workload` | Flips which JVM gets the recording, so the profile is of the mock server rather than the load driver. Only meaningful for a workload that uses a mock — today that is the `gatling-http-*` pair, and `gatling-http-plain --record mock` is the cheaper driver of the two. The deliberately-cheap raw-`java.net.http` driver this was designed for is the unbuilt "Mock throughput tiers" item in §9. |
+| `--gc-roots` | off | Makes `jdk.OldObjectSample` report reference chains — the *holder* of retained objects, not just the allocating stack. Costs a full reference walk at every sample, which is why it is per-run rather than always on. |
 
 ### Reproducing a specific collector
 
@@ -329,7 +335,10 @@ leaves in scope, counting distinct container nodes by identity so shared substru
 counted once.
 
 ```bash
-mvn -q compile
+mvn -o -q compile
+# target/cp.txt is written by run.sh, not by compile — materialise it if you have not
+# run a workload yet in this checkout
+mvn -o -q dependency:build-classpath -Dmdep.outputFile=target/cp.txt
 java -cp "target/classes:$(cat target/cp.txt)" io.karatelabs.profiling.Probe \
      classpath:workload/probe-forms.feature
 ```
@@ -481,19 +490,37 @@ the feature threads and makes memory O(threads) instead of O(features). See §8.
 
 ### "Karate got slower"
 
-1. `etc/run.sh leak-watch --duration 5m` on the suspect commit and on its parent.
+1. Run the same pair on the suspect commit and on its parent — `call-accumulation
+   --iterations 2000` and `feature-spread --iterations 2000`, because a change that moves one
+   and not the other has already told you which shape it affected (§2). For a CPU-shaped
+   regression under Gatling, the `gatling-null` pair isolates fixed per-execution cost with no
+   HTTP in the way.
 2. Diff the two `digest.md` files — *Allocation by site* first, *Hot methods* second.
    That order is deliberate: allocation sampling is trustworthy under virtual threads and
    CPU sampling largely is not (§7).
 3. Ignore wall-clock differences under ~10% on a laptop; see §7.
 
+Once the leak-watch family exists (§2), a `--duration` soak on both commits replaces step 1 —
+it is the better instrument for "slower over time" as opposed to "slower per iteration". It
+does not exist yet, so do not reach for it.
+
 ### "Is the mock server fast enough?"
 
-`etc/run.sh <mock workload> --record mock` puts the recording on the mock JVM and drives
-it with a raw HTTP client, so the profile attributes cost to gherkin matching, JS
-evaluation and response building without any Karate-client noise. This is also the one
-configuration where *Hot methods* is fully trustworthy — the mock serves on platform
-threads.
+`--record mock` puts the recording on the mock JVM instead of the load driver, so the profile
+attributes cost to gherkin matching, JS evaluation and response building. This is also the one
+configuration where *Hot methods* is fully trustworthy — the mock serves on platform threads.
+
+Today the only workloads that fork a mock are the Gatling http pair, so:
+
+```bash
+etc/run.sh gatling-http-plain --record mock    # cheapest driver available
+```
+
+`gatling-http-plain` is the one to use: driving with Gatling's own client rather than Karate's
+keeps the client's own cost out of the picture as far as currently possible. It is not
+*absent* from the picture — the raw-`java.net.http` driver that would remove it entirely is
+the unbuilt "Mock throughput tiers" item in §9, and until it exists a mock profile still
+contains some client.
 
 ### "Something is retained but I can't see what"
 
@@ -545,13 +572,15 @@ retained sizes, reference chains) open `heapdump.hprof` in Eclipse MAT or Visual
 is no JDK CLI that reads an `.hprof` file — `jmap -histo` only works against a *live*
 process.
 
-Two recording options worth knowing about, both off by default and both costly enough that
-they are opt-in per run rather than always on:
+Two recording options worth knowing about, one already on and one you ask for:
 
+- `-XX:FlightRecorderOptions:stackdepth=128` — **always applied** by the harness. The JVM
+  default of 64 truncates Karate-through-JS stacks, which collapses distinct allocation sites
+  into one; there is nothing to enable.
 - `path-to-gc-roots=true` — makes `jdk.OldObjectSample` report reference chains (the
-  *holder*), not just the allocation stack.
-- `-XX:FlightRecorderOptions:stackdepth=128` — the default 64 truncates Karate-through-JS
-  stacks, which collapses distinct allocation sites into one.
+  *holder*), not just the allocation stack. Opt-in per run via the **`--gc-roots`** flag,
+  because it costs a full reference walk at every sample. This is the flag §4 means whenever
+  it says "re-run with `path-to-gc-roots` enabled".
 
 ---
 
@@ -561,7 +590,28 @@ Hand-maintained. Update it when you take a run you trust, and always record the 
 **and the child JDK** — absolute numbers are meaningless without them, only *shapes* and
 *ratios* travel.
 
-**Machine A** — Apple Silicon (aarch64), macOS 25.5, 10 cores, JDK 24.0.2, G1.
+### What is settled, and what is not
+
+The one paragraph to read before assuming "Karate's bottlenecks are handled". The four
+categories are not interchangeable and the difference decides what the next phase may take for
+granted:
+
+| | Status |
+|---|---|
+| **Fixed and verified** | Parallel-execution *memory* on ordinary suite shapes: call-result retention (flat across a 4x scale sweep) and the report-writing queue (~4.5x → ~1.3x, wall-clock fell). The external reproducer passes at `-Xmx768m`. |
+| **Measured, known-unbounded, accepted** | One feature holding thousands of scenarios, with reports on — still linear (502 / 1108 / 2079 MB). Only per-scenario release changes the slope, and §9 records why that was not built. |
+| **Never measured** | Soaks. Every workload is an iteration-bounded reproduction, so "no slow leak over hours" is unverified rather than verified — see the leak-watch family in §2. |
+| **Never measured** | CPU inside scenario code. All of §8 is allocation and retention; `jdk.ExecutionSample` is blind on virtual threads (§7) and the custom JFR events that would fix it are unbuilt (§9). |
+
+Everything in the Gatling baseline below is in a fifth category: **leads, not findings.**
+Happy-path exception construction, per-execution file reads and re-parsing, the per-scenario
+Logback snapshot, per-execution HTTP client construction — each is a real number from a real
+run, and none has been chased to a cause. Driving Karate under load surfaces karate-core costs
+that the memory workloads never touched, which is the main reason the Gatling family earns its
+keep beyond the parity question.
+
+**Machine A** — Apple Silicon (aarch64), Darwin 25.5 (kernel version, not the macOS
+marketing one), 10 cores, JDK 24.0.2, G1.
 
 #### `call-accumulation` scale sweep — machine A, 60 calls per scenario, 16 threads
 
@@ -610,6 +660,12 @@ Read these together, because they say two different things:
 - **The single mega-outline shape is still linear** — 502 / 1108 / 2079. Improved ~2.5x, but
   with one feature there is no feature-end seam to release at, so nothing short of releasing
   per *scenario* changes its slope. This is a known, accepted limit; see §9.
+
+**Ignore the `all` column moving the wrong way** in three of six cells (210 → 372, 297 → 242,
+2995 → 3017). Those before-numbers were artificially low for the reason §8 sets out — JSONL was
+accidentally throttling the producer enough for the writer thread to keep up — so they were
+never a budget the fix could regress against. The `html` column is the one that carries meaning,
+because `html` is what users actually ship.
 
 A `feature-spread html` run at `-Xmx768m` and 2000 scenarios peaked at 739 MB before the
 change — 96% of the heap, no headroom, on a suite that needs 248 MB to execute. That is the
@@ -703,7 +759,10 @@ linear trend and the ratios are what travel.*
   platform-thread paths.
 - **Throughput numbers off a laptop are shape-only.** Thermal throttling, other processes
   and the mock sharing the same cores make absolute req/s unusable. Ratios between two
-  runs taken back-to-back on the same machine are fine; anything else is not.
+  runs taken back-to-back on the same machine are fine; anything else is not — **and only
+  when the thing being ratioed is the bottleneck.** Two clients saturating the same mock
+  report identical numbers that ratio to exactly nothing, which is what the `http` pair does
+  today (§2).
 - **Collector artefacts are not findings.** ZGC returns committed memory to the OS, so
   "committed shrank to match used" is ZGC behaving normally, not a fix taking effect. G1
   and ZGC also populate `jdk.GCHeapSummary` and `jdk.OldObjectSample` differently — never
@@ -799,6 +858,29 @@ nested result tree was showing up as `StringUtils.pad` in the allocation profile
 ## 9. Parked, and not built
 
 Recorded so none of it is re-derived from scratch. Nothing here is scheduled.
+
+### If you are picking up the Gatling thread — the order
+
+The Gatling items below and in the table depend on each other, and building them out of order
+wastes the work. There are **two separate pieces of mock work**, which is the thing easiest to
+get wrong:
+
+1. **Mine [#845](#prior-art--the-09x-era-overhead-thread) first.** It is reading, not building,
+   and it may change what is worth measuring at all.
+2. **A latency knob on the existing feature mock** — a *change* to `profiling-mock.feature`, not
+   a replacement. This alone unblocks two experiments: whether the overhead disappears into
+   network time (§2) and whether Karate blocking Gatling's threads caps concurrency (below).
+   Cheapest thing here with the highest information return.
+3. **A cheap mock tier** — the raw-Java-handler item in the table below, a *different artifact*
+   from (2). This is what the throughput ceiling waits on, because the feature mock saturates
+   before either client does. Give it the same latency knob as (2) or it answers half the
+   question.
+4. **`--duration` support** for the Gatling workloads is independent of all of the above and
+   gates only the Gatling soak. Do it when the soak is the question.
+
+Steps 2 and 3 both say "mock work" and are not the same task. Doing (2) does not unblock the
+throughput ceiling, and doing (3) does not by itself make the overhead-share experiment
+runnable.
 
 ### Per-scenario spill — designed, reviewed, deliberately not built
 
@@ -902,8 +984,8 @@ numbers.
 | Copy-on-first-change in `processEmbeddedExpressions` | A real inefficiency independent of any leak: a fresh `LinkedHashMap`/`ArrayList` is rebuilt for every Map/List node walked, unconditionally, with no check for whether `#(...)` appears at all — v1 never copied the payload. Three traps if revived: `processInlineEmbedded` returns a *new equal String* for every string, defeating identity-based change detection unless it returns the original when nothing substituted; the XML branch mutates in place, so "source intact" holds for Maps and Lists only; and `resolveConfigMap` has a javadoc promising a defensive copy. Pursue on allocation numbers, not on a leak report. |
 | Leak-watch family | See §2. The soak question is genuinely unanswered — every current workload is an iteration-bounded reproduction. |
 | JS-engine workloads | `js-array`, `js-object`, `js-engine-init` built from `EngineBenchmark`'s generators, so JS tuning gets forking, JFR and digests too. |
-| Mock throughput tiers | Raw Java handler vs JS handler vs feature mock, as a floor-and-multiplier table. `--record mock` already exists to support this. |
-| Gatling parity — **partly built** | The null-overhead probe, the parity sim and the allocation comparison exist (§2, §6). What is left: a **throughput ceiling**, which needs a mock tier cheap enough not to be the bottleneck — today both variants saturate the feature mock, so req/s measures the mock. Also unbuilt: `--duration` support, which needs `during()` in the injection profile rather than a repetition count, and is the prerequisite for a Gatling soak. Note the entry point is `Gatling.fromArgs`, not the `fromMap` this row used to name — `fromMap` was removed in Gatling 3.15. |
+| Mock throughput tiers | Raw Java handler vs JS handler vs feature mock, as a floor-and-multiplier table. `--record mock` already exists to support this. **The raw-Java tier is step 3 of the ordering above** — it is what the Gatling throughput ceiling waits on, and it should carry the same latency knob. |
+| Gatling parity — **partly built** | The null-overhead probe, the parity sim and the allocation comparison exist (§2, §6). What is left: a **throughput ceiling**, which needs a mock tier cheap enough not to be the bottleneck — today both variants saturate the feature mock, so req/s measures the mock. That tier is the "Mock throughput tiers" row below, not a separate piece of work; see the ordering note at the top of this section. Also unbuilt: `--duration` support, which needs `during()` in the injection profile rather than a repetition count, and is the prerequisite for a Gatling soak. Note the entry point is `Gatling.fromArgs`, not the `fromMap` this row used to name — `fromMap` was removed in Gatling 3.15. |
 | Custom JFR events | `karate.Step` / `karate.Call` / `karate.HttpRequest`, so a recording carries Karate semantics and allocation attributes to a *feature line*. **A CPU-tuning need, not a memory one.** The virtual-thread gap is specific to `jdk.ExecutionSample`; everything the memory work relied on attributes correctly regardless of thread model. Build these when the question becomes "where is the CPU going during a parallel run" — exactly where `ExecutionSample` goes blind. |
 | `profiler compare A B` | Side-by-side delta table from two run directories. |
 | Machine-readable baselines + CI | Committed `baselines/*.json`, a scheduled job, regression thresholds. Out of scope until the manual playbook has proven itself. |
