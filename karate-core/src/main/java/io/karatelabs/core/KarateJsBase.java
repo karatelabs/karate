@@ -435,13 +435,31 @@ abstract class KarateJsBase implements SimpleObject {
      * Returns system properties available via karate.properties['key'].
      */
     Map<String, String> getProperties() {
-        ScenarioRuntime rt = getRuntime();
-        if (rt != null && rt.getFeatureRuntime() != null && rt.getFeatureRuntime().getSuite() != null) {
-            return rt.getFeatureRuntime().getSuite().getSystemProperties();
+        Suite suite = getSuite();
+        if (suite != null) {
+            return suite.getSystemProperties();
         }
         Map<String, String> props = new LinkedHashMap<>();
         System.getProperties().forEach((k, v) -> props.put(k.toString(), v.toString()));
         return props;
+    }
+
+    /**
+     * One system property, the {@code karate.sysprop(name)} path. Deliberately not
+     * {@code getProperties().get(name)}: that is the whole point of preferring the helper —
+     * a single lookup instead of a map of every property the JVM has.
+     */
+    String getProperty(String name) {
+        Suite suite = getSuite();
+        return suite != null ? suite.getSystemProperty(name) : System.getProperty(name);
+    }
+
+    private Suite getSuite() {
+        ScenarioRuntime rt = getRuntime();
+        if (rt != null && rt.getFeatureRuntime() != null) {
+            return rt.getFeatureRuntime().getSuite();
+        }
+        return null;
     }
 
     private static final LogContext.LogWriter SCENARIO_LOG = LogContext.with(LogContext.SCENARIO_LOGGER);

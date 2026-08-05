@@ -374,10 +374,12 @@ public class Suite {
      * Try to load a config file and return the Resource (for debugging support).
      */
     private Resource tryLoadConfigResource(String path, boolean warnIfMissing) {
-        // Try the explicit path first
+        // Try the explicit path first. Probing, not loading — karate-base.js and
+        // karate-config-<env>.js are absent in most projects, and this runs per Suite, so a miss
+        // must not cost an exception.
         try {
-            Resource resource = Resource.path(path);
-            if (resource.exists()) {
+            Resource resource = Resource.optional(path);
+            if (resource != null && resource.exists()) {
                 return resource.isFile() && resource.getPath() != null
                         && resource.getPath().getFileSystem() == java.nio.file.FileSystems.getDefault()
                         ? Resource.from(resource.getPath(), root, classpathRoot)
@@ -1158,17 +1160,72 @@ public class Suite {
 
     /**
      * Get system properties for karate.properties.
+     * <p>
+     * A live view, not a copy: reading one key does not walk the JVM's whole property table,
+     * which {@code karate.sysprop('x')} and every {@code karate.properties['x']} used to do —
+     * a fresh HashMap of every system property, per access. Iteration still materializes.
      */
     public Map<String, String> getSystemProperties() {
-        if (systemProperties == null) {
-            Map<String, String> props = new HashMap<>();
-            System.getProperties().forEach((k, v) -> props.put(k.toString(), v.toString()));
-            return props;
+        return new SystemPropertiesView(systemProperties);
+    }
+
+    /**
+     * One property, without building the map — what {@code karate.sysprop(name)} wants.
+     * Builder-supplied properties win over the JVM's, matching the merge order of the view.
+     */
+    public String getSystemProperty(String key) {
+        if (systemProperties != null) {
+            String value = systemProperties.get(key);
+            if (value != null) {
+                return value;
+            }
         }
-        Map<String, String> merged = new HashMap<>();
-        System.getProperties().forEach((k, v) -> merged.put(k.toString(), v.toString()));
-        merged.putAll(systemProperties);
-        return merged;
+        return System.getProperty(key);
+    }
+
+    /**
+     * {@code karate.properties} as a Map whose {@code get} / {@code containsKey} go straight to
+     * {@link System#getProperty} — the only two operations the JS bridge performs for
+     * {@code karate.properties['x']}. Anything that needs the whole set (iteration, size,
+     * equality) materializes it on demand, so behaviour is unchanged; only the per-read copy is
+     * gone. Reads stay live: a {@code System.setProperty} mid-run is visible, as before.
+     */
+    private static final class SystemPropertiesView extends java.util.AbstractMap<String, String> {
+
+        private final Map<String, String> overrides;
+
+        private SystemPropertiesView(Map<String, String> overrides) {
+            this.overrides = overrides;
+        }
+
+        @Override
+        public String get(Object key) {
+            if (!(key instanceof String name)) {
+                return null;
+            }
+            if (overrides != null) {
+                String value = overrides.get(name);
+                if (value != null) {
+                    return value;
+                }
+            }
+            return System.getProperty(name);
+        }
+
+        @Override
+        public boolean containsKey(Object key) {
+            return get(key) != null;
+        }
+
+        @Override
+        public Set<Entry<String, String>> entrySet() {
+            Map<String, String> merged = new HashMap<>();
+            System.getProperties().forEach((k, v) -> merged.put(k.toString(), v.toString()));
+            if (overrides != null) {
+                merged.putAll(overrides);
+            }
+            return merged.entrySet();
+        }
     }
 
     public DriverProvider getDriverProvider() {

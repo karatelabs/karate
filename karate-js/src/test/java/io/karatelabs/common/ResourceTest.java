@@ -1628,4 +1628,29 @@ class ResourceTest {
         }
     }
 
+
+    // Probing for an optional file — a karate-base.js most projects do not have — is not an
+    // error, and must not build one: the miss is the expected answer, and it happens per run.
+    @Test
+    void testOptionalReturnsNullForAMissingClasspathResource() {
+        assertNull(Resource.optional("classpath:no-such-file-98765.js"));
+        assertNull(Resource.optional("classpath:nested/deeper/also-missing.json"));
+        // and still resolves what IS there
+        Resource found = Resource.optional("classpath:logback-test.xml");
+        assertNotNull(found);
+        assertTrue(found.exists());
+        // the throwing form is unchanged for callers that treat a miss as a failure
+        assertThrows(ResourceNotFoundException.class, () -> Resource.path("classpath:no-such-file-98765.js"));
+    }
+
+    @Test
+    void testOptionalForAFileRefThatIsNotThere() {
+        Resource missing = Resource.optional(tempDir.resolve("not-written.txt").toString());
+        // a plain path resolves to a Resource that simply does not exist yet — same as path()
+        assertTrue(missing == null || !missing.exists());
+        Resource present = Resource.optional(testFile.getAbsolutePath());
+        assertNotNull(present);
+        assertEquals("Hello World", present.getText());
+    }
+
 }

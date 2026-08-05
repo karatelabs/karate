@@ -64,6 +64,12 @@ public class JavaObject implements ExternalAccess, ObjectLike {
     }
 
     @Override
+    public Object getPropertyOrNotFound(String name) {
+        Object result = JavaUtils.getOrNotFound(object, name);
+        return result == JavaUtils.NOT_FOUND ? result : JavaUtils.convertIfArray(result);
+    }
+
+    @Override
     public void putMember(String name, Object value) {
         JavaUtils.set(object, name, value);
     }

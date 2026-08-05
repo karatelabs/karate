@@ -718,21 +718,20 @@ fixed cost:
 
 | site | share | reading |
 |---|---:|---|
-| `JavaUtils.findMethodDirect` | 11.0% | reflective method lookup, per execution |
-| `BaseParser.<init>` | 9.1% | the feature and its JS re-parsed every time |
-| `PathResource.computeRelativePath` | 7.6% | path resolution, per execution |
-| ~~`LogContext.setLevelOn` + `captureRuntimeLevels`~~ | ~~6.1%~~ | **fixed** — the per-scenario Logback level snapshot/restore is now taken lazily; see [§9](#per-scenario-logback-level-snapshot--built) |
-| `JsErrorException.<init>` + `ResourceNotFoundException.<init>` | 5.9% | **exceptions constructed on a happy path** — nothing in this feature fails |
+| `BaseParser.<init>` | 9–10% | the feature and its JS re-parsed every time |
+| `PathResource.computeRelativePath` | 7–9% | path resolution, per execution |
+| `Resource.urlToPath` | ~8% | classpath URL → Path, per execution |
+| ~~`LogContext.setLevelOn` + `captureRuntimeLevels`~~ | ~~6.1%~~ | **fixed** — the Logback level snapshot is now lazy; see [§9](#per-scenario-logback-level-snapshot--built) |
+| ~~`JsErrorException.<init>` + `ResourceNotFoundException.<init>`~~ | ~~5.9%~~ | **fixed** — with the reflection and map copies around them; see [§9](#exceptions-on-the-happy-path--built) |
 
-The exception row is the interesting one left and has not been chased down. Building exceptions
-in a feature that does nothing but `* def x = 1` is a lead, not a finding.
+Two rows are kept struck through because they are the entries with a before-and-after, and both
+are the shape of a real removal rather than a redistribution: total sampled allocation for this
+workload went **1.71 GB → 1.36–1.58 GB → 1.01–1.12 GB** across the two fixes, measured at
+20000 iterations throughout. Note the width of those bands: run-to-run spread on the same build
+is ±15%, so only non-overlapping ranges mean anything here.
 
-The level-snapshot row is kept, struck through, because it is the one entry here with a
-before-and-after: on a later run of the same workload at the same iteration count it read
-`captureRuntimeLevels` 5.6% + `setLevelOn` 4.4% = **10% of 1.71 GB**, and after the fix
-neither appears in the allocation panel at all, with the total down to 1.57–1.58 GB. That is
-the shape of a real removal, as against the previous entry's "the sites are gone but the total
-did not move".
+The parser and path-resolution rows are what is left, and neither has been chased. Re-parsing
+the same feature file on every execution is the obvious one.
 
 **`http` pair — 2000 iterations = 4000 requests against the sibling mock.** Wall-clock is
 mock-bound and says nothing (see §2); allocation and heap do:
@@ -1011,6 +1010,58 @@ cost is the whole profile:
 **10% of the null-pair profile, and this time the total moved with it** — unlike the log-capture
 entry above, where the removal was real but too small to see against sampling spread. Both sites
 are also gone from `gatling-http-karate`, where they had been 1.5–3.4% and ~1%.
+
+### Exceptions on the happy path — built
+
+§6's null-pair breakdown had a row reading "**exceptions constructed on a happy path** — nothing
+in this feature fails", never chased. Chasing it found the exceptions were the symptom; each one
+sat on top of a lookup that was being redone from scratch every time.
+
+**What `karate.properties['mock.url']` cost when the key is absent** — the
+`karate.properties['x'] || 'default'` shape every `karate-config.js` uses. The read falls
+through the JS property chain to the Java bridge, whose caller (`PropertyAccess.accessViaBridge`)
+turns whatever comes back into `undefined`. Getting to that `undefined` took, per read:
+
+1. `getMethod("getMock.url")` → `NoSuchMethodException` + a full `Class.getMethods()` array copy
+   and scan;
+2. `getMethod("isMock.url")` → the same again;
+3. `getField("mock.url")` → `NoSuchFieldException`;
+4. a third `getMethods()` copy and scan;
+5. `JsErrorException.typeError(...)` → a `JsError`, a `HashMap` for its message, and a stack
+   trace — all discarded by the catch.
+
+Four exceptions and three array copies to answer "no". Alongside it, two more O(n) costs on the
+same read: `PropertyAccess` built a **whole JsObject copy of the Map** whenever a key missed
+(just to reach `Object.prototype`), and `karate.properties` / `karate.sysprop` each materialised
+a fresh `HashMap` of *every* JVM system property. And once per Suite, the config probe for a
+`karate-base.js` / `karate-config-<env>.js` that most projects do not have threw
+`ResourceNotFoundException` to say so.
+
+**The fixes**, all "a miss is an answer, not an event":
+
+| | |
+|---|---|
+| `JavaUtils` | member resolution per (class, name) — getter / field / method / not-found — kept in a `ClassValue` map, and a non-throwing miss for the bridge that swallows it |
+| `PropertyAccess` | a shared empty probe object to reach `Object.prototype`, instead of copying the Map |
+| `Suite` | `karate.properties` is a live view (`get`/`containsKey` straight through, iteration still materialises) and `karate.sysprop(name)` is a single lookup |
+| `Resource.optional(path)` | the probing form of `Resource.path`, returning null; used by the config lookup |
+
+Measured on `gatling-null-karate --iterations 20000`, in the order they were applied:
+
+| after | total | what left the panel |
+|---|---:|---|
+| (baseline) | 1.36–1.58 GB | — |
+| `JavaUtils` + `sysprop` | 1.23 GB | `findMethodDirect` 8.7%, `JavaUtils.get` 5.0%, `JsErrorException` 1.4% |
+| prototype probe | 1.11 GB | the map copy, which had surfaced at 13.6% once `sysprop` stopped hiding it |
+| `Resource.optional` | 1.01–1.12 GB | `ResourceNotFoundException` 3.1% |
+
+**No exception constructor appears in the allocation panel any more**, and the before and after
+bands do not overlap. Each step is worth reading as "the next cost became visible once the one
+in front of it was gone" — the map copy was always there, charged to
+`Suite.getSystemProperties` until that stopped copying.
+
+Everything here is generic, not config-specific: `response.absentField` on a large JSON body was
+paying the same map copy, and any `x.y` miss on a Java object paid the same four exceptions.
 
 ### Prior art — the 0.9.x-era overhead thread
 

@@ -41,6 +41,13 @@ class PropertyAccess {
 
     static final Logger logger = LoggerFactory.getLogger(PropertyAccess.class);
 
+    /**
+     * An empty object used only to reach {@code Object.prototype} when a raw Map has no such
+     * key. Shared because it holds no state of its own — {@code getMember} reads the prototype
+     * chain and never mutates the receiver — and it is never handed to script code.
+     */
+    private static final JsObject PROTOTYPE_PROBE = new JsObject();
+
     private PropertyAccess() {} // Prevent instantiation
 
     /**
@@ -632,7 +639,13 @@ class PropertyAccess {
         } else if (object instanceof Map) {
             Map<String, Object> map = (Map<String, Object>) object;
             if (map.containsKey(name)) return map.get(name);
-            Object result = new JsObject(map).getMember(name, object, context);
+            // The key is not in the map, so only the Object prototype can answer — `toString`,
+            // `hasOwnProperty` and friends. This used to ask a fresh JsObject seeded with the
+            // whole map, which copied every entry into a Slot to then miss on all of them: an
+            // O(size) allocation on every missed key read, and `response.absentField` on a large
+            // JSON body is exactly that. An empty probe reaches the same prototype chain, and the
+            // receiver passed along is still the real map.
+            Object result = PROTOTYPE_PROBE.getMember(name, object, context);
             if (result != null) return result;
         } else if (object instanceof List) {
             ObjectLike ol = Terms.toObjectLike(object);
@@ -944,7 +957,14 @@ class PropertyAccess {
         try {
             ExternalAccess ja = object instanceof ExternalAccess ea
                     ? ea : context.root.bridge.forInstance(object);
-            return functionCall ? ja.getMethod(name) : ja.getProperty(name);
+            if (functionCall) {
+                return ja.getMethod(name);
+            }
+            // a property read that misses is the common case here — every `x.y` on a Java
+            // object where y is not a member, and every absent key on a Map, lands on it. It
+            // comes back as a value rather than as an exception this catch would discard.
+            Object result = ja.getPropertyOrNotFound(name);
+            return result == JavaUtils.NOT_FOUND ? Terms.UNDEFINED : result;
         } catch (Exception e) {
             return Terms.UNDEFINED;
         }

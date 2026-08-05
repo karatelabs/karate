@@ -1467,6 +1467,42 @@ class ExternalBridgeTest extends EvalBase {
                 "expected class name in: " + ex.getMessage());
     }
 
+    // Member lookup on a Java class is resolved once and remembered — the RESOLUTION, never the
+    // value. A getter read twice with a mutation in between must see the mutation.
+    @Test
+    void testCachedMemberResolutionStillReadsLiveValues() {
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        DemoPojo pojo = new DemoPojo();
+        pojo.setIntValue(1);
+        engine.put("pojo", pojo);
+        assertEquals(1, engine.eval("pojo.intValue"));
+        pojo.setIntValue(2);
+        assertEquals(2, engine.eval("pojo.intValue"), "a cached lookup must not cache the value");
+        // a public field, resolved by a different branch of the same cache
+        assertEquals("instance-field", engine.eval("pojo.instanceField"));
+        // and a method member is still callable
+        assertEquals(2, engine.eval("pojo.getIntValue()"));
+    }
+
+    // A property that does not exist is an ordinary answer (undefined), not an error — this is
+    // the `karate.properties['nope'] || 'default'` shape, and it must not depend on an
+    // exception being built and swallowed. Repeated because the miss is remembered too.
+    @Test
+    void testMissingMemberIsUndefinedNotAnError() {
+        engine = new Engine();
+        engine.setExternalBridge(bridge);
+        engine.put("pojo", new DemoPojo());
+        assertNull(engine.eval("pojo.noSuchThing"));
+        assertNull(engine.eval("pojo.noSuchThing"));
+        assertEquals("fallback", engine.eval("pojo.noSuchThing || 'fallback'"));
+        // an absent Map key takes the same route, and the Map's own methods still resolve
+        engine.put("map", new java.util.HashMap<>(java.util.Map.of("a", 1)));
+        assertNull(engine.eval("map['nope']"));
+        assertEquals(1, engine.eval("map['a']"));
+        assertEquals(1, engine.eval("map.size()"));
+    }
+
     @Test
     void testJsFunctionViaEngineEvalSupportsFunctionalInterface() {
         // Function returned to Java via engine.eval() (i.e. wrapped as

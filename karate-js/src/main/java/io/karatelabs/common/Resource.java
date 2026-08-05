@@ -414,6 +414,39 @@ public interface Resource {
     }
 
     /**
+     * {@link #path(String)} for a caller that is <em>probing</em> — looking for an optional file
+     * and expecting to be told "no". Returns null instead of throwing
+     * {@link ResourceNotFoundException}, whose construction (message, stack trace) is real cost
+     * on a path where the miss is the normal answer: every run looks for a {@code karate-base.js}
+     * and a {@code karate-config-<env>.js} that most projects do not have.
+     */
+    public static Resource optional(String path) {
+        if (path != null && path.startsWith(CLASSPATH_COLON) && classpathUrl(path) == null) {
+            return null;
+        }
+        try {
+            return path(path, (ClassLoader) null);
+        } catch (ResourceNotFoundException e) {
+            return null;
+        }
+    }
+
+    /**
+     * The URL a {@code classpath:} ref resolves to, or null — the existence half of
+     * {@link #path(String, ClassLoader)}'s classpath branch, factored out so
+     * {@link #optional(String)} can ask without an exception.
+     */
+    private static URL classpathUrl(String path) {
+        String relativePath = normalizePath(removePrefix(path));
+        if (relativePath.startsWith("/")) {
+            relativePath = relativePath.substring(1);
+        }
+        ClassLoader contextCL = Thread.currentThread().getContextClassLoader();
+        URL url = contextCL == null ? null : contextCL.getResource(relativePath);
+        return url != null ? url : ClassLoader.getSystemResource(relativePath);
+    }
+
+    /**
      * Resolves a path <b>reference</b> against a project root — the one rule, from any door:
      * {@code classpath:} is classloader-first then root-fallback, {@code file:} is the host
      * machine, a leading {@code /} anchors {@code root}, and a bare ref is root-relative.

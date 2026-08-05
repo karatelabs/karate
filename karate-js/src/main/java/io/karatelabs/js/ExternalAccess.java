@@ -32,6 +32,16 @@ public interface ExternalAccess {
 
     Object getProperty(String name);
 
+    /**
+     * {@link #getProperty} for a caller that treats "no such property" as {@code undefined}
+     * rather than an error, returning {@code JavaUtils.NOT_FOUND} instead of throwing. The
+     * default keeps any implementation that only knows how to throw working unchanged — the
+     * caller catches either way; overriding it just saves building the exception.
+     */
+    default Object getPropertyOrNotFound(String name) {
+        return getProperty(name);
+    }
+
     void setProperty(String name, Object value);
 
     Object invokeMethod(String name, Object[] args);

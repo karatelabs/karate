@@ -158,24 +158,101 @@ public class JavaUtils {
         }
     }
 
-    static Object get(Object object, String name) {
-        Method method = findGetter(object, name);
-        if (method == null) {
-            try {
-                Field field = object.getClass().getField(name);
-                return field.get(object);
-            } catch (Exception e) {
-                for (Method m : object.getClass().getMethods()) {
-                    if (m.getName().equals(name)) {
-                        JavaObject jo = new JavaObject(object);
-                        return jo.getMethod(name);
-                    }
-                }
-                throw JsErrorException.typeError("no instance property: " + name);
-            }
+    /**
+     * Returned by {@link #getOrNotFound} when a Java object has no member of that name — the
+     * <em>expected</em> outcome of a JS property read that misses, which is why it is a value
+     * and not an exception. Never escapes into JS: the one caller
+     * ({@code PropertyAccess.accessViaBridge}) turns it into {@code undefined}.
+     */
+    static final Object NOT_FOUND = new Object();
+
+    /** A member that is a method, not a getter or field — resolved to a callable on read. */
+    private static final Object METHOD_MARKER = new Object();
+
+    /**
+     * Per-class resolution of a property name to the getter / field / method that serves it,
+     * or {@link #NOT_FOUND}. Every entry here — the misses above all — used to be recomputed on
+     * every read, and computing one costs up to three {@code Class.getMethods()} array copies
+     * and two JDK reflection exceptions. A miss is not exceptional: JS reads absent properties
+     * constantly ({@code karate.properties['x'] || 'default'}), and a Map key that is not in the
+     * Map arrives here too.
+     * <p>
+     * {@link ClassValue} rather than a static Map so an unloaded class takes its entry with it.
+     * Keyed by concrete class, so a class redefined at runtime keeps its old resolution — Karate
+     * is not a hot-swap host, and the alternative is paying the lookup forever.
+     */
+    private static final ClassValue<Map<String, Object>> MEMBERS = new ClassValue<>() {
+        @Override
+        protected Map<String, Object> computeValue(Class<?> type) {
+            return new java.util.concurrent.ConcurrentHashMap<>();
+        }
+    };
+
+    /**
+     * A pathological script — {@code pojo[key]} over unbounded generated keys — would otherwise
+     * grow the negative cache without limit. Past this, resolution still works, it just is not
+     * remembered.
+     */
+    private static final int MEMBERS_LIMIT = 1024;
+
+    private static Object resolveMember(Class<?> clazz, String name) {
+        Map<String, Object> cache = MEMBERS.get(clazz);
+        Object found = cache.get(name);
+        if (found != null) {
+            return found;
+        }
+        Object resolved = lookupMember(clazz, name);
+        if (cache.size() < MEMBERS_LIMIT) {
+            cache.put(name, resolved);
+        }
+        return resolved;
+    }
+
+    private static Object lookupMember(Class<?> clazz, String name) {
+        Method getter = findGetter(clazz, name);
+        if (getter != null) {
+            return getter;
         }
         try {
-            return method.invoke(object, EMPTY);
+            return clazz.getField(name);
+        } catch (Exception e) {
+            // no public field of that name — fall through to the method scan
+        }
+        for (Method m : clazz.getMethods()) {
+            if (m.getName().equals(name)) {
+                return METHOD_MARKER;
+            }
+        }
+        return NOT_FOUND;
+    }
+
+    static Object get(Object object, String name) {
+        Object result = getOrNotFound(object, name);
+        if (result == NOT_FOUND) {
+            throw JsErrorException.typeError("no instance property: " + name);
+        }
+        return result;
+    }
+
+    /**
+     * {@link #get} for callers that treat "no such property" as an ordinary answer rather than
+     * an error — the JS bridge, which turns it into {@code undefined}. Building a TypeError for
+     * that, stack trace and all, was pure cost on a path that discards it. A getter that throws
+     * still raises, because that is a real failure.
+     */
+    static Object getOrNotFound(Object object, String name) {
+        Object member = resolveMember(object.getClass(), name);
+        if (member == NOT_FOUND) {
+            return NOT_FOUND;
+        }
+        if (member == METHOD_MARKER) {
+            return new JavaObject(object).getMethod(name);
+        }
+        try {
+            if (member instanceof Field field) {
+                return field.get(object);
+            }
+            return ((Method) member).invoke(object, EMPTY);
         } catch (Exception e) {
             throw JsErrorException.typeError("cannot get ." + name + " (on " + jsTypeName(object.getClass()) + ")");
         }
@@ -249,11 +326,14 @@ public class JavaUtils {
         }
     }
 
-    private static Method findGetter(Object object, String name) {
+    private static Method findGetter(Class<?> clazz, String name) {
+        if (name.isEmpty()) {
+            return null;
+        }
         String getterSuffix = name.substring(0, 1).toUpperCase() + name.substring(1);
-        Method method = findMethod(object.getClass(), "get" + getterSuffix, EMPTY);
+        Method method = findMethod(clazz, "get" + getterSuffix, EMPTY);
         if (method == null) {
-            method = findMethod(object.getClass(), "is" + getterSuffix, EMPTY);
+            method = findMethod(clazz, "is" + getterSuffix, EMPTY);
         }
         return method;
     }
