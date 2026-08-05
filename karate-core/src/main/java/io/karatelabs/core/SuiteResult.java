@@ -260,13 +260,9 @@ public class SuiteResult {
                         }
                         // Show full error message — match diffs and JS errors routinely
                         // exceed any short cap, and truncating hides the actual diff. The comment
-                        // label is prepended to match/assert messages; drop it here since it is
-                        // already rendered above the step line.
-                        String failureMessage = sr.getFailureMessage();
-                        if (comment != null && failureMessage != null
-                                && failureMessage.startsWith(comment + "\n")) {
-                            failureMessage = failureMessage.substring(comment.length() + 1);
-                        }
+                        // label is prepended to match/assert messages; getFailureReason() drops it
+                        // since it is already rendered above the step line.
+                        String failureMessage = sr.getFailureReason();
                         if (failureMessage != null) {
                             Console.println("      " + Console.yellow(failureMessage));
                         }

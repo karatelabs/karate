@@ -1245,7 +1245,10 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // request; logLastPerfEvent reports whether it actually did.
             String perfFailureMessage = null;
             if (result.isFailed()) {
-                String display = result.getFailureMessageForDisplay();
+                // file:line + step text + the reason's first line — the KO message names both
+                // *where* and *why*, matching the failure log. Deliberately not the full match
+                // diff: Gatling groups its errors table by this string.
+                String display = result.getPerfFailureMessage();
                 perfFailureMessage = display != null ? display : "scenario failed";
             }
             boolean perfFailureReported = logLastPerfEvent(perfFailureMessage);

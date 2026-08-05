@@ -37,6 +37,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 public class FeatureResult {
 
@@ -247,11 +248,53 @@ public class FeatureResult {
     }
 
     public String getFailureMessage() {
-        return scenarioResults.stream()
-                .filter(ScenarioResult::isFailed)
-                .findFirst()
-                .map(ScenarioResult::getFailureMessage)
-                .orElse(null);
+        return firstFailedScenario().map(ScenarioResult::getFailureMessage).orElse(null);
+    }
+
+    /**
+     * The failed step's {@code path/to/feature.feature:LINE step text}, or null when there is no
+     * failure. See {@link ScenarioResult#getFailureMessageForDisplay()}.
+     */
+    public String getFailureMessageForDisplay() {
+        return firstFailedScenario().map(ScenarioResult::getFailureMessageForDisplay).orElse(null);
+    }
+
+    /**
+     * The failure reason without the Gherkin comment label, or null when there is no failure.
+     * See {@link ScenarioResult#getFailureReason()}.
+     */
+    public String getFailureReason() {
+        return firstFailedScenario().map(ScenarioResult::getFailureReason).orElse(null);
+    }
+
+    /**
+     * The one-line "why" of the failure, e.g. {@code "match failed: EQUALS"}, or null when there
+     * is no failure. See {@link ScenarioResult#getFailureReasonSummary()}.
+     */
+    public String getFailureReasonSummary() {
+        return firstFailedScenario().map(ScenarioResult::getFailureReasonSummary).orElse(null);
+    }
+
+    /**
+     * The Gherkin comment above the failed step (the assertion label), or null when there is none.
+     * See {@link ScenarioResult#getFailedStepComment()}.
+     */
+    public String getFailedStepComment() {
+        return firstFailedScenario().map(ScenarioResult::getFailedStepComment).orElse(null);
+    }
+
+    /**
+     * The failed step's line number, or -1 when there is no failure or the failure is not tied to
+     * a parsed step (hook / synthetic). Lets a caller that already knows the feature path — the
+     * Gatling executor logs the path exactly as the simulation declared it — append {@code :LINE}
+     * without swapping in the absolute path.
+     */
+    public int getFailedStepLine() {
+        return firstFailedScenario().map(ScenarioResult::getFailedStepLine).orElse(-1);
+    }
+
+    private Optional<ScenarioResult> firstFailedScenario() {
+        return scenarioResults.stream().filter(ScenarioResult::isFailed).findFirst();
     }
 
     // ========== Canonical Map Format ==========

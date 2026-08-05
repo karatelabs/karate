@@ -82,6 +82,17 @@ class KarateExecutorTest {
             // The actual assertion-failure detail must be present, not just the path
             assertTrue(logged.contains("WRONG_NAME_THAT_WILL_NEVER_MATCH"),
                     "log should carry the match-failure detail: " + logged);
+
+            // The summary line must name WHERE and WHY, the two halves that used to be split
+            // between the log (reason only) and the Gatling KO message (location only).
+            String summaryLine = logged.split("\n", 2)[0];
+            assertTrue(summaryLine.contains("cats-create-fail.feature:14"),
+                    "summary line should carry file:line: " + summaryLine);
+            assertTrue(summaryLine.endsWith("match failed: EQUALS"),
+                    "summary line should carry the reason: " + summaryLine);
+            // ...and the full diff still follows underneath, where it has room
+            assertTrue(logged.contains("not equal (STRING:STRING)"),
+                    "log should carry the full match diff: " + logged);
         } finally {
             execLogger.detachAppender(appender);
             appender.stop();
@@ -122,5 +133,37 @@ class KarateExecutorTest {
                 "KO should be named after the feature: " + ko);
         assertTrue(ko.contains("goodbye"),
                 "KO should carry the failure detail (failed match step): " + ko);
+    }
+
+    /**
+     * The KO message must name both where the failure was and why — the same two facts the failure
+     * log leads with — but stay one short line: Gatling groups its errors table by this exact
+     * string, so a full match diff (which embeds the per-virtual-user actual values) would make
+     * every KO a unique row.
+     */
+    @Test
+    void koMessageCarriesLocationAndReasonButNotTheWholeDiff() {
+        CatsMockServer.start();
+        List<String> kos = new ArrayList<>();
+        GatlingStatsReporter reporter =
+                (scenario, groups, requestName, startTime, endTime, ok, statusCode, errorMessage) -> {
+                    if (!ok) {
+                        kos.add(errorMessage);
+                    }
+                };
+
+        KarateExecutor executor = new KarateExecutor(
+                "classpath:features/cats-create-fail.feature", null, null, false);
+
+        Map<String, Object> gatlingVars = new HashMap<>();
+        gatlingVars.put("name", "TestKitty");
+        executor.execute(gatlingVars, new HashMap<>(), reporter, "test", NO_GROUPS);
+
+        assertEquals(1, kos.size(), "expected exactly one KO");
+        String ko = kos.get(0);
+        assertTrue(ko.contains("cats-create-fail.feature:14"), "KO should carry file:line: " + ko);
+        assertTrue(ko.contains("match response.name =="), "KO should carry the step text: " + ko);
+        assertTrue(ko.endsWith("- match failed: EQUALS"), "KO should carry the reason: " + ko);
+        assertFalse(ko.contains("\n"), "KO message must stay a single line: " + ko);
     }
 }

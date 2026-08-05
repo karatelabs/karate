@@ -97,6 +97,52 @@ class FailureReportingTest {
         assertTrue(display.contains("match a == 999"), "expected step text in display: " + display);
     }
 
+    /**
+     * The reason accessors that let a surface show <em>where</em> and <em>why</em> in one line.
+     * The Gherkin comment above the step is prepended to the raw match message so the label travels
+     * with the error; a surface that renders the comment itself must not repeat it.
+     */
+    @Test
+    void testFailureReasonDropsTheCommentLabelAndSummarisesToOneLine() throws Exception {
+        Path feature = tempDir.resolve("reason.feature");
+        Files.writeString(feature, """
+                Feature: Failing test
+
+                Scenario: bad match
+                * def a = 1
+                # the answer should be right
+                * match a == 999
+                """);
+
+        SuiteResult result = Runner.path(feature.toString())
+                .workingDir(tempDir)
+                .outputDir(tempDir.resolve("reports"))
+                .outputConsoleSummary(false)
+                .parallel(1);
+
+        assertTrue(result.isFailed());
+        ScenarioResult sr = result.getFeatureResults().get(0).getScenarioResults().get(0);
+
+        assertTrue(sr.getFailureMessage().startsWith("# the answer should be right\n"),
+                "the raw message carries the comment label: " + sr.getFailureMessage());
+        assertTrue(sr.getFailureReason().startsWith("match failed: EQUALS"),
+                "the reason drops it: " + sr.getFailureReason());
+        assertEquals("match failed: EQUALS", sr.getFailureReasonSummary());
+
+        // the one-line "where and why" a perf tool groups its errors table by
+        String perf = sr.getPerfFailureMessage();
+        assertTrue(perf.contains("reason.feature:6"), "expected path+line: " + perf);
+        assertTrue(perf.endsWith("* match a == 999 - match failed: EQUALS"), perf);
+        assertFalse(perf.contains("\n"), "must stay a single line: " + perf);
+
+        // the same facts are reachable from the FeatureResult, which is all a Gatling run has
+        FeatureResult fr = result.getFeatureResults().get(0);
+        assertEquals(6, fr.getFailedStepLine());
+        assertEquals("match failed: EQUALS", fr.getFailureReasonSummary());
+        assertEquals("# the answer should be right", fr.getFailedStepComment());
+        assertTrue(fr.getFailureMessageForDisplay().contains("reason.feature:6"));
+    }
+
     @Test
     void testFailedStepTextNullWhenScenarioPasses() throws Exception {
         Path feature = tempDir.resolve("ok.feature");

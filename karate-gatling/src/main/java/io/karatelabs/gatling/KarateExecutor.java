@@ -102,15 +102,10 @@ public class KarateExecutor {
 
         if (result.isFailed()) {
             success = false;
-            // Surface the actual failure detail (match message + file:line + step), not just
-            // the path. The single-feature Gatling run has HTML report and console summary
-            // disabled, so this is the only place the failure reason reaches the logs.
-            String failureMessage = result.getFailureMessage();
-            if (failureMessage != null) {
-                log.error("Feature failed: {} - {}", featurePath, failureMessage);
-            } else {
-                log.error("Feature failed: {}", featurePath);
-            }
+            // Surface the actual failure detail, not just the path. The single-feature Gatling run
+            // has HTML report and console summary disabled, so this is the only place the failure
+            // reaches the logs.
+            log.error("Feature failed: {}", describeFailure(result));
         } else {
             // Update karateVars for chaining into subsequent exec() calls
             Map<String, Object> resultVars = result.getResultVariables();
@@ -120,6 +115,40 @@ public class KarateExecutor {
         }
 
         return new ExecutionResult(success, karateVars);
+    }
+
+    /**
+     * The failure rendered for the log: a summary line naming <em>where</em> and <em>why</em> —
+     * {@code path/to.feature:LINE - match failed: EQUALS} — followed by the same detail the console
+     * summary shows. The summary line intentionally carries the same location and reason as the
+     * Gatling KO message ({@code ScenarioResult.getPerfFailureMessage()}) so the load report and the
+     * log can be lined up; the full match diff follows underneath, where it does not have to stay
+     * short. The location is repeated in absolute form because that is the IDE-clickable one, while
+     * the summary keeps the path exactly as the simulation declared it.
+     */
+    private String describeFailure(FeatureResult result) {
+        StringBuilder sb = new StringBuilder(featurePath);
+        int line = result.getFailedStepLine();
+        if (line > 0) {
+            sb.append(':').append(line);
+        }
+        String summary = result.getFailureReasonSummary();
+        if (summary != null) {
+            sb.append(" - ").append(summary);
+        }
+        String display = result.getFailureMessageForDisplay();
+        if (display != null) {
+            sb.append("\n  ").append(display);
+        }
+        String comment = result.getFailedStepComment();
+        if (comment != null) {
+            sb.append("\n  ").append(comment);
+        }
+        String reason = result.getFailureReason();
+        if (reason != null) {
+            sb.append("\n  ").append(reason.strip().replace("\n", "\n  "));
+        }
+        return sb.toString();
     }
 
     private PerfHook createPerfHook(GatlingStatsReporter reporter, String scenario, scala.collection.immutable.List<String> groups) {

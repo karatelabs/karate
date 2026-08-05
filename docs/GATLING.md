@@ -1223,6 +1223,18 @@ When `.silent()` is set on a `karateFeature()`:
 
 Use for warm-up scenarios before actual load test.
 
+### 14.9 Failure Visibility
+
+A Gatling run has no HTML report and no console summary, so a failure has exactly two surfaces —
+and both must name **where** and **why**:
+
+- **The KO message** (`ScenarioResult.getPerfFailureMessage()`, attached to the perf event in
+  `ScenarioRuntime`): `path.feature:LINE step text - reason`. Only the reason's *first line* — Gatling
+  groups its errors table by this string, so the full match diff (per-virtual-user actual values)
+  would make every KO a unique row.
+- **The failure log** (`KarateExecutor`): the same summary line, then the IDE-clickable absolute
+  location, the assertion comment, and the full diff.
+
 ---
 
 ## 15. Implementation Progress

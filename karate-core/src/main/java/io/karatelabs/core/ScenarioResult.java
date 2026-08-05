@@ -222,6 +222,18 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
     }
 
     /**
+     * The 1-indexed line of the failed step, or -1 when there is no failure or the failure is not
+     * tied to a parsed step (hook / synthetic).
+     */
+    public int getFailedStepLine() {
+        StepResult failedStep = firstFailedStep();
+        if (failedStep == null || failedStep.getStep() == null) {
+            return -1;
+        }
+        return failedStep.getStep().getLine();
+    }
+
+    /**
      * The Gherkin comment immediately above the failed step (the assertion label), e.g.
      * {@code "# user profile should match expected values"}, or null if the step has no comment.
      * The console summary renders this above the step line — where it sits in the feature — and
@@ -300,6 +312,67 @@ public class ScenarioResult implements Comparable<ScenarioResult> {
         }
         String location = getFailedStepLocation();
         return location != null ? location + " " + stepText : stepText;
+    }
+
+    /**
+     * The failure message with the Gherkin comment label stripped from the front. The label is
+     * prepended to {@code match}/{@code assert} messages so it travels with the error, but every
+     * surface that renders the comment separately (the console summary, the Gatling failure log)
+     * would otherwise show it twice.
+     *
+     * @return the failure reason, or null if there is no failure
+     */
+    public String getFailureReason() {
+        String message = getFailureMessage();
+        String comment = getFailedStepComment();
+        if (comment != null && message != null && message.startsWith(comment + "\n")) {
+            return message.substring(comment.length() + 1);
+        }
+        return message;
+    }
+
+    /** Cap on the one-line reason — see {@link #getFailureReasonSummary()}. */
+    private static final int REASON_SUMMARY_MAX = 200;
+
+    /**
+     * The first line of {@link #getFailureReason()} — e.g. {@code "match failed: EQUALS"} — capped
+     * at {@value #REASON_SUMMARY_MAX} characters, or null if there is no failure. The one-line
+     * "why" for surfaces that must stay short: a log summary line, or a KO message that a
+     * performance tool groups by.
+     */
+    public String getFailureReasonSummary() {
+        String reason = getFailureReason();
+        if (reason == null) {
+            return null;
+        }
+        int newLine = reason.indexOf('\n');
+        String firstLine = (newLine < 0 ? reason : reason.substring(0, newLine)).trim();
+        if (firstLine.isEmpty()) {
+            return null;
+        }
+        return firstLine.length() > REASON_SUMMARY_MAX
+                ? firstLine.substring(0, REASON_SUMMARY_MAX) + "..."
+                : firstLine;
+    }
+
+    /**
+     * The failure rendered for a performance-tool KO message:
+     * {@code "path/to/feature.feature:LINE step text - reason"}.
+     * <p>
+     * Only {@link #getFailureReasonSummary() the reason's first line} is included. Gatling groups
+     * its errors table by this exact string, so the full match diff — which embeds the actual
+     * values, different for every virtual user — would make each KO a unique row and bloat
+     * {@code simulation.log}. The full detail belongs in the failure log instead. Falls back to the
+     * reason alone when the failure is not tied to a parsed step (hook / synthetic), and null when
+     * there is no failure.
+     */
+    public String getPerfFailureMessage() {
+        String reason = getFailureReasonSummary();
+        String display = getFailureMessageForDisplay();
+        if (display == null) {
+            return reason;
+        }
+        return reason == null ? display : display + " - " + reason;
     }
 
     public Throwable getError() {
