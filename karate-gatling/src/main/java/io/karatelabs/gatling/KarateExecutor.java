@@ -48,12 +48,14 @@ public class KarateExecutor {
     private final List<String> tags;
     private final KarateProtocol protocol;
     private final boolean silent;
+    private final LogReplayer replayer;
 
     public KarateExecutor(String featurePath, List<String> tags, KarateProtocol protocol, boolean silent) {
         this.featurePath = featurePath;
         this.tags = tags;
         this.protocol = protocol;
         this.silent = silent;
+        this.replayer = LogReplayer.forProtocol(protocol);
     }
 
     /**
@@ -62,10 +64,17 @@ public class KarateExecutor {
     public static class ExecutionResult {
         public final boolean success;
         public final Map<String, Object> karateVars;
+        /** Karate output retained for this virtual user, to carry on the session. Null when disabled. */
+        public final LogReplayer.Buffer logBuffer;
 
         public ExecutionResult(boolean success, Map<String, Object> karateVars) {
+            this(success, karateVars, null);
+        }
+
+        public ExecutionResult(boolean success, Map<String, Object> karateVars, LogReplayer.Buffer logBuffer) {
             this.success = success;
             this.karateVars = karateVars;
+            this.logBuffer = logBuffer;
         }
     }
 
@@ -82,6 +91,22 @@ public class KarateExecutor {
     public ExecutionResult execute(
             Map<String, Object> gatlingVars,
             Map<String, Object> karateVars,
+            GatlingStatsReporter statsReporter,
+            String scenario,
+            scala.collection.immutable.List<String> groups) {
+        return execute(gatlingVars, karateVars, null, statsReporter, scenario, groups);
+    }
+
+    /**
+     * Execute the Karate features, carrying the log-replay buffer of this virtual user.
+     *
+     * @param logBuffer the Karate output retained from the features already run in this Gatling
+     *                  session, may be null. See {@link KarateLogReplay}.
+     */
+    public ExecutionResult execute(
+            Map<String, Object> gatlingVars,
+            Map<String, Object> karateVars,
+            LogReplayer.Buffer logBuffer,
             GatlingStatsReporter statsReporter,
             String scenario,
             scala.collection.immutable.List<String> groups) {
@@ -114,7 +139,10 @@ public class KarateExecutor {
             }
         }
 
-        return new ExecutionResult(success, karateVars);
+        // fold this feature's captured output into the virtual user's buffer, replaying on failure
+        LogReplayer.Buffer nextBuffer = replayer.after(logBuffer, featurePath, result);
+
+        return new ExecutionResult(success, karateVars, nextBuffer);
     }
 
     /**

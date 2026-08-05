@@ -1235,6 +1235,20 @@ and both must name **where** and **why**:
 - **The failure log** (`KarateExecutor`): the same summary line, then the IDE-clickable absolute
   location, the assertion comment, and the full diff.
 
+### 14.10 Log Replay
+
+Per-step Karate output (HTTP blocks, `print`) is captured into `FeatureResult` in perf mode
+regardless of the Logback level — `LogContext` has its own threshold. `LogReplayer` uses that to
+hold each feature's output and release it only when a feature fails, which is how a quiet load run
+can still explain a failure that happened three features into a scenario.
+
+- Configured on the protocol: `logReplay(OFF|FAILED|ALL)`, `logReplayLevel`, `logReplayLimit`.
+- Retention rides the **Gatling Session** (`__karateLog`), not a thread-local — Gatling is free to
+  run a later `exec()` of the same scenario on a different thread. Like `__karate`, the key is
+  excluded from the `__gatling` map.
+- The buffer is immutable and bounded; it is cleared after every replay, and a replay states how
+  many entries the cap dropped.
+
 ---
 
 ## 15. Implementation Progress

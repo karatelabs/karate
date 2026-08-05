@@ -23,10 +23,15 @@
  */
 package io.karatelabs.gatling;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import io.gatling.javaapi.core.ScenarioBuilder;
 import io.gatling.javaapi.core.Simulation;
+import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -47,9 +52,15 @@ import static io.karatelabs.gatling.KarateDsl.*;
  */
 public class GatlingCicdSimulation extends Simulation {
 
+    // Captures what the log replayer emitted, asserted in after(). The replay buffer is carried on
+    // the Gatling Session between exec() calls, so only a real simulation exercises that round-trip.
+    private static final ListAppender<ILoggingEvent> REPLAY_LOG = new ListAppender<>();
+
     // Start mock server before simulation runs
     static {
         CatsMockServer.start();
+        REPLAY_LOG.start();
+        ((Logger) LoggerFactory.getLogger(LogReplayer.class)).addAppender(REPLAY_LOG);
     }
 
     // Protocol with URI pattern configuration
@@ -92,6 +103,20 @@ public class GatlingCicdSimulation extends Simulation {
             .exec(karateSet("name", s -> s.getString("name")))
             .exec(karateFeature("classpath:features/cats-create-fail.feature"));
 
+    // Scenario 7: a feature that passes followed by one that fails, under a protocol that replays
+    // the output of everything already run — the "what led up to this?" context a quiet load run
+    // otherwise throws away. Its own protocol so the rest of the simulation stays unaffected.
+    KarateProtocolBuilder logReplayProtocol = karateProtocol(
+            uri("/cats/{id}").nil(),
+            uri("/cats").nil()
+    ).logReplay(KarateLogReplay.ALL);
+
+    ScenarioBuilder logReplayScenario = scenario("Log Replay")
+            .feed(catFeeder)
+            .exec(karateSet("name", s -> s.getString("name")))
+            .exec(karateFeature("classpath:features/cats-create.feature"))
+            .exec(karateFeature("classpath:features/cats-create-fail.feature"));
+
     // Scenario 6: Group-wrapped CRUD to verify Gatling sub-group aggregation
     ScenarioBuilder groupedScenario = scenario("Grouped CRUD")
             .group("Grouped-CRUD").on(
@@ -123,7 +148,11 @@ public class GatlingCicdSimulation extends Simulation {
                 groupedScenario.injectOpen(
                         nothingFor(1),
                         atOnceUsers(2)
-                )
+                ),
+                logReplayScenario.injectOpen(
+                        nothingFor(1),
+                        atOnceUsers(1)
+                ).protocols(logReplayProtocol)
         ).protocols(protocol)
         .assertions(
                 // GET requests should succeed
@@ -137,6 +166,27 @@ public class GatlingCicdSimulation extends Simulation {
                 details("Grouped-CRUD", "GET /cats/{id}").successfulRequests().count().is(2L),
                 details("Grouped-CRUD", "POST /cats").failedRequests().count().is(0L)
         );
+    }
+
+    /**
+     * The Log Replay scenario must have emitted the output of BOTH features: the one that already
+     * passed — held on the Gatling Session across the exec() boundary — and the one that failed.
+     * A Gatling assertion can only see request stats, so this is checked against the log.
+     */
+    @Override
+    public void after() {
+        List<String> replayed = REPLAY_LOG.list.stream()
+                .map(ILoggingEvent::getFormattedMessage)
+                .toList();
+        boolean passedReplayed = replayed.stream()
+                .anyMatch(m -> m.contains("cats-create.feature [passed]"));
+        boolean failedReplayed = replayed.stream()
+                .anyMatch(m -> m.contains("cats-create-fail.feature [failed]"));
+        if (!passedReplayed || !failedReplayed) {
+            throw new IllegalStateException("log replay did not survive the session round-trip"
+                    + " - passed feature replayed: " + passedReplayed
+                    + ", failed feature replayed: " + failedReplayed);
+        }
     }
 
 }

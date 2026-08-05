@@ -26,6 +26,7 @@ package io.karatelabs.gatling;
 import io.gatling.javaapi.core.ProtocolBuilder;
 import io.karatelabs.core.Runner;
 import io.karatelabs.http.HttpRequest;
+import io.karatelabs.output.LogLevel;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -49,6 +50,9 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
 
     private final Map<String, KarateUriPattern> uriPatterns = new HashMap<>();
     private BiFunction<HttpRequest, Map<String, Object>, String> nameResolver;
+    private KarateLogReplay logReplay = KarateLogReplay.OFF;
+    private LogLevel logReplayLevel = LogReplayer.DEFAULT_LEVEL;
+    private int logReplayLimit = LogReplayer.DEFAULT_LIMIT;
 
     /**
      * Mutable {@link Runner.Builder} for configuring underlying Karate execution.
@@ -90,6 +94,61 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
     }
 
     /**
+     * Replay Karate's per-step output — HTTP request / response blocks and {@code print}
+     * statements — when a feature fails, at {@link #logReplayLevel(String) a level of your
+     * choosing}. A load run is normally configured at a high Logback level so this output never
+     * reaches the log; Karate captures it regardless, so it can be held and released only for the
+     * runs that actually failed.
+     *
+     * <p>{@link KarateLogReplay#ALL} also replays the features that already passed for this virtual
+     * user — the context that led up to the failure — bounded by {@link #logReplayLimit(int)}.
+     *
+     * @param mode {@code OFF} (default), {@code FAILED}, or {@code ALL}
+     * @return this builder for chaining
+     */
+    public KarateProtocolBuilder logReplay(KarateLogReplay mode) {
+        this.logReplay = mode == null ? KarateLogReplay.OFF : mode;
+        return this;
+    }
+
+    /** {@link #logReplay(KarateLogReplay)} by name: {@code "off"}, {@code "failed"}, {@code "all"}. */
+    public KarateProtocolBuilder logReplay(String mode) {
+        return logReplay(KarateLogReplay.fromString(mode));
+    }
+
+    /**
+     * The level the replayed output is logged at, defaulting to {@code error} so it survives the
+     * quiet Logback config a load run usually has. Accepts {@code trace}, {@code debug},
+     * {@code info}, {@code warn}, {@code error}.
+     *
+     * @return this builder for chaining
+     */
+    public KarateProtocolBuilder logReplayLevel(String level) {
+        try {
+            this.logReplayLevel = LogLevel.valueOf(level.trim().toUpperCase());
+        } catch (Exception e) {
+            throw new IllegalArgumentException("invalid log replay level: '" + level
+                    + "', expected one of: trace, debug, info, warn, error");
+        }
+        return this;
+    }
+
+    /**
+     * How many already-passed feature logs to retain per virtual user in
+     * {@link KarateLogReplay#ALL} mode, defaulting to {@value LogReplayer#DEFAULT_LIMIT}. This text
+     * is held in memory for every virtual user until it is replayed or dropped, so raise it with
+     * the run's concurrency in mind. Once a replay happens the retained logs are cleared, which is
+     * what keeps the window to the current iteration in the common case — Gatling gives an action
+     * no iteration boundary to hook, so the guarantee is "the last N Karate calls for this user".
+     *
+     * @return this builder for chaining
+     */
+    public KarateProtocolBuilder logReplayLimit(int limit) {
+        this.logReplayLimit = limit;
+        return this;
+    }
+
+    /**
      * Build the KarateProtocol.
      */
     public KarateProtocol build() {
@@ -97,6 +156,9 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
         if (nameResolver != null) {
             protocol.setNameResolver(nameResolver);
         }
+        protocol.setLogReplay(logReplay);
+        protocol.setLogReplayLevel(logReplayLevel);
+        protocol.setLogReplayLimit(logReplayLimit);
         return protocol;
     }
 

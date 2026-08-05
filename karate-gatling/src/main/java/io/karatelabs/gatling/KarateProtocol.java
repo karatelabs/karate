@@ -27,6 +27,7 @@ import io.gatling.core.protocol.Protocol;
 import io.karatelabs.core.Runner;
 import io.karatelabs.http.HttpUtils;
 import io.karatelabs.http.HttpRequest;
+import io.karatelabs.output.LogLevel;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -49,9 +50,19 @@ public class KarateProtocol implements Protocol {
      */
     public static final String GATLING_KEY = "__gatling";
 
+    /**
+     * Session key under which the retained Karate output is carried between features for one
+     * virtual user. Like {@link #KARATE_KEY} it is excluded from the {@code __gatling} map — it is
+     * bridge state, not a feeder variable.
+     */
+    public static final String LOG_KEY = "__karateLog";
+
     private final Map<String, KarateUriPattern> uriPatterns;
     private final Runner.Builder runner;
     private BiFunction<HttpRequest, Map<String, Object>, String> nameResolver;
+    private KarateLogReplay logReplay = KarateLogReplay.OFF;
+    private LogLevel logReplayLevel = LogReplayer.DEFAULT_LEVEL;
+    private int logReplayLimit = LogReplayer.DEFAULT_LIMIT;
 
     KarateProtocol(Map<String, KarateUriPattern> uriPatterns) {
         this(uriPatterns, null);
@@ -94,6 +105,33 @@ public class KarateProtocol implements Protocol {
      */
     void setNameResolver(BiFunction<HttpRequest, Map<String, Object>, String> resolver) {
         this.nameResolver = resolver;
+    }
+
+    /** How much Karate output to replay when a feature fails. Never null. */
+    public KarateLogReplay getLogReplay() {
+        return logReplay;
+    }
+
+    /** The level the replayed output is logged at. Never null. */
+    public LogLevel getLogReplayLevel() {
+        return logReplayLevel;
+    }
+
+    /** How many already-passed feature logs are retained per virtual user in ALL mode. */
+    public int getLogReplayLimit() {
+        return logReplayLimit;
+    }
+
+    void setLogReplay(KarateLogReplay logReplay) {
+        this.logReplay = logReplay == null ? KarateLogReplay.OFF : logReplay;
+    }
+
+    void setLogReplayLevel(LogLevel logReplayLevel) {
+        this.logReplayLevel = logReplayLevel == null ? LogReplayer.DEFAULT_LEVEL : logReplayLevel;
+    }
+
+    void setLogReplayLimit(int logReplayLimit) {
+        this.logReplayLimit = logReplayLimit;
     }
 
     /**

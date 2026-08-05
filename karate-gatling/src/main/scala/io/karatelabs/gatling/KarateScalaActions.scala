@@ -133,7 +133,9 @@ class KarateScalaAction(
     // Extract Gatling session variables
     val gatlingVars = new java.util.HashMap[String, Object]()
     session.attributes.foreach { case (k, v) =>
-      if (!k.startsWith("gatling.") && k != KarateProtocol.KARATE_KEY) {
+      // KARATE_KEY and LOG_KEY are bridge state, not feeder variables — a feature must not see
+      // its own chained vars, or the retained log text, as a __gatling entry
+      if (!k.startsWith("gatling.") && k != KarateProtocol.KARATE_KEY && k != KarateProtocol.LOG_KEY) {
         gatlingVars.put(k, v.asInstanceOf[Object])
       }
     }
@@ -151,16 +153,28 @@ class KarateScalaAction(
       case _ => new java.util.HashMap[String, Object]()
     }
 
+    // Karate output retained from the features already run by this virtual user. Session-carried,
+    // not thread-local: Gatling is free to run a later exec() of the same scenario on another thread.
+    val logBuffer: LogReplayer.Buffer = session.attributes.get(KarateProtocol.LOG_KEY) match {
+      case Some(b: LogReplayer.Buffer) => b
+      case _ => null
+    }
+
     // Execute using Java executor
-    val result = executor.execute(gatlingVars, karateVars, statsReporter, session.scenario, session.groups)
+    val result = executor.execute(gatlingVars, karateVars, logBuffer, statsReporter, session.scenario, session.groups)
 
     // Update session - use mutable map view to avoid hashCode computation on JS objects
     // (JS objects may have circular references that would cause StackOverflowError)
     val updatedKarate: scala.collection.mutable.Map[String, Any] = result.karateVars.asScala
-    val updatedSession = if (result.success) {
+    val withKarate = if (result.success) {
       session.set(KarateProtocol.KARATE_KEY, updatedKarate)
     } else {
       session.markAsFailed.set(KarateProtocol.KARATE_KEY, updatedKarate)
+    }
+    val updatedSession = if (result.logBuffer == null) {
+      withKarate
+    } else {
+      withKarate.set(KarateProtocol.LOG_KEY, result.logBuffer)
     }
 
     next ! updatedSession
