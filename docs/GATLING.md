@@ -1305,10 +1305,13 @@ or `--duration`, which is unbuilt.
   every image for a report that will not be written. Pre-existing, and the flag is scoped to
   `StepResult.log` on purpose — but it is the same class of waste.
 
-Still unaddressed and separate: the per-scenario Logback level snapshot/restore
-(`LogContext.captureRuntimeLevels` + `setLevelOn`, ~2–3% of allocation, and still visible in
-the after-runs), a reflective walk over eight logger names on every scenario. The obvious fix
-is to snapshot lazily — on the first `configure logging` — rather than unconditionally.
+Separate, and since done: the per-scenario Logback level snapshot/restore
+(`LogContext.captureRuntimeLevels` + `setLevelOn`), a reflective walk over eight logger names
+on every scenario, to put back levels that only `configure logging = { console: ... }` ever
+changes. `snapshot()` is now lazy — it registers on a thread-local chain, and
+`setRuntimeLogLevel` captures the "before" for every live snapshot in one walk just before it
+changes anything. Worth 10% of the `gatling-null-karate` profile, with the total moving to
+match; see PROFILING.md §9.
 
 ### 14.10 Failure Visibility
 

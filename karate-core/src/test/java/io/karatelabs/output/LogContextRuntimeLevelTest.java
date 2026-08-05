@@ -150,6 +150,39 @@ class LogContextRuntimeLevelTest {
         assertEquals(Level.DEBUG, httpLogger.getLevel());
     }
 
+    // The snapshot reads the Logback levels only when something is about to change them —
+    // a reflective walk over eight loggers is not worth paying on every scenario when nearly
+    // none of them run `configure logging`. The visible consequence: a level changed by any
+    // other route (another thread's scenario, application code, a test) is left alone rather
+    // than being clobbered with a value this snapshot never actually observed.
+    @Test
+    void restoreLeavesLevelsAloneWhenNothingWentThroughTheConsoleKnob() {
+        httpLogger.setLevel(Level.DEBUG);
+        LogContext.Snapshot snap = LogContext.snapshot();
+        httpLogger.setLevel(Level.TRACE); // not via setRuntimeLogLevel
+        snap.restore();
+        assertEquals(Level.TRACE, httpLogger.getLevel());
+    }
+
+    // call / callonce runs on the caller's thread and takes its own snapshot inside the
+    // caller's, so the inner restore must land on what the OUTER scenario configured, not on
+    // what the run started with — one lazy capture per nesting level, each with its own before.
+    @Test
+    void nestedSnapshotsRestoreOneLevelAtATime() {
+        httpLogger.setLevel(Level.DEBUG);
+        LogContext.Snapshot outer = LogContext.snapshot();
+        LogContext.setRuntimeLogLevel("warn");
+
+        LogContext.Snapshot inner = LogContext.snapshot();
+        LogContext.setRuntimeLogLevel("off");
+        assertEquals(Level.OFF, httpLogger.getLevel());
+
+        inner.restore();
+        assertEquals(Level.WARN, httpLogger.getLevel(), "inner restore should land on the caller's setting");
+        outer.restore();
+        assertEquals(Level.DEBUG, httpLogger.getLevel(), "outer restore should land on the run's setting");
+    }
+
     private HttpRequest sampleRequest() {
         HttpRequest request = new HttpRequest();
         request.setMethod("POST");

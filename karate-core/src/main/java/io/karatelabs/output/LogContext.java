@@ -170,6 +170,9 @@ public class LogContext {
             Object levelValue = levelClass
                     .getMethod("toLevel", String.class)
                     .invoke(null, normalized.toUpperCase());
+            // the levels are about to change, so every live Snapshot needs the "before" now —
+            // this is the only moment it can still be observed. See capturePendingLevels().
+            capturePendingLevels();
             for (String name : RUNTIME_LOGGERS) {
                 setLevelOn(ctx, levelClass, name, levelValue);
             }
@@ -207,6 +210,9 @@ public class LogContext {
      * entry, as a lowercase-string map. Used by {@link Snapshot} so a mid-test
      * {@code configure logging = { console: ... }} change can be fully restored on exit
      * across all categories — not just the parent. Returns null if Logback is unavailable.
+     * <p>
+     * Reflective and eight loggers deep, so it runs only when a level is actually about to
+     * change — see {@link #capturePendingLevels()}.
      */
     private static Map<String, String> captureRuntimeLevels() {
         try {
@@ -245,28 +251,77 @@ public class LogContext {
     }
 
     /**
-     * Snapshot of the report-buffer threshold and the per-category Logback levels.
-     * Take one before a scenario runs and {@link #restore()} after, so any mid-test
+     * The innermost {@link Snapshot} live on this thread, chained outwards via
+     * {@link Snapshot#outer}. Nesting is real: a {@code call} / {@code callonce} runs on the
+     * caller's thread and takes its own snapshot inside the caller's.
+     */
+    private static final ThreadLocal<Snapshot> PENDING = new ThreadLocal<>();
+
+    /**
+     * Give every live Snapshot that has not yet recorded the Logback levels the state as it is
+     * <em>right now</em> — called from {@link #setRuntimeLogLevel} immediately before it changes
+     * them, which is the last moment the "before" exists.
+     * <p>
+     * This is why {@link #snapshot()} does not capture eagerly. Capturing is a reflective walk
+     * over eight logger names, and a scenario that never runs {@code configure logging} — which
+     * is nearly all of them — has nothing to restore, so the walk was pure waste on every
+     * scenario. One walk serves the whole chain: an uncaptured snapshot's creation-time state is
+     * the current state, because nothing but this method changes the levels.
+     */
+    private static void capturePendingLevels() {
+        Snapshot s = PENDING.get();
+        if (s == null || s.captured) {
+            // head captured implies the whole chain below it was captured in the same walk
+            return;
+        }
+        Map<String, String> levels = captureRuntimeLevels();
+        while (s != null && !s.captured) {
+            s.captured = true;
+            s.consoleLevels = levels; // shared, and only ever read
+            s = s.outer;
+        }
+    }
+
+    /**
+     * Snapshot of the report-buffer threshold, the log mask/pretty settings and — only if
+     * something changes them while it is live — the per-category Logback levels. Take one
+     * before a scenario runs and {@link #restore()} after, so any mid-test
      * {@code configure logging = {...}} change does not leak across scenarios.
+     * <p>
+     * A level change made by <em>another</em> thread is deliberately not reverted by this one:
+     * the levels are process-global, and clobbering them with a value this thread never saw
+     * would be worse than leaving the other thread's setting alone.
      */
     public static final class Snapshot {
 
         private final LogLevel reportLevel;
-        private final Map<String, String> consoleLevels;
         private final LogMask mask;
         private final boolean pretty;
+        private final Snapshot outer;
 
-        private Snapshot(LogLevel reportLevel, Map<String, String> consoleLevels, LogMask mask, boolean pretty) {
+        // written by capturePendingLevels, on this thread, before any level actually changes
+        private boolean captured;
+        private Map<String, String> consoleLevels;
+
+        private Snapshot(LogLevel reportLevel, LogMask mask, boolean pretty, Snapshot outer) {
             this.reportLevel = reportLevel;
-            this.consoleLevels = consoleLevels;
             this.mask = mask;
             this.pretty = pretty;
+            this.outer = outer;
         }
 
         public void restore() {
             LogContext.setLogLevel(reportLevel);
             if (consoleLevels != null) {
                 restoreRuntimeLevels(consoleLevels);
+            }
+            if (PENDING.get() == this) {
+                // pop, and don't leave a thread-local entry behind on a pooled or virtual thread
+                if (outer == null) {
+                    PENDING.remove();
+                } else {
+                    PENDING.set(outer);
+                }
             }
             LogContext ctx = get();
             ctx.setMask(mask);
@@ -276,7 +331,9 @@ public class LogContext {
 
     public static Snapshot snapshot() {
         LogContext ctx = get();
-        return new Snapshot(getLogLevel(), captureRuntimeLevels(), ctx.mask, ctx.pretty);
+        Snapshot s = new Snapshot(getLogLevel(), ctx.mask, ctx.pretty, PENDING.get());
+        PENDING.set(s);
+        return s;
     }
 
     public LogMask getMask() {

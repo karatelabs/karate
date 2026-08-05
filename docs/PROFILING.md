@@ -721,11 +721,18 @@ fixed cost:
 | `JavaUtils.findMethodDirect` | 11.0% | reflective method lookup, per execution |
 | `BaseParser.<init>` | 9.1% | the feature and its JS re-parsed every time |
 | `PathResource.computeRelativePath` | 7.6% | path resolution, per execution |
-| `LogContext.setLevelOn` + `captureRuntimeLevels` | 6.1% | the per-scenario Logback level snapshot/restore, reflectively, across every category |
+| ~~`LogContext.setLevelOn` + `captureRuntimeLevels`~~ | ~~6.1%~~ | **fixed** — the per-scenario Logback level snapshot/restore is now taken lazily; see [§9](#per-scenario-logback-level-snapshot--built) |
 | `JsErrorException.<init>` + `ResourceNotFoundException.<init>` | 5.9% | **exceptions constructed on a happy path** — nothing in this feature fails |
 
-The last two rows are the interesting ones and neither has been chased down. Building
-exceptions in a feature that does nothing but `* def x = 1` is a lead, not a finding.
+The exception row is the interesting one left and has not been chased down. Building exceptions
+in a feature that does nothing but `* def x = 1` is a lead, not a finding.
+
+The level-snapshot row is kept, struck through, because it is the one entry here with a
+before-and-after: on a later run of the same workload at the same iteration count it read
+`captureRuntimeLevels` 5.6% + `setLevelOn` 4.4% = **10% of 1.71 GB**, and after the fix
+neither appears in the allocation panel at all, with the total down to 1.57–1.58 GB. That is
+the shape of a real removal, as against the previous entry's "the sites are gone but the total
+did not move".
 
 **`http` pair — 2000 iterations = 4000 requests against the sibling mock.** Wall-clock is
 mock-bound and says nothing (see §2); allocation and heap do:
@@ -978,10 +985,32 @@ throwaway guard predicted. The workload's *total* allocation band is unchanged, 
 six or seven points of a sampled ~500 MB profile looks like; §14.9 has the table and the
 caveats.
 
-**Still parked, and the obvious next one:** the per-scenario Logback level snapshot/restore
-(`LogContext.captureRuntimeLevels` + `setLevelOn`), a reflective walk over eight logger names
-on every scenario, ~2–3% of allocation and still plainly visible in the after-runs. The fix is
-to snapshot lazily — on the first `configure logging` — rather than unconditionally.
+### Per-scenario Logback level snapshot — built
+
+What the entry above left behind, and the next thing done. `LogContext.snapshot()` walked eight
+logger names reflectively on every scenario, and `restore()` walked them again — to put back
+levels that nothing had changed, because only `configure logging = { console: ... }` changes
+them and almost no scenario runs it.
+
+The snapshot is now lazy: it registers on a thread-local chain and records nothing, and
+`setRuntimeLogLevel` captures the "before" for every live snapshot in a single walk immediately
+before it changes anything — the last moment that state exists. Nesting still restores one
+level at a time (a `call` snapshots inside its caller's, so the inner restore lands on what the
+outer scenario configured). One deliberate semantic change: a level changed by any other route
+is no longer clobbered on restore with a value this thread never observed.
+
+Measured on `gatling-null-karate --iterations 20000`, the workload where per-execution fixed
+cost is the whole profile:
+
+| | before | after (2 runs) |
+|---|---:|---:|
+| `LogContext.captureRuntimeLevels` | 5.6% (97 MB) | — |
+| `LogContext.setLevelOn` | 4.4% (77 MB) | — |
+| total sampled allocation | 1.71 GB | 1.57 GB / 1.58 GB |
+
+**10% of the null-pair profile, and this time the total moved with it** — unlike the log-capture
+entry above, where the removal was real but too small to see against sampling spread. Both sites
+are also gone from `gatling-http-karate`, where they had been 1.5–3.4% and ~1%.
 
 ### Prior art — the 0.9.x-era overhead thread
 
