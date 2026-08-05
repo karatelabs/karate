@@ -1480,6 +1480,107 @@ class StepHttpTest {
         assertPassed(sr);
     }
 
+    // ========== `method <expression>` Tests ==========
+
+    @Test
+    void testMethodFromVariable() {
+        // V1 behavior: the word after `method` can be a variable holding the verb
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> json("{ \"method\": \"" + req.getMethod() + "\" }"));
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test'
+            * def httpMethod = 'GET'
+            * method httpMethod
+            * status 200
+            * match response.method == 'GET'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMethodFromVariableIsUpperCased() {
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> json("{ \"method\": \"" + req.getMethod() + "\" }"));
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test'
+            * def httpMethod = 'post'
+            * request { foo: 'bar' }
+            * method httpMethod
+            * status 200
+            * match response.method == 'POST'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMethodFromExpression() {
+        // anything that is not a bare word is evaluated - quoted strings, function calls
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> json("{ \"method\": \"" + req.getMethod() + "\" }"));
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test'
+            * def verbs = { update: 'put' }
+            * method verbs.update
+            * status 200
+            * match response.method == 'PUT'
+
+            * url 'http://test'
+            * method 'delete'
+            * status 200
+            * match response.method == 'DELETE'
+
+            * url 'http://test'
+            * def pick = function(){ return 'patch' }
+            * method pick()
+            * status 200
+            * match response.method == 'PATCH'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testMethodNameWinsOverVariableOfSameName() {
+        // V1 behavior: a known verb is never evaluated, even if a variable shadows it
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> json("{ \"method\": \"" + req.getMethod() + "\" }"));
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test'
+            * def get = 'POST'
+            * method get
+            * status 200
+            * match response.method == 'GET'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testCustomMethodStaysLiteral() {
+        // a bare word that is not a variable is a custom verb, not a typo'd expression
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> json("{ \"method\": \"" + req.getMethod() + "\" }"));
+
+        ScenarioRuntime sr = run(client, """
+            * url 'http://test'
+            * method PURGE
+            * status 200
+            * match response.method == 'PURGE'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateHttpApiWithDynamicMethod() {
+        // the karate.http() API takes the verb as a plain string argument, no DSL magic needed
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> json("{ \"method\": \"" + req.getMethod() + "\" }"));
+
+        ScenarioRuntime sr = run(client, """
+            * def httpMethod = 'GET'
+            * def res = karate.http('http://test').path('items').method(httpMethod)
+            * match res.status == 200
+            * match res.body.method == 'GET'
+            """);
+        assertPassed(sr);
+    }
+
     @Test
     void testNdJsonResponseStaysAString() {
         // newline-delimited json is served as application/json by the likes of httpbin /stream/N,

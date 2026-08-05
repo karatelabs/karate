@@ -2115,9 +2115,36 @@ public class StepExecutor {
         doMethod("POST");
     }
 
+    private static final Set<String> HTTP_METHODS = Set.of(
+            "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "CONNECT", "TRACE");
+
     private void executeMethod(Step step) {
-        String method = step.getText().trim().toUpperCase();
+        String text = step.getText().trim();
+        String method = text.toUpperCase();
+        if (!HTTP_METHODS.contains(method) && !isLiteralMethod(text)) {
+            // e.g. `method httpMethod` where httpMethod is a variable holding 'get'
+            Object result = runtime.eval(text, step);
+            if (result == null) {
+                throw new RuntimeException("http method expression evaluated to null: " + text);
+            }
+            method = result.toString().trim().toUpperCase();
+        }
         doMethod(method);
+    }
+
+    /**
+     * True when the text after {@code method} should be taken as the verb itself instead of
+     * being evaluated. A bare word that is not a variable is a custom verb such as PURGE or
+     * PROPFIND - anything else (a variable name, a quoted string, a function call) is an
+     * expression that resolves to the verb.
+     */
+    private boolean isLiteralMethod(String text) {
+        for (int i = 0; i < text.length(); i++) {
+            if (!Character.isLetter(text.charAt(i))) {
+                return false;
+            }
+        }
+        return !runtime.getAllVariables().containsKey(text);
     }
 
     @SuppressWarnings("unchecked")
