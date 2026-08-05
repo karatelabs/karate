@@ -268,18 +268,22 @@ other workloads have no use for. `etc/run.sh` turns the profile on automatically
 those invocations build `karate-gatling` first and take longer.
 
 Gatling owns the users and the pacing, so these are self-driving: `--threads` becomes virtual
-users injected at once and `--iterations` becomes repetitions per user. `--duration` is not
-supported (see §9). Gatling's own chart generation is off — it is a second pass over the
-simulation log that would land in the digest as if it were load-driving cost.
+users injected at once, and `--iterations` stays the **total**, split across them —
+`--threads 16 --iterations 20000` is 16 users repeating 1250 times each. When it does not
+divide evenly the remainder is rounded up, so the true total can exceed what you asked for by
+up to `threads - 1`; the child prints what it actually ran. `--duration` is not supported (see
+§9). Gatling's own chart generation is off — it is a second pass over the simulation log that
+would land in the digest as if it were load-driving cost.
 
 **Wall-clock on the `http` pair measures the mock, not the clients.** At 16 users both
 variants saturate the sibling Karate mock and finish within noise of each other, in either
 order; at 2 users the per-request latency dominates instead and the difference is still inside
-run-to-run spread. What *is* usable from that pair is the digest: allocation and peak heap
-separate the two cleanly, because those are client-side facts that a saturated server does not
-hide. The `null` pair has no HTTP at all and so is the one whose wall-clock number is worth
-quoting. A throughput comparison needs a mock tier cheap enough to stay out of the way — see
-§9.
+run-to-run spread. What *is* usable from that pair is **allocation**, which separates the two
+cleanly because it is a client-side fact that a saturated server cannot hide. Peak heap points
+the same way but is not clean — the Karate side is unstable run to run, so read it as a
+direction, not a measurement. The `null` pair has no HTTP at all and so is the one whose
+per-exec numbers are worth quoting. A throughput comparison needs a mock tier cheap enough to
+stay out of the way — see §9.
 
 #### What "acceptable overhead" should mean here
 
@@ -292,16 +296,31 @@ question.
 **The question a load tester actually has is whether the client's overhead disappears into the
 network time of the system under test.** A localhost mock answers 1000 µs away; a real API is
 one to two orders of magnitude further. Against a service with a 50 ms median response, the
-~0.7 ms of CPU a `karateFeature()` exec costs is ~1.4% of one user's iteration — and the
+~0.45 ms of CPU a `karateFeature()` exec costs is ~1% of one user's iteration — and the
 faster the target, the more it matters, which is why the number to quote is the fixed cost in
 milliseconds, not a percentage against another tool.
 
-What would settle it, and is not built: give the mock a **configurable injected latency**, then
-run the `http` pair at a fixed concurrency against, say, 0 / 10 / 50 ms. The gap between the
-two variants should stay roughly constant in absolute terms while shrinking as a share of the
-iteration — and if it does not, the overhead is proportional to something and is worth
-chasing. That is a small change to the mock feature and a knob, and it is the honest version
-of the "< 5%" claim.
+**The practical form of that test: run both against the same target and compare the reports.**
+If karate-gatling and plain Gatling show approximately the same TPS and the same response-time
+distribution, the client is not distorting the measurement, which is the job — and that is a
+far better acceptance test than any micro-ratio, because it exercises the thing a user actually
+relies on.
+
+It carries one condition, and it is the condition this harness keeps running into: **equal TPS
+only means anything when the client has headroom.** Two saturated clients queued behind the
+same overloaded server also report identical numbers — that is exactly what the `http` pair
+does today against the local mock, and it is why those runs prove nothing about the client. So
+the test is "same TPS *and* the injector is demonstrably not the bottleneck": check CPU
+headroom on the injector, or ramp until the two diverge and report where. Where they diverge is
+the number worth having, because past that point the response times a load test reports stop
+being the server's.
+
+What would settle both questions, and is not built: give the mock a **configurable injected
+latency**, then run the `http` pair at a fixed concurrency against, say, 0 / 10 / 50 ms. The
+gap between the two variants should stay roughly constant in absolute terms while shrinking as
+a share of the iteration — and if it does not, the overhead is proportional to something and is
+worth chasing. The same setup answers the concurrency question in §9. That is a small change to
+the mock feature and a knob, and it is the honest version of the "< 5%" claim.
 
 ### `Probe` — what does a call actually return?
 
@@ -612,19 +631,31 @@ call-result accumulation the reporter had retracted was the one still live.
 
 First measurement of this family, 2026-08-05, karate 2.1.2.RC1.
 
-**`null` pair — 20 000 execs, no HTTP.** Two runs each, back to back:
+**`null` pair — no HTTP.** Wall-clock at 20 000 execs is ~1150 ms plain against ~2020 ms
+Karate, but **do not read the difference as per-exec cost** — a large part of it is one-time
+startup, and it only separates if you measure at two sizes:
 
-| | run 1 | run 2 |
-|---|---:|---:|
-| `gatling-null-plain` | 1157 ms | 1150 ms |
-| `gatling-null-karate` | 2029 ms | 2015 ms |
+| | 2000 execs | 20 000 execs | marginal |
+|---|---:|---:|---:|
+| plain, CPU (user+sys) | 1.63 core-s | 1.98 core-s | ~19 µs/exec |
+| karate, CPU (user+sys) | 4.52 core-s | 12.47 core-s | **~440 µs/exec** |
 
-Reproducible to ~1%, and most of the plain number is Gatling's fixed startup (it is the same
-at 2000 iterations as at 20 000 — the no-op exec itself is free). The difference is what
-matters: **~865 ms per 20 000 execs**, i.e. ~43 µs of wall-clock per `karateFeature()` exec at
-16-way concurrency, or roughly **0.7 ms of CPU per exec**. That is the floor a Karate-driven
-virtual user pays before doing anything: build a `Suite`, parse the feature, evaluate
-`karate-config.js`, run one scenario, hand the session maps back.
+So one `karateFeature()` exec costs **~0.45 ms of CPU** — building a `Suite`, parsing the
+feature, evaluating `karate-config.js`, running one scenario, handing the session maps back —
+against ~0.02 ms for a no-op Gatling exec. Separately, Karate adds **~2 core-seconds of
+one-time initialisation** per JVM (class loading, JS engine); at 2000 execs that fixed cost is
+most of the gap, which is why a single-size measurement of this pair overstates the per-exec
+number by roughly half.
+
+CPU here is measured directly — the child command replayed under `/usr/bin/time` with JFR
+off — not inferred from wall-clock. **Wall-clock × concurrency is not CPU** and derives a
+number this machine cannot produce: 16 users on 10 cores cannot burn 16 core-seconds per
+second. Marginal *wall* per exec works out at ~30–50 µs depending on the run, which at
+~440 µs of CPU says the run is CPU-saturated across ~9 of the 10 cores.
+
+Run-to-run spread on the wall-clock numbers is ±10–15%, so treat anything under about 20% as
+noise. The CPU figures above are the stable ones, and two independent measurements put the
+marginal cost at 0.42–0.46 ms.
 
 Where it goes, from the digest of the Karate run — an *empty* feature, so every entry here is
 fixed cost:
@@ -645,14 +676,16 @@ mock-bound and says nothing (see §2); allocation and heap do:
 
 | | sampled allocation | peak heap |
 |---|---:|---:|
-| `gatling-http-plain` | 189 MB | 43 MB |
-| `gatling-http-karate` | 540 MB | 70 MB |
+| `gatling-http-plain` | 190–215 MB | ~45–65 MB |
+| `gatling-http-karate` | 460–560 MB | ~70–110 MB |
 
-**~2.9x the allocation for the same 4000 requests**, of which the Karate HTTP client is the
-bulk: `ApacheHttpClient.invoke` 14.6%, `buildResponse` 8.6%, and `initHttpClient` **6.1%** —
-the last being the notable one, because it means a client is being constructed per execution
-rather than reused. The port plan's `PooledHttpClientFactory` (GATLING.md §2.1) was never
-built, and this is what that costs. Not investigated further here.
+**Roughly 2–3x the allocation for the same 4000 requests** — a sampled profile, so the ratio
+is a magnitude, not a measurement, and quoting it to a decimal place would overstate what it
+can support. The Karate HTTP client is the bulk of it: `ApacheHttpClient.invoke` ~15%,
+`buildResponse` ~9%, and `initHttpClient` **~5–6%** — the last being the notable one, because
+it means a client is being constructed per execution rather than reused. The port plan's
+`PooledHttpClientFactory` (GATLING.md §2.1) was never built, and this is what that costs. Not
+investigated further here.
 
 *Baselines are shapes, not thresholds. Absolute numbers move with hardware and JDK; the
 linear trend and the ratios are what travel.*
@@ -806,6 +839,40 @@ known exceptions explicitly.
 A cheaper partial alternative, also unbuilt: strip the `FeatureResult` at feature end, after
 the listeners have returned. Bounds memory at O(threads x feature size) with no compatibility
 break — but scores exactly zero on the mega-outline shape, which is the only case left.
+
+### "Karate doesn't play nice with Gatling's async model" — what would actually settle it
+
+The standing criticism is that karate-gatling drives Karate's own blocking HTTP client instead
+of Gatling's, and so sits outside the non-blocking scheduling everything else in Gatling is
+built around. The mechanism is real and is worth stating precisely, because the fix people
+reach for is not the cheapest one.
+
+`KarateScalaAction.execute` runs the whole feature synchronously on the thread Gatling handed
+it, and Karate's steps block on I/O. Gatling advances its virtual users on a small fixed pool,
+so a Karate feature waiting on a response occupies a scheduling slot that a native Gatling user
+would have yielded. **The cost of that is concurrency density — how many virtual users one
+injector can hold — not per-request CPU**, which is what §6 measures. It would show up as
+achieved throughput plateauing well below the requested user count, and, worse, as *reported
+response times inflating* once users queue for a thread rather than for the server.
+
+**None of that is measured yet, and it should be measured before it is designed around.** The
+experiment: drive the `http` pair at rising user counts against a mock with injected latency
+(the same knob §2 wants for the overhead question), and watch whether Karate's achieved
+concurrency tracks the requested users or flattens. A plateau at a fixed number is the
+signature, and the number would be the thread pool. Until that exists, every option below is a
+solution to an unquantified problem.
+
+The options, cheapest first:
+
+| Option | What it buys | What it costs |
+|---|---|---|
+| **Run the feature off Gatling's thread** — on a virtual thread, completing the action asynchronously | Frees the scheduling slot while Karate blocks, with no change to Karate's engine, its client, or any user-visible behaviour. `PerfHook.submit()` already exists as the seam and currently runs inline (`runnable.run()`) | Needs care that a blocking call on a virtual thread parks rather than pins the carrier — httpclient5's internal synchronization is the thing to check |
+| **Apache HttpClient's async API** (httpclient5 supports both) | Keeps the whole config surface — cookies, SSL, retry, logging, masking — in the same client family it is written against today | Karate's step model is synchronous: `When method get` returns a response. An async transport under a synchronous caller yields nothing on its own, so this only pays off combined with a way for the caller to suspend |
+| **Gatling's own HTTP client** | Native to the model the criticism is about | The largest behavioural break available. Karate's HTTP config surface is user-facing and years deep; a second client means either reimplementing it or accepting that a feature behaves differently under `karate perf` than under `karate test` — which destroys the one property that makes karate-gatling worth having |
+
+The ranking is not close, and it is the same lesson as §8: the expensive option is the one
+that changes semantics, and none of them should be started before a number says which
+constraint is actually binding.
 
 ### Prior art — the 0.9.x-era overhead thread
 

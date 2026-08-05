@@ -40,6 +40,14 @@ public final class GatlingWorkloads {
     }
 
     public static void registerInto(Consumer<Workload> sink) {
+        // Resolve a Gatling class before registering anything. These classes can be present in
+        // target/classes while the Gatling jars are NOT on the classpath — an earlier -Pgatling
+        // build leaves them behind, and the next build without the profile does not clean them.
+        // Java resolves the io.gatling types in our method signatures lazily, so without this
+        // the family registers happily and then dies with NoClassDefFoundError in the middle of
+        // a run. Failing here instead lets the registry treat it as "not available", which is
+        // what a classpath without Gatling means however it came about.
+        io.gatling.javaapi.core.Simulation.class.getName();
         // Registered in pairs, adjacent, because that is the only way they may be read.
         sink.accept(new NullOverheadWorkload.Plain());
         sink.accept(new NullOverheadWorkload.Karate());

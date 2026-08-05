@@ -36,12 +36,18 @@ SKIP_BUILD="${PROFILING_SKIP_BUILD:-}"
 # ever contains a space, so word splitting is exactly what we want.
 MODULE="karate-core"
 PROFILE=""
-case "${1:-}" in
-    gatling-*|--list)
-        PROFILE="-Pgatling"
-        MODULE="karate-gatling"   # -am pulls karate-core along
-        ;;
-esac
+# Scan every argument, not just the first: the documented `profiler run <workload>` form puts
+# the workload second, and `list` is an alias for `--list`. Missing the profile there fails
+# confusingly — "unknown workload", or a catalogue quietly short of what you asked for.
+for arg in "$@"; do
+    case "$arg" in
+        gatling-*|--list|list)
+            PROFILE="-Pgatling"
+            MODULE="karate-gatling"   # -am pulls karate-core along
+            break
+            ;;
+    esac
+done
 
 if [[ -z "$SKIP_BUILD" ]]; then
     echo "==> installing karate to local Maven repo"

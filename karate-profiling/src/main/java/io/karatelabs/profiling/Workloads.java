@@ -28,6 +28,7 @@ import io.karatelabs.profiling.workload.FeatureSpreadWorkload;
 import io.karatelabs.profiling.workload.HarnessSmokeWorkload;
 import io.karatelabs.profiling.workload.ScopeCaptureWorkload;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -75,21 +76,30 @@ public final class Workloads {
      * {@code io.gatling}, which is on the classpath only under {@code -Pgatling}, so a direct
      * reference here would stop the default build compiling.
      *
-     * <p>An absent class is the expected case, not an error — the catalogue is simply shorter.
-     * Anything else (a family that is present but will not load) is a build problem and fails
-     * loudly, because silently shipping a shorter catalogue is how you spend an afternoon
-     * wondering where a workload went.
+     * <p>Two ways it can be unavailable, both expected, both silent: the family is not compiled
+     * at all, or it is compiled but the dependency it needs is not on the classpath — which
+     * happens whenever an earlier profiled build left classes in {@code target/classes} that a
+     * later unprofiled build did not clean. The family is expected to surface the second case by
+     * resolving one of its dependency's classes up front; see {@code GatlingWorkloads}.
+     *
+     * <p>Anything else is a build problem and fails loudly, because silently shipping a shorter
+     * catalogue is how you spend an afternoon wondering where a workload went.
      */
     private static void registerOptional(String className) {
         Class<?> family;
         try {
             family = Class.forName(className);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             return; // built without the profile that provides it
         }
         try {
             Consumer<Workload> sink = Workloads::register;
             family.getMethod("registerInto", Consumer.class).invoke(null, sink);
+        } catch (InvocationTargetException e) {
+            if (e.getCause() instanceof NoClassDefFoundError) {
+                return; // compiled, but its dependency is not on this classpath
+            }
+            throw new IllegalStateException("workload family " + className + " failed to register", e);
         } catch (ReflectiveOperationException e) {
             throw new IllegalStateException("workload family " + className + " is on the classpath"
                     + " but could not be registered", e);
