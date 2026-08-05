@@ -8,8 +8,10 @@
 > the *expected* one. Judgement lives with the reader, and last-known numbers live in
 > [Current baseline](#6-current-baseline) below.
 >
-> §8 records what the parallel-execution memory investigation settled, and §9 records what
-> was deliberately **not** built and why — read those before re-opening either.
+> §8 records what the parallel-execution memory investigation settled. §9 is the mixed bag:
+> what was deliberately **not** built and why, *and* the finished pieces whose measurements
+> belong next to the parked ones — each of those is headed "— built". Read both before
+> re-opening anything.
 
 ---
 
@@ -268,6 +270,13 @@ etc/run.sh gatling-null-plain  --iterations 20000
 etc/run.sh gatling-null-karate --iterations 20000    # the difference is the answer
 ```
 
+**Do not "fix" the harness `karate-config.js`.** It reads `karate.properties['mock.url']`, and
+we tell users to prefer `karate.sysprop()` — but a workload with no mock reads that key when it
+is **absent**, and a missed property read is the expensive shape (§9, exceptions on the happy
+path). Switching it to the recommended form would quietly retire the only regression guard on
+that path. The file says so in a comment; this is the second copy, because the comment is easy
+to miss and the change looks like tidying.
+
 These live behind `-Pgatling` — Gatling and its Scala runtime are ~40 MB of classpath the
 other workloads have no use for. `etc/run.sh` turns the profile on automatically for any
 `gatling-*` workload and for `--list`, so there is nothing extra to remember; it also means
@@ -363,6 +372,12 @@ collapsed to `io.karatelabs.*` frames so the top entries are Karate methods rath
 `java.util.HashMap.newNode`. This answers *what is churning*, not *what is retained* —
 those are different questions and conflating them is the trap described in §4. This panel
 does attribute correctly across virtual threads.
+
+It is a **top-25 table** with the remainder counted but not listed, so "gone from the panel"
+means "below the cutoff", which lands around 1% on these workloads — not zero. It also
+collapses to the topmost Karate frame, so a site's *callers* are invisible here: when the
+question is who is calling the expensive thing, that is a `jfr print` with `--stack-depth`
+(§5), not a digest read.
 
 **Hot methods.** From `jdk.ExecutionSample`, same collapsing. CPU time, not allocation.
 **Read this panel with the virtual-thread caveat in §7 firmly in mind** — for any
@@ -603,12 +618,13 @@ granted:
 | **Never measured** | Soaks. Every workload is an iteration-bounded reproduction, so "no slow leak over hours" is unverified rather than verified — see the leak-watch family in §2. |
 | **Never measured** | CPU inside scenario code. All of §8 is allocation and retention; `jdk.ExecutionSample` is blind on virtual threads (§7) and the custom JFR events that would fix it are unbuilt (§9). |
 
-Everything in the Gatling baseline below is in a fifth category: **leads, not findings.**
-Happy-path exception construction, per-execution file reads and re-parsing, the per-scenario
-Logback snapshot, per-execution HTTP client construction — each is a real number from a real
-run, and none has been chased to a cause. Driving Karate under load surfaces karate-core costs
-that the memory workloads never touched, which is the main reason the Gatling family earns its
-keep beyond the parity question.
+The Gatling baseline below started as a fifth category: **leads, not findings** — real numbers
+from real runs, none chased to a cause. Two have since been chased and fixed (the per-scenario
+Logback snapshot, and happy-path exception construction with the uncached reflection and map
+copies underneath it — §9 has both, with before-and-after). **Still leads, still unchased:**
+per-execution file reads and re-parsing, and per-execution HTTP client construction. Driving
+Karate under load surfaces karate-core costs the memory workloads never touched, which is the
+main reason the Gatling family earns its keep beyond the parity question.
 
 **Machine A** — Apple Silicon (aarch64), Darwin 25.5 (kernel version, not the macOS
 marketing one), 10 cores, JDK 24.0.2, G1.
@@ -712,6 +728,12 @@ second. Marginal *wall* per exec works out at ~30–50 µs depending on the run,
 Run-to-run spread on the wall-clock numbers is ±10–15%, so treat anything under about 20% as
 noise. The CPU figures above are the stable ones, and two independent measurements put the
 marginal cost at 0.42–0.46 ms.
+
+**That 0.45 ms predates the allocation fixes below and has not been re-measured.** Sampled
+allocation for this workload has since fallen ~30% (1.71 GB → 1.01–1.12 GB), which ought to
+show up in CPU too — less allocation means less GC and fewer reflective lookups — but *ought to*
+is not a measurement. Re-taking it is the `/usr/bin/time` replay described above, not a digest
+read, and it is the first thing to do if anyone quotes the per-exec cost again.
 
 Where it goes, from the digest of the Karate run — an *empty* feature, so every entry here is
 fixed cost:
@@ -871,7 +893,12 @@ nested result tree was showing up as `StringUtils.pad` in the allocation profile
 
 ## 9. Parked, and not built
 
-Recorded so none of it is re-derived from scratch. Nothing here is scheduled.
+Recorded so none of it is re-derived from scratch. Nothing parked here is scheduled.
+
+**Not everything here is unbuilt.** Sections headed "— built" are finished work, kept in this
+section because §6 points at them and because each one left something parked behind it. As of
+2026-08-05 those are: default log fidelity under Gatling, the per-scenario Logback level
+snapshot, and exceptions on the happy path. Everything else is a lead or a design, not code.
 
 ### If you are picking up the Gatling thread — the order
 
