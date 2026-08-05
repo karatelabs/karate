@@ -1582,6 +1582,55 @@ class StepHttpTest {
     }
 
     @Test
+    void testKarateHttpApiParamsAndHeaders() {
+        // the plural forms take a map, and a value may be a scalar or a list - same as the
+        // `params` and `headers` keywords
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> {
+            java.util.List<String> items = req.getParams().get("items");
+            return json("{ \"page\": \"" + req.getParam("page") + "\""
+                    + ", \"items\": " + Json.stringifyStrict(items)
+                    + ", \"auth\": \"" + req.getHeader("Authorization") + "\""
+                    + ", \"custom\": \"" + req.getHeader("X-Custom") + "\" }");
+        });
+
+        ScenarioRuntime sr = run(client, """
+            * def res = karate.http('http://test').params({ page: 1, items: ['a', 'b'] }).headers({ Authorization: 'Bearer x', 'X-Custom': 'y' }).get()
+            * match res.body.page == '1'
+            * match res.body.items == ['a', 'b']
+            * match res.body.auth == 'Bearer x'
+            * match res.body.custom == 'y'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateHttpApiReachesTheRestOfTheBuilder() {
+        // keys that are not in the JS fast path fall through to the Java bridge
+        InMemoryHttpClient client = new InMemoryHttpClient(req ->
+                json("{ \"path\": \"" + req.getPath() + "\""
+                        + ", \"contentType\": \"" + req.getHeader("Content-Type") + "\""
+                        + ", \"cookie\": \"" + req.getHeader("Cookie") + "\" }"));
+
+        ScenarioRuntime sr = run(client, """
+            * def res = karate.http('http://ignored').url('http://test/xyz').contentType('text/plain').cookie('foo', 'bar').post('hello')
+            * match res.body.path == '/xyz'
+            * match res.body.contentType contains 'text/plain'
+            * match res.body.cookie contains 'foo=bar'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testKarateHttpApiUnknownMethodFails() {
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> json("{ \"ok\": true }"));
+
+        ScenarioRuntime sr = run(client, """
+            * def res = karate.http('http://test').bogusMethod('x').get()
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
     void testNdJsonResponseStaysAString() {
         // newline-delimited json is served as application/json by the likes of httpbin /stream/N,
         // and the lenient parser used to keep only the first line - the rest vanished silently

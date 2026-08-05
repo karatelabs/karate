@@ -711,6 +711,43 @@ public class HttpRequestBuilder implements SimpleObject {
         };
     }
 
+    /**
+     * The JS-facing plural forms of {@link #param} and {@link #header}. The Java
+     * {@link #params(Map)} takes a {@code Map<String, List<String>>} and replaces what was
+     * there, which is awkward to satisfy from JS - these accumulate and accept a scalar or a
+     * list per key, matching the {@code params} and {@code headers} keywords.
+     */
+    private JavaInvokable params() {
+        return args -> {
+            if (args.length == 0 || !(args[0] instanceof Map<?, ?> map)) {
+                throw new RuntimeException("params() needs a map argument");
+            }
+            map.forEach((k, v) -> {
+                if (v instanceof List<?> list) {
+                    for (Object item : list) {
+                        if (item != null) {
+                            param(k + "", item + "");
+                        }
+                    }
+                } else if (v != null) {
+                    param(k + "", v + "");
+                }
+            });
+            return this;
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private JavaInvokable headers() {
+        return args -> {
+            if (args.length == 0 || !(args[0] instanceof Map<?, ?> map)) {
+                throw new RuntimeException("headers() needs a map argument");
+            }
+            headers((Map<String, Object>) map);
+            return this;
+        };
+    }
+
     private JavaInvokable path() {
         return args -> {
             for (Object arg : args) {
@@ -751,12 +788,18 @@ public class HttpRequestBuilder implements SimpleObject {
                 return header();
             case "param":
                 return param();
+            case "params":
+                return params();
+            case "headers":
+                return headers();
             case "path":
                 return path();
             case "body":
                 return body();
         }
-        System.err.println("http-request-builder no such key: " + key);
+        // the cases above are only a JS-friendly fast path - anything else falls through to
+        // the Java bridge, which reaches the rest of the fluent API (url, contentType,
+        // cookie, formField ...) and raises a TypeError for a name that really is not there
         return null;
     }
 
