@@ -132,6 +132,9 @@ public final class Profiler {
                 .withTimeout(flags.timeout);
         JvmConfig jvm = workload.jvm().withXmx(flags.xmx).withGc(flags.gc);
         boolean recordMock = "mock".equals(flags.record);
+        // Mirrors Child's own rule: a self-driving workload runs one pass and no warmup, so
+        // there is nothing for the recording to be delayed past.
+        boolean warmupWillRun = !workload.drivesOwnConcurrency();
 
         Path runDir = Path.of("target", "profiling", name + "-" + LocalDateTime.now().format(STAMP));
         Files.createDirectories(runDir);
@@ -143,7 +146,8 @@ public final class Profiler {
 
         String mockUrl = null;
         if (workload.needsMock()) {
-            mockUrl = startMock(workload, classpath, runDir, children, recordMock ? jfrFlags(runDir, shape, flags) : List.of());
+            mockUrl = startMock(workload, classpath, runDir, children,
+                    recordMock ? jfrFlags(runDir, shape, flags, warmupWillRun) : List.of());
             System.out.println("[parent] mock ready at " + mockUrl);
         } else if (recordMock) {
             System.err.println("[parent] --record mock requested but " + name + " does not use a mock");
@@ -151,7 +155,7 @@ public final class Profiler {
         }
 
         List<String> command = childCommand(classpath, name, shape, jvm, mockUrl,
-                recordMock ? List.of() : jfrFlags(runDir, shape, flags), runDir, flags.systemProperties);
+                recordMock ? List.of() : jfrFlags(runDir, shape, flags, warmupWillRun), runDir, flags.systemProperties);
         writeRunMeta(runDir, name, shape, jvm, command, mockUrl);
 
         System.out.println("[parent] forking: " + String.join(" ", command));
@@ -204,10 +208,15 @@ public final class Profiler {
      * JVM without flushing, leaving a zero-byte recording — on precisely the workloads
      * whose expected outcome is an OOM.
      */
-    private static List<String> jfrFlags(Path runDir, RunShape shape, Args flags) {
+    private static List<String> jfrFlags(Path runDir, RunShape shape, Args flags, boolean warmupWillRun) {
         StringBuilder start = new StringBuilder("-XX:StartFlightRecording=settings=profile");
         long warmupSeconds = shape.warmup().toSeconds();
-        if (warmupSeconds >= 1) {
+        // The delay exists to skip the warmup — so it is only correct when a warmup actually
+        // runs. A workload that drives its own concurrency gets none (see Child), and delaying
+        // the recording anyway silently discards the first N seconds of the real measurement,
+        // or all of it when the run is shorter than the warmup: an empty run.jfr that reads as
+        // a crashed JVM.
+        if (warmupWillRun && warmupSeconds >= 1) {
             start.append(",delay=").append(warmupSeconds).append("s");
         }
         start.append(",maxsize=").append(DEFAULT_MAX_SIZE);
