@@ -1187,8 +1187,11 @@ public class Suite {
      * {@code karate.properties} as a Map whose {@code get} / {@code containsKey} go straight to
      * {@link System#getProperty} — the only two operations the JS bridge performs for
      * {@code karate.properties['x']}. Anything that needs the whole set (iteration, size,
-     * equality) materializes it on demand, so behaviour is unchanged; only the per-read copy is
-     * gone. Reads stay live: a {@code System.setProperty} mid-run is visible, as before.
+     * equality) materializes it on demand, so reads behave exactly as the per-access copy this
+     * replaced. Reads stay live: a {@code System.setProperty} mid-run is visible, as before.
+     * <p>
+     * Writes were always discarded — the copy they landed in was thrown away — and still are,
+     * but now they say so.
      */
     private static final class SystemPropertiesView extends java.util.AbstractMap<String, String> {
 
@@ -1203,18 +1206,33 @@ public class Suite {
             if (!(key instanceof String name)) {
                 return null;
             }
-            if (overrides != null) {
-                String value = overrides.get(name);
-                if (value != null) {
-                    return value;
-                }
+            // containsKey, not a null check: a Runner.Builder property explicitly set to null
+            // shadows the JVM's, which is what merging the two maps used to do
+            if (overrides != null && overrides.containsKey(name)) {
+                return overrides.get(name);
             }
             return System.getProperty(name);
         }
 
         @Override
         public boolean containsKey(Object key) {
-            return get(key) != null;
+            if (overrides != null && overrides.containsKey(key)) {
+                return true;
+            }
+            return key instanceof String name && System.getProperty(name) != null;
+        }
+
+        /**
+         * {@code karate.properties['x'] = 'y'} has never set anything: it used to land in a
+         * throwaway copy and vanish. Kept a no-op rather than made to throw — a script doing it
+         * would start failing — but it is worth one line saying the write went nowhere, since
+         * silently losing it is how someone spends an afternoon.
+         */
+        @Override
+        public String put(String key, String value) {
+            logger.warn("karate.properties is read-only, ignoring write of '{}'"
+                    + " — use System.setProperty() or Runner.Builder.systemProperty() to set one", key);
+            return get(key);
         }
 
         @Override

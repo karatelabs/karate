@@ -103,6 +103,28 @@ class SuiteSystemPropertiesTest {
         assertTrue(props.keySet().contains(KEY));
     }
 
+    // A write here has never set a system property — it used to land in a throwaway copy. It
+    // must not start throwing either, or a script that pointlessly assigned one would fail.
+    @Test
+    void writesAreIgnoredRatherThanFatal() {
+        Map<String, String> props = suite().getSystemProperties();
+        assertDoesNotThrow(() -> props.put(KEY, "ignored"));
+        assertNull(props.get(KEY));
+        assertNull(System.getProperty(KEY), "must not have reached the JVM");
+    }
+
+    // Merging the two maps used to let an explicitly-null builder property shadow the JVM's
+    @Test
+    void aNullBuilderPropertyShadowsTheJvmOne() {
+        System.setProperty(KEY, "from-jvm");
+        try {
+            Suite suite = suite(KEY, null);
+            assertNull(suite.getSystemProperties().get(KEY));
+        } finally {
+            System.clearProperty(KEY);
+        }
+    }
+
     @Test
     void missingPropertyIsNullNotAnError() {
         Suite suite = suite();

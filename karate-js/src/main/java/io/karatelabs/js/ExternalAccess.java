@@ -34,9 +34,10 @@ public interface ExternalAccess {
 
     /**
      * {@link #getProperty} for a caller that treats "no such property" as {@code undefined}
-     * rather than an error, returning {@code JavaUtils.NOT_FOUND} instead of throwing. The
-     * default keeps any implementation that only knows how to throw working unchanged — the
-     * caller catches either way; overriding it just saves building the exception.
+     * rather than an error. The engine's own implementation answers with an internal
+     * not-found marker instead of throwing; the default below keeps every other implementation
+     * working unchanged, since the caller catches either way. Overriding it is an optimisation
+     * available inside the engine, not something an external implementor needs to do.
      */
     default Object getPropertyOrNotFound(String name) {
         return getProperty(name);
