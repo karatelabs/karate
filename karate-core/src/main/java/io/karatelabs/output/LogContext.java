@@ -88,6 +88,12 @@ public class LogContext {
     // without needing to rebuild the HTTP client. Defaults: pretty=true, no mask.
     private LogMask mask;
     private boolean pretty = true;
+    // Whether anything is collected into the report buffer at all. Off means the buffer
+    // stays empty and every consumer of it (HTML report, JSONL, log replay) gets nothing —
+    // SLF4J is untouched, so `print` and karate.log() still reach the console. Set per
+    // scenario from the Suite (see Runner.Builder.captureStepLogs): on everywhere except
+    // under Gatling, where there is no HTML report and nothing reads what is collected.
+    private boolean capture = true;
 
     // ========== Thread-Local Access ==========
 
@@ -289,6 +295,25 @@ public class LogContext {
         this.pretty = pretty;
     }
 
+    /** Whether the report buffer collects anything on this thread — see {@link #isCapturing}. */
+    public boolean isCapture() {
+        return capture;
+    }
+
+    public void setCapture(boolean capture) {
+        this.capture = capture;
+    }
+
+    /**
+     * Would a message at this level actually land in the report buffer? Producers of expensive
+     * log text — above all {@link HttpLogger}, which re-parses and pretty-prints every response
+     * body — must ask this <em>before</em> building the string, rather than relying on the
+     * {@link #log} calls below to drop it once the cost has already been paid.
+     */
+    public boolean isCapturing(LogLevel level) {
+        return capture && level.isEnabled(threshold);
+    }
+
     // ========== Logging ==========
 
     /**
@@ -296,7 +321,7 @@ public class LogContext {
      * Message is filtered if level is below threshold.
      */
     public void log(LogLevel level, String message) {
-        if (!level.isEnabled(threshold)) {
+        if (!capture || !level.isEnabled(threshold)) {
             return; // Filtered
         }
         buffer.append(message).append('\n');
@@ -306,7 +331,7 @@ public class LogContext {
      * Log a message at the specified level with format arguments.
      */
     public void log(LogLevel level, String format, Object... args) {
-        if (!level.isEnabled(threshold)) {
+        if (!capture || !level.isEnabled(threshold)) {
             return; // Filtered
         }
         String message = format(format, args);
@@ -440,7 +465,7 @@ public class LogContext {
      * karate-config.js logs into the fresh per-scenario LogContext).
      */
     public void appendCaptured(String content) {
-        if (content != null && !content.isEmpty()) {
+        if (capture && content != null && !content.isEmpty()) {
             buffer.append(content);
         }
     }
@@ -528,8 +553,12 @@ public class LogContext {
         }
 
         private void log(LogLevel level, String message) {
-            if (level.isEnabled(threshold)) {
-                get().buffer.append(message).append('\n');
+            // The SLF4J call in every method above is deliberately unconditional: this is the
+            // path `print` and karate.log() take, and it must keep reaching the console at
+            // whatever level Logback allows even when the report buffer is off.
+            LogContext ctx = get();
+            if (ctx.capture && level.isEnabled(threshold)) {
+                ctx.buffer.append(message).append('\n');
             }
         }
     }

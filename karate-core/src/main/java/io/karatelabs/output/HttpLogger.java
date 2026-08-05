@@ -124,33 +124,45 @@ public class HttpLogger {
 
     public void logRequest(HttpRequest request) {
         requestCount++;
-        LogMask m = activeMask(request.getUrlAndPath());
-        // Report buffer always gets the full version (headers + text body) so
-        // HTML reports stay rich regardless of SLF4J level. Console gets a
-        // tier-appropriate line: INFO=one-liner, DEBUG=+headers, TRACE=+body.
-        StringBuilder full = new StringBuilder();
-        full.append(Console.BOLD).append("request:").append(Console.RESET).append('\n');
-        full.append(Console.DIM).append(requestCount).append(" > ").append(Console.RESET);
-        full.append(Console.CYAN).append(Console.BOLD).append(request.getMethod()).append(Console.RESET);
-        full.append(' ').append(request.getUrlAndPath()).append('\n');
-        logHeaders(full, requestCount, " > ", request.getHeaders(), m);
-        int headersEnd = full.length();
-        ResourceType rt = ResourceType.fromContentType(request.getContentType());
-        if (rt != null && !rt.isBinary()) {
-            byte[] body;
-            if (rt == ResourceType.MULTIPART) {
-                body = request.getBodyDisplay() == null ? null : request.getBodyDisplay().getBytes();
-            } else {
-                body = request.getBody();
+        // Ask what is actually wanted BEFORE building anything. The report buffer normally
+        // gets the full version (headers + text body) so HTML reports stay rich regardless of
+        // SLF4J level — but when capture is off (or the report threshold is above INFO) nothing
+        // will ever read it, and the body branch below is the most expensive thing on the HTTP
+        // path (it re-parses and pretty-prints the payload). Console gets a tier-appropriate
+        // line: INFO=one-liner, DEBUG=+headers, TRACE=+body.
+        boolean capture = LogContext.get().isCapturing(LogLevel.INFO);
+        boolean trace = logger.isTraceEnabled();
+        boolean debug = !trace && logger.isDebugEnabled();
+        if (capture || trace || debug) {
+            LogMask m = activeMask(request.getUrlAndPath());
+            StringBuilder full = new StringBuilder();
+            full.append(Console.BOLD).append("request:").append(Console.RESET).append('\n');
+            full.append(Console.DIM).append(requestCount).append(" > ").append(Console.RESET);
+            full.append(Console.CYAN).append(Console.BOLD).append(request.getMethod()).append(Console.RESET);
+            full.append(' ').append(request.getUrlAndPath()).append('\n');
+            logHeaders(full, requestCount, " > ", request.getHeaders(), m);
+            int headersEnd = full.length();
+            ResourceType rt = ResourceType.fromContentType(request.getContentType());
+            // DEBUG stops at the headers, so only capture and TRACE pay for the body
+            if ((capture || trace) && rt != null && !rt.isBinary()) {
+                byte[] body;
+                if (rt == ResourceType.MULTIPART) {
+                    body = request.getBodyDisplay() == null ? null : request.getBodyDisplay().getBytes();
+                } else {
+                    body = request.getBody();
+                }
+                logBody(full, body, rt, m);
             }
-            logBody(full, body, rt, m);
+            if (capture) {
+                LogContext.get().log(LogLevel.INFO, full.toString());
+            }
+            if (trace) {
+                logger.trace(forLog(full.toString()));
+            } else if (debug) {
+                logger.debug(forLog(full.substring(0, headersEnd)));
+            }
         }
-        LogContext.get().log(LogLevel.INFO, full.toString());
-        if (logger.isTraceEnabled()) {
-            logger.trace(forLog(full.toString()));
-        } else if (logger.isDebugEnabled()) {
-            logger.debug(forLog(full.substring(0, headersEnd)));
-        } else if (logger.isInfoEnabled()) {
+        if (!trace && !debug && logger.isInfoEnabled()) {
             StringBuilder line = new StringBuilder();
             line.append(Console.DIM).append(requestCount).append(" > ").append(Console.RESET);
             line.append(Console.CYAN).append(Console.BOLD).append(request.getMethod()).append(Console.RESET);
@@ -161,26 +173,35 @@ public class HttpLogger {
 
     public void logResponse(HttpResponse response) {
         HttpRequest request = response.getRequest();
-        LogMask m = activeMask(request.getUrlAndPath());
-        StringBuilder full = new StringBuilder();
-        full.append(Console.DIM).append("response time in milliseconds: ")
-                .append(response.getResponseTime()).append(Console.RESET).append('\n');
-        full.append(Console.DIM).append(requestCount).append(" < ").append(Console.RESET);
-        full.append(colorStatus(response.getStatus())).append(' ');
-        full.append(Console.CYAN).append(request.getMethod()).append(Console.RESET);
-        full.append(' ').append(request.getUrlAndPath()).append('\n');
-        logHeaders(full, requestCount, " < ", response.getHeaders(), m);
-        int headersEnd = full.length();
-        ResourceType rt = response.getResourceType();
-        if (rt != null && !rt.isBinary()) {
-            logBody(full, response.getBodyBytes(), rt, m);
+        // see logRequest for why the question comes before the string
+        boolean capture = LogContext.get().isCapturing(LogLevel.INFO);
+        boolean trace = logger.isTraceEnabled();
+        boolean debug = !trace && logger.isDebugEnabled();
+        if (capture || trace || debug) {
+            LogMask m = activeMask(request.getUrlAndPath());
+            StringBuilder full = new StringBuilder();
+            full.append(Console.DIM).append("response time in milliseconds: ")
+                    .append(response.getResponseTime()).append(Console.RESET).append('\n');
+            full.append(Console.DIM).append(requestCount).append(" < ").append(Console.RESET);
+            full.append(colorStatus(response.getStatus())).append(' ');
+            full.append(Console.CYAN).append(request.getMethod()).append(Console.RESET);
+            full.append(' ').append(request.getUrlAndPath()).append('\n');
+            logHeaders(full, requestCount, " < ", response.getHeaders(), m);
+            int headersEnd = full.length();
+            ResourceType rt = response.getResourceType();
+            if ((capture || trace) && rt != null && !rt.isBinary()) {
+                logBody(full, response.getBodyBytes(), rt, m);
+            }
+            if (capture) {
+                LogContext.get().log(LogLevel.INFO, full.toString());
+            }
+            if (trace) {
+                logger.trace(forLog(full.toString()));
+            } else if (debug) {
+                logger.debug(forLog(full.substring(0, headersEnd)));
+            }
         }
-        LogContext.get().log(LogLevel.INFO, full.toString());
-        if (logger.isTraceEnabled()) {
-            logger.trace(forLog(full.toString()));
-        } else if (logger.isDebugEnabled()) {
-            logger.debug(forLog(full.substring(0, headersEnd)));
-        } else if (logger.isInfoEnabled()) {
+        if (!trace && !debug && logger.isInfoEnabled()) {
             StringBuilder line = new StringBuilder();
             line.append(Console.DIM).append(requestCount).append(" < ").append(Console.RESET);
             line.append(colorStatus(response.getStatus())).append(' ');

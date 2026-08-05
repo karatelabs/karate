@@ -159,6 +159,14 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
      * Build the KarateProtocol.
      */
     public KarateProtocol build() {
+        // Replay reads Karate's per-step log, which this lane otherwise does not collect at all
+        // (no HTML report, nothing else reads it). Asking for replay is asking for the capture
+        // it replays — without this, replay would silently produce nothing, so it wins over a
+        // protocol.runner.captureStepLogs(false). With replay OFF nothing is touched here, so
+        // captureStepLogs stays the user's to set.
+        if (logReplay != KarateLogReplay.OFF) {
+            runner.captureStepLogs(true);
+        }
         KarateProtocol protocol = new KarateProtocol(uriPatterns, runner);
         if (nameResolver != null) {
             protocol.setNameResolver(nameResolver);

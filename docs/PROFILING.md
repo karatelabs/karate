@@ -737,11 +737,19 @@ mock-bound and says nothing (see §2); allocation and heap do:
 
 **Roughly 2–3x the allocation for the same 4000 requests** — a sampled profile, so the ratio
 is a magnitude, not a measurement, and quoting it to a decimal place would overstate what it
-can support. The Karate HTTP client is the bulk of it: `ApacheHttpClient.invoke` ~15%,
-`buildResponse` ~9%, and `initHttpClient` **~5–6%** — the last being the notable one, because
+can support. The Karate HTTP client is the bulk of it: `ApacheHttpClient.invoke` ~15–25%,
+`buildResponse` ~2–7%, and `initHttpClient` **~5–6%** — the last being the notable one, because
 it means a client is being constructed per execution rather than reused. The port plan's
 `PooledHttpClientFactory` (GATLING.md §2.1) was never built, and this is what that costs. Not
 investigated further here.
+
+The `buildResponse` and `invoke` bands are wide because allocation sampling attributes the same
+`byte[]` work differently run to run — read them as "the client dominates", not as a series.
+Part of what `buildResponse` used to carry was the per-step log capture, which is now off by
+default in this lane ([§9](#default-log-fidelity-under-gatling--built)): `Json.parseLenient`,
+`LogContext.log` and `LogContext.collect` no longer appear in this profile at all. The
+**total** band above is unchanged by that — six or seven points of a ~500 MB sampled profile is
+inside the run-to-run spread.
 
 *Baselines are shapes, not thresholds. Absolute numbers move with hardware and JDK; the
 linear trend and the ratios are what travel.*
@@ -956,26 +964,24 @@ The ranking is not close, and it is the same lesson as §8: the expensive option
 that changes semantics, and none of them should be started before a number says which
 constraint is actually binding.
 
-### Default log fidelity under Gatling — decided and measured, not built
+### Default log fidelity under Gatling — built
 
-The product decision is taken: **under Gatling, assume no HTML report and no logging except on
-errors**, everything else opt-in. Report writing is already off in that lane; the per-step log
-capture is not, and nothing reads it — every request re-parses and pretty-prints its response
-body to build a string that is retained and discarded.
+Kept here because §6 points at it and because what it left behind is still parked. **Under
+Gatling, assume no HTML report and no logging except on errors**, everything else opt-in — the
+per-step log capture is now off in that lane, gated before the string is built, with
+`Runner.Builder.captureStepLogs(boolean)` as the override and `logReplay` (the one reader)
+turning it back on for itself. Design and verification: **[GATLING.md §14.9](./GATLING.md)**.
 
-Measured on `gatling-http-karate` with a throwaway guard (numbers in §6's Gatling baseline
-discussion): `Json.parseLenient` 3.7% → 0.9%, `ApacheHttpClient.buildResponse` 8.6% → 3.5%,
-`LogContext.log` and `collect` gone entirely — **6–8 points of allocation** in a workload where
-the HTTP client itself is ~22%.
+Measured on `gatling-http-karate --iterations 2000`: `Json.parseLenient` 3.7%, `LogContext.log`
+1.6% and `LogContext.collect` 1.2% are all gone from the profile — the ~6.5 points the
+throwaway guard predicted. The workload's *total* allocation band is unchanged, which is what
+six or seven points of a sampled ~500 MB profile looks like; §14.9 has the table and the
+caveats.
 
-The design, the three things that make it non-trivial (the check must precede the string build;
-`logReplay` must switch capture back on; `print` must keep reaching SLF4J), and the sketch that
-compiled are all in **[GATLING.md §14.9](./GATLING.md)**. Also noted there: the per-scenario
-Logback level snapshot, a reflective walk over eight logger names on every scenario, ~2–3%.
-
-This is the best-specified piece of open work in either document — decided, measured, designed,
-and with an existing test (`LogReplayerTest`) that will catch the coupling if it is wired
-wrongly.
+**Still parked, and the obvious next one:** the per-scenario Logback level snapshot/restore
+(`LogContext.captureRuntimeLevels` + `setLevelOn`), a reflective walk over eight logger names
+on every scenario, ~2–3% of allocation and still plainly visible in the after-runs. The fix is
+to snapshot lazily — on the first `configure logging` — rather than unconditionally.
 
 ### Prior art — the 0.9.x-era overhead thread
 

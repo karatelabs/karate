@@ -1039,6 +1039,14 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         ScenarioRuntime outerRuntime = CURRENT.get();
         CURRENT.set(this);
         LogContext.set(new LogContext());
+        // Does anything read the per-step log for this run? Under Gatling nothing does — no HTML
+        // report, and log replay (which does read it) turns capture back on for itself. Decided
+        // here, before any producer runs, so the expensive text is never built at all rather than
+        // built and dropped at the threshold check. See Runner.Builder.captureStepLogs.
+        Suite suite = featureRuntime != null ? featureRuntime.getSuite() : null;
+        if (suite != null) {
+            LogContext.get().setCapture(suite.isCaptureStepLogs());
+        }
         // Repopulate the fresh LogContext from this scenario's KarateConfig — which is
         // the source of truth for mask + pretty. Without this, anything that
         // karate-config.js (evaluated during the constructor's initEngine()) configured
@@ -1069,7 +1077,6 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         LogContext.Snapshot loggingSnapshot = LogContext.snapshot();
         result.setStartTime(System.currentTimeMillis());
         // Use lane name for timeline if available (parallel mode), otherwise use thread info
-        Suite suite = featureRuntime != null ? featureRuntime.getSuite() : null;
         String laneName = suite != null ? suite.getCurrentLaneName() : null;
         String threadName;
         if (laneName != null) {

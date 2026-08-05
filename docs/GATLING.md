@@ -1218,65 +1218,84 @@ Request timing **includes connection pool wait time**:
 When `.silent()` is set on a `karateFeature()`:
 - **Gatling metrics**: Not reported to StatsEngine
 - **Karate HTML reports**: Already disabled in perf mode
-- **Logging**: Reduced to errors/warnings only
+- **Logging**: Reduced to errors/warnings only — as it is for every feature in this lane (§14.9),
+  so `.silent()` adds nothing on that axis
 - **Feature execution**: Runs normally, just invisible to reports
 
 Use for warm-up scenarios before actual load test.
 
-### 14.9 Default Fidelity — DECIDED, NOT BUILT
+### 14.9 Default Fidelity — BUILT
 
 **The decision: under Gatling, assume the user wants no HTML report and no logging except on
-errors.** Anything beyond that is opt-in. This is a product decision, already taken — what
-follows is what it costs today and what implementing it involves.
+errors.** Anything beyond that is opt-in.
 
-**Already off** (`Runner.runFeature`, the Gatling lane): HTML report, console summary, boot
-file, call-result retention. JSONL / JUnit / Cucumber are off by default anyway. Report
-*writing* — the largest cost in the whole memory investigation — is fully disabled.
+**Already off** before this (`Runner.runFeature`, the Gatling lane): HTML report, console
+summary, boot file, call-result retention. JSONL / JUnit / Cucumber are off by default anyway.
+Report *writing* — the largest cost in the whole memory investigation — was already disabled.
 
-**Still on, and nothing reads it:** the per-step log capture. `HttpLogger` says so in its own
-comment — *"Report buffer always gets the full version … so HTML reports stay rich regardless
-of SLF4J level"* — but under Gatling there is no HTML report. So for every request Karate
-re-parses the JSON body, pretty-prints it, ANSI-colourises it, wraps it in sentinels, appends
-it to a thread-local buffer and hangs it off `StepResult.log`, where it is retained and never
-read. Measured on `gatling-http-karate` with a throwaway guard (PROFILING.md §6):
+**What was still on, and nothing read it:** the per-step log capture. For every request Karate
+re-parsed the JSON body, pretty-printed it, ANSI-colourised it, wrapped it in sentinels,
+appended it to a thread-local buffer and hung it off `StepResult.log`, where it was retained
+and never read — `HttpLogger`'s own comment said the buffer exists "so HTML reports stay rich
+regardless of SLF4J level", and under Gatling there is no HTML report.
 
-| site | with capture | without |
-|---|---:|---:|
-| `Json.parseLenient` | 3.7% | 0.9% |
-| `ApacheHttpClient.buildResponse` | 8.6% | 3.5% |
-| `LogContext.log` | 1.6% | — |
-| `LogContext.collect` | 1.2% | — |
+**What was built.** A `capture` flag on `LogContext` (an instance field on the thread-local, so
+no cross-Suite races), set per scenario in `ScenarioRuntime.call()` from
+`Suite.isCaptureStepLogs()` — which answers "yes, unless this is a perf run" and is resolved
+lazily, because `setPerfHook` runs after the Suite is built.
+`Runner.Builder.captureStepLogs(boolean)` overrides it in either direction and is propagated
+through the `runFeature` template.
 
-Roughly **6–8 percentage points of allocation**, in a workload where the HTTP client itself is
-~22%. The residual `parseLenient` is Karate's own response parsing; the rest was the logger
-parsing the same body a second time.
+The three things that made it more than a one-liner, and how each is honoured:
 
-**Design, and the three things that make it non-trivial:**
+1. **The check happens before the string is built.** The threshold test inside
+   `LogContext.log` is too late — the cost is already paid by the time it is reached. So
+   `HttpLogger.logRequest` / `logResponse` now ask `LogContext.isCapturing(INFO)` up front and
+   skip the whole block when nothing wants it. That question covers both axes — the capture
+   flag *and* the report threshold — so a `configure logging = { report: 'warn' }` now stops
+   the string being built rather than dropping it afterwards. The body, the expensive part, is
+   built only for capture or SLF4J `TRACE`; `DEBUG` stops at the headers, as before.
+   `LogContext.log` and `LogWriter` also drop their appends when capture is off, as the
+   backstop for every other producer.
+2. **`logReplay` switches capture back on.** It replays exactly this buffer, so replay without
+   capture would be a feature that silently does nothing. `KarateProtocolBuilder.build()` sets
+   `runner.captureStepLogs(true)` whenever the mode is not `OFF` — which also retires the
+   documented footgun that replay was bounded by the report threshold. Replay stays free when
+   `OFF`: nothing is touched there, so `captureStepLogs` remains the user's to set.
+3. **`print` / `karate.log()` still reach the console.** They go through `LogWriter`, whose
+   SLF4J call is deliberately unconditional — only the buffer append is gated. Verified, not
+   assumed: `StepLogCaptureTest.printStillReachesTheConsoleWithCaptureOff` runs a feature in
+   the perf lane with an appender on `karate.scenario`.
 
-1. **The check must happen before the string is built.** The threshold test inside
-   `LogContext.log` is too late — the cost is already paid by the time it is reached. The
-   producer (`HttpLogger`) has to ask first.
-2. **`logReplay` must switch capture back on.** It replays exactly this buffer, so replay
-   without capture is a feature that silently does nothing. Wiring it in
-   `KarateProtocolBuilder.build()` turns today's documented footgun ("replay is bounded by the
-   report threshold") into automatic behaviour. Note replay is *already* opt-in and free when
-   `OFF` — it returns before rendering anything and allocates no buffer — so this adds no cost
-   to the default path.
-3. **`print` / `karate.log()` must keep reaching the console.** They go through `LogWriter`,
-   which writes to SLF4J *and* the buffer, so they survive capture being off at whatever level
-   the user's Logback config allows. That is what makes "unless the user opts into logging"
-   true rather than aspirational — but it is the thing to verify, not assume.
+**Measured**, `gatling-http-karate --iterations 2000`, against the pre-change baseline and the
+throwaway-guard run that predicted it (PROFILING.md §6):
 
-A sketch that compiled: a `capture` flag on `LogContext` (thread-local, so no cross-Suite
-races), defaulted per scenario from the Suite — capture unless `isPerfMode()` — with
-`Runner.Builder.captureStepLogs(boolean)` as the override that karate-gatling sets when replay
-is on. Left unbuilt deliberately; it is a karate-core behaviour change and wanted its own
-session.
+| site | before | guard | after (3 runs) |
+|---|---:|---:|---:|
+| `Json.parseLenient` | 3.7% | 0.9% | — |
+| `LogContext.log` | 1.6% | — | — |
+| `LogContext.collect` | 1.2% | — | — |
+| `ApacheHttpClient.buildResponse` | — | 3.5% | 1.8% / 6.6% / 5.2% |
+
+The three logging sites are gone from the profile entirely — `parseLenient` does not even
+reach the digest's top-25 cutoff (~1.1%) — which is the ~6.5 points the guard run predicted.
+`buildResponse` is what is left of reading the response body, and its share bounces across
+runs because allocation sampling attributes the same `byte[]` work differently; it is noise,
+not a trend. This row previously read 8.6% "with capture", which traces to the "~9%" in
+PROFILING.md §6's `http` pair paragraph rather than to the pre-change run measured here (that
+digest does not list `buildResponse` in its top-25 at all) — hence the blank.
+
+**What did not move: the total.** Sampled allocation for the workload stays in the 460–560 MB
+band §6 records, before and after. Six or seven points of a ~500 MB profile is inside the
+run-to-run spread of a sampled recording, and at 2000 iterations a large slice of every run is
+fixed startup (`initHttpClient`, parser init, config eval). The claim this supports is "those
+sites are gone", not "the workload allocates measurably less" — that would need a longer run,
+or `--duration`, which is unbuilt.
 
 Still unaddressed and separate: the per-scenario Logback level snapshot/restore
-(`LogContext.captureRuntimeLevels` + `setLevelOn`, ~2–3% of allocation), a reflective walk over
-eight logger names on every scenario. The obvious fix is to snapshot lazily — on the first
-`configure logging` — rather than unconditionally.
+(`LogContext.captureRuntimeLevels` + `setLevelOn`, ~2–3% of allocation, and still visible in
+the after-runs), a reflective walk over eight logger names on every scenario. The obvious fix
+is to snapshot lazily — on the first `configure logging` — rather than unconditionally.
 
 ### 14.10 Failure Visibility
 
@@ -1292,12 +1311,15 @@ and both must name **where** and **why**:
 
 ### 14.11 Log Replay
 
-Per-step Karate output (HTTP blocks, `print`) is captured into `FeatureResult` in perf mode
-regardless of the Logback level — `LogContext` has its own threshold. `LogReplayer` uses that to
-hold each feature's output and release it only when a feature fails, which is how a quiet load run
-can still explain a failure that happened three features into a scenario.
+Per-step Karate output (HTTP blocks, `print`) is captured into `FeatureResult` regardless of the
+Logback level — `LogContext` has its own threshold. `LogReplayer` uses that to hold each feature's
+output and release it only when a feature fails, which is how a quiet load run can still explain a
+failure that happened three features into a scenario.
 
 - Configured on the protocol: `logReplay(OFF|FAILED|ALL)`, `logReplayLevel`, `logReplayLimit`.
+- Asking for replay turns the capture on — in perf mode it is otherwise off, since nothing else
+  reads it (§14.9). Replay is the reader, so `KarateProtocolBuilder.build()` sets
+  `runner.captureStepLogs(true)` for any mode but `OFF`.
 - Retention rides the **Gatling Session** (`__karateLog`), not a thread-local — Gatling is free to
   run a later `exec()` of the same scenario on a different thread. Like `__karate`, the key is
   excluded from the `__gatling` map.

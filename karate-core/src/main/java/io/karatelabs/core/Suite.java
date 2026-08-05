@@ -87,6 +87,8 @@ public class Suite {
     public final boolean backupReportDir;
     public final boolean outputConsoleSummary;
     public final boolean retainCallResults;
+    /** Explicit {@code Runner.Builder.captureStepLogs()}, or null — see {@link #isCaptureStepLogs()}. */
+    private final Boolean captureStepLogs;
     public final Map<String, String> systemProperties;
     public final List<RunListener> listeners;
     public final List<RunListenerFactory> listenerFactories;
@@ -213,6 +215,7 @@ public class Suite {
         this.backupReportDir = builder.isBackupOutputDir();
         this.outputConsoleSummary = builder.isOutputConsoleSummary();
         this.retainCallResults = builder.isRetainCallResults();
+        this.captureStepLogs = builder.getCaptureStepLogs();
         this.systemProperties = builder.getSystemProperties() != null
                 ? Collections.unmodifiableMap(new HashMap<>(builder.getSystemProperties()))
                 : null;
@@ -1190,6 +1193,19 @@ public class Suite {
 
     public boolean isPerfMode() {
         return perfHook != null;
+    }
+
+    /**
+     * Whether each step's Karate output is collected into {@code StepResult.log} — see
+     * {@link Runner.Builder#captureStepLogs(boolean)}.
+     * <p>
+     * Unset, this answers "yes, unless this is a Gatling run": under Gatling there is no HTML
+     * report and nothing else reads the buffer, so building the text (which re-parses and
+     * pretty-prints every response body) would be pure waste. Resolved lazily rather than in
+     * the constructor because {@link #setPerfHook} runs after the Suite is built.
+     */
+    public boolean isCaptureStepLogs() {
+        return captureStepLogs != null ? captureStepLogs : !isPerfMode();
     }
 
     public boolean isSkipTagFiltering() {

@@ -180,6 +180,11 @@ public final class Runner {
             if (template.getSetupOnceCacheStore() != null) {
                 builder.setupOnceCacheStore(template.getSetupOnceCacheStore());
             }
+            // left unset, per-step log capture is off in this lane — nothing here reads it.
+            // karate-gatling sets it when log replay is on, since replay is exactly the reader.
+            if (template.getCaptureStepLogs() != null) {
+                builder.captureStepLogs(template.getCaptureStepLogs());
+            }
         }
         if (tags != null && !tags.isEmpty()) {
             builder.tags(tags.toArray(new String[0]));
@@ -246,6 +251,8 @@ public final class Runner {
         private boolean backupOutputDir = true;
         private boolean outputConsoleSummary = true;
         private boolean retainCallResults = false;
+        // null = decide from the run: on everywhere except perf mode (see Suite.isCaptureStepLogs)
+        private Boolean captureStepLogs;
         private Map<String, String> systemProperties;
         private final Map<String, Object> globals = new java.util.LinkedHashMap<>();
         private LogLevel logLevel = LogLevel.DEBUG;
@@ -527,6 +534,24 @@ public final class Runner {
 
         public Builder outputConsoleSummary(boolean enabled) {
             this.outputConsoleSummary = enabled;
+            return this;
+        }
+
+        /**
+         * Collect each step's Karate output — HTTP request / response blocks, {@code print} —
+         * into {@code StepResult.log}, which is what the HTML report, the JSONL / JUnit /
+         * Cucumber writers and karate-gatling's log replay all read.
+         *
+         * <p>Unset by default, which means <em>on</em> for a normal run and <em>off</em> under
+         * Gatling: that lane writes no HTML report, so the text would be built — the response
+         * body re-parsed and pretty-printed for every request — only to be retained and
+         * discarded. Set it explicitly to override in either direction.
+         *
+         * <p>This is capture, not logging: {@code print} and {@code karate.log()} reach SLF4J
+         * either way, at whatever level the Logback config allows.
+         */
+        public Builder captureStepLogs(boolean enabled) {
+            this.captureStepLogs = enabled;
             return this;
         }
 
@@ -828,6 +853,8 @@ public final class Runner {
         boolean isOutputConsoleSummary() { return outputConsoleSummary; }
 
         boolean isRetainCallResults() { return retainCallResults; }
+        /** null when unset — the Suite decides from perf mode. */
+        Boolean getCaptureStepLogs() { return captureStepLogs; }
         Map<String, String> getSystemProperties() { return systemProperties; }
         Map<String, Object> getProgrammaticGlobals() { return globals; }
         List<RunListener> getListeners() { return listeners; }
