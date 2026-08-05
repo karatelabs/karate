@@ -1194,7 +1194,16 @@ public class KarateJs extends KarateJsBase implements PerfContext {
             } catch (RuntimeException re) {
                 throw re;
             } catch (ClassNotFoundException e) {
-                throw new RuntimeException("cannot find [" + type + "], is 'karate-" + type + "' included as a maven / gradle dependency?");
+                // Name every way the leaf actually arrives. "is it a maven / gradle dependency?" is only
+                // one of them, and it is the wrong question for a run inside a packaged engine — where
+                // the answer is to run (or add) the jar that carries the leaf, not to edit a build file
+                // that is not there. A message that names a fix nobody in that context can perform reads
+                // as "this capability is broken".
+                throw new RuntimeException("cannot find [" + type + "]: no channel factory is registered for"
+                        + " it and io.karatelabs.ext." + type + "." + Character.toUpperCase(type.charAt(0))
+                        + type.substring(1) + "ChannelFactory is not on the classpath. Add the 'karate-"
+                        + type + "' dependency (maven / gradle), or run an engine jar that bundles the"
+                        + " protocol leaves, or put the leaf jar on the classpath.");
             } catch (Exception e) {
                 throw new RuntimeException(e.getMessage(), e);
             }
