@@ -155,7 +155,8 @@ public final class Profiler {
         }
 
         List<String> command = childCommand(classpath, name, shape, jvm, mockUrl,
-                recordMock ? List.of() : jfrFlags(runDir, shape, flags, warmupWillRun), runDir, flags.systemProperties);
+                recordMock ? List.of() : jfrFlags(runDir, shape, flags, warmupWillRun), runDir, flags.systemProperties,
+                workload.jvmFlags());
         writeRunMeta(runDir, name, shape, jvm, command, mockUrl);
 
         System.out.println("[parent] forking: " + String.join(" ", command));
@@ -236,11 +237,13 @@ public final class Profiler {
     private static List<String> childCommand(String classpath, String name, RunShape shape,
                                              JvmConfig jvm, String mockUrl,
                                              List<String> jfr, Path runDir,
-                                             List<String> systemProperties) {
+                                             List<String> systemProperties,
+                                             List<String> workloadFlags) {
         List<String> command = new ArrayList<>();
         command.add(javaBinary());
         command.add("-Xmx" + jvm.xmx());
         command.addAll(jvm.flags(Runtime.version().feature()));
+        command.addAll(workloadFlags);
         command.addAll(jfr);
         command.addAll(systemProperties);
         command.add("-Dkarate.profiling.workload=" + name);

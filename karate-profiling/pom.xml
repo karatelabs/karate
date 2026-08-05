@@ -77,11 +77,19 @@
 
     <profiles>
         <!--
-          Scaffold only — no workload uses it yet. When the Gatling-parity
-          workloads land they will be launched programmatically from the forked
-          child (io.gatling.app.Gatling.fromMap), which is why this module needs
-          neither scala-maven-plugin nor gatling-maven-plugin: karate-gatling
-          already provides the Scala bits.
+          The Gatling-parity workloads. Kept behind a profile because Gatling and
+          its Scala runtime are ~40 MB of classpath that every other workload has
+          no use for, and because a profiling harness for karate-core should still
+          build when karate-gatling does not.
+
+          They live in their own source root rather than src/main/java: the module
+          must compile without this profile, and code that imports io.gatling
+          cannot. The registry finds them reflectively (see Workloads), so nothing
+          in the default build references them.
+
+          Simulations are launched programmatically from the forked child, so this
+          module needs neither scala-maven-plugin nor gatling-maven-plugin —
+          karate-gatling already provides the Scala bits.
         -->
         <profile>
             <id>gatling</id>
@@ -92,6 +100,29 @@
                     <version>${project.version}</version>
                 </dependency>
             </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>add-gatling-sources</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>add-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>src/gatling/java</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 

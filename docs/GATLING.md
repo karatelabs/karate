@@ -1534,7 +1534,20 @@ HTML reports are generated in `target/gatling/`.
 - [ ] `karate-gatling-bundle.jar` fatjar (Gatling + Scala + karate-gatling)
 
 ### Phase 6: Profiling & Validation
-- [ ] Overhead comparison test (v2 karate-gatling vs plain Gatling)
+
+Lives in `karate-profiling` behind `-Pgatling`, not here — see
+[PROFILING.md](./PROFILING.md) §2 for the workloads and §6 for the first numbers.
+
+- [x] Overhead comparison test (v2 karate-gatling vs plain Gatling) — matched pairs, null and HTTP
 - [ ] Port v1's `examples/profiling-test` for memory leak detection
-- [ ] Extended load tests (HTTP client pooling, mock server under sustained load)
-- [ ] Document profiling methodology and results
+- [ ] Extended load tests (HTTP client pooling, mock server under sustained load) — needs
+      `--duration` support in the Gatling workloads, which is unbuilt
+- [x] Document profiling methodology and results — first baseline recorded
+
+Two things the first measurement turned up, neither chased down: an empty feature constructs
+exceptions on its happy path, and `ApacheHttpClient.initHttpClient` shows up per execution —
+i.e. §2.1's `PooledHttpClientFactory` was never built and this is what that costs. The
+"< 5% vs plain Gatling" target above is not a meaningful gate as written: Karate allocates
+~2.9x plain Gatling for the same requests, because it parses and structurally matches every
+response rather than extracting one JSONPath. Compare like for like, or state what the
+number includes.

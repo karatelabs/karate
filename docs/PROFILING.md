@@ -113,7 +113,7 @@ rm -rf "${TMPDIR:-/tmp}"/karate-feature-spread-* "${TMPDIR:-/tmp}"/karate-report
 | `--duration 10m` | per workload | Run for a wall-clock window instead. Use for soaks. |
 | `--xmx 768m` | per workload | Child heap. **The single most important knob** — a leak that OOMs at 768m may never surface at 4g. |
 | `--gc g1\|zgc` | `g1` | See [Reproducing a specific collector](#reproducing-a-specific-collector). |
-| `--warmup Ns` | per workload | Excluded from the measured window — the recording is delayed past it. |
+| `--warmup Ns` | per workload | Excluded from the measured window — the recording is delayed past it. A workload that drives its own concurrency runs no warmup, so nothing is delayed for it. |
 | `--timeout` | duration + slack | Wall-clock cap. On expiry the parent dumps the recording and thread state, then kills the child. See §4. |
 | `--record workload\|mock` | `workload` | Flips which JVM gets the recording. `mock` profiles the Karate mock server itself, driven by a deliberately cheap raw-`java.net.http` client. |
 
@@ -245,6 +245,41 @@ scope again, `bound` would diverge sharply from `unbound` and this pair would ca
 Do not read a passing `scope-capture-bound` as evidence that memory is fine generally —
 it only says this particular nesting is absent. Verify the shape directly with `Probe`
 (below) rather than inferring it from a heap curve.
+
+### Gatling parity family — what does driving Karate from Gatling cost?
+
+Four workloads in two pairs, each pair being the same work done by Karate and by plain
+Gatling. **A single number here means nothing** — every one of these exists to be subtracted
+from or divided by its partner, on the same machine, back to back.
+
+| Pair | Workloads | The question |
+|---|---|---|
+| null | `gatling-null-plain` / `gatling-null-karate` | What does one `karateFeature()` exec cost before any user work? |
+| http | `gatling-http-plain` / `gatling-http-karate` | What does a Karate-driven virtual user cost against a Gatling-native one, doing a POST + GET a user would actually write? |
+
+```bash
+etc/run.sh gatling-null-plain  --iterations 20000
+etc/run.sh gatling-null-karate --iterations 20000    # the difference is the answer
+```
+
+These live behind `-Pgatling` — Gatling and its Scala runtime are ~40 MB of classpath the
+other workloads have no use for. `etc/run.sh` turns the profile on automatically for any
+`gatling-*` workload and for `--list`, so there is nothing extra to remember; it also means
+those invocations build `karate-gatling` first and take longer.
+
+Gatling owns the users and the pacing, so these are self-driving: `--threads` becomes virtual
+users injected at once and `--iterations` becomes repetitions per user. `--duration` is not
+supported (see §9). Gatling's own chart generation is off — it is a second pass over the
+simulation log that would land in the digest as if it were load-driving cost.
+
+**Wall-clock on the `http` pair measures the mock, not the clients.** At 16 users both
+variants saturate the sibling Karate mock and finish within noise of each other, in either
+order; at 2 users the per-request latency dominates instead and the difference is still inside
+run-to-run spread. What *is* usable from that pair is the digest: allocation and peak heap
+separate the two cleanly, because those are client-side facts that a saturated server does not
+hide. The `null` pair has no HTTP at all and so is the one whose wall-clock number is worth
+quoting. A throughput comparison needs a mock tier cheap enough to stay out of the way — see
+§9.
 
 ### `Probe` — what does a call actually return?
 
@@ -551,6 +586,52 @@ Two distinct mechanisms, and only measurement separated them: the scope-capture 
 J was written to demonstrate was already gone before this work started, while the
 call-result accumulation the reporter had retracted was the one still live.
 
+#### Gatling parity — machine A, `-Xmx1g`, 16 users, G1, JDK 24
+
+First measurement of this family, 2026-08-05, karate 2.1.2.RC1.
+
+**`null` pair — 20 000 execs, no HTTP.** Two runs each, back to back:
+
+| | run 1 | run 2 |
+|---|---:|---:|
+| `gatling-null-plain` | 1157 ms | 1150 ms |
+| `gatling-null-karate` | 2029 ms | 2015 ms |
+
+Reproducible to ~1%, and most of the plain number is Gatling's fixed startup (it is the same
+at 2000 iterations as at 20 000 — the no-op exec itself is free). The difference is what
+matters: **~865 ms per 20 000 execs**, i.e. ~43 µs of wall-clock per `karateFeature()` exec at
+16-way concurrency, or roughly **0.7 ms of CPU per exec**. That is the floor a Karate-driven
+virtual user pays before doing anything: build a `Suite`, parse the feature, evaluate
+`karate-config.js`, run one scenario, hand the session maps back.
+
+Where it goes, from the digest of the Karate run — an *empty* feature, so every entry here is
+fixed cost:
+
+| site | share | reading |
+|---|---:|---|
+| `JavaUtils.findMethodDirect` | 11.0% | reflective method lookup, per execution |
+| `BaseParser.<init>` | 9.1% | the feature and its JS re-parsed every time |
+| `PathResource.computeRelativePath` | 7.6% | path resolution, per execution |
+| `LogContext.setLevelOn` + `captureRuntimeLevels` | 6.1% | the per-scenario Logback level snapshot/restore, reflectively, across every category |
+| `JsErrorException.<init>` + `ResourceNotFoundException.<init>` | 5.9% | **exceptions constructed on a happy path** — nothing in this feature fails |
+
+The last two rows are the interesting ones and neither has been chased down. Building
+exceptions in a feature that does nothing but `* def x = 1` is a lead, not a finding.
+
+**`http` pair — 2000 iterations = 4000 requests against the sibling mock.** Wall-clock is
+mock-bound and says nothing (see §2); allocation and heap do:
+
+| | sampled allocation | peak heap |
+|---|---:|---:|
+| `gatling-http-plain` | 189 MB | 43 MB |
+| `gatling-http-karate` | 540 MB | 70 MB |
+
+**~2.9x the allocation for the same 4000 requests**, of which the Karate HTTP client is the
+bulk: `ApacheHttpClient.invoke` 14.6%, `buildResponse` 8.6%, and `initHttpClient` **6.1%** —
+the last being the notable one, because it means a client is being constructed per execution
+rather than reused. The port plan's `PooledHttpClientFactory` (GATLING.md §2.1) was never
+built, and this is what that costs. Not investigated further here.
+
 *Baselines are shapes, not thresholds. Absolute numbers move with hardware and JDK; the
 linear trend and the ratios are what travel.*
 
@@ -712,7 +793,7 @@ break — but scores exactly zero on the mega-outline shape, which is the only c
 | Leak-watch family | See §2. The soak question is genuinely unanswered — every current workload is an iteration-bounded reproduction. |
 | JS-engine workloads | `js-array`, `js-object`, `js-engine-init` built from `EngineBenchmark`'s generators, so JS tuning gets forking, JFR and digests too. |
 | Mock throughput tiers | Raw Java handler vs JS handler vs feature mock, as a floor-and-multiplier table. `--record mock` already exists to support this. |
-| Gatling parity | Null-workload overhead probe, realistic parity sim, throughput ceiling, allocation-rate comparison. Behind `-Pgatling`, launched programmatically via `io.gatling.app.Gatling.fromMap` so the single entry point survives. Absorbs [GATLING.md](./GATLING.md) Phase 6, which is untouched. |
+| Gatling parity — **partly built** | The null-overhead probe, the parity sim and the allocation comparison exist (§2, §6). What is left: a **throughput ceiling**, which needs a mock tier cheap enough not to be the bottleneck — today both variants saturate the feature mock, so req/s measures the mock. Also unbuilt: `--duration` support, which needs `during()` in the injection profile rather than a repetition count, and is the prerequisite for a Gatling soak. Note the entry point is `Gatling.fromArgs`, not the `fromMap` this row used to name — `fromMap` was removed in Gatling 3.15. |
 | Custom JFR events | `karate.Step` / `karate.Call` / `karate.HttpRequest`, so a recording carries Karate semantics and allocation attributes to a *feature line*. **A CPU-tuning need, not a memory one.** The virtual-thread gap is specific to `jdk.ExecutionSample`; everything the memory work relied on attributes correctly regardless of thread model. Build these when the question becomes "where is the CPU going during a parallel run" — exactly where `ExecutionSample` goes blind. |
 | `profiler compare A B` | Side-by-side delta table from two run directories. |
 | Machine-readable baselines + CI | Committed `baselines/*.json`, a scheduled job, regression thresholds. Out of scope until the manual playbook has proven itself. |

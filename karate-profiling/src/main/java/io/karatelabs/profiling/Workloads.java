@@ -30,11 +30,16 @@ import io.karatelabs.profiling.workload.ScopeCaptureWorkload;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * The workload registry. Adding a workload means adding one line here — there is no
  * ServiceLoader indirection, because the set is small and a compile error is a better
  * failure mode than an empty catalogue at runtime.
+ *
+ * <p>The one exception is a family that is not always <em>on</em> the classpath — see
+ * {@link #registerOptional} — which cannot be named here without breaking the build that
+ * lacks it.
  *
  * <p>Order is preserved so {@code --list} reads sensibly rather than by hash.
  */
@@ -50,6 +55,8 @@ public final class Workloads {
         // Also a matched pair: same total scenarios, opposite distribution across features.
         register(new CallAccumulationWorkload());
         register(new FeatureSpreadWorkload());
+        // Present only in a build that enabled -Pgatling — see registerOptional.
+        registerOptional("io.karatelabs.profiling.gatling.GatlingWorkloads");
     }
 
     private Workloads() {
@@ -59,6 +66,33 @@ public final class Workloads {
         Workload previous = REGISTRY.put(workload.name(), workload);
         if (previous != null) {
             throw new IllegalStateException("duplicate workload name: " + workload.name());
+        }
+    }
+
+    /**
+     * Register a family that only exists in some builds. The one reflective seam in an
+     * otherwise compile-checked registry, and it earns its keep: the Gatling workloads import
+     * {@code io.gatling}, which is on the classpath only under {@code -Pgatling}, so a direct
+     * reference here would stop the default build compiling.
+     *
+     * <p>An absent class is the expected case, not an error — the catalogue is simply shorter.
+     * Anything else (a family that is present but will not load) is a build problem and fails
+     * loudly, because silently shipping a shorter catalogue is how you spend an afternoon
+     * wondering where a workload went.
+     */
+    private static void registerOptional(String className) {
+        Class<?> family;
+        try {
+            family = Class.forName(className);
+        } catch (ClassNotFoundException e) {
+            return; // built without the profile that provides it
+        }
+        try {
+            Consumer<Workload> sink = Workloads::register;
+            family.getMethod("registerInto", Consumer.class).invoke(null, sink);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("workload family " + className + " is on the classpath"
+                    + " but could not be registered", e);
         }
     }
 

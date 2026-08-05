@@ -23,6 +23,8 @@
  */
 package io.karatelabs.profiling;
 
+import java.util.List;
+
 /**
  * One thing the harness can measure.
  *
@@ -58,6 +60,18 @@ public interface Workload {
     /** Default run shape (threads, iterations or duration, warmup). CLI flags override. */
     default RunShape shape() {
         return RunShape.defaults();
+    }
+
+    /**
+     * Extra flags for the child JVM, beyond heap and collector.
+     *
+     * <p>For a workload that cannot start without them — not for tuning. Heap and collector
+     * belong in {@link #jvm()} because they are part of the experiment; this is for a
+     * requirement of the code under test, and it lands in {@code run-meta.txt} with the rest
+     * of the command line so a run is still reproducible from its own artifacts.
+     */
+    default List<String> jvmFlags() {
+        return List.of();
     }
 
     /**
