@@ -118,6 +118,15 @@ public class LogReplayer {
         }
         if (!sb.isEmpty()) {
             emit(sb.toString().stripTrailing());
+        } else {
+            // A replay that emits nothing at all looks like a broken feature. Two things cause it:
+            // the feature genuinely produced no output (it failed before its first request), or the
+            // report threshold filtered it — HTTP blocks and print enter the report buffer at INFO,
+            // so a perf config with `report: 'warn'` empties it. We cannot tell which from here (the
+            // per-scenario threshold is restored by the time this runs), so name both.
+            emit("karate log replay: " + featurePath + " captured no output to replay"
+                    + " — if that is unexpected, the report log threshold is filtering it"
+                    + " (configure logging = { report: 'info' })");
         }
         // start the next iteration clean — the failure this output explains has been logged
         return Buffer.EMPTY;

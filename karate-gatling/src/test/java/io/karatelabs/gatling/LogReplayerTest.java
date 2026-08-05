@@ -179,6 +179,25 @@ class LogReplayerTest {
         assertTrue(replay.contains(">>> karate: " + FAIL_FEATURE + " [failed]"), replay);
     }
 
+    /**
+     * A replay that emits nothing looks like a broken feature. It happens when the failure came
+     * before any output (as here — no HTTP call, no print) and, less obviously, when the report
+     * threshold filtered the output out: HTTP blocks and print enter the report buffer at INFO, so
+     * a perf config with {@code report: 'warn'} empties it. Say so instead of going quiet.
+     */
+    @Test
+    void aFailureWithNoCapturedOutputSaysSoRatherThanGoingQuiet() {
+        KarateProtocol protocol = karateProtocol().logReplay("all").build();
+
+        run("classpath:features/pre-http-fail.feature", protocol, null);
+
+        List<String> events = replayed();
+        assertEquals(1, events.size(), "expected the explanation, got: " + events);
+        assertTrue(events.get(0).contains("captured no output to replay"), events.get(0));
+        assertTrue(events.get(0).contains("report: 'info'"),
+                "should point at the threshold that most often causes it: " + events.get(0));
+    }
+
     /** A limit that retains nothing would quietly turn ALL into FAILED — ask for FAILED instead. */
     @Test
     void aLimitBelowOneIsRejected() {
