@@ -624,7 +624,9 @@ snapshot, happy-path exception construction with the uncached reflection and map
 underneath it, and re-parsing — §9 has all three, with before-and-after). Chasing the last of
 those moved it out of the Gatling column entirely: **the re-parsing that costs is JS step
 expressions, re-parsed on every step execution, and it is an ordinary-suite cost that the
-Gatling lane merely made visible** — see [Parsed-JS reuse](#parsed-js-reuse--measured-not-built).
+Gatling lane merely made visible** — measured, and deliberately not acted on until a mock with
+injected latency says it survives real network time; see
+[Parsed-JS reuse](#parsed-js-reuse--measured-not-built).
 **Still a lead, still unchased:** per-execution HTTP client construction. Driving Karate under
 load surfaces karate-core costs the memory workloads never touched, which is the main reason
 the Gatling family earns its keep beyond the parity question.
@@ -912,7 +914,8 @@ section because §6 points at them and because each one left something parked be
 snapshot, exceptions on the happy path, and the built half of per-execution reading and parsing.
 Everything else is a lead or a design, not code — including
 [Parsed-JS reuse](#parsed-js-reuse--measured-not-built), which is the largest measured win
-recorded in this document that has not been taken.
+recorded in this document that has not been taken, and is deliberately gated on the
+latency-injected mock rather than on anyone's judgement about whether it matters.
 
 ### If you are picking up the Gatling thread — the order
 
@@ -936,6 +939,15 @@ get wrong:
 Steps 2 and 3 both say "mock work" and are not the same task. Doing (2) does not unblock the
 throughput ceiling, and doing (3) does not by itself make the overhead-share experiment
 runnable.
+
+**(2) and (3) now gate more than the Gatling questions.** They are also what decides whether the
+per-execution parsing work in
+[Parsed-JS reuse](#parsed-js-reuse--measured-not-built) is worth doing at all — a third of
+allocation against a localhost mock may be nothing at all against an API that answers in 50 ms.
+Do not start on caches or on making the parsed model immutable until a latency-injected run says
+the cost survives realistic network time. For (3), prefer a mock **we own and can instrument, in
+its own process and not necessarily a JVM**: the point is a server whose own cost is known and
+small, so what is left in the measurement is the client.
 
 ### Per-scenario spill — designed, reviewed, deliberately not built
 
@@ -1157,28 +1169,67 @@ What is left on top after the prototype is the **Gherkin** side: `GherkinLexer` 
 `GherkinParser.extractDocString` 5.7%, i.e. the callee feature re-parsed per `karate.call()`,
 plus `PathResource.computeRelativePath` 7.9% for resolving its path again each time.
 
-It is not built because the prototype's shortcuts are the whole design question:
+#### Deliberately not scheduled, and the order that decides it
 
-- **Scope.** Suite-scoped is safe and helps ordinary runs; it does nothing for karate-gatling,
-  which builds a Suite per execution. Process-wide is what makes the Gatling lane benefit. The
-  precedent for wanting both already exists — `callSingleCache` is Suite-owned but injectable
-  through `Runner.Builder`, which is how karate-gatling gives it a longer life.
-- **Bounding.** Keyed by source text, the key set is normally bounded by the source files. It is
-  not bounded when the text is generated: `eval("read('" + path + "')")`, `evalAsStep(userText)`,
-  and outline rows whose `<placeholder>` substitution makes every row's step text distinct. An
+**This is not the next thing to build, and the reason is a question the harness cannot answer
+yet.** A third of allocation is a large number in a profile; it is not obviously a large number
+in a load test. Against a real API a virtual user spends most of its iteration waiting on the
+network, and an allocation cost that vanishes into that wait is not worth a cache, an eviction
+policy and a new mutable object graph. Everything above was measured against a localhost mock,
+which is precisely the configuration that makes client-side cost look important (§2, §7).
+
+So the gate is the experiment §2 and §9 already ask for and neither has built: **give the mock
+an injected latency, then re-run this comparison at 0 / 10 / 50 ms.** If the gap between cached
+and uncached shrinks to nothing at realistic latency, this section is closed on evidence rather
+than parked on judgement. Note the instrument matters here — a mock that is itself a Karate
+feature saturates before either client does, so the tier to build is one **we own and can
+instrument, in a separate process and not necessarily a JVM**, which is the same "cheap mock
+tier" the throughput ceiling waits on. Build that once and it settles three questions.
+
+#### If it is ever taken: hang the AST off the Step, not off a map
+
+The prototype's design is the wrong one, and the better one dissolves the questions it raised
+rather than answering them. A keyed cache needs a scope, a bound and an identity rule:
+
+- **Scope.** Suite-scoped helps ordinary runs and does nothing for karate-gatling, which builds a
+  Suite per execution; process-wide helps both and is global mutable state in the JS engine.
+- **Bounding.** Keyed by source text, the key set is normally bounded by the source files — but
+  not when the text is generated: `eval("read('" + path + "')")`, `evalAsStep(userText)`, and
+  outline rows whose `<placeholder>` substitution makes every row's step text distinct. An
   unbounded map in a long-lived process (serve, MCP, the IDE plugin) is a leak with a nicer name.
 - **Identity.** The key must carry the resource, not just the text: an AST's tokens name the file
   they came from, and two files sharing a step line would otherwise report positions against
   whichever parsed first.
 
-**The feature-parse half has three known hazards**, found while measuring and worth starting
-from rather than rediscovering. Sharing one parsed `Feature` across executions is not safe today
-because execution writes to the parsed model: `Scenario.selected` is a per-suite tag-selection
-memo stored on the model (`Suite.sectionCanMatch`, with a `clearScenarioSelectionCache` to undo
-it), `evaluateScenarioName()` calls `scenario.setName()` on a dynamic name so a second run would
-see the already-substituted one, and `ScenarioOutline.numScenarios` is a counter that only ever
-increments (it feeds `karate.info`). Outline rows are already copies (`toScenario` / `copy`), so
-the row path is clear — it is the plain-scenario path that writes to the shared object.
+**Storing the parsed AST on the `Step` itself has none of those.** There is no key, so no
+identity rule; the AST is reachable only from the step that owns the source, so it is bounded by
+the parsed model and dies with it; and the scope question disappears because a Step lives exactly
+as long as the Feature it belongs to.
+
+The catch is that it only pays if `Step` objects are *reused*, and today none of the three
+repeating paths reuse them — a `karate.call()` re-parses the callee, an outline row copies its
+steps, and karate-gatling re-parses per execution. **So the Step-held AST is not a separate,
+simpler option; it is what the feature-parse cache buys you once it exists.** The order is:
+make the parsed model shareable, then the expression cache is a field, not a subsystem.
+
+Making it shareable is the real work, and the shape to aim at is **an immutable
+`Feature`/`Scenario`/`Step` plus a runtime-side composite holding everything an execution
+mutates**. Three mutations have to move for that, all found while measuring and all on the
+plain-scenario path (outline rows already take copies via `toScenario` / `copy`):
+
+| What is written today | Where | Where it would live |
+|---|---|---|
+| `Scenario.selected` — a per-suite tag-selection memo on the model | `Suite.sectionCanMatch`, undone by `clearScenarioSelectionCache` | per-Suite, keyed by scenario identity |
+| `scenario.setName(...)` for an evaluated dynamic name | `ScenarioRuntime.evaluateScenarioName` | the runtime / the `ScenarioResult` |
+| `ScenarioOutline.numScenarios`, an ever-incrementing counter feeding `karate.info` | `ScenarioOutline.toScenario` | per-run counter |
+
+One trap to carry into that work: `Scenario.replace()` mutates step text for `<placeholder>`
+substitution, so a step copy must not share its template's cached AST once replaced — the AST
+belongs to the text, and that is the one place the text changes after parsing.
+
+A Step-held AST also covers only expressions that *have* a Step. `evalAsStep`, the sub-parses
+inside `processEmbeddedExpressions`, and generated `eval("read(...)")` strings do not, and would
+keep parsing per call — which is fine, because they are also the unbounded ones.
 
 ### Prior art — the 0.9.x-era overhead thread
 
