@@ -61,6 +61,21 @@ public final class Profiler {
 
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss");
     private static final String DEFAULT_MAX_SIZE = "512m";
+    private static final String SOAK_MAX_SIZE = "4g";
+
+    /**
+     * Events a multi-hour run must not record. Every one is per-collection GC bookkeeping that
+     * no panel reads; together they are ~99% of the file on an allocation-heavy workload.
+     * {@code jdk.GCHeapSummary} — the heap-after-GC floor, i.e. the entire soak detector — and
+     * the top-level {@code jdk.GCPhasePause} are deliberately NOT here.
+     */
+    private static final List<String> SOAK_DISABLED_EVENTS = List.of(
+            "jdk.GCPhaseParallel", "jdk.GCPhasePauseLevel1", "jdk.GCPhasePauseLevel2",
+            "jdk.GCPhasePauseLevel3", "jdk.GCPhasePauseLevel4",
+            "jdk.PromoteObjectInNewPLAB", "jdk.PromoteObjectOutsidePLAB",
+            "jdk.TenuringDistribution", "jdk.GCReferenceStatistics",
+            "jdk.MetaspaceChunkFreeListSummary",
+            "jdk.ObjectAllocationSample", "jdk.ExecutionSample", "jdk.NativeMethodSample");
     private static final int STACK_DEPTH = 128;
 
     public static void main(String[] args) throws Exception {
@@ -107,6 +122,9 @@ public final class Profiler {
                   --mock-url URL          use an already-running LatencyMock (e.g. another host)
                                           instead of forking one; see docs/PROFILING.md §10
                   --gc-roots             enable OldObjectSample reference chains (costly)
+                  --soak                 for multi-hour runs: drop the allocation and CPU
+                                         sampling so the recording spans the whole run instead
+                                         of rolling. Keeps GC events and the leak profiler.
                   -Dkey=value            passed through to the child JVM (repeatable)
                 """);
     }
@@ -222,7 +240,12 @@ public final class Profiler {
      *   <li>{@code repository=} keeps live chunks on disk, so {@code jfr assemble} can
      *       rescue a run whose {@code run.jfr} was never written.</li>
      *   <li>{@code maxsize=} is required — the default is 0, meaning unbounded, and a long
-     *       soak at {@code settings=profile} produces a very large file.</li>
+     *       soak at {@code settings=profile} produces a very large file. But note what a cap
+     *       does to a soak: the recording <b>rolls</b>, discarding the oldest chunks. Measured,
+     *       {@code scope-capture-bound} writes ~1.2 GB/hour at {@code settings=profile}, so the
+     *       512 MB cap starts dropping history after ~25 minutes — and the heap-after-GC series
+     *       over hours is the entire point of a soak. That is what {@code --soak} exists to fix,
+     *       and it fixes it by recording less rather than by capping later.</li>
      *   <li>{@code delay=} is what actually makes "the measured window excludes warmup"
      *       true. Without it the recording starts at JVM launch and is dominated by class
      *       loading and JIT.</li>
@@ -235,7 +258,36 @@ public final class Profiler {
      * whose expected outcome is an OOM.
      */
     private static List<String> jfrFlags(Path runDir, RunShape shape, Args flags, boolean warmupWillRun) {
-        StringBuilder start = new StringBuilder("-XX:StartFlightRecording=settings=profile");
+        // A soak records a different, much smaller set of events, because the default one
+        // cannot span a soak at all. Two measurements got this right, both surprising:
+        //
+        //   1. The file is dominated by GC *internals*, not by sampling. On
+        //      scope-capture-bound: jdk.GCPhaseParallel 1,123,457 events,
+        //      PromoteObjectInNewPLAB 126,183, TenuringDistribution 55,560 — against the 7,408
+        //      jdk.GCHeapSummary events that are the only thing a soak reads. Thirty young
+        //      collections a second times a few hundred phase events each is the whole 1.2 GB/h.
+        //      Switching settings=profile to settings=default changes almost nothing: those
+        //      events are on in both.
+        //
+        //   2. Per-event settings are silently ignored in the `-XX:StartFlightRecording=` form.
+        //      They need the JDK 14+ colon form, `-XX:StartFlightRecording:`. Verified directly:
+        //      with `=`, a run asked to disable jdk.TenuringDistribution still recorded 7,740 of
+        //      them; with `:`, zero. No warning either way — the flag simply does nothing, which
+        //      is why the first two attempts at this "worked" and shrank the file by 10%.
+        //
+        // Hence the colon form and an explicit disable list. OldObjectSample goes back ON: it is
+        // the leak profiler, it is cheap, and "who allocated what is still alive after eight
+        // hours" is the question a soak asks.
+        StringBuilder start;
+        if (flags.soak) {
+            start = new StringBuilder("-XX:StartFlightRecording:settings=default");
+            for (String event : SOAK_DISABLED_EVENTS) {
+                start.append(',').append(event).append("#enabled=false");
+            }
+            start.append(",jdk.OldObjectSample#enabled=true");
+        } else {
+            start = new StringBuilder("-XX:StartFlightRecording=settings=profile");
+        }
         long warmupSeconds = shape.warmup().toSeconds();
         // The delay exists to skip the warmup — so it is only correct when a warmup actually
         // runs. A workload that drives its own concurrency gets none (see Child), and delaying
@@ -245,7 +297,10 @@ public final class Profiler {
         if (warmupWillRun && warmupSeconds >= 1) {
             start.append(",delay=").append(warmupSeconds).append("s");
         }
-        start.append(",maxsize=").append(DEFAULT_MAX_SIZE);
+        // A soak still gets a cap — unbounded is how a disk fills — but a far larger one,
+        // because with the sampling events off the recording is small and the cap should never
+        // be the thing that ends the history.
+        start.append(",maxsize=").append(flags.soak ? SOAK_MAX_SIZE : DEFAULT_MAX_SIZE);
         if (flags.gcRoots) {
             start.append(",path-to-gc-roots=true");
         }
@@ -589,6 +644,7 @@ public final class Profiler {
         String mockUrl;
         Duration mockLatency;
         boolean gcRoots;
+        boolean soak;
         final List<String> systemProperties = new ArrayList<>();
 
         static Args parse(List<String> argv) {
@@ -597,6 +653,7 @@ public final class Profiler {
                 String flag = argv.get(i);
                 switch (flag) {
                     case "--gc-roots" -> args.gcRoots = true;
+                    case "--soak" -> args.soak = true;
                     case "--threads" -> args.threads = Integer.parseInt(next(argv, ++i, flag));
                     case "--iterations" -> args.iterations = Long.parseLong(next(argv, ++i, flag));
                     case "--duration" -> args.duration = RunShape.parseDuration(next(argv, ++i, flag));
