@@ -138,10 +138,30 @@ public final class HostFacts {
                         + "ceiling and reverts on reboot");
     }
 
+    /**
+     * Read one line of a {@code /proc} file.
+     *
+     * <p><b>Not {@code Files.readString}, and this is not a style preference.</b> procfs reports
+     * {@code st_size == 0} for these files, and the size-hinted paths believe it:
+     * {@code Files.readString} and {@code Files.readAllBytes} both return <b>one byte</b> —
+     * measured on AL2023 / kernel 6.1 / JDK 24, where {@code ip_local_port_range} came back as
+     * {@code "1"} instead of {@code "1024\t65535"} and {@code somaxconn} as {@code "8"} instead of
+     * {@code "8192"}. A stream read has no size hint and is correct.
+     *
+     * <p>The failure is quiet and asymmetric, which is what makes it worth a comment this long:
+     * every single-character value ({@code tcp_tw_reuse}) reads back <i>correctly</i>, so the bug
+     * hides in exactly the fields that decide the ceiling. The first Linux run reported "network:
+     * unknown on this platform" and would have reported a plausible wrong ceiling had the port
+     * range parsed to a single number instead of failing the two-part split.
+     */
     private static String procFile(String path) {
-        try {
-            Path file = Path.of(path);
-            return Files.exists(file) ? Files.readString(file).trim() : null;
+        Path file = Path.of(path);
+        if (!Files.exists(file)) {
+            return null;
+        }
+        try (java.io.BufferedReader reader = Files.newBufferedReader(file)) {
+            String line = reader.readLine();
+            return line == null ? null : line.trim();
         } catch (IOException e) {
             return null;
         }
