@@ -30,7 +30,21 @@ log "$count digests in $KP_RESULTS"
 
 # Derive the table from the local checkout — the tool reads digest.md and nothing
 # else, so it does not care that these runs happened on another machine.
-if compgen -G "$KP_RESULTS/gatling-http-*" >/dev/null; then
-    log "deriving the parity table"
-    "$(dirname "$0")/../run.sh" compare "$KP_RESULTS"/gatling-http-*
-fi
+# One table per labelled matrix, and one for anything unlabelled. Never one
+# table across all of them: `compare` pairs by timestamp adjacency, so a single
+# invocation spanning two matrices would pair the last run of one with the first
+# of the next and report two experiments as one.
+derive() {
+    local dir="$1" name="$2"
+    compgen -G "$dir/gatling-http-*" >/dev/null || return 0
+    echo
+    log "=== $name ==="
+    "$(dirname "$0")/../run.sh" compare "$dir"/gatling-http-*
+}
+
+for labelled in "$KP_RESULTS"/*/; do
+    [[ -d "$labelled" ]] || continue
+    compgen -G "$labelled/gatling-http-*" >/dev/null || continue
+    derive "${labelled%/}" "$(basename "$labelled")"
+done
+derive "$KP_RESULTS" "unlabelled" 

@@ -20,6 +20,7 @@ users=8
 gap=20
 mock_port=8090
 local_mock=false
+label=
 
 while (($#)); do
     case "$1" in
@@ -37,6 +38,12 @@ while (($#)); do
         # architecture, OS, and co-location — and cannot be attributed to any of
         # them. Run one of these against every tier you publish.
         --local-mock) local_mock=true; shift ;;
+        # Park this matrix's runs in their own subdirectory when it finishes.
+        # NOT cosmetic: `compare` pairs runs by timestamp adjacency, so two
+        # matrices sharing a directory interleave — the last run of one pairs
+        # with the first of the next, and a table of two different experiments
+        # is reported as one. Always label when running more than one matrix.
+        --label)      label="$2"; shift 2 ;;
         *) die "unknown flag: $1" ;;
     esac
 done
@@ -88,6 +95,10 @@ run_arm() {
     grep '^\[parent\] digest:' <<<"$out" | tail -1 | sed 's/^/  /'
 }
 
+# Marker: everything created after this belongs to this matrix.
+marker=".matrix-start-$$"
+kp_ssh "$injector_ip" "mkdir -p ~/karate/karate-profiling/target/profiling && touch ~/karate/karate-profiling/target/profiling/$marker"
+
 log "$pairs pairs at $tier — $iterations iterations, $users users, ${gap}s between runs"
 for ((pair = 1; pair <= pairs; pair++)); do
     # Alternate which arm leads. Any drift over the matrix — thermal, neighbour,
@@ -107,6 +118,17 @@ if ((failures)); then
     # the gap and report two arms from different pairs as one.
     log "!! $failures run(s) failed — the pairing is broken, not just short"
     exit 1
+fi
+
+if [[ -n "$label" ]]; then
+    log "parking this matrix's runs under $label/"
+    kp_ssh "$injector_ip" "cd ~/karate/karate-profiling/target/profiling
+        mkdir -p '$label'
+        find . -maxdepth 1 -name 'gatling-http-*' -newer '$marker' -exec mv {} '$label'/ \;
+        rm -f '$marker'
+        echo \"  \$(ls -1d '$label'/gatling-http-* | wc -l) runs in $label/\""
+else
+    kp_ssh "$injector_ip" "rm -f ~/karate/karate-profiling/target/profiling/$marker"
 fi
 
 log "done — etc/ec2/collect.sh to pull the digests"
