@@ -1551,39 +1551,71 @@ definition, one is a caveat for whoever reuses the number later:
 | KO iterations — a scenario failing before its first request emits a synthetic PerfEvent spanning the whole scenario, driving residue to ~0 | Exclude KOs from the residue population |
 | Response-body read time — `buildResponse` stamps `endTime` at entry, *then* reads and decompresses the entity, so body transfer falls outside Σ and inflates the residue | Negligible for these payloads on loopback; structural against a real API with real bodies. Recorded so the number is not reused blind |
 
-### D — the matrix, then the doc
+### D — the matrix
 
-Latency ∈ {0, 10, 50} ms × a user ramp, plain and karate back to back, same machine. Report where
-they diverge. Fold the result into §6 and retire whichever §9 items it settles. The divergence
-point is **a shape, not a number** — it is machine-bound in the way §7 describes, and more so
-than usual here, because Karate's extra CPU starves a co-located mock in a way a remote target
-would not.
+Latency ∈ {0, 10, 50} ms × a user ramp, plain and karate back to back, same machine, at two
+sizes per tier so one-time startup can be separated from per-iteration cost.
 
-**Two outcomes are predictable enough to pre-register, so they are not mistaken for discoveries:**
+#### First result — machine A, 8 users, zero KO in every cell
 
-- **At 0 ms, expect connection churn, not CPU.** One client per execution means one TCP
-  connection per iteration, client-side close, client-side TIME_WAIT. macOS gives ~16K ephemeral
-  ports and holds TIME_WAIT for 15 s, so a few thousand karate iterations/s exhausts the range
-  mid-run and produces `EADDRNOTAVAIL` KOs that poison the percentiles. That is not a divergence
-  measurement, it is a ruined cell — hence the KO breakdown in C, and watch TIME_WAIT at this
-  tier. Note the honest ambivalence: per-execution client construction *is* Karate's real
-  behaviour and a load tester would suffer it too, so the experiment surfacing it is a feature.
-  It may be what finally justifies chasing §6's `PooledHttpClientFactory` lead.
-- **At 10/50 ms, expect the thread-blocking cap to divergence-first, not per-iteration CPU.**
-  `KarateScalaAction.execute` occupies a Gatling thread for the whole feature and that pool is
-  roughly core-count. **And it will not look the way §9 predicts.** §9 says thread starvation
-  shows up as "reported response times inflating"; as instrumented here it will not, because the
-  karate variant's response times come solely from `PerfEvent` brackets *inside* the action,
-  while queue-for-a-thread time sits between actions, outside every bracket. The real signature is
-  **TPS shortfall with clean-looking latencies** — sneakier than §9 promises. Read a TPS-only
-  divergence as the density cap; do not hunt it as a CPU mystery.
+| tier | size | plain req/s | karate req/s | plain p50 / p95 / p99 | karate p50 / p95 / p99 |
+|---|---:|---:|---:|---|---|
+| 0 ms | 4000 it | 8000 | 4000 | 0 / 1 / 2 ms | 0 / 1 / 2 ms |
+| 0 ms | 8000 it | 16000 | 5333 | 0 / 1 / 2 ms | 0 / 1 / 2 ms |
+| 10 ms | 500 it | 504 | 336 | 13 / 14 / 37 ms | 13 / 14 / 50 ms |
+| 10 ms | 4000 it | **571** | **571** | 13 / 16 / 20 ms | 13 / 14 / 18 ms |
+| 50 ms | 1600 it | **139** | **139** | 56 / 60 / 87 ms | 55 / 57 / 75 ms |
 
-The matrix inherits `injectOpen(atOnceUsers(N))` + `repeat`, i.e. a **closed** model. That is the
-right default here — both variants are symmetric, TPS becomes the divergence detector, and the
-user ramp doubles as §9's concurrency-density experiment, which is the economy this section is
-after. If the distortion question ever needs its cleanest form, one open-model cell
-(`constantUsersPerSec` at a fixed arrival rate, both variants) is the direct test and is cheap to
-add later.
+**The answer to the question this section was built to ask: yes, the overhead disappears into
+network time, and it stops mattering somewhere between 0 and 10 ms of server latency.**
+
+- **At 0 ms there is a 2–3x throughput gap**, with *identical* response-time distributions. This
+  is the pure client-overhead tier: nothing for Karate's per-execution work to hide behind. The
+  two sizes separate it from startup — Karate adds ~1.0 s per 4000 iterations across 8 users, so
+  roughly **2 ms of user-time per iteration**.
+- **At 10 ms and 50 ms the two are indistinguishable** on throughput *and* on every percentile.
+  A 10 ms tier means a ~26 ms iteration, and 2 ms of client work fits in the slack while the
+  virtual user is waiting on the network anyway.
+- **The 10 ms row at 500 iterations is the trap, kept in the table on purpose.** It shows karate
+  at 336 req/s against plain's 504 — a 33% deficit that is *entirely* Karate's ~2 core-seconds of
+  one-time initialisation, in a run lasting 3 seconds. The same cell at 4000 iterations is exactly
+  equal. A single-size measurement of this pair does not distinguish startup from per-iteration
+  cost, which §6 already warned about for the null pair and which is just as true here.
+
+Every cell was checked against the mock's own report: `peakInFlight` equal to the user count and
+sub-millisecond service time in all of them, so the server was never the bottleneck and the
+comparison is between clients.
+
+#### What this does not license
+
+- **One cell shape.** 8 users, one machine, one feature. The user ramp is not run yet, and the
+  concurrency-density question in §9 — whether Karate blocking a Gatling thread caps how many
+  virtual users an injector can hold — is exactly what a ramp would answer. Expect its signature
+  to be a **TPS shortfall with clean-looking latencies**, which is what the 0 ms tier already
+  looks like: queue-for-a-thread time sits between actions, outside every `PerfEvent` bracket, so
+  it never reaches a percentile. §9's prediction that starvation would inflate reported response
+  times is wrong for that reason.
+- **Throughput at 0 ms is coarse.** Gatling's count/s is total requests over a whole-second
+  duration, and the plain arm finishes a size in about a second, so its marginal cost is below the
+  measurement's resolution. The karate marginal is readable only because it is several times
+  larger.
+- **The co-location confound is unresolved**, and it biases *against* Karate: the karate injector
+  takes more CPU from the co-located mock than the plain one does, so a gap measured here is an
+  upper bound on Karate's overhead. That the 10 ms and 50 ms tiers came out equal *despite* this
+  makes those two rows stronger, not weaker — but the 0 ms gap cannot be quoted as a pure client
+  cost until the mock is on its own host.
+- **The 0 ms tier is close to the ephemeral-port ceiling** (§10 B2): the karate arm opened 8000
+  connections in ~3 s, about 2,600/s against a sustainable ~550/s. It passed with zero KO because
+  the run was short enough to fit inside the 16,384-port range, not because the ceiling was
+  respected. A longer 0 ms run needs the sysctl in B2 first.
+
+#### What it settles elsewhere
+
+[Parsed-JS reuse](#parsed-js-reuse--measured-not-built) was gated on exactly this measurement, and
+the gate has now been read: at any realistic API latency the parse cost does not survive contact
+with network time. **It stays parked, on evidence rather than on judgement** — which was the whole
+point of refusing to build it first. The 0 ms tier is where it would still pay, and 0 ms is not a
+system anyone tests against.
 
 ### Why no custom JFR events on the karate-gatling side
 
