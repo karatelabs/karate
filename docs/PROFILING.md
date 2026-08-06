@@ -619,12 +619,15 @@ granted:
 | **Never measured** | CPU inside scenario code. All of §8 is allocation and retention; `jdk.ExecutionSample` is blind on virtual threads (§7) and the custom JFR events that would fix it are unbuilt (§9). |
 
 The Gatling baseline below started as a fifth category: **leads, not findings** — real numbers
-from real runs, none chased to a cause. Two have since been chased and fixed (the per-scenario
-Logback snapshot, and happy-path exception construction with the uncached reflection and map
-copies underneath it — §9 has both, with before-and-after). **Still leads, still unchased:**
-per-execution file reads and re-parsing, and per-execution HTTP client construction. Driving
-Karate under load surfaces karate-core costs the memory workloads never touched, which is the
-main reason the Gatling family earns its keep beyond the parity question.
+from real runs, none chased to a cause. Three have since been chased (the per-scenario Logback
+snapshot, happy-path exception construction with the uncached reflection and map copies
+underneath it, and re-parsing — §9 has all three, with before-and-after). Chasing the last of
+those moved it out of the Gatling column entirely: **the re-parsing that costs is JS step
+expressions, re-parsed on every step execution, and it is an ordinary-suite cost that the
+Gatling lane merely made visible** — see [Parsed-JS reuse](#parsed-js-reuse--measured-not-built).
+**Still a lead, still unchased:** per-execution HTTP client construction. Driving Karate under
+load surfaces karate-core costs the memory workloads never touched, which is the main reason
+the Gatling family earns its keep beyond the parity question.
 
 **Machine A** — Apple Silicon (aarch64), Darwin 25.5 (kernel version, not the macOS
 marketing one), 10 cores, JDK 24.0.2, G1.
@@ -740,9 +743,10 @@ fixed cost:
 
 | site | share | reading |
 |---|---:|---|
-| `BaseParser.<init>` | 9–10% | the feature and its JS re-parsed every time |
+| `BaseParser.<init>` | 9–10% | the feature and its JS re-parsed every time — mostly the **JS**, see below |
 | `PathResource.computeRelativePath` | 7–9% | path resolution, per execution |
 | `Resource.urlToPath` | ~8% | classpath URL → Path, per execution |
+| ~~`FileUtils.toBytes`~~ | ~~8.0%~~ | **fixed** — an in-memory resource no longer encodes its text to bytes nothing reads; see [§9](#parsing-and-reading-the-same-file-per-execution--partly-built) |
 | ~~`LogContext.setLevelOn` + `captureRuntimeLevels`~~ | ~~6.1%~~ | **fixed** — the Logback level snapshot is now lazy; see [§9](#per-scenario-logback-level-snapshot--built) |
 | ~~`JsErrorException.<init>` + `ResourceNotFoundException.<init>`~~ | ~~5.9%~~ | **fixed** — with the reflection and map copies around them; see [§9](#exceptions-on-the-happy-path--built) |
 
@@ -752,8 +756,15 @@ workload went **1.71 GB → 1.36–1.58 GB → 1.01–1.12 GB** across the two f
 20000 iterations throughout. Note the width of those bands: run-to-run spread on the same build
 is ±15%, so only non-overlapping ranges mean anything here.
 
-The parser and path-resolution rows are what is left, and neither has been chased. Re-parsing
-the same feature file on every execution is the obvious one.
+The parse row was chased next, and the obvious reading of it was wrong. `BaseParser.<init>` is
+shared by the Gherkin and the JS parser, and splitting it by caller (`jfr print --stack-depth`,
+§5 — the digest collapses to the innermost Karate frame and hides this) puts roughly three
+quarters of it under `JsParser`, not `GherkinParser`: re-parsing **karate-config.js**, not the
+feature file. Path resolution splits the same way — `Suite.<init>` and
+`Suite.tryLoadConfigResource` resolving the config file, not the feature. See
+[§9](#parsing-and-reading-the-same-file-per-execution--partly-built) for what that led to, and
+note that the null pair turned out to be the *wrong workload* for the biggest finding: a
+one-step feature barely exercises the thing that dominates a real suite.
 
 **`http` pair — 2000 iterations = 4000 requests against the sibling mock.** Wall-clock is
 mock-bound and says nothing (see §2); allocation and heap do:
@@ -897,8 +908,11 @@ Recorded so none of it is re-derived from scratch. Nothing parked here is schedu
 
 **Not everything here is unbuilt.** Sections headed "— built" are finished work, kept in this
 section because §6 points at them and because each one left something parked behind it. As of
-2026-08-05 those are: default log fidelity under Gatling, the per-scenario Logback level
-snapshot, and exceptions on the happy path. Everything else is a lead or a design, not code.
+2026-08-06 those are: default log fidelity under Gatling, the per-scenario Logback level
+snapshot, exceptions on the happy path, and the built half of per-execution reading and parsing.
+Everything else is a lead or a design, not code — including
+[Parsed-JS reuse](#parsed-js-reuse--measured-not-built), which is the largest measured win
+recorded in this document that has not been taken.
 
 ### If you are picking up the Gatling thread — the order
 
@@ -1089,6 +1103,82 @@ in front of it was gone" — the map copy was always there, charged to
 
 Everything here is generic, not config-specific: `response.absentField` on a large JSON body was
 paying the same map copy, and any `x.y` miss on a Java object paid the same four exceptions.
+
+### Parsing and reading the same file per execution — partly built
+
+§6's last unchased row. Two pieces are built, and the third — the big one — is measured and
+deliberately left for a decision, below.
+
+**Built: an in-memory resource no longer encodes its text to bytes.** `MemoryResource` computed
+`FileUtils.toBytes(text)` in its constructor, and nothing on the eval path ever asks for the
+bytes: it is built to be read as text (parse, eval). `karate-config.js` is wrapped into one of
+these *per scenario*, and so is every step expression. **8.0% of the null-pair panel**, and
+`FileUtils.toBytes` is gone from it. The workload total did not move outside its ±15% band, so
+read this as a site removed, not as a total proved.
+
+**Built: config is parsed once per Suite, evaluated per scenario.** `karate-config.js` was
+lexed and parsed for *every scenario* — a 2000-scenario suite parsed the same file 2000 times —
+because config evaluation is per-scenario by design and the parse rode along with it. The Suite
+now holds the parsed AST (`Suite.ConfigScript`) and every scenario evaluates that. The
+wrapped-in-parentheses / direct-eval decision is cached with it; the fallback is still triggered
+by *evaluation* failing, exactly as before, so a config that throws at runtime still gets the
+second chance it had.
+
+Two things to be honest about here. The AST is shared across scenarios running in parallel,
+which is safe because a `Node` is read-only once parsed — but that is a property of today's
+parser and interpreter, not a guarantee anything enforces. And **no current workload measures
+this fix**: in `call-accumulation` the config parse sits below the sampling floor (0 samples,
+before *and* after), and in the null pair the cost relocates rather than disappears, because
+that lane builds a Suite per execution and so parses once either way. The saving is structural —
+N parses become 1 — and the guard is a test asserting config still *evaluates* per scenario
+(`ScenarioConfigTest`), which is the property a parse cache could plausibly break.
+
+### Parsed-JS reuse — measured, not built
+
+The finding the two fixes above turned up, and the largest single cost left in an ordinary
+suite. **Every step expression is re-lexed and re-parsed on every step execution.** `* def x =
+1` in a scenario that runs 2000 times is parsed 2000 times; `karate.call('x.feature')` re-reads
+and re-parses the callee, so 60 calls in each of 2000 scenarios is 120 000 parses of one small
+file.
+
+A throwaway process-wide cache in `Engine.evalInternal`, keyed on (relative path, line offset,
+source text) — about five lines, unbounded, correctness unaddressed — measures the ceiling:
+
+| `call-accumulation --iterations 2000` | total sampled allocation | `BaseParser.<init>` |
+|---|---:|---:|
+| main | 8.04 GB | 1.09 GB (13.5%) |
+| prototype AST cache | **5.33 GB** | 184 MB (3.4%) |
+
+**A third of all allocation, on the workload shape closest to a real suite.** The same prototype
+on `gatling-null-karate` gives 1.22 → 1.05 GB, near the noise band — that feature has one step,
+which is exactly why the null pair could not have found this.
+
+What is left on top after the prototype is the **Gherkin** side: `GherkinLexer` ~14% and
+`GherkinParser.extractDocString` 5.7%, i.e. the callee feature re-parsed per `karate.call()`,
+plus `PathResource.computeRelativePath` 7.9% for resolving its path again each time.
+
+It is not built because the prototype's shortcuts are the whole design question:
+
+- **Scope.** Suite-scoped is safe and helps ordinary runs; it does nothing for karate-gatling,
+  which builds a Suite per execution. Process-wide is what makes the Gatling lane benefit. The
+  precedent for wanting both already exists — `callSingleCache` is Suite-owned but injectable
+  through `Runner.Builder`, which is how karate-gatling gives it a longer life.
+- **Bounding.** Keyed by source text, the key set is normally bounded by the source files. It is
+  not bounded when the text is generated: `eval("read('" + path + "')")`, `evalAsStep(userText)`,
+  and outline rows whose `<placeholder>` substitution makes every row's step text distinct. An
+  unbounded map in a long-lived process (serve, MCP, the IDE plugin) is a leak with a nicer name.
+- **Identity.** The key must carry the resource, not just the text: an AST's tokens name the file
+  they came from, and two files sharing a step line would otherwise report positions against
+  whichever parsed first.
+
+**The feature-parse half has three known hazards**, found while measuring and worth starting
+from rather than rediscovering. Sharing one parsed `Feature` across executions is not safe today
+because execution writes to the parsed model: `Scenario.selected` is a per-suite tag-selection
+memo stored on the model (`Suite.sectionCanMatch`, with a `clearScenarioSelectionCache` to undo
+it), `evaluateScenarioName()` calls `scenario.setName()` on a dynamic name so a second run would
+see the already-substituted one, and `ScenarioOutline.numScenarios` is a counter that only ever
+increments (it feeds `karate.info`). Outline rows are already copies (`toScenario` / `copy`), so
+the row path is clear — it is the plain-scenario path that writes to the shared object.
 
 ### Prior art — the 0.9.x-era overhead thread
 

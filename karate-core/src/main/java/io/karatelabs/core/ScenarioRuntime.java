@@ -414,21 +414,24 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         if (displayName == null) {
             displayName = resource.getPrefixedPath();
         }
-        String js = resource.getText();
+        // Parsed once per Suite, evaluated per scenario — see Suite.ConfigScript. Config semantics
+        // are per-scenario, but the source does not change between them, and lexing plus parsing it
+        // for every scenario was the single largest fixed cost of starting one.
+        Suite.ConfigScript script = featureRuntime.getSuite().configScript(resource);
         try {
             Object result;
 
             // Try wrapping in parentheses first (handles function definitions)
-            // We need to wrap the content but preserve the resource path for debugging
+            // The wrapped AST carries the original resource, so errors still name the real file.
             Object fn = null;
-            boolean parseFailed = false;
-            try {
-                // Create a wrapped resource that adds parentheses but preserves the path
-                io.karatelabs.common.Resource wrappedResource = io.karatelabs.common.Resource.embedded("(" + js + ")", resource, 0);
-                fn = karate.engine.eval(wrappedResource);
-            } catch (Exception e) {
-                // Parentheses wrapping failed to parse - fall back to direct eval
-                parseFailed = true;
+            boolean parseFailed = script.wrapped == null;
+            if (!parseFailed) {
+                try {
+                    fn = karate.engine.eval(script.wrapped);
+                } catch (Exception e) {
+                    // The wrapped form did not survive evaluation - fall back to direct eval
+                    parseFailed = true;
+                }
             }
 
             if (parseFailed) {
@@ -438,8 +441,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
                 // so its identity says nothing, while the raw JsFunctionNode is stable and is replaced
                 // exactly when a file redeclares fn.
                 Object fnBefore = karate.engine.getRawBindings().get("fn");
-                // Self-invoking pattern: function fn() { ... } fn();
-                result = karate.engine.eval(resource);
+                // Self-invoking pattern: function fn() { ... } fn(). A null AST means the source
+                // itself will not parse — eval the resource so the parse error is raised, and
+                // reported against the file, exactly as before.
+                io.karatelabs.parser.Node direct = script.direct();
+                result = direct == null ? karate.engine.eval(resource) : karate.engine.eval(direct);
                 // A helper declared alongside fn() is not a single parenthesizable expression, so the
                 // wrap above cannot parse it and this direct eval merely DECLARES both functions —
                 // nothing invokes fn(). Left alone, config silently contributes no variables and any

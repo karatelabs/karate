@@ -107,6 +107,12 @@ public class Suite {
     public final Resource configResource;
     public final Resource configEnvResource;
 
+    // The parsed form of each config resource above, built on first use and shared by every
+    // scenario in this Suite — config is EVALUATED per scenario by design, but it was also
+    // being lexed and parsed per scenario, which is the same file re-read N times for a
+    // suite of N scenarios. Keyed on the resource identity the Suite itself resolved.
+    private final Map<Resource, ConfigScript> configScripts = new ConcurrentHashMap<>();
+
     // ========== Runtime State (mutable, private) ==========
 
     // Result listeners are mutable because auto-registered listeners are added in run()
@@ -420,6 +426,54 @@ public class Suite {
             logger.warn("{} not found - no config variables will be set", probed);
         }
         return null;
+    }
+
+    /**
+     * The parsed form of one config JS, shared by every scenario in this Suite. Evaluating config
+     * per scenario is Karate semantics; <em>parsing</em> it per scenario is not, and the AST is
+     * read-only once built, so one parse serves them all. Errors are not cached as errors: a
+     * source that will not parse yields a null AST and the caller falls back exactly as it did
+     * when the parse ran inline.
+     */
+    static final class ConfigScript {
+
+        /** The source parsed as {@code (source)} — the shape a {@code function fn(){...}} config
+         *  needs to evaluate to a callable. Null when the source is not a single parenthesizable
+         *  expression, which is the signal to use {@link #direct()}. */
+        final io.karatelabs.parser.Node wrapped;
+
+        private final Resource resource;
+        private io.karatelabs.parser.Node direct;
+
+        private ConfigScript(Resource resource) {
+            this.resource = resource;
+            this.wrapped = parse(Resource.embedded("(" + resource.getText() + ")", resource, 0));
+        }
+
+        /** The source parsed as-is — the self-invoking / declarations-plus-helpers shape. Built on
+         *  demand because the wrapped form covers the common case and this one never runs then. */
+        synchronized io.karatelabs.parser.Node direct() {
+            if (direct == null) {
+                direct = parse(resource);
+            }
+            return direct;
+        }
+
+        private static io.karatelabs.parser.Node parse(Resource resource) {
+            try {
+                return new io.karatelabs.parser.JsParser(resource).parse();
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+    }
+
+    /**
+     * The parsed {@link ConfigScript} for one of this Suite's config resources, parsed on first ask.
+     */
+    ConfigScript configScript(Resource resource) {
+        return configScripts.computeIfAbsent(resource, ConfigScript::new);
     }
 
     /**

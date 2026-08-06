@@ -1010,4 +1010,69 @@ class ScenarioConfigTest {
                 "the config error must not surface as a downstream symptom: " + message);
     }
 
+    @Test
+    void testConfigEvaluatesPerScenarioThoughParsedOnce() throws Exception {
+        // The Suite parses each config source once and every scenario evaluates that same AST.
+        // Parsing is the part that is shared; EVALUATION must stay per-scenario, or config that
+        // reads karate.scenario / mints per-scenario state silently starts leaking one scenario's
+        // values into the next. The counter is the assertion: one increment per scenario.
+        io.karatelabs.core.parallel.CallOnceCounter.reset();
+        Path configFile = tempDir.resolve("karate-config.js");
+        Files.writeString(configFile, """
+            function fn() {
+              var Counter = Java.type('io.karatelabs.core.parallel.CallOnceCounter');
+              return { evalCount: Counter.incrementAndGet(), scenarioName: karate.scenario.name };
+            }
+            """);
+
+        Path featureFile = tempDir.resolve("test.feature");
+        Files.writeString(featureFile, """
+            Feature: config evaluates per scenario
+
+              Scenario: first
+                * match scenarioName == 'first'
+
+              Scenario: second
+                * match scenarioName == 'second'
+
+              Scenario: third
+                * match scenarioName == 'third'
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, featureFile.toString());
+
+        assertTrue(result.isPassed(), "config should evaluate freshly for each scenario");
+        assertEquals(3, io.karatelabs.core.parallel.CallOnceCounter.get(),
+                "config must be evaluated once per scenario, not once per suite");
+    }
+
+    @Test
+    void testSelfInvokingConfigShapeSurvivesAcrossScenarios() throws Exception {
+        // The declarations-plus-helper shape cannot be parenthesized, so it takes the fallback
+        // (direct) parse rather than the wrapped one. That choice is now made once for the Suite,
+        // so the second scenario is the one that would break if the cached decision were wrong.
+        Path configFile = tempDir.resolve("karate-config.js");
+        Files.writeString(configFile, """
+            function helper(x) { return 'helper-' + x; }
+            function fn() {
+              return { greeting: helper('hello') };
+            }
+            """);
+
+        Path featureFile = tempDir.resolve("test.feature");
+        Files.writeString(featureFile, """
+            Feature: fallback config shape
+
+              Scenario: first
+                * match greeting == 'helper-hello'
+
+              Scenario: second
+                * match greeting == 'helper-hello'
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, featureFile.toString());
+
+        assertTrue(result.isPassed(), "a config needing the direct-parse fallback should work for every scenario");
+    }
+
 }

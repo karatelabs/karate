@@ -35,10 +35,17 @@ public class MemoryResource implements Resource {
 
     private final Path root;
     private final Path classpathRoot;
-    private final byte[] bytes;
     private final String relativePath;
     private final int lineOffset;
 
+    // exactly one of these is set at construction; the other is derived on demand.
+    // Text is what an in-memory resource is nearly always read as (parse, eval), and
+    // encoding it to bytes up front was pure cost on the way in: karate-config.js is
+    // wrapped into one of these per scenario and nothing ever asks for its bytes.
+    // Volatile because this field WAS final: an in-memory resource can be shared by
+    // parallel scenarios, and an array handed over by a plain data race can be seen
+    // non-null with its contents not yet visible.
+    private volatile byte[] bytes;
     private String text;
     private String[] lines;
 
@@ -54,7 +61,6 @@ public class MemoryResource implements Resource {
         this.root = root != null ? root : SYSTEM_TEMP;
         this.classpathRoot = this.root;
         this.text = text;
-        this.bytes = FileUtils.toBytes(text);
         this.relativePath = "";
         this.lineOffset = 0;
     }
@@ -95,7 +101,6 @@ public class MemoryResource implements Resource {
         this.root = root != null ? root : SYSTEM_TEMP;
         this.classpathRoot = classpathRoot != null ? classpathRoot : this.root;
         this.text = text;
-        this.bytes = FileUtils.toBytes(text);
         this.relativePath = relativePath != null ? relativePath : "";
         this.lineOffset = lineOffset;
     }
@@ -106,6 +111,16 @@ public class MemoryResource implements Resource {
             text = FileUtils.toString(bytes);
         }
         return text;
+    }
+
+    /** The content as bytes — encoded from the text on first ask when this resource was built from text. */
+    private byte[] bytes() {
+        byte[] temp = bytes;
+        if (temp == null) {
+            temp = FileUtils.toBytes(text);
+            bytes = temp;
+        }
+        return temp;
     }
 
     public String getLine(int index) {
@@ -197,7 +212,7 @@ public class MemoryResource implements Resource {
             if (target.getParent() != null) {
                 Files.createDirectories(target.getParent());
             }
-            Files.write(target, bytes);
+            Files.write(target, bytes());
             return new PathResource(target, root);
         } catch (Exception e) {
             throw new RuntimeException("Failed to materialize resource to: " + filename, e);
@@ -206,7 +221,7 @@ public class MemoryResource implements Resource {
 
     @Override
     public InputStream getStream() {
-        return new ByteArrayInputStream(bytes);
+        return new ByteArrayInputStream(bytes());
     }
 
     @Override
