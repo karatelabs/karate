@@ -23,6 +23,97 @@ shaped, follow the JS_ENGINE.md anchors below.
 
 ---
 
+## Start here: completion-record semantics is the untouched seam
+
+**Read this before picking a slice.** Conformance work so far has gone into
+built-ins — Object, Array, String, Number, Date, RegExp — on the assumption
+that core syntax was sound. A 2026-08-06 session found it is not, and found it
+by accident rather than through this harness. The bugs were all one family and
+none of them was in the built-ins:
+
+| | |
+|---|---|
+| `return f()` where `f` threw | the throw was **erased** — `stopAndReturn` clears the error state, so the function completed normally and a surrounding `try/catch` never fired |
+| `throw makeError()` where building the error threw | the real cause was overwritten with the failed expression's value, surfacing as a bare `NullPointerException` |
+| multi-statement `finally` after a clean `return` | ran **only its first statement** — cleanup silently skipped |
+| an abrupt `return`/`throw`/`break` inside `finally` | did not override the pending completion, and a `throw` in there escaped as a Java `RuntimeException` no JS `catch` could see |
+| `f(mustThrow(), alsoRuns())` | evaluated the rest of the arguments **and invoked `f`** |
+| `[b(), ok()]`, `{a: b(), c: ok()}`, `x + y`, `new C(b())`, `f(...[b()])` | same — kept evaluating past the throw |
+
+**Why the harness never surfaced them.** Every one of these still delivers the
+*correct* exception in the end. Only the side effects along the way are wrong,
+so any test that asserts "did it throw the right thing" passes. Fixing the
+first one moved exactly two tests — `built-ins/RegExp/prototype/{exec,test}/
+S15.10.6.2_A1_T7` — and both caught it only because test262's idiom for probing
+evaluation order is a **poisoned object**: `{toString(){ throw new Test262Error() }}`.
+
+**So hunt the poisoned probes, not the constructs.** The filter that isolates
+this family is the failure message, not the path:
+
+```sh
+# ~370 tests today: the engine threw ITS error before or instead of the test's
+python3 -c "
+import json,collections,re
+rows=[json.loads(l) for l in open('<run-dir>/results.jsonl') if l.strip()]
+p=[r for r in rows if r['status']=='FAIL' and re.search(r'Expected a \w*Error but got a (TypeError|ReferenceError)', r.get('message') or '')]
+print(len(p)); print(collections.Counter('/'.join(r['path'].split('/')[:3]) for r in p).most_common(8))"
+```
+
+That message means the engine evaluated the wrong thing, or in the wrong order,
+or kept going after an abrupt completion. Ranked by signal per unit of work:
+
+1. **The poisoned-probe cluster above** (~370). Concentrated in
+   `built-ins/RegExp` (64), `language/expressions` (58), `built-ins/Array` (26),
+   `language/statements` (28).
+2. **The iteration protocol** — `statements/for-of` (129, of which ~44 are
+   parser gaps so ~85 are semantic) and `for-in` (59). Most abrupt-completion
+   machinery per line of spec: a throwing body must still call
+   `iterator.return()`, and a throwing `return()` has its own precedence.
+   `IterUtils` already has `iter.close(context, context.isError())` — audit
+   whether every exit path reaches it.
+3. **Destructuring and assignment** — `expressions/assignment` (174) and
+   `compound-assignment` (119). Evaluation order is the whole game, and
+   `ary-init-iter-get-err` is already failing with this exact signature.
+4. **`statements/try`** (53) — directly adjacent to what was just fixed.
+
+**What is not this work.** 962 failures are `X is not defined` — absent
+globals, a feature-coverage decision rather than a correctness one:
+`ArrayBuffer` 223, `Iterator` 193, `Promise` 158, `DataView` 84,
+`WeakMap`/`WeakSet` 49, `Proxy` 17. Note that `Promise` and `Iterator` being
+absent is itself suppressing a large slice of the completion-semantics tests,
+so the ranking above may understate them. And 1243 of the 2378
+`test/language` failures are the parser — 566 `MissingParseError` (the parser
+accepts programs it should reject) plus 677 `SyntaxError`. That is a real
+track, but it is about diagnostics quality and will not surface this family.
+
+**Known, exposed, and not yet fixed: assignment evaluates its operands
+right-to-left.** The spec evaluates the left-hand side reference — including a
+computed key — before the right-hand side. This engine does the reverse:
+
+```js
+var order = '';
+function prop() { order += 'P'; return 'k' }
+function expr() { order += 'E'; return 1 }
+var base = {};
+base[prop()] = expr();   // order === 'EP', should be 'PE'
+```
+
+It was invisible while the short-circuit bugs above existed, because a
+right-hand side that threw had its error overwritten by a subsequent left-hand
+side throw — two bugs cancelling, and
+`expressions/assignment/target-member-computed-reference{,-null}.js` and
+`target-super-computed-reference.js` passed on the strength of it. Fixing the
+short-circuits removed the cancellation, so those three now fail honestly.
+**They are the ground truth for whoever fixes the ordering** — do not "fix"
+them by reintroducing evaluation past a throw.
+
+Guards that already exist for this seam:
+[`TryFinallyCompletionTest`](../karate-js/src/test/java/io/karatelabs/js/TryFinallyCompletionTest.java),
+[`AbruptCompletionShortCircuitTest`](../karate-js/src/test/java/io/karatelabs/js/AbruptCompletionShortCircuitTest.java),
+[`HostCallThrowTest`](../karate-js/src/test/java/io/karatelabs/js/HostCallThrowTest.java).
+
+---
+
 ## Working principles
 
 Operating-mode maxims for the test262 conformance loop. Treat as load-bearing.
@@ -667,6 +758,22 @@ etc/run.sh                                                 # dev mode, full suit
 etc/run.sh --only 'test/language/**' --max-duration 300000 # scoped, 5-min cap
 etc/run.sh --full                                          # PASS rows + HTML
 ```
+
+**`etc/run.sh` cannot be used for an A/B against a different build.** Its first
+step installs karate-js from the reactor, so pointing it at a jar you staged
+from a worktree or a previous commit silently overwrites that jar and measures
+the current tree against itself — a clean zero-delta that means nothing. For a
+before/after, stage the jar and then drive the runner directly, skipping the
+install:
+
+```sh
+mvn -f ../pom.xml -pl karate-js-test262 -o test-compile -q
+mvn -f ../pom.xml -pl karate-js-test262 -o exec:java -q \
+    -Dexec.args="--run-dir target/test262/run-<label> --max-duration 900000"
+```
+
+Confirm the staged jar is really the one in play before trusting the run — a
+test you expect to fail against it, failing, is the cheapest proof.
 
 Each run writes a fresh `target/test262/run-<timestamp>/` (the runner
 prints the path) containing `results.jsonl`, `results.jsonl.partial`,

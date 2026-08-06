@@ -144,8 +144,19 @@ class Interpreter {
         return list;
     }
 
+    /**
+     * Both operands of a binary expression — left first, and the right one <b>only if the left
+     * completed normally</b>. A left operand that threw used to have the right one evaluated
+     * anyway: the throw still surfaced, so the wrong answer was never visible, but the side
+     * effects of an expression that should never have run did happen. Same rule as an argument
+     * list; this is the choke point for most operators.
+     */
     private static Terms terms(Node node, CoreContext context) {
-        return terms(eval(node.get(0), context), eval(node.get(2), context));
+        Object lhs = eval(node.get(0), context);
+        if (context.isError()) {
+            return terms(lhs, Terms.UNDEFINED);
+        }
+        return terms(lhs, eval(node.get(2), context));
     }
 
     private static Terms terms(Object lhs, Object rhs) {
@@ -540,6 +551,11 @@ class Interpreter {
                 throw JsErrorException.typeError("Class constructor " + n + "cannot be invoked without 'new'");
             }
             List<Object> argsList = new ArrayList<>(evalCallArgs(fnArgsNode, context));
+            // An argument that threw means there is no call to make. evalSuperCall already does
+            // this; every other call site did not, so `f(mustSucceed())` invoked f anyway.
+            if (context.isError()) {
+                return Terms.UNDEFINED;
+            }
             // Convert JS types to Java types if JS/Java boundary:
             // - undefined → null
             // - JsValue (JsDate, etc.) → unwrapped via getJavaValue()
@@ -980,6 +996,14 @@ class Interpreter {
                 }
             } else {
                 argsList.add(eval(argNode, context));
+            }
+            // One argument throwing ends the argument list. Without this the remaining arguments
+            // were still evaluated — and, worse, every caller then went on to INVOKE the function
+            // with them, so a callee ran on the strength of an argument expression that had
+            // already failed. The throw did surface afterwards, which is what made this invisible:
+            // the exception was right and the side effects along the way were not.
+            if (context.isError()) {
+                break;
             }
         }
         return argsList;
@@ -1474,11 +1498,19 @@ class Interpreter {
     }
 
     private static Object evalInstanceOfExpr(Node node, CoreContext context) {
-        return Terms.instanceOf(eval(node.get(0), context), eval(node.get(2), context));
+        Object lhs = eval(node.get(0), context);
+        if (context.isError()) {
+            return Terms.UNDEFINED;
+        }
+        return Terms.instanceOf(lhs, eval(node.get(2), context));
     }
 
     private static Object evalInExpr(Node node, CoreContext context) {
-        return Terms.in(eval(node.get(0), context), eval(node.get(2), context));
+        Object lhs = eval(node.get(0), context);
+        if (context.isError()) {
+            return Terms.UNDEFINED;
+        }
+        return Terms.in(lhs, eval(node.get(2), context));
     }
 
     private static BindScope toScope(BindScope scope) {
@@ -1506,6 +1538,11 @@ class Interpreter {
                 list.add(JsArray.HOLE);
             } else {
                 list.add(evalExpr(exprNode, context));
+            }
+            // An element that threw ends the literal — the later elements are not evaluated, and
+            // their side effects do not happen. Same rule as an argument list.
+            if (context.isError()) {
+                break;
             }
         }
         return array;
@@ -1556,6 +1593,11 @@ class Interpreter {
                 result.put(key, context.get(key));
             } else {
                 result.put(key, evalExpr(elem.get(afterKeyPos + 1), context));
+            }
+            // A property whose key or value threw ends the literal, as for an array or an
+            // argument list — the remaining properties are not evaluated.
+            if (context.isError()) {
+                break;
             }
         }
         return result;
@@ -1864,7 +1906,10 @@ class Interpreter {
 
     private static Object evalMathAddExpr(Node node, CoreContext context) {
         return switch (node.get(1).token.type) {
-            case PLUS -> Terms.add(eval(node.get(0), context), eval(node.get(2), context), context);
+            case PLUS -> {
+                Object lhs = eval(node.get(0), context);
+                yield context.isError() ? Terms.UNDEFINED : Terms.add(lhs, eval(node.get(2), context), context);
+            }
             case MINUS -> terms(node, context).min();
             default -> throw new RuntimeException("unexpected operator: " + node.get(1));
         };
@@ -2307,28 +2352,33 @@ class Interpreter {
             finallyBlock = node.get(3);
         }
         if (finallyBlock != null) {
-            boolean wasError = context.isError();
-            Object savedError = context.getErrorThrown();
+            // Save the WHOLE completion the try (or catch) left, then clear it, so the finally
+            // block is evaluated against a clean context. Clearing only on the error path left an
+            // exitType of RETURN — or BREAK, or CONTINUE — in place, and a block stops at its first
+            // statement when its context is already stopped (see evalBlock). A multi-statement
+            // finally after `return` therefore ran only its first statement and silently skipped
+            // the rest of the cleanup, which is the one thing a finally block exists to do.
+            ExitType savedExit = context.getExitType();
             Object savedReturn = context.getReturnValue();
-            if (wasError) {
+            Object savedError = context.getErrorThrown();
+            if (savedExit != null) {
                 context.reset();
             }
             context.enterScope(ContextScope.BLOCK, node);
             context.event(EventType.CONTEXT_ENTER, node);
             try {
                 eval(finallyBlock, context);
-                if (context.isError()) {
-                    throw new RuntimeException("finally block threw error: " + context.getErrorThrown());
-                }
             } finally {
                 context.event(EventType.CONTEXT_EXIT, node);
                 context.exitScope();
             }
-            // Restore error state if there was one
-            if (wasError) {
-                context.stopAndThrow(savedError);
-            } else if (savedReturn != null) {
-                context.stopAndReturn(savedReturn);
+            // A finally that completes abruptly REPLACES what the try or catch left; only a normal
+            // completion restores it. That is the whole rule, and it is what makes
+            // `try { throw 'x' } finally { return 42 }` return 42 — and what makes a throw raised
+            // in here the one that propagates. It used to be raised as a Java RuntimeException
+            // instead, which no JS `catch` could ever see.
+            if (context.getExitType() == null && savedExit != null) {
+                context.restoreCompletion(savedExit, savedReturn, savedError);
             }
         }
         return tryValue;

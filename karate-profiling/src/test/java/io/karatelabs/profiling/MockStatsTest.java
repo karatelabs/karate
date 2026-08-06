@@ -145,12 +145,23 @@ class MockStatsTest {
             stats.enter();
             stats.record(1_000_000, 0);
             stats.exit();
+            // Spread the requests over a few milliseconds. The reported window is rounded to
+            // microseconds, so over a window of tens of microseconds that rounding alone is
+            // several percent and the rate check below would be measuring String.format rather
+            // than the arithmetic. A real window is seconds long and never near this.
+            Thread.sleep(0, 200_000);
         }
         String json = stats.toJson();
         double window = jsonDouble(json, "loadWindowSeconds");
+        double elapsed = jsonDouble(json, "elapsedSeconds");
         double rate = jsonDouble(json, "servedPerSecond");
-        assertTrue(window > 0 && window < 0.050,
-                "the window must start at the first request, not at construction: " + window + "s");
+        // Assert the GAP between lifetime and window, not an absolute bound on the window. A
+        // bound like "under 50 ms" is really an assertion about how fast this machine runs the
+        // loop, which is not the property under test and fails on a loaded one.
+        assertTrue(window > 0, "a window that saw requests must be non-zero: " + window + "s");
+        assertTrue(elapsed - window >= 0.040,
+                "the sleep happened before the first request, so it must sit outside the window: "
+                        + "elapsed " + elapsed + "s, window " + window + "s");
         assertEquals(10 / window, rate, rate * 0.01, "the rate is served over the window");
     }
 

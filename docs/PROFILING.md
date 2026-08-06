@@ -769,11 +769,10 @@ Read these together, because they say two different things:
   with one feature there is no feature-end seam to release at, so nothing short of releasing
   per *scenario* changes its slope. This is a known, accepted limit; see §9.
 
-**Ignore the `all` column moving the wrong way** in three of six cells (210 → 372, 297 → 242,
-2995 → 3017). Those before-numbers were artificially low for the reason §8 sets out — JSONL was
-accidentally throttling the producer enough for the writer thread to keep up — so they were
-never a budget the fix could regress against. The `html` column is the one that carries meaning,
-because `html` is what users actually ship.
+**Ignore the `all` column moving the wrong way** in three of six cells. Those before-numbers were
+artificially low for the reason §8 sets out — JSONL was accidentally throttling the producer
+enough for the writer thread to keep up — so they were never a budget the fix could regress
+against. The `html` column is the one that carries meaning, because `html` is what users ship.
 
 A `feature-spread html` run at `-Xmx768m` and 2000 scenarios peaked at 739 MB before the
 change — 96% of the heap, no headroom, on a suite that needs 248 MB to execute. That is the
@@ -1023,9 +1022,11 @@ session reads — so it is ordered by information per unit of work, not by appea
 1. **More pairs at the 50 ms tier — the one loose end in the matrix.** The load window and the
    rerun are **built**: `MockStats` reports the window it served in and the rate over it, and the
    matrix reran as three alternating pairs per tier on that clock (§10). It resolved the 10 ms tier
-   — ~0.6 ms per iteration, sd 0.29 — and did *not* resolve the 50 ms one, where three pairs leave
-   a standard deviation larger than the effect and one pair comes out negative. Six to ten pairs
-   there is a cheap afternoon and it is what turns "consistent with ~0.6 ms" into a measurement.
+   — 0.6–0.8 ms per iteration depending on whether the mock's own sleep asymmetry is corrected for,
+   sd 0.29 raw — and did *not* resolve the 50 ms one, where three pairs leave a standard deviation
+   larger than the effect and one pair comes out negative. Six to ten pairs there is a cheap
+   afternoon, and it is what turns "consistent with 0.6–0.8 ms" into a measurement. Check sleep
+   parity within each pair when you do it; §10 says why.
 2. **The AST prototype on the lane where its win lives** — a `/usr/bin/time` A/B against main on
    `call-accumulation` and `feature-spread` at two sizes, recording wall and CPU. This is the
    measurement the parse-cache decision actually needs
@@ -1266,8 +1267,7 @@ measured the ceiling on `call-accumulation --iterations 2000`:
 **A third of all allocation, and it is deliberately not built.**
 [§10](#10-the-latency-mock-and-what-the-parity-matrix-found) was the gate — and the gate has been
 read, but it covers one of the two lanes this cost lives in, and not the one the win was measured
-in. Both halves, stated separately, because the sentence that used to stand here ("the measurement
-came back saying it does not matter") silently generalised the first to the second:
+in. Both halves, stated separately, because it is easy to generalise the first to the second:
 
 - **The load-test lane — answered.** At 10 ms of server latency Karate's *entire* per-execution
   overhead, of which re-parsing is one part, costs about 2% of throughput, and it shrinks with
@@ -1418,12 +1418,11 @@ have nothing to do with Karate — and it reads as "Karate is slower". Nothing i
 enforces the gap.
 
 **Throughput is read from the mock, not from Gatling.** Gatling's `count/s` is requests divided by
-a duration rounded to whole seconds, which at these run lengths quantises the rate in steps of
-several percent — the first version of this matrix reported "571 vs 571" at 10 ms and called it
-identical, when every cell in it divided exactly (8000/14, 3200/23, 16000/1) and the equality only
-established "less than one second apart". `MockStats` now stamps its first handler entry and last
-handler exit, so `servedPerSecond` is the same requests over a nanosecond-resolution window. Every
-figure below is that number. Runs are 2026-08-06 17:04–17:19; each row names its two directories.
+a duration rounded to **whole seconds**, which at these run lengths quantises the rate in steps of
+several percent — enough to render two arms a second apart as an identical figure. `MockStats`
+stamps its first handler entry and last handler exit, so `servedPerSecond` is the same requests
+over a nanosecond-resolution window. Every figure below is that number, never Gatling's. Runs are
+2026-08-06 17:04–17:19; each row names its two directories.
 
 **Three back-to-back pairs per tier, arm order alternating**, so that drift over the matrix cancels
 between the arms rather than loading one of them. And there is drift: rates rise ~10% across the
@@ -1502,8 +1501,7 @@ What the numbers now support, which is less than "identical" and more useful:
   does not replicate.** At 10 ms the karate arm is tighter in all three pairs (p99 17/17/16 ms vs
   18/18/33 ms), which matched the original finding; at 50 ms it reverses in two of three (p99
   71/98/88 ms vs 83/62/63 ms). p50 matches in five of the six pairs and differs by 2 ms in the
-  sixth (50 ms pair 1: plain 58, karate 56) — say "matches", not "identical", because the one
-  exception is exactly the kind of cell a sweeping word hides. Whatever produces the
+  sixth (50 ms pair 1: plain 58, karate 56). Whatever produces the
   tail difference is not a property of the client that survives a change of tier, and it should not
   be reported as one in either direction.
 - **Percentiles could not have detected the overhead anyway.** The karate arm's reported response
@@ -1620,10 +1618,9 @@ where plain Gatling's are held open per virtual user.
 At the 10 ms tier the karate arm's window carries 4000 iterations and 8000 requests, and the mock
 counted **4000 distinct client ports**: one connection per *iteration*, because both requests go
 through that iteration's client and its pooled connection. Over a 15.2 s window that is **263
-executions/s, 526 requests/s, 263 connections/s** — comfortably under the ceiling. An earlier
-version of this section quoted the request rate as the connection rate and had the karate arm at
-~615 conn/s, i.e. over it. The real problem was not the factor of two but that neither figure had
-ever been measured; `distinctPeerPorts` is now in every digest.
+executions/s, 526 requests/s, 263 connections/s** — comfortably under the ceiling. Quote the wrong
+one of those three and the arm looks like it is over it; `distinctPeerPorts` is in every digest so
+the connection rate never has to be derived again.
 
 **The 0 ms tier is the one that survives on brevity, not on margin.** The karate 0 ms / 8000 run
 opened 8000 connections in 1.9 s — about **4,200/s, roughly eight times the sustainable rate** —

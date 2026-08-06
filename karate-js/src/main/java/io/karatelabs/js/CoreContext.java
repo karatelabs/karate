@@ -489,6 +489,19 @@ class CoreContext implements Context {
         errorThrown = null;
     }
 
+    /**
+     * Put back a completion saved before a {@code finally} block was evaluated — see
+     * {@link Interpreter} {@code evalTryStmt}. Deliberately restores the exit <i>type</i> rather
+     * than re-deriving it from the values: {@code return null} and falling off the end carry the
+     * same null return value and are different completions, and BREAK and CONTINUE carry no value
+     * to derive anything from at all.
+     */
+    void restoreCompletion(ExitType savedExit, Object savedReturn, Object savedError) {
+        exitType = savedExit;
+        returnValue = savedReturn;
+        errorThrown = savedError;
+    }
+
     boolean isError() {
         return exitType == ExitType.THROW;
     }
