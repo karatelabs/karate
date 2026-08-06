@@ -225,21 +225,70 @@ of measurement. `-Dkarate.profiling.reportCost=true` additionally attaches a lis
 times each report operation per feature and prints whether a single writer thread could keep
 up with the suite — see §8.
 
-### Leak-watch family — NOT BUILT
+### Leak-watch family — NOT BUILT, and it is the biggest gap in this document
 
-`leak-watch` (a realistic soak: `karate-config.js` doing a call, `callSingle`, `callonce` in
-`Background`, `call read()` with an args object, JS function defs, HTTP against the forked
-mock, `match` assertions) plus thin single-mechanism variants `leak-callonce`,
-`leak-callsingle`, `leak-shared-scope`, `leak-isolated-scope`.
+**"Does Karate leak?" is not answered.** What is answered is narrower and worth separating,
+because the difference decides what a soak would even be looking for:
 
-**None of these exist yet.** They are the right shape for the question "is Karate leaking
-over a long run" — which the current workloads, all iteration-bounded reproductions, do not
-answer. Build them when that question comes up; the shape to copy is v1's
-`examples/profiling-test/src/test/java/perf/{main,called,mock}.feature`, driven with
-`--duration` rather than `--iterations`, with the mock in the sibling JVM.
+| | Status |
+|---|---|
+| Retention that grows with **suite size** | **Fixed and verified** — §8 found two real mechanisms (call-result accumulation, the report-writing queue) and peak heap is now flat across a 4x scale sweep. |
+| One feature holding thousands of scenarios, reports on | **Known-unbounded, accepted** — still linear, §6. Not a leak: it is retention by design until suite end. |
+| A slow leak over **hours** | **Never measured, in either lane.** Every workload is an iteration-bounded reproduction that finishes in seconds. |
 
-*Healthy result, when they exist:* a **flat** heap-after-GC floor across the whole run, at
-any sawtooth amplitude. See §4.
+The instrument for the third row already exists: the **heap-after-GC floor** in every digest is
+the detector, and §4's chart is the classification. What is missing is a run long enough for a
+floor to have a slope. **Absence of evidence, and the digests do not distinguish it from evidence
+of absence** — a workload that runs for four seconds cannot report a leak that takes an hour.
+
+#### These are two different questions, and the second is untouched
+
+**A long Runner suite** — thousands of scenarios in one JVM, one `Suite`. A leak here grows with
+scenario count and is what §8's work was about. This is the better-understood lane, and a soak is
+mostly confirmation.
+
+**Gatling** — hours of execution, and **a fresh `Suite` per virtual-user iteration** against a
+thread pool that lives for the whole simulation. Anything retained per `Suite`, or anchored to a
+carrier thread, accumulates across hundreds of thousands of executions. **Nothing has ever looked
+at this**, and it is the more likely place for a real leak precisely because the object churn is
+per-execution rather than per-suite.
+
+Three candidates to test there — **hypotheses, not findings**, listed so a soak knows where to
+point `--gc-roots`:
+
+- `Suite` holds two **instance** `ThreadLocal`s (`threadListeners`, `currentLane`,
+  `Suite.java:138,153`). A new Suite per execution means a new ThreadLocal object per execution,
+  each leaving an entry in the ThreadLocalMap of every Gatling thread that touched it. The keys
+  are weak and cleanup is opportunistic, so this is usually self-limiting — but the *values* are
+  held until that cleanup runs, and one of them is a listener list.
+- `LogContext` holds **static** `ThreadLocal`s (`CURRENT`, `PENDING`, `LogContext.java:43,258`).
+  Static plus a long-lived pool means anything not explicitly removed at the end of an execution
+  stays reachable from the thread that ran it.
+- The caches karate-gatling **deliberately** shares across virtual users (`callSingleCache`,
+  `callOnceCacheStore`, injected via `Runner.Builder`). These are designed to outlive a Suite and
+  are bounded by distinct keys — worth confirming that is actually true rather than assumed.
+
+#### What it needs first
+
+**`--duration` is not supported for the `gatling-*` workloads** (`SimShape` has no `during()`; it
+injects a repetition count), so the Gatling soak is blocked on that one small change. The Runner
+lane already takes `--duration` and could be soaked today.
+
+The other prerequisite is now met: a soak needs a server that stays stable for hours without
+saturating, and `LatencyMock` ([§10](#10-the-latency-mock-and-what-the-parity-matrix-found)) is
+that — it reports its own in-flight and service time, so "the mock degraded" cannot be mistaken
+for "the client leaked".
+
+The workload shape to build is a realistic one, not a microbenchmark: `karate-config.js` doing a
+call, `callSingle`, `callonce` in `Background`, `call read()` with an args object, JS function
+defs, HTTP against the forked mock, `match` assertions — plus thin single-mechanism variants
+(`leak-callonce`, `leak-callsingle`, `leak-shared-scope`, `leak-isolated-scope`) so a rising floor
+can be attributed rather than just observed. v1's
+`examples/profiling-test/src/test/java/perf/{main,called,mock}.feature` is the shape to copy.
+
+*Healthy result:* a **flat** heap-after-GC floor across the whole run, at any sawtooth amplitude
+(§4). Run it long enough that a floor has a slope — hours, not seconds — and read the floor, not
+the peak.
 
 ### The bound-scope-capture pair — regression guard
 
@@ -626,7 +675,7 @@ granted:
 |---|---|
 | **Fixed and verified** | Parallel-execution *memory* on ordinary suite shapes: call-result retention (flat across a 4x scale sweep) and the report-writing queue (~4.5x → ~1.3x, wall-clock fell). The external reproducer passes at `-Xmx768m`. |
 | **Measured, known-unbounded, accepted** | One feature holding thousands of scenarios, with reports on — still linear (502 / 1108 / 2079 MB). Only per-scenario release changes the slope, and §9 records why that was not built. |
-| **Never measured** | Soaks. Every workload is an iteration-bounded reproduction, so "no slow leak over hours" is unverified rather than verified — see the leak-watch family in §2. |
+| **Never measured** | Soaks — "does Karate leak over hours". Every workload is an iteration-bounded reproduction finishing in seconds, so this is unverified rather than verified, **in both lanes**. The Gatling lane is entirely untouched and is the more likely place for one, because it builds a `Suite` per iteration against a long-lived thread pool. See [the leak-watch family](#leak-watch-family--not-built-and-it-is-the-biggest-gap-in-this-document) in §2. |
 | **Never measured** | CPU inside scenario code *under a parallel Runner suite*. All of §8 is allocation and retention, and `jdk.ExecutionSample` is blind on virtual threads there (§7). It is **not** blind in the Gatling lane, which runs scenarios inline on a platform thread. |
 | **Measured and settled** | Whether Karate's per-execution overhead distorts a load test. It does not, at any realistic API latency: identical throughput and percentiles against 10 ms and 50 ms mocks, a gap only at 0 ms ([§10](#10-the-latency-mock-and-what-the-parity-matrix-found)). This is what parks the largest unclaimed allocation win in the document. |
 
@@ -940,6 +989,9 @@ and what they measured has already retired one item and reshaped another. What i
 
 1. **The user ramp.** The matrix has one cell shape (8 users). Ramping is what answers the
    concurrency-density question below, and it is the cheapest remaining run.
+1b. **`--duration` for the `gatling-*` workloads** — `during()` in the injection profile instead
+   of a repetition count. Small, and it is the only thing blocking a Gatling **soak**, which is
+   the largest unanswered question in this document (§2).
 2. **Separate hosts.** Co-location is the one confound §10 cannot argue away, and it also lifts
    the ephemeral-port ceiling. This is what makes the numbers defensible rather than indicative.
 3. **Mine [#845](#prior-art--the-09x-era-overhead-thread).** Reading, not building. Now worth
