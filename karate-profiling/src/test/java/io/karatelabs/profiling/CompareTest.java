@@ -46,7 +46,7 @@ class CompareTest {
     private static Compare.Run run(String arm, double servedPerSecond, double sleepMicrosMean) {
         return new Compare.Run(Path.of("gatling-http-" + arm + "-2026-08-06-000000"), arm, 10, 8,
                 4000, 8000, servedPerSecond, sleepMicrosMean, 8, arm.equals("plain") ? 8 : 4000,
-                0, -1, 15.2, 56, 71);
+                0, -1, 15.2, 56, 71, 10);
     }
 
     /**
@@ -56,9 +56,9 @@ class CompareTest {
      */
     @Test
     void testAddedMillisReproducesThePublishedTenMillisecondTier() {
-        assertEquals(0.48, added(534.8, 526.4), 0.01);
-        assertEquals(0.93, added(547.5, 530.7), 0.01);
-        assertEquals(0.38, added(590.8, 582.6), 0.01);
+        assertEquals(0.48, added(534.8, 526.4), 0.005);
+        assertEquals(0.93, added(547.5, 530.7), 0.005);
+        assertEquals(0.38, added(590.8, 582.6), 0.005);
     }
 
     /**
@@ -82,7 +82,7 @@ class CompareTest {
     @Test
     void testRequestsPerIterationRoundsIterationsUpToTheUserCount() {
         Compare.Run rounded = new Compare.Run(Path.of("gatling-http-karate-2026-08-06-000000"),
-                "karate", 10, 8, 500, 1008, 471.8, 13000, 8, 504, 0, -1, 2.1, 56, 71);
+                "karate", 10, 8, 500, 1008, 471.8, 13000, 8, 504, 0, -1, 2.1, 56, 71, 10);
         assertEquals(2.0, rounded.requestsPerIteration(), 0.001);
     }
 

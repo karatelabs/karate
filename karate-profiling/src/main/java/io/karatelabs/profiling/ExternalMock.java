@@ -85,10 +85,19 @@ final class ExternalMock {
             throw new IllegalStateException("no LatencyMock answering at " + base + "/config — start one with"
                     + " `java -cp … io.karatelabs.profiling.LatencyMock --bind 0.0.0.0 --latency 10ms`");
         }
-        // Reset last, so a failure above leaves the mock's own state untouched.
-        if (get(base + "/stats/reset") == null) {
-            throw new IllegalStateException("could not reset " + base + " — refusing to measure a window "
-                    + "that may already contain another run's load");
+        // Reset last, so a failure above leaves the mock's own state untouched. The 409 is called
+        // out separately because it is the interesting failure and the only actionable one: the
+        // mock refuses to reset while requests are in flight, which on a shared mock means someone
+        // else is still driving it. Collapsing that into "unreachable" would send the operator to
+        // check the network when the answer is to wait.
+        int reset = status(base + "/stats/reset");
+        if (reset == 409) {
+            throw new IllegalStateException(base + " has requests in flight and refused to reset — "
+                    + "another injector is still running against this mock; wait for it to finish");
+        }
+        if (reset != 200) {
+            throw new IllegalStateException("could not reset " + base + " (HTTP " + reset + ") — refusing "
+                    + "to measure a window that may already contain another run's load");
         }
         write(runDir, LatencyMock.CONFIG_PREFIX + config);
         write(runDir, "[external] attached to " + base + ", counters reset");
@@ -114,6 +123,16 @@ final class ExternalMock {
             write(runDir, LatencyMock.STATS_PREFIX + stats);
         } catch (Exception e) {
             System.err.println("[parent] could not collect stats from " + url + ": " + e);
+        }
+    }
+
+    /** The status code of a GET, or -1 if the host did not answer at all. */
+    private static int status(String url) throws IOException, InterruptedException {
+        try (HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
+            return client.send(HttpRequest.newBuilder(URI.create(url)).timeout(TIMEOUT).GET().build(),
+                    HttpResponse.BodyHandlers.discarding()).statusCode();
+        } catch (IOException e) {
+            return -1;
         }
     }
 

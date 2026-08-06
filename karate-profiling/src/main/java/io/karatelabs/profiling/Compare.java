@@ -67,7 +67,35 @@ public final class Compare {
     record Run(Path dir, String arm, int tierMillis, int users, long iterationsRequested,
                long served, double servedPerSecond, double sleepMicrosMean, long peakInFlight,
                long distinctPeerPorts, long ko, double injectorCores, double windowSeconds,
-               double p50, double p99) {
+               double p50, double p99, int cpus) {
+
+        /**
+         * The first load-bearing field this digest did not supply, or null if it is complete.
+         *
+         * <p><b>A -1 must never reach the arithmetic.</b> Digests predating {@code servedPerSecond}
+         * still carry a {@code "served"} key, so they parse far enough to look like parity runs and
+         * then contribute {@code -1} rates to every mean — which is precisely the silent-wrong-number
+         * failure this class exists to prevent, reproduced inside it. A run missing any of these is
+         * named and skipped rather than blended.
+         */
+        String missingField() {
+            if (servedPerSecond <= 0) {
+                return "servedPerSecond (digest predates the mock's own load-window clock)";
+            }
+            if (users <= 0) {
+                return "threads";
+            }
+            if (iterationsRequested <= 0) {
+                return "iterations (duration-bounded runs cannot be paired this way)";
+            }
+            if (served <= 0) {
+                return "served";
+            }
+            if (windowSeconds <= 0) {
+                return "loadWindowSeconds";
+            }
+            return null;
+        }
 
         /**
          * Gatling splits the requested total across users and rounds up, so the run is a multiple
@@ -96,7 +124,12 @@ public final class Compare {
             Path dir = Path.of(arg);
             Run run = read(dir);
             if (run == null) {
-                System.err.println("[compare] skipped (no parity data): " + dir);
+                System.err.println("[compare] skipped (no parity data): " + dir.getFileName());
+                continue;
+            }
+            String missing = run.missingField();
+            if (missing != null) {
+                System.err.println("[compare] skipped (missing " + missing + "): " + dir.getFileName());
                 continue;
             }
             runs.add(run);
@@ -111,6 +144,7 @@ public final class Compare {
 
         Map<Integer, List<Pair>> byTier = new LinkedHashMap<>();
         List<String> warnings = new ArrayList<>();
+        java.util.Set<Path> paired = new java.util.HashSet<>();
         for (int i = 0; i + 1 < runs.size(); i++) {
             Run first = runs.get(i);
             Run second = runs.get(i + 1);
@@ -129,7 +163,18 @@ public final class Compare {
             Run karate = first.arm().equals("plain") ? second : first;
             byTier.computeIfAbsent(first.tierMillis(), k -> new ArrayList<>())
                     .add(new Pair(plain, karate, first.arm().charAt(0) + "→" + second.arm().charAt(0)));
+            paired.add(first.dir());
+            paired.add(second.dir());
             i++;   // consumed both
+        }
+        // A run left over at the end pairs with nothing and would otherwise vanish without a word,
+        // against this class's own rule that nothing is dropped silently. An odd run count is
+        // usually an aborted sweep, and knowing which arm is unmatched is how you resume it.
+        for (Run run : runs) {
+            if (!paired.contains(run.dir())) {
+                warnings.add("no partner for " + run.dir().getFileName() + " (" + run.arm()
+                        + ", " + run.tierMillis() + "ms)");
+            }
         }
 
         StringBuilder out = new StringBuilder();
@@ -207,8 +252,11 @@ public final class Compare {
                 .append(" ms against a mean of ").append(signed(mean(added))).append(" ms");
         if (sd(added) >= Math.abs(mean(added))) {
             out.append(" — **the spread is larger than the effect, so this tier is not resolved by ")
-                    .append(pairs.size()).append(" pairs.** More pairs help only if the machine is ")
-                    .append("quiet; if it is not, they will not converge at any count.\n");
+                    .append(pairs.size()).append(" pairs.** Alternating the arm order keeps the mean ")
+                    .append("unbiased against noise that hits both arms, so more pairs do converge — ")
+                    .append("but as sd/sqrt(n), which is why a quieter machine beats a longer sweep: ")
+                    .append("resolving this mean to within half itself from here needs roughly ")
+                    .append(neededPairs(added)).append(" pairs.\n");
         } else {
             out.append(" — the effect is above the spread at this pair count.\n");
         }
@@ -235,9 +283,13 @@ public final class Compare {
                 flags.add(who + ": peak in-flight " + run.peakInFlight() + " against " + run.users()
                         + " users — the mock was not holding what the injector offered.");
             }
-            if (run.injectorCores() > 0.8 * Runtime.getRuntime().availableProcessors()) {
-                flags.add(who + ": injector at " + fixed(run.injectorCores(), 1) + " cores — near "
-                        + "saturation, so this arm may be reporting the machine rather than the client.");
+            // The run's OWN core count, from its digest — not this machine's. Digests get copied
+            // off the machine that took them, and a 16-core cell analysed on a 10-core laptop
+            // would be judged against the wrong threshold in whichever direction hurts.
+            if (run.cpus() > 0 && run.injectorCores() > 0.8 * run.cpus()) {
+                flags.add(who + ": injector at " + fixed(run.injectorCores(), 1) + " of "
+                        + run.cpus() + " cores — near saturation, so this arm may be reporting the "
+                        + "machine rather than the client.");
             }
         }
         if (pair.plain().served() != pair.karate().served()) {
@@ -264,6 +316,24 @@ public final class Compare {
             sum += value;
         }
         return values.isEmpty() ? 0 : sum / values.size();
+    }
+
+    /**
+     * Pairs needed for the standard error of the mean to fall to half the mean — i.e. for the
+     * effect to be resolved to within 50% of itself.
+     *
+     * <p>Stated as arithmetic rather than as "it will never converge", which is what this tool
+     * said first and is false: the arm order alternates, so noise hitting both arms leaves the
+     * mean unbiased and averaging does work. It works as {@code sd/sqrt(n)} though, which is the
+     * real argument for a quiet machine — halving the noise is worth quadrupling the runs.
+     */
+    private static long neededPairs(List<Double> values) {
+        double mean = Math.abs(mean(values));
+        double sd = sd(values);
+        if (mean <= 0 || sd <= 0) {
+            return -1;
+        }
+        return (long) Math.ceil(Math.pow(2 * sd / mean, 2));
     }
 
     /** Sample standard deviation — n-1, because these are pairs drawn from a process, not a census. */
@@ -307,7 +377,7 @@ public final class Compare {
             return null;
         }
         String mockConfig = section(digest, "\"latencyMillis\":");
-        return new Run(dir, arm,
+        Run run = new Run(dir, arm,
                 (int) LoadProfile.mockNumber(mockConfig, "latencyMillis"),
                 (int) row(digest, "threads"),
                 (long) rowIterations(digest),
@@ -319,7 +389,25 @@ public final class Compare {
                 ko(digest),
                 injectorCores(digest),
                 LoadProfile.mockNumber(mockStats, "loadWindowSeconds"),
-                percentile(digest, 0), percentile(digest, 3));
+                percentile(digest, 0), percentile(digest, 3),
+                cpus(digest));
+        return run;
+    }
+
+    /** Cores on the machine that took the run, out of "| os / cpus | Mac OS X aarch64 / 10 |". */
+    private static int cpus(String digest) {
+        int at = digest.indexOf("| os / cpus | ");
+        if (at < 0) {
+            return -1;
+        }
+        int to = digest.indexOf(" |", at + 14);
+        String cell = digest.substring(at + 14, to < 0 ? digest.length() : to);
+        int slash = cell.lastIndexOf('/');
+        try {
+            return slash < 0 ? -1 : Integer.parseInt(cell.substring(slash + 1).trim());
+        } catch (RuntimeException e) {
+            return -1;
+        }
     }
 
     /** The JSON object on the line carrying a given key — the digest fences several of them. */

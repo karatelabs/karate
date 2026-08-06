@@ -431,10 +431,24 @@ public final class Profiler {
             if (previous == null) {
                 return "(first run in this directory)";
             }
-            Duration gap = Duration.between(
-                    LocalDateTime.parse(HostFacts.stampOf(previous), STAMP),
+            // The previous run's END, not its start. TIME_WAIT begins when a socket closes, so
+            // start-to-start is the wrong interval and fails in the dangerous direction: a zero-gap
+            // run after a 100-second one would report "1m40s" and no flag while every socket from
+            // it is still fresh. digest.md is written last, so its mtime is that run's end — and if
+            // it is missing (the run died), fall back to the stamp and say the figure is a floor.
+            LocalDateTime previousEnd;
+            String basis = "";
+            Path previousDigest = runDir.getParent().resolve(previous).resolve("digest.md");
+            if (Files.exists(previousDigest)) {
+                previousEnd = LocalDateTime.ofInstant(
+                        Files.getLastModifiedTime(previousDigest).toInstant(), java.time.ZoneId.systemDefault());
+            } else {
+                previousEnd = LocalDateTime.parse(HostFacts.stampOf(previous), STAMP);
+                basis = " (from its start — it wrote no digest, so this is an upper bound on the gap)";
+            }
+            Duration gap = Duration.between(previousEnd,
                     LocalDateTime.parse(HostFacts.stampOf(self), STAMP));
-            return RunShape.format(gap) + " after " + previous
+            return RunShape.format(gap) + " after " + previous + " ended" + basis
                     + (gap.toSeconds() < 35
                     ? "  ← under the 35s TIME_WAIT gap the parity protocol asks for" : "");
         } catch (Exception e) {

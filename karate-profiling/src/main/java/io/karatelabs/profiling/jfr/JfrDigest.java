@@ -108,10 +108,14 @@ public final class JfrDigest {
      * clients queued behind one server report the same throughput while proving nothing about
      * either. docs/PROFILING.md §10 carried this leg as "not recorded anywhere" until this panel.
      *
-     * <p>Both numbers are <b>self-reported over the reporter's own measured window</b> — the child
-     * from {@code [child] measuring} to the last iteration, the mock across its load window — so
-     * neither includes JVM startup or an idle tail. See {@link io.karatelabs.profiling.SelfCpu}
-     * for why the parent does not measure this itself.
+     * <p>Both numbers are <b>self-reported over the reporter's own window</b>, and the two windows
+     * are not the same length. For an ordinary workload the child's opens at
+     * {@code [child] measuring}, past warmup and most JIT. For a <b>self-driving</b> one — every
+     * {@code gatling-*} workload — there is no such seam: the window wraps the whole simulation,
+     * so it carries Gatling's engine boot and teardown, typically 30-40% of it against the mock's
+     * load window. That makes the injector's {@code cores busy} a <b>lower bound</b> on its
+     * load-window utilisation, which is the safe direction for a headroom check and the wrong one
+     * to quote as a cost. See {@link io.karatelabs.profiling.SelfCpu}.
      */
     private static void appendCpu(StringBuilder md, Path runDir) {
         String summary = findChildSummary(runDir);
@@ -125,13 +129,14 @@ public final class JfrDigest {
         }
         int cpus = Runtime.getRuntime().availableProcessors();
         md.append("## CPU headroom\n\n");
-        md.append("What each process burned **over its own measured window** — no JVM startup, no idle ")
-                .append("tail. `cores` near ").append(cpus)
+        md.append("What each process burned over its own window. `cores` near ").append(cpus)
                 .append(" means this run measured the machine rather than what it was pointed at, and a ")
                 .append("throughput comparison taken there is not a comparison of clients.\n\n")
-                .append("The two windows are not the same window — the injector's spans its whole ")
-                .append("simulation, the mock's only the load — so read each row against `cpus`, and ")
-                .append("never one row against the other.\n\n");
+                .append("The two windows are not the same window — for a `gatling-*` workload the ")
+                .append("injector's spans its whole simulation, engine boot included, while the ")
+                .append("mock's covers only the load. So the injector row **understates** its ")
+                .append("load-window utilisation: read it as a floor, read each row against `cpus`, ")
+                .append("and never one row against the other.\n\n");
         md.append("| process | CPU (core-s) | window (s) | cores busy | % of ").append(cpus)
                 .append(" cpus |\n|---|---:|---:|---:|---:|\n");
         cpuRow(md, "workload (the injector)", childCpu, childWall, cpus);
@@ -149,7 +154,10 @@ public final class JfrDigest {
             return;
         }
         double cores = windowSeconds <= 0 ? -1 : cpuSeconds / windowSeconds;
-        md.append("| ").append(label).append(" | ").append(fixed(cpuSeconds, 2)).append(" | ")
+        // Under a second the ratio is dominated by whichever sample the clocks landed on — a 2 ms
+        // window has reported "98% of 10 cpus" off 0.02 core-seconds. Flagged rather than hidden.
+        String caveat = windowSeconds > 0 && windowSeconds < 1 ? " ⚠ window under 1s — ratio unreliable" : "";
+        md.append("| ").append(label).append(caveat).append(" | ").append(fixed(cpuSeconds, 2)).append(" | ")
                 .append(windowSeconds <= 0 ? "?" : fixed(windowSeconds, 2)).append(" | ")
                 .append(cores < 0 ? "?" : "**" + fixed(cores, 2) + "**").append(" | ")
                 .append(cores < 0 ? "?" : fixed(100 * cores / Math.max(cpus, 1), 0) + "%").append(" |\n");

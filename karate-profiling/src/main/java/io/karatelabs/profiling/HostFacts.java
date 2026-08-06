@@ -111,11 +111,19 @@ public final class HostFacts {
         // Linux does not expose TIME_WAIT as a tunable: it is TCP_TIMEWAIT_LEN, compiled in at
         // 60 seconds. tcp_fin_timeout is a different state (FIN_WAIT_2) and is the usual thing
         // mistaken for it, which is why the constant is named here rather than read from a file.
+        // 0 = off, 1 = on for all outbound, 2 = **loopback only** — and 2 is the default on
+        // modern kernels. Reading 2 as "on" would be exactly wrong for the two-host phase, where
+        // the mock is remote: the ceiling is NOT lifted for the traffic that matters, and the
+        // misreport would fire precisely when the operator skipped the sysctl.
         long reuse = number(procFile("/proc/sys/net/ipv4/tcp_tw_reuse"));
-        String note = reuse == 1 || reuse == 2
-                ? "tcp_tw_reuse is on, so outbound connections may reuse a TIME_WAIT socket and the "
-                  + "practical ceiling is higher"
-                : "tcp_tw_reuse is off — `sysctl -w net.ipv4.tcp_tw_reuse=1` raises the ceiling";
+        String note = switch ((int) reuse) {
+            case 1 -> "tcp_tw_reuse=1, so outbound connections may reuse a TIME_WAIT socket and the "
+                    + "practical ceiling is higher";
+            case 2 -> "tcp_tw_reuse=2 — **loopback only**, so a mock on another host gets no relief; "
+                    + "`sysctl -w net.ipv4.tcp_tw_reuse=1` covers remote targets too";
+            case 0 -> "tcp_tw_reuse is off — `sysctl -w net.ipv4.tcp_tw_reuse=1` raises the ceiling";
+            default -> "tcp_tw_reuse unreadable";
+        };
         return new Network(size, 60, number(procFile("/proc/sys/net/core/somaxconn")), note);
     }
 
@@ -148,8 +156,12 @@ public final class HostFacts {
                     new java.io.InputStreamReader(process.getInputStream())).lines().toList();
             process.waitFor();
             return lines.isEmpty() ? -1 : number(lines.get(0).trim());
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
+            // Only a real interrupt restores the flag; an IOException from ProcessBuilder is not
+            // one, and setting it there would abort an unrelated sleep or join later in the parent.
             Thread.currentThread().interrupt();
+            return -1;
+        } catch (Exception e) {
             return -1;
         }
     }

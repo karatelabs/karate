@@ -1514,10 +1514,28 @@ The mock's own measured sleep overshoot rose from 54.4–55.2 ms in pairs 1–3 
 
 **So the arithmetic that matters is this:** a fixed ~0.6 ms cost on a 110 ms iteration is a **0.5%**
 deficit, and this laptop's run-to-run floor is **3–6%**. The effect is an order of magnitude below
-the noise, and no pair count closes an order of magnitude — at sd 4.83, resolving 0.6 ms to within
-half itself would need on the order of a thousand pairs. **This tier needs a quiet, dedicated
-machine, and until it has one the honest statement is that 50 ms is unresolved.** See
-[The two-host phase](#the-two-host-phase-what-is-built-and-what-it-is-for).
+the noise.
+
+**More pairs do converge — that is worth stating precisely, because the first draft of this section
+said they would not.** The arm order alternates, so noise hitting both arms leaves the mean
+unbiased; averaging works, at `sd/√n`. What it costs is the point. From sd 4.83, resolving a 0.6 ms
+effect to within half itself needs **~260 pairs** at one standard error, or **~1000** at roughly 95%
+confidence — 10 to 40 hours of machine time, against a fix that costs an afternoon. Halving the
+noise is worth quadrupling the runs, which is why the answer is a quieter machine and not a longer
+sweep. `profiler compare` prints this figure per tier so the trade is explicit rather than asserted.
+
+**This tier needs a quiet, dedicated machine, and until it has one the honest statement is that
+50 ms is unresolved.** See [The two-host phase](#the-two-host-phase-what-is-built-and-what-it-is-for).
+
+**How strong is the "it was the laptop" attribution? Weaker than the wording above implies, and
+worth holding loosely.** Three pairs against three is `F(2,2) ≈ 6.4, p ≈ 0.27` — not separable from
+sampling noise at these degrees of freedom, and the sd 4.83 estimate itself carries a 95% interval
+of roughly 3–12. The sleep-overshoot and p50 drifts are real (verified in the digests) but they move
+**both** arms, so they cannot arithmetically explain a ±7 ms swing in the *between-arm* difference;
+they establish that the machine was busier, not that busyness produced these particular pairs. And
+nothing in any digest can confirm what *other* software was running — `SelfCpu` sees only the
+harness's own processes. What is solid without the attribution: **six pairs leave the spread more
+than three times the effect**, and that alone is the case for a different machine.
 
 #### 0 ms tier — the pure client-overhead tier, two sizes
 
@@ -1662,7 +1680,8 @@ and the wording above reads as though all three did:
   also reconciles: iterations × 2 = Gatling's ok+ko = the mock's `served`.
 - **Headroom, injector side: ~~not recorded anywhere~~ — now in every digest.** It was a safe
   inference at the 10 ms tier's 526–591 req/s and genuinely in doubt at the 0 ms tier. The CPU
-  headroom panel settles the first: the 10 ms injector runs at **1.4 of 10 cores**. The cells in
+  headroom panel puts an 800-iteration 10 ms injector at **1.4 of 10 cores** — a floor, since a
+  self-driving workload's window includes Gatling's engine boot. The cells in
   the table above predate the panel and still carry no figure, so the *published* rows remain
   inferred — re-running them on the two-host phase is what puts a number in this column.
 - **Flat floor: not readable at these window lengths, so not met — unevaluated.** Every digest in
@@ -1685,9 +1704,9 @@ instead of asking to be trusted.
 
 | | What it closes |
 |---|---|
-| **CPU headroom panel** in every digest | §10 carried "headroom, injector side: **not recorded anywhere**" as an admitted hole in one of its three acceptance legs. Both the injector and the mock now self-report CPU over their own measured window — not process lifetime, so no JVM startup and no idle tail. First reading: the 10 ms tier's injector runs at **1.4 of 10 cores**, so the inference §10 made was right and is now evidence. |
-| **`profiler compare <run-dir>…`** | The published tables were scraped by hand, and `6ae522b39` ("skipped a decimal cell and shifted every column") is what that cost on eight runs. It derives the tier tables, the sleep correction and the spread, and says when a tier is unresolved. It reproduces both published tiers to the digit — that agreement is the acceptance test, and `CompareTest` pins the arithmetic to the published cells. |
-| **`--mock-url`**, plus `LatencyMock --bind` / `--standalone` / `/config` | Nothing could point a run at a mock it had not forked. The parent now resets the remote mock's counters before the load and scrapes them after, writing `mock.log` byte-for-byte as a forked mock would — so the digest, the reconciliation and `compare` cannot tell the two apart. Verified: two runs against one mock alive for 67s each report their own 1600 over their own 2.8s window. |
+| **CPU headroom panel** in every digest | §10 carried "headroom, injector side: **not recorded anywhere**" as an admitted hole in one of its three acceptance legs. Both the injector and the mock now self-report CPU over their own measured window — not process lifetime, so no JVM startup and no idle tail. First reading: an 800-iteration 10 ms cell puts the injector at **1.4 of 10 cores**, so the inference §10 made looks right. Read it as a **floor**: a `gatling-*` workload is self-driving, so its window wraps the whole simulation including engine boot (wall 4.8s against a 2.9s load window), which dilutes the ratio. The published 4000-iteration cells predate the panel and carry no figure. |
+| **`profiler compare <run-dir>…`** | The published tables were scraped by hand, and `6ae522b39` ("skipped a decimal cell and shifted every column") is what that cost on eight runs. It derives the tier tables, the sleep correction and the spread, and says when a tier is unresolved. It reproduces both published tiers to within 0.01 ms — not "to the digit": the published cells were hand-computed from 1-decimal rates, the tool uses the digests' 3-decimal ones, so 10 ms pair 2 reads +0.92/+1.14 where the table says +0.93/1.15. The tool is the more accurate of the two; the tables below are left as published. |
+| **`--mock-url`**, plus `LatencyMock --bind` / `--standalone` / `/config` | Nothing could point a run at a mock it had not forked. The parent now resets the remote mock's counters before the load and scrapes them after, writing the same `PROFILING-MOCK-CONFIG` / `PROFILING-MOCK-STATS` prefixed lines a forked mock prints (not byte-for-byte — a forked log also carries `PROFILING-MOCK-URL`, and this one an `[external] attached…` line), so the digest, the reconciliation and `compare` cannot tell the two apart. Verified: two runs against one mock alive for 67s each report their own 1600 over their own 2.8s window. **Verified against `127.0.0.1` only — no cross-host path has ever been exercised.** |
 | **Host network limits** in `run-meta.txt`, and a per-run connection-rate check | Every published figure was macOS. The ceiling is now read from the kernel (this laptop: 16384 ports / 30s TIME_WAIT → **~546 conn/s**, which is where the remembered "~550" came from) and each run reports its own rate against it. A 0 ms cell now states its own hazard: *"1849 connections/s … 3.4x the sustainable rate … survived on brevity rather than margin."* |
 
 Two provenance gaps closed alongside: `run-meta.txt` now records **which mock tier** served the run
@@ -1709,8 +1728,15 @@ confound being removed.
 - **Never a T-series.** Burst credits throttle silently, which is the same failure this phase exists
   to escape.
 - **sysctls on both**: `net.ipv4.ip_local_port_range="1024 65535"`, `net.ipv4.tcp_tw_reuse=1`,
-  `net.core.somaxconn=8192`. The digest will report what it actually got — check it rather than
-  assume the sysctl took.
+  `net.core.somaxconn=8192`. The digest reports what it actually got — check it rather than assume
+  the sysctl took. **`tcp_tw_reuse=1`, not the default 2**: 2 is loopback-only, which is no relief
+  at all when the mock is on the other host, and that is exactly the configuration this phase runs.
+- **Raise `ulimit -n` on the injector, and watch it.** This is the one client-side ceiling nothing
+  records: §2 notes the per-execution HTTP client is never closed, so its sockets sit ESTABLISHED
+  until a cleaner runs rather than moving promptly to TIME_WAIT. A 10-pair sweep churns tens of
+  thousands of them against a default soft limit that can be 1024. Set it to 65536 and check
+  `ls /proc/<pid>/fd | wc -l` on a long cell — file descriptors are not heap, and the heap-after-GC
+  floor cannot see this.
 - Cost is not a factor: roughly $0.58/hr each, so a full day of runs is under $15.
 
 #### The order, on the box
@@ -1719,8 +1745,11 @@ confound being removed.
    published calibration is machine A's, and the acceptance rules below are written against a local
    one. It also re-establishes the churn arm's noise floor, which on machine A was 0.842 ms — as
    large as the signal — and is the number the whole matrix's resolution depends on.
-2. **10 pairs at 10 ms.** The control. This tier *is* resolved on machine A at 0.6–0.8 ms, so if the
-   new machine does not reproduce it, nothing after it is trustworthy.
+2. **10 pairs at 10 ms.** The control — but the gate is **internal consistency across its own ten
+   pairs** (a spread comfortably under the effect), *not* agreement with machine A's 0.6–0.8 ms.
+   Graviton3 is a different microarchitecture, so a genuinely different fixed cost is an expected
+   outcome and must not be read as a broken rig. Only a spread that stays larger than the effect
+   says the machine is not quiet, and that is the finding that would stop the day.
 3. **10 pairs at 50 ms.** The open item, on a machine where 0.5% is above the floor.
 4. **The user ramp**, 1→64 users, plus one open-arrival (`constantUsersPerSec`) lane. §10 calls this
    the cheapest remaining run that would change a conclusion, and it answers the concurrency-density
