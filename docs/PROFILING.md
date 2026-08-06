@@ -331,12 +331,18 @@ headroom on the injector, or ramp until the two diverge and report where. Where 
 the number worth having, because past that point the response times a load test reports stop
 being the server's.
 
-What would settle both questions, and is not built: give the mock a **configurable injected
-latency**, then run the `http` pair at a fixed concurrency against, say, 0 / 10 / 50 ms. The
-gap between the two variants should stay roughly constant in absolute terms while shrinking as
-a share of the iteration — and if it does not, the overhead is proportional to something and is
-worth chasing. The same setup answers the concurrency question in §9. That is a small change to
-the mock feature and a knob, and it is the honest version of the "< 5%" claim.
+What would settle both questions: give the mock a **configurable injected latency**, then run the
+`http` pair at a fixed concurrency against, say, 0 / 10 / 50 ms. The gap between the two variants
+should stay roughly constant in absolute terms while shrinking as a share of the iteration — and
+if it does not, the overhead is proportional to something and is worth chasing. The same setup
+answers the concurrency question in §9, and it is the honest version of the "< 5%" claim.
+
+**This is now scoped in [§10](#10-the-latency-mock-experiment--scoped-being-built), and it is
+not the "small change to the mock feature and a knob" this paragraph used to promise.** A knob on
+the feature mock cannot do it: that mock saturates before either client does, so it would answer
+the overhead-share question with two clients queued behind it. §10 builds a separate server whose
+own cost is instrumented, and leaves the feature mock alone as a *subject* of profiling rather
+than an instrument.
 
 ### `Probe` — what does a call actually return?
 
@@ -1328,8 +1334,9 @@ mock is therefore not a convenience for this experiment; it is the experiment's 
 Acceptance is three things together, not TPS alone:
 
 1. **Parity** — TPS and the p50/p95/p99 distribution match between the two variants;
-2. **Headroom** — the injector is demonstrably not the bottleneck (CPU on the injector, and the
-   mock's own in-flight count well below what it can hold);
+2. **Headroom** — the injector is demonstrably not the bottleneck (CPU on the injector, the
+   mock's own in-flight count well below its calibrated knee, and the **queueing residue** below
+   flat);
 3. **A flat floor** — heap-after-GC does not drift, per §4's
    [standing constraint](#the-standing-constraint-footprint-is-fine-a-rising-floor-is-not).
    Allocation *rate* is explicitly not an acceptance criterion; it never was the thing that
@@ -1354,14 +1361,41 @@ run against it unchanged.
 | Latency | `--latency 10ms`, injected as a sleep. Virtual threads are what make this cheap: a mock holding hundreds of sleeping requests must not need hundreds of platform threads, or the *mock* becomes the concurrency limit being measured. |
 | Instrumentation | Requests served, **own service time excluding the injected sleep** (histogram), and peak in-flight. Reported on a `/stats` endpoint and as a summary line at shutdown. |
 
-**The instrumentation is not decoration — it is the saturation detector.** If the mock's own
-service time p99 climbs under load, the mock is the bottleneck and every number in that run is
-void. Without it, that failure is invisible and looks exactly like a client parity result.
+**The instrumentation is the saturation detector — but only in one direction, and the scope was
+wrong about this until review caught it.** A handler-side clock starts at handler entry, so it
+cannot see the accept queue, the dispatcher thread that owns socket readiness, or the handoff to
+the executor. A mock saturated *upstream of its own clock* reports flat handler p99 while clients
+observe rising latency. So: **p99 climbing proves the mock is the bottleneck; p99 flat proves
+nothing.** Three things close that gap, and none is optional:
 
-Starting on the JDK server rather than Netty is deliberate and reversible: the mock reports its
-own numbers, so it will say plainly if it is the ceiling, and the handler can be swapped behind
-the same interface on evidence. Pre-optimising the artefact whose job is to be boring is how you
-end up unable to tell the two apart.
+- **Calibrate before the matrix, not after.** Between B and D, drive the mock alone with a
+  known-cheap client at each latency tier and find its knee — in *both* keep-alive and
+  connection-per-request modes. Then run the matrix demonstrably inside that envelope.
+- **Derive the queueing residue** in the digest:
+  `client-observed p99 − (injected latency + mock handler service time)`. That difference is
+  where invisible queueing shows up, whoever owns it. It is the number that makes "the mock
+  stayed out of the way" a measurement rather than an assumption.
+- **Set the backlog explicitly** — `HttpServer.create(addr, backlog)`; the default delegates to
+  a small system value, which is itself a silent ceiling.
+
+**The two variants do not present the same load to the mock, and they differ on exactly its
+weakest axis.** Karate constructs an HTTP client per execution — §6's own unchased
+`initHttpClient` lead — so the karate variant is roughly one TCP connection per iteration, while
+plain Gatling holds per-user keep-alive connections. Connection establishment through a single
+dispatcher thread is the JDK server's softest spot. "Run both against the same target" is not
+satisfied by running them against the same *process* if the target's cost is connection-shaped,
+which is the second reason calibration must cover both connection modes.
+
+Starting on the JDK server rather than Netty is deliberate and reversible — but it is defensible
+*only together with that calibration*. Without it, "the mock reports its own numbers, so it will
+say plainly if it is the ceiling" is the part that is not true.
+
+Two more constraints on the mock itself: keep its state **bounded** (`profiling-mock.feature`
+grows a `cats` map on every POST and the plain sim genuinely reads back the id it created, so the
+store is required — synthesize the GET from the id, or cap it, or the instrument's own heap
+becomes a variable over a long ramp); and keep stats collection to adders, a fixed-bucket
+histogram and an atomic max. **No per-request logging and no synchronized histogram** — that is
+the one way this instrumentation would perturb what it measures.
 
 **JFR is not embedded in it**, and that is a considered choice. What this needs is exact
 accounting — counts, service time, in-flight — not sampling. JFR answers "*why* is the mock
@@ -1375,37 +1409,107 @@ mock stays, because it is the thing being profiled in the "is the mock server fa
 (§4). Two tiers, two purposes: the feature mock is a *subject*, the latency mock is an
 *instrument*, and conflating them is how the throughput ceiling got stuck in the first place.
 
+### B2 — calibrate the mock, before anything is compared against it
+
+Drive `LatencyMock` alone with a known-cheap client at each latency tier, in **both** keep-alive
+and connection-per-request mode, and find the knee: the concurrency at which client-observed
+latency departs from `injected latency + handler service time`. That number is the envelope every
+cell of the matrix must run inside, and it is what converts "the mock stayed out of the way" from
+an assumption into a measurement. Skipping this is how the experiment passes while the mock
+silently queues upstream of its own clock.
+
+Cheap to build: the calibration client is the raw-`java.net.http` driver §9 has wanted all along
+for the "Mock throughput tiers" row, so this step pays a debt rather than adding one.
+
 ### C — make the comparison numeric
 
 Gatling's HTML report is off in this harness on purpose (`-nr`: chart generation is a second pass
-over the simulation log that would land in the digest as if it were load-driving cost). Rather
-than turning it back on, parse `simulation.log` into `digest.md`: count, TPS, p50/p95/p99, KO —
-for both variants, alongside the mock's own stats. A diffable table beats two HTML pages read
-side by side, and the recording stays clean.
+over the simulation log that would land in the digest as if it were load-driving cost). Note what
+that reason is actually about — *when* the pass runs, not whether. **Run it in the parent, after
+the child has exited** (`-ro`, reports-only) and it contaminates nothing, then scrape its stats.
+
+That is also the only sane route, because **`simulation.log` is binary**: Gatling has written it
+through `BufferedFileChannelWriter` since 3.12, and this repo is on 3.15.1. "Parse simulation.log"
+sounds like a text scrape and is not one — the alternative to a reports-only pass is coding
+against Gatling's internal reader, which is the same version-fragility that already bit the
+`fromMap` → `fromArgs` change recorded in §9.
+
+Into `digest.md`, for both variants alongside the mock's own stats: count, TPS, p50/p95/p99, KO.
+Two requirements on those numbers:
+
+- **KO must break down by error type**, not just count — see the 0 ms trap below.
+- **Report a trimmed window as well as the raw one.** Both sims are self-driving, so per §1 they
+  run *no warmup* and every statistic starts at a cold JVM. Karate carries ~2 core-seconds of
+  one-time init and far more JIT surface than plain Gatling; at 20 000 iterations, p99 is the
+  worst 200 samples and cold start contributes hundreds of slow ones **asymmetrically**. Left
+  raw, acceptance criterion 1 can fail on class loading alone.
 
 Also in the digest, and the sharpest instrument here:
 
 > **Per-iteration residue** = `action elapsed − Σ(PerfEvent.end − PerfEvent.start)`.
 >
-> That is Karate's own overhead per virtual-user iteration, in milliseconds, exactly — not
-> sampled. `PerfEvent` already carries per-request start/end and `KarateExecutor`'s hook receives
-> every one, so this needs no new instrumentation in karate-core.
+> Karate's own overhead per virtual-user iteration. `PerfEvent` already carries per-request
+> start/end and `KarateExecutor`'s hook receives every one, so karate-core needs no new
+> instrumentation — but **the karate-gatling side does**: "action elapsed" does not exist yet.
+> Put the clock around the *whole body* of `KarateScalaAction.execute`, not just around
+> `executor.execute`, so the Scala bridge's session-map copying is counted — a user pays for it.
 
-The residue is the number the whole experiment is about, and it has one trap worth stating
-plainly: **it also absorbs Gatling's scheduling delay once the injector is saturated.** A rising
-residue at high concurrency is therefore ambiguous between "Karate got slower" and "the injector
-ran out of threads" — which is the second reason the headroom check above is load-bearing rather
-than good hygiene.
+**Quote the mean residue; never its distribution.** `PerfEvent` start/end are
+`System.currentTimeMillis()` stamps (`ApacheHttpClient.process` / `buildResponse`), so every event
+duration carries ±1 ms of clock-phase noise — *larger than the ~0.45 ms signal the residue exists
+to measure*. The error is unbiased, so a mean over thousands of iterations is meaningful and
+per-iteration values and residue percentiles are quantization noise. This is exact accounting,
+ms-quantized — not the "exactly, in milliseconds" the first draft of this section claimed.
+
+Four things land inside that subtraction besides Karate's own work. Three are excluded by
+definition, one is a caveat for whoever reuses the number later:
+
+| Contaminant | Handling |
+|---|---|
+| Gatling scheduling delay once the injector is saturated | The reason the headroom check is load-bearing, not hygiene — a rising residue is otherwise ambiguous between "Karate got slower" and "the injector ran out of threads" |
+| Protocol pauses / `karate.pause` — `reportPerfEvent` sleeps *inline* on the Gatling thread, inside elapsed and outside Σ | The residue is defined only for sims with no pauses. Today's sims configure none; say so, because the first person to copy this recipe onto a sim with think time gets garbage |
+| KO iterations — a scenario failing before its first request emits a synthetic PerfEvent spanning the whole scenario, driving residue to ~0 | Exclude KOs from the residue population |
+| Response-body read time — `buildResponse` stamps `endTime` at entry, *then* reads and decompresses the entity, so body transfer falls outside Σ and inflates the residue | Negligible for these payloads on loopback; structural against a real API with real bodies. Recorded so the number is not reused blind |
 
 ### D — the matrix, then the doc
 
 Latency ∈ {0, 10, 50} ms × a user ramp, plain and karate back to back, same machine. Report where
-they diverge. Fold the result into §6 and retire whichever §9 items it settles.
+they diverge. Fold the result into §6 and retire whichever §9 items it settles. The divergence
+point is **a shape, not a number** — it is machine-bound in the way §7 describes, and more so
+than usual here, because Karate's extra CPU starves a co-located mock in a way a remote target
+would not.
+
+**Two outcomes are predictable enough to pre-register, so they are not mistaken for discoveries:**
+
+- **At 0 ms, expect connection churn, not CPU.** One client per execution means one TCP
+  connection per iteration, client-side close, client-side TIME_WAIT. macOS gives ~16K ephemeral
+  ports and holds TIME_WAIT for 15 s, so a few thousand karate iterations/s exhausts the range
+  mid-run and produces `EADDRNOTAVAIL` KOs that poison the percentiles. That is not a divergence
+  measurement, it is a ruined cell — hence the KO breakdown in C, and watch TIME_WAIT at this
+  tier. Note the honest ambivalence: per-execution client construction *is* Karate's real
+  behaviour and a load tester would suffer it too, so the experiment surfacing it is a feature.
+  It may be what finally justifies chasing §6's `PooledHttpClientFactory` lead.
+- **At 10/50 ms, expect the thread-blocking cap to divergence-first, not per-iteration CPU.**
+  `KarateScalaAction.execute` occupies a Gatling thread for the whole feature and that pool is
+  roughly core-count. **And it will not look the way §9 predicts.** §9 says thread starvation
+  shows up as "reported response times inflating"; as instrumented here it will not, because the
+  karate variant's response times come solely from `PerfEvent` brackets *inside* the action,
+  while queue-for-a-thread time sits between actions, outside every bracket. The real signature is
+  **TPS shortfall with clean-looking latencies** — sneakier than §9 promises. Read a TPS-only
+  divergence as the density cap; do not hunt it as a CPU mystery.
+
+The matrix inherits `injectOpen(atOnceUsers(N))` + `repeat`, i.e. a **closed** model. That is the
+right default here — both variants are symmetric, TPS becomes the divergence detector, and the
+user ramp doubles as §9's concurrency-density experiment, which is the economy this section is
+after. If the distortion question ever needs its cleanest form, one open-model cell
+(`constantUsersPerSec` at a fixed arrival rate, both variants) is the direct test and is cheap to
+add later.
 
 ### Why no custom JFR events on the karate-gatling side
 
 They were considered and are not needed for this, for a reason worth recording because it
-contradicts a caveat in §7:
+corrects what §7 used to claim (§7 now carries the correction, so the two agree — this is the
+reasoning behind it, not a live contradiction):
 
 **`Runner.runFeature` never calls `parallel()`**, so `FeatureRuntime` takes its sequential branch
 and runs the scenario **inline on the Gatling thread that called it** — a platform thread. So
