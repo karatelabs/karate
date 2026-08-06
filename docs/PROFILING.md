@@ -460,6 +460,27 @@ constant floor       rising floor          flat floor, then a cliff
   of diagnosis on that thread went to the wrong mechanism because only the class histogram
   was consulted, not where the objects were rooted.
 
+#### The standing constraint: footprint is fine, a rising floor is not
+
+**Using more memory is acceptable as long as it is collected and the floor stays flat.** That is
+a design licence, and it is deliberately phrased in the terms of the chart above: sawtooth
+amplitude is not a budget anyone has to defend, and trading allocation for retained-but-released
+memory is a fair trade. What is not acceptable is anything that moves the floor.
+
+Two consequences worth stating, because they cut in opposite directions and both get misread:
+
+- **It clears a whole class of objection to caching.** A cache whose entries are reachable only
+  from something with a bounded lifetime — a Suite, a parsed `Feature`, a `Step` — is footprint,
+  not leak: it is released when its owner is, and it needs no eviction policy to say so. Do not
+  design an LRU for one of those.
+- **It does not clear a keyed cache in a long-lived process.** `karate serve`, MCP and the IDE
+  plugin outlive any Suite, and a map keyed on generated text grows for as long as they run. That
+  is a rising floor, i.e. precisely the thing the constraint rules out — the fact that it is
+  called a cache does not change what the heap-after-GC series will show.
+
+The practical test is the same one §4 already gives: run it long enough for the floor to be
+readable, and look at the floor.
+
 ### "A long scenario OOMs"
 
 1. `etc/run.sh scope-capture-bound` — does the known shape reproduce on this machine?
@@ -1197,6 +1218,10 @@ rather than answering them. A keyed cache needs a scope, a bound and an identity
   not when the text is generated: `eval("read('" + path + "')")`, `evalAsStep(userText)`, and
   outline rows whose `<placeholder>` substitution makes every row's step text distinct. An
   unbounded map in a long-lived process (serve, MCP, the IDE plugin) is a leak with a nicer name.
+  Note this is the *only* one of the three that the
+  [footprint constraint](#the-standing-constraint-footprint-is-fine-a-rising-floor-is-not)
+  does not forgive — the memory a cache holds is not the objection, the fact that this one is
+  never released is.
 - **Identity.** The key must carry the resource, not just the text: an AST's tokens name the file
   they came from, and two files sharing a step line would otherwise report positions against
   whichever parsed first.
@@ -1204,7 +1229,10 @@ rather than answering them. A keyed cache needs a scope, a bound and an identity
 **Storing the parsed AST on the `Step` itself has none of those.** There is no key, so no
 identity rule; the AST is reachable only from the step that owns the source, so it is bounded by
 the parsed model and dies with it; and the scope question disappears because a Step lives exactly
-as long as the Feature it belongs to.
+as long as the Feature it belongs to. It is the shape the
+[footprint constraint](#the-standing-constraint-footprint-is-fine-a-rising-floor-is-not) is
+happy to pay for: more retained per parsed feature, released with it, no eviction policy to get
+wrong.
 
 The catch is that it only pays if `Step` objects are *reused*, and today none of the three
 repeating paths reuse them — a `karate.call()` re-parses the callee, an outline row copies its
