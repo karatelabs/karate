@@ -70,6 +70,7 @@ public final class JfrDigest {
         StringBuilder md = new StringBuilder();
         md.append("# Profiling digest — ").append(info.workload()).append("\n\n");
         appendRunSummary(md, runDir, info);
+        appendCpu(md, runDir);
 
         Path jfr = runDir.resolve("run.jfr");
         if (!usable(jfr)) {
@@ -99,6 +100,83 @@ public final class JfrDigest {
     }
 
     // ---------------------------------------------------------------- panels
+
+    /**
+     * Whether the machine had room. Placed directly under the run summary because it is a
+     * precondition for reading anything below it, not a result: a cell whose injector was pinned
+     * has not measured the client it meant to, it has measured the machine — and two saturated
+     * clients queued behind one server report the same throughput while proving nothing about
+     * either. docs/PROFILING.md §10 carried this leg as "not recorded anywhere" until this panel.
+     *
+     * <p>Both numbers are <b>self-reported over the reporter's own measured window</b> — the child
+     * from {@code [child] measuring} to the last iteration, the mock across its load window — so
+     * neither includes JVM startup or an idle tail. See {@link io.karatelabs.profiling.SelfCpu}
+     * for why the parent does not measure this itself.
+     */
+    private static void appendCpu(StringBuilder md, Path runDir) {
+        String summary = findChildSummary(runDir);
+        String mockStats = io.karatelabs.profiling.LoadProfile.mockLine(runDir, "PROFILING-MOCK-STATS ");
+        double childCpu = keyValueNanos(summary, io.karatelabs.profiling.SelfCpu.CPU_NANOS);
+        double childWall = keyValueNanos(summary, io.karatelabs.profiling.SelfCpu.WALL_NANOS);
+        double mockCpu = io.karatelabs.profiling.LoadProfile.mockNumber(mockStats, "cpuNanosInWindow") / 1e9;
+        double mockWall = io.karatelabs.profiling.LoadProfile.mockNumber(mockStats, "loadWindowSeconds");
+        if (childCpu < 0 && mockCpu < 0) {
+            return;
+        }
+        int cpus = Runtime.getRuntime().availableProcessors();
+        md.append("## CPU headroom\n\n");
+        md.append("What each process burned **over its own measured window** — no JVM startup, no idle ")
+                .append("tail. `cores` near ").append(cpus)
+                .append(" means this run measured the machine rather than what it was pointed at, and a ")
+                .append("throughput comparison taken there is not a comparison of clients.\n\n")
+                .append("The two windows are not the same window — the injector's spans its whole ")
+                .append("simulation, the mock's only the load — so read each row against `cpus`, and ")
+                .append("never one row against the other.\n\n");
+        md.append("| process | CPU (core-s) | window (s) | cores busy | % of ").append(cpus)
+                .append(" cpus |\n|---|---:|---:|---:|---:|\n");
+        cpuRow(md, "workload (the injector)", childCpu, childWall, cpus);
+        cpuRow(md, "mock (co-located)", mockCpu, mockWall, cpus);
+        if (mockCpu >= 0) {
+            md.append("\nThe mock shares these cores with the load driver, so its row **is** the ")
+                    .append("co-location bias — a number rather than an argument. On a two-host run it ")
+                    .append("is what shows the mock host was idle.\n");
+        }
+        md.append("\n");
+    }
+
+    private static void cpuRow(StringBuilder md, String label, double cpuSeconds, double windowSeconds, int cpus) {
+        if (cpuSeconds < 0) {
+            return;
+        }
+        double cores = windowSeconds <= 0 ? -1 : cpuSeconds / windowSeconds;
+        md.append("| ").append(label).append(" | ").append(fixed(cpuSeconds, 2)).append(" | ")
+                .append(windowSeconds <= 0 ? "?" : fixed(windowSeconds, 2)).append(" | ")
+                .append(cores < 0 ? "?" : "**" + fixed(cores, 2) + "**").append(" | ")
+                .append(cores < 0 ? "?" : fixed(100 * cores / Math.max(cpus, 1), 0) + "%").append(" |\n");
+    }
+
+    /** Pull one {@code key=<nanos>} out of the child's summary line, as seconds; -1 if absent. */
+    private static double keyValueNanos(String summary, String key) {
+        if (summary == null) {
+            return -1;
+        }
+        for (String token : summary.split("\\s+")) {
+            if (token.startsWith(key + "=")) {
+                try {
+                    long nanos = Long.parseLong(token.substring(key.length() + 1));
+                    return nanos < 0 ? -1 : nanos / 1e9;
+                } catch (NumberFormatException e) {
+                    return -1;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private static String fixed(double value, int decimals) {
+        return String.format(java.util.Locale.ROOT, "%." + decimals + "f", value);
+    }
+
     /** The classpath the child ran with, lifted back out of its recorded command line. */
     private static String childClasspath(RunInfo info) {
         List<String> command = info.command();

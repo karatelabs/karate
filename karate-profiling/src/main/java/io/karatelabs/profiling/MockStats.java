@@ -101,6 +101,25 @@ final class MockStats {
     private final AtomicLong firstEnterNanos = new AtomicLong();
     private final AtomicLong lastExitNanos = new AtomicLong();
 
+    /**
+     * This process's own CPU total as the load window opened, so the window's CPU cost can be
+     * differenced out of it.
+     *
+     * <p><b>What it is for is the co-location bias, not the mock's own performance.</b> The mock
+     * shares a machine with the load driver, and docs/PROFILING.md §10 names that as the one
+     * confound it cannot argue away — noting it runs <i>against</i> Karate, whose arm opens a
+     * connection per iteration and so makes the co-located server work harder than the plain arm
+     * does. Reporting what the server took from the same cores turns that from an argument into a
+     * subtraction, and on a two-host run it is what confirms the mock host was idle.
+     *
+     * <p>Captured once, on the same compare-and-set that opens the window, so it costs one
+     * management call per window rather than one per request. The closing read is taken whenever
+     * {@code toJson} runs rather than at the last exit — reading a CPU total on the request path
+     * would be instrumentation that perturbs. The mock is idle between the two, so the overshoot
+     * is whatever the shutdown path costs.
+     */
+    private final AtomicLong cpuNanosAtWindowStart = new AtomicLong(-1);
+
     MockStats() {
         for (int i = 0; i < BUCKETS; i++) {
             histogram[i] = new LongAdder();
@@ -112,8 +131,9 @@ final class MockStats {
     int enter() {
         // Read before writing: after the first request of a window this is a plain load that
         // fails the test, not a CAS on every request.
-        if (firstEnterNanos.get() == 0) {
-            firstEnterNanos.compareAndSet(0, System.nanoTime());
+        if (firstEnterNanos.get() == 0 && firstEnterNanos.compareAndSet(0, System.nanoTime())) {
+            // Exactly the one request that opened the window pays for this.
+            cpuNanosAtWindowStart.set(SelfCpu.nanos());
         }
         int current = inFlight.incrementAndGet();
         peakInFlight.getAndAccumulate(current, Math::max);
@@ -241,6 +261,7 @@ final class MockStats {
         // computed over a window that opened during the previous ramp point is not a rate.
         firstEnterNanos.set(0);
         lastExitNanos.set(0);
+        cpuNanosAtWindowStart.set(-1);
         Arrays.fill(peerPorts, 0L);
     }
 
@@ -314,8 +335,18 @@ final class MockStats {
                 // How many distinct client ports this window saw: the plain arm's keep-alive
                 // connections versus the karate arm's per-execution client, as a count.
                 + ",\"distinctPeerPorts\":" + distinctPeers()
+                // What this server took from the cores it shares with the load driver. Reported
+                // raw, next to the window it belongs to, so a reader divides rather than trusts.
+                + ",\"cpuNanosInWindow\":" + cpuInWindow()
                 + ",\"elapsedSeconds\":" + String.format(java.util.Locale.ROOT, "%.3f", elapsedSeconds)
                 + "}";
+    }
+
+    /** CPU burned since the load window opened, or -1 if no window opened or the JVM declined. */
+    private long cpuInWindow() {
+        long atStart = cpuNanosAtWindowStart.get();
+        long now = SelfCpu.nanos();
+        return atStart < 0 || now < 0 ? -1 : now - atStart;
     }
 
     /** The one-line shutdown summary. Keep the prefix stable — the parent greps for it. */

@@ -80,12 +80,14 @@ public final class Child {
             // there is exactly one unit of work and running it twice would double the run.
             System.out.println("[child] workload drives its own concurrency — one pass, no warmup");
             long selfStart = System.nanoTime();
+            SelfCpu.Window selfCpu = SelfCpu.open();
             Result self = driveOnce(workload);
             System.out.println(SUMMARY_PREFIX
                     + "completed=" + self.completed
                     + " errors=" + self.errors
                     + " elapsedMs=" + ((System.nanoTime() - selfStart) / 1_000_000)
                     + " peakHeapBytes=" + peakHeapBytes()
+                    + " " + selfCpu.describe()
                     + " oom=" + self.oom);
             if (self.firstFailure != null) {
                 self.firstFailure.printStackTrace(System.out);
@@ -101,8 +103,13 @@ public final class Child {
 
         System.out.println("[child] measuring");
         long startNanos = System.nanoTime();
+        // Opened here rather than at process start, which is the whole point: warmup, class
+        // loading and JIT are on the other side of this line, and a CPU total that includes them
+        // measures the JVM waking up rather than the workload. See SelfCpu.
+        SelfCpu.Window cpu = SelfCpu.open();
         Result result = drive(workload, threads, iterations, duration);
         long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+        String cpuDescription = cpu.describe();
 
         try {
             workload.teardown();
@@ -116,6 +123,8 @@ public final class Child {
                 + " errors=" + result.errors
                 + " elapsedMs=" + elapsedMs
                 + " peakHeapBytes=" + peakHeapBytes
+                // Captured before teardown, which is not the workload and can be slow.
+                + " " + cpuDescription
                 + " oom=" + result.oom);
         if (result.firstFailure != null) {
             System.out.println("[child] first failure: " + result.firstFailure);
