@@ -8,6 +8,13 @@
 # it made, and nothing here has an auto-stop: see docs/PROFILING_EC2.md.
 source "$(dirname "$0")/lib.sh"
 
+# A soak needs time and one JVM, not the two-host parity topology — and an idle
+# second instance overnight is real money for no measurement. --single launches
+# the injector only; matrix.sh will refuse to run without a mock host, which is
+# the correct failure.
+single=false
+[[ "${1:-}" == "--single" ]] && single=true
+
 my_ip="$(curl -s --max-time 10 https://checkip.amazonaws.com || true)"
 [[ -n "$my_ip" ]] || die "could not determine your public IP for the ssh rule"
 
@@ -73,10 +80,14 @@ launch() {
 }
 
 launch "$KP_INJECTOR_NAME"
-launch "$KP_MOCK_NAME"
+$single || launch "$KP_MOCK_NAME"
 
 log "waiting for instances to run"
-aws ec2 wait instance-running --instance-ids "$(kp_id_of "$KP_INJECTOR_NAME")" "$(kp_id_of "$KP_MOCK_NAME")"
+if $single; then
+    aws ec2 wait instance-running --instance-ids "$(kp_id_of "$KP_INJECTOR_NAME")"
+else
+    aws ec2 wait instance-running --instance-ids "$(kp_id_of "$KP_INJECTOR_NAME")" "$(kp_id_of "$KP_MOCK_NAME")"
+fi
 
 # --- elastic IPs (optional) --------------------------------------------------
 associate_eip() {
@@ -94,7 +105,7 @@ associate_eip() {
     aws ec2 associate-address --allocation-id "$alloc" --instance-id "$instance" >/dev/null
 }
 associate_eip "${KP_EIP_INJECTOR:-}" "$KP_INJECTOR_NAME"
-associate_eip "${KP_EIP_MOCK:-}" "$KP_MOCK_NAME"
+$single || associate_eip "${KP_EIP_MOCK:-}" "$KP_MOCK_NAME"
 
 injector_ip="$(kp_ip_of "$KP_INJECTOR_NAME")"
 mock_ip="$(kp_ip_of "$KP_MOCK_NAME")"
@@ -102,12 +113,12 @@ mock_private="$(kp_private_ip_of "$KP_MOCK_NAME")"
 
 log "waiting for ssh"
 kp_wait_ssh "$injector_ip"
-kp_wait_ssh "$mock_ip"
+$single || kp_wait_ssh "$mock_ip"
 
 cat <<EOF
 
   injector : $injector_ip   ($(kp_id_of "$KP_INJECTOR_NAME"))
-  mock     : $mock_ip   ($(kp_id_of "$KP_MOCK_NAME"))  private $mock_private
+  mock     : ${mock_ip:-(not launched — --single)}   ${mock_private:+private $mock_private}
 
   ssh -i $KP_KEY_FILE $KP_SSH_USER@$injector_ip
 

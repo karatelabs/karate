@@ -26,7 +26,10 @@ done
 
 injector_ip="$(kp_ip_of "$KP_INJECTOR_NAME")"
 mock_ip="$(kp_ip_of "$KP_MOCK_NAME")"
-[[ -n "$injector_ip" && -n "$mock_ip" ]] || die "hosts not up — run etc/ec2/provision.sh first"
+[[ -n "$injector_ip" ]] || die "injector not up — run etc/ec2/provision.sh first"
+# A --single bench has no mock host, and a soak does not need one.
+hosts=("$injector_ip")
+[[ -n "$mock_ip" ]] && hosts+=("$mock_ip") || log "no mock host — bootstrapping the injector only"
 
 # --- the kernel settings -----------------------------------------------------
 # Every one of these is a limit the harness would otherwise measure instead of
@@ -114,7 +117,7 @@ BUILD_EOF
 # The local repo root, so --sync knows what to ship.
 KP_LOCAL_REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
 
-for host in "$injector_ip" "$mock_ip"; do
+for host in "${hosts[@]}"; do
     if ! $rebuild_only; then
         log "tuning kernel on $host"
         kp_ssh "$host" "$TUNE"
@@ -142,7 +145,7 @@ done
 
 if ! $rebuild_only; then
     log "verifying the settings actually took"
-    for host in "$injector_ip" "$mock_ip"; do
+    for host in "${hosts[@]}"; do
         echo "--- $host"
         kp_ssh "$host" 'echo "  ports     : $(cat /proc/sys/net/ipv4/ip_local_port_range)"
                         echo "  tw_reuse  : $(cat /proc/sys/net/ipv4/tcp_tw_reuse)"
