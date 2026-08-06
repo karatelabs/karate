@@ -277,6 +277,10 @@ final class MockStats {
     /**
      * A JSON object, hand-rolled. No JSON library on purpose — a reference clock must not share a
      * parser with the thing it is measuring, or a regression in that parser moves the reference.
+     *
+     * <p>Every decimal is formatted in {@code Locale.ROOT}: the default locale would render a
+     * comma decimal separator on a machine configured for one, which is not a smaller number — it
+     * is malformed JSON, and the parent scrapes this line.</p>
      */
     String toJson() {
         long total = served.sum();
@@ -305,12 +309,12 @@ final class MockStats {
                 // The load window and the rate over it. Gatling's own count/s divides by a
                 // whole-second duration; this does not, and that is the difference between
                 // "identical throughput" and a number.
-                + ",\"loadWindowSeconds\":" + String.format("%.6f", windowSeconds)
-                + ",\"servedPerSecond\":" + (windowSeconds == 0 ? "0.000" : String.format("%.3f", total / windowSeconds))
+                + ",\"loadWindowSeconds\":" + String.format(java.util.Locale.ROOT, "%.6f", windowSeconds)
+                + ",\"servedPerSecond\":" + (windowSeconds == 0 ? "0.000" : String.format(java.util.Locale.ROOT, "%.3f", total / windowSeconds))
                 // How many distinct client ports this window saw: the plain arm's keep-alive
                 // connections versus the karate arm's per-execution client, as a count.
                 + ",\"distinctPeerPorts\":" + distinctPeers()
-                + ",\"elapsedSeconds\":" + String.format("%.3f", elapsedSeconds)
+                + ",\"elapsedSeconds\":" + String.format(java.util.Locale.ROOT, "%.3f", elapsedSeconds)
                 + "}";
     }
 

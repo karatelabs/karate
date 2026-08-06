@@ -286,10 +286,16 @@ measure them instead of Karate:
   in the repository calls it, so every execution abandons its client, its connection manager and
   its pooled socket to the collector — sockets close when cleaners run, at a time no test controls.
   A file descriptor is not heap, so the heap-after-GC floor cannot see this at all.
-- **The ephemeral-port ceiling is ~550 connections/second** (§10), and the karate arm opens a
-  connection per iteration. Any duration run at the 0–10 ms tiers reaches that ceiling within a
-  minute, and it reads as "Karate is slower". Apply the port sysctl in §10, and prefer a latency
-  tier high enough that the offered connection rate stays under the ceiling.
+- **The ephemeral-port ceiling is ~550 connections/second** (§10), and the karate arm opens one
+  connection per iteration — measured, not assumed. Which tiers that rules out depends on the tier,
+  and the two numbers are worth keeping straight: at 10 ms the arm offers **263 conn/s**, under the
+  ceiling, so a soak there is not obviously doomed; at 0 ms it offers **~4,200 conn/s**, eight times
+  it, and a duration run there exhausts the range in seconds. **But the first number is only safe
+  if the sockets are actually released**, and the bullet above says they are not — a connection the
+  collector has not got to yet still holds its port, so port *occupancy* at 263/s is bounded by GC
+  timing rather than by TIME_WAIT. That is the real reason to fix the lifecycle before soaking, and
+  it is why the 10 ms tier's headroom cannot be taken on the arithmetic alone. Apply the port
+  sysctl in §10 either way, and watch the port count rather than assuming it.
 
 Fix the lifecycle — close at scenario end, or pool per virtual user — before reading any soak
 number from this lane.
@@ -1402,8 +1408,14 @@ everything else is the workload's default (`--xmx 1g`, G1, JDK 24):
 
 ```bash
 etc/run.sh gatling-http-plain  --iterations <size> --threads 8 --mock-latency <tier>
+sleep 35   # not optional — see below
 etc/run.sh gatling-http-karate --iterations <size> --threads 8 --mock-latency <tier>
 ```
+
+**Leave ~35 s between runs.** TIME_WAIT is 30 s at the default MSL and the karate arm opens a
+connection per iteration, so back-to-back runs can meet the ephemeral-port ceiling for reasons that
+have nothing to do with Karate — and it reads as "Karate is slower". Nothing in the harness
+enforces the gap.
 
 **Throughput is read from the mock, not from Gatling.** Gatling's `count/s` is requests divided by
 a duration rounded to whole seconds, which at these run lengths quantises the rate in steps of
@@ -1413,9 +1425,12 @@ established "less than one second apart". `MockStats` now stamps its first handl
 handler exit, so `servedPerSecond` is the same requests over a nanosecond-resolution window. Every
 figure below is that number. Runs are 2026-08-06 17:04–17:19; each row names its two directories.
 
-**Three back-to-back pairs per tier, arm order alternating**, so that drift over the matrix — and
-there is drift, both arms speed up by ~10% across it — cancels between the arms rather than
-loading one of them. "Added ms/iteration" is the window difference divided by iterations per user.
+**Three back-to-back pairs per tier, arm order alternating**, so that drift over the matrix cancels
+between the arms rather than loading one of them. And there is drift: rates rise ~10% across the
+10 ms tier, but **that is the mock, not the clients** — its measured sleep overshoot falls from
+~14.1 ms to ~12.25 ms over the same runs, which is the whole of it. Read `sleepMicrosMean`, not the
+knob, before attributing anything. "Added ms/iteration" is the window difference divided by
+iterations per user.
 
 #### 10 ms tier — 4000 iterations (500 per user), ~28 ms iteration
 
@@ -1465,9 +1480,19 @@ What the numbers now support, which is less than "identical" and more useful:
   2.1% ± more than that. **Both are consistent with the data and the run count cannot separate
   them** — more pairs, not a different instrument, is what this tier needs.
 - **The three tiers are consistent with one fixed per-iteration cost of roughly half a millisecond
-  to a millisecond**, which is 2.1–2.4x throughput when the iteration is ~1 ms, ~2% when it is
+  to a millisecond**, which is 2.1–2.4x throughput when the iteration is a millisecond or two, ~2% when it is
   28 ms, and below this many pairs' resolution when it is 110 ms. That is the claim this section
   now makes, and it is a shape rather than a disappearance.
+- **Check sleep parity within a pair before believing the difference — it moves this number, and
+  it moves it against Karate.** The injected sleep is a real `Thread.sleep` whose overshoot varies
+  with load, and the mock reports what it actually took. In all three 10 ms pairs the mock slept
+  *less* on the karate side (13 957 vs 14 180 µs; 13 799 vs 13 909; 12 250 vs 12 260), which at two
+  requests per iteration hands the karate arm 0.45 / 0.22 / 0.02 ms of iteration back. Add it in
+  and the added serial time is **0.92 / 1.15 / 0.40, mean 0.82 ms** (sd 0.38) rather than 0.59. So
+  the raw-window figure is the *conservative* one, and the supportable statement for this tier is
+  0.6–0.8 ms per iteration. Whether to correct is arguable — the sleep is meant to be the same
+  simulated network for both arms, and a systematic difference is itself a confound rather than a
+  quantity to subtract — but the check is not arguable, and it is one field in the digest.
 - **Some of that ~0.6 ms is not Karate's.** The karate arm opens 4000 connections where the plain
   arm opens 8, and every accept costs the co-located mock work *upstream of its own clock*, on the
   same ten cores. So the figure is an upper bound on client cost — and at the same time the
@@ -1476,7 +1501,9 @@ What the numbers now support, which is less than "identical" and more useful:
 - **The percentile tails do not have a stable direction, and the first matrix's reading of them
   does not replicate.** At 10 ms the karate arm is tighter in all three pairs (p99 17/17/16 ms vs
   18/18/33 ms), which matched the original finding; at 50 ms it reverses in two of three (p99
-  71/98/88 ms vs 83/62/63 ms). p50 is identical in every pair at both tiers. Whatever produces the
+  71/98/88 ms vs 83/62/63 ms). p50 matches in five of the six pairs and differs by 2 ms in the
+  sixth (50 ms pair 1: plain 58, karate 56) — say "matches", not "identical", because the one
+  exception is exactly the kind of cell a sweeping word hides. Whatever produces the
   tail difference is not a property of the client that survives a change of tier, and it should not
   be reported as one in either direction.
 - **Percentiles could not have detected the overhead anyway.** The karate arm's reported response
@@ -1497,7 +1524,9 @@ What the numbers now support, which is less than "identical" and more useful:
 Every cell was checked against the mock's own report: `peakInFlight` equal to the user count in all
 seventeen runs, and service p99 between 115 µs and 2.2 ms — the worst of them still 4% of the
 50 ms tier's own latency, so the server was never the bottleneck at 8 users. Every run also
-reconciles: Gatling's ok+ko equals the mock's `served` equals iterations × 2, in all seventeen.
+reconciles: Gatling's ok+ko equals the mock's `served`, in all seventeen, at two requests per
+iteration — against the iteration count Gatling actually ran, which is the requested one rounded
+up to a multiple of the user count (the 500-iteration cell ran 504, and its digest says so).
 That check, not the calibrated knee, is what carries the headroom argument in these cells.
 
 ### Reading a calibration, and the acceptance rules
@@ -1562,7 +1591,7 @@ and the wording above reads as though all three did:
   between 115 µs and 2.2 ms, the worst of which is 4% of its own tier's injected latency. Each run
   also reconciles: iterations × 2 = Gatling's ok+ko = the mock's `served`.
 - **Headroom, injector side: not recorded anywhere.** Not in the digests, not in the table. It is
-  a safe inference at 571 req/s and genuinely in doubt at the 0 ms tier, which is the tier where it
+  a safe inference at the 10 ms tier's 526–591 req/s and genuinely in doubt at the 0 ms tier, which is the tier where it
   is missing. The `/usr/bin/time` wrapper from §6's null-pair method is how to record it.
 - **Flat floor: not readable at these window lengths, so not met — unevaluated.** Every digest in
   the matrix prints its own drift, and none of them is flat: the karate arms land at +11–14 MB
