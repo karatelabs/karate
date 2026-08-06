@@ -1429,9 +1429,24 @@ java -cp target/classes:$(cat target/cp.txt) io.karatelabs.profiling.MockCalibra
      --url http://127.0.0.1:PORT --ramp 1,4,16,64,128,256 --requests 4000 --latency 10ms
 ```
 
+> **RETRACTED — do not use the knee below.** Adversarial review found the estimator unsound and
+> the calibration client failure-blind, and the two defects push in the same direction: toward
+> declaring the mock healthy. Specifically, `unowned` subtracts two **unpaired marginal
+> quantiles** (median(X−Y) ≠ median(X)−median(Y), and the request at the client median is not the
+> one at the server median), and it does so at a resolution coarser than the signal — the held
+> p50 is a histogram bucket *bound*, ±0.8 ms at 12.8 ms, against growth values of 1.70 and
+> 2.34 ms. Separately, a failed request removes itself from the sample: the calibrator breaks
+> that user's loop, never checks response status, and drops the empty slots, so the connection
+> failures expected *at the knee* are exactly what goes missing from the distribution.
+>
+> The numbers are kept here because the shape of the run is still informative and because a
+> retraction that deletes its own evidence teaches nobody anything. **They are not a validity
+> limit and no matrix cell may cite them.**
+
 **First calibration — machine A, 10 ms injected, 4000 requests per point.** `unowned` is client
 p50 minus what the mock can account for (its service time plus the sleep it actually took);
-`growth` is that figure's rise over the single-user baseline, which is the queueing signal.
+`growth` is that figure's rise over the single-user baseline, read at the time as the queueing
+signal — see the retraction above for why it is not one.
 
 | users | keepalive tps | growth | close tps | growth |
 |---:|---:|---:|---:|---:|
@@ -1439,21 +1454,33 @@ p50 minus what the mock can account for (its service time plus the sleep it actu
 | 128 | 9391 | −0.55 | 4815 | **1.70** |
 | 256 | 7755 (down) | **2.34** | 3543 (down) | **12.89** |
 
-Three things to take from it, all of which the matrix depends on:
+What survives the retraction, and what does not:
 
-- **The mock is out of the way to ~128 users keep-alive and ~64 close.** Run the parity matrix
-  below that; anything above is measuring the mock.
-- **Close mode knees first, by a lot** — and that is the mode the Karate variant resembles,
-  because it builds an HTTP client per execution. Calibrating only in keep-alive would have put
-  the ceiling at twice its real value for the variant that matters.
-- **TPS falls at the knee while p99 explodes** (20 ms → 113 ms). Note TPS *rising* proves nothing
-  and TPS flattening proves nothing either — in a closed loop it is capped by users ÷ iteration
-  time. It is the growth column that moves first.
+- **Survives:** close mode degrades earlier than keep-alive, and by a wide margin. That
+  direction is robust to the estimator, and it matters because connection-per-request is the
+  mode the Karate variant resembles — it builds an HTTP client per execution. Calibrating only
+  in keep-alive would have set the ceiling for the variant under test at roughly twice its real
+  value. Also robust: TPS *falls* at the top of the ramp while p99 goes 20 ms → 113 ms, which is
+  a collapse whatever the estimator says.
+- **Does not survive:** the specific numbers "~128 users keep-alive, ~64 close" as a validity
+  limit. They came from the retracted growth column, on points that may have been quietly
+  missing their failed requests.
+- **Never established:** that TPS is a saturation signal at all. In a closed loop it is capped
+  by users ÷ iteration time, so neither its rise nor its flattening proves anything.
 
-One caveat that travels with these numbers: the calibrator is itself a JVM on the same 10 cores,
-so at the top of the ramp it is competing with the mock. The knee measured here is the knee of
-*mock plus client on one box*, which is the right envelope for this harness — but it is not a
-property of the mock alone.
+Two methodology problems the numbers cannot fix, both to be settled before the knee is quoted
+again:
+
+- **The calibration client is not the matrix client.** It sends POST only; the matrix does
+  POST + GET, and Karate's two calls may share one connection where the calibrator's close mode
+  forces one per request. An envelope measured on one traffic shape does not transfer to the
+  other.
+- **A cheap client does not bound contention for an expensive one.** The calibrator and the mock
+  share ten cores, and the Karate injector will take more CPU from the co-located mock than the
+  calibrator did — so a knee found with the cheap client is not conservative for the expensive
+  one. Karate can make the reference slower merely by using the host, manufacturing a
+  server-side contribution to the very gap being attributed to the client. Prose disclosure is
+  not a correction: this wants reserved CPUs, or calibration with the actual clients, or both.
 
 ### C — make the comparison numeric
 

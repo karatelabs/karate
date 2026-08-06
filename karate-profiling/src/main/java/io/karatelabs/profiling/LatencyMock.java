@@ -34,6 +34,7 @@ import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
  * A mock whose own cost is known — the instrument the Gatling parity question needs, as scoped in
@@ -88,10 +89,20 @@ public final class LatencyMock {
     private static final byte[] NOT_FOUND = "{\"error\":\"not found\"}".getBytes(StandardCharsets.UTF_8);
     private static final byte[] BAD_REQUEST = "{\"error\":\"expected a json object body\"}".getBytes(StandardCharsets.UTF_8);
 
+    /**
+     * One created cat. A record, so id and body are published together by a single reference
+     * write — the first cut kept them in two parallel arrays written back to back with plain
+     * stores, which has no happens-before edge at all: a reader could observe the matching id
+     * against a stale body. That would not have surfaced as an error, because every cat in the
+     * simulations is named "Billie" and the plain variant only checks the name — it would have
+     * served the wrong record and passed.
+     */
+    private record Cat(long id, byte[] body) {
+    }
+
     private final MockStats stats = new MockStats();
     private final AtomicLong nextId = new AtomicLong();
-    private final long[] ringIds = new long[RING_SLOTS];
-    private final byte[][] ringBodies = new byte[RING_SLOTS][];
+    private final AtomicReferenceArray<Cat> ring = new AtomicReferenceArray<>(RING_SLOTS);
     private final long latencyNanos;
     private final int backlog;
 
@@ -236,11 +247,7 @@ public final class LatencyMock {
         String separator = text.length() == 2 ? "" : ",";
         byte[] body = (text.substring(0, text.length() - 1) + separator + "\"id\":" + id + "}")
                 .getBytes(StandardCharsets.UTF_8);
-        int slot = (int) (id & (RING_SLOTS - 1));
-        // Body before id: a reader that sees the id must see the body it belongs to. The pair is
-        // not atomic, and does not need to be — a torn read yields a 404, never a wrong cat.
-        ringBodies[slot] = body;
-        ringIds[slot] = id;
+        ring.set((int) (id & (RING_SLOTS - 1)), new Cat(id, body));
         return body;
     }
 
@@ -251,8 +258,10 @@ public final class LatencyMock {
         } catch (NumberFormatException e) {
             return null;
         }
-        int slot = (int) (id & (RING_SLOTS - 1));
-        return ringIds[slot] == id ? ringBodies[slot] : null;
+        Cat cat = ring.get((int) (id & (RING_SLOTS - 1)));
+        // An id mismatch means the slot was recycled before this read — a visible 404, which is
+        // the only failure mode worth having here.
+        return cat != null && cat.id() == id ? cat.body() : null;
     }
 
     private static void respond(HttpExchange exchange, int status, byte[] body) throws IOException {
