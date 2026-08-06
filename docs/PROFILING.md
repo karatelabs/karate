@@ -17,7 +17,8 @@
 > **If you are here to run something:** the next phase is
 > [the two-host phase](#the-two-host-phase-what-is-built-and-what-it-is-for) in §10 — two quiet
 > dedicated machines, because the 50 ms tier was shown to be limited by the laptop rather than by
-> the number of pairs taken on it.
+> the number of pairs taken on it. It is automated end to end in
+> **[PROFILING_EC2.md](./PROFILING_EC2.md)**: provision, bootstrap, run, collect, tear down.
 
 ---
 
@@ -1715,6 +1716,9 @@ convention — a correctness condition that lived only in an operator's shell sc
 after the fact rather than assumed.
 
 #### The machine
+
+Built and automated — see **[PROFILING_EC2.md](./PROFILING_EC2.md)** for the runbook, the env-file
+contract and the teardown. What follows is why it is shaped the way it is.
 
 **Two instances, not one**, and the second one is the whole point — a co-located mock is the
 confound being removed.
