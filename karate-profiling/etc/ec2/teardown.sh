@@ -8,11 +8,21 @@
 # resources this bench borrows, and releasing one loses the address for good.
 source "$(dirname "$0")/lib.sh"
 
+# By tag, not by name, and including stopped instances: a stopped one still bills its
+# volume and still blocks the security group, and a name lookup that filters on
+# "running" reports a clean teardown while it sits there.
 ids=()
-for name in "$KP_INJECTOR_NAME" "$KP_MOCK_NAME"; do
-    id="$(kp_id_of "$name")"
-    [[ -n "$id" ]] && ids+=("$id")
-done
+while read -r id; do [[ -n "$id" ]] && ids+=("$id"); done <<< "$(kp_all_alive)"
+
+if ((${#ids[@]} == 0)); then
+    # The most expensive failure this script has is doing nothing and saying so
+    # cheerfully — which is exactly what happens if KP_PREFIX changed since provision,
+    # because then nothing matches the tag and every lookup comes back empty.
+    log "no instances tagged $KP_PREFIX — if you changed KP_PREFIX since provisioning,"
+    log "  this teardown will NOT find the old ones. Check by hand:"
+    log "  aws ec2 describe-instances --filters Name=instance-state-name,Values=running \\"
+    log "    --query 'Reservations[].Instances[].{Id:InstanceId,Type:InstanceType,Name:Tags[?Key==\`Name\`]|[0].Value}' --output table"
+fi
 
 for alloc in "${KP_EIP_INJECTOR:-}" "${KP_EIP_MOCK:-}"; do
     [[ -n "$alloc" ]] || continue
@@ -58,7 +68,9 @@ if [[ -n "$sg_id" ]]; then
     done
 fi
 
-log "checking nothing is left running"
+# Every non-terminated state, so a stopped leftover is visible rather than filtered out.
+log "checking nothing is left"
 aws ec2 describe-instances \
-    --filters "Name=tag:$KP_PREFIX,Values=true" "Name=instance-state-name,Values=running,pending" \
+    --filters "Name=tag:$KP_PREFIX,Values=true" \
+    "Name=instance-state-name,Values=running,pending,stopping,stopped,shutting-down" \
     --query 'Reservations[].Instances[].{Id:InstanceId,State:State.Name}' --output table

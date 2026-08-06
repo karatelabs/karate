@@ -83,13 +83,13 @@ run_arm() {
             $mock_args 2>&1")"; then
         log "  !! $arm FAILED"
         echo "$out" | tail -5 | sed 's/^/     /'
-        ((failures++))
+        failures=$((failures + 1))
         return 0
     fi
     if ! grep -q '^\[parent\] digest:' <<<"$out"; then
         log "  !! $arm produced no digest"
         echo "$out" | tail -5 | sed 's/^/     /'
-        ((failures++))
+        failures=$((failures + 1))
         return 0
     fi
     grep '^\[parent\] digest:' <<<"$out" | tail -1 | sed 's/^/  /'
@@ -98,6 +98,17 @@ run_arm() {
 # Marker: everything created after this belongs to this matrix.
 marker=".matrix-start-$$"
 kp_ssh "$injector_ip" "mkdir -p ~/karate/karate-profiling/target/profiling && touch ~/karate/karate-profiling/target/profiling/$marker"
+
+# Discard one run against the freshly started mock. Its JVM is still JIT-compiling:
+# measured, the first run against a cold mock showed the mock burning 3.86 core-s and
+# a service p99 of 231 us against 0.70 and 10 us for every later run, and the arm that
+# absorbs that lands ~0.5 ms/iteration slower. Because pair 1 always leads with karate,
+# the bias was structural and always against Karate — it inflated a 10-pair mean from
+# +1.79 to +1.84 and tripled its standard deviation on its own.
+log "warming the mock (one discarded run)"
+run_arm karate >/dev/null 2>&1 || true
+kp_ssh "$injector_ip" "cd ~/karate/karate-profiling/target/profiling && rm -rf \$(ls -1dt gatling-http-* | head -1)"
+sleep "$gap"
 
 log "$pairs pairs at $tier — $iterations iterations, $users users, ${gap}s between runs"
 for ((pair = 1; pair <= pairs; pair++)); do
@@ -112,7 +123,7 @@ for ((pair = 1; pair <= pairs; pair++)); do
     ((pair < pairs)) && sleep "$gap"
 done
 
-if ((failures)); then
+if [[ $failures -gt 0 ]]; then
     # Loud, and non-zero: an incomplete matrix must not read as a complete one.
     # Delete the orphaned run before collecting, or `compare` will pair across
     # the gap and report two arms from different pairs as one.

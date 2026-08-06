@@ -6,9 +6,10 @@
 >
 > **Why two machines rather than a laptop.** §10's 50 ms tier was run six times on a laptop
 > and never resolved: the effect is ~0.5% of an iteration and the machine's run-to-run floor
-> is 3–6%. And co-location is the one confound §10 could never argue away — a mock sharing
-> ten cores with the injector, biased *against* Karate, whose arm opens a connection per
-> iteration. This phase removes both.
+> is 3–6%. On a quiet dedicated instance the same measurement lands at sd **0.05 ms** — the
+> noise problem is solved. Co-location was the second reason, and it turned out to be the
+> smaller one: measured against a same-instance control, topology accounts for ≲0.15 ms of a
+> 1.2 ms difference ([§6](#6-what-moving-off-the-laptop-changed)).
 
 ---
 
@@ -104,6 +105,8 @@ export KARATE_PROFILING_ENV=~/somewhere/private/karate-ec2.env
 
 etc/ec2/provision.sh                                   # ~1 min
 etc/ec2/bootstrap.sh                                   # ~3.5 min
+etc/ec2/calibrate.sh --tier 10ms                       # §10 step 1 — establishes the
+                                                       # mock's envelope on THIS machine
 etc/ec2/matrix.sh --tier 10ms --pairs 10 --iterations 4000 --users 8
 etc/ec2/collect.sh                                     # pulls digests, prints the table
 etc/ec2/teardown.sh                                    # ← do not skip
@@ -151,14 +154,31 @@ into a table, push it, `--rebuild`, and let the build stamp name the commit.
 ### 4.4 matrix
 
 ```bash
-etc/ec2/matrix.sh --tier 10ms --pairs 10 --iterations 4000 --users 8
-etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8
+etc/ec2/matrix.sh --tier 10ms --pairs 10 --iterations 4000 --users 8 --label 10ms-2host
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --label 50ms-2host
+etc/ec2/matrix.sh --tier 10ms --pairs 10 --iterations 4000 --users 8 \
+                  --local-mock --label 10ms-1host      # the co-location control
 ```
 
 Restarts the mock at the requested latency — the tier is fixed at construction, and a
 leftover mock from the previous tier answers with the old latency while the digests carry
-the new label. Then runs the pairs, **alternating which arm leads**, so drift over the
-matrix loads both arms equally instead of accumulating against one.
+the new label. Discards one warmup run against the fresh mock (see §6 — without it the
+first pair is biased against Karate by ~0.5 ms). Then runs the pairs, **alternating which
+arm leads**, so drift over the matrix loads both arms equally instead of accumulating
+against one.
+
+**Always pass `--label`, and a distinct one per matrix.** `compare` pairs runs by timestamp
+adjacency, so two unlabelled matrices in one directory interleave — the last run of one
+pairs with the first of the next and two experiments are reported as a single table with
+nothing amiss on the face of it. `--label` parks each matrix in its own directory and
+`collect.sh` derives one table per label. Re-using a label across two runs re-creates the
+same hazard inside it.
+
+**`--local-mock`** forks the mock on the injector as a single-host run does. It is the
+control for the whole phase: same instance, same JDK, same commit, and only the topology
+changes — without it, any difference from the laptop is confounded by architecture and OS
+as well. Note it is not a perfectly clean control, because `run.sh` forks a fresh mock per
+run while the two-host mock persists warmed (§6).
 
 ### 4.5 collect
 
@@ -189,22 +209,44 @@ a broken rig. Only a spread that stays larger than the effect says the machine i
 
 ## 6. What moving off the laptop changed
 
-Recorded because two of these were predictions in §10 that the move turned into measurements.
+Recorded because the move turned several of §10's predictions into measurements — and refuted
+one of them.
 
 | | Laptop (machine A) | EC2 two-host |
 |---|---|---|
 | Sustainable connection rate | 16384 ports / 30 s → **~546/s** | 64512 ports / 60 s → **~1075/s**, plus `tcp_tw_reuse=1` |
-| 10 ms iteration | ~28 ms (sleep overshot to ~14 ms) | **~21 ms** — the injected 10 ms is nearly 10 ms |
-| Injector headroom | never recorded | **0.9–1.6 of 16 cores**, in every digest |
-| Connection setup | loopback, priced at ~zero | a real hop, and the karate arm opens one per iteration |
+| 10 ms iteration | ~28 ms (sleep overshot to ~14 ms) | **~21 ms** — the injected 10 ms is 10.06 ms |
+| Injector headroom | never recorded | **0.9–1.7 of 16 cores**, in every digest |
+| Karate's added serial time | +0.59 ms/iter, sd 0.29, n=3 | **+1.79 ms/iter, sd 0.05, n=9** |
 
-That last row is the one to watch. §10 predicted it in writing — *"this harness prices those
-4000 handshakes at approximately zero … against a real API it is +1 RTT per iteration"* — and
-the first two-host pair came back at **+2.2 ms/iteration against the laptop's ~0.6 ms**. One
-pair proves nothing; see §10's table for what the full matrix settled. But the direction is
-the predicted one, and it is the reason co-location was worth the two instances.
+**The first result is that the cost is machine-dependent, and the absolute number does not
+travel.** The laptop's 3-pair figure carries a 95% interval of roughly −0.13…+1.31 ms, so the
+ratio between the two machines is anywhere from ~1.4x to ~14x. Any statement of the form
+"Karate costs X ms per iteration" has to name the machine.
 
----
+**The second is that co-location was *not* the confound it was thought to be.** §10 predicted
+the two-host move would expose a per-iteration connection cost that loopback priced at zero.
+It did not: a co-located control on the *same instance, same commit* came in at **+1.94 ms
+(sd 0.09, n=4)** against the two-host **+1.79** — so topology accounts for about **0.15 ms**,
+roughly a tenth of the 1.2 ms gap from the laptop. The prediction is not refuted, though: at a
+same-AZ RTT of ~100 µs there is almost no round trip to pay for. It remains **untested at
+realistic RTT with TLS**, which is where it was always expected to bite.
+
+Two cautions that cost a wrong conclusion here, both worth carrying into the next run:
+
+- **A freshly started mock is cold, and the arm that meets it pays.** The first run against a
+  new `LatencyMock` showed the mock burning 3.86 core-s with a service p99 of 231 µs, against
+  0.70 core-s and 10 µs once warm — and that arm ran ~0.5 ms/iteration slower. Since pair 1
+  always leads with karate, the bias was structural and always against Karate: it moved a
+  10-pair mean from +1.79 to +1.84 and tripled its standard deviation single-handedly.
+  `matrix.sh` now discards one warmup run after starting the mock.
+- **Do not read a co-located mock's high CPU as core contention.** The control's mock showed
+  4.8 core-s and a 303 µs p99 against the two-host mock's 0.7 and 10 µs — which looks like
+  co-location damage and is not. `run.sh` forks a fresh mock per run, so every co-located run
+  meets a cold JVM; the *plain* arm, which opens 8 connections in total, shows the identical
+  signature. It is warmup, not contention. (It also means the control differs from the
+  two-host arm in two ways — topology *and* mock lifecycle — so the 0.15 ms above is an upper
+  bound on the topology term.)
 
 ## 7. Teardown
 

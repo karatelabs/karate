@@ -139,14 +139,40 @@ public final class JfrDigest {
                 .append("and never one row against the other.\n\n");
         md.append("| process | CPU (core-s) | window (s) | cores busy | % of ").append(cpus)
                 .append(" cpus |\n|---|---:|---:|---:|---:|\n");
+        // Whether the mock shared these cores is not something this panel may assume. The
+        // label used to read "co-located" unconditionally, which became a falsehood the day
+        // --mock-url landed: every two-host digest asserted the mock was on this machine.
+        boolean external = mockLine(runDir, "[external] attached to ") != null;
         cpuRow(md, "workload (the injector)", childCpu, childWall, cpus);
-        cpuRow(md, "mock (co-located)", mockCpu, mockWall, cpus);
-        if (mockCpu >= 0) {
+        cpuRow(md, "mock (" + (external ? "REMOTE host — cores below are its own" : "co-located")
+                + ")", mockCpu, mockWall, cpus);
+        if (mockCpu >= 0 && !external) {
             md.append("\nThe mock shares these cores with the load driver, so its row **is** the ")
-                    .append("co-location bias — a number rather than an argument. On a two-host run it ")
-                    .append("is what shows the mock host was idle.\n");
+                    .append("co-location bias — a number rather than an argument.\n");
+        } else if (mockCpu >= 0) {
+            md.append("\nThe mock ran on its own host, so its row shows that host was idle rather ")
+                    .append("than any bias here — and `% of cpus` divides by **this** machine's core ")
+                    .append("count, which is only meaningful when both hosts are the same size.\n");
         }
         md.append("\n");
+    }
+
+    /** Any line of mock.log starting with the prefix, or null. */
+    private static String mockLine(Path runDir, String prefix) {
+        try {
+            Path log = runDir.resolve("mock.log");
+            if (!Files.exists(log)) {
+                return null;
+            }
+            for (String line : Files.readAllLines(log)) {
+                if (line.startsWith(prefix)) {
+                    return line;
+                }
+            }
+        } catch (IOException e) {
+            return null;
+        }
+        return null;
     }
 
     private static void cpuRow(StringBuilder md, String label, double cpuSeconds, double windowSeconds, int cpus) {

@@ -15,7 +15,7 @@ set -euo pipefail
 # shellcheck disable=SC1090
 source "$KARATE_PROFILING_ENV"
 
-for required in AWS_PROFILE AWS_REGION KP_AZ KP_SUBNET KP_INSTANCE_TYPE KP_AMI \
+for required in AWS_PROFILE AWS_REGION KP_AZ KP_SUBNET KP_VPC KP_INSTANCE_TYPE KP_AMI \
                 KP_KEY_NAME KP_KEY_FILE KP_PREFIX KP_RESULTS; do
     : "${!required:?$required is not set in $KARATE_PROFILING_ENV}"
 done
@@ -48,6 +48,17 @@ kp_id_of() {
     aws ec2 describe-instances \
         --filters "Name=tag:Name,Values=$1" "Name=instance-state-name,Values=running,pending" \
         --query 'Reservations[].Instances[0].InstanceId' --output text 2>/dev/null | grep -v '^None$' || true
+}
+
+# Every instance this bench has ever tagged that is not already terminated — including
+# stopped and stopping ones, which kp_id_of deliberately ignores and teardown must not.
+# A stopped instance bills its EBS volume forever, blocks the security group from
+# deleting, and is invisible to a "nothing is running" check that filters on running.
+kp_all_alive() {
+    aws ec2 describe-instances \
+        --filters "Name=tag:$KP_PREFIX,Values=true" \
+        "Name=instance-state-name,Values=running,pending,stopping,stopped,shutting-down" \
+        --query 'Reservations[].Instances[].InstanceId' --output text 2>/dev/null | tr '\t' '\n' | grep -v '^None$' || true
 }
 
 # Private address — what the injector actually talks to. Traffic between two

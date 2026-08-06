@@ -721,7 +721,7 @@ granted:
 | **Measured, known-unbounded, accepted** | One feature holding thousands of scenarios, with reports on — still linear (502 / 1108 / 2079 MB). Only per-scenario release changes the slope, and §9 records why that was not built. |
 | **Never measured** | Soaks — "does Karate leak over hours". Every workload is an iteration-bounded reproduction finishing in seconds, so this is unverified rather than verified, **in both lanes**. The Gatling lane is entirely untouched and is the more likely place for one, because it builds a `Suite` per iteration against a long-lived thread pool. See [the leak-watch family](#leak-watch-family--not-built-and-it-is-the-biggest-gap-in-this-document) in §2. |
 | **Never measured** | CPU inside scenario code *under a parallel Runner suite*. All of §8 is allocation and retention, and `jdk.ExecutionSample` is blind on virtual threads there (§7). It is **not** blind in the Gatling lane, which runs scenarios inline on a platform thread. |
-| **Measured, and scoped rather than settled** | Whether Karate's per-execution overhead distorts a load test. **It adds ~0.5–1 ms of serial time per iteration** — 2.1–2.4x throughput at 0 ms, **~2% at 10 ms**, and **unresolved at 50 ms, where the limit is the machine rather than the pair count**: six pairs leave a spread more than three times the effect, because a 0.5% deficit sits an order of magnitude under this laptop's 3–6% floor. Loopback, 8 users, closed loop, ~100-byte bodies, log capture off ([§10](#10-the-latency-mock-and-what-the-parity-matrix-found)). Read the qualifiers as load-bearing: it *shrinks* as a share of the iteration rather than disappearing, and none of it generalises to TLS, to larger bodies, or to the one connection Karate opens per iteration, which **scales with** the network instead of hiding inside it and which this harness prices at zero. It also scopes the *load-test* lane only: the ordinary-suite half of the parse-cache decision was never measured (§9). |
+| **Measured, and scoped rather than settled** | Whether Karate's per-execution overhead distorts a load test. **It adds ~0.5–1 ms of serial time per iteration on machine A, and ~1.8 ms on a Graviton3 EC2 instance — the absolute figure is machine-specific and must always be quoted with its machine** (§10's two-host result)**.** — 2.1–2.4x throughput at 0 ms, **~2% at 10 ms**, and **unresolved at 50 ms, where the limit is the machine rather than the pair count**: six pairs leave a spread more than three times the effect, because a 0.5% deficit sits an order of magnitude under this laptop's 3–6% floor. Loopback, 8 users, closed loop, ~100-byte bodies, log capture off ([§10](#10-the-latency-mock-and-what-the-parity-matrix-found)). Read the qualifiers as load-bearing: it *shrinks* as a share of the iteration rather than disappearing, and none of it generalises to TLS, to larger bodies, or to the one connection Karate opens per iteration, which **scales with** the network instead of hiding inside it and which this harness prices at zero. It also scopes the *load-test* lane only: the ordinary-suite half of the parse-cache decision was never measured (§9). |
 
 The Gatling baseline below started as a fifth category: **leads, not findings** — real numbers
 from real runs, none chased to a cause. Three have since been chased (the per-scenario Logback
@@ -1618,6 +1618,59 @@ iteration — against the iteration count Gatling actually ran, which is the req
 up to a multiple of the user count (the 500-iteration cell ran 504, and its digest says so).
 That check, not the calibrated knee, is what carries the headroom argument in these cells.
 
+#### The two-host result — machine A2 (EC2 `c7g.4xlarge` x2, Graviton3, AL2023, JDK 24), 8 users
+
+First measurement on a quiet dedicated machine, 2026-08-06, commit `10090cc`, 4000 iterations
+per run, 10 pairs, arm order alternating, `--mock-url` to a `LatencyMock` on its own instance.
+Reproduce with [PROFILING_EC2.md](./PROFILING_EC2.md).
+
+| | added ms/iteration | sd | n |
+|---|---:|---:|---:|
+| **two hosts, warmed** | **+1.79** | **0.05** | 9 |
+| two hosts, including the cold-mock pair | +1.84 | 0.17 | 10 |
+| co-located control, same instance | +1.94 | 0.09 | 4 |
+| machine A (laptop), co-located | +0.59 | 0.29 | 3 |
+
+**The noise problem is solved: sd 0.05 ms against an effect of 1.79.** The laptop could not
+resolve 0.5% of an iteration against a 3–6% floor; this machine resolves it with room to spare,
+which is what the phase was for.
+
+**Three findings, and one of them refutes a prediction this document made.**
+
+- **The cost is machine-dependent and the absolute number does not travel.** 0.59 ms on Apple
+  silicon, 1.79 ms on Graviton3 — but machine A's figure carries a 95% interval of roughly
+  −0.13…+1.31 ms (n=3), so the honest ratio is anywhere from ~1.4x to ~14x. Every quotation of
+  "Karate adds X ms" from here on must name the machine.
+- **Co-location was not the confound it was billed as.** §10 predicted the two-host move would
+  expose per-iteration connection setup that loopback priced at zero. It did not: the
+  same-instance control is *higher*, at +1.94, so topology accounts for ≲0.15 ms of the 1.2 ms
+  machine gap — about a tenth. The prediction is not thereby refuted, because a same-AZ RTT of
+  ~100 µs leaves almost no round trip to pay for; it remains **untested at realistic RTT with
+  TLS**, which is where it was always expected to bite.
+- **Injector headroom is now evidence.** 0.9–1.0 cores (plain) and 1.6–1.7 (karate) of 16,
+  in every digest. The extra CPU reconciles with the extra serial time: ~0.7 cores of difference
+  at ~345 iterations/s is ~2 ms/iteration, against +1.79 ms measured — so the overhead is CPU
+  work on the critical path of each iteration, not the client waiting on something.
+
+**Two measurement traps this run walked into, both now guarded:**
+
+- **A freshly started mock is cold and the arm that meets it pays.** The first run against a new
+  `LatencyMock` had the mock at 3.86 core-s and a 231 µs service p99, against 0.70 and 10 µs once
+  warm; that arm came in ~0.5 ms/iteration slower. Because pair 1 always led with karate, the
+  bias was structural and always against Karate — it alone moved the mean from +1.79 to +1.84 and
+  tripled the standard deviation. `matrix.sh` now discards a warmup run.
+- **High mock CPU under co-location is not core contention.** The control's mock showed 4.8 core-s
+  and a 303 µs p99 against the two-host mock's 0.7 and 10 — which reads as co-location damage and
+  is not. `run.sh` forks a fresh mock *per run*, so every co-located run meets a cold JVM, and the
+  **plain** arm — 8 connections in total — shows the identical signature. It also means the control
+  differs from the two-host arm in two ways, topology and mock lifecycle, so ≲0.15 ms is an upper
+  bound on the topology term.
+
+**What this run did not do**, recorded because the phase's own order (below) says to do it first
+and it was skipped: **no calibration was taken on this machine**, and **the 50 ms tier was never
+run** — the tier whose unresolvability is the reason the phase exists. The 10 ms tier and the
+co-location control are what these numbers cover.
+
 ### Reading a calibration, and the acceptance rules
 
 Three checks, in order — two of them exist because skipping them produced a confident wrong answer:
@@ -1818,11 +1871,11 @@ net.inet.tcp.msl=5000` raises the ceiling to ~3,200 conn/s and reverts on reboot
   with clean-looking latencies** — queue-for-a-thread time sits between actions, outside every
   `PerfEvent` bracket, so it never reaches a percentile. §9's prediction that starvation would
   inflate reported response times is wrong for that reason.
-- **Co-location is unresolved**, and on CPU it biases *against* Karate: its injector takes more CPU
-  from the co-located mock than the plain one does. The two equal tiers are therefore stronger than
-  they look on that axis, and the 0 ms gap cannot be quoted as pure client cost until the mock has
-  its own host. **Separate hosts is the phase that makes these numbers defensible**, and it removes
-  the port ceiling too.
+- **~~Co-location is unresolved~~ — measured, and smaller than expected.** A same-instance control
+  against a two-host matrix puts topology at ≲0.15 ms of a 1.79 ms per-iteration cost (above). The
+  reasoning that co-location biases *against* Karate still holds in direction; it was simply not
+  large enough to be the thing worth worrying about. Separate hosts did remove the port ceiling and
+  did settle the question — the answer was just "not much".
 - **On connections the bias runs the other way, and it is the larger effect at realistic latency.**
   The injected latency sits *inside* the handler, after accept, so connection establishment is
   served at loopback speed at every tier — a 50 ms cell delays responses by 50 ms and handshakes by
