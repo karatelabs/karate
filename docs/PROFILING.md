@@ -23,7 +23,11 @@ cd karate-profiling
 
 etc/run.sh --list                          # what can I run?
 etc/run.sh harness-smoke --iterations 50000 # smoke: is the harness alive?
-etc/run.sh call-accumulation                # the real thing
+etc/run.sh call-accumulation                # a memory workload
+
+# the Gatling parity lane — always in pairs, always against an instrumented mock
+etc/run.sh gatling-http-plain  --iterations 4000 --threads 8 --mock-latency 10ms
+etc/run.sh gatling-http-karate --iterations 4000 --threads 8 --mock-latency 10ms
 ```
 
 `run.sh` drives Maven **offline** (`-o`) throughout, deliberately: a profiling run should not
@@ -123,7 +127,9 @@ rm -rf "${TMPDIR:-/tmp}"/karate-feature-spread-* "${TMPDIR:-/tmp}"/karate-report
 | `--gc g1\|zgc` | `g1` | See [Reproducing a specific collector](#reproducing-a-specific-collector). |
 | `--warmup Ns` | per workload | Excluded from the measured window — the recording is delayed past it. A workload that drives its own concurrency runs no warmup, so nothing is delayed for it. |
 | `--timeout` | duration + slack | Wall-clock cap. On expiry the parent dumps the recording and thread state, then kills the child. See §4. |
-| `--record workload\|mock` | `workload` | Flips which JVM gets the recording, so the profile is of the mock server rather than the load driver. Only meaningful for a workload that uses a mock — today that is the `gatling-http-*` pair, and `gatling-http-plain --record mock` is the cheaper driver of the two. The deliberately-cheap raw-`java.net.http` driver this was designed for is the unbuilt "Mock throughput tiers" item in §9. |
+| `--record workload\|mock` | `workload` | Flips which JVM gets the recording, so the profile is of the mock server rather than the load driver. Only meaningful for a workload that uses a mock — today that is the `gatling-http-*` pair, and `gatling-http-plain --record mock` is the cheaper driver of the two. For a mock that must stay out of the way rather than be profiled, use `--mock-latency` instead (§10). |
+| `--mock feature\|latency` | `feature` | Which mock tier to fork. `feature` is the Karate-feature mock (a *subject* — `--record mock` profiles it); `latency` is `LatencyMock`, the instrumented one for runs where the mock must stay out of the way. See [§10](#10-the-latency-mock-and-what-the-parity-matrix-found). |
+| `--mock-latency 10ms` | none | Injected server latency. Implies `--mock latency`, because the feature mock has no such knob. **This is what makes a Gatling parity comparison mean anything** — against a localhost mock both clients queue behind the server and report identical numbers that prove nothing. |
 | `--gc-roots` | off | Makes `jdk.OldObjectSample` report reference chains — the *holder* of retained objects, not just the allocating stack. Costs a full reference walk at every sample, which is why it is per-run rather than always on. |
 
 ### Reproducing a specific collector
@@ -1208,7 +1214,7 @@ numbers.
 | Copy-on-first-change in `processEmbeddedExpressions` | A real inefficiency independent of any leak: a fresh `LinkedHashMap`/`ArrayList` is rebuilt for every Map/List node walked, unconditionally, with no check for whether `#(...)` appears at all — v1 never copied the payload. Three traps if revived: `processInlineEmbedded` returns a *new equal String* for every string, defeating identity-based change detection unless it returns the original when nothing substituted; the XML branch mutates in place, so "source intact" holds for Maps and Lists only; and `resolveConfigMap` has a javadoc promising a defensive copy. Pursue on allocation numbers, not on a leak report. |
 | Leak-watch family | See §2. The soak question is genuinely unanswered — every current workload is an iteration-bounded reproduction. |
 | JS-engine workloads | `js-array`, `js-object`, `js-engine-init` built from `EngineBenchmark`'s generators, so JS tuning gets forking, JFR and digests too. |
-| Mock throughput tiers | Raw Java handler vs JS handler vs feature mock, as a floor-and-multiplier table. `--record mock` already exists to support this. **The raw-Java tier is step 3 of the ordering above** — it is what the Gatling throughput ceiling waits on, and it should carry the same latency knob. |
+| Mock throughput tiers | Raw Java handler vs JS handler vs feature mock, as a floor-and-multiplier table. `--record mock` already exists to support this. **Partly built:** `LatencyMock` (§10) is the cheap tier and carries the latency knob; what is unbuilt is the *table* comparing raw handler against JS handler against feature mock. |
 | Gatling parity — **partly built** | The null-overhead probe, the parity sim and the allocation comparison exist (§2, §6). What is left: a **throughput ceiling**, which needs a mock tier cheap enough not to be the bottleneck — today both variants saturate the feature mock, so req/s measures the mock. That tier is the "Mock throughput tiers" row below, not a separate piece of work; see the ordering note at the top of this section. Also unbuilt: `--duration` support, which needs `during()` in the injection profile rather than a repetition count, and is the prerequisite for a Gatling soak. Note the entry point is `Gatling.fromArgs`, not the `fromMap` this row used to name — `fromMap` was removed in Gatling 3.15. |
 | Custom JFR events | `karate.Step` / `karate.Call` / `karate.HttpRequest`, so a recording carries Karate semantics and allocation attributes to a *feature line*. **A CPU-tuning need, not a memory one.** The virtual-thread gap is specific to `jdk.ExecutionSample`; everything the memory work relied on attributes correctly regardless of thread model. Build these when the question becomes "where is the CPU going during a parallel run" — exactly where `ExecutionSample` goes blind. |
 | `profiler compare A B` | Side-by-side delta table from two run directories. |
