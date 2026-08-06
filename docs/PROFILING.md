@@ -10,8 +10,9 @@
 >
 > §8 records what the parallel-execution memory investigation settled. §9 is the mixed bag:
 > what was deliberately **not** built and why, *and* the finished pieces whose measurements
-> belong next to the parked ones — each of those is headed "— built". Read both before
-> re-opening anything.
+> belong next to the parked ones — each of those is headed "— built". §10 is the one piece of
+> work that is *scheduled* rather than parked, and several §9 items are gated on it. Read all
+> three before re-opening anything.
 
 ---
 
@@ -820,13 +821,17 @@ linear trend and the ratios are what travel.*
 
 ## 7. Caveats
 
-- **CPU sampling barely sees virtual threads, and Karate runs every scenario on one.**
-  `jdk.ExecutionSample` samples platform threads; a Runner-driven workload can produce
-  single-digit sample counts over several seconds of saturated CPU. The *Hot methods*
-  panel is therefore near-useless for scenario code, and the absence of a method from it
-  proves nothing. Prefer *Allocation by site*, which does attribute across virtual
-  threads. *Hot methods* is trustworthy for the mock JVM (`--record mock`) and for
-  platform-thread paths.
+- **CPU sampling barely sees virtual threads, and a parallel Runner suite puts every
+  scenario on one.** `jdk.ExecutionSample` samples platform threads; a Runner-driven
+  workload can produce single-digit sample counts over several seconds of saturated CPU.
+  The *Hot methods* panel is therefore near-useless for scenario code there, and the
+  absence of a method from it proves nothing. Prefer *Allocation by site*, which does
+  attribute across virtual threads. *Hot methods* is trustworthy for the mock JVM
+  (`--record mock`) and for platform-thread paths — **which includes the whole Gatling
+  lane**: `Runner.runFeature` builds a non-parallel Suite, so `FeatureRuntime` runs the
+  scenario inline on the Gatling thread that called it. Read this caveat as being about
+  *parallel Runner suites* specifically, not about Karate generally; see
+  [§10](#why-no-custom-jfr-events-on-the-karate-gatling-side).
 - **Throughput numbers off a laptop are shape-only.** Thermal throttling, other processes
   and the mock sharing the same cores make absolute req/s unusable. Ratios between two
   runs taken back-to-back on the same machine are fine; anything else is not — **and only
@@ -961,14 +966,12 @@ Steps 2 and 3 both say "mock work" and are not the same task. Doing (2) does not
 throughput ceiling, and doing (3) does not by itself make the overhead-share experiment
 runnable.
 
-**(2) and (3) now gate more than the Gatling questions.** They are also what decides whether the
-per-execution parsing work in
-[Parsed-JS reuse](#parsed-js-reuse--measured-not-built) is worth doing at all — a third of
-allocation against a localhost mock may be nothing at all against an API that answers in 50 ms.
-Do not start on caches or on making the parsed model immutable until a latency-injected run says
-the cost survives realistic network time. For (3), prefer a mock **we own and can instrument, in
-its own process and not necessarily a JVM**: the point is a server whose own cost is known and
-small, so what is left in the measurement is the client.
+**(2) and (3) are now scoped as one artefact in [§10](#10-the-latency-mock-experiment--scoped-being-built),
+and they gate more than the Gatling questions.** They also decide whether the per-execution
+parsing work in [Parsed-JS reuse](#parsed-js-reuse--measured-not-built) is worth doing at all —
+a third of allocation against a localhost mock may be nothing at all against an API that answers
+in 50 ms. Do not start on caches or on making the parsed model immutable until a latency-injected
+run says the cost survives realistic network time.
 
 ### Per-scenario spill — designed, reviewed, deliberately not built
 
@@ -1294,3 +1297,124 @@ numbers.
 | Machine-readable baselines + CI | Committed `baselines/*.json`, a scheduled job, regression thresholds. Out of scope until the manual playbook has proven itself. |
 | `jcmd GC.class_histogram` checkpoints | Per-class growth over time. Forces a GC, so it perturbs the measurement. |
 | Heap-dump class histogram in `JfrDigest` | Deliberately not implemented: no JDK API or CLI reads an `.hprof` (`jhat` removed in Java 9, `jmap -histo` is live-process only). The digest points at Eclipse MAT instead. Revisit only by hand-rolling a histogram-only reader or taking a dependency. |
+
+---
+
+## 10. The latency-mock experiment — scoped, being built
+
+Everything above measures Karate against a mock that answers in about a millisecond. That is
+the configuration which most flatters client-side cost, and every open question in §9 turns on
+whether the costs it exposes survive contact with a real API. This section is the scope for the
+artefact that settles it. Unlike §9, this is **scheduled work, not a parked design** — prune it
+into §2 and §6 once the numbers exist and the pieces are documented where they live.
+
+### The question, and the answer that would close it
+
+**Does Karate's per-execution overhead disappear into the network time of the system under
+test?** §2 argues this is the only form of the overhead question a load tester actually has, and
+that the honest test is not a micro-ratio but this: run karate-gatling and plain Gatling against
+the same target and compare the reports. Same TPS and the same response-time distribution means
+the client is not distorting the measurement, which is the whole job.
+
+That test carries one condition, and it is the condition this harness keeps failing:
+
+> **Equal TPS only means anything when the client has headroom.** Two saturated clients queued
+> behind the same overloaded server also report identical numbers.
+
+Today both variants saturate the Karate feature mock. **Running the comparison now would pass,
+and prove nothing** — the most dangerous outcome available, because it looks like an answer. The
+mock is therefore not a convenience for this experiment; it is the experiment's validity.
+
+Acceptance is three things together, not TPS alone:
+
+1. **Parity** — TPS and the p50/p95/p99 distribution match between the two variants;
+2. **Headroom** — the injector is demonstrably not the bottleneck (CPU on the injector, and the
+   mock's own in-flight count well below what it can hold);
+3. **A flat floor** — heap-after-GC does not drift, per §4's
+   [standing constraint](#the-standing-constraint-footprint-is-fine-a-rising-floor-is-not).
+   Allocation *rate* is explicitly not an acceptance criterion; it never was the thing that
+   mattered, only the proxy the localhost mock made look important.
+
+**Do not pick a percentage tolerance up front.** §2 already sets out why a threshold invites
+tuning toward it. The deliverable is a shape: *at what concurrency do the two diverge, and by how
+much at each latency tier*. If the gap stays roughly constant in absolute milliseconds while
+shrinking as a share of the iteration, the overhead disappears into network time and the parse
+work in §9 stays parked — closed on evidence rather than on judgement. If it does not shrink,
+the overhead is proportional to something and that question reopens with a number behind it.
+
+### A — `LatencyMock`: a server whose own cost is known
+
+A mock we own and can instrument, in its own process, serving the same three endpoints as
+`profiling-mock.feature` (`/ping`, `POST /cats`, `GET /cats/{id}`) so both existing simulations
+run against it unchanged.
+
+| | Decision |
+|---|---|
+| Transport | JDK `com.sun.net.httpserver.HttpServer` on a virtual-thread executor. No new dependency, and its cost is easy to reason about. |
+| Latency | `--latency 10ms`, injected as a sleep. Virtual threads are what make this cheap: a mock holding hundreds of sleeping requests must not need hundreds of platform threads, or the *mock* becomes the concurrency limit being measured. |
+| Instrumentation | Requests served, **own service time excluding the injected sleep** (histogram), and peak in-flight. Reported on a `/stats` endpoint and as a summary line at shutdown. |
+
+**The instrumentation is not decoration — it is the saturation detector.** If the mock's own
+service time p99 climbs under load, the mock is the bottleneck and every number in that run is
+void. Without it, that failure is invisible and looks exactly like a client parity result.
+
+Starting on the JDK server rather than Netty is deliberate and reversible: the mock reports its
+own numbers, so it will say plainly if it is the ceiling, and the handler can be swapped behind
+the same interface on evidence. Pre-optimising the artefact whose job is to be boring is how you
+end up unable to tell the two apart.
+
+**JFR is not embedded in it**, and that is a considered choice. What this needs is exact
+accounting — counts, service time, in-flight — not sampling. JFR answers "*why* is the mock
+slow", which is the follow-up question, asked only once the counters say it is one; and
+`--record mock` already exists to answer it when that day comes.
+
+### B — harness wiring
+
+`--mock latency|feature` selects the tier and `--mock-latency <d>` sets the knob. The feature
+mock stays, because it is the thing being profiled in the "is the mock server fast enough" recipe
+(§4). Two tiers, two purposes: the feature mock is a *subject*, the latency mock is an
+*instrument*, and conflating them is how the throughput ceiling got stuck in the first place.
+
+### C — make the comparison numeric
+
+Gatling's HTML report is off in this harness on purpose (`-nr`: chart generation is a second pass
+over the simulation log that would land in the digest as if it were load-driving cost). Rather
+than turning it back on, parse `simulation.log` into `digest.md`: count, TPS, p50/p95/p99, KO —
+for both variants, alongside the mock's own stats. A diffable table beats two HTML pages read
+side by side, and the recording stays clean.
+
+Also in the digest, and the sharpest instrument here:
+
+> **Per-iteration residue** = `action elapsed − Σ(PerfEvent.end − PerfEvent.start)`.
+>
+> That is Karate's own overhead per virtual-user iteration, in milliseconds, exactly — not
+> sampled. `PerfEvent` already carries per-request start/end and `KarateExecutor`'s hook receives
+> every one, so this needs no new instrumentation in karate-core.
+
+The residue is the number the whole experiment is about, and it has one trap worth stating
+plainly: **it also absorbs Gatling's scheduling delay once the injector is saturated.** A rising
+residue at high concurrency is therefore ambiguous between "Karate got slower" and "the injector
+ran out of threads" — which is the second reason the headroom check above is load-bearing rather
+than good hygiene.
+
+### D — the matrix, then the doc
+
+Latency ∈ {0, 10, 50} ms × a user ramp, plain and karate back to back, same machine. Report where
+they diverge. Fold the result into §6 and retire whichever §9 items it settles.
+
+### Why no custom JFR events on the karate-gatling side
+
+They were considered and are not needed for this, for a reason worth recording because it
+contradicts a caveat in §7:
+
+**`Runner.runFeature` never calls `parallel()`**, so `FeatureRuntime` takes its sequential branch
+and runs the scenario **inline on the Gatling thread that called it** — a platform thread. So
+`jdk.ExecutionSample` *does* see Karate's work in the Gatling lane, and the *Hot methods* panel is
+usable there. §7's virtual-thread blindness is a **Runner-parallel-suite** problem, not a Gatling
+one. The `gatling-null-karate` digest corroborates it: `KarateScalaAction.execute`,
+`Interpreter.evalStatement` and `StepExecutor.evalKarateExpression` all appear with real samples.
+
+So the standard profiler already works in this lane, and the question being asked here is a
+latency-breakdown question anyway, which the residue answers exactly and a sampler answers
+approximately. The custom-events row in §9 stands as written — build it when the question becomes
+"*where inside* Karate's overhead", and only if the residue says that overhead is worth chasing.
