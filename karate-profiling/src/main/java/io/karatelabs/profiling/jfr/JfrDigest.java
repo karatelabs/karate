@@ -89,6 +89,7 @@ public final class JfrDigest {
             }
         }
         appendTopClasses(md, runDir, info);
+        appendLoadProfile(md, runDir, info);
 
         try {
             Files.writeString(runDir.resolve("digest.md"), md.toString());
@@ -98,6 +99,58 @@ public final class JfrDigest {
     }
 
     // ---------------------------------------------------------------- panels
+    /** The classpath the child ran with, lifted back out of its recorded command line. */
+    private static String childClasspath(RunInfo info) {
+        List<String> command = info.command();
+        int at = command.indexOf("-cp");
+        return at >= 0 && at + 1 < command.size() ? command.get(at + 1) : "";
+    }
+
+    /**
+     * The load numbers, when the run drove one — throughput and the response-time distribution the
+     * client actually saw, next to what the mock says it did. Two runs are compared by diffing
+     * this panel; see docs/PROFILING.md §10 for what a comparison of it can and cannot support.
+     */
+    private static void appendLoadProfile(StringBuilder md, Path runDir, RunInfo info) {
+        io.karatelabs.profiling.LoadProfile.Stats stats =
+                io.karatelabs.profiling.LoadProfile.extract(runDir, childClasspath(info));
+        String mockConfig = io.karatelabs.profiling.LoadProfile.mockLine(runDir, "PROFILING-MOCK-CONFIG ");
+        String mockStats = io.karatelabs.profiling.LoadProfile.mockLine(runDir, "PROFILING-MOCK-STATS ");
+        if (stats == null && mockStats == null) {
+            return;
+        }
+        md.append("## Load profile\n\n");
+        if (stats != null) {
+            md.append("Response times as the **client** saw them, from Gatling's own report ")
+                    .append("(rendered by the parent after the child exited, so it costs the run nothing).\n\n");
+            md.append("| | |\n|---|---:|\n");
+            md.append("| requests | ").append(stats.total()).append(" |\n");
+            md.append("| ok / ko | ").append(stats.ok()).append(" / **").append(stats.ko()).append("** |\n");
+            md.append("| req/s | ").append(stats.perSecond()).append(" |\n");
+            md.append("| min / mean / max | ").append(stats.min()).append(" / ").append(stats.mean())
+                    .append(" / ").append(stats.max()).append(" ms |\n");
+            md.append("| p50 / p75 / p95 / p99 | ").append(stats.p50()).append(" / ").append(stats.p75())
+                    .append(" / ").append(stats.p95()).append(" / ").append(stats.p99()).append(" ms |\n");
+            md.append("| std dev | ").append(stats.stdDev()).append(" ms |\n\n");
+            if (stats.ko() > 0) {
+                md.append("> **This run had failures, so it is not a slower run — it is a run with holes.** ")
+                        .append("Failed requests leave the sample and take the slow ones with them, which ")
+                        .append("flatters every percentile above. Find the cause before reading anything else.\n\n");
+            }
+        }
+        if (mockStats != null) {
+            md.append("What the **mock** says it did. Read `serviceMicros*` in one direction only: ")
+                    .append("rising proves the mock was the bottleneck, flat proves nothing, because its ")
+                    .append("clock starts at handler entry and cannot see the accept queue.\n\n");
+            md.append("```json\n").append(mockStats).append("\n```\n\n");
+            if (mockConfig != null) {
+                md.append("Its settings — check `maxIdleConnections` is above the user count, and that the ")
+                        .append("kernel gave you the backlog that was asked for:\n\n```json\n")
+                        .append(mockConfig).append("\n```\n\n");
+            }
+        }
+    }
+
 
     private static void appendRunSummary(StringBuilder md, Path runDir, RunInfo info) {
         RunShape shape = info.shape();
