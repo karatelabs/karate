@@ -31,6 +31,24 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+/**
+ * A node in a parsed tree.
+ *
+ * <p><b>Parsed trees are shared across threads, so treat a Node as read-only once parsing has
+ * returned.</b> A {@code Suite} parses {@code karate-config.js} once and every scenario — running
+ * in parallel — evaluates that one AST, and the interpreter only ever reads: no {@code node.x = }
+ * assignment exists on any evaluation path. The mutators below ({@link #add}, {@link #addFirst},
+ * {@link #removeFirst}) belong to tree construction, and the safety of the sharing rests on nobody
+ * calling them afterwards. That is a convention, not an invariant this class enforces.</p>
+ *
+ * <p>One field already bends it: {@link #getText()} caches into a non-volatile {@code cachedText}
+ * on first ask, which under sharing is a data race. It is benign — every racing thread computes
+ * the same value, and a {@code String}'s final fields make it safe to publish that way — but it is
+ * the reason "a Node is read-only once parsed" is a description of intent rather than a fact.
+ * <b>A lazily assigned field of any other type would not be benign.</b> An array or a mutable
+ * object published by a plain write can be seen non-null with its contents not yet visible; if you
+ * add one here, make it {@code volatile} and read it once into a local.</p>
+ */
 public class Node {
 
     static final Logger logger = LoggerFactory.getLogger(Node.class);

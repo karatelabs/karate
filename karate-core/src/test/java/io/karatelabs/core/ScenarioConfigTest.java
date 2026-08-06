@@ -1075,4 +1075,106 @@ class ScenarioConfigTest {
         assertTrue(result.isPassed(), "a config needing the direct-parse fallback should work for every scenario");
     }
 
+    /**
+     * The Suite parses karate-config.js once and hands the same AST to every scenario, so under a
+     * parallel suite many threads are now evaluating one shared parse tree. Nothing enforces that
+     * a {@code Node} stays read-only — it is a property of today's interpreter, and this is the
+     * test that would notice it stopping being true.
+     *
+     * <p>The config is deliberately the awkward shape: a top-level function declaration, which
+     * cannot be parenthesized and so takes the direct-parse fallback, plus a closure minted per
+     * evaluation that captures it. The assertion is per-scenario identity — every scenario must
+     * see a label built from <em>its own</em> name — because the failure mode of a shared parse
+     * tree being mutated, or of an evaluation leaking across threads, is one scenario reading
+     * another's value rather than an exception.</p>
+     */
+    @Test
+    void testTheSharedConfigAstEvaluatesCorrectlyUnderParallelScenarios() throws Exception {
+        Path configFile = tempDir.resolve("karate-config.js");
+        Files.writeString(configFile, """
+            function tag(name) { return 'v-' + name; }
+            function fn() {
+              var Counter = Java.type('io.karatelabs.core.parallel.CallOnceCounter');
+              Counter.incrementAndGet();
+              var label = function(suffix) { return tag(karate.scenario.name) + '-' + suffix; };
+              return { label: label('ok') };
+            }
+            """);
+
+        int scenarios = 64;
+        StringBuilder feature = new StringBuilder("Feature: a shared config ast under parallel scenarios\n");
+        for (int i = 0; i < scenarios; i++) {
+            feature.append("\n  Scenario: s").append(i)
+                    .append("\n    * match label == 'v-s").append(i).append("-ok'\n");
+        }
+        Path featureFile = tempDir.resolve("test.feature");
+        Files.writeString(featureFile, feature.toString());
+
+        // Three passes, because a race that survives one run of 64 scenarios is not evidence of
+        // anything and the whole test costs well under a second.
+        for (int pass = 0; pass < 3; pass++) {
+            io.karatelabs.core.parallel.CallOnceCounter.reset();
+            SuiteResult result = testBuilder()
+                    .path(featureFile.toString())
+                    .workingDir(tempDir)
+                    .parallel(8);
+            assertTrue(result.isPassed(), "pass " + pass + " failed: " + result.getErrors());
+            assertEquals(scenarios, result.getScenarioPassedCount());
+            assertEquals(scenarios, io.karatelabs.core.parallel.CallOnceCounter.get(),
+                    "config must still be evaluated once per scenario when the parse is shared");
+        }
+    }
+
+    /**
+     * The other half of the same sharing: the error-location path. The Suite parses the config
+     * once as {@code (source)} into an in-memory resource, and every scenario's copy of a function
+     * that config contributed carries tokens pointing back at <em>that one object</em>. When such a
+     * function fails, the renderer asks it for the source line to print — and it splits its lines
+     * lazily, on first ask, from whichever thread got there first. So this drives many threads at
+     * one lazily populated array, which is the shape where a plain-published array is readable as
+     * non-null with its elements not yet visible. Every scenario must see the real line, never a
+     * blank one.
+     */
+    @Test
+    void testAnErrorInSharedConfigCodeRendersTheSameLocationOnEveryThread() throws Exception {
+        Path configFile = tempDir.resolve("karate-config.js");
+        Files.writeString(configFile, """
+            function fn() {
+              return {
+                explode: function(what) { return what.missing.deeper; }
+              };
+            }
+            """);
+
+        int scenarios = 32;
+        StringBuilder feature = new StringBuilder("Feature: an error raised in shared config code\n");
+        for (int i = 0; i < scenarios; i++) {
+            feature.append("\n  Scenario: s").append(i)
+                    .append("\n    * def ignored = explode('s").append(i).append("')\n");
+        }
+        Path featureFile = tempDir.resolve("test.feature");
+        Files.writeString(featureFile, feature.toString());
+
+        SuiteResult result = LogSilencer.silenced("karate.runtime",
+                () -> LogSilencer.silenced("karate.scenario", () -> testBuilder()
+                        .path(featureFile.toString())
+                        .workingDir(tempDir)
+                        .parallel(8)));
+
+        assertTrue(result.isFailed(), "code contributed by config that throws must fail its scenario");
+        assertEquals(scenarios, result.getScenarioFailedCount(),
+                "every scenario calls it, so every scenario must fail");
+        // The rendered "Code:" line is Resource.getLine on the shared config resource. Assert the
+        // real text, on every one of them: a stale read of the lazily split array would show up as
+        // a blank line here, and asserting only that the error exists would miss it.
+        String expected = "Code: explode: function(what) { return what.missing.deeper; }";
+        for (Object error : result.getErrors()) {
+            String message = error.toString();
+            assertTrue(message.contains("Line: 3, Col: 30"),
+                    "the location should point into the config, got: " + message);
+            assertTrue(message.contains(expected),
+                    "the source line should come back intact from the shared resource, got: " + message);
+        }
+    }
+
 }

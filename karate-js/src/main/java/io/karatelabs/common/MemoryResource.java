@@ -47,7 +47,12 @@ public class MemoryResource implements Resource {
     // non-null with its contents not yet visible.
     private volatile byte[] bytes;
     private String text;
-    private String[] lines;
+    // Volatile for the same reason as bytes above, and it is the same kind of field: a lazily
+    // assigned array, published by a plain write, readable as non-null with stale elements. `text`
+    // needs no such guard — a String's final fields are safe to publish by a data race, an array's
+    // elements are not. The path is error reporting, which is exactly where several threads
+    // plausibly reach a shared resource for the first time at once.
+    private volatile String[] lines;
 
     MemoryResource(String text) {
         this(text, (Path) null);
@@ -124,14 +129,18 @@ public class MemoryResource implements Resource {
     }
 
     public String getLine(int index) {
-        if (lines == null) {
-            lines = getText().split("\\r?\\n");
+        // Read the field once into a local: a second read could see a different array, and the
+        // bounds check would then be against neither.
+        String[] temp = lines;
+        if (temp == null) {
+            temp = getText().split("\\r?\\n");
+            lines = temp;
         }
         int adjusted = index - lineOffset;
-        if (adjusted < 0 || adjusted >= lines.length) {
+        if (adjusted < 0 || adjusted >= temp.length) {
             return "";
         }
-        return lines[adjusted];
+        return temp[adjusted];
     }
 
     @Override
