@@ -1421,6 +1421,40 @@ silently queues upstream of its own clock.
 Cheap to build: the calibration client is the raw-`java.net.http` driver §9 has wanted all along
 for the "Mock throughput tiers" row, so this step pays a debt rather than adding one.
 
+```bash
+# terminal 1 — the instrument
+java -cp target/classes:$(cat target/cp.txt) io.karatelabs.profiling.LatencyMock --latency 10ms
+# terminal 2 — find its knee
+java -cp target/classes:$(cat target/cp.txt) io.karatelabs.profiling.MockCalibrator \
+     --url http://127.0.0.1:PORT --ramp 1,4,16,64,128,256 --requests 4000 --latency 10ms
+```
+
+**First calibration — machine A, 10 ms injected, 4000 requests per point.** `unowned` is client
+p50 minus what the mock can account for (its service time plus the sleep it actually took);
+`growth` is that figure's rise over the single-user baseline, which is the queueing signal.
+
+| users | keepalive tps | growth | close tps | growth |
+|---:|---:|---:|---:|---:|
+| 1–64 | 68 → 4694 | ~0 | 71 → 881 | ~0 |
+| 128 | 9391 | −0.55 | 4815 | **1.70** |
+| 256 | 7755 (down) | **2.34** | 3543 (down) | **12.89** |
+
+Three things to take from it, all of which the matrix depends on:
+
+- **The mock is out of the way to ~128 users keep-alive and ~64 close.** Run the parity matrix
+  below that; anything above is measuring the mock.
+- **Close mode knees first, by a lot** — and that is the mode the Karate variant resembles,
+  because it builds an HTTP client per execution. Calibrating only in keep-alive would have put
+  the ceiling at twice its real value for the variant that matters.
+- **TPS falls at the knee while p99 explodes** (20 ms → 113 ms). Note TPS *rising* proves nothing
+  and TPS flattening proves nothing either — in a closed loop it is capped by users ÷ iteration
+  time. It is the growth column that moves first.
+
+One caveat that travels with these numbers: the calibrator is itself a JVM on the same 10 cores,
+so at the top of the ramp it is competing with the mock. The knee measured here is the knee of
+*mock plus client on one box*, which is the right envelope for this harness — but it is not a
+property of the mock alone.
+
 ### C — make the comparison numeric
 
 Gatling's HTML report is off in this harness on purpose (`-nr`: chart generation is a second pass

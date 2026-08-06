@@ -91,11 +91,19 @@ public record RunShape(int threads, long iterations, Duration duration, Duration
         return Duration.ofHours(1);
     }
 
-    /** Accepts "30s", "10m", "1h", or a bare number of seconds. */
+    /**
+     * Accepts "250ms", "30s", "10m", "1h", or a bare number of seconds. The {@code ms} case is
+     * checked before the single-character units, because "10ms" ends in 's' and would otherwise
+     * be read as seconds — and then fail parsing "10m" as a number, which is a confusing way to
+     * learn that milliseconds are not supported.
+     */
     public static Duration parseDuration(String s) {
         String v = s.trim().toLowerCase();
         if (v.isEmpty()) {
             throw new IllegalArgumentException("empty duration");
+        }
+        if (v.endsWith("ms")) {
+            return Duration.ofMillis(Long.parseLong(v.substring(0, v.length() - 2)));
         }
         char unit = v.charAt(v.length() - 1);
         if (Character.isDigit(unit)) {
@@ -106,7 +114,7 @@ public record RunShape(int threads, long iterations, Duration duration, Duration
             case 's' -> Duration.ofSeconds(amount);
             case 'm' -> Duration.ofMinutes(amount);
             case 'h' -> Duration.ofHours(amount);
-            default -> throw new IllegalArgumentException("unknown duration unit: " + s + " (expected s, m or h)");
+            default -> throw new IllegalArgumentException("unknown duration unit: " + s + " (expected ms, s, m or h)");
         };
     }
 
