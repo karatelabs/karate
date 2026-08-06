@@ -13,6 +13,11 @@
 > to the parked ones — each headed "— built". §10 is the Gatling parity instrument and the answer
 > it produced. Read all three before re-opening anything: several things that look like obvious
 > wins are parked there *on evidence*.
+>
+> **If you are here to run something:** the next phase is
+> [the two-host phase](#the-two-host-phase-what-is-built-and-what-it-is-for) in §10 — two quiet
+> dedicated machines, because the 50 ms tier was shown to be limited by the laptop rather than by
+> the number of pairs taken on it.
 
 ---
 
@@ -28,6 +33,9 @@ etc/run.sh call-accumulation                # a memory workload
 # the Gatling parity lane — always in pairs, always against an instrumented mock
 etc/run.sh gatling-http-plain  --iterations 4000 --threads 8 --mock-latency 10ms
 etc/run.sh gatling-http-karate --iterations 4000 --threads 8 --mock-latency 10ms
+
+# then derive the pair table — never scrape it by hand, see §10
+etc/run.sh compare target/profiling/gatling-http-*
 ```
 
 `run.sh` drives Maven **offline** (`-o`) throughout, deliberately: a profiling run should not
@@ -130,6 +138,7 @@ rm -rf "${TMPDIR:-/tmp}"/karate-feature-spread-* "${TMPDIR:-/tmp}"/karate-report
 | `--record workload\|mock` | `workload` | Flips which JVM gets the recording, so the profile is of the mock server rather than the load driver. Only meaningful for a workload that uses a mock — today that is the `gatling-http-*` pair, and `gatling-http-plain --record mock` is the cheaper driver of the two. For a mock that must stay out of the way rather than be profiled, use `--mock-latency` instead (§10). |
 | `--mock feature\|latency` | `feature` | Which mock tier to fork. `feature` is the Karate-feature mock (a *subject* — `--record mock` profiles it); `latency` is `LatencyMock`, the instrumented one for runs where the mock must stay out of the way. See [§10](#10-the-latency-mock-and-what-the-parity-matrix-found). |
 | `--mock-latency 10ms` | none | Injected server latency. Implies `--mock latency`, because the feature mock has no such knob. **This is what makes a Gatling parity comparison mean anything** — against a localhost mock both clients queue behind the server and report identical numbers that prove nothing. |
+| `--mock-url URL` | none | Use a `LatencyMock` already running elsewhere instead of forking one — **the flag a two-host run needs**, since co-location is the confound §10 cannot argue away. The parent resets the remote mock's counters before the load and scrapes them after, so a shared mock still reports one window per run. Start the far side with `LatencyMock --bind 0.0.0.0 --standalone --latency 10ms`; without `--standalone` it reads EOF on stdin and exits before the first request. Incompatible with `--record mock`. |
 | `--gc-roots` | off | Makes `jdk.OldObjectSample` report reference chains — the *holder* of retained objects, not just the allocating stack. Costs a full reference walk at every sample, which is why it is per-run rather than always on. |
 
 ### Reproducing a specific collector
@@ -395,7 +404,8 @@ instrumented mock in §10 exists to establish.
 half a millisecond to a millisecond of serial time per iteration. Because a closed loop makes
 throughput exactly `users ÷ iteration time`, that cost shows up in full at 0 ms — a 2.1–2.4x gap —
 and then shrinks as a share of the iteration: **~2% at 10 ms of injected server latency**, and
-below what three back-to-back pairs can resolve at 50 ms. Two qualifiers travel with that and must
+below what this machine can resolve at 50 ms — six pairs, spread more than three times the effect.
+Two qualifiers travel with that and must
 not be dropped: **it shrinks, it does not disappear**, and the result covers loopback, ~100-byte
 bodies and a client that opens a connection per iteration, none of which is a real API. See
 [§10](#10-the-latency-mock-and-what-the-parity-matrix-found) for the matrix, the caveats, and what
@@ -430,6 +440,14 @@ digests directly.
 **Run summary.** Duration, exit status, child JDK, and the child's JVM/GC/heap flags
 echoed back. Check this first — the most common analysis mistake is comparing two runs
 that had different `--xmx`, `--gc`, or a different child JDK.
+
+**CPU headroom.** What the injector and the mock each burned, **over their own measured window** —
+the child's from `[child] measuring`, the mock's across its load window, so neither carries JVM
+startup or an idle tail. `cores busy` near the machine's cpu count means the run measured the
+machine rather than what it was pointed at, and a throughput comparison taken there is not a
+comparison of clients. The two windows are different windows: read each against `cpus`, never one
+against the other. The mock's row is the co-location bias as a number — on a two-host run it is
+what shows the mock host was idle.
 
 **Allocation by site.** From `jdk.ObjectAllocationSample`, weighted bytes, stacks
 collapsed to `io.karatelabs.*` frames so the top entries are Karate methods rather than
@@ -702,7 +720,7 @@ granted:
 | **Measured, known-unbounded, accepted** | One feature holding thousands of scenarios, with reports on — still linear (502 / 1108 / 2079 MB). Only per-scenario release changes the slope, and §9 records why that was not built. |
 | **Never measured** | Soaks — "does Karate leak over hours". Every workload is an iteration-bounded reproduction finishing in seconds, so this is unverified rather than verified, **in both lanes**. The Gatling lane is entirely untouched and is the more likely place for one, because it builds a `Suite` per iteration against a long-lived thread pool. See [the leak-watch family](#leak-watch-family--not-built-and-it-is-the-biggest-gap-in-this-document) in §2. |
 | **Never measured** | CPU inside scenario code *under a parallel Runner suite*. All of §8 is allocation and retention, and `jdk.ExecutionSample` is blind on virtual threads there (§7). It is **not** blind in the Gatling lane, which runs scenarios inline on a platform thread. |
-| **Measured, and scoped rather than settled** | Whether Karate's per-execution overhead distorts a load test. **It adds ~0.5–1 ms of serial time per iteration** — 2.1–2.4x throughput at 0 ms, **~2% at 10 ms**, unresolved at 50 ms — over three back-to-back pairs per tier, loopback, 8 users, closed loop, ~100-byte bodies, log capture off ([§10](#10-the-latency-mock-and-what-the-parity-matrix-found)). Read the qualifiers as load-bearing: it *shrinks* as a share of the iteration rather than disappearing, and none of it generalises to TLS, to larger bodies, or to the one connection Karate opens per iteration, which **scales with** the network instead of hiding inside it and which this harness prices at zero. It also scopes the *load-test* lane only: the ordinary-suite half of the parse-cache decision was never measured (§9). |
+| **Measured, and scoped rather than settled** | Whether Karate's per-execution overhead distorts a load test. **It adds ~0.5–1 ms of serial time per iteration** — 2.1–2.4x throughput at 0 ms, **~2% at 10 ms**, and **unresolved at 50 ms, where the limit is the machine rather than the pair count**: six pairs leave a spread more than three times the effect, because a 0.5% deficit sits an order of magnitude under this laptop's 3–6% floor. Loopback, 8 users, closed loop, ~100-byte bodies, log capture off ([§10](#10-the-latency-mock-and-what-the-parity-matrix-found)). Read the qualifiers as load-bearing: it *shrinks* as a share of the iteration rather than disappearing, and none of it generalises to TLS, to larger bodies, or to the one connection Karate opens per iteration, which **scales with** the network instead of hiding inside it and which this harness prices at zero. It also scopes the *load-test* lane only: the ordinary-suite half of the parse-cache decision was never measured (§9). |
 
 The Gatling baseline below started as a fifth category: **leads, not findings** — real numbers
 from real runs, none chased to a cause. Three have since been chased (the per-scenario Logback
@@ -904,9 +922,10 @@ linear trend and the ratios are what travel.*
   against the **feature** mock — `--mock feature`, still the default. With `--mock-latency`
   it is the other way round: that pair is now the one configuration here whose ratios mean
   something, because the mock is demonstrably out of the way ([§10](#10-the-latency-mock-and-what-the-parity-matrix-found)).
-  Which mock a `gatling-http-*` run used is not in `run-meta.txt`; the tell is `mock.log` —
-  only `LatencyMock` writes a `PROFILING-MOCK-CONFIG` line, and the digest reprints it. Check
-  that before ratioing anything.
+  Which mock a `gatling-http-*` run used is now recorded in `run-meta.txt` (`mock:`), alongside the
+  gap since the previous run; `mock.log` remains the corroborating tell, since only `LatencyMock`
+  writes a `PROFILING-MOCK-CONFIG` line. Runs taken before that field existed have neither — check
+  `mock.log` for those before ratioing anything.
 - **Collector artefacts are not findings.** ZGC returns committed memory to the OS, so
   "committed shrank to match used" is ZGC behaving normally, not a fix taking effect. G1
   and ZGC also populate `jdk.GCHeapSummary` and `jdk.OldObjectSample` differently — never
@@ -1007,6 +1026,9 @@ Recorded so none of it is re-derived from scratch. Nothing parked here is schedu
 section because §6 points at them and because each one left something parked behind it. As of
 2026-08-06 those are: default log fidelity under Gatling, the per-scenario Logback level
 snapshot, exceptions on the happy path, and the built half of per-execution reading and parsing.
+The **harness** gained four things the same day — injector CPU in every digest, `profiler compare`,
+`--mock-url`, and per-host network limits — all described in
+[The two-host phase](#the-two-host-phase-what-is-built-and-what-it-is-for).
 Everything else is a lead or a design, not code — including
 [Parsed-JS reuse](#parsed-js-reuse--measured-half-gated-not-built), which is the largest measured
 win recorded in this document that has not been taken. It was gated on a measurement rather than on
@@ -1019,14 +1041,23 @@ The instrument and the first matrix are **built**
 retired one item and reshaped two others. This list is the steering surface — it is what the next
 session reads — so it is ordered by information per unit of work, not by appeal:
 
-1. **More pairs at the 50 ms tier — the one loose end in the matrix.** The load window and the
-   rerun are **built**: `MockStats` reports the window it served in and the rate over it, and the
-   matrix reran as three alternating pairs per tier on that clock (§10). It resolved the 10 ms tier
-   — 0.6–0.8 ms per iteration depending on whether the mock's own sleep asymmetry is corrected for,
-   sd 0.29 raw — and did *not* resolve the 50 ms one, where three pairs leave a standard deviation
-   larger than the effect and one pair comes out negative. Six to ten pairs there is a cheap
-   afternoon, and it is what turns "consistent with 0.6–0.8 ms" into a measurement. Check sleep
-   parity within each pair when you do it; §10 says why.
+**Read item 0 first.** The harness gained four things it was missing, and they are what the
+two-host phase runs on: injector CPU in every digest, `profiler compare`, `--mock-url`, and
+per-host network limits. Each is described in
+[The two-host phase](#the-two-host-phase-what-is-built-and-what-it-is-for).
+
+0. **Run the matrix on a quiet, dedicated pair of hosts.** This is now the top item, because the
+   50 ms attempt established that the laptop cannot resolve the tier at any pair count — and
+   because everything below it inherits the same noise floor. It also retires the confound §10
+   has been carrying since the first matrix. See the phase description in §10 for the shape,
+   the order and the checks.
+
+1. **~~More pairs at the 50 ms tier~~ — tried, and it answered a different question.** Three more
+   pairs were run on this laptop and made the spread *worse*: sd 6.90 for pairs 4–6 against 2.72 for
+   1–3, individual pairs from −6.9 to +6.9 ms (§10). The remedy was wrong because the diagnosis was:
+   **the tier is machine-limited, not pair-limited.** A ~0.6 ms cost on a 110 ms iteration is 0.5%,
+   this laptop's floor is 3–6%, and no pair count closes an order of magnitude. Superseded by the
+   two-host phase below — the runs are the same runs, on a machine where they can resolve.
 2. **The AST prototype on the lane where its win lives** — a `/usr/bin/time` A/B against main on
    `call-accumulation` and `feature-spread` at two sizes, recording wall and CPU. This is the
    measurement the parse-cache decision actually needs
@@ -1049,8 +1080,9 @@ session reads — so it is ordered by information per unit of work, not by appea
 7. **`--duration` for the `gatling-*` workloads** — `during()` in the injection profile instead of a
    repetition count. Small, and with item 3 it is what unblocks a Gatling **soak**, the largest
    unanswered question in this document (§2).
-8. **Separate hosts.** Co-location is the one confound §10 cannot argue away, and it lifts the
-   ephemeral-port ceiling. This is what makes the numbers defensible rather than indicative.
+8. **~~Separate hosts~~ — promoted to item 0** and now unblocked on the harness side (`--mock-url`,
+   `LatencyMock --bind/--standalone`). Co-location is the one confound §10 cannot argue away, and
+   it lifts the ephemeral-port ceiling.
 9. **Mine [#845](#prior-art--the-09x-era-overhead-thread).** Reading, not building. Now worth
    reconciling *against* a result rather than before one.
 
@@ -1366,8 +1398,11 @@ question properly, and the answer it gave.
 **The question:** does Karate's per-execution overhead distort a load test, or does it disappear
 into the network time of a real API? **The answer, measured rather than bounded: roughly half a
 millisecond to a millisecond of added serial time per iteration — 2.1–2.4x throughput when the
-iteration is ~1 ms, ~2% when it is 28 ms, and under three pairs' resolution when it is 110 ms. It
-shrinks as a share of the iteration; it does not vanish.** And the one overhead that would not
+iteration is ~1 ms, ~2% when it is 28 ms, and below what this machine can resolve when it is
+110 ms. It shrinks as a share of the iteration; it does not vanish.** The 110 ms case is
+unresolved rather than small: six pairs put the spread at more than three times the effect, and
+[the 50 ms tier](#50-ms-tier--1600-iterations-200-per-user-110-ms-iteration) explains why more
+pairs on this machine cannot fix that. And the one overhead that would not
 shrink at all — a fresh TCP connection per iteration, now counted rather than assumed — is priced
 at approximately zero by this harness and cannot be anything else on loopback. Details below; the
 reasoning behind each design decision lives in the class javadocs, which are written to be read.
@@ -1391,7 +1426,16 @@ is an *instrument*. Conflating them is how the throughput ceiling stayed stuck f
 # a parity cell — both arms, same settings, back to back
 etc/run.sh gatling-http-plain  --iterations 4000 --threads 8 --mock-latency 10ms
 etc/run.sh gatling-http-karate --iterations 4000 --threads 8 --mock-latency 10ms
-# then diff the "Load profile" panel of the two digests
+
+# derive the table rather than reading it off the digests
+etc/run.sh compare target/profiling/gatling-http-*
+
+# the same cell against a mock on another host — see "The two-host phase"
+# on the mock host:
+java -cp target/classes:$(cat target/cp.txt) io.karatelabs.profiling.LatencyMock \
+     --bind 0.0.0.0 --port 8090 --standalone --latency 10ms
+# on the injector host:
+etc/run.sh gatling-http-karate --iterations 4000 --threads 8 --mock-url http://MOCK_HOST:8090
 
 # re-establish the mock's envelope after any change to it
 java -cp target/classes:$(cat target/cp.txt) io.karatelabs.profiling.LatencyMock --latency 10ms
@@ -1442,12 +1486,38 @@ iterations per user.
 
 #### 50 ms tier — 1600 iterations (200 per user), ~110 ms iteration
 
-| pair | order | plain req/s | karate req/s | karate deficit | added ms/iteration | run directories |
-|---:|---|---:|---:|---:|---:|---|
-| 1 | p→k | 132.6 | 133.1 | −0.4% | −0.45 | `…plain-…-171028` / `…karate-…-171132` |
-| 2 | k→p | 141.5 | 135.6 | +4.2% | +4.92 | `…karate-…-171236` / `…plain-…-171339` |
-| 3 | p→k | 140.7 | 137.1 | +2.5% | +2.96 | `…plain-…-171444` / `…karate-…-171546` |
-| **mean** | | **138.3** | **135.3** | **2.1%** | **+2.48** (sd 2.72) | |
+**Six pairs, and the tier is still not resolved — because the limit is the machine, not the pair
+count.** Pairs 4–6 were run to close the loose end the first three left. They made the spread
+*worse*, and the reason is recorded rather than averaged away: the laptop was in use during them.
+
+| pair | order | plain req/s | karate req/s | karate deficit | added ms/iteration | sleep-corrected |
+|---:|---|---:|---:|---:|---:|---:|
+| 1 | p→k | 132.6 | 133.1 | −0.4% | −0.45 | +0.64 |
+| 2 | k→p | 141.5 | 135.6 | +4.2% | +4.92 | +5.05 |
+| 3 | p→k | 140.7 | 137.1 | +2.5% | +2.96 | +2.92 |
+| 4 | k→p | 125.4 | 132.5 | −5.7% | −6.88 | −4.87 |
+| 5 | p→k | 133.2 | 131.8 | +1.0% | +1.24 | +3.61 |
+| 6 | k→p | 137.4 | 129.8 | +5.6% | +6.85 | +7.21 |
+| **mean 1–3** | | **138.3** | **135.3** | **2.1%** | **+2.48** (sd 2.72) | +2.87 (sd 2.21) |
+| **mean 1–6** | | **135.1** | **133.3** | **1.2%** | **+1.44** (sd 4.83) | +2.43 (sd 4.19) |
+
+Run directories are in the digests; regenerate this table with
+`etc/run.sh compare target/profiling/gatling-http-*` rather than reading it off by hand.
+
+**Doubling the pairs nearly doubled the standard deviation.** Pairs 4–6 alone are sd 6.90 against
+sd 2.72 for 1–3, and individual pairs now range from −6.9 to +6.9 ms on a ~110 ms iteration. That
+is not a noisier estimate of the same quantity converging slowly; it is a different noise floor.
+
+**The contention is visible inside the instrument, which is how it is known rather than guessed.**
+The mock's own measured sleep overshoot rose from 54.4–55.2 ms in pairs 1–3 to 54.8–56.3 ms in
+4–6, and plain-arm p50 drifted 56 → 62 ms. Both are the machine, not either client.
+
+**So the arithmetic that matters is this:** a fixed ~0.6 ms cost on a 110 ms iteration is a **0.5%**
+deficit, and this laptop's run-to-run floor is **3–6%**. The effect is an order of magnitude below
+the noise, and no pair count closes an order of magnitude — at sd 4.83, resolving 0.6 ms to within
+half itself would need on the order of a thousand pairs. **This tier needs a quiet, dedicated
+machine, and until it has one the honest statement is that 50 ms is unresolved.** See
+[The two-host phase](#the-two-host-phase-what-is-built-and-what-it-is-for).
 
 #### 0 ms tier — the pure client-overhead tier, two sizes
 
@@ -1473,14 +1543,15 @@ What the numbers now support, which is less than "identical" and more useful:
   time per iteration** (sd 0.29 over three pairs) — which is *below* the ~2 ms the old table
   inferred at 0 ms, so the direction of the old story was right; its arithmetic and its wording
   were not.
-- **The 50 ms tier is not resolved by three pairs, and the honest report is the spread.** The mean
-  says +2.5 ms/iteration, but the standard deviation is 2.7 ms and one pair comes out *negative*.
-  A fixed ~0.6 ms cost would predict a ~0.5% deficit on a 110 ms iteration; the measurement is
-  2.1% ± more than that. **Both are consistent with the data and the run count cannot separate
-  them** — more pairs, not a different instrument, is what this tier needs.
+- **The 50 ms tier is not resolved, and the honest report is the spread.** Over six pairs the mean
+  says +1.4 ms/iteration against a standard deviation of 4.8, with two pairs *negative*. A fixed
+  ~0.6 ms cost would predict a ~0.5% deficit on a 110 ms iteration, which is an order of magnitude
+  under this machine's floor. **The original reading of this — "more pairs, not a different
+  instrument, is what this tier needs" — was tested and is wrong**: three further pairs made the
+  spread worse, because they ran while the laptop was in use. What it needs is a quiet machine.
 - **The three tiers are consistent with one fixed per-iteration cost of roughly half a millisecond
   to a millisecond**, which is 2.1–2.4x throughput when the iteration is a millisecond or two, ~2% when it is
-  28 ms, and below this many pairs' resolution when it is 110 ms. That is the claim this section
+  28 ms, and below this machine's resolution when it is 110 ms. That is the claim this section
   now makes, and it is a shape rather than a disappearance.
 - **Check sleep parity within a pair before believing the difference — it moves this number, and
   it moves it against Karate.** The injected sleep is a real `Thread.sleep` whose overshoot varies
@@ -1499,9 +1570,10 @@ What the numbers now support, which is less than "identical" and more useful:
   more for. See the two bullets on that in "what the result does not license" below.
 - **The percentile tails do not have a stable direction, and the first matrix's reading of them
   does not replicate.** At 10 ms the karate arm is tighter in all three pairs (p99 17/17/16 ms vs
-  18/18/33 ms), which matched the original finding; at 50 ms it reverses in two of three (p99
-  71/98/88 ms vs 83/62/63 ms). p50 matches in five of the six pairs and differs by 2 ms in the
-  sixth (50 ms pair 1: plain 58, karate 56). Whatever produces the
+  18/18/33 ms), which matched the original finding; at 50 ms pairs 1–3 it reverses in two of three
+  (p99 71/98/88 ms vs 83/62/63 ms). Across those first six pairs p50 matches in five and differs by
+  2 ms in the sixth (50 ms pair 1: plain 58, karate 56); in the contended 50 ms pairs 4–6 the plain
+  arm's p50 drifts to 57–62 ms, which is the machine rather than the client. Whatever produces the
   tail difference is not a property of the client that survives a change of tier, and it should not
   be reported as one in either direction.
 - **Percentiles could not have detected the overhead anyway.** The karate arm's reported response
@@ -1588,9 +1660,11 @@ and the wording above reads as though all three did:
 - **Headroom, mock side: cleared** — every cell's digest carries `peakInFlight` 8 and a service p99
   between 115 µs and 2.2 ms, the worst of which is 4% of its own tier's injected latency. Each run
   also reconciles: iterations × 2 = Gatling's ok+ko = the mock's `served`.
-- **Headroom, injector side: not recorded anywhere.** Not in the digests, not in the table. It is
-  a safe inference at the 10 ms tier's 526–591 req/s and genuinely in doubt at the 0 ms tier, which is the tier where it
-  is missing. The `/usr/bin/time` wrapper from §6's null-pair method is how to record it.
+- **Headroom, injector side: ~~not recorded anywhere~~ — now in every digest.** It was a safe
+  inference at the 10 ms tier's 526–591 req/s and genuinely in doubt at the 0 ms tier. The CPU
+  headroom panel settles the first: the 10 ms injector runs at **1.4 of 10 cores**. The cells in
+  the table above predate the panel and still carry no figure, so the *published* rows remain
+  inferred — re-running them on the two-host phase is what puts a number in this column.
 - **Flat floor: not readable at these window lengths, so not met — unevaluated.** Every digest in
   the matrix prints its own drift, and none of them is flat: the karate arms land at +11–14 MB
   (117–143%) and the plain arms at +13–19 MB (135–194%), reproducibly, in all seventeen runs. At 14 seconds that is warmup — classes, JIT,
@@ -1599,6 +1673,64 @@ and the wording above reads as though all three did:
   evaluate this leg at all**, so either lengthen one confirmation run until the floor has a
   readable slope, or state that the leg is out of scope for short cells rather than implying it
   passed.
+
+### The two-host phase: what is built, and what it is for
+
+The 50 ms attempt above established the constraint: **this laptop's run-to-run floor is 3–6%, the
+effect is 0.5%, and no pair count closes that gap.** Everything here exists so the same runs can be
+taken somewhere they resolve — and so that when they are, the digest can prove its own conditions
+instead of asking to be trusted.
+
+#### The four things the harness was missing
+
+| | What it closes |
+|---|---|
+| **CPU headroom panel** in every digest | §10 carried "headroom, injector side: **not recorded anywhere**" as an admitted hole in one of its three acceptance legs. Both the injector and the mock now self-report CPU over their own measured window — not process lifetime, so no JVM startup and no idle tail. First reading: the 10 ms tier's injector runs at **1.4 of 10 cores**, so the inference §10 made was right and is now evidence. |
+| **`profiler compare <run-dir>…`** | The published tables were scraped by hand, and `6ae522b39` ("skipped a decimal cell and shifted every column") is what that cost on eight runs. It derives the tier tables, the sleep correction and the spread, and says when a tier is unresolved. It reproduces both published tiers to the digit — that agreement is the acceptance test, and `CompareTest` pins the arithmetic to the published cells. |
+| **`--mock-url`**, plus `LatencyMock --bind` / `--standalone` / `/config` | Nothing could point a run at a mock it had not forked. The parent now resets the remote mock's counters before the load and scrapes them after, writing `mock.log` byte-for-byte as a forked mock would — so the digest, the reconciliation and `compare` cannot tell the two apart. Verified: two runs against one mock alive for 67s each report their own 1600 over their own 2.8s window. |
+| **Host network limits** in `run-meta.txt`, and a per-run connection-rate check | Every published figure was macOS. The ceiling is now read from the kernel (this laptop: 16384 ports / 30s TIME_WAIT → **~546 conn/s**, which is where the remembered "~550" came from) and each run reports its own rate against it. A 0 ms cell now states its own hazard: *"1849 connections/s … 3.4x the sustainable rate … survived on brevity rather than margin."* |
+
+Two provenance gaps closed alongside: `run-meta.txt` now records **which mock tier** served the run
+(§7's "the tell is `mock.log`") and **the gap since the previous run**, so the 35-second TIME_WAIT
+convention — a correctness condition that lived only in an operator's shell script — is auditable
+after the fact rather than assumed.
+
+#### The machine
+
+**Two instances, not one**, and the second one is the whole point — a co-located mock is the
+confound being removed.
+
+- **`c7g.4xlarge` ×2** (Graviton3, 16 vCPU, 32 GB), same AZ, **cluster placement group** so
+  inter-host RTT is ~50–100 µs and stable: the injected latency stays the dominant term rather than
+  the network becoming the variable.
+- **Graviton on purpose.** 1 vCPU = 1 physical core with no SMT, and no turbo-bin jitter — two
+  sources of exactly the variance that made the 50 ms tier unreadable. aarch64 also keeps machine A's
+  baselines shape-comparable.
+- **Never a T-series.** Burst credits throttle silently, which is the same failure this phase exists
+  to escape.
+- **sysctls on both**: `net.ipv4.ip_local_port_range="1024 65535"`, `net.ipv4.tcp_tw_reuse=1`,
+  `net.core.somaxconn=8192`. The digest will report what it actually got — check it rather than
+  assume the sysctl took.
+- Cost is not a factor: roughly $0.58/hr each, so a full day of runs is under $15.
+
+#### The order, on the box
+
+1. **Re-calibrate.** `MockCalibrator` ramp 1/4/16/64, both connection modes. Non-negotiable: the
+   published calibration is machine A's, and the acceptance rules below are written against a local
+   one. It also re-establishes the churn arm's noise floor, which on machine A was 0.842 ms — as
+   large as the signal — and is the number the whole matrix's resolution depends on.
+2. **10 pairs at 10 ms.** The control. This tier *is* resolved on machine A at 0.6–0.8 ms, so if the
+   new machine does not reproduce it, nothing after it is trustworthy.
+3. **10 pairs at 50 ms.** The open item, on a machine where 0.5% is above the floor.
+4. **The user ramp**, 1→64 users, plus one open-arrival (`constantUsersPerSec`) lane. §10 calls this
+   the cheapest remaining run that would change a conclusion, and it answers the concurrency-density
+   question §9 has carried unmeasured. Expect a TPS shortfall with clean-looking latencies.
+5. **The AST prototype A/B** ([Parsed-JS reuse](#parsed-js-reuse--measured-half-gated-not-built)).
+   Needs one quiet machine rather than two, and a quiet machine is exactly what it has never had.
+
+**Run every cell with `--mock-url` against the second host**, and read the CPU panel on both sides:
+the mock host's row should be near-idle, which is what finally licenses the phrase "not co-located"
+rather than merely asserting it.
 
 ### Environment settings that fake a knee, and one hard ceiling
 
@@ -1622,12 +1754,22 @@ executions/s, 526 requests/s, 263 connections/s** — comfortably under the ceil
 one of those three and the arm looks like it is over it; `distinctPeerPorts` is in every digest so
 the connection rate never has to be derived again.
 
+**None of those three numbers has to be remembered any more.** `run-meta.txt` reads the port range,
+TIME_WAIT and `somaxconn` off the kernel and derives the sustainable rate — on machine A that comes
+out at **~546 conn/s**, which is where the figure above came from — and every digest reports the
+run's own connection rate against it. That matters most on Linux, where the range differs and
+TIME_WAIT is compiled in at 60 s rather than being twice a tunable MSL, so the arithmetic above
+gives a different answer and `tcp_tw_reuse` changes it again.
+
 **The 0 ms tier is the one that survives on brevity, not on margin.** The karate 0 ms / 8000 run
 opened 8000 connections in 1.9 s — about **4,200/s, roughly eight times the sustainable rate** —
 and passed only because the total stayed under 16,384 and the next churn-heavy run was a minute
-away. Nothing in the harness enforces either margin — in the first matrix the inter-run gap was an
-accident of Maven startup time, and in the rerun it is a `sleep 35` in the operator's script, which
-is a convention, not a guard. A short burst can beat a sustained ceiling until the port range
+away. A 0 ms cell now says this about itself, in the digest: *"1849 connections/s … 3.4x the
+sustainable rate … survived on brevity rather than margin"*. It is still **reported, not
+enforced** — a short run over the ceiling is fine and a long one is not, and that distinction is
+the finding. The inter-run gap is likewise recorded (`since prev:` in `run-meta.txt`, flagged when
+under 35 s) rather than imposed: in the first matrix it was an accident of Maven startup time, and
+in the rerun a `sleep 35` in the operator's script. A short burst can beat a sustained ceiling until the port range
 fills, which also means **the matrix has never actually tested the failure mode this section
 describes**. When it does bite it will read as
 "Karate is slower". Watch `netstat -an | grep -c TIME_WAIT` — and note it undercounts, because the
@@ -1637,8 +1779,8 @@ net.inet.tcp.msl=5000` raises the ceiling to ~3,200 conn/s and reverts on reboot
 
 ### What the result does not license, and what is next
 
-- **One cell shape.** 8 users, one machine, one feature — three pairs per tier now, but all at the
-  same point. **The user ramp is what answers §9's concurrency-density question**, and it is the
+- **One cell shape.** 8 users, one machine, one feature — three pairs at 10 ms and six at 50 ms
+  now, but all at the same point. **The user ramp is what answers §9's concurrency-density question**, and it is the
   cheapest remaining run of the ones that would change a conclusion. Expect the signature to be a **TPS shortfall
   with clean-looking latencies** — queue-for-a-thread time sits between actions, outside every
   `PerfEvent` bracket, so it never reaches a percentile. §9's prediction that starvation would
