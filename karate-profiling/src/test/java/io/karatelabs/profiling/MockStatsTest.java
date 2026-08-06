@@ -25,6 +25,11 @@ package io.karatelabs.profiling;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -123,6 +128,60 @@ class MockStatsTest {
         String json = stats.toJson();
         assertEquals(0, jsonLong(json, "inFlight"));
         assertEquals(3, jsonLong(json, "peakInFlight"), "the peak is the point — it must not decay");
+    }
+
+    /**
+     * Every bucket, not a sample of them. The historical bug was one arm of the mapping being
+     * wrong, which sampled values can miss and this cannot.
+     */
+    @Test
+    void testEveryBucketRoundTripsAndTheBoundsIncrease() {
+        long previous = -1;
+        for (int i = 0; i < 640; i++) {
+            long upper = MockStats.bucketUpperMicros(i);
+            assertTrue(upper > previous, "bucket bounds must increase: " + i + " gave " + upper);
+            previous = upper;
+            assertEquals(i, MockStats.bucket(upper),
+                    "a bucket's own upper bound must land back in it, failed at " + i);
+        }
+    }
+
+    /**
+     * The percentile denominator used to come from {@code served}, which {@code record} increments
+     * before the buckets — so a read landing between them searched for more mass than the
+     * histogram held, fell off the end of the loop and reported the last bucket's bound: decades,
+     * presented as a percentile. This hammers that exact window.
+     */
+    @Test
+    void testPercentilesStaySaneWhileRecordingConcurrently() throws Exception {
+        MockStats stats = new MockStats();
+        int threads = 8;
+        AtomicBoolean recording = new AtomicBoolean(true);
+        AtomicReference<String> impossible = new AtomicReference<>();
+        List<Thread> writers = new ArrayList<>();
+        for (int t = 0; t < threads; t++) {
+            writers.add(Thread.ofVirtual().start(() -> {
+                for (int i = 0; i < 20_000; i++) {
+                    stats.record(1_000_000, 0);       // every sample is exactly 1 ms
+                }
+            }));
+        }
+        Thread reader = Thread.ofVirtual().start(() -> {
+            while (recording.get()) {
+                long p99 = jsonLong(stats.toJson(), "serviceMicrosP99");
+                // Nothing recorded is above 1 ms, so no percentile of it can be.
+                if (p99 > 2_000) {
+                    impossible.compareAndSet(null, "p99 of " + p99 + " µs from 1 ms samples");
+                }
+            }
+        });
+        for (Thread writer : writers) {
+            writer.join();
+        }
+        recording.set(false);
+        reader.join();
+        assertNull(impossible.get(), impossible.get());
+        assertEquals(threads * 20_000, jsonLong(stats.toJson(), "served"));
     }
 
     private static long jsonLong(String json, String key) {

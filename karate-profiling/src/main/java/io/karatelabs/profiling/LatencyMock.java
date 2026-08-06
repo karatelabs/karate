@@ -76,6 +76,11 @@ public final class LatencyMock {
     /** Prefix of the shutdown stats line; the parent greps for it. Keep stable. */
     static final String STATS_PREFIX = "PROFILING-MOCK-STATS ";
 
+    /** Prefix of the startup line naming the settings that can fake a knee. Keep stable. */
+    static final String CONFIG_PREFIX = "PROFILING-MOCK-CONFIG ";
+
+    private static final String IDLE_CONNECTIONS_PROPERTY = "sun.net.httpserver.maxIdleConnections";
+
     /**
      * Slots in the created-cat ring. Bounded storage on purpose: the instrument's own heap must
      * not be a variable over a long ramp. A ring rather than an evicting map because ids are
@@ -85,9 +90,13 @@ public final class LatencyMock {
      */
     private static final int RING_SLOTS = 1 << 16;
 
+    /** Nanos from handler entry to just before the response write, for this request. */
+    static final String ELAPSED_HEADER = "X-Mock-Elapsed-Nanos";
+
     private static final byte[] PING = "{\"success\":true}".getBytes(StandardCharsets.UTF_8);
     private static final byte[] NOT_FOUND = "{\"error\":\"not found\"}".getBytes(StandardCharsets.UTF_8);
     private static final byte[] BAD_REQUEST = "{\"error\":\"expected a json object body\"}".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] RESET_BUSY = "{\"error\":\"requests in flight\"}".getBytes(StandardCharsets.UTF_8);
 
     /**
      * One created cat. A record, so id and body are published together by a single reference
@@ -131,6 +140,14 @@ public final class LatencyMock {
     }
 
     private void run(int port) throws Exception {
+        // The JDK server parks idle keep-alive connections and CLOSES them once more than
+        // maxIdleConnections are parked — default 200. Above that many concurrent users it starts
+        // churning connections, which looks exactly like a capacity knee and is a tunable default.
+        // Set before the server class initialises, and echoed at startup so a run can be checked
+        // against what it actually ran with.
+        if (System.getProperty(IDLE_CONNECTIONS_PROPERTY) == null) {
+            System.setProperty(IDLE_CONNECTIONS_PROPERTY, "8192");
+        }
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), backlog);
         ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
         server.setExecutor(executor);
@@ -138,6 +155,14 @@ public final class LatencyMock {
         server.start();
 
         System.out.println(READY_PREFIX + "http://127.0.0.1:" + server.getAddress().getPort());
+        // The two settings that can put a knee where there is no capacity limit. The kernel one
+        // cannot be set from here — listen() silently clamps the requested backlog to
+        // kern.ipc.somaxconn, which is 128 on macOS — so it is printed for the operator to check
+        // rather than asserted. A backlog "generously sized" in Java is not generously sized.
+        System.out.println(CONFIG_PREFIX + "{\"backlogRequested\":" + backlog
+                + ",\"maxIdleConnections\":" + System.getProperty(IDLE_CONNECTIONS_PROPERTY)
+                + ",\"latencyMillis\":" + (latencyNanos / 1_000_000)
+                + ",\"checkSomaxconn\":\"sysctl kern.ipc.somaxconn\"}");
         System.out.flush();
 
         // Block until the parent's pipe closes, exactly as MockJvm does: read() returns -1 on EOF,
@@ -163,13 +188,24 @@ public final class LatencyMock {
         // Served outside the accounting entirely: no latency, and not counted. The readout is not
         // part of the load, and an instrument that included its own readout in its numbers would
         // be reporting a small lie — one that grows with however often the harness polls.
-        if (path.startsWith("/stats")) {
+        // Exact match, not a prefix: "/stats" once matched by startsWith, which quietly made
+        // /statsAnything a success endpoint. A mock that answers 200 to a URL nobody defined is a
+        // mock that can absorb a client's routing bug without anyone noticing.
+        boolean reset = "/stats/reset".equals(path);
+        if (reset || "/stats".equals(path)) {
             try {
                 // /stats/reset returns the window just closed and starts a new one — how a ramp
                 // point or a measured window gets numbers of its own instead of ones still
                 // dominated by whatever ran before it. It doubles as the warmup trim.
                 byte[] body = stats.toJson().getBytes(StandardCharsets.UTF_8);
-                if ("/stats/reset".equals(path)) {
+                if (reset) {
+                    // Refused while anything is in flight, rather than silently splitting a
+                    // request's count from its bucket across two windows. The caller is between
+                    // ramp points and has nothing running; if it does, that is the bug.
+                    if (stats.inFlight() > 0) {
+                        respond(exchange, 409, RESET_BUSY);
+                        return;
+                    }
                     stats.reset();
                 }
                 respond(exchange, 200, body);
@@ -186,14 +222,14 @@ public final class LatencyMock {
             String method = exchange.getRequestMethod();
             int status;
             byte[] body;
-            if ("/ping".equals(path)) {
+            if ("/ping".equals(path) && "GET".equalsIgnoreCase(method)) {
                 status = 200;
                 body = PING;
             } else if ("/cats".equals(path) && "POST".equalsIgnoreCase(method)) {
                 byte[] created = create(exchange.getRequestBody());
                 status = created == null ? 400 : 201;
                 body = created == null ? BAD_REQUEST : created;
-            } else if (path.startsWith("/cats/")) {
+            } else if (path.startsWith("/cats/") && "GET".equalsIgnoreCase(method)) {
                 byte[] found = find(path.substring("/cats/".length()));
                 status = found == null ? 404 : 200;
                 body = found == null ? NOT_FOUND : found;
@@ -205,10 +241,23 @@ public final class LatencyMock {
             // The simulated network sits between the work and the response, and is excluded from
             // the service time recorded below — the injected wait is not the server's cost.
             sleptNanos = sleep();
+            // What this server can account for, on THIS request, handed to the client so it can
+            // subtract like for like. Aggregate subtraction (client p50 minus server p50) compares
+            // two different requests and has no per-request meaning; this does. It stops just short
+            // of the response write, so the client's remainder legitimately contains the write, the
+            // kernel queue and the network — which is the part being looked for.
+            exchange.getResponseHeaders().set(ELAPSED_HEADER,
+                    Long.toString(System.nanoTime() - start));
             respond(exchange, status, body);
             if (status >= 400) {
                 stats.recordError();
             }
+        } catch (IOException | RuntimeException e) {
+            // An aborted exchange still reached the handler and still cost the server, so it stays
+            // in the served count — but it must not pass as a clean request. During a port
+            // exhaustion episode these are exactly the requests that matter.
+            stats.recordError();
+            throw e;
         } finally {
             stats.record(System.nanoTime() - start - sleptNanos, sleptNanos);
             stats.exit();
@@ -244,7 +293,9 @@ public final class LatencyMock {
             return null;
         }
         long id = nextId.incrementAndGet();
-        String separator = text.length() == 2 ? "" : ",";
+        // Blank interior, not just "{}": a body of "{ }" is length 4 and would otherwise splice to
+        // {@code { ,"id":1}}, which is malformed JSON served with a 201.
+        String separator = text.substring(1, text.length() - 1).isBlank() ? "" : ",";
         byte[] body = (text.substring(0, text.length() - 1) + separator + "\"id\":" + id + "}")
                 .getBytes(StandardCharsets.UTF_8);
         ring.set((int) (id & (RING_SLOTS - 1)), new Cat(id, body));

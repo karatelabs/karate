@@ -91,6 +91,10 @@ final class MockStats {
         inFlight.decrementAndGet();
     }
 
+    int inFlight() {
+        return inFlight.get();
+    }
+
     /**
      * Record one request.
      *
@@ -118,7 +122,7 @@ final class MockStats {
         errors.increment();
     }
 
-    private static int bucket(long micros) {
+    static int bucket(long micros) {
         if (micros < SUB_BUCKETS) {
             return (int) Math.max(micros, 0);
         }
@@ -129,7 +133,7 @@ final class MockStats {
     }
 
     /** Inverse of {@link #bucket}: the upper bound in µs of everything that lands in this index. */
-    private static long bucketUpperMicros(int index) {
+    static long bucketUpperMicros(int index) {
         if (index < SUB_BUCKETS) {
             return index;
         }
@@ -160,9 +164,22 @@ final class MockStats {
         peakInFlight.set(inFlight.get());
     }
 
-    /** Upper bound in microseconds of the bucket holding the given percentile, or 0 if nothing served. */
+    /**
+     * Upper bound in microseconds of the bucket holding the given percentile, or 0 if nothing
+     * served.
+     *
+     * <p>The denominator is summed from <b>this histogram</b>, not from {@link #served}. Those two
+     * disagree by design for the length of a race: {@code record} increments {@code served} first
+     * and the buckets last, so a {@code /stats} read landing between them sees a total larger than
+     * the mass it is searching. The old code took {@code served} as the denominator and, when the
+     * target overshot, fell off the end of the loop and reported the last bucket's bound — decades,
+     * presented as a percentile. Summing the array cannot overshoot it.</p>
+     */
     private long percentileMicros(LongAdder[] buckets, double percentile) {
-        long total = served.sum();
+        long total = 0;
+        for (LongAdder bucket : buckets) {
+            total += bucket.sum();
+        }
         if (total == 0) {
             return 0;
         }

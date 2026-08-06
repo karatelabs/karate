@@ -42,11 +42,20 @@ import java.util.concurrent.CountDownLatch;
  * handler entry, so it cannot see the accept queue, the dispatcher thread that owns socket
  * readiness, or the executor handoff. A mock saturated upstream of its own clock reports a flat
  * p99 while clients queue behind it. That failure looks exactly like a clean parity result, which
- * is the most dangerous outcome available. The number that exposes it is measured from out here:</p>
+ * is the most dangerous outcome available. The number that exposes it is measured from out here,
+ * <b>per request</b>:</p>
  *
  * <pre>
- *   queueing residue = client p99 - (injected latency + mock handler p99)
+ *   unowned = client elapsed - the server's own elapsed for THAT SAME request
  * </pre>
+ *
+ * <p>The pairing is the point, and it is why the mock returns its elapsed time in a response
+ * header. An earlier version subtracted aggregates — the client's p50 minus the server's p50 —
+ * which has no per-request meaning at all: {@code median(X - Y) != median(X) - median(Y)}, and the
+ * request at the client's median is not the request at the server's. It was also read through a
+ * histogram bucket <i>bound</i>, so the quantisation was comparable to the signal. Aggregate this
+ * per-request figure with the <b>mean</b>, which is exact by linearity of expectation and includes
+ * the tail where queueing actually lives.</p>
  *
  * <p>Flat across the ramp means the server is keeping up. Climbing means requests are waiting
  * somewhere neither clock owns, and every client comparison run past that point is measuring the
@@ -61,7 +70,7 @@ import java.util.concurrent.CountDownLatch;
  *
  * <pre>
  *   java -cp ... io.karatelabs.profiling.MockCalibrator --url http://127.0.0.1:PORT \
- *        --ramp 1,2,4,8,16,32,64 --requests 2000 --latency 10ms
+ *        --ramp 1,2,4,8,16,32,64 --per-user 200
  * </pre>
  */
 public final class MockCalibrator {
@@ -72,106 +81,149 @@ public final class MockCalibrator {
     }
 
     public static void main(String[] args) throws Exception {
-        // java.net.http refuses "Connection" as a restricted header, and connection-per-request is
-        // half of what this tool exists to measure. Must be set before HttpClient initialises,
-        // hence the first line. The alternative — a fresh HttpClient per request — would model
-        // Karate's per-execution client faithfully but load the CLIENT with the cost, which is
-        // exactly what a calibration client must not do.
-        System.setProperty("jdk.httpclient.allowRestrictedHeaders", "connection");
         String url = null;
         int[] ramp = {1, 2, 4, 8, 16, 32, 64};
-        int requests = 2000;
-        Duration latency = Duration.ZERO;
-        for (int i = 0; i < args.length - 1; i++) {
+        // PER USER, not a total split across them. A fixed total makes every point a different
+        // experiment: at 256 users it is 15 iterations each over ~200 ms, so the points that
+        // matter most get the least data, the shortest window, and a sample composition skewed
+        // toward first-request-on-a-fresh-connection.
+        int perUser = 200;
+        // Between points, so the previous point's sockets leave TIME_WAIT before the next one
+        // starts opening its own. Without it the churn arm spends the ramp walking into the
+        // ephemeral-port ceiling, and every later point is measuring that rather than the mock.
+        Duration settle = Duration.ofSeconds(5);
+        for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
-                case "--url" -> url = args[++i];
-                case "--ramp" -> ramp = Arrays.stream(args[++i].split(",")).mapToInt(s -> Integer.parseInt(s.trim())).toArray();
-                case "--requests" -> requests = Integer.parseInt(args[++i]);
-                case "--latency" -> latency = RunShape.parseDuration(args[++i]);
-                default -> {
-                }
+                case "--url" -> url = next(args, i++);
+                case "--ramp" -> ramp = Arrays.stream(next(args, i++).split(","))
+                        .mapToInt(s -> Integer.parseInt(s.trim())).toArray();
+                case "--per-user" -> perUser = Integer.parseInt(next(args, i++));
+                case "--settle" -> settle = RunShape.parseDuration(next(args, i++));
+                default -> throw new IllegalArgumentException("unknown option: " + args[i]);
             }
         }
-        if (url == null) {
-            throw new IllegalArgumentException("usage: MockCalibrator --url <url> [--ramp 1,2,4] [--requests N] [--latency 10ms]");
+        if (url == null || perUser < 1 || ramp.length == 0) {
+            throw new IllegalArgumentException(
+                    "usage: MockCalibrator --url <url> [--ramp 1,2,4] [--per-user N]");
+        }
+        for (int users : ramp) {
+            if (users < 1) {
+                throw new IllegalArgumentException("ramp entries must be >= 1");
+            }
         }
 
         // Unmeasured, and not optional: the first requests pay for class loading, JIT and the
-        // server's own first-touch costs. Left in, they land in p99 - which is the number the
-        // knee is read from - and would put the knee wherever the JIT happened to finish.
+        // server's own first-touch costs. Left in, they land in the tail — which is what the knee
+        // is read from — and would put the knee wherever the JIT happened to finish. The baseline
+        // repeat at the end of each arm is what says whether this was enough.
         System.out.println("[calibrate] warming up");
         run(url, 4, 500, true);
         run(url, 4, 500, false);
 
-        System.out.printf("%n[calibrate] %s, %d requests per point, injected latency %s (nominal)%n",
-                url, requests, latency.toMillis() + "ms");
-        System.out.printf("%-10s %-6s %10s %10s %10s %10s %10s %10s%n",
-                "mode", "users", "tps", "p50 ms", "p99 ms", "held p50", "unowned", "growth");
+        System.out.printf("%n[calibrate] %s, %d iterations per user per point%n", url, perUser);
+        System.out.printf("%-10s %-6s %4s %10s %10s %10s %12s %12s %10s%n",
+                "mode", "users", "ko", "tps", "p50 ms", "p99 ms", "unowned mean", "unowned p99", "growth");
         for (boolean keepAlive : new boolean[]{true, false}) {
+            String mode = keepAlive ? "keepalive" : "close";
             double baseline = Double.NaN;
-            for (int users : ramp) {
-                get(url + "/stats/reset");   // this point's numbers, not the ramp's history
-                Result r = run(url, users, requests, keepAlive);
-                String stats = get(url + "/stats");
-                // Held = service + the sleep the mock ACTUALLY took, so nothing here assumes the
-                // nominal knob value. Compared p50 to p50: subtracting the mock's p99 from the
-                // client's p99 compares two different requests' tails, which is not a queue
-                // measurement and reads backwards as concurrency rises.
-                double heldP50Ms = jsonLong(stats, "heldMicrosP50") / 1000.0;
-                double unowned = r.p50Ms - heldP50Ms;
+            // The baseline point is repeated at the END of each arm. If the two disagree, the
+            // arm's baseline was cold and every growth figure measured against it is drift, not
+            // queueing — which is what a negative growth column was telling us and nobody read.
+            int[] points = new int[ramp.length + 1];
+            System.arraycopy(ramp, 0, points, 0, ramp.length);
+            points[ramp.length] = ramp[0];
+            for (int index = 0; index < points.length; index++) {
+                int users = points[index];
+                Thread.sleep(settle);
+                reset(url);                  // this point's numbers, not the ramp's history
+                Result r = run(url, users, perUser, keepAlive);
                 if (Double.isNaN(baseline)) {
-                    baseline = unowned;
+                    baseline = r.residualMeanMs();
                 }
-                // The absolute figure is a floor - connection setup, syscalls, the client's own
-                // cost - and says nothing on its own. Its GROWTH over the single-user baseline is
-                // the queueing signal, because that floor is the one thing that should not change
-                // with concurrency.
-                System.out.printf("%-10s %-6d %10.0f %10.2f %10.2f %10.2f %10.2f %10.2f%n",
-                        keepAlive ? "keepalive" : "close", users, r.tps, r.p50Ms, r.p99Ms,
-                        heldP50Ms, unowned, unowned - baseline);
+                // Mean, not a difference of percentiles: by linearity of expectation the mean of
+                // the paired per-request residuals IS the mean residual, exactly. And it includes
+                // the tail, which is where queueing lives and where a p50 is blind.
+                System.out.printf("%-10s %-6d %4d %10.0f %10.2f %10.2f %12.3f %12.3f %10.3f%s%n",
+                        mode, users, r.failed(), r.tps(), r.p50Ms(), r.p99Ms(),
+                        r.residualMeanMs(), r.residualP99Ms(), r.residualMeanMs() - baseline,
+                        index == ramp.length ? "   <- baseline repeat" : (r.valid() ? "" : "   INVALID"));
             }
         }
         System.out.println("""
 
-                [calibrate] The knee is where 'growth' departs from ~0 - NOT where tps stops
-                rising. tps flattens for legitimate reasons in a closed loop (users / iteration
-                time is a hard ceiling), so a flat tps column is not saturation. 'unowned' is
-                client p50 minus what the mock can account for: a floor at one user, and any
-                rise above that floor is time spent queued where neither clock can see it.
-                Run the parity matrix strictly below that point, in whichever mode knees first.""");
+                [calibrate] Read it in this order.
+                  1. ko must be 0. A point with failures is not a slower point, it is a point
+                     with holes: the failed requests leave the sample and take the slow ones with
+                     them, so tps collapses while the percentiles stay clean. Fix the cause and
+                     re-run; do not read a knee off an INVALID row.
+                  2. The baseline repeat must match the first row. If it does not, the arm was
+                     still warming up and every growth figure is drift.
+                  3. The knee is where 'unowned mean' departs from its baseline - NOT where tps
+                     stops rising. In a closed loop tps is capped by users / iteration time, so
+                     neither its rise nor its flattening proves anything.
+                'unowned' is per-request: what the client waited minus what the mock says it spent
+                on that same request. Its floor is connection setup, the response write and the
+                client's own cost; growth above that floor is queueing where neither clock sees.
+                Closed loop means the knee is OPTIMISTIC - when the mock stalls these clients stop
+                offering load. Run the matrix at half the knee, in whichever mode knees first, and
+                re-calibrate open-loop before trusting any constantUsersPerSec cell.""");
     }
 
-    private record Result(double tps, double p50Ms, double p99Ms) {
+    private record Result(int attempted, int completed, int failed, double tps,
+                          double meanMs, double p50Ms, double p99Ms,
+                          double residualMeanMs, double residualP99Ms) {
+
+        /** A point with any failure is not a slower point, it is a point with holes in it. */
+        boolean valid() {
+            return failed == 0 && completed == attempted;
+        }
     }
 
-    private static Result run(String url, int users, int totalRequests, boolean keepAlive) throws Exception {
-        int perUser = Math.max(1, totalRequests / users);
-        long[][] samples = new long[users][perUser];
+    /** One request: what the client waited, and what the server said it spent on that same request. */
+    private record Sample(long elapsedNanos, long serverNanos) {
+    }
+
+    private static Result run(String url, int users, int perUser, boolean keepAlive) throws Exception {
+        int attempted = users * perUser;
+        List<Sample>[] collected = new List[users];
+        int[] failures = new int[users];
         CountDownLatch done = new CountDownLatch(users);
         long start = System.nanoTime();
         for (int u = 0; u < users; u++) {
             int user = u;
+            collected[user] = new ArrayList<>(perUser);
             Thread.ofVirtual().start(() -> {
-                // A client per user in keep-alive mode (one pooled connection each); in close mode
-                // the Connection: close header is what forces a fresh connection per request.
-                HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+                // Keep-alive: one client for the whole point, pooling its connection — plain
+                // Gatling's shape. Churn: a fresh client per iteration, which is KARATE's shape,
+                // since it builds an HTTP client per feature execution and its two calls share it.
+                //
+                // Not a "Connection: close" header, which was the first attempt and does not
+                // work: java.net.http keeps pooling, then picks a socket the server has already
+                // closed and fails with "header parser received no bytes". Those KOs are a client
+                // artifact and would have been read as a server knee.
+                HttpClient shared = keepAlive ? newClient() : null;
                 try {
                     for (int i = 0; i < perUser; i++) {
-                        long t0 = System.nanoTime();
-                        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url + "/cats"))
-                                .header("Content-Type", "application/json")
-                                .POST(HttpRequest.BodyPublishers.ofString(BODY));
-                        if (!keepAlive) {
-                            builder.header("Connection", "close");
+                        HttpClient client = keepAlive ? shared : newClient();
+                        try {
+                            // The transaction the parity matrix runs, not a POST on its own: the
+                            // matrix does POST then GET, and an envelope measured on one traffic
+                            // shape does not transfer to another - different handler mix,
+                            // different requests per connection, different connection rate.
+                            long id = post(client, url, collected[user], failures, user);
+                            if (id < 0 || !get(client, url, id, collected[user], failures, user)) {
+                                return;
+                            }
+                        } finally {
+                            if (!keepAlive) {
+                                client.close();
+                            }
                         }
-                        client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-                        samples[user][i] = System.nanoTime() - t0;
                     }
-                } catch (Exception e) {
-                    // A failed point is worth seeing rather than silently averaging away — at the
-                    // 0 ms tier in close mode this is where ephemeral-port exhaustion shows up.
-                    System.out.println("[calibrate] user " + user + " failed: " + e);
                 } finally {
+                    if (shared != null) {
+                        shared.close();
+                    }
                     done.countDown();
                 }
             });
@@ -179,16 +231,105 @@ public final class MockCalibrator {
         done.await();
         double elapsedSeconds = (System.nanoTime() - start) / 1_000_000_000.0;
 
-        List<Long> all = new ArrayList<>(users * perUser);
-        for (long[] perUserSamples : samples) {
-            for (long sample : perUserSamples) {
-                if (sample > 0) {
-                    all.add(sample);
-                }
-            }
+        List<Sample> all = new ArrayList<>(attempted * 2);
+        for (List<Sample> perUserSamples : collected) {
+            all.addAll(perUserSamples);
         }
-        all.sort(null);
-        return new Result(all.size() / elapsedSeconds, percentileMs(all, 0.50), percentileMs(all, 0.99));
+        int failed = 0;
+        for (int f : failures) {
+            failed += f;
+        }
+        List<Long> elapsed = new ArrayList<>(all.size());
+        List<Long> residual = new ArrayList<>(all.size());
+        double elapsedTotal = 0;
+        double residualTotal = 0;
+        for (Sample sample : all) {
+            elapsed.add(sample.elapsedNanos());
+            elapsedTotal += sample.elapsedNanos();
+            // Paired, per request, same request on both sides. This is the whole point: an
+            // aggregate difference of two percentiles compares two DIFFERENT requests and has no
+            // per-request meaning, quite apart from being read through a bucket bound.
+            long unowned = sample.elapsedNanos() - sample.serverNanos();
+            residual.add(unowned);
+            residualTotal += unowned;
+        }
+        elapsed.sort(null);
+        residual.sort(null);
+        int completed = all.size() / 2;    // a completed iteration is a POST and its GET
+        return new Result(attempted, completed, failed,
+                completed / elapsedSeconds,
+                elapsedTotal / Math.max(1, all.size()) / 1_000_000.0,
+                percentileMs(elapsed, 0.50), percentileMs(elapsed, 0.99),
+                residualTotal / Math.max(1, all.size()) / 1_000_000.0,
+                percentileMs(residual, 0.99));
+    }
+
+    /** @return the created id, or -1 if this user is done because something failed */
+    private static HttpClient newClient() {
+        return HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    }
+
+    private static long post(HttpClient client, String url,
+                             List<Sample> samples, int[] failures, int user) {
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url + "/cats"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(BODY));
+            long t0 = System.nanoTime();
+            HttpResponse<String> response = client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            long elapsed = System.nanoTime() - t0;
+            if (response.statusCode() != 201) {
+                return fail(failures, user, "POST returned " + response.statusCode());
+            }
+            samples.add(new Sample(elapsed, serverNanos(response)));
+            return idOf(response.body());
+        } catch (Exception e) {
+            return fail(failures, user, "POST failed: " + e);
+        }
+    }
+
+    private static boolean get(HttpClient client, String url, long id,
+                               List<Sample> samples, int[] failures, int user) {
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url + "/cats/" + id));
+            long t0 = System.nanoTime();
+            HttpResponse<String> response = client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            long elapsed = System.nanoTime() - t0;
+            if (response.statusCode() != 200) {
+                return fail(failures, user, "GET returned " + response.statusCode()) >= 0;
+            }
+            // The mock serving the WRONG cat would otherwise pass here exactly as it would pass
+            // the plain Gatling sim, which checks only the name - and every cat is named Billie.
+            if (idOf(response.body()) != id) {
+                return fail(failures, user, "GET returned the wrong cat") >= 0;
+            }
+            samples.add(new Sample(elapsed, serverNanos(response)));
+            return true;
+        } catch (Exception e) {
+            return fail(failures, user, "GET failed: " + e) >= 0;
+        }
+    }
+
+    private static long fail(int[] failures, int user, String message) {
+        failures[user]++;
+        System.out.println("[calibrate] user " + user + " " + message);
+        return -1;
+    }
+
+    private static long serverNanos(HttpResponse<String> response) {
+        return response.headers().firstValue(LatencyMock.ELAPSED_HEADER).map(Long::parseLong).orElse(0L);
+    }
+
+    private static long idOf(String body) {
+        int at = body.lastIndexOf("\"id\":");
+        if (at < 0) {
+            return -1;
+        }
+        int end = at + 5;
+        while (end < body.length() && Character.isDigit(body.charAt(end))) {
+            end++;
+        }
+        return Long.parseLong(body.substring(at + 5, end));
     }
 
     private static double percentileMs(List<Long> sorted, double percentile) {
@@ -199,24 +340,22 @@ public final class MockCalibrator {
         return sorted.get(Math.max(0, index)) / 1_000_000.0;
     }
 
-    private static String get(String url) throws Exception {
-        return HttpClient.newHttpClient()
-                .send(HttpRequest.newBuilder(URI.create(url)).build(), HttpResponse.BodyHandlers.ofString())
-                .body();
+    private static String next(String[] args, int index) {
+        if (index + 1 >= args.length) {
+            throw new IllegalArgumentException("missing value for " + args[index]);
+        }
+        return args[index + 1];
     }
 
-    /** Enough JSON for a flat object of numbers — this reads the mock's own stats, nothing else. */
-    private static long jsonLong(String json, String key) {
-        int at = json.indexOf('"' + key + '"');
-        if (at < 0) {
-            return 0;
+    /** Closes the mock's window. A 409 means requests were still in flight — that is a bug here,
+     *  not something to retry around, so it fails the run rather than silently measuring across it. */
+    private static void reset(String url) throws Exception {
+        HttpResponse<String> response = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder(URI.create(url + "/stats/reset")).build(),
+                HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            throw new IllegalStateException("could not close the mock's window: " + response.body());
         }
-        int colon = json.indexOf(':', at);
-        int end = colon + 1;
-        while (end < json.length() && (Character.isDigit(json.charAt(end)) || json.charAt(end) == '-')) {
-            end++;
-        }
-        return Long.parseLong(json.substring(colon + 1, end).trim());
     }
 
 }

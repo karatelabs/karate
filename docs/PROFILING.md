@@ -1361,22 +1361,19 @@ run against it unchanged.
 | Latency | `--latency 10ms`, injected as a sleep. Virtual threads are what make this cheap: a mock holding hundreds of sleeping requests must not need hundreds of platform threads, or the *mock* becomes the concurrency limit being measured. |
 | Instrumentation | Requests served, **own service time excluding the injected sleep** (histogram), and peak in-flight. Reported on a `/stats` endpoint and as a summary line at shutdown. |
 
-**The instrumentation is the saturation detector — but only in one direction, and the scope was
-wrong about this until review caught it.** A handler-side clock starts at handler entry, so it
-cannot see the accept queue, the dispatcher thread that owns socket readiness, or the handoff to
-the executor. A mock saturated *upstream of its own clock* reports flat handler p99 while clients
-observe rising latency. So: **p99 climbing proves the mock is the bottleneck; p99 flat proves
-nothing.** Three things close that gap, and none is optional:
+**The instrumentation is the saturation detector — but only in one direction.** A handler-side
+clock starts at handler entry, so it cannot see the accept queue, the dispatcher thread that owns
+socket readiness, or the handoff to the executor. A mock saturated *upstream of its own clock*
+reports flat handler p99 while clients observe rising latency. So: **p99 climbing proves the mock
+is the bottleneck; p99 flat proves nothing.** Three things close that gap, and none is optional:
 
-- **Calibrate before the matrix, not after.** Between B and D, drive the mock alone with a
-  known-cheap client at each latency tier and find its knee — in *both* keep-alive and
-  connection-per-request modes. Then run the matrix demonstrably inside that envelope.
-- **Derive the queueing residue** in the digest:
-  `client-observed p99 − (injected latency + mock handler service time)`. That difference is
-  where invisible queueing shows up, whoever owns it. It is the number that makes "the mock
-  stayed out of the way" a measurement rather than an assumption.
-- **Set the backlog explicitly** — `HttpServer.create(addr, backlog)`; the default delegates to
-  a small system value, which is itself a silent ceiling.
+- **Calibrate before the matrix, not after** — B2 below, in *both* connection modes, then run the
+  matrix inside the envelope it establishes.
+- **Measure what neither clock owns, per request** — the mock returns its own elapsed time for
+  each request, so a client can subtract like for like. See B2 for why an aggregate difference of
+  percentiles cannot do this job.
+- **Set the backlog explicitly** — and then check what the kernel actually gave you; on macOS
+  `listen()` clamps it to `kern.ipc.somaxconn`, which is 128.
 
 **The two variants do not present the same load to the mock, and they differ on exactly its
 weakest axis.** Karate constructs an HTTP client per execution — §6's own unchased
@@ -1411,76 +1408,98 @@ mock stays, because it is the thing being profiled in the "is the mock server fa
 
 ### B2 — calibrate the mock, before anything is compared against it
 
-Drive `LatencyMock` alone with a known-cheap client at each latency tier, in **both** keep-alive
-and connection-per-request mode, and find the knee: the concurrency at which client-observed
-latency departs from `injected latency + handler service time`. That number is the envelope every
-cell of the matrix must run inside, and it is what converts "the mock stayed out of the way" from
-an assumption into a measurement. Skipping this is how the experiment passes while the mock
-silently queues upstream of its own clock.
-
-Cheap to build: the calibration client is the raw-`java.net.http` driver §9 has wanted all along
-for the "Mock throughput tiers" row, so this step pays a debt rather than adding one.
+Drive `LatencyMock` alone with a client cheap enough to be out of the way, ramping concurrency
+until it stops being free. This is what converts "the mock stayed out of the way" from an
+assumption into a measurement, and it is a precondition for the matrix, not a nice-to-have.
 
 ```bash
 # terminal 1 — the instrument
 java -cp target/classes:$(cat target/cp.txt) io.karatelabs.profiling.LatencyMock --latency 10ms
 # terminal 2 — find its knee
 java -cp target/classes:$(cat target/cp.txt) io.karatelabs.profiling.MockCalibrator \
-     --url http://127.0.0.1:PORT --ramp 1,4,16,64,128,256 --requests 4000 --latency 10ms
+     --url http://127.0.0.1:PORT --ramp 1,4,16,64 --per-user 100 --settle 20s
 ```
 
-> **RETRACTED — do not use the knee below.** Adversarial review found the estimator unsound and
-> the calibration client failure-blind, and the two defects push in the same direction: toward
-> declaring the mock healthy. Specifically, `unowned` subtracts two **unpaired marginal
-> quantiles** (median(X−Y) ≠ median(X)−median(Y), and the request at the client median is not the
-> one at the server median), and it does so at a resolution coarser than the signal — the held
-> p50 is a histogram bucket *bound*, ±0.8 ms at 12.8 ms, against growth values of 1.70 and
-> 2.34 ms. Separately, a failed request removes itself from the sample: the calibrator breaks
-> that user's loop, never checks response status, and drops the empty slots, so the connection
-> failures expected *at the knee* are exactly what goes missing from the distribution.
->
-> The numbers are kept here because the shape of the run is still informative and because a
-> retraction that deletes its own evidence teaches nobody anything. **They are not a validity
-> limit and no matrix cell may cite them.**
+**The measurement is per request, and the pairing is the whole point.** The mock returns its own
+elapsed time for each request in an `X-Mock-Elapsed-Nanos` header, so the calibrator subtracts
+like for like:
 
-**First calibration — machine A, 10 ms injected, 4000 requests per point.** `unowned` is client
-p50 minus what the mock can account for (its service time plus the sleep it actually took);
-`growth` is that figure's rise over the single-user baseline, read at the time as the queueing
-signal — see the retraction above for why it is not one.
+> `unowned = client elapsed − the server's own elapsed, for that same request`
 
-| users | keepalive tps | growth | close tps | growth |
-|---:|---:|---:|---:|---:|
-| 1–64 | 68 → 4694 | ~0 | 71 → 881 | ~0 |
-| 128 | 9391 | −0.55 | 4815 | **1.70** |
-| 256 | 7755 (down) | **2.34** | 3543 (down) | **12.89** |
+Aggregate it with the **mean**, which is exact by linearity of expectation and includes the tail
+where queueing lives. An earlier version subtracted the client's p50 from the server's p50 and
+called the difference queueing; it is not, at any resolution — `median(X−Y) ≠ median(X)−median(Y)`,
+and the request at one median is not the request at the other. It was also read through a
+histogram bucket *bound*, making the quantisation comparable to the signal. Both mistakes flatter
+the server, which is the direction that matters.
 
-What survives the retraction, and what does not:
+**Read a calibration in this order.** Two of the three checks exist because skipping them
+produced a confident wrong answer:
 
-- **Survives:** close mode degrades earlier than keep-alive, and by a wide margin. That
-  direction is robust to the estimator, and it matters because connection-per-request is the
-  mode the Karate variant resembles — it builds an HTTP client per execution. Calibrating only
-  in keep-alive would have set the ceiling for the variant under test at roughly twice its real
-  value. Also robust: TPS *falls* at the top of the ramp while p99 goes 20 ms → 113 ms, which is
-  a collapse whatever the estimator says.
-- **Does not survive:** the specific numbers "~128 users keep-alive, ~64 close" as a validity
-  limit. They came from the retracted growth column, on points that may have been quietly
-  missing their failed requests.
-- **Never established:** that TPS is a saturation signal at all. In a closed loop it is capped
-  by users ÷ iteration time, so neither its rise nor its flattening proves anything.
+1. **`ko` must be 0.** A point with failures is not a slower point, it is a point with holes: the
+   failed requests leave the sample *and take the slow ones with them*, so throughput collapses
+   while the percentiles stay clean. Rows are marked `INVALID`; no knee may be read off one.
+2. **The baseline repeat must match the first row.** Each arm re-runs its lowest point at the
+   end. If they disagree, the arm was still warming up and every growth figure is drift. This is
+   also how you learn the arm's noise floor — growth smaller than that gap is unreadable.
+3. **The knee is where `unowned mean` departs from its baseline** — *not* where throughput stops
+   rising. In a closed loop throughput is capped by users ÷ iteration time, so neither its rise
+   nor its flattening proves anything.
 
-Two methodology problems the numbers cannot fix, both to be settled before the knee is quoted
-again:
+#### Machine A, 10 ms injected, 100 iterations per user, 20 s settle
 
-- **The calibration client is not the matrix client.** It sends POST only; the matrix does
-  POST + GET, and Karate's two calls may share one connection where the calibrator's close mode
-  forces one per request. An envelope measured on one traffic shape does not transfer to the
-  other.
-- **A cheap client does not bound contention for an expensive one.** The calibrator and the mock
-  share ten cores, and the Karate injector will take more CPU from the co-located mock than the
-  calibrator did — so a knee found with the cheap client is not conservative for the expensive
-  one. Karate can make the reference slower merely by using the host, manufacturing a
-  server-side contribution to the very gap being attributed to the client. Prose disclosure is
-  not a correction: this wants reserved CPUs, or calibration with the actual clients, or both.
+| users | keepalive growth | close growth |
+|---:|---:|---:|
+| 1 (baseline) | 0.000 | 0.000 |
+| 4 | 0.179 | 0.070 |
+| 16 | 0.579 | 0.783 |
+| 64 | 1.315 | 0.374 |
+| 1 (repeat) | **0.094** | **0.842** |
+
+Zero failures in every row. What it supports, and no more:
+
+- **Keep-alive is trustworthy and shows no knee through 64 users.** Its baseline repeat lands at
+  0.094 ms, so the noise floor is under 0.1 ms and the 1.3 ms of growth at 64 users is real.
+- **The churn arm cannot resolve anything here.** Its baseline repeat is 0.842 ms — as large as
+  the growth values themselves — so the honest statement is "no detectable growth through 64
+  users, at a resolution of about 0.8 ms", not that it is flat.
+- **`unowned` is an upper bound on server queueing, not a measure of it.** It is client elapsed
+  minus server elapsed, so it also contains the client's own scheduling of N virtual threads on
+  a machine the mock is sharing. Growth that rises with concurrency is partly the injector. This
+  is the co-location problem below, showing up inside the number.
+
+**Run the matrix at half the knee.** The closed loop makes any knee optimistic — when the mock
+stalls these clients stop offering load, so the growth column under-records the stall. And the
+knee is void for an open-model cell (`constantUsersPerSec`), where an injector keeps sending into
+a stall; re-calibrate open-loop before trusting one.
+
+#### Two environment defaults that fake a knee, and one hard ceiling
+
+Neither of the first two is a capacity limit, and both were mistaken for one before being found:
+
+| | Default | Why it matters |
+|---|---|---|
+| `sun.net.httpserver.maxIdleConnections` | **200** | Above that many parked keep-alive connections the JDK server *closes* them, so a high-user run churns connections and degrades at a tunable default. `LatencyMock` now sets it to 8192. |
+| `kern.ipc.somaxconn` (macOS) | **128** | `listen()` silently clamps the requested backlog to it, so a "generously sized" 1024 in Java is 128 in the kernel. Check it; the mock prints what it asked for at startup. |
+
+The hard one is **ephemeral ports**: 16,384 of them (49152–65535) with MSL 15 s, so TIME_WAIT is
+30 s and sustained connection-per-execution load tops out near **550 connections/second**. This
+is not the mock's limit and no tuning of the mock touches it — but the *Karate* arm of the matrix
+builds a client per execution, and at 16 users against a 10 ms mock (~26 ms per iteration) it
+offers ~615 conn/s. **The 0 ms and 10 ms tiers can therefore fail for reasons that have nothing
+to do with Karate, and would read as "Karate is slower".** Watch `netstat -an | grep -c TIME_WAIT`
+during a run; `sudo sysctl -w net.inet.ip.portrange.first=32768 net.inet.tcp.msl=5000` raises the
+ceiling to roughly 3,200 conn/s and reverts on reboot.
+
+#### The confound this step cannot fix
+
+The calibrator and the mock share ten cores, and **a cheap client does not bound contention for
+an expensive one**. The Karate injector will take more CPU from the co-located mock than the
+calibrator does, so a knee found here is not conservative for the run that matters — Karate can
+make the reference slower merely by using the host, manufacturing a server-side contribution to
+the very gap being attributed to the client. Prose disclosure is not a correction. The fix is
+separate hosts, which also removes the port ceiling above; until then, treat every number in the
+matrix as an upper bound on Karate's overhead rather than a measurement of it.
 
 ### C — make the comparison numeric
 
