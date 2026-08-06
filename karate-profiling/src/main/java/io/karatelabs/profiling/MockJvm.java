@@ -41,7 +41,7 @@ import io.karatelabs.core.MockServer;
 public final class MockJvm {
 
     /** The parent blocks on this line to learn the port; keep the format stable. */
-    static final String READY_PREFIX = "PROFILING-MOCK-URL ";
+    public static final String READY_PREFIX = "PROFILING-MOCK-URL ";
 
     public static void main(String[] args) throws Exception {
         if (args.length < 1) {

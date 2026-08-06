@@ -70,9 +70,6 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
  */
 public final class LatencyMock {
 
-    /** The parent blocks on this line to learn the port; keep the format stable. */
-    static final String READY_PREFIX = "PROFILING-MOCK-URL ";
-
     /** Prefix of the shutdown stats line; the parent greps for it. Keep stable. */
     static final String STATS_PREFIX = "PROFILING-MOCK-STATS ";
 
@@ -154,7 +151,9 @@ public final class LatencyMock {
         server.createContext("/", this::handle);
         server.start();
 
-        System.out.println(READY_PREFIX + "http://127.0.0.1:" + server.getAddress().getPort());
+        // Same handshake line as MockJvm, and deliberately its constant rather than a copy:
+        // the parent greps for one prefix, so two definitions of it can only ever drift apart.
+        System.out.println(MockJvm.READY_PREFIX + "http://127.0.0.1:" + server.getAddress().getPort());
         // The two settings that can put a knee where there is no capacity limit. The kernel one
         // cannot be set from here — listen() silently clamps the requested backlog to
         // kern.ipc.somaxconn, which is 128 on macOS — so it is printed for the operator to check

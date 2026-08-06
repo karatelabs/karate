@@ -96,6 +96,8 @@ public final class Profiler {
                   --xmx 768m             child heap
                   --gc g1|zgc            collector (see docs/PROFILING.md)
                   --record workload|mock which JVM gets the recording
+                  --mock feature|latency  which mock tier to fork (default feature)
+                  --mock-latency 10ms     injected latency; implies --mock latency
                   --gc-roots             enable OldObjectSample reference chains (costly)
                   -Dkey=value            passed through to the child JVM (repeatable)
                 """);
@@ -147,7 +149,8 @@ public final class Profiler {
         String mockUrl = null;
         if (workload.needsMock()) {
             mockUrl = startMock(workload, classpath, runDir, children,
-                    recordMock ? jfrFlags(runDir, shape, flags, warmupWillRun) : List.of());
+                    recordMock ? jfrFlags(runDir, shape, flags, warmupWillRun) : List.of(),
+                    flags.mock, flags.mockLatency);
             System.out.println("[parent] mock ready at " + mockUrl);
         } else if (recordMock) {
             System.err.println("[parent] --record mock requested but " + name + " does not use a mock");
@@ -264,15 +267,32 @@ public final class Profiler {
         return command;
     }
 
+    /**
+     * Forks the sibling mock. Two tiers, and they are different kinds of thing: the <b>feature</b>
+     * mock is a <i>subject</i> — {@code --record mock} profiles gherkin matching and JS evaluation
+     * in it — while {@link LatencyMock} is an <i>instrument</i>, cheap and self-measuring, for runs
+     * where the mock must stay out of the way. See docs/PROFILING.md §10.
+     */
     private static String startMock(Workload workload, String classpath, Path runDir,
-                                    Children children, List<String> jfr) throws Exception {
+                                    Children children, List<String> jfr,
+                                    String tier, Duration latency) throws Exception {
+        boolean instrument = "latency".equals(tier);
+        if (!instrument && !"feature".equals(tier)) {
+            throw new IllegalArgumentException("--mock must be 'feature' or 'latency', got: " + tier);
+        }
         List<String> command = new ArrayList<>();
         command.add(javaBinary());
         command.addAll(jfr);
         command.add("-cp");
         command.add(classpath);
-        command.add(MockJvm.class.getName());
-        command.add(workload.mockFeature());
+        if (instrument) {
+            command.add(LatencyMock.class.getName());
+            command.add("--latency");
+            command.add(latency == null ? "0" : latency.toMillis() + "ms");
+        } else {
+            command.add(MockJvm.class.getName());
+            command.add(workload.mockFeature());
+        }
 
         Process mock = new ProcessBuilder(command).redirectErrorStream(true).start();
         children.add(mock);
@@ -421,6 +441,27 @@ public final class Profiler {
         }
 
         synchronized void killAll() {
+            // Close stdin first and give each child a moment. Both mocks block on System.in.read()
+            // and shut down when it returns EOF — and LatencyMock prints its stats line on that
+            // path. destroy() is a SIGTERM, which kills the JVM before any of that runs, so going
+            // straight to it threw away the numbers that say whether the mock stayed out of the
+            // way: the whole reason the instrumented tier exists.
+            for (Process process : processes) {
+                if (process.isAlive()) {
+                    try {
+                        process.getOutputStream().close();
+                    } catch (IOException e) {
+                        // already gone, or never had a pipe — destroy() below handles it
+                    }
+                }
+            }
+            for (Process process : processes) {
+                try {
+                    process.waitFor(2, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             for (Process process : processes) {
                 if (process.isAlive()) {
                     process.destroy();
@@ -449,6 +490,8 @@ public final class Profiler {
         String xmx;
         JvmConfig.Gc gc;
         String record = "workload";
+        String mock = "feature";
+        Duration mockLatency;
         boolean gcRoots;
         final List<String> systemProperties = new ArrayList<>();
 
@@ -466,6 +509,14 @@ public final class Profiler {
                     case "--xmx" -> args.xmx = next(argv, ++i, flag);
                     case "--gc" -> args.gc = JvmConfig.Gc.parse(next(argv, ++i, flag));
                     case "--record" -> args.record = next(argv, ++i, flag);
+                    case "--mock" -> args.mock = next(argv, ++i, flag);
+                    case "--mock-latency" -> {
+                        args.mockLatency = RunShape.parseDuration(next(argv, ++i, flag));
+                        // Asking for latency IS asking for the instrument — the feature mock has
+                        // no such knob, and silently ignoring the flag is the kind of thing that
+                        // gets discovered three runs into a matrix.
+                        args.mock = "latency";
+                    }
                     default -> {
                         // A bare -Dkey=value goes straight to the child. Cheap, and the
                         // difference between "I have a hypothesis" and "I can test it" —
