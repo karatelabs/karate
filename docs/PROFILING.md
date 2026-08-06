@@ -385,13 +385,13 @@ saturated clients queued behind the same overloaded server also report identical
 test is "same TPS *and* the injector is demonstrably not the bottleneck" — which is what the
 instrumented mock in §10 exists to establish.
 
-**That test has now been run, and Karate passes it inside a stated bound.** At 10 ms and 50 ms of
-injected server latency, karate-gatling and plain Gatling are indistinguishable on throughput and
-close on percentiles at 8 users; the gap is visible only at 0 ms, where there is no network for the
-per-iteration overhead to hide in. Two qualifiers travel with that and must not be dropped:
-**"indistinguishable" is a resolution limit, not a zero** — the instrument bounds any added serial
-time rather than measuring it away — and the result covers loopback, ~100-byte bodies and a client
-that opens a connection per iteration, none of which is a real API. See
+**That test has now been run, and the answer is a shape rather than a yes.** Karate adds roughly
+half a millisecond to a millisecond of serial time per iteration. Because a closed loop makes
+throughput exactly `users ÷ iteration time`, that cost shows up in full at 0 ms — a 2.1–2.4x gap —
+and then shrinks as a share of the iteration: **~2% at 10 ms of injected server latency**, and
+below what three back-to-back pairs can resolve at 50 ms. Two qualifiers travel with that and must
+not be dropped: **it shrinks, it does not disappear**, and the result covers loopback, ~100-byte
+bodies and a client that opens a connection per iteration, none of which is a real API. See
 [§10](#10-the-latency-mock-and-what-the-parity-matrix-found) for the matrix, the caveats, and what
 is still unmeasured (the user ramp, TLS and body size, and co-location).
 
@@ -696,7 +696,7 @@ granted:
 | **Measured, known-unbounded, accepted** | One feature holding thousands of scenarios, with reports on — still linear (502 / 1108 / 2079 MB). Only per-scenario release changes the slope, and §9 records why that was not built. |
 | **Never measured** | Soaks — "does Karate leak over hours". Every workload is an iteration-bounded reproduction finishing in seconds, so this is unverified rather than verified, **in both lanes**. The Gatling lane is entirely untouched and is the more likely place for one, because it builds a `Suite` per iteration against a long-lived thread pool. See [the leak-watch family](#leak-watch-family--not-built-and-it-is-the-biggest-gap-in-this-document) in §2. |
 | **Never measured** | CPU inside scenario code *under a parallel Runner suite*. All of §8 is allocation and retention, and `jdk.ExecutionSample` is blind on virtual threads there (§7). It is **not** blind in the Gatling lane, which runs scenarios inline on a platform thread. |
-| **Measured, and bounded rather than settled** | Whether Karate's per-execution overhead distorts a load test. **No distortion resolvable above single-digit percent at ≥10 ms of server latency** — loopback, 8 users, closed loop, ~100-byte bodies, log capture off ([§10](#10-the-latency-mock-and-what-the-parity-matrix-found)). Read the qualifiers as load-bearing: the equality is a *bound* set by the instrument's resolution, not a disappearance, and it does not generalise to TLS, to larger bodies, or to the per-iteration connection churn that **scales with** the network instead of hiding inside it. It also bounds the *load-test* lane only: the ordinary-suite half of the parse-cache decision was never measured (§9). |
+| **Measured, and scoped rather than settled** | Whether Karate's per-execution overhead distorts a load test. **It adds ~0.5–1 ms of serial time per iteration** — 2.1–2.4x throughput at 0 ms, **~2% at 10 ms**, unresolved at 50 ms — over three back-to-back pairs per tier, loopback, 8 users, closed loop, ~100-byte bodies, log capture off ([§10](#10-the-latency-mock-and-what-the-parity-matrix-found)). Read the qualifiers as load-bearing: it *shrinks* as a share of the iteration rather than disappearing, and none of it generalises to TLS, to larger bodies, or to the one connection Karate opens per iteration, which **scales with** the network instead of hiding inside it and which this harness prices at zero. It also scopes the *load-test* lane only: the ordinary-suite half of the parse-cache decision was never measured (§9). |
 
 The Gatling baseline below started as a fifth category: **leads, not findings** — real numbers
 from real runs, none chased to a cause. Three have since been chased (the per-scenario Logback
@@ -1014,11 +1014,12 @@ The instrument and the first matrix are **built**
 retired one item and reshaped two others. This list is the steering surface — it is what the next
 session reads — so it is ordered by information per unit of work, not by appeal:
 
-1. **Millisecond-true load windows, then rerun the 10 ms and 50 ms cells.** `MockStats` now reports
-   the window it served in and the rate over it, instead of leaving throughput to Gatling's
-   whole-second denominator. Run ≥3 back-to-back pairs per tier with the arm order alternating, and
-   report the spread rather than declaring equality. This turns §10's bound into a number at ~0.1%
-   resolution; everything below reads differently depending on what it says.
+1. **More pairs at the 50 ms tier — the one loose end in the matrix.** The load window and the
+   rerun are **built**: `MockStats` reports the window it served in and the rate over it, and the
+   matrix reran as three alternating pairs per tier on that clock (§10). It resolved the 10 ms tier
+   — ~0.6 ms per iteration, sd 0.29 — and did *not* resolve the 50 ms one, where three pairs leave
+   a standard deviation larger than the effect and one pair comes out negative. Six to ten pairs
+   there is a cheap afternoon and it is what turns "consistent with ~0.6 ms" into a measurement.
 2. **The AST prototype on the lane where its win lives** — a `/usr/bin/time` A/B against main on
    `call-accumulation` and `feature-spread` at two sizes, recording wall and CPU. This is the
    measurement the parse-cache decision actually needs
@@ -1262,10 +1263,11 @@ read, but it covers one of the two lanes this cost lives in, and not the one the
 in. Both halves, stated separately, because the sentence that used to stand here ("the measurement
 came back saying it does not matter") silently generalised the first to the second:
 
-- **The load-test lane — answered.** At 10 ms and 50 ms of server latency karate-gatling and plain
-  Gatling are indistinguishable on throughput, inside the bound §10 states. A cost that disappears
-  into network time is not worth a cache, an eviction policy and a new mutable object graph, and
-  0 ms is not a system anyone tests against.
+- **The load-test lane — answered.** At 10 ms of server latency Karate's *entire* per-execution
+  overhead, of which re-parsing is one part, costs about 2% of throughput, and it shrinks with
+  latency from there (§10). Whatever share of 2% this cache would recover is not worth a cache, an
+  eviction policy and a new mutable object graph, and 0 ms — where the overhead is a 2x gap — is
+  not a system anyone tests against.
 - **The ordinary-suite lane — still open.** The 8.04 → 5.33 GB above was measured on
   `call-accumulation --iterations 2000`: an ordinary parallel Runner suite, sixty `karate.call()`s
   per scenario, and **no HTTP in it at all**. "Does the cost survive contact with a network" cannot
@@ -1356,11 +1358,13 @@ configuration that most flatters client-side cost. This section is the instrumen
 question properly, and the answer it gave.
 
 **The question:** does Karate's per-execution overhead distort a load test, or does it disappear
-into the network time of a real API? **The answer, in the form the evidence supports: on loopback,
-at 8 users, with small bodies, any added serial time is below what this instrument can resolve from
-10 ms of server latency upward — and the overhead that would *not* shrink with latency, a fresh TCP
-connection per iteration, is priced at zero here and cannot be.** Details below; the reasoning
-behind each design decision lives in the class javadocs, which are written to be read.
+into the network time of a real API? **The answer, measured rather than bounded: roughly half a
+millisecond to a millisecond of added serial time per iteration — 2.1–2.4x throughput when the
+iteration is ~1 ms, ~2% when it is 28 ms, and under three pairs' resolution when it is 110 ms. It
+shrinks as a share of the iteration; it does not vanish.** And the one overhead that would not
+shrink at all — a fresh TCP connection per iteration, now counted rather than assumed — is priced
+at approximately zero by this harness and cannot be anything else on loopback. Details below; the
+reasoning behind each design decision lives in the class javadocs, which are written to be read.
 
 ### The pieces
 
@@ -1401,65 +1405,100 @@ etc/run.sh gatling-http-plain  --iterations <size> --threads 8 --mock-latency <t
 etc/run.sh gatling-http-karate --iterations <size> --threads 8 --mock-latency <tier>
 ```
 
-| tier | size | plain req/s | karate req/s | plain p50 / p95 / p99 | karate p50 / p95 / p99 | run directories (plain / karate) |
-|---|---:|---:|---:|---|---|---|
-| 0 ms | 4000 it | 8000 ~ | 4000 ~ | 0 / 1 / 2 ms | 0 / 1 / 2 ms | `…plain-…-154557` / `…karate-…-154602` |
-| 0 ms | 8000 it | 16000 ~ | 5333 ~ | 0 / 1 / 2 ms | 0 / 1 / 2 ms | `…plain-…-154444` / `…karate-…-154451` |
-| 10 ms | 500 it | 504 | 336 | 13 / 14 / 37 ms | 13 / 14 / 50 ms | `…plain-…-153813` / `…karate-…-153900` |
-| 10 ms | 4000 it | **571** | **571** | 13 / 16 / 20 ms | 13 / 14 / 18 ms | `…plain-…-154213` / `…karate-…-154238` |
-| 50 ms | 1600 it | **139** | **139** | 56 / 60 / 87 ms | 55 / 57 / 75 ms | `…plain-…-154330` / `…karate-…-154358` |
+**Throughput is read from the mock, not from Gatling.** Gatling's `count/s` is requests divided by
+a duration rounded to whole seconds, which at these run lengths quantises the rate in steps of
+several percent — the first version of this matrix reported "571 vs 571" at 10 ms and called it
+identical, when every cell in it divided exactly (8000/14, 3200/23, 16000/1) and the equality only
+established "less than one second apart". `MockStats` now stamps its first handler entry and last
+handler exit, so `servedPerSecond` is the same requests over a nanosecond-resolution window. Every
+figure below is that number. Runs are 2026-08-06 17:04–17:19; each row names its two directories.
 
-**Read every `req/s` here as a quantised number, and the bold equalities as bounds.** The column is
-Gatling's own `count/s`, which is requests divided by a duration **rounded to whole seconds** — the
-quantisation is in the source figure, before anything here touches it. Every cell divides exactly:
-8000/14, 3200/23, 1008/2, 1008/3, 8000/1, 8000/2, 16000/1, 16000/3. So:
+**Three back-to-back pairs per tier, arm order alternating**, so that drift over the matrix — and
+there is drift, both arms speed up by ~10% across it — cancels between the arms rather than
+loading one of them. "Added ms/iteration" is the window difference divided by iterations per user.
 
-- **10 ms, 4000 it:** both arms displayed 13 s and divided by 14 s, so each true duration is in
-  [13 s, 14 s). "571 = 571" therefore establishes that the karate arm took **less than one second
-  longer** over 500 iterations per user — added serial time **under ~2 ms per iteration**, about
-  7% of a ~27 ms iteration. That is a bound, not a zero, and it is the same size as the 0 ms
-  overhead below.
-- **50 ms, 1600 it:** the same arithmetic over 200 iterations per user → **under ~5 ms per
-  iteration**, about 4.5%.
-- **The 0 ms rows are quantisation, marked `~`.** Both plain runs finished inside the display's
-  first second (`Duration: 0s`), so 8000 and 16000 req/s are `requests ÷ 1`. The 2–3x band and the
-  ~2 ms derived from it are order-of-magnitude figures — the honest range from these denominators
-  is **0–4 ms of user-time per iteration**, and the true gap could be larger than 3x.
+#### 10 ms tier — 4000 iterations (500 per user), ~28 ms iteration
 
-With that stated, what the cells support:
+| pair | order | plain req/s | karate req/s | karate deficit | added ms/iteration | run directories |
+|---:|---|---:|---:|---:|---:|---|
+| 1 | k→p | 534.8 | 526.4 | 1.6% | +0.48 | `…karate-…-170459` / `…plain-…-170554` |
+| 2 | p→k | 547.5 | 530.7 | 3.1% | +0.93 | `…plain-…-170649` / `…karate-…-170744` |
+| 3 | k→p | 590.8 | 582.6 | 1.4% | +0.38 | `…karate-…-170839` / `…plain-…-170933` |
+| **mean** | | **557.7** | **546.6** | **2.0%** | **+0.59** (sd 0.29) | |
 
-- **At 0 ms there is a real, large throughput gap** — the pure client-overhead tier, nothing for
-  Karate's per-execution work to hide behind. Single-digit milliseconds of user-time per iteration,
-  not the tidy 2.0 that integer denominators produce.
-- **At 10 ms and 50 ms no difference is resolvable** on throughput, at the resolutions above. Note
-  what the mechanism is *not*: in a closed `repeat` loop there is no slack for client work to fit
-  into — client time is serial with the wait and lengthens the iteration one-for-one, which is
-  exactly why throughput is the sensitive metric here and why the bound is worth stating in
-  milliseconds per iteration rather than as "it disappears".
-- **The percentiles are close but not identical, and the gap has a direction.** The karate arm's
-  tail is consistently *tighter* — p95/p99 16/20 vs 14/18 at 10 ms, 60/87 vs 57/75 at 50 ms — and
-  the divergence **grows with latency**, which is the shape §10's own acceptance rule says to
-  report. It replicates in the discarded pre-fix pair (15/19 vs 13/14). Unexplained; the two
-  candidates worth one diagnostic run are the plain arm's 8 users staying phase-locked (identical
-  deterministic cycles arriving in bursts, which the karate arm's jittered client work
-  de-correlates) and a Gatling timestamping artefact under simultaneous completions.
-- **Percentiles could not have detected the overhead in either direction.** The karate arm's
-  reported response time is the HTTP bracket only — `PerfEvent(start = response.getStartTime(),
-  end = start + responseTime)`, built per request inside the Apache client. Suite construction,
-  config evaluation, feature parse, `match`, and `KarateScalaAction`'s per-execution session-map
-  copying all sit *between* brackets and can never reach a percentile. §10 knows this for scheduler
-  starvation and it applies here too: **throughput is the only sensitive metric in this experiment.**
-- **The two arms do not check the same things.** The plain arm's GET verifies `$.name` only — and
-  every cat is named "Billie", so it would accept the wrong record; the karate `match` checks id,
-  name and age. The comparison never controls for that, and it loads Karate's side.
-- **The 10 ms / 500-iteration row is kept as a worked example of the single-size trap.** It shows
-  karate 33% behind — entirely ~2 core-seconds of one-time initialisation inside a 3-second run.
-  The same cell at 4000 iterations is equal to the resolution above. §6 warns about this for the
-  null pair; it bites here identically.
+#### 50 ms tier — 1600 iterations (200 per user), ~110 ms iteration
 
-Every cell was checked against the mock's own report: `peakInFlight` equal to the user count and
-service p99 between 107 µs and 831 µs throughout, so the server was never the bottleneck at 8
-users. That check, not the calibrated knee, is what carries the headroom argument in these cells.
+| pair | order | plain req/s | karate req/s | karate deficit | added ms/iteration | run directories |
+|---:|---|---:|---:|---:|---:|---|
+| 1 | p→k | 132.6 | 133.1 | −0.4% | −0.45 | `…plain-…-171028` / `…karate-…-171132` |
+| 2 | k→p | 141.5 | 135.6 | +4.2% | +4.92 | `…karate-…-171236` / `…plain-…-171339` |
+| 3 | p→k | 140.7 | 137.1 | +2.5% | +2.96 | `…plain-…-171444` / `…karate-…-171546` |
+| **mean** | | **138.3** | **135.3** | **2.1%** | **+2.48** (sd 2.72) | |
+
+#### 0 ms tier — the pure client-overhead tier, two sizes
+
+| size | plain req/s | karate req/s | ratio | run directories |
+|---|---:|---:|---:|---|
+| 4000 it | 13 629 | 6 428 | 2.12x | `…plain-…-171730` / `…karate-…-171650` |
+| 8000 it | 19 891 | 8 384 | 2.37x | `…plain-…-171811` / `…karate-…-171851` |
+
+Two sizes, so the marginal separates from whatever the first iterations paid for JIT: **karate
+1.33 ms per additional iteration, plain 0.43 ms, so ~0.89 ms of it is Karate's.** These windows are
+0.6–1.9 s, short enough that they are substantially warmup; read the marginal, not the ratio.
+
+**And the connection counts, which are new and settle a question this harness could not previously
+ask.** In every cell, `distinctPeerPorts` equals the **iteration** count for the karate arm (4000,
+1600, 8000 — never the request count) and is **8** for the plain arm. So Karate opens exactly one
+connection per iteration: its per-execution client pools the POST and the GET, and nothing survives
+the execution. Plain Gatling holds one keep-alive connection per virtual user for the whole run.
+
+What the numbers now support, which is less than "identical" and more useful:
+
+- **There is a real, resolvable throughput deficit at 10 ms: ~2%, in 3 pairs out of 3.** The
+  earlier "identical" was the whole-second denominator. The size of it is **~0.6 ms of added serial
+  time per iteration** (sd 0.29 over three pairs) — which is *below* the ~2 ms the old table
+  inferred at 0 ms, so the direction of the old story was right; its arithmetic and its wording
+  were not.
+- **The 50 ms tier is not resolved by three pairs, and the honest report is the spread.** The mean
+  says +2.5 ms/iteration, but the standard deviation is 2.7 ms and one pair comes out *negative*.
+  A fixed ~0.6 ms cost would predict a ~0.5% deficit on a 110 ms iteration; the measurement is
+  2.1% ± more than that. **Both are consistent with the data and the run count cannot separate
+  them** — more pairs, not a different instrument, is what this tier needs.
+- **The three tiers are consistent with one fixed per-iteration cost of roughly half a millisecond
+  to a millisecond**, which is 2.1–2.4x throughput when the iteration is ~1 ms, ~2% when it is
+  28 ms, and below this many pairs' resolution when it is 110 ms. That is the claim this section
+  now makes, and it is a shape rather than a disappearance.
+- **Some of that ~0.6 ms is not Karate's.** The karate arm opens 4000 connections where the plain
+  arm opens 8, and every accept costs the co-located mock work *upstream of its own clock*, on the
+  same ten cores. So the figure is an upper bound on client cost — and at the same time the
+  connection churn is a real Karate-arm cost that a remote, TLS-terminating API would charge far
+  more for. See the two bullets on that in "what the result does not license" below.
+- **The percentile tails do not have a stable direction, and the first matrix's reading of them
+  does not replicate.** At 10 ms the karate arm is tighter in all three pairs (p99 17/17/16 ms vs
+  18/18/33 ms), which matched the original finding; at 50 ms it reverses in two of three (p99
+  71/98/88 ms vs 83/62/63 ms). p50 is identical in every pair at both tiers. Whatever produces the
+  tail difference is not a property of the client that survives a change of tier, and it should not
+  be reported as one in either direction.
+- **Percentiles could not have detected the overhead anyway.** The karate arm's reported response
+  time is the HTTP bracket only — `PerfEvent(start = response.getStartTime(), end = start +
+  responseTime)`, built per request inside the Apache client. Suite construction, config
+  evaluation, feature parse, `match`, and `KarateScalaAction`'s per-execution session-map copying
+  sit *between* brackets and can never reach a percentile. §10 knows this for scheduler starvation;
+  it applies to its own evidence too. **Throughput is the only sensitive metric in this experiment**,
+  which is why the whole-second denominator mattered so much.
+- **The two arms do not check the same things**, and it loads Karate's side. The plain arm's GET
+  verifies `$.name` only — every cat is named "Billie", so it would accept the wrong record; the
+  karate `match` checks id, name and age. The comparison never controls for that.
+- **The single-size trap, kept as a worked example.** A 10 ms / 500-iteration karate cell reports
+  471.8 req/s against the tier's ~530 — the difference is ~2 core-seconds of one-time
+  initialisation inside a 2-second window, not per-iteration cost. §6 warns about this for the null
+  pair; it bites here identically, and it is why every row above is at 1600 iterations or more.
+
+Every cell was checked against the mock's own report: `peakInFlight` equal to the user count in all
+seventeen runs, and service p99 between 115 µs and 2.2 ms — the worst of them still 4% of the
+50 ms tier's own latency, so the server was never the bottleneck at 8 users. Every run also
+reconciles: Gatling's ok+ko equals the mock's `served` equals iterations × 2, in all seventeen.
+That check, not the calibrated knee, is what carries the headroom argument in these cells.
 
 ### Reading a calibration, and the acceptance rules
 
@@ -1519,14 +1558,15 @@ latency.
 **Be honest about which legs the published cells actually cleared**, because two of them did not,
 and the wording above reads as though all three did:
 
-- **Headroom, mock side: cleared** — every cell's digest carries `peakInFlight` 8 and a
-  sub-millisecond service p99.
+- **Headroom, mock side: cleared** — every cell's digest carries `peakInFlight` 8 and a service p99
+  between 115 µs and 2.2 ms, the worst of which is 4% of its own tier's injected latency. Each run
+  also reconciles: iterations × 2 = Gatling's ok+ko = the mock's `served`.
 - **Headroom, injector side: not recorded anywhere.** Not in the digests, not in the table. It is
   a safe inference at 571 req/s and genuinely in doubt at the 0 ms tier, which is the tier where it
   is missing. The `/usr/bin/time` wrapper from §6's null-pair method is how to record it.
-- **Flat floor: not readable at these window lengths, so not met — unevaluated.** The karate 10 ms
-  digest prints its own "min/max floor 9.8 / 24.1 MB, drift +13.5 MB (137%)", and the plain arm
-  drifts more in absolute terms (9.7 → 27.0 MB). At 14 seconds that is warmup — classes, JIT,
+- **Flat floor: not readable at these window lengths, so not met — unevaluated.** Every digest in
+  the matrix prints its own drift, and none of them is flat: the karate arms land at +11–14 MB
+  (117–143%) and the plain arms at +13–19 MB (135–194%), reproducibly, in all seventeen runs. At 14 seconds that is warmup — classes, JIT,
   Gatling's own accumulation — climbing then plateauing, not retention. But that is precisely §2's
   point about short windows: they cannot tell warmup from a leak. **A 14-second cell cannot
   evaluate this leg at all**, so either lengthen one confirmation run until the floor has a
@@ -1547,21 +1587,23 @@ sustained connection-per-execution load tops out near **550 connections/second**
 mock touches it, and the *Karate* arm builds an HTTP client per execution, so its connections churn
 where plain Gatling's are held open per virtual user.
 
-**Three rates, three different numbers — do not quote one for another.** At 8 users against a 10 ms
-mock (a ~27 ms iteration) the arm offers roughly **296 executions/s**, **592 requests/s** (the POST
-and the GET), and — because both requests of an iteration go through *that iteration's* client and
-its pooled connection — on the order of **296 connections/s**. An earlier version of this section
-quoted the request rate as the connection rate and had the karate arm at ~615 conn/s, over the
-ceiling; the arithmetic actually puts it at roughly half that, comfortably under. Neither figure
-was ever measured, which was the real problem: the mock now reports `distinctPeerPorts` per window,
-so this is a number in the digest rather than a derivation.
+**Three rates, three different numbers — do not quote one for another, and this is now measured.**
+At the 10 ms tier the karate arm's window carries 4000 iterations and 8000 requests, and the mock
+counted **4000 distinct client ports**: one connection per *iteration*, because both requests go
+through that iteration's client and its pooled connection. Over a 15.2 s window that is **263
+executions/s, 526 requests/s, 263 connections/s** — comfortably under the ceiling. An earlier
+version of this section quoted the request rate as the connection rate and had the karate arm at
+~615 conn/s, i.e. over it. The real problem was not the factor of two but that neither figure had
+ever been measured; `distinctPeerPorts` is now in every digest.
 
 **The 0 ms tier is the one that survives on brevity, not on margin.** The karate 0 ms / 8000 run
-opened ~8000 connections in ~3 s — around 2,700/s, five times the sustainable rate — and passed
-only because the total stayed under 16,384 and the next churn-heavy run started 70+ s later.
-Nothing enforces either margin; the inter-run gap was an accident of Maven startup time. A short
-burst can beat a sustained ceiling until the port range fills, which also means **the matrix has
-never actually tested the failure mode this section describes**. When it does bite it will read as
+opened 8000 connections in 1.9 s — about **4,200/s, roughly eight times the sustainable rate** —
+and passed only because the total stayed under 16,384 and the next churn-heavy run was a minute
+away. Nothing in the harness enforces either margin — in the first matrix the inter-run gap was an
+accident of Maven startup time, and in the rerun it is a `sleep 35` in the operator's script, which
+is a convention, not a guard. A short burst can beat a sustained ceiling until the port range
+fills, which also means **the matrix has never actually tested the failure mode this section
+describes**. When it does bite it will read as
 "Karate is slower". Watch `netstat -an | grep -c TIME_WAIT` — and note it undercounts, because the
 per-execution client is never closed (§2), so its sockets sit ESTABLISHED until a cleaner runs
 rather than moving promptly to TIME_WAIT. `sudo sysctl -w net.inet.ip.portrange.first=32768
@@ -1569,8 +1611,9 @@ net.inet.tcp.msl=5000` raises the ceiling to ~3,200 conn/s and reverts on reboot
 
 ### What the result does not license, and what is next
 
-- **One cell shape.** 8 users, one machine, one feature. **The user ramp is the next run**, and it
-  is what answers §9's concurrency-density question. Expect the signature to be a **TPS shortfall
+- **One cell shape.** 8 users, one machine, one feature — three pairs per tier now, but all at the
+  same point. **The user ramp is what answers §9's concurrency-density question**, and it is the
+  cheapest remaining run of the ones that would change a conclusion. Expect the signature to be a **TPS shortfall
   with clean-looking latencies** — queue-for-a-thread time sits between actions, outside every
   `PerfEvent` bracket, so it never reaches a percentile. §9's prediction that starvation would
   inflate reported response times is wrong for that reason.
@@ -1585,8 +1628,9 @@ net.inet.tcp.msl=5000` raises the ceiling to ~3,200 conn/s and reverts on reboot
   microseconds. The arms differ on precisely that axis: plain Gatling holds 8 keep-alive
   connections for the whole run, while Karate builds a client per execution
   (`Runner.runFeature` → fresh `Suite` and `FeatureRuntime`; `ScenarioRuntime` → fresh `KarateJs` →
-  fresh `ApacheHttpClient`), so no pooling survives an iteration. **This harness prices that at
-  approximately zero, in every cell.** Against a real API it is +1 RTT per iteration for the TCP
+  fresh `ApacheHttpClient`), so no pooling survives an iteration — now counted rather than
+  inferred: 4000 distinct client ports against the plain arm's 8, in the 10 ms cells.
+  **This harness prices those 4000 handshakes at approximately zero, in every cell.** Against a real API it is +1 RTT per iteration for the TCP
   handshake and 1–2 more for TLS — at a 50 ms RTT, on the order of +100 ms on a ~110 ms iteration,
   which is roughly half the throughput, from the arm the matrix scores as equal. It is also what
   connection-rate limits, load balancers and accept queues punish, and none of those exist here.
