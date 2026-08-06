@@ -109,17 +109,37 @@ public final class LoadProfile {
      * 75th, 95th, 99th, max, mean and standard deviation.
      */
     private static Stats parse(String html) {
-        Matcher matcher = Pattern.compile("<td[^>]*>\\s*([0-9]+)\\s*</td>").matcher(html);
-        List<Long> cells = new ArrayList<>();
+        // Decimals matter: the count/s cell renders as "571.43", and an integer-only pattern skips
+        // it rather than failing — silently shifting every later column left by one. That misparse
+        // is invisible when the rate happens to land on a whole number, which is exactly how it
+        // survived the first run and corrupted the second.
+        Matcher matcher = Pattern.compile("<td[^>]*>\\s*([0-9]+(?:\\.[0-9]+)?)\\s*</td>").matcher(html);
+        List<Double> cells = new ArrayList<>();
         while (matcher.find() && cells.size() < 13) {
-            cells.add(Long.parseLong(matcher.group(1)));
+            cells.add(Double.parseDouble(matcher.group(1)));
         }
         if (cells.size() < 13) {
             return null;
         }
-        return new Stats(cells.get(0), cells.get(1), cells.get(2), cells.get(4),
-                cells.get(5), cells.get(6), cells.get(7), cells.get(8), cells.get(9),
-                cells.get(10), cells.get(11), cells.get(12));
+        Stats stats = new Stats(round(cells.get(0)), round(cells.get(1)), round(cells.get(2)),
+                round(cells.get(4)), round(cells.get(5)), round(cells.get(6)), round(cells.get(7)),
+                round(cells.get(8)), round(cells.get(9)), round(cells.get(10)), round(cells.get(11)),
+                round(cells.get(12)));
+        // The self-check the first version lacked. Column drift produces plausible-looking numbers,
+        // so the parse has to prove it read the row it thinks it did — every request is either ok
+        // or ko, and the percentiles cannot run backwards.
+        boolean sane = stats.ok() + stats.ko() == stats.total()
+                && stats.min() <= stats.p50() && stats.p50() <= stats.p75()
+                && stats.p75() <= stats.p95() && stats.p95() <= stats.p99() && stats.p99() <= stats.max();
+        if (!sane) {
+            System.err.println("[digest] the gatling stats table did not parse as expected: " + cells);
+            return null;
+        }
+        return stats;
+    }
+
+    private static long round(double value) {
+        return Math.round(value);
     }
 
     /** The mock's own lines from {@code mock.log} — its config at startup and its stats at exit. */
