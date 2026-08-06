@@ -2019,7 +2019,16 @@ class Interpreter {
 
     private static Object evalReturnStmt(Node node, CoreContext context) {
         if (node.size() > 1) {
-            return context.stopAndReturn(eval(node.get(1), context));
+            Object value = eval(node.get(1), context);
+            // `return somethingThatThrew()` — a callee that threw has already propagated its throw
+            // onto THIS context (JsFunctionNode.bindArgsAndExecute), and stopAndReturn would clear
+            // it and complete the function normally. The throw then no longer exists anywhere: a
+            // surrounding try/catch never fires, and the host-call boundary sees a clean return.
+            // Leave the context in its error state and let the exit unwind carry it.
+            if (context.isError()) {
+                return value;
+            }
+            return context.stopAndReturn(value);
         } else {
             // a valueless `return` completes with undefined, not null — the two are
             // distinct in JS-land (typeof, ===) even though the Java boundary
@@ -2197,6 +2206,13 @@ class Interpreter {
 
     private static Object evalThrowStmt(Node node, CoreContext context) {
         Object result = eval(node.get(1), context);
+        // `throw makeError()` where building the error is itself what failed: the inner throw is
+        // already on this context and is the real cause. Overwriting it with whatever the failed
+        // expression evaluated to loses it — and that value is typically nothing at all, which is
+        // how this surfaced as a bare NullPointerException rather than as a JS error.
+        if (context.isError()) {
+            return result;
+        }
         return context.stopAndThrow(result);
     }
 

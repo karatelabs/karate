@@ -60,6 +60,54 @@ class HostCallThrowTest extends EvalBase {
         assertEquals("good", f.call(null, new Object[]{false}));
     }
 
+    /**
+     * The throw arrives at {@code f} from a call inside its own {@code return} expression, which is
+     * the shape most real code takes — a wrapper delegating to the thing that actually fails. The
+     * callee propagates its throw onto the caller's context, and then the return statement has to
+     * leave it there: completing the function with a value instead would erase a throw that has
+     * already happened, and every boundary downstream sees a clean call.
+     */
+    @Test
+    void throwFromInsideAReturnExpressionSurfaces() {
+        JavaCallable f = define("function inner() { throw 'nested' } function f() { return inner() }");
+        EngineException e = assertThrows(EngineException.class, () -> f.call(null, new Object[0]));
+        assertEquals("nested", e.getJsMessage());
+    }
+
+    @Test
+    void throwFromAReturnedImmediatelyInvokedFunctionSurfaces() {
+        JavaCallable f = define("function f() { return (function() { throw 'iife' })() }");
+        EngineException e = assertThrows(EngineException.class, () -> f.call(null, new Object[0]));
+        assertEquals("iife", e.getJsMessage());
+    }
+
+    /** The same erasure seen from JS: a surrounding try/catch must still see the nested throw. */
+    @Test
+    void jsToJsTryCatchCatchesAThrowFromAReturnExpression() {
+        Object caught = eval("function inner() { throw 'x' } function f() { return inner() }"
+                + " var r = 'none'; try { f() } catch (e) { r = 'caught:' + e } r");
+        assertEquals("caught:x", caught);
+    }
+
+    /**
+     * The same erasure in its other place: {@code throw makeError()} where building the error is
+     * itself what fails. The inner throw is the real one and must not be overwritten by an outer
+     * throw of whatever the failed expression evaluated to.
+     */
+    @Test
+    void throwOfAnExpressionThatItselfThrewKeepsTheInnerCause() {
+        JavaCallable f = define("function inner() { throw 'inner' } function f() { throw inner() }");
+        EngineException e = assertThrows(EngineException.class, () -> f.call(null, new Object[0]));
+        assertEquals("inner", e.getJsMessage());
+    }
+
+    /** And the value of a clean nested return is untouched by that guard. */
+    @Test
+    void aCleanNestedReturnStillReturnsItsValue() {
+        JavaCallable f = define("function inner() { return 7 } function f() { return inner() + 1 }");
+        assertEquals(8, f.call(null, new Object[0]));
+    }
+
     @Test
     void jsToJsTryCatchStillCatches() {
         // the JS-to-JS path is unchanged: a surrounding JS try/catch still intercepts the throw

@@ -1076,6 +1076,52 @@ class ScenarioConfigTest {
     }
 
     /**
+     * A config that throws must fail the scenario, whichever shape the throw takes to get out of
+     * {@code fn()}. It did not: when the failing call sat in a {@code return} expression — a helper
+     * throwing, {@code fn} returning its result, the shape most real configs take — the throw was
+     * erased by the return itself and config simply contributed no variables. The suite then passed
+     * outright if nothing referenced a config variable, and otherwise died much later with a
+     * "not defined" naming the wrong thing entirely.
+     *
+     * <p>Every row here is a config that fails, and every row must be reported as a config failure.
+     * The two shapes at the end are the ones that already worked and are kept so a future change
+     * cannot fix one arm by breaking the other.</p>
+     */
+    @Test
+    void testEveryShapeOfFailingConfigIsReportedAsAConfigFailure() throws Exception {
+        String[][] shapes = {
+                {"a helper called from fn's return",
+                        "function boom() { throw 'exploded'; }\nfunction fn() { return boom(); }\n"},
+                {"an immediately invoked function in fn's return",
+                        "function fn() { return (function() { throw 'exploded'; })(); }\n"},
+                {"a throw in fn's own body, alongside a helper",
+                        "function helper() { return 1; }\nfunction fn() { throw 'exploded'; }\n"},
+                {"a throw in fn's own body",
+                        "function fn() { throw 'exploded'; }\n"},
+                {"the self-invoking shape",
+                        "function fn() { throw 'exploded'; }\nfn();\n"},
+        };
+        Path featureFile = tempDir.resolve("test.feature");
+        Files.writeString(featureFile, """
+            Feature: config failure
+              Scenario: one
+                * def ignored = 1
+            """);
+        for (String[] shape : shapes) {
+            Files.writeString(tempDir.resolve("karate-config.js"), shape[1]);
+            SuiteResult result = LogSilencer.silenced("karate.runtime",
+                    () -> LogSilencer.silenced("karate.scenario",
+                            () -> runTestSuite(tempDir, featureFile.toString())));
+            assertTrue(result.isFailed(), "a config failing via " + shape[0] + " must fail the suite");
+            String message = result.getErrors().toString();
+            assertTrue(message.contains("Config evaluation failed"),
+                    "the config failure should be named as one for " + shape[0] + ", got: " + message);
+            assertTrue(message.contains("exploded"),
+                    "the config's own cause should survive for " + shape[0] + ", got: " + message);
+        }
+    }
+
+    /**
      * The Suite parses karate-config.js once and hands the same AST to every scenario, so under a
      * parallel suite many threads are now evaluating one shared parse tree. Nothing enforces that
      * a {@code Node} stays read-only — it is a property of today's interpreter, and this is the
