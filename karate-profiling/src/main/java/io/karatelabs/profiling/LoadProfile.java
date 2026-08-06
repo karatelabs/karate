@@ -142,6 +142,32 @@ public final class LoadProfile {
         return Math.round(value);
     }
 
+    /**
+     * One number out of the mock's hand-rolled stats JSON, or -1 when it is absent or unreadable.
+     * A three-line scrape rather than a parser: the mock writes this object itself, deliberately
+     * without a JSON library, and taking a dependency here to read four fields would be the same
+     * trade in reverse.
+     */
+    public static double mockNumber(String json, String key) {
+        if (json == null) {
+            return -1;
+        }
+        int at = json.indexOf('"' + key + "\":");
+        if (at < 0) {
+            return -1;
+        }
+        int from = at + key.length() + 3;
+        int to = from;
+        while (to < json.length() && "-+.0123456789eE".indexOf(json.charAt(to)) >= 0) {
+            to++;
+        }
+        try {
+            return Double.parseDouble(json.substring(from, to));
+        } catch (RuntimeException e) {
+            return -1;
+        }
+    }
+
     /** The mock's own lines from {@code mock.log} — its config at startup and its stats at exit. */
     public static String mockLine(Path runDir, String prefix) {
         Path log = runDir.resolve("mock.log");

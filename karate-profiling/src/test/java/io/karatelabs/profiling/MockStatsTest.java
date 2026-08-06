@@ -131,6 +131,67 @@ class MockStatsTest {
     }
 
     /**
+     * The load window is the answer to Gatling's whole-second denominator, so it has to be a real
+     * clock: rate over the window, not over the process lifetime, and not over a window that was
+     * never opened.
+     */
+    @Test
+    void testTheRateIsMeasuredOverTheLoadWindowNotTheProcessLifetime() throws Exception {
+        MockStats stats = new MockStats();
+        assertEquals(0, jsonDouble(stats.toJson(), "servedPerSecond"),
+                "an idle mock has no rate to report");
+        Thread.sleep(50);                     // process lifetime that no load happened in
+        for (int i = 0; i < 10; i++) {
+            stats.enter();
+            stats.record(1_000_000, 0);
+            stats.exit();
+        }
+        String json = stats.toJson();
+        double window = jsonDouble(json, "loadWindowSeconds");
+        double rate = jsonDouble(json, "servedPerSecond");
+        assertTrue(window > 0 && window < 0.050,
+                "the window must start at the first request, not at construction: " + window + "s");
+        assertEquals(10 / window, rate, rate * 0.01, "the rate is served over the window");
+    }
+
+    /**
+     * The connection count is the one thing that separates the two arms structurally — plain
+     * Gatling reuses a connection per user, Karate builds a client per execution — so it has to
+     * count peers rather than requests.
+     */
+    @Test
+    void testDistinctPeerPortsCountConnectionsNotRequests() {
+        MockStats stats = new MockStats();
+        for (int i = 0; i < 100; i++) {
+            stats.observePeer(50_000 + (i % 3));   // three connections, a hundred requests
+        }
+        assertEquals(3, jsonLong(stats.toJson(), "distinctPeerPorts"));
+        stats.observePeer(0);
+        stats.observePeer(70_000);
+        assertEquals(3, jsonLong(stats.toJson(), "distinctPeerPorts"),
+                "a port outside the range is dropped, not folded onto a real one");
+    }
+
+    /**
+     * Both new fields belong to the window, so a ramp point that inherited either would report a
+     * rate over someone else's clock — the same failure {@link #testResetStartsAFreshWindow}
+     * exists for, one level up.
+     */
+    @Test
+    void testResetClearsTheWindowAndThePeers() {
+        MockStats stats = new MockStats();
+        stats.enter();
+        stats.observePeer(50_001);
+        stats.record(1_000_000, 0);
+        stats.exit();
+        stats.reset();
+        String json = stats.toJson();
+        assertEquals(0, jsonDouble(json, "loadWindowSeconds"));
+        assertEquals(0, jsonDouble(json, "servedPerSecond"));
+        assertEquals(0, jsonLong(json, "distinctPeerPorts"));
+    }
+
+    /**
      * Every bucket, not a sample of them. The historical bug was one arm of the mapping being
      * wrong, which sampled values can miss and this cannot.
      */
@@ -182,6 +243,17 @@ class MockStatsTest {
         reader.join();
         assertNull(impossible.get(), impossible.get());
         assertEquals(threads * 20_000, jsonLong(stats.toJson(), "served"));
+    }
+
+    private static double jsonDouble(String json, String key) {
+        int at = json.indexOf('"' + key + '"');
+        assertTrue(at >= 0, "no key " + key + " in " + json);
+        int colon = json.indexOf(':', at);
+        int end = colon + 1;
+        while (end < json.length() && "-+.0123456789eE".indexOf(json.charAt(end)) >= 0) {
+            end++;
+        }
+        return Double.parseDouble(json.substring(colon + 1, end).trim());
     }
 
     private static long jsonLong(String json, String key) {

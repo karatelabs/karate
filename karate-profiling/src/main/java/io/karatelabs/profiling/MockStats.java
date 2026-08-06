@@ -23,6 +23,9 @@
  */
 package io.karatelabs.profiling;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
@@ -63,6 +66,13 @@ final class MockStats {
     private static final int SUB_BUCKETS = 16;
     private static final int BUCKETS = 640;
 
+    /**
+     * One bit per TCP port, so "how many distinct peers did this window see" costs a bitwise-or
+     * and no allocation. See {@link #observePeer(int)}.
+     */
+    private static final int PORT_WORDS = 65536 / 64;
+    private static final VarHandle PORT_WORD = MethodHandles.arrayElementVarHandle(long[].class);
+
     private final LongAdder[] histogram = new LongAdder[BUCKETS];
     private final LongAdder[] heldHistogram = new LongAdder[BUCKETS];
     private final LongAdder served = new LongAdder();
@@ -71,7 +81,25 @@ final class MockStats {
     private final LongAdder sleptNanosTotal = new LongAdder();
     private final AtomicInteger inFlight = new AtomicInteger();
     private final AtomicLong peakInFlight = new AtomicLong();
+    private final long[] peerPorts = new long[PORT_WORDS];
     private final long startedNanos = System.nanoTime();
+
+    /**
+     * The window the load actually occupied: first handler entry to last handler exit, in
+     * {@code System.nanoTime()} terms. <b>This is what makes a throughput number readable.</b>
+     * Gatling reports {@code count/s} as requests divided by a duration rounded to whole seconds,
+     * so at these run lengths its rate quantises in steps of several percent — two arms that
+     * differ by up to a second land on the identical figure and the report calls them equal. A
+     * nanosecond-resolution window over the same requests puts the comparison at ~0.1%.
+     *
+     * <p>It is a <b>handler-side</b> window and inherits this class's one-directional blind spot:
+     * it opens when the first request reaches the handler, not when it hit the accept queue, and
+     * closes at the last response write rather than at the last byte on the wire. Both edges are
+     * therefore slightly inside the client's own window, which biases the rate <i>up</i> by
+     * whatever accept and write cost — sub-millisecond here, against windows of seconds.</p>
+     */
+    private final AtomicLong firstEnterNanos = new AtomicLong();
+    private final AtomicLong lastExitNanos = new AtomicLong();
 
     MockStats() {
         for (int i = 0; i < BUCKETS; i++) {
@@ -82,6 +110,11 @@ final class MockStats {
 
     /** Call on handler entry; returns the current in-flight count so the caller can pair it. */
     int enter() {
+        // Read before writing: after the first request of a window this is a plain load that
+        // fails the test, not a CAS on every request.
+        if (firstEnterNanos.get() == 0) {
+            firstEnterNanos.compareAndSet(0, System.nanoTime());
+        }
         int current = inFlight.incrementAndGet();
         peakInFlight.getAndAccumulate(current, Math::max);
         return current;
@@ -89,6 +122,48 @@ final class MockStats {
 
     void exit() {
         inFlight.decrementAndGet();
+        lastExitNanos.getAndAccumulate(System.nanoTime(), Math::max);
+    }
+
+    /**
+     * Note the client port this request arrived on, so the window can report how many distinct
+     * connections it saw.
+     *
+     * <p>This is the cheapest available answer to the question the parity matrix could not
+     * otherwise settle: <b>the two arms differ on connection shape, not just on client cost.</b>
+     * Plain Gatling holds one keep-alive connection per virtual user; Karate builds an HTTP client
+     * per execution, so its connections churn. On loopback that asymmetry costs microseconds and
+     * hides — against a real API it is a handshake per iteration, which is overhead that
+     * <i>scales with</i> the network instead of disappearing into it. Counting peers turns
+     * "one connection per iteration, presumably" into a number.</p>
+     *
+     * <p>A bit per port, set with one bitwise-or: no allocation, no lock, and no per-request
+     * logging. Two things it is not: distinct <i>ports</i> undercount if the OS recycles one
+     * inside a window (TIME_WAIT makes that unlikely at these lengths), and this counts what
+     * reached the handler, so a connection opened and never used is invisible. The one cost on
+     * the request path is {@code getRemoteAddress()}, which allocates a small address object per
+     * request — cheap against what the exchange itself allocates, and paid by the mock JVM, which
+     * carries no recording.</p>
+     */
+    void observePeer(int remotePort) {
+        if (remotePort <= 0 || remotePort > 65535) {
+            return;
+        }
+        int word = remotePort >>> 6;
+        long mask = 1L << (remotePort & 63);
+        // Skip the write when the bit is already set — the common case once a keep-alive
+        // connection is established, and it keeps a hot cache line from being written per request.
+        if ((((long) PORT_WORD.getVolatile(peerPorts, word)) & mask) == 0) {
+            PORT_WORD.getAndBitwiseOr(peerPorts, word, mask);
+        }
+    }
+
+    private long distinctPeers() {
+        long count = 0;
+        for (int i = 0; i < PORT_WORDS; i++) {
+            count += Long.bitCount((long) PORT_WORD.getVolatile(peerPorts, i));
+        }
+        return count;
     }
 
     int inFlight() {
@@ -162,6 +237,11 @@ final class MockStats {
         serviceNanosTotal.reset();
         sleptNanosTotal.reset();
         peakInFlight.set(inFlight.get());
+        // The load window and the peer set belong to the window, so they clear with it — a rate
+        // computed over a window that opened during the previous ramp point is not a rate.
+        firstEnterNanos.set(0);
+        lastExitNanos.set(0);
+        Arrays.fill(peerPorts, 0L);
     }
 
     /**
@@ -201,6 +281,11 @@ final class MockStats {
     String toJson() {
         long total = served.sum();
         double elapsedSeconds = (System.nanoTime() - startedNanos) / 1_000_000_000.0;
+        // First entry to last exit — not the process lifetime, which includes however long the
+        // mock sat idle waiting for a client to start.
+        long first = firstEnterNanos.get();
+        long last = lastExitNanos.get();
+        double windowSeconds = first == 0 || last <= first ? 0 : (last - first) / 1_000_000_000.0;
         return "{\"served\":" + total
                 + ",\"errors\":" + errors.sum()
                 + ",\"inFlight\":" + inFlight.get()
@@ -217,6 +302,14 @@ final class MockStats {
                 // Measured, not nominal: sleep overshoot is real and constant, and subtracting
                 // the knob value instead of this would book it as queueing.
                 + ",\"sleepMicrosMean\":" + (total == 0 ? 0 : sleptNanosTotal.sum() / total / 1000)
+                // The load window and the rate over it. Gatling's own count/s divides by a
+                // whole-second duration; this does not, and that is the difference between
+                // "identical throughput" and a number.
+                + ",\"loadWindowSeconds\":" + String.format("%.6f", windowSeconds)
+                + ",\"servedPerSecond\":" + (windowSeconds == 0 ? "0.000" : String.format("%.3f", total / windowSeconds))
+                // How many distinct client ports this window saw: the plain arm's keep-alive
+                // connections versus the karate arm's per-execution client, as a count.
+                + ",\"distinctPeerPorts\":" + distinctPeers()
                 + ",\"elapsedSeconds\":" + String.format("%.3f", elapsedSeconds)
                 + "}";
     }

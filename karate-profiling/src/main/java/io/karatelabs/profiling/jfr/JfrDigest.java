@@ -126,7 +126,9 @@ public final class JfrDigest {
             md.append("| | |\n|---|---:|\n");
             md.append("| requests | ").append(stats.total()).append(" |\n");
             md.append("| ok / ko | ").append(stats.ok()).append(" / **").append(stats.ko()).append("** |\n");
-            md.append("| req/s | ").append(stats.perSecond()).append(" |\n");
+            md.append("| req/s | ").append(stats.perSecond())
+                    .append(" (Gatling divides by a **whole-second** duration — read the mock's ")
+                    .append("`servedPerSecond` below instead) |\n");
             md.append("| min / mean / max | ").append(stats.min()).append(" / ").append(stats.mean())
                     .append(" / ").append(stats.max()).append(" ms |\n");
             md.append("| p50 / p75 / p95 / p99 | ").append(stats.p50()).append(" / ").append(stats.p75())
@@ -149,6 +151,40 @@ public final class JfrDigest {
                         .append(mockConfig).append("\n```\n\n");
             }
         }
+        appendReconciliation(md, info, stats, mockStats);
+    }
+
+    /**
+     * Three counts of the same work, from three places that cannot see each other: what the harness
+     * asked for, what Gatling says it drove, and what the mock says it served.
+     *
+     * <p><b>Reported, never asserted</b> — this document's whole doctrine, and the right one here:
+     * a mismatch is a finding, not a failure. It is worth printing because the failure it catches
+     * is silent. A connection refused before the handler is entered never reaches the mock's error
+     * counter, and the matrix's zero-KO rows were read as "nothing was dropped" when what they
+     * actually established was "nothing that reached Gatling was dropped". Requests missing from
+     * the middle count are the only thing that separates those.</p>
+     */
+    private static void appendReconciliation(StringBuilder md, RunInfo info,
+                                             io.karatelabs.profiling.LoadProfile.Stats stats, String mockStats) {
+        long served = (long) io.karatelabs.profiling.LoadProfile.mockNumber(mockStats, "served");
+        if (stats == null || served < 0) {
+            return;
+        }
+        long driven = stats.ok() + stats.ko();
+        long iterations = info.shape().isDurationBounded() ? -1 : info.shape().iterations();
+        md.append("**Reconciliation.** Gatling drove **").append(driven).append("** requests (")
+                .append(stats.ok()).append(" ok + ").append(stats.ko()).append(" ko); the mock served **")
+                .append(served).append("**");
+        if (iterations > 0) {
+            md.append(", over ").append(iterations).append(" requested iterations (")
+                    .append(String.format("%.2f", driven / (double) iterations)).append(" requests each)");
+        }
+        md.append(driven == served
+                        ? " — **they agree**, so nothing was dropped between the injector and the handler.\n\n"
+                        : " — **they disagree by " + Math.abs(driven - served) + "**. Requests that fail before "
+                        + "handler entry are invisible to the mock's error counter, so read this before "
+                        + "reading anything else.\n\n");
     }
 
 

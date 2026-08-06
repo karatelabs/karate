@@ -215,6 +215,9 @@ public final class LatencyMock {
         }
 
         stats.enter();
+        // Outside the /stats branch above on purpose: a readout the harness makes is not load, and
+        // its port would inflate the connection count this exists to report.
+        stats.observePeer(exchange.getRemoteAddress() == null ? 0 : exchange.getRemoteAddress().getPort());
         long start = System.nanoTime();
         long sleptNanos = 0;
         try {
