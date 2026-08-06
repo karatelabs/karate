@@ -230,6 +230,7 @@ public final class JfrDigest {
             }
         }
         appendReconciliation(md, info, stats, mockStats);
+        appendPortPressure(md, mockStats);
     }
 
     /**
@@ -265,6 +266,45 @@ public final class JfrDigest {
                         + "reading anything else.\n\n");
     }
 
+
+    /**
+     * The run's own connection rate against what this host can sustain.
+     *
+     * <p>The karate arm opens one connection per iteration — counted, not assumed — and every one
+     * of them occupies an ephemeral port for a TIME_WAIT after it closes. Exceed the host's rate
+     * and the arm stalls waiting for the range to recycle, which docs/PROFILING.md §10 notes
+     * "reads as 'Karate is slower'". §10 also notes the matrix has never actually tested that
+     * failure mode: the 0 ms tier ran at roughly eight times the sustainable rate and passed only
+     * because the burst was short enough that the range never filled.
+     *
+     * <p>Reported rather than enforced, and the wording separates a burst from a sustained rate,
+     * because a short run over the ceiling is fine and a long one is not — that distinction is the
+     * finding, and collapsing it into a pass/fail would throw it away.
+     */
+    private static void appendPortPressure(StringBuilder md, String mockStats) {
+        double ports = io.karatelabs.profiling.LoadProfile.mockNumber(mockStats, "distinctPeerPorts");
+        double window = io.karatelabs.profiling.LoadProfile.mockNumber(mockStats, "loadWindowSeconds");
+        if (ports <= 0 || window <= 0) {
+            return;
+        }
+        io.karatelabs.profiling.HostFacts.Network network = io.karatelabs.profiling.HostFacts.read();
+        double rate = ports / window;
+        double ceiling = network.sustainableConnectionsPerSecond();
+        md.append("**Connections.** ").append((long) ports).append(" distinct client ports over ")
+                .append(fixed(window, 1)).append("s — **").append(fixed(rate, 0))
+                .append(" connections/s**. This host: ").append(network.describe()).append(".");
+        if (ceiling > 0 && rate > ceiling) {
+            md.append(" **This run offered ").append(fixed(rate / ceiling, 1))
+                    .append("x the sustainable rate.** It survived on brevity rather than margin: ")
+                    .append((long) ports).append(" connections stayed under the ")
+                    .append(network.portRangeSize()).append("-port range, so the range never filled. ")
+                    .append("A longer run at this rate exhausts it, and the stall reads as the client ")
+                    .append("being slow.");
+        } else if (ceiling > 0) {
+            md.append(" Under the ceiling, so port exhaustion is not in play here.");
+        }
+        md.append("\n\n");
+    }
 
     private static void appendRunSummary(StringBuilder md, Path runDir, RunInfo info) {
         RunShape shape = info.shape();

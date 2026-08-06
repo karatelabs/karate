@@ -36,6 +36,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -175,7 +176,7 @@ public final class Profiler {
         List<String> command = childCommand(classpath, name, shape, jvm, mockUrl,
                 recordMock ? List.of() : jfrFlags(runDir, shape, flags, warmupWillRun), runDir, flags.systemProperties,
                 workload.jvmFlags());
-        writeRunMeta(runDir, name, shape, jvm, command, mockUrl);
+        writeRunMeta(runDir, name, shape, jvm, command, mockUrl, mockTier(workload, flags));
 
         System.out.println("[parent] forking: " + String.join(" ", command));
         Process child = new ProcessBuilder(command).redirectErrorStream(true).start();
@@ -388,8 +389,61 @@ public final class Profiler {
         }
     }
 
+    /**
+     * Which mock served this run. PROFILING.md §7 records the gap this closes: "which mock a
+     * gatling-http-* run used is not in run-meta.txt; the tell is mock.log" — provenance that
+     * lived only in an artifact the disk-hygiene rules do not promise to keep, for a choice that
+     * decides whether a cell's throughput means anything at all.
+     */
+    private static String mockTier(Workload workload, Args flags) {
+        if (!workload.needsMock()) {
+            return "(none)";
+        }
+        if (flags.mockUrl != null) {
+            return "external (not forked by this run)";
+        }
+        return "latency".equals(flags.mock)
+                ? "latency" + (flags.mockLatency == null ? "" : " (" + RunShape.format(flags.mockLatency) + " injected)")
+                : "feature";
+    }
+
+    /**
+     * How long since the previous run in this directory finished starting.
+     *
+     * <p>The 35-second gap between parity runs is not hygiene, it is a correctness condition: the
+     * karate arm opens a connection per iteration and they sit in TIME_WAIT, so back-to-back runs
+     * can meet the ephemeral-port ceiling for reasons that have nothing to do with Karate — and it
+     * reads as "Karate is slower". Today that gap lives in an operator's shell script, which means
+     * a digest cannot say whether it was honoured. Recording it makes the condition auditable after
+     * the fact, which is the most a harness that deliberately reports rather than asserts should do.
+     */
+    private static String sincePreviousRun(Path runDir) {
+        try (java.util.stream.Stream<Path> siblings = Files.list(runDir.getParent())) {
+            String self = runDir.getFileName().toString();
+            String selfStamp = HostFacts.stampOf(self);
+            // Ordered by stamp, not by name: the names carry a workload prefix, so "call-…" would
+            // otherwise always sort before "gatling-…" regardless of when either ran.
+            String previous = siblings.map(p -> p.getFileName().toString())
+                    .filter(n -> !HostFacts.stampOf(n).isEmpty())
+                    .filter(n -> HostFacts.stampOf(n).compareTo(selfStamp) < 0)
+                    .max(Comparator.comparing(HostFacts::stampOf))
+                    .orElse(null);
+            if (previous == null) {
+                return "(first run in this directory)";
+            }
+            Duration gap = Duration.between(
+                    LocalDateTime.parse(HostFacts.stampOf(previous), STAMP),
+                    LocalDateTime.parse(HostFacts.stampOf(self), STAMP));
+            return RunShape.format(gap) + " after " + previous
+                    + (gap.toSeconds() < 35
+                    ? "  ← under the 35s TIME_WAIT gap the parity protocol asks for" : "");
+        } catch (Exception e) {
+            return "(unknown)";
+        }
+    }
+
     private static void writeRunMeta(Path runDir, String name, RunShape shape, JvmConfig jvm,
-                                     List<String> command, String mockUrl) throws IOException {
+                                     List<String> command, String mockUrl, String mockTier) throws IOException {
         String meta = """
                 workload:     %s
                 threads:      %d
@@ -399,12 +453,15 @@ public final class Profiler {
                 xmx:          %s
                 gc:           %s
                 gc expansion: %s
+                mock:         %s
                 mock url:     %s
 
                 parent jdk:   %s (%s)
                 child jdk:    same as parent
                 os:           %s %s (%s)
                 cpus:         %d
+                network:      %s
+                since prev:   %s
 
                 child command:
                 %s
@@ -419,11 +476,14 @@ public final class Profiler {
                 jvm.xmx(),
                 jvm.gc().name().toLowerCase(),
                 String.join(" ", jvm.flags(Runtime.version().feature())),
+                mockTier,
                 mockUrl == null ? "(none)" : mockUrl,
                 Runtime.version(), System.getProperty("java.vendor"),
                 System.getProperty("os.name"), System.getProperty("os.version"),
                 System.getProperty("os.arch"),
                 Runtime.getRuntime().availableProcessors(),
+                HostFacts.read().describe(),
+                sincePreviousRun(runDir),
                 String.join(" \\\n  ", command));
         Files.writeString(runDir.resolve("run-meta.txt"), meta);
     }
