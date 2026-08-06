@@ -103,6 +103,8 @@ public final class Profiler {
                   --record workload|mock which JVM gets the recording
                   --mock feature|latency  which mock tier to fork (default feature)
                   --mock-latency 10ms     injected latency; implies --mock latency
+                  --mock-url URL          use an already-running LatencyMock (e.g. another host)
+                                          instead of forking one; see docs/PROFILING.md §10
                   --gc-roots             enable OldObjectSample reference chains (costly)
                   -Dkey=value            passed through to the child JVM (repeatable)
                 """);
@@ -152,7 +154,15 @@ public final class Profiler {
         Runtime.getRuntime().addShutdownHook(new Thread(children::killAll, "profiler-cleanup"));
 
         String mockUrl = null;
-        if (workload.needsMock()) {
+        if (workload.needsMock() && flags.mockUrl != null) {
+            if (recordMock) {
+                System.err.println("[parent] --record mock cannot profile a mock this process did "
+                        + "not fork; run the recording on the mock host instead");
+                return 2;
+            }
+            mockUrl = ExternalMock.attach(flags.mockUrl, runDir);
+            System.out.println("[parent] using external mock at " + mockUrl);
+        } else if (workload.needsMock()) {
             mockUrl = startMock(workload, classpath, runDir, children,
                     recordMock ? jfrFlags(runDir, shape, flags, warmupWillRun) : List.of(),
                     flags.mock, flags.mockLatency);
@@ -187,6 +197,12 @@ public final class Profiler {
         pump.get(30, TimeUnit.SECONDS);
         int exit = child.exitValue();
         children.killAll();
+
+        // The forked mock writes its own stats line on the way down; an external one has to be
+        // asked, and only once the load has stopped.
+        if (flags.mockUrl != null) {
+            ExternalMock.collect(mockUrl, runDir);
+        }
 
         boolean heapDump = Files.exists(runDir.resolve("heapdump.hprof"));
         System.out.println("[parent] child exited " + exit
@@ -496,6 +512,7 @@ public final class Profiler {
         JvmConfig.Gc gc;
         String record = "workload";
         String mock = "feature";
+        String mockUrl;
         Duration mockLatency;
         boolean gcRoots;
         final List<String> systemProperties = new ArrayList<>();
@@ -515,6 +532,7 @@ public final class Profiler {
                     case "--gc" -> args.gc = JvmConfig.Gc.parse(next(argv, ++i, flag));
                     case "--record" -> args.record = next(argv, ++i, flag);
                     case "--mock" -> args.mock = next(argv, ++i, flag);
+                    case "--mock-url" -> args.mockUrl = next(argv, ++i, flag);
                     case "--mock-latency" -> {
                         args.mockLatency = RunShape.parseDuration(next(argv, ++i, flag));
                         // Asking for latency IS asking for the instrument — the feature mock has

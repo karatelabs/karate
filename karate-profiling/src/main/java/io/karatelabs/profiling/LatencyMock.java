@@ -120,6 +120,13 @@ public final class LatencyMock {
     public static void main(String[] args) throws Exception {
         Duration latency = Duration.ZERO;
         int port = 0;
+        // Loopback by default, because a forked sibling is the common case and a mock that
+        // listens on every interface without being asked to is a surprise. `--bind 0.0.0.0` is
+        // what a two-host run needs: docs/PROFILING.md §10 names co-location as the one confound
+        // it cannot argue away, and separate hosts is the phase that removes it.
+        String bind = "127.0.0.1";
+        // Run until killed rather than until stdin closes — see run().
+        boolean standalone = false;
         // Explicit, and generously sized. The default delegates to a small system value, which is
         // itself a silent ceiling — and connection establishment is precisely the axis on which
         // the two clients differ, since Karate builds an HTTP client per execution.
@@ -128,15 +135,23 @@ public final class LatencyMock {
             switch (args[i]) {
                 case "--latency" -> latency = RunShape.parseDuration(args[++i]);
                 case "--port" -> port = Integer.parseInt(args[++i]);
+                case "--bind" -> bind = args[++i];
                 case "--backlog" -> backlog = Integer.parseInt(args[++i]);
                 default -> {
                 }
             }
         }
-        new LatencyMock(latency, backlog).run(port);
+        // Scanned separately: the loop above stops at args.length - 1 because every other flag
+        // takes a value, so a bare trailing flag would be silently dropped.
+        for (String arg : args) {
+            if (arg.equals("--standalone")) {
+                standalone = true;
+            }
+        }
+        new LatencyMock(latency, backlog).run(bind, port, standalone);
     }
 
-    private void run(int port) throws Exception {
+    private void run(String bind, int port, boolean standalone) throws Exception {
         // The JDK server parks idle keep-alive connections and CLOSES them once more than
         // maxIdleConnections are parked — default 200. Above that many concurrent users it starts
         // churning connections, which looks exactly like a capacity knee and is a tunable default.
@@ -145,7 +160,7 @@ public final class LatencyMock {
         if (System.getProperty(IDLE_CONNECTIONS_PROPERTY) == null) {
             System.setProperty(IDLE_CONNECTIONS_PROPERTY, "8192");
         }
-        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), backlog);
+        HttpServer server = HttpServer.create(new InetSocketAddress(bind, port), backlog);
         ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
         server.setExecutor(executor);
         server.createContext("/", this::handle);
@@ -153,16 +168,27 @@ public final class LatencyMock {
 
         // Same handshake line as MockJvm, and deliberately its constant rather than a copy:
         // the parent greps for one prefix, so two definitions of it can only ever drift apart.
-        System.out.println(MockJvm.READY_PREFIX + "http://127.0.0.1:" + server.getAddress().getPort());
+        System.out.println(MockJvm.READY_PREFIX + "http://" + bind + ":" + server.getAddress().getPort());
         // The two settings that can put a knee where there is no capacity limit. The kernel one
         // cannot be set from here — listen() silently clamps the requested backlog to
         // kern.ipc.somaxconn, which is 128 on macOS — so it is printed for the operator to check
         // rather than asserted. A backlog "generously sized" in Java is not generously sized.
-        System.out.println(CONFIG_PREFIX + "{\"backlogRequested\":" + backlog
-                + ",\"maxIdleConnections\":" + System.getProperty(IDLE_CONNECTIONS_PROPERTY)
-                + ",\"latencyMillis\":" + (latencyNanos / 1_000_000)
-                + ",\"checkSomaxconn\":\"sysctl kern.ipc.somaxconn\"}");
+        System.out.println(CONFIG_PREFIX + configJson());
         System.out.flush();
+
+        if (standalone) {
+            // A mock that outlives the run has no parent pipe to watch, and watching stdin anyway
+            // is not a harmless default — a backgrounded process reads EOF immediately and shuts
+            // down before its first request, printing a full and entirely empty stats line on the
+            // way out. That is what this flag exists to prevent, and it was found by doing it.
+            // SIGTERM is the shutdown signal here, so the summary moves into a hook.
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.out.println(stats.summary());
+                System.out.flush();
+            }, "mock-summary"));
+            Thread.currentThread().join();
+            return;
+        }
 
         // Block until the parent's pipe closes, exactly as MockJvm does: read() returns -1 on EOF,
         // and also returns if the parent writes a byte to ask for shutdown.
@@ -181,6 +207,28 @@ public final class LatencyMock {
         executor.close();
     }
 
+    /**
+     * The settings that can put a knee where there is no capacity limit. Served as well as printed,
+     * because a mock on another host has no stdout the harness can read — and a run whose digest
+     * cannot say what latency was injected is a run that cannot be placed in a tier afterwards.
+     *
+     * <p>The kernel backlog cannot be set from here: {@code listen()} silently clamps the requested
+     * value to the OS maximum, so it is named for the operator to check rather than asserted. A
+     * backlog "generously sized" in Java is not generously sized. The knob differs by platform,
+     * which is why the command to check it is chosen rather than hard-coded — every published
+     * number in docs/PROFILING.md came off macOS, and the EC2 phase will not.
+     */
+    private String configJson() {
+        boolean linux = System.getProperty("os.name", "").toLowerCase().contains("linux");
+        return "{\"backlogRequested\":" + backlog
+                + ",\"maxIdleConnections\":" + System.getProperty(IDLE_CONNECTIONS_PROPERTY)
+                + ",\"latencyMillis\":" + (latencyNanos / 1_000_000)
+                + ",\"os\":\"" + System.getProperty("os.name") + " " + System.getProperty("os.arch") + "\""
+                + ",\"cpus\":" + Runtime.getRuntime().availableProcessors()
+                + ",\"checkSomaxconn\":\"" + (linux
+                        ? "sysctl net.core.somaxconn" : "sysctl kern.ipc.somaxconn") + "\"}";
+    }
+
     private void handle(HttpExchange exchange) throws IOException {
         String path = exchange.getRequestURI().getPath();
 
@@ -190,6 +238,15 @@ public final class LatencyMock {
         // Exact match, not a prefix: "/stats" once matched by startsWith, which quietly made
         // /statsAnything a success endpoint. A mock that answers 200 to a URL nobody defined is a
         // mock that can absorb a client's routing bug without anyone noticing.
+        // Same exemption, same reason: a harness reading the mock's settings is not load.
+        if ("/config".equals(path)) {
+            try {
+                respond(exchange, 200, configJson().getBytes(StandardCharsets.UTF_8));
+            } finally {
+                exchange.close();
+            }
+            return;
+        }
         boolean reset = "/stats/reset".equals(path);
         if (reset || "/stats".equals(path)) {
             try {
