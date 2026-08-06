@@ -72,6 +72,10 @@ public final class Profiler {
             list();
             return;
         }
+        if (argv.get(0).equals("compare")) {
+            argv.remove(0);
+            System.exit(Compare.main(argv));
+        }
         if (argv.get(0).equals("run")) {
             argv.remove(0);
         }
@@ -86,6 +90,7 @@ public final class Profiler {
         System.out.println("""
                 usage: profiler [run] <workload> [flags]
                        profiler --list
+                       profiler compare <run-dir>... (parity pairs, in run order)
 
                 flags:
                   --threads N            concurrency (virtual threads)

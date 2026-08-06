@@ -39,6 +39,13 @@ PROFILE=""
 # Scan every argument, not just the first: the documented `profiler run <workload>` form puts
 # the workload second, and `list` is an alias for `--list`. Missing the profile there fails
 # confusingly — "unknown workload", or a catalogue quietly short of what you asked for.
+# `compare` only reads digest.md files that already exist, so there is nothing to install and
+# nothing to fork. Skipping the build keeps re-reading a matrix cheap enough to do repeatedly,
+# which is the point of having it.
+if [[ "${1:-}" == "compare" ]]; then
+    SKIP_BUILD=1
+fi
+
 for arg in "$@"; do
     case "$arg" in
         gatling-*|--list|list)
