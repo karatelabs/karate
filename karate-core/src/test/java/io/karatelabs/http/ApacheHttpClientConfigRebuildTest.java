@@ -223,8 +223,7 @@ class ApacheHttpClientConfigRebuildTest {
             proxy.put("nonProxyHosts", new ArrayList<>(List.of("localhost")));
             config.configure("proxy", proxy);
             client.apply(config);
-            Object first = build(client, url);
-            assertSame(first, built(client), "sanity: the client survives its own first apply");
+            build(client, url);
 
             // Mutate through the live reference, exactly as the getter exposes it.
             List<String> live = config.getNonProxyHosts();
@@ -235,6 +234,92 @@ class ApacheHttpClientConfigRebuildTest {
             assertNull(built(client),
                     "an in-place edit of nonProxyHosts changes what the client routes, so it "
                             + "must rebuild even though the List reference is unchanged");
+        });
+    }
+
+    /**
+     * The keep direction, for a config carrying a proxy list — the case the whole change is for.
+     *
+     * <p>A shared-scope call returning re-applies a config that is value-equal but not the same
+     * instance. If list comparison ever regressed to identity, every such return under a proxy
+     * config would silently rebuild, which is exactly the cost this guard exists to remove, and
+     * the other tests would not notice.
+     */
+    @Test
+    void testAnEqualButDistinctProxyConfigKeepsTheBuiltClient() throws Exception {
+        withServer(url -> {
+            ApacheHttpClient client = new ApacheHttpClient();
+            Map<String, Object> proxy = new LinkedHashMap<>();
+            proxy.put("uri", "http://localhost:9999");
+            proxy.put("nonProxyHosts", new ArrayList<>(List.of("localhost", "example.com")));
+
+            KarateConfig config = new KarateConfig();
+            config.configure("proxy", proxy);
+            client.apply(config);
+            Object first = build(client, url);
+
+            // A separate config object holding equal values, as copyFrom would leave behind.
+            Map<String, Object> sameProxy = new LinkedHashMap<>();
+            sameProxy.put("uri", "http://localhost:9999");
+            sameProxy.put("nonProxyHosts", new ArrayList<>(List.of("localhost", "example.com")));
+            KarateConfig copy = new KarateConfig();
+            copy.configure("proxy", sameProxy);
+
+            client.apply(copy);
+            assertSame(first, built(client),
+                    "a value-equal proxy config from a different instance must not rebuild");
+        });
+    }
+
+    /**
+     * The retry count and interval reach the client only through the retry strategy, which is only
+     * installed when retry is enabled. With retry off they are pure {@code retry until} polling
+     * settings, and tearing a live client down for them would be waste — a callee tuning its own
+     * polling is common, and every configure key now reaches {@code apply()}.
+     */
+    @Test
+    void testRetryTuningDoesNotRebuildWhenHttpRetryIsDisabled() throws Exception {
+        withServer(url -> {
+            ApacheHttpClient client = new ApacheHttpClient();
+            KarateConfig config = new KarateConfig();
+            client.apply(config);
+            Object first = build(client, url);
+
+            config.configure("retry", Map.of("count", 10, "interval", 250));
+            client.apply(config);
+            assertSame(first, built(client),
+                    "with httpRetryEnabled false the count never reaches the built client, so "
+                            + "changing it must not tear one down");
+
+            // Negative control: enabling retry does reach it, and must rebuild.
+            config.configure("httpRetryEnabled", true);
+            client.apply(config);
+            assertNull(built(client), "enabling http retry must rebuild");
+        });
+    }
+
+    /**
+     * A local address that will not resolve leaves the previous one in place — the exception is
+     * caught — so the config was not applied and must not be recorded as applied. Otherwise one
+     * transient DNS failure binds the client to the wrong interface for the rest of the scenario,
+     * because every later apply() of that same config matches the key and skips.
+     */
+    @Test
+    void testAnUnresolvableLocalAddressDoesNotStickAsApplied() throws Exception {
+        withServer(url -> {
+            ApacheHttpClient client = new ApacheHttpClient();
+            KarateConfig config = new KarateConfig();
+            // .invalid is reserved by RFC 2606 and must never resolve.
+            config.configure("localAddress", "karate-test-nic.invalid");
+            client.apply(config);
+            Object rebuilt = build(client, url);
+
+            // Re-applying the very same config must retry the lookup rather than skip it.
+            client.apply(config);
+            assertNull(built(client),
+                    "a config whose localAddress never resolved was not applied, so re-applying "
+                            + "it must try again instead of matching the key and skipping");
+            assertNotNull(rebuilt, "sanity: a client existed before the second apply");
         });
     }
 

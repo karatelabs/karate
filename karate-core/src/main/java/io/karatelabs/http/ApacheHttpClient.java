@@ -147,6 +147,12 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
      * <p><b>Read off the raw config, never off this class's resolved fields</b>, or deciding
      * whether to resolve {@code localAddress} would first resolve it: {@code apply()} puts that
      * through {@code getByName}, which can hit DNS.
+     *
+     * <p><b>Config only — the environment is not keyed.</b> The build also reads things no
+     * {@code KarateConfig} setting describes: the bytes behind {@code sslKeyStore}, and the JVM
+     * proxy properties {@code useSystemProperties()} picks up. Re-applying an identical config
+     * used to re-read those; now it does not, so a certificate rotated on disk mid-run cannot be
+     * picked up from a feature. Change a keyed setting, or take a new client.
      */
     private record ClientKey(
             boolean ssl, String sslAlgorithm, String sslKeyStore, String sslKeyStorePassword,
@@ -176,7 +182,14 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                     config.getProxyUri(), config.getProxyUsername(), config.getProxyPassword(),
                     nonProxy == null ? null : new ArrayList<>(nonProxy),
                     config.getReadTimeout(), config.getConnectTimeout(), config.isFollowRedirects(),
-                    config.isHttpRetryEnabled(), config.getRetryCount(), config.getRetryInterval(),
+                    // The count and interval reach the client only through the retry strategy,
+                    // which is only installed when retry is enabled. Keying them unconditionally
+                    // would tear down a live client every time a callee set `configure retry` to
+                    // tune its own `retry until` polling — a common pattern that has nothing to do
+                    // with the transport, and one that now reaches apply() on every key.
+                    config.isHttpRetryEnabled(),
+                    config.isHttpRetryEnabled() ? config.getRetryCount() : 0,
+                    config.isHttpRetryEnabled() ? config.getRetryInterval() : 0,
                     config.getCharset(), config.getLocalAddress(),
                     config.getNtlmUsername(), config.getNtlmPassword(),
                     config.getNtlmDomain(), config.getNtlmWorkstation());
@@ -229,10 +242,14 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         }
         // Local address
         String localAddr = config.getLocalAddress();
+        boolean unresolved = false;
         if (localAddr != null) {
             try {
                 localAddress = InetAddress.getByName(localAddr);
             } catch (Exception e) {
+                // The field keeps whatever it resolved to last, so this config was NOT fully
+                // applied — see where the key is committed.
+                unresolved = true;
                 LOGGER.warn("invalid local address: {}", localAddr);
             }
         } else {
@@ -250,11 +267,15 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             ntlmDomain = null;
             ntlmWorkstation = null;
         }
-        // Committed only now that every field above took. If one of them throws, the key stays as
-        // it was and the next apply() of this same config repeats the work rather than skipping
-        // it — the client would otherwise be left holding a half-applied config that the guard
-        // then reported as already current.
-        currentKey = key;
+        // Committed only now that every field above took, and only if they all did.
+        //
+        // A name that would not resolve is the one way to get here having NOT applied the config:
+        // the exception is caught, so localAddress still holds the previous address. Committing
+        // the key anyway would make a transient DNS failure permanent — every later apply() of
+        // that same config would match and skip, leaving the client bound to the wrong interface
+        // for the rest of the scenario with one WARN as the only trace. Clearing it instead makes
+        // the next apply() retry the lookup, which is what happened before this guard existed.
+        currentKey = unresolved ? null : key;
         // Close the outgoing one before dropping it. Nulling alone abandons a built
         // CloseableHttpClient, its connection manager and its pooled sockets to the collector,
         // which is the same nondeterministic release that closing at scenario end was meant to
