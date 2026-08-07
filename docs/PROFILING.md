@@ -1126,10 +1126,12 @@ per-host network limits. Each is described in
    ([Parsed-JS reuse](#parsed-js-reuse--measured-half-gated-not-built)); a Gatling latency result
    cannot substitute for it. The prototype is on no branch or stash — recreate it from the
    description there.
-3. **HTTP client lifecycle** — close the per-execution client, or pool one per virtual user. Not a
-   one-liner (see the design notes in that section), and it is a **prerequisite for the soak**, not
-   an optimisation: today's per-execution client is abandoned to the collector, and file descriptors
-   are not heap.
+3. **HTTP client lifecycle — half built.** *Release* is done: `HttpClientFactory.release()` is
+   called at scenario end, `DefaultHttpClientFactory` closes, and a custom factory keeps today's
+   behaviour unless it opts in (the default is a no-op, because a custom factory's client may be
+   shared). That removes the fd leak — measured, a feature making three calls created 5 clients and
+   released 0. **Pooling is not done**, so Karate still opens a connection per iteration, which is
+   the part that costs +1 RTT (plus TLS) against a real API. The factory seam is where it goes.
 4. **A pooled-client A/B in the harness.** Prices the per-execution client — §6's last unchased
    lead — and removes the one structural difference between the arms, which is what would let the
    parity result generalise past loopback.
@@ -1145,7 +1147,14 @@ per-host network limits. Each is described in
 8. **~~Separate hosts~~ — promoted to item 0** and now unblocked on the harness side (`--mock-url`,
    `LatencyMock --bind/--standalone`). Co-location is the one confound §10 cannot argue away, and
    it lifts the ephemeral-port ceiling.
-9. **Mine [#845](#prior-art--the-09x-era-overhead-thread).** Reading, not building. Now worth
+9. **The injector-health check** — designed in **[GATLING.md §14.12](./GATLING.md)**, not built.
+   It is the mitigation for this document's own sharpest finding: Karate's overhead sits *between*
+   `PerfEvent` brackets, so an under-provisioned injector reads as a throughput shortfall with
+   clean percentiles and nothing in the report looks wrong. Gate on process CPU and heartbeat
+   jitter; report the per-iteration residue but never gate on it, since Karate legitimately spends
+   a millisecond or two. Ordered here rather than higher because item 6's ramp is what says how
+   much the underlying overhead matters.
+10. **Mine [#845](#prior-art--the-09x-era-overhead-thread).** Reading, not building. Now worth
    reconciling *against* a result rather than before one.
 
 ### Per-scenario spill — designed, reviewed, deliberately not built

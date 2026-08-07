@@ -1393,6 +1393,25 @@ on time. Jitter catches that directly, and it is about fifteen lines.
 it is also where the residue timing point belongs. Config fits `KarateProtocolBuilder`'s existing
 fluent style.
 
+#### How to test it — and the one case a JVM flag cannot reach
+
+The two gating signals need different simulations, which is itself the argument for having both:
+
+| To exercise | How |
+|---|---|
+| **CPU saturation** | `-XX:ActiveProcessorCount=1`. Makes `availableProcessors()` return 1 — the exact denominator the check divides by — and genuinely shrinks the JVM's GC and ForkJoin pools, so real contention follows. No privileges needed. |
+| **Scheduler jitter** | A tiny heap (`-Xmx32m`) on an allocating workload: near-continuous GC makes a 100 ms heartbeat overshoot badly. |
+| **cgroup throttling** | **Not reachable by any JVM flag.** `systemd-run --scope -p CPUQuota=25% …`, or a container with `--cpus=0.25`. |
+| The real phenomenon | Raise the virtual-user count until the injector saturates. |
+
+**The third row is the one that matters, and it is easy to skip.** A throttled container reports
+*low* CPU while being unable to run anything on time — that is precisely the case CPU% misses and
+the heartbeat exists for. A test suite that only uses JVM flags will pass without ever exercising
+the signal that justified the design, so this case has to run on Linux, not on a developer laptop.
+
+Note the profiling harness currently passes `-D` system properties through to the child JVM but
+**not arbitrary `-XX` flags**, so the first two rows are not one-liners there yet.
+
 #### Two things to design around
 
 - **Containers.** Use `getProcessCpuLoad()` (normalised to available processors) rather than
