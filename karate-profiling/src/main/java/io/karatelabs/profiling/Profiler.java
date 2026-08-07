@@ -205,7 +205,7 @@ public final class Profiler {
 
         List<String> command = childCommand(classpath, name, shape, jvm, mockUrl,
                 recordMock ? List.of() : jfrFlags(runDir, shape, flags, warmupWillRun), runDir, flags.systemProperties,
-                workload.jvmFlags(), flags.jvmFlags);
+                workload.jvmFlags(), flags.jvmFlags, flags.soak);
         writeRunMeta(runDir, name, shape, jvm, command, mockUrl, mockTier(workload, flags), flags.jvmFlags);
 
         System.out.println("[parent] forking: " + String.join(" ", command));
@@ -400,7 +400,8 @@ public final class Profiler {
                                              List<String> jfr, Path runDir,
                                              List<String> systemProperties,
                                              List<String> workloadFlags,
-                                             List<String> extraJvmFlags) {
+                                             List<String> extraJvmFlags,
+                                             boolean soak) {
         List<String> command = new ArrayList<>();
         command.add(javaBinary());
         command.add("-Xmx" + jvm.xmx());
@@ -420,6 +421,12 @@ public final class Profiler {
             command.add("-Dkarate.profiling.iterations=" + shape.iterations());
         }
         command.add("-Dkarate.profiling.warmup=" + RunShape.format(shape.warmup()));
+        // Soak mode is not only a recording setting: it turns on the child's live-set probe,
+        // which is the only leak signal that survives a collector that never touches the old
+        // generation. See Child.startLiveSetProbe.
+        if (soak) {
+            command.add("-Dkarate.profiling.soak=true");
+        }
         if (mockUrl != null) {
             command.add("-Dkarate.profiling.mockUrl=" + mockUrl);
         }

@@ -63,6 +63,13 @@ public final class JfrDigest {
      * path-to-gc-roots=true.
      */
     private static final int RETAINED_SAMPLES_FOR_CONFIDENCE = 200;
+    /**
+     * {@code jdk.GarbageCollection.name} values that collect the young generation only. Anything
+     * else touches the old generation, and only then is a rising heap-after-GC floor evidence of
+     * retention rather than of promoted garbage nobody has collected yet.
+     */
+    private static final java.util.Set<String> YOUNG_ONLY_COLLECTORS =
+            java.util.Set.of("G1New", "ParallelScavenge", "DefNew", "PSYoungGen", "Copy");
 
     /** What the parent knows that the recording doesn't. */
     public record RunInfo(String workload, int exitCode, boolean timedOut, boolean heapDump,
@@ -86,6 +93,7 @@ public final class JfrDigest {
                 Data data = read(jfr);
                 appendAllocationBySite(md, data, info);
                 appendHotMethods(md, data, info);
+                appendLiveSet(md, runDir);
                 appendHeapAfterGc(md, data);
                 appendGcPauses(md, data);
                 appendRetainedObjects(md, data, info);
@@ -536,14 +544,87 @@ public final class JfrDigest {
         table(md, "site", data.cpuBySite, data.cpuSamples, Unit.COUNT);
     }
 
+    /**
+     * What actually survived a full collection, sampled through the run. This is the leak panel;
+     * the heap-after-GC series below it is not, and believing otherwise cost a published
+     * conclusion — see {@code Child.startLiveSetProbe}.
+     *
+     * <p>Only present for {@code --soak}, because the probe forces a stop-the-world GC and that
+     * would distort any run whose question is throughput or pause time.
+     */
+    private static void appendLiveSet(StringBuilder md, Path runDir) {
+        List<long[]> series = new ArrayList<>();
+        try {
+            for (String line : Files.readAllLines(runDir.resolve("stdout.log"))) {
+                if (line.startsWith(LIVE_SET_PREFIX)) {
+                    String rest = line.substring(LIVE_SET_PREFIX.length());
+                    long elapsed = (long) keyValueNumber(rest, "elapsedMs");
+                    long live = (long) keyValueNumber(rest, "liveBytes");
+                    if (elapsed >= 0 && live >= 0) {
+                        series.add(new long[]{elapsed, live});
+                    }
+                }
+            }
+        } catch (IOException e) {
+            return;
+        }
+        if (series.isEmpty()) {
+            return;
+        }
+        md.append("## Live set (after forced full GC)\n\n");
+        md.append("**This is the leak panel.** Each row is the heap in use immediately after two "
+                + "forced full collections, so it is what genuinely survived rather than what "
+                + "happened to be resident. A rising series here is retention. A rising series in "
+                + "*Heap after GC* below is not, on its own — that one includes promoted garbage "
+                + "that a young-only collector never revisits.\n\n");
+        long first = series.get(0)[1];
+        long last = series.get(series.size() - 1)[1];
+        long min = series.stream().mapToLong(s -> s[1]).min().orElse(0);
+        long max = series.stream().mapToLong(s -> s[1]).max().orElse(0);
+        md.append("| | |\n|---|---|\n");
+        row(md, "probes", String.valueOf(series.size()));
+        row(md, "first / last", bytes(first) + " / " + bytes(last));
+        row(md, "min / max", bytes(min) + " / " + bytes(max));
+        row(md, "drift", (last >= first ? "+" : "") + bytes(last - first)
+                + (first > 0 ? " (" + Math.round((last - first) * 100.0 / first) + "%)" : ""));
+        md.append("\n| elapsed | live set |\n|---|---|\n");
+        for (long[] point : series) {
+            md.append("| ").append(point[0] / 1000).append("s | ").append(bytes(point[1])).append(" |\n");
+        }
+        md.append("\n");
+    }
+
+    private static final String LIVE_SET_PREFIX = "PROFILING-LIVE-SET ";
+
     private static void appendHeapAfterGc(StringBuilder md, Data data) {
         md.append("## Heap after GC\n\n");
-        md.append("`jdk.GCHeapSummary`, filtered to `when = \"After GC\"` — the live set that "
-                + "survived each collection. **This is the panel that classifies the failure:**\n\n");
+        md.append("`jdk.GCHeapSummary`, filtered to `when = \"After GC\"` — what the heap held "
+                + "after each collection.\n\n");
         md.append("- constant floor, any sawtooth amplitude → **churn** (allocates a lot, retains nothing)\n");
-        md.append("- rising floor → **retention** (a leak)\n");
+        md.append("- rising floor → **retention, _only if the old generation was actually "
+                + "collected_** — see the warning below before concluding anything\n");
         md.append("- flat floor then an abrupt cliff → **live mid-copy** (one in-flight structure "
                 + "larger than the heap; not a leak at all)\n\n");
+        if (data.oldGenCollections == 0 && data.youngOnlyCollections > 0) {
+            // The false positive that cost a published conclusion. Stated at the top of the panel
+            // rather than as a footnote, because the series below is the thing being misread.
+            md.append("> ⚠️ **This is not a live-set series, and a rise in it is not a leak.** All ")
+                    .append(data.youngOnlyCollections)
+                    .append(" collections in this run were **young-generation only** — no "
+                            + "concurrent cycle, no mixed collection, no full GC. Nothing ever "
+                            + "collected the old generation, so promoted garbage accumulates there "
+                            + "and this floor climbs in a straight line whether or not anything is "
+                            + "retained.\n>\n"
+                            + "> It is the normal state of a soak: a collector sized far above the "
+                            + "live set never reaches the occupancy threshold that would start a "
+                            + "cycle. Measured, a one-hour run showed this floor going 11.4 MB → "
+                            + "27.8 MB across 104,980 young pauses while the true live set, taken "
+                            + "after a forced full GC, stayed flat at ~7 MB.\n>\n"
+                            + "> **Read the live-set panel instead** (`--soak` records one), or "
+                            + "take two class histograms minutes apart:\n>\n"
+                            + "> ```bash\n> jcmd <child-pid> GC.run && jcmd <child-pid> "
+                            + "GC.class_histogram\n> ```\n\n");
+        }
         if (data.heapAfterGc.isEmpty()) {
             md.append("_No GC heap summaries in the recording._\n\n");
             return;
@@ -704,6 +785,13 @@ public final class JfrDigest {
                     case "jdk.GarbageCollection" -> {
                         data.gcPauses.add(event.getDuration().toNanos());
                         data.gcByCause.merge(stringValue(event, "cause"), 1L, Long::sum);
+                        // Whether anything collected the old generation decides whether the
+                        // heap-after-GC floor means what the panel says it means.
+                        if (YOUNG_ONLY_COLLECTORS.contains(stringValue(event, "name"))) {
+                            data.youngOnlyCollections++;
+                        } else {
+                            data.oldGenCollections++;
+                        }
                     }
                     case "jdk.OldObjectSample" -> {
                         // One sample = one count. This used to weight each sample by
@@ -938,6 +1026,8 @@ public final class JfrDigest {
         final Map<String, Long> gcByCause = new TreeMap<>();
         long retainedTotal;
         long retainedSamples;
+        long youngOnlyCollections;
+        long oldGenCollections;
         final Map<String, Long> retainedByClass = new LinkedHashMap<>();
         final Map<String, Long> retainedBySite = new LinkedHashMap<>();
     }

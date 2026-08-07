@@ -245,35 +245,47 @@ because the difference decides what a soak would even be looking for:
 |---|---|
 | Retention that grows with **suite size** | **Fixed and verified** — §8 found two real mechanisms (call-result accumulation, the report-writing queue) and peak heap is now flat across a 4x scale sweep. |
 | One feature holding thousands of scenarios, reports on | **Known-unbounded, accepted** — still linear, §6. Not a leak: it is retention by design until suite end. |
-| A slow leak over **hours** | **Measured, and there is one.** The first real soak — one hour, 35.7M executions — shows a monotonically rising heap-after-GC floor. See below. |
+| A slow leak over **hours** | **Measured — no leak found**, on one workload. The first real soak ran an hour and 35.7M executions; the live set is flat. The detector that said otherwise was wrong, and is fixed. |
 
-#### The first soak found a leak
+#### The first soak, and the false positive it produced
 
 `scope-capture-bound --duration 1h --threads 8 --soak --gc-roots`, on the Graviton3 injector.
 **35,671,234 iterations, 0 errors, `elapsedMs=3600006`** — six milliseconds over the window it
-asked for, against the `240007` that exposed the join bug.
+asked for, against the `240007` that exposed the join bug. The run itself was clean.
 
-| | |
-|---|---|
-| first floor | 11.4 MB |
-| last floor | 27.8 MB |
-| drift | **+16.4 MB (143%)** over one hour |
-| rate | ~0.46 bytes per iteration, ~16 MB/hour at ~9,900 it/s |
+**The heap-after-GC floor rose from 11.4 MB to 27.8 MB, monotonically and without
+decelerating**, and that reads exactly like §4's *rising floor → retention*. It was recorded here
+as a leak. **It is not one**, and the correction matters more than the original claim:
 
-**The floor rises monotonically and does not decelerate** — roughly +0.85 MB every 190 s across
-the whole hour, slightly faster in the second half. That is §4's *rising floor → retention*, not
-a cache filling to a bound, which would flatten. Against a 768m heap it projects to an OOM in
-roughly two days of continuous running.
+> All **104,980** collections in that hour were `G1 Evacuation Pause` — young-generation only.
+> No concurrent cycle, no mixed collection, no full GC. Nothing ever collected the old
+> generation, so promoted garbage simply accumulated there. With `-Xmx768m` against a live set
+> of ~7 MB, G1's initiating heap-occupancy threshold (~45%, so ~345 MB) is never approached, so
+> no cycle ever starts. **The floor was measuring promoted garbage, not retention** — and it
+> would have climbed in that same straight line with nothing whatsoever being leaked.
 
-Read the size before reacting: 16 MB/hour is not a crisis for a test suite, and for an ordinary
-Runner suite it is invisible. It matters for the Gatling lane, which is the lane that runs for
-hours by design.
+A class histogram taken after a forced full GC, four times over twelve minutes on the same
+workload, put the true live set at **7.8, 7.2, 8.6, 7.2 MB** — flat, ending below where it
+started, with no class showing meaningful growth and a *negative* total delta.
 
-**What is not yet known is what it is.** The attribution instrument failed, and that is its own
-finding — see the `jdk.OldObjectSample` note below. The workload also makes **zero HTTP calls**,
-so this leak is not the HTTP-client one and cannot be the file-descriptor class either. What it
-does share with the Gatling lane is a fresh `Suite` per iteration, which is the hypothesis the
-next step should test.
+**This is a general trap, not a one-off.** A soak is precisely the situation that triggers it:
+long run, heap sized well above the working set, so the collector never has a reason to look at
+the old generation. Any harness that reads "heap after GC" and calls a rise a leak will report
+one. Two fixes landed:
+
+- **`--soak` now runs a live-set probe** — every five minutes it forces a full collection and
+  records what survived, which is the only number that answers the question. The digest renders
+  it as *Live set (after forced full GC)* and labels it the leak panel. As a side effect the
+  forced collections also keep the JFR floor honest, since the old generation is now actually
+  collected.
+- **The digest refuses the bad inference.** If a run performed no old-generation collection at
+  all, the heap-after-GC panel says so, in place, and points at the live-set panel instead.
+
+**What this does and does not establish.** One workload, `scope-capture-bound`, shows no
+retention over an hour at ~9,900 iterations/s. It makes **zero HTTP calls**, so it says nothing
+about the client or descriptor classes. What it does share with the Gatling lane is a fresh
+`Suite` per iteration — so the *Suite-per-iteration* hypothesis below is the one this clears, and
+only for this shape.
 
 The instrument for the third row already exists: the **heap-after-GC floor** in every digest is
 the detector, and §4's chart is the classification. What is missing is a run long enough for a
@@ -547,6 +559,11 @@ time. **This is the most important panel in the file.** See §4.
 **GC pauses.** Count and histogram. A sharp rise in pause *frequency* (rather than
 duration) usually means allocation pressure, not retention.
 
+**Live set (after forced full GC).** Only present for `--soak`. The heap in use immediately after
+two forced full collections, sampled every five minutes. **This is the leak panel** — a rising
+series here is retention. Read it in preference to *Heap after GC* below, which cannot distinguish
+retention from promoted garbage a young-only collector has never revisited (§2).
+
 **Retained objects.** From `jdk.OldObjectSample` — JFR's built-in leak profiler. Samples
 objects that survived a collection, with the stack that allocated them. Read it as "who
 allocated the things that are still alive". Note it gives you the *allocator*, not the
@@ -629,10 +646,16 @@ constant floor       rising floor          flat floor, then a cliff
 
 - **Constant floor, any sawtooth amplitude → churn.** Nothing is leaking. Look at
   *Allocation by site*. Fix by allocating less.
-- **Rising floor → retention.** Something is held. Look at *Retained objects*, and if it
-  OOMs, at *Top classes* from the heap dump. If you need the *holder* rather than the
-  allocator, re-run with `path-to-gc-roots` enabled — it is off by default because it
-  costs a full reference walk at each sample.
+- **Rising floor → retention, _but check what collected_ first.** This inference is only valid
+  if something actually collected the old generation during the run. On a long run with a heap
+  sized well above the working set, G1 never reaches its occupancy threshold, so **every**
+  collection is a young evacuation pause and promoted garbage piles up in an old generation
+  nobody revisits — producing a textbook rising floor with nothing leaked. A one-hour soak here
+  did exactly that: 104,980 collections, all young, floor 11.4 → 27.8 MB, true live set flat at
+  ~7 MB (§2). The digest now says so in the panel when it applies, and `--soak` records a
+  *Live set (after forced full GC)* panel that answers the question directly. Prefer that panel.
+  Then look at *Retained objects*, and if it OOMs, at *Top classes* from the heap dump — noting
+  that *Retained objects* is a detector rather than a locator (§3).
 - **Flat floor then an abrupt cliff → live mid-copy.** Not a leak at all: a single
   structure being built right now is larger than the heap. The tell is that the heap dump
   shows the bulk of the live set on **one thread's stack locals**, in a deep self-recursion

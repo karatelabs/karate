@@ -152,6 +152,13 @@ public final class Child {
 
         System.out.println("[child] measuring");
         long startNanos = System.nanoTime();
+        Thread liveSetProbe = null;
+        if (Boolean.getBoolean("karate.profiling.soak")) {
+            System.out.println("[child] live-set probe every " + liveSetIntervalSeconds()
+                    + "s (full GC, then measure what survived — the JFR heap floor cannot tell"
+                    + " retention from promoted garbage; see startLiveSetProbe)");
+            liveSetProbe = startLiveSetProbe(startNanos);
+        }
         // Opened here rather than at process start, which is the whole point: warmup, class
         // loading and JIT are on the other side of this line, and a CPU total that includes them
         // measures the JVM waking up rather than the workload. See SelfCpu.
@@ -159,6 +166,15 @@ public final class Child {
         Result result = drive(workload, threads, iterations, duration, "measured");
         long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
         String cpuDescription = cpu.describe();
+        if (liveSetProbe != null) {
+            liveSetProbe.interrupt();
+            // A final reading with the workload stopped: no in-flight iteration is holding
+            // anything, so this is the cleanest live-set number the run produces.
+            System.gc();
+            System.gc();
+            System.out.println(LIVE_SET_PREFIX + "elapsedMs=" + elapsedMs
+                    + " liveBytes=" + usedHeapBytes() + " final=true");
+        }
 
         try {
             workload.teardown();
@@ -355,6 +371,61 @@ public final class Child {
     private static final AtomicLong PEAK_HEAP = new AtomicLong();
 
     /** Samples used heap continuously; a 5s progress tick alone would miss most of the curve. */
+    /** Emitted once per probe; the digest turns these into the live-set series. Keep stable. */
+    static final String LIVE_SET_PREFIX = "PROFILING-LIVE-SET ";
+
+    /**
+     * The only trustworthy leak detector for a long run, and it exists because the obvious one
+     * lied.
+     *
+     * <p>The digest's heap-after-GC panel reads {@code jdk.GCHeapSummary} at {@code when="After
+     * GC"} and calls a rising floor a leak. That rule is <b>unsound under a generational collector
+     * whose old generation is never collected</b>, which is the normal state of a soak. Measured:
+     * a one-hour run at ~9,900 iterations/s performed 104,980 collections and <b>every one of them
+     * was a G1 young evacuation pause</b> — no concurrent cycle, no mixed, no full. With
+     * {@code -Xmx768m} against a ~7 MB live set, G1's initiating heap-occupancy threshold (~45%,
+     * so ~345 MB) is never approached, so nothing ever collects the old generation. Promoted
+     * garbage therefore accumulates monotonically and the "floor" climbs in a straight line —
+     * 11.4 MB to 27.8 MB over that hour — which reads exactly like a leak and is not one. A class
+     * histogram after a forced full GC put the live set at 7.8, 7.2, 8.6, 7.2 MB over the same
+     * kind of window: flat.
+     *
+     * <p>So this probe forces a full collection and records what genuinely survived it. A rise
+     * here is a leak; a rise in the JFR floor is not evidence of one. The cost is a stop-the-world
+     * pause every {@link #LIVE_SET_INTERVAL_SECONDS} seconds, which is why it is soak-only —
+     * a full GC would distort any run whose question is throughput or pause time.
+     */
+    private static Thread startLiveSetProbe(long startNanos) {
+        Thread probe = Thread.ofPlatform().daemon().name("live-set-probe").start(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    TimeUnit.SECONDS.sleep(liveSetIntervalSeconds());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                // Two passes: the first may leave objects that only became unreachable during it,
+                // and a soak's whole question is whether the second number keeps climbing.
+                System.gc();
+                System.gc();
+                System.out.println(LIVE_SET_PREFIX
+                        + "elapsedMs=" + ((System.nanoTime() - startNanos) / 1_000_000)
+                        + " liveBytes=" + usedHeapBytes());
+            }
+        });
+        return probe;
+    }
+
+    private static final long LIVE_SET_INTERVAL_SECONDS = 300;
+
+    /**
+     * Overridable so the probe can be exercised in a run short enough to watch. Five minutes is
+     * the right cadence for a soak and the wrong one for verifying that the plumbing works.
+     */
+    private static long liveSetIntervalSeconds() {
+        return Long.getLong("karate.profiling.liveSetSeconds", LIVE_SET_INTERVAL_SECONDS);
+    }
+
     private static Thread startHeapSampler() {
         Thread sampler = Thread.ofVirtual().name("heap-sampler").start(() -> {
             while (!Thread.currentThread().isInterrupted()) {
