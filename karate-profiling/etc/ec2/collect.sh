@@ -42,16 +42,16 @@ log "$count digests in $KP_RESULTS"
 # the one that matters the day rsync fails. The copy above decides the outcome.
 derive() {
     local dir="$1" name="$2"
-    compgen -G "$dir/gatling-http-*" >/dev/null || return 0
+    compgen -G "$dir/gatling-*" >/dev/null || return 0
     echo
     log "=== $name ==="
-    "$(dirname "$0")/../run.sh" compare "$dir"/gatling-http-* || \
+    "$(dirname "$0")/../run.sh" compare "$dir"/gatling-* || \
         log "   (no table — compare declined these runs; the digests are collected regardless)"
 }
 
 for labelled in "$KP_RESULTS"/*/; do
     [[ -d "$labelled" ]] || continue
-    compgen -G "$labelled/gatling-http-*" >/dev/null || continue
+    compgen -G "$labelled/gatling-*" >/dev/null || continue
     derive "${labelled%/}" "$(basename "$labelled")"
 done
 derive "$KP_RESULTS" "unlabelled"

@@ -101,6 +101,15 @@ if [[ "$plain_arm" != plain && "$karate_arm" != karate ]]; then
     die "both arms are controls ($plain_arm vs $karate_arm) — pass --control once"
 fi
 
+# The body family has no lean variant: HttpBodyWorkload registers karate, plain and plain-fat
+# only. Without this the matrix runs to completion — every karate arm dying instantly on
+# "unknown workload" while every plain arm burns its full iteration budget — and reports the
+# failure at the very end, after the paid time is spent. Refuse before the mock is even started.
+if [[ "$family" == gatling-body && "$control" == lean ]]; then
+    die "--body-size has no lean control (there is no $family-karate-lean). Use --control fat,
+     which is the one that makes a body-size slope attributable."
+fi
+
 injector_ip="$(kp_ip_of "$KP_INJECTOR_NAME")"
 mock_ip="$(kp_ip_of "$KP_MOCK_NAME")"
 mock_private="$(kp_private_ip_of "$KP_MOCK_NAME")"

@@ -16,7 +16,7 @@ for arg in "$@"; do
         # Ship the LOCAL working tree instead of pulling from GitHub. The bench
         # otherwise measures whatever is on the remote branch, which is the right
         # default — a published number should name a commit anyone can check out.
-        # But the plan's own next experiment is an AST prototype that lives on no
+        # A prototype worth benching often lives on no
         # branch and no stash, and "push it to main first" is not an option for a
         # throwaway. Runs made this way are marked dirty in the build stamp.
         --sync) sync_local=true; rebuild_only=true ;;
@@ -51,7 +51,8 @@ net.ipv4.tcp_max_syn_backlog = 8192
 CONF
 sudo sysctl -p /etc/sysctl.d/99-karate-profiling.conf >/dev/null
 
-# File descriptors. The per-execution HTTP client is never closed, so its sockets
+# File descriptors. Clients are released now, but an unpooled arm opens one connection
+# per iteration, so TIME_WAIT churn alone needs this. Originally sized because sockets
 # sit ESTABLISHED until a cleaner runs rather than moving promptly to TIME_WAIT —
 # a 10-pair sweep churns tens of thousands against a 1024 soft default.
 sudo tee /etc/security/limits.d/99-karate-profiling.conf >/dev/null <<'CONF'

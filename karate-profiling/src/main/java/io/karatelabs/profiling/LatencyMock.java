@@ -84,13 +84,37 @@ public final class LatencyMock {
     private static final String IDLE_CONNECTIONS_PROPERTY = "sun.net.httpserver.maxIdleConnections";
 
     /**
-     * Slots in the created-cat ring. Bounded storage on purpose: the instrument's own heap must
-     * not be a variable over a long ramp. A ring rather than an evicting map because ids are
+     * Slots in the created-cat ring, before {@link #MAX_RETAINED_BYTES} narrows it. Bounded storage
+     * on purpose: the instrument's own heap must not be a variable over a long ramp. A ring rather than an evicting map because ids are
      * monotonic and every GET immediately follows its POST — with room for this many in flight,
      * a slot is never overwritten before it is read, and if it ever were, the miss is a visible
      * 404 rather than a silent drift.
      */
     private static final int RING_SLOTS = 1 << 16;
+
+    /**
+     * Ceiling on what the ring may retain, which is the invariant {@link #RING_SLOTS} alone stopped
+     * providing when bodies grew.
+     *
+     * <p><b>The slot count was sized against a ~50-byte body.</b> 65536 slots was ~3 MB and the
+     * comment above was true. The body-size tier posts up to 64 KB, and nothing evicts — so the
+     * same ring would hold ~4 GB live, growing across a matrix, and the mock's own GC cost would
+     * rise fastest at exactly the size where the slope being measured is smallest. The reference
+     * clock must not get heavier as the experiment gets interesting.
+     *
+     * <p>256 MB is far above what any run needs in flight and far below anything that perturbs a
+     * mock host with 32 GB.
+     */
+    private static final long MAX_RETAINED_BYTES = 256L << 20;
+
+    /**
+     * Never fewer slots than this, however large the bodies.
+     *
+     * <p>A slot is only recycled before it is read if more than this many creates are in flight at
+     * once, and the bench runs 8 to 32 users. Well clear, and a recycle is a visible 404 rather
+     * than a silent wrong number.
+     */
+    private static final int MIN_RING_SLOTS = 1 << 10;
 
     /** Nanos from handler entry to just before the response write, for this request. */
     static final String ELAPSED_HEADER = "X-Mock-Elapsed-Nanos";
@@ -114,6 +138,13 @@ public final class LatencyMock {
     private final MockStats stats = new MockStats();
     private final AtomicLong nextId = new AtomicLong();
     private final AtomicReferenceArray<Cat> ring = new AtomicReferenceArray<>(RING_SLOTS);
+    /**
+     * Slots actually in use, as a power-of-two mask. Narrowed once, from the first body's size, so
+     * that what the ring retains stays bounded in BYTES rather than in entries. Volatile and
+     * write-once-ish: a racing second write computes the same value from a same-sized body.
+     */
+    private volatile int ringMask = RING_SLOTS - 1;
+    private volatile boolean ringSized;
     private final long latencyNanos;
     private final int backlog;
     private final boolean tls;
@@ -413,8 +444,31 @@ public final class LatencyMock {
         String separator = text.substring(1, text.length() - 1).isBlank() ? "" : ",";
         byte[] body = (text.substring(0, text.length() - 1) + separator + "\"id\":" + id + "}")
                 .getBytes(StandardCharsets.UTF_8);
-        ring.set((int) (id & (RING_SLOTS - 1)), new Cat(id, body));
+        if (!ringSized) {
+            sizeRing(body.length);
+        }
+        ring.set((int) (id & ringMask), new Cat(id, body));
         return body;
+    }
+
+    /**
+     * Narrow the ring so {@code slots * bodyLength} stays under {@link #MAX_RETAINED_BYTES}.
+     *
+     * <p>Called once, from the first create. Sizing from an observed body rather than from a
+     * configured number keeps the mock ignorant of the tier — it serves whatever it is posted.
+     */
+    private void sizeRing(int bodyLength) {
+        int slots = RING_SLOTS;
+        while (slots > MIN_RING_SLOTS && (long) slots * bodyLength > MAX_RETAINED_BYTES) {
+            slots >>= 1;
+        }
+        ringMask = slots - 1;
+        ringSized = true;
+        if (slots != RING_SLOTS) {
+            System.out.println("[mock] " + bodyLength + "-byte bodies: ring narrowed to " + slots
+                    + " slots (~" + ((long) slots * bodyLength >> 20) + " MB retained) so the"
+                    + " mock's own heap does not scale with the payload");
+        }
     }
 
     private byte[] find(String rawId) {
@@ -424,7 +478,7 @@ public final class LatencyMock {
         } catch (NumberFormatException e) {
             return null;
         }
-        Cat cat = ring.get((int) (id & (RING_SLOTS - 1)));
+        Cat cat = ring.get((int) (id & ringMask));
         // An id mismatch means the slot was recycled before this read — a visible 404, which is
         // the only failure mode worth having here.
         return cat != null && cat.id() == id ? cat.body() : null;

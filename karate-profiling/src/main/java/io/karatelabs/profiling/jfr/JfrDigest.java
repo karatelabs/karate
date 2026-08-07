@@ -438,14 +438,60 @@ public final class JfrDigest {
         md.append("\n\n");
     }
 
-    /** The value of a {@code -Dkey=value} in the child's command line, or null if it is absent. */
+    /**
+     * The descriptor rows, read over the loaded probes only.
+     *
+     * <p><b>Peak, not last.</b> Comparing the first reading with the last is how a leak hides: a
+     * run whose descriptors climb toward {@code ulimit -n} all soak and fall back when the client
+     * shuts down ends where it started, and a first-versus-last row calls that flat. The peak is
+     * the number that cannot be walked back.
+     *
+     * <p>A tolerance, because descriptors jitter by a few on their own — JFR chunk rotation, a DNS
+     * lookup — and a zero-tolerance comparison prints a confident leak claim from noise.
+     */
+    private static void appendDescriptors(StringBuilder md, List<long[]> loaded) {
+        List<long[]> known = loaded.stream().filter(s -> s[2] >= 0).toList();
+        if (known.isEmpty()) {
+            return;
+        }
+        long firstFds = known.get(0)[2];
+        long lastFds = known.get(known.size() - 1)[2];
+        long peakFds = known.stream().mapToLong(s -> s[2]).max().orElse(firstFds);
+        long tolerance = Math.max(4, firstFds / 20);
+        row(md, "open fds, first / peak / last", firstFds + " / " + peakFds + " / " + lastFds
+                + (peakFds > firstFds + tolerance ? " — **rising, investigate**" : " — flat"));
+        long reclaimable = known.stream().filter(s -> s[3] >= 0)
+                .mapToLong(s -> s[2] - s[3]).max().orElse(-1);
+        if (reclaimable >= 0) {
+            row(md, "closed by the probe's GC", reclaimable + " at most");
+        }
+        md.append("\n> **Descriptors are the other half of this panel.** An unreleased HTTP client "
+                + "leaks a socket, and a socket is a descriptor long before it is a noticeable "
+                + "number of bytes — so the live set can sit flat while the process walks toward "
+                + "`ulimit -n`. These are sampled BEFORE the probe's forced collections: since "
+                + "JDK 13 an unreachable socket is closed when it is collected, so a post-GC "
+                + "reading would report the low-water mark of exactly the population a leak hunt "
+                + "is looking for. The *closed by the probe's GC* row is that difference — a large "
+                + "one means many sockets are held only until something collects them, which is a "
+                + "finding in its own right even when the total is flat. A pooled run holds "
+                + "descriptors on purpose, so a flat non-zero count is the healthy shape.\n");
+    }
+
+    /**
+     * The value of a {@code -Dkey=value} in the child's command line, or null if it is absent.
+     *
+     * <p><b>The LAST match, because that is what the JVM used.</b> A property can appear twice —
+     * {@code -Dkey=} passed through by the operator and then the harness's own canonical one — and
+     * returning the first would make the digest record a value the run did not run with.
+     */
     private static String flagValue(java.util.List<String> command, String prefix) {
+        String found = null;
         for (String argument : command) {
             if (argument.startsWith(prefix)) {
-                return argument.substring(prefix.length());
+                found = argument.substring(prefix.length());
             }
         }
-        return null;
+        return found;
     }
 
     private static void appendRunSummary(StringBuilder md, Path runDir, RunInfo info) {
@@ -466,6 +512,10 @@ public final class JfrDigest {
         if (bodyBytes != null) {
             row(md, "body bytes", bodyBytes);
         }
+        // A pooled arm and an unpooled one are different client configurations, and the plan runs
+        // both at the same tier. Recorded so `compare` can refuse to average them together.
+        row(md, "pooled", String.valueOf(
+                "true".equals(flagValue(info.command(), "-Dkarate.profiling.pooled="))));
         // Only claim exclusion when the recording was actually delayed. A warmup under JFR's
         // one-second delay floor gets no delay, and a self-driving workload runs no warmup at
         // all, yet this row asserted "excluded" for both.
@@ -632,7 +682,9 @@ public final class JfrDigest {
      * <p>Only present for {@code --soak}, because the probe forces a stop-the-world GC and that
      * would distort any run whose question is throughput or pause time.
      */
-    private static void appendLiveSet(StringBuilder md, Path runDir) {
+    // Package-private for LiveSetPanelTest, which drives it with synthetic series: the
+    // only way to prove the panel reports a RISE, since a healthy run cannot produce one.
+    static void appendLiveSet(StringBuilder md, Path runDir) {
         List<long[]> series = new ArrayList<>();
         int invalid = 0;
         try {
@@ -646,13 +698,18 @@ public final class JfrDigest {
                     // column rather than a column of zeros that looks like a process holding
                     // nothing open.
                     long fds = (long) keyValueNumber(rest, "fds");
+                    long fdsAfterGc = (long) keyValueNumber(rest, "fdsAfterGc");
+                    // The last probe runs with the load stopped, so it is not part of the trend —
+                    // it is the cleanest single number the run produces and the worst possible
+                    // endpoint for a slope. Kept and shown, excluded from drift and peak.
+                    long isFinal = rest.contains("final=true") ? 1 : 0;
                     // A reading that predates the valid= flag has no claim either way; only an
                     // explicit valid=false is treated as a failed collection.
                     if (rest.contains("valid=false")) {
                         invalid++;
                     }
                     if (elapsed >= 0 && live >= 0) {
-                        series.add(new long[]{elapsed, live, fds});
+                        series.add(new long[]{elapsed, live, fds, fdsAfterGc, isFinal});
                     }
                 }
             }
@@ -686,33 +743,38 @@ public final class JfrDigest {
                 + "happened to be resident. A rising series here is retention. A rising series in "
                 + "*Heap after GC* below is not, on its own — that one includes promoted garbage "
                 + "that a young-only collector never revisits.\n\n");
-        long first = series.get(0)[1];
-        long last = series.get(series.size() - 1)[1];
-        long min = series.stream().mapToLong(s -> s[1]).min().orElse(0);
-        long max = series.stream().mapToLong(s -> s[1]).max().orElse(0);
-        boolean haveFds = series.stream().anyMatch(s -> s[2] >= 0);
+        // The trend is read over the LOADED probes only. The final probe is taken after the
+        // workload has stopped, so it drops — on a validation run the live set fell 22.1 MB to
+        // 20.1 MB and descriptors 200 to 131 purely from shutdown. Ending the slope there reports
+        // that artifact as drift, and worse, hides a genuine climb that snapped back at teardown.
+        List<long[]> loaded = series.stream().filter(s -> s[4] == 0).toList();
+        if (loaded.isEmpty()) {
+            loaded = series;
+        }
+        long first = loaded.get(0)[1];
+        long last = loaded.get(loaded.size() - 1)[1];
+        long min = loaded.stream().mapToLong(s -> s[1]).min().orElse(0);
+        long max = loaded.stream().mapToLong(s -> s[1]).max().orElse(0);
+        boolean haveFds = loaded.stream().anyMatch(s -> s[2] >= 0);
         md.append("| | |\n|---|---|\n");
-        row(md, "probes", String.valueOf(series.size()));
+        row(md, "probes", series.size() + (loaded.size() != series.size()
+                ? " (" + loaded.size() + " under load, 1 after shutdown)" : ""));
         row(md, "first / last", bytes(first) + " / " + bytes(last));
         row(md, "min / max", bytes(min) + " / " + bytes(max));
         row(md, "drift", (last >= first ? "+" : "") + bytes(last - first)
-                + (first > 0 ? " (" + Math.round((last - first) * 100.0 / first) + "%)" : ""));
+                + (first > 0 ? " (" + Math.round((last - first) * 100.0 / first) + "%)" : "")
+                + (loaded.size() != series.size() ? ", under load" : ""));
         if (haveFds) {
-            long firstFds = series.get(0)[2];
-            long lastFds = series.get(series.size() - 1)[2];
-            row(md, "open fds, first / last", firstFds + " / " + lastFds
-                    + (lastFds > firstFds ? " — **rising**" : ""));
-            md.append("\n> **Descriptors are the other half of this panel.** An unreleased HTTP "
-                    + "client leaks a socket, and a socket is a descriptor long before it is a "
-                    + "noticeable number of bytes — so the live set can sit flat while the process "
-                    + "walks toward `ulimit -n`. A pooled run holds descriptors on purpose, so a "
-                    + "flat non-zero count is the healthy shape; only a rising one is a finding.\n");
+            appendDescriptors(md, loaded);
         }
-        md.append("\n| elapsed | live set |").append(haveFds ? " open fds |\n|---|---|---|\n" : "\n|---|---|\n");
+        md.append("\n| elapsed | live set |").append(haveFds ? " open fds | after GC |\n|---|---|---|---|\n" : "\n|---|---|\n");
         for (long[] point : series) {
-            md.append("| ").append(point[0] / 1000).append("s | ").append(bytes(point[1])).append(" |");
+            md.append("| ").append(point[0] / 1000).append("s")
+                    .append(point[4] == 1 ? " *(load stopped)*" : "")
+                    .append(" | ").append(bytes(point[1])).append(" |");
             if (haveFds) {
                 md.append(point[2] >= 0 ? " " + point[2] + " |" : " — |");
+                md.append(point[3] >= 0 ? " " + point[3] + " |" : " — |");
             }
             md.append("\n");
         }

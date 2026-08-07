@@ -47,7 +47,7 @@ class CompareTest {
     /** 8 users, 4000 requested iterations, two requests each, as every 10 ms cell was run. */
     private static Compare.Run run(String arm, double servedPerSecond, double sleepMicrosMean) {
         return new Compare.Run(Path.of("gatling-http-" + arm + "-2026-08-06-000000"), arm, 10,
-                false, "", 0, 8,
+                false, "", 0, false, 8,
                 4000, 8000, servedPerSecond, sleepMicrosMean, 8, arm.equals("plain") ? 8 : 4000,
                 0, -1, 15.2, 56, 71, 10);
     }
@@ -85,7 +85,7 @@ class CompareTest {
     @Test
     void testRequestsPerIterationRoundsIterationsUpToTheUserCount() {
         Compare.Run rounded = new Compare.Run(Path.of("gatling-http-karate-2026-08-06-000000"),
-                "karate", 10, false, "", 0, 8, 500, 1008, 471.8, 13000, 8, 504, 0, -1, 2.1, 56, 71, 10);
+                "karate", 10, false, "", 0, false, 8, 500, 1008, 471.8, 13000, 8, 504, 0, -1, 2.1, 56, 71, 10);
         assertEquals(2.0, rounded.requestsPerIteration(), 0.001);
     }
 
@@ -98,27 +98,27 @@ class CompareTest {
     void testShapeSeparatesTlsAndEquivalenceControlsFromOrdinaryRuns() {
         Compare.Run plain = run("plain", 500, 0);
         Compare.Run karate = run("karate", 500, 0);
-        assertEquals("plaintext", plain.armShape());
+        assertEquals("plaintext, 8u", plain.armShape());
 
         Compare.Run overTls = new Compare.Run(Path.of("gatling-http-karate-2026-08-06-000000"),
-                "karate", 10, true, "", 0, 8, 4000, 8000, 500, 0, 8, 4000, 0, -1, 15.2, 56, 71, 10);
-        assertEquals("TLS", overTls.armShape());
+                "karate", 10, true, "", 0, false, 8, 4000, 8000, 500, 0, 8, 4000, 0, -1, 15.2, 56, 71, 10);
+        assertEquals("TLS, 8u", overTls.armShape());
 
         // A control pair is ONE control arm against one ordinary arm. Requiring both arms to carry
         // the variant is what emptied both control tables on the bench: the pairing a control
         // exists to make is asymmetric, so the variant describes the pair and not either side.
         Compare.Run fat = new Compare.Run(Path.of("gatling-http-plain-fat-2026-08-06-000000"),
-                "plain", 10, false, "fat", 0, 8, 4000, 8000, 500, 0, 8, 8, 0, -1, 15.2, 56, 71, 10);
+                "plain", 10, false, "fat", 0, false, 8, 4000, 8000, 500, 0, 8, 8, 0, -1, 15.2, 56, 71, 10);
         assertEquals(fat.armShape(), karate.armShape(),
                 "a fat control and an ordinary karate arm must still PAIR — same transport");
         Compare.Pair fatPair = new Compare.Pair(fat, karate, "p→k");
-        assertEquals("plaintext, fat control", fatPair.shape());
+        assertEquals("plaintext, 8u, fat control", fatPair.shape());
         assertNotEquals(fatPair.shape(), new Compare.Pair(plain, karate, "p→k").shape(),
                 "a fat control must not BUCKET with the ordinary pair it is the control for");
 
         Compare.Run lean = new Compare.Run(Path.of("gatling-http-karate-lean-2026-08-06-000000"),
-                "karate", 10, false, "lean", 0, 8, 4000, 8000, 500, 0, 8, 4000, 0, -1, 15.2, 56, 71, 10);
-        assertEquals("plaintext, lean control", new Compare.Pair(plain, lean, "p→k").shape());
+                "karate", 10, false, "lean", 0, false, 8, 4000, 8000, 500, 0, 8, 4000, 0, -1, 15.2, 56, 71, 10);
+        assertEquals("plaintext, 8u, lean control", new Compare.Pair(plain, lean, "p→k").shape());
         assertTrue(new Compare.Pair(fat, lean, "p→k").bothArmsAreControls(),
                 "two controls have no ordinary reference between them");
     }
@@ -131,13 +131,13 @@ class CompareTest {
     @Test
     void testBodySizeSeparatesOneTierFromAnother() {
         Compare.Run small = new Compare.Run(Path.of("gatling-body-karate-2026-08-06-000000"),
-                "karate", 50, false, "", 1024, 8, 4000, 8000, 500, 0, 8, 4000, 0, -1, 15.2, 56, 71, 10);
+                "karate", 50, false, "", 1024, false, 8, 4000, 8000, 500, 0, 8, 4000, 0, -1, 15.2, 56, 71, 10);
         Compare.Run large = new Compare.Run(Path.of("gatling-body-karate-2026-08-06-000001"),
-                "karate", 50, false, "", 65536, 8, 4000, 8000, 500, 0, 8, 4000, 0, -1, 15.2, 56, 71, 10);
-        assertEquals("plaintext, 1024-byte body", small.armShape());
+                "karate", 50, false, "", 65536, false, 8, 4000, 8000, 500, 0, 8, 4000, 0, -1, 15.2, 56, 71, 10);
+        assertEquals("plaintext, 1024-byte body, 8u", small.armShape());
         assertNotEquals(small.armShape(), large.armShape(),
                 "a 1 KB matrix must not average together with a 64 KB one");
-        assertEquals("plaintext", run("plain", 500, 0).armShape(),
+        assertEquals("plaintext, 8u", run("plain", 500, 0).armShape(),
                 "a run predating the tier carries no body-size qualifier");
     }
 

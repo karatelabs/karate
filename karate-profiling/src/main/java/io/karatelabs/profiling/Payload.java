@@ -35,14 +35,20 @@ package io.karatelabs.profiling;
  * answer is worth having; today neither can be given.
  *
  * <p><b>Why the mock needs no change.</b> {@code LatencyMock} echoes the posted object back with an
- * {@code id} spliced in, so response size is set entirely by request size. Growing the request
- * grows the response, and the mock's request path stays allocation-free.
+ * {@code id} spliced in, so response size is set entirely by request size. Note what is <i>not</i>
+ * claimed: the mock's request path is not allocation-free, and at these sizes it is conspicuously
+ * not — {@code create()} reads the body, builds a String, substrings, concatenates and re-encodes,
+ * so its own allocation scales with the payload. Calibrate at each size rather than assuming the
+ * mock is a fixed reference across the tier.
  *
- * <p><b>What each arm does with it.</b> The Karate arm's closed {@code match response == { ... }}
- * deep-compares the padding; the plain arm's JSONPath checks read three small fields and never
- * touch it. That difference is not a flaw in the comparison — it <i>is</i> the comparison, and it
- * is the idiomatic form of each. {@code gatling-body-plain-fat} raises the plain arm to check the
- * padding too, which brackets how much of any gap is the assertion rather than the transport.
+ * <p><b>What each arm does with it, stated carefully.</b> The Karate arm's closed
+ * {@code match response == { ... }} deep-compares the padding. The plain arm does <b>not</b> skip
+ * the padding — Gatling's {@code jsonPath} checks parse the entire document before evaluating a
+ * path, on both the POST and the GET — it simply never <i>compares</i> it. So the difference
+ * between the arms is a deep comparison against a parse, not "handling" against "transport", and a
+ * slope must not be attributed to Karate reading bytes the reference skipped. What
+ * {@code gatling-body-plain-fat} adds over the plain arm is exactly one string comparison of the
+ * pad, which is the honest way to price that half.
  */
 public final class Payload {
 
@@ -66,6 +72,18 @@ public final class Payload {
     private Payload() {
     }
 
+    /**
+     * The smallest {@code --body-size} that means what it says.
+     *
+     * <p>Below this the JSON envelope alone is longer than the target, so the padding cannot shrink
+     * to fit. {@code pad()} used to clamp to one filler byte, which made {@code --body-size 16} and
+     * {@code --body-size 32} send the identical 35-byte document while {@code compare} bucketed
+     * them as two distinct tiers — a two-point slope drawn through one measurement.
+     */
+    public static int minimumBodyBytes() {
+        return PREFIX.length() + SUFFIX.length() + 1;
+    }
+
     /** The requested body size in bytes, or 0 when the tier is off. */
     public static int bodyBytes() {
         return Math.max(0, Integer.getInteger(BODY_BYTES_PROPERTY, 0));
@@ -87,8 +105,9 @@ public final class Payload {
         // request. Not corrected for: the id is ~10 bytes against a tier measured in kilobytes, and
         // a size that shifts with the id counter would be worse than one that is honestly
         // approximate. The digest records the number that was asked for.
-        int padding = target - PREFIX.length() - SUFFIX.length();
-        return String.valueOf(FILLER).repeat(Math.max(1, padding));
+        // No clamp: Profiler refuses anything below minimumBodyBytes() before the run starts, so
+        // this cannot go negative, and a size that could not be honoured never reaches a digest.
+        return String.valueOf(FILLER).repeat(target - PREFIX.length() - SUFFIX.length());
     }
 
     /**

@@ -42,13 +42,16 @@ import io.karatelabs.profiling.Payload;
  *
  * <ul>
  *   <li>{@code gatling-body-karate} — closed {@code match} over the whole document, padding included
- *   <li>{@code gatling-body-plain} — the reference, three small JSONPath reads, never touches the pad
+ *   <li>{@code gatling-body-plain} — the reference: two JSONPath checks, which parse the whole
+ *       document but never compare the pad
  *   <li>{@code gatling-body-plain-fat} — the control that raises the reference to check the pad too
  * </ul>
  *
- * <p>The control is what makes a rising deficit attributable. Without it, growth could equally be
- * Karate handling more of the response or simply the cost of checking a large field, and those have
- * opposite implications.
+ * <p>The control is what makes a rising deficit attributable — but be precise about what it
+ * separates. Both arms parse the whole padded document, because Gatling's {@code jsonPath} does
+ * too. The control adds one string comparison of the pad, so the fat-minus-plain delta prices
+ * comparing a large field, and the karate-minus-plain delta prices Karate's build-and-deep-match
+ * against Gatling's parse-and-extract. Neither delta is "reads the bytes" versus "skips them".
  *
  * <p>{@code compare} classifies an arm by whether the directory name contains {@code -karate-} or
  * {@code -plain-}, and buckets on the recorded body size, so these slot in without it knowing they
@@ -105,8 +108,8 @@ public final class HttpBodyWorkload {
 
         @Override
         public String describe() {
-            return sized("Body-size tier: the plain-Gatling reference against the same payload, "
-                    + "checking three small fields and never reading the padding.");
+            return sized("Body-size tier: the plain-Gatling reference against the same payload. "
+                    + "Its jsonPath checks parse the whole document but never compare the pad.");
         }
 
         @Override

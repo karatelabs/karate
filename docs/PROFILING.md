@@ -1247,10 +1247,23 @@ cannot be averaged together.
 
 ```bash
 etc/ec2/calibrate.sh --tier 50ms --ramp 1,8,32,64 --per-user 100 --tls   # first, and not skippable
-etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --tls --label 50ms-tls-unpooled
-etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --tls --pooled --label 50ms-tls-pooled
-etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 32 --tls --pooled --label 50ms-tls-pooled-32u
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8  --tls           --label 50ms-tls-unpooled
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8  --tls --pooled  --label 50ms-tls-pooled
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 6400 --users 32 --tls           --label 50ms-tls-unpooled-32u
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 6400 --users 32 --tls --pooled  --label 50ms-tls-pooled-32u
 ```
+
+**`--iterations` is a TOTAL, not per-user** — `reps = ceil(iterations / users)`. Reusing 1600 at 32
+users would have given 50 reps per user against 200 at 8 users, a measured window four times
+shorter, and the density cell would have been noisier for a reason nothing in the output would
+show. 6400 keeps reps-per-user constant, which is what makes the two densities comparable.
+
+**Both densities run pooled AND unpooled.** Pooling is the thing under test here; measuring density
+only in the pooled arm answers half the question. Four matrices, ~20 minutes each.
+
+**If the TLS calibration knees below 64, the knee wins over these numbers.** 8 and 32 come from the
+plaintext knee; `calibrate.sh`'s own rule is to run at half the knee, and a TLS handshake per
+connection may move it. Read the calibration before committing to the cells.
 
 **What the TLS calibration already shows, and why this experiment should be decisive.** On the
 bench at 50 ms, `unowned mean` in *close* mode is **2.95–3.55 ms** against **0.29 ms** in
@@ -1268,15 +1281,32 @@ closes the leak question for the classes that matter — the HTTP client and its
 
 *Built, and the instruments verified by running (2026-08-07).*
 
+**This needs the TWO-host bench, not `provision.sh --single`.** `PROFILING_EC2.md` §4.5 covers the
+single-host soaks (`scope-capture-*`, no mock, no HTTP); this one drives HTTP at a mock and needs
+the mock host, so `mock.sh start` refuses on a `--single` bench.
+
 ```bash
+mock=$(etc/ec2/ssh.sh mock-private)
 etc/ec2/mock.sh start 50ms 8090
-etc/ec2/ssh.sh injector 'cd ~/karate/karate-profiling && nohup etc/run.sh run gatling-http-karate \
-    --duration 2h --soak --threads 8 --mock-url http://<mock-private-ip>:8090 \
-    --timeout 3h > ~/soak.log 2>&1 &'
-# then, later:
-etc/ec2/ssh.sh injector 'grep PROFILING-LIVE-SET ~/soak.log | tail -5'
+
+# unpooled — the shipped default for a functional suite
+etc/ec2/ssh.sh injector "cd ~/karate/karate-profiling && nohup etc/run.sh run gatling-http-karate \
+    --duration 2h --soak --threads 8 --mock-url http://$mock:8090 \
+    --timeout 3h > ~/soak-unpooled.log 2>&1 &"
+
+# pooled — the configuration a load test actually ships, and the one that holds
+# descriptors deliberately. The property is what matrix.sh --pooled passes.
+etc/ec2/ssh.sh injector "cd ~/karate/karate-profiling && nohup etc/run.sh run gatling-http-karate \
+    --duration 2h --soak --threads 8 --mock-url http://$mock:8090 \
+    -Dkarate.profiling.pooled=true --timeout 3h > ~/soak-pooled.log 2>&1 &"
+
+# while it runs:
+etc/ec2/ssh.sh injector 'grep PROFILING-LIVE-SET ~/soak-unpooled.log | tail -5'
 etc/ec2/collect.sh
 ```
+
+**Two hours each, run them one after the other, ~$5 of machine time for the pair.** Running both at
+once on one injector would have them competing for cores and neither would be a clean reading.
 
 Run it **pooled as well as unpooled** if there is time for two: pooling is the configuration
 intended to ship for a load test, and it is also the one that holds descriptors deliberately, so
@@ -1343,12 +1373,18 @@ several and read the trend. `compare` buckets on the recorded body size, so two 
 averaged together, and a `gatling-body-*` run without `--body-size` is refused rather than
 producing an ordinary-payload cell under a body-tier name.
 
-**Run `--control fat` at each size, and treat it as load-bearing rather than optional here.** The
-Karate arm's closed match deep-compares the padding; the plain reference reads three small fields
-and never touches it. That is the idiomatic form of each, but it means a rising deficit has two
-possible causes with opposite implications — Karate handling more of the response, or simply the
-cost of checking a large field. `gatling-body-plain-fat` checks the padding too, which tells them
-apart. Without it the trend is not attributable.
+**Run `--control fat` at each size, and treat it as load-bearing rather than optional here.**
+
+Be precise about what the arms differ in, because the obvious reading is wrong. Gatling's
+`jsonPath` **parses the entire document** before evaluating a path, and the plain arm does that
+twice per iteration — so it is *not* skipping the padding, it simply never *compares* it. Both arms
+pay an O(size) parse. What separates them is a deep comparison against an extraction, plus the fact
+that the Karate arm rebuilds the request each iteration by design.
+
+So: `fat − plain` prices one string comparison of the pad. `karate − plain` prices Karate's
+build-and-closed-match against Gatling's parse-and-extract. Neither is "reads the bytes" versus
+"skips them", and a slope must not be published as if it were. `--control lean` does not exist for
+this family and `matrix.sh` refuses it.
 
 #### Pooling in karate-gatling — shipped, with one thing still open
 

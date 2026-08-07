@@ -508,6 +508,15 @@ public final class Child {
      *
      * <p>Read alongside the live set, not instead of it: a pooled run holds descriptors on purpose,
      * so a flat non-zero count is the healthy shape and only a rising one means anything.
+     *
+     * <p><b>Sampled BEFORE the probe's forced collections, and that is the whole point.</b> Since
+     * JDK 13 an unreachable socket is closed by a {@code Cleaner} when it is collected, so reading
+     * this <i>after</i> two {@code System.gc()} calls reports the post-cleanup low-water mark —
+     * and the leak being hunted here is abandoned HTTP clients, which is exactly the population
+     * those collections would reclaim. The instrument would have cured the disease immediately
+     * before taking the patient's temperature, and reported a flat series for a real leak. The
+     * post-GC value is recorded too, because the gap between them is itself informative: a large
+     * one means many sockets are held only until something collects them.
      */
     private static long openFileDescriptors() {
         // com.sun.management, so it is absent on non-HotSpot and meaningless on Windows. Reflection
@@ -525,6 +534,8 @@ public final class Child {
     }
 
     private static void probeOnce(long startNanos, boolean isFinal) {
+        // Before the collections below, never after. See openFileDescriptors.
+        long fdsBeforeGc = openFileDescriptors();
         long before = oldGenCollections();
         // Two passes: the first may leave objects that only became unreachable during it, and a
         // soak's whole question is whether the second number keeps climbing.
@@ -537,7 +548,8 @@ public final class Child {
         System.out.println(LIVE_SET_PREFIX
                 + "elapsedMs=" + ((System.nanoTime() - startNanos) / 1_000_000)
                 + " liveBytes=" + usedHeapBytes()
-                + " fds=" + openFileDescriptors()
+                + " fds=" + fdsBeforeGc
+                + " fdsAfterGc=" + openFileDescriptors()
                 + " collections=" + (after - before)
                 + " valid=" + collected
                 + (isFinal ? " final=true" : ""));

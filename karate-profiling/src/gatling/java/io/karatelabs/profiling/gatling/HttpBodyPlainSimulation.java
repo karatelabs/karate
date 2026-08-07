@@ -35,11 +35,13 @@ import static io.gatling.javaapi.http.HttpDsl.*;
  * The body-size tier's reference arm: the same two calls as {@link HttpBodyKarateSimulation}
  * against the same payload, checked the way a Gatling user would.
  *
- * <p><b>It never reads the padding.</b> The Karate arm's closed match deep-compares the whole
- * document including the pad; this one extracts three small fields. That is the idiomatic form of
- * each and is exactly what the tier measures — whether the gap between them holds as the body
- * grows. {@link HttpBodyPlainFatSimulation} is the control that raises this arm to check the pad
- * too, which separates "Karate handles more of the response" from "Karate is slower per byte".
+ * <p><b>It never COMPARES the padding — it does not avoid reading it.</b> Gatling's
+ * {@code jsonPath} parses the whole document before evaluating a path, and this arm does that
+ * twice per iteration (the id on the POST, the name on the GET), so it pays a full parse of the
+ * padded body exactly as the Karate arm does. What it skips is the comparison. That distinction
+ * matters when the result is read: a slope here cannot be attributed to Karate touching bytes this
+ * arm skipped. {@link HttpBodyPlainFatSimulation} adds the pad comparison and nothing else, which
+ * is what prices that half honestly.
  */
 public class HttpBodyPlainSimulation extends Simulation {
 

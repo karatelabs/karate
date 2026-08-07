@@ -6,9 +6,9 @@ Feature: the body-size tier — the same two calls against a response of a chose
   would change what the baseline measures.
 
   The match is CLOSED and includes the padding, which is the point. Karate compares the
-  whole document; the plain reference reads three small fields and never touches the pad.
-  That difference is the idiomatic form of each arm and is what the tier is measuring —
-  whether the gap between them holds as the body grows, or widens with it.
+  whole document; the plain reference parses it just the same — Gatling's jsonPath does —
+  but never compares the pad. So the tier measures deep-comparison against parse-and-extract
+  as the body grows, NOT reading the bytes against skipping them.
 
   The pad is READ here, never generated. The simulation sets the property once, before any
   load; building a kilobyte string per scenario would put allocation in every iteration and

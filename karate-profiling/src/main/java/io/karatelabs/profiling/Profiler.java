@@ -174,6 +174,21 @@ public final class Profiler {
                 .withDuration(flags.duration)
                 .withWarmup(flags.warmup)
                 .withTimeout(flags.timeout);
+        // The mirror of the guard below, and the one that was missing. --body-size on a workload
+        // that never reads it still reached the child command line, so the digest printed a
+        // "body bytes" row and `compare` bucketed on it while the wire carried the ordinary
+        // 25-byte payload — a full, well-formed table for an experiment that did not happen.
+        if (flags.bodySize > 0 && !workload.requiresBodySize()) {
+            throw new IllegalArgumentException(name + " does not read --body-size, so passing it"
+                    + " would label the digest with a payload the run never sent. The body-size"
+                    + " tier is the gatling-body-* family.");
+        }
+        if (flags.bodySize > 0 && flags.bodySize < Payload.minimumBodyBytes()) {
+            throw new IllegalArgumentException("--body-size " + flags.bodySize + " is below the "
+                    + Payload.minimumBodyBytes() + "-byte JSON envelope, so the padding cannot"
+                    + " shrink to fit and the run would send more than it claims. Sizes this"
+                    + " small cannot form a slope anyway.");
+        }
         if (workload.requiresBodySize() && flags.bodySize <= 0) {
             throw new IllegalArgumentException(name + " is a body-size tier workload and needs"
                     + " --body-size N. Without it the padding is empty and the run measures the"
@@ -632,11 +647,45 @@ public final class Profiler {
         }
     }
 
+    /**
+     * The commit this run was built from, or "(unknown)".
+     *
+     * <p><b>Recorded because a stored digest could not previously say which build produced it.</b>
+     * That is what retired the 10 ms baseline discrepancy rather than resolving it: two figures,
+     * months apart, and no way to decide whether the code or the noise had moved. The TLS
+     * experiment produces the headline numbers later sessions will compare against, so the
+     * condition the plan set for stamping this — "if a cross-session comparison ever matters
+     * again" — is already met before the run rather than after it.
+     *
+     * <p>Best-effort and never fatal: a tarball with no {@code .git} is a legitimate way to run
+     * this, and "(unknown)" is an honest answer that costs nothing.
+     */
+    private static String buildCommit() {
+        try {
+            Process git = new ProcessBuilder("git", "rev-parse", "--short", "HEAD")
+                    .redirectErrorStream(true).start();
+            String out = new String(git.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+            if (!git.waitFor(5, java.util.concurrent.TimeUnit.SECONDS) || git.exitValue() != 0) {
+                return "(unknown)";
+            }
+            Process dirty = new ProcessBuilder("git", "status", "--porcelain")
+                    .redirectErrorStream(true).start();
+            String changes = new String(dirty.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+            dirty.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+            // A dirty tree is the case that most needs saying: the commit alone would name a build
+            // that is not the one that ran.
+            return out.isEmpty() ? "(unknown)" : out + (changes.isEmpty() ? "" : " +DIRTY");
+        } catch (Exception e) {
+            return "(unknown)";
+        }
+    }
+
     private static void writeRunMeta(Path runDir, String name, RunShape shape, JvmConfig jvm,
                                      List<String> command, String mockUrl, String mockTier,
                                      List<String> extraJvmFlags) throws IOException {
         String meta = """
                 workload:     %s
+                build:        %s
                 threads:      %d
                 bound:        %s
                 warmup:       %s
@@ -659,6 +708,7 @@ public final class Profiler {
                 %s
                 """.formatted(
                 name,
+                buildCommit(),
                 shape.threads(),
                 shape.isDurationBounded()
                         ? "duration=" + RunShape.format(shape.duration())

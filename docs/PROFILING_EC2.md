@@ -132,7 +132,7 @@ the kernel:
 | `ip_local_port_range = 1024 65535` | The karate arm opens a connection per iteration. The AL2023 default (~28k ports over a 60 s TIME_WAIT) is ~470 conn/s; a 0 ms tier exceeds that by an order of magnitude, and the stall reads as "Karate is slower". |
 | `tcp_tw_reuse = 1` | **1, not the default 2.** 2 is loopback-only — no relief at all for a mock on another host, which is exactly this bench. |
 | `somaxconn = 8192` | `listen()` silently clamps the requested backlog to it; the mock asks for 1024. |
-| `nofile = 65536` | The per-execution HTTP client is never closed, so its sockets sit ESTABLISHED until a cleaner runs. A 10-pair sweep churns tens of thousands against a 1024 default. |
+| `nofile = 65536` | Per-execution HTTP clients *are* released now, but an unpooled arm still opens a connection per iteration and TIME_WAIT churn alone runs to tens of thousands across a 10-pair sweep, against a 1024 default. (The original reason — clients never closed at all — was fixed by the lifecycle work; the limit is still needed.) |
 
 bootstrap prints what actually took effect, and every digest carries the derived ceiling in
 `run-meta.txt`. Check it — a sysctl that did not apply looks exactly like one that did.
@@ -144,9 +144,8 @@ etc/ec2/bootstrap.sh --sync
 ```
 
 rsyncs the local working tree instead of pulling the branch, and stamps the build `+DIRTY`.
-This exists because the plan's own next experiment — the AST prototype behind
-[Parsed-JS reuse](./PROFILING.md) — lives on no branch and no stash, and "push it to main
-first" is not an option for a throwaway.
+This exists so a run can be taken from a tree that is not on any branch — a throwaway prototype
+lives on no branch and no stash, and "push it to main first" is not an option for one.
 
 **Publish numbers from a named commit.** `--sync` is for iterating; when a result is going
 into a table, push it, `--rebuild`, and let the build stamp name the commit.
@@ -170,7 +169,7 @@ etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --pooled --
 **Run the unpooled half in the same session, on the same hosts, rather than reusing an older
 table.** That is what the 2026-08-07 run did, and it is not caution for its own sake: the effect
 is ~0.4 ms/iteration, which is the same order as the drift between two sessions — and the earlier
-10 ms table turned out to disagree with a fresh one by 0.27 ms (§9 item 2). Re-running both halves
+10 ms table turned out to disagree with a fresh one by 0.27 ms (§9, "Also retired: the 10 ms baseline discrepancy"). Re-running both halves
 also buys a free control, because the **plain** arm is untouched by `--pooled`: if plain's req/s
 matches across the two matrices (it drifted 0.08% and 0.00%), the halves are comparable, and if it
 does not, you have found that out instead of publishing it.
@@ -189,7 +188,7 @@ Running it through `matrix.sh` rather than by hand is not a convenience: the war
 alternating arm order, the failure counting and `--label`'s interleave protection are all in there,
 and a hand-run pair silently loses every one of them.
 
-Restarts the mock at the requested latencyRestarts the mock at the requested latency — the tier is fixed at construction, and a
+Restarts the mock at the requested latency — the tier is fixed at construction, and a
 leftover mock from the previous tier answers with the old latency while the digests carry
 the new label. Discards one warmup run against the fresh mock (see §6 — without it the
 first pair is biased against Karate by ~0.5 ms). Then runs the pairs, **alternating which
@@ -210,6 +209,12 @@ as well. Note it is not a perfectly clean control, because `run.sh` forks a fres
 run while the two-host mock persists warmed (§6).
 
 ### 4.5 soaks (one host, no mock)
+
+> **Only the no-HTTP soaks.** This section covers `scope-capture-*` and friends, which make no HTTP
+> calls and so need one JVM and no mock. **Experiment 2 in [PROFILING.md](./PROFILING.md) §9 — the
+> Gatling HTTP soak — is a TWO-host run** and its commands are there, not here. `mock.sh start`
+> dies "mock host is not running" on a `--single` bench, which is the correct failure but an
+> expensive place to discover the topology was wrong.
 
 ```bash
 etc/ec2/provision.sh --single          # a soak needs time and one JVM, not the topology

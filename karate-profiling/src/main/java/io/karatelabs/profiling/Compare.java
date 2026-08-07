@@ -65,7 +65,7 @@ public final class Compare {
 
     /** Requests each arm's client makes per iteration, and the users driving them, from the run. */
     record Run(Path dir, String arm, int tierMillis, boolean tls, String variant, int bodyBytes,
-               int users, long iterationsRequested,
+               boolean pooled, int users, long iterationsRequested,
                long served, double servedPerSecond, double sleepMicrosMean, long peakInFlight,
                long distinctPeerPorts, long ko, double injectorCores, double windowSeconds,
                double p50, double p99, int cpus) {
@@ -87,7 +87,23 @@ public final class Compare {
          */
         String armShape() {
             return (tls ? "TLS" : "plaintext")
-                    + (bodyBytes > 0 ? ", " + bodyBytes + "-byte body" : "");
+                    + (bodyBytes > 0 ? ", " + bodyBytes + "-byte body" : "")
+                    // Density belongs here rather than on the pair: an 8-user run and a 32-user one
+                    // are different load points, and the plan schedules both at the same tier. They
+                    // used to PAIR with each other as well as bucket together.
+                    + ", " + users + "u";
+        }
+
+        /**
+         * Pooling is deliberately NOT in {@link #armShape()}.
+         *
+         * <p>{@code matrix.sh --pooled} gives the connection pool to the karate arm only, because
+         * the plain arm already keep-alives — so a pooled matrix is asymmetric by construction,
+         * exactly like an equivalence control. Requiring both arms to agree would refuse the very
+         * pairing the A/B exists to make, which is the bug this class already shipped once.
+         */
+        boolean pooledArm() {
+            return pooled;
         }
 
         /**
@@ -225,6 +241,14 @@ public final class Compare {
             out.append("\n> **unpaired** — ").append(warning).append("\n");
         }
         System.out.print(out);
+        // Nothing paired is a failure, not a quiet success. Readable runs that all end up
+        // unpaired — a mislabelled matrix, an aborted sweep, two arms that disagree on shape —
+        // used to print warnings and exit 0, which is exactly when automation should notice.
+        if (byTier.isEmpty()) {
+            System.err.println("[compare] no pairs formed from " + runs.size()
+                    + " readable runs — see the unpaired notes above");
+            return 1;
+        }
         return 0;
     }
 
@@ -241,7 +265,12 @@ public final class Compare {
          */
         String shape() {
             String variant = plain.variant().isEmpty() ? karate.variant() : plain.variant();
-            return plain.armShape() + (variant.isEmpty() ? "" : ", " + variant + " control");
+            return plain.armShape()
+                    + (variant.isEmpty() ? "" : ", " + variant + " control")
+                    // Asymmetric by design, so it describes the comparison rather than either side
+                    // — and a pooled matrix must not average with an unpooled one at the same tier,
+                    // which is precisely the A/B the plan runs.
+                    + (plain.pooledArm() || karate.pooledArm() ? ", pooled" : "");
         }
 
         /** Two controls have no ordinary reference between them, so their difference is unreadable. */
@@ -444,6 +473,7 @@ public final class Compare {
                 // does not use it — which is the 34-byte default, so 0 reads as "the payload every
                 // published figure was measured against".
                 (int) Math.max(0, row(digest, "body bytes")),
+                digest.contains("| pooled | true |"),
                 (int) row(digest, "threads"),
                 (long) rowIterations(digest),
                 (long) LoadProfile.mockNumber(mockStats, "served"),
