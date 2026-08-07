@@ -22,6 +22,10 @@ mock_port=8090
 local_mock=false
 pooled=false
 label=
+# Which workload each arm runs. `gatling-http-<arm>`; --control swaps exactly one of them.
+karate_arm=karate
+plain_arm=plain
+control=
 
 while (($#)); do
     case "$1" in
@@ -53,9 +57,32 @@ while (($#)); do
         # same tier — which is the actual A/B, since `compare` pairs plain against
         # karate and cannot pair two karate arms against each other.
         --pooled)     pooled=true; shift ;;
+        # Swap ONE arm for its equivalence control, leaving the other ordinary. The parity
+        # number assumes both arms do equivalent work and they do not: Karate matches three
+        # fields and the id round-trip where the plain reference checks one JSONPath, so Karate
+        # does strictly more and the published deficit is an upper bound.
+        #
+        #   fat   plain raised to Karate's checks, against the ordinary karate arm
+        #   lean  karate lowered to plain's checks, against the ordinary plain arm
+        #
+        # Run BOTH. One control only says which way the gap moves; the pair brackets the
+        # like-for-like cost from above and below, and they should meet in the middle.
+        --control)
+            case "$2" in
+                fat)  plain_arm=plain-fat ;;
+                lean) karate_arm=karate-lean ;;
+                *) die "--control takes 'fat' or 'lean', got: $2" ;;
+            esac
+            control="$2"; shift 2 ;;
         *) die "unknown flag: $1" ;;
     esac
 done
+
+# Never leave two changed arms facing each other — that compares two variants and answers
+# nothing. Reachable only by passing --control twice.
+if [[ "$plain_arm" != plain && "$karate_arm" != karate ]]; then
+    die "both arms are controls ($plain_arm vs $karate_arm) — pass --control once"
+fi
 
 injector_ip="$(kp_ip_of "$KP_INJECTOR_NAME")"
 mock_ip="$(kp_ip_of "$KP_MOCK_NAME")"
@@ -84,7 +111,7 @@ failures=0
 # Per-arm extra flags. Only the karate arm can pool — the plain arm is Gatling's
 # own client and has no HttpClientFactory to give.
 arm_extra() {
-    if [[ "$1" == "karate" && "$pooled" == true ]]; then
+    if [[ "$1" == karate* && "$pooled" == true ]]; then
         printf -- '-Dkarate.profiling.pooled=true'
     fi
 }
@@ -130,7 +157,7 @@ kp_ssh "$injector_ip" "mkdir -p ~/karate/karate-profiling/target/profiling && to
 # and would be silently destroyed. Both bound the deletion to this matrix, via the marker.
 log "warming the mock (one discarded run)"
 warmup_failures_before=$failures
-run_arm karate >/dev/null 2>&1 || true
+run_arm "$karate_arm" >/dev/null 2>&1 || true
 failures=$warmup_failures_before
 kp_ssh "$injector_ip" "cd ~/karate/karate-profiling/target/profiling && \
     victim=\$(find . -maxdepth 1 -name 'gatling-http-*' -newer '$marker' | sort | tail -1) && \
@@ -138,12 +165,12 @@ kp_ssh "$injector_ip" "cd ~/karate/karate-profiling/target/profiling && \
     echo 'warmup produced no run directory — nothing discarded'"
 sleep "$gap"
 
-log "$pairs pairs at $tier — $iterations iterations, $users users, ${gap}s between runs$($pooled && printf ', karate arm POOLED')"
+log "$pairs pairs at $tier — $iterations iterations, $users users, ${gap}s between runs$($pooled && printf ', karate arm POOLED')${control:+, CONTROL=$control ($karate_arm vs $plain_arm)}"
 for ((pair = 1; pair <= pairs; pair++)); do
     # Alternate which arm leads. Any drift over the matrix — thermal, neighbour,
     # the mock's own sleep overshoot — then loads the two arms equally instead of
     # accumulating against one of them.
-    if ((pair % 2 == 1)); then first=karate; second=plain; else first=plain; second=karate; fi
+    if ((pair % 2 == 1)); then first="$karate_arm"; second="$plain_arm"; else first="$plain_arm"; second="$karate_arm"; fi
     log "pair $pair/$pairs: $first then $second"
     run_arm "$first"
     sleep "$gap"

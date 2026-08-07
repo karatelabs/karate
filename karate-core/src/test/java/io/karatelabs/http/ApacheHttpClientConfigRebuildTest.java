@@ -27,6 +27,8 @@ import io.karatelabs.core.KarateConfig;
 import io.karatelabs.core.MockServer;
 import io.karatelabs.core.Runner;
 import io.karatelabs.core.SuiteResult;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -87,18 +89,34 @@ class ApacheHttpClientConfigRebuildTest {
         return instance;
     }
 
-    private static void withServer(Probe probe) throws Exception {
-        MockServer server = MockServer.featureString("""
+    /**
+     * One echo server for the whole class rather than one per test. It is stateless and every
+     * test builds its own client, so there is nothing to isolate — and starting it per test cost
+     * more than the eight tests together.
+     */
+    private static MockServer server;
+    private static String url;
+
+    @BeforeAll
+    static void startServer() {
+        server = MockServer.featureString("""
                 Feature: echo
 
                 Scenario: pathMatches('/ping')
                   * def response = { ok: true }
                 """).port(0).start();
-        try {
-            probe.run("http://localhost:" + server.getPort() + "/ping");
-        } finally {
+        url = "http://localhost:" + server.getPort() + "/ping";
+    }
+
+    @AfterAll
+    static void stopServer() {
+        if (server != null) {
             server.stopAndWait();
         }
+    }
+
+    private static void withServer(Probe probe) throws Exception {
+        probe.run(url);
     }
 
     private interface Probe {

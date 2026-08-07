@@ -53,6 +53,12 @@ public final class GatlingWorkloads {
         sink.accept(new NullOverheadWorkload.Karate());
         sink.accept(new HttpParityWorkload.Plain());
         sink.accept(new HttpParityWorkload.Karate());
+        // The equivalence controls pair ACROSS the family above rather than with each other:
+        // plain-fat runs against gatling-http-karate, karate-lean against gatling-http-plain.
+        // Running these two together would compare two changed arms and answer nothing.
+        // `matrix.sh --control fat|lean` is what wires each to the right partner.
+        sink.accept(new HttpEquivalenceWorkload.PlainFat());
+        sink.accept(new HttpEquivalenceWorkload.KarateLean());
     }
 
 }
