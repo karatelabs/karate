@@ -41,6 +41,34 @@ import java.time.Duration;
  */
 public record RunShape(int threads, long iterations, Duration duration, Duration warmup, Duration timeout) {
 
+    /**
+     * Rejects shapes that would run cleanly and measure nothing. Every case here produces a
+     * green exit and a well-formed digest, which is the failure mode this harness is least able
+     * to survive: {@code --threads 0} starts no workers and reports a successful run of zero
+     * iterations; {@code --iterations 0} the same; a negative iteration count reads as "no
+     * bound" to the worker loop and runs until the timeout kills it; {@code --duration 0s} closes
+     * the window before the first iteration is claimed. A typo in any of these is indistinguishable
+     * from a real result once it reaches `compare`.
+     */
+    public RunShape {
+        if (threads <= 0) {
+            throw new IllegalArgumentException("threads must be > 0, got " + threads);
+        }
+        if (duration == null && iterations <= 0) {
+            throw new IllegalArgumentException(
+                    "an iteration-bounded run needs iterations > 0, got " + iterations);
+        }
+        if (duration != null && (duration.isZero() || duration.isNegative())) {
+            throw new IllegalArgumentException("duration must be > 0, got " + format(duration));
+        }
+        if (warmup == null || warmup.isNegative()) {
+            throw new IllegalArgumentException("warmup must be >= 0, got " + warmup);
+        }
+        if (timeout != null && (timeout.isZero() || timeout.isNegative())) {
+            throw new IllegalArgumentException("timeout must be > 0, got " + format(timeout));
+        }
+    }
+
     public static RunShape defaults() {
         return new RunShape(16, 5000, null, Duration.ofSeconds(5), null);
     }

@@ -24,6 +24,7 @@
 package io.karatelabs.http;
 
 import io.karatelabs.core.KarateConfig;
+import io.karatelabs.core.MockServer;
 import io.karatelabs.core.Runner;
 import io.karatelabs.core.SuiteResult;
 import org.junit.jupiter.api.Test;
@@ -226,6 +227,76 @@ class HttpClientLifecycleTest {
         assertTrue(factory.created.get() > 0, "no client was created — the test proves nothing");
         assertEquals(factory.created.get(), factory.released.get(),
                 "a scenario that dies in config still owns a client it must hand back");
+    }
+
+    /**
+     * {@code ApacheHttpClient.apply()} closes the outgoing client before rebuilding, and a review
+     * asked whether that can terminate a still-open exchange. It cannot, and this pins the two
+     * sequences that would show it if it could: a {@code configure} step between two requests, and
+     * a shared-scope {@code call} between two requests — {@code apply()} fires on both.
+     *
+     * <p>The reason it is safe is structural. {@code invoke()} uses the response-handler form of
+     * {@code execute}, and the handler reads the entity to a {@code byte[]} before returning, so
+     * the exchange is complete and the connection released before {@code invoke()} returns.
+     * {@code HttpResponse} carries bytes, never a stream — there is no user-visible response that
+     * can outlive the call.
+     *
+     * <p>Concurrent sharing of a single {@code ApacheHttpClient} is a different matter, and one
+     * that predates this change: {@code request}, {@code startTime} and {@code currentRequest} are
+     * per-instance fields overwritten by every call, so two scenarios sharing one instance already
+     * corrupt each other's request state. Closing does not add a new class of failure there.
+     */
+    @Test
+    void testAClientSurvivesConfigureAndSharedScopeCallsBetweenRequests(@TempDir Path dir)
+            throws IOException {
+        MockServer server = MockServer.featureString("""
+                Feature: echo
+
+                Scenario: pathMatches('/ping')
+                  * def response = { ok: true }
+                """).port(0).start();
+        try {
+            String url = "http://localhost:" + server.getPort();
+            Files.writeString(dir.resolve("shared.feature"), """
+                    Feature: shared scope callee
+
+                      Scenario: called
+                        * def fromCallee = 1
+                    """);
+            Files.writeString(dir.resolve("reconfigure.feature"), """
+                    Feature: apply() fires between these requests
+
+                      Scenario: request, configure, request, shared call, request
+                        * url '%s'
+                        * path 'ping'
+                        * method get
+                        * status 200
+                        * match response.ok == true
+
+                        # configure calls apply(), which closes the built client
+                        * configure readTimeout = 20000
+                        * path 'ping'
+                        * method get
+                        * status 200
+
+                        # a shared-scope call calls apply() unconditionally on the way out
+                        * call read('shared.feature')
+                        * match fromCallee == 1
+                        * path 'ping'
+                        * method get
+                        * status 200
+                        * match response.ok == true
+                    """.formatted(url));
+            SuiteResult result = Runner.builder()
+                    .path(dir.resolve("reconfigure.feature").toAbsolutePath().toString())
+                    .backupOutputDir(false)
+                    .outputHtmlReport(false)
+                    .parallel(1);
+            assertEquals(0, result.getScenarioFailedCount(),
+                    "closing the client on configure/shared-call must not break the next request");
+        } finally {
+            server.stopAndWait();
+        }
     }
 
     /**

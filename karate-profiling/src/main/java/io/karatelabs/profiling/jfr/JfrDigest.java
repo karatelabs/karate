@@ -459,10 +459,19 @@ public final class JfrDigest {
         }
         // Before the exit code, because a truncated run also exits non-zero and "completed with
         // errors" would be the less useful of the two readings.
+        if (keyValueFlag(childSummary, "abortedInWarmup")) {
+            return "**ABORTED IN WARMUP** — the warmup did not finish cleanly, so no measured "
+                    + "window was opened. Nothing below describes a measurement";
+        }
         if (keyValueFlag(childSummary, "truncated")) {
-            return "**TRUNCATED** — workers were still running when the join deadline passed, so "
-                    + "every duration and rate below describes a window shorter than the one "
-                    + "requested. Do not compare this run against a completed one";
+            // Deliberately not "a shorter window". Elapsed here is the requested window plus the
+            // join grace, and JFR keeps recording until the JVM exits — so the window is the
+            // wrong one, which is not the same as being a short one, and stragglers may have
+            // contributed to it after the nominal end.
+            return "**TRUNCATED** — workers were still running when the join deadline passed. The "
+                    + "window below is not the one that was requested: it runs past the nominal "
+                    + "end by up to the join grace, and unfinished work may have contributed to "
+                    + "it. Do not compare this run against a completed one";
         }
         return info.exitCode() == 0 ? "completed" : "completed with errors";
     }

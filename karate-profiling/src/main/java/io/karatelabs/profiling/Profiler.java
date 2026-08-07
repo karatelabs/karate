@@ -242,7 +242,16 @@ public final class Profiler {
 
         JfrDigest.write(runDir, new JfrDigest.RunInfo(name, exit, timedOut, heapDump, shape, jvm, command));
         System.out.println("[parent] digest: " + runDir.resolve("digest.md").toAbsolutePath());
-        return timedOut ? 1 : 0;
+        // The child's status is the run's status. This used to return `timedOut ? 1 : 0`, which
+        // read the child's exit code, wrote it into the digest, printed it — and then threw it
+        // away. A child that errored, OOM'd or truncated therefore reached run.sh, ssh and
+        // matrix.sh as a success, and matrix.sh decides whether an arm counts by exactly that
+        // status. Every downstream guarantee about rejecting a bad run stopped one process short
+        // of the thing that reads it, with a digest saying TRUNCATED next to a green exit.
+        //
+        // Note this makes a deliberately-OOM'ing workload exit non-zero too. That is correct: the
+        // run did OOM, and a caller that expects it is reading the digest, not the status.
+        return timedOut || exit != 0 ? 1 : 0;
     }
 
     /**
@@ -349,14 +358,25 @@ public final class Profiler {
         } else {
             start = new StringBuilder("-XX:StartFlightRecording=settings=profile");
         }
-        long warmupSeconds = shape.warmup().toSeconds();
+        long warmupMillis = shape.warmup().toMillis();
         // The delay exists to skip the warmup — so it is only correct when a warmup actually
         // runs. A workload that drives its own concurrency gets none (see Child), and delaying
         // the recording anyway silently discards the first N seconds of the real measurement,
         // or all of it when the run is shorter than the warmup: an empty run.jfr that reads as
         // a crashed JVM.
-        if (warmupWillRun && warmupSeconds >= 1) {
-            start.append(",delay=").append(warmupSeconds).append("s");
+        //
+        // Expressed in milliseconds rather than whole seconds. toSeconds() truncates, so a
+        // 1500 ms warmup produced delay=1s and recorded its final 500 ms — the recording then
+        // contains warmup while the digest says warmup is excluded.
+        if (warmupWillRun && warmupMillis >= 1000) {
+            start.append(",delay=").append(warmupMillis).append("ms");
+        } else if (warmupWillRun && warmupMillis > 0) {
+            // JFR's floor is one second, and below it the JVM refuses to start rather than
+            // ignoring the flag — so there is no delay to apply and the warmup is inside the
+            // recording. Say so, because the digest's warmup row claims the opposite.
+            System.out.println("[parent] WARNING: --warmup " + RunShape.format(shape.warmup())
+                    + " is below JFR's one-second minimum delay, so the warmup CANNOT be excluded"
+                    + " from the recording — it is in there with the measurement. Use >= 1s.");
         }
         // A soak still gets a cap — unbounded is how a disk fills — but a far larger one,
         // because with the sampling events off the recording is small and the cap should never

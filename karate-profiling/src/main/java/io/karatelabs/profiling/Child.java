@@ -115,6 +115,39 @@ public final class Child {
             System.out.println("[child] warmup " + RunShape.format(warmup) + " (excluded from the recording)");
             Result discarded = drive(workload, threads, -1, warmup, "warmup");
             System.out.println("[child] warmup done, " + discarded.completed + " iterations discarded");
+            // A bad warmup invalidates the measurement that follows it, so the run stops here
+            // rather than producing a digest that looks comparable.
+            //
+            //   truncated — stragglers are still inside iterate(). They do not stop when the
+            //     warmup's window closes; they run on into the measured window, burning CPU,
+            //     loading the mock, and (once delay= expires) writing their events into the very
+            //     recording the warmup exists to stay out of. Worse, if they finish before the
+            //     measured window closes, the final result says truncated=false and exit 0 — a
+            //     contaminated run that reads as a clean one.
+            //   oom / errors — the workload is broken at this shape. Measuring it anyway spends
+            //     the window to reach the same conclusion, and warmup errors are not counted in
+            //     the measured result, so continuing would hide them.
+            if (discarded.truncated || discarded.oom || discarded.errors > 0) {
+                System.out.println("[child] ABORTED: the warmup "
+                        + (discarded.truncated ? "did not finish within its window"
+                        : discarded.oom ? "ran out of memory"
+                        : "raised " + discarded.errors + " error(s)")
+                        + " — refusing to measure, because the measured window would be"
+                        + " contaminated and would not say so");
+                System.out.println(SUMMARY_PREFIX
+                        + "completed=0"
+                        + " errors=" + discarded.errors
+                        + " elapsedMs=0"
+                        + " peakHeapBytes=" + peakHeapBytes()
+                        + " cpus=" + Runtime.getRuntime().availableProcessors()
+                        + " truncated=" + discarded.truncated
+                        + " abortedInWarmup=true"
+                        + " oom=" + discarded.oom);
+                if (discarded.firstFailure != null) {
+                    discarded.firstFailure.printStackTrace(System.out);
+                }
+                System.exit(1);
+            }
         }
 
         System.out.println("[child] measuring");

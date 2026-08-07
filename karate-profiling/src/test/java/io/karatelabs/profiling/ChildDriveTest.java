@@ -173,4 +173,29 @@ class ChildDriveTest {
         assertEquals(500, workload.iterations.get(),
                 "the iteration bound is a budget, not an approximation");
     }
+
+    /**
+     * A truncated <em>warmup</em> is worse than a truncated measurement, and it is the case a
+     * review had to point out. Its stragglers do not stop when the warmup's window closes — they
+     * run on into the measured window, contributing CPU, mock load and (once the recording's
+     * {@code delay=} expires) JFR events to the very window the warmup exists to keep clean. And
+     * if they finish before that window closes, the measured result reports
+     * {@code truncated=false} and exits 0: a contaminated run that reads as a clean one.
+     *
+     * <p>This test pins the detection. {@link Child#main} turns it into an abort before the
+     * measured window opens; see the {@code ABORTED} branch there.
+     */
+    @Test
+    void testATruncatedWarmupIsDetectableRatherThanSilent() throws Exception {
+        int threads = 4;
+        WedgedWorkload workload = new WedgedWorkload(threads);
+        assertTrue(workload.entered.getCount() > 0);
+        Child.Result warmup = Child.drive(workload, threads, -1, Duration.ofMillis(200),
+                "warmup", 1);
+        workload.release.countDown();
+
+        assertTrue(warmup.truncated(),
+                "a warmup whose workers outlive its window must be flagged — measuring after one "
+                        + "produces a contaminated window that reports itself as clean");
+    }
 }
