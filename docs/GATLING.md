@@ -1371,7 +1371,7 @@ system under test is silently under-loaded. A detector is the only way that beco
 of a millisecond or two per iteration (0.6 ms on Apple silicon, 1.8 ms on Graviton3 — the figure is
 machine-specific), so any residue threshold fires on a perfectly healthy run. It is worth
 *reporting*, because it attributes Karate's own overhead directly instead of by subtracting two
-throughputs, and it is [PROFILING.md §10](./PROFILING.md)'s unbuilt "per-iteration residue" item.
+throughputs, and it is [PROFILING.md §9](./PROFILING.md)'s unbuilt "per-iteration residue" item.
 
 **The heartbeat is the one not to skip.** CPU% alone misses the case that actually bites in cloud
 CI: a container throttled by its cgroup quota reports *low* CPU while being unable to run anything

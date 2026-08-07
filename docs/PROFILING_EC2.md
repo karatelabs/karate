@@ -181,7 +181,8 @@ etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --pooled --
 **Run the unpooled half in the same session, on the same hosts, rather than reusing an older
 table.** That is what the 2026-08-07 run did, and it is not caution for its own sake: the effect
 is ~0.4 ms/iteration, which is the same order as the drift between two sessions — and the earlier
-10 ms table turned out to disagree with a fresh one by 0.27 ms (§9, "Also retired: the 10 ms baseline discrepancy"). Re-running both halves
+10 ms table turned out to disagree with a fresh one by 0.27 ms (PROFILING.md §9,
+"Settled — do not re-run", the 10 ms tier entry). Re-running both halves
 also buys a free control, because the **plain** arm is untouched by `--pooled`: if plain's req/s
 matches across the two matrices (it drifted 0.08% and 0.00%), the halves are comparable, and if it
 does not, you have found that out instead of publishing it.
@@ -223,10 +224,25 @@ run while the two-host mock persists warmed (§6).
 ### 4.5 soaks (one host, no mock)
 
 > **Only the no-HTTP soaks.** This section covers `scope-capture-*` and friends, which make no HTTP
-> calls and so need one JVM and no mock. **Experiment 2 in [PROFILING.md](./PROFILING.md) §9 — the
-> Gatling HTTP soak — is a TWO-host run** and its commands are there, not here. `mock.sh start`
-> dies "mock host is not running" on a `--single` bench, which is the correct failure but an
-> expensive place to discover the topology was wrong.
+> calls and so need one JVM and no mock. **The HTTP soaks are TWO-host runs** — the completed
+> pooled Gatling soak, and the open one in [PROFILING.md](./PROFILING.md) §9 (E1, the suite
+> soak: reports on, TLS, JS and feature calls; it subsumes the unpooled-client question).
+> `mock.sh start` dies "mock host is not running" on a
+> `--single` bench, which is the correct failure but an expensive place to discover the topology
+> was wrong. The shape that ran the 2026-08-07 Gatling soak, for reuse:
+>
+> ```bash
+> etc/ec2/mock.sh start 10ms 8090
+> mock=$(etc/ec2/ssh.sh mock-private)
+> etc/ec2/ssh.sh injector "cd ~/karate/karate-profiling && nohup env PROFILING_SKIP_BUILD=1 \
+>     etc/run.sh gatling-http-karate --duration 1h --soak --threads 8 \
+>     --mock-url http://$mock:8090 -Dkarate.profiling.pooled=true --timeout 90m \
+>     > ~/soak.log 2>&1 &"
+> ```
+>
+> Collect **after the parent finishes**, not when the child exits — the digest is written about a
+> minute later, and `collect.sh` now fails closed when it is missing rather than reporting a
+> successful copy without it.
 
 ```bash
 etc/ec2/provision.sh --single          # a soak needs time and one JVM, not the topology
@@ -356,10 +372,11 @@ Two `c7g.4xlarge` is roughly **$1.16/hour**, about $28 a day if forgotten. There
 auto-stop and no budget alarm. If you want one, that is a real gap worth filling — see below.
 
 ```bash
-# the paranoid check, from anywhere
+# the paranoid check, from anywhere — ALL states, because a STOPPED instance
+# still bills its EBS and is invisible to a running-only filter
 aws ec2 describe-instances --profile "$AWS_PROFILE" --region "$AWS_REGION" \
-  --filters Name=instance-state-name,Values=running \
-  --query 'Reservations[].Instances[].{Id:InstanceId,Type:InstanceType,Launched:LaunchTime}' \
+  --filters Name=instance-state-name,Values=running,pending,stopping,stopped,shutting-down \
+  --query 'Reservations[].Instances[].{Id:InstanceId,State:State.Name,Type:InstanceType,Launched:LaunchTime}' \
   --output table
 ```
 

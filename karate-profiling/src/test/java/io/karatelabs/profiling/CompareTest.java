@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pins the comparison arithmetic to the numbers docs/PROFILING.md §10 publishes.
+ * Pins the comparison arithmetic to the numbers docs/PROFILING.md §0 publishes.
  *
  * <p>The published tables were derived by hand, and this class exists so that the automated
  * derivation and the hand one are known to agree — the tool was written precisely because a hand

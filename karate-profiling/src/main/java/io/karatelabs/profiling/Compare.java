@@ -34,7 +34,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Turns a set of parity run directories into the table that goes in docs/PROFILING.md §10.
+ * Turns a set of parity run directories into the table behind docs/PROFILING.md §0's claims.
  *
  * <p><b>This exists because the alternative has already failed.</b> Every published parity number
  * was scraped by hand, and commit "the stats scrape skipped a decimal cell and shifted every
