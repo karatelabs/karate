@@ -1204,7 +1204,16 @@ answer matters.
 **Settled, do not redo:** the two-host EC2 bench ([PROFILING_EC2.md](./PROFILING_EC2.md)); the
 50 ms tier (+1.90 sd 0.05, independently reproduced at +1.89 sd 0.04 on 2026-08-07); the
 pooled-connection A/B (below); HTTP client *release*; the `apply()` rebuild guard; and the soak
-instrument (`--soak`, live-set probe, digest integrity checks).
+instrument (`--soak`, live-set probe, descriptor count, digest integrity checks).
+
+**The harness itself was exercised end to end on 2026-08-07** — provision, bootstrap, calibrate
+(plaintext and TLS), all five matrix shapes, a duration-bounded soak, collect, compare, and the
+teardown guard, in a 46-minute bench session costing about $0.89. **Every one of the three
+experiments below had at least one blocking defect, and none of them was visible without running.**
+The TLS matrix could not attach to its own mock; `--soak` started no leak probe for any
+`gatling-*` workload; `compare` refused to pair the equivalence controls; `--duration` truncated
+below a second; `collect.sh` reported failure after succeeding. Treat a script that has not been
+run since it was last edited as unproven — that is five for five.
 
 **The headline so far, at 50 ms:** Karate costs **+1.89 ms/iteration (1.8%)** unpooled and
 **+1.44 ms (1.4%)** pooled, sd 0.03–0.04, n=10 each. Pooling is worth about 24% of Karate's
@@ -1232,19 +1241,63 @@ A/B could only measure pooling's *floor*. A saved TLS handshake is 2 RTT plus as
 Cheap add-on, same bench: run the cell at **8 and 32 users** (half the measured knee of 64). That
 covers "does it hold at density" without a separate workstream.
 
-*Built.* `matrix.sh --tls`, plus `--mock-tls` for a forked mock. Both arms reach it and the digest
-carries `tls`, so a TLS cell and a plaintext one stay tellable apart afterwards.
+*Built and run end to end on the bench (2026-08-07).* Both arms reach the TLS mock with **0 KO**,
+the digest carries `tls`, and `compare` buckets a TLS cell apart from a plaintext one so the two
+cannot be averaged together.
+
+```bash
+etc/ec2/calibrate.sh --tier 50ms --ramp 1,8,32,64 --per-user 100 --tls   # first, and not skippable
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --tls --label 50ms-tls-unpooled
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --tls --pooled --label 50ms-tls-pooled
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 32 --tls --pooled --label 50ms-tls-pooled-32u
+```
+
+**What the TLS calibration already shows, and why this experiment should be decisive.** On the
+bench at 50 ms, `unowned mean` in *close* mode is **2.95–3.55 ms** against **0.29 ms** in
+keepalive — where the same measurement on plaintext is 0.40–0.50 ms against 0.23 ms. A connection
+costs roughly **2.7 ms** over TLS and roughly **0.2 ms** without it. Unpooled Karate opens one per
+iteration and makes two requests, and a single smoke pair measured **+9.31 ms/iteration** against
+plain Gatling over TLS versus **+2.69 ms** on plaintext. Those are two independent routes to the
+same story, which is the one the plaintext A/B could only bound from below.
 
 #### 2. A Gatling soak over HTTP — the only open leak question
 
-Two hours or more, the configuration intended to ship, watching the live set and the file
-descriptor count. This is the one that closes the leak question for the classes that matter, and
-it cannot be run today because the `gatling-*` workloads take an iteration count rather than a
-duration.
+Two hours or more, watching the live set **and the file descriptor count**. This is the one that
+closes the leak question for the classes that matter — the HTTP client and its sockets, which the
+`scope-capture-bound` soak never touched.
 
-*Built.* `--duration` becomes `during()` in the injection profile, and `Child` marks the run
-truncated and exits non-zero if the elapsed time misses the window — a self-driving workload owns
-its own clock, so nothing else can tell whether it honoured one.
+*Built, and the instruments verified by running (2026-08-07).*
+
+```bash
+etc/ec2/mock.sh start 50ms 8090
+etc/ec2/ssh.sh injector 'cd ~/karate/karate-profiling && nohup etc/run.sh run gatling-http-karate \
+    --duration 2h --soak --threads 8 --mock-url http://<mock-private-ip>:8090 \
+    --timeout 3h > ~/soak.log 2>&1 &'
+# then, later:
+etc/ec2/ssh.sh injector 'grep PROFILING-LIVE-SET ~/soak.log | tail -5'
+etc/ec2/collect.sh
+```
+
+Run it **pooled as well as unpooled** if there is time for two: pooling is the configuration
+intended to ship for a load test, and it is also the one that holds descriptors deliberately, so
+its healthy shape is a flat non-zero count rather than a low one.
+
+Three things this needs, all of which were missing or broken until they were run:
+
+- `--duration` carries **milliseconds**, not seconds. It used to truncate, so any sub-second
+  window silently became one iteration per user while every log line still quoted the window.
+- The **live-set probe now runs on the self-driving path**. It was started only on the
+  iteration-bounded one, and every `gatling-*` workload is self-driving — so `--soak` on exactly
+  the workloads a soak is run with produced a digest with no leak panel at all, while the
+  retention panel still told you to read it.
+- The **file-descriptor count** is sampled by the same probe and rendered beside the live set.
+
+The probe interval defaults to 300 s. For a short rehearsal pass
+`-Dkarate.profiling.liveSetSeconds=20` so a few-minute run still produces a series.
+
+**Reading it:** a rising live set is retention. A rising descriptor count is a leaked socket, and
+it can happen with a flat live set. A flat non-zero descriptor count is healthy. The final reading
+is taken with the load stopped, so it drops — do not read that drop as a trend.
 
 #### 3. The equivalence controls — what makes the number defensible
 
@@ -1257,8 +1310,22 @@ that assumption has never been tested — it is the first thing a sceptical read
 it is wrong the deficit is wrong in an unknown direction. This converts a measurement into a
 result.
 
-*Built.* `matrix.sh --control fat` and `--control lean`, which wire each variant against the right
-partner. Karate is the arm doing more today, so the published deficit is an **upper** bound.
+*Built and run on the bench (2026-08-07).* `matrix.sh --control fat` and `--control lean` wire each
+variant against the right partner, and `compare` reports each as its own table rather than folding
+it into the ordinary pair.
+
+```bash
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --control fat  --label 50ms-fat
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --control lean --label 50ms-lean
+```
+
+Karate is the arm doing more today, so the published deficit is an **upper** bound. One residual
+asymmetry is documented in `HttpPlainFatSimulation` and errs the same way: Karate's
+`match response == { ... }` is a *closed* match that also rejects extra keys and compares `age` as
+a number, while the fat control's three `jsonPath` checks are open and compare it as text.
+
+**The body-size tier named here does not exist** — no workload or knob varies the response size.
+Either build one or drop the clause; it is the only part of this experiment that is not runnable.
 
 #### Pooling in karate-gatling — shipped, with one thing still open
 
