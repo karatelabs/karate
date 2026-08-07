@@ -93,9 +93,20 @@ public final class Child {
             // there is exactly one unit of work and running it twice would double the run.
             System.out.println("[child] workload drives its own concurrency — one pass, no warmup");
             long selfStart = System.nanoTime();
+            // The live-set probe belongs on THIS path too, and used to be started only on the
+            // other one. That made --soak quietly useless for exactly the workloads a soak is
+            // run with: every gatling-* workload drives its own concurrency, so it returned
+            // from this branch having never started the probe — and the digest's retention
+            // panel still told the operator to "decide whether there is a leak from the
+            // live-set panel above", which was not in the file. Hours of soak, no instrument.
+            Thread liveSetProbe = startLiveSetProbeIfSoaking(selfStart);
             SelfCpu.Window selfCpu = SelfCpu.open();
             Result self = driveOnce(workload);
             long selfElapsedMs = (System.nanoTime() - selfStart) / 1_000_000;
+            // Read before the probe's final full GC, which would otherwise be charged to the
+            // workload — the same ordering the iteration-bounded path uses.
+            String selfCpuDescription = selfCpu.describe();
+            stopLiveSetProbe(liveSetProbe, selfStart);
             // A self-driving workload owns its own clock, so when a window was asked for, nothing
             // here enforced it — this branch printed truncated=false unconditionally, on faith.
             // That is exactly the shape of the failure that made a 7-hour soak report success
@@ -120,7 +131,7 @@ public final class Child {
                     + " errors=" + self.errors
                     + " elapsedMs=" + selfElapsedMs
                     + " peakHeapBytes=" + peakHeapBytes()
-                    + " " + selfCpu.describe()
+                    + " " + selfCpuDescription
                     + " cpus=" + Runtime.getRuntime().availableProcessors()
                     + " truncated=" + selfTruncated
                     + " oom=" + self.oom);
@@ -186,13 +197,7 @@ public final class Child {
                 + " warmupMs=" + warmup.toMillis());
         System.out.println("[child] measuring");
         long startNanos = System.nanoTime();
-        Thread liveSetProbe = null;
-        if (Boolean.getBoolean("karate.profiling.soak")) {
-            System.out.println("[child] live-set probe every " + liveSetIntervalSeconds()
-                    + "s (full GC, then measure what survived — the JFR heap floor cannot tell"
-                    + " retention from promoted garbage; see startLiveSetProbe)");
-            liveSetProbe = startLiveSetProbe(startNanos);
-        }
+        Thread liveSetProbe = startLiveSetProbeIfSoaking(startNanos);
         // Opened here rather than at process start, which is the whole point: warmup, class
         // loading and JIT are on the other side of this line, and a CPU total that includes them
         // measures the JVM waking up rather than the workload. See SelfCpu.
@@ -200,22 +205,7 @@ public final class Child {
         Result result = drive(workload, threads, iterations, duration, "measured");
         long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
         String cpuDescription = cpu.describe();
-        if (liveSetProbe != null) {
-            liveSetProbe.interrupt();
-            try {
-                // Join before the final reading. Interrupt alone does not stop a probe that has
-                // already woken, so its two System.gc() calls and its output could interleave
-                // with the final one — two readings racing for the same heap.
-                liveSetProbe.join(java.util.concurrent.TimeUnit.SECONDS.toMillis(30));
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            // A final reading with the workload stopped. On a run that completed, no iteration is
-            // in flight and this is the cleanest number the run produces — but on a TRUNCATED one
-            // stragglers are still inside iterate() holding whatever they hold, so read this the
-            // way the outcome row tells you to.
-            probeOnce(startNanos, true);
-        }
+        stopLiveSetProbe(liveSetProbe, startNanos);
 
         try {
             workload.teardown();
@@ -414,6 +404,44 @@ public final class Child {
     /** Samples used heap continuously; a 5s progress tick alone would miss most of the curve. */
     /** Emitted once, when the measured window opens. The digest checks the JFR delay against it. */
     static final String MEASURING_PREFIX = "PROFILING-MEASURING ";
+
+    /**
+     * Start the live-set probe when {@code --soak} asked for one, or return null.
+     *
+     * <p>Both drive paths call this. That is the point: it was inline on one of them, so a
+     * self-driving workload — which is every {@code gatling-*} workload, and so every workload a
+     * soak is actually run with — silently got no probe at all.
+     */
+    private static Thread startLiveSetProbeIfSoaking(long startNanos) {
+        if (!Boolean.getBoolean("karate.profiling.soak")) {
+            return null;
+        }
+        System.out.println("[child] live-set probe every " + liveSetIntervalSeconds()
+                + "s (full GC, then measure what survived — the JFR heap floor cannot tell"
+                + " retention from promoted garbage; see startLiveSetProbe)");
+        return startLiveSetProbe(startNanos);
+    }
+
+    /** Stop the probe and take the final reading. A no-op when there was no probe. */
+    private static void stopLiveSetProbe(Thread liveSetProbe, long startNanos) {
+        if (liveSetProbe == null) {
+            return;
+        }
+        liveSetProbe.interrupt();
+        try {
+            // Join before the final reading. Interrupt alone does not stop a probe that has
+            // already woken, so its two System.gc() calls and its output could interleave
+            // with the final one — two readings racing for the same heap.
+            liveSetProbe.join(java.util.concurrent.TimeUnit.SECONDS.toMillis(30));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        // A final reading with the workload stopped. On a run that completed, no iteration is
+        // in flight and this is the cleanest number the run produces — but on a TRUNCATED one
+        // stragglers are still inside iterate() holding whatever they hold, so read this the
+        // way the outcome row tells you to.
+        probeOnce(startNanos, true);
+    }
 
     /** Emitted once per probe; the digest turns these into the live-set series. Keep stable. */
     static final String LIVE_SET_PREFIX = "PROFILING-LIVE-SET ";
