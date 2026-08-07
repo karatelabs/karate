@@ -59,6 +59,9 @@ public final class GatlingWorkloads {
         // `matrix.sh --control fat|lean` is what wires each to the right partner.
         sink.accept(new HttpEquivalenceWorkload.PlainFat());
         sink.accept(new HttpEquivalenceWorkload.KarateLean());
+        sink.accept(new HttpBodyWorkload.Plain());
+        sink.accept(new HttpBodyWorkload.Karate());
+        sink.accept(new HttpBodyWorkload.PlainFat());
     }
 
 }

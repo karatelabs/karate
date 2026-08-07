@@ -125,6 +125,10 @@ public final class Profiler {
                   --record workload|mock which JVM gets the recording
                   --mock feature|latency  which mock tier to fork (default feature)
                   --mock-latency 10ms     injected latency; implies --mock latency
+                  --body-size N          body-size tier: pad the request (and so the mock's
+                                          echoed response) to about N bytes. Only the
+                                          gatling-body-* workloads read it. Run several sizes —
+                                          the trend is the measurement, not any one cell.
                   --mock-tls              serve the latency mock over TLS; implies --mock latency
                   --mock-url URL          use an already-running LatencyMock (e.g. another host)
                                           instead of forking one; see docs/PROFILING.md §10
@@ -170,6 +174,12 @@ public final class Profiler {
                 .withDuration(flags.duration)
                 .withWarmup(flags.warmup)
                 .withTimeout(flags.timeout);
+        if (workload.requiresBodySize() && flags.bodySize <= 0) {
+            throw new IllegalArgumentException(name + " is a body-size tier workload and needs"
+                    + " --body-size N. Without it the padding is empty and the run measures the"
+                    + " ordinary 25-byte payload while looking like a body-size cell. The tier is"
+                    + " a slope: run several sizes and read the trend.");
+        }
         if (shape.isDurationBounded() && !workload.honoursDuration()) {
             throw new IllegalArgumentException("--duration means nothing to " + name
                     + ": it does not own its loop, so it runs its iteration count to the end and"
@@ -212,7 +222,7 @@ public final class Profiler {
 
         List<String> command = childCommand(classpath, name, shape, jvm, mockUrl,
                 recordMock ? List.of() : jfrFlags(runDir, shape, flags, warmupWillRun), runDir, flags.systemProperties,
-                workload.jvmFlags(), flags.jvmFlags, flags.soak);
+                workload.jvmFlags(), flags.jvmFlags, flags.soak, flags.bodySize);
         writeRunMeta(runDir, name, shape, jvm, command, mockUrl, mockTier(workload, flags), flags.jvmFlags);
 
         System.out.println("[parent] forking: " + String.join(" ", command));
@@ -410,7 +420,7 @@ public final class Profiler {
                                              List<String> systemProperties,
                                              List<String> workloadFlags,
                                              List<String> extraJvmFlags,
-                                             boolean soak) {
+                                             boolean soak, int bodySize) {
         List<String> command = new ArrayList<>();
         command.add(javaBinary());
         command.add("-Xmx" + jvm.xmx());
@@ -435,6 +445,12 @@ public final class Profiler {
         // generation. See Child.startLiveSetProbe.
         if (soak) {
             command.add("-Dkarate.profiling.soak=true");
+        }
+        // On the command line rather than only in run-meta.txt, because the digest reads it back
+        // from there — and `compare` buckets on it, so a 1 KB matrix and a 64 KB one at the same
+        // latency tier cannot be averaged into one confident wrong number.
+        if (bodySize > 0) {
+            command.add("-D" + Payload.BODY_BYTES_PROPERTY + "=" + bodySize);
         }
         if (mockUrl != null) {
             command.add("-Dkarate.profiling.mockUrl=" + mockUrl);
@@ -754,6 +770,7 @@ public final class Profiler {
         boolean mockTls;
         boolean gcRoots;
         boolean soak;
+        int bodySize;
         final List<String> systemProperties = new ArrayList<>();
         /** Extra child JVM options, repeatable. See the usage text and childCommand. */
         final List<String> jvmFlags = new ArrayList<>();
@@ -775,6 +792,7 @@ public final class Profiler {
                     case "--gc" -> args.gc = JvmConfig.Gc.parse(next(argv, ++i, flag));
                     case "--record" -> args.record = next(argv, ++i, flag);
                     case "--mock" -> args.mock = next(argv, ++i, flag);
+                    case "--body-size" -> args.bodySize = Integer.parseInt(next(argv, ++i, flag));
                     case "--mock-url" -> args.mockUrl = next(argv, ++i, flag);
                     case "--mock-tls" -> {
                         args.mockTls = true;

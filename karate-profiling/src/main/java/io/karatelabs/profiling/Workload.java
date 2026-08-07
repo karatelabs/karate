@@ -112,6 +112,18 @@ public interface Workload {
         return false;
     }
 
+    /**
+     * Whether this workload is meaningless without {@code --body-size}.
+     *
+     * <p>The body-size family sends a padded body, and with no size the padding is empty — so the
+     * run completes, reports zero failures, and produces a cell that measures the ordinary payload
+     * through a differently-named workload. That is a wasted bench cell that looks like a result,
+     * so it is refused at parse instead.
+     */
+    default boolean requiresBodySize() {
+        return false;
+    }
+
     /** Classpath-relative feature that {@link MockJvm} serves. Only read when {@link #needsMock()}. */
     default String mockFeature() {
         return "classpath:mock/profiling-mock.feature";

@@ -22,9 +22,12 @@ mock_port=8090
 local_mock=false
 pooled=false
 label=
-# Which workload each arm runs. `gatling-http-<arm>`; --control swaps exactly one of them.
+# Which workload each arm runs: `<family>-<arm>`. --control swaps exactly one of them,
+# and --body-size switches the family, because the body tier has its own workloads.
 karate_arm=karate
 plain_arm=plain
+family=gatling-http
+body_size=
 control=
 tls=false
 
@@ -64,6 +67,13 @@ while (($#)); do
         # measure pooling's floor. Both arms trust the mock's self-signed cert, so what differs
         # between them is the handshake and not the trust configuration.
         --tls)        tls=true; shift ;;
+        # The body-size tier. Switches to the gatling-body-* family, whose Karate arm matches
+        # the whole padded document and whose plain arm reads three small fields — the
+        # difference the tier exists to measure. A SINGLE size answers nothing: the question is
+        # whether the deficit scales, so run several and read the trend. Pair each size with
+        # --control fat, which is what makes a rising deficit attributable to Karate rather
+        # than to the cost of checking a large field.
+        --body-size)  body_size="$2"; family=gatling-body; shift 2 ;;
         # Swap ONE arm for its equivalence control, leaving the other ordinary. The parity
         # number assumes both arms do equivalent work and they do not: Karate matches three
         # fields and the id round-trip where the plain reference checks one JSONPath, so Karate
@@ -133,7 +143,8 @@ run_arm() {
     # arm leaves an odd run count, and `compare` then pairs run N with run N+2 —
     # two arms from different pairs, reported as one.
     if ! out="$(kp_ssh "$injector_ip" "cd ~/karate/karate-profiling && PROFILING_SKIP_BUILD=1 \
-            etc/run.sh gatling-http-$arm --iterations $iterations --threads $users \
+            etc/run.sh $family-$arm --iterations $iterations --threads $users \
+            ${body_size:+--body-size $body_size} \
             $mock_args $(arm_extra "$arm") 2>&1")"; then
         log "  !! $arm FAILED"
         echo "$out" | tail -5 | sed 's/^/     /'
@@ -170,12 +181,12 @@ warmup_failures_before=$failures
 run_arm "$karate_arm" >/dev/null 2>&1 || true
 failures=$warmup_failures_before
 kp_ssh "$injector_ip" "cd ~/karate/karate-profiling/target/profiling && \
-    victim=\$(find . -maxdepth 1 -name 'gatling-http-*' -newer '$marker' | sort | tail -1) && \
+    victim=\$(find . -maxdepth 1 -name '$family-*' -newer '$marker' | sort | tail -1) && \
     [[ -n \"\$victim\" ]] && rm -rf \"\$victim\" && echo \"discarded \$victim\" || \
     echo 'warmup produced no run directory — nothing discarded'"
 sleep "$gap"
 
-log "$pairs pairs at $tier — $iterations iterations, $users users, ${gap}s between runs$($pooled && printf ', karate arm POOLED')${control:+, CONTROL=$control ($karate_arm vs $plain_arm)}$($tls && printf ', TLS')"
+log "$pairs pairs at $tier — $iterations iterations, $users users, ${gap}s between runs$($pooled && printf ', karate arm POOLED')${control:+, CONTROL=$control ($karate_arm vs $plain_arm)}$($tls && printf ', TLS')${body_size:+, BODY ${body_size}B}"
 for ((pair = 1; pair <= pairs; pair++)); do
     # Alternate which arm leads. Any drift over the matrix — thermal, neighbour,
     # the mock's own sleep overshoot — then loads the two arms equally instead of
@@ -200,9 +211,9 @@ if [[ -n "$label" ]]; then
     log "parking this matrix's runs under $label/"
     kp_ssh "$injector_ip" "cd ~/karate/karate-profiling/target/profiling
         mkdir -p '$label'
-        find . -maxdepth 1 -name 'gatling-http-*' -newer '$marker' -exec mv {} '$label'/ \;
+        find . -maxdepth 1 -name '$family-*' -newer '$marker' -exec mv {} '$label'/ \;
         rm -f '$marker'
-        echo \"  \$(ls -1d '$label'/gatling-http-* | wc -l) runs in $label/\""
+        echo \"  \$(ls -1d '$label'/$family-* | wc -l) runs in $label/\""
 else
     kp_ssh "$injector_ip" "rm -f ~/karate/karate-profiling/target/profiling/$marker"
 fi

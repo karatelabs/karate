@@ -64,8 +64,8 @@ public final class Compare {
     }
 
     /** Requests each arm's client makes per iteration, and the users driving them, from the run. */
-    record Run(Path dir, String arm, int tierMillis, boolean tls, String variant, int users,
-               long iterationsRequested,
+    record Run(Path dir, String arm, int tierMillis, boolean tls, String variant, int bodyBytes,
+               int users, long iterationsRequested,
                long served, double servedPerSecond, double sleepMicrosMean, long peakInFlight,
                long distinctPeerPorts, long ko, double injectorCores, double windowSeconds,
                double p50, double p99, int cpus) {
@@ -86,7 +86,8 @@ public final class Compare {
          * variant belongs to the {@link Pair}, not to the arm — see {@link Pair#shape()}.
          */
         String armShape() {
-            return tls ? "TLS" : "plaintext";
+            return (tls ? "TLS" : "plaintext")
+                    + (bodyBytes > 0 ? ", " + bodyBytes + "-byte body" : "");
         }
 
         /**
@@ -439,6 +440,10 @@ public final class Compare {
                 (int) LoadProfile.mockNumber(mockConfig, "latencyMillis"),
                 mockConfig != null && mockConfig.contains("\"tls\":true"),
                 variant(name),
+                // Absent for every run before the body-size tier existed, and for every run that
+                // does not use it — which is the 34-byte default, so 0 reads as "the payload every
+                // published figure was measured against".
+                (int) Math.max(0, row(digest, "body bytes")),
                 (int) row(digest, "threads"),
                 (long) rowIterations(digest),
                 (long) LoadProfile.mockNumber(mockStats, "served"),

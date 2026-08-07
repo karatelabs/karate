@@ -438,6 +438,16 @@ public final class JfrDigest {
         md.append("\n\n");
     }
 
+    /** The value of a {@code -Dkey=value} in the child's command line, or null if it is absent. */
+    private static String flagValue(java.util.List<String> command, String prefix) {
+        for (String argument : command) {
+            if (argument.startsWith(prefix)) {
+                return argument.substring(prefix.length());
+            }
+        }
+        return null;
+    }
+
     private static void appendRunSummary(StringBuilder md, Path runDir, RunInfo info) {
         RunShape shape = info.shape();
         md.append("## Run summary\n\n");
@@ -450,6 +460,12 @@ public final class JfrDigest {
         row(md, "bound", shape.isDurationBounded()
                 ? "duration=" + RunShape.format(shape.duration())
                 : "iterations=" + shape.iterations());
+        // Only when the body-size tier is in use. An absent row means the default 34-byte payload,
+        // which is what every figure published before this tier existed was measured against.
+        String bodyBytes = flagValue(info.command(), "-Dkarate.profiling.bodyBytes=");
+        if (bodyBytes != null) {
+            row(md, "body bytes", bodyBytes);
+        }
         // Only claim exclusion when the recording was actually delayed. A warmup under JFR's
         // one-second delay floor gets no delay, and a self-driving workload runs no warmup at
         // all, yet this row asserted "excluded" for both.

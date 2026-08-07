@@ -1324,8 +1324,31 @@ asymmetry is documented in `HttpPlainFatSimulation` and errs the same way: Karat
 `match response == { ... }` is a *closed* match that also rejects extra keys and compares `age` as
 a number, while the fat control's three `jsonPath` checks are open and compare it as text.
 
-**The body-size tier named here does not exist** — no workload or knob varies the response size.
-Either build one or drop the clause; it is the only part of this experiment that is not runnable.
+**The body-size tier is now built** — `--body-size N`, and the `gatling-body-*` family.
+
+```bash
+for size in 1024 8192 65536; do
+  etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 \
+      --body-size $size --label 50ms-body-$size
+  etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 \
+      --body-size $size --control fat --label 50ms-body-$size-fat
+done
+```
+
+**The tier is a slope, not a cell.** Every published figure was measured against a 25-byte request
+and a ~34-byte response; real APIs return kilobytes. The question is not the level of the deficit
+but whether it *scales* — if Karate's per-iteration cost grows with body size faster than plain
+Gatling's, "+1.89 ms/iteration" is a property of that tiny payload. One size answers nothing; run
+several and read the trend. `compare` buckets on the recorded body size, so two sizes cannot be
+averaged together, and a `gatling-body-*` run without `--body-size` is refused rather than
+producing an ordinary-payload cell under a body-tier name.
+
+**Run `--control fat` at each size, and treat it as load-bearing rather than optional here.** The
+Karate arm's closed match deep-compares the padding; the plain reference reads three small fields
+and never touches it. That is the idiomatic form of each, but it means a rising deficit has two
+possible causes with opposite implications — Karate handling more of the response, or simply the
+cost of checking a large field. `gatling-body-plain-fat` checks the padding too, which tells them
+apart. Without it the trend is not attributable.
 
 #### Pooling in karate-gatling — shipped, with one thing still open
 
