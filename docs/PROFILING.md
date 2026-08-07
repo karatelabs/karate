@@ -1227,7 +1227,8 @@ A/B could only measure pooling's *floor*. A saved TLS handshake is 2 RTT plus as
 Cheap add-on, same bench: run the cell at **8 and 32 users** (half the measured knee of 64). That
 covers "does it hold at density" without a separate workstream.
 
-*Needs:* a TLS tier on `LatencyMock` and a self-signed cert.
+*Built.* `matrix.sh --tls`, plus `--mock-tls` for a forked mock. Both arms reach it and the digest
+carries `tls`, so a TLS cell and a plaintext one stay tellable apart afterwards.
 
 #### 2. A Gatling soak over HTTP — the only open leak question
 
@@ -1236,8 +1237,9 @@ descriptor count. This is the one that closes the leak question for the classes 
 it cannot be run today because the `gatling-*` workloads take an iteration count rather than a
 duration.
 
-*Needs:* `--duration` for the `gatling-*` workloads (`during()` in the injection profile). Small,
-and it is the single highest-value unbuilt thing in this document.
+*Built.* `--duration` becomes `during()` in the injection profile, and `Child` marks the run
+truncated and exits non-zero if the elapsed time misses the window — a self-driving workload owns
+its own clock, so nothing else can tell whether it honoured one.
 
 #### 3. The equivalence controls — what makes the number defensible
 
@@ -1250,20 +1252,23 @@ that assumption has never been tested — it is the first thing a sceptical read
 it is wrong the deficit is wrong in an unknown direction. This converts a measurement into a
 result.
 
-#### The one piece of engineering, not an experiment
+*Built.* `matrix.sh --control fat` and `--control lean`, which wire each variant against the right
+partner. Karate is the arm doing more today, so the published deficit is an **upper** bound.
 
-**Ship the pooled factory into karate-gatling.** Move `PooledHttpClientFactory` there, make it
-opt-in on `KarateProtocolBuilder`, and give it a shutdown hook — karate-gatling has no
-simulation-end lifecycle hook today, which is the only real build in it. Key the pool on the
-**connection**-relevant settings only (the 9 SSL fields plus the two timeouts), not on everything
-a client is built from, or two scenarios differing in an unrelated setting get separate pools.
-Cap the number of pools and fall back to unpooled on overflow rather than evicting: evicting a
-connection manager can close connections that are still leased.
+#### Pooling in karate-gatling — shipped, with one thing still open
 
-Not karate-core's default. A pooled client cannot honour per-scenario `configure ssl` or
-`configure connectTimeout`, because those are set on the connection manager.
+**Built.** `KarateProtocolBuilder.pooledConnections()`, closed at simulation end through
+`ActorSystem.registerOnTermination` — the hook Gatling's own `HttpEngine` uses, and *not*
+`ProtocolComponents.onExit`, which fires per virtual user and would close a shared pool while other
+users were still on it. karate-profiling drives the shipped class rather than a copy, so the soak
+exercises what users run.
 
-*Do this before experiment 2*, so the soak exercises what users will actually run.
+**Still open, and it is what would let pooling be a default anywhere.** A pooled client cannot
+honour a scenario's `configure ssl` or `configure connectTimeout` and ignores them *silently*.
+Both live on the connection manager, and neither `HttpClientFactory.create()` nor
+`ApacheHttpClient.sharedConnectionManager()` receives the configuration — so the factory cannot
+warn about the conflict, nor keep one pool per distinct connection configuration. Widening that
+seam is the prerequisite for either.
 
 #### Retired — deliberately not scheduled
 
