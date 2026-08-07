@@ -106,7 +106,12 @@ export KARATE_PROFILING_ENV=~/somewhere/private/karate-ec2.env
 etc/ec2/provision.sh                                   # ~1 min
 etc/ec2/bootstrap.sh                                   # ~3.5 min
 etc/ec2/calibrate.sh --tier 10ms                       # §10 step 1 — establishes the
-                                                       # mock's envelope on THIS machine
+                                                       # mock's envelope on THIS machine.
+                                                       # Archived to $KP_RESULTS as
+                                                       # calibration-<tier>-<stamp>.txt: it
+                                                       # fixes the knee every cell is chosen
+                                                       # against, so it is evidence, and it
+                                                       # used to exist only on your terminal
 etc/ec2/matrix.sh --tier 10ms --pairs 10 --iterations 4000 --users 8
 etc/ec2/collect.sh                                     # pulls digests, prints the table
 etc/ec2/teardown.sh                                    # ← do not skip
@@ -149,6 +154,13 @@ lives on no branch and no stash, and "push it to main first" is not an option fo
 
 **Publish numbers from a named commit.** `--sync` is for iterating; when a result is going
 into a table, push it, `--rebuild`, and let the build stamp name the commit.
+
+The stamp is recorded for you, in both places that matter: `run-meta.txt` carries
+`build: <sha>`, and `digest.md` echoes it in the run summary — the latter being the one
+`profiler compare` can see, since it reads digests and nothing else. A tree with uncommitted
+changes is marked `+DIRTY`, which is the case that most needs saying: the sha alone would name
+a build that is not the one that ran. Runs taken before the stamp existed have no build line at
+all, so a comparison reaching back past them stays undecidable — say so rather than assuming.
 
 ### 4.4 matrix
 
@@ -248,10 +260,25 @@ line carrying it, so "is the child alive" answers yes forever. Use `ps -eo etime
 
 ### 4.6 collect
 
-Pulls `digest.md`, `run-meta.txt` and `mock.log` — not recordings. A `run.jfr` is up to
-512 MB and the digest is kilobytes; pull a recording by hand when you actually intend to run
-§5's `jfr` recipes on it. Then it runs `etc/run.sh compare` locally, which reads digests and
-does not care which machine produced them.
+Pulls `digest.md`, `run-meta.txt`, `mock.log` and any archived `calibration-*.txt` — not
+recordings. A `run.jfr` is up to 512 MB and the digest is kilobytes; pull a recording by hand
+when you actually intend to run §5's `jfr` recipes on it. Then it runs `etc/run.sh compare`
+locally, which reads digests and does not care which machine produced them.
+
+**It fails closed, and the exit code is now worth reading.** The parent writes `digest.md`
+*after* the child exits, so a collection triggered by the child going away can copy everything
+rsync was asked for and still miss the one artifact the run existed to produce — a one-hour soak
+did exactly that, and returned 0. A digest count cannot catch it, because older digests conceal
+one missing new one. So collect compares *sets*:
+
+| condition | what happens |
+|---|---|
+| the injector has a `digest.md` this machine does not | **fatal** — the copy dropped it, which is never a timing artifact |
+| a run directory has no digest **and a `Child` is running** | a note; collecting mid-matrix is supported |
+| a run directory has no digest **and nothing is running** | **fatal** — either the parent has not finished, or it died and the run dies with the host |
+
+A non-zero exit here means **do not tear down**. It is the check `teardown.sh --force` cannot
+make for you.
 
 ---
 

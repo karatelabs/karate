@@ -8,17 +8,45 @@
 > the *expected* one. Judgement lives with the reader, and last-known numbers live in
 > [Current baseline](#6-current-baseline) below.
 >
-> §8 records what the parallel-execution memory investigation settled. §9 is the mixed bag: what
-> was deliberately **not** built and why, *and* the finished pieces whose measurements belong next
-> to the parked ones — each headed "— built". §10 is the Gatling parity instrument and the answer
-> it produced. Read all three before re-opening anything: several things that look like obvious
-> wins are parked there *on evidence*.
+> §8 records what the parallel-execution memory investigation settled. §9 holds results, and what
+> was deliberately **not** built and why. §10 is the Gatling parity instrument. Read them before
+> re-opening anything: several obvious-looking wins are parked there *on evidence*.
 >
-> **If you are here to run something, go straight to
-> [§9's ordered list](#the-remaining-plan--three-experiments-and-what-they-close).** That is the steering
-> surface and it is kept current; this header is not a second one. The two-host bench and both
-> parity tiers are **settled — do not redo them**. The bench itself is automated end to end in
-> **[PROFILING_EC2.md](./PROFILING_EC2.md)**: provision, bootstrap, run, collect, tear down.
+> **If you are here to run something, go to [§9](#9-results-and-what-is-parked-behind-them).**
+> The bench is automated end to end in **[PROFILING_EC2.md](./PROFILING_EC2.md)**.
+
+---
+
+## 0. Executive summary
+
+**The question:** at a realistic API latency, is karate-gatling as good as vanilla Gatling?
+
+**The answer, as of 2026-08-07 (build `745a408`, two-host EC2 bench, `c7g.4xlarge`, 50 ms
+injected latency, pooled connections, 0 KO in every cell):**
+
+| | |
+|---|---|
+| **Karate's cost over TLS** | **+1.46 ms per two-request iteration — a 1.4% throughput deficit** (sd 0.09, n=10, 8 users) |
+| **Does TLS make it worse?** | **No detectable relative penalty once connections are pooled.** TLS − plaintext = −0.016 ms, SE 0.038, Welch 95% ≈ −0.09 to +0.06. TLS costs *both* clients CPU; it does not widen the gap in wall clock |
+| **Is the comparison fair?** | **Yes.** Making vanilla Gatling do more (fat control, +1.49) and Karate do less (lean, +1.43) both leave it at 1.4% |
+| **Does it scale with payload?** | **Yes, sub-linearly.** 1 KB +1.55 → 64 KB +2.42 (2.3%). Against the fat control the slope is +0.59 ms over 64×, ~9 µs/KB |
+| **At 32 users** | +1.02 (sd 0.27), 1.0% — but density and run length are confounded in that cell; see the follow-ups |
+| **Does the pooled Gatling lane leak?** | **No detectable heap or descriptor leak** over 1 h / 1.36 M iterations: live set −2.3 MB, fds flat 233→234, 0 closed by the probe's GC |
+
+**The capacity axis is worse than the latency axis, and 1.4% does not describe it.** Karate burns
+**1.57× the CPU per iteration at 8 users and 1.94× at 32**. Below saturation that never reaches
+the wall clock; at an injector's ceiling it means roughly half the virtual users per host.
+
+**What is NOT established.** No measurement against a real public endpoint at a real RTT. No
+open-loop / overload behaviour — every cell is closed-loop, so its knee is optimistic by
+construction. No leak result for the **unpooled** path, which is where the original
+client-lifecycle defect lived and which is karate-core's default for functional suites. **And no
+soak of a large Runner suite with HTML reporting on** — the Gatling lane gates step capture off,
+and `call-accumulation` / `feature-spread` cannot be soaked because they drive their own
+concurrency. That is the largest remaining gap.
+
+Full write-up of the 2026-08-07 session, with every table and its caveats, is kept privately
+alongside the artifacts; §9 carries the durable conclusions.
 
 ---
 
@@ -236,170 +264,37 @@ of measurement. `-Dkarate.profiling.reportCost=true` additionally attaches a lis
 times each report operation per feature and prints whether a single writer thread could keep
 up with the suite — see §8.
 
-### Leak-watch family — NOT BUILT, and it is the biggest gap in this document
+### Leak-watch family — the leak question, and what is still open
 
-**"Does Karate leak?" is not answered.** What is answered is narrower and worth separating,
-because the difference decides what a soak would even be looking for:
+**Status: the Gatling-lane, pooled-HTTP case is answered; two cases are not.** Separating them
+matters, because it decides what another soak would even be looking for.
 
 | | Status |
 |---|---|
-| Retention that grows with **suite size** | **Fixed and verified** — §8 found two real mechanisms (call-result accumulation, the report-writing queue) and peak heap is now flat across a 4x scale sweep. |
-| One feature holding thousands of scenarios, reports on | **Known-unbounded, accepted** — still linear, §6. Not a leak: it is retention by design until suite end. |
-| A slow leak over **hours** | **Measured — no leak found**, on one workload. The first real soak ran an hour and 35.7M executions; the live set is flat. The detector that said otherwise was wrong, and is fixed. |
+| Retention that grows with **suite size** | **Fixed and verified** — §8 found two real mechanisms (call-result accumulation, the report-writing queue); peak heap is flat across a 4x scale sweep |
+| One feature holding thousands of scenarios, reports on | **Known-unbounded, accepted.** Not a leak: retention by design until suite end. See [per-scenario spill](#per-scenario-spill--designed-reviewed-deliberately-not-built) |
+| A slow leak over hours, **pooled Gatling HTTP** | **Answered 2026-08-07 — none detected.** 1 h, 1.36 M iterations, live set −2.3 MB, descriptors flat, 0 closed by the probe's GC ([§9](#9-results-and-what-is-parked-behind-them)) |
+| The **unpooled** client path | 🔴 **Open.** Where the original defect lived, and karate-core's functional-suite default |
+| A large Runner suite with **reports on** | 🔴 **Open, and not currently soakable** — see §9 |
 
-#### The first soak, and the false positive it produced
+#### The false positive every soak walks into by construction
 
-`scope-capture-bound --duration 1h --threads 8 --soak --gc-roots`, Graviton3: **35,671,234
-iterations, 0 errors, `elapsedMs=3600006`** — six milliseconds over the requested window.
+The first soak (`scope-capture-bound`, 1 h, 35,671,234 iterations, 0 errors) showed a
+heap-after-GC floor rising 11.4 → 27.8 MB, monotonically. That reads exactly like §4's *rising
+floor → retention*, and it was recorded here as a leak. **It was not one.**
 
-The heap-after-GC floor rose 11.4 → 27.8 MB, monotonically, without decelerating. That reads
-exactly like §4's *rising floor → retention*, and it was recorded here as a leak. **It is not one.**
+> All **104,980** collections in that hour were `G1 Evacuation Pause` — young-generation only.
+> Nothing ever collected the old generation, so promoted garbage accumulated there: with
+> `-Xmx768m` against a ~7 MB live set, G1's occupancy threshold (~345 MB) is never approached, so
+> no cycle starts. **The floor was measuring promoted garbage** — it would have climbed
+> identically with nothing leaked. Class histograms after forced full GCs put the true live set at
+> 7.8, 8.6, 7.2, 7.2 MB: flat, ending below where it started.
 
-> All **104,980** collections in that hour were `G1 Evacuation Pause` — young-generation only. No
-> concurrent cycle, no mixed, no full GC. Nothing ever collected the old generation, so promoted
-> garbage accumulated there. With `-Xmx768m` against a ~7 MB live set, G1's occupancy threshold
-> (~45%, so ~345 MB) is never approached, so no cycle ever starts. **The floor was measuring
-> promoted garbage** — it would have climbed identically with nothing leaked.
-
-Class histograms after forced full GCs put the true live set at **7.8, 8.6, 7.2, 7.2 MB** — flat,
-ending below where it started, total delta negative.
-
-**This is a trap a soak walks into by construction**: long run, heap far above the working set, a
-collector with no reason to touch the old generation. Any harness reading "heap after GC" and
-calling a rise a leak will report one. Hence:
-
-- **`--soak` runs a live-set probe** — forces a full collection every five minutes and records what
-  survived, rendered as *Live set (after forced full GC)*, the leak panel. Every reading carries
-  proof its collection happened: `System.gc()` is a **no-op under `-XX:+DisableExplicitGC`**, and a
-  probe that assumed otherwise reported 48 → 96 MB on a live set flat at ~10 MB. The digest refuses
-  a series whose collections did not run, and the child warns at startup about that flag and about
-  `-XX:+ExplicitGCInvokesConcurrent`, which breaks it undetectably.
-- **The digest refuses the bad inference** — a run whose collections were essentially all young-only
-  says so inside the heap-after-GC panel and points at the live-set panel.
-
-**Scope.** One workload, no retention over an hour at ~9,900 iterations/s. It makes **zero HTTP
-calls**, so it says nothing about the client or descriptor classes. What it shares with the Gatling
-lane is a fresh `Suite` per iteration — that hypothesis is what this clears, for this shape only.
-
-#### These are two different questions, and the second is untouched
-
-**A long Runner suite** — thousands of scenarios in one JVM, one `Suite`. A leak here grows with
-scenario count and is what §8's work was about. This is the better-understood lane, and a soak is
-mostly confirmation.
-
-**Gatling** — hours of execution, and **a fresh `Suite` per virtual-user iteration** against a
-thread pool that lives for the whole simulation. Anything retained per `Suite`, or anchored to a
-carrier thread, accumulates across hundreds of thousands of executions. **Nothing has ever looked
-at this**, and it is the more likely place for a real leak precisely because the object churn is
-per-execution rather than per-suite.
-
-Three candidates to test there — **hypotheses, not findings**, listed so a soak knows where to
-point `--gc-roots`:
-
-- `Suite` holds two **instance** `ThreadLocal`s (`threadListeners`, `currentLane`,
-  `Suite.java:138,153`). A new Suite per execution means a new ThreadLocal object per execution,
-  each leaving an entry in the ThreadLocalMap of every Gatling thread that touched it. The keys
-  are weak and cleanup is opportunistic, so this is usually self-limiting — but the *values* are
-  held until that cleanup runs, and one of them is a listener list.
-- `LogContext` holds **static** `ThreadLocal`s (`CURRENT`, `PENDING`, `LogContext.java:43,258`).
-  Static plus a long-lived pool means anything not explicitly removed at the end of an execution
-  stays reachable from the thread that ran it.
-- The caches karate-gatling **deliberately** shares across virtual users (`callSingleCache`,
-  `callOnceCacheStore`, injected via `Runner.Builder`). These are designed to outlive a Suite and
-  are bounded by distinct keys — worth confirming that is actually true rather than assumed.
-
-#### What it needs first
-
-**`--duration` IS supported for the `gatling-*` workloads** — it becomes `during()` in the
-injection profile (`SimShape.loop`). Note `--soak` is what enables the live-set probe, so a long
-run without it produces a healthy-looking result and no leak instrument at all.
-
-**And the claim that "the Runner lane already takes `--duration` and could be soaked today" was
-false for three separate reasons, all now fixed.** Each failed silently, which is why the sentence
-survived so long:
-
-1. **`--duration` truncated every long run to `threads x 30s`.** `Child.drive()` joined each worker
-   with a flat 30-second timeout, in a loop over the workers. A `--duration 7h` soak at 8 threads
-   ran for **four minutes**, exited 0, and wrote a clean digest whose only tell was
-   `elapsedMs=240007`. The join is now one deadline for the whole loop, derived from the window,
-   and covered by a regression test that fails at 8 s where the fix costs 1.2 s
-   (`ChildDriveTest`) — the original bug degrades *proportionally to thread count*, so it looks
-   fine in every short run and only bites where verification is expensive.
-
-   A run with workers still alive at the deadline now carries `truncated=true` in the machine-read
-   summary line, renders as **TRUNCATED** in the digest's outcome row, and **exits non-zero**. The
-   first version of this fix printed a warning to stdout and stopped there, which is not a signal:
-   on an eight-hour soak it is one line among thousands, and a truncated run's `elapsedMs` is
-   `window + grace`, which passes a glance. `completed` also no longer counts stragglers — it
-   counted iterations *claimed*, overstating the run at the one moment its numbers are least
-   trustworthy.
-2. **`call-accumulation` and `feature-spread` cannot be soaked at all.** Both declare
-   `drivesOwnConcurrency`, so `Child` runs one pass and ignores `--duration`. The soakable Runner
-   workloads are the **scope-capture pair** and `harness-smoke`.
-3. **The recording could not span a soak.** See [`--soak`](#soak-mode--what-a-multi-hour-recording-has-to-drop).
-
-**What to soak, and why it is better than it looks.** `scope-capture-bound` runs
-`FeatureWorkload.iterate()`, which calls `Runner.runFeature()` — **a fresh `Suite` per
-iteration**, which is exactly what `KarateExecutor` does under Gatling. So it exercises the
-Suite-per-iteration hypothesis below **without** the HTTP client's file-descriptor confound, and
-is therefore *not* blocked on the client-lifecycle fix. **Read that last clause narrowly**: it is
-unblocked because this workload makes *zero HTTP calls*, which also means it cannot observe
-HTTP-client or file-descriptor retention **at all** — and that is the leak class most plausibly
-attached to the Gatling lane's long-lived pool. It also runs with a null `PerfHook` and no
-log-replay buffers, both of which are live in the Gatling path. A flat floor here clears the
-Suite-per-iteration hypothesis and nothing else.
-
-**Prefer iterations over wall-clock when choosing a length.** The named suspects below are all
-per-*execution*, so they scale with iteration count, not time. At ~9,500 iterations/s an hour is
-~34 million executions — far more than any real suite or Gatling run, and enough that a 10-byte
-per-iteration leak would show as ~340 MB against a 768m heap.
-
-That is a heuristic, not a theorem, and it is worth knowing where it bends. At 9,500 it/s the JVM
-runs ~30 young collections a second — a regime no real suite is in. Tenuring, promotion and
-`OldObjectSample`'s age-based sampling all behave differently under that compression, so a
-retention bug whose trigger is *promotion* rather than *allocation count* can present differently
-here than it would over hours at a realistic rate. Compressing time buys iterations cheaply; it
-does not make a long run redundant.
-
-One prerequisite is now met: a soak needs a server that stays stable for hours without
-saturating, and `LatencyMock` ([§10](#10-the-latency-mock-and-what-the-parity-matrix-found)) is
-that — it reports its own in-flight and service time, so "the mock degraded" cannot be mistaken
-for "the client leaked".
-
-**Two more are not, and both are about sockets rather than heap.** A Gatling soak run today would
-measure them instead of Karate:
-
-- **The per-execution HTTP client is never closed.** *(Fixed 2026-08-07 — `HttpClientFactory.release()`
-  is called at scenario end, and `apply()` no longer rebuilds a client whose config did not change.
-  Kept because the paragraph explains what the sockets did and why the soak was blocked on it.)*
-  `ApacheHttpClient.close()` exists and nothing
-  in the repository calls it, so every execution abandons its client, its connection manager and
-  its pooled socket to the collector — sockets close when cleaners run, at a time no test controls.
-  A file descriptor is not heap, so the heap-after-GC floor cannot see this at all.
-- **The ephemeral-port ceiling is ~550 connections/second** (§10), and the karate arm opens one
-  connection per iteration — measured, not assumed. Which tiers that rules out depends on the tier,
-  and the two numbers are worth keeping straight: at 10 ms the arm offers **263 conn/s**, under the
-  ceiling, so a soak there is not obviously doomed; at 0 ms it offers **~4,200 conn/s**, eight times
-  it, and a duration run there exhausts the range in seconds. **But the first number is only safe
-  if the sockets are actually released**, and the bullet above says they are not — a connection the
-  collector has not got to yet still holds its port, so port *occupancy* at 263/s is bounded by GC
-  timing rather than by TIME_WAIT. That is the real reason to fix the lifecycle before soaking, and
-  it is why the 10 ms tier's headroom cannot be taken on the arithmetic alone. Apply the port
-  sysctl in §10 either way, and watch the port count rather than assuming it.
-
-Fix the lifecycle — close at scenario end, or pool per virtual user — before reading any soak
-number from this lane.
-
-The workload shape to build is a realistic one, not a microbenchmark: `karate-config.js` doing a
-call, `callSingle`, `callonce` in `Background`, `call read()` with an args object, JS function
-defs, HTTP against the forked mock, `match` assertions — plus thin single-mechanism variants
-(`leak-callonce`, `leak-callsingle`, `leak-shared-scope`, `leak-isolated-scope`) so a rising floor
-can be attributed rather than just observed. v1's
-`examples/profiling-test/src/test/java/perf/{main,called,mock}.feature` is the shape to copy.
-
-*Healthy result:* a **flat** heap-after-GC floor across the whole run, at any sawtooth amplitude
-(§4). Run it long enough that a floor has a slope — hours, not seconds — and read the floor, not
-the peak.
+The 2026-08-07 Gatling soak reproduced the same shape (+11.0 MB, 116%, with 10,140 of 10,170
+collections young-only) and it was again not a leak. **Long run, heap far above the working set, a
+collector with no reason to touch the old generation — read the live set after a forced full GC,
+never the floor.** That is what `--soak`'s live-set probe now samples, and `LiveSetPanelTest`
+pins that the panel can actually report a rise.
 
 ### The bound-scope-capture pair — regression guard
 
@@ -832,7 +727,7 @@ granted:
 |---|---|
 | **Fixed and verified** | Parallel-execution *memory* on ordinary suite shapes: call-result retention (flat across a 4x scale sweep) and the report-writing queue (~4.5x → ~1.3x, wall-clock fell). The external reproducer passes at `-Xmx768m`. |
 | **Measured, known-unbounded, accepted** | One feature holding thousands of scenarios, with reports on — still linear (502 / 1108 / 2079 MB). Only per-scenario release changes the slope, and §9 records why that was not built. |
-| **Never measured** | Soaks — "does Karate leak over hours". Every workload is an iteration-bounded reproduction finishing in seconds, so this is unverified rather than verified, **in both lanes**. The Gatling lane is entirely untouched and is the more likely place for one, because it builds a `Suite` per iteration against a long-lived thread pool. See [the leak-watch family](#leak-watch-family--not-built-and-it-is-the-biggest-gap-in-this-document) in §2. |
+| **Never measured** | Soaks — "does Karate leak over hours". Every workload is an iteration-bounded reproduction finishing in seconds, so this is unverified rather than verified, **in both lanes**. The Gatling lane is entirely untouched and is the more likely place for one, because it builds a `Suite` per iteration against a long-lived thread pool. See [the leak-watch family](#leak-watch-family--the-leak-question-and-what-is-still-open) in §2. |
 | **Never measured** | CPU inside scenario code *under a parallel Runner suite*. All of §8 is allocation and retention, and `jdk.ExecutionSample` is blind on virtual threads there (§7). It is **not** blind in the Gatling lane, which runs scenarios inline on a platform thread. |
 | **Measured, and scoped rather than settled** | Whether Karate's per-execution overhead distorts a load test. **It adds ~0.5–1 ms of serial time per iteration on machine A, and ~1.8 ms on a Graviton3 EC2 instance — the absolute figure is machine-specific and must always be quoted with its machine** (§10's two-host result)**.** — 2.1–2.4x throughput at 0 ms, **~2% at 10 ms**, and **unresolved at 50 ms, where the limit is the machine rather than the pair count**: six pairs leave a spread more than three times the effect, because a 0.5% deficit sits an order of magnitude under this laptop's 3–6% floor. Loopback, 8 users, closed loop, ~100-byte bodies, log capture off ([§10](#10-the-latency-mock-and-what-the-parity-matrix-found)). Read the qualifiers as load-bearing: it *shrinks* as a share of the iteration rather than disappearing, and none of it generalises to TLS, to larger bodies, or to the one connection Karate opens per iteration, which **scales with** the network instead of hiding inside it and which this harness prices at zero. It also scopes the *load-test* lane only: the ordinary-suite half of the parse-cache decision was never measured (§9). |
 
@@ -1177,284 +1072,218 @@ nested result tree was showing up as `StringUtils.pad` in the allocation profile
 
 ---
 
-## 9. The plan, and what is parked behind it
+## 9. Results, and what is parked behind them
 
-**The plan is the next subsection — read that and stop.** Everything after it is recorded so it is
-not re-derived from scratch, and none of it is scheduled.
+**This section is the steering surface.** Finished work is stated as a result and its plan text
+deleted; the code and git history record how it was built.
 
-Sections headed "— built" are finished work, kept here because §6 points at them and because each
-left something parked behind it: default log fidelity under Gatling, the per-scenario Logback level
-snapshot, exceptions on the happy path, and the built half of per-execution reading and parsing.
-The harness gained injector CPU in every digest, `profiler compare`, `--mock-url`, and per-host
-network limits — see [The two-host phase](#the-two-host-phase-what-is-built-and-what-it-is-for).
-Everything else below is a lead or a design, not code.
+### The three experiments — run 2026-08-07, all complete
 
-### The remaining plan — three experiments, and what they close
+One session, one pair of hosts, build `745a408`, 3h02m, ~$3.55. Every cell pooled, 0 KO
+throughout, and the karate arm's `distinctPeerPorts` equal to the user count in every run.
+Headline figures are in [§0](#0-executive-summary); what follows is only what a reader needs in
+order to argue with them.
 
-**This list is the steering surface.** It is what the next session reads first. Finished items are
-deleted rather than struck through; the code and git history record those.
+**Why pooled, and why that is the honest configuration.** `pooledConnections()` is what
+karate-gatling ships for a load test and the plain Gatling arm keep-alives already, so
+pooled-against-plain is the like-for-like comparison. The unpooled A/B is settled separately
+(~24% of Karate's overhead) and was not re-run. None of this says pooling should be karate-core's
+default for a functional suite — it should not.
 
-**The question the whole thread exists to answer:** *at a realistic API latency, is karate-gatling
-as good as vanilla Gatling?* Everything below is scoped to closing that and nothing else. The
-scope is deliberately **50 ms and above** — real APIs are slower than 10 ms, and that is where the
-answer matters.
+**1. TLS parity.** 8 and 32 users, 10 pairs each, over a TLS `LatencyMock`. The TLS calibration
+is what licensed those cells: the keepalive knee stayed at 64 (unowned mean flat at 0.26–0.28 ms
+to 32 users, departing to 0.461 with p99 2.22 at 64). It also prices a connection at **~2.7 ms
+over TLS against ~0.2 ms plaintext** — which is why pooling is decisive: the cost TLS imposes is
+per-connection, and pooling removes essentially all of them.
 
-#### Treat the next bench session as a first pass
+**2. Equivalence controls and the body tier.** `--control fat` swaps the *vanilla Gatling* arm
+for one checking all three response fields; `--control lean` swaps the *Karate* arm for a minimal
+extraction. Opposite directions, same 1.4% — which is what makes it a result rather than a
+coincidence. Note both arms already pay an O(size) parse, because Gatling's `jsonPath` parses the
+whole document before evaluating a path: the body slope is **not** "reads the bytes vs skips
+them", and must not be published as if it were.
 
-Sized at about **3 hours / $4**, deliberately. Findings that warrant a re-run are the likely
-outcome rather than the failure case, so the cells below buy the fastest honest answer rather than
-the most decisive one: 10 pairs only where the number gets published (experiment 1), 5 where the
-job is to bracket or to establish a direction, two body sizes rather than three, and a soak sized
-by iterations rather than by the clock. Spend the long runs on whatever the first pass makes
-interesting.
+One residual asymmetry, documented in `HttpPlainFatSimulation` and erring the same way: Karate's
+`match response == {...}` is a *closed* match rejecting extra keys and comparing `age` as a
+number, while the fat control's `jsonPath` checks are open and compare it as text. Karate does
+more, so the deficit is a conservative comparison — not a statistical upper bound.
 
-#### Where it stands
+**3. The soak.** 1 h at the 10 ms tier, pooled, 8 threads: 2,718,594 requests / 1,359,297
+iterations, 0 KO, `truncated=false`, child exit 0, 13/13 probes valid. Live set fell 2.3 MB;
+descriptors flat; **0 closed by the probe's GC** — the signature of an unreleased client, absent.
 
-**Settled, do not redo:** the two-host EC2 bench ([PROFILING_EC2.md](./PROFILING_EC2.md)); the
-50 ms tier (+1.90 sd 0.05, independently reproduced at +1.89 sd 0.04 on 2026-08-07); the
-pooled-connection A/B (below); HTTP client *release*; the `apply()` rebuild guard; and the soak
-instrument (`--soak`, live-set probe, descriptor count, digest integrity checks).
+10 ms rather than 50 ms deliberately: the leak is per-*execution*, so iterations are the exposure
+unit and 1 h at 10 ms is ~2× the exposure of 2 h at 50 ms, in half the time.
 
-**The harness itself was exercised end to end on 2026-08-07** — provision, bootstrap, calibrate
-(plaintext and TLS), all five matrix shapes, a duration-bounded soak, collect, compare, and the
-teardown guard, in a 46-minute bench session costing about $0.89. **Every one of the three
-experiments below had at least one blocking defect, and none of them was visible without running.**
-The TLS matrix could not attach to its own mock; `--soak` started no leak probe for any
-`gatling-*` workload; `compare` refused to pair the equivalence controls; `--duration` truncated
-below a second; `collect.sh` reported failure after succeeding. Treat a script that has not been
-run since it was last edited as unproven — that is five for five.
+🔴 **Two traps this run reproduced, both worth knowing.** The digest's *Heap after GC* panel
+reported **+11.0 MB (116%) drift** — the exact shape of a previously retracted false leak. It is
+an artifact twice over: its first sample is at 0 s on a cold JVM (9.4 MB, against 26.1 at 182 s
+and falling after), and 10,140 of 10,170 collections were young-only. The live set, sampled after
+the probe's forced full GCs, is the authoritative series. And `collect.sh` returned 0 having
+silently omitted the soak's digest, because the parent writes it *after* the child exits — now
+fixed, see below.
 
-**The headline so far, at 50 ms:** Karate costs **+1.44 ms/iteration (1.4%)** pooled — the
-configuration karate-gatling ships for a load test — and +1.89 ms (1.8%) unpooled, sd 0.03–0.04,
-n=10 each. That A/B is **settled; do not re-run it.** Pooling is worth about 24% of Karate's
-overhead on plaintext, which is its floor. That is measured on **plaintext HTTP, same-AZ, one mock, small GET** — the three
-experiments below are what it takes to say it without those qualifiers.
+### What the soak does NOT cover
 
-**Two things are NOT established, despite sounding like they are.**
+- **The unpooled path.** In pooled mode the pool owns the sockets, so a missed release cannot
+  abandon one; the original defect's signature only manifests unpooled — which is also
+  karate-core's default for a functional suite. `fds`/`fdsAfterGc` was built for exactly that
+  case and this run pointed it where the failure mode structurally cannot occur. A ~15–30 min
+  unpooled soak at 10 ms would close it.
+- **Reporting.** The Gatling lane gates per-step capture off and writes no HTML report, so this
+  says nothing about a large Runner suite with reports on. See the next section — it is the
+  largest remaining gap.
 
-- **"No memory leak" is answered only for a workload that makes no HTTP calls.** The
-  `scope-capture-bound` soak (1 hour, 35.7M executions, live set flat at ~7 MB) says nothing about
-  the HTTP client and file-descriptor classes — which is where the defect actually was, since
-  clients were never released before this work. The fix is in and reviewed; it has never run under
-  sustained load. Experiment 2 is that.
-- **Pooling IS shipped** as of 2026-08-07 — `KarateProtocolBuilder.pooledConnections()`. What is
-  still open is narrower and is stated with it below: a pooled client cannot honour a scenario's
-  `configure ssl`.
+### 🔴 TODO — the reports-on suite soak (largest open gap)
 
-#### 1. TLS parity at 50 ms — the headline
+**The question:** does a long-running Karate *Runner* suite, with HTML reporting and per-step
+capture on, retain memory over hours? Nothing measured so far touches this.
 
-The pooled Karate arm against plain Gatling, over a **TLS** `LatencyMock`, 10 pairs, same session and hosts.
-This is the experiment the public-endpoint claim rests on, and the one where pooling should show
-most: on plaintext across a cluster placement group a saved connection is ~0.1 ms, which is why the
-A/B could only measure pooling's *floor*. A saved TLS handshake is 2 RTT plus asymmetric crypto.
+**Why nothing existing covers it:**
 
-Cheap add-on, same bench: run the cell at **8 and 32 users** (half the measured knee of 64). That
-covers "does it hold at density" without a separate workstream.
+| workload | HTTP? | reports? | soakable? |
+|---|---|---|---|
+| `gatling-http-karate` (the 2026-08-07 soak) | yes | **no** — the Gatling lane gates step capture off before the string is built | yes |
+| `scope-capture-bound` (the 1 h, 35.7 M soak) | **no** | no | yes |
+| `call-accumulation` / `feature-spread` | **no** | **yes**, via `-Dkarate.profiling.reports=html\|all` | **no** — both `drivesOwnConcurrency`, so `--duration` is refused at parse |
 
-*Built and run end to end on the bench (2026-08-07).* Both arms reach the TLS mock with **0 KO**,
-the digest carries `tls`, and `compare` buckets a TLS cell apart from a plaintext one so the two
-cannot be averaged together.
+**Yes, use the two-host EC2 bench — and that is a deliberate choice, not the default one.**
+`provision.sh --single` exists for soaks that need time and one JVM rather than the topology
+(`scope-capture-*`), and an idle second instance is real money for no measurement. This soak is
+*not* that case: **with capture on, the step log holds the rendered HTTP request and response
+text**, so the retention most worth watching is precisely the captured bodies. A no-HTTP suite
+cannot produce it, which is exactly why `call-accumulation` — reports-capable but HTTP-free —
+would answer a smaller question than the one being asked. So: two hosts, mock on the second,
+`--mock-url` pointed at it.
 
-```bash
-etc/ec2/calibrate.sh --tier 50ms --ramp 1,8,32,64 --per-user 100 --tls   # first, and not skippable
-etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8  --tls --pooled --label 50ms-tls-8u
-etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 6400 --users 32 --tls --pooled --label 50ms-tls-32u
-```
+**Harness work required first** (this is why it cannot simply be scheduled):
 
-**Pooled only, and that is a decision rather than a shortcut.** `pooledConnections()` is what
-karate-gatling ships for a load test, so it is the configuration the claim should be made about,
-and the plain arm keep-alives already — pooled-vs-plain is the like-for-like comparison. An
-unpooled arm answers a different question, *what does pooling buy*, and that one is already
-answered twice over: the plaintext A/B settled it at ~24% of Karate's overhead (n=10 each), and the
-TLS calibration prices a connection at ~2.7 ms against ~0.2 ms plaintext. An unpooled TLS matrix
-would confirm the calibration at the cost of a bench cell.
+1. A **Runner-lane suite workload that drives HTTP at the mock** — the existing suite workloads
+   make no HTTP calls, and the existing HTTP workloads are Gatling-lane.
+2. It must **honour `--duration`**, so it cannot drive its own concurrency the way
+   `call-accumulation` and `feature-spread` do — or those must be taught to respect the window.
+3. Run it with `-Dkarate.profiling.reports=html|all`; `html` is the shipped default and `all` is
+   what bounded reporting is specified against, so both are worth a pass.
 
-(Do not read karate-core's default into this. Pooling is not, and should not be, the default for a
-functional suite — see the pooling section below. These experiments are about karate-gatling.)
+**Reading it.** Same `--soak` instruments as the Gatling soak: live set after forced full GC, plus
+the descriptor count and the `closed by the probe's GC` row. Two cautions specific to this shape:
+read the **live set, never the heap-after-GC floor** (that floor rises from promoted garbage in
+both soaks run so far and meant nothing either time); and keep the suite **many features wide
+rather than one giant `Scenario Outline`**, because a single feature holding thousands of
+scenarios is *known*-unbounded by design — retention until suite end, not a leak — and would
+swamp the signal. That shape is the
+[per-scenario spill](#per-scenario-spill--designed-reviewed-deliberately-not-built) case.
 
-**`--iterations` is a TOTAL, not per-user** — `reps = ceil(iterations / users)`. Reusing 1600 at 32
-users would have given 50 reps per user against 200 at 8 users, a measured window four times
-shorter, and the density cell would have been noisier for a reason nothing in the output would
-show. 6400 keeps reps-per-user constant, which is what makes the two densities comparable.
+**Budget:** ~1 h of bench on two hosts (~$1.20) *after* the harness work, plus a short rehearsal
+with `-Dkarate.profiling.liveSetSeconds=20` to confirm the probe produces a series before
+committing to the full hour.
 
-**Two matrices, ~20 minutes each.**
+### Follow-ups, in priority order
 
-**If the TLS calibration knees below 64, the knee wins over these numbers.** 8 and 32 come from the
-plaintext knee; `calibrate.sh`'s own rule is to run at half the knee, and a TLS handshake per
-connection may move it. Read the calibration before committing to the cells.
+1. **Make collection fail closed — done 2026-08-07.** `collect.sh` now compares *sets*, not
+   counts: a digest present on the injector and missing locally is fatal; a run directory with no
+   digest is fatal when nothing is running and a note while a `Child` is alive. `etc/ec2/selftest.sh`
+   covers all six cases with no bench cost.
+2. **Provenance — done.** `run-meta.txt` has carried `build: <sha>` (with `+DIRTY`) since
+   `6e94645e3`, and `digest.md` now echoes it, which is the half that matters because `compare`
+   reads digests only. `calibrate.sh` now archives its table to `$KP_RESULTS`; it was previously
+   the one piece of evidence with no artifact.
+3. **8 users × 6400 iterations over TLS.** The clearest confound in the results: the 8- and
+   32-user cells differ in *both* density and total iterations, and per-iteration CPU fell on
+   both arms between them — the signature of a fixed per-run cost amortising. ~19 min at 5 pairs,
+   ~37 min at 10 (an 8u × 6400 run is an ~82 s window, not ~20 s).
+4. **A soakable reports-on suite workload**, per the gap above.
+5. **An unpooled soak**, to make the lifecycle claim cover the shape the defect lived in.
+6. A third body size (prefer 256 KB, ordinary and fat **interleaved**); a TLS cell at/above the
+   knee of 64; then open-loop arrival — as a separate experiment, after the closed-loop claims
+   are final, since it answers overload rather than steady-state parity.
 
-**What the TLS calibration already shows, and why this experiment should be decisive.** On the
-bench at 50 ms, `unowned mean` in *close* mode is **2.95–3.55 ms** against **0.29 ms** in
-keepalive — where the same measurement on plaintext is 0.40–0.50 ms against 0.23 ms. A connection
-costs roughly **2.7 ms** over TLS and roughly **0.2 ms** without it. Unpooled Karate opens one per
-iteration and makes two requests, and a single smoke pair measured **+9.31 ms/iteration** against
-plain Gatling over TLS versus **+2.69 ms** on plaintext. Those are two independent routes to the
-same story, which is the one the plaintext A/B could only bound from below.
+### What needs bench time — budget for a future session
 
-#### 2. A Gatling soak over HTTP — the only open leak question
+Costed so a session can be planned rather than discovered. Two `c7g.4xlarge` are **~$1.16/hr**;
+provision + bootstrap is ~6 min of every session before anything measures. Times below are the
+measurement itself.
 
-Two hours or more, watching the live set **and the file descriptor count**. This is the one that
-closes the leak question for the classes that matter — the HTTP client and its sockets, which the
-`scope-capture-bound` soak never touched.
+| | what it settles | bench time | ~cost |
+|---|---|---:|---:|
+| **8u × 6400 over TLS**, 5 pairs (10 if publishing the trend) | separates density from run length — the clearest confound in §0's table | 19 min / 37 min | $0.40 / $0.75 |
+| **Unpooled soak**, 10 ms, 8 users | makes the lifecycle claim cover the shape the original defect lived in, and the functional-suite default | 15–30 min | $0.30–0.60 |
+| **Reports-on suite soak**, two hosts | the largest gap: does a big Runner suite with HTML on retain? **Needs harness work first** — no current workload is both reports-on, HTTP-driving and soakable. See the TODO above | 1 h + build | ~$1.20 |
+| **256 KB body**, ordinary + fat **interleaved** | whether ~9 µs/KB holds or bends; only if payload scaling becomes a public claim | ~20 min | $0.40 |
+| **TLS at 64 users**, at/above the knee | whether the extra TLS CPU stops being absorbed by idle cores | ~20 min | $0.40 |
+| **Open-loop arrival** | overload behaviour — a *separate* question from steady-state parity | ~30 min | $0.60 |
 
-*Built, and the instruments verified by running (2026-08-07).*
+**Plus verification runs, which are not optional here.** Five scripts were found broken on
+2026-08-07 and not one was visible without running; the rule is that **a script not run since it
+was last edited is unproven.** Currently unproven and needing ~15 min (~$0.30) between them:
 
-**This needs the TWO-host bench, not `provision.sh --single`.** `PROFILING_EC2.md` §4.5 covers the
-single-host soaks (`scope-capture-*`, no mock, no HTTP); this one drives HTTP at a mock and needs
-the mock host, so `mock.sh start` refuses on a `--single` bench.
+| | why it is unproven |
+|---|---|
+| `bootstrap.sh --sync` mtime fix | rsync no longer preserves laptop mtimes and the build outputs are discarded before a sync build — but that path has not been exercised since the change. It is the path that silently measured un-shipped code once already |
+| `collect.sh` guard, BUSY branch | the fatal and clean paths were proven end to end on the bench; the "a run is in flight, so this is only a note" branch was proven by `selftest.sh` and by the probe in isolation, never in one live collect |
+| `matrix.sh` run identification | **not yet changed.** It uses a marker file plus `find -newer` to choose which directory to delete as the warmup victim and which to park. Same host and same clock, so it is only at risk from a backwards clock step — but it deletes data, and making it name-based instead of time-based would need a run to prove |
 
-```bash
-mock=$(etc/ec2/ssh.sh mock-private)
-etc/ec2/mock.sh start 10ms 8090
-
-# Pooled, because that is what karate-gatling ships for a load test. The property is
-# exactly what matrix.sh --pooled passes.
-etc/ec2/ssh.sh injector "cd ~/karate/karate-profiling && nohup etc/run.sh run gatling-http-karate \
-    --duration 1h --soak --threads 8 --mock-url http://$mock:8090 \
-    -Dkarate.profiling.pooled=true --timeout 90m > ~/soak.log 2>&1 &"
-
-# while it runs:
-etc/ec2/ssh.sh injector 'grep PROFILING-LIVE-SET ~/soak.log | tail -5'
-etc/ec2/collect.sh
-```
-
-**One hour, at the 10 ms tier, not two hours at 50 ms — and that is the more sensitive run, not a
-cheaper one.** What this experiment is hunting is a client retained per *execution*, so iterations
-are the exposure unit and wall time is only their proxy. At 8 users the 50 ms tier yields ~76
-iterations/s and the 10 ms tier ~320, so:
-
-| | iterations | wall | cost |
-|---|---:|---:|---:|
-| 2 h at 50 ms | 0.55 M | 2 h | ~$2.50 |
-| **1 h at 10 ms** | **1.15 M** | **1 h** | **~$1.20** |
-
-Twice the exposure, half the time. Use 50 ms only if the suspicion is a *time*-based retention — a
-scheduled task, a TTL cache — which nothing here points at.
-
-Pooled, because that is the configuration under test, and it is also the harder case for this panel
-to read: a pool holds descriptors deliberately, so the healthy shape is a flat NON-zero count and
-only a rising one is a finding. An unpooled soak would answer a question nobody is asking about
-karate-gatling.
-
-**If it comes back ambiguous, that is when you spend the long run** — overnight at 10 ms, or 50 ms
-if the shape suggests time rather than iterations. A first pass that ends in "re-run longer" has
-still done its job.
-
-
-
-Three things this needs, all of which were missing or broken until they were run:
-
-- `--duration` carries **milliseconds**, not seconds. It used to truncate, so any sub-second
-  window silently became one iteration per user while every log line still quoted the window.
-- The **live-set probe now runs on the self-driving path**. It was started only on the
-  iteration-bounded one, and every `gatling-*` workload is self-driving — so `--soak` on exactly
-  the workloads a soak is run with produced a digest with no leak panel at all, while the
-  retention panel still told you to read it.
-- The **file-descriptor count** is sampled by the same probe and rendered beside the live set.
-
-The probe interval defaults to 300 s. For a short rehearsal pass
-`-Dkarate.profiling.liveSetSeconds=20` so a few-minute run still produces a series.
-
-**Reading it:** a rising live set is retention. A rising descriptor count is a leaked socket, and
-it can happen with a flat live set. A flat non-zero descriptor count is healthy. The final reading
-is taken with the load stopped, so it drops — do not read that drop as a trend.
-
-#### 3. The equivalence controls — what makes the number defensible
-
-Two controls at 50 ms: **plain Gatling checking all three response fields**, and **Karate doing a
-minimal extraction**. Also a body-size tier, since Karate parses a JSON response that plain Gatling
-may only be reading past.
-
-Easy to skip and worth keeping. Every number above assumes the two arms do equivalent work, and
-that assumption has never been tested — it is the first thing a sceptical reader attacks, and if
-it is wrong the deficit is wrong in an unknown direction. This converts a measurement into a
-result.
-
-*Built and run on the bench (2026-08-07).* `matrix.sh --control fat` and `--control lean` wire each
-variant against the right partner, and `compare` reports each as its own table rather than folding
-it into the ordinary pair.
+The verification run itself, so it does not have to be re-derived — fold it into the *start* of
+the next session, before anything that produces a number:
 
 ```bash
-etc/ec2/matrix.sh --tier 50ms --pairs 5 --iterations 1600 --users 8 --pooled --control fat  --label 50ms-fat
-etc/ec2/matrix.sh --tier 50ms --pairs 5 --iterations 1600 --users 8 --pooled --control lean --label 50ms-lean
+etc/ec2/selftest.sh                       # free, no bench: the collect guard's six cases
+etc/ec2/provision.sh && etc/ec2/bootstrap.sh          # full bootstrap first: --sync implies
+                                                      # --rebuild and skips package install,
+                                                      # so it fails on a fresh host
+etc/ec2/bootstrap.sh --sync               # then sync. CHECK: the digest of the next run must
+                                          # carry `| build | <sha> +DIRTY |` — if it does not,
+                                          # the sync shipped source the build ignored
+etc/ec2/calibrate.sh --tier 10ms --ramp 1,4 --per-user 40 --settle 5s
+                                          # CHECK: $KP_RESULTS/calibration-10ms-*.txt exists
+etc/ec2/matrix.sh --tier 10ms --pairs 2 --iterations 400 --users 4 --label verify
+etc/ec2/collect.sh                        # CHECK: "every run on the injector has its digest here"
 ```
 
-Karate is the arm doing more today, so the published deficit is an **upper** bound. One residual
-asymmetry is documented in `HttpPlainFatSimulation` and errs the same way: Karate's
-`match response == { ... }` is a *closed* match that also rejects extra keys and compares `age` as
-a number, while the fat control's three `jsonPath` checks are open and compare it as text.
-
-**The body-size tier is now built** — `--body-size N`, and the `gatling-body-*` family.
+Then prove the guard actually fires, which is the whole point of it:
 
 ```bash
-for size in 1024 65536; do
-  etc/ec2/matrix.sh --tier 50ms --pairs 5 --iterations 1600 --users 8 --pooled \
-      --body-size $size --label 50ms-body-$size
-  etc/ec2/matrix.sh --tier 50ms --pairs 5 --iterations 1600 --users 8 --pooled \
-      --body-size $size --control fat --label 50ms-body-$size-fat
-done
+etc/ec2/ssh.sh injector 'mkdir -p ~/karate/karate-profiling/target/profiling/gatling-http-karate-2026-01-01-000000'
+etc/ec2/collect.sh; echo "exit=$?"    # MUST be 1, naming that directory
+etc/ec2/ssh.sh injector 'rm -rf ~/karate/karate-profiling/target/profiling/gatling-http-karate-2026-01-01-000000'
 ```
 
-**Two sizes, not three, and 5 pairs rather than 10.** The first question is binary — does the
-deficit scale at all — and two points 64x apart answer it. Curvature is a follow-up worth a third
-size only if the slope turns out to be real, and 5 pairs resolves an effect this size comfortably
-(the plaintext A/B needed 10 for a 0.45 ms effect; anything the body tier surfaces will be larger
-or it is not a finding).
+The one branch still unproven end to end is *pending + a live `Child`* → a note rather than a
+failure. Reproduce it by starting a `--duration 240s` run and collecting ~60 s in; both earlier
+attempts finished before the collect landed, so leave real margin.
 
-**Pooled, for the same reason as the other two** — the slope should be measured in the
-configuration that ships, and holding connection setup constant keeps it out of the slope.
+### Pooling in karate-gatling — shipped, with one thing still open
 
-**The tier is a slope, not a cell.** Every published figure was measured against a 25-byte request
-and a ~34-byte response; real APIs return kilobytes. The question is not the level of the deficit
-but whether it *scales* — if Karate's per-iteration cost grows with body size faster than plain
-Gatling's, "+1.89 ms/iteration" is a property of that tiny payload. One size answers nothing; run
-several and read the trend. `compare` buckets on the recorded body size, so two sizes cannot be
-averaged together, and a `gatling-body-*` run without `--body-size` is refused rather than
-producing an ordinary-payload cell under a body-tier name.
-
-**Run `--control fat` at each size, and treat it as load-bearing rather than optional here.**
-
-Be precise about what the arms differ in, because the obvious reading is wrong. Gatling's
-`jsonPath` **parses the entire document** before evaluating a path, and the plain arm does that
-twice per iteration — so it is *not* skipping the padding, it simply never *compares* it. Both arms
-pay an O(size) parse. What separates them is a deep comparison against an extraction, plus the fact
-that the Karate arm rebuilds the request each iteration by design.
-
-So: `fat − plain` prices one string comparison of the pad. `karate − plain` prices Karate's
-build-and-closed-match against Gatling's parse-and-extract. Neither is "reads the bytes" versus
-"skips them", and a slope must not be published as if it were. `--control lean` does not exist for
-this family and `matrix.sh` refuses it.
-
-#### Pooling in karate-gatling — shipped, with one thing still open
-
-**Built.** `KarateProtocolBuilder.pooledConnections()`, closed at simulation end through
+`KarateProtocolBuilder.pooledConnections()`, closed at simulation end through
 `ActorSystem.registerOnTermination` — the hook Gatling's own `HttpEngine` uses, and *not*
-`ProtocolComponents.onExit`, which fires per virtual user and would close a shared pool while other
-users were still on it. karate-profiling drives the shipped class rather than a copy, so the soak
-exercises what users run.
+`ProtocolComponents.onExit`, which fires per virtual user and would close a shared pool while
+other users were still on it. karate-profiling drives the shipped class, not a copy.
 
-**Still open, and it is what would let pooling be a default anywhere.** A pooled client cannot
+**Still open, and it is what would let pooling be a default anywhere:** a pooled client cannot
 honour a scenario's `configure ssl` or `configure connectTimeout` and ignores them *silently*.
 Both live on the connection manager, and neither `HttpClientFactory.create()` nor
-`ApacheHttpClient.sharedConnectionManager()` receives the configuration — so the factory cannot
-warn about the conflict, nor keep one pool per distinct connection configuration. Widening that
-seam is the prerequisite for either.
+`ApacheHttpClient.sharedConnectionManager()` receives the configuration — so the factory can
+neither warn nor keep one pool per distinct connection configuration. Widening that seam is the
+prerequisite.
 
-#### Retired — deliberately not scheduled
+### Retired — deliberately not scheduled
 
-Dropped because they do not move the question above, not because they were answered:
-the AST prototype A/B and [Parsed-JS reuse](#parsed-js-reuse--measured-half-gated-not-built)
-(micro-optimisation, and the largest *unmeasured* win here if that ever changes);
-mining [#845](#prior-art--the-09x-era-overhead-thread); the injector-health check
-([GATLING.md §14.12](./GATLING.md), designed not built); and the open-arrival / user-ramp lane
-beyond the density cell folded into experiment 1.
+Dropped because they do not move the question, not because they were answered: the AST prototype
+A/B and [parsed-JS reuse](#parsed-js-reuse--measured-half-gated-not-built) (the largest
+*unmeasured* win here, if that ever changes); mining
+[#845](#prior-art--the-09x-era-overhead-thread); the injector-health check; and the unpooled
+parity A/B, which is settled.
 
 **Also retired: the 10 ms baseline discrepancy.** It stood at +1.79 (sd 0.05, n=9) and measured
-+1.52 (sd 0.03, n=10) on 2026-08-07, and nothing stored can say which build produced which —
-`run-meta.txt` records no commit. It is retired rather than resolved because the thesis is now
-50 ms and above, where the figure reproduced cleanly across sessions. Do not quote a 10 ms number
-without reading this paragraph. If a cross-session comparison ever matters again, stamp the build
-commit into `run-meta.txt` first — `bootstrap.sh` already prints it.
++1.52 (sd 0.03, n=10) on 2026-08-07. Retired rather than resolved because the thesis is now 50 ms
+and above, where the figure reproduces cleanly across sessions. Do not quote a 10 ms number
+without reading this. The provenance gap that made it undecidable is now closed (follow-up 2) —
+but runs taken before the stamp existed still have no build line, so a comparison reaching back
+past them stays undecidable and must say so.
+
+**The general lesson, which cost a retraction:** a documented gap that has since been closed is a
+claim like any other, and goes stale silently. The "run-meta.txt records no commit" note above
+outlived its fix and was repeated into a results document that its own artifacts refuted.
 
 
 ### Per-scenario spill — designed, reviewed, deliberately not built
@@ -1797,7 +1626,7 @@ denominator grew. Karate's per-iteration overhead is client-side CPU that does n
 server's latency, and the practical reading is that **it matters least exactly where load tests
 usually live** — real APIs are slower than 10 ms, and at 50 ms it is under 2%.
 
-> **This paragraph is under review — read [§9, "Retired"](#the-remaining-plan--three-experiments-and-what-they-close)
+> **This paragraph is under review — read [§9, "Retired"](#retired--deliberately-not-scheduled)
 > before relying on it.** A 2026-08-07 re-run reproduced the 50 ms figure (+1.89, sd 0.04, n=10)
 > but measured the 10 ms tier at **+1.52** (sd 0.03, n=10), not +1.79. Both tiers were re-measured
 > in one session on one pair of hosts, and both halves of that run agree with each other, so the
@@ -1913,7 +1742,7 @@ Reproduce with [PROFILING_EC2.md](./PROFILING_EC2.md).
 | machine A (laptop), co-located | +0.59 | 0.29 | 3 |
 
 The 2026-08-07 row does not agree with the row above it, and which one describes current `main` is
-open — see [§9, "Retired"](#the-remaining-plan--three-experiments-and-what-they-close). It is listed rather
+open — see [§9, "Retired"](#retired--deliberately-not-scheduled). It is listed rather
 than substituted because nothing in either run's artifacts records the commit that produced it,
 so there is no basis yet for calling one of them stale.
 
