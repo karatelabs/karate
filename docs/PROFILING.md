@@ -1215,9 +1215,10 @@ The TLS matrix could not attach to its own mock; `--soak` started no leak probe 
 below a second; `collect.sh` reported failure after succeeding. Treat a script that has not been
 run since it was last edited as unproven — that is five for five.
 
-**The headline so far, at 50 ms:** Karate costs **+1.89 ms/iteration (1.8%)** unpooled and
-**+1.44 ms (1.4%)** pooled, sd 0.03–0.04, n=10 each. Pooling is worth about 24% of Karate's
-overhead. That is measured on **plaintext HTTP, same-AZ, one mock, small GET** — the three
+**The headline so far, at 50 ms:** Karate costs **+1.44 ms/iteration (1.4%)** pooled — the
+configuration karate-gatling ships for a load test — and +1.89 ms (1.8%) unpooled, sd 0.03–0.04,
+n=10 each. That A/B is **settled; do not re-run it.** Pooling is worth about 24% of Karate's
+overhead on plaintext, which is its floor. That is measured on **plaintext HTTP, same-AZ, one mock, small GET** — the three
 experiments below are what it takes to say it without those qualifiers.
 
 **Two things are NOT established, despite sounding like they are.**
@@ -1233,7 +1234,7 @@ experiments below are what it takes to say it without those qualifiers.
 
 #### 1. TLS parity at 50 ms — the headline
 
-Pooled and unpooled arms against a **TLS** `LatencyMock`, 10 pairs each, same session and hosts.
+The pooled Karate arm against plain Gatling, over a **TLS** `LatencyMock`, 10 pairs, same session and hosts.
 This is the experiment the public-endpoint claim rests on, and the one where pooling should show
 most: on plaintext across a cluster placement group a saved connection is ~0.1 ms, which is why the
 A/B could only measure pooling's *floor*. A saved TLS handshake is 2 RTT plus asymmetric crypto.
@@ -1247,19 +1248,27 @@ cannot be averaged together.
 
 ```bash
 etc/ec2/calibrate.sh --tier 50ms --ramp 1,8,32,64 --per-user 100 --tls   # first, and not skippable
-etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8  --tls           --label 50ms-tls-unpooled
-etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8  --tls --pooled  --label 50ms-tls-pooled
-etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 6400 --users 32 --tls           --label 50ms-tls-unpooled-32u
-etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 6400 --users 32 --tls --pooled  --label 50ms-tls-pooled-32u
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8  --tls --pooled --label 50ms-tls-8u
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 6400 --users 32 --tls --pooled --label 50ms-tls-32u
 ```
+
+**Pooled only, and that is a decision rather than a shortcut.** `pooledConnections()` is what
+karate-gatling ships for a load test, so it is the configuration the claim should be made about,
+and the plain arm keep-alives already — pooled-vs-plain is the like-for-like comparison. An
+unpooled arm answers a different question, *what does pooling buy*, and that one is already
+answered twice over: the plaintext A/B settled it at ~24% of Karate's overhead (n=10 each), and the
+TLS calibration prices a connection at ~2.7 ms against ~0.2 ms plaintext. An unpooled TLS matrix
+would confirm the calibration at the cost of a bench cell.
+
+(Do not read karate-core's default into this. Pooling is not, and should not be, the default for a
+functional suite — see the pooling section below. These experiments are about karate-gatling.)
 
 **`--iterations` is a TOTAL, not per-user** — `reps = ceil(iterations / users)`. Reusing 1600 at 32
 users would have given 50 reps per user against 200 at 8 users, a measured window four times
 shorter, and the density cell would have been noisier for a reason nothing in the output would
 show. 6400 keeps reps-per-user constant, which is what makes the two densities comparable.
 
-**Both densities run pooled AND unpooled.** Pooling is the thing under test here; measuring density
-only in the pooled arm answers half the question. Four matrices, ~20 minutes each.
+**Two matrices, ~20 minutes each.**
 
 **If the TLS calibration knees below 64, the knee wins over these numbers.** 8 and 32 come from the
 plaintext knee; `calibrate.sh`'s own rule is to run at half the knee, and a TLS handshake per
@@ -1289,28 +1298,23 @@ the mock host, so `mock.sh start` refuses on a `--single` bench.
 mock=$(etc/ec2/ssh.sh mock-private)
 etc/ec2/mock.sh start 50ms 8090
 
-# unpooled — the shipped default for a functional suite
+# Pooled, because that is what karate-gatling ships for a load test. The property is
+# exactly what matrix.sh --pooled passes.
 etc/ec2/ssh.sh injector "cd ~/karate/karate-profiling && nohup etc/run.sh run gatling-http-karate \
     --duration 2h --soak --threads 8 --mock-url http://$mock:8090 \
-    --timeout 3h > ~/soak-unpooled.log 2>&1 &"
-
-# pooled — the configuration a load test actually ships, and the one that holds
-# descriptors deliberately. The property is what matrix.sh --pooled passes.
-etc/ec2/ssh.sh injector "cd ~/karate/karate-profiling && nohup etc/run.sh run gatling-http-karate \
-    --duration 2h --soak --threads 8 --mock-url http://$mock:8090 \
-    -Dkarate.profiling.pooled=true --timeout 3h > ~/soak-pooled.log 2>&1 &"
+    -Dkarate.profiling.pooled=true --timeout 3h > ~/soak.log 2>&1 &"
 
 # while it runs:
-etc/ec2/ssh.sh injector 'grep PROFILING-LIVE-SET ~/soak-unpooled.log | tail -5'
+etc/ec2/ssh.sh injector 'grep PROFILING-LIVE-SET ~/soak.log | tail -5'
 etc/ec2/collect.sh
 ```
 
-**Two hours each, run them one after the other, ~$5 of machine time for the pair.** Running both at
-once on one injector would have them competing for cores and neither would be a clean reading.
+**One soak, two hours, ~$2.50.** Pooled is the configuration under test, and it is also the harder
+case for this panel to read: a pool holds descriptors deliberately, so the healthy shape is a flat
+NON-zero count and only a rising one is a finding. An unpooled soak would answer a question nobody
+is asking about karate-gatling.
 
-Run it **pooled as well as unpooled** if there is time for two: pooling is the configuration
-intended to ship for a load test, and it is also the one that holds descriptors deliberately, so
-its healthy shape is a flat non-zero count rather than a low one.
+
 
 Three things this needs, all of which were missing or broken until they were run:
 
@@ -1345,8 +1349,8 @@ variant against the right partner, and `compare` reports each as its own table r
 it into the ordinary pair.
 
 ```bash
-etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --control fat  --label 50ms-fat
-etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --control lean --label 50ms-lean
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --pooled --control fat  --label 50ms-fat
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --pooled --control lean --label 50ms-lean
 ```
 
 Karate is the arm doing more today, so the published deficit is an **upper** bound. One residual
@@ -1358,12 +1362,15 @@ a number, while the fat control's three `jsonPath` checks are open and compare i
 
 ```bash
 for size in 1024 8192 65536; do
-  etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 \
+  etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --pooled \
       --body-size $size --label 50ms-body-$size
-  etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 \
+  etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --pooled \
       --body-size $size --control fat --label 50ms-body-$size-fat
 done
 ```
+
+**Pooled, for the same reason as the other two** — the slope should be measured in the
+configuration that ships, and holding connection setup constant keeps it out of the slope.
 
 **The tier is a slope, not a cell.** Every published figure was measured against a 25-byte request
 and a ~34-byte response; real APIs return kilobytes. The question is not the level of the deficit
