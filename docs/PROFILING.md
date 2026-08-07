@@ -249,48 +249,37 @@ because the difference decides what a soak would even be looking for:
 
 #### The first soak, and the false positive it produced
 
-`scope-capture-bound --duration 1h --threads 8 --soak --gc-roots`, on the Graviton3 injector.
-**35,671,234 iterations, 0 errors, `elapsedMs=3600006`** — six milliseconds over the window it
-asked for, against the `240007` that exposed the join bug. The run itself was clean.
+`scope-capture-bound --duration 1h --threads 8 --soak --gc-roots`, Graviton3: **35,671,234
+iterations, 0 errors, `elapsedMs=3600006`** — six milliseconds over the requested window.
 
-**The heap-after-GC floor rose from 11.4 MB to 27.8 MB, monotonically and without
-decelerating**, and that reads exactly like §4's *rising floor → retention*. It was recorded here
-as a leak. **It is not one**, and the correction matters more than the original claim:
+The heap-after-GC floor rose 11.4 → 27.8 MB, monotonically, without decelerating. That reads
+exactly like §4's *rising floor → retention*, and it was recorded here as a leak. **It is not one.**
 
-> All **104,980** collections in that hour were `G1 Evacuation Pause` — young-generation only.
-> No concurrent cycle, no mixed collection, no full GC. Nothing ever collected the old
-> generation, so promoted garbage simply accumulated there. With `-Xmx768m` against a live set
-> of ~7 MB, G1's initiating heap-occupancy threshold (~45%, so ~345 MB) is never approached, so
-> no cycle ever starts. **The floor was measuring promoted garbage, not retention** — and it
-> would have climbed in that same straight line with nothing whatsoever being leaked.
+> All **104,980** collections in that hour were `G1 Evacuation Pause` — young-generation only. No
+> concurrent cycle, no mixed, no full GC. Nothing ever collected the old generation, so promoted
+> garbage accumulated there. With `-Xmx768m` against a ~7 MB live set, G1's occupancy threshold
+> (~45%, so ~345 MB) is never approached, so no cycle ever starts. **The floor was measuring
+> promoted garbage** — it would have climbed identically with nothing leaked.
 
-A class histogram taken after a forced full GC, four times over twelve minutes on the same
-workload, put the true live set at **7.8, 8.6, 7.2, 7.2 MB** — flat, ending below where it
-started, with no class showing meaningful growth and a *negative* total delta.
+Class histograms after forced full GCs put the true live set at **7.8, 8.6, 7.2, 7.2 MB** — flat,
+ending below where it started, total delta negative.
 
-**This is a general trap, not a one-off.** A soak is precisely the situation that triggers it:
-long run, heap sized well above the working set, so the collector never has a reason to look at
-the old generation. Any harness that reads "heap after GC" and calls a rise a leak will report
-one. Two fixes landed:
+**This is a trap a soak walks into by construction**: long run, heap far above the working set, a
+collector with no reason to touch the old generation. Any harness reading "heap after GC" and
+calling a rise a leak will report one. Hence:
 
-- **`--soak` now runs a live-set probe** — every five minutes it forces a full collection and
-  records what survived, which is the only number that answers the question. The digest renders
-  it as *Live set (after forced full GC)* and labels it the leak panel. As a side effect the
-  forced collections also keep the JFR floor honest, since the old generation is now actually
-  collected.
-- **The digest refuses the bad inference.** If a run performed no old-generation collection at
-  all, the heap-after-GC panel says so, in place, and points at the live-set panel instead.
+- **`--soak` runs a live-set probe** — forces a full collection every five minutes and records what
+  survived, rendered as *Live set (after forced full GC)*, the leak panel. Every reading carries
+  proof its collection happened: `System.gc()` is a **no-op under `-XX:+DisableExplicitGC`**, and a
+  probe that assumed otherwise reported 48 → 96 MB on a live set flat at ~10 MB. The digest refuses
+  a series whose collections did not run, and the child warns at startup about that flag and about
+  `-XX:+ExplicitGCInvokesConcurrent`, which breaks it undetectably.
+- **The digest refuses the bad inference** — a run whose collections were essentially all young-only
+  says so inside the heap-after-GC panel and points at the live-set panel.
 
-**What this does and does not establish.** One workload, `scope-capture-bound`, shows no
-retention over an hour at ~9,900 iterations/s. It makes **zero HTTP calls**, so it says nothing
-about the client or descriptor classes. What it does share with the Gatling lane is a fresh
-`Suite` per iteration — so the *Suite-per-iteration* hypothesis below is the one this clears, and
-only for this shape.
-
-The instrument for the third row already exists: the **heap-after-GC floor** in every digest is
-the detector, and §4's chart is the classification. What is missing is a run long enough for a
-floor to have a slope. **Absence of evidence, and the digests do not distinguish it from evidence
-of absence** — a workload that runs for four seconds cannot report a leak that takes an hour.
+**Scope.** One workload, no retention over an hour at ~9,900 iterations/s. It makes **zero HTTP
+calls**, so it says nothing about the client or descriptor classes. What it shares with the Gatling
+lane is a fresh `Suite` per iteration — that hypothesis is what this clears, for this shape only.
 
 #### These are two different questions, and the second is untouched
 
@@ -974,8 +963,8 @@ fixed cost:
 | `PathResource.computeRelativePath` | 7–9% | path resolution, per execution |
 | `Resource.urlToPath` | ~8% | classpath URL → Path, per execution |
 | ~~`FileUtils.toBytes`~~ | ~~8.0%~~ | **fixed** — an in-memory resource no longer encodes its text to bytes nothing reads; see [§9](#parsing-and-reading-the-same-file-per-execution--partly-built) |
-| ~~`LogContext.setLevelOn` + `captureRuntimeLevels`~~ | ~~6.1%~~ | **fixed** — the Logback level snapshot is now lazy; see [§9](#per-scenario-logback-level-snapshot--built) |
-| ~~`JsErrorException.<init>` + `ResourceNotFoundException.<init>`~~ | ~~5.9%~~ | **fixed** — with the reflection and map copies around them; see [§9](#exceptions-on-the-happy-path--built) |
+| ~~`LogContext.setLevelOn` + `captureRuntimeLevels`~~ | ~~6.1%~~ | **fixed** — the Logback level snapshot is now lazy; see [§9](#three-per-execution-costs-found-and-removed--built) |
+| ~~`JsErrorException.<init>` + `ResourceNotFoundException.<init>`~~ | ~~5.9%~~ | **fixed** — with the reflection and map copies around them; see [§9](#three-per-execution-costs-found-and-removed--built) |
 
 Two rows are kept struck through because they are the entries with a before-and-after, and both
 are the shape of a real removal rather than a redistribution: total sampled allocation for this
@@ -1012,7 +1001,7 @@ investigated further here.
 The `buildResponse` and `invoke` bands are wide because allocation sampling attributes the same
 `byte[]` work differently run to run — read them as "the client dominates", not as a series.
 Part of what `buildResponse` used to carry was the per-step log capture, which is now off by
-default in this lane ([§9](#default-log-fidelity-under-gatling--built)): `Json.parseLenient`,
+default in this lane ([§9](#three-per-execution-costs-found-and-removed--built)): `Json.parseLenient`,
 `LogContext.log` and `LogContext.collect` no longer appear in this profile at all. The
 **total** band above is unchanged by that — six or seven points of a ~500 MB sampled profile is
 inside the run-to-run spread.
@@ -1202,63 +1191,61 @@ judgement, and the measurement that came back covers **one of the two lanes the 
 
 ### If you are picking up the Gatling thread — the order
 
-The instrument and the first matrix are **built**
-([§10](#10-the-latency-mock-and-what-the-parity-matrix-found)), and what they measured has already
-retired one item and reshaped two others. This list is the steering surface — it is what the next
-session reads — so it is ordered by information per unit of work, not by appeal:
+**This list is the steering surface.** It is what the next session reads first, so it is ordered by
+information per unit of work, and finished items are deleted rather than struck through — the code
+and git history record those.
 
-**Read item 0 first.** The harness gained four things it was missing, and they are what the
-two-host phase runs on: injector CPU in every digest, `profiler compare`, `--mock-url`, and
-per-host network limits. Each is described in
-[The two-host phase](#the-two-host-phase-what-is-built-and-what-it-is-for).
+**Settled, do not redo:** the two-host EC2 bench (built and automated —
+[PROFILING_EC2.md](./PROFILING_EC2.md)); the 10 ms tier (+1.79 ms/iteration, sd 0.05, n=9); the
+50 ms tier (§10); HTTP client *release* (done, three reviews, `HttpClientFactory.release()` at
+scenario end plus the mock and post-release paths); and the soak instrument (`--soak`, live-set
+probe, digest integrity checks).
 
-0. **Run the matrix on a quiet, dedicated pair of hosts.** This is now the top item, because the
-   50 ms attempt established that the laptop cannot resolve the tier at any pair count — and
-   because everything below it inherits the same noise floor. It also retires the confound §10
-   has been carrying since the first matrix. See the phase description in §10 for the shape,
-   the order and the checks.
+1. **Pooled-client A/B — the largest open question, and cheap to unblock.** Karate opens a
+   connection per iteration (measured: 4000 distinct ports against plain Gatling's 8). Free on
+   loopback and same-AZ, but +1 RTT plus TLS against a real API, and it is the sole reason this
+   document cannot say karate-gatling is good enough for *public* endpoints.
 
-1. **~~More pairs at the 50 ms tier~~ — tried, and it answered a different question.** Three more
-   pairs were run on this laptop and made the spread *worse*: sd 6.90 for pairs 4–6 against 2.72 for
-   1–3, individual pairs from −6.9 to +6.9 ms (§10). The remedy was wrong because the diagnosis was:
-   **the tier is machine-limited, not pair-limited.** A ~0.6 ms cost on a 110 ms iteration is 0.5%,
-   this laptop's floor is 3–6%, and no pair count closes an order of magnitude. Superseded by the
-   two-host phase below — the runs are the same runs, on a machine where they can resolve.
-2. **The AST prototype on the lane where its win lives** — a `/usr/bin/time` A/B against main on
-   `call-accumulation` and `feature-spread` at two sizes, recording wall and CPU. This is the
-   measurement the parse-cache decision actually needs
-   ([Parsed-JS reuse](#parsed-js-reuse--measured-half-gated-not-built)); a Gatling latency result
-   cannot substitute for it. The prototype is on no branch or stash — recreate it from the
-   description there.
-3. **HTTP client lifecycle — half built.** *Release* is done: `HttpClientFactory.release()` is
-   called at scenario end, `DefaultHttpClientFactory` closes, and a custom factory keeps today's
-   behaviour unless it opts in (the default is a no-op, because a custom factory's client may be
-   shared). That removes the fd leak — measured, a feature making three calls created 5 clients and
-   released 0. **Pooling is not done**, so Karate still opens a connection per iteration, which is
-   the part that costs +1 RTT (plus TLS) against a real API. The factory seam is where it goes.
-4. **A pooled-client A/B in the harness.** Prices the per-execution client — §6's last unchased
-   lead — and removes the one structural difference between the arms, which is what would let the
-   parity result generalise past loopback.
-5. **A TLS tier and a body-size tier on `LatencyMock`**, plus the two equivalence-control runs
-   (plain checking all three fields; karate doing a minimal extraction). The smallest experiments
-   that can falsify "at any realistic API latency" before separate hosts exist.
-6. **The user ramp**, paired with one open-arrival (`constantUsersPerSec`) lane so offered-versus-
-   completed load is visible — the closed model structurally hides it. It answers the
-   concurrency-density question below. Kept after 1–5 because those change what its numbers mean.
-7. **`--duration` for the `gatling-*` workloads** — `during()` in the injection profile instead of a
-   repetition count. Small, and with item 3 it is what unblocks a Gatling **soak**, the largest
-   unanswered question in this document (§2).
-8. **~~Separate hosts~~ — promoted to item 0** and now unblocked on the harness side (`--mock-url`,
-   `LatencyMock --bind/--standalone`). Co-location is the one confound §10 cannot argue away, and
-   it lifts the ephemeral-port ceiling.
-9. **The injector-health check** — designed in **[GATLING.md §14.12](./GATLING.md)**, not built.
-   It is the mitigation for this document's own sharpest finding: Karate's overhead sits *between*
-   `PerfEvent` brackets, so an under-provisioned injector reads as a throughput shortfall with
-   clean percentiles and nothing in the report looks wrong. Gate on process CPU and heartbeat
-   jitter; report the per-iteration residue but never gate on it, since Karate legitimately spends
-   a millisecond or two. Ordered here rather than higher because item 6's ramp is what says how
-   much the underlying overhead matters.
-10. **Mine [#845](#prior-art--the-09x-era-overhead-thread).** Reading, not building. Now worth
+   **Blocked on one line in karate-core.** `Runner.runFeature(path, arg, perfHook, tags, template)`
+   — the entry point karate-gatling uses — copies `env`, `configDir`, `workingDir`,
+   `systemProperties`, the three caches and `captureStepLogs` from the template, but **not
+   `httpClientFactory`**. So the Gatling lane cannot supply a factory at all, even though
+   `HttpClientFactory`'s own javadoc advertises pooling. (`Runner.builder().parallel()` does carry
+   it, which is why this went unnoticed.) Fix that, then build the factory in **karate-profiling**
+   as an experiment — do not ship API before knowing the answer — and graduate it to
+   **karate-gatling** if it wins. Not karate-core's default: pooling changes cross-scenario
+   semantics (cookies, TLS session reuse, server affinity) and per-scenario isolation is that
+   default's documented intent. Read `HttpClientFactory.release`'s contract first — a factory must
+   return **one wrapper per scenario** over a shared connection manager, because `ApacheHttpClient`
+   closes its own transport on `apply()` and would otherwise kill a concurrent scenario's in-flight
+   request.
+
+2. **`--duration` for the `gatling-*` workloads** — `during()` in the injection profile instead of a
+   repetition count. Small, and it is what unblocks a **Gatling soak**, still the largest
+   unanswered question here (§2). The Runner-lane soak found no leak, but that workload makes zero
+   HTTP calls, so the client and descriptor classes remain untested.
+
+3. **The user ramp**, paired with one open-arrival (`constantUsersPerSec`) lane so offered-versus-
+   completed load is visible — a closed model structurally hides it. Answers the concurrency-density
+   question below. After 1–2, because those change what its numbers mean.
+
+4. **A TLS tier and a body-size tier on `LatencyMock`**, plus the two equivalence controls (plain
+   checking all three fields; karate doing a minimal extraction). The smallest experiments that can
+   falsify "at any realistic API latency".
+
+5. **The injector-health check** — designed in **[GATLING.md §14.12](./GATLING.md)**, not built. It
+   mitigates this document's sharpest finding: Karate's overhead sits *between* `PerfEvent`
+   brackets, so an under-provisioned injector reads as a throughput shortfall with clean
+   percentiles and nothing in the report looks wrong. Gate on process CPU and heartbeat jitter;
+   report per-iteration residue but never gate on it — Karate legitimately spends a millisecond or
+   two. After item 3, which says how much the underlying overhead matters.
+
+6. **The AST prototype A/B** — `/usr/bin/time` against main on `call-accumulation` and
+   `feature-spread` at two sizes, wall and CPU. The measurement the parse-cache decision actually
+   needs ([Parsed-JS reuse](#parsed-js-reuse--measured-half-gated-not-built)); a Gatling latency
+   result cannot substitute. The prototype is on no branch or stash — recreate it from that section.
+
+7. **Mine [#845](#prior-art--the-09x-era-overhead-thread).** Reading, not building, and now worth
    reconciling *against* a result rather than before one.
 
 ### Per-scenario spill — designed, reviewed, deliberately not built
@@ -1335,98 +1322,21 @@ The ranking is not close, and it is the same lesson as §8: the expensive option
 that changes semantics, and none of them should be started before a number says which
 constraint is actually binding.
 
-### Default log fidelity under Gatling — built
+### Three per-execution costs, found and removed — built
 
-Kept here because §6 points at it and because what it left behind is still parked. **Under
-Gatling, assume no HTML report and no logging except on errors**, everything else opt-in — the
-per-step log capture is now off in that lane, gated before the string is built, with
-`Runner.Builder.captureStepLogs(boolean)` as the override and `logReplay` (the one reader)
-turning it back on for itself. Design and verification: **[GATLING.md §14.9](./GATLING.md)**.
+Kept short: the work is done and in the code. What survives is the operational fact, the number,
+and one lesson that keeps paying.
 
-Measured on `gatling-http-karate --iterations 2000`: `Json.parseLenient` 3.7%, `LogContext.log`
-1.6% and `LogContext.collect` 1.2% are all gone from the profile — the ~6.5 points the
-throwaway guard predicted. The workload's *total* allocation band is unchanged, which is what
-six or seven points of a sampled ~500 MB profile looks like; §14.9 has the table and the
-caveats.
-
-### Per-scenario Logback level snapshot — built
-
-What the entry above left behind, and the next thing done. `LogContext.snapshot()` walked eight
-logger names reflectively on every scenario, and `restore()` walked them again — to put back
-levels that nothing had changed, because only `configure logging = { console: ... }` changes
-them and almost no scenario runs it.
-
-The snapshot is now lazy: it registers on a thread-local chain and records nothing, and
-`setRuntimeLogLevel` captures the "before" for every live snapshot in a single walk immediately
-before it changes anything — the last moment that state exists. Nesting still restores one
-level at a time (a `call` snapshots inside its caller's, so the inner restore lands on what the
-outer scenario configured). One deliberate semantic change: a level changed by any other route
-is no longer clobbered on restore with a value this thread never observed.
-
-Measured on `gatling-null-karate --iterations 20000`, the workload where per-execution fixed
-cost is the whole profile:
-
-| | before | after (2 runs) |
-|---|---:|---:|
-| `LogContext.captureRuntimeLevels` | 5.6% (97 MB) | — |
-| `LogContext.setLevelOn` | 4.4% (77 MB) | — |
-| total sampled allocation | 1.71 GB | 1.57 GB / 1.58 GB |
-
-**10% of the null-pair profile, and this time the total moved with it** — unlike the log-capture
-entry above, where the removal was real but too small to see against sampling spread. Both sites
-are also gone from `gatling-http-karate`, where they had been 1.5–3.4% and ~1%.
-
-### Exceptions on the happy path — built
-
-§6's null-pair breakdown had a row reading "**exceptions constructed on a happy path** — nothing
-in this feature fails", never chased. Chasing it found the exceptions were the symptom; each one
-sat on top of a lookup that was being redone from scratch every time.
-
-**What `karate.properties['mock.url']` cost when the key is absent** — the
-`karate.properties['x'] || 'default'` shape every `karate-config.js` uses. The read falls
-through the JS property chain to the Java bridge, whose caller (`PropertyAccess.accessViaBridge`)
-turns whatever comes back into `undefined`. Getting to that `undefined` took, per read:
-
-1. `getMethod("getMock.url")` → `NoSuchMethodException` + a full `Class.getMethods()` array copy
-   and scan;
-2. `getMethod("isMock.url")` → the same again;
-3. `getField("mock.url")` → `NoSuchFieldException`;
-4. a third `getMethods()` copy and scan;
-5. `JsErrorException.typeError(...)` → a `JsError`, a `HashMap` for its message, and a stack
-   trace — all discarded by the catch.
-
-Four exceptions and three array copies to answer "no". Alongside it, two more O(n) costs on the
-same read: `PropertyAccess` built a **whole JsObject copy of the Map** whenever a key missed
-(just to reach `Object.prototype`), and `karate.properties` / `karate.sysprop` each materialised
-a fresh `HashMap` of *every* JVM system property. And once per Suite, the config probe for a
-`karate-base.js` / `karate-config-<env>.js` that most projects do not have threw
-`ResourceNotFoundException` to say so.
-
-**The fixes**, all "a miss is an answer, not an event":
-
-| | |
+| | Result |
 |---|---|
-| `JavaUtils` | member resolution per (class, name) — getter / field / method / not-found — kept in a `ClassValue` map, and a non-throwing miss for the bridge that swallows it |
-| `PropertyAccess` | a shared empty probe object to reach `Object.prototype`, instead of copying the Map |
-| `Suite` | `karate.properties` is a live view (`get`/`containsKey` straight through, iteration still materialises) and `karate.sysprop(name)` is a single lookup |
-| `Resource.optional(path)` | the probing form of `Resource.path`, returning null; used by the config lookup |
+| **Log fidelity under Gatling** | **Under Gatling, assume no HTML report and no logging except on errors** — per-step capture is off in that lane, gated before the string is built. Override with `Runner.Builder.captureStepLogs(boolean)`; `logReplay` turns it back on for itself. Design: **[GATLING.md §14.9](./GATLING.md)**. Removed `Json.parseLenient` 3.7%, `LogContext.log` 1.6%, `LogContext.collect` 1.2% from the profile. |
+| **Per-scenario Logback level snapshot** | `LogContext.snapshot()` walked eight loggers reflectively per scenario to restore levels nothing had changed. Now lazy — registered on a thread-local chain, captured only when `setRuntimeLogLevel` is about to change something. **10% of the null-pair profile**, and the total moved with it (1.71 GB → 1.57). One deliberate semantic change: a level changed by another route is no longer clobbered on restore. |
+| **Exceptions on the happy path** | `karate.properties['x'] \|\| 'default'` — the shape every `karate-config.js` uses — cost **four exceptions and three `getMethods()` array copies per read** to answer "no", plus a whole JsObject copy of the Map on any miss and a fresh HashMap of every system property. Fixed in `JavaUtils` (member resolution cached per class+name in a `ClassValue`), `PropertyAccess` (shared empty probe object), `Suite` (live properties view), `Resource.optional` (probing form that returns null). 1.36–1.58 GB → 1.01–1.12 GB, **no exception constructor left in the allocation panel**. Generic, not config-specific: `response.absentField` on a large body paid the same map copy. |
 
-Measured on `gatling-null-karate --iterations 20000`, in the order they were applied:
-
-| after | total | what left the panel |
-|---|---:|---|
-| (baseline) | 1.36–1.58 GB | — |
-| `JavaUtils` + `sysprop` | 1.23 GB | `findMethodDirect` 8.7%, `JavaUtils.get` 5.0%, `JsErrorException` 1.4% |
-| prototype probe | 1.11 GB | the map copy, which had surfaced at 13.6% once `sysprop` stopped hiding it |
-| `Resource.optional` | 1.01–1.12 GB | `ResourceNotFoundException` 3.1% |
-
-**No exception constructor appears in the allocation panel any more**, and the before and after
-bands do not overlap. Each step is worth reading as "the next cost became visible once the one
-in front of it was gone" — the map copy was always there, charged to
-`Suite.getSystemProperties` until that stopped copying.
-
-Everything here is generic, not config-specific: `response.absentField` on a large JSON body was
-paying the same map copy, and any `x.y` miss on a Java object paid the same four exceptions.
+**The lesson, which generalises:** *a miss is an answer, not an event.* And costs surface in
+sequence — the map copy above was always there, charged to `Suite.getSystemProperties` until that
+stopped copying. Expect the profile to reveal a new top entry after each fix rather than simply
+shrinking.
 
 ### Parsing and reading the same file per execution — partly built
 
@@ -1868,62 +1778,42 @@ knee: a closed loop makes any knee optimistic, because when the mock stalls thes
 offering load. The knee is void for an open-model cell (`constantUsersPerSec`); re-calibrate
 open-loop before trusting one.
 
-#### The calibration this instrument was run at — machine A, 10 ms injected, 100 iterations per user, 20 s settle
+#### The calibration the two-host bench runs at — `c7g.4xlarge`, 50 ms injected, 100 iterations per user, 20 s settle
 
-Kept here rather than pruned, because "run the matrix at half the knee" is unusable without it and
-because a result that cannot be reproduced from what is written down is not a result. `unowned`
-mean growth over the 1-user baseline, in milliseconds; zero failures in every row:
+"Run the matrix at half the knee" is unusable without this, and a result that cannot be reproduced
+from what is written down is not a result. `unowned` mean, milliseconds; zero failures in every row:
 
-| users | keepalive growth | close growth |
+| users | keepalive | close (Karate's shape) |
 |---:|---:|---:|
-| 1 (baseline) | 0.000 | 0.000 |
-| 4 | 0.179 | 0.070 |
-| 16 | 0.579 | 0.783 |
-| 64 | 1.315 | 0.374 |
-| 1 (repeat) | **0.094** | **0.842** |
+| 1 (baseline) | 0.221 | 0.413 |
+| 4 | 0.173 | 0.442 |
+| 16 | 0.257 | 0.483 |
+| 64 | 0.270 | 0.540 |
+| 1 (repeat) | **0.165** | **0.339** |
 
-Two things it establishes, and no more. Both are easy to lose and both bound what the matrix above
-can claim:
+- **No knee through 64 users in either arm.** Growth tops out at 0.049 ms (keepalive) and 0.127 ms
+  (close). The matrix runs at 8 users, an order of magnitude inside that.
+- **The noise floor is 0.056–0.074 ms** — the baseline-repeat gap, which is the number the whole
+  matrix's resolution depends on. Against a ~1.8 ms effect that is ~25x headroom.
+- **This is the entire reason the 50 ms tier is answerable here.** On machine A (laptop) the same
+  repeat gap was **0.842 ms in the close arm** — as large as the signal — so that arm could only
+  ever say "no detectable growth, at a resolution of about 0.8 ms". Re-calibrate on any new
+  machine before trusting a cell; the gap *is* that machine's floor.
 
-- **Keep-alive is trustworthy and shows no knee through 64 users.** Its baseline repeat lands at
-  0.094 ms, so its noise floor is under 0.1 ms and the 1.3 ms of growth at 64 users is real.
-- **The churn arm resolves nothing here — and churn is Karate's connection shape.** Its baseline
-  repeat is 0.842 ms, as large as its own growth values, so the honest statement is "no detectable
-  growth through 64 users, at a resolution of about 0.8 ms". That floor is the same size as the
-  per-request signal the matrix reads, which is why the 8-user cells lean on the mock's own
-  per-window report (`peakInFlight`, service p99) rather than on this table.
+`unowned` is an **upper bound** on server queueing, not a measure of it: client elapsed minus
+server elapsed, so it also contains the client's own scheduling. Growth that rises with concurrency
+is partly the injector.
 
-And `unowned` is an **upper bound** on server queueing, not a measure of it: it is client elapsed
-minus server elapsed, so it also contains the client's own scheduling on a machine the mock is
-sharing. Growth that rises with concurrency is partly the injector — the co-location problem
-below, showing up inside the number.
+**Acceptance for a parity cell is three things together, never TPS alone:** parity (throughput and
+the percentile distribution), headroom (mock in-flight below its calibrated knee, injector CPU with
+slack — both now in every digest), and a flat heap-after-GC floor per §4. Do not pick a percentage
+tolerance — §2 sets out why.
 
-Acceptance for a parity cell is three things together, never TPS alone: **parity** (throughput and
-the percentile distribution), **headroom** (mock in-flight below its calibrated knee, injector CPU
-with slack), and **a flat heap-after-GC floor** per §4's standing constraint. Do not pick a
-percentage tolerance — §2 sets out why. Report where the two diverge and how the gap scales with
-latency.
-
-**Be honest about which legs the published cells actually cleared**, because two of them did not,
-and the wording above reads as though all three did:
-
-- **Headroom, mock side: cleared** — every cell's digest carries `peakInFlight` 8 and a service p99
-  between 115 µs and 2.2 ms, the worst of which is 4% of its own tier's injected latency. Each run
-  also reconciles: iterations × 2 = Gatling's ok+ko = the mock's `served`.
-- **Headroom, injector side: ~~not recorded anywhere~~ — now in every digest.** It was a safe
-  inference at the 10 ms tier's 526–591 req/s and genuinely in doubt at the 0 ms tier. The CPU
-  headroom panel puts an 800-iteration 10 ms injector at **1.4 of 10 cores** — a floor, since a
-  self-driving workload's window includes Gatling's engine boot. The cells in
-  the table above predate the panel and still carry no figure, so the *published* rows remain
-  inferred — re-running them on the two-host phase is what puts a number in this column.
-- **Flat floor: not readable at these window lengths, so not met — unevaluated.** Every digest in
-  the matrix prints its own drift, and none of them is flat: the karate arms land at +11–14 MB
-  (117–143%) and the plain arms at +13–19 MB (135–194%), reproducibly, in all seventeen runs. At 14 seconds that is warmup — classes, JIT,
-  Gatling's own accumulation — climbing then plateauing, not retention. But that is precisely §2's
-  point about short windows: they cannot tell warmup from a leak. **A 14-second cell cannot
-  evaluate this leg at all**, so either lengthen one confirmation run until the floor has a
-  readable slope, or state that the leg is out of scope for short cells rather than implying it
-  passed.
+**One leg a short cell cannot clear, and this is permanent.** The flat-floor check is unreadable at
+14-second windows: every matrix run drifts +11–19 MB, reproducibly, in both arms. That is warmup —
+classes, JIT, Gatling's own accumulation — not retention, but a 14-second window cannot tell those
+apart, which is §2's whole point. So the leg is **out of scope for short cells**; evaluate it on a
+lengthened confirmation run or not at all. Do not read a matrix digest's drift row as a leak signal.
 
 ### The two-host phase: what is built, and what it is for
 
@@ -1932,19 +1822,17 @@ effect is 0.5%, and no pair count closes that gap.** Everything here exists so t
 taken somewhere they resolve — and so that when they are, the digest can prove its own conditions
 instead of asking to be trusted.
 
-#### The four things the harness was missing
+#### What the phase added to the harness
 
-| | What it closes |
-|---|---|
-| **CPU headroom panel** in every digest | §10 carried "headroom, injector side: **not recorded anywhere**" as an admitted hole in one of its three acceptance legs. Both the injector and the mock now self-report CPU over their own measured window — not process lifetime, so no JVM startup and no idle tail. First reading: an 800-iteration 10 ms cell puts the injector at **1.4 of 10 cores**, so the inference §10 made looks right. Read it as a **floor**: a `gatling-*` workload is self-driving, so its window wraps the whole simulation including engine boot (wall 4.8s against a 2.9s load window), which dilutes the ratio. The published 4000-iteration cells predate the panel and carry no figure. |
-| **`profiler compare <run-dir>…`** | The published tables were scraped by hand, and `6ae522b39` ("skipped a decimal cell and shifted every column") is what that cost on eight runs. It derives the tier tables, the sleep correction and the spread, and says when a tier is unresolved. It reproduces both published tiers to within 0.01 ms — not "to the digit": the published cells were hand-computed from 1-decimal rates, the tool uses the digests' 3-decimal ones, so 10 ms pair 2 reads +0.92/+1.14 where the table says +0.93/1.15. The tool is the more accurate of the two; the tables below are left as published. |
-| **`--mock-url`**, plus `LatencyMock --bind` / `--standalone` / `/config` | Nothing could point a run at a mock it had not forked. The parent now resets the remote mock's counters before the load and scrapes them after, writing the same `PROFILING-MOCK-CONFIG` / `PROFILING-MOCK-STATS` prefixed lines a forked mock prints (not byte-for-byte — a forked log also carries `PROFILING-MOCK-URL`, and this one an `[external] attached…` line), so the digest, the reconciliation and `compare` cannot tell the two apart. Verified: two runs against one mock alive for 67s each report their own 1600 over their own 2.8s window. **Verified against `127.0.0.1` only — no cross-host path has ever been exercised.** |
-| **Host network limits** in `run-meta.txt`, and a per-run connection-rate check | Every published figure was macOS. The ceiling is now read from the kernel (this laptop: 16384 ports / 30s TIME_WAIT → **~546 conn/s**, which is where the remembered "~550" came from) and each run reports its own rate against it. A 0 ms cell now states its own hazard: *"1849 connections/s … 3.4x the sustainable rate … survived on brevity rather than margin."* |
-
-Two provenance gaps closed alongside: `run-meta.txt` now records **which mock tier** served the run
-(§7's "the tell is `mock.log`") and **the gap since the previous run**, so the 35-second TIME_WAIT
-convention — a correctness condition that lived only in an operator's shell script — is auditable
-after the fact rather than assumed.
+All built, all in use, listed so their rationale is not re-derived: a **CPU headroom panel** in
+every digest (both processes self-report over their own window, so "the injector had room" is a
+number rather than an inference); **`profiler compare`**, because the published tables were once
+scraped by hand and one such scrape shifted every column; **`--mock-url`** plus `LatencyMock
+--bind/--standalone`, without which a run could only use a mock it had forked itself; and **host
+network limits in `run-meta.txt`** with a per-run connection-rate check, because every figure
+before that was macOS-only and the ceiling was folklore. `run-meta.txt` also records which mock
+tier served the run and the gap since the previous one, so the 35-second TIME_WAIT convention is
+auditable rather than assumed.
 
 #### The machine
 
