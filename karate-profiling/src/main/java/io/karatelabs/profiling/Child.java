@@ -101,6 +101,7 @@ public final class Child {
                     + " elapsedMs=" + ((System.nanoTime() - selfStart) / 1_000_000)
                     + " peakHeapBytes=" + peakHeapBytes()
                     + " " + selfCpu.describe()
+                    + " cpus=" + Runtime.getRuntime().availableProcessors()
                     + " oom=" + self.oom);
             if (self.firstFailure != null) {
                 self.firstFailure.printStackTrace(System.out);
@@ -138,6 +139,9 @@ public final class Child {
                 + " peakHeapBytes=" + peakHeapBytes
                 // Captured before teardown, which is not the workload and can be slow.
                 + " " + cpuDescription
+                // The CHILD's core count, which is not always the parent's: -XX:ActiveProcessorCount
+                // changes what this JVM believes it has, and the digest divides CPU by it.
+                + " cpus=" + Runtime.getRuntime().availableProcessors()
                 + " oom=" + result.oom);
         if (result.firstFailure != null) {
             System.out.println("[child] first failure: " + result.firstFailure);

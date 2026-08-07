@@ -127,7 +127,13 @@ public final class JfrDigest {
         if (childCpu < 0 && mockCpu < 0) {
             return;
         }
-        int cpus = Runtime.getRuntime().availableProcessors();
+        // The CHILD's core count when it reported one, not this process's. They are normally the
+        // same and were assumed to be — until --jvm-flag made -XX:ActiveProcessorCount=1 possible,
+        // which is exactly the constrained run someone would take to test a saturation check. A
+        // digest that divided a 1-core child's CPU by the parent's 16 would report 6% busy for a
+        // pegged JVM. The fallback is this process's count, which is also what an old digest gets.
+        int reportedCpus = (int) keyValueNumber(summary, "cpus");
+        int cpus = reportedCpus > 0 ? reportedCpus : Runtime.getRuntime().availableProcessors();
         md.append("## CPU headroom\n\n");
         md.append("What each process burned over its own window. `cores` near ").append(cpus)
                 .append(" means this run measured the machine rather than what it was pointed at, and a ")
@@ -189,6 +195,23 @@ public final class JfrDigest {
                 .append(cores < 0 ? "?" : fixed(100 * cores / Math.max(cpus, 1), 0) + "%").append(" |\n");
     }
 
+    /** Pull one plain {@code key=<number>} out of the child's summary line; -1 if absent. */
+    private static double keyValueNumber(String summary, String key) {
+        if (summary == null) {
+            return -1;
+        }
+        for (String token : summary.split("\\s+")) {
+            if (token.startsWith(key + "=")) {
+                try {
+                    return Double.parseDouble(token.substring(key.length() + 1));
+                } catch (NumberFormatException e) {
+                    return -1;
+                }
+            }
+        }
+        return -1;
+    }
+
     /** Pull one {@code key=<nanos>} out of the child's summary line, as seconds; -1 if absent. */
     private static double keyValueNanos(String summary, String key) {
         if (summary == null) {
@@ -209,6 +232,30 @@ public final class JfrDigest {
 
     private static String fixed(double value, int decimals) {
         return String.format(java.util.Locale.ROOT, "%." + decimals + "f", value);
+    }
+
+    /**
+     * JVM options on the child's command line that the harness does not emit itself — i.e. what
+     * {@code --jvm-flag} added. Recognised by exclusion so that an option the harness later grows
+     * shows up here rather than being silently hidden.
+     */
+    private static String extraJvmFlags(RunInfo info) {
+        List<String> extra = new ArrayList<>();
+        for (String arg : info.command()) {
+            if (arg.equals("-cp")) {
+                break;
+            }
+            if ((arg.startsWith("-XX:") || arg.startsWith("-X"))
+                    && !arg.startsWith("-Xmx")
+                    && !arg.startsWith("-XX:StartFlightRecording")
+                    && !arg.startsWith("-XX:FlightRecorderOptions")
+                    && !arg.startsWith("-XX:+HeapDumpOnOutOfMemoryError")
+                    && !arg.startsWith("-XX:HeapDumpPath")
+                    && !arg.startsWith("-XX:+Use")) {
+                extra.add(arg);
+            }
+        }
+        return String.join(" ", extra);
     }
 
     /** The classpath the child ran with, lifted back out of its recorded command line. */
@@ -356,8 +403,21 @@ public final class JfrDigest {
         row(md, "collector", info.jvm().gc().name().toLowerCase()
                 + " → `" + String.join(" ", info.jvm().flags(Runtime.version().feature())) + "`");
         row(md, "jdk", Runtime.version().toString());
+        int childCpus = (int) keyValueNumber(findChildSummary(runDir), "cpus");
+        int hostCpus = Runtime.getRuntime().availableProcessors();
         row(md, "os / cpus", System.getProperty("os.name") + " " + System.getProperty("os.arch")
-                + " / " + Runtime.getRuntime().availableProcessors());
+                + " / " + (childCpus > 0 ? childCpus : hostCpus)
+                + (childCpus > 0 && childCpus != hostCpus
+                        ? " **(child sees " + childCpus + " of the host's " + hostCpus
+                          + " — this run was deliberately constrained)**" : ""));
+        // Any JVM option the operator added by hand. In the run summary rather than buried in
+        // run-meta.txt because it is the strongest reason two digests are not comparable, and the
+        // note below already tells the reader which fields must match before diffing.
+        String extra = extraJvmFlags(info);
+        if (!extra.isEmpty()) {
+            row(md, "extra jvm flags", "`" + extra + "` — **a constrained run; do not diff this "
+                    + "against an unconstrained one**");
+        }
         row(md, "heap dump", info.heapDump() ? "**yes — the run OOM'd**" : "no");
         md.append("\n");
 

@@ -125,6 +125,11 @@ public final class Profiler {
                   --soak                 for multi-hour runs: drop the allocation and CPU
                                          sampling so the recording spans the whole run instead
                                          of rolling. Keeps GC events and the leak profiler.
+                  --jvm-flag -XX:...     extra child JVM option, repeatable. For deliberately
+                                         constraining a run — e.g. -XX:ActiveProcessorCount=1 to
+                                         make the JVM believe it has one core. Recorded in
+                                         run-meta.txt and the digest, because a constrained run is
+                                         not comparable with an unconstrained one.
                   -Dkey=value            passed through to the child JVM (repeatable)
                 """);
     }
@@ -193,8 +198,8 @@ public final class Profiler {
 
         List<String> command = childCommand(classpath, name, shape, jvm, mockUrl,
                 recordMock ? List.of() : jfrFlags(runDir, shape, flags, warmupWillRun), runDir, flags.systemProperties,
-                workload.jvmFlags());
-        writeRunMeta(runDir, name, shape, jvm, command, mockUrl, mockTier(workload, flags));
+                workload.jvmFlags(), flags.jvmFlags);
+        writeRunMeta(runDir, name, shape, jvm, command, mockUrl, mockTier(workload, flags), flags.jvmFlags);
 
         System.out.println("[parent] forking: " + String.join(" ", command));
         Process child = new ProcessBuilder(command).redirectErrorStream(true).start();
@@ -322,12 +327,17 @@ public final class Profiler {
                                              JvmConfig jvm, String mockUrl,
                                              List<String> jfr, Path runDir,
                                              List<String> systemProperties,
-                                             List<String> workloadFlags) {
+                                             List<String> workloadFlags,
+                                             List<String> extraJvmFlags) {
         List<String> command = new ArrayList<>();
         command.add(javaBinary());
         command.add("-Xmx" + jvm.xmx());
         command.addAll(jvm.flags(Runtime.version().feature()));
         command.addAll(workloadFlags);
+        // After the harness's own JVM options and the workload's, so that when the same option is
+        // given twice HotSpot takes the operator's. That is the point of the flag: it exists to
+        // constrain a run deliberately, which means overriding what the harness chose.
+        command.addAll(extraJvmFlags);
         command.addAll(jfr);
         command.addAll(systemProperties);
         command.add("-Dkarate.profiling.workload=" + name);
@@ -516,7 +526,8 @@ public final class Profiler {
     }
 
     private static void writeRunMeta(Path runDir, String name, RunShape shape, JvmConfig jvm,
-                                     List<String> command, String mockUrl, String mockTier) throws IOException {
+                                     List<String> command, String mockUrl, String mockTier,
+                                     List<String> extraJvmFlags) throws IOException {
         String meta = """
                 workload:     %s
                 threads:      %d
@@ -526,6 +537,7 @@ public final class Profiler {
                 xmx:          %s
                 gc:           %s
                 gc expansion: %s
+                extra jvm:    %s
                 mock:         %s
                 mock url:     %s
 
@@ -549,6 +561,7 @@ public final class Profiler {
                 jvm.xmx(),
                 jvm.gc().name().toLowerCase(),
                 String.join(" ", jvm.flags(Runtime.version().feature())),
+                extraJvmFlags.isEmpty() ? "(none)" : String.join(" ", extraJvmFlags),
                 mockTier,
                 mockUrl == null ? "(none)" : mockUrl,
                 Runtime.version(), System.getProperty("java.vendor"),
@@ -650,6 +663,8 @@ public final class Profiler {
         boolean gcRoots;
         boolean soak;
         final List<String> systemProperties = new ArrayList<>();
+        /** Extra child JVM options, repeatable. See the usage text and childCommand. */
+        final List<String> jvmFlags = new ArrayList<>();
 
         static Args parse(List<String> argv) {
             Args args = new Args();
@@ -658,6 +673,7 @@ public final class Profiler {
                 switch (flag) {
                     case "--gc-roots" -> args.gcRoots = true;
                     case "--soak" -> args.soak = true;
+                    case "--jvm-flag" -> args.jvmFlags.add(next(argv, ++i, flag));
                     case "--threads" -> args.threads = Integer.parseInt(next(argv, ++i, flag));
                     case "--iterations" -> args.iterations = Long.parseLong(next(argv, ++i, flag));
                     case "--duration" -> args.duration = RunShape.parseDuration(next(argv, ++i, flag));
