@@ -102,6 +102,8 @@ public final class Child {
                     + " peakHeapBytes=" + peakHeapBytes()
                     + " " + selfCpu.describe()
                     + " cpus=" + Runtime.getRuntime().availableProcessors()
+                    // Always present, so a reader never has to know which branch wrote the line.
+                    + " truncated=false"
                     + " oom=" + self.oom);
             if (self.firstFailure != null) {
                 self.firstFailure.printStackTrace(System.out);
@@ -111,7 +113,7 @@ public final class Child {
 
         if (!warmup.isZero()) {
             System.out.println("[child] warmup " + RunShape.format(warmup) + " (excluded from the recording)");
-            Result discarded = drive(workload, threads, -1, warmup);
+            Result discarded = drive(workload, threads, -1, warmup, "warmup");
             System.out.println("[child] warmup done, " + discarded.completed + " iterations discarded");
         }
 
@@ -121,7 +123,7 @@ public final class Child {
         // loading and JIT are on the other side of this line, and a CPU total that includes them
         // measures the JVM waking up rather than the workload. See SelfCpu.
         SelfCpu.Window cpu = SelfCpu.open();
-        Result result = drive(workload, threads, iterations, duration);
+        Result result = drive(workload, threads, iterations, duration, "measured");
         long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
         String cpuDescription = cpu.describe();
 
@@ -142,25 +144,31 @@ public final class Child {
                 // The CHILD's core count, which is not always the parent's: -XX:ActiveProcessorCount
                 // changes what this JVM believes it has, and the digest divides CPU by it.
                 + " cpus=" + Runtime.getRuntime().availableProcessors()
+                // In the summary line, not just the log, so the digest's outcome row and the
+                // exit code can both reflect it. A truncated run's elapsedMs is window + grace,
+                // which is close enough to the requested window to pass a glance.
+                + " truncated=" + result.truncated
                 + " oom=" + result.oom);
         if (result.firstFailure != null) {
             System.out.println("[child] first failure: " + result.firstFailure);
             result.firstFailure.printStackTrace(System.out);
         }
         // Explicit, so a lingering non-daemon thread somewhere in Karate cannot keep the
-        // JVM alive past the point where the run is over.
-        System.exit(result.oom || result.errors > 0 ? 1 : 0);
+        // JVM alive past the point where the run is over. Truncation exits non-zero: the run
+        // did not do what it was asked to do, and a caller scripting a matrix or a soak should
+        // find out from the status, not by reading a log.
+        System.exit(result.oom || result.errors > 0 || result.truncated ? 1 : 0);
     }
 
     /** One pass, on this thread, for a workload that drives its own concurrency. */
     private static Result driveOnce(Workload workload) {
         try {
             workload.iterate(0, 0);
-            return new Result(1, 0, false, null);
+            return new Result(1, 0, false, false, null);
         } catch (OutOfMemoryError e) {
-            return new Result(0, 0, true, e);
+            return new Result(0, 0, true, false, e);
         } catch (Throwable t) {
-            return new Result(0, 1, false, t);
+            return new Result(0, 1, false, false, t);
         }
     }
 
@@ -168,7 +176,19 @@ public final class Child {
      * Drive {@code threads} virtual threads until the iteration budget is spent or the
      * window closes, whichever bound was given.
      */
-    private static Result drive(Workload workload, int threads, long iterations, Duration window) {
+    private static Result drive(Workload workload, int threads, long iterations, Duration window,
+                                String phase) {
+        return drive(workload, threads, iterations, window, phase, JOIN_GRACE_SECONDS);
+    }
+
+    /**
+     * Package-private and grace-parameterised so the join can be tested. The bug this replaced
+     * shipped unnoticed and cost a night's soak; a two-minute constant is not something a test
+     * can wait out, and "verified by one manual 90-second run" is how it went unnoticed the first
+     * time. Production always passes {@link #JOIN_GRACE_SECONDS}.
+     */
+    static Result drive(Workload workload, int threads, long iterations, Duration window,
+                        String phase, long graceSeconds) {
         AtomicLong next = new AtomicLong();
         AtomicLong errors = new AtomicLong();
         AtomicReference<Throwable> firstFailure = new AtomicReference<>();
@@ -207,7 +227,7 @@ public final class Child {
         // window rather than a constant, so a long run waits as long as it asked to.
         long joinDeadlineNanos = window == null
                 ? Long.MAX_VALUE
-                : deadlineNanos + TimeUnit.SECONDS.toNanos(JOIN_GRACE_SECONDS);
+                : deadlineNanos + TimeUnit.SECONDS.toNanos(graceSeconds);
         for (Thread worker : workers) {
             try {
                 if (joinDeadlineNanos == Long.MAX_VALUE) {
@@ -232,13 +252,29 @@ public final class Child {
         // window that was cut short, and every panel downstream would read as a completed run.
         long stillAlive = workers.stream().filter(Thread::isAlive).count();
         if (stillAlive > 0) {
-            System.out.println("[child] WARNING: " + stillAlive + " of " + threads
-                    + " workers still running at the join deadline — this run was TRUNCATED and its"
-                    + " duration is not the window that was asked for");
+            if ("warmup".equals(phase)) {
+                // Distinct wording, because the consequence is different and worse. A measured
+                // run that truncates loses time it asked for; a *warmup* straggler runs on into
+                // the measured window — burning CPU, loading the mock, and (once the recording's
+                // delay= expires) contributing its events to the very recording the warmup exists
+                // to stay out of. Nothing downstream can tell that happened.
+                System.out.println("[child] WARNING: " + stillAlive + " of " + threads
+                        + " warmup workers were still running when the warmup ended — they will"
+                        + " run on into the measured window and pollute it");
+            } else {
+                System.out.println("[child] WARNING: " + stillAlive + " of " + threads
+                        + " workers still running at the join deadline — this run was TRUNCATED and"
+                        + " its duration is not the window that was asked for");
+            }
         }
 
-        long completed = Math.min(next.get(), iterations < 0 ? Long.MAX_VALUE : iterations);
-        return new Result(completed, errors.get(), oom.get(), firstFailure.get());
+        // next.getAndIncrement() counts iterations *claimed*, so a worker still inside iterate()
+        // has already been counted. Subtracting the stragglers keeps "completed" honest at the
+        // exact moment the number is least trustworthy. Bounded by thread count, so small — but
+        // a count that overstates on a truncated run is the wrong way round.
+        long claimed = Math.min(next.get(), iterations < 0 ? Long.MAX_VALUE : iterations);
+        long completed = Math.max(0, claimed - stillAlive);
+        return new Result(completed, errors.get(), oom.get(), stillAlive > 0, firstFailure.get());
     }
 
     /** A heartbeat, so a watching human (or parent) can tell "still working" from "hung". */
@@ -308,7 +344,16 @@ public final class Child {
         return value;
     }
 
-    private record Result(long completed, long errors, boolean oom, Throwable firstFailure) {
+    /**
+     * @param truncated workers were still running when the join deadline passed, so {@code
+     *                  completed} and the elapsed time describe a window that was cut short.
+     *                  Carried all the way to the summary line and the exit code, because a
+     *                  warning printed to stdout is not a signal: on an eight-hour soak it is one
+     *                  line among thousands, and the elapsed time in this case reads as
+     *                  {@code window + grace}, which looks approximately right.
+     */
+    record Result(long completed, long errors, boolean oom, boolean truncated,
+                  Throwable firstFailure) {
     }
 
 }

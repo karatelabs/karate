@@ -135,7 +135,7 @@ rm -rf "${TMPDIR:-/tmp}"/karate-feature-spread-* "${TMPDIR:-/tmp}"/karate-report
 | `--xmx 768m` | per workload | Child heap. **The single most important knob** — a leak that OOMs at 768m may never surface at 4g. |
 | `--gc g1\|zgc` | `g1` | See [Reproducing a specific collector](#reproducing-a-specific-collector). |
 | `--warmup Ns` | per workload | Excluded from the measured window — the recording is delayed past it. A workload that drives its own concurrency runs no warmup, so nothing is delayed for it. |
-| `--timeout` | duration + slack | Wall-clock cap. On expiry the parent dumps the recording and thread state, then kills the child. See §4. |
+| `--timeout` | duration + warmup + 5m — but a **flat 1 hour** for an iteration-bounded run | Wall-clock cap. On expiry the parent dumps the recording and thread state, then kills the child. See §4. **Pass this explicitly for any long iteration-bounded run:** its runtime is unknown by construction, so the default is a constant, and an iteration count sized at "about an hour" from a throughput estimate sits right on the kill boundary. The parent now prints a note when you are in that case. |
 | `--record workload\|mock` | `workload` | Flips which JVM gets the recording, so the profile is of the mock server rather than the load driver. Only meaningful for a workload that uses a mock — today that is the `gatling-http-*` pair, and `gatling-http-plain --record mock` is the cheaper driver of the two. For a mock that must stay out of the way rather than be profiled, use `--mock-latency` instead (§10). |
 | `--mock feature\|latency` | `feature` | Which mock tier to fork. `feature` is the Karate-feature mock (a *subject* — `--record mock` profiles it); `latency` is `LatencyMock`, the instrumented one for runs where the mock must stay out of the way. See [§10](#10-the-latency-mock-and-what-the-parity-matrix-found). |
 | `--mock-latency 10ms` | none | Injected server latency. Implies `--mock latency`, because the feature mock has no such knob. **This is what makes a Gatling parity comparison mean anything** — against a localhost mock both clients queue behind the server and report identical numbers that prove nothing. |
@@ -292,8 +292,17 @@ survived so long:
    with a flat 30-second timeout, in a loop over the workers. A `--duration 7h` soak at 8 threads
    ran for **four minutes**, exited 0, and wrote a clean digest whose only tell was
    `elapsedMs=240007`. The join is now one deadline for the whole loop, derived from the window,
-   and a run with workers still alive at the deadline is labelled **TRUNCATED** in the child's own
-   output.
+   and covered by a regression test that fails at 8 s where the fix costs 1.2 s
+   (`ChildDriveTest`) — the original bug degrades *proportionally to thread count*, so it looks
+   fine in every short run and only bites where verification is expensive.
+
+   A run with workers still alive at the deadline now carries `truncated=true` in the machine-read
+   summary line, renders as **TRUNCATED** in the digest's outcome row, and **exits non-zero**. The
+   first version of this fix printed a warning to stdout and stopped there, which is not a signal:
+   on an eight-hour soak it is one line among thousands, and a truncated run's `elapsedMs` is
+   `window + grace`, which passes a glance. `completed` also no longer counts stragglers — it
+   counted iterations *claimed*, overstating the run at the one moment its numbers are least
+   trustworthy.
 2. **`call-accumulation` and `feature-spread` cannot be soaked at all.** Both declare
    `drivesOwnConcurrency`, so `Child` runs one pass and ignores `--duration`. The soakable Runner
    workloads are the **scope-capture pair** and `harness-smoke`.
@@ -303,14 +312,24 @@ survived so long:
 `FeatureWorkload.iterate()`, which calls `Runner.runFeature()` — **a fresh `Suite` per
 iteration**, which is exactly what `KarateExecutor` does under Gatling. So it exercises the
 Suite-per-iteration hypothesis below **without** the HTTP client's file-descriptor confound, and
-is therefore *not* blocked on the client-lifecycle fix. It is not a full substitute: no HTTP, and
-Karate's own virtual threads rather than Gatling's platform pool.
+is therefore *not* blocked on the client-lifecycle fix. **Read that last clause narrowly**: it is
+unblocked because this workload makes *zero HTTP calls*, which also means it cannot observe
+HTTP-client or file-descriptor retention **at all** — and that is the leak class most plausibly
+attached to the Gatling lane's long-lived pool. It also runs with a null `PerfHook` and no
+log-replay buffers, both of which are live in the Gatling path. A flat floor here clears the
+Suite-per-iteration hypothesis and nothing else.
 
 **Prefer iterations over wall-clock when choosing a length.** The named suspects below are all
 per-*execution*, so they scale with iteration count, not time. At ~9,500 iterations/s an hour is
 ~34 million executions — far more than any real suite or Gatling run, and enough that a 10-byte
-per-iteration leak would show as ~340 MB against a 768m heap. Hours only buy detection of a
-genuinely *time*-based leak, which is not what is hypothesised.
+per-iteration leak would show as ~340 MB against a 768m heap.
+
+That is a heuristic, not a theorem, and it is worth knowing where it bends. At 9,500 it/s the JVM
+runs ~30 young collections a second — a regime no real suite is in. Tenuring, promotion and
+`OldObjectSample`'s age-based sampling all behave differently under that compression, so a
+retention bug whose trigger is *promotion* rather than *allocation count* can present differently
+here than it would over hours at a realistic rate. Compressing time buys iterations cheaply; it
+does not make a long run redundant.
 
 One prerequisite is now met: a soak needs a server that stays stable for hours without
 saturating, and `LatencyMock` ([§10](#10-the-latency-mock-and-what-the-parity-matrix-found)) is
@@ -938,24 +957,36 @@ linear trend and the ratios are what travel.*
 dropping history after ~25 minutes — and the heap-after-GC floor **over hours** is the entire
 detector. An eight-hour soak would have produced a digest describing its last twenty-five minutes.
 
-Two things had to be measured to fix it, and both inverted the obvious guess:
+The thing that had to be measured inverted the obvious guess:
 
-- **The file is dominated by GC internals, not by sampling.** `jdk.GCPhaseParallel` 1,123,457
-  events, `PromoteObjectInNewPLAB` 126,183, `TenuringDistribution` 55,560 — against the 7,408
-  `jdk.GCHeapSummary` events that are the only thing a soak reads. Thirty young collections a
-  second times a few hundred phase events each is the whole file. Disabling the allocation and CPU
-  samplers moved 41 MB to 37 MB; switching `settings=profile` to `settings=default` moved it to
-  35 MB, because those GC events are on in both.
-- **Per-event settings are silently ignored in the `-XX:StartFlightRecording=` form.** They need
-  the JDK 14+ **colon** form. Verified directly: with `=`, a run asked to disable
-  `jdk.TenuringDistribution` still recorded 7,740 of them; with `:`, zero. No warning either way —
-  which is why the first two attempts at this appeared to work while changing nothing.
+**The file is dominated by GC internals, not by sampling.** `jdk.GCPhaseParallel` 1,123,457
+events, `PromoteObjectInNewPLAB` 126,183, `TenuringDistribution` 55,560 — against the 7,408
+`jdk.GCHeapSummary` events a soak actually reads. Thirty young collections a second times a few
+hundred phase events each is the whole file. Disabling the allocation and CPU samplers moved 41 MB
+to 37 MB — a 10% dent, because the samplers were never the bulk. Switching `settings=profile` to
+`settings=default` moved it to 35 MB: the phase events are on in both, and while it does turn the
+two `PromoteObject*` events off (they are profile-only), those are a tenth of the volume. Only the
+full disable list reaches ~2 MB.
 
-`--soak` therefore uses the colon form with an explicit disable list. The same two-minute run
-writes **2 MB instead of 41**, so ten hours projects to ~725 MB against a 4 GB cap.
+`--soak` therefore uses an explicit disable list. The same two-minute run writes **2 MB instead of
+41**, so ten hours projects to ~600 MB against a 4 GB cap.
 
-**What it keeps, deliberately:** `jdk.GCHeapSummary` (the floor series), the top-level GC pause
-events, and `jdk.OldObjectSample` — the leak profiler — **with `stackTrace=true` set explicitly**.
+> **A correction, left here because the wrong version was published.** This section previously
+> claimed that per-event settings are *silently ignored* in the `-XX:StartFlightRecording=` form
+> and need the JDK 14+ colon form. **That is false.** Both forms honour them — measured on JDK 24
+> with a GC-churning workload: the `=` form recorded 15,300 `jdk.TenuringDistribution` events with
+> no disable and **0** with one; the colon form recorded 14,760 and **0**. The observation behind
+> the false claim (a "disabled" event still appearing 7,740 times) was never explained, and the
+> likeliest cause is reading a stale `run.jfr` from a previous run directory, which would produce
+> exactly that. The claim was also self-contradicting on its own terms: the same text said the
+> disables "did nothing" *and* that they shrank the file by 10%. `--soak` still uses the colon
+> form, because it is the documented modern syntax — not because the other one is broken.
+
+**What it keeps, deliberately:** `jdk.GCHeapSummary` (the floor series), `jdk.GarbageCollection`
+(the pause panel), and `jdk.OldObjectSample` — the leak profiler — **with `stackTrace=true` set
+explicitly**. Those three are the whole of what a soak digest reads. The top-level
+`jdk.GCPhasePause` survives too, but only as a side effect of naming just its sub-levels; no panel
+reads it, and at one event per collection it is not worth the extra token.
 That last one is not redundant: `settings=default` enables `OldObjectSample` *without* stacks, and
 the first soak proved what that costs, reporting retained types under `by allocating site: (no
 stack) 100%`. A leak profiler that cannot name an allocator is not one.
@@ -1708,15 +1739,19 @@ which is what the phase was for.
 **Three findings, and one of them refutes a prediction this document made.**
 
 - **The cost is machine-dependent and the absolute number does not travel.** 0.59 ms on Apple
-  silicon, 1.79 ms on Graviton3 — but machine A's figure carries a 95% interval of roughly
-  −0.13…+1.31 ms (n=3), so the honest ratio is anywhere from ~1.4x to ~14x. Every quotation of
-  "Karate adds X ms" from here on must name the machine.
-- **Co-location was not the confound it was billed as.** §10 predicted the two-host move would
-  expose per-iteration connection setup that loopback priced at zero. It did not: the
-  same-instance control is *higher*, at +1.94, so topology accounts for ≲0.15 ms of the 1.2 ms
-  machine gap — about a tenth. The prediction is not thereby refuted, because a same-AZ RTT of
-  ~100 µs leaves almost no round trip to pay for; it remains **untested at realistic RTT with
-  TLS**, which is where it was always expected to bite.
+  silicon, 1.79 ms on Graviton3. No ratio between them should be quoted: machine A's figure carries
+  a 95% interval of roughly −0.13…+1.31 ms (n=3), and an interval that **crosses zero** puts no
+  finite upper bound on the ratio at all. What survives is the direction and the instruction —
+  every quotation of "Karate adds X ms" from here on must name the machine.
+- **Co-location is not the confound it was billed as** — on the evidence available, which is
+  thinner than one line of table suggests. §10 predicted the two-host move would expose
+  per-iteration connection setup that loopback priced at zero. It did not: the same-instance
+  control is *higher*, at +1.94, putting topology at ≲0.15 ms of the 1.2 ms machine gap. Treat
+  that as **consistent with small, not as settled**: it rests on n=4 against n=9, where a 0.15 ms
+  difference carries ~±0.1 ms of standard error, and the control ran with the cold-mock confound
+  described below. The prediction is not refuted either, because a same-AZ RTT of ~100 µs leaves
+  almost no round trip to pay for; it remains **untested at realistic RTT with TLS**, which is
+  where it was always expected to bite.
 - **Injector headroom is now evidence.** 0.9–1.0 cores (plain) and 1.6–1.7 (karate) of 16,
   in every digest. The extra CPU reconciles with the extra serial time: ~0.7 cores of difference
   at ~345 iterations/s is ~2 ms/iteration, against +1.79 ms measured — so the overhead is CPU

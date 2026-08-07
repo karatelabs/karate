@@ -105,9 +105,20 @@ kp_ssh "$injector_ip" "mkdir -p ~/karate/karate-profiling/target/profiling && to
 # absorbs that lands ~0.5 ms/iteration slower. Because pair 1 always leads with karate,
 # the bias was structural and always against Karate — it inflated a 10-pair mean from
 # +1.79 to +1.84 and tripled its standard deviation on its own.
+#
+# Two things this loop does NOT do, both deliberate. It does not share the pairs' failure
+# counter: a discarded run that fails has not broken the pairing, and counting it ends the
+# matrix with "the pairing is broken" when it is intact. And it does not delete "the newest
+# run directory" — if the warmup dies before creating one, the newest is a previous session's
+# and would be silently destroyed. Both bound the deletion to this matrix, via the marker.
 log "warming the mock (one discarded run)"
+warmup_failures_before=$failures
 run_arm karate >/dev/null 2>&1 || true
-kp_ssh "$injector_ip" "cd ~/karate/karate-profiling/target/profiling && rm -rf \$(ls -1dt gatling-http-* | head -1)"
+failures=$warmup_failures_before
+kp_ssh "$injector_ip" "cd ~/karate/karate-profiling/target/profiling && \
+    victim=\$(find . -maxdepth 1 -name 'gatling-http-*' -newer '$marker' | sort | tail -1) && \
+    [[ -n \"\$victim\" ]] && rm -rf \"\$victim\" && echo \"discarded \$victim\" || \
+    echo 'warmup produced no run directory — nothing discarded'"
 sleep "$gap"
 
 log "$pairs pairs at $tier — $iterations iterations, $users users, ${gap}s between runs"

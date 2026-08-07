@@ -62,12 +62,18 @@ public final class Profiler {
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss");
     private static final String DEFAULT_MAX_SIZE = "512m";
     private static final String SOAK_MAX_SIZE = "4g";
+    /** Past this, a run without {@code --soak} outlives its own recording. See {@link #warnAboutLongRunShape}. */
+    private static final Duration SOAK_ADVISED_BEYOND = Duration.ofMinutes(20);
 
     /**
      * Events a multi-hour run must not record. Every one is per-collection GC bookkeeping that
      * no panel reads; together they are ~99% of the file on an allocation-heavy workload.
-     * {@code jdk.GCHeapSummary} — the heap-after-GC floor, i.e. the entire soak detector — and
-     * the top-level {@code jdk.GCPhasePause} are deliberately NOT here.
+     * Three are deliberately NOT here, and they are exactly the three a soak digest reads:
+     * {@code jdk.GCHeapSummary} (the heap-after-GC floor — the entire leak detector),
+     * {@code jdk.GarbageCollection} (the GC-pause panel), and {@code jdk.OldObjectSample}, which
+     * is re-enabled explicitly below. The top-level {@code jdk.GCPhasePause} also survives, but
+     * as a side effect of only naming the levels: no panel reads it. It is cheap — one event per
+     * collection rather than the hundreds its sub-levels emit — so it is left alone.
      */
     private static final List<String> SOAK_DISABLED_EVENTS = List.of(
             "jdk.GCPhaseParallel", "jdk.GCPhasePauseLevel1", "jdk.GCPhasePauseLevel2",
@@ -164,6 +170,7 @@ public final class Profiler {
                 .withWarmup(flags.warmup)
                 .withTimeout(flags.timeout);
         JvmConfig jvm = workload.jvm().withXmx(flags.xmx).withGc(flags.gc);
+        warnAboutLongRunShape(shape, flags);
         boolean recordMock = "mock".equals(flags.record);
         // Mirrors Child's own rule: a self-driving workload runs one pass and no warmup, so
         // there is nothing for the recording to be delayed past.
@@ -262,6 +269,40 @@ public final class Profiler {
      * JVM without flushing, leaving a zero-byte recording — on precisely the workloads
      * whose expected outcome is an OOM.
      */
+    /**
+     * The two ways a long run silently produces a digest that describes something other than the
+     * run. Both are warnings rather than refusals — a deliberate short soak to test the harness is
+     * legitimate, and so is a long iteration-bounded run whose operator knows the rate.
+     *
+     * <p><b>Without {@code --soak}</b> a recording is capped at {@link #DEFAULT_MAX_SIZE} and
+     * rolls. At {@code settings=profile} on an allocation-heavy workload that is ~1.2 GB/h, so the
+     * cap is reached in about 25 minutes and everything before it is discarded. The digest is
+     * clean and describes the last 25 minutes of an eight-hour run without saying so — the exact
+     * failure the {@code --soak} flag exists to prevent, which is worth nothing if the operator
+     * has to already know to pass it.
+     *
+     * <p><b>Iteration-bounded runs</b> get a flat one-hour {@link RunShape#effectiveTimeout()},
+     * because their runtime is unknown by construction. An operator who sized an iteration count
+     * at "about an hour" from a throughput estimate is one bad estimate away from having the child
+     * killed and its recording dumped mid-run — and the estimate is usually derived from a shorter
+     * run at a warmer JIT state, so it errs optimistic.
+     */
+    private static void warnAboutLongRunShape(RunShape shape, Args flags) {
+        if (shape.isDurationBounded() && !flags.soak
+                && shape.duration().compareTo(SOAK_ADVISED_BEYOND) > 0) {
+            System.out.println("[parent] WARNING: --duration " + RunShape.format(shape.duration())
+                    + " without --soak. The recording is capped at " + DEFAULT_MAX_SIZE
+                    + " and rolls, so the digest will describe roughly the last 25 minutes of the"
+                    + " run and will not say so. Pass --soak.");
+        }
+        if (!shape.isDurationBounded() && flags.timeout == null) {
+            System.out.println("[parent] note: iteration-bounded run, so --timeout defaults to a"
+                    + " flat " + RunShape.format(shape.effectiveTimeout()) + ". If "
+                    + shape.iterations() + " iterations might take longer than that, pass"
+                    + " --timeout — the child is killed at the cap and the run is lost.");
+        }
+    }
+
     private static List<String> jfrFlags(Path runDir, RunShape shape, Args flags, boolean warmupWillRun) {
         // A soak records a different, much smaller set of events, because the default one
         // cannot span a soak at all. Two measurements got this right, both surprising:
@@ -269,20 +310,31 @@ public final class Profiler {
         //   1. The file is dominated by GC *internals*, not by sampling. On
         //      scope-capture-bound: jdk.GCPhaseParallel 1,123,457 events,
         //      PromoteObjectInNewPLAB 126,183, TenuringDistribution 55,560 — against the 7,408
-        //      jdk.GCHeapSummary events that are the only thing a soak reads. Thirty young
-        //      collections a second times a few hundred phase events each is the whole 1.2 GB/h.
-        //      Switching settings=profile to settings=default changes almost nothing: those
-        //      events are on in both.
+        //      jdk.GCHeapSummary events a soak actually reads (with jdk.GarbageCollection for the
+        //      pause panel and jdk.OldObjectSample for retention; those three, and nothing else).
+        //      Thirty young collections a second times a few hundred phase events each is the
+        //      whole 1.2 GB/h. Switching settings=profile to settings=default helps less than it
+        //      looks: the phase events are on in both. It does turn the PLAB events off — those
+        //      two are profile-only — but they are a tenth of the volume, so they are disabled
+        //      explicitly as well rather than relied on.
         //
-        //   2. Per-event settings are silently ignored in the `-XX:StartFlightRecording=` form.
-        //      They need the JDK 14+ colon form, `-XX:StartFlightRecording:`. Verified directly:
-        //      with `=`, a run asked to disable jdk.TenuringDistribution still recorded 7,740 of
-        //      them; with `:`, zero. No warning either way — the flag simply does nothing, which
-        //      is why the first two attempts at this "worked" and shrank the file by 10%.
+        //   2. The disable list has to be near-complete to matter. Disabling the two samplers
+        //      alone moved 41 MB to 37 MB — a 10% dent, because the samplers were never the bulk.
+        //      Only when the GC-internal events above went too did it reach ~2 MB.
         //
-        // Hence the colon form and an explicit disable list. OldObjectSample goes back ON: it is
-        // the leak profiler, it is cheap, and "who allocated what is still alive after eight
-        // hours" is the question a soak asks.
+        // A correction, because the wrong version of it was published here and is worth naming:
+        // this comment used to claim per-event settings are *silently ignored* in the
+        // `-XX:StartFlightRecording=` form and need the JDK 14+ colon form. That is false. Both
+        // forms honour them — measured on JDK 24 with a GC-churning workload: `=` recorded 15,300
+        // jdk.TenuringDistribution events with no disable and 0 with one, and `:` recorded 14,760
+        // and 0. The observation behind the false claim (a "disabled" event still appearing 7,740
+        // times) was never explained; reading a stale run.jfr from a previous run directory is the
+        // likeliest cause and would have produced exactly that. The colon form is kept because it
+        // is the documented modern syntax, not because the other one is broken.
+        //
+        // Hence the explicit disable list. OldObjectSample goes back ON: it is the leak profiler,
+        // it is cheap, and "who allocated what is still alive after eight hours" is the question a
+        // soak asks.
         StringBuilder start;
         if (flags.soak) {
             start = new StringBuilder("-XX:StartFlightRecording:settings=default");

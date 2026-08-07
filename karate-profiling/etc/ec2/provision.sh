@@ -12,8 +12,16 @@ source "$(dirname "$0")/lib.sh"
 # second instance overnight is real money for no measurement. --single launches
 # the injector only; matrix.sh will refuse to run without a mock host, which is
 # the correct failure.
+#
+# Unknown arguments are rejected rather than ignored. A script that spends money should not
+# read `--sinlge` as "launch both instances" and say nothing.
 single=false
-[[ "${1:-}" == "--single" ]] && single=true
+case "${1:-}" in
+    --single) single=true ;;
+    "") ;;
+    *) die "unknown argument '$1' — the only option is --single" ;;
+esac
+[[ $# -le 1 ]] || die "unexpected extra arguments: ${*:2}"
 
 my_ip="$(curl -s --max-time 10 https://checkip.amazonaws.com || true)"
 [[ -n "$my_ip" ]] || die "could not determine your public IP for the ssh rule"

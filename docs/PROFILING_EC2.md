@@ -195,11 +195,19 @@ nothing appears until it finishes. Watch it with
 `etc/ec2/ssh.sh injector 'tail -3 ~/soak.log'`.
 
 **`--soak` is not optional for a long run** — without it the recording rolls and the digest
-describes only the last ~25 minutes. See [PROFILING.md](./PROFILING.md) on soak mode.
+describes only the last ~25 minutes. The parent now warns when `--duration` exceeds 20 minutes
+without it. See [PROFILING.md](./PROFILING.md) on soak mode.
 
 **Check the summary's `elapsedMs` against the window you asked for.** A `--duration` run that
-truncates used to do so silently; it now prints a TRUNCATED warning, but reading `elapsedMs` is
-the one-second check that catches any future variant.
+truncates used to do so silently. It now sets `truncated=true` in the summary line, reads as
+**TRUNCATED** in the digest's outcome row, and exits non-zero — but `elapsedMs` is still the
+one-second check that catches any future variant, and it is the check that caught this one.
+
+**An iteration-bounded soak needs an explicit `--timeout`.** The default for that shape is a flat
+**one hour**, not "duration plus slack", because the runtime is unknown by construction. Sizing an
+iteration count at "about an hour" from a throughput estimate therefore lands on the kill boundary,
+and the estimate usually comes from a shorter, warmer run — so it errs optimistic. The parent
+prints a note when you are in that case.
 
 **Do not use `pgrep -f`/`pkill -f` to check on it over ssh** — the pattern matches the ssh command
 line carrying it, so "is the child alive" answers yes forever. Use `ps -eo etime,cmd | grep "[C]hild"`.

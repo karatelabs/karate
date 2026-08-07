@@ -78,8 +78,8 @@ public final class JfrDigest {
         } else {
             try {
                 Data data = read(jfr);
-                appendAllocationBySite(md, data);
-                appendHotMethods(md, data);
+                appendAllocationBySite(md, data, info);
+                appendHotMethods(md, data, info);
                 appendHeapAfterGc(md, data);
                 appendGcPauses(md, data);
                 appendRetainedObjects(md, data, info);
@@ -210,6 +210,22 @@ public final class JfrDigest {
             }
         }
         return -1;
+    }
+
+    /**
+     * True only when the child explicitly said {@code key=true}. Absent reads as false, which is
+     * what a digest built from a run predating the flag should say.
+     */
+    private static boolean keyValueFlag(String summary, String key) {
+        if (summary == null) {
+            return false;
+        }
+        for (String token : summary.split("\\s+")) {
+            if (token.startsWith(key + "=")) {
+                return Boolean.parseBoolean(token.substring(key.length() + 1));
+            }
+        }
+        return false;
     }
 
     /** Pull one {@code key=<nanos>} out of the child's summary line, as seconds; -1 if absent. */
@@ -391,8 +407,9 @@ public final class JfrDigest {
         RunShape shape = info.shape();
         md.append("## Run summary\n\n");
         md.append("| | |\n|---|---|\n");
+        String childSummary = findChildSummary(runDir);
         row(md, "workload", info.workload());
-        row(md, "outcome", outcome(info));
+        row(md, "outcome", outcome(info, childSummary));
         row(md, "exit code", String.valueOf(info.exitCode()));
         row(md, "threads", String.valueOf(shape.threads()));
         row(md, "bound", shape.isDurationBounded()
@@ -403,7 +420,7 @@ public final class JfrDigest {
         row(md, "collector", info.jvm().gc().name().toLowerCase()
                 + " → `" + String.join(" ", info.jvm().flags(Runtime.version().feature())) + "`");
         row(md, "jdk", Runtime.version().toString());
-        int childCpus = (int) keyValueNumber(findChildSummary(runDir), "cpus");
+        int childCpus = (int) keyValueNumber(childSummary, "cpus");
         int hostCpus = Runtime.getRuntime().availableProcessors();
         row(md, "os / cpus", System.getProperty("os.name") + " " + System.getProperty("os.arch")
                 + " / " + (childCpus > 0 ? childCpus : hostCpus)
@@ -421,9 +438,8 @@ public final class JfrDigest {
         row(md, "heap dump", info.heapDump() ? "**yes — the run OOM'd**" : "no");
         md.append("\n");
 
-        String summaryLine = findChildSummary(runDir);
-        if (summaryLine != null) {
-            md.append("Child reported: `").append(summaryLine).append("`\n\n");
+        if (childSummary != null) {
+            md.append("Child reported: `").append(childSummary).append("`\n\n");
         }
         md.append("> Compare digests only when `-Xmx`, `collector` and `jdk` match. "
                 + "Differences in any of those change what the numbers below mean.\n\n");
@@ -433,7 +449,7 @@ public final class JfrDigest {
      * Exit code alone cannot answer "did it OOM" — a swallowed worker error can still
      * exit 0. The heap dump is the primary signal; the child's own stdout is the backstop.
      */
-    private static String outcome(RunInfo info) {
+    private static String outcome(RunInfo info, String childSummary) {
         if (info.timedOut()) {
             return "**TIMED OUT** — child was dumped and killed; see `jcmd-jfr-dump.log` and the "
                     + "thread dump at the end of `stdout.log`";
@@ -441,17 +457,39 @@ public final class JfrDigest {
         if (info.heapDump()) {
             return "**OOM** — heap dump written";
         }
+        // Before the exit code, because a truncated run also exits non-zero and "completed with
+        // errors" would be the less useful of the two readings.
+        if (keyValueFlag(childSummary, "truncated")) {
+            return "**TRUNCATED** — workers were still running when the join deadline passed, so "
+                    + "every duration and rate below describes a window shorter than the one "
+                    + "requested. Do not compare this run against a completed one";
+        }
         return info.exitCode() == 0 ? "completed" : "completed with errors";
     }
 
-    private static void appendAllocationBySite(StringBuilder md, Data data) {
+    /**
+     * True when this run's own JVM flags turned the named event off — i.e. the panel below is
+     * empty by instruction, not by observation. Every "no samples" message that does not check
+     * this hands the reader a diagnosis of the wrong thing: {@code --soak} disables both samplers,
+     * and the resulting panels used to blame virtual threads and an absent recording.
+     */
+    private static boolean eventDisabled(RunInfo info, String event) {
+        return String.join(" ", info.command()).contains(event + "#enabled=false");
+    }
+
+    private static void appendAllocationBySite(StringBuilder md, Data data, RunInfo info) {
         md.append("## Allocation by site\n\n");
         md.append("`jdk.ObjectAllocationSample`, weighted bytes, collapsed to the topmost "
                 + "`io.karatelabs.*` frame. This answers *what is churning*, not *what is retained* — "
                 + "see the heap-after-GC series below before concluding anything about a leak. "
                 + "Allocation sampling does attribute correctly across virtual threads.\n\n");
         if (data.allocationByClass.isEmpty()) {
-            md.append("_No allocation samples in the recording._\n\n");
+            md.append(eventDisabled(info, "jdk.ObjectAllocationSample")
+                    ? "_`jdk.ObjectAllocationSample` was **disabled for this run** — `--soak` turns "
+                      + "it off, because over hours the sampler is a large part of the recording "
+                      + "and a soak asks about retention rather than churn. This panel is empty by "
+                      + "instruction; re-run without `--soak` to populate it._\n\n"
+                    : "_No allocation samples in the recording._\n\n");
             return;
         }
         md.append("Total sampled weight: ").append(bytes(data.allocationTotal))
@@ -462,7 +500,7 @@ public final class JfrDigest {
         table(md, "type", data.allocationByClass, data.allocationTotal, Unit.BYTES);
     }
 
-    private static void appendHotMethods(StringBuilder md, Data data) {
+    private static void appendHotMethods(StringBuilder md, Data data, RunInfo info) {
         md.append("## Hot methods\n\n");
         md.append("> **Read with care.** `jdk.ExecutionSample` only walks platform threads, and "
                 + "Karate runs every scenario on a virtual thread, so for any Runner-driven workload "
@@ -470,8 +508,13 @@ public final class JfrDigest {
                 + "nothing. Prefer *Allocation by site* above. This panel is trustworthy for the mock "
                 + "JVM (`--record mock`) and other platform-thread paths.\n\n");
         if (data.cpuBySite.isEmpty()) {
-            md.append("_No execution samples in the recording (see the caveat above — this is "
-                    + "expected for virtual-thread workloads)._\n\n");
+            md.append(eventDisabled(info, "jdk.ExecutionSample")
+                    ? "_`jdk.ExecutionSample` was **disabled for this run** by `--soak`. This panel "
+                      + "is empty by instruction, not because of virtual threads — note that under "
+                      + "`--soak --record mock` that disable applies to the mock too, which is the "
+                      + "one JVM this panel would have been trustworthy for._\n\n"
+                    : "_No execution samples in the recording (see the caveat above — this is "
+                      + "expected for virtual-thread workloads)._\n\n");
             return;
         }
         md.append("Samples: ").append(data.cpuSamples).append("\n\n");
@@ -545,14 +588,23 @@ public final class JfrDigest {
         // Whether the chains are present is knowable from the child's own command line, and
         // telling an operator to re-run with a flag they already used is how a panel loses its
         // credibility. The first soak did exactly that.
-        boolean gcRoots = String.join(" ", info.command()).contains("path-to-gc-roots=true");
+        // ...and under --record mock the child carries no JFR flags at all, so "absent" here means
+        // "this command line is not the one that made the recording" rather than "the operator did
+        // not ask for chains". Saying nothing beats saying the wrong thing.
+        String childCommand = String.join(" ", info.command());
+        boolean gcRoots = childCommand.contains("path-to-gc-roots=true");
+        boolean childWasRecorded = childCommand.contains("StartFlightRecording");
         md.append("`jdk.OldObjectSample` — JFR's leak profiler: objects that survived a collection, "
                 + "attributed to the stack that **allocated** them. That is the allocator, not the "
                 + (gcRoots
                         ? "holder — but this run enabled `--gc-roots`, so reference chains were "
                           + "recorded; read them from the raw recording with "
                           + "`jfr print --events jdk.OldObjectSample run.jfr`.\n\n"
-                        : "holder; re-run with `--gc-roots` to get reference chains.\n\n"));
+                        : childWasRecorded
+                                ? "holder; re-run with `--gc-roots` to get reference chains.\n\n"
+                                : "holder. This recording was made by another JVM (`--record mock`), "
+                                  + "so whether it carries reference chains cannot be read off the "
+                                  + "child's command line — check the recording itself.\n\n"));
         if (data.retainedByClass.isEmpty()) {
             md.append("_No old-object samples in the recording. For a short run this is normal — "
                     + "nothing survived long enough to be sampled._\n\n");
