@@ -29,6 +29,7 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Pins the comparison arithmetic to the numbers docs/PROFILING.md §10 publishes.
@@ -95,15 +96,31 @@ class CompareTest {
      */
     @Test
     void testShapeSeparatesTlsAndEquivalenceControlsFromOrdinaryRuns() {
-        assertEquals("plaintext", run("plain", 500, 0).shape());
+        Compare.Run plain = run("plain", 500, 0);
+        Compare.Run karate = run("karate", 500, 0);
+        assertEquals("plaintext", plain.armShape());
+
         Compare.Run overTls = new Compare.Run(Path.of("gatling-http-karate-2026-08-06-000000"),
                 "karate", 10, true, "", 8, 4000, 8000, 500, 0, 8, 4000, 0, -1, 15.2, 56, 71, 10);
-        assertEquals("TLS", overTls.shape());
+        assertEquals("TLS", overTls.armShape());
+
+        // A control pair is ONE control arm against one ordinary arm. Requiring both arms to carry
+        // the variant is what emptied both control tables on the bench: the pairing a control
+        // exists to make is asymmetric, so the variant describes the pair and not either side.
         Compare.Run fat = new Compare.Run(Path.of("gatling-http-plain-fat-2026-08-06-000000"),
                 "plain", 10, false, "fat", 8, 4000, 8000, 500, 0, 8, 8, 0, -1, 15.2, 56, 71, 10);
-        assertEquals("plaintext, fat", fat.shape());
-        assertNotEquals(fat.shape(), run("plain", 500, 0).shape(),
-                "a fat control must not bucket with the ordinary pair it is the control for");
+        assertEquals(fat.armShape(), karate.armShape(),
+                "a fat control and an ordinary karate arm must still PAIR — same transport");
+        Compare.Pair fatPair = new Compare.Pair(fat, karate, "p→k");
+        assertEquals("plaintext, fat control", fatPair.shape());
+        assertNotEquals(fatPair.shape(), new Compare.Pair(plain, karate, "p→k").shape(),
+                "a fat control must not BUCKET with the ordinary pair it is the control for");
+
+        Compare.Run lean = new Compare.Run(Path.of("gatling-http-karate-lean-2026-08-06-000000"),
+                "karate", 10, false, "lean", 8, 4000, 8000, 500, 0, 8, 4000, 0, -1, 15.2, 56, 71, 10);
+        assertEquals("plaintext, lean control", new Compare.Pair(plain, lean, "p→k").shape());
+        assertTrue(new Compare.Pair(fat, lean, "p→k").bothArmsAreControls(),
+                "two controls have no ordinary reference between them");
     }
 
     private static double added(double plainRate, double karateRate) {

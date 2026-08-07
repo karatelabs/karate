@@ -71,18 +71,22 @@ public final class Compare {
                double p50, double p99, int cpus) {
 
         /**
-         * What a pair has to agree on beyond the latency tier, rendered for a human.
+         * What the two arms of a pair must agree on, beyond the latency tier.
          *
-         * <p><b>Two things used to blend silently.</b> A TLS matrix and a plaintext one at the same
-         * tier landed in the same bucket and were averaged together, though the whole point of the
-         * TLS tier is that its numbers differ. So did the equivalence controls: {@code -fat} and
-         * {@code -lean} exist to be compared <i>against</i> the ordinary pair, and mixing them into
-         * it destroys both readings. Neither left a trace in the output — the only thing standing
-         * between the operator and a wrong mean was remembering to keep results in separate
-         * directories.
+         * <p>A TLS matrix and a plaintext one at the same tier used to land in the same bucket and
+         * be averaged together, though the whole point of the TLS tier is that its numbers differ.
+         * Nothing in the output said so; the only thing standing between the operator and a wrong
+         * mean was keeping results in separate directories.
+         *
+         * <p><b>The variant is deliberately not in here.</b> An equivalence control is one control
+         * arm against one <i>ordinary</i> arm — {@code plain-fat} vs {@code karate}, or
+         * {@code plain} vs {@code karate-lean} — so requiring both arms to carry the same variant
+         * rejects precisely the pairing the control exists to make. That cost a bench run to find:
+         * the guard compiled, passed its unit test, and silently emptied both control tables. The
+         * variant belongs to the {@link Pair}, not to the arm — see {@link Pair#shape()}.
          */
-        String shape() {
-            return (tls ? "TLS" : "plaintext") + (variant.isEmpty() ? "" : ", " + variant);
+        String armShape() {
+            return tls ? "TLS" : "plaintext";
         }
 
         /**
@@ -178,17 +182,25 @@ public final class Compare {
                         + " (" + second.tierMillis() + "ms)");
                 continue;
             }
-            if (!first.shape().equals(second.shape())) {
-                warnings.add("shape changed mid-pair, not paired: " + first.dir().getFileName()
-                        + " (" + first.shape() + ") then " + second.dir().getFileName()
-                        + " (" + second.shape() + ")");
+            if (!first.armShape().equals(second.armShape())) {
+                warnings.add("transport changed mid-pair, not paired: " + first.dir().getFileName()
+                        + " (" + first.armShape() + ") then " + second.dir().getFileName()
+                        + " (" + second.armShape() + ")");
                 continue;
             }
             Run plain = first.arm().equals("plain") ? first : second;
             Run karate = first.arm().equals("plain") ? second : first;
-            byTier.computeIfAbsent(first.tierMillis() + " ms tier, " + first.shape(),
+            Pair pair = new Pair(plain, karate, first.arm().charAt(0) + "→" + second.arm().charAt(0));
+            if (pair.bothArmsAreControls()) {
+                warnings.add("both arms are equivalence controls, not paired: "
+                        + plain.dir().getFileName() + " and " + karate.dir().getFileName()
+                        + " — a control is measured against an ORDINARY arm, so this pair has no"
+                        + " reference and its difference means nothing");
+                continue;
+            }
+            byTier.computeIfAbsent(first.tierMillis() + " ms tier, " + pair.shape(),
                             k -> new ArrayList<>())
-                    .add(new Pair(plain, karate, first.arm().charAt(0) + "→" + second.arm().charAt(0)));
+                    .add(pair);
             paired.add(first.dir());
             paired.add(second.dir());
             i++;   // consumed both
@@ -199,7 +211,8 @@ public final class Compare {
         for (Run run : runs) {
             if (!paired.contains(run.dir())) {
                 warnings.add("no partner for " + run.dir().getFileName() + " (" + run.arm()
-                        + ", " + run.tierMillis() + "ms, " + run.shape() + ")");
+                        + ", " + run.tierMillis() + "ms, " + run.armShape()
+                        + (run.variant().isEmpty() ? "" : ", " + run.variant()) + ")");
             }
         }
 
@@ -215,6 +228,25 @@ public final class Compare {
     }
 
     record Pair(Run plain, Run karate, String order) {
+
+        /**
+         * Transport, plus the equivalence control this pair carries on ONE of its arms.
+         *
+         * <p>This is the bucketing key, and it has to live here rather than on the arm: a control
+         * pair is asymmetric by construction, so the variant describes the comparison, not either
+         * side of it. {@code fat} raises the plain arm to Karate's checks and {@code lean} lowers
+         * the Karate arm to plain's, and each has to be read against the ordinary pair at the same
+         * tier — which means they must be bucketed apart from it, and from each other.
+         */
+        String shape() {
+            String variant = plain.variant().isEmpty() ? karate.variant() : plain.variant();
+            return plain.armShape() + (variant.isEmpty() ? "" : ", " + variant + " control");
+        }
+
+        /** Two controls have no ordinary reference between them, so their difference is unreadable. */
+        boolean bothArmsAreControls() {
+            return !plain.variant().isEmpty() && !karate.variant().isEmpty();
+        }
 
         double deficitPercent() {
             return plain.servedPerSecond() <= 0 ? 0
