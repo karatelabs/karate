@@ -57,19 +57,28 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <h2>What it cannot honour</h2>
  *
- * <p><b>{@code configure ssl} and {@code configure connectTimeout} set inside a scenario do not
- * reach a pooled client.</b> The SSL socket factory and the socket and connect timeouts are
- * properties of the connection manager, and the manager here is shared and already built. Set them
- * on the runner instead — {@code protocol.runner.systemProperty(...)} or your karate-config.js —
- * so they apply to the whole simulation.
+ * <p><b>{@code configure ssl} set inside a scenario does not reach a pooled client.</b> The SSL
+ * socket factory belongs to the connection manager, and the manager here is shared and already
+ * built. Set it once for the simulation — karate-config.js, or the runner — instead.
  *
- * <p>They are <b>ignored silently</b>, which is worth stating plainly because this class cannot
+ * <p>It is <b>ignored silently</b>, which is worth stating plainly because this class cannot
  * currently do better. {@link HttpClientFactory#create()} is handed no configuration, and
- * {@code ApacheHttpClient.sharedConnectionManager()} takes no argument, so at the moment it has to
- * choose a manager it cannot see what the scenario asked for. Detecting the conflict and warning,
- * or keeping one pool per distinct connection configuration — which is what would make pooling
- * safe enough to be a default anywhere — both need that seam to carry the connection settings.
- * Until it does, the documentation above is the whole mitigation.
+ * {@code ApacheHttpClient.sharedConnectionManager()} takes no argument, so when it chooses a
+ * manager it cannot see what the scenario asked for. Detecting the conflict and warning, or
+ * keeping one manager per distinct connection configuration, both need that seam to carry the
+ * connection settings.
+ *
+ * <p>The timeouts used to be on this list and are not any more: {@code configure readTimeout} and
+ * {@code configure connectTimeout} are applied per request as well as on the manager, so they are
+ * honoured here. That mattered more than it sounds — before it, a pooled client had <i>no</i> read
+ * timeout, so a stalled server held a virtual user indefinitely. See {@code PooledTimeoutTest}.
+ *
+ * <p><b>NTLM is incompatible with pooling, and that one is a correctness bug rather than a
+ * fidelity gap.</b> NTLM authenticates the <i>connection</i>, not the request, so a pooled
+ * connection keeps the identity of whichever scenario authenticated it and later scenarios inherit
+ * it. Do not combine {@code configure ntlmAuth} with this. The same reasoning is why pooling can
+ * never be karate-core's default: TLS session state and server affinity are shared along with the
+ * socket, and a functional suite buys per-scenario isolation deliberately.
  *
  * <h2>Why a wrapper per scenario rather than one shared client</h2>
  *

@@ -1290,7 +1290,7 @@ band §6 records, before and after. Six or seven points of a ~500 MB profile is 
 run-to-run spread of a sampled recording, and at 2000 iterations a large slice of every run is
 fixed startup (`initHttpClient`, parser init, config eval). The claim this supports is "those
 sites are gone", not "the workload allocates measurably less" — that would need a longer run,
-or `--duration`, which is unbuilt.
+or `--duration`, which is now built (`during()` in the injection profile).
 
 **Two things the flag does not cover**, both worth knowing before quoting "nothing is built":
 
@@ -1710,7 +1710,7 @@ Lives in `karate-profiling` behind `-Pgatling`, not here — see
 - [x] Overhead comparison test (v2 karate-gatling vs plain Gatling) — matched pairs, null and HTTP
 - [ ] Port v1's `examples/profiling-test` for memory leak detection
 - [ ] Extended load tests (HTTP client pooling, mock server under sustained load) — needs
-      `--duration` support in the Gatling workloads, which is unbuilt
+      `--duration` support in the Gatling workloads, which is now built
 - [x] Document profiling methodology and results — first baseline recorded
 
 Two things the first measurement turned up, neither chased down: an empty feature constructs

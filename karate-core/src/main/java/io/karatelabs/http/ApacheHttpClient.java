@@ -56,6 +56,7 @@ import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.ssl.SSLContexts;
 import org.apache.hc.core5.util.TimeValue;
+import org.apache.hc.core5.util.Timeout;
 import org.brotli.dec.BrotliInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -369,10 +370,12 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         // that safe: without it, closing any one wrapper at scenario end would shut the shared
         // manager and every other scenario with it.
         //
-        // What a shared manager cannot carry: the SSL socket factory and the socket/connect
-        // timeouts are configured on the manager, so per-scenario `configure ssl` / `configure
-        // connectTimeout` do not apply to a pooled client. That is the trade a pooling factory
-        // makes, and it is why this is opt-in rather than the default.
+        // What a shared manager cannot carry: the SSL socket factory is configured on the manager,
+        // so a per-scenario `configure ssl` does not reach a pooled client. The timeouts used to be
+        // in this sentence and are not any more — they are also set per request below, which a
+        // shared manager cannot override. NTLM is a separate and worse case: it authenticates the
+        // connection, so a pooled connection carries whichever scenario's identity authenticated
+        // it. These are the trades a pooling factory makes, and why it is opt-in.
         org.apache.hc.client5.http.io.HttpClientConnectionManager shared = sharedConnectionManager();
         if (shared != null) {
             clientBuilder.setConnectionManager(shared).setConnectionManagerShared(true);
@@ -380,7 +383,21 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             clientBuilder.setConnectionManager(connectionManagerBuilder.build());
         }
         RequestConfig.Builder configBuilder = RequestConfig.custom()
-                .setCookieSpec(StandardCookieSpec.STRICT);
+                .setCookieSpec(StandardCookieSpec.STRICT)
+                // Also set per REQUEST, not only on the connection manager above. The manager's
+                // copy is the only one an unpooled client needs, but a client sharing a manager it
+                // did not build gets whatever that manager was configured with — and a pooled
+                // manager built elsewhere may configure no socket timeout at all, in which case a
+                // stalled server holds the virtual user forever. Measured before this line: a
+                // 1000 ms readTimeout against a server that stalled 4 s returned successfully
+                // after 4057 ms, having waited without limit.
+                //
+                // Request-level values win where both exist, so this is a no-op for the private
+                // manager and the fix for a shared one. Both are honoured by httpclient5's exec
+                // chain: the connect timeout is passed to manager.connect(), and the response
+                // timeout is applied to the leased endpoint's socket before the request runs.
+                .setResponseTimeout(Timeout.ofMilliseconds(readTimeout))
+                .setConnectTimeout(Timeout.ofMilliseconds(connectTimeout));
         // Configure NTLM authentication (deprecated in HttpClient 5)
         if (ntlmUsername != null) {
             BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();

@@ -22,12 +22,26 @@ while read -r id; do [[ -n "$id" ]] && ids+=("$id"); done <<< "$(kp_all_alive)"
 if ((${#ids[@]} > 0)) && [[ "${1:-}" != "--force" ]]; then
     injector_ip="$(kp_ip_of "$KP_INJECTOR_NAME" 2>/dev/null || true)"
     if [[ -n "$injector_ip" ]]; then
-        uncollected="$(kp_ssh "$injector_ip" \
-            "ls -1d ~/karate/karate-profiling/target/profiling/*/ 2>/dev/null | wc -l" 2>/dev/null || echo 0)"
+        # Note what is NOT done here: `|| echo 0`. This used to fall back to zero when the ssh
+        # failed, which made the guard fail OPEN — and the most common reason it fails is a stale
+        # security-group rule after your public IP changed, which is exactly the moment you still
+        # have results on the box. "Could not ask" is not "nothing to lose", so it refuses.
+        if ! uncollected="$(kp_ssh "$injector_ip" \
+                "ls -1d ~/karate/karate-profiling/target/profiling/*/ 2>/dev/null | wc -l" 2>/dev/null)"; then
+            log "!! cannot reach the injector to check for uncollected runs."
+            log "   Refusing rather than guessing: if it holds results, terminating destroys them."
+            log "   Re-run etc/ec2/provision.sh to refresh the ssh rule (your IP may have changed),"
+            log "   or re-run this with --force if you do not want whatever is on it."
+            exit 1
+        fi
         if [[ "${uncollected:-0}" -gt 0 ]]; then
             log "!! the injector still holds $uncollected run director(ies)."
-            log "   Terminating destroys them. Run etc/ec2/collect.sh first,"
-            log "   or re-run this with --force if you do not want them."
+            log "   Terminating destroys them. The sequence is:"
+            log "     1. etc/ec2/collect.sh"
+            log "     2. check the digests are actually in \$KP_RESULTS"
+            log "     3. etc/ec2/teardown.sh --force"
+            log "   --force is needed even after collecting: collect.sh copies, it does not delete,"
+            log "   so this count stays above zero and only you can say the copy is good."
             exit 1
         fi
     fi

@@ -167,9 +167,9 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
      * public TLS endpoint, where the avoided handshake costs two round trips and asymmetric crypto.
      *
      * <p><b>Read {@link PooledHttpClientFactory} before turning this on.</b> A pooled client cannot
-     * honour {@code configure ssl} or {@code configure connectTimeout} set inside a scenario, and
-     * ignores them silently — they belong to the connection manager, which is shared and already
-     * built. Configure those once, for the simulation. That trade is why this is opt-in and why it
+     * honour {@code configure ssl} set inside a scenario and ignores it silently, and NTLM does not
+     * work at all with pooling because it authenticates the connection rather than the request.
+     * Configure SSL once, for the simulation. Those trades are why this is opt-in and why pooling
      * is not karate-core's behaviour.
      *
      * @return this builder for chaining

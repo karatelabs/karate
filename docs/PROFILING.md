@@ -310,8 +310,9 @@ point `--gc-roots`:
 
 #### What it needs first
 
-**`--duration` is not supported for the `gatling-*` workloads** (`SimShape` has no `during()`; it
-injects a repetition count), so the Gatling soak is blocked on that one small change.
+**`--duration` IS supported for the `gatling-*` workloads** — it becomes `during()` in the
+injection profile (`SimShape.loop`). Note `--soak` is what enables the live-set probe, so a long
+run without it produces a healthy-looking result and no leak instrument at all.
 
 **And the claim that "the Runner lane already takes `--duration` and could be soaked today" was
 false for three separate reasons, all now fixed.** Each failed silently, which is why the sentence
@@ -368,7 +369,10 @@ for "the client leaked".
 **Two more are not, and both are about sockets rather than heap.** A Gatling soak run today would
 measure them instead of Karate:
 
-- **The per-execution HTTP client is never closed.** `ApacheHttpClient.close()` exists and nothing
+- **The per-execution HTTP client is never closed.** *(Fixed 2026-08-07 — `HttpClientFactory.release()`
+  is called at scenario end, and `apply()` no longer rebuilds a client whose config did not change.
+  Kept because the paragraph explains what the sockets did and why the soak was blocked on it.)*
+  `ApacheHttpClient.close()` exists and nothing
   in the repository calls it, so every execution abandons its client, its connection manager and
   its pooled socket to the collector — sockets close when cleaners run, at a time no test controls.
   A file descriptor is not heap, so the heap-after-GC floor cannot see this at all.
@@ -449,7 +453,7 @@ Gatling owns the users and the pacing, so these are self-driving: `--threads` be
 users injected at once, and `--iterations` stays the **total**, split across them —
 `--threads 16 --iterations 20000` is 16 users repeating 1250 times each. When it does not
 divide evenly the remainder is rounded up, so the true total can exceed what you asked for by
-up to `threads - 1`; the child prints what it actually ran. `--duration` is not supported (see
+up to `threads - 1`; the child prints what it actually ran. `--duration` is supported (see
 §9). Gatling's own chart generation is off — it is a second pass over the simulation log that
 would land in the digest as if it were load-driving cost.
 
@@ -1214,8 +1218,9 @@ experiments below are what it takes to say it without those qualifiers.
   the HTTP client and file-descriptor classes — which is where the defect actually was, since
   clients were never released before this work. The fix is in and reviewed; it has never run under
   sustained load. Experiment 2 is that.
-- **Pooling is not shipped.** `PooledHttpClientFactory` lives in `karate-profiling` and
-  karate-gatling does not reference it. The A/B priced it; nothing productised it. See below.
+- **Pooling IS shipped** as of 2026-08-07 — `KarateProtocolBuilder.pooledConnections()`. What is
+  still open is narrower and is stated with it below: a pooled client cannot honour a scenario's
+  `configure ssl`.
 
 #### 1. TLS parity at 50 ms — the headline
 
@@ -1504,7 +1509,7 @@ numbers.
 | Leak-watch family | See §2. The soak question is genuinely unanswered — every current workload is an iteration-bounded reproduction. |
 | JS-engine workloads | `js-array`, `js-object`, `js-engine-init` built from `EngineBenchmark`'s generators, so JS tuning gets forking, JFR and digests too. |
 | Mock throughput tiers | Raw Java handler vs JS handler vs feature mock, as a floor-and-multiplier table. `--record mock` already exists to support this. **Partly built:** `LatencyMock` (§10) is the cheap tier and carries the latency knob; what is unbuilt is the *table* comparing raw handler against JS handler against feature mock. |
-| Gatling parity — **partly built** | The null-overhead probe, the parity sim and the allocation comparison exist (§2, §6). What is left: a **throughput ceiling**, which needs a mock tier cheap enough not to be the bottleneck — today both variants saturate the feature mock, so req/s measures the mock. That tier is the "Mock throughput tiers" row below, not a separate piece of work; see the ordering note at the top of this section. Also unbuilt: `--duration` support, which needs `during()` in the injection profile rather than a repetition count, and is the prerequisite for a Gatling soak. Note the entry point is `Gatling.fromArgs`, not the `fromMap` this row used to name — `fromMap` was removed in Gatling 3.15. |
+| Gatling parity — **partly built** | The null-overhead probe, the parity sim and the allocation comparison exist (§2, §6). What is left: a **throughput ceiling**, which needs a mock tier cheap enough not to be the bottleneck — today both variants saturate the feature mock, so req/s measures the mock. That tier is the "Mock throughput tiers" row below, not a separate piece of work; see the ordering note at the top of this section. `--duration` support is now **built** — `during()` in the injection profile, with `Child` marking the run truncated if the elapsed time misses the window. Note the entry point is `Gatling.fromArgs`, not the `fromMap` this row used to name — `fromMap` was removed in Gatling 3.15. |
 | Custom JFR events | `karate.Step` / `karate.Call` / `karate.HttpRequest`, so a recording carries Karate semantics and allocation attributes to a *feature line*. **A CPU-tuning need, not a memory one.** The virtual-thread gap is specific to `jdk.ExecutionSample`; everything the memory work relied on attributes correctly regardless of thread model. Build these when the question becomes "where is the CPU going during a parallel run" — exactly where `ExecutionSample` goes blind. |
 | `profiler compare A B` | Side-by-side delta table from two run directories. |
 | Machine-readable baselines + CI | Committed `baselines/*.json`, a scheduled job, regression thresholds. Out of scope until the manual playbook has proven itself. |
