@@ -71,9 +71,21 @@ public final class JfrDigest {
     private static final java.util.Set<String> YOUNG_ONLY_COLLECTORS =
             java.util.Set.of("G1New", "ParallelScavenge", "DefNew", "PSYoungGen", "Copy");
 
-    /** What the parent knows that the recording doesn't. */
+    /**
+     * What the parent knows that the recording doesn't.
+     *
+     * @param extraJvmFlags the operator's {@code --jvm-flag} values, exactly as given. Passed in
+     *                      rather than reconstructed from {@link #command()}: the reconstruction
+     *                      worked by excluding everything the harness was known to add, so any
+     *                      new harness flag would be mislabelled as an operator constraint, a
+     *                      workload's own {@code jvmFlags()} already were, and an operator's
+     *                      {@code -XX:+UseSomething} was dropped entirely by the {@code -XX:+Use}
+     *                      exclusion meant for the collector. The exact list exists where the
+     *                      command is built, so there is nothing to infer.
+     */
     public record RunInfo(String workload, int exitCode, boolean timedOut, boolean heapDump,
-                          RunShape shape, JvmConfig jvm, List<String> command) {
+                          RunShape shape, JvmConfig jvm, List<String> command,
+                          List<String> extraJvmFlags) {
     }
 
     private JfrDigest() {
@@ -157,22 +169,31 @@ public final class JfrDigest {
                 .append("mock's covers only the load. So the injector row **understates** its ")
                 .append("load-window utilisation: read it as a floor, read each row against `cpus`, ")
                 .append("and never one row against the other.\n\n");
-        md.append("| process | CPU (core-s) | window (s) | cores busy | % of ").append(cpus)
-                .append(" cpus |\n|---|---:|---:|---:|---:|\n");
+        // The mock reports its own core count. Absent (an older mock, or one that declined),
+        // there is no honest denominator for its row and the percentage is omitted rather than
+        // borrowed from the injector.
+        int mockCpus = (int) io.karatelabs.profiling.LoadProfile.mockNumber(mockStats, "cpus");
+        md.append("| process | CPU (core-s) | window (s) | cores busy | % of its own cpus |")
+                .append("\n|---|---:|---:|---:|---:|\n");
         // Whether the mock shared these cores is not something this panel may assume. The
         // label used to read "co-located" unconditionally, which became a falsehood the day
         // --mock-url landed: every two-host digest asserted the mock was on this machine.
         boolean external = mockLine(runDir, "[external] attached to ") != null;
-        cpuRow(md, "workload (the injector)", childCpu, childWall, cpus);
-        cpuRow(md, "mock (" + (external ? "REMOTE host — cores below are its own" : "co-located")
-                + ")", mockCpu, mockWall, cpus);
+        cpuRow(md, "workload (the injector, " + cpus + " cpus)", childCpu, childWall, cpus);
+        cpuRow(md, "mock (" + (external ? "REMOTE host" : "co-located")
+                + (mockCpus > 0 ? ", " + mockCpus + " cpus" : ", core count unknown")
+                + ")", mockCpu, mockWall, mockCpus);
         if (mockCpu >= 0 && !external) {
             md.append("\nThe mock shares these cores with the load driver, so its row **is** the ")
                     .append("co-location bias — a number rather than an argument.\n");
         } else if (mockCpu >= 0) {
             md.append("\nThe mock ran on its own host, so its row shows that host was idle rather ")
-                    .append("than any bias here — and `% of cpus` divides by **this** machine's core ")
-                    .append("count, which is only meaningful when both hosts are the same size.\n");
+                    .append("than any bias here. Each percentage divides by that process's **own** ")
+                    .append("core count, so the two rows are individually meaningful even when the ")
+                    .append("hosts are different sizes")
+                    .append(mockCpus > 0 ? ".\n"
+                            : " — but this mock did not report a core count, so its percentage is ")
+                    .append(mockCpus > 0 ? "" : "omitted and only the raw core-seconds can be read.\n");
         }
         md.append("\n");
     }
@@ -195,6 +216,12 @@ public final class JfrDigest {
         return null;
     }
 
+    /**
+     * @param cpus this row's OWN core count, or -1 when it is not known. A percentage is only
+     *             printed when the denominator belongs to the process that produced the CPU
+     *             figure — the mock's row used to divide by the injector's core count, which is a
+     *             different process and, with {@code --mock-url}, usually a different machine.
+     */
     private static void cpuRow(StringBuilder md, String label, double cpuSeconds, double windowSeconds, int cpus) {
         if (cpuSeconds < 0) {
             return;
@@ -206,7 +233,7 @@ public final class JfrDigest {
         md.append("| ").append(label).append(caveat).append(" | ").append(fixed(cpuSeconds, 2)).append(" | ")
                 .append(windowSeconds <= 0 ? "?" : fixed(windowSeconds, 2)).append(" | ")
                 .append(cores < 0 ? "?" : "**" + fixed(cores, 2) + "**").append(" | ")
-                .append(cores < 0 ? "?" : fixed(100 * cores / Math.max(cpus, 1), 0) + "%").append(" |\n");
+                .append(cores < 0 || cpus <= 0 ? "n/a" : fixed(100 * cores / cpus, 0) + "%").append(" |\n");
     }
 
     /** Pull one plain {@code key=<number>} out of the child's summary line; -1 if absent. */
@@ -270,22 +297,7 @@ public final class JfrDigest {
      * shows up here rather than being silently hidden.
      */
     private static String extraJvmFlags(RunInfo info) {
-        List<String> extra = new ArrayList<>();
-        for (String arg : info.command()) {
-            if (arg.equals("-cp")) {
-                break;
-            }
-            if ((arg.startsWith("-XX:") || arg.startsWith("-X"))
-                    && !arg.startsWith("-Xmx")
-                    && !arg.startsWith("-XX:StartFlightRecording")
-                    && !arg.startsWith("-XX:FlightRecorderOptions")
-                    && !arg.startsWith("-XX:+HeapDumpOnOutOfMemoryError")
-                    && !arg.startsWith("-XX:HeapDumpPath")
-                    && !arg.startsWith("-XX:+Use")) {
-                extra.add(arg);
-            }
-        }
-        return String.join(" ", extra);
+        return info.extraJvmFlags() == null ? "" : String.join(" ", info.extraJvmFlags());
     }
 
     /** The classpath the child ran with, lifted back out of its recorded command line. */

@@ -385,11 +385,28 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             if (request.getHeaders() != null) {
                 request.getHeaders().forEach((k, vals) -> vals.forEach(v -> requestBuilder.addHeader(k, v)));
             }
+            // A rebuild after release has no owner to hand it back to, so this request owns it
+            // and closes it on the way out. That costs a connection setup per post-release
+            // request, which is the right trade against leaking one client per occurrence -- and
+            // the path is rare by construction: it needs a hook or an escaped closure making a
+            // request after its scenario ended.
+            boolean orphanRebuild = httpClient == null && released;
             if (httpClient == null) {
+                if (released) {
+                    LOGGER.debug("http request after the client was released — this request owns "
+                            + "its own client and will close it");
+                }
                 initHttpClient();
             }
             currentRequest = requestBuilder.build();
-            HttpResponse finalResponse = httpClient.execute(currentRequest, response -> buildResponse(response, startTime));
+            HttpResponse finalResponse;
+            try {
+                finalResponse = httpClient.execute(currentRequest, response -> buildResponse(response, startTime));
+            } finally {
+                if (orphanRebuild) {
+                    closeQuietly();
+                }
+            }
             currentRequest = null; // clear after completion
             // Merge cookies from the store (captured during redirects) with response headers
             mergeCookiesFromStore(finalResponse);
@@ -584,17 +601,31 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     @Override
     public void close() throws IOException {
+        // Remember that the owner has handed this instance back. Not to forbid later use -- an
+        // afterFeature hook, or a closure returned from a called feature, legitimately outlives
+        // the scenario that released the client -- but so that a client rebuilt after this point
+        // does not become an orphan. See invoke().
+        released = true;
         closeQuietly();
     }
+
+    /**
+     * Set by {@link #close()}. From then on the owning scenario is gone, so nobody will call
+     * {@code release()} again and any client built after this point would be abandoned: its
+     * connection manager and pooled sockets released whenever the collector got to them, which is
+     * the exact leak the release contract was added to remove.
+     */
+    private boolean released;
 
     /**
      * Close the current client, if any, and forget it.
      *
      * <p>Note what {@code invoke()} does afterwards: it sees a null client and lazily builds a new
      * one. That is deliberate — {@code apply()} relies on it to rebuild after a configuration
-     * change — but it also means an instance stays usable after {@link #close()}, and anything
-     * that makes a request post-release quietly mints a client nobody will release. See the
-     * contract note on {@code HttpClientFactory.release}.
+     * change — and it also means an instance stays usable after {@link #close()}, which a hook or
+     * an escaped closure relies on. {@code invoke()} handles the difference: a rebuild that
+     * happens after release is owned by that one request and closed when it finishes, so it
+     * cannot become an orphan. See the contract note on {@code HttpClientFactory.release}.
      */
     private void closeQuietly() {
         if (httpClient != null) {

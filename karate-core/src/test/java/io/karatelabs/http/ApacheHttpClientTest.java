@@ -1,5 +1,6 @@
 package io.karatelabs.http;
 
+import io.karatelabs.core.MockServer;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -43,4 +44,55 @@ class ApacheHttpClientTest {
         assertFalse(ApacheHttpClient.matchNonProxyHost(null, null));
     }
 
+
+    /**
+     * A request made after {@link ApacheHttpClient#close()} must not strand a rebuilt client.
+     *
+     * <p>The instance deliberately stays usable after close — {@code apply()} relies on the lazy
+     * rebuild, and so does real usage that outlives a scenario: an {@code afterFeature} hook runs
+     * after the last scenario released its client, and a closure returned from a called feature
+     * can be invoked later. But by then the owner is gone, so nothing would call {@code release()}
+     * a second time and the rebuilt {@code CloseableHttpClient} — with its connection manager and
+     * pooled sockets — would be abandoned to the collector. That is the leak the release contract
+     * was added to remove, reintroduced through the back door.
+     *
+     * <p>Asserted on the private field because the property is precisely "no client is being held
+     * afterwards"; a behavioural assertion would only show the request succeeded, which it did
+     * before the fix too.
+     */
+    @Test
+    void testARequestAfterCloseDoesNotStrandARebuiltClient() throws Exception {
+        MockServer server = MockServer.featureString("""
+                Feature: echo
+
+                Scenario: pathMatches('/ping')
+                  * def response = { ok: true }
+                """).port(0).start();
+        try {
+            String url = "http://localhost:" + server.getPort() + "/ping";
+            ApacheHttpClient client = new ApacheHttpClient();
+            java.lang.reflect.Field field = ApacheHttpClient.class.getDeclaredField("httpClient");
+            field.setAccessible(true);
+
+            HttpRequest first = new HttpRequest();
+            first.setUrl(url);
+            first.setMethod("GET");
+            assertEquals(200, client.invoke(first).getStatus());
+            assertNotNull(field.get(client), "a live client should be held between requests");
+
+            client.close();
+            assertNull(field.get(client), "close() must drop the client it closed");
+
+            HttpRequest late = new HttpRequest();
+            late.setUrl(url);
+            late.setMethod("GET");
+            assertEquals(200, client.invoke(late).getStatus(),
+                    "a post-close request must still work — hooks and escaped closures rely on it");
+            assertNull(field.get(client),
+                    "a client rebuilt after release has no owner to hand it back to, so the "
+                            + "request that caused it must close it rather than leave an orphan");
+        } finally {
+            server.stopAndWait();
+        }
+    }
 }

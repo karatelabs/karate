@@ -338,6 +338,14 @@ final class MockStats {
                 // What this server took from the cores it shares with the load driver. Reported
                 // raw, next to the window it belongs to, so a reader divides rather than trusts.
                 + ",\"cpuNanosInWindow\":" + cpuInWindow()
+                // This JVM's own core count, so a percentage divides CPU by the cores that
+                // produced it. The digest used to divide the mock's CPU by the CHILD's core
+                // count, which is a different process and, once --mock-url exists, usually a
+                // different machine — and once --jvm-flag exists, possibly a deliberately
+                // constrained one. A remote 4-core mock scored against a 16-core injector reads
+                // as a quarter of its real utilisation, which is the wrong direction for a
+                // "was the server the bottleneck" check.
+                + ",\"cpus\":" + Runtime.getRuntime().availableProcessors()
                 + ",\"elapsedSeconds\":" + String.format(java.util.Locale.ROOT, "%.3f", elapsedSeconds)
                 + "}";
     }

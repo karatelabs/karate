@@ -240,7 +240,8 @@ public final class Profiler {
                 + (heapDump ? " (heap dump written — the run OOM'd)" : "")
                 + (timedOut ? " (after timeout)" : ""));
 
-        JfrDigest.write(runDir, new JfrDigest.RunInfo(name, exit, timedOut, heapDump, shape, jvm, command));
+        JfrDigest.write(runDir, new JfrDigest.RunInfo(name, exit, timedOut, heapDump, shape, jvm, command,
+                flags.jvmFlags));
         System.out.println("[parent] digest: " + runDir.resolve("digest.md").toAbsolutePath());
         // The child's status is the run's status. This used to return `timedOut ? 1 : 0`, which
         // read the child's exit code, wrote it into the digest, printed it — and then threw it
