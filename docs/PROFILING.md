@@ -140,6 +140,7 @@ rm -rf "${TMPDIR:-/tmp}"/karate-feature-spread-* "${TMPDIR:-/tmp}"/karate-report
 | `--mock feature\|latency` | `feature` | Which mock tier to fork. `feature` is the Karate-feature mock (a *subject* — `--record mock` profiles it); `latency` is `LatencyMock`, the instrumented one for runs where the mock must stay out of the way. See [§10](#10-the-latency-mock-and-what-the-parity-matrix-found). |
 | `--mock-latency 10ms` | none | Injected server latency. Implies `--mock latency`, because the feature mock has no such knob. **This is what makes a Gatling parity comparison mean anything** — against a localhost mock both clients queue behind the server and report identical numbers that prove nothing. |
 | `--mock-url URL` | none | Use a `LatencyMock` already running elsewhere instead of forking one — **the flag a two-host run needs**, since co-location is the confound §10 cannot argue away. The parent resets the remote mock's counters before the load and scrapes them after, so a shared mock still reports one window per run. Start the far side with `LatencyMock --bind 0.0.0.0 --standalone --latency 10ms`; without `--standalone` it reads EOF on stdin and exits before the first request. Incompatible with `--record mock`. |
+| `--soak` | off | **Required for any multi-hour run.** Records a much smaller event set so the recording spans the whole run instead of rolling — see [soak mode](#soak-mode--what-a-multi-hour-recording-has-to-drop). Costs you *Allocation by site* and *Hot methods*, which a soak does not read. |
 | `--gc-roots` | off | Makes `jdk.OldObjectSample` report reference chains — the *holder* of retained objects, not just the allocating stack. Costs a full reference walk at every sample, which is why it is per-run rather than always on. |
 
 ### Reproducing a specific collector
@@ -244,7 +245,7 @@ because the difference decides what a soak would even be looking for:
 |---|---|
 | Retention that grows with **suite size** | **Fixed and verified** — §8 found two real mechanisms (call-result accumulation, the report-writing queue) and peak heap is now flat across a 4x scale sweep. |
 | One feature holding thousands of scenarios, reports on | **Known-unbounded, accepted** — still linear, §6. Not a leak: it is retention by design until suite end. |
-| A slow leak over **hours** | **Never measured, in either lane.** Every workload is an iteration-bounded reproduction that finishes in seconds. |
+| A slow leak over **hours** | **Still unmeasured, but the instrument now works.** Three silent faults that made a soak impossible are fixed (below); the first real run is pending. |
 
 The instrument for the third row already exists: the **heap-after-GC floor** in every digest is
 the detector, and §4's chart is the classification. What is missing is a run long enough for a
@@ -281,8 +282,35 @@ point `--gc-roots`:
 #### What it needs first
 
 **`--duration` is not supported for the `gatling-*` workloads** (`SimShape` has no `during()`; it
-injects a repetition count), so the Gatling soak is blocked on that one small change. The Runner
-lane already takes `--duration` and could be soaked today.
+injects a repetition count), so the Gatling soak is blocked on that one small change.
+
+**And the claim that "the Runner lane already takes `--duration` and could be soaked today" was
+false for three separate reasons, all now fixed.** Each failed silently, which is why the sentence
+survived so long:
+
+1. **`--duration` truncated every long run to `threads x 30s`.** `Child.drive()` joined each worker
+   with a flat 30-second timeout, in a loop over the workers. A `--duration 7h` soak at 8 threads
+   ran for **four minutes**, exited 0, and wrote a clean digest whose only tell was
+   `elapsedMs=240007`. The join is now one deadline for the whole loop, derived from the window,
+   and a run with workers still alive at the deadline is labelled **TRUNCATED** in the child's own
+   output.
+2. **`call-accumulation` and `feature-spread` cannot be soaked at all.** Both declare
+   `drivesOwnConcurrency`, so `Child` runs one pass and ignores `--duration`. The soakable Runner
+   workloads are the **scope-capture pair** and `harness-smoke`.
+3. **The recording could not span a soak.** See [`--soak`](#soak-mode--what-a-multi-hour-recording-has-to-drop).
+
+**What to soak, and why it is better than it looks.** `scope-capture-bound` runs
+`FeatureWorkload.iterate()`, which calls `Runner.runFeature()` — **a fresh `Suite` per
+iteration**, which is exactly what `KarateExecutor` does under Gatling. So it exercises the
+Suite-per-iteration hypothesis below **without** the HTTP client's file-descriptor confound, and
+is therefore *not* blocked on the client-lifecycle fix. It is not a full substitute: no HTTP, and
+Karate's own virtual threads rather than Gatling's platform pool.
+
+**Prefer iterations over wall-clock when choosing a length.** The named suspects below are all
+per-*execution*, so they scale with iteration count, not time. At ~9,500 iterations/s an hour is
+~34 million executions — far more than any real suite or Gatling run, and enough that a 10-byte
+per-iteration leak would show as ~340 MB against a 768m heap. Hours only buy detection of a
+genuinely *time*-based leak, which is not what is hypothesised.
 
 One prerequisite is now met: a soak needs a server that stays stable for hours without
 saturating, and `LatencyMock` ([§10](#10-the-latency-mock-and-what-the-parity-matrix-found)) is
@@ -901,6 +929,39 @@ inside the run-to-run spread.
 linear trend and the ratios are what travel.*
 
 ---
+
+### Soak mode — what a multi-hour recording has to drop
+
+**At `settings=profile` the harness cannot record a soak at all**, and the way it fails is silent:
+`maxsize` is a cap, so the recording *rolls*, discarding its oldest chunks. Measured on
+`scope-capture-bound`, the recording grows at **~1.2 GB/hour**, so the 512 MB default starts
+dropping history after ~25 minutes — and the heap-after-GC floor **over hours** is the entire
+detector. An eight-hour soak would have produced a digest describing its last twenty-five minutes.
+
+Two things had to be measured to fix it, and both inverted the obvious guess:
+
+- **The file is dominated by GC internals, not by sampling.** `jdk.GCPhaseParallel` 1,123,457
+  events, `PromoteObjectInNewPLAB` 126,183, `TenuringDistribution` 55,560 — against the 7,408
+  `jdk.GCHeapSummary` events that are the only thing a soak reads. Thirty young collections a
+  second times a few hundred phase events each is the whole file. Disabling the allocation and CPU
+  samplers moved 41 MB to 37 MB; switching `settings=profile` to `settings=default` moved it to
+  35 MB, because those GC events are on in both.
+- **Per-event settings are silently ignored in the `-XX:StartFlightRecording=` form.** They need
+  the JDK 14+ **colon** form. Verified directly: with `=`, a run asked to disable
+  `jdk.TenuringDistribution` still recorded 7,740 of them; with `:`, zero. No warning either way —
+  which is why the first two attempts at this appeared to work while changing nothing.
+
+`--soak` therefore uses the colon form with an explicit disable list. The same two-minute run
+writes **2 MB instead of 41**, so ten hours projects to ~725 MB against a 4 GB cap.
+
+**What it keeps, deliberately:** `jdk.GCHeapSummary` (the floor series), the top-level GC pause
+events, and `jdk.OldObjectSample` — the leak profiler — **with `stackTrace=true` set explicitly**.
+That last one is not redundant: `settings=default` enables `OldObjectSample` *without* stacks, and
+the first soak proved what that costs, reporting retained types under `by allocating site: (no
+stack) 100%`. A leak profiler that cannot name an allocator is not one.
+
+**What it gives up:** *Allocation by site* and *Hot methods*. Do not use `--soak` for the questions
+those panels answer — it is for the floor, and nothing else.
 
 ## 7. Caveats
 

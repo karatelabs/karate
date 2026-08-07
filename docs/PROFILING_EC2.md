@@ -180,7 +180,31 @@ changes — without it, any difference from the laptop is confounded by architec
 as well. Note it is not a perfectly clean control, because `run.sh` forks a fresh mock per
 run while the two-host mock persists warmed (§6).
 
-### 4.5 collect
+### 4.5 soaks (one host, no mock)
+
+```bash
+etc/ec2/provision.sh --single          # a soak needs time and one JVM, not the topology
+etc/ec2/bootstrap.sh
+etc/ec2/ssh.sh injector 'cd ~/karate/karate-profiling && \
+  nohup env PROFILING_SKIP_BUILD=1 etc/run.sh scope-capture-bound \
+  --duration 1h --threads 8 --soak --gc-roots > ~/soak.log 2>&1 &'
+```
+
+`nohup` matters: the run must survive your ssh session, and the digest is written **on exit**, so
+nothing appears until it finishes. Watch it with
+`etc/ec2/ssh.sh injector 'tail -3 ~/soak.log'`.
+
+**`--soak` is not optional for a long run** — without it the recording rolls and the digest
+describes only the last ~25 minutes. See [PROFILING.md](./PROFILING.md) on soak mode.
+
+**Check the summary's `elapsedMs` against the window you asked for.** A `--duration` run that
+truncates used to do so silently; it now prints a TRUNCATED warning, but reading `elapsedMs` is
+the one-second check that catches any future variant.
+
+**Do not use `pgrep -f`/`pkill -f` to check on it over ssh** — the pattern matches the ssh command
+line carrying it, so "is the child alive" answers yes forever. Use `ps -eo etime,cmd | grep "[C]hild"`.
+
+### 4.6 collect
 
 Pulls `digest.md`, `run-meta.txt` and `mock.log` — not recordings. A `run.jfr` is up to
 512 MB and the digest is kilobytes; pull a recording by hand when you actually intend to run
