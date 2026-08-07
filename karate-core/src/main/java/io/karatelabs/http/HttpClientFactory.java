@@ -46,4 +46,26 @@ public interface HttpClientFactory {
      */
     HttpClient create();
 
+    /**
+     * Called when the scenario that owns {@code client} has finished with it.
+     *
+     * <p><b>The default does nothing</b>, and that is the conservative choice rather than the
+     * obvious one. A factory exists so a caller can supply its own policy — this interface's own
+     * javadoc offers "a shared connection pool for performance testing scenarios" — and a factory
+     * handing out one shared instance is the common shape, including the {@code () -> client}
+     * lambda form. Closing that at the end of one scenario would break every other scenario using
+     * it, so a custom factory keeps today's behaviour unless it opts in.
+     *
+     * <p>{@link DefaultHttpClientFactory} overrides this to close, because it mints one client per
+     * scenario that nothing else can reach — and until this existed, not one of them was ever
+     * closed. Each abandoned its connection manager and pooled sockets to the collector, released
+     * at a time no test controlled; a file descriptor is not heap, so no heap-based check could
+     * see them accumulate.
+     *
+     * @param client a client previously returned by {@link #create()}
+     */
+    default void release(HttpClient client) {
+        // Nothing: an unknown factory's clients may be shared. See DefaultHttpClientFactory.
+    }
+
 }

@@ -23,6 +23,8 @@
  */
 package io.karatelabs.http;
 
+import org.slf4j.LoggerFactory;
+
 /**
  * Default implementation of {@link HttpClientFactory} that creates a new
  * {@link ApacheHttpClient} instance for each call.
@@ -41,6 +43,27 @@ public class DefaultHttpClientFactory implements HttpClientFactory {
     @Override
     public HttpClient create() {
         return new ApacheHttpClient();
+    }
+
+    /**
+     * Closes it. This factory hands out one client per scenario and nothing else can reach it, so
+     * the scenario's end is the last moment anyone can release its sockets deterministically.
+     *
+     * <p>Every ScenarioRuntime builds its own client — including one per {@code karate.call()}, so
+     * a scenario with 60 calls creates 61 — and none of them used to be closed.
+     */
+    @Override
+    public void release(HttpClient client) {
+        if (client == null) {
+            return;
+        }
+        try {
+            client.close();
+        } catch (Exception e) {
+            // Teardown: a release failure must not fail a scenario that already passed.
+            LoggerFactory.getLogger(DefaultHttpClientFactory.class)
+                    .warn("error closing http client: {}", e.getMessage());
+        }
     }
 
 }

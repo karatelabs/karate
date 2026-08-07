@@ -140,6 +140,12 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     private io.karatelabs.js.RunInterceptor<?> interceptor;
     private io.karatelabs.js.DebugPointFactory<?> pointFactory;
 
+    /** The factory that produced {@link #karate}'s client, or null when the client was handed in. */
+    private final io.karatelabs.http.HttpClientFactory httpClientFactory;
+    /** False when this runtime borrowed its KarateJs and must not release the client inside it. */
+    private final boolean ownsHttpClient;
+    private boolean httpClientReleased;
+
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
         this.featureRuntime = featureRuntime;
         this.scenario = scenario;
@@ -154,7 +160,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         // Use custom HTTP client factory from Suite if configured
         Suite suite = featureRuntime != null ? featureRuntime.getSuite() : null;
         io.karatelabs.http.HttpClientFactory factory = suite != null ? suite.getHttpClientFactory() : null;
-        this.karate = factory != null ? new KarateJs(featureResource, factory) : new KarateJs(featureResource);
+        // Kept, because whoever created the client is the only thing that knows how to release it:
+        // the default factory closes, a pooling factory returns it to the pool.
+        this.httpClientFactory = factory != null ? factory : new io.karatelabs.http.DefaultHttpClientFactory();
+        this.karate = new KarateJs(featureResource, this.httpClientFactory);
+        this.ownsHttpClient = true;
 
         this.executor = new StepExecutor(this);
         this.result = new ScenarioResult(scenario);
@@ -186,6 +196,10 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         this.scenario = scenario;
         this.reportDisabled = isReportDisabledTag(scenario);
         this.karate = karate;
+        // Handed in, so not ours to close — the same rule closeDriver() applies to an inherited
+        // driver. Closing a caller's client here would break the next scenario to use it.
+        this.httpClientFactory = null;
+        this.ownsHttpClient = false;
         this.executor = new StepExecutor(this);
         this.result = new ScenarioResult(scenario);
         this.result.setReportDisabled(reportDisabled);
@@ -1301,6 +1315,11 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // Close driver if it was initialized
             closeDriver();
 
+            // Release the HTTP client. Every ScenarioRuntime builds its own — including one per
+            // karate.call(), so a scenario with 60 calls creates 61 — and until now not one of
+            // them was ever closed.
+            releaseHttpClient();
+
             // Handle @fail tag - invert pass/fail result
             if (scenario.isFail()) {
                 result.applyFailTag();
@@ -2228,6 +2247,28 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         }
         result.addStepResult(sr);
         return err;
+    }
+
+    /**
+     * Hand this scenario's HTTP client back to whoever made it.
+     *
+     * <p>Routed through the factory rather than calling {@code close()} directly: the factory is
+     * the only thing that knows whether the client is per-scenario or shared, and this interface
+     * exists so a caller can supply a pooled one. Skipped entirely when the KarateJs was handed
+     * in — that client belongs to the caller, exactly as an inherited driver does.
+     *
+     * <p>Teardown, so it never fails the scenario: a release error is logged and swallowed.
+     */
+    private void releaseHttpClient() {
+        if (!ownsHttpClient || httpClientReleased || karate == null || karate.client == null) {
+            return;
+        }
+        httpClientReleased = true;
+        try {
+            httpClientFactory.release(karate.client);
+        } catch (Exception e) {
+            logger.warn("error releasing http client: {}", e.getMessage());
+        }
     }
 
     private void closeChannels() {
