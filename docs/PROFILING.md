@@ -1201,24 +1201,39 @@ and git history record those.
 scenario end plus the mock and post-release paths); and the soak instrument (`--soak`, live-set
 probe, digest integrity checks).
 
-1. **Pooled-client A/B — the largest open question, and cheap to unblock.** Karate opens a
-   connection per iteration (measured: 4000 distinct ports against plain Gatling's 8). Free on
-   loopback and same-AZ, but +1 RTT plus TLS against a real API, and it is the sole reason this
-   document cannot say karate-gatling is good enough for *public* endpoints.
+1. **Pooled-client A/B — half measured. The remaining half needs the two-host bench.**
 
-   **Blocked on one line in karate-core.** `Runner.runFeature(path, arg, perfHook, tags, template)`
-   — the entry point karate-gatling uses — copies `env`, `configDir`, `workingDir`,
-   `systemProperties`, the three caches and `captureStepLogs` from the template, but **not
-   `httpClientFactory`**. So the Gatling lane cannot supply a factory at all, even though
-   `HttpClientFactory`'s own javadoc advertises pooling. (`Runner.builder().parallel()` does carry
-   it, which is why this went unnoticed.) Fix that, then build the factory in **karate-profiling**
-   as an experiment — do not ship API before knowing the answer — and graduate it to
-   **karate-gatling** if it wins. Not karate-core's default: pooling changes cross-scenario
-   semantics (cookies, TLS session reuse, server affinity) and per-scenario isolation is that
-   default's documented intent. Read `HttpClientFactory.release`'s contract first — a factory must
-   return **one wrapper per scenario** over a shared connection manager, because `ApacheHttpClient`
-   closes its own transport on `apply()` and would otherwise kill a concurrent scenario's in-flight
-   request.
+   **Done, and the connection question is answered.** Karate opened one connection per iteration;
+   `PooledHttpClientFactory` (in `karate-profiling`, deliberately — see its javadoc) collapses it.
+   Measured locally, 400 iterations at 4 virtual users, both arms serving exactly 800 requests:
+
+   | | distinct client ports | rate |
+   |---|---:|---:|
+   | unpooled | **400** — one per iteration | 946 conn/s, above this host's ~546/s ceiling |
+   | pooled | **4** — one per virtual user | 11 conn/s |
+
+   Four ports for four users is plain Gatling's shape. Run it with
+   `etc/run.sh gatling-http-karate ... -Dkarate.profiling.pooled=true`.
+
+   The enabler was one line: `Runner.runFeature(path, arg, perfHook, tags, template)` copied eight
+   template fields and **not** `httpClientFactory`, so the Gatling lane could set a factory and
+   have it silently dropped. Fixed, with a test whose negative control reproduces the drop.
+   `ApacheHttpClient.sharedConnectionManager()` is the seam; non-null builds with
+   `setConnectionManagerShared(true)`, which is what makes per-scenario release safe.
+
+   **What is NOT measured: what pooling buys in latency and throughput.** It cannot be measured on
+   loopback — a saved connection there is nearly free, which is exactly why this harness has priced
+   it at zero all along. It needs the **two-host bench at 10 ms and 50 ms**, pooled arm against
+   unpooled, and ideally a TLS tier where the saved handshake is worth 1–2 RTT rather than one.
+   Until that runs, this document still cannot say karate-gatling is good enough for **public TLS
+   endpoints** — the connection shape is fixed, but its price was never the thing in doubt on
+   loopback.
+
+   Note what a pooled client gives up, because it decides where this can ever ship: the SSL socket
+   factory and the socket/connect timeouts are configured on the connection manager, so
+   per-scenario `configure ssl` and `configure connectTimeout` do not reach it. Fine for a parity
+   workload against one mock; not fine as karate-core's default, whose documented intent is
+   per-scenario isolation. If the A/B wins, **karate-gatling** is the home.
 
 2. **`--duration` for the `gatling-*` workloads** — `during()` in the injection profile instead of a
    repetition count. Small, and it is what unblocks a **Gatling soak**, still the largest
@@ -1881,6 +1896,13 @@ executions/s, 526 requests/s, 263 connections/s** — comfortably under the ceil
 one of those three and the arm looks like it is over it; `distinctPeerPorts` is in every digest so
 the connection rate never has to be derived again.
 
+> **This shape is now optional.** `PooledHttpClientFactory` (§9 item 1) shares one connection
+> manager across iterations: measured on the same workload, 400 iterations at 4 users, the arm
+> drops from **400 distinct ports to 4** — one per virtual user, which is plain Gatling's shape.
+> Run it with `-Dkarate.profiling.pooled=true`. What that saves in *time* is still unmeasured, and
+> cannot be measured on loopback where a connection is nearly free; it needs the two-host bench,
+> and a TLS tier to show its full value.
+
 **None of those three numbers has to be remembered any more.** `run-meta.txt` reads the port range,
 TIME_WAIT and `somaxconn` off the kernel and derives the sustainable rate — on machine A that comes
 out at **~546 conn/s**, which is where the figure above came from — and every digest reports the
@@ -1924,7 +1946,9 @@ net.inet.tcp.msl=5000` raises the ceiling to ~3,200 conn/s and reverts on reboot
   connections for the whole run, while Karate builds a client per execution
   (`Runner.runFeature` → fresh `Suite` and `FeatureRuntime`; `ScenarioRuntime` → fresh `KarateJs` →
   fresh `ApacheHttpClient`), so no pooling survives an iteration — now counted rather than
-  inferred: 4000 distinct client ports against the plain arm's 8, in the 10 ms cells.
+  inferred: 4000 distinct client ports against the plain arm's 8, in the 10 ms cells. **A pooled
+  factory now removes this difference entirely** (§9 item 1) — 4 ports for 4 users, matching plain
+  Gatling — so the arms can be run with the axis eliminated rather than merely acknowledged.
   **This harness prices those 4000 handshakes at approximately zero, in every cell.** Against a real API it is +1 RTT per iteration for the TCP
   handshake and 1–2 more for TLS — at a 50 ms RTT, on the order of +100 ms on a ~110 ms iteration,
   which is roughly half the throughput, from the arm the matrix scores as equal. It is also what

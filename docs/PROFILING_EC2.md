@@ -160,6 +160,23 @@ etc/ec2/matrix.sh --tier 10ms --pairs 10 --iterations 4000 --users 8 \
                   --local-mock --label 10ms-1host      # the co-location control
 ```
 
+**The pooled-connection A/B — the next run this bench is for.** `matrix.sh` has no flag for it
+yet; pass the property through to both arms of a normal matrix, or run the two arms by hand:
+
+```bash
+# unpooled (today's shape: one connection per iteration)
+etc/run.sh gatling-http-karate --iterations 4000 --threads 8 --mock-url http://<mock-private-ip>:8090
+# pooled (one connection per virtual user)
+etc/run.sh gatling-http-karate --iterations 4000 --threads 8 --mock-url http://<mock-private-ip>:8090 \
+           -Dkarate.profiling.pooled=true
+```
+
+Read `distinctPeerPorts` in each digest to confirm the arms really differ (expect ~iterations
+versus ~users), then compare added-ms-per-iteration. **Run it at 10 ms and 50 ms.** The connection
+question is already answered locally; what this bench adds is the *price* of those handshakes,
+which loopback cannot show because a connection there is nearly free. A TLS tier would show the
+most, since it saves 1–2 RTT rather than one.
+
 Restarts the mock at the requested latency — the tier is fixed at construction, and a
 leftover mock from the previous tier answers with the old latency while the digests carry
 the new label. Discards one warmup run against the fresh mock (see §6 — without it the
