@@ -625,13 +625,18 @@ public final class JfrDigest {
                     String rest = line.substring(LIVE_SET_PREFIX.length());
                     long elapsed = (long) keyValueNumber(rest, "elapsedMs");
                     long live = (long) keyValueNumber(rest, "liveBytes");
+                    // -1 both when the platform will not report it and when the digest is reading
+                    // a run that predates the field, which are the same thing for display: no
+                    // column rather than a column of zeros that looks like a process holding
+                    // nothing open.
+                    long fds = (long) keyValueNumber(rest, "fds");
                     // A reading that predates the valid= flag has no claim either way; only an
                     // explicit valid=false is treated as a failed collection.
                     if (rest.contains("valid=false")) {
                         invalid++;
                     }
                     if (elapsed >= 0 && live >= 0) {
-                        series.add(new long[]{elapsed, live});
+                        series.add(new long[]{elapsed, live, fds});
                     }
                 }
             }
@@ -669,15 +674,31 @@ public final class JfrDigest {
         long last = series.get(series.size() - 1)[1];
         long min = series.stream().mapToLong(s -> s[1]).min().orElse(0);
         long max = series.stream().mapToLong(s -> s[1]).max().orElse(0);
+        boolean haveFds = series.stream().anyMatch(s -> s[2] >= 0);
         md.append("| | |\n|---|---|\n");
         row(md, "probes", String.valueOf(series.size()));
         row(md, "first / last", bytes(first) + " / " + bytes(last));
         row(md, "min / max", bytes(min) + " / " + bytes(max));
         row(md, "drift", (last >= first ? "+" : "") + bytes(last - first)
                 + (first > 0 ? " (" + Math.round((last - first) * 100.0 / first) + "%)" : ""));
-        md.append("\n| elapsed | live set |\n|---|---|\n");
+        if (haveFds) {
+            long firstFds = series.get(0)[2];
+            long lastFds = series.get(series.size() - 1)[2];
+            row(md, "open fds, first / last", firstFds + " / " + lastFds
+                    + (lastFds > firstFds ? " — **rising**" : ""));
+            md.append("\n> **Descriptors are the other half of this panel.** An unreleased HTTP "
+                    + "client leaks a socket, and a socket is a descriptor long before it is a "
+                    + "noticeable number of bytes — so the live set can sit flat while the process "
+                    + "walks toward `ulimit -n`. A pooled run holds descriptors on purpose, so a "
+                    + "flat non-zero count is the healthy shape; only a rising one is a finding.\n");
+        }
+        md.append("\n| elapsed | live set |").append(haveFds ? " open fds |\n|---|---|---|\n" : "\n|---|---|\n");
         for (long[] point : series) {
-            md.append("| ").append(point[0] / 1000).append("s | ").append(bytes(point[1])).append(" |\n");
+            md.append("| ").append(point[0] / 1000).append("s | ").append(bytes(point[1])).append(" |");
+            if (haveFds) {
+                md.append(point[2] >= 0 ? " " + point[2] + " |" : " — |");
+            }
+            md.append("\n");
         }
         md.append("\n");
     }

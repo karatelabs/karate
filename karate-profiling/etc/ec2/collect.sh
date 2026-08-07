@@ -34,12 +34,19 @@ log "$count digests in $KP_RESULTS"
 # table across all of them: `compare` pairs by timestamp adjacency, so a single
 # invocation spanning two matrices would pair the last run of one with the first
 # of the next and report two experiments as one.
+# The tables are a convenience, NOT the collection. `compare` exits non-zero for
+# perfectly good reasons — duration-bounded runs cannot be paired, and a soak
+# directory contains nothing but those — and its status used to become this
+# script's, so a collection that copied everything correctly reported failure.
+# That is the wrong way round and trains you to ignore the exit code, which is
+# the one that matters the day rsync fails. The copy above decides the outcome.
 derive() {
     local dir="$1" name="$2"
     compgen -G "$dir/gatling-http-*" >/dev/null || return 0
     echo
     log "=== $name ==="
-    "$(dirname "$0")/../run.sh" compare "$dir"/gatling-http-*
+    "$(dirname "$0")/../run.sh" compare "$dir"/gatling-http-* || \
+        log "   (no table — compare declined these runs; the digests are collected regardless)"
 }
 
 for labelled in "$KP_RESULTS"/*/; do
@@ -47,4 +54,7 @@ for labelled in "$KP_RESULTS"/*/; do
     compgen -G "$labelled/gatling-http-*" >/dev/null || continue
     derive "${labelled%/}" "$(basename "$labelled")"
 done
-derive "$KP_RESULTS" "unlabelled" 
+derive "$KP_RESULTS" "unlabelled"
+
+# Explicit, so the last `derive` cannot decide it.
+exit 0 

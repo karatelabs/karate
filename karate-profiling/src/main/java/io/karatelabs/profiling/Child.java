@@ -497,6 +497,33 @@ public final class Child {
      * two {@code System.gc()} calls means they did nothing, and the digest refuses the series
      * rather than drawing it.
      */
+    /**
+     * Open file descriptors, or -1 where the JVM will not say.
+     *
+     * <p><b>The other half of the leak question, and the half the heap cannot answer.</b> An HTTP
+     * client that is never released leaks a socket, and a socket is a descriptor long before it is
+     * a noticeable number of bytes — the live set can sit flat while the process walks toward its
+     * {@code ulimit -n} and then fails to open anything. Sampled here rather than on its own timer
+     * because it costs nothing and the probe already has the cadence.
+     *
+     * <p>Read alongside the live set, not instead of it: a pooled run holds descriptors on purpose,
+     * so a flat non-zero count is the healthy shape and only a rising one means anything.
+     */
+    private static long openFileDescriptors() {
+        // com.sun.management, so it is absent on non-HotSpot and meaningless on Windows. Reflection
+        // rather than a cast, to keep this from being a hard dependency of the whole child.
+        try {
+            java.lang.management.OperatingSystemMXBean os =
+                    java.lang.management.ManagementFactory.getOperatingSystemMXBean();
+            if (os instanceof com.sun.management.UnixOperatingSystemMXBean unix) {
+                return unix.getOpenFileDescriptorCount();
+            }
+        } catch (Throwable ignored) {
+            // A missing descriptor count is worth a -1 in one field, never a failed run.
+        }
+        return -1;
+    }
+
     private static void probeOnce(long startNanos, boolean isFinal) {
         long before = oldGenCollections();
         // Two passes: the first may leave objects that only became unreachable during it, and a
@@ -510,6 +537,7 @@ public final class Child {
         System.out.println(LIVE_SET_PREFIX
                 + "elapsedMs=" + ((System.nanoTime() - startNanos) / 1_000_000)
                 + " liveBytes=" + usedHeapBytes()
+                + " fds=" + openFileDescriptors()
                 + " collections=" + (after - before)
                 + " valid=" + collected
                 + (isFinal ? " final=true" : ""));
