@@ -100,14 +100,20 @@ public final class ConfigLoader {
         FeatureRuntime fr = new FeatureRuntime(suite, feature, null, null, false, null, null);
         Scenario scenario = feature.getSections().get(0).getScenario();
         ScenarioRuntime sr = new ScenarioRuntime(fr, scenario);
-        // The constructor captures a config failure instead of throwing (so a real run can report the
-        // called feature's steps). No call() happens here, so rethrow to honour the fail-loud contract.
-        Throwable configError = sr.getConfigError();
-        if (configError != null) {
-            throw configError instanceof RuntimeException re ? re : new RuntimeException(configError);
+        try {
+            // The constructor captures a config failure instead of throwing (so a real run can report
+            // the called feature's steps). No call() happens here, so rethrow to honour the fail-loud
+            // contract.
+            Throwable configError = sr.getConfigError();
+            if (configError != null) {
+                throw configError instanceof RuntimeException re ? re : new RuntimeException(configError);
+            }
+            Map<String, Object> config = sr.getConfigVars();
+            logger.debug("configOnly({}, env={}) -> {} variables", workingDir, env, config.size());
+            return config;
+        } finally {
+            // Synthetic runtime, no call() — same reason as the dynamic-outline template above.
+            sr.releaseHttpClient();
         }
-        Map<String, Object> config = sr.getConfigVars();
-        logger.debug("configOnly({}, env={}) -> {} variables", workingDir, env, config.size());
-        return config;
     }
 }

@@ -49,8 +49,8 @@ public class DefaultHttpClientFactory implements HttpClientFactory {
      * Closes it. This factory hands out one client per scenario and nothing else can reach it, so
      * the scenario's end is the last moment anyone can release its sockets deterministically.
      *
-     * <p>Every ScenarioRuntime builds its own client — including one per {@code karate.call()}, so
-     * a scenario with 60 calls creates 61 — and none of them used to be closed.
+     * <p>Every ScenarioRuntime builds its own client — including one per {@code karate.call()} —
+     * and none of them used to be closed.
      */
     @Override
     public void release(HttpClient client) {

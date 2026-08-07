@@ -1120,6 +1120,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             result.setAborted(true);
             result.setEndTime(System.currentTimeMillis());
             restoreLogContext(loggingSnapshot, outerLogContext, nestedCall, outerRuntime);
+            // Returns before the try/finally below, so the client has to go back here.
+            releaseHttpClient();
             return result;
         }
 
@@ -1148,6 +1150,10 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             result.setEndTime(now);
             stopped = true;
             restoreLogContext(loggingSnapshot, outerLogContext, nestedCall, outerRuntime);
+            // Also before the try/finally. A broken karate-config.js sends EVERY scenario in the
+            // suite down this path, so missing it leaks one client per scenario in exactly the
+            // situation a user re-runs over and over.
+            releaseHttpClient();
             return result;
         }
 
@@ -2257,9 +2263,13 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
      * exists so a caller can supply a pooled one. Skipped entirely when the KarateJs was handed
      * in — that client belongs to the caller, exactly as an inherited driver does.
      *
-     * <p>Teardown, so it never fails the scenario: a release error is logged and swallowed.
+     * <p>Teardown, so it never fails the scenario: a release error is logged and swallowed. It is
+     * idempotent, because the paths that reach it are not mutually exclusive: {@code call()}'s
+     * finally is the main one, but a runtime that never reaches that try — an early return here,
+     * or a construction site that evaluates without calling — has to release too, or it mints a
+     * client that nothing ever hands back.
      */
-    private void releaseHttpClient() {
+    void releaseHttpClient() {
         if (!ownsHttpClient || httpClientReleased || karate == null || karate.client == null) {
             return;
         }

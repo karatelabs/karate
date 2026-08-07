@@ -171,7 +171,13 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             ntlmDomain = null;
             ntlmWorkstation = null;
         }
-        httpClient = null; // force lazy rebuild on next invoke
+        // Close the outgoing one before dropping it. Nulling alone abandons a built
+        // CloseableHttpClient, its connection manager and its pooled sockets to the collector —
+        // and apply() fires on every `configure ssl/proxy/timeout/...`, and unconditionally after
+        // every shared-scope call. A scenario doing request -> shared-scope call -> request
+        // therefore abandoned one whole client silently, which is the same nondeterministic
+        // release that closing at scenario end was meant to remove.
+        closeQuietly();
         LOGGER.debug("http client config applied");
     }
 
@@ -578,10 +584,25 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     @Override
     public void close() throws IOException {
+        closeQuietly();
+    }
+
+    /**
+     * Close the current client, if any, and forget it.
+     *
+     * <p>Note what {@code invoke()} does afterwards: it sees a null client and lazily builds a new
+     * one. That is deliberate — {@code apply()} relies on it to rebuild after a configuration
+     * change — but it also means an instance stays usable after {@link #close()}, and anything
+     * that makes a request post-release quietly mints a client nobody will release. See the
+     * contract note on {@code HttpClientFactory.release}.
+     */
+    private void closeQuietly() {
         if (httpClient != null) {
             try {
                 httpClient.close();
                 LOGGER.debug("http client closed");
+            } catch (Exception e) {
+                LOGGER.warn("error closing http client: {}", e.getMessage());
             } finally {
                 httpClient = null;
             }

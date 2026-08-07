@@ -172,6 +172,63 @@ class HttpClientLifecycleTest {
     }
 
     /**
+     * A dynamic Scenario Outline builds a throwaway runtime to evaluate its expression, and that
+     * runtime never goes through the scenario call path — so its client was minted and never
+     * handed back, once per such feature per run. Found by review, and it failed this assertion
+     * (created 4, released 3) before the template runtime released explicitly.
+     */
+    @Test
+    void testADynamicOutlineTemplateRuntimeReleasesItsClient(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("dynamic.feature"), """
+                Feature: dynamic outline
+
+                  Scenario Outline: row <name>
+                    * match name == '#string'
+
+                    Examples:
+                      | karate.setup().rows |
+
+                  @setup
+                  Scenario: setup
+                    * def rows = [{ name: 'a' }, { name: 'b' }]
+                """);
+        CountingFactory factory = new CountingFactory();
+        SuiteResult result = run(dir, factory);
+
+        assertEquals(0, result.getScenarioFailedCount(), "the feature itself should pass");
+        assertEquals(factory.created.get(), factory.released.get(),
+                "the throwaway runtime that evaluates the dynamic expression owns a client too");
+    }
+
+    /**
+     * A failing {@code karate-config.js} makes every scenario return early, before the block that
+     * releases — so a whole suite's worth of clients was abandoned in exactly the situation a user
+     * re-runs repeatedly. Found by review; released 0 of 1 before the early return released too.
+     */
+    @Test
+    void testAConfigFailureStillReleasesTheClient(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("karate-config.js"), "function() { throw 'boom'; }");
+        Files.writeString(dir.resolve("simple.feature"), """
+                Feature: config is broken
+
+                  Scenario: never really starts
+                    * def x = 1
+                """);
+        CountingFactory factory = new CountingFactory();
+        Runner.builder()
+                .path(dir.toAbsolutePath().toString())
+                .configDir(dir.toAbsolutePath().toString())
+                .httpClientFactory(factory)
+                .backupOutputDir(false)
+                .outputHtmlReport(false)
+                .parallel(1);
+
+        assertTrue(factory.created.get() > 0, "no client was created — the test proves nothing");
+        assertEquals(factory.created.get(), factory.released.get(),
+                "a scenario that dies in config still owns a client it must hand back");
+    }
+
+    /**
      * A custom factory that shares one client must not have it closed underneath it. This is why
      * {@link HttpClientFactory#release} defaults to doing nothing rather than closing: the
      * {@code () -> client} lambda form is common — the project's own test utilities use it — and

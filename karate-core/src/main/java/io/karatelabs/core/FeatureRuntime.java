@@ -715,9 +715,16 @@ public class FeatureRuntime implements Callable<FeatureResult> {
                 ScenarioRuntime sr = new ScenarioRuntime(FeatureRuntime.this, templateScenario);
                 sr.setSkipBackground(true);
 
-                // Evaluate the dynamic expression in this runtime's engine
+                // Evaluate the dynamic expression in this runtime's engine. This runtime never
+                // goes through call(), so its client is released here or not at all — one leak
+                // per dynamic-outline feature, every run.
                 String expression = templateScenario.getDynamicExpression();
-                Object result = sr.eval(expression);
+                Object result;
+                try {
+                    result = sr.eval(expression);
+                } finally {
+                    sr.releaseHttpClient();
+                }
 
                 if (result instanceof List) {
                     return (List<?>) result;

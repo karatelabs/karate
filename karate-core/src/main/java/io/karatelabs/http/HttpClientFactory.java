@@ -62,6 +62,24 @@ public interface HttpClientFactory {
      * at a time no test controlled; a file descriptor is not heap, so no heap-based check could
      * see them accumulate.
      *
+     * <p><b>What this does and does not guarantee</b>, stated because an implementation that
+     * assumes more will break:
+     *
+     * <ul>
+     *   <li><b>Not exactly-once per {@link #create()}.</b> A client is minted eagerly when a
+     *       scenario runtime is constructed, and a few runtimes never run a scenario at all — a
+     *       dynamic-outline template, the synthetic runtime behind config-only loading, a mock's
+     *       cached per-feature runtime. Those release where they can, but a factory that counts
+     *       checkouts must tolerate a create with no matching release rather than deadlock.</li>
+     *   <li><b>A released client may still be used.</b> An {@code afterFeature} hook runs after
+     *       the last scenario released its client, and a closure returned from a called feature
+     *       can outlive the scenario that made it. {@link DefaultHttpClientFactory}'s client
+     *       tolerates this by rebuilding lazily; a pooled implementation must decide what a
+     *       late request should do rather than assume it cannot happen.</li>
+     *   <li><b>Called from the scenario's own thread</b>, and scenarios run in parallel, so an
+     *       implementation holding shared state needs its own synchronization.</li>
+     * </ul>
+     *
      * @param client a client previously returned by {@link #create()}
      */
     default void release(HttpClient client) {
