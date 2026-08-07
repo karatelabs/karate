@@ -208,73 +208,74 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         // from its caller, a cached callonce replaying) have no key to consult and so rebuilt
         // unconditionally. A scenario doing request -> shared-scope call -> request therefore
         // destroyed a live client, its connection manager and its sockets, having changed nothing.
+        // The config is read exactly once, here. Everything below is assigned from the key rather
+        // than from a second pass over the config, so the fields and the key that records them
+        // cannot describe different things — nothing between the two reads can change underneath.
+        // It also means the key IS the applied state, which is what makes comparing it sound.
         ClientKey key = ClientKey.of(config);
         if (key.equals(currentKey)) {
             LOGGER.trace("http client config unchanged, keeping the built client");
             return;
         }
         // SSL
-        ssl = config.isSslEnabled();
-        sslAlgorithm = config.getSslAlgorithm();
-        sslKeyStore = config.getSslKeyStore();
-        sslKeyStorePassword = config.getSslKeyStorePassword();
-        sslKeyStoreType = config.getSslKeyStoreType();
-        sslTrustStore = config.getSslTrustStore();
-        sslTrustStorePassword = config.getSslTrustStorePassword();
-        sslTrustStoreType = config.getSslTrustStoreType();
-        sslTrustAll = config.isSslTrustAll();
-        // Proxy
-        proxyUri = config.getProxyUri();
-        proxyUsername = config.getProxyUsername();
-        proxyPassword = config.getProxyPassword();
-        nonProxyHosts = config.getNonProxyHosts();
+        ssl = key.ssl();
+        sslAlgorithm = key.sslAlgorithm();
+        sslKeyStore = key.sslKeyStore();
+        sslKeyStorePassword = key.sslKeyStorePassword();
+        sslKeyStoreType = key.sslKeyStoreType();
+        sslTrustStore = key.sslTrustStore();
+        sslTrustStorePassword = key.sslTrustStorePassword();
+        sslTrustStoreType = key.sslTrustStoreType();
+        sslTrustAll = key.sslTrustAll();
+        // Proxy. The key holds a snapshot, so unlike a direct read this cannot alias the live list
+        // inside the config's proxy map.
+        proxyUri = key.proxyUri();
+        proxyUsername = key.proxyUsername();
+        proxyPassword = key.proxyPassword();
+        nonProxyHosts = key.nonProxyHosts();
         // Timeouts / redirects
-        readTimeout = config.getReadTimeout();
-        connectTimeout = config.getConnectTimeout();
-        followRedirects = config.isFollowRedirects();
-        // Retry
-        httpRetryEnabled = config.isHttpRetryEnabled();
-        retryCount = config.getRetryCount();
-        retryInterval = config.getRetryInterval();
-        // Charset
-        if (config.getCharset() != null) {
-            charset = config.getCharset();
+        readTimeout = key.readTimeout();
+        connectTimeout = key.connectTimeout();
+        followRedirects = key.followRedirects();
+        // Retry. The key reports the count and interval as zero while retry is disabled, because
+        // the build reads them only through the retry strategy it then does not install. These
+        // fields mirror that: when they are zero here, they are not in play.
+        httpRetryEnabled = key.httpRetryEnabled();
+        retryCount = key.retryCount();
+        retryInterval = key.retryInterval();
+        // Charset. A null one leaves the previous charset alone rather than clearing it, which is
+        // why the key compares it raw and can rebuild once for a change that lands here as a no-op.
+        if (key.charset() != null) {
+            charset = key.charset();
         }
         // Local address
-        String localAddr = config.getLocalAddress();
         boolean unresolved = false;
-        if (localAddr != null) {
+        if (key.localAddress() != null) {
             try {
-                localAddress = InetAddress.getByName(localAddr);
+                localAddress = InetAddress.getByName(key.localAddress());
             } catch (Exception e) {
                 // The field keeps whatever it resolved to last, so this config was NOT fully
                 // applied — see where the key is committed.
                 unresolved = true;
-                LOGGER.warn("invalid local address: {}", localAddr);
+                LOGGER.warn("invalid local address: {}", key.localAddress());
             }
         } else {
             localAddress = null;
         }
-        // NTLM (auth.type=ntlm)
-        if ("ntlm".equals(config.getAuthType())) {
-            ntlmUsername = config.getNtlmUsername();
-            ntlmPassword = config.getNtlmPassword();
-            ntlmDomain = config.getNtlmDomain();
-            ntlmWorkstation = config.getNtlmWorkstation();
-        } else {
-            ntlmUsername = null;
-            ntlmPassword = null;
-            ntlmDomain = null;
-            ntlmWorkstation = null;
-        }
-        // Committed only now that every field above took, and only if they all did.
-        //
-        // A name that would not resolve is the one way to get here having NOT applied the config:
-        // the exception is caught, so localAddress still holds the previous address. Committing
-        // the key anyway would make a transient DNS failure permanent — every later apply() of
-        // that same config would match and skip, leaving the client bound to the wrong interface
-        // for the rest of the scenario with one WARN as the only trace. Clearing it instead makes
-        // the next apply() retry the lookup, which is what happened before this guard existed.
+        // NTLM. The key's components are already null unless auth.type is ntlm, so there is no
+        // branch left to keep in step with the one in KarateConfig's getters.
+        ntlmUsername = key.ntlmUsername();
+        ntlmPassword = key.ntlmPassword();
+        ntlmDomain = key.ntlmDomain();
+        ntlmWorkstation = key.ntlmWorkstation();
+        // Committed only now that every field above took, and only if they all did. Since the
+        // assignments now come from the key rather than a second read, the only way to reach here
+        // without the fields matching it is a name that would not resolve: that exception is
+        // caught, so localAddress still holds the previous address. Committing the key anyway
+        // would make a transient DNS failure permanent — every later apply() of that config would
+        // match and skip, leaving the client bound to the wrong interface for the rest of the
+        // scenario with one WARN as the only trace. Clearing it makes the next apply() retry the
+        // lookup, which is what happened before this guard existed.
         currentKey = unresolved ? null : key;
         // Close the outgoing one before dropping it. Nulling alone abandons a built
         // CloseableHttpClient, its connection manager and its pooled sockets to the collector,
@@ -352,8 +353,17 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                         .setSocketTimeout(readTimeout, TimeUnit.MILLISECONDS)
                         .setConnectTimeout(connectTimeout, TimeUnit.MILLISECONDS)
                         .build())
+                // SO_TIMEOUT is how long a blocking read waits, so it takes readTimeout. It was
+                // given connectTimeout, which is a different thing entirely.
+                //
+                // That was inert rather than harmful: ConnectionConfig.socketTimeout above is
+                // applied to the leased connection and wins, so reads have always honoured
+                // readTimeout — measured, not assumed. It is fixed anyway because the two are now
+                // consistent: while they disagreed, any change in which one the library prefers
+                // would have silently capped every read at the connect timeout, and a read
+                // timeout firing early looks like a flaky server, not like a client bug.
                 .setDefaultSocketConfig(SocketConfig.custom()
-                        .setSoTimeout(connectTimeout, TimeUnit.MILLISECONDS).build());
+                        .setSoTimeout(readTimeout, TimeUnit.MILLISECONDS).build());
         // A pooling factory supplies one connection manager for the whole run and hands each
         // scenario its own thin wrapper over it. setConnectionManagerShared(true) is what makes
         // that safe: without it, closing any one wrapper at scenario end would shut the shared

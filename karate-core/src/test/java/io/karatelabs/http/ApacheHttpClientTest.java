@@ -120,4 +120,58 @@ class ApacheHttpClientTest {
         assertNull(field.get(client),
                 "a rebuilt client must be closed even when the request that caused it failed");
     }
+
+    /**
+     * A slow response is bounded by {@code readTimeout}, never by {@code connectTimeout}.
+     *
+     * <p>Worth pinning because the two are configured in two places that must agree.
+     * {@code ConnectionConfig.socketTimeout} is applied to the leased connection, and
+     * {@code SocketConfig.soTimeout} is SO_TIMEOUT on the socket — both are the read timeout, and
+     * the second was being fed {@code connectTimeout}. The first wins, so that never showed;
+     * it also meant nothing would have shown if the library's preference between them changed,
+     * except every read quietly capping at the connect timeout. A read timeout firing early looks
+     * like a slow server rather than a client bug, so it is the kind of regression that gets
+     * investigated in the wrong place for a long time.
+     *
+     * <p><b>This test passes against the mistake as well, and that is not a defect in it.</b>
+     * Verified by putting {@code connectTimeout} back: still green, because the connection config
+     * wins today. There is no assertion that could distinguish them while one of them is inert, so
+     * this pins the semantics rather than guarding the edit — it is here to fail the day the
+     * precedence changes, which is the only day it can matter.
+     *
+     * <p>The server accepts at once and stalls before replying, so connect is fast and only the
+     * read is slow — which is what separates the two timeouts.
+     */
+    @Test
+    void testASlowResponseIsBoundedByReadTimeoutNotConnectTimeout() throws Exception {
+        try (java.net.ServerSocket server = new java.net.ServerSocket(0)) {
+            Thread responder = new Thread(() -> {
+                try (java.net.Socket socket = server.accept()) {
+                    socket.getInputStream().read(new byte[2048]);
+                    Thread.sleep(1200);
+                    java.io.OutputStream out = socket.getOutputStream();
+                    out.write(("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n"
+                            + "Connection: close\r\n\r\nhi").getBytes());
+                    out.flush();
+                } catch (Exception ignored) {
+                    // the socket closes with the server when the test ends
+                }
+            });
+            responder.setDaemon(true);
+            responder.start();
+
+            ApacheHttpClient client = new ApacheHttpClient();
+            io.karatelabs.core.KarateConfig config = new io.karatelabs.core.KarateConfig();
+            config.configure("readTimeout", 10000);
+            config.configure("connectTimeout", 250);
+            client.apply(config);
+
+            HttpRequest request = new HttpRequest();
+            request.setUrl("http://localhost:" + server.getLocalPort() + "/slow");
+            request.setMethod("GET");
+            assertEquals(200, client.invoke(request).getStatus(),
+                    "the response took longer than connectTimeout but well under readTimeout, "
+                            + "so only readTimeout may bound it");
+        }
+    }
 }
