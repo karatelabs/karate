@@ -20,6 +20,7 @@ users=8
 gap=20
 mock_port=8090
 local_mock=false
+pooled=false
 label=
 
 while (($#)); do
@@ -44,6 +45,14 @@ while (($#)); do
         # with the first of the next, and a table of two different experiments
         # is reported as one. Always label when running more than one matrix.
         --label)      label="$2"; shift 2 ;;
+        # Give the KARATE arm a shared connection pool, so it stops opening a
+        # connection per iteration. Applies to the karate arm only, deliberately:
+        # the plain arm already keep-alives, so pooling both would change nothing
+        # on one side and the pair would still be a valid parity cell. That keeps
+        # the resulting table directly comparable to an unpooled matrix at the
+        # same tier — which is the actual A/B, since `compare` pairs plain against
+        # karate and cannot pair two karate arms against each other.
+        --pooled)     pooled=true; shift ;;
         *) die "unknown flag: $1" ;;
     esac
 done
@@ -72,6 +81,14 @@ fi
 # --- the pairs ---------------------------------------------------------------
 failures=0
 
+# Per-arm extra flags. Only the karate arm can pool — the plain arm is Gatling's
+# own client and has no HttpClientFactory to give.
+arm_extra() {
+    if [[ "$1" == "karate" && "$pooled" == true ]]; then
+        printf -- '-Dkarate.profiling.pooled=true'
+    fi
+}
+
 run_arm() {
     local arm="$1" out
     # Capture rather than stream, so a failed run is visible as a missing digest
@@ -80,7 +97,7 @@ run_arm() {
     # two arms from different pairs, reported as one.
     if ! out="$(kp_ssh "$injector_ip" "cd ~/karate/karate-profiling && PROFILING_SKIP_BUILD=1 \
             etc/run.sh gatling-http-$arm --iterations $iterations --threads $users \
-            $mock_args 2>&1")"; then
+            $mock_args $(arm_extra "$arm") 2>&1")"; then
         log "  !! $arm FAILED"
         echo "$out" | tail -5 | sed 's/^/     /'
         failures=$((failures + 1))
@@ -121,7 +138,7 @@ kp_ssh "$injector_ip" "cd ~/karate/karate-profiling/target/profiling && \
     echo 'warmup produced no run directory — nothing discarded'"
 sleep "$gap"
 
-log "$pairs pairs at $tier — $iterations iterations, $users users, ${gap}s between runs"
+log "$pairs pairs at $tier — $iterations iterations, $users users, ${gap}s between runs$($pooled && printf ', karate arm POOLED')"
 for ((pair = 1; pair <= pairs; pair++)); do
     # Alternate which arm leads. Any drift over the matrix — thermal, neighbour,
     # the mock's own sleep overshoot — then loads the two arms equally instead of

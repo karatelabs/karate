@@ -160,24 +160,28 @@ etc/ec2/matrix.sh --tier 10ms --pairs 10 --iterations 4000 --users 8 \
                   --local-mock --label 10ms-1host      # the co-location control
 ```
 
-**The pooled-connection A/B — the next run this bench is for.** `matrix.sh` has no flag for it
-yet; pass the property through to both arms of a normal matrix, or run the two arms by hand:
+**The pooled-connection A/B — the next run this bench is for.**
 
 ```bash
-# unpooled (today's shape: one connection per iteration)
-etc/run.sh gatling-http-karate --iterations 4000 --threads 8 --mock-url http://<mock-private-ip>:8090
-# pooled (one connection per virtual user)
-etc/run.sh gatling-http-karate --iterations 4000 --threads 8 --mock-url http://<mock-private-ip>:8090 \
-           -Dkarate.profiling.pooled=true
+etc/ec2/matrix.sh --tier 10ms --pairs 10 --iterations 4000 --users 8 --pooled --label 10ms-pooled
+etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --pooled --label 50ms-pooled
 ```
 
-Read `distinctPeerPorts` in each digest to confirm the arms really differ (expect ~iterations
-versus ~users), then compare added-ms-per-iteration. **Run it at 10 ms and 50 ms.** The connection
-question is already answered locally; what this bench adds is the *price* of those handshakes,
-which loopback cannot show because a connection there is nearly free. A TLS tier would show the
-most, since it saves 1–2 RTT rather than one.
+`--pooled` gives the **karate arm only** a shared connection pool
+(`-Dkarate.profiling.pooled=true` → `PooledHttpClientFactory`). The plain arm is Gatling's own
+client and already keep-alives, so there is nothing to pool there — and leaving it alone is what
+keeps the run a normal parity cell. That matters because `compare` pairs *plain against karate*
+and cannot pair two karate arms against each other: **the A/B is this table against the unpooled
+table at the same tier**, not two karate runs against each other.
 
-Restarts the mock at the requested latency — the tier is fixed at construction, and a
+Confirm the arms really differ before reading anything else — `distinctPeerPorts` in each digest
+should be ≈ iterations unpooled and ≈ users pooled. Locally that was 400 → 4 at 4 users.
+
+Running it through `matrix.sh` rather than by hand is not a convenience: the warmup discard, the
+alternating arm order, the failure counting and `--label`'s interleave protection are all in there,
+and a hand-run pair silently loses every one of them.
+
+Restarts the mock at the requested latencyRestarts the mock at the requested latency — the tier is fixed at construction, and a
 leftover mock from the previous tier answers with the old latency while the digests carry
 the new label. Discards one warmup run against the fresh mock (see §6 — without it the
 first pair is biased against Karate by ~0.5 ms). Then runs the pairs, **alternating which

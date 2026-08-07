@@ -4,3 +4,11 @@
 target
 home
 dependency-reduced-pom.xml
+
+# Never commit credentials or private bench config. The profiling bench keeps its
+# env file and ssh key outside this repo on purpose (docs/PROFILING_EC2.md §3);
+# these are the safety net for one dropped in-tree by accident.
+*.pem
+.env
+.env.*
+!.env.example

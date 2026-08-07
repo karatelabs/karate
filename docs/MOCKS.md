@@ -641,5 +641,5 @@ karate/
 
 ## References
 
-- V1 MockHandler: `/Users/peter/dev/zcode/karate/karate-core/src/main/java/com/intuit/karate/core/MockHandler.java`
-- V1 Documentation: `/Users/peter/dev/zcode/karate/karate-netty/README.md`
+- V1 MockHandler: `karate-core/src/main/java/com/intuit/karate/core/MockHandler.java` (in the v1 tree)
+- V1 Documentation: `karate-netty/README.md` (in the v1 tree)

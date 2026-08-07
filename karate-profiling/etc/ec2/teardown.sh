@@ -3,6 +3,7 @@
 # stops on its own, and two c7g.4xlarge left running is about $28 a day.
 #
 #   KARATE_PROFILING_ENV=~/private/.env etc/ec2/teardown.sh
+#   ... --force   skip the "you have uncollected results" guard
 #
 # Elastic IPs are DISASSOCIATED, never released: they are pre-provisioned account
 # resources this bench borrows, and releasing one loses the address for good.
@@ -13,6 +14,24 @@ source "$(dirname "$0")/lib.sh"
 # "running" reports a clean teardown while it sits there.
 ids=()
 while read -r id; do [[ -n "$id" ]] && ids+=("$id"); done <<< "$(kp_all_alive)"
+
+# Digests live only on the injector until collect.sh pulls them, and terminating the
+# instance destroys them with no way back. A matrix is ~20 minutes and $0.40 of machine
+# time; re-running one because teardown ran first is the single most annoying way to lose
+# work here, and nothing used to say a word about it.
+if ((${#ids[@]} > 0)) && [[ "${1:-}" != "--force" ]]; then
+    injector_ip="$(kp_ip_of "$KP_INJECTOR_NAME" 2>/dev/null || true)"
+    if [[ -n "$injector_ip" ]]; then
+        uncollected="$(kp_ssh "$injector_ip" \
+            "ls -1d ~/karate/karate-profiling/target/profiling/*/ 2>/dev/null | wc -l" 2>/dev/null || echo 0)"
+        if [[ "${uncollected:-0}" -gt 0 ]]; then
+            log "!! the injector still holds $uncollected run director(ies)."
+            log "   Terminating destroys them. Run etc/ec2/collect.sh first,"
+            log "   or re-run this with --force if you do not want them."
+            exit 1
+        fi
+    fi
+fi
 
 if ((${#ids[@]} == 0)); then
     # The most expensive failure this script has is doing nothing and saying so

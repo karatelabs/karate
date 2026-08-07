@@ -14,10 +14,10 @@
 > it produced. Read all three before re-opening anything: several things that look like obvious
 > wins are parked there *on evidence*.
 >
-> **If you are here to run something:** the next phase is
-> [the two-host phase](#the-two-host-phase-what-is-built-and-what-it-is-for) in §10 — two quiet
-> dedicated machines, because the 50 ms tier was shown to be limited by the laptop rather than by
-> the number of pairs taken on it. It is automated end to end in
+> **If you are here to run something, go straight to
+> [§9's ordered list](#if-you-are-picking-up-the-gatling-thread--the-order).** That is the steering
+> surface and it is kept current; this header is not a second one. The two-host bench and both
+> parity tiers are **settled — do not redo them**. The bench itself is automated end to end in
 > **[PROFILING_EC2.md](./PROFILING_EC2.md)**: provision, bootstrap, run, collect, tear down.
 
 ---
@@ -1928,8 +1928,8 @@ net.inet.tcp.msl=5000` raises the ceiling to ~3,200 conn/s and reverts on reboot
 
 ### What the result does not license, and what is next
 
-- **One cell shape.** 8 users, one machine, one feature — three pairs at 10 ms and six at 50 ms
-  now, but all at the same point. **The user ramp is what answers §9's concurrency-density question**, and it is the
+- **One cell shape.** 8 users, one feature — ten pairs at each of 10 ms and 50 ms on the two-host
+  bench, but all at the same point. **The user ramp is what answers §9's concurrency-density question**, and it is the
   cheapest remaining run of the ones that would change a conclusion. Expect the signature to be a **TPS shortfall
   with clean-looking latencies** — queue-for-a-thread time sits between actions, outside every
   `PerfEvent` bracket, so it never reaches a percentile. §9's prediction that starvation would
