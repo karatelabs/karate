@@ -1344,6 +1344,63 @@ failure that happened three features into a scenario.
 
 ---
 
+### 14.12 Injector health — DESIGNED, NOT BUILT
+
+**The problem this exists for is specific, and it is the sharpest finding from the parity work in
+[PROFILING.md §10](./PROFILING.md).** Karate's per-execution overhead sits *between* `PerfEvent`
+brackets — the reported response time is the HTTP call only, built inside the client as
+`PerfEvent(start = response.getStartTime(), end = start + responseTime)`. Suite construction,
+config evaluation, feature parse and `match` all fall outside it.
+
+That is good news for fidelity: **the percentiles in a Gatling report are the server's, not the
+client's.** It is also the hazard. Because the overhead is outside the brackets, an
+under-provisioned injector shows up as **a throughput shortfall with clean-looking latencies** —
+queue-for-a-thread time never reaches a percentile. Nothing in the report looks wrong, and the
+system under test is silently under-loaded. A detector is the only way that becomes visible.
+
+#### Which signals may gate, and which must not
+
+| Signal | What it measures | Gate on it? |
+|---|---|---|
+| Process CPU load against available cores | the machine | **yes** |
+| **Heartbeat scheduling jitter** — a daemon thread sleeping ~100 ms, recording actual-vs-intended | the machine, including cases CPU% misses | **yes** |
+| Achieved vs intended arrival rate (open model only) | offered load directly | yes, where available |
+| Per-iteration residue: `execute()` elapsed − Σ `PerfEvent` durations | **the work** | **no — report only** |
+
+**The residue is the tempting one and it must not gate.** Karate legitimately spends on the order
+of a millisecond or two per iteration (0.6 ms on Apple silicon, 1.8 ms on Graviton3 — the figure is
+machine-specific), so any residue threshold fires on a perfectly healthy run. It is worth
+*reporting*, because it attributes Karate's own overhead directly instead of by subtracting two
+throughputs, and it is [PROFILING.md §10](./PROFILING.md)'s unbuilt "per-iteration residue" item.
+
+**The heartbeat is the one not to skip.** CPU% alone misses the case that actually bites in cloud
+CI: a container throttled by its cgroup quota reports *low* CPU while being unable to run anything
+on time. Jitter catches that directly, and it is about fifteen lines.
+
+#### Behaviour
+
+- **Warn always**, from a soft threshold, with the numbers. Rate-limited per breach window — a
+  saturated 30-minute soak must not emit thousands of lines, or people stop reading them.
+- **Fail only on sustained, unambiguous saturation** — a band chosen so that it is essentially
+  never a false positive. A false failure at the end of a long, expensive run is the fastest way
+  to get the whole check disabled globally.
+- **One config to switch it off**, on `KarateProtocolBuilder` alongside `logReplay` etc.
+- **A verdict in the run summary either way**, so a passing run still records that it had headroom.
+
+#### Where it goes
+
+`KarateExecutor.execute()` is the single Java-side seam wrapping the whole per-iteration body, so
+it is also where the residue timing point belongs. Config fits `KarateProtocolBuilder`'s existing
+fluent style.
+
+#### Two things to design around
+
+- **Containers.** Use `getProcessCpuLoad()` (normalised to available processors) rather than
+  system-wide load, which in a container can reflect the host. `availableProcessors()` is
+  cgroup-aware on modern JDKs, but verify the exact semantics on the targeted JDKs before building
+  a threshold on it.
+- **The heartbeat thread must be a platform thread**, and its jitter describes the whole JVM.
+
 ## 15. Implementation Progress
 
 ### 15.1 Current Status

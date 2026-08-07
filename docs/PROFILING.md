@@ -1966,5 +1966,8 @@ net.inet.tcp.msl=5000` raises the ceiling to ~3,200 conn/s and reverts on reboot
   not needed. See §7.
 - **Not built:** the per-iteration residue (`action elapsed − Σ PerfEvent`), which would attribute
   Karate's own overhead exactly rather than by subtraction of throughputs. It needs a timing point
-  around the whole body of `KarateScalaAction.execute`. Worth building only if the ramp says the
-  overhead matters.
+  around the whole body of the per-iteration execute path. Worth building only if the ramp says the
+  overhead matters — and note it is a *reporting* number, not a gate: Karate legitimately spends a
+  millisecond or two per iteration, so a residue threshold would fire on healthy runs. The signals
+  that can gate, and the detector this all argues for, are designed in
+  **[GATLING.md §14.12](./GATLING.md)** (injector health — designed, not built).
