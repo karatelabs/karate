@@ -245,7 +245,35 @@ because the difference decides what a soak would even be looking for:
 |---|---|
 | Retention that grows with **suite size** | **Fixed and verified** — §8 found two real mechanisms (call-result accumulation, the report-writing queue) and peak heap is now flat across a 4x scale sweep. |
 | One feature holding thousands of scenarios, reports on | **Known-unbounded, accepted** — still linear, §6. Not a leak: it is retention by design until suite end. |
-| A slow leak over **hours** | **Still unmeasured, but the instrument now works.** Three silent faults that made a soak impossible are fixed (below); the first real run is pending. |
+| A slow leak over **hours** | **Measured, and there is one.** The first real soak — one hour, 35.7M executions — shows a monotonically rising heap-after-GC floor. See below. |
+
+#### The first soak found a leak
+
+`scope-capture-bound --duration 1h --threads 8 --soak --gc-roots`, on the Graviton3 injector.
+**35,671,234 iterations, 0 errors, `elapsedMs=3600006`** — six milliseconds over the window it
+asked for, against the `240007` that exposed the join bug.
+
+| | |
+|---|---|
+| first floor | 11.4 MB |
+| last floor | 27.8 MB |
+| drift | **+16.4 MB (143%)** over one hour |
+| rate | ~0.46 bytes per iteration, ~16 MB/hour at ~9,900 it/s |
+
+**The floor rises monotonically and does not decelerate** — roughly +0.85 MB every 190 s across
+the whole hour, slightly faster in the second half. That is §4's *rising floor → retention*, not
+a cache filling to a bound, which would flatten. Against a 768m heap it projects to an OOM in
+roughly two days of continuous running.
+
+Read the size before reacting: 16 MB/hour is not a crisis for a test suite, and for an ordinary
+Runner suite it is invisible. It matters for the Gatling lane, which is the lane that runs for
+hours by design.
+
+**What is not yet known is what it is.** The attribution instrument failed, and that is its own
+finding — see the `jdk.OldObjectSample` note below. The workload also makes **zero HTTP calls**,
+so this leak is not the HTTP-client one and cannot be the file-descriptor class either. What it
+does share with the Gatling lane is a fresh `Suite` per iteration, which is the hypothesis the
+next step should test.
 
 The instrument for the third row already exists: the **heap-after-GC floor** in every digest is
 the detector, and §4's chart is the classification. What is missing is a run long enough for a
@@ -523,6 +551,28 @@ duration) usually means allocation pressure, not retention.
 objects that survived a collection, with the stack that allocated them. Read it as "who
 allocated the things that are still alive". Note it gives you the *allocator*, not the
 *holder*, unless the run enabled `path-to-gc-roots` (see §4).
+
+> **This panel is a detector, not a locator, and the first real soak proved it.** One hour at
+> ~9,900 iterations/s produced **19 samples**, and most carried `root = N/A` — no reference chain
+> — *despite* `--gc-roots` being on. Of those 19, 56% were the profiling harness's own progress
+> reporter and 9% JFR's own writers: long-lived infrastructure threads crowd out the workload
+> precisely because they survive everything. The panel now leads with its sample count and refuses
+> to attribute below a threshold.
+>
+> Two corrections came out of the same run. The tables report **counts**, not bytes — each sample
+> used to be weighted by `lastKnownHeapUsage`, which is the size of the *whole heap* at sample
+> time, so the seven types summed to 271 MB in a JVM whose live set was 27 MB. And `jdk.OldObjectSample`
+> carries no object size at all, so there is no honest byte figure to report.
+>
+> **To name a leak, use a class histogram against the live child**, which is direct and cheap:
+> ```bash
+> jcmd <child-pid> GC.run && jcmd <child-pid> GC.class_histogram > histo-1.txt
+> # ...minutes later...
+> jcmd <child-pid> GC.run && jcmd <child-pid> GC.class_histogram > histo-2.txt
+> ```
+> The diff names what grew. Find the pid with `jcmd -l | grep profiling.Child` — and note that
+> `pgrep -f`/`pkill -f` over ssh match the ssh command line carrying the pattern, so they answer
+> "yes, alive" forever.
 
 **Top classes.** Only present when a heap dump exists — a class histogram read from
 `heapdump.hprof`.
