@@ -25,17 +25,25 @@ package io.karatelabs.http;
 
 import io.karatelabs.core.KarateConfig;
 import io.karatelabs.core.MockServer;
+import io.karatelabs.core.Runner;
+import io.karatelabs.core.SuiteResult;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@code apply()} must rebuild the client when the config that shapes it changed, and must not
@@ -152,6 +160,52 @@ class ApacheHttpClientConfigRebuildTest {
             client.apply(config);
             assertSame(second, built(client), "re-setting the same retry count must not rebuild");
         });
+    }
+
+    /**
+     * The same fix, through the path a feature actually takes.
+     *
+     * <p><b>This test exists because the one above is not enough on its own, and reviewing the
+     * two together is the point.</b> That test calls {@code apply()} by hand, so it proves the key
+     * notices a retry change — and nothing more. The step a user writes goes through
+     * {@code ScenarioRuntime.configure}, which decides whether to call {@code apply()} at all from
+     * the verdict {@code KarateConfig.configure} returns, and that verdict is {@code false} for
+     * {@code retry}. A guard inside {@code apply()} cannot fix a bug whose symptom is that
+     * {@code apply()} is never reached, so the unit test passed while the user-facing behaviour
+     * stayed broken.
+     *
+     * <p>The probe is what {@code apply()} was actually handed: if the runtime never calls it
+     * after the retry change, no invocation ever sees the new count.
+     */
+    @Test
+    void testConfiguringRetryInAFeatureReachesTheClient(@TempDir Path dir) throws Exception {
+        List<Integer> retryCountsSeenByApply = Collections.synchronizedList(new ArrayList<>());
+        class RecordingClient extends ApacheHttpClient {
+            @Override
+            public void apply(KarateConfig config) {
+                retryCountsSeenByApply.add(config.getRetryCount());
+                super.apply(config);
+            }
+        }
+        Files.writeString(dir.resolve("retry.feature"), """
+                Feature: a retry change between requests
+
+                  Scenario: reconfigure retry after the client is built
+                    * configure httpRetryEnabled = true
+                    * configure retry = { count: 7, interval: 0 }
+                """);
+        SuiteResult result = Runner.builder()
+                .path(dir.toAbsolutePath().toString())
+                .httpClientFactory(RecordingClient::new)
+                .backupOutputDir(false)
+                .outputHtmlReport(false)
+                .parallel(1);
+
+        assertEquals(0, result.getScenarioFailedCount(), "the feature itself must pass");
+        assertTrue(retryCountsSeenByApply.contains(7),
+                "configure retry changes the retry count baked into the client at build time, so "
+                        + "the runtime must hand the new config to apply() and let it decide — "
+                        + "apply() only ever saw " + retryCountsSeenByApply);
     }
 
     /**

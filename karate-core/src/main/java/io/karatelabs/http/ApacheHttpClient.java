@@ -135,25 +135,18 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     /**
      * Everything about a {@link KarateConfig} that changes the client this class builds — and
-     * nothing else. Two configs with equal keys produce byte-identical clients, so
-     * {@link #apply} can return without tearing the transport down.
-     *
-     * <p><b>Read off the raw config, never off this class's resolved fields.</b> {@code apply()}
-     * turns {@code localAddress} into an {@link InetAddress} via {@code getByName}, which can hit
-     * DNS. Keying on the resolved value would mean paying that cost to decide whether to pay it,
-     * and would put a name lookup behind every {@code configure} step.
+     * nothing else. Equal keys mean an identical client, so {@link #apply} can return without
+     * tearing the transport down.
      *
      * <p><b>When in doubt, include the field.</b> An extra component costs one redundant rebuild;
-     * a missing one leaves a scenario running against a stale client that no longer matches its
-     * own config, which is silent and survives into results. {@code charset} is deliberately
-     * coarse for that reason — it is compared raw although {@code apply()} ignores a null one, so
-     * a non-null-to-null change rebuilds for nothing. It cannot under-invalidate, which is the
-     * direction that matters.
+     * a missing one leaves a scenario running against a client that no longer matches its own
+     * config, silently. {@code charset} is deliberately coarse on those grounds — compared raw
+     * although {@code apply()} ignores a null one — and only NTLM is taken from auth, because the
+     * rest of auth never reaches the built client.
      *
-     * <p>Auth contributes only the four NTLM values, because they are the only auth settings
-     * {@code apply()} reads. The auth <i>type</i> is deliberately absent: the NTLM getters already
-     * return null unless it is {@code ntlm}, so switching away from NTLM changes these components
-     * anyway, while a basic-to-bearer switch correctly changes nothing here.
+     * <p><b>Read off the raw config, never off this class's resolved fields</b>, or deciding
+     * whether to resolve {@code localAddress} would first resolve it: {@code apply()} puts that
+     * through {@code getByName}, which can hit DNS.
      */
     private record ClientKey(
             boolean ssl, String sslAlgorithm, String sslKeyStore, String sslKeyStorePassword,

@@ -1695,14 +1695,16 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
 
     public void configure(String key, Object value) {
         // Delegate to KarateConfig for type-safe storage
-        boolean requiresHttpClientRebuild = config.configure(key, value);
+        config.configure(key, value);
 
-        // Re-project the typed config onto the HTTP client when a client-relevant
-        // key changed. KarateConfig is the single source of truth; the client just
-        // reads typed getters off it (see HttpClient.apply).
-        if (requiresHttpClientRebuild) {
-            karate.client.apply(config);
-        }
+        // Hand the config over and let the client decide whether any of it matters. Deciding here
+        // is what this used to do, from a per-key verdict, and the verdict could be wrong in the
+        // direction that does not announce itself: `configure retry` changes the retry count baked
+        // into the client at build time but was classified as needing no rebuild, so the new count
+        // reached the config and never reached the client. apply() is idempotent by contract (see
+        // HttpClient.apply) and returns immediately when nothing it reads changed, so calling it
+        // for every key costs a comparison and removes a whole class of that bug.
+        karate.client.apply(config);
 
         // Additional side effects for specific keys
         if ("cookies".equals(key) && value == null) {

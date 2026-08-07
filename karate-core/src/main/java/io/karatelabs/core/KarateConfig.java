@@ -81,7 +81,7 @@ public class KarateConfig implements SimpleObject {
             "driverConfig"
     );
 
-    // ===== HTTP Client (requires rebuild when changed) =====
+    // ===== HTTP Client =====
     private String url;
     private int readTimeout = 30000;
     private int connectTimeout = 30000;
@@ -127,11 +127,11 @@ public class KarateConfig implements SimpleObject {
     // CallSingleCache: { minutes, dir }
     private Map<String, Object> callSingleCache = new HashMap<>();
 
-    // ===== Non-HTTP (no client rebuild needed) =====
+    // ===== Non-HTTP =====
     private Object headers;  // Map<String,Object> or JS function
     private Object cookies;  // Map<String,Object>
 
-    // HTTP retry (separate from retry config because it requires client rebuild)
+    // HTTP retry (separate from the retry config map: this is the on/off switch)
     private boolean httpRetryEnabled;
 
     // Execution control
@@ -307,44 +307,44 @@ public class KarateConfig implements SimpleObject {
     /**
      * Apply configuration from a key-value pair.
      *
+     * <p>This used to return whether the HTTP client needed rebuilding, and callers gated
+     * {@code HttpClient.apply} on it. Classifying by key cannot be done correctly here: the
+     * verdict was wrong for {@code retry} (which changes a setting baked into the client at build
+     * time) and for {@code auth} switching away from NTLM (which leaves stale credentials), and
+     * it could say nothing at all about the three paths that copy a whole config across a
+     * scenario boundary. {@code HttpClient.apply} is idempotent by contract and decides for
+     * itself; hand it the config and let it answer.
+     *
      * @param key   the configure key (e.g., "ssl", "proxy", "readTimeout")
      * @param value the value to set
-     * @return true if HTTP client needs to be rebuilt, false otherwise
      * @throws RuntimeException if key is not recognized
      */
     @SuppressWarnings("unchecked")
-    public boolean configure(String key, Object value) {
+    public void configure(String key, Object value) {
         key = key != null ? key.trim() : "";
-        return switch (key) {
-            // HTTP client settings (require rebuild)
+        switch (key) {
+            // HTTP client settings
             case "ssl" -> {
                 configureSsl(value);
-                yield true;
             }
             case "proxy" -> {
                 configureProxy(value);
-                yield true;
             }
             case "readTimeout" -> {
                 this.readTimeout = toInt(value);
-                yield true;
             }
             case "connectTimeout" -> {
                 this.connectTimeout = toInt(value);
-                yield true;
             }
             case "followRedirects" -> {
                 this.followRedirects = toBoolean(value);
-                yield true;
             }
             case "localAddress" -> {
                 this.localAddress = toString(value);
-                yield true;
             }
             case "charset" -> {
                 // null value means disable auto-charset (V1 compatibility)
                 this.charset = value == null ? null : Charset.forName(toString(value));
-                yield true;
             }
             case "ntlmAuth" -> {
                 // Legacy support: convert ntlmAuth to auth with type: 'ntlm'
@@ -356,128 +356,97 @@ public class KarateConfig implements SimpleObject {
                 } else if (value == null) {
                     configureAuth(null);
                 }
-                yield true;  // NTLM requires HTTP client rebuild
             }
-            case "auth" -> {
-                configureAuth(value);
-                // NTLM requires client rebuild, others don't
-                String type = value instanceof Map<?, ?> m ? toString(m.get("type")) : null;
-                yield "ntlm".equals(type);
-            }
+            case "auth" -> configureAuth(value);
 
-            // Non-HTTP settings (no rebuild)
             case "url" -> {
                 this.url = toString(value);
-                yield false;
             }
             case "headers" -> {
                 this.headers = value;
-                yield false;
             }
             case "cookies" -> {
                 this.cookies = value;
-                yield false;
             }
             case "retry" -> {
                 configureRetry(value);
-                yield false;
             }
             case "httpRetryEnabled" -> {
                 this.httpRetryEnabled = toBoolean(value);
-                yield true; // Requires HTTP client rebuild
             }
             case "report" -> {
                 configureReport(value);
-                yield false;
             }
             case "logging" -> {
                 configureLogging(value);
-                yield false;
             }
             case "callSingleCache" -> {
                 configureCallSingleCache(value);
-                yield false;
             }
             case "continueOnStepFailure" -> {
                 this.continueOnStepFailure = toBoolean(value);
-                yield false;
             }
             case "abortedStepsShouldPass" -> {
                 this.abortedStepsShouldPass = toBoolean(value);
-                yield false;
             }
             case "abortSuiteOnFailure" -> {
                 this.abortSuiteOnFailure = toBoolean(value);
-                yield false;
             }
             case "matchEachEmptyAllowed" -> {
                 this.matchEachEmptyAllowed = toBoolean(value);
-                yield false;
             }
 
             // Mock settings
             case "cors" -> {
                 this.corsEnabled = toBoolean(value);
-                yield false;
             }
             case "responseHeaders" -> {
                 this.responseHeaders = value;
-                yield false;
             }
             case "beforeScenario" -> {
                 this.beforeScenario = value;
-                yield false;
             }
             case "afterScenario" -> {
                 this.afterScenario = value;
-                yield false;
             }
             case "afterScenarioOutline" -> {
                 this.afterScenarioOutline = value;
-                yield false;
             }
             case "afterFeature" -> {
                 this.afterFeature = value;
-                yield false;
             }
             case "onStepFailure" -> {
                 this.onStepFailure = value;
-                yield false;
             }
 
             // Driver configuration
             case "driver" -> {
                 this.driverConfig = value;
-                yield false;
             }
 
             // Deprecated v1 options - no-op with one-line migration hint
             case "logPrettyRequest", "logPrettyResponse" -> {
                 logger.warn("configure '{}' is deprecated; use 'configure logging = {{ pretty: true|false }}'", key);
-                yield false;
             }
             case "printEnabled" -> {
                 logger.warn("configure 'printEnabled' is deprecated; raise the log threshold with "
                         + "'configure logging = {{ report: \"warn\" }}' to silence print/karate.log");
-                yield false;
             }
             case "lowerCaseResponseHeaders" -> {
                 logger.warn("configure 'lowerCaseResponseHeaders' is deprecated; "
                         + "'match header X' is already case-insensitive and 'karate.lowerCase(responseHeaders)' "
                         + "covers direct map access");
-                yield false;
             }
             case "logModifier" -> {
                 logger.warn("configure 'logModifier' is removed; "
                         + "use the declarative form: 'configure logging = {{ mask: {{ headers: [...], jsonPaths: [...], patterns: [...] }} }}'");
-                yield false;
             }
 
             // No channel-type cases: channels (grpc, kafka, …) are configured via their rich
             // JS object — karate.channel('kafka') / the boot.ext('kafka') object — not via global
             // 'configure <type>'. 'configure' stays strict so key typos fail loudly.
             default -> throw new RuntimeException("unexpected 'configure' key: '" + key + "'");
-        };
+        }
     }
 
     private void configureSsl(Object value) {
