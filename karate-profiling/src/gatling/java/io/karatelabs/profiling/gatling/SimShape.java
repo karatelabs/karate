@@ -48,6 +48,23 @@ final class SimShape {
         return Integer.getInteger(GatlingWorkload.REPS_PROPERTY, 1);
     }
 
+    /**
+     * The shared connection pool, when this run asked for one — a single instance for the whole
+     * simulation, which is the entire point: a per-virtual-user pool would pool nothing.
+     *
+     * <p>Null unless {@code -Dkarate.profiling.pooled=true}. The A/B this exists for is whether
+     * pooling collapses Karate's connection-per-iteration shape (4000 distinct client ports in a
+     * measured run, against plain Gatling's 8); the mock reports {@code distinctPeerPorts}, so the
+     * answer is read straight off the digest.
+     */
+    static final io.karatelabs.profiling.PooledHttpClientFactory POOL =
+            Boolean.getBoolean("karate.profiling.pooled")
+                    // Sized above the virtual-user count so the pool is never the bottleneck —
+                    // otherwise the A/B measures the pool rather than Karate.
+                    ? new io.karatelabs.profiling.PooledHttpClientFactory(
+                            Math.max(64, users() * 4), Math.max(64, users() * 4))
+                    : null;
+
     /** The sibling mock JVM's base URL. Fails loudly rather than building requests against "null". */
     static String mockUrl() {
         String url = System.getProperty(GatlingWorkload.MOCK_URL_PROPERTY);

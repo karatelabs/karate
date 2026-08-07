@@ -256,6 +256,21 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                         .build())
                 .setDefaultSocketConfig(SocketConfig.custom()
                         .setSoTimeout(connectTimeout, TimeUnit.MILLISECONDS).build());
+        // A pooling factory supplies one connection manager for the whole run and hands each
+        // scenario its own thin wrapper over it. setConnectionManagerShared(true) is what makes
+        // that safe: without it, closing any one wrapper at scenario end would shut the shared
+        // manager and every other scenario with it.
+        //
+        // What a shared manager cannot carry: the SSL socket factory and the socket/connect
+        // timeouts are configured on the manager, so per-scenario `configure ssl` / `configure
+        // connectTimeout` do not apply to a pooled client. That is the trade a pooling factory
+        // makes, and it is why this is opt-in rather than the default.
+        org.apache.hc.client5.http.io.HttpClientConnectionManager shared = sharedConnectionManager();
+        if (shared != null) {
+            clientBuilder.setConnectionManager(shared).setConnectionManagerShared(true);
+        } else {
+            clientBuilder.setConnectionManager(connectionManagerBuilder.build());
+        }
         RequestConfig.Builder configBuilder = RequestConfig.custom()
                 .setCookieSpec(StandardCookieSpec.STRICT);
         // Configure NTLM authentication (deprecated in HttpClient 5)
@@ -324,7 +339,6 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
         }
         clientBuilder
                 .setDefaultRequestConfig(configBuilder.build())
-                .setConnectionManager(connectionManagerBuilder.build())
                 .addRequestInterceptorLast(this);
         httpClient = clientBuilder.build();
         if (LOGGER.isTraceEnabled()) {
@@ -603,6 +617,20 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             return super.createLayeredSocket(socket, target, port, context);
         }
 
+    }
+
+    /**
+     * The connection manager this client should use, or null to build a private one per instance
+     * — which is the default and what every functional test wants.
+     *
+     * <p>Override to share one across scenarios. See {@code karate-profiling}'s
+     * {@code PooledHttpClientFactory} for the shape: one manager per run, one subclass instance
+     * per scenario. Do not return a manager from a factory that hands the same
+     * {@code ApacheHttpClient} instance to concurrent scenarios — that is unsafe for reasons
+     * unrelated to pooling, see {@link HttpClientFactory#release}.
+     */
+    protected org.apache.hc.client5.http.io.HttpClientConnectionManager sharedConnectionManager() {
+        return null;
     }
 
     @Override

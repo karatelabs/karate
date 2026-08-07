@@ -341,4 +341,35 @@ class HttpClientLifecycleTest {
     }
 
 
+
+    /**
+     * {@code Runner.runFeature(path, arg, perfHook, tags, template)} must carry the template's
+     * {@code httpClientFactory}. That overload is the entry point karate-gatling uses, and it
+     * copied env, configDir, workingDir, systemProperties, the three caches and captureStepLogs —
+     * but not the factory. So the Gatling lane could set one and have it silently dropped, which
+     * made the pooled-connection experiment impossible while looking supported: every other Runner
+     * path carries it, and {@code HttpClientFactory}'s own javadoc advertises "a shared connection
+     * pool for performance testing scenarios".
+     */
+    @Test
+    void testRunFeatureCarriesTheTemplatesHttpClientFactory(@TempDir Path dir) throws IOException {
+        Path feature = dir.resolve("one.feature");
+        Files.writeString(feature, """
+                Feature: one
+
+                  Scenario: plain
+                    * def x = 1
+                """);
+        CountingFactory factory = new CountingFactory();
+        Runner.Builder template = Runner.builder()
+                .workingDir(dir.toAbsolutePath().toString())
+                .httpClientFactory(factory);
+
+        Runner.runFeature("one.feature", null, null, null, template);
+
+        assertTrue(factory.created.get() > 0,
+                "the template's factory was dropped — the Gatling lane cannot pool without this");
+        assertEquals(factory.created.get(), factory.released.get(),
+                "and what it hands out must still come back");
+    }
 }

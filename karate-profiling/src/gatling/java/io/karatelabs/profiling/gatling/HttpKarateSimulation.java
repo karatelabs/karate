@@ -53,6 +53,12 @@ public class HttpKarateSimulation extends Simulation {
         // The feature reads baseUrl from karate-config.js, which reads this property. The
         // sibling mock's port is chosen at runtime, so it cannot be baked into the feature.
         protocol.runner.systemProperty("mock.url", SimShape.mockUrl());
+        // The pooled arm of the connection-reuse A/B. This reaches the per-iteration Suite only
+        // because Runner.runFeature now carries httpClientFactory from its template — before that
+        // the Gatling lane could set a factory and have it silently dropped.
+        if (SimShape.POOL != null) {
+            protocol.runner.httpClientFactory(SimShape.POOL);
+        }
         setUp(scn.injectOpen(atOnceUsers(SimShape.users()))).protocols(protocol);
     }
 

@@ -162,6 +162,14 @@ public final class Runner {
             if (template.getWorkingDir() != null) {
                 builder.workingDir(template.getWorkingDir());
             }
+            // Without this the Gatling lane cannot supply an HttpClientFactory at all: this
+            // overload is the entry point KarateExecutor uses, and every other Runner path
+            // carries the factory, so the seam looked reachable and was not. That silently
+            // blocked the one use case HttpClientFactory's own javadoc advertises — a shared
+            // connection pool for performance testing.
+            if (template.getHttpClientFactory() != null) {
+                builder.httpClientFactory(template.getHttpClientFactory());
+            }
             Map<String, String> sysProps = template.getSystemProperties();
             if (sysProps != null) {
                 for (Map.Entry<String, String> e : sysProps.entrySet()) {
