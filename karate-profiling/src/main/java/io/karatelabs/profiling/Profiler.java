@@ -284,7 +284,11 @@ public final class Profiler {
             for (String event : SOAK_DISABLED_EVENTS) {
                 start.append(',').append(event).append("#enabled=false");
             }
-            start.append(",jdk.OldObjectSample#enabled=true");
+            // stackTrace=true is not redundant. settings=default enables OldObjectSample
+            // without stacks, and the first soak proved what that costs: the retained panel
+            // reported types (StackChunk 37%, byte[] 26%) with "by allocating site: (no stack)
+            // 100%" — a leak profiler that cannot say who allocated anything.
+            start.append(",jdk.OldObjectSample#enabled=true,jdk.OldObjectSample#stackTrace=true");
         } else {
             start = new StringBuilder("-XX:StartFlightRecording=settings=profile");
         }

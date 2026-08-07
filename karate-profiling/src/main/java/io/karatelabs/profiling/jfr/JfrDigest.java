@@ -82,7 +82,7 @@ public final class JfrDigest {
                 appendHotMethods(md, data);
                 appendHeapAfterGc(md, data);
                 appendGcPauses(md, data);
-                appendRetainedObjects(md, data);
+                appendRetainedObjects(md, data, info);
             } catch (Exception e) {
                 md.append("## Recording could not be parsed\n\n```\n").append(e).append("\n```\n\n")
                         .append("Try `jfr summary ").append(jfr.getFileName()).append("`, or rescue from the ")
@@ -480,11 +480,19 @@ public final class JfrDigest {
         }
     }
 
-    private static void appendRetainedObjects(StringBuilder md, Data data) {
+    private static void appendRetainedObjects(StringBuilder md, Data data, RunInfo info) {
         md.append("## Retained objects\n\n");
+        // Whether the chains are present is knowable from the child's own command line, and
+        // telling an operator to re-run with a flag they already used is how a panel loses its
+        // credibility. The first soak did exactly that.
+        boolean gcRoots = String.join(" ", info.command()).contains("path-to-gc-roots=true");
         md.append("`jdk.OldObjectSample` — JFR's leak profiler: objects that survived a collection, "
                 + "attributed to the stack that **allocated** them. That is the allocator, not the "
-                + "holder; re-run with `--gc-roots` to get reference chains.\n\n");
+                + (gcRoots
+                        ? "holder — but this run enabled `--gc-roots`, so reference chains were "
+                          + "recorded; read them from the raw recording with "
+                          + "`jfr print --events jdk.OldObjectSample run.jfr`.\n\n"
+                        : "holder; re-run with `--gc-roots` to get reference chains.\n\n"));
         if (data.retainedByClass.isEmpty()) {
             md.append("_No old-object samples in the recording. For a short run this is normal — "
                     + "nothing survived long enough to be sampled._\n\n");

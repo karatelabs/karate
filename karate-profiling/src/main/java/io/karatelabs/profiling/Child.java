@@ -25,6 +25,7 @@ package io.karatelabs.profiling;
 
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -54,7 +55,19 @@ public final class Child {
     /** Parsed by the parent out of stdout; keep the format stable. */
     static final String SUMMARY_PREFIX = "PROFILING-SUMMARY ";
 
-    private static final long JOIN_TIMEOUT_MS = 30_000;
+    /**
+     * Slack allowed for workers to notice the deadline and unwind, past the window itself.
+     *
+     * <p>It replaces a flat 30-second-per-worker join, which silently truncated every long run:
+     * the loop below waits per worker, so the real cap was {@code threads x 30s} — 240 s at 8
+     * threads. A {@code --duration 7h} soak therefore ran for four minutes and exited 0, with a
+     * clean digest, a plausible summary and no warning anywhere. Discovered by reading a
+     * summary that said {@code elapsedMs=240007} when it should have said 25,200,000.
+     *
+     * <p>The backstop for a genuinely hung workload is the parent's {@code --timeout}, which
+     * dumps thread state before killing — a far better diagnostic than this loop giving up.
+     */
+    private static final long JOIN_GRACE_SECONDS = 120;
 
     public static void main(String[] args) {
         String name = required("karate.profiling.workload");
@@ -186,15 +199,39 @@ public final class Child {
         }
 
         Thread progress = startProgressReporter(next, deadlineNanos, iterations);
+        // One deadline for the whole join, not one per worker — and derived from the run's own
+        // window rather than a constant, so a long run waits as long as it asked to.
+        long joinDeadlineNanos = window == null
+                ? Long.MAX_VALUE
+                : deadlineNanos + TimeUnit.SECONDS.toNanos(JOIN_GRACE_SECONDS);
         for (Thread worker : workers) {
             try {
-                worker.join(Duration.ofMillis(JOIN_TIMEOUT_MS));
+                if (joinDeadlineNanos == Long.MAX_VALUE) {
+                    // Iteration-bounded: no artificial cap. A workload that never returns is the
+                    // parent's --timeout to handle, and it reports far more than a silent stop.
+                    worker.join();
+                } else {
+                    long remaining = joinDeadlineNanos - System.nanoTime();
+                    if (remaining <= 0) {
+                        break;
+                    }
+                    worker.join(Duration.ofNanos(remaining));
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
             }
         }
         progress.interrupt();
+
+        // Never leave this silent. If workers are still running, the numbers below describe a
+        // window that was cut short, and every panel downstream would read as a completed run.
+        long stillAlive = workers.stream().filter(Thread::isAlive).count();
+        if (stillAlive > 0) {
+            System.out.println("[child] WARNING: " + stillAlive + " of " + threads
+                    + " workers still running at the join deadline — this run was TRUNCATED and its"
+                    + " duration is not the window that was asked for");
+        }
 
         long completed = Math.min(next.get(), iterations < 0 ? Long.MAX_VALUE : iterations);
         return new Result(completed, errors.get(), oom.get(), firstFailure.get());
