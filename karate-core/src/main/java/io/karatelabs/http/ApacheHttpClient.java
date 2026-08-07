@@ -80,7 +80,13 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private static final Logger LOGGER = LoggerFactory.getLogger(ApacheHttpClient.class);
 
     private HttpRequest request;
-    private CloseableHttpClient httpClient;
+    // Volatile because a client can legitimately be reached from a thread other than the one
+    // that built it: an afterFeature hook runs on the feature thread after the scenario lanes
+    // join, and a closure returned from a called feature can be invoked later. That path happens
+    // to be safe already — it goes through FeatureRuntime.lastExecuted, which is volatile — but
+    // resting this field's correctness on a different field's volatility is not a property worth
+    // keeping. It costs nothing here: the field is read once per request.
+    private volatile CloseableHttpClient httpClient;
     private BasicCookieStore cookieStore;
     private volatile ClassicHttpRequest currentRequest;
 
@@ -615,7 +621,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
      * connection manager and pooled sockets released whenever the collector got to them, which is
      * the exact leak the release contract was added to remove.
      */
-    private boolean released;
+    private volatile boolean released;
 
     /**
      * Close the current client, if any, and forget it.

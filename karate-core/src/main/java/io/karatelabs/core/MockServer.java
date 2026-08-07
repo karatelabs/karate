@@ -128,6 +128,10 @@ public class MockServer implements SimpleObject {
     public void stopAndWait() {
         logger.info("stopping mock server on port {}", port);
         httpServer.stopAndWait();
+        // The handler's per-feature runtimes each own an HTTP client and outlive every scenario,
+        // so nothing else ever hands them back. Released after the server stops, so no in-flight
+        // mock request is still using one.
+        handler.releaseHttpClients();
     }
 
     /**
@@ -137,6 +141,9 @@ public class MockServer implements SimpleObject {
     public void stopAsync() {
         logger.info("stopping mock server async on port {}", port);
         httpServer.stopAsync();
+        // Deliberately NOT releasing here: the server is still winding down, so a request may
+        // still be in a mock scenario holding one of these clients. waitSync() then stopAndWait()
+        // is the path that releases. An async stop leaks what it always leaked.
     }
 
     /**
@@ -430,8 +437,14 @@ public class MockServer implements SimpleObject {
                 watchedFiles.clear();
                 watchedFiles.putAll(newWatchedFiles);
 
-                // Create new handler with reloaded features
+                // Create new handler with reloaded features. The outgoing one's per-feature
+                // runtimes each hold an HTTP client, and a dev-mode session reloads on every file
+                // save — so without this each save abandons a handler's worth of them.
+                MockHandler outgoing = handler;
                 handler = new MockHandler(reloadedFeatures, args, pathPrefix, javaBridgeEnabled, requestExpressionsEnabled);
+                if (outgoing != null) {
+                    outgoing.releaseHttpClients();
+                }
                 logger.info("reloaded {} feature(s)", reloadedFeatures.size());
             }
 

@@ -32,8 +32,11 @@ import org.slf4j.LoggerFactory;
  * This is the standard behavior for functional tests where each test scenario
  * should have an isolated HTTP client with its own configuration and state.
  * <p>
- * For performance testing with connection pooling, use a custom factory
- * implementation (e.g., PooledHttpClientFactory in karate-gatling).
+ * For performance testing with connection pooling, supply a custom factory. No such factory
+ * ships today — this javadoc used to point at a {@code PooledHttpClientFactory} in karate-gatling
+ * that does not exist. If you write one, read the contract on {@link HttpClientFactory#release}
+ * first: it must return a distinct wrapper per scenario and share the connection manager beneath
+ * them, because {@link ApacheHttpClient} closes its own transport on {@code apply()}.
  *
  * @see HttpClientFactory
  * @see ApacheHttpClient

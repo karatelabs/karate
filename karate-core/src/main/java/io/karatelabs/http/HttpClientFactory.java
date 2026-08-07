@@ -80,6 +80,18 @@ public interface HttpClientFactory {
      *       implementation holding shared state needs its own synchronization.</li>
      * </ul>
      *
+     * <p><b>Pool underneath, one wrapper per scenario — do not return one client instance to
+     * concurrent scenarios.</b> This is the rule for the pooling case this interface exists to
+     * enable, and it is not merely stylistic. {@link HttpClient#apply} is invoked on the returned
+     * instance whenever configuration changes and unconditionally after a shared-scope call, and
+     * {@link ApacheHttpClient} implements that by closing its transport and rebuilding lazily. A
+     * second scenario holding the same instance therefore has its in-flight request killed —
+     * {@code SocketException: Socket closed} — by the first scenario's {@code configure} step.
+     * Independently of that, {@code ApacheHttpClient} keeps per-request state in instance fields,
+     * so concurrent callers already attach one request's headers to another's response. Give each
+     * scenario its own lightweight wrapper and share the connection manager beneath it, which is
+     * where the pooling win actually is.</p>
+     *
      * @param client a client previously returned by {@link #create()}
      */
     default void release(HttpClient client) {

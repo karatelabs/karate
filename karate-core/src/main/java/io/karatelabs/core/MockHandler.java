@@ -142,6 +142,24 @@ public class MockHandler implements Function<HttpRequest, HttpResponse> {
     }
 
     /**
+     * Release the HTTP clients belonging to this handler's cached per-feature runtimes.
+     *
+     * <p>Each mock feature gets a {@code ScenarioRuntime} that owns a client, and those runtimes
+     * live as long as the handler rather than as long as a scenario — so the ordinary
+     * scenario-teardown release never reaches them. The client only ever builds a real transport
+     * if the mock makes outbound requests ({@code karate.proceed}, proxy mocks), which bounds the
+     * cost, but it is one abandoned client per feature per handler and a dev-mode reload mints a
+     * whole new handler on every file change.
+     *
+     * <p>Idempotent, because {@code releaseHttpClient} is.
+     */
+    void releaseHttpClients() {
+        for (ScenarioRuntime runtime : runtimes.values()) {
+            runtime.releaseHttpClient();
+        }
+    }
+
+    /**
      * Initialize a runtime for a mock feature.
      * Creates a proper FeatureRuntime and ScenarioRuntime like V1 does.
      */

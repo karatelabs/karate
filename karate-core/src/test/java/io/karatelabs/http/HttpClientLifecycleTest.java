@@ -241,10 +241,21 @@ class HttpClientLifecycleTest {
      * {@code HttpResponse} carries bytes, never a stream — there is no user-visible response that
      * can outlive the call.
      *
-     * <p>Concurrent sharing of a single {@code ApacheHttpClient} is a different matter, and one
-     * that predates this change: {@code request}, {@code startTime} and {@code currentRequest} are
-     * per-instance fields overwritten by every call, so two scenarios sharing one instance already
-     * corrupt each other's request state. Closing does not add a new class of failure there.
+     * <p><b>Sharing one {@code ApacheHttpClient} instance across concurrent scenarios is a
+     * different matter, and closing did make it worse.</b> An earlier version of this comment
+     * claimed otherwise; a review disproved it by experiment. It is true that such sharing was
+     * already broken — {@code request}, {@code startTime} and {@code currentRequest} are
+     * per-instance fields every call overwrites, so the interceptor attaches one request's headers
+     * to another's response — but those failures corrupt metadata while the requests still
+     * <em>succeed</em>. Closing the transport in {@code apply()} adds a failure of a different
+     * kind: a request in flight on another thread dies with {@code SocketException: Socket
+     * closed}, where the previous field-nulling left it to complete. That widened the window from
+     * a microsecond race to the whole duration of every in-flight request.
+     *
+     * <p>The conclusion is not that {@code apply()} should stop closing — not closing is the leak
+     * this series exists to remove — but that <b>a factory must hand out one wrapper instance per
+     * scenario and pool underneath it</b>, which is stated in {@link HttpClientFactory#release}.
+     * Nothing in this repository shares an instance today.
      */
     @Test
     void testAClientSurvivesConfigureAndSharedScopeCallsBetweenRequests(@TempDir Path dir)
@@ -328,5 +339,6 @@ class HttpClientLifecycleTest {
         assertTrue(!shared.closed,
                 "a shared client from a custom factory must survive the scenarios that used it");
     }
+
 
 }

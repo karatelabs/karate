@@ -95,4 +95,29 @@ class ApacheHttpClientTest {
             server.stopAndWait();
         }
     }
+
+    /**
+     * The orphan close must also happen when the post-close request <em>fails</em>.
+     *
+     * <p>It sits in a {@code finally}, so this should hold by construction — but "by construction"
+     * is what was said about several things in this area that turned out to be false, and a
+     * request to a dead port is a one-line way to pin it. Without the finally, a failing
+     * post-release request would strand a client every time, which is the shape of an outage
+     * retry loop.
+     */
+    @Test
+    void testAFailingRequestAfterCloseAlsoClosesItsRebuiltClient() throws Exception {
+        ApacheHttpClient client = new ApacheHttpClient();
+        java.lang.reflect.Field field = ApacheHttpClient.class.getDeclaredField("httpClient");
+        field.setAccessible(true);
+        client.close();
+
+        HttpRequest doomed = new HttpRequest();
+        // Port 1 on loopback: nothing listens, so this fails fast with connection refused.
+        doomed.setUrl("http://127.0.0.1:1/nope");
+        doomed.setMethod("GET");
+        assertThrows(RuntimeException.class, () -> client.invoke(doomed));
+        assertNull(field.get(client),
+                "a rebuilt client must be closed even when the request that caused it failed");
+    }
 }
