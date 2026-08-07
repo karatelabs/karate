@@ -52,9 +52,7 @@ public class HttpKarateLeanSimulation extends Simulation {
 
     {
         protocol.runner.systemProperty("mock.url", SimShape.mockUrl());
-        if (SimShape.POOL != null) {
-            protocol.runner.httpClientFactory(SimShape.POOL);
-        }
+        SimShape.applyPooling(protocol);
         setUp(scn.injectOpen(atOnceUsers(SimShape.users()))).protocols(protocol);
     }
 

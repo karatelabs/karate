@@ -70,21 +70,28 @@ final class SimShape {
     }
 
     /**
-     * The shared connection pool, when this run asked for one — a single instance for the whole
-     * simulation, which is the entire point: a per-virtual-user pool would pool nothing.
+     * Turn on karate-gatling's shared connection pool when the run asked for one.
      *
-     * <p>Null unless {@code -Dkarate.profiling.pooled=true}. The A/B this exists for is whether
-     * pooling collapses Karate's connection-per-iteration shape (4000 distinct client ports in a
-     * measured run, against plain Gatling's 8); the mock reports {@code distinctPeerPorts}, so the
-     * answer is read straight off the digest.
+     * <p>Set by {@code -Dkarate.profiling.pooled=true}. The A/B this exists for is whether pooling
+     * collapses Karate's connection-per-iteration shape (4000 distinct client ports in a measured
+     * run, against plain Gatling's 8); the mock reports {@code distinctPeerPorts}, so the answer is
+     * read straight off the digest.
+     *
+     * <p><b>It goes through {@code pooledConnections()} rather than setting the factory on the
+     * runner directly, and that is not incidental.</b> The public method is also what registers the
+     * pool for closing on Gatling's actor-system termination, so setting the factory by hand would
+     * measure the pooling but exercise none of the lifecycle — and the soak exists to find exactly
+     * the kind of defect that lives in a lifecycle. Whatever a user gets from one line in their
+     * simulation is what these runs get.
      */
-    static final io.karatelabs.profiling.PooledHttpClientFactory POOL =
-            Boolean.getBoolean("karate.profiling.pooled")
-                    // Sized above the virtual-user count so the pool is never the bottleneck —
-                    // otherwise the A/B measures the pool rather than Karate.
-                    ? new io.karatelabs.profiling.PooledHttpClientFactory(
-                            Math.max(64, users() * 4), Math.max(64, users() * 4))
-                    : null;
+    static void applyPooling(io.karatelabs.gatling.KarateProtocolBuilder protocol) {
+        if (Boolean.getBoolean("karate.profiling.pooled")) {
+            // Sized above the virtual-user count so the pool is never the bottleneck — otherwise
+            // the A/B measures the pool rather than Karate.
+            int size = Math.max(64, users() * 4);
+            protocol.pooledConnections(size, size);
+        }
+    }
 
     /** The sibling mock JVM's base URL. Fails loudly rather than building requests against "null". */
     static String mockUrl() {

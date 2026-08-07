@@ -56,9 +56,7 @@ public class HttpKarateSimulation extends Simulation {
         // The pooled arm of the connection-reuse A/B. This reaches the per-iteration Suite only
         // because Runner.runFeature now carries httpClientFactory from its template — before that
         // the Gatling lane could set a factory and have it silently dropped.
-        if (SimShape.POOL != null) {
-            protocol.runner.httpClientFactory(SimShape.POOL);
-        }
+        SimShape.applyPooling(protocol);
         setUp(scn.injectOpen(atOnceUsers(SimShape.users()))).protocols(protocol);
     }
 

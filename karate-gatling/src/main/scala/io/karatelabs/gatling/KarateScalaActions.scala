@@ -29,6 +29,7 @@ import io.gatling.core.CoreComponents
 import io.gatling.core.action.{Action, ExitableAction}
 import io.gatling.core.action.builder.ActionBuilder
 import io.gatling.core.config.GatlingConfiguration
+import io.gatling.core.actor.ActorSystem
 import io.gatling.core.protocol.{Protocol, ProtocolComponents, ProtocolKey}
 import io.gatling.core.session.Session
 import io.gatling.core.stats.StatsEngine
@@ -50,8 +51,31 @@ object KarateProtocolKey extends ProtocolKey[KarateProtocol, KarateComponents] {
   }
 
   override def newComponents(coreComponents: CoreComponents): KarateProtocol => KarateComponents = {
-    protocol => new KarateComponents(protocol)
+    protocol =>
+      // Anything the protocol owns for the whole simulation is closed here. Gatling has no
+      // protocol-level teardown callback -- ProtocolComponents.onExit runs once per virtual user,
+      // not once at the end -- and this is the hook Gatling's own HttpEngine uses to dispose
+      // itself, so a pooled connection manager is released the same way and at the same time.
+      val closeable = protocol.getCloseAtSimulationEnd
+      if (closeable != null) {
+        KarateTerminationSupport.registerClose(coreComponents.actorSystem, closeable)
+      }
+      new KarateComponents(protocol)
   }
+}
+
+/**
+ * The one place that talks to Gatling's termination hook.
+ *
+ * <p>It exists because `registerOnTermination` takes a BY-NAME argument, and the obvious call --
+ * `registerOnTermination(() => closeable.close())` -- compiles, type-checks and does nothing:
+ * the lambda becomes the captured expression, so termination evaluates it to a function object
+ * and never invokes it. The resource is then never closed and nothing says so. Keeping exactly
+ * one call site means that trap can be got wrong once, not once per caller.
+ */
+object KarateTerminationSupport {
+  def registerClose(system: ActorSystem, closeable: AutoCloseable): Unit =
+    system.registerOnTermination(closeable.close())
 }
 
 /**

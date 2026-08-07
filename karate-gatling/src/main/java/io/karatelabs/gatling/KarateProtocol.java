@@ -61,6 +61,11 @@ public class KarateProtocol implements Protocol {
     private final Runner.Builder runner;
     private BiFunction<HttpRequest, Map<String, Object>, String> nameResolver;
     private KarateLogReplay logReplay = KarateLogReplay.OFF;
+    /**
+     * Closed when Gatling's actor system terminates, i.e. at the end of the simulation. Null
+     * unless the builder was asked for pooled connections. See KarateProtocolKey.
+     */
+    private AutoCloseable closeAtSimulationEnd;
     private LogLevel logReplayLevel = LogReplayer.DEFAULT_LEVEL;
     private int logReplayLimit = LogReplayer.DEFAULT_LIMIT;
 
@@ -78,6 +83,22 @@ public class KarateProtocol implements Protocol {
      * protocol builder. May be {@code null} if the protocol was constructed
      * without one (e.g., the empty default-protocol fallback).
      */
+    /**
+     * Resource owned by this protocol whose lifetime is the simulation, or null.
+     *
+     * <p>Gatling has no protocol-level teardown callback — {@code ProtocolComponents.onExit} runs
+     * per virtual user, not once at the end — so the hook is
+     * {@code ActorSystem.registerOnTermination}, which is what Gatling's own HttpEngine uses to
+     * dispose itself. KarateProtocolKey does the registering; this is how it finds the resource.
+     */
+    public AutoCloseable getCloseAtSimulationEnd() {
+        return closeAtSimulationEnd;
+    }
+
+    void setCloseAtSimulationEnd(AutoCloseable closeable) {
+        this.closeAtSimulationEnd = closeable;
+    }
+
     public Runner.Builder getRunner() {
         return runner;
     }

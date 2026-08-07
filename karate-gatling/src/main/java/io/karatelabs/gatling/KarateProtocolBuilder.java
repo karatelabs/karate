@@ -54,6 +54,7 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
     private KarateLogReplay logReplay = KarateLogReplay.OFF;
     private LogLevel logReplayLevel = LogReplayer.DEFAULT_LEVEL;
     private int logReplayLimit = LogReplayer.DEFAULT_LIMIT;
+    private PooledHttpClientFactory pool;
 
     /**
      * Mutable {@link Runner.Builder} for configuring underlying Karate execution.
@@ -156,6 +157,50 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
     }
 
     /**
+     * Share one connection pool across the whole simulation, instead of opening a connection per
+     * iteration.
+     *
+     * <p>Karate builds an HTTP client per scenario execution, so under Gatling it reconnects every
+     * iteration where plain Gatling reuses a connection per virtual user. On a two-host bench that
+     * was 4000 distinct client ports against 8, and collapsing it was worth about 24% of Karate's
+     * per-iteration overhead against a plaintext endpoint on the same network — more against a
+     * public TLS endpoint, where the avoided handshake costs two round trips and asymmetric crypto.
+     *
+     * <p><b>Read {@link PooledHttpClientFactory} before turning this on.</b> A pooled client cannot
+     * honour {@code configure ssl} or {@code configure connectTimeout} set inside a scenario, and
+     * ignores them silently — they belong to the connection manager, which is shared and already
+     * built. Configure those once, for the simulation. That trade is why this is opt-in and why it
+     * is not karate-core's behaviour.
+     *
+     * @return this builder for chaining
+     */
+    public KarateProtocolBuilder pooledConnections() {
+        return pooledConnections(PooledHttpClientFactory.DEFAULT_MAX_CONNECTIONS,
+                PooledHttpClientFactory.DEFAULT_MAX_CONNECTIONS);
+    }
+
+    /**
+     * As {@link #pooledConnections()}, with an explicit ceiling.
+     *
+     * <p>Size it above the peak virtual-user count. The pool opens connections on demand, so a high
+     * ceiling costs nothing, while one below the concurrency becomes a bottleneck that reads as the
+     * server being slow rather than as a client limit.
+     *
+     * @param maxTotal total pooled connections across all routes
+     * @param perRoute connections per target host — the binding number for a single-endpoint test
+     * @return this builder for chaining
+     */
+    public KarateProtocolBuilder pooledConnections(int maxTotal, int perRoute) {
+        if (maxTotal < 1 || perRoute < 1) {
+            throw new IllegalArgumentException("pool sizes must be at least 1, got maxTotal="
+                    + maxTotal + " perRoute=" + perRoute);
+        }
+        pool = new PooledHttpClientFactory(maxTotal, perRoute);
+        runner.httpClientFactory(pool);
+        return this;
+    }
+
+    /**
      * Build the KarateProtocol.
      */
     public KarateProtocol build() {
@@ -174,6 +219,9 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
         protocol.setLogReplay(logReplay);
         protocol.setLogReplayLevel(logReplayLevel);
         protocol.setLogReplayLimit(logReplayLimit);
+        // Handed over so Gatling's actor-system termination can close it — see
+        // KarateProtocol.getCloseAtSimulationEnd.
+        protocol.setCloseAtSimulationEnd(pool);
         return protocol;
     }
 
