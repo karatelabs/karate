@@ -69,7 +69,16 @@ public final class JfrDigest {
      * retention rather than of promoted garbage nobody has collected yet.
      */
     private static final java.util.Set<String> YOUNG_ONLY_COLLECTORS =
-            java.util.Set.of("G1New", "ParallelScavenge", "DefNew", "PSYoungGen", "Copy");
+            java.util.Set.of(
+            // Verified against real jdk.GarbageCollection events on JDK 24, one recording per
+            // collector, rather than assumed: G1 emits G1New/G1Old/G1Full, Parallel emits
+            // ParallelScavenge/ParallelOld, Serial emits DefNew/SerialOld, and ZGC emits
+            // "ZGC Minor"/"ZGC Major". "ZGC Minor" was missing here, so under --gc zgc every
+            // minor collection counted as old-generation and the young-only warning was
+            // suppressed in exactly the run that needed it. Names not on this list fall through
+            // to "collects the old generation", which errs toward suppressing the warning —
+            // Shenandoah lands there.
+            "G1New", "ParallelScavenge", "DefNew", "ZGC Minor");
 
     /**
      * What the parent knows that the recording doesn't.
@@ -441,7 +450,16 @@ public final class JfrDigest {
         row(md, "bound", shape.isDurationBounded()
                 ? "duration=" + RunShape.format(shape.duration())
                 : "iterations=" + shape.iterations());
-        row(md, "warmup", RunShape.format(shape.warmup()) + " (excluded — recording is delayed past it)");
+        // Only claim exclusion when the recording was actually delayed. A warmup under JFR's
+        // one-second delay floor gets no delay, and a self-driving workload runs no warmup at
+        // all, yet this row asserted "excluded" for both.
+        boolean delayed = String.join(" ", info.command()).contains(",delay=");
+        row(md, "warmup", RunShape.format(shape.warmup()) + (shape.warmup().isZero()
+                ? " (none)"
+                : delayed
+                        ? " (excluded — recording is delayed past it)"
+                        : " (**NOT excluded** — no JFR delay was applied, so this warmup is inside"
+                          + " the recording; JFR's minimum delay is 1s)"));
         row(md, "-Xmx", info.jvm().xmx());
         row(md, "collector", info.jvm().gc().name().toLowerCase()
                 + " → `" + String.join(" ", info.jvm().flags(Runtime.version().feature())) + "`");
@@ -566,12 +584,18 @@ public final class JfrDigest {
      */
     private static void appendLiveSet(StringBuilder md, Path runDir) {
         List<long[]> series = new ArrayList<>();
+        int invalid = 0;
         try {
             for (String line : Files.readAllLines(runDir.resolve("stdout.log"))) {
                 if (line.startsWith(LIVE_SET_PREFIX)) {
                     String rest = line.substring(LIVE_SET_PREFIX.length());
                     long elapsed = (long) keyValueNumber(rest, "elapsedMs");
                     long live = (long) keyValueNumber(rest, "liveBytes");
+                    // A reading that predates the valid= flag has no claim either way; only an
+                    // explicit valid=false is treated as a failed collection.
+                    if (rest.contains("valid=false")) {
+                        invalid++;
+                    }
                     if (elapsed >= 0 && live >= 0) {
                         series.add(new long[]{elapsed, live});
                     }
@@ -584,6 +608,20 @@ public final class JfrDigest {
             return;
         }
         md.append("## Live set (after forced full GC)\n\n");
+        if (invalid > 0) {
+            // Refuse the series rather than draw it. A panel that renders resident heap under
+            // this heading is the failure mode two previous detectors had, and drawing it with a
+            // footnote is not materially different from drawing it.
+            md.append("> ⛔ **These readings are not live sets and must not be read as a leak "
+                            + "signal.** ").append(invalid).append(" of ").append(series.size())
+                    .append(" probes forced a collection that did not happen — `System.gc()` "
+                            + "returned without collecting anything, which is what "
+                            + "`-XX:+DisableExplicitGC` does. The numbers below are whatever "
+                            + "happened to be resident, including garbage. Re-run without that "
+                            + "flag. (`-XX:+ExplicitGCInvokesConcurrent` breaks the probe too, "
+                            + "and cannot be detected this way — the child warns about both at "
+                            + "startup.)\n\n");
+        }
         md.append("**This is the leak panel.** Each row is the heap in use immediately after two "
                 + "forced full collections, so it is what genuinely survived rather than what "
                 + "happened to be resident. A rising series here is retention. A rising series in "
@@ -617,11 +655,17 @@ public final class JfrDigest {
                 + "collected_** — see the warning below before concluding anything\n");
         md.append("- flat floor then an abrupt cliff → **live mid-copy** (one in-flight structure "
                 + "larger than the heap; not a leak at all)\n\n");
-        if (data.oldGenCollections == 0 && data.youngOnlyCollections > 0) {
+        // A ratio, not a boolean. One incidental old-generation collection -- a Metadata-threshold
+        // full GC in hour one of an eight-hour run -- used to suppress this warning entirely for a
+        // floor that was still 99.9% young-only, i.e. still meaningless as a live-set series.
+        long totalCollections = data.youngOnlyCollections + data.oldGenCollections;
+        boolean effectivelyYoungOnly = totalCollections > 0
+                && data.oldGenCollections * 1000L < totalCollections;
+        if (effectivelyYoungOnly) {
             // The false positive that cost a published conclusion. Stated at the top of the panel
             // rather than as a footnote, because the series below is the thing being misread.
-            md.append("> ⚠️ **This is not a live-set series, and a rise in it is not a leak.** All ")
-                    .append(data.youngOnlyCollections)
+            md.append("> ⚠️ **This is not a live-set series, and a rise in it is not a leak.** ")
+                    .append(data.youngOnlyCollections).append(" of ").append(totalCollections)
                     .append(" collections in this run were **young-generation only** — no "
                             + "concurrent cycle, no mixed collection, no full GC. Nothing ever "
                             + "collected the old generation, so promoted garbage accumulates there "
@@ -667,6 +711,15 @@ public final class JfrDigest {
 
     private static void appendGcPauses(StringBuilder md, Data data) {
         md.append("## GC pauses\n\n");
+        if (data.gcByCause.containsKey("System.gc()")) {
+            // The live-set probe's own collections are in here. On a soak they are the largest
+            // pauses by a wide margin — a full GC against ~1-2 ms young pauses — so max and part
+            // of the total describe the instrument rather than the workload.
+            md.append("> **The `System.gc()` rows below are the live-set probe's own forced full "
+                    + "collections, not the workload's.** They are far longer than young pauses, "
+                    + "so `max` and part of `total pause` here measure the instrument. If pause "
+                    + "behaviour is the question, read a run without `--soak`.\n\n");
+        }
         if (data.gcPauses.isEmpty()) {
             md.append("_No garbage collections in the recording._\n\n");
             return;

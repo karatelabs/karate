@@ -112,7 +112,11 @@ public final class Child {
         }
 
         if (!warmup.isZero()) {
-            System.out.println("[child] warmup " + RunShape.format(warmup) + " (excluded from the recording)");
+            // Deliberately not "excluded from the recording": the child does not know whether a
+            // JFR delay was applied, and below JFR's one-second floor there is none. The parent
+            // warns in that case and the digest's warmup row states it; this line just says what
+            // is about to run.
+            System.out.println("[child] warmup " + RunShape.format(warmup));
             Result discarded = drive(workload, threads, -1, warmup, "warmup");
             System.out.println("[child] warmup done, " + discarded.completed + " iterations discarded");
             // A bad warmup invalidates the measurement that follows it, so the run stops here
@@ -168,12 +172,11 @@ public final class Child {
         String cpuDescription = cpu.describe();
         if (liveSetProbe != null) {
             liveSetProbe.interrupt();
-            // A final reading with the workload stopped: no in-flight iteration is holding
-            // anything, so this is the cleanest live-set number the run produces.
-            System.gc();
-            System.gc();
-            System.out.println(LIVE_SET_PREFIX + "elapsedMs=" + elapsedMs
-                    + " liveBytes=" + usedHeapBytes() + " final=true");
+            // A final reading with the workload stopped. On a run that completed, no iteration is
+            // in flight and this is the cleanest number the run produces — but on a TRUNCATED one
+            // stragglers are still inside iterate() holding whatever they hold, so read this the
+            // way the outcome row tells you to.
+            probeOnce(startNanos, true);
         }
 
         try {
@@ -396,6 +399,7 @@ public final class Child {
      * a full GC would distort any run whose question is throughput or pause time.
      */
     private static Thread startLiveSetProbe(long startNanos) {
+        checkExplicitGcIsUsable();
         Thread probe = Thread.ofPlatform().daemon().name("live-set-probe").start(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
@@ -404,16 +408,88 @@ public final class Child {
                     Thread.currentThread().interrupt();
                     return;
                 }
-                // Two passes: the first may leave objects that only became unreachable during it,
-                // and a soak's whole question is whether the second number keeps climbing.
-                System.gc();
-                System.gc();
-                System.out.println(LIVE_SET_PREFIX
-                        + "elapsedMs=" + ((System.nanoTime() - startNanos) / 1_000_000)
-                        + " liveBytes=" + usedHeapBytes());
+                probeOnce(startNanos, false);
             }
         });
         return probe;
+    }
+
+    /**
+     * One reading, with proof that the collection it depends on actually happened.
+     *
+     * <p>The proof is the point. A probe that assumes {@code System.gc()} collects, and is wrong,
+     * reports resident heap under a panel headed "this is the leak panel" — which is precisely the
+     * silent-authoritative failure that the two detectors this replaced both had. Demonstrated by
+     * a review: under {@code -XX:+DisableExplicitGC} this probe reported 48.6 → 84.5 → 95.9 MB
+     * over six seconds on a workload whose live set was flat at ~10 MB, with nothing anywhere
+     * saying the readings were meaningless.
+     *
+     * <p>So every reading carries {@code valid=}. A collection count that did not move across the
+     * two {@code System.gc()} calls means they did nothing, and the digest refuses the series
+     * rather than drawing it.
+     */
+    private static void probeOnce(long startNanos, boolean isFinal) {
+        long before = totalCollections();
+        // Two passes: the first may leave objects that only became unreachable during it, and a
+        // soak's whole question is whether the second number keeps climbing.
+        System.gc();
+        System.gc();
+        long after = totalCollections();
+        boolean collected = after > before;
+        System.out.println(LIVE_SET_PREFIX
+                + "elapsedMs=" + ((System.nanoTime() - startNanos) / 1_000_000)
+                + " liveBytes=" + usedHeapBytes()
+                + " collections=" + (after - before)
+                + " valid=" + collected
+                + (isFinal ? " final=true" : ""));
+        if (!collected) {
+            System.out.println("[child] WARNING: System.gc() collected nothing — this live-set "
+                    + "reading is resident heap, not a live set, and means nothing about a leak");
+        }
+    }
+
+    /** Collections across every collector; {@code System.gc()} must move this. */
+    private static long totalCollections() {
+        long total = 0;
+        for (java.lang.management.GarbageCollectorMXBean bean
+                : ManagementFactory.getGarbageCollectorMXBeans()) {
+            long count = bean.getCollectionCount();
+            if (count > 0) {
+                total += count;
+            }
+        }
+        return total;
+    }
+
+    /**
+     * Two JVM flags quietly turn the probe into a resident-heap meter, and both arrive through
+     * {@code --jvm-flag}, which exists for exactly this kind of constrained experiment.
+     * {@code DisableExplicitGC} makes {@code System.gc()} a no-op; {@code
+     * ExplicitGCInvokesConcurrent} turns it into a concurrent cycle that returns before it has
+     * compacted or run mixed evacuations, so the reading includes floating garbage. Said once, at
+     * startup, where an operator is still watching — the per-reading {@code valid=} flag catches
+     * the first case empirically, but nothing empirical catches the second.
+     */
+    private static void checkExplicitGcIsUsable() {
+        for (String option : new String[]{"DisableExplicitGC", "ExplicitGCInvokesConcurrent"}) {
+            String value = vmOption(option);
+            if ("true".equals(value)) {
+                System.out.println("[child] WARNING: -XX:+" + option + " is set, so the live-set "
+                        + "probe cannot measure a live set. Its readings will be resident heap "
+                        + "including uncollected garbage — do not read them as a leak signal.");
+            }
+        }
+    }
+
+    /** The VM's own view of a flag, or null if it cannot be read (non-HotSpot, or restricted). */
+    private static String vmOption(String name) {
+        try {
+            com.sun.management.HotSpotDiagnosticMXBean bean = ManagementFactory.getPlatformMXBean(
+                    com.sun.management.HotSpotDiagnosticMXBean.class);
+            return bean == null ? null : bean.getVMOption(name).getValue();
+        } catch (RuntimeException | Error e) {
+            return null;
+        }
     }
 
     private static final long LIVE_SET_INTERVAL_SECONDS = 300;

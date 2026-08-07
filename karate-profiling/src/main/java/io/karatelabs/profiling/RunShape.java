@@ -146,8 +146,20 @@ public record RunShape(int threads, long iterations, Duration duration, Duration
         };
     }
 
+    /**
+     * Human-readable and <b>lossless</b>. It used to truncate with {@code toSeconds()}, which was
+     * fine for display and wrong everywhere else it was used: {@code --warmup 1500ms} reached the
+     * child as {@code warmup=1s} while the JFR recording was delayed by the full 1500 ms, and
+     * {@code --warmup 500ms} reached it as {@code 0s} — no warmup at all, against a digest row
+     * still claiming the warmup was excluded. Anything sub-second now keeps its milliseconds, and
+     * {@link #parseDuration} reads them back.
+     */
     public static String format(Duration d) {
-        long seconds = d.toSeconds();
+        long millis = d.toMillis();
+        if (millis % 1000 != 0) {
+            return millis + "ms";
+        }
+        long seconds = millis / 1000;
         if (seconds % 3600 == 0 && seconds > 0) {
             return (seconds / 3600) + "h";
         }

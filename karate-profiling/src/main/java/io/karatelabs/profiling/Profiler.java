@@ -373,11 +373,12 @@ public final class Profiler {
             start.append(",delay=").append(warmupMillis).append("ms");
         } else if (warmupWillRun && warmupMillis > 0) {
             // JFR's floor is one second, and below it the JVM refuses to start rather than
-            // ignoring the flag — so there is no delay to apply and the warmup is inside the
-            // recording. Say so, because the digest's warmup row claims the opposite.
+            // ignoring the flag — so there is no delay to apply and the warmup runs inside the
+            // recording. Say so, because the digest's warmup row would otherwise claim it was
+            // excluded.
             System.out.println("[parent] WARNING: --warmup " + RunShape.format(shape.warmup())
-                    + " is below JFR's one-second minimum delay, so the warmup CANNOT be excluded"
-                    + " from the recording — it is in there with the measurement. Use >= 1s.");
+                    + " is below JFR's one-second minimum delay, so the recording CANNOT be"
+                    + " delayed past it — the warmup runs inside the measured recording. Use >= 1s.");
         }
         // A soak still gets a cap — unbounded is how a disk fills — but a far larger one,
         // because with the sampling events off the recording is small and the cap should never

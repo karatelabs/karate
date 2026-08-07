@@ -265,7 +265,7 @@ as a leak. **It is not one**, and the correction matters more than the original 
 > would have climbed in that same straight line with nothing whatsoever being leaked.
 
 A class histogram taken after a forced full GC, four times over twelve minutes on the same
-workload, put the true live set at **7.8, 7.2, 8.6, 7.2 MB** — flat, ending below where it
+workload, put the true live set at **7.8, 8.6, 7.2, 7.2 MB** — flat, ending below where it
 started, with no class showing meaningful growth and a *negative* total delta.
 
 **This is a general trap, not a one-off.** A soak is precisely the situation that triggers it:
@@ -571,8 +571,8 @@ allocated the things that are still alive". Note it gives you the *allocator*, n
 
 > **This panel is a detector, not a locator, and the first real soak proved it.** One hour at
 > ~9,900 iterations/s produced **19 samples**, and most carried `root = N/A` — no reference chain
-> — *despite* `--gc-roots` being on. Of those 19, 56% were the profiling harness's own progress
-> reporter and 9% JFR's own writers: long-lived infrastructure threads crowd out the workload
+> — *despite* `--gc-roots` being on. They were dominated by the profiling harness's own progress
+> reporter and by JFR's own writers: long-lived infrastructure threads crowd out the workload
 > precisely because they survive everything. The panel now leads with its sample count and refuses
 > to attribute below a threshold.
 >
