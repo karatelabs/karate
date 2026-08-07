@@ -23,6 +23,11 @@
  */
 package io.karatelabs.profiling.gatling;
 
+import io.gatling.javaapi.core.ChainBuilder;
+import io.gatling.javaapi.core.CoreDsl;
+
+import java.time.Duration;
+
 /**
  * How a simulation learns the shape of the run it is part of.
  *
@@ -46,6 +51,22 @@ final class SimShape {
 
     static int reps() {
         return Integer.getInteger(GatlingWorkload.REPS_PROPERTY, 1);
+    }
+
+    /**
+     * Wrap one virtual user's work in whichever loop this run asked for — a repetition count, or
+     * a window when the run is duration-bounded.
+     *
+     * <p><b>Every simulation goes through here rather than writing its own loop.</b> There are six
+     * of them and they exist to be compared in pairs; a soak that worked for some and silently
+     * ran one pass for the others would produce a table where the difference between two arms is
+     * the loop they happened to use. One place decides, so the arms cannot disagree.
+     */
+    static ChainBuilder loop(ChainBuilder body) {
+        long seconds = Long.getLong(GatlingWorkload.DURATION_SECONDS_PROPERTY, 0L);
+        return seconds > 0
+                ? CoreDsl.during(Duration.ofSeconds(seconds)).on(body)
+                : CoreDsl.repeat(reps()).on(body);
     }
 
     /**

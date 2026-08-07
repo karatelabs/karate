@@ -26,6 +26,7 @@ label=
 karate_arm=karate
 plain_arm=plain
 control=
+tls=false
 
 while (($#)); do
     case "$1" in
@@ -57,6 +58,12 @@ while (($#)); do
         # same tier — which is the actual A/B, since `compare` pairs plain against
         # karate and cannot pair two karate arms against each other.
         --pooled)     pooled=true; shift ;;
+        # Serve the tier over TLS. The headline experiment for public endpoints: a saved
+        # handshake is worth 2 RTT plus asymmetric crypto here, against ~0.1 ms for a plaintext
+        # connection inside a placement group — which is why the plaintext A/B could only ever
+        # measure pooling's floor. Both arms trust the mock's self-signed cert, so what differs
+        # between them is the handshake and not the trust configuration.
+        --tls)        tls=true; shift ;;
         # Swap ONE arm for its equivalence control, leaving the other ordinary. The parity
         # number assumes both arms do equivalent work and they do not: Karate matches three
         # fields and the id round-trip where the plain reference checks one JSONPath, so Karate
@@ -93,13 +100,16 @@ mock_private="$(kp_private_ip_of "$KP_MOCK_NAME")"
 if $local_mock; then
     # The harness forks its own mock per run, exactly as a single-host run does.
     mock_args="--mock-latency $tier"
+    if $tls; then
+        mock_args="$mock_args --mock-tls"
+    fi
     log "CONTROL: mock forked on the injector, co-located"
 else
     # Restarted for every matrix, because the tier is fixed at construction — see
     # mock.sh for why a leftover mock is worse than no mock.
-    "$(dirname "$0")/mock.sh" start "$tier" "$mock_port"
-    mock_url="http://${mock_private}:${mock_port}"
-    kp_ssh "$injector_ip" "curl -sf --max-time 5 $mock_url/config >/dev/null" \
+    "$(dirname "$0")/mock.sh" start "$tier" "$mock_port" $($tls && printf 'tls')
+    mock_url="$($tls && printf 'https' || printf 'http')://${mock_private}:${mock_port}"
+    kp_ssh "$injector_ip" "curl -sfk --max-time 5 $mock_url/config >/dev/null" \
         || die "injector cannot reach the mock at $mock_url — check the security group"
     log "injector reaches the mock at $mock_url"
     mock_args="--mock-url $mock_url"
@@ -165,7 +175,7 @@ kp_ssh "$injector_ip" "cd ~/karate/karate-profiling/target/profiling && \
     echo 'warmup produced no run directory — nothing discarded'"
 sleep "$gap"
 
-log "$pairs pairs at $tier — $iterations iterations, $users users, ${gap}s between runs$($pooled && printf ', karate arm POOLED')${control:+, CONTROL=$control ($karate_arm vs $plain_arm)}"
+log "$pairs pairs at $tier — $iterations iterations, $users users, ${gap}s between runs$($pooled && printf ', karate arm POOLED')${control:+, CONTROL=$control ($karate_arm vs $plain_arm)}$($tls && printf ', TLS')"
 for ((pair = 1; pair <= pairs; pair++)); do
     # Alternate which arm leads. Any drift over the matrix — thermal, neighbour,
     # the mock's own sleep overshoot — then loads the two arms equally instead of

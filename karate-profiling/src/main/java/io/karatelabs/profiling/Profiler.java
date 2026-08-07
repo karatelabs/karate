@@ -125,6 +125,7 @@ public final class Profiler {
                   --record workload|mock which JVM gets the recording
                   --mock feature|latency  which mock tier to fork (default feature)
                   --mock-latency 10ms     injected latency; implies --mock latency
+                  --mock-tls              serve the latency mock over TLS; implies --mock latency
                   --mock-url URL          use an already-running LatencyMock (e.g. another host)
                                           instead of forking one; see docs/PROFILING.md §10
                   --gc-roots             enable OldObjectSample reference chains (costly)
@@ -196,7 +197,7 @@ public final class Profiler {
         } else if (workload.needsMock()) {
             mockUrl = startMock(workload, classpath, runDir, children,
                     recordMock ? jfrFlags(runDir, shape, flags, warmupWillRun) : List.of(),
-                    flags.mock, flags.mockLatency);
+                    flags.mock, flags.mockLatency, flags.mockTls);
             System.out.println("[parent] mock ready at " + mockUrl);
         } else if (recordMock) {
             System.err.println("[parent] --record mock requested but " + name + " does not use a mock");
@@ -447,7 +448,7 @@ public final class Profiler {
      */
     private static String startMock(Workload workload, String classpath, Path runDir,
                                     Children children, List<String> jfr,
-                                    String tier, Duration latency) throws Exception {
+                                    String tier, Duration latency, boolean tls) throws Exception {
         boolean instrument = "latency".equals(tier);
         if (!instrument && !"feature".equals(tier)) {
             throw new IllegalArgumentException("--mock must be 'feature' or 'latency', got: " + tier);
@@ -461,6 +462,9 @@ public final class Profiler {
             command.add(LatencyMock.class.getName());
             command.add("--latency");
             command.add(latency == null ? "0" : latency.toMillis() + "ms");
+            if (tls) {
+                command.add("--tls");
+            }
         } else {
             command.add(MockJvm.class.getName());
             command.add(workload.mockFeature());
@@ -741,6 +745,7 @@ public final class Profiler {
         String mock = "feature";
         String mockUrl;
         Duration mockLatency;
+        boolean mockTls;
         boolean gcRoots;
         boolean soak;
         final List<String> systemProperties = new ArrayList<>();
@@ -765,6 +770,13 @@ public final class Profiler {
                     case "--record" -> args.record = next(argv, ++i, flag);
                     case "--mock" -> args.mock = next(argv, ++i, flag);
                     case "--mock-url" -> args.mockUrl = next(argv, ++i, flag);
+                    case "--mock-tls" -> {
+                        args.mockTls = true;
+                        // Same implication as --mock-latency: only the instrument speaks TLS, and
+                        // silently serving plaintext because the tier defaulted to `feature` is
+                        // the kind of thing a whole matrix gets published on before anyone notices.
+                        args.mock = "latency";
+                    }
                     case "--mock-latency" -> {
                         args.mockLatency = RunShape.parseDuration(next(argv, ++i, flag));
                         // Asking for latency IS asking for the instrument — the feature mock has

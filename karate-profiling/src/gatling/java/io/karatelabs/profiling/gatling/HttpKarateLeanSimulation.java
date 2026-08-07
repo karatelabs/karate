@@ -46,9 +46,9 @@ public class HttpKarateLeanSimulation extends Simulation {
     );
 
     ScenarioBuilder scn = scenario("karate-http-lean")
-            .repeat(SimShape.reps()).on(
+            .exec(SimShape.loop(
                     exec(karateFeature("classpath:workload/gatling-http-lean.feature"))
-            );
+            ));
 
     {
         protocol.runner.systemProperty("mock.url", SimShape.mockUrl());

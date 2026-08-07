@@ -25,16 +25,21 @@ package io.karatelabs.profiling;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpsConfigurator;
+import com.sun.net.httpserver.HttpsServer;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.security.KeyStore;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 
 /**
  * A mock whose own cost is known — the instrument the Gatling parity question needs, as scoped in
@@ -111,10 +116,12 @@ public final class LatencyMock {
     private final AtomicReferenceArray<Cat> ring = new AtomicReferenceArray<>(RING_SLOTS);
     private final long latencyNanos;
     private final int backlog;
+    private final boolean tls;
 
-    private LatencyMock(Duration latency, int backlog) {
+    private LatencyMock(Duration latency, int backlog, boolean tls) {
         this.latencyNanos = latency.toNanos();
         this.backlog = backlog;
+        this.tls = tls;
     }
 
     public static void main(String[] args) throws Exception {
@@ -143,12 +150,49 @@ public final class LatencyMock {
         }
         // Scanned separately: the loop above stops at args.length - 1 because every other flag
         // takes a value, so a bare trailing flag would be silently dropped.
+        boolean tls = false;
         for (String arg : args) {
             if (arg.equals("--standalone")) {
                 standalone = true;
             }
+            if (arg.equals("--tls")) {
+                tls = true;
+            }
         }
-        new LatencyMock(latency, backlog).run(bind, port, standalone);
+        new LatencyMock(latency, backlog, tls).run(bind, port, standalone);
+    }
+
+    /** Keystore bundled with this module, so a TLS tier needs no setup on the bench. */
+    private static final String KEYSTORE = "/ssl/mock-keystore.p12";
+    private static final char[] KEYSTORE_PASSWORD = "karate-mock".toCharArray();
+
+    /**
+     * The server side of the TLS tier: one self-signed certificate, bundled.
+     *
+     * <p>Self-signed is the right call rather than a shortcut. The measurement is what a handshake
+     * costs in time — key exchange, and the round trips it takes — and that is unchanged by who
+     * signed the certificate. A real chain would add validation work to the <em>client</em>, and
+     * both arms would have to do exactly the same amount of it or the tier would be measuring
+     * trust configuration instead of the handshake. Both arms are pointed at this one cert and
+     * both trust it, which is symmetric and is what makes the tier readable.
+     *
+     * <p>It is emphatically not a secret: it is a test certificate that ships in the repository,
+     * the mock binds to a private address, and the security group is what keeps it unreachable.
+     */
+    private static SSLContext tlsContext() throws Exception {
+        KeyStore store = KeyStore.getInstance("PKCS12");
+        try (InputStream in = LatencyMock.class.getResourceAsStream(KEYSTORE)) {
+            if (in == null) {
+                throw new IllegalStateException("no " + KEYSTORE + " on the classpath —"
+                        + " the TLS tier needs it bundled, see src/main/resources");
+            }
+            store.load(in, KEYSTORE_PASSWORD);
+        }
+        KeyManagerFactory keys = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        keys.init(store, KEYSTORE_PASSWORD);
+        SSLContext context = SSLContext.getInstance("TLS");
+        context.init(keys.getKeyManagers(), null, null);
+        return context;
     }
 
     private void run(String bind, int port, boolean standalone) throws Exception {
@@ -160,7 +204,14 @@ public final class LatencyMock {
         if (System.getProperty(IDLE_CONNECTIONS_PROPERTY) == null) {
             System.setProperty(IDLE_CONNECTIONS_PROPERTY, "8192");
         }
-        HttpServer server = HttpServer.create(new InetSocketAddress(bind, port), backlog);
+        HttpServer server;
+        if (tls) {
+            HttpsServer https = HttpsServer.create(new InetSocketAddress(bind, port), backlog);
+            https.setHttpsConfigurator(new HttpsConfigurator(tlsContext()));
+            server = https;
+        } else {
+            server = HttpServer.create(new InetSocketAddress(bind, port), backlog);
+        }
         ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
         server.setExecutor(executor);
         server.createContext("/", this::handle);
@@ -168,7 +219,8 @@ public final class LatencyMock {
 
         // Same handshake line as MockJvm, and deliberately its constant rather than a copy:
         // the parent greps for one prefix, so two definitions of it can only ever drift apart.
-        System.out.println(MockJvm.READY_PREFIX + "http://" + bind + ":" + server.getAddress().getPort());
+        System.out.println(MockJvm.READY_PREFIX + (tls ? "https://" : "http://")
+                + bind + ":" + server.getAddress().getPort());
         // The two settings that can put a knee where there is no capacity limit. The kernel one
         // cannot be set from here — listen() silently clamps the requested backlog to
         // kern.ipc.somaxconn, which is 128 on macOS — so it is printed for the operator to check
@@ -223,6 +275,10 @@ public final class LatencyMock {
         return "{\"backlogRequested\":" + backlog
                 + ",\"maxIdleConnections\":" + System.getProperty(IDLE_CONNECTIONS_PROPERTY)
                 + ",\"latencyMillis\":" + (latencyNanos / 1_000_000)
+                // In the config line because the digest carries it: a TLS cell and a plaintext
+                // cell are otherwise indistinguishable once the run is over, and comparing one
+                // against the other is the whole point of the tier.
+                + ",\"tls\":" + tls
                 + ",\"os\":\"" + System.getProperty("os.name") + " " + System.getProperty("os.arch") + "\""
                 + ",\"cpus\":" + Runtime.getRuntime().availableProcessors()
                 + ",\"checkSomaxconn\":\"" + (linux

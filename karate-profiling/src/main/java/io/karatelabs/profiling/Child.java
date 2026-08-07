@@ -79,7 +79,7 @@ public final class Child {
         String mockUrl = System.getProperty("karate.profiling.mockUrl");
 
         Workload workload = Workloads.get(name);
-        WorkloadContext context = new WorkloadContext(threads, iterations, mockUrl);
+        WorkloadContext context = new WorkloadContext(threads, iterations, duration, mockUrl);
 
         System.out.println("[child] workload=" + name + " threads=" + threads
                 + (duration == null ? " iterations=" + iterations : " duration=" + RunShape.format(duration))
@@ -95,20 +95,43 @@ public final class Child {
             long selfStart = System.nanoTime();
             SelfCpu.Window selfCpu = SelfCpu.open();
             Result self = driveOnce(workload);
+            long selfElapsedMs = (System.nanoTime() - selfStart) / 1_000_000;
+            // A self-driving workload owns its own clock, so when a window was asked for, nothing
+            // here enforced it — this branch printed truncated=false unconditionally, on faith.
+            // That is exactly the shape of the failure that made a 7-hour soak report success
+            // after four minutes: the run ends early for its own reasons and every field in the
+            // summary still reads healthy. Check the elapsed time against the window that was
+            // requested, and say so when they disagree.
+            boolean selfTruncated = false;
+            if (duration != null) {
+                long requestedMs = duration.toMillis();
+                // 5% short of the window, or more. Gatling stops when its last virtual user
+                // finishes the iteration it is in, so landing a little under is normal; landing
+                // well under means the injection profile did not carry the duration at all.
+                if (selfElapsedMs < requestedMs - requestedMs / 20) {
+                    selfTruncated = true;
+                    System.out.println("[child] !! ran " + selfElapsedMs + "ms of a requested "
+                            + requestedMs + "ms window — the workload did not honour --duration."
+                            + " Its numbers describe a shorter run than the one you asked for.");
+                }
+            }
             System.out.println(SUMMARY_PREFIX
                     + "completed=" + self.completed
                     + " errors=" + self.errors
-                    + " elapsedMs=" + ((System.nanoTime() - selfStart) / 1_000_000)
+                    + " elapsedMs=" + selfElapsedMs
                     + " peakHeapBytes=" + peakHeapBytes()
                     + " " + selfCpu.describe()
                     + " cpus=" + Runtime.getRuntime().availableProcessors()
-                    // Always present, so a reader never has to know which branch wrote the line.
-                    + " truncated=false"
+                    + " truncated=" + selfTruncated
                     + " oom=" + self.oom);
             if (self.firstFailure != null) {
                 self.firstFailure.printStackTrace(System.out);
             }
-            System.exit(self.oom || self.errors > 0 ? 1 : 0);
+            // Truncation exits non-zero for the same reason the iteration-bounded path does: an
+            // incomplete run must not read as a complete one to whatever is scripting it. Kept as
+            // its own term rather than folded into the error count, which the summary above has
+            // already printed truthfully.
+            System.exit(self.oom || self.errors > 0 || selfTruncated ? 1 : 0);
         }
 
         if (!warmup.isZero()) {

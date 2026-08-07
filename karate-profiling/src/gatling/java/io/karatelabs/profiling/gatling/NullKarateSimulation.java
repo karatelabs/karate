@@ -35,9 +35,9 @@ import static io.karatelabs.gatling.KarateDsl.*;
 public class NullKarateSimulation extends Simulation {
 
     ScenarioBuilder scn = scenario("karate-null")
-            .repeat(SimShape.reps()).on(
+            .exec(SimShape.loop(
                     exec(karateFeature("classpath:workload/gatling-null.feature"))
-            );
+            ));
 
     {
         setUp(scn.injectOpen(atOnceUsers(SimShape.users())))

@@ -57,7 +57,7 @@ public class HttpPlainFatSimulation extends Simulation {
             .contentTypeHeader("application/json");
 
     ScenarioBuilder scn = scenario("plain-http-fat")
-            .repeat(SimShape.reps()).on(
+            .exec(SimShape.loop(
                     exec(http("POST /cats")
                             .post("/cats")
                             .body(StringBody("{ \"name\": \"Billie\", \"age\": 5 }"))
@@ -72,7 +72,7 @@ public class HttpPlainFatSimulation extends Simulation {
                                     .check(jsonPath("$.id").isEL("#{catId}"))
                                     .check(jsonPath("$.name").is("Billie"))
                                     .check(jsonPath("$.age").is("5")))
-            );
+            ));
 
     {
         setUp(scn.injectOpen(atOnceUsers(SimShape.users()))).protocols(httpProtocol);

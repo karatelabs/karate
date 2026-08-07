@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start, stop or inspect the LatencyMock on the mock host.
 #
-#   etc/ec2/mock.sh start 10ms [port]
+#   etc/ec2/mock.sh start 10ms [port] [tls]
 #   etc/ec2/mock.sh status
 #   etc/ec2/mock.sh stop
 #
@@ -11,9 +11,14 @@
 # published table.
 source "$(dirname "$0")/lib.sh"
 
-action="${1:?usage: mock.sh start <latency> [port] | stop | status}"
+action="${1:?usage: mock.sh start <latency> [port] [tls] | stop | status}"
 latency="${2:-10ms}"
 port="${3:-8090}"
+# Fourth arg is the literal word `tls`, or absent. Fixed at construction like the
+# latency is, and for the same reason: a leftover plaintext mock answers a TLS
+# matrix on the wrong scheme rather than failing, so this is restarted per matrix.
+tls_flag=""
+[[ "${4:-}" == "tls" ]] && tls_flag="--tls"
 
 mock_ip="$(kp_ip_of "$KP_MOCK_NAME")"
 mock_private="$(kp_private_ip_of "$KP_MOCK_NAME")"
@@ -27,7 +32,7 @@ STOP='[[ -f ~/mock.pid ]] && kill "$(cat ~/mock.pid)" 2>/dev/null; rm -f ~/mock.
 
 case "$action" in
     start)
-        log "starting LatencyMock on $mock_ip: $latency injected, port $port"
+        log "starting LatencyMock on $mock_ip: $latency injected, port $port${tls_flag:+, TLS}"
         kp_ssh "$mock_ip" "$STOP"
         kp_ssh "$mock_ip" "cd ~/karate/karate-profiling
             # Bound to the private address, not 0.0.0.0. The security group already
@@ -35,7 +40,7 @@ case "$action" in
             # internet is one whose measured window a stranger can reset.
             nohup /opt/jdk/bin/java -cp target/classes:\$(cat target/cp.txt) \
                 io.karatelabs.profiling.LatencyMock \
-                --bind $mock_private --port $port --latency $latency --standalone \
+                --bind $mock_private --port $port --latency $latency $tls_flag --standalone \
                 > ~/mock.log 2>&1 &
             echo \$! > ~/mock.pid
             sleep 4

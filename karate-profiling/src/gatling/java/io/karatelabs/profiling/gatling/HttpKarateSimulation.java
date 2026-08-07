@@ -45,9 +45,9 @@ public class HttpKarateSimulation extends Simulation {
     );
 
     ScenarioBuilder scn = scenario("karate-http")
-            .repeat(SimShape.reps()).on(
+            .exec(SimShape.loop(
                     exec(karateFeature("classpath:workload/gatling-http.feature"))
-            );
+            ));
 
     {
         // The feature reads baseUrl from karate-config.js, which reads this property. The

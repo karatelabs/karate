@@ -35,9 +35,9 @@ import static io.gatling.javaapi.core.CoreDsl.*;
 public class NullPlainSimulation extends Simulation {
 
     ScenarioBuilder scn = scenario("plain-null")
-            .repeat(SimShape.reps()).on(
+            .exec(SimShape.loop(
                     exec(session -> session)
-            );
+            ));
 
     {
         setUp(scn.injectOpen(atOnceUsers(SimShape.users())));

@@ -34,9 +34,15 @@ package io.karatelabs.profiling;
  * @param iterations total iterations requested, or -1 for a duration-bounded run. Only
  *                   meaningful to a self-driving workload, which decides what an "iteration"
  *                   means for it (a scenario, say, rather than a feature execution)
+ * @param duration   the measured window, or null when the run is iteration-bounded. Exactly one
+ *                   of this and {@code iterations} is meaningful. Only a
+ *                   {@link Workload#drivesOwnConcurrency() self-driving} workload needs it: for
+ *                   every other workload the harness owns the clock and stops the drivers itself,
+ *                   whereas a workload that owns its own scheduler has to be told the window or
+ *                   it cannot honour one
  * @param mockUrl    base URL of the sibling mock JVM, or null when {@code needsMock()} is false
  */
-public record WorkloadContext(int threads, long iterations, String mockUrl) {
+public record WorkloadContext(int threads, long iterations, java.time.Duration duration, String mockUrl) {
 
     /** Fails loudly rather than letting a workload silently build requests against "null/path". */
     public String requireMockUrl() {

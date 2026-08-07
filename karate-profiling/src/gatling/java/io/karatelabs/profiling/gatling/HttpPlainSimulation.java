@@ -43,7 +43,7 @@ public class HttpPlainSimulation extends Simulation {
             .contentTypeHeader("application/json");
 
     ScenarioBuilder scn = scenario("plain-http")
-            .repeat(SimShape.reps()).on(
+            .exec(SimShape.loop(
                     exec(http("POST /cats")
                             .post("/cats")
                             .body(StringBody("{ \"name\": \"Billie\", \"age\": 5 }"))
@@ -55,7 +55,7 @@ public class HttpPlainSimulation extends Simulation {
                                     .get(session -> "/cats/" + session.getString("catId"))
                                     .check(status().is(200))
                                     .check(jsonPath("$.name").is("Billie")))
-            );
+            ));
 
     {
         setUp(scn.injectOpen(atOnceUsers(SimShape.users()))).protocols(httpProtocol);

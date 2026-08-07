@@ -43,7 +43,13 @@ import java.util.List;
  * <pre>
  *   --threads N      → N virtual users, injected at once
  *   --iterations M   → each user repeats ceil(M / N) times
+ *   --duration D     → each user loops for D instead, via `during()`
  * </pre>
+ *
+ * <p>The duration form is what makes a <b>Gatling soak</b> possible. Note the harness cannot
+ * enforce that window itself here, because a self-driving workload owns its own scheduler — so
+ * {@code Child} compares the elapsed time against the one that was asked for and marks the run
+ * truncated when they disagree, rather than trusting this to have honoured it.
  *
  * <p>Every workload in this family exists to be <b>compared with its pair</b> — a Karate
  * variant and a plain-Gatling variant doing the same work. A single number here means very
@@ -54,6 +60,8 @@ public abstract class GatlingWorkload implements Workload {
     /** Read by the simulations, which Gatling constructs by name and cannot be handed arguments. */
     static final String USERS_PROPERTY = "karate.profiling.gatling.users";
     static final String REPS_PROPERTY = "karate.profiling.gatling.reps";
+    /** Set instead of {@link #REPS_PROPERTY} when the run is duration-bounded; never both. */
+    static final String DURATION_SECONDS_PROPERTY = "karate.profiling.gatling.durationSeconds";
     static final String MOCK_URL_PROPERTY = "karate.profiling.mockUrl";
 
     private WorkloadContext context;
@@ -96,21 +104,27 @@ public abstract class GatlingWorkload implements Workload {
     @Override
     public void iterate(int vu, long iteration) {
         int users = Math.max(1, context.threads());
-        long total = context.iterations();
-        if (total < 0) {
-            // The harness passes a duration-bounded run through as iterations = -1, and a
-            // self-driving workload never sees the duration itself. Rather than guess, say so:
-            // a soak needs `during()` in the injection profile, which is a real feature and
-            // not something to fake by picking a repetition count.
-            throw new IllegalStateException(name() + " is iteration-bounded — use --iterations,"
-                    + " not --duration (see docs/PROFILING.md)");
-        }
-        int reps = (int) Math.max(1, Math.ceilDiv(total, users));
-
         System.setProperty(USERS_PROPERTY, Integer.toString(users));
-        System.setProperty(REPS_PROPERTY, Integer.toString(reps));
-        System.out.println("[gatling] " + name() + ": " + users + " users x " + reps
-                + " reps = " + ((long) users * reps) + " iterations");
+
+        java.time.Duration window = context.duration();
+        if (window != null) {
+            // A duration bound becomes `during()` in the injection profile — the loop is Gatling's
+            // to close, because Gatling owns the users. This is what makes a Gatling soak possible
+            // at all: the alternative, converting a window into a repetition count from an
+            // estimated rate, lands on whatever the estimate was wrong by, and a soak's whole
+            // point is that its length is the thing being held constant.
+            System.clearProperty(REPS_PROPERTY);
+            System.setProperty(DURATION_SECONDS_PROPERTY, Long.toString(window.toSeconds()));
+            System.out.println("[gatling] " + name() + ": " + users + " users for "
+                    + window.toSeconds() + "s");
+        } else {
+            long total = context.iterations();
+            int reps = (int) Math.max(1, Math.ceilDiv(total, users));
+            System.clearProperty(DURATION_SECONDS_PROPERTY);
+            System.setProperty(REPS_PROPERTY, Integer.toString(reps));
+            System.out.println("[gatling] " + name() + ": " + users + " users x " + reps
+                    + " reps = " + ((long) users * reps) + " iterations");
+        }
 
         GatlingRunner.run(simulation(), resultsDir());
     }
