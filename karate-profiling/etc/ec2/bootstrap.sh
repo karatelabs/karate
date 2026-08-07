@@ -132,10 +132,39 @@ for host in "${hosts[@]}"; do
         # target/ is excluded in both directions — a macOS build directory landing in
         # a Linux build is how a stale class file gets into a measurement — but the
         # remote target/profiling is what the results live in, so it is protected too.
-        rsync -az --delete \
+        #
+        # -rlpgoDz, NOT -az: `-a` implies `-t`, which preserves the LAPTOP's modification
+        # times. Combined with excluding target/, that hands Maven a source file older than
+        # the class the previous build produced from a different commit — so incremental
+        # compilation skips it and the bench measures code that was never shipped, silently
+        # and with a build stamp that claims otherwise. Without -t the synced files land with
+        # the remote's current time. The cost is that rsync's size+time quick check no longer
+        # short-circuits, so every file transfers each sync; on a repo this size that is
+        # seconds, and it buys away an entire class of wrong measurement.
+        rsync -rlpgoDz --delete \
             --exclude 'target/' --exclude '.git/' --exclude '*.iml' --exclude '.idea/' \
             -e "ssh ${SSH_OPTS[*]}" \
             "$KP_LOCAL_REPO/" "${KP_SSH_USER}@${host}:karate/"
+        # And belt-and-braces: delete the compiled outputs outright, so correctness does
+        # not depend on any clock agreeing with any other. Only build products are removed
+        # — never target/profiling, which is where the results live and which a `mvn clean`
+        # would take with it. That asymmetry is why this is an explicit rm and not a clean.
+        log "discarding compiled classes on $host so nothing stale can survive the sync"
+        kp_ssh "$host" 'set -e
+            # karate-profiling/target is thinned rather than removed: target/profiling
+            # inside it holds every run this host has produced.
+            rm -rf ~/karate/karate-profiling/target/classes ~/karate/karate-profiling/target/cp.txt
+            for m in ~/karate/*/target; do
+                case "$m" in
+                    *karate-profiling/target) continue ;;
+                    *"*"*) continue ;;   # glob matched nothing
+                    *) rm -rf "$m" ;;
+                esac
+            done
+            # Every io.karatelabs artifact is a module of this repo, so the installed copies
+            # are all rebuilt from the synced sources. Left in place they would satisfy the
+            # reactor and reintroduce exactly the staleness this is here to prevent.
+            rm -rf ~/.m2/repository/io/karatelabs'
     else
         log "fetching $KP_BRANCH on $host"
         kp_ssh "$host" "$FETCH"

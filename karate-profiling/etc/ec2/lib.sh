@@ -36,6 +36,44 @@ SSH_OPTS=(-i "$KP_KEY_FILE" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/d
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 die() { echo "error: $*" >&2; exit 1; }
 
+# Decide, from the injector's run inventory, whether a collection is complete.
+#
+# Pure: reads the inventory on stdin and sets three variables, so it can be tested
+# without a bench — see selftest.sh. That matters more than it looks. The failure this
+# encodes produced a SUCCESSFUL collection that silently omitted a one-hour soak's
+# digest, and a guard that has never been shown to fire is not a guard.
+#
+# Input lines, as produced by collect.sh's remote probe:
+#   HAS <run>   the injector holds a digest.md for that run
+#   NONE <run>  the injector holds the run directory but no digest
+#   BUSY x      a Child process is alive, so some run is still being written
+#   IDLE x      nothing is running
+#
+# Sets: kp_dropped (runs whose digest exists there and not here — always fatal),
+#       kp_pending (runs with no digest anywhere yet), kp_busy (true/false).
+# The caller decides severity, because "no digest yet" is benign mid-matrix and fatal
+# when nothing is running.
+kp_classify_runs() {
+    local results_dir="$1" state run
+    kp_dropped=""
+    kp_pending=""
+    kp_busy=false
+    while read -r state run; do
+        case "$state" in
+            BUSY) kp_busy=true ;;
+            HAS)
+                # -name, not a fixed path: a matrix parks its runs under a label, and an
+                # unparked run sits at the root. Either location counts as collected.
+                if ! find "$results_dir" -type d -name "$run" \
+                        -exec test -f '{}/digest.md' \; -print -quit 2>/dev/null | grep -q .; then
+                    kp_dropped="${kp_dropped}  $run"$'\n'
+                fi
+                ;;
+            NONE) kp_pending="${kp_pending}  $run"$'\n' ;;
+        esac
+    done
+}
+
 # The public IP of a named instance, or empty. Filters on running/pending only,
 # so a terminated instance from a previous cycle never answers.
 kp_ip_of() {

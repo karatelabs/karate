@@ -30,6 +30,7 @@ import jdk.jfr.consumer.RecordedFrame;
 import jdk.jfr.consumer.RecordedStackTrace;
 import jdk.jfr.consumer.RecordingFile;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -494,12 +495,47 @@ public final class JfrDigest {
         return found;
     }
 
+    /**
+     * The {@code build:} line from {@code run-meta.txt}, or null when there is none — runs taken
+     * before the stamp existed legitimately have no line, and an absent row is the honest way to
+     * say so rather than printing "(unknown)" as though the build had been looked up and lost.
+     *
+     * <p>Read from the sibling file rather than threaded through {@link RunInfo} so the value has
+     * exactly one producer: whatever the run recorded is what the digest repeats.
+     */
+    private static String buildOf(Path runDir) {
+        Path meta = runDir.resolve("run-meta.txt");
+        if (!Files.isReadable(meta)) {
+            return null;
+        }
+        try (BufferedReader reader = Files.newBufferedReader(meta)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("build:")) {
+                    String value = line.substring("build:".length()).trim();
+                    return value.isEmpty() ? null : value;
+                }
+            }
+        } catch (IOException e) {
+            return null;
+        }
+        return null;
+    }
+
     private static void appendRunSummary(StringBuilder md, Path runDir, RunInfo info) {
         RunShape shape = info.shape();
         md.append("## Run summary\n\n");
         md.append("| | |\n|---|---|\n");
         String childSummary = findChildSummary(runDir);
         row(md, "workload", info.workload());
+        // The build that produced the run, echoed from run-meta.txt. `compare` reads digests and
+        // nothing else, so a commit recorded only in run-meta.txt cannot reach a derived table —
+        // and a results document written from those tables then has no way to say which source
+        // produced them. That gap already cost one published-then-retracted provenance claim.
+        String build = buildOf(runDir);
+        if (build != null) {
+            row(md, "build", build);
+        }
         row(md, "outcome", outcome(info, childSummary));
         row(md, "exit code", String.valueOf(info.exitCode()));
         row(md, "threads", String.valueOf(shape.threads()));

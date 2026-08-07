@@ -47,10 +47,44 @@ mock_url="$($tls && printf 'https' || printf 'http')://${mock_private}:${mock_po
 tls_flags=""
 $tls && tls_flags="-Djdk.internal.httpclient.disableHostnameVerification=true"
 
+# Persisted, not just printed. The calibration is load-bearing evidence — it fixes the knee
+# every matrix cell is chosen against, and prices a connection — but it used to exist only as
+# terminal output, so a results document could cite a table that no artifact backed. It has
+# already been lost once to a backgrounded ssh that kept only the tail. Written on the injector
+# first so the record survives a dropped connection, then copied here; collect.sh also picks it
+# up, since it sits alongside the run directories.
+# Built with an if, not `$tls && ...` inside the assignment: a command substitution that
+# returns non-zero becomes the ASSIGNMENT's exit status, and under `set -e` that aborts the
+# script. The bare `$tls && var=x` form elsewhere is exempt only because a failing command in
+# an AND-OR list is not what -e acts on. Cost 20 minutes of bench time to find.
+tls_suffix=""
+tls_arg=""
+if $tls; then
+    tls_suffix="-tls"
+    tls_arg=" --tls"
+fi
+stamp="$(date -u +%Y-%m-%d-%H%M%S)"
+name="calibration-${tier}${tls_suffix}-${stamp}.txt"
+remote_out="karate/karate-profiling/target/profiling/$name"
+
 log "calibrating from the injector against $mock_url"
-kp_ssh "$injector_ip" "cd ~/karate/karate-profiling && /opt/jdk/bin/java $tls_flags \
-    -cp target/classes:\$(cat target/cp.txt) io.karatelabs.profiling.MockCalibrator \
-    --url $mock_url --ramp $ramp --per-user $per_user --settle $settle"
+kp_ssh "$injector_ip" "cd ~/karate/karate-profiling && mkdir -p target/profiling && \
+    { echo '# calibrate.sh --tier $tier --ramp $ramp --per-user $per_user --settle $settle$tls_arg'; \
+      echo '# mock $mock_url'; \
+      echo \"# build \$(git rev-parse --short HEAD 2>/dev/null || echo unknown)\"; \
+      echo; } > ~/$remote_out && \
+    /opt/jdk/bin/java $tls_flags \
+        -cp target/classes:\$(cat target/cp.txt) io.karatelabs.profiling.MockCalibrator \
+        --url $mock_url --ramp $ramp --per-user $per_user --settle $settle 2>&1 | tee -a ~/$remote_out"
+
+# Copied off immediately rather than left for collect.sh: the whole point is that the table
+# survives, and the injector is the thing that goes away.
+mkdir -p "$KP_RESULTS"
+if scp "${SSH_OPTS[@]}" -q "${KP_SSH_USER}@${injector_ip}:$remote_out" "$KP_RESULTS/$name"; then
+    log "calibration archived: $KP_RESULTS/$name"
+else
+    log "!! could not copy the calibration off the injector — it is still at ~/$remote_out"
+fi
 
 cat <<'EOF'
 

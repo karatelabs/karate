@@ -17,7 +17,8 @@ injector_ip="$(kp_ip_of "$KP_INJECTOR_NAME")"
 
 mkdir -p "$KP_RESULTS"
 
-includes=(--include '*/' --include 'digest.md' --include 'run-meta.txt' --include 'mock.log')
+includes=(--include '*/' --include 'digest.md' --include 'run-meta.txt' --include 'mock.log'
+          --include 'calibration-*.txt')
 $want_all && includes+=(--include 'stdout.log' --include '*.hprof')
 
 log "pulling digests to $KP_RESULTS"
@@ -27,6 +28,53 @@ rsync -az "${includes[@]}" --exclude '*' \
 
 count="$(find "$KP_RESULTS" -name digest.md | wc -l | tr -d ' ')"
 log "$count digests in $KP_RESULTS"
+
+# --- completeness, and why a count cannot decide it --------------------------
+# The parent writes digest.md AFTER the child exits. A collection triggered by the
+# child going away therefore copies run-meta.txt and mock.log, finds every file rsync
+# was asked for, and returns 0 having missed the one artifact the run existed to
+# produce. That happened: a one-hour soak collected clean and arrived with no digest.
+# The total printed above cannot catch it either — hundreds of older digests
+# comfortably conceal one missing new one. So compare SETS, not counts.
+#
+# Two conditions, deliberately not conflated:
+#
+#   1. a digest exists on the injector but not here -> the copy dropped it. Always
+#      fatal; it cannot be a timing artifact, because the file is already written.
+#   2. a run directory on the injector has no digest at all -> either it is still
+#      being written (benign — collecting mid-matrix is a supported workflow), or its
+#      parent finished and never wrote one (the soak case). A live `Child` process is
+#      what separates those, so that is what gets tested rather than guessed from names.
+remote_state="$(kp_ssh "$injector_ip" '
+    cd karate/karate-profiling/target/profiling 2>/dev/null || exit 0
+    for d in $(find . -mindepth 1 -maxdepth 2 -type d -name "gatling-*" | sed "s|^\./||"); do
+        if [ -f "$d/digest.md" ]; then echo "HAS ${d##*/}"; else echo "NONE ${d##*/}"; fi
+    done
+    # Bracketed so the ssh command line carrying the pattern cannot match itself.
+    if ps -eo cmd | grep -q "[C]hild"; then echo "BUSY x"; else echo "IDLE x"; fi' || true)"
+
+kp_classify_runs "$KP_RESULTS" <<< "$remote_state"
+
+if [[ -n "$kp_dropped" ]]; then
+    log "!! the injector has a digest.md for these runs and this machine does not:"
+    printf '%s' "$kp_dropped"
+    die "the copy is incomplete - do NOT tear down; re-run collect.sh"
+fi
+
+if [[ -z "$kp_pending" ]]; then
+    log "every run on the injector has its digest here"
+elif $kp_busy; then
+    log "note: a run is in flight, so these have no digest yet - expected:"
+    printf '%s' "$kp_pending"
+    log "      re-run collect.sh once it finishes, and before tearing down."
+else
+    log "!! nothing is running, yet these run directories have no digest.md at all:"
+    printf '%s' "$kp_pending"
+    log "   The parent writes the digest AFTER the child exits, so a run that just ended"
+    log "   may need a few more seconds - re-run collect.sh. If it persists, the parent"
+    log "   died and the run is unrecoverable once the host is gone."
+    die "refusing to report success - do NOT tear down until this is understood"
+fi
 
 # Derive the table from the local checkout — the tool reads digest.md and nothing
 # else, so it does not care that these runs happened on another machine.
