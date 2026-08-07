@@ -64,10 +64,26 @@ public final class Compare {
     }
 
     /** Requests each arm's client makes per iteration, and the users driving them, from the run. */
-    record Run(Path dir, String arm, int tierMillis, int users, long iterationsRequested,
+    record Run(Path dir, String arm, int tierMillis, boolean tls, String variant, int users,
+               long iterationsRequested,
                long served, double servedPerSecond, double sleepMicrosMean, long peakInFlight,
                long distinctPeerPorts, long ko, double injectorCores, double windowSeconds,
                double p50, double p99, int cpus) {
+
+        /**
+         * What a pair has to agree on beyond the latency tier, rendered for a human.
+         *
+         * <p><b>Two things used to blend silently.</b> A TLS matrix and a plaintext one at the same
+         * tier landed in the same bucket and were averaged together, though the whole point of the
+         * TLS tier is that its numbers differ. So did the equivalence controls: {@code -fat} and
+         * {@code -lean} exist to be compared <i>against</i> the ordinary pair, and mixing them into
+         * it destroys both readings. Neither left a trace in the output — the only thing standing
+         * between the operator and a wrong mean was remembering to keep results in separate
+         * directories.
+         */
+        String shape() {
+            return (tls ? "TLS" : "plaintext") + (variant.isEmpty() ? "" : ", " + variant);
+        }
 
         /**
          * The first load-bearing field this digest did not supply, or null if it is complete.
@@ -142,7 +158,10 @@ public final class Compare {
         runs.sort(Comparator.comparing(r -> r.dir().getFileName().toString()
                 .replaceAll(".*-(\\d{4}-\\d{2}-\\d{2}-\\d{6})$", "$1")));
 
-        Map<Integer, List<Pair>> byTier = new LinkedHashMap<>();
+        // Keyed by tier AND shape. Same latency over TLS is not the same experiment as over
+        // plaintext, and an equivalence control is not an ordinary pair — bucketing on the tier
+        // alone averaged them together and printed one confident number for two experiments.
+        Map<String, List<Pair>> byTier = new LinkedHashMap<>();
         List<String> warnings = new ArrayList<>();
         java.util.Set<Path> paired = new java.util.HashSet<>();
         for (int i = 0; i + 1 < runs.size(); i++) {
@@ -159,9 +178,16 @@ public final class Compare {
                         + " (" + second.tierMillis() + "ms)");
                 continue;
             }
+            if (!first.shape().equals(second.shape())) {
+                warnings.add("shape changed mid-pair, not paired: " + first.dir().getFileName()
+                        + " (" + first.shape() + ") then " + second.dir().getFileName()
+                        + " (" + second.shape() + ")");
+                continue;
+            }
             Run plain = first.arm().equals("plain") ? first : second;
             Run karate = first.arm().equals("plain") ? second : first;
-            byTier.computeIfAbsent(first.tierMillis(), k -> new ArrayList<>())
+            byTier.computeIfAbsent(first.tierMillis() + " ms tier, " + first.shape(),
+                            k -> new ArrayList<>())
                     .add(new Pair(plain, karate, first.arm().charAt(0) + "→" + second.arm().charAt(0)));
             paired.add(first.dir());
             paired.add(second.dir());
@@ -173,12 +199,12 @@ public final class Compare {
         for (Run run : runs) {
             if (!paired.contains(run.dir())) {
                 warnings.add("no partner for " + run.dir().getFileName() + " (" + run.arm()
-                        + ", " + run.tierMillis() + "ms)");
+                        + ", " + run.tierMillis() + "ms, " + run.shape() + ")");
             }
         }
 
         StringBuilder out = new StringBuilder();
-        for (Map.Entry<Integer, List<Pair>> tier : byTier.entrySet()) {
+        for (Map.Entry<String, List<Pair>> tier : byTier.entrySet()) {
             appendTier(out, tier.getKey(), tier.getValue());
         }
         for (String warning : warnings) {
@@ -213,9 +239,9 @@ public final class Compare {
         }
     }
 
-    private static void appendTier(StringBuilder out, int tierMillis, List<Pair> pairs) {
+    private static void appendTier(StringBuilder out, String tier, List<Pair> pairs) {
         double iteration = pairs.isEmpty() ? 0 : pairs.get(0).plain().iterationMillis();
-        out.append("\n#### ").append(tierMillis).append(" ms tier — ")
+        out.append("\n#### ").append(tier).append(" — ")
                 .append(pairs.size()).append(pairs.size() == 1 ? " pair" : " pairs")
                 .append(", ~").append(fixed(iteration, 0)).append(" ms iteration\n\n");
         out.append("| pair | order | plain req/s | karate req/s | karate deficit | added ms/iter | ")
@@ -379,6 +405,8 @@ public final class Compare {
         String mockConfig = section(digest, "\"latencyMillis\":");
         Run run = new Run(dir, arm,
                 (int) LoadProfile.mockNumber(mockConfig, "latencyMillis"),
+                mockConfig != null && mockConfig.contains("\"tls\":true"),
+                variant(name),
                 (int) row(digest, "threads"),
                 (long) rowIterations(digest),
                 (long) LoadProfile.mockNumber(mockStats, "served"),
@@ -392,6 +420,23 @@ public final class Compare {
                 percentile(digest, 0), percentile(digest, 3),
                 cpus(digest));
         return run;
+    }
+
+    /**
+     * The equivalence-control suffix in a workload name, or "" for an ordinary run.
+     *
+     * <p>Taken from the directory name because nothing in the digest records it. That is the weaker
+     * half of this guard and worth saying plainly: a control run whose workload is renamed without
+     * one of these suffixes reads as ordinary again. The suffixes are the harness's own, so the
+     * coupling is at least inside one repository.
+     */
+    private static String variant(String name) {
+        for (String suffix : new String[]{"fat", "lean"}) {
+            if (name.contains("-" + suffix + "-")) {
+                return suffix;
+            }
+        }
+        return "";
     }
 
     /** Cores on the machine that took the run, out of "| os / cpus | Mac OS X aarch64 / 10 |". */

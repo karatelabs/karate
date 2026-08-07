@@ -195,6 +195,14 @@ public final class KarateProtocolBuilder implements ProtocolBuilder {
             throw new IllegalArgumentException("pool sizes must be at least 1, got maxTotal="
                     + maxTotal + " perRoute=" + perRoute);
         }
+        // Calling this twice used to overwrite the field and abandon the first pool: only the last
+        // one reaches the protocol, so only the last one is ever registered for close, and the
+        // other's connection manager survives the simulation holding whatever it had opened.
+        // Closing here is safe because nothing has leased from it yet — the protocol has not been
+        // built, so no scenario has a client.
+        if (pool != null) {
+            pool.close();
+        }
         pool = new PooledHttpClientFactory(maxTotal, perRoute);
         runner.httpClientFactory(pool);
         return this;

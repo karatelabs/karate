@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
  * Pins the comparison arithmetic to the numbers docs/PROFILING.md §10 publishes.
@@ -44,7 +45,8 @@ class CompareTest {
 
     /** 8 users, 4000 requested iterations, two requests each, as every 10 ms cell was run. */
     private static Compare.Run run(String arm, double servedPerSecond, double sleepMicrosMean) {
-        return new Compare.Run(Path.of("gatling-http-" + arm + "-2026-08-06-000000"), arm, 10, 8,
+        return new Compare.Run(Path.of("gatling-http-" + arm + "-2026-08-06-000000"), arm, 10,
+                false, "", 8,
                 4000, 8000, servedPerSecond, sleepMicrosMean, 8, arm.equals("plain") ? 8 : 4000,
                 0, -1, 15.2, 56, 71, 10);
     }
@@ -82,8 +84,26 @@ class CompareTest {
     @Test
     void testRequestsPerIterationRoundsIterationsUpToTheUserCount() {
         Compare.Run rounded = new Compare.Run(Path.of("gatling-http-karate-2026-08-06-000000"),
-                "karate", 10, 8, 500, 1008, 471.8, 13000, 8, 504, 0, -1, 2.1, 56, 71, 10);
+                "karate", 10, false, "", 8, 500, 1008, 471.8, 13000, 8, 504, 0, -1, 2.1, 56, 71, 10);
         assertEquals(2.0, rounded.requestsPerIteration(), 0.001);
+    }
+
+    /**
+     * A TLS run and a plaintext one at the same latency are not the same experiment, and neither is
+     * an equivalence control and the ordinary pair it exists to be compared against. Before this,
+     * both blended into one mean with nothing in the output to say so.
+     */
+    @Test
+    void testShapeSeparatesTlsAndEquivalenceControlsFromOrdinaryRuns() {
+        assertEquals("plaintext", run("plain", 500, 0).shape());
+        Compare.Run overTls = new Compare.Run(Path.of("gatling-http-karate-2026-08-06-000000"),
+                "karate", 10, true, "", 8, 4000, 8000, 500, 0, 8, 4000, 0, -1, 15.2, 56, 71, 10);
+        assertEquals("TLS", overTls.shape());
+        Compare.Run fat = new Compare.Run(Path.of("gatling-http-plain-fat-2026-08-06-000000"),
+                "plain", 10, false, "fat", 8, 4000, 8000, 500, 0, 8, 8, 0, -1, 15.2, 56, 71, 10);
+        assertEquals("plaintext, fat", fat.shape());
+        assertNotEquals(fat.shape(), run("plain", 500, 0).shape(),
+                "a fat control must not bucket with the ordinary pair it is the control for");
     }
 
     private static double added(double plainRate, double karateRate) {

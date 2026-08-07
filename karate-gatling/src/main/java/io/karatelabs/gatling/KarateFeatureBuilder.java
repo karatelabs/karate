@@ -107,6 +107,15 @@ public final class KarateFeatureBuilder implements ActionBuilder {
      * Set the protocol for URI pattern matching and name resolution.
      * This is typically called internally by the DSL.
      *
+     * <p><b>This does not register the protocol with the simulation.</b> It hands the feature a
+     * reference and nothing more — Gatling only builds a protocol's components, and only runs the
+     * hooks attached to them, for protocols passed to {@code setUp(...).protocols(...)}. For a
+     * protocol carrying {@link KarateProtocolBuilder#pooledConnections()} that difference is a
+     * leak: the connection pool is closed from the components' termination hook, so a protocol
+     * reaching scenarios only through this method keeps its pool and its sockets for the life of
+     * the JVM. Pass the protocol to {@code protocols(...)} as well; this method is for overriding
+     * which of several registered protocols a given feature uses.
+     *
      * @param protocol the KarateProtocol
      * @return this builder
      */

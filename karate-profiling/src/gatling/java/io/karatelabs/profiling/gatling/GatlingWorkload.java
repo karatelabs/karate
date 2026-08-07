@@ -61,13 +61,19 @@ public abstract class GatlingWorkload implements Workload {
     static final String USERS_PROPERTY = "karate.profiling.gatling.users";
     static final String REPS_PROPERTY = "karate.profiling.gatling.reps";
     /** Set instead of {@link #REPS_PROPERTY} when the run is duration-bounded; never both. */
-    static final String DURATION_SECONDS_PROPERTY = "karate.profiling.gatling.durationSeconds";
+    static final String DURATION_MILLIS_PROPERTY = "karate.profiling.gatling.durationMillis";
     static final String MOCK_URL_PROPERTY = "karate.profiling.mockUrl";
 
     private WorkloadContext context;
 
     /** The simulation to run. Loaded by Gatling from the classpath, by name. */
     protected abstract Class<? extends Simulation> simulation();
+
+    /** Gatling owns the loop, so {@code during()} can close the window — see {@code SimShape.loop}. */
+    @Override
+    public boolean honoursDuration() {
+        return true;
+    }
 
     @Override
     public boolean drivesOwnConcurrency() {
@@ -113,14 +119,20 @@ public abstract class GatlingWorkload implements Workload {
             // at all: the alternative, converting a window into a repetition count from an
             // estimated rate, lands on whatever the estimate was wrong by, and a soak's whole
             // point is that its length is the thing being held constant.
+            // Millis, not seconds. `during()` takes a Duration, so rounding to seconds was
+            // self-inflicted — and it did not round, it truncated: --duration 500ms became zero,
+            // SimShape.loop saw no window and fell back to a repetition count that iterate() had
+            // just cleared, so the run became one iteration per user while every log line still
+            // said 500ms. Child's window check cannot catch that either, because the elapsed time
+            // it measures includes seconds of Gatling engine startup.
             System.clearProperty(REPS_PROPERTY);
-            System.setProperty(DURATION_SECONDS_PROPERTY, Long.toString(window.toSeconds()));
+            System.setProperty(DURATION_MILLIS_PROPERTY, Long.toString(window.toMillis()));
             System.out.println("[gatling] " + name() + ": " + users + " users for "
-                    + window.toSeconds() + "s");
+                    + RunShape.format(window));
         } else {
             long total = context.iterations();
             int reps = (int) Math.max(1, Math.ceilDiv(total, users));
-            System.clearProperty(DURATION_SECONDS_PROPERTY);
+            System.clearProperty(DURATION_MILLIS_PROPERTY);
             System.setProperty(REPS_PROPERTY, Integer.toString(reps));
             System.out.println("[gatling] " + name() + ": " + users + " users x " + reps
                     + " reps = " + ((long) users * reps) + " iterations");

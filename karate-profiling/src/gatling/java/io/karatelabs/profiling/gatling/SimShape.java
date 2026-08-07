@@ -63,9 +63,9 @@ final class SimShape {
      * the loop they happened to use. One place decides, so the arms cannot disagree.
      */
     static ChainBuilder loop(ChainBuilder body) {
-        long seconds = Long.getLong(GatlingWorkload.DURATION_SECONDS_PROPERTY, 0L);
-        return seconds > 0
-                ? CoreDsl.during(Duration.ofSeconds(seconds)).on(body)
+        long millis = Long.getLong(GatlingWorkload.DURATION_MILLIS_PROPERTY, 0L);
+        return millis > 0
+                ? CoreDsl.during(Duration.ofMillis(millis)).on(body)
                 : CoreDsl.repeat(reps()).on(body);
     }
 

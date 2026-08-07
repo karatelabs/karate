@@ -99,6 +99,19 @@ public interface Workload {
         return false;
     }
 
+    /**
+     * Whether {@code --duration} means anything to this workload.
+     *
+     * <p>Only a workload that owns its own loop can close a window on request. The rest are handed
+     * an iteration count and run it to the end — so {@code --duration} against one of them used to
+     * run the entire suite, ignore the window completely, and only then exit non-zero. That is the
+     * whole run's wall-clock spent to learn the flag was wrong, and on the bench it is a wasted
+     * cell. Rejected at parse instead.
+     */
+    default boolean honoursDuration() {
+        return false;
+    }
+
     /** Classpath-relative feature that {@link MockJvm} serves. Only read when {@link #needsMock()}. */
     default String mockFeature() {
         return "classpath:mock/profiling-mock.feature";

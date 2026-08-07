@@ -23,16 +23,25 @@
  */
 package io.karatelabs.profiling;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 /**
  * A {@link LatencyMock} this process did not fork — on another host, or simply outlasting the run.
@@ -126,27 +135,117 @@ final class ExternalMock {
         }
     }
 
+    /**
+     * A connection to the mock that verifies nothing about its certificate.
+     *
+     * <p><b>Without this the TLS two-host bench could not complete a single run.</b> The mock's
+     * certificate is self-signed, so {@link #get} turned the handshake rejection into {@code null}
+     * and {@link #attach} reported "no LatencyMock answering" — pointing the operator at the
+     * network while the mock was up and serving. {@code matrix.sh}'s own reachability check did not
+     * catch it because that one uses {@code curl -sfk}, which skips verification, so the script
+     * said the mock was fine and the harness said it was absent.
+     *
+     * <p><b>Two checks had to go, not one.</b> Trusting the certificate is not enough: the JDK then
+     * verifies the hostname, and this bench reaches the mock at a private IP that no certificate
+     * could match. Measured against this very mock, a trust-all context alone still failed with
+     * "No name matching localhost found" — the same second-layer trap that
+     * {@code PooledHttpClientFactory} hit after its own trust-all context was already working.
+     *
+     * <p><b>Why not {@code java.net.http.HttpClient}, which this used to use.</b> It overrides a
+     * null {@code endpointIdentificationAlgorithm} in supplied {@code SSLParameters} and re-imposes
+     * HTTPS identification. The only lever is the internal
+     * {@code jdk.internal.httpclient.disableHostnameVerification} property, which is read once at
+     * class initialisation — so setting it from code works only if nothing has touched the JDK
+     * client first, and it worked here only when passed on the command line. Both were measured
+     * failing. A per-connection verifier is local, ordered, and cannot be defeated by whatever
+     * loaded a class before us.
+     *
+     * <p>Skipping verification is right here rather than merely convenient: this talks only to a
+     * mock the operator just started, at a host they named, and it carries nothing worth
+     * intercepting. Karate's client is what is under test, not this one.
+     */
+    private static HttpURLConnection open(String url) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
+        connection.setConnectTimeout((int) TIMEOUT.toMillis());
+        connection.setReadTimeout((int) TIMEOUT.toMillis());
+        connection.setRequestMethod("GET");
+        // No keep-alive. These calls happen twice per run, outside the measured window, but a
+        // connection left open to the mock would show up in its own distinctPeerPorts count — the
+        // harness inflating the number it exists to report.
+        connection.setRequestProperty("Connection", "close");
+        if (connection instanceof HttpsURLConnection https) {
+            https.setSSLSocketFactory(trustAllSocketFactory());
+            https.setHostnameVerifier((hostname, session) -> true);
+        }
+        return connection;
+    }
+
+    private static SSLSocketFactory trustAllSocketFactory() throws IOException {
+        try {
+            SSLContext context = SSLContext.getInstance("TLS");
+            context.init(null, new TrustManager[]{new X509TrustManager() {
+                @Override
+                public void checkClientTrusted(X509Certificate[] chain, String authType) {
+                }
+
+                @Override
+                public void checkServerTrusted(X509Certificate[] chain, String authType) {
+                }
+
+                @Override
+                public X509Certificate[] getAcceptedIssuers() {
+                    return new X509Certificate[0];
+                }
+            }}, new SecureRandom());
+            return context.getSocketFactory();
+        } catch (Exception e) {
+            throw new IOException("could not build a trust-all SSL context", e);
+        }
+    }
+
     /** The status code of a GET, or -1 if the host did not answer at all. */
     private static int status(String url) throws IOException, InterruptedException {
-        try (HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
-            return client.send(HttpRequest.newBuilder(URI.create(url)).timeout(TIMEOUT).GET().build(),
-                    HttpResponse.BodyHandlers.discarding()).statusCode();
+        HttpURLConnection connection = null;
+        try {
+            connection = open(url);
+            return connection.getResponseCode();
         } catch (IOException e) {
+            System.err.println("[parent] GET " + url + " failed: " + e);
             return -1;
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
     }
 
     private static String get(String url) throws IOException, InterruptedException {
-        // A fresh client per call, closed immediately: this runs twice per run, outside the
-        // measured window, and a pooled connection left open to the mock would show up in its own
-        // distinctPeerPorts count — the harness inflating the number it exists to report.
-        try (HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
-            HttpResponse<String> response = client.send(
-                    HttpRequest.newBuilder(URI.create(url)).timeout(TIMEOUT).GET().build(),
-                    HttpResponse.BodyHandlers.ofString());
-            return response.statusCode() == 200 ? response.body().trim() : null;
+        HttpURLConnection connection = null;
+        try {
+            connection = open(url);
+            if (connection.getResponseCode() != 200) {
+                return null;
+            }
+            try (InputStream in = connection.getInputStream();
+                 BufferedReader reader = new BufferedReader(
+                         new InputStreamReader(in, StandardCharsets.UTF_8))) {
+                StringBuilder body = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    body.append(line);
+                }
+                return body.toString().trim();
+            }
         } catch (IOException e) {
+            // Printed rather than swallowed. The caller only sees null, and "no mock answering" is
+            // the wrong diagnosis for most of the ways this fails — a rejected TLS handshake and a
+            // closed port are the same null and very different problems.
+            System.err.println("[parent] GET " + url + " failed: " + e);
             return null;
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
     }
 

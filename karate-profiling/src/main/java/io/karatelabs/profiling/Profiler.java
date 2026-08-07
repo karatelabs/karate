@@ -170,6 +170,12 @@ public final class Profiler {
                 .withDuration(flags.duration)
                 .withWarmup(flags.warmup)
                 .withTimeout(flags.timeout);
+        if (shape.isDurationBounded() && !workload.honoursDuration()) {
+            throw new IllegalArgumentException("--duration means nothing to " + name
+                    + ": it does not own its loop, so it runs its iteration count to the end and"
+                    + " ignores the window. Use --iterations. (Duration-capable workloads: the"
+                    + " gatling-* family.)");
+        }
         JvmConfig jvm = workload.jvm().withXmx(flags.xmx).withGc(flags.gc);
         warnAboutLongRunShape(shape, flags);
         boolean recordMock = "mock".equals(flags.record);

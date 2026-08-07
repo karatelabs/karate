@@ -71,6 +71,15 @@ public class HttpPlainFatSimulation extends Simulation {
                                     // captured, not merely some id.
                                     .check(jsonPath("$.id").isEL("#{catId}"))
                                     .check(jsonPath("$.name").is("Billie"))
+                                    // Residual asymmetry, stated rather than papered over: these
+                                    // are three OPEN checks against named paths, comparing text —
+                                    // "5" is the extracted string, not the number 5 — while the
+                                    // Karate arm's `match response == { ... }` is a CLOSED match
+                                    // that also rejects any extra key and compares age as a
+                                    // number. This is as close as Gatling's DSL gets without
+                                    // writing a custom check, and it errs in the honest direction:
+                                    // the control does slightly LESS work than the arm it is the
+                                    // control for, so it cannot flatter Karate.
                                     .check(jsonPath("$.age").is("5")))
             ));
 
