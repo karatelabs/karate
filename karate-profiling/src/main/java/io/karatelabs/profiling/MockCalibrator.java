@@ -27,7 +27,13 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -264,9 +270,50 @@ public final class MockCalibrator {
                 percentileMs(residual, 0.99));
     }
 
-    /** @return the created id, or -1 if this user is done because something failed */
+    /**
+     * A client that trusts the mock's self-signed certificate, so an {@code https://} URL
+     * calibrates instead of failing every request.
+     *
+     * <p><b>Trust is only half of it.</b> The JDK also verifies the hostname, and the bench reaches
+     * the mock at a private IP no certificate can match — and unlike trust, that check cannot be
+     * turned off from code here: {@code java.net.http.HttpClient} overrides a null
+     * {@code endpointIdentificationAlgorithm} in supplied {@code SSLParameters}, and the internal
+     * property that does work is read once at class-initialisation. {@code calibrate.sh} passes it
+     * with {@code -D} on the java command line for TLS runs, which is the one place it is read in
+     * time. Both halves are needed; either alone still fails the handshake.
+     */
     private static HttpClient newClient() {
-        return HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+        HttpClient.Builder builder = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10));
+        SSLContext trustAll = trustAllContext();
+        if (trustAll != null) {
+            builder.sslContext(trustAll);
+        }
+        return builder.build();
+    }
+
+    /** Null if a trust-all context cannot be built — plaintext calibration does not need one. */
+    private static SSLContext trustAllContext() {
+        try {
+            SSLContext context = SSLContext.getInstance("TLS");
+            context.init(null, new TrustManager[]{new X509TrustManager() {
+                @Override
+                public void checkClientTrusted(X509Certificate[] chain, String authType) {
+                }
+
+                @Override
+                public void checkServerTrusted(X509Certificate[] chain, String authType) {
+                }
+
+                @Override
+                public X509Certificate[] getAcceptedIssuers() {
+                    return new X509Certificate[0];
+                }
+            }}, new SecureRandom());
+            return context;
+        } catch (Exception e) {
+            System.err.println("[calibrate] could not build a trust-all SSL context: " + e);
+            return null;
+        }
     }
 
     private static long post(HttpClient client, String url,
@@ -350,7 +397,7 @@ public final class MockCalibrator {
     /** Closes the mock's window. A 409 means requests were still in flight — that is a bug here,
      *  not something to retry around, so it fails the run rather than silently measuring across it. */
     private static void reset(String url) throws Exception {
-        HttpResponse<String> response = HttpClient.newHttpClient().send(
+        HttpResponse<String> response = newClient().send(
                 HttpRequest.newBuilder(URI.create(url + "/stats/reset")).build(),
                 HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() != 200) {

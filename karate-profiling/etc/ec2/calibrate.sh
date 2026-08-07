@@ -15,6 +15,7 @@ ramp=1,4,16,64
 per_user=100
 settle=20s
 mock_port=8090
+tls=false
 
 while (($#)); do
     case "$1" in
@@ -23,6 +24,11 @@ while (($#)); do
         --per-user) per_user="$2"; shift 2 ;;
         --settle)   settle="$2"; shift 2 ;;
         --port)     mock_port="$2"; shift 2 ;;
+        # Calibrate over TLS, for the TLS matrix. Not cosmetic: the envelope is a different
+        # one — a close-mode point pays a full handshake per request, which is the cost the
+        # TLS experiment is about, so certifying a plaintext envelope and then running a TLS
+        # matrix against it certifies a path the matrix never takes.
+        --tls)      tls=true; shift ;;
         *) die "unknown flag: $1" ;;
     esac
 done
@@ -31,12 +37,20 @@ injector_ip="$(kp_ip_of "$KP_INJECTOR_NAME")"
 mock_private="$(kp_private_ip_of "$KP_MOCK_NAME")"
 [[ -n "$injector_ip" && -n "$mock_private" ]] || die "hosts not up — run etc/ec2/provision.sh"
 
-"$(dirname "$0")/mock.sh" start "$tier" "$mock_port"
+"$(dirname "$0")/mock.sh" start "$tier" "$mock_port" $($tls && printf 'tls')
+mock_url="$($tls && printf 'https' || printf 'http')://${mock_private}:${mock_port}"
 
-log "calibrating from the injector against http://${mock_private}:${mock_port}"
-kp_ssh "$injector_ip" "cd ~/karate/karate-profiling && /opt/jdk/bin/java \
+# The mock's certificate is self-signed and carries no name matching a private IP, so the
+# calibrator needs BOTH halves: it builds a trust-all context itself, and hostname
+# verification is disabled here. It has to be here — the JDK http client reads this property
+# once at class-initialisation, so setting it from inside the process is too late.
+tls_flags=""
+$tls && tls_flags="-Djdk.internal.httpclient.disableHostnameVerification=true"
+
+log "calibrating from the injector against $mock_url"
+kp_ssh "$injector_ip" "cd ~/karate/karate-profiling && /opt/jdk/bin/java $tls_flags \
     -cp target/classes:\$(cat target/cp.txt) io.karatelabs.profiling.MockCalibrator \
-    --url http://${mock_private}:${mock_port} --ramp $ramp --per-user $per_user --settle $settle"
+    --url $mock_url --ramp $ramp --per-user $per_user --settle $settle"
 
 cat <<'EOF'
 
