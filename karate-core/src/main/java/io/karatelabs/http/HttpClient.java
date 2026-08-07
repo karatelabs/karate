@@ -35,6 +35,19 @@ public interface HttpClient extends Closeable {
      * Apply a typed configuration snapshot. {@link KarateConfig} is the single
      * source of truth — implementations read every relevant setting via its
      * typed getters and (re)build their internal client state.
+     *
+     * <p><b>Must be idempotent: an implementation may not tear down or rebuild anything when the
+     * settings it cares about are unchanged.</b> This is a requirement rather than an
+     * optimisation, because it is what lets callers stop deciding. Config reaches a client from
+     * four places — a {@code configure <key>} step, a shared-scope call returning, a callee
+     * inheriting from its caller, and a cached {@code callonce} replaying — and the last three
+     * copy a whole config across a scenario boundary with no key to test. Any caller-side
+     * shortcut therefore has to be conservative on those paths, which means rebuilding a live
+     * client and its connection pool for a config that did not change. Deciding here, against
+     * the settings actually in use, is the only place the question can be answered exactly.
+     *
+     * <p>Callers should call this whenever config may have changed and let the implementation
+     * sort it out. They must not try to predict the answer.
      */
     void apply(KarateConfig config);
 

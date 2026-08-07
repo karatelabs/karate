@@ -124,9 +124,89 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
 
     private final HttpLogger logger = new HttpLogger();
 
+    /**
+     * The config this client was last built from, or null before the first {@link #apply}.
+     *
+     * <p>Volatile for the same reason {@link #httpClient} is: it is read once per apply and the
+     * cost is nothing, and resting its correctness on the caller always being the owning scenario
+     * thread is not a property worth keeping.
+     */
+    private volatile ClientKey currentKey;
+
+    /**
+     * Everything about a {@link KarateConfig} that changes the client this class builds — and
+     * nothing else. Two configs with equal keys produce byte-identical clients, so
+     * {@link #apply} can return without tearing the transport down.
+     *
+     * <p><b>Read off the raw config, never off this class's resolved fields.</b> {@code apply()}
+     * turns {@code localAddress} into an {@link InetAddress} via {@code getByName}, which can hit
+     * DNS. Keying on the resolved value would mean paying that cost to decide whether to pay it,
+     * and would put a name lookup behind every {@code configure} step.
+     *
+     * <p><b>When in doubt, include the field.</b> An extra component costs one redundant rebuild;
+     * a missing one leaves a scenario running against a stale client that no longer matches its
+     * own config, which is silent and survives into results. {@code charset} is deliberately
+     * coarse for that reason — it is compared raw although {@code apply()} ignores a null one, so
+     * a non-null-to-null change rebuilds for nothing. It cannot under-invalidate, which is the
+     * direction that matters.
+     *
+     * <p>Auth contributes only the four NTLM values, because they are the only auth settings
+     * {@code apply()} reads. The auth <i>type</i> is deliberately absent: the NTLM getters already
+     * return null unless it is {@code ntlm}, so switching away from NTLM changes these components
+     * anyway, while a basic-to-bearer switch correctly changes nothing here.
+     */
+    private record ClientKey(
+            boolean ssl, String sslAlgorithm, String sslKeyStore, String sslKeyStorePassword,
+            String sslKeyStoreType, String sslTrustStore, String sslTrustStorePassword,
+            String sslTrustStoreType, boolean sslTrustAll,
+            String proxyUri, String proxyUsername, String proxyPassword, List<String> nonProxyHosts,
+            int readTimeout, int connectTimeout, boolean followRedirects,
+            boolean httpRetryEnabled, int retryCount, int retryInterval,
+            Charset charset, String localAddress,
+            String ntlmUsername, String ntlmPassword, String ntlmDomain, String ntlmWorkstation) {
+
+        static ClientKey of(KarateConfig config) {
+            // getNonProxyHosts() hands back the live List inside the proxy map rather than a copy,
+            // so retaining the reference would compare that list against itself after an in-place
+            // edit and conclude nothing changed.
+            //
+            // ArrayList rather than List.copyOf: the list comes from a feature file, so
+            // `configure proxy = { nonProxyHosts: ['a', null] }` is reachable, and List.copyOf
+            // rejects null elements. Failing apply() on a config the client would otherwise have
+            // accepted is a worse outcome than carrying a null through a comparison.
+            List<String> nonProxy = config.getNonProxyHosts();
+            return new ClientKey(
+                    config.isSslEnabled(), config.getSslAlgorithm(), config.getSslKeyStore(),
+                    config.getSslKeyStorePassword(), config.getSslKeyStoreType(),
+                    config.getSslTrustStore(), config.getSslTrustStorePassword(),
+                    config.getSslTrustStoreType(), config.isSslTrustAll(),
+                    config.getProxyUri(), config.getProxyUsername(), config.getProxyPassword(),
+                    nonProxy == null ? null : new ArrayList<>(nonProxy),
+                    config.getReadTimeout(), config.getConnectTimeout(), config.isFollowRedirects(),
+                    config.isHttpRetryEnabled(), config.getRetryCount(), config.getRetryInterval(),
+                    config.getCharset(), config.getLocalAddress(),
+                    config.getNtlmUsername(), config.getNtlmPassword(),
+                    config.getNtlmDomain(), config.getNtlmWorkstation());
+        }
+    }
+
     @Override
     public void apply(KarateConfig config) {
         if (config == null) return;
+        // Nothing that reaches the wire changed, so the built client is still the right one.
+        //
+        // This guard is the ONLY thing deciding whether a rebuild is needed. Callers used to make
+        // that call themselves, from a hand-maintained per-key verdict in KarateConfig.configure,
+        // which could answer only for `configure <key>` steps — the three paths that copy a whole
+        // config across a scenario boundary (a shared-scope call returning, a callee inheriting
+        // from its caller, a cached callonce replaying) have no key to consult and so rebuilt
+        // unconditionally. A scenario doing request -> shared-scope call -> request therefore
+        // destroyed a live client, its connection manager and its sockets, having changed nothing.
+        ClientKey key = ClientKey.of(config);
+        if (key.equals(currentKey)) {
+            LOGGER.trace("http client config unchanged, keeping the built client");
+            return;
+        }
         // SSL
         ssl = config.isSslEnabled();
         sslAlgorithm = config.getSslAlgorithm();
@@ -177,12 +257,16 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             ntlmDomain = null;
             ntlmWorkstation = null;
         }
+        // Committed only now that every field above took. If one of them throws, the key stays as
+        // it was and the next apply() of this same config repeats the work rather than skipping
+        // it — the client would otherwise be left holding a half-applied config that the guard
+        // then reported as already current.
+        currentKey = key;
         // Close the outgoing one before dropping it. Nulling alone abandons a built
-        // CloseableHttpClient, its connection manager and its pooled sockets to the collector —
-        // and apply() fires on every `configure ssl/proxy/timeout/...`, and unconditionally after
-        // every shared-scope call. A scenario doing request -> shared-scope call -> request
-        // therefore abandoned one whole client silently, which is the same nondeterministic
-        // release that closing at scenario end was meant to remove.
+        // CloseableHttpClient, its connection manager and its pooled sockets to the collector,
+        // which is the same nondeterministic release that closing at scenario end was meant to
+        // remove. Reaching here now means the config genuinely changed, so this teardown is work
+        // that had to happen either way.
         closeQuietly();
         LOGGER.debug("http client config applied");
     }
