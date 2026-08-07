@@ -160,12 +160,20 @@ etc/ec2/matrix.sh --tier 10ms --pairs 10 --iterations 4000 --users 8 \
                   --local-mock --label 10ms-1host      # the co-location control
 ```
 
-**The pooled-connection A/B — the next run this bench is for.**
+**The pooled-connection A/B — run on 2026-08-07; result in [PROFILING.md §9](./PROFILING.md).**
 
 ```bash
 etc/ec2/matrix.sh --tier 10ms --pairs 10 --iterations 4000 --users 8 --pooled --label 10ms-pooled
 etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --pooled --label 50ms-pooled
 ```
+
+**Run the unpooled half in the same session, on the same hosts, rather than reusing an older
+table.** That is what the 2026-08-07 run did, and it is not caution for its own sake: the effect
+is ~0.4 ms/iteration, which is the same order as the drift between two sessions — and the earlier
+10 ms table turned out to disagree with a fresh one by 0.27 ms (§9 item 2). Re-running both halves
+also buys a free control, because the **plain** arm is untouched by `--pooled`: if plain's req/s
+matches across the two matrices (it drifted 0.08% and 0.00%), the halves are comparable, and if it
+does not, you have found that out instead of publishing it.
 
 `--pooled` gives the **karate arm only** a shared connection pool
 (`-Dkarate.profiling.pooled=true` → `PooledHttpClientFactory`). The plain arm is Gatling's own

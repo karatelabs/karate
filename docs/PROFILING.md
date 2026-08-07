@@ -1196,71 +1196,107 @@ information per unit of work, and finished items are deleted rather than struck 
 and git history record those.
 
 **Settled, do not redo:** the two-host EC2 bench (built and automated —
-[PROFILING_EC2.md](./PROFILING_EC2.md)); the 10 ms tier (+1.79 ms/iteration, sd 0.05, n=9); the
-50 ms tier (§10); HTTP client *release* (done, three reviews, `HttpClientFactory.release()` at
-scenario end plus the mock and post-release paths); and the soak instrument (`--soak`, live-set
-probe, digest integrity checks).
+[PROFILING_EC2.md](./PROFILING_EC2.md)); the 50 ms tier (§10, +1.90 sd 0.05 — and independently
+reproduced at +1.89 sd 0.04 on 2026-08-07); HTTP client *release* (done, three reviews,
+`HttpClientFactory.release()` at scenario end plus the mock and post-release paths); the pooled-
+client A/B (immediately below); and the soak instrument (`--soak`, live-set probe, digest
+integrity checks).
 
-1. **Pooled-client A/B — half measured. The remaining half needs the two-host bench.**
+**Not settled, despite having been published:** the 10 ms tier. It stood at +1.79 ms/iteration
+(sd 0.05, n=9) and measured +1.52 (sd 0.03, n=10) on 2026-08-07. Item 2 below is that
+disagreement; do not quote either figure without reading it first.
 
-   **Done, and the connection question is answered.** Karate opened one connection per iteration;
-   `PooledHttpClientFactory` (in `karate-profiling`, deliberately — see its javadoc) collapses it.
-   Measured locally, 400 iterations at 4 virtual users, both arms serving exactly 800 requests:
+**Settled by the A/B run of 2026-08-07 — the pooled-client question.** Karate opened one
+connection per iteration; `PooledHttpClientFactory` (in `karate-profiling`, deliberately — see its
+javadoc) collapses it, and the two-host bench has now priced that collapse in time. Both arms were
+re-run in a single session on one pair of hosts at build `94356d1`, 10 pairs per cell, zero KO and
+zero errors across all 80 runs:
 
-   | | distinct client ports | rate |
-   |---|---:|---:|
-   | unpooled | **400** — one per iteration | 946 conn/s, above this host's ~546/s ceiling |
-   | pooled | **4** — one per virtual user | 11 conn/s |
+| tier | unpooled | pooled | saved | karate deficit |
+|---|---|---|---:|---|
+| 10 ms | +1.52 ms/iter (sd 0.03) | **+1.15** (sd 0.04) | **0.37 ms** | 6.7% → **5.1%** |
+| 50 ms | +1.89 ms/iter (sd 0.04) | **+1.44** (sd 0.03) | **0.45 ms** | 1.8% → **1.4%** |
 
-   Four ports for four users is plain Gatling's shape. Run it with
-   `etc/run.sh gatling-http-karate ... -Dkarate.profiling.pooled=true`.
+About 24% of Karate's overhead at both tiers, at 23–28 standard errors. Two things make it a
+result rather than a number: the **plain arm is unchanged between the two matrices** and drifted
+0.08% at 10 ms and 0.00% at 50 ms, so the halves are comparable; and a second, independent route
+agrees — whole-process CPU per iteration fell 0.310 ms and 0.394 ms, while that same untouched
+plain arm moved 0.02 ms. Connection shape confirmed in every cell: 4000 → **8** distinct client
+ports at 8 users (10 ms), 1600 → **8** (50 ms).
 
-   The enabler was one line: `Runner.runFeature(path, arg, perfHook, tags, template)` copied eight
-   template fields and **not** `httpClientFactory`, so the Gatling lane could set a factory and
-   have it silently dropped. Fixed, with a test whose negative control reproduces the drop.
-   `ApacheHttpClient.sharedConnectionManager()` is the seam; non-null builds with
-   `setConnectionManagerShared(true)`, which is what makes per-scenario release safe.
+Run it with `etc/run.sh gatling-http-karate ... -Dkarate.profiling.pooled=true`, or
+`etc/ec2/matrix.sh --pooled`.
 
-   **What is NOT measured: what pooling buys in latency and throughput.** It cannot be measured on
-   loopback — a saved connection there is nearly free, which is exactly why this harness has priced
-   it at zero all along. It needs the **two-host bench at 10 ms and 50 ms**, pooled arm against
-   unpooled, and ideally a TLS tier where the saved handshake is worth 1–2 RTT rather than one.
-   Until that runs, this document still cannot say karate-gatling is good enough for **public TLS
-   endpoints** — the connection shape is fixed, but its price was never the thing in doubt on
-   loopback.
+The enabler was one line: `Runner.runFeature(path, arg, perfHook, tags, template)` copied eight
+template fields and **not** `httpClientFactory`, so the Gatling lane could set a factory and
+have it silently dropped. Fixed, with a test whose negative control reproduces the drop.
+`ApacheHttpClient.sharedConnectionManager()` is the seam; non-null builds with
+`setConnectionManagerShared(true)`, which is what makes per-scenario release safe.
 
-   Note what a pooled client gives up, because it decides where this can ever ship: the SSL socket
-   factory and the socket/connect timeouts are configured on the connection manager, so
-   per-scenario `configure ssl` and `configure connectTimeout` do not reach it. Fine for a parity
-   workload against one mock; not fine as karate-core's default, whose documented intent is
-   per-scenario isolation. If the A/B wins, **karate-gatling** is the home.
+**What the A/B does NOT license.** The saving is mostly client-side CPU — the per-iteration cost of
+constructing and discarding a client — not blocking on the handshake. Across a cluster placement
+group one RTT is ~0.1 ms, and the calibrator independently prices a whole connection at ~0.17 ms
+(keepalive versus close at one user, and ~0.17 ms at *both* tiers, so it is a property of the path
+rather than of the mock's sleep). **This measures the floor of pooling's benefit.** A public TLS
+endpoint saves 2 RTT plus asymmetric crypto per avoided handshake at a 10–100 ms RTT. So the run
+removes the objection that pooling might buy nothing; it does **not** let this document say
+karate-gatling is good enough for **public TLS endpoints**. That is item 3 below.
 
-2. **`--duration` for the `gatling-*` workloads** — `during()` in the injection profile instead of a
+Note what a pooled client gives up, because it decides where this can ever ship: the SSL socket
+factory and the socket/connect timeouts are configured on the connection manager, so
+per-scenario `configure ssl` and `configure connectTimeout` do not reach it. Fine for a parity
+workload against one mock; not fine as karate-core's default, whose documented intent is
+per-scenario isolation. **karate-gatling** is the home.
+
+1. **Stamp the build commit into `run-meta.txt`.** It records the JDK, the OS, the derived network
+   ceiling and the whole child command — but not the commit, and the artifact version is a fixed
+   `2.1.2.RC1` on every build. So no stored digest can say which source produced it, and
+   [§4.3's](./PROFILING_EC2.md) "publish numbers from a named commit" is unenforceable from the
+   artifact. `bootstrap.sh` already prints `built 94356d1 …`, so the value is in hand and merely is
+   not carried through. This is first because it is tiny and because everything below produces
+   numbers that will be compared across sessions — item 2 exists *only* because it was missing.
+
+2. **Re-run one 10 ms matrix — the 10 ms baseline moved and nothing can say why.** The A/B's
+   unpooled 50 ms cell reproduced the earlier published figure almost exactly (+1.90 → +1.89,
+   n=10 each). The 10 ms cell did not: **+1.79 → +1.52**, about 5 standard errors apart, on the
+   same instance type, AZ and JDK. The one structural difference is when each ran relative to the
+   HTTP-client lifecycle fixes — the 50 ms matrix ran after them, the 10 ms matrix before all of
+   them — which fits, since 10 ms is the only tier measured on both sides. **That is a hypothesis
+   the artifacts cannot test** (item 1), so it needs a run, not an argument.
+
+   It is not a footnote, because it weakens a headline. "The absolute cost is the same on an
+   iteration five times longer, so Karate's overhead is fixed client-side CPU that does not scale
+   with server latency" rested on 1.79 versus 1.90 — 0.11 ms apart. On current data the same
+   contrast is 1.52 versus 1.89, **0.37 ms apart, and reproduced in the pooled arm** (1.15 versus
+   1.44). The direction may well survive; the sharp form of it does not. Half a bench-hour.
+
+3. **A TLS tier and a body-size tier on `LatencyMock`**, plus the two equivalence controls (plain
+   checking all three fields; karate doing a minimal extraction). The smallest experiments that can
+   falsify "at any realistic API latency" — and now also the place where pooling's real value gets
+   decided, since the A/B above could only measure its floor. Promoted for that reason.
+
+4. **`--duration` for the `gatling-*` workloads** — `during()` in the injection profile instead of a
    repetition count. Small, and it is what unblocks a **Gatling soak**, still the largest
    unanswered question here (§2). The Runner-lane soak found no leak, but that workload makes zero
    HTTP calls, so the client and descriptor classes remain untested.
 
-3. **The user ramp**, paired with one open-arrival (`constantUsersPerSec`) lane so offered-versus-
+5. **The user ramp**, paired with one open-arrival (`constantUsersPerSec`) lane so offered-versus-
    completed load is visible — a closed model structurally hides it. Answers the concurrency-density
-   question below. After 1–2, because those change what its numbers mean.
+   question below.
 
-4. **A TLS tier and a body-size tier on `LatencyMock`**, plus the two equivalence controls (plain
-   checking all three fields; karate doing a minimal extraction). The smallest experiments that can
-   falsify "at any realistic API latency".
-
-5. **The injector-health check** — designed in **[GATLING.md §14.12](./GATLING.md)**, not built. It
+6. **The injector-health check** — designed in **[GATLING.md §14.12](./GATLING.md)**, not built. It
    mitigates this document's sharpest finding: Karate's overhead sits *between* `PerfEvent`
    brackets, so an under-provisioned injector reads as a throughput shortfall with clean
    percentiles and nothing in the report looks wrong. Gate on process CPU and heartbeat jitter;
    report per-iteration residue but never gate on it — Karate legitimately spends a millisecond or
-   two. After item 3, which says how much the underlying overhead matters.
+   two. After item 5, which says how much the underlying overhead matters.
 
-6. **The AST prototype A/B** — `/usr/bin/time` against main on `call-accumulation` and
+7. **The AST prototype A/B** — `/usr/bin/time` against main on `call-accumulation` and
    `feature-spread` at two sizes, wall and CPU. The measurement the parse-cache decision actually
    needs ([Parsed-JS reuse](#parsed-js-reuse--measured-half-gated-not-built)); a Gatling latency
    result cannot substitute. The prototype is on no branch or stash — recreate it from that section.
 
-7. **Mine [#845](#prior-art--the-09x-era-overhead-thread).** Reading, not building, and now worth
+8. **Mine [#845](#prior-art--the-09x-era-overhead-thread).** Reading, not building, and now worth
    reconciling *against* a result rather than before one.
 
 ### Per-scenario spill — designed, reviewed, deliberately not built
@@ -1603,6 +1639,15 @@ denominator grew. Karate's per-iteration overhead is client-side CPU that does n
 server's latency, and the practical reading is that **it matters least exactly where load tests
 usually live** — real APIs are slower than 10 ms, and at 50 ms it is under 2%.
 
+> **This paragraph is under review — read [§9 item 2](#if-you-are-picking-up-the-gatling-thread--the-order)
+> before relying on it.** A 2026-08-07 re-run reproduced the 50 ms figure (+1.89, sd 0.04, n=10)
+> but measured the 10 ms tier at **+1.52** (sd 0.03, n=10), not +1.79. Both tiers were re-measured
+> in one session on one pair of hosts, and both halves of that run agree with each other, so the
+> 0.37 ms gap between the tiers is not noise *within* that run. The claim's direction — a fixed
+> cost whose share shrinks as the denominator grows — is untouched; what is in doubt is the
+> stronger reading that the absolute number is the *same* at both tiers. Settling it needs one
+> 10 ms matrix, not an argument.
+
 **Why this tier was unreadable before, in one number.** Machine A (laptop), six pairs: individual
 values from **−6.9 to +6.9 ms**, sd 4.83, mean not distinguishable from zero. Here: sd 0.05, a
 ~100x tighter spread on the same experiment. The cause was never the pair count. Averaging does
@@ -1702,8 +1747,14 @@ Reproduce with [PROFILING_EC2.md](./PROFILING_EC2.md).
 |---|---:|---:|---:|
 | **two hosts, warmed** | **+1.79** | **0.05** | 9 |
 | two hosts, including the cold-mock pair | +1.84 | 0.17 | 10 |
+| two hosts, warmed, re-run 2026-08-07 | **+1.52** | 0.03 | 10 |
 | co-located control, same instance | +1.94 | 0.09 | 4 |
 | machine A (laptop), co-located | +0.59 | 0.29 | 3 |
+
+The 2026-08-07 row does not agree with the row above it, and which one describes current `main` is
+open — see [§9 item 2](#if-you-are-picking-up-the-gatling-thread--the-order). It is listed rather
+than substituted because nothing in either run's artifacts records the commit that produced it,
+so there is no basis yet for calling one of them stale.
 
 **The noise problem is solved: sd 0.05 ms against an effect of 1.79.** The laptop could not
 resolve 0.5% of an iteration against a 3–6% floor; this machine resolves it with room to spare,
