@@ -57,6 +57,12 @@ public final class JfrDigest {
 
     private static final String KARATE_PREFIX = "io.karatelabs.";
     private static final int TOP_N = 25;
+    /**
+     * Below this many jdk.OldObjectSample events, the retained tables are not evidence. A
+     * one-hour soak at ~9,900 iterations/s produced 19, most with no reference chain even with
+     * path-to-gc-roots=true.
+     */
+    private static final int RETAINED_SAMPLES_FOR_CONFIDENCE = 200;
 
     /** What the parent knows that the recording doesn't. */
     public record RunInfo(String workload, int exitCode, boolean timedOut, boolean heapDump,
@@ -619,10 +625,28 @@ public final class JfrDigest {
                     + "nothing survived long enough to be sampled._\n\n");
             return;
         }
+        md.append("**Samples: ").append(data.retainedSamples).append("**");
+        // The count decides whether the tables below mean anything, so it leads rather than
+        // appearing as a footnote. A one-hour soak at ~9,900 iterations/s produced 19 — and 19
+        // rows rendered as tidy percentages read as a finding. They are not one.
+        if (data.retainedSamples < RETAINED_SAMPLES_FOR_CONFIDENCE) {
+            md.append(" — **too few to attribute anything.** `jdk.OldObjectSample` samples "
+                    + "sparsely by design, and a long soak does not reliably produce more: this "
+                    + "is a leak *detector's* output, not a leak *locator's*. The shares below "
+                    + "are over a handful of objects, and long-lived infrastructure threads "
+                    + "(the harness's own progress reporter, JFR's writers) crowd out the "
+                    + "workload because they survive everything.\n\n"
+                    + "**Use the heap-after-GC panel above to decide whether there is a leak, "
+                    + "and a class histogram to name it:**\n\n"
+                    + "```bash\njcmd <child-pid> GC.run && jcmd <child-pid> GC.class_histogram\n"
+                    + "```\n\nTwo of those, minutes apart, name what grew — which is what this "
+                    + "panel is trying and failing to do.");
+        }
+        md.append("\n\n");
         md.append("### By type\n\n");
-        table(md, "type", data.retainedByClass, data.retainedTotal, Unit.BYTES);
+        table(md, "type", data.retainedByClass, data.retainedTotal, Unit.COUNT);
         md.append("### By allocating site\n\n");
-        table(md, "site", data.retainedBySite, data.retainedTotal, Unit.BYTES);
+        table(md, "site", data.retainedBySite, data.retainedTotal, Unit.COUNT);
     }
 
     /**
@@ -682,11 +706,19 @@ public final class JfrDigest {
                         data.gcByCause.merge(stringValue(event, "cause"), 1L, Long::sum);
                     }
                     case "jdk.OldObjectSample" -> {
-                        // Weight by last-known heap usage where available, else count.
-                        long weight = Math.max(1, longValue(event, "lastKnownHeapUsage", 1));
-                        data.retainedTotal += weight;
-                        data.retainedByClass.merge(oldObjectClass(event), weight, Long::sum);
-                        data.retainedBySite.merge(site(event.getStackTrace()), weight, Long::sum);
+                        // One sample = one count. This used to weight each sample by
+                        // lastKnownHeapUsage — which is the size of the WHOLE HEAP when the
+                        // sample was taken, not the size of the sampled object — and then render
+                        // the sums under a column headed "bytes". A one-hour soak reported
+                        // 163.6 MB of jdk.internal.vm.StackChunk "retained" in a JVM whose live
+                        // set was 27 MB, and the seven types summed to 271 MB for the same
+                        // reason. It also silently weighted late samples above early ones, since
+                        // the heap is larger later. jdk.OldObjectSample carries no object size,
+                        // so count is the only honest unit.
+                        data.retainedSamples++;
+                        data.retainedTotal++;
+                        data.retainedByClass.merge(oldObjectClass(event), 1L, Long::sum);
+                        data.retainedBySite.merge(site(event.getStackTrace()), 1L, Long::sum);
                     }
                     default -> {
                     }
@@ -905,6 +937,7 @@ public final class JfrDigest {
         final List<Long> gcPauses = new ArrayList<>();
         final Map<String, Long> gcByCause = new TreeMap<>();
         long retainedTotal;
+        long retainedSamples;
         final Map<String, Long> retainedByClass = new LinkedHashMap<>();
         final Map<String, Long> retainedBySite = new LinkedHashMap<>();
     }
