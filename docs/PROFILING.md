@@ -1199,6 +1199,15 @@ as good as vanilla Gatling?* Everything below is scoped to closing that and noth
 scope is deliberately **50 ms and above** — real APIs are slower than 10 ms, and that is where the
 answer matters.
 
+#### Treat the next bench session as a first pass
+
+Sized at about **3 hours / $4**, deliberately. Findings that warrant a re-run are the likely
+outcome rather than the failure case, so the cells below buy the fastest honest answer rather than
+the most decisive one: 10 pairs only where the number gets published (experiment 1), 5 where the
+job is to bracket or to establish a direction, two body sizes rather than three, and a soak sized
+by iterations rather than by the clock. Spend the long runs on whatever the first pass makes
+interesting.
+
 #### Where it stands
 
 **Settled, do not redo:** the two-host EC2 bench ([PROFILING_EC2.md](./PROFILING_EC2.md)); the
@@ -1296,23 +1305,40 @@ the mock host, so `mock.sh start` refuses on a `--single` bench.
 
 ```bash
 mock=$(etc/ec2/ssh.sh mock-private)
-etc/ec2/mock.sh start 50ms 8090
+etc/ec2/mock.sh start 10ms 8090
 
 # Pooled, because that is what karate-gatling ships for a load test. The property is
 # exactly what matrix.sh --pooled passes.
 etc/ec2/ssh.sh injector "cd ~/karate/karate-profiling && nohup etc/run.sh run gatling-http-karate \
-    --duration 2h --soak --threads 8 --mock-url http://$mock:8090 \
-    -Dkarate.profiling.pooled=true --timeout 3h > ~/soak.log 2>&1 &"
+    --duration 1h --soak --threads 8 --mock-url http://$mock:8090 \
+    -Dkarate.profiling.pooled=true --timeout 90m > ~/soak.log 2>&1 &"
 
 # while it runs:
 etc/ec2/ssh.sh injector 'grep PROFILING-LIVE-SET ~/soak.log | tail -5'
 etc/ec2/collect.sh
 ```
 
-**One soak, two hours, ~$2.50.** Pooled is the configuration under test, and it is also the harder
-case for this panel to read: a pool holds descriptors deliberately, so the healthy shape is a flat
-NON-zero count and only a rising one is a finding. An unpooled soak would answer a question nobody
-is asking about karate-gatling.
+**One hour, at the 10 ms tier, not two hours at 50 ms — and that is the more sensitive run, not a
+cheaper one.** What this experiment is hunting is a client retained per *execution*, so iterations
+are the exposure unit and wall time is only their proxy. At 8 users the 50 ms tier yields ~76
+iterations/s and the 10 ms tier ~320, so:
+
+| | iterations | wall | cost |
+|---|---:|---:|---:|
+| 2 h at 50 ms | 0.55 M | 2 h | ~$2.50 |
+| **1 h at 10 ms** | **1.15 M** | **1 h** | **~$1.20** |
+
+Twice the exposure, half the time. Use 50 ms only if the suspicion is a *time*-based retention — a
+scheduled task, a TTL cache — which nothing here points at.
+
+Pooled, because that is the configuration under test, and it is also the harder case for this panel
+to read: a pool holds descriptors deliberately, so the healthy shape is a flat NON-zero count and
+only a rising one is a finding. An unpooled soak would answer a question nobody is asking about
+karate-gatling.
+
+**If it comes back ambiguous, that is when you spend the long run** — overnight at 10 ms, or 50 ms
+if the shape suggests time rather than iterations. A first pass that ends in "re-run longer" has
+still done its job.
 
 
 
@@ -1349,8 +1375,8 @@ variant against the right partner, and `compare` reports each as its own table r
 it into the ordinary pair.
 
 ```bash
-etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --pooled --control fat  --label 50ms-fat
-etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --pooled --control lean --label 50ms-lean
+etc/ec2/matrix.sh --tier 50ms --pairs 5 --iterations 1600 --users 8 --pooled --control fat  --label 50ms-fat
+etc/ec2/matrix.sh --tier 50ms --pairs 5 --iterations 1600 --users 8 --pooled --control lean --label 50ms-lean
 ```
 
 Karate is the arm doing more today, so the published deficit is an **upper** bound. One residual
@@ -1361,13 +1387,19 @@ a number, while the fat control's three `jsonPath` checks are open and compare i
 **The body-size tier is now built** — `--body-size N`, and the `gatling-body-*` family.
 
 ```bash
-for size in 1024 8192 65536; do
-  etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --pooled \
+for size in 1024 65536; do
+  etc/ec2/matrix.sh --tier 50ms --pairs 5 --iterations 1600 --users 8 --pooled \
       --body-size $size --label 50ms-body-$size
-  etc/ec2/matrix.sh --tier 50ms --pairs 10 --iterations 1600 --users 8 --pooled \
+  etc/ec2/matrix.sh --tier 50ms --pairs 5 --iterations 1600 --users 8 --pooled \
       --body-size $size --control fat --label 50ms-body-$size-fat
 done
 ```
+
+**Two sizes, not three, and 5 pairs rather than 10.** The first question is binary — does the
+deficit scale at all — and two points 64x apart answer it. Curvature is a follow-up worth a third
+size only if the slope turns out to be real, and 5 pairs resolves an effect this size comfortably
+(the plaintext A/B needed 10 for a 0.45 ms effect; anything the body tier surfaces will be larger
+or it is not a finding).
 
 **Pooled, for the same reason as the other two** — the slope should be measured in the
 configuration that ships, and holding connection setup constant keeps it out of the slope.
