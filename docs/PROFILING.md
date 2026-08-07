@@ -1569,58 +1569,33 @@ iterations per user.
 | 3 | k→p | 590.8 | 582.6 | 1.4% | +0.38 | `…karate-…-170839` / `…plain-…-170933` |
 | **mean** | | **557.7** | **546.6** | **2.0%** | **+0.59** (sd 0.29) | |
 
-#### 50 ms tier — 1600 iterations (200 per user), ~110 ms iteration
+#### 50 ms tier — 1600 iterations (200 per user), ~102 ms iteration — **RESOLVED**
 
-**Six pairs, and the tier is still not resolved — because the limit is the machine, not the pair
-count.** Pairs 4–6 were run to close the loose end the first three left. They made the spread
-*worse*, and the reason is recorded rather than averaged away: the laptop was in use during them.
+Two-host EC2 (`c7g.4xlarge` x2, Graviton3, JDK 24), 10 pairs, arm order alternating, `--mock-url`
+to a `LatencyMock` on its own instance. This is the tier the whole EC2 phase existed for.
 
-| pair | order | plain req/s | karate req/s | karate deficit | added ms/iteration | sleep-corrected |
-|---:|---|---:|---:|---:|---:|---:|
-| 1 | p→k | 132.6 | 133.1 | −0.4% | −0.45 | +0.64 |
-| 2 | k→p | 141.5 | 135.6 | +4.2% | +4.92 | +5.05 |
-| 3 | p→k | 140.7 | 137.1 | +2.5% | +2.96 | +2.92 |
-| 4 | k→p | 125.4 | 132.5 | −5.7% | −6.88 | −4.87 |
-| 5 | p→k | 133.2 | 131.8 | +1.0% | +1.24 | +3.61 |
-| 6 | k→p | 137.4 | 129.8 | +5.6% | +6.85 | +7.21 |
-| **mean 1–3** | | **138.3** | **135.3** | **2.1%** | **+2.48** (sd 2.72) | +2.87 (sd 2.21) |
-| **mean 1–6** | | **135.1** | **133.3** | **1.2%** | **+1.44** (sd 4.83) | +2.43 (sd 4.19) |
+| | plain req/s | karate req/s | deficit | added ms/iteration | injector cores (p/k) |
+|---|---:|---:|---:|---:|---:|
+| **mean of 10 pairs** | **156.8** | **153.9** | **1.8%** | **+1.90** (sd 0.05) | 0.4 / 0.6 of 16 |
 
-Run directories are in the digests; regenerate this table with
-`etc/run.sh compare target/profiling/gatling-http-*` rather than reading it off by hand.
+Individual pairs span **+1.82 to +1.96 ms**. Every pair agrees to two decimal places on throughput.
+Regenerate with `profiler compare` over the run directories rather than reading this off by hand.
 
-**Doubling the pairs nearly doubled the standard deviation.** Pairs 4–6 alone are sd 6.90 against
-sd 2.72 for 1–3, and individual pairs now range from −6.9 to +6.9 ms on a ~110 ms iteration. That
-is not a noisier estimate of the same quantity converging slowly; it is a different noise floor.
+**The cost is fixed, not proportional — which is the finding.** Against the 10 ms tier's +1.79 ms
+(sd 0.05, n=9), the same work costs +1.90 ms here: the same absolute number, within noise, on an
+iteration five times longer. So the *share* falls from **7.9% to 1.8%** purely because the
+denominator grew. Karate's per-iteration overhead is client-side CPU that does not scale with the
+server's latency, and the practical reading is that **it matters least exactly where load tests
+usually live** — real APIs are slower than 10 ms, and at 50 ms it is under 2%.
 
-**The contention is visible inside the instrument, which is how it is known rather than guessed.**
-The mock's own measured sleep overshoot rose from 54.4–55.2 ms in pairs 1–3 to 54.8–56.3 ms in
-4–6, and plain-arm p50 drifted 56 → 62 ms. Both are the machine, not either client.
-
-**So the arithmetic that matters is this:** a fixed ~0.6 ms cost on a 110 ms iteration is a **0.5%**
-deficit, and this laptop's run-to-run floor is **3–6%**. The effect is an order of magnitude below
-the noise.
-
-**More pairs do converge — that is worth stating precisely, because the first draft of this section
-said they would not.** The arm order alternates, so noise hitting both arms leaves the mean
-unbiased; averaging works, at `sd/√n`. What it costs is the point. From sd 4.83, resolving a 0.6 ms
-effect to within half itself needs **~260 pairs** at one standard error, or **~1000** at roughly 95%
-confidence — 10 to 40 hours of machine time, against a fix that costs an afternoon. Halving the
-noise is worth quadrupling the runs, which is why the answer is a quieter machine and not a longer
-sweep. `profiler compare` prints this figure per tier so the trade is explicit rather than asserted.
-
-**This tier needs a quiet, dedicated machine, and until it has one the honest statement is that
-50 ms is unresolved.** See [The two-host phase](#the-two-host-phase-what-is-built-and-what-it-is-for).
-
-**How strong is the "it was the laptop" attribution? Weaker than the wording above implies, and
-worth holding loosely.** Three pairs against three is `F(2,2) ≈ 6.4, p ≈ 0.27` — not separable from
-sampling noise at these degrees of freedom, and the sd 4.83 estimate itself carries a 95% interval
-of roughly 3–12. The sleep-overshoot and p50 drifts are real (verified in the digests) but they move
-**both** arms, so they cannot arithmetically explain a ±7 ms swing in the *between-arm* difference;
-they establish that the machine was busier, not that busyness produced these particular pairs. And
-nothing in any digest can confirm what *other* software was running — `SelfCpu` sees only the
-harness's own processes. What is solid without the attribution: **six pairs leave the spread more
-than three times the effect**, and that alone is the case for a different machine.
+**Why this tier was unreadable before, in one number.** Machine A (laptop), six pairs: individual
+values from **−6.9 to +6.9 ms**, sd 4.83, mean not distinguishable from zero. Here: sd 0.05, a
+~100x tighter spread on the same experiment. The cause was never the pair count. Averaging does
+converge at `sd/√n`, but from sd 4.83 resolving a ~0.6 ms effect to within half itself needs
+**~260 pairs at one standard error, ~1000 at 95%** — 10 to 40 hours of machine time against a
+quiet machine that costs an afternoon and $3. **Halving the noise is worth quadrupling the runs;
+when a sweep is not converging, suspect the machine before adding pairs.** `profiler compare`
+prints the needed-pairs figure per tier so the trade is explicit rather than argued.
 
 #### 0 ms tier — the pure client-overhead tier, two sizes
 

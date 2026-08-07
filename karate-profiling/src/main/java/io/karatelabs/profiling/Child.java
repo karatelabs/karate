@@ -154,6 +154,13 @@ public final class Child {
             }
         }
 
+        // JFR's delay= is measured from JVM LAUNCH, not from here, so whatever the child spent
+        // on class loading, workload lookup and setup() is time the recording already started
+        // burning through the warmup allowance. Report the actual offset so the digest can say
+        // whether the warmup was really excluded instead of assuming it. See appendRunSummary.
+        long sinceLaunchMs = java.lang.management.ManagementFactory.getRuntimeMXBean().getUptime();
+        System.out.println(MEASURING_PREFIX + "sinceJvmStartMs=" + sinceLaunchMs
+                + " warmupMs=" + warmup.toMillis());
         System.out.println("[child] measuring");
         long startNanos = System.nanoTime();
         Thread liveSetProbe = null;
@@ -172,6 +179,14 @@ public final class Child {
         String cpuDescription = cpu.describe();
         if (liveSetProbe != null) {
             liveSetProbe.interrupt();
+            try {
+                // Join before the final reading. Interrupt alone does not stop a probe that has
+                // already woken, so its two System.gc() calls and its output could interleave
+                // with the final one — two readings racing for the same heap.
+                liveSetProbe.join(java.util.concurrent.TimeUnit.SECONDS.toMillis(30));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             // A final reading with the workload stopped. On a run that completed, no iteration is
             // in flight and this is the cleanest number the run produces — but on a TRUNCATED one
             // stragglers are still inside iterate() holding whatever they hold, so read this the
@@ -374,6 +389,9 @@ public final class Child {
     private static final AtomicLong PEAK_HEAP = new AtomicLong();
 
     /** Samples used heap continuously; a 5s progress tick alone would miss most of the curve. */
+    /** Emitted once, when the measured window opens. The digest checks the JFR delay against it. */
+    static final String MEASURING_PREFIX = "PROFILING-MEASURING ";
+
     /** Emitted once per probe; the digest turns these into the live-set series. Keep stable. */
     static final String LIVE_SET_PREFIX = "PROFILING-LIVE-SET ";
 
@@ -429,13 +447,15 @@ public final class Child {
      * rather than drawing it.
      */
     private static void probeOnce(long startNanos, boolean isFinal) {
-        long before = totalCollections();
+        long before = oldGenCollections();
         // Two passes: the first may leave objects that only became unreachable during it, and a
         // soak's whole question is whether the second number keeps climbing.
         System.gc();
         System.gc();
-        long after = totalCollections();
-        boolean collected = after > before;
+        long after = oldGenCollections();
+        // Two System.gc() calls, so two old-generation collections are expected; one is
+        // accepted because a collector may coalesce them, but zero is not.
+        boolean collected = after > before && !explicitGcUnusable;
         System.out.println(LIVE_SET_PREFIX
                 + "elapsedMs=" + ((System.nanoTime() - startNanos) / 1_000_000)
                 + " liveBytes=" + usedHeapBytes()
@@ -448,11 +468,22 @@ public final class Child {
         }
     }
 
-    /** Collections across every collector; {@code System.gc()} must move this. */
-    private static long totalCollections() {
+    /**
+     * Collections by the <b>old-generation</b> collector only.
+     *
+     * <p>It used to sum every collector, and that cannot prove what the probe needs. The workload
+     * runs throughout, so an ordinary young collection lands in that sum and marks the reading
+     * valid even when {@code System.gc()} did precisely nothing — the exact false-valid the flag
+     * exists to catch. Only an old-generation collection can have produced a live set, so only
+     * that counter is evidence.
+     */
+    private static long oldGenCollections() {
         long total = 0;
         for (java.lang.management.GarbageCollectorMXBean bean
                 : ManagementFactory.getGarbageCollectorMXBeans()) {
+            if (YOUNG_ONLY_COLLECTOR_BEANS.contains(bean.getName())) {
+                continue;
+            }
             long count = bean.getCollectionCount();
             if (count > 0) {
                 total += count;
@@ -460,6 +491,17 @@ public final class Child {
         }
         return total;
     }
+
+    /**
+     * {@link java.lang.management.GarbageCollectorMXBean#getName()} values that collect the young
+     * generation only. These are JMX bean names and are NOT the same strings as JFR's
+     * {@code jdk.GarbageCollection.name} — checked per collector on JDK 24 rather than assumed.
+     * Anything not listed is treated as touching the old generation, which errs toward calling a
+     * probe valid, so the VM-option check below is the real guard.
+     */
+    private static final java.util.Set<String> YOUNG_ONLY_COLLECTOR_BEANS = java.util.Set.of(
+            "G1 Young Generation", "PS Scavenge", "Copy", "ParNew", "ZGC Minor Cycles",
+            "ZGC Minor Pauses");
 
     /**
      * Two JVM flags quietly turn the probe into a resident-heap meter, and both arrive through
@@ -472,14 +514,21 @@ public final class Child {
      */
     private static void checkExplicitGcIsUsable() {
         for (String option : new String[]{"DisableExplicitGC", "ExplicitGCInvokesConcurrent"}) {
-            String value = vmOption(option);
-            if ("true".equals(value)) {
+            if ("true".equals(vmOption(option))) {
+                // Machine-readable, not just a log line. ExplicitGCInvokesConcurrent in particular
+                // cannot be caught empirically — the concurrent cycle returns before it has
+                // compacted, so collection counts move and the reading still means nothing — so
+                // this flag is the only thing standing between it and an authoritative panel.
+                explicitGcUnusable = true;
                 System.out.println("[child] WARNING: -XX:+" + option + " is set, so the live-set "
-                        + "probe cannot measure a live set. Its readings will be resident heap "
-                        + "including uncollected garbage — do not read them as a leak signal.");
+                        + "probe cannot measure a live set. Every reading will be marked "
+                        + "valid=false and the digest will refuse to plot them.");
             }
         }
     }
+
+    /** Set once at probe start; makes every subsequent reading report {@code valid=false}. */
+    private static volatile boolean explicitGcUnusable;
 
     /** The VM's own view of a flag, or null if it cannot be read (non-HotSpot, or restricted). */
     private static String vmOption(String name) {
@@ -499,7 +548,10 @@ public final class Child {
      * the right cadence for a soak and the wrong one for verifying that the plumbing works.
      */
     private static long liveSetIntervalSeconds() {
-        return Long.getLong("karate.profiling.liveSetSeconds", LIVE_SET_INTERVAL_SECONDS);
+        long seconds = Long.getLong("karate.profiling.liveSetSeconds", LIVE_SET_INTERVAL_SECONDS);
+        // A non-positive override makes TimeUnit.sleep throw, which would kill the probe thread
+        // and leave a soak with exactly one reading — and nothing would say why.
+        return seconds > 0 ? seconds : LIVE_SET_INTERVAL_SECONDS;
     }
 
     private static Thread startHeapSampler() {

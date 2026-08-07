@@ -454,12 +454,7 @@ public final class JfrDigest {
         // one-second delay floor gets no delay, and a self-driving workload runs no warmup at
         // all, yet this row asserted "excluded" for both.
         boolean delayed = String.join(" ", info.command()).contains(",delay=");
-        row(md, "warmup", RunShape.format(shape.warmup()) + (shape.warmup().isZero()
-                ? " (none)"
-                : delayed
-                        ? " (excluded — recording is delayed past it)"
-                        : " (**NOT excluded** — no JFR delay was applied, so this warmup is inside"
-                          + " the recording; JFR's minimum delay is 1s)"));
+        row(md, "warmup", RunShape.format(shape.warmup()) + warmupExclusion(runDir, shape, delayed));
         row(md, "-Xmx", info.jvm().xmx());
         row(md, "collector", info.jvm().gc().name().toLowerCase()
                 + " → `" + String.join(" ", info.jvm().flags(Runtime.version().feature())) + "`");
@@ -487,6 +482,45 @@ public final class JfrDigest {
         }
         md.append("> Compare digests only when `-Xmx`, `collector` and `jdk` match. "
                 + "Differences in any of those change what the numbers below mean.\n\n");
+    }
+
+    /**
+     * Whether the warmup was really kept out of the recording, with the number.
+     *
+     * <p>JFR's {@code delay=} is measured from <b>JVM launch</b>, and the child does not begin its
+     * warmup until class loading, workload lookup and {@code setup()} are done. So a delay equal
+     * to the warmup does not exclude the warmup — it excludes the first
+     * {@code warmup} milliseconds of the <em>process</em>, and everything the child spent getting
+     * started is subtracted from the allowance. With a 5 s warmup and 700 ms of startup, the last
+     * ~700 ms of warmup is recorded; if setup outlasts the warmup, all of it is. The row used to
+     * claim exclusion unconditionally, so two digests could carry different amounts of warmup
+     * while both said "excluded".
+     *
+     * <p>The child reports its own uptime at the moment the measured window opens, so the shortfall
+     * is arithmetic rather than an assumption.
+     */
+    private static String warmupExclusion(Path runDir, RunShape shape, boolean delayed) {
+        if (shape.warmup().isZero()) {
+            return " (none)";
+        }
+        if (!delayed) {
+            return " (**NOT excluded** — no JFR delay was applied, so this warmup is inside the "
+                    + "recording; JFR's minimum delay is 1s)";
+        }
+        String line = childLine(runDir, MEASURING_PREFIX);
+        double sinceLaunch = keyValueNumber(line, "sinceJvmStartMs");
+        if (sinceLaunch < 0) {
+            return " (recording delayed past it — but `delay=` runs from JVM launch, so any child "
+                    + "startup time ate into the exclusion; this run did not report how much)";
+        }
+        long overrun = (long) sinceLaunch - shape.warmup().toMillis();
+        return overrun <= 0
+                ? " (excluded — measurement began " + (long) sinceLaunch + " ms after JVM launch, "
+                  + "within the " + shape.warmup().toMillis() + " ms delay)"
+                : " (**" + overrun + " ms of it WAS recorded** — `delay=` runs from JVM launch and "
+                  + "measurement began " + (long) sinceLaunch + " ms in, past the "
+                  + shape.warmup().toMillis() + " ms delay. Raise `--warmup` above the child's "
+                  + "startup cost, and do not diff this against a run with a different overrun)";
     }
 
     /**
@@ -609,18 +643,22 @@ public final class JfrDigest {
         }
         md.append("## Live set (after forced full GC)\n\n");
         if (invalid > 0) {
-            // Refuse the series rather than draw it. A panel that renders resident heap under
-            // this heading is the failure mode two previous detectors had, and drawing it with a
-            // footnote is not materially different from drawing it.
-            md.append("> ⛔ **These readings are not live sets and must not be read as a leak "
-                            + "signal.** ").append(invalid).append(" of ").append(series.size())
-                    .append(" probes forced a collection that did not happen — `System.gc()` "
-                            + "returned without collecting anything, which is what "
-                            + "`-XX:+DisableExplicitGC` does. The numbers below are whatever "
-                            + "happened to be resident, including garbage. Re-run without that "
-                            + "flag. (`-XX:+ExplicitGCInvokesConcurrent` breaks the probe too, "
-                            + "and cannot be detected this way — the child warns about both at "
-                            + "startup.)\n\n");
+            // Fail closed: no table, no drift, no series. The previous version printed this
+            // warning and then drew every point anyway under the heading "This is the leak
+            // panel" — which is the same authoritative-looking wrong answer the panel exists to
+            // prevent, with a disclaimer on top that automation cannot read and a hurried human
+            // will skip. There is nothing to plot: the readings are resident heap.
+            md.append("> ⛔ **REFUSED — no live-set series is shown.** ").append(invalid)
+                    .append(" of ").append(series.size())
+                    .append(" probes forced a collection that did not happen, so the readings are "
+                            + "whatever was resident (garbage included) and mean nothing about "
+                            + "retention. The usual cause is `-XX:+DisableExplicitGC`, which makes "
+                            + "`System.gc()` a no-op; `-XX:+ExplicitGCInvokesConcurrent` breaks the "
+                            + "probe too and the child warns about both at startup. Re-run without "
+                            + "them, or take two class histograms minutes apart:\n>\n"
+                            + "> ```bash\n> jcmd <child-pid> GC.run && jcmd <child-pid> "
+                            + "GC.class_histogram\n> ```\n\n");
+            return;
         }
         md.append("**This is the leak panel.** Each row is the heap in use immediately after two "
                 + "forced full collections, so it is what genuinely survived rather than what "
@@ -645,6 +683,7 @@ public final class JfrDigest {
     }
 
     private static final String LIVE_SET_PREFIX = "PROFILING-LIVE-SET ";
+    private static final String MEASURING_PREFIX = "PROFILING-MEASURING ";
 
     private static void appendHeapAfterGc(StringBuilder md, Data data) {
         md.append("## Heap after GC\n\n");
@@ -666,9 +705,11 @@ public final class JfrDigest {
             // rather than as a footnote, because the series below is the thing being misread.
             md.append("> ⚠️ **This is not a live-set series, and a rise in it is not a leak.** ")
                     .append(data.youngOnlyCollections).append(" of ").append(totalCollections)
-                    .append(" collections in this run were **young-generation only** — no "
-                            + "concurrent cycle, no mixed collection, no full GC. Nothing ever "
-                            + "collected the old generation, so promoted garbage accumulates there "
+                    .append(" collections in this run were **young-generation only** (")
+                    .append(data.oldGenCollections)
+                    .append(" touched the old generation) — far too few for this series to "
+                            + "represent a live set. Promoted garbage accumulates in the old "
+                            + "generation "
                             + "and this floor climbs in a straight line whether or not anything is "
                             + "retained.\n>\n"
                             + "> It is the normal state of a soak: a collector sized far above the "
@@ -782,8 +823,10 @@ public final class JfrDigest {
                     + "are over a handful of objects, and long-lived infrastructure threads "
                     + "(the harness's own progress reporter, JFR's writers) crowd out the "
                     + "workload because they survive everything.\n\n"
-                    + "**Use the heap-after-GC panel above to decide whether there is a leak, "
-                    + "and a class histogram to name it:**\n\n"
+                    + "**Decide whether there is a leak from the live-set panel above** (a "
+                    + "`--soak` run records one), never from the heap-after-GC series, which "
+                    + "cannot tell retention from promoted garbage. Then name it with a class "
+                    + "histogram:**\n\n"
                     + "```bash\njcmd <child-pid> GC.run && jcmd <child-pid> GC.class_histogram\n"
                     + "```\n\nTwo of those, minutes apart, name what grew — which is what this "
                     + "panel is trying and failing to do.");
@@ -1063,6 +1106,21 @@ public final class JfrDigest {
         } catch (IOException e) {
             return 0;
         }
+    }
+
+    /** The last stdout line starting with {@code prefix}, without it; null if absent. */
+    private static String childLine(Path runDir, String prefix) {
+        try {
+            List<String> lines = Files.readAllLines(runDir.resolve("stdout.log"));
+            for (int i = lines.size() - 1; i >= 0; i--) {
+                if (lines.get(i).startsWith(prefix)) {
+                    return lines.get(i).substring(prefix.length());
+                }
+            }
+        } catch (IOException e) {
+            return null;
+        }
+        return null;
     }
 
     private static String findChildSummary(Path runDir) {

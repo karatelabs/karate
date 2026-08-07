@@ -151,6 +151,11 @@ public class MockServer implements SimpleObject {
      */
     public void waitSync() {
         httpServer.waitSync();
+        // Once this returns the server is stopped, so the cached per-feature runtimes are safe to
+        // release. stopAsync() cannot do it — the server is still winding down there and a request
+        // may still hold a client — which left `stopAsync(); waitSync()`, the natural asynchronous
+        // shutdown, never releasing anything. Idempotent, so a later stopAndWait() is harmless.
+        handler.releaseHttpClients();
     }
 
     /**
@@ -437,14 +442,19 @@ public class MockServer implements SimpleObject {
                 watchedFiles.clear();
                 watchedFiles.putAll(newWatchedFiles);
 
-                // Create new handler with reloaded features. The outgoing one's per-feature
-                // runtimes each hold an HTTP client, and a dev-mode session reloads on every file
-                // save — so without this each save abandons a handler's worth of them.
-                MockHandler outgoing = handler;
+                // Create new handler with reloaded features.
+                //
+                // The outgoing handler's clients are deliberately NOT released here, and that is a
+                // known bounded leak rather than an oversight. apply() is the per-request entry
+                // point and netty calls it concurrently, so another worker can be inside
+                // outgoing.apply() — mid `karate.proceed`, using that very client — at the moment
+                // this line runs. Closing it there surfaces to the user as an intermittent
+                // SocketException during a file save, which is worse than retaining one built
+                // client per mock feature per reload (and only for mocks that make outbound calls
+                // at all). Releasing safely needs the outgoing handler to be leased or
+                // reference-counted so it can drain first; that is a real change to the request
+                // path, not a line here.
                 handler = new MockHandler(reloadedFeatures, args, pathPrefix, javaBridgeEnabled, requestExpressionsEnabled);
-                if (outgoing != null) {
-                    outgoing.releaseHttpClients();
-                }
                 logger.info("reloaded {} feature(s)", reloadedFeatures.size());
             }
 

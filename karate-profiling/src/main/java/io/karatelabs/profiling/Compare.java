@@ -463,9 +463,18 @@ public final class Compare {
         }
     }
 
-    /** The injector's row of the CPU headroom panel; -1 for a run taken before that panel existed. */
+    /**
+     * The injector's row of the CPU headroom panel; -1 for a run taken before that panel existed.
+     *
+     * <p>Matched on a <b>prefix</b>, deliberately. This used to require the exact string
+     * {@code "| workload (the injector) |"}, and the day the panel started naming each row's own
+     * core count — {@code "workload (the injector, 16 cpus)"} — every table began printing
+     * {@code ?} for injector cores. That was the visible half. The invisible half is worse: the
+     * saturation check below gates on this value, so it silently stopped firing, and a run that
+     * pegged its injector would have been reported as a clean measurement.
+     */
     private static double injectorCores(String digest) {
-        int at = digest.indexOf("| workload (the injector) |");
+        int at = digest.indexOf("| workload (the injector");
         if (at < 0) {
             return -1;
         }
