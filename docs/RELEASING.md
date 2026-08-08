@@ -54,7 +54,7 @@ on one, so the release does **not** block on CVEs. `cve.yml` is the gate: it fai
 
   Local fallback — produces the identical report without waiting on CI:
   ```bash
-  mvn -B -ntp org.owasp:dependency-check-maven:12.2.2:check \
+  mvn -B -ntp org.owasp:dependency-check-maven:13.0.0:check \
     -DossIndexAnalyzerEnabled=false -DskipProvidedScope=true -DskipTestScope=true \
     -DsuppressionFiles=etc/cve-suppressions.xml -Dformat=JSON
   python3 etc/generate-cve-report.py --version X.Y.Z

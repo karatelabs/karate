@@ -35,7 +35,7 @@ jobs:
     # GitHub-hosted maximum; only a cold run goes anywhere near it.
     timeout-minutes: 355
     env:
-      DEPCHECK_VERSION: 12.2.2
+      DEPCHECK_VERSION: 13.0.0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -142,8 +142,11 @@ jobs:
           # floor first landed at 200MB (a 14% gap that a 86%-built DB sailed
           # through). 220MB sits just under a known-good DB, which only grows as
           # CVEs accumulate, so it cannot false-positive while still catching a
-          # partial build. Re-baseline if DEPCHECK_VERSION changes - a schema
-          # change moves the size.
+          # partial build. Re-baseline when the ODC schema moves, not on every
+          # DEPCHECK_VERSION bump: the schema is dep-check's data.version, and it
+          # is also what names the data directory (data/11.0/odc.mv.db), so an
+          # unchanged data.version means the same DB, the same size and a cache
+          # that carries straight over.
           MIN=$((220 * 1048576))
           if [ "${BYTES}" -lt "${MIN}" ]; then
             echo "::error::NVD database is only $((BYTES / 1048576)) MB (floor: $((MIN / 1048576)) MB) - looks partial, refusing to cache it or scan against it"
