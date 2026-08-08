@@ -286,7 +286,7 @@ explicitly**.
 
 ```bash
 # rehearsal — a probe every 20s instead of every 5 minutes
-etc/run.sh suite-soak --iterations 2000 --threads 4 --soak --timeout 30m \
+etc/run.sh suite-soak --iterations 2000 --threads 4 --soak --xmx 4g --timeout 30m \
     --mock-url https://<mock>:8443 -Dkarate.profiling.reports=all \
     -Dkarate.profiling.liveSetSeconds=20
 ```
@@ -1132,8 +1132,47 @@ Both are fixed (§3); **a confirming re-run against the fixed panels is cheap an
 before this is quoted as a public claim — not because the conclusion is in doubt, but because
 the artifact that states it was demonstrably able to state the opposite.
 
-The retention this measured has since been largely removed: karate-core now releases a step's
-log and embeds at feature end, which is the change these numbers argued for.
+### E1R — the confirming re-run, and what it must show
+
+**Not yet taken.** It is one run answering two questions: it re-reads E1 on the fixed panels
+(§3), and it is the measurement of the change E1's numbers argued for. Pre-registered here
+*before* the run, because a threshold chosen after seeing the result is not a threshold.
+
+**The change under test is `3ef1236f`** — karate-core releases a step's captured log and embeds
+at feature end, for top-level features, when neither `retainStepLogs` nor perf mode is set. The
+digest's `build` row must name that commit or a descendant; on anything at or before `ef989f6`
+the run has measured the pre-fix source and confirms nothing.
+
+**What it removes, and what it deliberately does not.** It frees the captured request/response
+*text* — the `[B` and `String` that the by-hand histograms found dominating the peak (290 MB and
+102 MB). It does **not** free the result skeleton: the `StepResult` and `gherkin.Step` objects
+still stand until suite end, because the HTML report for a feature is written from them. So the
+within-suite ramp is predicted to fall a long way and **not** to vanish, and a run that flattened
+it completely would be evidence of something else — probably that the workload stopped capturing.
+
+Run the canonical command above unchanged, so the digest is comparable line for line. Then:
+
+| reading | source | pre-fix (E1) |
+|---|---|---|
+| peak live set within a suite | `suite-N-peak` labelled probe | ~791 MiB |
+| what the peak is made of | `histogram-suite-N-peak.txt` | 290 MB `[B`, 102 MB `String` |
+| floor after each suite | `suite-N-floor` labelled probe | flat, and 12.2 MiB once load stopped |
+
+**The decision rule.** Gate first — 4/4 suites, 0 failures, reconciliation exact — because a run
+that stopped early flatters every panel below it:
+
+- **Confirms** — peak falls below ~400 MiB (at least half the pre-fix ramp gone) *and* `[B` +
+  `String` no longer head `histogram-suite-N-peak.txt`, with floors still flat.
+- **Qualifies** — peak falls, but the text is still in the peak histogram. The release fires and
+  something downstream is holding the same bytes; find the holder before quoting either number.
+- **Refutes** — peak within ~10% of 791 MiB on a digest stamped `3ef1236f` or later.
+- **Regresses** — floors step up between suites, or descriptors climb. That is a new leak, and it
+  outranks the retention question.
+
+**One thing this run cannot see.** Releasing logs is only safe because the report writers have
+already consumed them; the bench never checks that, since `collect.sh` pulls digests and the
+report trees die with the host. That guarantee lives in `StepLogReleaseTest`, not here — so a
+green digest is not evidence the reports are intact, and the two must not be conflated.
 
 ### Paused — the Gatling arc
 
@@ -1179,12 +1218,13 @@ about to be published; ~20 + ~30 min.
 ### Bench budget
 
 Two `c7g.4xlarge` are ~$1.16/hr; provision + bootstrap is ~6 min of every session. The next
-session is: verification runs (only if a script changed since they last ran) → E1 rehearsal →
-E1 soak.
+session is: verification runs (only if a script changed since they last ran) → **E1R**, the
+confirming re-run — same command as E1, read against the pre-registered rule in §9.
 
 | | settles | bench time | ~cost |
 |---|---|---:|---:|
-| **E1 suite soak** — *taken 2026-08-08, ~$2.30* | "no leak in karate" — reports on, TLS, and the unpooled client lifecycle. Answered; a confirming re-run is cheap once the panel fixes land | ~2 h | ~$2.30 |
+| **E1R confirming re-run** — *next* | reads E1 on the fixed panels, and measures the step-log release (`3ef1236f`) it argued for. Decision rule pre-registered in §9 | ~2 h | ~$2.30 |
+| **E1 suite soak** — *taken 2026-08-08, ~$2.30* | "no leak in karate" — reports on, TLS, and the unpooled client lifecycle. Answered, but on panels since found defective — see E1R | ~2 h | ~$2.30 |
 | E2 enterprise cell *(paused)* | the thesis on a realistic workload | ~35 min (+ harness work) | $0.70 |
 | E3 8u × 6400 TLS *(paused)* | the density/run-length confound | ~19 min | $0.40 |
 | E4 knee + open-loop *(paused)* | capacity guidance | ~50 min | $1.00 |
