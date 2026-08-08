@@ -36,6 +36,26 @@ SSH_OPTS=(-i "$KP_KEY_FILE" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/d
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 die() { echo "error: $*" >&2; exit 1; }
 
+# The remote half of the completeness guard: emit `HAS <run>` / `NONE <run>` for every
+# run directory below the current one. Printed as a script rather than run here, because
+# it executes over ssh on the injector — and lives in lib.sh rather than inline in
+# collect.sh so selftest.sh can run the EXACT text against a local fixture tree.
+#
+# It matches on the RUN STAMP, not on a workload prefix. The first version matched
+# `gatling-*`, which left every other workload outside the guard — including the suite
+# soak, whose two hours produce one artifact and whose whole risk is losing it. Every run
+# directory is `<workload>-<yyyy-MM-dd-HHmmss>`, so the stamp covers any workload that
+# will ever exist while still excluding a matrix's label directories and jfr-repo/.
+kp_inventory_script() {
+    cat <<'EOS'
+    for d in $(find . -mindepth 1 -maxdepth 2 -type d \
+            -name '*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9]' \
+            | sed 's|^\./||'); do
+        if [ -f "$d/digest.md" ]; then echo "HAS ${d##*/}"; else echo "NONE ${d##*/}"; fi
+    done
+EOS
+}
+
 # Decide, from the injector's run inventory, whether a collection is complete.
 #
 # Pure: reads the inventory on stdin and sets three variables, so it can be tested

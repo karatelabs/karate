@@ -45,13 +45,14 @@ log "$count digests in $KP_RESULTS"
 #      being written (benign — collecting mid-matrix is a supported workflow), or its
 #      parent finished and never wrote one (the soak case). A live `Child` process is
 #      what separates those, so that is what gets tested rather than guessed from names.
-remote_state="$(kp_ssh "$injector_ip" '
+# The inventory itself is kp_inventory_script (lib.sh) — the same text selftest.sh runs
+# against a fixture tree, so the pattern that decides which directories are guarded is
+# tested rather than trusted. It matches every workload's run stamp, not `gatling-*`.
+remote_state="$(kp_ssh "$injector_ip" "
     cd karate/karate-profiling/target/profiling 2>/dev/null || exit 0
-    for d in $(find . -mindepth 1 -maxdepth 2 -type d -name "gatling-*" | sed "s|^\./||"); do
-        if [ -f "$d/digest.md" ]; then echo "HAS ${d##*/}"; else echo "NONE ${d##*/}"; fi
-    done
+$(kp_inventory_script)
     # Bracketed so the ssh command line carrying the pattern cannot match itself.
-    if ps -eo cmd | grep -q "[C]hild"; then echo "BUSY x"; else echo "IDLE x"; fi' || true)"
+    if ps -eo cmd | grep -q '[C]hild'; then echo 'BUSY x'; else echo 'IDLE x'; fi" || true)"
 
 kp_classify_runs "$KP_RESULTS" <<< "$remote_state"
 

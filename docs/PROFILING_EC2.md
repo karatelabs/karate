@@ -240,9 +240,23 @@ run while the two-host mock persists warmed (§6).
 >     > ~/soak.log 2>&1 &"
 > ```
 >
+> The **suite soak** (E1) is the same topology with a TLS mock, and is *iteration*-bounded — so
+> the timeout is not optional, and `--duration` is refused for it:
+>
+> ```bash
+> etc/ec2/mock.sh start 50ms 8443 tls
+> mock=$(etc/ec2/ssh.sh mock-private)
+> etc/ec2/ssh.sh injector "cd ~/karate/karate-profiling && nohup env PROFILING_SKIP_BUILD=1 \
+>     etc/run.sh suite-soak --iterations <sized-from-rehearsal> --threads 4 --soak --xmx 8g \
+>     --mock-url https://$mock:8443 -Dkarate.profiling.reports=all --timeout 3h \
+>     > ~/soak.log 2>&1 &"
+> ```
+>
 > Collect **after the parent finishes**, not when the child exits — the digest is written about a
 > minute later, and `collect.sh` now fails closed when it is missing rather than reporting a
-> successful copy without it.
+> successful copy without it. Its completeness probe matches the run stamp rather than
+> `gatling-*`, so a `suite-soak-*` directory is inside the guard; `selftest.sh` proves that
+> branch for free.
 
 ```bash
 etc/ec2/provision.sh --single          # a soak needs time and one JVM, not the topology

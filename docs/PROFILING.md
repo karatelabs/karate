@@ -272,6 +272,39 @@ subset of `html,jsonl,junit,cucumber`. This is three experiments, not a boolean:
 `-Dkarate.profiling.reportCost=true` additionally times each report operation per feature and
 prints whether a single writer thread could keep up with the suite — see §8.
 
+### `suite-soak` — the enterprise suite shape, for hours
+
+The Runner-lane soak, and the workload [E1](#e1--the-karate-suite-soak-2-hours-reports-on-tls-js-and-feature-calls)
+is run with. Many small generated features; each scenario evaluates a config that computes,
+calls a shared auth-shaped feature over HTTP, invokes a JS helper, then does POST + GET at the
+`LatencyMock` **over TLS** with a closed match. Per-step capture stays on — it is the Runner
+default and part of what is under test. It owns its suite, so `--iterations` is *total
+scenarios* and `--duration` is refused; size it from a rehearsal and **pass `--timeout`
+explicitly**.
+
+```bash
+# rehearsal — a probe every 20s instead of every 5 minutes
+etc/run.sh suite-soak --iterations 2000 --threads 4 --soak --timeout 30m \
+    --mock-url https://<mock>:8443 -Dkarate.profiling.reports=all \
+    -Dkarate.profiling.liveSetSeconds=20
+```
+
+Knobs: `-Dprofiling.soak.scenarios=N` (per feature, default 10 — never one giant outline,
+that shape is known-unbounded by design and would swamp the signal),
+`-Dprofiling.soak.suites=N` (**consecutive suites in one JVM** — nothing at all should survive
+a suite's end, so this is the sharper leak discriminator and the shape `karate serve` and the
+IDE plugin actually have), `-Dprofiling.soak.allowedFailures=N`.
+
+Two connections per scenario, not one: the called feature gets its own runtime and therefore
+its own client, which is a second release path with its own way to abandon a socket.
+`distinctPeerPorts` in the digest is the check — 2× scenarios, or something is being reused
+that should not be.
+
+**A failed scenario does not throw**, so this workload counts failures itself, stops when they
+exceed the allowance, exits non-zero, and prints them where the digest can see them (the *Suite
+outcome* panel, §3). Without that a soak in which every scenario failed reaches `errors=0`,
+exit 0 and a full set of healthy-looking panels — the failure mode §10 is written around.
+
 ### Leak-watch family — the leak question, and what is still open
 
 **Separating the cases matters, because it decides what another soak would even be looking
@@ -283,7 +316,7 @@ for:**
 | One feature holding thousands of scenarios, reports on | **Known-unbounded, accepted.** Not a leak: retention by design until suite end. See [per-scenario spill](#per-scenario-spill--designed-reviewed-deliberately-not-built) |
 | A slow leak over hours, **pooled Gatling HTTP** | **Answered 2026-08-07 — none detected** (C5 in §0) |
 | The **unpooled** client path | 🔴 **Open** — folds into [E1](#e1--the-karate-suite-soak-2-hours-reports-on-tls-js-and-feature-calls), whose Runner suite builds a client per scenario |
-| A large Runner suite with **reports on** | 🔴 **Open — [E1](#e1--the-karate-suite-soak-2-hours-reports-on-tls-js-and-feature-calls), the next experiment**; needs its workload built first |
+| A large Runner suite with **reports on** | 🔴 **Open — [E1](#e1--the-karate-suite-soak-2-hours-reports-on-tls-js-and-feature-calls), the next experiment**; the `suite-soak` workload is built and locally exercised, the bench run is not taken |
 
 #### The false positive every soak walks into by construction
 
@@ -439,6 +472,14 @@ The diff names what grew. Find the pid with `jcmd -l | grep profiling.Child` —
 
 **Top classes.** Only present when a heap dump exists — a class histogram read from
 `heapdump.hprof`.
+
+**Suite outcome.** Only present for a Runner-lane workload (`suite-soak`). Suites completed,
+scenarios, passed/failed, elapsed. **Read it before anything else in such a digest**: a `Suite`
+reports a failed scenario in its result rather than by throwing, so every other field —
+`errors=0`, exit 0, a full heap series — reads healthy for a run in which nothing worked. A
+failed scenario also stops early, so it allocates less, retains less and opens fewer
+connections than a passing one, which flatters every panel above it. `SuiteOutcomePanelTest`
+pins that the panel can actually say the bad thing.
 
 ---
 
@@ -835,9 +876,11 @@ etc/ec2/collect.sh                        # CHECK: "every run on the injector ha
 Then prove the collect guard actually fires, which is the whole point of it:
 
 ```bash
-etc/ec2/ssh.sh injector 'mkdir -p ~/karate/karate-profiling/target/profiling/gatling-http-karate-2026-01-01-000000'
+# Named suite-soak-*, not gatling-*: the probe used to match only the latter, so a
+# gatling-named plant can no longer prove the branch that matters for a soak.
+etc/ec2/ssh.sh injector 'mkdir -p ~/karate/karate-profiling/target/profiling/suite-soak-2026-01-01-000000'
 etc/ec2/collect.sh; echo "exit=$?"    # MUST be 1, naming that directory
-etc/ec2/ssh.sh injector 'rm -rf ~/karate/karate-profiling/target/profiling/gatling-http-karate-2026-01-01-000000'
+etc/ec2/ssh.sh injector 'rm -rf ~/karate/karate-profiling/target/profiling/suite-soak-2026-01-01-000000'
 ```
 
 **Exercised 2026-08-07 (~16:45–17:10 UTC), in a short second bench session**: `--sync`
@@ -919,31 +962,36 @@ produce them. A new Runner-lane workload, modeled on `FeatureSpreadWorkload`:
    opens its own connection with a TLS handshake, so check the scenario rate against the
    connection ceiling `run-meta.txt` derives for the host.
 
-**Development needed first** (~half a day, before any bench time):
+**Development — done, and exercised locally.** What was built, and what each thing is for:
 
-1. **The workload class** (working name `suite-soak`), modeled on `FeatureSpreadWorkload`:
-   generated features + a shared callee feature + a config with JS functions; `needsMock()`
-   so the parent forks or points at a `LatencyMock`; `--iterations` = total scenarios;
-   reports via `ReportMode`; self-driving.
-2. **TLS plumbing already exists** — `--mock-tls` for a forked mock, or
+1. **The `suite-soak` workload** ([§2](#suite-soak--the-enterprise-suite-shape-for-hours)),
+   including the repeated-suites adjunct as `-Dprofiling.soak.suites=N`. Verified locally
+   against a forked TLS `LatencyMock`: 100 scenarios, 0 failures, `reports=all`, and
+   `distinctPeerPorts` = 200 — the two-clients-per-scenario shape the unpooled question is
+   about, counted rather than assumed. Reports cost ~45 KB/scenario on disk, so the 40 GB
+   volume is not the binding budget; heap is.
+2. **TLS plumbing already existed** — `--mock-tls` for a forked mock, or
    `mock.sh start <tier> <port> tls` plus `--mock-url https://…` on the two-host bench.
    karate-core trusts all certificates by default, so the self-signed mock needs no
    `configure ssl` in the features.
-3. **Widen `collect.sh`'s completeness probe** — it inventories `gatling-*` run directories
-   only, so a `suite-soak-*` run would sit outside the guard that exists precisely for
-   soaks. Then **prove the widened guard fires**: plant a digest-less `suite-soak-*` shell on
-   the injector and check collect exits 1 naming it — the §9 verification recipe's planted
-   directory is `gatling-*`-named and `selftest.sh`'s fixtures are too, so neither can prove
-   this branch, and an unproven guard on the artifact of a 2-hour run is the exact trap the
-   guard exists for.
-4. **A repeated-suites adjunct worth wiring in at the same time**: N consecutive suites of
-   the same features in one JVM. Nothing at all should survive suite end, so it is the
-   sharper leak discriminator — and it is the shape long-lived processes (`karate serve`,
-   the IDE plugin) actually care about.
+3. **`collect.sh`'s completeness probe now matches the run stamp, not `gatling-*`** — the
+   old pattern left every non-Gatling workload outside the guard, including the one whose
+   two hours produce a single artifact. The inventory moved into `lib.sh` as
+   `kp_inventory_script` precisely so `selftest.sh` runs the *exact* text against a fixture
+   tree: a digest-less `suite-soak-*` is now seen, label directories and `jfr-repo/` still
+   are not. That closes the "an unproven guard is not a guard" trap without bench time.
+4. **Two instruments the Runner lane did not have**, both of which the doctrine in §10
+   demanded and neither of which existed: the *Suite outcome* panel (§3), because a suite
+   reports failures in its result rather than by throwing and the digest could not otherwise
+   say a run failed; and **reconciliation for a non-Gatling lane** — `appendReconciliation`
+   returned early without a Gatling report, so the "nothing was dropped between injector and
+   handler" check silently did not exist for the only workload that runs for hours. It now
+   compares passing scenarios × requests-per-scenario against the mock's `served`, and
+   refuses to compare them at all when anything failed.
 
-**Cost.** The dev above, then a rehearsal with `-Dkarate.profiling.liveSetSeconds=20`
-(~15 min bench), then the 2 h soak (~$2.40). Read it per §3's Live set panel — the
-heap-after-GC floor will rise and mean nothing, as it has in both soaks so far (§2).
+**Cost.** A rehearsal with `-Dkarate.profiling.liveSetSeconds=20` (~15 min bench), then the
+2 h soak (~$2.40). Read it per §3's Live set panel — the heap-after-GC floor will rise and
+mean nothing, as it has in both soaks so far (§2).
 
 ### Paused — the Gatling arc
 
@@ -994,7 +1042,7 @@ E1 soak.
 
 | | settles | bench time | ~cost |
 |---|---|---:|---:|
-| **E1 suite soak** (rehearsal + 2 h) | "no leak in karate" — reports on, TLS, and the unpooled client lifecycle | ~2.5 h (+ ~half a day dev first) | ~$3 |
+| **E1 suite soak** (rehearsal + 2 h) | "no leak in karate" — reports on, TLS, and the unpooled client lifecycle | ~2.5 h (dev done) | ~$3 |
 | E2 enterprise cell *(paused)* | the thesis on a realistic workload | ~35 min (+ harness work) | $0.70 |
 | E3 8u × 6400 TLS *(paused)* | the density/run-length confound | ~19 min | $0.40 |
 | E4 knee + open-loop *(paused)* | capacity guidance | ~50 min | $1.00 |

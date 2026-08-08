@@ -27,6 +27,7 @@ import io.karatelabs.profiling.workload.CallAccumulationWorkload;
 import io.karatelabs.profiling.workload.FeatureSpreadWorkload;
 import io.karatelabs.profiling.workload.HarnessSmokeWorkload;
 import io.karatelabs.profiling.workload.ScopeCaptureWorkload;
+import io.karatelabs.profiling.workload.SuiteSoakWorkload;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedHashMap;
@@ -56,6 +57,9 @@ public final class Workloads {
         // Also a matched pair: same total scenarios, opposite distribution across features.
         register(new CallAccumulationWorkload());
         register(new FeatureSpreadWorkload());
+        // The Runner-lane soak: the only workload that puts reporting, TLS and a per-scenario
+        // client lifecycle under sustained load at the same time.
+        register(new SuiteSoakWorkload());
         // Present only in a build that enabled -Pgatling — see registerOptional.
         registerOptional("io.karatelabs.profiling.gatling.GatlingWorkloads");
     }

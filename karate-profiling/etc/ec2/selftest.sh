@@ -97,6 +97,40 @@ check "prefix names are not confused" \
     "FATAL-dropped:gatling-http-karate-A2" \
     "$(verdict $'HAS gatling-http-karate-A2\nIDLE x')"
 
+# --- what the guard looks at in the first place -------------------------------
+# kp_classify_runs above is name-agnostic, so it could never have caught the real gap:
+# the INVENTORY only listed `gatling-*`, which put a suite soak — the longest and least
+# repeatable run there is — outside the guard entirely. These run the exact script
+# collect.sh sends over ssh, against a fixture tree.
+echo
+echo "kp_inventory_script:"
+
+mkdir -p "$tmp/remote/suite-soak-2026-08-08-104000" \
+         "$tmp/remote/50ms-label/gatling-http-karate-2026-08-07-142818/jfr-repo" \
+         "$tmp/remote/call-accumulation-2026-08-08-110000"
+touch "$tmp/remote/50ms-label/gatling-http-karate-2026-08-07-142818/digest.md" \
+      "$tmp/remote/call-accumulation-2026-08-08-110000/digest.md"
+
+inventory="$(cd "$tmp/remote" && eval "$(kp_inventory_script)" | sort)"
+
+check "a digest-less suite soak is seen (it was invisible when the probe was gatling-only)" \
+    "yes" \
+    "$(grep -qx 'NONE suite-soak-2026-08-08-104000' <<< "$inventory" && echo yes || echo no)"
+
+check "a labelled gatling run is still seen" \
+    "yes" \
+    "$(grep -qx 'HAS gatling-http-karate-2026-08-07-142818' <<< "$inventory" && echo yes || echo no)"
+
+check "a memory workload's run is seen too" \
+    "yes" \
+    "$(grep -qx 'HAS call-accumulation-2026-08-08-110000' <<< "$inventory" && echo yes || echo no)"
+
+# A label directory is not a run, and jfr-repo/ is not a run. Counting either would make
+# the guard fire on every collection, and a guard that always fires gets switched off.
+check "label directories and jfr-repo are not counted as runs" \
+    "3" \
+    "$(wc -l <<< "$inventory" | tr -d ' ')"
+
 echo
 if ((failures)); then
     echo "$failures failure(s)"

@@ -126,6 +126,7 @@ public final class JfrDigest {
             }
         }
         appendTopClasses(md, runDir, info);
+        appendSuiteOutcome(md, runDir);
         appendLoadProfile(md, runDir, info);
 
         try {
@@ -264,6 +265,22 @@ public final class JfrDigest {
     }
 
     /**
+     * Pull one {@code key=<text>} out of a child line verbatim; {@code "?"} if absent. For the
+     * fields that are not numbers — {@code suites=2/3} being the one that matters.
+     */
+    private static String keyValueText(String line, String key) {
+        if (line == null) {
+            return "?";
+        }
+        for (String token : line.split("\\s+")) {
+            if (token.startsWith(key + "=")) {
+                return token.substring(key.length() + 1);
+            }
+        }
+        return "?";
+    }
+
+    /**
      * True only when the child explicitly said {@code key=true}. Absent reads as false, which is
      * what a digest built from a run predating the flag should say.
      */
@@ -318,6 +335,43 @@ public final class JfrDigest {
     }
 
     /**
+     * What a Runner-suite workload actually executed, and whether all of it passed.
+     *
+     * <p><b>Without this the digest cannot say a suite run failed.</b> A {@code Suite} reports a
+     * failed scenario in its result rather than by throwing, so the child's own summary line —
+     * which counts thrown iterations — reads {@code errors=0} for a suite in which everything
+     * failed. The digest would then describe heap, GC and retention for a two-hour run that
+     * measured almost nothing, with no field anywhere saying so. The workload prints these counts
+     * for exactly that reason; the panel exists so they survive into the one artifact
+     * {@code collect.sh} pulls by default.
+     *
+     * <p>Cumulative and written per suite, so a run killed by its timeout still reports the totals
+     * up to the last boundary it crossed.
+     */
+    static void appendSuiteOutcome(StringBuilder md, Path runDir) {
+        String suite = childLine(runDir,
+                io.karatelabs.profiling.workload.SuiteSoakWorkload.SUITE_PREFIX);
+        if (suite == null) {
+            return;
+        }
+        long scenarios = (long) keyValueNumber(suite, "scenarios");
+        long passed = (long) keyValueNumber(suite, "passed");
+        long failed = (long) keyValueNumber(suite, "failed");
+        md.append("## Suite outcome\n\n");
+        md.append("| | |\n|---|---:|\n");
+        md.append("| suites completed | ").append(keyValueText(suite, "suites")).append(" |\n");
+        md.append("| scenarios | ").append(scenarios).append(" |\n");
+        md.append("| passed / failed | ").append(passed).append(" / **").append(failed).append("** |\n");
+        md.append("| elapsed | ").append((long) keyValueNumber(suite, "elapsedMs")).append(" ms |\n\n");
+        if (failed > 0) {
+            md.append("> **This run had scenario failures, so nothing below describes the workload ")
+                    .append("that was asked for.** A failed scenario stops early, so it allocates less, ")
+                    .append("retains less and opens fewer connections than a passing one — every panel ")
+                    .append("above is flattered by it. Find the cause before reading anything else.\n\n");
+        }
+    }
+
+    /**
      * The load numbers, when the run drove one — throughput and the response-time distribution the
      * client actually saw, next to what the mock says it did. Two runs are compared by diffing
      * this panel; see docs/PROFILING.md §10 for what a comparison of it can and cannot support.
@@ -362,7 +416,7 @@ public final class JfrDigest {
                         .append(mockConfig).append("\n```\n\n");
             }
         }
-        appendReconciliation(md, info, stats, mockStats);
+        appendReconciliation(md, runDir, info, stats, mockStats);
         appendPortPressure(md, mockStats);
     }
 
@@ -376,11 +430,22 @@ public final class JfrDigest {
      * counter, and the matrix's zero-KO rows were read as "nothing was dropped" when what they
      * actually established was "nothing that reached Gatling was dropped". Requests missing from
      * the middle count are the only thing that separates those.</p>
+     *
+     * <p><b>The Runner lane has no Gatling report, and used to get no reconciliation at all</b> —
+     * this returned early on a null {@code stats} and the check silently did not exist for the one
+     * workload that runs for hours. There the middle count is derived: a passing scenario makes a
+     * known number of requests, so {@code passed x requests-per-scenario} is what the mock should
+     * have served. It is exact only when nothing failed, which is why the suite panel above refuses
+     * to be read past a non-zero failure count.
      */
-    private static void appendReconciliation(StringBuilder md, RunInfo info,
+    private static void appendReconciliation(StringBuilder md, Path runDir, RunInfo info,
                                              io.karatelabs.profiling.LoadProfile.Stats stats, String mockStats) {
         long served = (long) io.karatelabs.profiling.LoadProfile.mockNumber(mockStats, "served");
-        if (stats == null || served < 0) {
+        if (served < 0) {
+            return;
+        }
+        if (stats == null) {
+            appendSuiteReconciliation(md, runDir, served);
             return;
         }
         long driven = stats.ok() + stats.ko();
@@ -399,6 +464,32 @@ public final class JfrDigest {
                         + "reading anything else.\n\n");
     }
 
+    /** The Runner-lane half of {@link #appendReconciliation}: expected requests against served. */
+    static void appendSuiteReconciliation(StringBuilder md, Path runDir, long served) {
+        String suite = childLine(runDir,
+                io.karatelabs.profiling.workload.SuiteSoakWorkload.SUITE_PREFIX);
+        if (suite == null) {
+            return;
+        }
+        long expected = (long) keyValueNumber(suite, "requests");
+        long failed = (long) keyValueNumber(suite, "failed");
+        if (expected < 0) {
+            return;
+        }
+        md.append("**Reconciliation.** The suite's passing scenarios account for **").append(expected)
+                .append("** requests; the mock served **").append(served).append("**");
+        if (failed > 0) {
+            md.append(" — but ").append(failed).append(" scenario(s) failed, and a failed scenario's")
+                    .append(" request count is unknown, so these two are not comparable. Fix the failures")
+                    .append(" first.\n\n");
+            return;
+        }
+        md.append(served == expected
+                ? " — **they agree**, so nothing was dropped between the suite and the handler.\n\n"
+                : " — **they disagree by " + Math.abs(served - expected) + "**. With zero failures the "
+                + "counts should match exactly; a surplus at the mock means retries or an extra call "
+                + "site, a shortfall means requests that never reached the handler.\n\n");
+    }
 
     /**
      * The run's own connection rate against what this host can sustain.
