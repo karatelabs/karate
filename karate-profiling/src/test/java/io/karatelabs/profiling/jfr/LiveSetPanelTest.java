@@ -160,18 +160,22 @@ class LiveSetPanelTest {
         Path dir = Files.createTempDirectory("peaks");
         Files.write(dir.resolve("stdout.log"), java.util.List.of(
                 // MiB-aligned so the assertions below can name the formatted values exactly.
+                // MiB-aligned so the assertions below can name the formatted values exactly, and
+                // the second suite's maximum is the LARGER of the two on purpose: with the peaks
+                // descending, an implementation that just took the top two probes overall and
+                // sorted them would pass without segmenting anything.
                 probe(300_000, 540L << 20, 156, false),
-                probe(1_500_000, 618L << 20, 156, false),   // the real high-water mark
+                probe(1_500_000, 610L << 20, 156, false),   // suite 1's high-water mark
                 labelled(1_771_000, 517L << 20, 156, "suite-1-peak"),
                 labelled(1_771_500, 13L << 20, 147, "suite-1-floor"),
-                probe(3_300_000, 610L << 20, 156, false),
+                probe(3_300_000, 618L << 20, 156, false),   // suite 2's, and the global max
                 labelled(3_541_000, 517L << 20, 157, "suite-2-peak"),
                 labelled(3_541_500, 13L << 20, 147, "suite-2-floor"),
                 suite(1, 2, 1_772_000), suite(2, 2, 3_542_000)));
         StringBuilder md = new StringBuilder();
         JfrDigest.appendLiveSet(md, dir);
         String panel = md.toString();
-        assertTrue(panel.contains("| peak within each suite | 618.0 MB / 610.0 MB"),
+        assertTrue(panel.contains("| peak within each suite | 610.0 MB / 618.0 MB"),
                 "the segment maxima are the peaks, not the 517 MB boundary readings: " + panel);
         assertTrue(panel.contains("lower bound on the true peak"),
                 "a sampled maximum must not be quoted as the peak: " + panel);

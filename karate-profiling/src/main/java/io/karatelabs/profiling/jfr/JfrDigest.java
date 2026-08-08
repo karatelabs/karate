@@ -1019,7 +1019,9 @@ public final class JfrDigest {
      * actually had to accommodate, and sizing wants the larger.
      *
      * <p>Empty unless every suite has at least one probe, so a series too coarse to segment prints
-     * no row rather than a row with gaps in it.
+     * no row rather than a row with gaps in it. Its caller is gated on two or more boundaries, so
+     * a single-suite run still shows only the global {@code min / max} — which is the same number
+     * there, since one suite's segment is the whole loaded series.
      */
     private static List<Long> suitePeaks(List<long[]> loaded, List<Long> boundaries) {
         List<Long> peaks = new ArrayList<>();
@@ -1118,13 +1120,6 @@ public final class JfrDigest {
             }
         }
         row(md, "suites", boundaries.size() + " — read the floors below, not the drift");
-        // The labelled `suite-N-peak` probe is taken AFTER the suite returns, so it reads the
-        // retention the returned SuiteResult still holds — NOT the highest the run reached. A
-        // suite in flight also holds the machinery running it, and those are different numbers:
-        // 517 MB at the boundary against 618 MB mid-suite on the run that exposed this. Only the
-        // boundary reading was ever printed per suite, so anyone sizing a heap against "peak" got
-        // the smaller of the two. The segment maximum is the other half, and it is a SAMPLE — the
-        // true peak sits between probes, so this is a lower bound and says so.
         List<Long> peaks = suitePeaks(loaded, boundaries);
         if (!peaks.isEmpty()) {
             StringBuilder peakList = new StringBuilder();

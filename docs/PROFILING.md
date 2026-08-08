@@ -1171,16 +1171,34 @@ keeps. See [immutable `Feature`](#immutable-feature-and-a-per-execution-overlay-
 [JSONL as the source of truth](#jsonl-as-the-source-of-truth--on-the-table-not-decided) for the
 two designs that would move it.
 
-**The independent check that the fix did its job**, and the one worth quoting: `3ef1236f`
-predicted ~3.2 KB/scenario retained of which ~70% was text, i.e. a 2.24 KB/scenario saving.
-Measured like-for-like: 9.04 → 7.07 KB/scenario, a **1.97 KB/scenario saving — within 12% of
-prediction**. That corroborates the change independently of the histogram criterion that failed.
+**The check that the fix did its job**, independent *of the histogram criterion* — not of E1,
+since `3ef1236f`'s prediction was itself derived from E1's numbers, so the two share that peak.
+It predicted ~3.2 KB/scenario retained of which ~70% was text, i.e. a **2.24 KB/scenario**
+saving. Measured like-for-like: 9.48 → 7.41 KB/scenario, a saving of **2.07 KB/scenario**
+dividing by the suite's full count, or **2.27** dividing by the ~79,700 scenarios actually
+complete when the 6903s probe fired. The prediction sits inside that bracket.
+
+> **`bytes()` prints "MB" for MiB** — it is 1024-based. Every figure in this section is what the
+> digest prints, so they are MiB; the KB/scenario figures above are derived in true bytes. Do not
+> re-derive them treating the printed MB as decimal, which understates by 4.7%.
+
+**Two things in the build window, and only one is the subject.** E1 ran `ef989f6`, E1R ran
+`83b0d25`, and *two* karate-core commits sit between: `3ef1236f` and `7e4dcd6ca` ("SUITE_EXIT
+shipped the whole run a second time"). The second cannot own the delta — `SUITE_EXIT` fires after
+every mid-suite peak probe, and its `releaseCallResults` recursion fix needs `retainCallResults`,
+which this workload never sets. Its signature is elsewhere and is large: `peakHeapBytes` fell
+5.29 GB → 1.31 GB, which is transient serialization, not retention.
 
 **Two numbers from this pair that must never be quoted.**
 
-- **The floors are not comparable.** E1's ~540 MB floors versus E1R's 12.9 MB is a ~40× artifact
-  of the *panel* fix — E1 probed while the loop still held the suite's `SuiteResult`; E1R drops it
-  first. Nothing about the step-log release is in that difference.
+- **The floors are not comparable, and the reason is not the step-log release.** E1's build had
+  **no labelled boundary probes at all** — they were added with the panel fix — so its "floors"
+  are timed probes landing 30–90 s *into the next suite*, by which time that suite's constructor
+  has eagerly parsed all 8,750 features. `Suite.features` is a `final List<Feature>` built in the
+  constructor, and E1R measures the cost directly: 12.9 MB at the labelled boundary, **561.9 MB
+  34 seconds later**. E1's own first probe — 300 s into suite 1, with no previous suite in
+  existence — reads 583.5 MB, which settles it. Had a whole `SuiteResult` been retained across the
+  boundary the floors would have read over 1.2 GB, not 551.
 - **The peak comparison is only valid on timed probes.** The rule registered E1's 791.2 MB (a
   timed maximum) against E1R's labelled `suite-N-peak` probe, which is a different quantity — see
   below. Using the labelled probe reads 517.4 MB and −34.6%, which flatters the result.
@@ -1193,7 +1211,8 @@ within-suite peak at all, so the sole peak on offer was the *global* `min / max`
 now prints `peak within each suite` from the segment maxima, marked as the sampled lower bound it
 is, and `LiveSetPanelTest` pins that it reports the mid-suite maximum rather than the boundary
 reading. Read against the corrected row, E1R's per-suite peaks are **612.4 / 610.6 / 617.8 /
-618.5 MB — flat**, which is the statement E1 could not make.
+618.5 MB — flat**, which is the statement E1 could not make. (Those four are derived from the
+archived digest's probe table; the digest itself predates the row and will not show it.)
 
 **One thing this run cannot see.** Releasing logs is only safe because the report writers have
 already consumed them; the bench never checks that, since `collect.sh` pulls digests and the
@@ -1370,9 +1389,16 @@ once — the suite-peak histogram shows 87,500 `Scenario` for 87,500 scenarios a
 `Step` for 15 source lines each, with no duplication — so there is no second copy for
 immutability to collapse. The lever for *that* number is the back-reference chain
 `FeatureResult → Feature`, `ScenarioResult → Scenario`, `StepResult → Step`, all `final`, with
-`SuiteResult` holding every `FeatureResult` until the run ends: the suite's entire parsed source
-stays live because the result model points at it. Cutting it means the result model carrying its
-own copy of what the writers read, which is the next entry.
+`SuiteResult` holding every `FeatureResult` until the run ends. Cutting it means the result model
+carrying its own copy of what the writers read, which is the next entry.
+
+**But the back-references are only half the holder, and the other half binds first.**
+`Suite.features` is a `final List<Feature>` built in the constructor, so every feature is parsed
+*before the run starts* and held for the suite's life regardless of what any result points at.
+E1R prices it: 12.9 MB at a suite boundary, 561.9 MB thirty-four seconds later, which is the next
+suite's constructor and nothing else. So severing the result→model references lowers what a
+*caller* retains after the run, and lowers nothing during it. Anything aiming at the in-run peak
+has to make the parse lazy or releasable too.
 
 #### JSONL as the source of truth — on the table, not decided
 
