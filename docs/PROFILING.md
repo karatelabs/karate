@@ -134,11 +134,10 @@ is closer to reality anyway.
 
 ### Disk hygiene — prune after every result
 
-**A sweep will fill your disk, and nothing prunes anything automatically.** Getting one
-result costs on the order of a gigabyte, and a single afternoon of sweeps once reached
-**19 GB** and hit ENOSPC mid-matrix — which aborts the run *and* the tooling around it, and
-the partial matrix is worthless because the runs that did complete were competing for a full
-disk.
+**A sweep will fill your disk, and nothing prunes anything automatically.** Getting one result
+costs on the order of a gigabyte; an afternoon of sweeps has hit ENOSPC at 19 GB, which aborts
+the run *and* the tooling around it, and leaves a partial matrix that is worthless anyway because
+the runs that completed were competing for a full disk.
 
 Three consumers, in order of size:
 
@@ -276,7 +275,7 @@ prints whether a single writer thread could keep up with the suite — see §8.
 
 ### `suite-soak` — the enterprise suite shape, for hours
 
-The Runner-lane soak, and the workload [E1](#e1--the-karate-suite-soak-2-hours-reports-on-tls-js-and-feature-calls)
+The Runner-lane soak, and the workload [E1](#e1--the-result-taken-2026-08-08)
 is run with. Many small generated features; each scenario evaluates a config that computes,
 calls a shared auth-shaped feature over HTTP, invokes a JS helper, then does POST + GET at the
 `LatencyMock` **over TLS** with a closed match. Per-step capture stays on — it is the Runner
@@ -318,9 +317,8 @@ the exhaustion ceiling, arriving precisely when pressure was highest. Exhaustion
 where it actually shows: errors at the mock, and a stall that reads as client slowness.
 
 **A failed scenario does not throw**, so this workload counts failures itself, stops when they
-exceed the allowance, exits non-zero, and prints them where the digest can see them (the *Suite
-outcome* panel, §3). Without that a soak in which every scenario failed reaches `errors=0`,
-exit 0 and a full set of healthy-looking panels — the failure mode §10 is written around.
+exceed the allowance, exits non-zero, and prints them into the *Suite outcome* panel — see §3 for
+why every other field in the digest reads healthy for a run in which nothing worked.
 
 ### Leak-watch family — the leak question, and what is still open
 
@@ -332,7 +330,7 @@ for:**
 | Retention that grows with **suite size** | **Fixed and verified** — §8 found two real mechanisms (call-result accumulation, the report-writing queue); peak heap is flat across a 4x scale sweep |
 | One feature holding thousands of scenarios, reports on | **Known-unbounded, accepted.** Not a leak: retention by design until suite end. See [per-scenario spill](#per-scenario-spill--designed-reviewed-deliberately-not-built) |
 | A slow leak over hours, **pooled Gatling HTTP** | **Answered 2026-08-07 — none detected** (C5 in §0) |
-| The **unpooled** client path | 🔴 **Open** — folds into [E1](#e1--the-karate-suite-soak-2-hours-reports-on-tls-js-and-feature-calls), whose Runner suite builds a client per scenario |
+| The **unpooled** client path | ✅ **Answered 2026-08-08 by E1R** — a client per scenario over TLS, ~700,000 lifecycles, descriptors flat, 0 closed by the probe's GC |
 | A large Runner suite with **reports on** | ✅ **Answered 2026-08-08 by E1, confirmed on the fixed panels by [E1R](#e1r--the-confirming-re-run-taken-2026-08-08)** — 350,000 scenarios over four suites, 0 failures, floor drift +28.6 KB (0%), 0 descriptors closed by the probe's GC |
 
 #### The false positive every soak walks into by construction
@@ -496,9 +494,7 @@ the only artifact that says *what* survived rather than how much. **Diff a peak 
 floor** and the retention names itself: on the E1 soak that gave 1,312,560 `gherkin.Step`
 (= scenarios × 15 steps, the parsed model held for the suite's life) against 397,354
 `StepResult` (= completed scenarios × 15, the part that accumulates). `collect.sh` brings them
-home. Before this they were taken by hand over ssh, against a pid found with
-`jcmd -l | grep profiling.Child`, timed by eye, and left in a home directory that died with
-the host.
+home.
 
 **Retained objects.** From `jdk.OldObjectSample` — JFR's built-in leak profiler. It samples
 sparsely by design and reports the *allocator*, not the *holder* (unless `--gc-roots`); a
@@ -732,7 +728,8 @@ and are not repeated here.
 | **Fixed and verified** | Parallel-execution *memory* on ordinary suite shapes: call-result retention (flat across a 4x scale sweep) and the report-writing queue (~4.5x → ~1.3x, wall-clock fell). The external reproducer passes at `-Xmx768m`. |
 | **Measured, known-unbounded, accepted** | One feature holding thousands of scenarios, with reports on — still linear (502 / 1108 / 2079 MB). Only per-scenario release changes the slope; §9 records why that was not built. |
 | **Measured (parity + leak, Gatling lane)** | The §0 claims register: 1.4% at 50 ms TLS pooled, sub-linear payload scaling, no leak over 1.36 M pooled iterations. |
-| **Never measured** | A Runner-suite soak with reports on, and the unpooled client path under sustained load — both now folded into [E1](#e1--the-karate-suite-soak-2-hours-reports-on-tls-js-and-feature-calls); CPU inside scenario code under a *parallel Runner* suite — `jdk.ExecutionSample` is blind there (§7), not in the Gatling lane. |
+| **Measured (leak + retention, Runner lane)** | E1/E1R: 350,000 scenarios × 4 suites, reports on, TLS, a client per scenario. Floors flat, descriptors flat, and the step-log release measured at −21.8% of peak. |
+| **Never measured** | CPU inside scenario code under a *parallel Runner* suite — `jdk.ExecutionSample` is blind there (§7), not in the Gatling lane. |
 
 **Machine A** — Apple Silicon (aarch64), Darwin 25.5, 10 cores, JDK 24.0.2, G1.
 **Machine A2** — the EC2 bench: `c7g.4xlarge` ×2, Graviton3/aarch64, AL2023, JDK 24.
@@ -802,17 +799,11 @@ predates the allocation fixes below and has not been re-taken**; sampled allocat
 fallen ~30% (1.71 GB → 1.01–1.12 GB), and re-taking the `/usr/bin/time` replay is the first
 thing to do if anyone quotes the per-exec cost again.
 
-Where it went, and what was done (all built and in the code; before-and-after measured at
-20000 iterations): the per-scenario Logback level snapshot (10% of the profile — now lazy);
-happy-path exceptions — `karate.properties['x'] || 'default'` cost four exceptions and three
-`getMethods()` copies per read to answer "no" (now cached member resolution, a probing
-`Resource.optional`, a live properties view — no exception constructor left in the panel);
-the in-memory resource encoding its text to bytes nothing read (gone); config parsed once per
-Suite instead of per scenario; and per-step log capture gated off in the Gatling lane before
-the string is built (override with `Runner.Builder.captureStepLogs`; design in
-[GATLING.md §14.9](./GATLING.md)). *The lesson that generalises: a miss is an answer, not an
-event — and costs surface in sequence, so expect the profile to reveal a new top entry after
-each fix rather than simply shrinking.* What remains at the top is
+The allocation work behind that ~30% is in the code and in git history; per-step log capture is
+gated off in this lane before the string is built (override with `Runner.Builder.captureStepLogs`;
+design in [GATLING.md §14.9](./GATLING.md)). *The lesson that generalises: a miss is an answer,
+not an event — and costs surface in sequence, so expect the profile to reveal a new top entry
+after each fix rather than simply shrinking.* What remains at the top is
 parsing — mostly **JS, not Gherkin** (three quarters of `BaseParser.<init>` sits under
 `JsParser` re-parsing `karate-config.js`/step expressions) — measured and deliberately parked:
 see [parsed-JS reuse](#parsed-js-reuse--measured-half-gated-not-built).
@@ -928,189 +919,41 @@ etc/ec2/collect.sh; echo "exit=$?"    # MUST be 1, naming that directory
 etc/ec2/ssh.sh injector 'rm -rf ~/karate/karate-profiling/target/profiling/suite-soak-2026-01-01-000000'
 ```
 
-**Exercised 2026-08-07 (~16:45–17:10 UTC), in a short second bench session**: `--sync`
-shipped the then-uncommitted fixes and the runs' `build: 745a408 +DIRTY` stamps prove the
-build used them; the calibration archived itself to `$KP_RESULTS`
-(`calibration-10ms-2026-08-07-164553.txt`); the collect guard was fired on a planted
-digest-less directory; and three duration-bounded rehearsals ran (100 s / 4 m / 200 s — the
-4 m one being the BUSY-branch live-test shape).
-
-**Exercised again 2026-08-08 (~30 min, ~$0.58)**, after the E1 development, because the
-scripts it touched were in exactly the "edited but not run" state that was five for five
-broken the previous session. Everything above was re-run and passed, plus the two things that
-were still open: **`matrix.sh`'s `find -newer` run identification is now proven** — a 2-pair
-10 ms matrix discarded its warmup run by name and parked four runs under its label — and the
-**widened collect guard fired on a planted `suite-soak-2026-01-01-000000`**, exiting 1 and
-naming it, which is the branch no `gatling-*` fixture could reach. `teardown.sh` refused
-while run directories existed and only `--force` got past it. The TLS calibration at 50 ms
-archived itself and is clean: ko 0 throughout, both baseline repeats matching (−0.05 / −0.13),
-no knee to 8 users, and close mode pricing a TLS connection at ~2.9 ms over keepalive — which
-is the envelope the suite soak's client-per-scenario arm actually runs in.
+**Last exercised in full 2026-08-08, all passing**; `collect.sh`'s histogram include was
+exercised for real by E1R. Skip them when `git log --oneline <last-run-sha>.. -- etc/ec2` is
+empty — make the check, do not assume it.
 
 ### Open experiments, in priority order
 
-**The Gatling arc is PAUSED as of 2026-08-07.** The §0 claims are sufficient for now; the
-next work is the karate-core suite soak below. The paused experiments keep their designs
-(E2–E4, further down) so they can be resumed without re-derivation — do not start them
-before E1 is done.
+**The Gatling arc is PAUSED as of 2026-08-07** (E2–E4 below, designs kept so nothing is
+re-derived), and **the suite-soak arc is closed** — E1 and E1R answered it. Nothing is queued;
+starting anything here is a deliberate decision.
 
-#### E1 — the karate suite soak: 2 hours, reports on, TLS, JS and feature calls
+#### The suite soak — the question, and how to re-run it
 
-**The question.** Does a long-running Karate *Runner* suite — the shape an enterprise
-regression suite actually has — retain memory or descriptors beyond what reporting is
-*designed* to retain? This is the "no memory leak in karate" claim, and nothing measured so
-far touches it:
+**The question it answered.** Does a long-running Karate *Runner* suite — the shape an
+enterprise regression suite actually has — retain memory or descriptors beyond what reporting is
+*designed* to retain? One run covered three gaps at once: reports-on retention, the **unpooled**
+per-scenario client lifecycle over TLS (where a missed release *can* abandon a socket, unlike
+the pooled lane), and realism — config functions, a shared-feature `call`, a JS helper and TLS
+HTTP per scenario.
 
-| workload | HTTP? | reports? | soakable? |
-|---|---|---|---|
-| `gatling-http-karate` (the 2026-08-07 soak) | yes | **no** — that lane gates step capture off | yes |
-| `scope-capture-bound` (1 h, 35.7 M soak) | **no** | no | yes |
-| `call-accumulation` / `feature-spread` | **no** | **yes** | drive their own suite; sized by iterations, not a window |
+**The shape, for anyone re-running it.** Two-host bench with the mock on the second host, which
+is load-bearing rather than a default: with per-step capture on, the step log holds the rendered
+request and response, so the retention worth watching only exists when there is real HTTP. Many
+small features, never one giant outline — that shape is known-unbounded by design and would
+swamp the signal. Sized from a rehearsal at 24.3 scenarios/s on 4 threads and 34 KB of reports
+per scenario, which is why the run provisions 150 GB: the reports are never collected, so their
+size is headroom, not storage, and ENOSPC mid-soak wastes the session.
 
-**One run answers three open questions, which is why it was promoted:**
+**Run it as four suites, not one long one** (`-Dprofiling.soak.suites=4`). Retention climbs by
+design and collapses at suite end, so four ramps each returning to the same floor make a leak
+visible with no interpretation needed; one monotonic ramp can only be read against a predicted
+slope. It also keeps peak retention per *suite* rather than per run. `--iterations` must divide
+exactly by `suites × scenarios-per-feature`; the workload refuses anything else rather than
+silently resizing the experiment the timeout was chosen for.
 
-- **the reports-on retention question** — the largest gap in the leak table (§2);
-- **the unpooled client lifecycle under sustained load** — a Runner suite builds an HTTP
-  client per scenario, karate-core's default, so two hours of per-scenario connect → use →
-  close **over TLS** is exactly the soak the `fds`/`fdsAfterGc` instrument was built for.
-  In pooled mode a missed release cannot abandon a socket (the pool owns them); here it can,
-  and would show as a growing gap between `fds` and `fdsAfterGc`. This absorbs the
-  previously-planned separate unpooled soak;
-- **realism** — the features exercise `karate-config.js` functions, a shared-feature
-  `call` per scenario, a JS helper invocation, and HTTP over TLS, so the workload is shaped
-  like what enterprises run rather than like an instrument.
-
-**Design.** Two-host EC2 bench, mock on the second host — load-bearing, not a default: with
-per-step capture on, the step log holds the rendered HTTP request and response text, so the
-retention most worth watching is precisely the captured bodies, and a no-HTTP suite cannot
-produce them. A new Runner-lane workload, modeled on `FeatureSpreadWorkload`:
-
-- **many small features** (never one giant outline — that shape is known-unbounded by design
-  and would swamp the signal), generated at setup with the mock URL baked in;
-- each scenario: config evaluation (a `karate-config.js` with an env read and two JS
-  functions), a `call` to a shared auth-shaped feature, one JS helper invocation, then the
-  POST + GET at the `LatencyMock` **over TLS** with a closed match. Per-step capture stays
-  on — it is the Runner default and the thing under test;
-- **iteration-bounded, not duration-bounded**: the workload drives its own Runner suite, so
-  `--duration` is rejected for it — size the total scenario count from the rehearsal's
-  measured rate to land ≈2 h, and pass `--timeout 3h` explicitly (iteration-bounded runs
-  default to a flat 1 h). The rehearsal itself is iteration-bounded too, from a guessed
-  scenario count — the timeout makes a bad guess safe;
-- `--soak`, `-Dkarate.profiling.reports=all` (HTML, JSONL, JUnit XML, Cucumber JSON).
-  Threads and tier come out of the budgets below, not out of a throughput ambition.
-
-**Pre-register two budgets from a ~10-minute rehearsal, because "no leak" here is not
-"flat":**
-
-1. **Heap.** A suite retains per-scenario/per-feature result skeletons — including the
-   captured request/response text — until suite end, *by design*. Measure
-   retained-per-scenario from the rehearsal's live-set series, predict the 2-hour end state,
-   and choose threads × tier × scenario count so the prediction fits the heap with margin
-   (expect this to push toward the 50 ms tier and moderate thread counts — the designed
-   linear growth, not wall clock, is the binding constraint; `--xmx` can also simply be
-   raised, the host has 32 GB). The claim's falsifiable form: **live-set slope ≈ the
-   predicted designed growth, descriptors flat, `closed by the probe's GC` ~0.** Unexplained
-   excess → class histograms (§3) and a `--gc-roots` run.
-2. **Disk and connections.** `reports=all` writes per-feature output for the whole run, on a
-   volume the run must not exhaust — measure report growth per scenario in the rehearsal and
-   then **provision for it** (`provision.sh --volume-gb`) rather than shrinking the experiment
-   to fit the 40 GB default; the reports are never collected, so this is headroom, not storage
-   (`backupOutputDir` is already disabled by `ReportMode`). And each scenario opens its own
-   connections with a TLS handshake, so check the scenario rate against the connection ceiling
-   `run-meta.txt` derives for the host.
-
-**Development — done, and exercised locally.** What was built, and what each thing is for:
-
-1. **The `suite-soak` workload** ([§2](#suite-soak--the-enterprise-suite-shape-for-hours)),
-   including the repeated-suites adjunct as `-Dprofiling.soak.suites=N`. Verified locally
-   against a forked TLS `LatencyMock`: 100 scenarios, 0 failures, `reports=all`, and
-   `distinctPeerPorts` = 200 — the two-clients-per-scenario shape the unpooled question is
-   about, counted rather than assumed.
-2. **TLS plumbing already existed** — `--mock-tls` for a forked mock, or
-   `mock.sh start <tier> <port> tls` plus `--mock-url https://…` on the two-host bench.
-   karate-core trusts all certificates by default, so the self-signed mock needs no
-   `configure ssl` in the features.
-3. **`collect.sh`'s completeness probe now matches the run stamp, not `gatling-*`** — the
-   old pattern left every non-Gatling workload outside the guard, including the one whose
-   two hours produce a single artifact. The inventory moved into `lib.sh` as
-   `kp_inventory_script` precisely so `selftest.sh` runs the *exact* text against a fixture
-   tree: a digest-less `suite-soak-*` is now seen, label directories and `jfr-repo/` still
-   are not. That closes the "an unproven guard is not a guard" trap without bench time.
-4. **Two instruments the Runner lane did not have**, both of which the doctrine in §10
-   demanded and neither of which existed: the *Suite outcome* panel (§3), because a suite
-   reports failures in its result rather than by throwing and the digest could not otherwise
-   say a run failed; and **reconciliation for a non-Gatling lane** — `appendReconciliation`
-   returned early without a Gatling report, so the "nothing was dropped between injector and
-   handler" check silently did not exist for the only workload that runs for hours. It now
-   compares passing scenarios × requests-per-scenario against the mock's `served`, and
-   refuses to compare them at all when anything failed.
-
-> **These figures are the _pre-fix_ baseline.** They measured the retention that E1 was run to
-> characterise — per-scenario result skeletons holding captured request/response text until suite
-> end — and that retention has since been largely removed: karate-core now releases a step's log
-> and embeds at feature end. The numbers below stand as the evidence that led to the change and as
-> the "before" half of any comparison; they no longer describe what a suite costs today.
-
-**The rehearsal — taken 2026-08-08**, two-host bench, 50 ms TLS mock, `reports=all`,
-4 threads, 4,000 scenarios, `66486a7 +DIRTY`. It ran clean (0 failures, exit 0, 12,000
-requests reconciling exactly against the mock's `served`) and it is the sizing evidence:
-
-| measured | value | what it constrains |
-|---|---|---|
-| scenario rate | **24.3/s** at 4 threads | how many scenarios fit in 2 h |
-| live-set slope under load | 43.4 → 48.8 MB over 3,400 scenarios — **~1.6 KB/scenario** | heap. Far below the 143 KB/scenario of the mega-outline shape, because these scenarios are small |
-| live set after the suite ended | **12.5 MB**, from 48.8 | the designed retention *is* released at suite end — the shape a leak would break |
-| descriptors | **flat at 151**, `closed by the probe's GC` 0, over 12,000 TLS requests with a client per scenario | early evidence on the unpooled question |
-| reports on disk | 133 MB / 4,000 scenarios — **34 KB/scenario** | volume headroom — see below |
-| injector CPU | **0.29 of 16 cores** | thread count is free to rise |
-
-**Neither budget binds, because the one that would has been provisioned past.** At 8 threads
-(≈49/s) two hours is ~350,000 scenarios: ~12 GB of reports and, at four suites, ~140 MB of
-designed retention per suite. The reports are **never collected** — `collect.sh` pulls digests,
-not report trees, and the volume dies with the host — so their size is not storage anyone
-keeps, it is only headroom the run must not exhaust. ENOSPC mid-soak aborts the run and wastes
-the session, and it has happened at 19 GB. The default 40 GB root volume was therefore an
-arbitrary cap on the experiment, so `provision.sh` now takes `--volume-gb` (`KP_VOLUME_GB`):
-**provision 150 GB for this run** — about four cents for a three-hour session — and size the
-soak by what is worth measuring instead. `--xmx 8g`, `--timeout 3h`.
-
-**Run it with `-Dprofiling.soak.suites=4` rather than one long suite.** The rehearsal showed
-why: retention climbs by design and collapses at suite end, so four ~30-minute suites produce
-four ramps that each return to the same floor — and a floor that creeps between them is a leak
-with no interpretation needed. One monotonic ramp can only be read against a predicted slope,
-and that slope comes from two live-set probes on a 5.4 MB delta, which is not much to hang a
-claim on. Four suites is also what makes the heap number small: peak designed retention is
-per *suite*, not per run.
-
-**The one scaling step nothing has measured** is the report writing at suite end for 87,500
-scenarios — 22× the rehearsal's suites. Mid-run slope says nothing about it; if any writer
-aggregates a whole suite before flushing, that spike is the heap figure that matters, and 8 GB
-over ~140 MB is expected to absorb it rather than known to. **Watch the first suite boundary**
-— it arrives ~30 minutes in, and it is the cheapest moment to learn the run is mis-sized.
-
-**The command, canonically — [PROFILING_EC2.md §4.5](./PROFILING_EC2.md) repeats it verbatim
-and nothing should paraphrase it.** An earlier draft of that runbook said 4 threads and omitted
-the suite count, which at this scenario count is a four-hour run against a three-hour timeout,
-and one ramp instead of four:
-
-```bash
-etc/ec2/provision.sh --volume-gb 150
-etc/ec2/bootstrap.sh
-etc/ec2/mock.sh start 50ms 8443 tls
-mock=$(etc/ec2/ssh.sh mock-private)
-etc/ec2/ssh.sh injector "cd ~/karate/karate-profiling && nohup env PROFILING_SKIP_BUILD=1 \
-    etc/run.sh suite-soak --iterations 350000 --threads 8 --soak --xmx 8g \
-    --mock-url https://$mock:8443 -Dkarate.profiling.reports=all \
-    -Dprofiling.soak.suites=4 --timeout 3h > ~/soak.log 2>&1 &"
-```
-
-`--iterations` must divide exactly by `suites × scenarios-per-feature` (350,000 = 4 × 10 ×
-8,750); the workload refuses anything else rather than silently resizing the experiment the
-timeout was chosen for.
-
-**Cost.** ~2.5 h of bench (~$2.90 including the rehearsal already taken). Read it per §3's
-Live set panel — the heap-after-GC floor will rise and mean nothing, as it has in both soaks
-so far (§2).
+**The command is in [PROFILING_EC2.md §4.5](./PROFILING_EC2.md) and only there.**
 
 ### E1 — the result, taken 2026-08-08
 
@@ -1130,14 +973,10 @@ the experiment was promoted for: reports-on retention is released at suite end, 
 per-scenario client lifecycle abandons no sockets over TLS, and nothing survives a suite in a
 long-lived JVM.
 
-**Two caveats, both honest.** The *peaks* were sampled at different offsets from each boundary,
-so extrapolating them (806 → 819 MiB) sits inside the error of the slope estimate — the floors
-are directly measured and are the evidence. And the run exposed two defects in the digest
-itself: the live-set panel reported `+207.7 MB (36%) rising` by comparing across boundaries,
-and the port panel under-reported the connection rate 20× once `distinctPeerPorts` saturated.
-Both are fixed (§3), and **E1R below re-read this run on the fixed panels and confirmed it** —
-four flat floors, 0 descriptors closed by the probe's GC. E1's own figures are the *pre-fix*
-retention baseline and nothing else should be quoted from them.
+**These figures are the pre-fix retention baseline and nothing else should be quoted from them.**
+The run exposed two panel defects, both since fixed (§3), and its peaks were sampled at differing
+offsets from each boundary. E1R below re-read it on the fixed panels and confirmed the
+conclusion.
 
 ### E1R — the confirming re-run, taken 2026-08-08
 
@@ -1156,8 +995,14 @@ failed**, and 1,050,000 requests reconciling exactly against the mock's `served`
 | descriptors | 154 → 157, ≤2 closed by the probe's GC | 155 / 156 / 147 flat, **0** closed by the probe's GC |
 | top of `histogram-suite-N-peak.txt` | 290 MB `[B`, 102 MB `String` | 233 MB `[B`, 100.6 MB `String` |
 
-**The verdict is `qualifies`** — the fourth branch of the rule pre-registered before the run. It
-is not `confirms`, and it fails that branch on both of its conditions: the peak is above 400 MiB,
+**The rule, as registered before the run** — first match wins, so no result can land outside it:
+**0 gate**, 4/4 suites and 0 failed, or no verdict at all; **1 regresses**, the panel's own floor
+verdict reads `rising, investigate` or descriptors are not flat; **2 refutes**, peak ≥ 700 MiB;
+**3 confirms**, peak ≤ 400 MiB *and* neither `[B` nor `String` in the top three of
+`histogram-suite-N-peak.txt`; **4 qualifies**, everything else.
+
+**The verdict is `qualifies`** — the fourth branch. It is not `confirms`, and it fails that
+branch on both of its conditions: the peak is above 400 MiB,
 and `[B`/`String` are still the top two histogram entries.
 
 **What moved is the peak; what did not is the composition — and the composition was the wrong
@@ -1269,8 +1114,6 @@ the next session starts from the paused Gatling arc or from whatever the parked 
 
 | | settles | bench time | ~cost |
 |---|---|---:|---:|
-| **E1R confirming re-run** — *taken 2026-08-08, ~$2.61* | re-read E1 on the fixed panels and measured the step-log release. Verdict `qualifies`, peak −21.8%, floors flat | ~2 h | ~$2.61 |
-| **E1 suite soak** — *taken 2026-08-08, ~$2.30* | "no leak in karate" — reports on, TLS, and the unpooled client lifecycle. Its figures are the pre-fix baseline; read it through E1R | ~2 h | ~$2.30 |
 | E2 enterprise cell *(paused)* | the thesis on a realistic workload | ~35 min (+ harness work) | $0.70 |
 | E3 8u × 6400 TLS *(paused)* | the density/run-length confound | ~19 min | $0.40 |
 | E4 knee + open-loop *(paused)* | capacity guidance | ~50 min | $1.00 |
@@ -1414,26 +1257,19 @@ execution and never walks the retained model — so the write side is largely bu
 even survives: `Feature.KARATE_JSON_SUFFIX` and `getKarateJsonFileName()` are still in the source
 and are **called from nowhere**.
 
-What has to be built or decided, from the three adversarial reviews of the per-scenario spill,
-which apply here unchanged except where noted:
+**The per-scenario spill entry above lists what has to be built, and it applies here unchanged** —
+the missing deserialization layer above all, which is the largest single cost and has never
+appeared in an estimate. One blocker is worth stating exactly, because "cannot reproduce the HTML"
+understates how fixable it is: `StepResult.toJson` stores `Console.stripAnsi(log)`, and
+`stripAnsi` removes ANSI *and* the body sentinels, while `HtmlReportWriter` renders logs from the
+**raw** log via `Console.splitLog`, which needs those sentinels to find the highlightable code
+blocks. So the record cannot be today's `toJson()` — it must carry the raw log or pre-split
+segments. A schema decision to take up front, not a wall.
 
-- **The read side is gone and is the largest cost.** v1's `fromKarateJson` twins are deleted and
-  all three writers consume live objects. This appeared in no estimate and still dominates one.
-- **The record cannot be today's `toJson()`, for a reason worth stating exactly.**
-  `StepResult.toJson` stores `Console.stripAnsi(log)`, and `stripAnsi` removes ANSI *and* the body
-  sentinels; `HtmlReportWriter` renders logs from the **raw** log via `Console.splitLog`, which
-  needs those sentinels to find the highlightable code blocks. So the spill schema must carry the
-  raw log or pre-split segments. A decision to take up front, not a wall.
-- **Ten-plus load-bearing special cases** — `afterFeature` mutating the last scenario after it
-  would have been spilled, feature-level synthetic scenarios, JSON-mime embeds, JUnit stack traces
-  absent from `toJson()`.
-- **Bound feature dispatch first.** Every feature is submitted immediately with the semaphore
-  acquired *inside* the task, so "one spill in flight per thread" is O(all features).
-
-**This shape is the one the spill review recommended reviving.** Its own conclusion was to replace
-"merge spilled with never-spilled" with *every scenario is spilled exactly once, when it becomes
-final* — and rehydrating at the end sidesteps the merge problem rather than solving it. Decide it
-against the retention data, not before.
+**This shape is the one that review recommended reviving**: *every scenario is spilled exactly
+once, when it becomes final*, rather than merging spilled with never-spilled. Rehydrating at the
+end sidesteps the merge problem rather than solving it. Decide it against the retention data, and
+note that on its own it moves what a caller retains *after* a run, not the in-run peak.
 
 #### "Karate doesn't play nice with Gatling's async model" — what would actually settle it
 
