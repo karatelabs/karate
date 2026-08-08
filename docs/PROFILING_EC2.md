@@ -241,15 +241,20 @@ run while the two-host mock persists warmed (§6).
 > ```
 >
 > The **suite soak** (E1) is the same topology with a TLS mock, and is *iteration*-bounded — so
-> the timeout is not optional, and `--duration` is refused for it:
+> the timeout is not optional, and `--duration` is refused for it. This is the canonical command
+> from [PROFILING.md §9](./PROFILING.md), copied verbatim; if the two ever differ, §9 is the one
+> that carries the reasoning. Note the larger root volume: the run writes ~12 GB of reports it
+> never sends home, and ENOSPC mid-soak wastes the session.
 >
 > ```bash
+> etc/ec2/provision.sh --volume-gb 150
+> etc/ec2/bootstrap.sh
 > etc/ec2/mock.sh start 50ms 8443 tls
 > mock=$(etc/ec2/ssh.sh mock-private)
 > etc/ec2/ssh.sh injector "cd ~/karate/karate-profiling && nohup env PROFILING_SKIP_BUILD=1 \
->     etc/run.sh suite-soak --iterations <sized-from-rehearsal> --threads 4 --soak --xmx 8g \
->     --mock-url https://$mock:8443 -Dkarate.profiling.reports=all --timeout 3h \
->     > ~/soak.log 2>&1 &"
+>     etc/run.sh suite-soak --iterations 350000 --threads 8 --soak --xmx 8g \
+>     --mock-url https://$mock:8443 -Dkarate.profiling.reports=all \
+>     -Dprofiling.soak.suites=4 --timeout 3h > ~/soak.log 2>&1 &"
 > ```
 >
 > Collect **after the parent finishes**, not when the child exits — the digest is written about a

@@ -74,19 +74,24 @@ import java.util.stream.Stream;
  *
  * <p><b>Iteration-bounded, deliberately.</b> This workload owns its suite, so it cannot close a
  * window on request and {@code --duration} is refused for it. Size the scenario count from a
- * rehearsal's measured rate and <b>pass {@code --timeout} explicitly</b> — an iteration-bounded
- * run defaults to a flat one hour, which a two-hour soak sits on the wrong side of.
+ * rehearsal's measured rate and <b>pass {@code --timeout} explicitly</b> — this workload's own
+ * default is 30 minutes, which a two-hour soak sits on the wrong side of.
  *
  * <pre>
  *   # rehearsal: ~10 minutes, a probe every 20s instead of every 5 minutes
  *   etc/run.sh suite-soak --iterations 2000 --threads 4 --soak --timeout 30m \
  *       --mock-url https://&lt;mock&gt;:8443 -Dkarate.profiling.reports=all \
  *       -Dkarate.profiling.liveSetSeconds=20
- *
- *   # the soak itself, sized from what the rehearsal measured
- *   etc/run.sh suite-soak --iterations 40000 --threads 4 --soak --timeout 3h --xmx 8g \
- *       --mock-url https://&lt;mock&gt;:8443 -Dkarate.profiling.reports=all
  * </pre>
+ *
+ * <p>The soak itself has one canonical command, and it lives in docs/PROFILING.md §9 rather
+ * than here — a second copy is how the runbook's version came to say four threads and one
+ * suite while §9 said eight and four.
+ *
+ * <p>{@code --iterations} is the <b>total</b> scenario count and must divide exactly by
+ * {@code suites x scenarios-per-feature}; anything else is refused rather than rounded, because
+ * the obvious rounding once turned {@code --iterations 15 --suites 4} into forty scenarios —
+ * more work than was asked for, against a timeout sized from the number that was typed.
  *
  * <p>Knobs, all system properties on the child JVM:
  * <ul>
@@ -132,11 +137,26 @@ public class SuiteSoakWorkload implements Workload {
      * scenarios and unknown for failed ones — which is why the digest reconciles against
      * {@code passed}, and why a run with failures is refused above.
      */
-    static final int REQUESTS_PER_SCENARIO = 3;
+    public static final int REQUESTS_PER_SCENARIO = 3;
 
     private WorkloadContext context;
     private Path generatedDir;
     private Path featuresDir;
+    /** Scenarios written to disk per suite — the number every suite must actually run. */
+    private long expectedPerSuite;
+
+    /**
+     * Where {@link #setup} wrote the suite, so {@code SuiteSoakSizingTest} can count what was
+     * generated instead of trusting the arithmetic that generated it. The request-per-scenario
+     * constant above is coupled to the feature text by nothing else.
+     */
+    Path generatedFeaturesDir() {
+        return featuresDir;
+    }
+
+    long expectedPerSuite() {
+        return expectedPerSuite;
+    }
 
     @Override
     public String name() {
@@ -184,9 +204,12 @@ public class SuiteSoakWorkload implements Workload {
         String mockUrl = context.requireMockUrl();
         long totalScenarios = context.iterations() > 0 ? context.iterations() : 1000;
         int suites = suites();
-        int perFeature = Integer.getInteger("profiling.soak.scenarios", 10);
-        long perSuite = Math.max(perFeature, totalScenarios / suites);
-        int features = (int) Math.max(1, perSuite / perFeature);
+        int perFeature = positive("profiling.soak.scenarios", 10);
+        allowedFailures();
+        requireReports();
+        warnIfNotTls(mockUrl);
+        int features = plan(totalScenarios, suites, perFeature);
+        expectedPerSuite = (long) features * perFeature;
         try {
             generatedDir = Files.createTempDirectory("karate-suite-soak-");
             featuresDir = Files.createDirectory(generatedDir.resolve("features"));
@@ -204,15 +227,96 @@ public class SuiteSoakWorkload implements Workload {
             throw new UncheckedIOException(e);
         }
         System.out.println("[workload] generated " + features + " features x " + perFeature
-                + " scenarios in " + featuresDir + ", " + suites + " suite(s), mock " + mockUrl);
+                + " scenarios = " + expectedPerSuite + " per suite x " + suites + " suite(s) in "
+                + featuresDir + ", mock " + mockUrl);
+    }
+
+    /**
+     * Features per suite, or a refusal naming the counts that would work.
+     *
+     * <p><b>It refuses rather than rounding, because rounding here is not small.</b> The obvious
+     * arithmetic — {@code iterations / suites / perFeature}, floored twice — silently ran 100
+     * scenarios for {@code --iterations 101 --suites 2}, and, worse, <b>40 for
+     * {@code --iterations 15 --suites 4}</b>: more work than was asked for, on a run whose
+     * {@code --timeout} was sized from the number the operator typed. On a two-hour soak that is
+     * the difference between a result and a killed child. A profiling run has no business
+     * quietly resizing its own experiment, and the exact numbers are always available — so the
+     * fix is to say so before anything is generated.
+     */
+    private static int plan(long totalScenarios, int suites, int perFeature) {
+        long grain = (long) suites * perFeature;
+        if (totalScenarios < grain || totalScenarios % grain != 0) {
+            long below = Math.max(grain, totalScenarios / grain * grain);
+            throw new IllegalArgumentException("--iterations " + totalScenarios + " is the TOTAL"
+                    + " scenario count, and it must divide exactly by suites x scenarios-per-feature"
+                    + " (" + suites + " x " + perFeature + " = " + grain + "). Nearest workable"
+                    + " counts: " + below + " or " + (below + grain) + ". Rounding it here would"
+                    + " run a different experiment than the one whose --timeout you sized.");
+        }
+        return (int) (totalScenarios / grain);
     }
 
     private int suites() {
-        int suites = Integer.getInteger("profiling.soak.suites", 1);
-        if (suites < 1) {
-            throw new IllegalArgumentException("profiling.soak.suites must be at least 1");
+        return positive("profiling.soak.suites", 1);
+    }
+
+    /** A count knob that cannot be zero or negative — both produce nonsense sizing, one divides by zero. */
+    private static int positive(String property, int fallback) {
+        int value = Integer.getInteger(property, fallback);
+        if (value < 1) {
+            throw new IllegalArgumentException(property + " must be at least 1, was " + value);
         }
-        return suites;
+        return value;
+    }
+
+    /**
+     * The failure allowance, refusing a negative one.
+     *
+     * <p>{@code -1} is the natural guess for "unlimited" and did the opposite: {@code 0 > -1}, so
+     * a fully passing suite abandoned the run and threw "0 of N scenarios failed". Loud, but it
+     * wasted the run for the operator who least wanted it stopped.
+     */
+    private static long allowedFailures() {
+        long allowed = Long.getLong("profiling.soak.allowedFailures", 0);
+        if (allowed < 0) {
+            throw new IllegalArgumentException("profiling.soak.allowedFailures must be 0 or more,"
+                    + " was " + allowed + " — there is deliberately no 'unlimited': a soak whose"
+                    + " scenarios fail is measuring the retention of work that did not happen");
+        }
+        return allowed;
+    }
+
+    /**
+     * Refuse to run this workload with reporting off.
+     *
+     * <p>Reporting is the subject of the experiment, and {@link ReportMode} defaults to
+     * {@code off} — so forgetting one {@code -D} produces a clean two-hour run, exit 0 and a
+     * healthy digest that answers a different question while presenting as this one. The same
+     * reasoning as {@code requiresBodySize()} in the parent, and the same remedy: refuse at
+     * setup, before the bench time is spent.
+     */
+    private static void requireReports() {
+        if (ReportMode.current().isOff()) {
+            throw new IllegalArgumentException("suite-soak runs with reporting ON — it is what the"
+                    + " experiment is about, and the per-scenario retention being measured is"
+                    + " largely the captured request/response text the report writers hold."
+                    + " Pass -Dkarate.profiling.reports=all (or a named subset). With reports off"
+                    + " this run would complete cleanly and answer a different question.");
+        }
+    }
+
+    /**
+     * Warn, rather than refuse, on a plaintext mock — a plaintext control is a legitimate cell
+     * (it would price TLS in this lane), but it is not E1, and the difference must not be
+     * something only the URL in run-meta records.
+     */
+    private static void warnIfNotTls(String mockUrl) {
+        if (!mockUrl.startsWith("https")) {
+            System.out.println("[workload] !! NOT TLS: " + mockUrl + " — the E1 soak is a TLS"
+                    + " experiment (a TLS handshake per scenario is most of what the per-scenario"
+                    + " client lifecycle costs). This run is a plaintext variant; do not read it"
+                    + " as the E1 cell.");
+        }
     }
 
     /**
@@ -305,42 +409,74 @@ public class SuiteSoakWorkload implements Workload {
         ReportMode reports = ReportMode.current();
         boolean reportCost = Boolean.getBoolean("karate.profiling.reportCost");
         int suites = suites();
-        long allowedFailures = Long.getLong("profiling.soak.allowedFailures", 0);
+        long allowedFailures = allowedFailures();
         System.out.println("[workload] reports=" + reports + " reportCost=" + reportCost
-                + " suites=" + suites + " threads=" + context.threads());
+                + " suites=" + suites + " threads=" + context.threads()
+                + " expecting " + expectedPerSuite + " scenarios per suite");
         long start = System.nanoTime();
         long scenarios = 0;
         long passed = 0;
         long failed = 0;
         int completed = 0;
+        long missing = 0;
         for (int suite = 1; suite <= suites; suite++) {
             SuiteResult result = runSuite(suite, reports, reportCost);
             scenarios += result.getScenarioCount();
             passed += result.getScenarioPassedCount();
             failed += result.getScenarioFailedCount();
+            missing += expectedPerSuite - result.getScenarioCount();
             completed = suite;
             System.out.println(SUITE_PREFIX
                     + "suites=" + completed + "/" + suites
                     + " scenarios=" + scenarios
+                    + " expected=" + expectedPerSuite * completed
                     + " passed=" + passed
                     + " failed=" + failed
                     + " requests=" + passed * REQUESTS_PER_SCENARIO
+                    + " reports=" + reports
                     + " elapsedMs=" + (System.nanoTime() - start) / 1_000_000);
+            if (missing != 0) {
+                // The blind spot one notch over from a failed scenario: a scenario that never
+                // existed. karate-core's Gherkin parser drops sections it cannot parse rather than
+                // refusing the file, so a mistake in the generated text yields VALID features
+                // holding no scenarios — and every other signal then vouches for the run. Nothing
+                // failed, so nothing throws; the digest prints `scenarios | 0` with no warning;
+                // and the reconciliation compares 0 expected requests against 0 served and reports
+                // that they agree. This workload is the only thing that knows how many scenarios it
+                // wrote, so it is the only thing that can catch it.
+                System.out.println("[workload] !! suite " + suite + " ran "
+                        + result.getScenarioCount() + " scenarios, not the " + expectedPerSuite
+                        + " that were generated. Nothing here failed — they did not run at all,"
+                        + " which usually means the generated Gherkin stopped parsing as intended"
+                        + " (unrecognised sections are dropped silently, not rejected).");
+                break;
+            }
             if (failed > allowedFailures) {
-                System.out.println("[workload] !! " + failed + " scenario(s) failed, over an allowance of "
-                        + allowedFailures + " — abandoning after suite " + suite + " of " + suites
+                System.out.println("[workload] !! " + failed + " of " + scenarios + " scenario(s) failed ("
+                        + percent(failed, scenarios) + "), over an allowance of " + allowedFailures
+                        + " — abandoning after suite " + suite + " of " + suites
                         + ". A soak whose scenarios fail is not a slower soak, it is a soak with holes:"
                         + " the retention being measured is the retention of work that did not happen.");
                 break;
             }
         }
-        if (failed > allowedFailures) {
-            // Thrown rather than printed: the child counts a thrown iteration as an error and exits
-            // non-zero, which is what stops a failed soak from reading as a completed one to
-            // whatever is scripting it.
-            throw new IllegalStateException(failed + " of " + scenarios + " scenarios failed"
-                    + " — see the suite output above; the digest's suite panel carries the counts");
+        // Thrown rather than printed: the child counts a thrown iteration as an error and exits
+        // non-zero, which is what stops a broken soak from reading as a completed one to whatever
+        // is scripting it.
+        if (missing != 0) {
+            throw new IllegalStateException(missing + " scenario(s) were generated and never ran"
+                    + " — this run measured less than it claims; the digest's suite panel carries"
+                    + " executed against expected");
         }
+        if (failed > allowedFailures) {
+            throw new IllegalStateException(failed + " of " + scenarios + " scenarios failed ("
+                    + percent(failed, scenarios) + ") — see the suite output above; the digest's"
+                    + " suite panel carries the counts");
+        }
+    }
+
+    private static String percent(long part, long whole) {
+        return whole <= 0 ? "?" : String.format(java.util.Locale.ROOT, "%.2f%%", 100.0 * part / whole);
     }
 
     private SuiteResult runSuite(int suite, ReportMode reports, boolean reportCost) {

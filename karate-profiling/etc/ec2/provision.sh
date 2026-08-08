@@ -15,13 +15,24 @@ source "$(dirname "$0")/lib.sh"
 #
 # Unknown arguments are rejected rather than ignored. A script that spends money should not
 # read `--sinlge` as "launch both instances" and say nothing.
+#
+# Root volume size is a knob because one workload needs it to be. A parity matrix writes
+# almost nothing, but the suite soak writes every report format for every feature it runs and
+# never reads any of it back — collect.sh pulls digests, not reports. So the volume is not
+# storage anyone keeps, it is headroom the run must not exhaust: ENOSPC mid-soak aborts the
+# run and wastes the session, and it has happened. gp3 is ~$0.08/GB-month, so an extra 100 GB
+# for a three-hour session is about four cents — cheaper by far than sizing the experiment
+# down to fit a default. Set KP_VOLUME_GB in the env file, or pass --volume-gb.
 single=false
-case "${1:-}" in
-    --single) single=true ;;
-    "") ;;
-    *) die "unknown argument '$1' — the only option is --single" ;;
-esac
-[[ $# -le 1 ]] || die "unexpected extra arguments: ${*:2}"
+volume_gb="${KP_VOLUME_GB:-40}"
+while (($#)); do
+    case "$1" in
+        --single) single=true; shift ;;
+        --volume-gb) volume_gb="$2"; shift 2 ;;
+        *) die "unknown argument '$1' — the options are --single and --volume-gb N" ;;
+    esac
+done
+[[ "$volume_gb" =~ ^[0-9]+$ ]] || die "--volume-gb must be a whole number of GB, got '$volume_gb'"
 
 my_ip="$(curl -s --max-time 10 https://checkip.amazonaws.com || true)"
 [[ -n "$my_ip" ]] || die "could not determine your public IP for the ssh rule"
@@ -76,12 +87,12 @@ launch() {
         log "$name exists ($existing)"
         return
     fi
-    log "launching $name"
+    log "launching $name (${volume_gb} GB gp3 root)"
     aws ec2 run-instances \
         --image-id "$KP_AMI" --instance-type "$KP_INSTANCE_TYPE" \
         --key-name "$KP_KEY_NAME" --security-group-ids "$sg_id" \
         --subnet-id "$KP_SUBNET" --placement "GroupName=$KP_PG_NAME,AvailabilityZone=$KP_AZ" \
-        --block-device-mappings 'DeviceName=/dev/xvda,Ebs={VolumeSize=40,VolumeType=gp3,DeleteOnTermination=true}' \
+        --block-device-mappings "DeviceName=/dev/xvda,Ebs={VolumeSize=${volume_gb},VolumeType=gp3,DeleteOnTermination=true}" \
         --metadata-options 'HttpTokens=required,HttpEndpoint=enabled' \
         --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$name},{Key=$KP_PREFIX,Value=true}]" \
         --query 'Instances[0].InstanceId' --output text >/dev/null

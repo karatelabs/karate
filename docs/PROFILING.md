@@ -299,8 +299,15 @@ IDE plugin actually have), `-Dprofiling.soak.allowedFailures=N`.
 
 Two connections per scenario, not one: the called feature gets its own runtime and therefore
 its own client, which is a second release path with its own way to abandon a socket.
-`distinctPeerPorts` in the digest is the check — 2× scenarios, or something is being reused
-that should not be.
+
+**`distinctPeerPorts` reads as an order of magnitude here, never as an equality.** It is a
+65,536-bit port bitmap, and the bench deliberately sets `tcp_tw_reuse=1` — so a run making
+hundreds of thousands of connections *must* recycle ports and *cannot* exceed the ephemeral
+range. Thousands means a client per scenario; a number near the thread count means something
+is pooling that should not be. Anything tighter is a check that fails on every healthy soak
+and trains the reflex of explaining it away. (The rehearsal measured 7,185 for 4,000
+scenarios against a naive expectation of 8,000 — recycling, over a run that outlived the 60 s
+TIME_WAIT window, and exactly why the equality version of this check was wrong.)
 
 **A failed scenario does not throw**, so this workload counts failures itself, stops when they
 exceed the allowance, exits non-zero, and prints them where the digest can see them (the *Suite
@@ -968,11 +975,13 @@ produce them. A new Runner-lane workload, modeled on `FeatureSpreadWorkload`:
    raised, the host has 32 GB). The claim's falsifiable form: **live-set slope ≈ the
    predicted designed growth, descriptors flat, `closed by the probe's GC` ~0.** Unexplained
    excess → class histograms (§3) and a `--gc-roots` run.
-2. **Disk and connections.** `reports=all` writes per-feature output for the whole run on a
-   **40 GB** volume — measure report-directory growth per feature in the rehearsal and size
-   accordingly (`backupOutputDir` is already disabled by `ReportMode`). And each scenario
-   opens its own connection with a TLS handshake, so check the scenario rate against the
-   connection ceiling `run-meta.txt` derives for the host.
+2. **Disk and connections.** `reports=all` writes per-feature output for the whole run, on a
+   volume the run must not exhaust — measure report growth per scenario in the rehearsal and
+   then **provision for it** (`provision.sh --volume-gb`) rather than shrinking the experiment
+   to fit the 40 GB default; the reports are never collected, so this is headroom, not storage
+   (`backupOutputDir` is already disabled by `ReportMode`). And each scenario opens its own
+   connections with a TLS handshake, so check the scenario rate against the connection ceiling
+   `run-meta.txt` derives for the host.
 
 **Development — done, and exercised locally.** What was built, and what each thing is for:
 
@@ -980,8 +989,7 @@ produce them. A new Runner-lane workload, modeled on `FeatureSpreadWorkload`:
    including the repeated-suites adjunct as `-Dprofiling.soak.suites=N`. Verified locally
    against a forked TLS `LatencyMock`: 100 scenarios, 0 failures, `reports=all`, and
    `distinctPeerPorts` = 200 — the two-clients-per-scenario shape the unpooled question is
-   about, counted rather than assumed. Reports cost ~45 KB/scenario on disk, so the 40 GB
-   volume is not the binding budget; heap is.
+   about, counted rather than assumed.
 2. **TLS plumbing already existed** — `--mock-tls` for a forked mock, or
    `mock.sh start <tier> <port> tls` plus `--mock-url https://…` on the two-host bench.
    karate-core trusts all certificates by default, so the self-signed mock needs no
@@ -1011,19 +1019,52 @@ requests reconciling exactly against the mock's `served`) and it is the sizing e
 | live-set slope under load | 43.4 → 48.8 MB over 3,400 scenarios — **~1.6 KB/scenario** | heap. Far below the 143 KB/scenario of the mega-outline shape, because these scenarios are small |
 | live set after the suite ended | **12.5 MB**, from 48.8 | the designed retention *is* released at suite end — the shape a leak would break |
 | descriptors | **flat at 151**, `closed by the probe's GC` 0, over 12,000 TLS requests with a client per scenario | early evidence on the unpooled question |
-| reports on disk | 133 MB / 4,000 scenarios — **34 KB/scenario**, 37 GB free | **the binding budget**, not heap |
+| reports on disk | 133 MB / 4,000 scenarios — **34 KB/scenario** | volume headroom — see below |
 | injector CPU | **0.29 of 16 cores** | thread count is free to rise |
 
-**So the 2 h soak is disk-bound, and the sizing follows from that**: at 8 threads (≈49/s)
-two hours is ~350,000 scenarios → ~12 GB of reports and ~560 MB of designed retention, both
-comfortable. 16 threads would reach ~700,000 scenarios and ~24 GB, which is inside 37 GB but
-without much margin for a run that overshoots. `--xmx 8g`, `--timeout 3h`.
+**Neither budget binds, because the one that would has been provisioned past.** At 8 threads
+(≈49/s) two hours is ~350,000 scenarios: ~12 GB of reports and, at four suites, ~140 MB of
+designed retention per suite. The reports are **never collected** — `collect.sh` pulls digests,
+not report trees, and the volume dies with the host — so their size is not storage anyone
+keeps, it is only headroom the run must not exhaust. ENOSPC mid-soak aborts the run and wastes
+the session, and it has happened at 19 GB. The default 40 GB root volume was therefore an
+arbitrary cap on the experiment, so `provision.sh` now takes `--volume-gb` (`KP_VOLUME_GB`):
+**provision 150 GB for this run** — about four cents for a three-hour session — and size the
+soak by what is worth measuring instead. `--xmx 8g`, `--timeout 3h`.
 
 **Run it with `-Dprofiling.soak.suites=4` rather than one long suite.** The rehearsal showed
 why: retention climbs by design and collapses at suite end, so four ~30-minute suites produce
 four ramps that each return to the same floor — and a floor that creeps between them is a leak
 with no interpretation needed. One monotonic ramp can only be read against a predicted slope,
-which is the weaker claim.
+and that slope comes from two live-set probes on a 5.4 MB delta, which is not much to hang a
+claim on. Four suites is also what makes the heap number small: peak designed retention is
+per *suite*, not per run.
+
+**The one scaling step nothing has measured** is the report writing at suite end for 87,500
+scenarios — 22× the rehearsal's suites. Mid-run slope says nothing about it; if any writer
+aggregates a whole suite before flushing, that spike is the heap figure that matters, and 8 GB
+over ~140 MB is expected to absorb it rather than known to. **Watch the first suite boundary**
+— it arrives ~30 minutes in, and it is the cheapest moment to learn the run is mis-sized.
+
+**The command, canonically — [PROFILING_EC2.md §4.5](./PROFILING_EC2.md) repeats it verbatim
+and nothing should paraphrase it.** An earlier draft of that runbook said 4 threads and omitted
+the suite count, which at this scenario count is a four-hour run against a three-hour timeout,
+and one ramp instead of four:
+
+```bash
+etc/ec2/provision.sh --volume-gb 150
+etc/ec2/bootstrap.sh
+etc/ec2/mock.sh start 50ms 8443 tls
+mock=$(etc/ec2/ssh.sh mock-private)
+etc/ec2/ssh.sh injector "cd ~/karate/karate-profiling && nohup env PROFILING_SKIP_BUILD=1 \
+    etc/run.sh suite-soak --iterations 350000 --threads 8 --soak --xmx 8g \
+    --mock-url https://$mock:8443 -Dkarate.profiling.reports=all \
+    -Dprofiling.soak.suites=4 --timeout 3h > ~/soak.log 2>&1 &"
+```
+
+`--iterations` must divide exactly by `suites × scenarios-per-feature` (350,000 = 4 × 10 ×
+8,750); the workload refuses anything else rather than silently resizing the experiment the
+timeout was chosen for.
 
 **Cost.** ~2.5 h of bench (~$2.90 including the rehearsal already taken). Read it per §3's
 Live set panel — the heap-after-GC floor will rise and mean nothing, as it has in both soaks

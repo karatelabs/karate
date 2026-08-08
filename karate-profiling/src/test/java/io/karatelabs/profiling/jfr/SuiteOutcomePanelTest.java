@@ -52,10 +52,17 @@ class SuiteOutcomePanelTest {
     }
 
     private static String suiteLine(int done, int of, long scenarios, long failed, long elapsedMs) {
+        return suiteLine(done, of, scenarios, scenarios, failed, elapsedMs);
+    }
+
+    private static String suiteLine(int done, int of, long scenarios, long expected,
+                                    long failed, long elapsedMs) {
         long passed = scenarios - failed;
         return io.karatelabs.profiling.workload.SuiteSoakWorkload.SUITE_PREFIX
-                + "suites=" + done + "/" + of + " scenarios=" + scenarios + " passed=" + passed
-                + " failed=" + failed + " requests=" + passed * 3 + " elapsedMs=" + elapsedMs;
+                + "suites=" + done + "/" + of + " scenarios=" + scenarios + " expected=" + expected
+                + " passed=" + passed + " failed=" + failed
+                + " requests=" + passed * io.karatelabs.profiling.workload.SuiteSoakWorkload.REQUESTS_PER_SCENARIO
+                + " reports=html+jsonl+junit+cucumber elapsedMs=" + elapsedMs;
     }
 
     private static String outcome(Path runDir) {
@@ -69,8 +76,9 @@ class SuiteOutcomePanelTest {
         String md = outcome(runDirWith("failed", suiteLine(1, 1, 40_000, 137, 7_200_000)));
         assertTrue(md.contains("39863 / **137**"),
                 "the failure count is the whole point of the panel: " + md);
-        assertTrue(md.contains("**This run had scenario failures"),
-                "a failure must be called out in prose, not left to be spotted in a table: " + md);
+        assertTrue(md.contains("**137 of 40000 scenarios failed (0.34%)"),
+                "a failure must be called out in prose, and proportionately — the allowance knob"
+                        + " means a tolerated few must not read like a wrecked run: " + md);
     }
 
     @Test
@@ -93,7 +101,41 @@ class SuiteOutcomePanelTest {
                 suiteLine(2, 4, 20_000, 0, 3_600_000)));
         assertTrue(md.contains("| suites completed | 2/4 |"),
                 "the last cumulative line is the state to report: " + md);
-        assertTrue(md.contains("| scenarios | 20000 |"), md);
+        assertTrue(md.contains("| scenarios run / generated | 20000 / 20000 |"), md);
+    }
+
+    /**
+     * The blind spot one notch over from a failed scenario: a scenario that never ran. Nothing
+     * fails, so nothing throws and every other panel reads healthy — this is the only place that
+     * can contradict them, and it could not until it was given the generated count to compare.
+     */
+    @Test
+    void testAnEmptyRunIsCalledOutRatherThanReportedAsZeroFailures() throws IOException {
+        String md = outcome(runDirWith("empty", suiteLine(1, 1, 0, 40_000, 0, 900_000)));
+        assertTrue(md.contains("executed no scenarios at all"),
+                "zero scenarios and zero failures is the failure, not a clean run: " + md);
+        assertTrue(md.contains("Nothing here is a measurement"), md);
+    }
+
+    @Test
+    void testAShortRunIsCalledOutEvenWithNoFailures() throws IOException {
+        String md = outcome(runDirWith("short", suiteLine(1, 1, 39_000, 40_000, 0, 900_000)));
+        assertTrue(md.contains("1000 generated scenarios never ran"),
+                "the gap between generated and executed must be named: " + md);
+    }
+
+    /**
+     * Zero expected against zero served is two counts of nothing. Printing "they agree" for it
+     * puts a green tick on the run the panel above has just called empty.
+     */
+    @Test
+    void testReconciliationRefusesToAgreeWithAnEmptyRun() throws IOException {
+        Path empty = runDirWith("recon-empty", suiteLine(1, 1, 0, 40_000, 0, 900_000));
+        StringBuilder md = new StringBuilder();
+        JfrDigest.appendSuiteReconciliation(md, empty, 0);
+        assertFalse(md.toString().contains("they agree"),
+                "0 == 0 is not agreement, it is an empty run: " + md);
+        assertTrue(md.toString().contains("nothing to reconcile"), md.toString());
     }
 
     /** No suite line at all — every other workload — must leave the digest untouched. */

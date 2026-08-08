@@ -355,19 +355,39 @@ public final class JfrDigest {
             return;
         }
         long scenarios = (long) keyValueNumber(suite, "scenarios");
+        long expected = (long) keyValueNumber(suite, "expected");
         long passed = (long) keyValueNumber(suite, "passed");
         long failed = (long) keyValueNumber(suite, "failed");
         md.append("## Suite outcome\n\n");
         md.append("| | |\n|---|---:|\n");
         md.append("| suites completed | ").append(keyValueText(suite, "suites")).append(" |\n");
-        md.append("| scenarios | ").append(scenarios).append(" |\n");
+        md.append("| scenarios run / generated | ").append(scenarios).append(" / ")
+                .append(expected < 0 ? "?" : Long.toString(expected)).append(" |\n");
         md.append("| passed / failed | ").append(passed).append(" / **").append(failed).append("** |\n");
+        md.append("| reports | ").append(keyValueText(suite, "reports")).append(" |\n");
         md.append("| elapsed | ").append((long) keyValueNumber(suite, "elapsedMs")).append(" ms |\n\n");
+        // Checked before failures, because it is the more deceptive of the two: a scenario that
+        // never ran cannot fail, so every other signal in this digest — including the
+        // reconciliation below, which would compare zero against zero and call it agreement —
+        // reads healthy. karate-core drops Gherkin it cannot parse instead of rejecting the file,
+        // so "the features are valid and hold no scenarios" is a reachable state.
+        if (scenarios <= 0) {
+            md.append("> **This run executed no scenarios at all, and nothing failed — because ")
+                    .append("nothing ran.** Unparseable Gherkin is dropped rather than rejected, so a ")
+                    .append("suite of valid-looking features can hold none. Every panel in this digest ")
+                    .append("describes an idle JVM. Nothing here is a measurement.\n\n");
+        } else if (expected > 0 && scenarios < expected) {
+            md.append("> **").append(expected - scenarios).append(" generated scenarios never ran.** ")
+                    .append("They did not fail — they were not executed, which is the failure mode that ")
+                    .append("leaves every other signal looking healthy. This run measured less than it ")
+                    .append("claims; find out what was dropped before reading anything else.\n\n");
+        }
         if (failed > 0) {
-            md.append("> **This run had scenario failures, so nothing below describes the workload ")
-                    .append("that was asked for.** A failed scenario stops early, so it allocates less, ")
-                    .append("retains less and opens fewer connections than a passing one — every panel ")
-                    .append("above is flattered by it. Find the cause before reading anything else.\n\n");
+            md.append("> **").append(failed).append(" of ").append(scenarios).append(" scenarios failed (")
+                    .append(scenarios > 0 ? fixed(100.0 * failed / scenarios, 2) : "?").append("%).** ")
+                    .append("A failed scenario stops early, so it allocates less, retains less and opens ")
+                    .append("fewer connections than a passing one — every panel above is flattered by ")
+                    .append("it, in proportion to that percentage. Find the cause before reading on.\n\n");
         }
     }
 
@@ -474,6 +494,14 @@ public final class JfrDigest {
         long expected = (long) keyValueNumber(suite, "requests");
         long failed = (long) keyValueNumber(suite, "failed");
         if (expected < 0) {
+            return;
+        }
+        // Zero against zero is not agreement, it is two counts of nothing — and printing "they
+        // agree" for it puts a green tick on a run that executed no scenarios. The suite panel
+        // above says why; this one must not contradict it.
+        if (expected == 0) {
+            md.append("**Reconciliation.** No passing scenarios, so there is nothing to reconcile ")
+                    .append("— the mock served ").append(served).append(". Read the suite outcome above.\n\n");
             return;
         }
         md.append("**Reconciliation.** The suite's passing scenarios account for **").append(expected)
