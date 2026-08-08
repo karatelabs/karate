@@ -888,9 +888,19 @@ shipped the then-uncommitted fixes and the runs' `build: 745a408 +DIRTY` stamps 
 build used them; the calibration archived itself to `$KP_RESULTS`
 (`calibration-10ms-2026-08-07-164553.txt`); the collect guard was fired on a planted
 digest-less directory; and three duration-bounded rehearsals ran (100 s / 4 m / 200 s — the
-4 m one being the BUSY-branch live-test shape). Still unproven: `matrix.sh`'s `find -newer`
-run identification (unchanged; deletes data; only at risk from a backwards clock step — a
-name-based replacement would need a run to prove).
+4 m one being the BUSY-branch live-test shape).
+
+**Exercised again 2026-08-08 (~30 min, ~$0.58)**, after the E1 development, because the
+scripts it touched were in exactly the "edited but not run" state that was five for five
+broken the previous session. Everything above was re-run and passed, plus the two things that
+were still open: **`matrix.sh`'s `find -newer` run identification is now proven** — a 2-pair
+10 ms matrix discarded its warmup run by name and parked four runs under its label — and the
+**widened collect guard fired on a planted `suite-soak-2026-01-01-000000`**, exiting 1 and
+naming it, which is the branch no `gatling-*` fixture could reach. `teardown.sh` refused
+while run directories existed and only `--force` got past it. The TLS calibration at 50 ms
+archived itself and is clean: ko 0 throughout, both baseline repeats matching (−0.05 / −0.13),
+no knee to 8 users, and close mode pricing a TLS connection at ~2.9 ms over keepalive — which
+is the envelope the suite soak's client-per-scenario arm actually runs in.
 
 ### Open experiments, in priority order
 
@@ -989,9 +999,33 @@ produce them. A new Runner-lane workload, modeled on `FeatureSpreadWorkload`:
    compares passing scenarios × requests-per-scenario against the mock's `served`, and
    refuses to compare them at all when anything failed.
 
-**Cost.** A rehearsal with `-Dkarate.profiling.liveSetSeconds=20` (~15 min bench), then the
-2 h soak (~$2.40). Read it per §3's Live set panel — the heap-after-GC floor will rise and
-mean nothing, as it has in both soaks so far (§2).
+**The rehearsal — taken 2026-08-08**, two-host bench, 50 ms TLS mock, `reports=all`,
+4 threads, 4,000 scenarios, `66486a7 +DIRTY`. It ran clean (0 failures, exit 0, 12,000
+requests reconciling exactly against the mock's `served`) and it is the sizing evidence:
+
+| measured | value | what it constrains |
+|---|---|---|
+| scenario rate | **24.3/s** at 4 threads | how many scenarios fit in 2 h |
+| live-set slope under load | 43.4 → 48.8 MB over 3,400 scenarios — **~1.6 KB/scenario** | heap. Far below the 143 KB/scenario of the mega-outline shape, because these scenarios are small |
+| live set after the suite ended | **12.5 MB**, from 48.8 | the designed retention *is* released at suite end — the shape a leak would break |
+| descriptors | **flat at 151**, `closed by the probe's GC` 0, over 12,000 TLS requests with a client per scenario | early evidence on the unpooled question |
+| reports on disk | 133 MB / 4,000 scenarios — **34 KB/scenario**, 37 GB free | **the binding budget**, not heap |
+| injector CPU | **0.29 of 16 cores** | thread count is free to rise |
+
+**So the 2 h soak is disk-bound, and the sizing follows from that**: at 8 threads (≈49/s)
+two hours is ~350,000 scenarios → ~12 GB of reports and ~560 MB of designed retention, both
+comfortable. 16 threads would reach ~700,000 scenarios and ~24 GB, which is inside 37 GB but
+without much margin for a run that overshoots. `--xmx 8g`, `--timeout 3h`.
+
+**Run it with `-Dprofiling.soak.suites=4` rather than one long suite.** The rehearsal showed
+why: retention climbs by design and collapses at suite end, so four ~30-minute suites produce
+four ramps that each return to the same floor — and a floor that creeps between them is a leak
+with no interpretation needed. One monotonic ramp can only be read against a predicted slope,
+which is the weaker claim.
+
+**Cost.** ~2.5 h of bench (~$2.90 including the rehearsal already taken). Read it per §3's
+Live set panel — the heap-after-GC floor will rise and mean nothing, as it has in both soaks
+so far (§2).
 
 ### Paused — the Gatling arc
 
