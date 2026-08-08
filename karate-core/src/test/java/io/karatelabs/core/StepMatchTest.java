@@ -985,4 +985,168 @@ class StepMatchTest {
         assertFailed(sr);
     }
 
+    // ========== Optional nested-schema reference — '##(schema)' ==========
+    // '##(expr)' has two jobs that pull in opposite directions:
+    //   - building data: evaluate expr, inline the value, drop the key if it is null
+    //   - asserting:     an OPTIONAL marker — the field may be null or absent
+    // Inlining is destructive for the second job: once '##(subSchema)' has been replaced by
+    // the map it resolves to, the '##' is gone and the field is plain required.
+    // So the placeholder is preserved (left as the literal string, for the match engine to
+    // resolve) in exactly the two places where the value is known to be headed for a match:
+    // the RHS of the `match` keyword, and a `def` whose JSON literal the user wrapped in
+    // round brackets. Everywhere else '##(chunk)' still inlines the chunk.
+    // Only chunks (map / list / XML node) are preserved — a scalar is always inlined.
+
+    @Test
+    void testOptionalPrimitiveMarkersAcceptNull() {
+        // Control — '##string' / '##number' have always accepted null.
+        ScenarioRuntime sr = run("""
+            * def response = { name: 'test', age: null, email: null }
+            * match response == { name: '#string', age: '##number', email: '##string' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testOptionalSchemaReferenceOnMatchRhsAcceptsNull() {
+        ScenarioRuntime sr = run("""
+            * def subSchema = { name: '#string', id: '#number' }
+            * def response = { status: 'active', details: null }
+            * match response == { status: '#string', details: '##(subSchema)' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testOptionalSchemaReferenceOnMatchRhsAcceptsMissingKey() {
+        ScenarioRuntime sr = run("""
+            * def subSchema = { name: '#string', id: '#number' }
+            * def response = { status: 'active' }
+            * match response == { status: '#string', details: '##(subSchema)' }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testOptionalSchemaReferenceStillValidatesWhenPresent() {
+        // 'optional' is only about null / absent — a value that IS there must match.
+        ScenarioRuntime sr = run("""
+            * def subSchema = { name: '#string', id: '#number' }
+            * def response = { status: 'active', details: { name: 'x', id: 1 } }
+            * match response == { status: '#string', details: '##(subSchema)' }
+            """);
+        assertPassed(sr);
+        sr = run("""
+            * def subSchema = { name: '#string', id: '#number' }
+            * def response = { status: 'active', details: { name: 'x', id: 'not-a-number' } }
+            * match response == { status: '#string', details: '##(subSchema)' }
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testOptionalSchemaReferenceInMatchDocString() {
+        ScenarioRuntime sr = run("""
+            * def subSchema = { name: '#string', id: '#number' }
+            * def response = { status: 'active', details: null }
+            * match response ==
+            \"\"\"
+            { status: '#string', details: '##(subSchema)' }
+            \"\"\"
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testOptionalSchemaReferenceInParenWrappedDef() {
+        // The re-usable-schema form: round brackets keep the placeholder alive past `def`.
+        ScenarioRuntime sr = run("""
+            * def subSchema = { name: '#string', id: '#number' }
+            * def mainSchema = ({ status: '#string', details: '##(subSchema)' })
+            * match { status: 'active', details: null } == mainSchema
+            * match { status: 'active' } == mainSchema
+            * match { status: 'active', details: { name: 'x', id: 1 } } == mainSchema
+            """);
+        assertPassed(sr);
+        sr = run("""
+            * def subSchema = { name: '#string', id: '#number' }
+            * def mainSchema = ({ status: '#string', details: '##(subSchema)' })
+            * match { status: 'active', details: { name: 'x' } } == mainSchema
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testOptionalSchemaReferenceInPlainDefIsInlined() {
+        // GOTCHA: without the round brackets, `def` is building data, so '##(subSchema)'
+        // resolves and inlines at def time — the '##' is consumed and 'details' ends up
+        // plain required. Use the paren-wrapped form above, or inline on the match RHS.
+        ScenarioRuntime sr = run("""
+            * def subSchema = { name: '#string', id: '#number' }
+            * def mainSchema = { status: '#string', details: '##(subSchema)' }
+            * assert typeof mainSchema.details == 'object'
+            """);
+        assertPassed(sr);
+        sr = run("""
+            * def subSchema = { name: '#string', id: '#number' }
+            * def mainSchema = { status: '#string', details: '##(subSchema)' }
+            * match { status: 'active', details: null } == mainSchema
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testOptionalChunkStillInlinedWhenBuildingAPayload() {
+        // The other half of the contract — for data, '##(chunk)' must still inline the chunk.
+        // Preserving the placeholder here would put the literal string on the wire.
+        ScenarioRuntime sr = run("""
+            * def chunk = { a: 1 }
+            * def req = { data: '##(chunk)' }
+            * match req == { data: { a: 1 } }
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testOptionalNullReferenceStillRemovesKeyOnMatchRhs() {
+        // Preserving is limited to chunks. A null expression still removes the key, so the
+        // RHS has no 'details' at all and the actual must not have one either.
+        ScenarioRuntime sr = run("""
+            * def subSchema = null
+            * def response = { status: 'active' }
+            * match response == { status: '#string', details: '##(subSchema)' }
+            """);
+        assertPassed(sr);
+        sr = run("""
+            * def subSchema = null
+            * def response = { status: 'active', details: { name: 'x' } }
+            * match response == { status: '#string', details: '##(subSchema)' }
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testOptionalScalarReferenceIsInlinedNotPreserved() {
+        // A scalar is never a schema chunk, so '##(scalar)' inlines even on the match RHS —
+        // 'details' becomes a required 'x' and null fails.
+        ScenarioRuntime sr = run("""
+            * def scalar = 'x'
+            * def response = { status: 'active', details: null }
+            * match response == { status: '#string', details: '##(scalar)' }
+            """);
+        assertFailed(sr);
+    }
+
+    @Test
+    void testRequiredSchemaReferenceIsAlwaysInlined() {
+        // Control for the whole section: single-hash '#(subSchema)' has no optional
+        // semantics to preserve, so it inlines everywhere and null always fails.
+        ScenarioRuntime sr = run("""
+            * def subSchema = { name: '#string', id: '#number' }
+            * def response = { status: 'active', details: null }
+            * match response == { status: '#string', details: '#(subSchema)' }
+            """);
+        assertFailed(sr);
+    }
+
 }

@@ -1340,13 +1340,13 @@ public class StepExecutor {
      */
     public Result evalMatchString(String expression, String docString) {
         MatchExpression expr = GherkinParser.parseMatchExpression(expression);
-        Object actual = evalMatchExpression(expr.getActualExpr());
+        Object actual = evalMatchExpression(expr.getActualExpr(), false);
         Object expected;
         if (docString != null && (expr.getExpectedExpr() == null || expr.getExpectedExpr().isEmpty())) {
             // DocString provides the expected value (e.g. match foo contains deep """ {...} """)
-            expected = evalMatchExpression(docString);
+            expected = evalMatchExpression(docString, true);
         } else {
-            expected = evalMatchExpression(expr.getExpectedExpr());
+            expected = evalMatchExpression(expr.getExpectedExpr(), true);
         }
         Match.Type matchType = Match.Type.valueOf(expr.getMatchTypeName());
         boolean matchEachEmptyAllowed = runtime.getConfig().isMatchEachEmptyAllowed();
@@ -1358,7 +1358,7 @@ public class StepExecutor {
      * Detects jsonpath patterns like var[*].path, $var[*].path, and uses
      * jsonpath evaluation for those instead of JS.
      */
-    private Object evalMatchExpression(String expr) {
+    private Object evalMatchExpression(String expr, boolean forMatch) {
         if (expr == null || expr.isEmpty()) {
             return null;
         }
@@ -1374,7 +1374,7 @@ public class StepExecutor {
             try {
                 Object value = Json.of(expr).value();
                 // Process embedded expressions like #(varName) in the parsed JSON
-                return processEmbeddedExpressions(value);
+                return processEmbeddedExpressions(value, false, forMatch);
             } catch (Exception e) {
                 // Fall through to JS eval if JSON parsing fails
             }
@@ -1864,9 +1864,25 @@ public class StepExecutor {
         // called feature's returned variables) is left intact instead of crashing the step.
         Object value = runtime.eval(wrapJsonLikeExpression(expr));
         if (value instanceof Map || value instanceof List) {
-            value = processEmbeddedExpressions(value, true);
+            // A JSON literal the user deliberately wrapped in round brackets is the documented
+            // escape hatch for building a re-usable schema: the brackets exist precisely to keep
+            // an optional '##(chunk)' reference alive until the match. Everything else reaching
+            // here is incidental data (a read() result, a called feature's variable map), where
+            // '##(chunk)' still means "inline the chunk, drop the key if null".
+            value = processEmbeddedExpressions(value, true, isParenWrappedJson(expr));
         }
         return value;
+    }
+
+    /**
+     * True for an expression like {@code ({ a: 1 })} or {@code ([1, 2])} — a JSON literal
+     * the user forced through JS evaluation by wrapping it in round brackets.
+     */
+    private static boolean isParenWrappedJson(String expr) {
+        if (expr.length() < 3 || expr.charAt(0) != '(' || expr.charAt(expr.length() - 1) != ')') {
+            return false;
+        }
+        return StringUtils.looksLikeJson(expr.substring(1, expr.length() - 1).trim());
     }
 
     private void executeAssert(Step step) {
@@ -3258,7 +3274,11 @@ public class StepExecutor {
      * - ##(expr) evaluates expr; if null, removes the key (returns REMOVE_MARKER)
      */
     private Object processEmbeddedExpressions(Object value) {
-        return processEmbeddedExpressions(value, false);
+        return processEmbeddedExpressions(value, false, false);
+    }
+
+    private Object processEmbeddedExpressions(Object value, boolean lenient) {
+        return processEmbeddedExpressions(value, lenient, false);
     }
 
     /**
@@ -3277,8 +3297,17 @@ public class StepExecutor {
      *       example placeholder (e.g. {@code '#(config.itemId)'}) without blowing up the
      *       calling step.</li>
      * </ul>
+     *
+     * <p>{@code forMatch} marks the value as destined for a {@code match} (the RHS of the
+     * keyword, or a schema the user deliberately forced through JS with {@code (...)}) rather
+     * than for a payload. It only changes one thing: an optional {@code ##(expr)} that resolves
+     * to a JSON chunk (map / list / XML node) is left as the placeholder string instead of being
+     * substituted, so the match engine sees the {@code ##} and can apply optional semantics
+     * (null or absent passes). Substituting would collapse {@code ##(schema)} into a plain
+     * required schema. v1 drew exactly this line in {@code recurseEmbeddedExpressions}, and it
+     * has to stay a line: for a payload, {@code ##(chunk)} must still inline the chunk.
      */
-    private Object processEmbeddedExpressions(Object value, boolean lenient) {
+    private Object processEmbeddedExpressions(Object value, boolean lenient, boolean forMatch) {
         // Untrusted HTTP request data (Mock Server) must never be evaluated as embedded
         // expressions - returning it verbatim leaves any `#(...)` it carries as inert data.
         // Short-circuiting at the first request-derived container protects every nested value.
@@ -3299,7 +3328,7 @@ public class StepExecutor {
             Map<String, Object> map = (Map<String, Object>) value;
             Map<String, Object> result = new LinkedHashMap<>();
             for (Map.Entry<String, Object> entry : map.entrySet()) {
-                Object processed = processEmbeddedExpressions(entry.getValue(), lenient);
+                Object processed = processEmbeddedExpressions(entry.getValue(), lenient, forMatch);
                 if (processed != REMOVE_MARKER) {
                     result.put(entry.getKey(), processed);
                 }
@@ -3310,14 +3339,14 @@ public class StepExecutor {
             List<Object> list = (List<Object>) value;
             List<Object> result = new ArrayList<>();
             for (Object item : list) {
-                Object processed = processEmbeddedExpressions(item, lenient);
+                Object processed = processEmbeddedExpressions(item, lenient, forMatch);
                 if (processed != REMOVE_MARKER) {
                     result.add(processed);
                 }
             }
             return result;
         } else if (value instanceof String str) {
-            return processEmbeddedString(str, lenient);
+            return processEmbeddedString(str, lenient, forMatch);
         }
         return value;
     }
@@ -3325,13 +3354,22 @@ public class StepExecutor {
     /**
      * Process a string that may contain embedded expressions.
      */
-    private Object processEmbeddedString(String str, boolean lenient) {
+    private Object processEmbeddedString(String str, boolean lenient, boolean forMatch) {
         // Check for optional embedded: ##(...)
         if (str.startsWith("##(") && str.endsWith(")")) {
             String expr = str.substring(3, str.length() - 1);
             try {
                 Object result = runtime.eval(expr);
-                return result == null ? REMOVE_MARKER : result;
+                if (result == null) {
+                    return REMOVE_MARKER;
+                }
+                if (forMatch && (result instanceof Map || result instanceof List || result instanceof Node)) {
+                    // an optional reference to a re-usable JSON / XML chunk — leave the placeholder
+                    // intact so the match engine can honour the '##' (null or absent is fine).
+                    // See processEmbeddedExpressions for why this is gated on forMatch.
+                    return str;
+                }
+                return result;
             } catch (Exception e) {
                 // Lenient (JS-eval result): leave the placeholder untouched, like v1.
                 if (lenient) {
