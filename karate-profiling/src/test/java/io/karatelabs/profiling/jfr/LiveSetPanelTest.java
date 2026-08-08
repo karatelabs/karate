@@ -51,6 +51,12 @@ class LiveSetPanelTest {
         return md.toString();
     }
 
+    private static String suite(int done, int of, long elapsedMs) {
+        return io.karatelabs.profiling.workload.SuiteSoakWorkload.SUITE_PREFIX
+                + "suites=" + done + "/" + of + " scenarios=1 expected=1 passed=1 failed=0"
+                + " requests=3 reports=all elapsedMs=" + elapsedMs;
+    }
+
     private static String probe(long elapsedMs, long liveBytes, long fds, boolean isFinal) {
         return "PROFILING-LIVE-SET elapsedMs=" + elapsedMs + " liveBytes=" + liveBytes
                 + " fds=" + fds + " fdsAfterGc=" + fds + " collections=2 valid=true"
@@ -74,6 +80,51 @@ class LiveSetPanelTest {
                 "a climb from 200 to 900 is the finding this panel exists for: " + md);
         assertTrue(md.contains("*(load stopped)*"),
                 "the post-shutdown probe must be shown and labelled rather than dropped");
+    }
+
+    /**
+     * A repeated-suites run, and the false positive that produced this code.
+     *
+     * <p>Retention climbs within a suite by design and collapses at the boundary, so first-versus-last
+     * measures one designed ramp. The real four-suite soak read <b>+207.7 MB (36%)</b> that way, on a
+     * run whose floors were flat — an authoritative leak claim about the healthiest possible result.
+     */
+    @Test
+    void testFourRampsReturningToTheSameFloorAreNotDrift() throws IOException {
+        Path dir = Files.createTempDirectory("suites");
+        Files.write(dir.resolve("stdout.log"), java.util.List.of(
+                probe(300_000, 583_000_000, 154, false),
+                probe(1_500_000, 765_000_000, 156, false),
+                probe(1_801_000, 551_000_000, 156, false),   // floor after suite 1
+                probe(3_302_000, 778_000_000, 157, false),
+                probe(3_602_000, 538_000_000, 157, false),   // floor after suite 2
+                probe(5_103_000, 783_000_000, 157, false),
+                probe(5_403_000, 541_000_000, 157, false),   // floor after suite 3
+                suite(1, 4, 1_772_000), suite(2, 4, 3_542_000), suite(3, 4, 5_311_000)));
+        StringBuilder md = new StringBuilder();
+        JfrDigest.appendLiveSet(md, dir);
+        String panel = md.toString();
+        assertTrue(panel.contains("flat, so nothing survived a suite"),
+                "three floors within a few MB of each other is the healthy answer: " + panel);
+        assertFalse(panel.contains("| drift |"),
+                "global drift is meaningless across suite boundaries and must not be printed: " + panel);
+        assertTrue(panel.contains("floor after each suite"), panel);
+    }
+
+    /** And the panel must still be able to say the bad thing when a floor genuinely steps up. */
+    @Test
+    void testAFloorThatStepsUpEverySuiteIsReportedAsRising() throws IOException {
+        Path dir = Files.createTempDirectory("leaky");
+        Files.write(dir.resolve("stdout.log"), java.util.List.of(
+                probe(300_000, 583_000_000, 154, false),
+                probe(1_801_000, 551_000_000, 156, false),
+                probe(3_602_000, 651_000_000, 157, false),
+                probe(5_403_000, 751_000_000, 158, false),
+                suite(1, 4, 1_772_000), suite(2, 4, 3_542_000), suite(3, 4, 5_311_000)));
+        StringBuilder md = new StringBuilder();
+        JfrDigest.appendLiveSet(md, dir);
+        assertTrue(md.toString().contains("**rising, investigate**: something survived a suite"),
+                "a floor climbing 200 MB across three suites is the finding: " + md);
     }
 
     /** Descriptors move by a few on their own; a leak claim from that would be noise. */

@@ -17,8 +17,11 @@ injector_ip="$(kp_ip_of "$KP_INJECTOR_NAME")"
 
 mkdir -p "$KP_RESULTS"
 
+# Histograms are kilobytes of text and are the only artifact that says WHAT survived, as opposed
+# to how much — so they come home with the digest rather than dying with the host, which is where
+# the hand-taken ones went.
 includes=(--include '*/' --include 'digest.md' --include 'run-meta.txt' --include 'mock.log'
-          --include 'calibration-*.txt')
+          --include 'calibration-*.txt' --include 'histogram-*.txt')
 $want_all && includes+=(--include 'stdout.log' --include '*.hprof')
 
 log "pulling digests to $KP_RESULTS"

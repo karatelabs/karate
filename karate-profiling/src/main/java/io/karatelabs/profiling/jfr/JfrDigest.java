@@ -533,7 +533,7 @@ public final class JfrDigest {
      * because a short run over the ceiling is fine and a long one is not — that distinction is the
      * finding, and collapsing it into a pass/fail would throw it away.
      */
-    private static void appendPortPressure(StringBuilder md, String mockStats) {
+    static void appendPortPressure(StringBuilder md, String mockStats) {
         double ports = io.karatelabs.profiling.LoadProfile.mockNumber(mockStats, "distinctPeerPorts");
         double window = io.karatelabs.profiling.LoadProfile.mockNumber(mockStats, "loadWindowSeconds");
         if (ports <= 0 || window <= 0) {
@@ -542,6 +542,31 @@ public final class JfrDigest {
         io.karatelabs.profiling.HostFacts.Network network = io.karatelabs.profiling.HostFacts.read();
         double rate = ports / window;
         double ceiling = network.sustainableConnectionsPerSecond();
+        // Distinct ports is a SET size, and the set has a hard lid: the mock counts them in a
+        // 65,536-bit bitmap, the kernel draws from a range no larger, and tcp_tw_reuse recycles
+        // ports deliberately. So on a long run the count stops tracking connections and starts
+        // reporting the size of the range — at which point the derived rate is not slightly off,
+        // it is meaningless. Measured: a two-hour soak that opened ~700,000 connections reported
+        // 32,256 ports and therefore "5 connections/s" against an actual ~99/s. Saying so is the
+        // whole fix; there is no better count available, because a reused port is indistinguishable
+        // from a repeated request on the same connection from the server's side.
+        long range = network.portRangeSize();
+        boolean saturated = range > 0 && ports >= range / 4.0;
+        if (saturated) {
+            md.append("**Connections.** ").append((long) ports)
+                    .append(" distinct client ports over ").append(fixed(window, 1))
+                    .append("s — but that is **").append(Math.round(ports * 100.0 / range))
+                    .append("% of this host's ").append(range)
+                    .append("-port range, so the count has saturated and is a LOWER BOUND on "
+                            + "connections, not a measurement.** Ports get recycled — deliberately, "
+                            + "`tcp_tw_reuse` is on — so no rate can be derived from it here; a run "
+                            + "of any length converges on the range size. Read the connection rate "
+                            + "from the workload's own shape instead (connections per iteration x "
+                            + "iterations / window). This host: ").append(network.describe())
+                    .append(". Port **exhaustion** is still visible where it matters — as errors at "
+                            + "the mock and a stall that reads as client slowness.\n\n");
+            return;
+        }
         md.append("**Connections.** ").append((long) ports).append(" distinct client ports over ")
                 .append(fixed(window, 1)).append("s — **").append(fixed(rate, 0))
                 .append(" connections/s**. This host: ").append(network.describe()).append(".");
@@ -841,6 +866,8 @@ public final class JfrDigest {
     // only way to prove the panel reports a RISE, since a healthy run cannot produce one.
     static void appendLiveSet(StringBuilder md, Path runDir) {
         List<long[]> series = new ArrayList<>();
+        List<long[]> labelledFloors = new ArrayList<>();
+        List<long[]> labelledPeaks = new ArrayList<>();
         int invalid = 0;
         try {
             for (String line : Files.readAllLines(runDir.resolve("stdout.log"))) {
@@ -864,7 +891,16 @@ public final class JfrDigest {
                         invalid++;
                     }
                     if (elapsed >= 0 && live >= 0) {
-                        series.add(new long[]{elapsed, live, fds, fdsAfterGc, isFinal});
+                        long[] point = {elapsed, live, fds, fdsAfterGc, isFinal};
+                        series.add(point);
+                        // Boundary readings the workload asked for by name, so the digest does not
+                        // have to guess which timed probe sat closest to a suite end.
+                        String label = keyValueText(rest, "label");
+                        if (label.endsWith("-floor")) {
+                            labelledFloors.add(point);
+                        } else if (label.endsWith("-peak")) {
+                            labelledPeaks.add(point);
+                        }
                     }
                 }
             }
@@ -911,14 +947,19 @@ public final class JfrDigest {
         long min = loaded.stream().mapToLong(s -> s[1]).min().orElse(0);
         long max = loaded.stream().mapToLong(s -> s[1]).max().orElse(0);
         boolean haveFds = loaded.stream().anyMatch(s -> s[2] >= 0);
+        List<Long> boundaries = suiteBoundaries(runDir);
         md.append("| | |\n|---|---|\n");
         row(md, "probes", series.size() + (loaded.size() != series.size()
                 ? " (" + loaded.size() + " under load, 1 after shutdown)" : ""));
         row(md, "first / last", bytes(first) + " / " + bytes(last));
         row(md, "min / max", bytes(min) + " / " + bytes(max));
-        row(md, "drift", (last >= first ? "+" : "") + bytes(last - first)
-                + (first > 0 ? " (" + Math.round((last - first) * 100.0 / first) + "%)" : "")
-                + (loaded.size() != series.size() ? ", under load" : ""));
+        if (boundaries.size() >= 2) {
+            appendFloors(md, loaded, boundaries, labelledFloors, labelledPeaks);
+        } else {
+            row(md, "drift", (last >= first ? "+" : "") + bytes(last - first)
+                    + (first > 0 ? " (" + Math.round((last - first) * 100.0 / first) + "%)" : "")
+                    + (loaded.size() != series.size() ? ", under load" : ""));
+        }
         if (haveFds) {
             appendDescriptors(md, loaded);
         }
@@ -934,6 +975,90 @@ public final class JfrDigest {
             md.append("\n");
         }
         md.append("\n");
+    }
+
+    /**
+     * The elapsed time of each completed suite, from the workload's own cumulative markers.
+     *
+     * <p>Only a repeated-suites run produces more than one. The two clocks — the probe's and the
+     * workload's — both start within milliseconds of the child's measured window, and the numbers
+     * being separated are half-hour suites, so no reconciliation is needed beyond reading them.
+     */
+    private static List<Long> suiteBoundaries(Path runDir) {
+        List<Long> boundaries = new ArrayList<>();
+        try {
+            String prefix = io.karatelabs.profiling.workload.SuiteSoakWorkload.SUITE_PREFIX;
+            for (String line : Files.readAllLines(runDir.resolve("stdout.log"))) {
+                if (line.startsWith(prefix)) {
+                    long elapsed = (long) keyValueNumber(line.substring(prefix.length()), "elapsedMs");
+                    if (elapsed >= 0) {
+                        boundaries.add(elapsed);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            return List.of();
+        }
+        return boundaries;
+    }
+
+    /**
+     * The leak reading for a repeated-suites run: the floor each suite returns to.
+     *
+     * <p><b>Global drift is the wrong question here, and answering it produced a false positive on
+     * the first run that used this shape.</b> Retention climbs within a suite <em>by design</em> —
+     * results are held until the suite ends — and collapses at the boundary. Comparing the first
+     * probe with the last therefore measures one suite's designed ramp and reports it as a leak:
+     * on a four-suite soak that read <b>+207.7 MB (36%)</b> for a run whose floors were flat.
+     *
+     * <p>What a leak actually looks like is a floor that steps up. So the floors are what gets
+     * compared: the first probe after each boundary, which is the live set once a suite's
+     * retention has gone. Each carries a little of the next suite's ramp — the probe lands
+     * wherever the timer puts it — so the comparison is deliberately tolerant rather than exact.
+     */
+    private static void appendFloors(StringBuilder md, List<long[]> loaded, List<Long> boundaries,
+                                     List<long[]> labelledFloors, List<long[]> labelledPeaks) {
+        // Labelled readings when the workload asked for them — the only way to get the boundary
+        // exactly, since a boundary probe is printed just before the suite marker and so lands
+        // fractionally on the wrong side of it for any timestamp rule. Inference stays as the
+        // fallback for runs that predate the labels.
+        List<long[]> floors = new ArrayList<>(labelledFloors);
+        if (floors.isEmpty()) {
+            for (long boundary : boundaries) {
+                loaded.stream().filter(p -> p[0] > boundary).findFirst().ifPresent(floors::add);
+            }
+        }
+        row(md, "suites", boundaries.size() + " — read the floors below, not the drift");
+        if (!labelledPeaks.isEmpty() && labelledPeaks.size() == floors.size()) {
+            StringBuilder released = new StringBuilder();
+            for (int i = 0; i < floors.size(); i++) {
+                released.append(released.isEmpty() ? "" : " / ")
+                        .append(bytes(labelledPeaks.get(i)[1] - floors.get(i)[1]));
+            }
+            row(md, "released at each suite end", released.toString()
+                    + " — measured at the boundary, not interpolated");
+        }
+        if (floors.size() < 2) {
+            row(md, "floors", "only " + floors.size() + " probe landed after a suite ended — the "
+                    + "series is too coarse to compare floors; shorten `-Dkarate.profiling.liveSetSeconds`");
+            return;
+        }
+        StringBuilder list = new StringBuilder();
+        for (long[] floor : floors) {
+            list.append(list.isEmpty() ? "" : " / ").append(bytes(floor[1]));
+        }
+        long firstFloor = floors.get(0)[1];
+        long lastFloor = floors.get(floors.size() - 1)[1];
+        long delta = lastFloor - firstFloor;
+        // Same shape of tolerance as the descriptor row: a few percent of the floor, so a probe
+        // landing a minute deeper into the next suite cannot read as retention.
+        long tolerance = Math.max(4L << 20, firstFloor / 20);
+        row(md, "floor after each suite", list.toString());
+        row(md, "floor drift", (delta >= 0 ? "+" : "") + bytes(delta)
+                + (firstFloor > 0 ? " (" + Math.round(delta * 100.0 / firstFloor) + "%)" : "")
+                + (delta > tolerance
+                ? " — **rising, investigate**: something survived a suite"
+                : " — flat, so nothing survived a suite"));
     }
 
     private static final String LIVE_SET_PREFIX = "PROFILING-LIVE-SET ";

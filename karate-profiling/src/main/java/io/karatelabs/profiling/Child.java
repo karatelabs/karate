@@ -467,8 +467,37 @@ public final class Child {
      * pause every {@link #LIVE_SET_INTERVAL_SECONDS} seconds, which is why it is soak-only —
      * a full GC would distort any run whose question is throughput or pause time.
      */
+    /**
+     * The probe's clock, published so a workload can ask for a reading of its own — null when no
+     * probe is running, which is every non-{@code --soak} run.
+     */
+    private static volatile Long probeStartNanos;
+
+    /**
+     * Take a reading NOW, at a moment the workload knows is interesting.
+     *
+     * <p><b>Because the two numbers a repeated-suites soak exists to produce were both
+     * interpolated.</b> The probe runs on a fixed timer, so it never lands on a suite boundary:
+     * the peak was read from the last probe before the end (up to five minutes early) and the
+     * floor from the first one after (up to five minutes late, carrying that much of the next
+     * suite's ramp). On a four-suite run those offsets differed per suite, which is enough to
+     * make the peaks look like they were climbing. A probe on each side of the boundary measures
+     * both directly.
+     *
+     * <p>No-op when nothing is soaking, so a workload can call it unconditionally. It forces two
+     * full collections, exactly as the timed probe does — that is what makes it a live-set
+     * reading rather than a resident-heap one.
+     */
+    public static void probeLiveSetNow(String label) {
+        Long start = probeStartNanos;
+        if (start != null) {
+            probeOnce(start, false, label);
+        }
+    }
+
     private static Thread startLiveSetProbe(long startNanos) {
         checkExplicitGcIsUsable();
+        probeStartNanos = startNanos;
         Thread probe = Thread.ofPlatform().daemon().name("live-set-probe").start(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
@@ -534,6 +563,18 @@ public final class Child {
     }
 
     private static void probeOnce(long startNanos, boolean isFinal) {
+        probeOnce(startNanos, isFinal, null);
+    }
+
+    /**
+     * @param label why this reading was taken, when a workload asked for it rather than the
+     *              timer — {@code suite-1-floor}. Carried on the wire because the digest cannot
+     *              infer it: a boundary probe is printed just BEFORE the workload's own suite
+     *              marker, so its timestamp lands fractionally on the wrong side of the boundary
+     *              and a timestamp rule would silently pick a later timed probe instead — which
+     *              is the interpolated reading this exists to replace.
+     */
+    private static void probeOnce(long startNanos, boolean isFinal, String label) {
         // Before the collections below, never after. See openFileDescriptors.
         long fdsBeforeGc = openFileDescriptors();
         long before = oldGenCollections();
@@ -552,7 +593,8 @@ public final class Child {
                 + " fdsAfterGc=" + openFileDescriptors()
                 + " collections=" + (after - before)
                 + " valid=" + collected
-                + (isFinal ? " final=true" : ""));
+                + (isFinal ? " final=true" : "")
+                + (label == null ? "" : " label=" + label));
         if (!collected) {
             System.out.println("[child] WARNING: System.gc() collected nothing — this live-set "
                     + "reading is resident heap, not a live set, and means nothing about a leak");

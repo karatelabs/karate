@@ -144,6 +144,8 @@ public class SuiteSoakWorkload implements Workload {
     private Path featuresDir;
     /** Scenarios written to disk per suite — the number every suite must actually run. */
     private long expectedPerSuite;
+    /** Features generated per suite — the denominator of the progress line. */
+    private int featureCount;
 
     /**
      * Where {@link #setup} wrote the suite, so {@code SuiteSoakSizingTest} can count what was
@@ -210,6 +212,7 @@ public class SuiteSoakWorkload implements Workload {
         warnIfNotTls(mockUrl);
         int features = plan(totalScenarios, suites, perFeature);
         expectedPerSuite = (long) features * perFeature;
+        featureCount = features;
         try {
             generatedDir = Files.createTempDirectory("karate-suite-soak-");
             featuresDir = Files.createDirectory(generatedDir.resolve("features"));
@@ -421,11 +424,29 @@ public class SuiteSoakWorkload implements Workload {
         long missing = 0;
         for (int suite = 1; suite <= suites; suite++) {
             SuiteResult result = runSuite(suite, reports, reportCost);
-            scenarios += result.getScenarioCount();
+            long ran = result.getScenarioCount();
+            scenarios += ran;
             passed += result.getScenarioPassedCount();
             failed += result.getScenarioFailedCount();
-            missing += expectedPerSuite - result.getScenarioCount();
+            missing += expectedPerSuite - ran;
             completed = suite;
+
+            // A reading on each side of the boundary, because the timed probe never lands on one:
+            // the peak was read from the last probe before the suite ended and the floor from the
+            // first one after, each up to a full interval away — so the two numbers this
+            // experiment exists to produce were both interpolated, and their offsets differed per
+            // suite, which is enough to make flat peaks look like they are climbing.
+            //
+            // `result` is the only reference to this suite's retained results, so the peak has to
+            // be sampled while it is still held and the floor after it is dropped — hence the
+            // explicit null, which is doing real work rather than tidying. The histograms name
+            // what is in each: the peak is the suite's own retention, the floor is whatever
+            // persists across suites, which is the thing a leak would be hiding in.
+            io.karatelabs.profiling.Child.probeLiveSetNow("suite-" + suite + "-peak");
+            io.karatelabs.profiling.Histogram.capture("suite-" + suite + "-peak");
+            result = null;
+            io.karatelabs.profiling.Child.probeLiveSetNow("suite-" + suite + "-floor");
+            io.karatelabs.profiling.Histogram.capture("suite-" + suite + "-floor");
             System.out.println(SUITE_PREFIX
                     + "suites=" + completed + "/" + suites
                     + " scenarios=" + scenarios
@@ -495,7 +516,12 @@ public class SuiteSoakWorkload implements Workload {
             costListener = new ReportCostListener();
             builder.resultListener(costListener);
         }
+        // Progress, because a suite is otherwise half an hour of silence. Checking whether the run
+        // was on its predicted rate meant scraping the mock's /stats and counting HTML files on
+        // disk — for a number the workload knows. Cheap: one counter per completed feature, a line
+        // per PROGRESS_EVERY of them.
         long started = System.nanoTime();
+        builder.resultListener(new ProgressListener(suite, started));
         SuiteResult result = builder.parallel(context.threads());
         System.out.println("[workload] suite " + suite + ": scenarios=" + result.getScenarioCount()
                 + " passed=" + result.getScenarioPassedCount()
@@ -505,6 +531,43 @@ public class SuiteSoakWorkload implements Workload {
             costListener.print(result.getDurationMillis(), context.threads());
         }
         return result;
+    }
+
+    /** Features completed between progress lines. At ~5 scenarios/s/thread this is minutes apart. */
+    private static final int PROGRESS_EVERY = 500;
+
+    /**
+     * One line every {@link #PROGRESS_EVERY} features: how far in, and at what rate.
+     *
+     * <p>A {@code ResultListener} rather than a poll, so it costs a counter increment on a thread
+     * that has just finished writing a report. The rate is the number worth having early — a run
+     * sized from an extrapolated scenario rate lands short or long of its window if the
+     * extrapolation was wrong, and the timeout is what makes a bad guess safe rather than free.
+     */
+    private final class ProgressListener implements io.karatelabs.output.ResultListener {
+
+        private final java.util.concurrent.atomic.AtomicLong features = new java.util.concurrent.atomic.AtomicLong();
+        private final int suite;
+        private final long startedNanos;
+
+        ProgressListener(int suite, long startedNanos) {
+            this.suite = suite;
+            this.startedNanos = startedNanos;
+        }
+
+        @Override
+        public void onFeatureEnd(io.karatelabs.core.FeatureResult result) {
+            long done = features.incrementAndGet();
+            if (done % PROGRESS_EVERY != 0) {
+                return;
+            }
+            long elapsedMs = (System.nanoTime() - startedNanos) / 1_000_000;
+            long scenarios = done * (expectedPerSuite / Math.max(1, featureCount));
+            System.out.println("[workload] suite " + suite + " progress: " + done + "/" + featureCount
+                    + " features, ~" + scenarios + " scenarios, "
+                    + String.format(java.util.Locale.ROOT, "%.1f", scenarios * 1000.0 / Math.max(1, elapsedMs))
+                    + " scenarios/s, " + elapsedMs / 1000 + "s elapsed");
+        }
     }
 
     @Override

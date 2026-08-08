@@ -309,6 +309,14 @@ and trains the reflex of explaining it away. (The rehearsal measured 7,185 for 4
 scenarios against a naive expectation of 8,000 — recycling, over a run that outlived the 60 s
 TIME_WAIT window, and exactly why the equality version of this check was wrong.)
 
+**The digest now refuses to derive a connection *rate* from a saturated count.** Once
+`distinctPeerPorts` passes a quarter of the host's ephemeral range the panel says so and stops
+printing a rate, because the count has become the size of the range rather than a measurement of
+connections. The soak proved the point: 32,256 ports over 7,070 s printed **"5 connections/s"**
+for a run opening ~99/s — a 20× under-report of the one number that exists to be checked against
+the exhaustion ceiling, arriving precisely when pressure was highest. Exhaustion is still visible
+where it actually shows: errors at the mock, and a stall that reads as client slowness.
+
 **A failed scenario does not throw**, so this workload counts failures itself, stops when they
 exceed the allowance, exits non-zero, and prints them where the digest can see them (the *Suite
 outcome* panel, §3). Without that a soak in which every scenario failed reaches `errors=0`,
@@ -463,6 +471,27 @@ is that difference). **This is the leak panel.** A rising live set is retention;
 descriptor count is a leaked socket and can happen with a flat live set; a flat non-zero
 descriptor count is healthy — a pool holds descriptors on purpose. The final probe is taken
 with load stopped and is excluded from drift.
+
+**On a repeated-suites run the panel segments, and the row to read is `floor drift`.** Global
+first-versus-last is meaningless there: retention climbs within a suite *by design* and collapses
+at the boundary, so comparing the ends measures one designed ramp. The four-suite soak read
+**+207.7 MB (36%) rising** that way, on a run whose floors were flat — an authoritative leak
+claim about the healthiest result available. What a leak actually looks like is a floor that
+steps up, so the panel now reports the floor after each suite and drifts *those*. The workload
+also takes a probe on each side of every boundary (`label=suite-N-peak` / `-floor`), because the
+timed probe never lands on one: both numbers the experiment exists to produce used to be read
+minutes off and interpolated, with per-suite offsets big enough to make flat peaks look like
+they were climbing.
+
+**Class histograms.** `--soak` writes `histogram-suite-N-{peak,floor}.txt` into the run
+directory at each boundary — the top entries of a `GC.class_histogram` taken in-process, and
+the only artifact that says *what* survived rather than how much. **Diff a peak against a
+floor** and the retention names itself: on the E1 soak that gave 1,312,560 `gherkin.Step`
+(= scenarios × 15 steps, the parsed model held for the suite's life) against 397,354
+`StepResult` (= completed scenarios × 15, the part that accumulates). `collect.sh` brings them
+home. Before this they were taken by hand over ssh, against a pid found with
+`jcmd -l | grep profiling.Child`, timed by eye, and left in a home directory that died with
+the host.
 
 **Retained objects.** From `jdk.OldObjectSample` — JFR's built-in leak profiler. It samples
 sparsely by design and reports the *allocator*, not the *holder* (unless `--gc-roots`); a
