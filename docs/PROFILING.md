@@ -70,8 +70,10 @@ Gatling arm, so it informs the leak claim, not the parity one.)
 - **The 8-vs-32-user trend.** Each cell's own figure stands; the trend between them is
   confounded with run length (E3, paused).
 
-Full write-up of the 2026-08-07 session, with every table and its caveats, is kept privately
-alongside the artifacts; [§9](#settled--do-not-re-run) carries the durable conclusions.
+The digests behind every row are kept privately alongside the bench's env file, and
+`etc/run.sh compare <dir>` regenerates any table in this register from them — so the tables are
+evidence that can be re-derived rather than a narrative that has to be trusted.
+[§9](#settled--do-not-re-run) carries the durable conclusions and the reopening conditions.
 
 ---
 
@@ -1224,6 +1226,7 @@ choice can be made on numbers.
 
 | Item | Note |
 |---|---|
+| Pairing provenance in `run-meta.txt` | `compare` pairs runs by **timestamp adjacency**, with `--label` as the only thing keeping two matrices from interleaving into one plausible table. Stamping the matrix label, pair ordinal and arm order into run-meta (and echoing them into the digest) would make pairing explicit and the discipline unnecessary. Small, and the failure it prevents is silent — which is why it is written down rather than remembered. |
 | Copy-on-first-change in `processEmbeddedExpressions` | A real inefficiency independent of any leak: fresh containers rebuilt for every node walked, with no check whether `#(...)` appears at all. Three traps if revived: `processInlineEmbedded` must return the original string when nothing substituted (identity-based change detection); the XML branch mutates in place; `resolveConfigMap` has a javadoc promising a defensive copy. Pursue on allocation numbers, not a leak report. |
 | JS-engine workloads | `js-array`, `js-object`, `js-engine-init` from `EngineBenchmark`'s generators, so JS tuning gets forking, JFR and digests too. |
 | Mock throughput tiers | Raw Java handler vs JS handler vs feature mock, as a floor-and-multiplier table. `LatencyMock` is the cheap tier; the *table* is unbuilt. |
