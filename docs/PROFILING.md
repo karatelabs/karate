@@ -333,7 +333,7 @@ for:**
 | One feature holding thousands of scenarios, reports on | **Known-unbounded, accepted.** Not a leak: retention by design until suite end. See [per-scenario spill](#per-scenario-spill--designed-reviewed-deliberately-not-built) |
 | A slow leak over hours, **pooled Gatling HTTP** | **Answered 2026-08-07 — none detected** (C5 in §0) |
 | The **unpooled** client path | 🔴 **Open** — folds into [E1](#e1--the-karate-suite-soak-2-hours-reports-on-tls-js-and-feature-calls), whose Runner suite builds a client per scenario |
-| A large Runner suite with **reports on** | 🔴 **Open — [E1](#e1--the-karate-suite-soak-2-hours-reports-on-tls-js-and-feature-calls), the next experiment**; the `suite-soak` workload is built and locally exercised, the bench run is not taken |
+| A large Runner suite with **reports on** | ✅ **Answered 2026-08-08 by [E1](#e1--the-karate-suite-soak-2-hours-reports-on-tls-js-and-feature-calls)** — 350,000 scenarios over four suites, 0 failures, every floor returning to the same level. Re-run pending on the two panel defects the run itself exposed (§3) |
 
 #### The false positive every soak walks into by construction
 
@@ -1105,6 +1105,36 @@ timeout was chosen for.
 Live set panel — the heap-after-GC floor will rise and mean nothing, as it has in both soaks
 so far (§2).
 
+### E1 — the result, taken 2026-08-08
+
+Build `ef989f6`, 1 h 58 m, ~$2.30. **350,000 scenarios run of 350,000 generated, 350,000
+passed, 0 failed**, 1,050,000 requests reconciling exactly against the mock, four suites of
+87,500 within 2.4 seconds of each other in duration.
+
+| | |
+|---|---|
+| floor after suites 1 / 2 / 3 | 551.6 / 538.6 / 541.3 MiB — flat, and the second is *lower* than the first |
+| live set after the load stopped | **12.2 MiB**, from a peak of ~791 |
+| descriptors | 154 → 157, `closed by the probe's GC` ≤ 2, across ~700,000 TLS client lifecycles |
+| injector CPU | 0.28 of 16 cores |
+
+**Four ramps, four returns to the same floor, no step up.** That answers all three questions
+the experiment was promoted for: reports-on retention is released at suite end, the unpooled
+per-scenario client lifecycle abandons no sockets over TLS, and nothing survives a suite in a
+long-lived JVM.
+
+**Two caveats, both honest.** The *peaks* were sampled at different offsets from each boundary,
+so extrapolating them (806 → 819 MiB) sits inside the error of the slope estimate — the floors
+are directly measured and are the evidence. And the run exposed two defects in the digest
+itself: the live-set panel reported `+207.7 MB (36%) rising` by comparing across boundaries,
+and the port panel under-reported the connection rate 20× once `distinctPeerPorts` saturated.
+Both are fixed (§3); **a confirming re-run against the fixed panels is cheap and worth taking**
+before this is quoted as a public claim — not because the conclusion is in doubt, but because
+the artifact that states it was demonstrably able to state the opposite.
+
+The retention this measured has since been largely removed: karate-core now releases a step's
+log and embeds at feature end, which is the change these numbers argued for.
+
 ### Paused — the Gatling arc
 
 Paused 2026-08-07: the §0 register answers the parity question well enough for now, and
@@ -1154,7 +1184,7 @@ E1 soak.
 
 | | settles | bench time | ~cost |
 |---|---|---:|---:|
-| **E1 suite soak** (rehearsal + 2 h) | "no leak in karate" — reports on, TLS, and the unpooled client lifecycle | ~2.5 h (dev done) | ~$3 |
+| **E1 suite soak** — *taken 2026-08-08, ~$2.30* | "no leak in karate" — reports on, TLS, and the unpooled client lifecycle. Answered; a confirming re-run is cheap once the panel fixes land | ~2 h | ~$2.30 |
 | E2 enterprise cell *(paused)* | the thesis on a realistic workload | ~35 min (+ harness work) | $0.70 |
 | E3 8u × 6400 TLS *(paused)* | the density/run-length confound | ~19 min | $0.40 |
 | E4 knee + open-loop *(paused)* | capacity guidance | ~50 min | $1.00 |

@@ -533,13 +533,28 @@ public final class JfrDigest {
      * because a short run over the ceiling is fine and a long one is not — that distinction is the
      * finding, and collapsing it into a pass/fail would throw it away.
      */
+    /**
+     * The whole port bitmap the mock counts into ({@code MockStats.PORT_WORDS} x 64).
+     *
+     * <p>The platform-independent lid, and the reason this check cannot depend on host discovery
+     * alone: {@code HostFacts} returns -1 for the ephemeral range on any platform it cannot read,
+     * which made saturation impossible to detect there — so the misleading rate this exists to
+     * suppress was still printed, on exactly the machines that could say least about the run.
+     * A count approaching this ceiling has stopped measuring connections whatever the host is.
+     */
+    private static final double MOCK_PORT_CEILING = 65536;
+
     static void appendPortPressure(StringBuilder md, String mockStats) {
+        appendPortPressure(md, mockStats, io.karatelabs.profiling.HostFacts.read());
+    }
+
+    static void appendPortPressure(StringBuilder md, String mockStats,
+                                   io.karatelabs.profiling.HostFacts.Network network) {
         double ports = io.karatelabs.profiling.LoadProfile.mockNumber(mockStats, "distinctPeerPorts");
         double window = io.karatelabs.profiling.LoadProfile.mockNumber(mockStats, "loadWindowSeconds");
         if (ports <= 0 || window <= 0) {
             return;
         }
-        io.karatelabs.profiling.HostFacts.Network network = io.karatelabs.profiling.HostFacts.read();
         double rate = ports / window;
         double ceiling = network.sustainableConnectionsPerSecond();
         // Distinct ports is a SET size, and the set has a hard lid: the mock counts them in a
@@ -550,16 +565,34 @@ public final class JfrDigest {
         // 32,256 ports and therefore "5 connections/s" against an actual ~99/s. Saying so is the
         // whole fix; there is no better count available, because a reused port is indistinguishable
         // from a repeated request on the same connection from the server's side.
+        // Fail closed on an unknown range: fall back to the mock's own ceiling rather than
+        // deciding the count cannot be saturated. The alternative — what this did first — is that
+        // a platform HostFacts cannot read prints the misleading rate unchallenged.
         long range = network.portRangeSize();
-        boolean saturated = range > 0 && ports >= range / 4.0;
+        double ceilingForSaturation = range > 0 ? range : MOCK_PORT_CEILING;
+        // A high count is not enough: ports can only be recycled once a run outlives TIME_WAIT, so
+        // below that window the count is provably EXACT however large it is. Without this term the
+        // check regressed the harness's own 0 ms tier — 8,000 connections in 1.9 s, on a host whose
+        // range makes 4,096 the threshold — refusing a correct rate, suppressing the "offered Nx
+        // the sustainable rate, survived on brevity rather than margin" warning that only the
+        // unsaturated path prints, and asserting recycling that had not happened. An unknown
+        // TIME_WAIT cannot rule recycling out, so there the count ratio decides alone.
+        double timeWait = network.timeWaitSeconds();
+        boolean couldRecycle = timeWait <= 0 || window > timeWait;
+        boolean saturated = couldRecycle && ports >= ceilingForSaturation / 4.0;
         if (saturated) {
             md.append("**Connections.** ").append((long) ports)
                     .append(" distinct client ports over ").append(fixed(window, 1))
-                    .append("s — but that is **").append(Math.round(ports * 100.0 / range))
-                    .append("% of this host's ").append(range)
-                    .append("-port range, so the count has saturated and is a LOWER BOUND on "
-                            + "connections, not a measurement.** Ports get recycled — deliberately, "
-                            + "`tcp_tw_reuse` is on — so no rate can be derived from it here; a run "
+                    .append("s — but that is **").append(Math.round(ports * 100.0 / ceilingForSaturation))
+                    .append("% of ").append(range > 0
+                            ? "this host's " + range + "-port range"
+                            : "the mock's " + (long) MOCK_PORT_CEILING + "-port counting ceiling "
+                            + "(this host's own range could not be read)")
+                    .append(", so the count has saturated and is a LOWER BOUND on "
+                            + "connections, not a measurement.** This run outlived TIME_WAIT (")
+                    .append(fixed(timeWait, 0)).append("s), so ports have been recycled")
+                    .append(network.reuseNote() == null ? "" : " — " + network.reuseNote())
+                    .append(" and no rate can be derived from the count; a run "
                             + "of any length converges on the range size. Read the connection rate "
                             + "from the workload's own shape instead (connections per iteration x "
                             + "iterations / window). This host: ").append(network.describe())
@@ -1016,6 +1049,34 @@ public final class JfrDigest {
      * retention has gone. Each carries a little of the next suite's ramp — the probe lands
      * wherever the timer puts it — so the comparison is deliberately tolerant rather than exact.
      */
+    /**
+     * How much of the next suite's ramp an inferred floor can be carrying: one probe interval of
+     * this run's own within-suite slope.
+     *
+     * <p>Measured rather than assumed, because the slope is what differs between workloads and the
+     * interval is a flag. Taken as the steepest consecutive rise inside a suite — the ramp is what
+     * dominates there, and using the steepest keeps the resulting tolerance conservative.
+     */
+    private static long inferredFloorCarry(List<long[]> loaded, List<Long> boundaries) {
+        long steepestPerMs = 0;
+        long interval = 0;
+        for (int i = 1; i < loaded.size(); i++) {
+            long[] previous = loaded.get(i - 1);
+            long[] point = loaded.get(i);
+            long gap = point[0] - previous[0];
+            if (gap <= 0) {
+                continue;
+            }
+            interval = Math.max(interval, gap);
+            // Pairs that straddle a boundary describe the release, not the ramp.
+            boolean straddles = boundaries.stream().anyMatch(b -> b > previous[0] && b <= point[0]);
+            if (!straddles && point[1] > previous[1]) {
+                steepestPerMs = Math.max(steepestPerMs, (point[1] - previous[1]) / gap);
+            }
+        }
+        return steepestPerMs * interval;
+    }
+
     private static void appendFloors(StringBuilder md, List<long[]> loaded, List<Long> boundaries,
                                      List<long[]> labelledFloors, List<long[]> labelledPeaks) {
         // Labelled readings when the workload asked for them — the only way to get the boundary
@@ -1023,7 +1084,8 @@ public final class JfrDigest {
         // fractionally on the wrong side of it for any timestamp rule. Inference stays as the
         // fallback for runs that predate the labels.
         List<long[]> floors = new ArrayList<>(labelledFloors);
-        if (floors.isEmpty()) {
+        boolean inferred = floors.isEmpty();
+        if (inferred) {
             for (long boundary : boundaries) {
                 loaded.stream().filter(p -> p[0] > boundary).findFirst().ifPresent(floors::add);
             }
@@ -1053,12 +1115,28 @@ public final class JfrDigest {
         // Same shape of tolerance as the descriptor row: a few percent of the floor, so a probe
         // landing a minute deeper into the next suite cannot read as retention.
         long tolerance = Math.max(4L << 20, firstFloor / 20);
-        row(md, "floor after each suite", list.toString());
+        // An INFERRED floor is whichever timed probe happened to land first after the boundary, so
+        // it carries up to one probe interval of the next suite's ramp — and a different amount per
+        // suite. On E1's own shape (~78 KB/s of designed ramp, 300 s interval) that is ~23 MB of
+        // placement noise against a 4-8 MB tolerance: enough to print "rising, investigate" for a
+        // run whose floors are flat, which is the false positive this panel was rewritten to stop
+        // making. So the fallback widens the tolerance by what the placement can actually carry,
+        // measured from this run's own within-suite slope. Labelled floors sit ON the boundary and
+        // carry nothing, so they keep the tight tolerance.
+        long carry = inferred ? inferredFloorCarry(loaded, boundaries) : 0;
+        tolerance += carry;
+        row(md, "floor after each suite", list.toString()
+                + (inferred ? " *(inferred from timed probes — ±" + bytes(carry) + " of placement)*"
+                : " *(measured at the boundary)*"));
         row(md, "floor drift", (delta >= 0 ? "+" : "") + bytes(delta)
                 + (firstFloor > 0 ? " (" + Math.round(delta * 100.0 / firstFloor) + "%)" : "")
                 + (delta > tolerance
                 ? " — **rising, investigate**: something survived a suite"
-                : " — flat, so nothing survived a suite"));
+                // Deliberately not "nothing survived a suite". What was measured is that the drift
+                // is inside the tolerance printed beside it; on a 600 MB floor that admits ~30 MB,
+                // which four suites leaking 7 MB each would fit inside. Say the measurement, not
+                // the absolute it is tempting to read it as.
+                : " — within tolerance (" + bytes(tolerance) + "), so nothing detectably survived a suite"));
     }
 
     private static final String LIVE_SET_PREFIX = "PROFILING-LIVE-SET ";

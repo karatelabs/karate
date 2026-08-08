@@ -138,6 +138,23 @@ class SuiteSoakSizingTest {
                 "the constant the digest reconciles with must equal the HTTP steps actually generated");
     }
 
+    /**
+     * The message for scenarios that were generated and never ran.
+     *
+     * <p>Pinned because it was briefly impossible to produce: the suite's result is dereferenced
+     * before the floor probe, and this branch still read a count off it — so the one diagnostic
+     * that explains this workload's most deceptive failure threw a {@code NullPointerException}
+     * instead of printing. It is built from primitives now, and this asserts the numbers reach it.
+     */
+    @Test
+    void testTheMissingScenarioDiagnosticSurvivesTheDereferencedResult() {
+        String message = SuiteSoakWorkload.missingScenariosMessage(2, 0, 87_500);
+        assertTrue(message.contains("suite 2 ran 0 scenarios, not the 87500"),
+                "the diagnostic must carry both counts: " + message);
+        assertTrue(message.contains("did not run at all"),
+                "and must say they were not executed rather than failed: " + message);
+    }
+
     @Test
     void testACountThatDoesNotDivideIsRefusedRatherThanRounded() {
         System.setProperty(SUITES, "2");

@@ -465,11 +465,7 @@ public class SuiteSoakWorkload implements Workload {
                 // and the reconciliation compares 0 expected requests against 0 served and reports
                 // that they agree. This workload is the only thing that knows how many scenarios it
                 // wrote, so it is the only thing that can catch it.
-                System.out.println("[workload] !! suite " + suite + " ran "
-                        + result.getScenarioCount() + " scenarios, not the " + expectedPerSuite
-                        + " that were generated. Nothing here failed — they did not run at all,"
-                        + " which usually means the generated Gherkin stopped parsing as intended"
-                        + " (unrecognised sections are dropped silently, not rejected).");
+                System.out.println(missingScenariosMessage(suite, ran, expectedPerSuite));
                 break;
             }
             if (failed > allowedFailures) {
@@ -494,6 +490,22 @@ public class SuiteSoakWorkload implements Workload {
                     + percent(failed, scenarios) + ") — see the suite output above; the digest's"
                     + " suite panel carries the counts");
         }
+    }
+
+    /**
+     * The diagnostic for scenarios that were generated and never ran.
+     *
+     * <p>Built from primitives, and that is the point rather than a style choice. The suite's own
+     * result is deliberately dereferenced before the floor probe, so reading a count off it here
+     * threw a {@code NullPointerException} — in the one branch whose entire job is to explain the
+     * most deceptive failure this workload can have. The run still exited non-zero, so nothing
+     * looked healthy; what was lost was the sentence that says what went wrong.
+     */
+    static String missingScenariosMessage(int suite, long ran, long expected) {
+        return "[workload] !! suite " + suite + " ran " + ran + " scenarios, not the " + expected
+                + " that were generated. Nothing here failed — they did not run at all,"
+                + " which usually means the generated Gherkin stopped parsing as intended"
+                + " (unrecognised sections are dropped silently, not rejected).";
     }
 
     private static String percent(long part, long whole) {
@@ -521,7 +533,7 @@ public class SuiteSoakWorkload implements Workload {
         // disk — for a number the workload knows. Cheap: one counter per completed feature, a line
         // per PROGRESS_EVERY of them.
         long started = System.nanoTime();
-        builder.resultListener(new ProgressListener(suite, started));
+        builder.listener(new ProgressListener(suite, started));
         SuiteResult result = builder.parallel(context.threads());
         System.out.println("[workload] suite " + suite + ": scenarios=" + result.getScenarioCount()
                 + " passed=" + result.getScenarioPassedCount()
@@ -539,12 +551,17 @@ public class SuiteSoakWorkload implements Workload {
     /**
      * One line every {@link #PROGRESS_EVERY} features: how far in, and at what rate.
      *
-     * <p>A {@code ResultListener} rather than a poll, so it costs a counter increment on a thread
-     * that has just finished writing a report. The rate is the number worth having early — a run
+     * <p>A {@code RunListener}, deliberately, not a {@code ResultListener}: registering any result
+     * listener makes {@code Suite.canReleaseCallResultsAtScenarioEnd()} false, which would push
+     * call-result release from scenario end out to feature end. For an {@code all}-formats run
+     * that changes nothing (report listeners are already registered), but a single-format
+     * {@code reports=jsonl} cell has no result listener at all — and JSONL is a RunListener — so
+     * a progress line would have quietly altered the memory behaviour of the very lane that exists
+     * to isolate one format's cost. The event bus carries the same signal for free. The rate is the number worth having early — a run
      * sized from an extrapolated scenario rate lands short or long of its window if the
      * extrapolation was wrong, and the timeout is what makes a bad guess safe rather than free.
      */
-    private final class ProgressListener implements io.karatelabs.output.ResultListener {
+    private final class ProgressListener implements io.karatelabs.core.RunListener {
 
         private final java.util.concurrent.atomic.AtomicLong features = new java.util.concurrent.atomic.AtomicLong();
         private final int suite;
@@ -556,10 +573,17 @@ public class SuiteSoakWorkload implements Workload {
         }
 
         @Override
-        public void onFeatureEnd(io.karatelabs.core.FeatureResult result) {
+        public boolean onEvent(io.karatelabs.core.RunEvent event) {
+            // FEATURE_EXIT fires for called features too, and every scenario here calls one — so
+            // without the top-level filter the count would be doubled and the rate with it.
+            if (!(event instanceof io.karatelabs.core.FeatureRunEvent featureEvent)
+                    || featureEvent.getType() != io.karatelabs.core.RunEventType.FEATURE_EXIT
+                    || !featureEvent.source().isTopLevel()) {
+                return true;
+            }
             long done = features.incrementAndGet();
             if (done % PROGRESS_EVERY != 0) {
-                return;
+                return true;
             }
             long elapsedMs = (System.nanoTime() - startedNanos) / 1_000_000;
             long scenarios = done * (expectedPerSuite / Math.max(1, featureCount));
@@ -567,6 +591,7 @@ public class SuiteSoakWorkload implements Workload {
                     + " features, ~" + scenarios + " scenarios, "
                     + String.format(java.util.Locale.ROOT, "%.1f", scenarios * 1000.0 / Math.max(1, elapsedMs))
                     + " scenarios/s, " + elapsedMs / 1000 + "s elapsed");
+            return true;
         }
     }
 

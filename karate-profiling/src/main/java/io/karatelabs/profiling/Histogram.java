@@ -73,7 +73,11 @@ public final class Histogram {
      */
     public static void capture(String label) {
         String runDir = System.getProperty("karate.profiling.runDir");
-        if (runDir == null) {
+        // Soak-only, like the live-set probe it sits beside — and for the probe's reason: this
+        // forces a full GC, which a run whose question is throughput must not pay. At a soak
+        // boundary it is free, because the adjacent probe has just forced two. The run directory
+        // is always set, so it cannot be the gate.
+        if (runDir == null || !Boolean.getBoolean("karate.profiling.soak")) {
             return;
         }
         try {
@@ -93,7 +97,7 @@ public final class Histogram {
 
     private static String header(String label) {
         return "# class histogram: " + label + System.lineSeparator()
-                + "# live objects after a forced full GC, top " + TOP_ENTRIES + " by retained bytes."
+                + "# live objects after a forced full GC, top " + TOP_ENTRIES + " by shallow size."
                 + System.lineSeparator()
                 + "# Diff two of these to name what grew; the Total line is the whole heap, not the top N."
                 + System.lineSeparator() + System.lineSeparator();
@@ -114,7 +118,7 @@ public final class Histogram {
                 total = line;
                 continue;
             }
-            if (kept++ < TOP_ENTRIES + 3) { // + the two header lines and the rule
+            if (kept++ < TOP_ENTRIES + 2) { // + the format's two header lines
                 out.append(line).append(System.lineSeparator());
             }
         }

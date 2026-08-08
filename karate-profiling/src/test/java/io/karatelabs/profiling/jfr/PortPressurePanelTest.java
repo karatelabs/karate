@@ -48,9 +48,28 @@ class PortPressurePanelTest {
                 + ",\"loadWindowSeconds\":" + windowSeconds + "}";
     }
 
+    /**
+     * The bench host's facts, supplied rather than probed.
+     *
+     * <p>These tests used to call the panel's host-reading overload, so they asserted against
+     * whatever machine happened to run them — passing where the ephemeral range could be read and
+     * failing where it could not, which is a test that reports the platform rather than the code.
+     */
+    private static final io.karatelabs.profiling.HostFacts.Network BENCH =
+            new io.karatelabs.profiling.HostFacts.Network(64512, 60, 8192, "tcp_tw_reuse=1");
+
+    /** A host whose range could not be read at all — the case that used to disable the guard. */
+    private static final io.karatelabs.profiling.HostFacts.Network UNKNOWN =
+            new io.karatelabs.profiling.HostFacts.Network(-1, -1, -1, null);
+
     private static String panel(long ports, double windowSeconds) {
+        return panel(ports, windowSeconds, BENCH);
+    }
+
+    private static String panel(long ports, double windowSeconds,
+                                io.karatelabs.profiling.HostFacts.Network network) {
         StringBuilder md = new StringBuilder();
-        JfrDigest.appendPortPressure(md, mockStats(ports, windowSeconds));
+        JfrDigest.appendPortPressure(md, mockStats(ports, windowSeconds), network);
         return md.toString();
     }
 
@@ -58,7 +77,10 @@ class PortPressurePanelTest {
     @Test
     void testAnUnsaturatedCountStillReportsARate() {
         String md = panel(200, 3.1);
-        assertTrue(md.contains("connections/s"), "an unsaturated count gives a usable rate: " + md);
+        // Not just "connections/s" — network.describe() contains "connections/s sustained", so
+        // that substring would pass with the rate removed entirely.
+        assertTrue(md.contains("— **65 connections/s**"),
+                "an unsaturated count gives a usable rate: " + md);
         assertFalse(md.contains("LOWER BOUND"), md);
     }
 
@@ -75,5 +97,49 @@ class PortPressurePanelTest {
         assertFalse(md.contains("**5 connections/s**"),
                 "the derived rate must not be printed once the count has saturated: " + md);
         assertTrue(md.contains("saturated"), md);
+    }
+
+    /**
+     * A host whose ephemeral range cannot be read must still refuse the rate. The first version of
+     * this guard was conditional on the range being known, so on any platform {@code HostFacts}
+     * cannot read — which is where a reader has least other context — the misleading rate was
+     * printed unchallenged. The mock's own 65,536-port counting ceiling is the platform-independent
+     * lid to fall back on.
+     */
+    @Test
+    void testAnUnknownPortRangeStillRefusesASaturatedRate() {
+        String md = panel(32_256, 7069.7, UNKNOWN);
+        assertTrue(md.contains("LOWER BOUND"),
+                "an unreadable host range must fail closed, not disable the check: " + md);
+        assertTrue(md.contains("counting ceiling"),
+                "and must say which ceiling it fell back to: " + md);
+        assertFalse(md.contains("**5 connections/s**"), md);
+    }
+
+    /** Fail-closed must not mean fail-always: a small count on an unknown host still gets a rate. */
+    @Test
+    void testAnUnknownPortRangeStillReportsASmallCount() {
+        String md = panel(200, 3.1, UNKNOWN);
+        assertTrue(md.contains("— **65 connections/s**"), md);
+        assertFalse(md.contains("LOWER BOUND"), md);
+    }
+
+    /**
+     * A burst that opens more ports than the threshold but finishes inside TIME_WAIT.
+     *
+     * <p>The count is provably exact there — nothing can have been recycled yet — so refusing a
+     * rate is wrong twice over: it suppresses a correct number, and it suppresses the "offered Nx
+     * the sustainable rate" warning, which only the unsaturated path prints and which is this
+     * panel's most valuable output. The harness's own 0 ms tier is this shape: ~8,000 connections
+     * in ~1.9 s.
+     */
+    @Test
+    void testAShortBurstIsExactHoweverManyPortsItUsed() {
+        String md = panel(8_000, 1.9, BENCH);
+        assertFalse(md.contains("LOWER BOUND"),
+                "1.9s is well inside a 60s TIME_WAIT, so no port can have been reused: " + md);
+        assertTrue(md.contains("connections/s"), md);
+        assertTrue(md.contains("sustainable rate"),
+                "and the brevity warning — the point of the panel — must still fire: " + md);
     }
 }
