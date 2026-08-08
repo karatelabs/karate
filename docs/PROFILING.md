@@ -1158,16 +1158,30 @@ Run the canonical command above unchanged, so the digest is comparable line for 
 | what the peak is made of | `histogram-suite-N-peak.txt` | 290 MB `[B`, 102 MB `String` |
 | floor after each suite | `suite-N-floor` labelled probe | flat, and 12.2 MiB once load stopped |
 
-**The decision rule.** Gate first — 4/4 suites, 0 failures, reconciliation exact — because a run
-that stopped early flatters every panel below it:
+**The decision rule**, in the order the branches are tested — the first that matches wins, so no
+result can land outside it:
 
-- **Confirms** — peak falls below ~400 MiB (at least half the pre-fix ramp gone) *and* `[B` +
-  `String` no longer head `histogram-suite-N-peak.txt`, with floors still flat.
-- **Qualifies** — peak falls, but the text is still in the peak histogram. The release fires and
-  something downstream is holding the same bytes; find the holder before quoting either number.
-- **Refutes** — peak within ~10% of 791 MiB on a digest stamped `3ef1236f` or later.
-- **Regresses** — floors step up between suites, or descriptors climb. That is a new leak, and it
-  outranks the retention question.
+0. **Gate.** 4/4 suites, 350,000 passed, **0 failed**, reconciliation exact. A run that stopped
+   early flatters every panel below it, so a failed gate returns *no verdict at all*, not a bad
+   one.
+1. **Regresses** — the Live set panel's own floor verdict reads `rising, investigate`, or its
+   descriptor row is anything but `flat`. Read the panel's verdict rather than eyeballing the
+   floors: it computes its own tolerance and prints it, which is what makes this mechanical. A
+   new leak outranks the retention question — stop here and chase it.
+2. **Refutes** — peak ≥ 700 MiB (within ~10% of the pre-fix 791). The release did not take
+   effect; check the `build` row again before believing it.
+3. **Confirms** — peak ≤ 400 MiB (at least half the ramp gone) *and* neither `[B` nor
+   `java.lang.String` appears in the **top three entries by size** of
+   `histogram-suite-N-peak.txt`. Both conditions, or it is not a confirm.
+4. **Qualifies** — everything else, and it is a real outcome rather than a fallthrough: the two
+   signals disagreed, or the peak landed in the 400–700 MiB band. Say which of the two moved and
+   which did not. Text still in the top three means something downstream holds the same bytes;
+   find the holder before quoting either number.
+
+**Then finish the session** — E1R is not done when the run is. `collect.sh` (fails closed;
+non-zero exit means do **not** tear down), confirm the digests reached `$KP_RESULTS`,
+`teardown.sh --force`, then bare `teardown.sh` as the nothing-is-left check. Two `c7g.4xlarge`
+are ~$1.16/hr and **nothing stops on its own.**
 
 **One thing this run cannot see.** Releasing logs is only safe because the report writers have
 already consumed them; the bench never checks that, since `collect.sh` pulls digests and the

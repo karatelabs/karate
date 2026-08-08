@@ -315,6 +315,27 @@ one missing new one. So collect compares *sets*:
 A non-zero exit here means **do not tear down**. It is the check `teardown.sh --force` cannot
 make for you.
 
+### 4.7 aborting a run that is going wrong
+
+Watching the first suite boundary is only useful if deciding "this is mis-sized" has a clean
+exit, and the obvious moves are both wrong: killing the *parent* loses the digest, and walking
+away leaves two hosts billing until the timeout.
+
+**Kill the child, not the parent.** The parent writes `digest.md` after the child exits, so this
+is the same path `--timeout` takes — you get a digest for what actually ran, and the Suite
+outcome panel shows fewer suites than were asked for, which is what marks it partial:
+
+```bash
+# the bracket trick is load-bearing, for the reason above: the shell sshd spawns carries this
+# pattern on its own command line, so the unbracketed form matches itself and kills the shell
+etc/ec2/ssh.sh injector 'pkill -f "[p]rofiling.Child"'
+etc/ec2/ssh.sh injector 'ps -eo etime,cmd | grep "[C]hild"'   # empty; now wait for the parent
+```
+
+Then collect and tear down normally. Only reach for the discard path — `teardown.sh --force`
+without a successful collect — when you have decided the partial run is worth nothing, because
+it throws away the evidence of *why* it was mis-sized, which is usually the point of aborting.
+
 ---
 
 ## 5. Reading the result
