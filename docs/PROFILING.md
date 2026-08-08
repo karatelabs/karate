@@ -63,10 +63,10 @@ Gatling arm, so it informs the leak claim, not the parity one.)
   transport objection; it does not substitute for that measurement.
 - **Open-loop / overload behaviour.** Every cell is closed-loop, so throughput is capped by
   `users ÷ iteration time` and the knee is optimistic by construction (E4, paused).
-- **A large Runner suite with reports on, over hours** — the largest remaining gap, and
-  **the next experiment** (E1).
-- **The unpooled client path** — where the original client-lifecycle defect lived, and
-  karate-core's default for functional suites. E1's per-scenario clients cover it.
+- **A large Runner suite with reports on, over hours** — *no longer open*: answered by E1 and
+  confirmed on the fixed panels by [E1R](#e1r--the-confirming-re-run-taken-2026-08-08).
+- **The unpooled client path** — *no longer open*: E1R ran a client per scenario over TLS for
+  ~700,000 lifecycles with descriptors flat and 0 closed by the probe's GC.
 - **The 8-vs-32-user trend.** Each cell's own figure stands; the trend between them is
   confounded with run length (E3, paused).
 
@@ -333,7 +333,7 @@ for:**
 | One feature holding thousands of scenarios, reports on | **Known-unbounded, accepted.** Not a leak: retention by design until suite end. See [per-scenario spill](#per-scenario-spill--designed-reviewed-deliberately-not-built) |
 | A slow leak over hours, **pooled Gatling HTTP** | **Answered 2026-08-07 — none detected** (C5 in §0) |
 | The **unpooled** client path | 🔴 **Open** — folds into [E1](#e1--the-karate-suite-soak-2-hours-reports-on-tls-js-and-feature-calls), whose Runner suite builds a client per scenario |
-| A large Runner suite with **reports on** | ✅ **Answered 2026-08-08 by [E1](#e1--the-karate-suite-soak-2-hours-reports-on-tls-js-and-feature-calls)** — 350,000 scenarios over four suites, 0 failures, every floor returning to the same level. Re-run pending on the two panel defects the run itself exposed (§3) |
+| A large Runner suite with **reports on** | ✅ **Answered 2026-08-08 by E1, confirmed on the fixed panels by [E1R](#e1r--the-confirming-re-run-taken-2026-08-08)** — 350,000 scenarios over four suites, 0 failures, floor drift +28.6 KB (0%), 0 descriptors closed by the probe's GC |
 
 #### The false positive every soak walks into by construction
 
@@ -471,6 +471,13 @@ is that difference). **This is the leak panel.** A rising live set is retention;
 descriptor count is a leaked socket and can happen with a flat live set; a flat non-zero
 descriptor count is healthy — a pool holds descriptors on purpose. The final probe is taken
 with load stopped and is excluded from drift.
+
+**Two peak rows, and they are different quantities.** `peak within each suite` is the highest
+probe inside that suite's window — what the heap had to accommodate, and a *sampled* lower bound
+on the true maximum. The labelled `suite-N-peak` probe is taken once the suite has returned, so it
+reads only what the `SuiteResult` still holds; it feeds `released at each suite end` and is the
+smaller of the two, because a suite in flight also holds the machinery running it (E1R: 618 MB
+against 517 MB). Size a heap from the first; read designed retention from the second.
 
 **On a repeated-suites run the panel segments, and the row to read is `floor drift`.** Global
 first-versus-last is meaningless there: retention climbs within a suite *by design* and collapses
@@ -1128,65 +1135,71 @@ so extrapolating them (806 → 819 MiB) sits inside the error of the slope estim
 are directly measured and are the evidence. And the run exposed two defects in the digest
 itself: the live-set panel reported `+207.7 MB (36%) rising` by comparing across boundaries,
 and the port panel under-reported the connection rate 20× once `distinctPeerPorts` saturated.
-Both are fixed (§3); **a confirming re-run against the fixed panels is cheap and worth taking**
-before this is quoted as a public claim — not because the conclusion is in doubt, but because
-the artifact that states it was demonstrably able to state the opposite.
+Both are fixed (§3), and **E1R below re-read this run on the fixed panels and confirmed it** —
+four flat floors, 0 descriptors closed by the probe's GC. E1's own figures are the *pre-fix*
+retention baseline and nothing else should be quoted from them.
 
-### E1R — the confirming re-run, and what it must show
+### E1R — the confirming re-run, taken 2026-08-08
 
-**Not yet taken.** It is one run answering two questions: it re-reads E1 on the fixed panels
-(§3), and it is the measurement of the change E1's numbers argued for. Pre-registered here
-*before* the run, because a threshold chosen after seeing the result is not a threshold.
+Build `83b0d25` (⊇ `3ef1236f`), 1 h 57 m, ~$2.61. One run answering two questions: it re-read E1
+on the fixed panels, and it measured the change E1's numbers argued for — karate-core releasing a
+step's captured log and embeds at feature end.
 
-**The change under test is `3ef1236f`** — karate-core releases a step's captured log and embeds
-at feature end, for top-level features, when neither `retainStepLogs` nor perf mode is set. The
-digest's `build` row must name that commit or a descendant; on anything at or before `ef989f6`
-the run has measured the pre-fix source and confirms nothing.
+**Gate passed**, so a verdict is licensed: 4/4 suites, **350,000 of 350,000 scenarios passed, 0
+failed**, and 1,050,000 requests reconciling exactly against the mock's `served` with 0 errors.
 
-**What it removes, and what it deliberately does not.** It frees the captured request/response
-*text* — the `[B` and `String` that the by-hand histograms found dominating the peak (290 MB and
-102 MB). It does **not** free the result skeleton: the `StepResult` and `gherkin.Step` objects
-still stand until suite end, because the HTML report for a feature is written from them. So the
-within-suite ramp is predicted to fall a long way and **not** to vanish, and a run that flattened
-it completely would be evidence of something else — probably that the workload stopped capturing.
-
-Run the canonical command above unchanged, so the digest is comparable line for line. Then:
-
-| reading | source | pre-fix (E1) |
+| | E1 (pre-fix) | E1R |
 |---|---|---|
-| peak live set within a suite | `suite-N-peak` labelled probe | ~791 MiB |
-| what the peak is made of | `histogram-suite-N-peak.txt` | 290 MB `[B`, 102 MB `String` |
-| floor after each suite | `suite-N-floor` labelled probe | flat, and 12.2 MiB once load stopped |
+| peak live set within a suite | 791.2 MB | **618.5 MB** — like-for-like on timed probes, −21.8% |
+| floor after each suite | 551.6 / 538.6 / 541.3 MB | **12.9 / 12.9 / 12.9 / 12.9 MB** |
+| floor drift | *(not computed correctly)* | **+28.6 KB (0%)**, tolerance 4.0 MB — nothing detectably survived a suite |
+| descriptors | 154 → 157, ≤2 closed by the probe's GC | 155 / 156 / 147 flat, **0** closed by the probe's GC |
+| top of `histogram-suite-N-peak.txt` | 290 MB `[B`, 102 MB `String` | 233 MB `[B`, 100.6 MB `String` |
 
-**The decision rule**, in the order the branches are tested — the first that matches wins, so no
-result can land outside it:
+**The verdict is `qualifies`** — the fourth branch of the rule pre-registered before the run. It
+is not `confirms`, and it fails that branch on both of its conditions: the peak is above 400 MiB,
+and `[B`/`String` are still the top two histogram entries.
 
-0. **Gate.** 4/4 suites, 350,000 passed, **0 failed**, reconciliation exact. A run that stopped
-   early flatters every panel below it, so a failed gate returns *no verdict at all*, not a bad
-   one.
-1. **Regresses** — the Live set panel's own floor verdict reads `rising, investigate`, or its
-   descriptor row is anything but `flat`. Read the panel's verdict rather than eyeballing the
-   floors: it computes its own tolerance and prints it, which is what makes this mechanical. A
-   new leak outranks the retention question — stop here and chase it.
-2. **Refutes** — peak ≥ 700 MiB (within ~10% of the pre-fix 791). The release did not take
-   effect; check the `build` row again before believing it.
-3. **Confirms** — peak ≤ 400 MiB (at least half the ramp gone) *and* neither `[B` nor
-   `java.lang.String` appears in the **top three entries by size** of
-   `histogram-suite-N-peak.txt`. Both conditions, or it is not a confirm.
-4. **Qualifies** — everything else, and it is a real outcome rather than a fallthrough: the two
-   signals disagreed, or the peak landed in the 400–700 MiB band. Say which of the two moved and
-   which did not. Text still in the top three means something downstream holds the same bytes;
-   find the holder before quoting either number.
+**What moved is the peak; what did not is the composition — and the composition was the wrong
+test.** The residual text is ~48 strings per scenario averaging ~55 bytes, with the `[B` count
+tracking the `String` count almost exactly: that is the parsed gherkin model and result skeleton,
+held by the `final` chain `FeatureResult → Feature`, `ScenarioResult → Scenario`,
+`StepResult → Step`, not captured request/response bodies. The confirm condition treated
+"`[B`/`String` in the top three" as a proxy for captured text, but step *source* text is also
+`[B`/`String`, so the criterion cannot separate what the fix removes from what it deliberately
+keeps. See [immutable `Feature`](#immutable-feature-and-a-per-execution-overlay--not-built) and
+[JSONL as the source of truth](#jsonl-as-the-source-of-truth--on-the-table-not-decided) for the
+two designs that would move it.
 
-**Then finish the session** — E1R is not done when the run is. `collect.sh` (fails closed;
-non-zero exit means do **not** tear down), confirm the digests reached `$KP_RESULTS`,
-`teardown.sh --force`, then bare `teardown.sh` as the nothing-is-left check. Two `c7g.4xlarge`
-are ~$1.16/hr and **nothing stops on its own.**
+**The independent check that the fix did its job**, and the one worth quoting: `3ef1236f`
+predicted ~3.2 KB/scenario retained of which ~70% was text, i.e. a 2.24 KB/scenario saving.
+Measured like-for-like: 9.04 → 7.07 KB/scenario, a **1.97 KB/scenario saving — within 12% of
+prediction**. That corroborates the change independently of the histogram criterion that failed.
+
+**Two numbers from this pair that must never be quoted.**
+
+- **The floors are not comparable.** E1's ~540 MB floors versus E1R's 12.9 MB is a ~40× artifact
+  of the *panel* fix — E1 probed while the loop still held the suite's `SuiteResult`; E1R drops it
+  first. Nothing about the step-log release is in that difference.
+- **The peak comparison is only valid on timed probes.** The rule registered E1's 791.2 MB (a
+  timed maximum) against E1R's labelled `suite-N-peak` probe, which is a different quantity — see
+  below. Using the labelled probe reads 517.4 MB and −34.6%, which flatters the result.
+
+**A third defect, found by this run.** `suite-N-peak` is probed *after* `runSuite()` returns, so
+it reads what the returned `SuiteResult` still holds, not the highest the run reached — a suite in
+flight also holds the machinery running it. E1R measured those as 517 MB and 618 MB. The panel
+consumed the labelled probe only to compute `released at each suite end` and never printed a
+within-suite peak at all, so the sole peak on offer was the *global* `min / max`. Fixed: the panel
+now prints `peak within each suite` from the segment maxima, marked as the sampled lower bound it
+is, and `LiveSetPanelTest` pins that it reports the mid-suite maximum rather than the boundary
+reading. Read against the corrected row, E1R's per-suite peaks are **612.4 / 610.6 / 617.8 /
+618.5 MB — flat**, which is the statement E1 could not make.
 
 **One thing this run cannot see.** Releasing logs is only safe because the report writers have
 already consumed them; the bench never checks that, since `collect.sh` pulls digests and the
-report trees die with the host. That guarantee lives in `StepLogReleaseTest`, not here — so a
-green digest is not evidence the reports are intact, and the two must not be conflated.
+report trees die with the host. That guarantee lives in `StepLogReleaseTest` (5/5 green on
+`83b0d25`), not here — so a green digest is not evidence the reports are intact, and the two must
+not be conflated.
 
 ### Paused — the Gatling arc
 
@@ -1231,14 +1244,14 @@ about to be published; ~20 + ~30 min.
 
 ### Bench budget
 
-Two `c7g.4xlarge` are ~$1.16/hr; provision + bootstrap is ~6 min of every session. The next
-session is: verification runs (only if a script changed since they last ran) → **E1R**, the
-confirming re-run — same command as E1, read against the pre-registered rule in §9.
+Two `c7g.4xlarge` are ~$1.16/hr; provision + bootstrap is ~6 min of every session. **The suite-soak
+arc is closed** — E1 and E1R together answer the leak question and measure the step-log release, so
+the next session starts from the paused Gatling arc or from whatever the parked designs turn into.
 
 | | settles | bench time | ~cost |
 |---|---|---:|---:|
-| **E1R confirming re-run** — *next* | reads E1 on the fixed panels, and measures the step-log release (`3ef1236f`) it argued for. Decision rule pre-registered in §9 | ~2 h | ~$2.30 |
-| **E1 suite soak** — *taken 2026-08-08, ~$2.30* | "no leak in karate" — reports on, TLS, and the unpooled client lifecycle. Answered, but on panels since found defective — see E1R | ~2 h | ~$2.30 |
+| **E1R confirming re-run** — *taken 2026-08-08, ~$2.61* | re-read E1 on the fixed panels and measured the step-log release. Verdict `qualifies`, peak −21.8%, floors flat | ~2 h | ~$2.61 |
+| **E1 suite soak** — *taken 2026-08-08, ~$2.30* | "no leak in karate" — reports on, TLS, and the unpooled client lifecycle. Its figures are the pre-fix baseline; read it through E1R | ~2 h | ~$2.30 |
 | E2 enterprise cell *(paused)* | the thesis on a realistic workload | ~35 min (+ harness work) | $0.70 |
 | E3 8u × 6400 TLS *(paused)* | the density/run-length confound | ~19 min | $0.40 |
 | E4 knee + open-loop *(paused)* | capacity guidance | ~50 min | $1.00 |
@@ -1328,6 +1341,73 @@ writer code, and replace "merge spilled with never-spilled" with *every scenario
 exactly once, when it becomes final*. A cheaper partial alternative, also unbuilt: strip the
 `FeatureResult` at feature end — bounds memory at O(threads × feature size) with no
 compatibility break, but scores zero on the mega-outline shape, which is the only case left.
+
+#### Immutable `Feature`, and a per-execution overlay — not built
+
+The parsed model is mutated at runtime in exactly four places. Everything else that writes to a
+`Feature`, `Scenario` or `Step` is the parser, at construction:
+
+| site | mutation | what it is |
+|---|---|---|
+| `ScenarioRuntime.setName` | evaluated scenario name | dynamic name interpolation — the one usually remembered |
+| `Suite.setSelected` (two sites) | `Boolean` selected flag | tag / selection filtering |
+| `FeatureRuntime.setExampleData` (two sites) | example row | outline data written back into the `Scenario` |
+| `ScenarioOutline.setName` / `setDynamicExpression` | derived scenario | outline expansion |
+
+The design: make the parsed model immutable and move those three pieces of state — evaluated
+name, selected flag, example data — into a per-execution overlay. `Suite` already went this way
+(`refactor: make Suite immutable with public final fields`); `Feature` did not.
+
+**What it buys is sharing and safety, not this document's memory numbers.** A parsed `Feature`
+can only be cached across executions if executing it does not write to it — so this is the
+prerequisite for reusing a parse in `karate serve`, the IDE plugin and repeated suites, and it
+sits under [parsed-JS reuse](#parsed-js-reuse--measured-half-gated-not-built). The sharper
+argument is correctness rather than footprint: `Suite` mutating `setSelected` on a shared model
+is a latent hazard the moment two concurrent runs hold the same `Feature`.
+
+**What it does not buy: the retention E1R measured.** Each feature is already parsed exactly
+once — the suite-peak histogram shows 87,500 `Scenario` for 87,500 scenarios and 1,312,500
+`Step` for 15 source lines each, with no duplication — so there is no second copy for
+immutability to collapse. The lever for *that* number is the back-reference chain
+`FeatureResult → Feature`, `ScenarioResult → Scenario`, `StepResult → Step`, all `final`, with
+`SuiteResult` holding every `FeatureResult` until the run ends: the suite's entire parsed source
+stays live because the result model points at it. Cutting it means the result model carrying its
+own copy of what the writers read, which is the next entry.
+
+#### JSONL as the source of truth — on the table, not decided
+
+Spill each feature's record as it completes, drop the in-memory `FeatureResult`, and rehydrate at
+suite end for the writers that need a whole-run view — optionally carrying the feature source in
+the record, which is small next to what it replaces. v1 did the file half of this: a per-feature
+`.karate-json.txt`, with `fromKarateJson` twins on `FeatureResult`, `ScenarioResult`,
+`StepResult`, `Step`, `Table`, `Result`, `Embed` and `Suite`.
+
+**More of this exists than the spill reviews assumed.** `FEATURE_EXIT` already carries
+`toJson()` with embeds inline, and `JsonLinesEventWriter` is a `RunListener` that streams during
+execution and never walks the retained model — so the write side is largely built. The v1 naming
+even survives: `Feature.KARATE_JSON_SUFFIX` and `getKarateJsonFileName()` are still in the source
+and are **called from nowhere**.
+
+What has to be built or decided, from the three adversarial reviews of the per-scenario spill,
+which apply here unchanged except where noted:
+
+- **The read side is gone and is the largest cost.** v1's `fromKarateJson` twins are deleted and
+  all three writers consume live objects. This appeared in no estimate and still dominates one.
+- **The record cannot be today's `toJson()`, for a reason worth stating exactly.**
+  `StepResult.toJson` stores `Console.stripAnsi(log)`, and `stripAnsi` removes ANSI *and* the body
+  sentinels; `HtmlReportWriter` renders logs from the **raw** log via `Console.splitLog`, which
+  needs those sentinels to find the highlightable code blocks. So the spill schema must carry the
+  raw log or pre-split segments. A decision to take up front, not a wall.
+- **Ten-plus load-bearing special cases** — `afterFeature` mutating the last scenario after it
+  would have been spilled, feature-level synthetic scenarios, JSON-mime embeds, JUnit stack traces
+  absent from `toJson()`.
+- **Bound feature dispatch first.** Every feature is submitted immediately with the semaphore
+  acquired *inside* the task, so "one spill in flight per thread" is O(all features).
+
+**This shape is the one the spill review recommended reviving.** Its own conclusion was to replace
+"merge spilled with never-spilled" with *every scenario is spilled exactly once, when it becomes
+final* — and rehydrating at the end sidesteps the merge problem rather than solving it. Decide it
+against the retention data, not before.
 
 #### "Karate doesn't play nice with Gatling's async model" — what would actually settle it
 
