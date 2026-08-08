@@ -1011,6 +1011,33 @@ public final class JfrDigest {
     }
 
     /**
+     * The highest live-set reading inside each suite's own window.
+     *
+     * <p>Distinct from the labelled {@code suite-N-peak} probe, which is taken once the suite has
+     * returned and therefore reads only what the {@code SuiteResult} still holds. Both are real;
+     * the boundary one is the designed retention a caller keeps, this one is what the heap
+     * actually had to accommodate, and sizing wants the larger.
+     *
+     * <p>Empty unless every suite has at least one probe, so a series too coarse to segment prints
+     * no row rather than a row with gaps in it.
+     */
+    private static List<Long> suitePeaks(List<long[]> loaded, List<Long> boundaries) {
+        List<Long> peaks = new ArrayList<>();
+        long start = -1;
+        for (long boundary : boundaries) {
+            long from = start;
+            long max = loaded.stream().filter(p -> p[0] > from && p[0] <= boundary)
+                    .mapToLong(p -> p[1]).max().orElse(-1);
+            if (max < 0) {
+                return List.of();
+            }
+            peaks.add(max);
+            start = boundary;
+        }
+        return peaks;
+    }
+
+    /**
      * The elapsed time of each completed suite, from the workload's own cumulative markers.
      *
      * <p>Only a repeated-suites run produces more than one. The two clocks — the probe's and the
@@ -1091,6 +1118,22 @@ public final class JfrDigest {
             }
         }
         row(md, "suites", boundaries.size() + " — read the floors below, not the drift");
+        // The labelled `suite-N-peak` probe is taken AFTER the suite returns, so it reads the
+        // retention the returned SuiteResult still holds — NOT the highest the run reached. A
+        // suite in flight also holds the machinery running it, and those are different numbers:
+        // 517 MB at the boundary against 618 MB mid-suite on the run that exposed this. Only the
+        // boundary reading was ever printed per suite, so anyone sizing a heap against "peak" got
+        // the smaller of the two. The segment maximum is the other half, and it is a SAMPLE — the
+        // true peak sits between probes, so this is a lower bound and says so.
+        List<Long> peaks = suitePeaks(loaded, boundaries);
+        if (!peaks.isEmpty()) {
+            StringBuilder peakList = new StringBuilder();
+            for (long peak : peaks) {
+                peakList.append(peakList.isEmpty() ? "" : " / ").append(bytes(peak));
+            }
+            row(md, "peak within each suite", peakList
+                    + " *(highest probe in the segment — sampled, so a lower bound on the true peak)*");
+        }
         if (!labelledPeaks.isEmpty() && labelledPeaks.size() == floors.size()) {
             StringBuilder released = new StringBuilder();
             for (int i = 0; i < floors.size(); i++) {
@@ -1098,7 +1141,8 @@ public final class JfrDigest {
                         .append(bytes(labelledPeaks.get(i)[1] - floors.get(i)[1]));
             }
             row(md, "released at each suite end", released.toString()
-                    + " — measured at the boundary, not interpolated");
+                    + " — what the suite held when it returned, minus what was left once it was"
+                    + " dropped; both measured at the boundary, not interpolated");
         }
         if (floors.size() < 2) {
             row(md, "floors", "only " + floors.size() + " probe landed after a suite ended — the "
