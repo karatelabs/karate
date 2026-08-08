@@ -160,8 +160,22 @@ public class SuiteResult {
             features.add(fr.toJson());
         }
         map.put("features", features);
+        map.put("summary", summaryJson());
 
-        // Summary
+        return map;
+    }
+
+    /**
+     * The counters alone — no per-feature payload.
+     *
+     * <p>Split out because the {@code SUITE_EXIT} event carries <em>this</em>, not
+     * {@link #toJson()}. The heavy payload lands exactly once, on {@code FEATURE_EXIT}, which
+     * docs/DESIGN.md calls a load-bearing rule rather than an accident: duplicating every
+     * scenario and step onto the closing event doubles the bytes on the wire and forces every
+     * receiver to de-duplicate. A 350,000-scenario run makes the point — the duplicate was a
+     * second copy of the whole suite, on one line.
+     */
+    public Map<String, Object> summaryJson() {
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("featureCount", getFeatureCount());
         summary.put("featuresPassed", getFeaturePassedCount());
@@ -175,9 +189,7 @@ public class SuiteResult {
         summary.put("endTime", endTime);
         summary.put("durationMillis", getDurationMillis());
         summary.put("passed", !isFailed());
-        map.put("summary", summary);
-
-        return map;
+        return summary;
     }
 
     public String toJsonString() {

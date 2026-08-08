@@ -58,7 +58,15 @@ public record SuiteRunEvent(
     public Map<String, Object> toJson() {
         Map<String, Object> map = new LinkedHashMap<>();
         if (type == RunEventType.SUITE_EXIT && result != null) {
-            return result.toJson();
+            // The counters, not the whole suite. This used to be result.toJson(), which carried a
+            // `features` array holding every scenario and every step a second time — contradicting
+            // both the documented shape of this event ({"summary": …}) and the load-bearing rule
+            // that the heavy payload lands exactly once, on FEATURE_EXIT. It also read the retained
+            // result model at the one moment that is AFTER each feature has released its step logs
+            // and embeds, so the duplicate was not merely redundant, it was quietly thinner than
+            // the FEATURE_EXIT record it duplicated.
+            map.put("summary", result.summaryJson());
+            return map;
         }
         // SUITE_ENTER data
         if (source != null) {

@@ -1009,6 +1009,12 @@ produce them. A new Runner-lane workload, modeled on `FeatureSpreadWorkload`:
    compares passing scenarios × requests-per-scenario against the mock's `served`, and
    refuses to compare them at all when anything failed.
 
+> **These figures are the _pre-fix_ baseline.** They measured the retention that E1 was run to
+> characterise — per-scenario result skeletons holding captured request/response text until suite
+> end — and that retention has since been largely removed: karate-core now releases a step's log
+> and embeds at feature end. The numbers below stand as the evidence that led to the change and as
+> the "before" half of any comparison; they no longer describe what a suite costs today.
+
 **The rehearsal — taken 2026-08-08**, two-host bench, 50 ms TLS mock, `reports=all`,
 4 threads, 4,000 scenarios, `66486a7 +DIRTY`. It ran clean (0 failures, exit 0, 12,000
 requests reconciling exactly against the mock's `served`) and it is the sizing evidence:

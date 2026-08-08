@@ -221,6 +221,27 @@ Gatling variables are injected as call-args, which apply *after* `karate-config.
 
 Without it the simulation crashes on startup with `IllegalAccessException: module java.base does not open java.lang to unnamed module`.
 
+## Reading results programmatically after a run
+
+If you inspect a `SuiteResult` in Java after `parallel()` returns, two fields are no longer there
+by default:
+
+| what | since |
+|---|---|
+| `StepResult.getCallResults()` — the nested `karate.call()` trees | released at feature end; `Runner.Builder.retainCallResults(true)` keeps them |
+| `StepResult.getLog()` and `getEmbeds()` — captured output and attached bytes | released at feature end; `Runner.Builder.retainStepLogs(true)` keeps them |
+
+Both are dropped once every report writer has consumed the feature, because a `SuiteResult` holds
+every feature for the whole run and this is the bulk of what that costs — on a large suite with
+several calls per scenario and sizeable payloads it is the difference between footprint and an
+OOM. **Reports are unaffected either way**: HTML, Cucumber JSON, JUnit XML and the JSONL stream
+are all generated while the result is whole, so nothing you get on disk changes.
+
+Neither flag is exposed on the CLI or in `karate-pom.json` — they exist only for callers who walk
+the result object after the run, which is the one thing the release takes away. Note also that
+`SUITE_EXIT` in the JSONL stream now carries its documented `summary` payload only; the
+per-feature detail is on `FEATURE_EXIT`, where it always was, and is no longer repeated.
+
 ## Logging
 
 V2 unifies the v1 logging knobs (`logPrettyRequest`, `logPrettyResponse`, `printEnabled`, `lowerCaseResponseHeaders`, `logModifier`) under a single `configure logging` bucket. The shape:

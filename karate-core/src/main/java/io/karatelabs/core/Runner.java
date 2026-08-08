@@ -147,7 +147,14 @@ public final class Runner {
         // Create the suite using Builder, seeding with template settings if provided
         Builder builder = Runner.builder()
                 .outputHtmlReport(false)
-                .outputConsoleSummary(false);
+                .outputConsoleSummary(false)
+                // The FeatureResult is RETURNED to the caller and this Suite is discarded, so the
+                // release at feature end would free nothing here and only take data the caller is
+                // about to read — this entry point has no SuiteResult retaining features for a
+                // whole run, which is the entire reason the release exists. The perf lane reaches
+                // the same conclusion by its own route (Suite.isPerfMode), but this path is public
+                // and legal without a hook, and there was no way to opt out on it.
+                .retainStepLogs(true);
         // this lane has never evaluated karate-boot.js — a Gatling simulation boots nothing
         builder.setSkipBootFile(true);
         if (template != null) {

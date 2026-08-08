@@ -140,6 +140,15 @@ public class StepResult {
         return error;
     }
 
+    /**
+     * The step's captured output — HTTP request / response blocks, {@code print}.
+     *
+     * <p><b>Null once the feature has finished</b>, unless the run set
+     * {@code Runner.Builder.retainStepLogs(true)}. Every report format is generated while the
+     * result is still whole; the text is dropped afterwards because a {@code SuiteResult} holds
+     * every feature for the whole run and this is the bulk of what that costs. See
+     * {@link FeatureResult#releaseStepLogs()}.
+     */
     public String getLog() {
         return log;
     }
@@ -161,6 +170,13 @@ public class StepResult {
         }
     }
 
+    /**
+     * Assets attached to this step — screenshots, documents, ext payloads.
+     *
+     * <p><b>Null once the feature has finished</b>, unless the run set
+     * {@code Runner.Builder.retainStepLogs(true)} — same release, same reason, and these are the
+     * larger half because an embed holds raw bytes. See {@link FeatureResult#releaseStepLogs()}.
+     */
     public List<Embed> getEmbeds() {
         return embeds;
     }

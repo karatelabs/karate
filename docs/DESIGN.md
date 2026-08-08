@@ -304,7 +304,7 @@ SUITE_EXIT
 
 `OUTLINE_ENTER` fires once per outline section, the first time one of its generated examples is about to run. There's no `OUTLINE_EXIT` — outline completion is implied by the last outline-example's `SCENARIO_EXIT`. Outline-example scenarios reference their parent outline via `outlineSlug` on the SCENARIO_ENTER/EXIT data.
 
-Return `false` from `*_ENTER` events to skip execution. Events fire for **all** features including `call`ed ones — use `event.isTopLevel()` to filter.
+Return `false` from `SCENARIO_ENTER` / `STEP_ENTER` / `HTTP_ENTER` to skip execution — `SUITE_ENTER` and `FEATURE_ENTER` fire for observation only and their return value is ignored. Events fire for **all** features including `call`ed ones — use `event.source().isTopLevel()` to filter.
 
 ### Core Interfaces
 
@@ -552,15 +552,15 @@ All report formats derive from `FeatureResult.toJson()`. HTML uses Alpine.js + T
 |---|---|---|
 | unit | a `RunEvent`, as it happens | a completed `FeatureResult` / `SuiteResult` |
 | timing | live, during execution | at feature end / suite end |
-| can control execution? | **yes** — return `false` from a `*_ENTER` to skip, or from `HTTP_ENTER` to mock | no, observation only |
-| scope | fires for called features too (`event.isTopLevel()` to filter) | top-level only |
+| can control execution? | **yes** — return `false` from `SCENARIO_ENTER` / `STEP_ENTER` to skip, or from `HTTP_ENTER` to mock | no, observation only |
+| scope | fires for called features too (`event.source().isTopLevel()` to filter) | top-level only |
 | implementations | JSONL stream, IDE runners, debuggers, exts | HTML, Cucumber JSON, JUnit XML |
 
 Control-plane versus artifact-plane. The split is why JSONL is a `RunListener` — it streams events to disk as they happen and never walks the retained result model — while the three file-per-feature formats are `ResultListener`s handed one finished, canonical result.
 
 ### What a result stops holding, and when
 
-A `SuiteResult` holds every `FeatureResult` until the run ends, so anything hanging off a step stays reachable for the whole suite. Two releases run in `FeatureRuntime.run()`'s `finally`, **after** `FEATURE_EXIT` has been fired and every `ResultListener` has consumed the feature — so every report is generated from a whole result and none of this is observable in the output:
+A `SuiteResult` holds every `FeatureResult` until the run ends, so anything hanging off a step stays reachable for the whole suite. Two releases run in `FeatureRuntime.call()`'s `finally`, **after** `FEATURE_EXIT` has been fired and every `ResultListener` has consumed the feature — so every report is generated from a whole result, and no artifact loses content:
 
 | released | holds | opt out with |
 |---|---|---|
@@ -620,7 +620,7 @@ Standard envelope:
 
 Identity (`slug`) is computed once per node and is intended to be cross-run stable: feature path for features; `<feature-path>:<name>` (or `::L<line>` if unnamed) for scenarios and outlines; `<outline-slug>:<exampleIndex>` for outline-examples. A scenario may override its derived slug with a **rename-proof, author-set identity** by binding an `__id` variable — a sibling of `__row`/`__num`, set either by a `* def __id = '<value>'` step or an `Examples:` column literally named `__id` (so each row pins its own id). When `__id` resolves to a non-blank value it is emitted as the `slug` verbatim; otherwise the derived slug stands. `__id` is read at SCENARIO_EXIT construction (while the engine is live) and may contain any non-whitespace characters — `/`, `:`, `.` etc. survive untouched, matching the alphabet allowed in tag values. Unlike a tag-based override, it never co-opts a team's existing tag conventions, because the author binds it on purpose. `outlineSlug` on a SCENARIO_ENTER/EXIT lets receivers stitch outline-examples back to their `OUTLINE_ENTER` event without denormalising outline metadata into every example. `tags` on scenarios are the *effective* list (feature + scenario tags merged); on outlines they merge feature + outline tags. See `RunUtils` for the slug formulas and `ScenarioRunEvent` for the `__id` override.
 
-`FEATURE_EXIT.data` is the full `FeatureResult.toJson()` — the canonical structured payload for offline analysis, CI/CD scraping, and downstream tooling. `SUITE_EXIT.data.summary` carries pass/fail counters, suite-level `startTime`/`endTime`/`durationMillis`, and a `passedRate` (integer percentage 0–100, or null when no scenarios executed). The same `passedRate` is exposed per feature on `FEATURE_EXIT.data` so dashboards don't have to recompute it. Denominator is `passedCount + failedCount` (matching the HTML report's totals row); since `@skipped` is additive to `passedCount`, it's also counted in the denominator. The suite-level epoch markers are co-located with `durationMillis` so a single read of `summary` gives consumers both absolute wall-clock anchors and the relative duration — without falling back to per-step `result.startTime`/`endTime` pairs, which only ever span a single step.
+`FEATURE_EXIT.data` is the full `FeatureResult.toJson()` — the canonical structured payload for offline analysis, CI/CD scraping, and downstream tooling. **`SUITE_EXIT.data` is the summary and nothing else.** It used to serialize `SuiteResult.toJson()`, whose `features` array repeated every scenario and every step of the whole run a second time — breaking the exactly-once rule above, and doing it at the one moment when each feature has already released its step logs, so the duplicate was quietly *thinner* than the `FEATURE_EXIT` records it duplicated. On a large run the saving is the size of the run. `SUITE_EXIT.data.summary` carries pass/fail counters, suite-level `startTime`/`endTime`/`durationMillis`, and a `passedRate` (integer percentage 0–100, or null when no scenarios executed). The same `passedRate` is exposed per feature on `FEATURE_EXIT.data` so dashboards don't have to recompute it. Denominator is `passedCount + failedCount` (matching the HTML report's totals row); since `@skipped` is additive to `passedCount`, it's also counted in the denominator. The suite-level epoch markers are co-located with `durationMillis` so a single read of `summary` gives consumers both absolute wall-clock anchors and the relative duration — without falling back to per-step `result.startTime`/`endTime` pairs, which only ever span a single step.
 
 `STEP_ENTER` / `STEP_EXIT` / `HTTP_ENTER` / `HTTP_EXIT` events fire on the `RunListener` bus but are deliberately not emitted into JSONL (too granular for a streaming feed). HTTP request/response detail still reaches consumers via `step.embeds[]` inside `FEATURE_EXIT`.
 

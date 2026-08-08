@@ -154,12 +154,67 @@ class StepLogReleaseTest {
             assertNotNull(step.getStep(), "step " + i + " lost its source step");
             assertEquals(retainedSteps.get(i).getStatus(), step.getStatus(),
                     "step " + i + " changed status");
-            assertEquals(retainedSteps.get(i).getDurationNanos(), step.getDurationNanos() >= 0
-                    ? retainedSteps.get(i).getDurationNanos() : -1, "step " + i + " lost its timing");
+            // Asserted as an invariant, not against the other run: two executions have genuinely
+            // different durations, and an earlier version of this line compared the retained value
+            // with itself — passing for every input and unable to fail for the regression its own
+            // message described.
+            assertTrue(step.getDurationNanos() >= 0, "step " + i + " lost its timing");
             assertNull(step.getLog(), "step " + i + " kept its log");
         }
         assertEquals(released.getScenarioCount(), retained.getScenarioCount());
         assertEquals(released.getScenarioPassedCount(), retained.getScenarioPassedCount());
+    }
+
+    /**
+     * The two retention flags are independent, so retaining the call tree must not smuggle the
+     * bytes back in. A called feature's own runtime is never top-level, so nothing releases it
+     * from the inside — {@code releaseStepLogs} has to walk down into the retained tree, or the
+     * saving evaporates in exactly the call-heavy suites that have the most step logs to begin
+     * with, while the top level still loses its own.
+     */
+    @Test
+    void testRetainedCallTreesKeepTheirShapeButNotTheirBytes() throws IOException {
+        Files.writeString(tempDir.resolve("callee.feature"), """
+                Feature: callee
+                Scenario:
+                * print 'hello from the callee'
+                * karate.embed('a nested asset', 'text/plain')
+                * def answer = 42
+                """);
+        Path caller = tempDir.resolve("caller.feature");
+        Files.writeString(caller, """
+                Feature: caller
+                Scenario:
+                * def nested = karate.call('callee.feature')
+                * match nested.answer == 42
+                """);
+
+        SuiteResult result = Runner.builder()
+                .path(caller.toString())
+                .workingDir(tempDir)
+                .outputConsoleSummary(false)
+                .outputHtmlReport(false)
+                .outputDir(tempDir.resolve("reports"))
+                .backupOutputDir(false)
+                .retainCallResults(true)
+                .parallel(1);
+        assertPassed(result);
+
+        var callResults = result.getFeatureResults().get(0)
+                .getScenarioResults().get(0).getStepResults().stream()
+                .filter(step -> step.getCallResults() != null)
+                .flatMap(step -> step.getCallResults().stream())
+                .toList();
+        assertFalse(callResults.isEmpty(), "retainCallResults(true) should keep the nested tree");
+        for (FeatureResult called : callResults) {
+            assertFalse(called.getScenarioResults().isEmpty(), "the nested shape must survive");
+            for (ScenarioResult sr : called.getScenarioResults()) {
+                for (StepResult step : sr.getStepResults()) {
+                    assertNull(step.getLog(), "a nested step kept its log");
+                    assertNull(step.getEmbeds(), "a nested step kept its embeds");
+                }
+            }
+        }
     }
 
     /**

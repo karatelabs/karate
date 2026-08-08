@@ -205,12 +205,14 @@ class JsonLinesEventWriterTest {
 
         // Find SUITE_EXIT event (last line)
         Map<String, Object> summary = null;
+        Map<String, Object> suiteExitData = null;
         for (String line : lines) {
             @SuppressWarnings("unchecked")
             Map<String, Object> envelope = (Map<String, Object>) Json.of(line).value();
             if ("SUITE_EXIT".equals(envelope.get("type"))) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> data = (Map<String, Object>) envelope.get("data");
+                suiteExitData = data;
                 @SuppressWarnings("unchecked")
                 Map<String, Object> s = (Map<String, Object>) data.get("summary");
                 summary = s;
@@ -218,6 +220,15 @@ class JsonLinesEventWriterTest {
             }
         }
         assertNotNull(summary, "Should have SUITE_EXIT event with summary");
+
+        // The closing event carries the counters and nothing else. It used to serialize the whole
+        // SuiteResult, repeating every scenario and step of the run — which breaks the rule that
+        // the heavy payload lands exactly once (on FEATURE_EXIT) and, because each feature has by
+        // then released its step logs, shipped a quietly thinner copy of data already on the wire.
+        assertNull(suiteExitData.get("features"),
+                "SUITE_EXIT must not repeat the per-feature payload: " + suiteExitData.keySet());
+        assertEquals(java.util.Set.of("summary"), suiteExitData.keySet(),
+                "SUITE_EXIT.data is the summary and nothing else");
 
         assertEquals(1, ((Number) summary.get("featuresPassed")).intValue());
         assertEquals(0, ((Number) summary.get("featuresFailed")).intValue());

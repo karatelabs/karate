@@ -246,9 +246,10 @@ public class FeatureResult {
      *
      * <p>Called from the same place as {@link #releaseCallResults()} and under the same
      * precondition — after {@code onFeatureEnd}, so HTML, Cucumber JSON and JUnit XML have all
-     * serialized the feature, and after {@code FEATURE_EXIT}, which is where the JSONL stream
-     * carries {@code toJson()} with the embeds inline. Nothing downstream reads either field
-     * later; what is lost is the ability to inspect a step's log or embeds from a
+     * serialized the feature, and after {@code FEATURE_EXIT}, where the JSONL stream carries
+     * {@code toJson()} (non-JSON embeds having already been externalized to {@code embeds/} by
+     * {@code Suite.fireEvent}, so the record carries file references). Nothing downstream reads
+     * either field later; what is lost is the ability to inspect a step's log or embeds from a
      * {@code SuiteResult} <em>after</em> the run, which {@code Runner.Builder.retainStepLogs(true)}
      * keeps for callers who need it.
      *
@@ -259,6 +260,20 @@ public class FeatureResult {
         for (ScenarioResult scenarioResult : scenarioResults) {
             for (StepResult stepResult : scenarioResult.getStepResults()) {
                 stepResult.releaseLogAndEmbeds();
+                // Down into any retained call tree. Without this the two flags interact badly:
+                // retainCallResults(true) keeps the nested results, and a called feature's own
+                // runtime is never top-level, so nothing would ever release its logs — leaving
+                // the bytes retained for the whole suite in exactly the call-heavy shape that has
+                // the most of them, while the top level lost its own. Recursion is safe without a
+                // visited set: every karate.call() produces a NEW FeatureResult, even for
+                // self-recursion, so a call tree cannot cycle — and a repeat visit would only
+                // null an already-null field.
+                List<FeatureResult> callResults = stepResult.getCallResults();
+                if (callResults != null) {
+                    for (FeatureResult called : callResults) {
+                        called.releaseStepLogs();
+                    }
+                }
             }
         }
     }
