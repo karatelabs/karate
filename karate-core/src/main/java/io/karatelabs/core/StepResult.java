@@ -165,6 +165,18 @@ public class StepResult {
         return embeds;
     }
 
+    /**
+     * Drop the two fields that hold bytes rather than facts — see
+     * {@link FeatureResult#releaseStepLogs()} for when this is safe and why it matters.
+     *
+     * <p>The embed list is nulled rather than cleared: a cleared {@code ArrayList} keeps its
+     * backing array, and the point here is to stop referencing the {@code byte[]} payloads.
+     */
+    void releaseLogAndEmbeds() {
+        log = null;
+        embeds = null;
+    }
+
     public void addEmbed(Embed embed) {
         if (embeds == null) {
             embeds = new ArrayList<>();

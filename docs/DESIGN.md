@@ -542,7 +542,36 @@ JSONL HTML Cucumber   JUnit
           JSON        XML
 ```
 
-All report formats derive from `FeatureResult.toJson()`. Generation is async via `ResultListener` implementations. HTML uses Alpine.js + Tailwind CSS with inlined JSON, and Prism.js for client-side JSON body syntax highlighting (see [Logging § Syntax highlighting](#syntax-highlighting-in-html-reports)).
+All report formats derive from `FeatureResult.toJson()`. HTML uses Alpine.js + Tailwind CSS with inlined JSON, and Prism.js for client-side JSON body syntax highlighting (see [Logging § Syntax highlighting](#syntax-highlighting-in-html-reports)).
+
+**Generation is synchronous, on the feature's own thread.** It used to be async — each listener owned a single-thread executor with an unbounded queue — and that queue was the largest memory problem the engine has had: rendering one feature's HTML cost several times the suite's wall-clock summed over features, so the queue grew for the whole run holding a full page model per entry. Writing inline was measured *faster* (N-way parallelism beats one background thread) as well as bounded. Nothing reads a `FeatureResult` after `onFeatureEnd` returns, and the release below depends on that.
+
+### Two listener interfaces, and why
+
+| | `RunListener` | `ResultListener` |
+|---|---|---|
+| unit | a `RunEvent`, as it happens | a completed `FeatureResult` / `SuiteResult` |
+| timing | live, during execution | at feature end / suite end |
+| can control execution? | **yes** — return `false` from a `*_ENTER` to skip, or from `HTTP_ENTER` to mock | no, observation only |
+| scope | fires for called features too (`event.isTopLevel()` to filter) | top-level only |
+| implementations | JSONL stream, IDE runners, debuggers, exts | HTML, Cucumber JSON, JUnit XML |
+
+Control-plane versus artifact-plane. The split is why JSONL is a `RunListener` — it streams events to disk as they happen and never walks the retained result model — while the three file-per-feature formats are `ResultListener`s handed one finished, canonical result.
+
+### What a result stops holding, and when
+
+A `SuiteResult` holds every `FeatureResult` until the run ends, so anything hanging off a step stays reachable for the whole suite. Two releases run in `FeatureRuntime.run()`'s `finally`, **after** `FEATURE_EXIT` has been fired and every `ResultListener` has consumed the feature — so every report is generated from a whole result and none of this is observable in the output:
+
+| released | holds | opt out with |
+|---|---|---|
+| nested `karate.call()` result trees | memory ∝ scenarios × calls per scenario | `Runner.Builder.retainCallResults(true)` |
+| each step's captured `log` and `embeds` | the rendered HTTP request/response text, and raw `byte[]` assets such as screenshots — memory ∝ steps × payload size | `Runner.Builder.retainStepLogs(true)` |
+
+The second is the larger by far: measured on a 350,000-scenario soak with all four formats on, roughly 70% of per-scenario retention was captured text, and that share grows with payload size. Both opt-outs exist for the same narrow reason — reading a `SuiteResult` programmatically *after* the run — and neither is exposed on the CLI or in `karate-pom.json`, deliberately: they are not tuning knobs.
+
+**Neither release runs in perf mode.** The Gatling lane builds a throwaway `Suite` per execution, so there is nothing to free — and `logReplay` renders `StepResult.log` *after* `Runner.runFeature` returns (`LogReplayer.render`, from `KarateExecutor.execute`), so releasing would silently empty the replay buffer that is a load tester's only view of a failed scenario.
+
+**Source files:** `FeatureResult.releaseCallResults` / `releaseStepLogs`, `FeatureRuntime.run` (the `finally`), `CallResultReleaseTest`, `StepLogReleaseTest`.
 
 ### Output Structure
 

@@ -124,6 +124,11 @@ public class TestUtils {
                 .outputConsoleSummary(false)
                 .outputHtmlReport(false)
                 .backupOutputDir(false)
+                // This helper hands back a finished ScenarioRuntime and its callers assert on
+                // step logs and embeds — i.e. exactly the "inspect a result programmatically
+                // after the run" case the flag exists for. Without it the release at feature end
+                // empties both before any assertion runs. See FeatureResult.releaseStepLogs.
+                .retainStepLogs(true)
                 .listener(listener)
                 .parallel(1);
 

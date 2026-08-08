@@ -231,6 +231,38 @@ public class FeatureResult {
         }
     }
 
+    /**
+     * Drop each step's captured log text and embedded assets, once every consumer has had them.
+     *
+     * <p><b>This is the bulk of what a suite retains.</b> The log holds the rendered HTTP request
+     * and response for every step — bodies included — and an {@link StepResult.Embed} holds raw
+     * {@code byte[]}, which for a UI suite means a screenshot per failed step. Both are kept only
+     * so the report writers can render them, yet a {@link SuiteResult} holds every feature until
+     * the run ends, so they stay reachable for hours after the last thing that reads them.
+     * Measured on a 350,000-scenario soak with all four report formats on: ~3.2 KB retained per
+     * scenario, of which roughly 70% was this text — and that share <em>grows</em> with payload
+     * size, which is why a suite of scenarios making several calls with large bodies is where
+     * this stops being footprint and becomes an OOM.
+     *
+     * <p>Called from the same place as {@link #releaseCallResults()} and under the same
+     * precondition — after {@code onFeatureEnd}, so HTML, Cucumber JSON and JUnit XML have all
+     * serialized the feature, and after {@code FEATURE_EXIT}, which is where the JSONL stream
+     * carries {@code toJson()} with the embeds inline. Nothing downstream reads either field
+     * later; what is lost is the ability to inspect a step's log or embeds from a
+     * {@code SuiteResult} <em>after</em> the run, which {@code Runner.Builder.retainStepLogs(true)}
+     * keeps for callers who need it.
+     *
+     * <p>Status, timing, failure messages and counts are untouched, so summaries, the console
+     * output and every report are unaffected.
+     */
+    public void releaseStepLogs() {
+        for (ScenarioResult scenarioResult : scenarioResults) {
+            for (StepResult stepResult : scenarioResult.getStepResults()) {
+                stepResult.releaseLogAndEmbeds();
+            }
+        }
+    }
+
     public boolean isFailed() {
         return scenarioResults.stream().anyMatch(ScenarioResult::isFailed);
     }

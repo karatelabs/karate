@@ -235,6 +235,20 @@ public class FeatureRuntime implements Callable<FeatureResult> {
             if (suite != null && isTopLevel() && !suite.retainCallResults) {
                 result.releaseCallResults();
             }
+
+            // The captured log text and embeds go the same way, and for a larger saving: they are
+            // the bytes, where call results are the nesting. Same precondition — every consumer
+            // above has had the whole result.
+            //
+            // NOT in perf mode, for two independent reasons. Releasing there frees nothing: the
+            // Gatling lane builds a throwaway Suite per execution which is garbage moments later.
+            // And it would break something: karate-gatling's logReplay renders StepResult.log
+            // AFTER Runner.runFeature returns (LogReplayer.render, called from
+            // KarateExecutor.execute), so clearing it here would empty the replay buffer and
+            // silently remove the only view a load tester has of a failed scenario.
+            if (suite != null && isTopLevel() && !suite.retainStepLogs && !suite.isPerfMode()) {
+                result.releaseStepLogs();
+            }
         }
 
         return result;

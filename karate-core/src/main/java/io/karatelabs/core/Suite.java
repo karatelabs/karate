@@ -87,6 +87,7 @@ public class Suite {
     public final boolean backupReportDir;
     public final boolean outputConsoleSummary;
     public final boolean retainCallResults;
+    public final boolean retainStepLogs;
     /** Explicit {@code Runner.Builder.captureStepLogs()}, or null — see {@link #isCaptureStepLogs()}. */
     private final Boolean captureStepLogs;
     public final Map<String, String> systemProperties;
@@ -221,6 +222,7 @@ public class Suite {
         this.backupReportDir = builder.isBackupOutputDir();
         this.outputConsoleSummary = builder.isOutputConsoleSummary();
         this.retainCallResults = builder.isRetainCallResults();
+        this.retainStepLogs = builder.isRetainStepLogs();
         this.captureStepLogs = builder.getCaptureStepLogs();
         this.systemProperties = builder.getSystemProperties() != null
                 ? Collections.unmodifiableMap(new HashMap<>(builder.getSystemProperties()))

@@ -259,6 +259,7 @@ public final class Runner {
         private boolean backupOutputDir = true;
         private boolean outputConsoleSummary = true;
         private boolean retainCallResults = false;
+        private boolean retainStepLogs = false;
         // null = decide from the run: on everywhere except perf mode (see Suite.isCaptureStepLogs)
         private Boolean captureStepLogs;
         private Map<String, String> systemProperties;
@@ -537,6 +538,28 @@ public final class Runner {
          */
         public Builder retainCallResults(boolean enabled) {
             this.retainCallResults = enabled;
+            return this;
+        }
+
+        /**
+         * Keep each step's captured log text and embeds reachable after the run.
+         *
+         * <p>Off by default. The log holds the rendered HTTP request and response for every
+         * step and an embed holds raw bytes — a screenshot, a document — and the suite holds
+         * every feature until it ends, so retaining them makes memory scale with total steps
+         * times payload size. They are released once each feature has completed and every
+         * listener has consumed it.
+         *
+         * <p>Reports are unaffected either way: HTML, Cucumber JSON, JUnit XML and the JSONL
+         * stream all serialize the feature while it is still whole. Turn this on only to read
+         * {@code StepResult.getLog()} or {@code getEmbeds()} from a {@link SuiteResult}
+         * programmatically after the run.
+         *
+         * <p>Ignored under karate-gatling, where nothing is retained past one execution anyway
+         * and {@code logReplay} reads the log after the feature returns.
+         */
+        public Builder retainStepLogs(boolean enabled) {
+            this.retainStepLogs = enabled;
             return this;
         }
 
@@ -861,6 +884,8 @@ public final class Runner {
         boolean isOutputConsoleSummary() { return outputConsoleSummary; }
 
         boolean isRetainCallResults() { return retainCallResults; }
+
+        boolean isRetainStepLogs() { return retainStepLogs; }
         /** null when unset — the Suite decides from perf mode. */
         Boolean getCaptureStepLogs() { return captureStepLogs; }
         Map<String, String> getSystemProperties() { return systemProperties; }
