@@ -143,40 +143,45 @@ class SuiteRootTest {
     }
 
     @Test
-    void aMissingConfigWarnsAndNamesTheDirsItProbed() {
+    void aMissingConfigIsReportedAtInfoAndNamesTheDirsItProbed() {
         // A standalone (CLI) run has no JVM classpath to fall back on. When the config is not under
         // the working dir the whole config phase contributes nothing, and the run only fails later
-        // as a bare ReferenceError in the first step that reads a config variable. The miss has to
-        // be loud, and it has to name where we looked — that is what points at --workingdir.
+        // as a bare ReferenceError in the first step that reads a config variable. So the miss has
+        // to be reported, and it has to name where we looked — that is what points at --workingdir.
+        // INFO, not WARN: plenty of runs legitimately have no config, and this build is one of them.
         ch.qos.logback.classic.Logger runtime =
                 (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("karate.runtime");
-        java.util.List<String> warnings = new java.util.ArrayList<>();
+        java.util.List<String> messages = new java.util.ArrayList<>();
         ch.qos.logback.core.AppenderBase<ch.qos.logback.classic.spi.ILoggingEvent> capture =
                 new ch.qos.logback.core.AppenderBase<>() {
                     @Override
                     protected void append(ch.qos.logback.classic.spi.ILoggingEvent event) {
-                        if (event.getLevel() == ch.qos.logback.classic.Level.WARN) {
-                            warnings.add(event.getFormattedMessage());
+                        if (event.getLevel() == ch.qos.logback.classic.Level.INFO) {
+                            messages.add(event.getFormattedMessage());
                         }
                     }
                 };
         capture.setContext((ch.qos.logback.classic.LoggerContext) org.slf4j.LoggerFactory.getILoggerFactory());
         capture.start();
+        // the test config keeps this logger quiet, so the event would never be built otherwise
+        ch.qos.logback.classic.Level previous = runtime.getLevel();
+        runtime.setLevel(ch.qos.logback.classic.Level.INFO);
         runtime.addAppender(capture);
         try {
             // the temp dir has no karate-config.js
             Runner.builder().configDir(project.toString()).buildSuite();
         } finally {
             runtime.detachAppender(capture);
+            runtime.setLevel(previous);
             capture.stop();
         }
-        String warning = warnings.stream()
+        String message = messages.stream()
                 .filter(w -> w.contains("karate-config.js"))
                 .findFirst()
                 .orElse(null);
-        assertNotNull(warning, "a missing karate-config.js must warn, not whisper at trace: " + warnings);
-        assertTrue(warning.contains("not found"), warning);
-        assertTrue(warning.contains(project.toString()), "the warning must name the dir probed: " + warning);
+        assertNotNull(message, "a missing karate-config.js must be reported, not whisper at trace: " + messages);
+        assertTrue(message.contains("not found"), message);
+        assertTrue(message.contains(project.toString()), "the message must name the dir probed: " + message);
     }
 
     @Test
