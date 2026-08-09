@@ -54,6 +54,13 @@ public class TokenBuffer {
     // object-literal key - so a token inside a loop body is re-extracted on every iteration.
     private String[] texts;
 
+    // Parallel array for parsed literal values - lazily allocated, memoized on first use.
+    // Caching the text alone still leaves Double.parseDouble running on every evaluation of a
+    // numeric literal; this holds the parsed value itself. Null means "not computed yet", which
+    // is safe because the only literal that evaluates to null is `null`, whose branch never
+    // parses anything.
+    private Object[] literals;
+
     public TokenBuffer(Resource resource) {
         this.resource = resource;
         // Estimate capacity based on source length to minimize resizing
@@ -84,7 +91,27 @@ public class TokenBuffer {
         if (texts != null) {
             texts = Arrays.copyOf(texts, newCapacity);
         }
+        if (literals != null) {
+            literals = Arrays.copyOf(literals, newCapacity);
+        }
         capacity = newCapacity;
+    }
+
+    /** Memoized literal value, or null if not computed yet. Same race rationale as getText. */
+    Object getLiteral(int index) {
+        Object[] cache = literals;
+        return (cache != null && index >= 0 && index < cache.length) ? cache[index] : null;
+    }
+
+    void putLiteral(int index, Object value) {
+        if (index < 0 || index >= count) { // not registered in this buffer
+            return;
+        }
+        Object[] cache = literals;
+        if (cache == null) {
+            cache = literals = new Object[capacity];
+        }
+        cache[index] = value;
     }
 
     /**

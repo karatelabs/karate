@@ -273,7 +273,24 @@ public class Terms {
         return Character.isWhitespace(c) || c == ' ' || c == '﻿';
     }
 
+    /**
+     * Value of a literal token, memoized on the token. A literal inside a loop body is evaluated
+     * on every iteration, and without this each evaluation re-ran {@code Double.parseDouble} (or
+     * the BigInt / string-unquoting path) over text that cannot have changed.
+     */
     public static Object literalValue(Token token) {
+        Object cached = token.getCachedLiteral();
+        if (cached != null) {
+            return cached;
+        }
+        Object value = computeLiteralValue(token);
+        if (value != null) { // `null` is only ever the NULL keyword, whose branch parses nothing
+            token.cacheLiteral(value);
+        }
+        return value;
+    }
+
+    private static Object computeLiteralValue(Token token) {
         return switch (token.type) {
             case S_STRING, D_STRING -> {
                 String text = token.getText();

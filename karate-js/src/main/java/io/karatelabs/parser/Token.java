@@ -73,6 +73,15 @@ public class Token {
         return buffer.getText(index, pos, length);
     }
 
+    /** Memoized literal value for this token, or null if not computed yet. */
+    public Object getCachedLiteral() {
+        return buffer.getLiteral(index);
+    }
+
+    public void cacheLiteral(Object value) {
+        buffer.putLiteral(index, value);
+    }
+
     public Token getNextPrimary() {
         Token temp = this;
         do {
