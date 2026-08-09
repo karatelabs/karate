@@ -2432,6 +2432,11 @@ call; path-skipped). Pinned by `SpecPinTest.functionDeclAs*` and the
 
 ## Performance Benchmarks
 
+> For a **cross-engine** comparison — `karate-js` vs. Mozilla Rhino and GraalJS,
+> each measured at its defaults and tuned — see
+> [ptrthomas/karate-js-benchmark](https://github.com/ptrthomas/karate-js-benchmark).
+> The section below is version-over-version tracking of this engine only.
+
 Results from `karate-js/src/test/java/io/karatelabs/parser/EngineBenchmark.java`. The benchmark runs two 20 KB scripts: an array-method-heavy workload (`filter`/`map`/`reduce`/`find`/`some`/`every`/`slice`/`concat`/`indexOf`) and an object-method-heavy workload (`Object.keys`/`values`/`entries`/`assign`/`hasOwnProperty`/`toString`). Each script allocates a fresh `Engine` per iteration.
 
 Invoke via:
