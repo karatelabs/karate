@@ -321,7 +321,7 @@ class PropertyAccess {
                 String name = node.getText();
                 Object oldValue = context.get(name);
                 Object step = Terms.incDecStep(oldValue);
-                Object newValue = isIncrement ? Terms.add(oldValue, step, context) : new Terms(oldValue, step).min();
+                Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step);
                 context.update(name, newValue);
                 yield oldValue;
             }
@@ -350,7 +350,7 @@ class PropertyAccess {
                 String name = node.getText();
                 Object oldValue = context.get(name);
                 Object step = Terms.incDecStep(oldValue);
-                Object newValue = isIncrement ? Terms.add(oldValue, step, context) : new Terms(oldValue, step).min();
+                Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step);
                 context.update(name, newValue);
                 yield newValue;
             }
@@ -833,7 +833,7 @@ class PropertyAccess {
                 List<Object> list = (List<Object>) object;
                 Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
                 Object step = Terms.incDecStep(oldValue);
-                Object newValue = isIncrement ? Terms.add(oldValue, step, context) : new Terms(oldValue, step).min();
+                Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step);
                 list.set(i, newValue);
                 firePropertySet(context, String.valueOf(i), newValue, oldValue, object, null);
                 return oldValue;
@@ -845,7 +845,7 @@ class PropertyAccess {
     private static Object postIncDecByName(Object object, String name, boolean isIncrement, CoreContext context) {
         Object oldValue = getByName(object, name, false, context, false);
         Object step = Terms.incDecStep(oldValue);
-        Object newValue = isIncrement ? Terms.add(oldValue, step, context) : new Terms(oldValue, step).min();
+        Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step);
         setByName(object, name, newValue, context, null);
         return oldValue;
     }
@@ -857,7 +857,7 @@ class PropertyAccess {
                 List<Object> list = (List<Object>) object;
                 Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
                 Object step = Terms.incDecStep(oldValue);
-                Object newValue = isIncrement ? Terms.add(oldValue, step, context) : new Terms(oldValue, step).min();
+                Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step);
                 list.set(i, newValue);
                 firePropertySet(context, String.valueOf(i), newValue, oldValue, object, null);
                 return newValue;
@@ -869,7 +869,7 @@ class PropertyAccess {
     private static Object preIncDecByName(Object object, String name, boolean isIncrement, CoreContext context) {
         Object oldValue = getByName(object, name, false, context, false);
         Object step = Terms.incDecStep(oldValue);
-        Object newValue = isIncrement ? Terms.add(oldValue, step, context) : new Terms(oldValue, step).min();
+        Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step);
         setByName(object, name, newValue, context, null);
         return newValue;
     }
@@ -901,17 +901,17 @@ class PropertyAccess {
     private static Object applyOperator(Object oldValue, TokenType operator, Object operand, CoreContext context) {
         return switch (operator) {
             case PLUS_EQ -> Terms.add(oldValue, operand, context);
-            case MINUS_EQ -> new Terms(oldValue, operand).min();
-            case STAR_EQ -> new Terms(oldValue, operand).mul();
-            case SLASH_EQ -> new Terms(oldValue, operand).div();
-            case PERCENT_EQ -> new Terms(oldValue, operand).mod();
-            case STAR_STAR_EQ -> new Terms(oldValue, operand).exp();
-            case GT_GT_EQ -> new Terms(oldValue, operand).bitShiftRight();
-            case LT_LT_EQ -> new Terms(oldValue, operand).bitShiftLeft();
-            case GT_GT_GT_EQ -> new Terms(oldValue, operand).bitShiftRightUnsigned();
-            case AMP_EQ -> new Terms(oldValue, operand).bitAnd();
-            case PIPE_EQ -> new Terms(oldValue, operand).bitOr();
-            case CARET_EQ -> new Terms(oldValue, operand).bitXor();
+            case MINUS_EQ -> Terms.min(oldValue, operand);
+            case STAR_EQ -> Terms.mul(oldValue, operand);
+            case SLASH_EQ -> Terms.div(oldValue, operand);
+            case PERCENT_EQ -> Terms.mod(oldValue, operand);
+            case STAR_STAR_EQ -> Terms.exp(oldValue, operand);
+            case GT_GT_EQ -> Terms.bitShiftRight(oldValue, operand);
+            case LT_LT_EQ -> Terms.bitShiftLeft(oldValue, operand);
+            case GT_GT_GT_EQ -> Terms.bitShiftRightUnsigned(oldValue, operand);
+            case AMP_EQ -> Terms.bitAnd(oldValue, operand);
+            case PIPE_EQ -> Terms.bitOr(oldValue, operand);
+            case CARET_EQ -> Terms.bitXor(oldValue, operand);
             default -> throw new RuntimeException("unexpected operator: " + operator);
         };
     }

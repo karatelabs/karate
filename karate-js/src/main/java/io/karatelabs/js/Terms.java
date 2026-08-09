@@ -51,23 +51,19 @@ public class Terms {
 
     static final Object NAN = Double.NaN;
 
-    final Number lhs;
-    final Number rhs;
-
-    Terms(Object lhsObject, Object rhsObject) {
-        lhs = objectToNumber(lhsObject);
-        rhs = objectToNumber(rhsObject);
+    private Terms() {
+        // static holder - the binary operators take (lhs, rhs) directly
     }
 
     // True iff either operand is BigInt. Fast path: most call sites have
     // plain Number operands and this returns false on the first instanceof.
-    private boolean isBigIntOp() {
+    private static boolean isBigIntOp(Number lhs, Number rhs) {
         return lhs instanceof BigInteger || rhs instanceof BigInteger;
     }
 
     // Spec: arithmetic ops require both operands to be BigInt or both Number;
     // mixing throws TypeError. Centralized check fires only on the rare path.
-    private void requireBothBigInt(String opName) {
+    private static void requireBothBigInt(Number lhs, Number rhs, String opName) {
         if (!(lhs instanceof BigInteger) || !(rhs instanceof BigInteger)) {
             throw JsErrorException.typeError(
                 "Cannot mix BigInt and other types, use explicit conversions (" + opName + ")");
@@ -410,8 +406,7 @@ public class Terms {
             return bigIntLooseEq(lhs, rhs);
         }
         if (lhs instanceof Number || rhs instanceof Number) { // coerce to number
-            Terms terms = new Terms(lhs, rhs);
-            return terms.lhs.equals(terms.rhs);
+            return objectToNumber(lhs).equals(objectToNumber(rhs));
         }
         return false;
     }
@@ -446,32 +441,28 @@ public class Terms {
         if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
             return bigIntCompare(lhs, rhs) < 0;
         }
-        Terms terms = new Terms(lhs, rhs);
-        return terms.lhs.doubleValue() < terms.rhs.doubleValue();
+        return objectToNumber(lhs).doubleValue() < objectToNumber(rhs).doubleValue();
     }
 
     static boolean gt(Object lhs, Object rhs) {
         if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
             return bigIntCompare(lhs, rhs) > 0;
         }
-        Terms terms = new Terms(lhs, rhs);
-        return terms.lhs.doubleValue() > terms.rhs.doubleValue();
+        return objectToNumber(lhs).doubleValue() > objectToNumber(rhs).doubleValue();
     }
 
     static boolean ltEq(Object lhs, Object rhs) {
         if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
             return bigIntCompare(lhs, rhs) <= 0;
         }
-        Terms terms = new Terms(lhs, rhs);
-        return terms.lhs.doubleValue() <= terms.rhs.doubleValue();
+        return objectToNumber(lhs).doubleValue() <= objectToNumber(rhs).doubleValue();
     }
 
     static boolean gtEq(Object lhs, Object rhs) {
         if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
             return bigIntCompare(lhs, rhs) >= 0;
         }
-        Terms terms = new Terms(lhs, rhs);
-        return terms.lhs.doubleValue() >= terms.rhs.doubleValue();
+        return objectToNumber(lhs).doubleValue() >= objectToNumber(rhs).doubleValue();
     }
 
     // Returns Integer.MIN_VALUE for "incomparable" (NaN-like — surfaces via the
@@ -507,48 +498,60 @@ public class Terms {
         return Integer.MIN_VALUE;
     }
 
-    Object bitAnd() {
-        if (isBigIntOp()) {
-            requireBothBigInt("&");
+    static Object bitAnd(Object lhsObject, Object rhsObject) {
+        Number lhs = objectToNumber(lhsObject);
+        Number rhs = objectToNumber(rhsObject);
+        if (isBigIntOp(lhs, rhs)) {
+            requireBothBigInt(lhs, rhs, "&");
             return narrowBigInt(((BigInteger) lhs).and((BigInteger) rhs));
         }
         return lhs.intValue() & rhs.intValue();
     }
 
-    Object bitOr() {
-        if (isBigIntOp()) {
-            requireBothBigInt("|");
+    static Object bitOr(Object lhsObject, Object rhsObject) {
+        Number lhs = objectToNumber(lhsObject);
+        Number rhs = objectToNumber(rhsObject);
+        if (isBigIntOp(lhs, rhs)) {
+            requireBothBigInt(lhs, rhs, "|");
             return narrowBigInt(((BigInteger) lhs).or((BigInteger) rhs));
         }
         return lhs.intValue() | rhs.intValue();
     }
 
-    Object bitXor() {
-        if (isBigIntOp()) {
-            requireBothBigInt("^");
+    static Object bitXor(Object lhsObject, Object rhsObject) {
+        Number lhs = objectToNumber(lhsObject);
+        Number rhs = objectToNumber(rhsObject);
+        if (isBigIntOp(lhs, rhs)) {
+            requireBothBigInt(lhs, rhs, "^");
             return narrowBigInt(((BigInteger) lhs).xor((BigInteger) rhs));
         }
         return lhs.intValue() ^ rhs.intValue();
     }
 
-    Object bitShiftRight() {
-        if (isBigIntOp()) {
-            requireBothBigInt(">>");
+    static Object bitShiftRight(Object lhsObject, Object rhsObject) {
+        Number lhs = objectToNumber(lhsObject);
+        Number rhs = objectToNumber(rhsObject);
+        if (isBigIntOp(lhs, rhs)) {
+            requireBothBigInt(lhs, rhs, ">>");
             return narrowBigInt(((BigInteger) lhs).shiftRight(((BigInteger) rhs).intValueExact()));
         }
         return lhs.intValue() >> rhs.intValue();
     }
 
-    Object bitShiftLeft() {
-        if (isBigIntOp()) {
-            requireBothBigInt("<<");
+    static Object bitShiftLeft(Object lhsObject, Object rhsObject) {
+        Number lhs = objectToNumber(lhsObject);
+        Number rhs = objectToNumber(rhsObject);
+        if (isBigIntOp(lhs, rhs)) {
+            requireBothBigInt(lhs, rhs, "<<");
             return narrowBigInt(((BigInteger) lhs).shiftLeft(((BigInteger) rhs).intValueExact()));
         }
         return lhs.intValue() << rhs.intValue();
     }
 
-    Object bitShiftRightUnsigned() {
-        if (isBigIntOp()) {
+    static Object bitShiftRightUnsigned(Object lhsObject, Object rhsObject) {
+        Number lhs = objectToNumber(lhsObject);
+        Number rhs = objectToNumber(rhsObject);
+        if (isBigIntOp(lhs, rhs)) {
             // spec: unsigned right shift on BigInt always TypeError, even when both operands are BigInt
             throw JsErrorException.typeError("BigInts have no unsigned right shift, use >> instead");
         }
@@ -563,18 +566,22 @@ public class Terms {
         return ~number.intValue();
     }
 
-    Object mul() {
-        if (isBigIntOp()) {
-            requireBothBigInt("*");
+    static Object mul(Object lhsObject, Object rhsObject) {
+        Number lhs = objectToNumber(lhsObject);
+        Number rhs = objectToNumber(rhsObject);
+        if (isBigIntOp(lhs, rhs)) {
+            requireBothBigInt(lhs, rhs, "*");
             return narrowBigInt(((BigInteger) lhs).multiply((BigInteger) rhs));
         }
         double result = lhs.doubleValue() * rhs.doubleValue();
         return narrow(result);
     }
 
-    Object div() {
-        if (isBigIntOp()) {
-            requireBothBigInt("/");
+    static Object div(Object lhsObject, Object rhsObject) {
+        Number lhs = objectToNumber(lhsObject);
+        Number rhs = objectToNumber(rhsObject);
+        if (isBigIntOp(lhs, rhs)) {
+            requireBothBigInt(lhs, rhs, "/");
             BigInteger r = (BigInteger) rhs;
             if (r.signum() == 0) {
                 throw JsErrorException.rangeError("Division by zero");
@@ -587,18 +594,22 @@ public class Terms {
         return narrow(result);
     }
 
-    Object min() {
-        if (isBigIntOp()) {
-            requireBothBigInt("-");
+    static Object min(Object lhsObject, Object rhsObject) {
+        Number lhs = objectToNumber(lhsObject);
+        Number rhs = objectToNumber(rhsObject);
+        if (isBigIntOp(lhs, rhs)) {
+            requireBothBigInt(lhs, rhs, "-");
             return narrowBigInt(((BigInteger) lhs).subtract((BigInteger) rhs));
         }
         double result = lhs.doubleValue() - rhs.doubleValue();
         return narrow(result);
     }
 
-    Object mod() {
-        if (isBigIntOp()) {
-            requireBothBigInt("%");
+    static Object mod(Object lhsObject, Object rhsObject) {
+        Number lhs = objectToNumber(lhsObject);
+        Number rhs = objectToNumber(rhsObject);
+        if (isBigIntOp(lhs, rhs)) {
+            requireBothBigInt(lhs, rhs, "%");
             BigInteger r = (BigInteger) rhs;
             if (r.signum() == 0) {
                 throw JsErrorException.rangeError("Division by zero");
@@ -610,9 +621,11 @@ public class Terms {
         return narrow(result);
     }
 
-    Object exp() {
-        if (isBigIntOp()) {
-            requireBothBigInt("**");
+    static Object exp(Object lhsObject, Object rhsObject) {
+        Number lhs = objectToNumber(lhsObject);
+        Number rhs = objectToNumber(rhsObject);
+        if (isBigIntOp(lhs, rhs)) {
+            requireBothBigInt(lhs, rhs, "**");
             BigInteger r = (BigInteger) rhs;
             if (r.signum() < 0) {
                 throw JsErrorException.rangeError("Exponent must be non-negative");
