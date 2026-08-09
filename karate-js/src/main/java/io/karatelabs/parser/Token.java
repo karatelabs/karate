@@ -70,7 +70,7 @@ public class Token {
     }
 
     public String getText() {
-        return buffer.resource.getText().substring(pos, pos + length);
+        return buffer.getText(index, pos, length);
     }
 
     public Token getNextPrimary() {

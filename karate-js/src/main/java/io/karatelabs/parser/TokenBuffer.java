@@ -48,6 +48,12 @@ public class TokenBuffer {
     // Parallel array for comments - lazily allocated, rarely used
     private List<Token>[] comments;
 
+    // Parallel array for extracted token text - lazily allocated, memoized on first getText().
+    // Without this every getText() call allocates a fresh String (plus its byte[]) out of the
+    // source, and the interpreter calls it on each evaluation of a literal, an identifier and an
+    // object-literal key - so a token inside a loop body is re-extracted on every iteration.
+    private String[] texts;
+
     public TokenBuffer(Resource resource) {
         this.resource = resource;
         // Estimate capacity based on source length to minimize resizing
@@ -75,7 +81,31 @@ public class TokenBuffer {
         if (comments != null) {
             comments = Arrays.copyOf(comments, newCapacity);
         }
+        if (texts != null) {
+            texts = Arrays.copyOf(texts, newCapacity);
+        }
         capacity = newCapacity;
+    }
+
+    /**
+     * Source text of a token, memoized. Unsynchronized on purpose: a cached AST (a
+     * {@code karate-config.js} for instance) can be evaluated from several threads at once, and
+     * the worst a race here can do is compute the same substring twice. {@link String} has final
+     * fields, so a reader that sees the reference sees a fully initialized object.
+     */
+    String getText(int index, int pos, int length) {
+        if (index < 0 || index >= count) { // not registered in this buffer
+            return resource.getText().substring(pos, pos + length);
+        }
+        String[] cache = texts;
+        if (cache == null) {
+            cache = texts = new String[capacity];
+        }
+        String text = cache[index];
+        if (text == null) {
+            text = cache[index] = resource.getText().substring(pos, pos + length);
+        }
+        return text;
     }
 
     public Token getToken(int index) {
