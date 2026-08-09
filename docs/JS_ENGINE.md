@@ -2458,47 +2458,45 @@ java -cp ... io.karatelabs.parser.EngineBenchmark profile
 | OS | macOS 26.3.1 |
 | JDK | OpenJDK 24.0.2 |
 
-### Results — 2026-04-26 (profile mode, 30 s averages)
+### Current baseline (profile mode, 30 s averages)
 
-| Commit | Array 20 KB eval | Object 20 KB eval | Iterations/30 s |
+| | Array 20 KB eval | Object 20 KB eval | Iterations/30 s |
 |---|---|---|---|
-| `28d020b87` — benchmark introduced (2026-01-22) | 2.06 ms | 0.84 ms | 10,294 |
-| `60b6fde76` — pre-Slot HEAD (2026-04-22) | 1.32 ms | 0.50 ms | 16,397 |
-| post-Slot unification (2026-04-26) | 1.36 ms | 0.53 ms | 15,824 |
-| post-S4 + refactors A/B/C/E (2026-04-26) | **1.36 ms** | **0.53 ms** | **15,824** |
-| Speedup vs. 2026-01-22 baseline | **1.51×** | **1.58×** | **1.54×** |
-| re-baseline at `80b15496b` (2026-05-30, pre-strict-mode) | 1.36–1.40 ms | 0.58–0.60 ms | ~15,300 |
-| + strict-mode runtime (2026-05-30) | 1.32–1.35 ms | 0.57–0.58 ms | ~15,400 |
-| + fused early-error walk (2026-05-30) | **1.33 ms** | **0.57 ms** | **~15,700** |
+| pre token memoization | 1.34 ms | 0.58 ms | 15,531 |
+| **current** | **1.20 ms** | **0.59 ms** | **16,733** |
 
-The object-eval figure drifted from 0.53 → ~0.58 ms across the month of
-engine work between 2026-04-26 and 2026-05-30 (object-spread, regex
-named-groups, spec iterators) — **not** attributable to any single commit.
-The strict-mode change measured at parity (object) / marginally faster
-(array) against the same-day pre-change baseline: the per-call cost is one
-`callContext.strict = jsFunc.strict` field copy and a `hasUseStrictDirective`
-prologue scan that bails on the first non-string statement (one comparison
-for the common case). The strict guards (`if (strict) failX(name)`) sit on
-the cold rejection path, never the hot store. Re-baseline locally before
-judging future refactors — the 0.53 number is stale.
+Token memoization — caching a token's extracted text and, for literals, its
+parsed value, in `TokenBuffer` — moved the array workload about 10%. The
+object workload is flat, which is expected: it spends its time in
+`Object.keys`/`values`/`entries`, not in loops over literals.
 
-Engine instantiation is essentially unchanged (~0.4–0.6 µs median in both).
-Cumulative gains come from earlier perf work: tighter `Node` allocation and
-pre-sized child arrays, static `PropertyAccess`, level-keyed bindings
-replacing per-scope contexts, EnumSet token lookups in the parser, and lazy
-ArrayList init on token-only nodes. Post-S4 refactors (subclass intrinsic
-hook, Prototype storage uniformity, JsGlobalThis split-storage cleanup,
-ctx-aware accessor iteration) net out within ±5% — the new virtual
-`resolveOwnIntrinsic` call is offset by removing the 3-arg double-walk on
-accessor descriptors and by collapsing the prior split storage in
-`JsGlobalThis`.
+Engine instantiation is essentially unchanged (~0.4–0.6 µs median).
 
-> **Note on absolute numbers.** The reference machine values (1.32 / 0.50 ms)
-> are the M1 Pro baseline. Other hardware will see different absolute
-> numbers — the 2x ratios you may see locally are normal. What matters for
-> session-to-session comparison is the **relative delta** on the same
-> machine across pre/post commits. Re-baseline locally when starting a
-> session before judging a refactor's perf impact.
+**This table is a baseline, not a changelog.** Earlier revisions accumulated a
+row per commit and derived cumulative speedup multipliers from them. That was
+never sound: the same section documents ±5–10% run-to-run variance, so a table
+of ±5% steps cannot support a claim about any individual one. Replace the
+baseline when it moves materially; do not append.
+
+> **Note on absolute numbers.** The values above are the M1 Pro baseline.
+> Other hardware will see different absolute numbers — the 2x ratios you may
+> see locally are normal. What matters for session-to-session comparison is
+> the **relative delta** on the same machine across pre/post commits.
+> Re-baseline locally when starting a session before judging a refactor's
+> perf impact.
+
+### What this benchmark is for
+
+A **gut-check**, and it is good at that: it lives in this repo, runs against
+the working tree with no install step, and answers "did I just wreck
+something" in seconds — which is exactly what you want after a test262 or
+refactor session.
+
+It is not a measurement instrument. It reports wall-clock medians only, with
+no allocation figures, no confidence intervals and no cross-engine reference,
+and its own ±5–10% run-to-run band swallows any change smaller than that. A
+change too small to show up here has not been shown to be free; it has only
+failed to be measured. Take anything finer-grained to a harness built for it.
 
 ### Notes on interpretation
 
