@@ -23,6 +23,42 @@ shaped, follow the JS_ENGINE.md anchors below.
 
 ---
 
+## ⚠️ HIGH PRIORITY (2026-08-09): `for` with no test expression silently skips the whole loop
+
+A C-style `for` whose test expression is absent — `for (;;) …` or
+`for (init; ; incr) …` — never executes its body. The spec (§14.7.4) treats a
+missing test as always-true (loop until `break`/`return`/`throw`); the engine
+treats it as "skip the statement". **No error is raised — the code inside is
+silently never run**, which is worse than a crash. `while (true)` is fine, so
+the workaround pattern exists, but real-world `for(;;)` code just goes dead.
+
+Replicate (any Engine, one line each):
+
+```js
+function f() { for (var i = 0; ; i++) { if (i >= 3) return i; } } f()
+// → null; spec: 3
+
+var log = 'start,'; for (var i = 0; ; i++) { log += 'iter,'; if (i >= 1) break; } log + 'end'
+// → "start,end"; spec: "start,iter,iter,end"
+
+function g() { var i = 0; while (true) { if (i >= 3) return i; i++; } } g()
+// → 3 (control — while(true) is correct, the gap is for-specific)
+```
+
+Cause: `Interpreter.evalForStmt` has two deliberately-empty branches — the
+`node.get(2).token.type == SEMI` case (`for(;;)`) and the
+`node.get(4).token.type == SEMI` case (`for(init;;incr)`) — both commented
+"rare case" and both falling through without ever entering the loop machinery.
+Fix shape: an absent test is a constant-true condition; route both cases into
+the existing loop bodies with `forTest == null` meaning truthy (the
+per-iteration `let` path and the shared-binding path both need it). Watchdog
+note for the fix session: these loops terminate only by abrupt completion, so
+run the slice with `--timeout-ms` sanity intact — an early bug in the fix will
+present as a hang, not a FAIL. Probe: `--only 'test/language/statements/for/**'`
+(the `S12.6.3_A9*` family is `for(;;)` + `break`).
+
+---
+
 ## Start here: completion-record semantics is the untouched seam
 
 **Read this before picking a slice.** Conformance work so far has gone into
