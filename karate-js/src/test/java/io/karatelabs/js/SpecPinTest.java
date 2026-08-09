@@ -1123,6 +1123,47 @@ class SpecPinTest extends EvalBase {
     }
 
     // -------------------------------------------------------------------------
+    // C-style for-loop header: each of init / condition / increment may be absent
+    // (§14.7.4). An absent condition is always-true — the loop runs until an
+    // abrupt completion (break / return / throw) — and an absent init shifts the
+    // header's child positions, which must not change how the parts are found.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void forHeader_absentCondition_loopsUntilAbruptCompletion() {
+        // return exits
+        assertEquals(3, eval("function f() { for (var i = 0; ; i++) { if (i >= 3) return i; } } f()"));
+        // break exits, and the body really runs (side effects observed)
+        assertEquals("start,iter,iter,end", eval(
+                "var log = 'start,'; for (var i = 0; ; i++) { log += 'iter,'; if (i >= 1) break; } log + 'end'"));
+        // throw exits and is catchable
+        assertEquals(2, eval(
+                "var r; try { for (var i = 0; ; i++) { if (i >= 2) throw i; } } catch (e) { r = e; } r"));
+        // fully empty header
+        assertEquals(4, eval("var n = 0; for (;;) { n++; if (n >= 4) break; } n"));
+        // absent increment with init + no condition
+        assertEquals(4, eval("var n = 0; for (var i = 0;;) { n++; if (n >= 4) break; } n"));
+        // absent init + condition, increment present
+        assertEquals(6, eval("var n = 0; for (;; n++) { if (n >= 6) break; } n"));
+    }
+
+    @Test
+    void forHeader_absentInit_conditionAndIncrementStillFound() {
+        assertEquals("xxx", eval("var s = ''; for (; s.length < 3; ) { s += 'x'; } s"));
+        assertEquals(5, eval("var n = 0; for (; n < 5; n++) {} n"));
+    }
+
+    @Test
+    void forHeader_absentCondition_letBindingIsPerIteration() {
+        // The per-iteration let path must also treat the absent condition as true.
+        assertEquals(3, eval("function f() { for (let i = 0; ; i++) { if (i >= 3) return i; } } f()"));
+        // Per-iteration capture semantics hold without a condition clause.
+        assertEquals("0,1,2", eval(
+                "var fns = []; for (let i = 0; ; i++) { if (i >= 3) break; fns.push(function() { return i; }); }"
+                        + " fns.map(function(f) { return f(); }).join(',');"));
+    }
+
+    // -------------------------------------------------------------------------
     // FunctionDeclaration is a StatementListItem, never a Statement — so it may
     // not be the sole body of a loop or (in strict mode) an `if` clause (§13.6,
     // §13.7). Loop bodies are an early error in BOTH modes (no Annex B carve-out);

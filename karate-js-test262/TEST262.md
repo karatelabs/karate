@@ -23,42 +23,6 @@ shaped, follow the JS_ENGINE.md anchors below.
 
 ---
 
-## ⚠️ HIGH PRIORITY (2026-08-09): `for` with no test expression silently skips the whole loop
-
-A C-style `for` whose test expression is absent — `for (;;) …` or
-`for (init; ; incr) …` — never executes its body. The spec (§14.7.4) treats a
-missing test as always-true (loop until `break`/`return`/`throw`); the engine
-treats it as "skip the statement". **No error is raised — the code inside is
-silently never run**, which is worse than a crash. `while (true)` is fine, so
-the workaround pattern exists, but real-world `for(;;)` code just goes dead.
-
-Replicate (any Engine, one line each):
-
-```js
-function f() { for (var i = 0; ; i++) { if (i >= 3) return i; } } f()
-// → null; spec: 3
-
-var log = 'start,'; for (var i = 0; ; i++) { log += 'iter,'; if (i >= 1) break; } log + 'end'
-// → "start,end"; spec: "start,iter,iter,end"
-
-function g() { var i = 0; while (true) { if (i >= 3) return i; i++; } } g()
-// → 3 (control — while(true) is correct, the gap is for-specific)
-```
-
-Cause: `Interpreter.evalForStmt` has two deliberately-empty branches — the
-`node.get(2).token.type == SEMI` case (`for(;;)`) and the
-`node.get(4).token.type == SEMI` case (`for(init;;incr)`) — both commented
-"rare case" and both falling through without ever entering the loop machinery.
-Fix shape: an absent test is a constant-true condition; route both cases into
-the existing loop bodies with `forTest == null` meaning truthy (the
-per-iteration `let` path and the shared-binding path both need it). Watchdog
-note for the fix session: these loops terminate only by abrupt completion, so
-run the slice with `--timeout-ms` sanity intact — an early bug in the fix will
-present as a hang, not a FAIL. Probe: `--only 'test/language/statements/for/**'`
-(the `S12.6.3_A9*` family is `for(;;)` + `break`).
-
----
-
 ## Start here: completion-record semantics is the untouched seam
 
 **Read this before picking a slice.** Conformance work so far has gone into
@@ -411,7 +375,7 @@ early-error validation) is advanced-pattern territory.
 | `test/language/expressions/assignment` | Iterator-return semantics on default-expr throw. |
 | `test/language/{statements,expressions}/function` + `arrow-function` | fn-name inference for `[x = (function(){})]`-style defaults; IteratorClose-on-throw; rest-element edges. |
 | `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS now fires under in-body `"use strict"` (the `onlyStrict`-flagged variants stay SKIP until the runner runs a strict pass); `valueOf` / ToNumeric ordering for `+=` / `*=`; `A5.*_T2/T3` family (non-identifier LHS — Annex-B carve-out). |
-| `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion handles headline cases. |
+| `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion handles headline cases. Empty `for`-header parts **done** — absent init / test / incr all route through the loop machinery, absent test = always-true (§14.7.4; pinned by `SpecPinTest.forHeader_*`). Residual in `for/`: loop completion-value `undefined`-vs-`null` (`head-init-*-check-empty-inc-empty-completion.js`) and `let` as a plain identifier in a for head (`head-lhs-let.js`, parser). |
 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` (Symbol-gated). |
 | `test/built-ins/RegExp/**` | Named-group capture access **done** (`result.groups` + `$<name>` + function-replacer `groups` arg; see Background sweeps). Residual: group-name early-error validation, `Symbol.{match,replace,search,split,matchAll}` protocol (Symbol-gated, conformance-only — everyday `str.replace(re,fn)` doesn't use it), lookbehind / unicode-property-escapes / `/v` flag (feature-gated), one functional-replace-global ordering case. Null-arg Java leaks + one catastrophic-backtracking timeout in `exec`/`test` (principle #2 — see Cleanup residuals). |
 | `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` ToInteger corners; parser-blocked; Symbol-gated tail; `replaceAll`/`endsWith` `Range […) out of bounds` Java leaks (principle #2). See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |

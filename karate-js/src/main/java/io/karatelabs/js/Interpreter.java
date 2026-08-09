@@ -1200,14 +1200,16 @@ class Interpreter {
         Object forResult = null;
         boolean enteredBodyScope = false;
         try {
-            if (node.get(2).token.type == SEMI) {
-                // rare case: "for(;;)"
-            } else if (node.get(3).token.type == SEMI) {
-                // C-style for loop: for(init; condition; increment)
-                boolean isLetOrConst;
+            if (node.get(2).token.type == SEMI || node.get(3).token.type == SEMI) {
+                // C-style for loop: for(init; condition; increment) — each of the
+                // three header parts may be absent. An absent condition is always
+                // true per §14.7.4: the loop exits only by abrupt completion
+                // (break / return / throw).
+                boolean noInit = node.get(2).token.type == SEMI;
+                boolean isLetOrConst = false;
                 BindScope loopVarScope = null;
                 List<String> loopVarNames = null;
-                if (node.get(2).type == NodeType.VAR_STMT) {
+                if (!noInit && node.get(2).type == NodeType.VAR_STMT) {
                     evalVarStmt(node.get(2), context);
                     isLetOrConst = node.get(2).getFirstToken().type != VAR;
                     if (isLetOrConst) {
@@ -1232,83 +1234,90 @@ class Interpreter {
                         }
                         loopVarScope = node.get(2).getFirstToken().type == LET ? BindScope.LET : BindScope.CONST;
                     }
-                } else {
-                    isLetOrConst = false;
+                } else if (!noInit) {
                     eval(node.get(2), context);
                 }
-                if (node.get(4).token.type == SEMI) {
-                    // rare no-condition case: "for(init;;increment)"
-                } else {
-                    Node forAfter = node.get(6).token.type == R_PAREN ? null : node.get(6);
-                    Node forTest = node.get(4);
-                    if (isLetOrConst && loopVarNames != null && !loopVarNames.isEmpty()) {
-                        // §14.7.4.3 ForBodyEvaluation with per-iteration let/const bindings.
-                        // The test and body run in one iteration environment, so a closure
-                        // created in the body captures THAT iteration's distinct binding.
-                        // CreatePerIterationEnvironment then copies the body's end-of-iteration
-                        // values into a FRESH environment and the increment runs in it — so an
-                        // in-body update (`for (let x = 0; x < 10;) { x++; }`, no increment
-                        // clause) carries forward, while the increment stays isolated from the
-                        // body's captured binding. The LOOP_INIT bindings are never mutated, so
-                        // a closure created in the initializer (`for (let i = 0, f = () => i;
-                        // …)`) keeps seeing the initial value. `carry` threads the values across
-                        // iterations explicitly, never resolving back to the LOOP_INIT slots.
-                        List<Object> carry = new ArrayList<>(loopVarNames.size());
-                        for (String name : loopVarNames) {
-                            carry.add(context.get(name));
+                // The condition and increment sit relative to the first SEMI —
+                // absolute child indices shift when the init is absent.
+                int semi1 = noInit ? 2 : 3;
+                Node forTest = node.get(semi1 + 1).token.type == SEMI ? null : node.get(semi1 + 1);
+                int semi2 = forTest == null ? semi1 + 1 : semi1 + 2;
+                Node forAfter = node.get(semi2 + 1).token.type == R_PAREN ? null : node.get(semi2 + 1);
+                if (isLetOrConst && loopVarNames != null && !loopVarNames.isEmpty()) {
+                    // §14.7.4.3 ForBodyEvaluation with per-iteration let/const bindings.
+                    // The test and body run in one iteration environment, so a closure
+                    // created in the body captures THAT iteration's distinct binding.
+                    // CreatePerIterationEnvironment then copies the body's end-of-iteration
+                    // values into a FRESH environment and the increment runs in it — so an
+                    // in-body update (`for (let x = 0; x < 10;) { x++; }`, no increment
+                    // clause) carries forward, while the increment stays isolated from the
+                    // body's captured binding. The LOOP_INIT bindings are never mutated, so
+                    // a closure created in the initializer (`for (let i = 0, f = () => i;
+                    // …)`) keeps seeing the initial value. `carry` threads the values across
+                    // iterations explicitly, never resolving back to the LOOP_INIT slots.
+                    List<Object> carry = new ArrayList<>(loopVarNames.size());
+                    for (String name : loopVarNames) {
+                        carry.add(context.get(name));
+                    }
+                    int index = -1;
+                    while (true) {
+                        checkInterrupted();
+                        index++;
+                        context.iteration = index;
+                        context.enterScope(ContextScope.LOOP_BODY, forBody);
+                        enteredBodyScope = true;
+                        for (int k = 0; k < loopVarNames.size(); k++) {
+                            context.declare(loopVarNames.get(k), carry.get(k), loopVarScope, true);
                         }
-                        int index = -1;
-                        while (true) {
-                            checkInterrupted();
-                            index++;
-                            context.iteration = index;
-                            context.enterScope(ContextScope.LOOP_BODY, forBody);
-                            enteredBodyScope = true;
-                            for (int k = 0; k < loopVarNames.size(); k++) {
-                                context.declare(loopVarNames.get(k), carry.get(k), loopVarScope, true);
-                            }
-                            Object forCondition = eval(forTest, context);
-                            // §14.7.4 abrupt completion in the loop-test expression must exit;
-                            // a falsy test ends the loop. The open scope is closed by the finally.
-                            if (context.isStopped() || !Terms.isTruthy(forCondition)) {
+                        Object forCondition = forTest == null ? Boolean.TRUE : eval(forTest, context);
+                        // §14.7.4 abrupt completion in the loop-test expression must exit;
+                        // a falsy test ends the loop. The open scope is closed by the finally.
+                        if (context.isStopped() || !Terms.isTruthy(forCondition)) {
+                            break;
+                        }
+                        forResult = eval(forBody, context);
+                        if (context.isStopped()) {
+                            if (context.isContinuing()) {
+                                context.reset(); // continue still copies forward + increments
+                            } else { // break, return or throw
                                 break;
                             }
-                            forResult = eval(forBody, context);
-                            if (context.isStopped()) {
-                                if (context.isContinuing()) {
-                                    context.reset(); // continue still copies forward + increments
-                                } else { // break, return or throw
-                                    break;
-                                }
-                            }
-                            // CreatePerIterationEnvironment: copy this iteration's end values
-                            // into a fresh scope, run the increment in it, and carry forward.
-                            List<Object> bodyVals = new ArrayList<>(loopVarNames.size());
-                            for (String name : loopVarNames) {
-                                bodyVals.add(context.get(name));
-                            }
-                            context.exitScope();
-                            context.enterScope(ContextScope.LOOP_BODY, forBody);
-                            for (int k = 0; k < loopVarNames.size(); k++) {
-                                context.declare(loopVarNames.get(k), bodyVals.get(k), loopVarScope, true);
-                            }
-                            if (forAfter != null) {
-                                eval(forAfter, context);
-                            }
-                            for (int k = 0; k < loopVarNames.size(); k++) {
-                                carry.set(k, context.get(loopVarNames.get(k)));
-                            }
-                            context.exitScope();
-                            enteredBodyScope = false;
                         }
-                    } else {
-                        // var loop variable (or none): a single shared scope, no per-iteration
-                        // binding — the increment mutates the same binding the body sees.
-                        int index = -1;
-                        while (true) {
-                            checkInterrupted();
-                            index++;
-                            context.iteration = index;
+                        // CreatePerIterationEnvironment: copy this iteration's end values
+                        // into a fresh scope, run the increment in it, and carry forward.
+                        List<Object> bodyVals = new ArrayList<>(loopVarNames.size());
+                        for (String name : loopVarNames) {
+                            bodyVals.add(context.get(name));
+                        }
+                        context.exitScope();
+                        context.enterScope(ContextScope.LOOP_BODY, forBody);
+                        for (int k = 0; k < loopVarNames.size(); k++) {
+                            context.declare(loopVarNames.get(k), bodyVals.get(k), loopVarScope, true);
+                        }
+                        if (forAfter != null) {
+                            eval(forAfter, context);
+                        }
+                        for (int k = 0; k < loopVarNames.size(); k++) {
+                            carry.set(k, context.get(loopVarNames.get(k)));
+                        }
+                        context.exitScope();
+                        enteredBodyScope = false;
+                    }
+                } else {
+                    // var loop variable (or none): a single shared scope, no per-iteration
+                    // binding — the increment mutates the same binding the body sees.
+                    int index = -1;
+                    while (true) {
+                        checkInterrupted();
+                        index++;
+                        context.iteration = index;
+                        if (forTest == null) {
+                            // absent condition is always true; still honor an abrupt
+                            // completion pending from the init expression
+                            if (context.isStopped()) {
+                                break;
+                            }
+                        } else {
                             Object forCondition = eval(forTest, context);
                             // §14.7.4 abrupt completion in the loop-test expression must exit.
                             if (context.isStopped()) {
@@ -1317,17 +1326,17 @@ class Interpreter {
                             if (!Terms.isTruthy(forCondition)) {
                                 break;
                             }
-                            forResult = eval(forBody, context);
-                            if (context.isStopped()) {
-                                if (context.isContinuing()) {
-                                    context.reset();
-                                } else { // break, return or throw
-                                    break;
-                                }
+                        }
+                        forResult = eval(forBody, context);
+                        if (context.isStopped()) {
+                            if (context.isContinuing()) {
+                                context.reset();
+                            } else { // break, return or throw
+                                break;
                             }
-                            if (forAfter != null) {
-                                eval(forAfter, context);
-                            }
+                        }
+                        if (forAfter != null) {
+                            eval(forAfter, context);
                         }
                     }
                 }
