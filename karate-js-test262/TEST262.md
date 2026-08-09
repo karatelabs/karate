@@ -52,13 +52,14 @@ p=[r for r in rows if r['status']=='FAIL' and re.search(r'Expected a \w*Error bu
 print(len(p)); print(collections.Counter('/'.join(r['path'].split('/')[:3]) for r in p).most_common(8))"
 ```
 
-**Where it stands.** `test/language/**` is down to **3** matches, each with a
-known out-of-family cause: `unsigned-right-shift/bigint-toprimitive.js`
-(`Symbol.toPrimitive` dispatch — parked with Symbol),
-`for/dstr/var-ary-init-iter-get-err-array-prototype.js` (the JsArray
-iteration fast path deliberately skips a deleted
-`Array.prototype[Symbol.iterator]` — hot-path tradeoff, principle #4), and
-`white-space/mongolian-vowel-separator-eval.js` (parser whitespace tail).
+**Where it stands.** `test/language/**` is at **zero** matches. The last
+three fell to: spec ToNumeric on every numeric operator (`Terms` binary ops
+take the live ctx; `@@toPrimitive`/`valueOf` fire and their abrupt
+completions propagate), an @@iterator tamper check ahead of the JsArray
+iteration fast path (one identity check per GetIterator call), and
+category-triaged lexing of non-ASCII chars (Cf/Cc/Zl/Zp are SyntaxError,
+all Zs are whitespace, unknown-to-the-JDK chars stay lenient identifiers —
+plus JS-level `eval` now surfaces parse failures as catchable SyntaxError).
 
 **The remaining concentration is `test/built-ins/**`** — the filter yields
 ~278 there, but most is absent-global noise (`Iterator` 46, `WeakMap` 44,
@@ -314,7 +315,7 @@ early-error validation) is advanced-pattern territory.
 | `test/language/expressions/object` | Escaped-keyword cover-name dominates; `__proto__`-duplicate edges; computed-key / spread / method-def tail. |
 | `test/language/expressions/assignment` | Destructuring-pattern parse tail (see Active priorities); evaluation-order semantics done. |
 | `test/language/{statements,expressions}/function` + `arrow-function` | fn-name inference for `[x = (function(){})]`-style defaults; IteratorClose-on-throw; rest-element edges. |
-| `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS now fires under in-body `"use strict"` (the `onlyStrict`-flagged variants stay SKIP until the runner runs a strict pass); `valueOf` / ToNumeric ordering for `+=` / `*=`; `A5.*_T2/T3` family (non-identifier LHS — Annex-B carve-out). |
+| `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS now fires under in-body `"use strict"` (the `onlyStrict`-flagged variants stay SKIP until the runner runs a strict pass); `A5.*_T2/T3` family (non-identifier LHS — Annex-B carve-out). |
 | `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion and empty-`for`-header semantics handle the headline cases. Residual in `for/`: loop completion-value `undefined`-vs-`null` (`head-init-*-check-empty-inc-empty-completion.js`) and `let` as a plain identifier in a for head (`head-lhs-let.js`, parser). |
 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` (Symbol-gated). |
 | `test/built-ins/RegExp/**` | Group-name early-error validation, `Symbol.{match,replace,search,split,matchAll}` protocol (Symbol-gated, conformance-only — everyday `str.replace(re,fn)` doesn't use it), lookbehind / unicode-property-escapes / `/v` flag (feature-gated), one functional-replace-global ordering case. Null-arg Java leaks + one catastrophic-backtracking timeout in `exec`/`test` (principle #2 — see Cleanup residuals). |
@@ -468,8 +469,6 @@ Observably non-spec; pick up when the owning slice surfaces them.
 - **`JsGlobalThis` two-store reads** — data in `BindingsStore`,
   accessors in `JsObject.props`. Extend `BindingSlot` with accessor
   side-table OR commit to a unified two-store contract. ~2 h.
-- **`Symbol.toPrimitive` not dispatched** — matches minimal Symbol
-  surface; fix with Symbol.
 - **`(0, fn)()` indirect-call `this`-binding** — comma should drop
   reference base (→ `this = undefined`); today falls through to
   globalThis. Audit `evalCallExpr` for the parenthesized-comma case.

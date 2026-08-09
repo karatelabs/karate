@@ -24,6 +24,7 @@
 package io.karatelabs.js;
 
 import io.karatelabs.parser.Node;
+import io.karatelabs.parser.ParserException;
 
 import java.net.URLDecoder;
 import java.net.URLEncoder;
@@ -321,7 +322,14 @@ class ContextRoot implements Context {
                     return src;
                 }
                 // indirect-eval semantics: evaluate in the global (root) scope
-                return engine.evalRaw(s);
+                try {
+                    return engine.evalRaw(s);
+                } catch (ParserException pe) {
+                    // per spec, eval-code that fails to parse throws a JS
+                    // SyntaxError the caller can catch — a bare ParserException
+                    // would escape as a Java exception no JS catch can see
+                    throw JsErrorException.syntaxError(pe.getMessage());
+                }
             };
             case "Array", "Date", "Function", "Error", "Map", "Number", "BigInt", "Boolean",
                  "Object", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",

@@ -103,7 +103,10 @@ public class JsLexer extends BaseLexer {
         // ES2021 §11.2 (VT, FF, NBSP, FEFF) and §11.3 line terminators (LS, PS).
         if (c == ' ' || c == '\t' || c == '\r' || c == '\n'
                 || c == '\u000B' || c == '\u000C' || c == '\u00A0' || c == '\uFEFF'
-                || c == '\u2028' || c == '\u2029') {
+                || c == '\u2028' || c == '\u2029'
+                || (c > 127 && Character.getType(c) == Character.SPACE_SEPARATOR)) {
+            // the getType check admits the rest of <USP> — spec WhiteSpace is
+            // every Zs code point (U+1680, U+2000-200A, U+202F, U+205F, U+3000)
             return scanWhitespace();
         }
 
@@ -156,7 +159,8 @@ public class JsLexer extends BaseLexer {
         while (pos < length) {
             char c = source.charAt(pos);
             if (c == ' ' || c == '\t' || c == '\u000B' || c == '\u000C'
-                    || c == '\u00A0' || c == '\uFEFF') {
+                    || c == '\u00A0' || c == '\uFEFF'
+                    || (c > 127 && Character.getType(c) == Character.SPACE_SEPARATOR)) {
                 pos++;
                 col++;
             } else if (c == '\n' || c == '\u2028' || c == '\u2029') {
@@ -622,8 +626,14 @@ public class JsLexer extends BaseLexer {
                 (c >= '0' && c <= '9') || c == '_' || c == '$') {
                 pos++;
                 col++;
-            } else if (c > 127 && Character.isJavaIdentifierPart(c)) {
-                // Unicode identifier part - rare but must handle
+            } else if (c > 127 && (c == '\u200C' || c == '\u200D'
+                    || (Character.isUnicodeIdentifierPart(c) && !Character.isIdentifierIgnorable(c)))) {
+                // Unicode identifier part — rare but must handle. Spec §12.7:
+                // IdentifierPart is ID_Continue plus ZWNJ/ZWJ (U+200C/U+200D);
+                // Java's isJavaIdentifierPart also admits ignorable Cf format
+                // chars (e.g. U+180E Mongolian vowel separator), which would
+                // fuse "var\u180Efoo" into one identifier instead of a
+                // SyntaxError.
                 pos++;
                 col++;
             } else {
@@ -834,6 +844,21 @@ public class JsLexer extends BaseLexer {
                 return match('=') ? PERCENT_EQ : PERCENT;
 
             default:
+                // A non-ASCII char in a category that can never be identifier
+                // material or whitespace is a SyntaxError (§12.2) — e.g. U+180E
+                // Mongolian vowel separator (Cf; whitespace in old Unicode).
+                // Everything else keeps the lenient IDENT fallback: chars the
+                // JDK's Unicode tables don't classify yet (newer-Unicode
+                // ID_Start additions land as UNASSIGNED here) must still lex
+                // as identifiers.
+                if (c > 127) {
+                    int type = Character.getType(c);
+                    if (type == Character.FORMAT || type == Character.CONTROL
+                            || type == Character.LINE_SEPARATOR || type == Character.PARAGRAPH_SEPARATOR) {
+                        throw new ParserException(String.format(
+                                "unexpected character '\\u%04X' at %d:%d", (int) c, tokenLine + 1, tokenCol + 1));
+                    }
+                }
                 // Unknown character - return as IDENT (will likely cause parse error)
                 return IDENT;
         }

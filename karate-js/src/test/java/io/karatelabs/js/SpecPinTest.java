@@ -1439,6 +1439,81 @@ class SpecPinTest extends EvalBase {
                 + " static m() { super.x = 7; return this.x; } } C.m()"));
     }
 
+    // -------------------------------------------------------------------------
+    // Lexing: IdentifierPart is ID_Continue plus ZWNJ/ZWJ (§12.7). A non-ASCII
+    // char that is neither spec whitespace nor identifier material is a
+    // SyntaxError — not a phantom identifier. eval-code that fails to parse
+    // throws a JS SyntaxError the caller can catch.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void lexer_formatCharsAreNotIdentifierParts() {
+        // U+180E (Mongolian vowel separator, Cf) must not fuse `var foo` into
+        // one identifier — and is not whitespace either, so this is a parse error
+        assertParseError("var᠎foo;");
+        // ZWNJ / ZWJ are the two Cf chars the spec DOES allow inside identifiers
+        assertEquals(5, eval("var ab‌cd = 5; ab‌cd"));
+        assertEquals(3, eval("var café = 3; café"));
+    }
+
+    @Test
+    void eval_parseFailureIsACatchableJsSyntaxError() {
+        assertEquals(true, eval("var r; try { eval('var\\u180Efoo;') } catch (e) { r = e instanceof SyntaxError } r"));
+        assertEquals(true, eval("var r; try { eval('1 +') } catch (e) { r = e instanceof SyntaxError } r"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Numeric operators perform spec ToNumeric on ObjectLike operands: the
+    // @@toPrimitive / valueOf / toString protocol runs with the live context,
+    // its result is used, and its abrupt completion propagates unmodified.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void numericOperators_dispatchToPrimitiveOnObjects() {
+        assertEquals(42, eval("({valueOf:function(){return 6}}) * 7"));
+        assertEquals(6, eval("10 - ({valueOf:function(){return 4}})"));
+        assertEquals(2, eval("({valueOf:function(){return 6}}) & 3"));
+        assertEquals(-9, eval("-({valueOf:function(){return 9}})"));
+        assertEquals(-3, eval("~({valueOf:function(){return 2}})"));
+        assertEquals(6, eval("[3] * 2"));
+    }
+
+    @Test
+    void numericOperators_forwardAbruptToPrimitive() {
+        // the poisoned @@toPrimitive's error wins over the operator's own
+        // TypeError (here: BigInt has no unsigned right shift)
+        assertEquals("MyError", eval("function MyError(){}; var r;"
+                + " try { ({[Symbol.toPrimitive]: function(){throw new MyError()}}) >>> 0n }"
+                + " catch(e) { r = (e instanceof MyError) ? 'MyError' : ('wrong: '+e) } r"));
+        // a poisoned valueOf in a compound assignment likewise
+        assertEquals("MyError", eval("function MyError(){}; var x = 5; var r;"
+                + " try { x *= ({valueOf:function(){throw new MyError()}}) }"
+                + " catch(e){ r = (e instanceof MyError) ? 'MyError' : ('wrong: '+e) } r"));
+        // BigInt >>> stays a TypeError even for pure BigInt operands
+        assertEquals(true, eval("var r; try { 2n >>> 0n } catch(e) { r = e instanceof TypeError } r"));
+    }
+
+    // -------------------------------------------------------------------------
+    // The JsArray iteration fast path defers to a tampered @@iterator: deleting
+    // Array.prototype[Symbol.iterator] makes arrays non-iterable (TypeError),
+    // and a replacement — on the prototype or as an own property — is invoked.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void arrayIteration_honorsTamperedIterator() {
+        assertEquals(true, eval("delete Array.prototype[Symbol.iterator];"
+                + " var r; try { var [x] = [] } catch(e) { r = e instanceof TypeError } r"));
+        assertEquals("10,20,", eval("Array.prototype[Symbol.iterator] = function(){"
+                + " var i=0, self=this; return { next: function(){"
+                + " return i < self.length ? {value: self[i++]*10, done:false} : {done:true} } } };"
+                + " var s=''; for (var x of [1,2]) s+=x+','; s"));
+        assertEquals("none", eval("var arr=[1,2];"
+                + " arr[Symbol.iterator] = function(){ return { next: function(){ return {done:true} } } };"
+                + " var s='none'; for (var x of arr) s = 'iterated'; s"));
+        // the untampered fast path is untouched
+        assertEquals("123", eval("var s=''; for (var x of [1,2,3]) s += x; s"));
+    }
+
     @Test
     void return_theCheckIsOnTheSourceNotOnALineNumberThatCanWrap() {
         // `Token.line` is a short. Past 32768 lines it wraps, so a guard clause whose body sits 65536 lines

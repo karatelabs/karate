@@ -89,7 +89,22 @@ public class IterUtils {
             return null;
         }
         if (source instanceof JsArray jsArray) {
-            return listIterator(jsArray.list);
+            // The dense fast path is only valid while the array still resolves
+            // the untampered built-in @@iterator. A deleted or replaced
+            // Array.prototype[@@iterator] (or an own-property override) must be
+            // honored — TypeError on deletion, the user's method on override.
+            // One chain read per GetIterator call (loop setup), not per step.
+            Object fn = readMember(jsArray, SYMBOL_ITERATOR, context);
+            if (fn instanceof JsBuiltinMethod m && m.delegate() == SYMBOL_ITERATOR_METHOD) {
+                return listIterator(jsArray.list);
+            }
+            if (isJsErrored(context)) {
+                return exhaustedIterator(); // a throwing @@iterator getter propagates
+            }
+            if (fn instanceof JsCallable callable) {
+                return userIterator(callable, jsArray, context);
+            }
+            return null; // deleted / non-callable — "not iterable" TypeError upstream
         }
         if (source instanceof JsString jsString) {
             return stringIterator(jsString.text);

@@ -50,6 +50,13 @@ final class JsBuiltinMethod extends JsFunction {
         this.constructable = constructable;
     }
 
+    /** The wrapped built-in — lets callers identity-check whether a resolved
+     *  member is still a specific engine built-in (e.g. the untampered
+     *  {@code Array.prototype[@@iterator]}). */
+    JsCallable delegate() {
+        return delegate;
+    }
+
     @Override
     public Object call(Context context, Object[] args) {
         return delegate.call(context, args);

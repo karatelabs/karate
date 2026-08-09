@@ -1844,12 +1844,12 @@ class Interpreter {
 
     private static Object evalLogicBitExpr(Node node, CoreContext context) {
         return switch (node.get(1).token.type) {
-            case AMP -> Terms.bitAnd(lhsOperand(node, context), rhsOperand(node, context));
-            case PIPE -> Terms.bitOr(lhsOperand(node, context), rhsOperand(node, context));
-            case CARET -> Terms.bitXor(lhsOperand(node, context), rhsOperand(node, context));
-            case GT_GT -> Terms.bitShiftRight(lhsOperand(node, context), rhsOperand(node, context));
-            case LT_LT -> Terms.bitShiftLeft(lhsOperand(node, context), rhsOperand(node, context));
-            case GT_GT_GT -> Terms.bitShiftRightUnsigned(lhsOperand(node, context), rhsOperand(node, context));
+            case AMP -> Terms.bitAnd(lhsOperand(node, context), rhsOperand(node, context), context);
+            case PIPE -> Terms.bitOr(lhsOperand(node, context), rhsOperand(node, context), context);
+            case CARET -> Terms.bitXor(lhsOperand(node, context), rhsOperand(node, context), context);
+            case GT_GT -> Terms.bitShiftRight(lhsOperand(node, context), rhsOperand(node, context), context);
+            case LT_LT -> Terms.bitShiftLeft(lhsOperand(node, context), rhsOperand(node, context), context);
+            case GT_GT_GT -> Terms.bitShiftRightUnsigned(lhsOperand(node, context), rhsOperand(node, context), context);
             default -> throw new RuntimeException("unexpected operator: " + node.get(1));
         };
     }
@@ -1946,16 +1946,16 @@ class Interpreter {
                 Object lhs = eval(node.get(0), context);
                 yield context.isError() ? Terms.UNDEFINED : Terms.add(lhs, eval(node.get(2), context), context);
             }
-            case MINUS -> Terms.min(lhsOperand(node, context), rhsOperand(node, context));
+            case MINUS -> Terms.min(lhsOperand(node, context), rhsOperand(node, context), context);
             default -> throw new RuntimeException("unexpected operator: " + node.get(1));
         };
     }
 
     private static Object evalMathMulExpr(Node node, CoreContext context) {
         return switch (node.get(1).token.type) {
-            case STAR -> Terms.mul(lhsOperand(node, context), rhsOperand(node, context));
-            case SLASH -> Terms.div(lhsOperand(node, context), rhsOperand(node, context));
-            case PERCENT -> Terms.mod(lhsOperand(node, context), rhsOperand(node, context));
+            case STAR -> Terms.mul(lhsOperand(node, context), rhsOperand(node, context), context);
+            case SLASH -> Terms.div(lhsOperand(node, context), rhsOperand(node, context), context);
+            case PERCENT -> Terms.mod(lhsOperand(node, context), rhsOperand(node, context), context);
             default -> throw new RuntimeException("unexpected operator: " + node.get(1));
         };
     }
@@ -1977,7 +1977,7 @@ class Interpreter {
                 if (v instanceof java.math.BigInteger bi) {
                     yield Terms.narrowBigInt(bi.negate());
                 }
-                yield Terms.mul(v, -1);
+                yield Terms.mul(v, -1, context);
             }
             case PLUS -> {
                 Object v = eval(exprNode, context);
@@ -2433,7 +2433,7 @@ class Interpreter {
         Object unaryValue = eval(node.get(1), context);
         return switch (node.getFirst().token.type) {
             case NOT -> !Terms.isTruthy(unaryValue);
-            case TILDE -> Terms.bitNot(unaryValue);
+            case TILDE -> Terms.bitNot(unaryValue, context);
             case VOID -> Terms.UNDEFINED; // operand evaluated for side effects, result discarded
             default -> throw new RuntimeException("unexpected operator: " + node.getFirst());
         };
@@ -2567,7 +2567,7 @@ class Interpreter {
             case LOGIC_BIT_EXPR -> evalLogicBitExpr(node, context);
             case LOGIC_TERN_EXPR -> evalLogicTernExpr(node, context);
             case MATH_ADD_EXPR -> evalMathAddExpr(node, context);
-            case MATH_EXP_EXPR -> Terms.exp(lhsOperand(node, context), rhsOperand(node, context));
+            case MATH_EXP_EXPR -> Terms.exp(lhsOperand(node, context), rhsOperand(node, context), context);
             case MATH_MUL_EXPR -> evalMathMulExpr(node, context);
             case MATH_POST_EXPR -> evalMathPostExpr(node, context);
             case MATH_PRE_EXPR -> evalMathPreExpr(node, context);

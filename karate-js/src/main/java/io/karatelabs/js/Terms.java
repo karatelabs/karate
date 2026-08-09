@@ -498,9 +498,30 @@ public class Terms {
         return Integer.MIN_VALUE;
     }
 
-    static Object bitAnd(Object lhsObject, Object rhsObject) {
-        Number lhs = objectToNumber(lhsObject);
-        Number rhs = objectToNumber(rhsObject);
+    /**
+     * Spec ToNumeric for a numeric-operator operand: an ObjectLike routes
+     * through {@code @@toPrimitive} / {@code valueOf} / {@code toString} with
+     * the live ctx — an abrupt completion in those surfaces via
+     * {@code context.isError()}, and callers must check and bail with
+     * {@link #UNDEFINED} so nothing evaluates past the throw. Everything else
+     * keeps the {@link #objectToNumber} fast path untouched.
+     */
+    private static Number toNumericOperand(Object o, CoreContext context) {
+        if (o instanceof ObjectLike) {
+            Object prim = toPrimitive(o, "number", context);
+            if (context != null && context.isError()) {
+                return Double.NaN;
+            }
+            return objectToNumber(prim);
+        }
+        return objectToNumber(o);
+    }
+
+    static Object bitAnd(Object lhsObject, Object rhsObject, CoreContext context) {
+        Number lhs = toNumericOperand(lhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
+        Number rhs = toNumericOperand(rhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
         if (isBigIntOp(lhs, rhs)) {
             requireBothBigInt(lhs, rhs, "&");
             return narrowBigInt(((BigInteger) lhs).and((BigInteger) rhs));
@@ -508,9 +529,11 @@ public class Terms {
         return lhs.intValue() & rhs.intValue();
     }
 
-    static Object bitOr(Object lhsObject, Object rhsObject) {
-        Number lhs = objectToNumber(lhsObject);
-        Number rhs = objectToNumber(rhsObject);
+    static Object bitOr(Object lhsObject, Object rhsObject, CoreContext context) {
+        Number lhs = toNumericOperand(lhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
+        Number rhs = toNumericOperand(rhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
         if (isBigIntOp(lhs, rhs)) {
             requireBothBigInt(lhs, rhs, "|");
             return narrowBigInt(((BigInteger) lhs).or((BigInteger) rhs));
@@ -518,9 +541,11 @@ public class Terms {
         return lhs.intValue() | rhs.intValue();
     }
 
-    static Object bitXor(Object lhsObject, Object rhsObject) {
-        Number lhs = objectToNumber(lhsObject);
-        Number rhs = objectToNumber(rhsObject);
+    static Object bitXor(Object lhsObject, Object rhsObject, CoreContext context) {
+        Number lhs = toNumericOperand(lhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
+        Number rhs = toNumericOperand(rhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
         if (isBigIntOp(lhs, rhs)) {
             requireBothBigInt(lhs, rhs, "^");
             return narrowBigInt(((BigInteger) lhs).xor((BigInteger) rhs));
@@ -528,9 +553,11 @@ public class Terms {
         return lhs.intValue() ^ rhs.intValue();
     }
 
-    static Object bitShiftRight(Object lhsObject, Object rhsObject) {
-        Number lhs = objectToNumber(lhsObject);
-        Number rhs = objectToNumber(rhsObject);
+    static Object bitShiftRight(Object lhsObject, Object rhsObject, CoreContext context) {
+        Number lhs = toNumericOperand(lhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
+        Number rhs = toNumericOperand(rhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
         if (isBigIntOp(lhs, rhs)) {
             requireBothBigInt(lhs, rhs, ">>");
             return narrowBigInt(((BigInteger) lhs).shiftRight(((BigInteger) rhs).intValueExact()));
@@ -538,9 +565,11 @@ public class Terms {
         return lhs.intValue() >> rhs.intValue();
     }
 
-    static Object bitShiftLeft(Object lhsObject, Object rhsObject) {
-        Number lhs = objectToNumber(lhsObject);
-        Number rhs = objectToNumber(rhsObject);
+    static Object bitShiftLeft(Object lhsObject, Object rhsObject, CoreContext context) {
+        Number lhs = toNumericOperand(lhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
+        Number rhs = toNumericOperand(rhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
         if (isBigIntOp(lhs, rhs)) {
             requireBothBigInt(lhs, rhs, "<<");
             return narrowBigInt(((BigInteger) lhs).shiftLeft(((BigInteger) rhs).intValueExact()));
@@ -548,9 +577,11 @@ public class Terms {
         return lhs.intValue() << rhs.intValue();
     }
 
-    static Object bitShiftRightUnsigned(Object lhsObject, Object rhsObject) {
-        Number lhs = objectToNumber(lhsObject);
-        Number rhs = objectToNumber(rhsObject);
+    static Object bitShiftRightUnsigned(Object lhsObject, Object rhsObject, CoreContext context) {
+        Number lhs = toNumericOperand(lhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
+        Number rhs = toNumericOperand(rhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
         if (isBigIntOp(lhs, rhs)) {
             // spec: unsigned right shift on BigInt always TypeError, even when both operands are BigInt
             throw JsErrorException.typeError("BigInts have no unsigned right shift, use >> instead");
@@ -558,17 +589,20 @@ public class Terms {
         return narrow((lhs.intValue() & 0xFFFFFFFFL) >>> rhs.intValue());
     }
 
-    static Object bitNot(Object value) {
-        Number number = objectToNumber(value);
+    static Object bitNot(Object value, CoreContext context) {
+        Number number = toNumericOperand(value, context);
+        if (context != null && context.isError()) return UNDEFINED;
         if (number instanceof BigInteger bi) {
             return narrowBigInt(bi.not());
         }
         return ~number.intValue();
     }
 
-    static Object mul(Object lhsObject, Object rhsObject) {
-        Number lhs = objectToNumber(lhsObject);
-        Number rhs = objectToNumber(rhsObject);
+    static Object mul(Object lhsObject, Object rhsObject, CoreContext context) {
+        Number lhs = toNumericOperand(lhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
+        Number rhs = toNumericOperand(rhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
         if (isBigIntOp(lhs, rhs)) {
             requireBothBigInt(lhs, rhs, "*");
             return narrowBigInt(((BigInteger) lhs).multiply((BigInteger) rhs));
@@ -577,9 +611,11 @@ public class Terms {
         return narrow(result);
     }
 
-    static Object div(Object lhsObject, Object rhsObject) {
-        Number lhs = objectToNumber(lhsObject);
-        Number rhs = objectToNumber(rhsObject);
+    static Object div(Object lhsObject, Object rhsObject, CoreContext context) {
+        Number lhs = toNumericOperand(lhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
+        Number rhs = toNumericOperand(rhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
         if (isBigIntOp(lhs, rhs)) {
             requireBothBigInt(lhs, rhs, "/");
             BigInteger r = (BigInteger) rhs;
@@ -594,9 +630,11 @@ public class Terms {
         return narrow(result);
     }
 
-    static Object min(Object lhsObject, Object rhsObject) {
-        Number lhs = objectToNumber(lhsObject);
-        Number rhs = objectToNumber(rhsObject);
+    static Object min(Object lhsObject, Object rhsObject, CoreContext context) {
+        Number lhs = toNumericOperand(lhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
+        Number rhs = toNumericOperand(rhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
         if (isBigIntOp(lhs, rhs)) {
             requireBothBigInt(lhs, rhs, "-");
             return narrowBigInt(((BigInteger) lhs).subtract((BigInteger) rhs));
@@ -605,9 +643,11 @@ public class Terms {
         return narrow(result);
     }
 
-    static Object mod(Object lhsObject, Object rhsObject) {
-        Number lhs = objectToNumber(lhsObject);
-        Number rhs = objectToNumber(rhsObject);
+    static Object mod(Object lhsObject, Object rhsObject, CoreContext context) {
+        Number lhs = toNumericOperand(lhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
+        Number rhs = toNumericOperand(rhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
         if (isBigIntOp(lhs, rhs)) {
             requireBothBigInt(lhs, rhs, "%");
             BigInteger r = (BigInteger) rhs;
@@ -621,9 +661,11 @@ public class Terms {
         return narrow(result);
     }
 
-    static Object exp(Object lhsObject, Object rhsObject) {
-        Number lhs = objectToNumber(lhsObject);
-        Number rhs = objectToNumber(rhsObject);
+    static Object exp(Object lhsObject, Object rhsObject, CoreContext context) {
+        Number lhs = toNumericOperand(lhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
+        Number rhs = toNumericOperand(rhsObject, context);
+        if (context != null && context.isError()) return UNDEFINED;
         if (isBigIntOp(lhs, rhs)) {
             requireBothBigInt(lhs, rhs, "**");
             BigInteger r = (BigInteger) rhs;
