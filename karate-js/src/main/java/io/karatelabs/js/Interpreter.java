@@ -201,21 +201,28 @@ class Interpreter {
         if (operator == PIPE_PIPE_EQ || operator == AMP_AMP_EQ || operator == QUES_QUES_EQ) {
             return PropertyAccess.logicalCompound(lhs, context, operator, node.get(2), node);
         }
-        Object value = eval(node.get(2), context);
         if (operator == EQ) {
             if (lhs.type == NodeType.LIT_EXPR) {
+                // Destructuring assignment (`[a] = …` / `{a} = …`): per spec
+                // §13.15.2 the RHS evaluates first; the pattern's targets are
+                // resolved during destructuring, against the RHS value.
+                Object value = eval(node.get(2), context);
+                if (context.isStopped()) {
+                    return value;
+                }
                 Node pattern = lhs.getFirst();
                 if (pattern.type == NodeType.LIT_ARRAY || pattern.type == NodeType.LIT_OBJECT) {
                     destructurePattern(pattern, context, null, value, false);
                 } else {
                     evalAssign(pattern, context, BindScope.VAR, value, true);
                 }
-            } else {
-                PropertyAccess.set(lhs, context, value, node);
+                return value;
             }
-            return value;
+            // §13.15.2: the LHS Reference (base + computed key) evaluates
+            // before the RHS expression.
+            return PropertyAccess.assign(lhs, context, node.get(2), node);
         }
-        return PropertyAccess.compound(lhs, context, operator, value, node);
+        return PropertyAccess.compound(lhs, context, operator, node.get(2), node);
     }
 
     /**
@@ -318,6 +325,9 @@ class Interpreter {
                 String key;
                 if (computed) {
                     Object keyValue = evalExpr(elem.get(1), context);
+                    if (context.isError()) { // cooperative throw in the key expression
+                        return;
+                    }
                     key = Terms.toStringCoerce(keyValue, context);
                 } else if (keyType == S_STRING || keyType == D_STRING) {
                     key = (String) Terms.literalValue(keyNode.token);
@@ -327,12 +337,18 @@ class Interpreter {
                 consumed.add(key);
                 Object v = Terms.UNDEFINED;
                 if (objSource != null) {
-                    // getMember returns the raw slot value (UNDEFINED stays UNDEFINED,
-                    // unlike Map.get which unwraps via Engine.toJava). But null from
-                    // getMember is ambiguous: could be "present with explicit null"
+                    // The receiver+ctx read fires accessor getters (spec GetV) —
+                    // the 1-arg getMember returns null for an AccessorSlot, which
+                    // would silently swallow both the getter and anything it
+                    // throws. The raw slot value is preserved (UNDEFINED stays
+                    // UNDEFINED, unlike Map.get which unwraps via Engine.toJava).
+                    // But null is ambiguous: could be "present with explicit null"
                     // or "absent" — disambiguate via Map.containsKey on the own
                     // properties map so default fires only for true absence / undefined.
-                    Object temp = objSource.getMember(key);
+                    Object temp = objSource.getMember(key, objSource, context);
+                    if (context.isError()) { // cooperative throw in a getter
+                        return;
+                    }
                     if (temp == Terms.UNDEFINED) {
                         // v stays UNDEFINED, default will fire
                     } else if (temp == null) {
@@ -359,6 +375,9 @@ class Interpreter {
                 } else {
                     // keyed: {foo: target} or {foo: target = default} or {[k]: target}
                     bindTarget(elem.get(afterKeyPos + 1), context, bindScope, v, initialized);
+                }
+                if (context.isError()) { // cooperative throw mid-binding (default expr / setter)
+                    return;
                 }
             }
         }
@@ -1237,6 +1256,14 @@ class Interpreter {
                 } else if (!noInit) {
                     eval(node.get(2), context);
                 }
+                if (context.isStopped()) {
+                    // §14.7.4 abrupt completion in the init (a throwing
+                    // initializer / destructure) skips the loop entirely — the
+                    // test expression must not be evaluated, since its own
+                    // failure (e.g. a ReferenceError) would overwrite the
+                    // pending error. The finally closes the LOOP_INIT scope.
+                    return null;
+                }
                 // The condition and increment sit relative to the first SEMI —
                 // absolute child indices shift when the init is absent.
                 int semi1 = noInit ? 2 : 3;
@@ -1311,13 +1338,13 @@ class Interpreter {
                         checkInterrupted();
                         index++;
                         context.iteration = index;
-                        if (forTest == null) {
-                            // absent condition is always true; still honor an abrupt
-                            // completion pending from the init expression
-                            if (context.isStopped()) {
-                                break;
-                            }
-                        } else {
+                        // A pending abrupt completion (from the increment) must
+                        // exit before the test evaluates — same reasoning as the
+                        // init guard above.
+                        if (context.isStopped()) {
+                            break;
+                        }
+                        if (forTest != null) {
                             Object forCondition = eval(forTest, context);
                             // §14.7.4 abrupt completion in the loop-test expression must exit.
                             if (context.isStopped()) {

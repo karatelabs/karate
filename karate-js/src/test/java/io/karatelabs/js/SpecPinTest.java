@@ -1330,6 +1330,115 @@ class SpecPinTest extends EvalBase {
         assertEquals("boom", eval("try { throw (\n  'boom'\n) } catch (e) { e }"));
     }
 
+    // -------------------------------------------------------------------------
+    // Assignment evaluation order (§13.15.2): the LHS Reference — base object
+    // and computed key — evaluates BEFORE the RHS expression. For compound
+    // assignment, GetValue(lref) also precedes the RHS. An abrupt completion at
+    // any step skips the remaining steps: nothing evaluates past a throw.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void assignment_lhsReferenceEvaluatesBeforeRhs() {
+        // computed key before RHS
+        assertEquals("PE", eval("var order=''; function p(){order+='P';return 'k'}"
+                + " function e(){order+='E';return 1} var b={}; b[p()]=e(); order"));
+        // member base before RHS
+        assertEquals("BE", eval("var order=''; function base(){order+='B';return {}}"
+                + " function e(){order+='E';return 1} base().k=e(); order"));
+        // nested member: outer reference fully resolves left-to-right first
+        assertEquals("PQE", eval("var order=''; var o={x:{}};"
+                + " function p(){order+='P';return 'x'} function q(){order+='Q';return 'y'}"
+                + " function e(){order+='E';return 1} o[p()][q()]=e(); order"));
+    }
+
+    @Test
+    void assignment_abruptCompletionStopsLaterOperands() {
+        // a throwing key expression must prevent the RHS from running
+        assertEquals("P", eval("var order=''; function p(){order+='P';throw new Error('x')}"
+                + " function e(){order+='E';return 1} var o={}; try { o[p()]=e() } catch(err){} order"));
+        // a throwing base must prevent both the key and the RHS
+        assertEquals("B", eval("var order=''; function b(){order+='B';throw new Error('x')}"
+                + " function i(){order+='I';return 0} try { b()[i()]=1 } catch(e){} order"));
+        // ...including for inc/dec: the key's throw wins over the null-base TypeError
+        assertEquals("DUMMY", eval("var base=null; function p(){throw new Error('DUMMY')}"
+                + " var r; try { base[p()]-- } catch(e) { r=e.message } r"));
+    }
+
+    @Test
+    void compoundAssignment_getValuePrecedesRhs() {
+        // Get (via getter) → RHS → Set: order is G, E, S
+        assertEquals("GES", eval("var order='';"
+                + " var o = { get k(){order+='G';return 10}, set k(v){order+='S'} };"
+                + " function e(){order+='E';return 1} o.k += e(); order"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Abrupt-completion forwarding: an error raised by user code inside the
+    // iteration / destructuring machinery must surface unmodified — never
+    // overwritten by the machinery's own TypeError, and never swallowed.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void iteration_throwingIteratorMethodErrorIsForwarded() {
+        // a @@iterator method that throws: its error wins over "not iterable"
+        assertEquals("POISON", eval("var it={}; it[Symbol.iterator]=function(){throw new Error('POISON')};"
+                + " var r; try { var arr=[...it] } catch(e) { r=e.message } r"));
+        assertEquals("POISON", eval("var it={}; it[Symbol.iterator]=function(){throw new Error('POISON')};"
+                + " var r; try { var q; [q]=it } catch(e) { r=e.message } r"));
+        // a non-callable @@iterator is still the engine's clean TypeError
+        assertEquals(true, eval("var it={}; it[Symbol.iterator]=7;"
+                + " var r; try { var arr=[...it] } catch(e) { r=e instanceof TypeError } r"));
+    }
+
+    @Test
+    void iteration_absentStepValueReadsAsUndefined() {
+        // {done:false} with no `value` member is undefined per GetV — a
+        // destructuring default fires on it...
+        assertEquals(42, eval("var it={ [Symbol.iterator]:function(){return this},"
+                + " next:function(){return {done:false}} }; var a; [a=42]=it; a"));
+        // ...but an explicit null value does NOT fire the default
+        assertEquals("null", eval("var it={ [Symbol.iterator]:function(){return this},"
+                + " next:function(){return {done:false, value:null}} }; var a; [a=42]=it; ''+a"));
+    }
+
+    @Test
+    void iteratorClose_originalErrorWinsOverNonCallableReturn() {
+        // IteratorClose during an abrupt completion discards its own failures —
+        // here `return` is not callable, but the default-expr's error must win
+        assertEquals("MyError", eval("function MyError(){}; function thrower(){ throw new MyError() };"
+                + " var it={ [Symbol.iterator]:function(){return this},"
+                + " next:function(){return {done:false}}, 'return': 0 };"
+                + " var r; try { var a; [a=thrower()]=it }"
+                + " catch(e){ r = (e instanceof MyError) ? 'MyError' : ('wrong: '+e) } r"));
+    }
+
+    @Test
+    void destructuring_poisonedGetterErrorIsForwarded() {
+        // an accessor on the source object fires (GetV) and its throw propagates
+        String poisoned = "var p=Object.defineProperty({},'x',{get:function(){throw new Error('POI')}});";
+        assertEquals("POI", eval(poisoned + " var r; try { var {x}=p } catch(e){ r=e.message } r"));
+        assertEquals("POI", eval(poisoned + " var r; var x; try { ({x}=p) } catch(e){ r=e.message } r"));
+        // in a for-init, the abrupt completion skips the loop — the test
+        // expression (an undefined identifier here) must never evaluate
+        assertEquals("POI", eval(poisoned + " var r;"
+                + " try { (function(){ for (var {x}=p; notDefined < 1; ) { return; } })() }"
+                + " catch(e){ r=e.message } r"));
+    }
+
+    @Test
+    void superAssignment_nullBaseIsTypeErrorAfterRhs() {
+        // a super reference with a null home prototype fails at PutValue —
+        // AFTER the RHS has run, so count reaches 1
+        assertEquals("TypeError count=1", eval("var count=0;"
+                + " class C { static m() { super.x = (count += 1); } }"
+                + " Object.setPrototypeOf(C, null);"
+                + " var r; try { C.m() } catch(e) {"
+                + " r = (e instanceof TypeError ? 'TypeError' : 'wrong: '+e) + ' count=' + count } r"));
+        // the normal super write is untouched
+        assertEquals(7, eval("class P {} class C extends P {"
+                + " static m() { super.x = 7; return this.x; } } C.m()"));
+    }
+
     @Test
     void return_theCheckIsOnTheSourceNotOnALineNumberThatCanWrap() {
         // `Token.line` is a short. Past 32768 lines it wraps, so a guard clause whose body sits 65536 lines

@@ -106,7 +106,14 @@ public class IterUtils {
             return listIterator(asArray.list);
         }
         if (source instanceof ObjectLike obj) {
-            Object iteratorFn = obj.getMember(SYMBOL_ITERATOR);
+            // Receiver+ctx read so an accessor at @@iterator fires; if that
+            // getter throws (cooperative stop-flag), the pending error must
+            // propagate — hand back an exhausted iterator so the caller
+            // unwinds instead of overwriting the error with "not iterable".
+            Object iteratorFn = readMember(obj, SYMBOL_ITERATOR, context);
+            if (isJsErrored(context)) {
+                return exhaustedIterator();
+            }
             if (iteratorFn instanceof JsCallable callable) {
                 return userIterator(callable, obj, context);
             }
@@ -203,6 +210,12 @@ public class IterUtils {
                 }
                 if (isJsErrored(context)) { done = true; return; }
                 pending = readMember(stepObj, "value", context);
+                if (pending == null && !hasProperty(stepObj, "value")) {
+                    // A step result with no `value` member reads as undefined
+                    // (spec GetV) — the distinction matters downstream, where
+                    // a destructuring default fires on undefined but not null.
+                    pending = Terms.UNDEFINED;
+                }
                 if (isJsErrored(context)) { done = true; return; }
                 fetched = true;
             }
@@ -319,6 +332,13 @@ public class IterUtils {
         } else {
             iter = iteratorFn.call(context, EMPTY_ARGS);
         }
+        // A `throw` inside the @@iterator method sets the cooperative stop-flag
+        // rather than raising a Java exception. The pending error must win —
+        // an exhausted iterator lets the caller unwind without overwriting it
+        // with the not-an-object TypeError below.
+        if (isJsErrored(context)) {
+            return exhaustedIterator();
+        }
         if (!(iter instanceof ObjectLike iterObj)) {
             throw JsErrorException.typeError("Result of the Symbol.iterator method is not an object");
         }
@@ -360,6 +380,12 @@ public class IterUtils {
                 }
                 if (isJsErrored(context)) { done = true; return; }
                 pending = readMember(stepObj, "value", context);
+                if (pending == null && !hasProperty(stepObj, "value")) {
+                    // A step result with no `value` member reads as undefined
+                    // (spec GetV) — the distinction matters downstream, where
+                    // a destructuring default fires on undefined but not null.
+                    pending = Terms.UNDEFINED;
+                }
                 if (isJsErrored(context)) { done = true; return; }
                 fetched = true;
             }
@@ -450,6 +476,26 @@ public class IterUtils {
 
     private static final Object[] EMPTY_ARGS = new Object[0];
 
+    /**
+     * Yields nothing; IteratorClose stays the default no-op. Returned when
+     * iterator acquisition itself completed abruptly (the cooperative
+     * stop-flag is set), so callers unwind without further calls into user
+     * code and the pending error propagates unmodified.
+     */
+    private static JsIterator exhaustedIterator() {
+        return new JsIterator() {
+            @Override
+            public boolean hasNext() {
+                return false;
+            }
+
+            @Override
+            public Object next() {
+                throw new NoSuchElementException();
+            }
+        };
+    }
+
     private static boolean isJsErrored(Context context) {
         return context instanceof CoreContext cc && cc.isError();
     }
@@ -460,6 +506,16 @@ public class IterUtils {
      *  {@link ObjectLike#getMember(String, Object, CoreContext)}; a non-CoreContext
      *  context yields {@code undefined} for accessor descriptors (no thread for
      *  thisObject swap). */
+    /** True when {@code name} exists anywhere on {@code obj}'s prototype chain. */
+    private static boolean hasProperty(ObjectLike obj, String name) {
+        for (ObjectLike o = obj; o != null; o = o.getPrototype()) {
+            if (o.isOwnProperty(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static Object readMember(ObjectLike obj, String name, Context context) {
         CoreContext cc = context instanceof CoreContext c ? c : null;
         return obj.getMember(name, obj, cc);

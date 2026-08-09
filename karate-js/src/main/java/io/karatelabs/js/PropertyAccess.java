@@ -117,25 +117,32 @@ class PropertyAccess {
      * be a write target.
      */
     private static AccessSite resolveWriteSite(Node node, CoreContext context) {
+        // The isStopped checks after each eval keep an abrupt completion (a
+        // cooperative `throw` in the target or computed-key expression) from
+        // reaching the by-index / by-name workers, whose own TypeErrors would
+        // otherwise overwrite the pending error. A null site is a no-op at
+        // every caller, so the abrupt completion propagates unmodified.
         if (node.type == NodeType.REF_DOT_EXPR) {
             Node second = node.get(1);
             if (second.isToken()) {
                 Object target = Interpreter.eval(node.getFirst(), context);
-                if (target == SHORT_CIRCUITED) return null;
+                if (target == SHORT_CIRCUITED || context.isStopped()) return null;
                 return new AccessSite(target, node.get(2).getText(), false);
             }
             if (second.type == NodeType.REF_BRACKET_EXPR) {
                 Object target = Interpreter.eval(node.getFirst(), context);
-                if (target == SHORT_CIRCUITED) return null;
+                if (target == SHORT_CIRCUITED || context.isStopped()) return null;
                 Object index = Interpreter.eval(second.get(2), context);
+                if (context.isStopped()) return null;
                 return new AccessSite(target, index, true);
             }
             throw JsErrorException.typeError("cannot write to optional call expression");
         }
         // REF_BRACKET_EXPR
         Object target = Interpreter.eval(node.getFirst(), context);
-        if (target == SHORT_CIRCUITED) return null;
+        if (target == SHORT_CIRCUITED || context.isStopped()) return null;
         Object index = Interpreter.eval(node.get(2), context);
+        if (context.isStopped()) return null;
         return new AccessSite(target, index, true);
     }
 
@@ -202,35 +209,79 @@ class PropertyAccess {
         }
     }
 
-    //=== Compound operations (get + modify + set) ===
+    //=== Assignment and compound operations ===
 
     /**
-     * Compound assignment: obj.x op= value (e.g., +=, -=, *=, etc.)
-     * Evaluates the base expression once, then applies the operation.
-     * Returns the new value.
+     * Simple assignment (`=`) in spec §13.15.2 evaluation order: the LHS
+     * Reference — base object and computed key — is evaluated BEFORE the RHS
+     * expression, and an abrupt completion at either step skips the write.
+     * Returns the assigned value (the value of the whole assignment
+     * expression).
      */
-    static Object compound(Node node, CoreContext context, TokenType operator, Object operand) {
-        return compound(node, context, operator, operand, null);
+    static Object assign(Node node, CoreContext context, Node rhsNode, Node trackingNode) {
+                return switch (node.type) {
+            case REF_EXPR -> {
+                // An identifier Reference resolves without observable side
+                // effects; an unresolvable name only throws at PutValue time,
+                // which is after the RHS has been evaluated.
+                Object value = Interpreter.eval(rhsNode, context);
+                if (context.isStopped()) yield value;
+                context.update(node.getText(), value, trackingNode);
+                yield value;
+            }
+            case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
+                AccessSite site = resolveWriteSite(node, context);
+                if (context.isStopped()) yield Terms.UNDEFINED;
+                Object value = Interpreter.eval(rhsNode, context);
+                if (site == null || context.isStopped()) yield value;
+                if (site.target == null && node.getFirst().type == NodeType.SUPER_EXPR) {
+                    // A super reference whose home object has a null [[Prototype]]
+                    // resolves to a null base; PutValue on it is a TypeError —
+                    // AFTER the RHS has been evaluated (hence not in
+                    // resolveWriteSite). Without this, setByName's null-target
+                    // fallback would treat the write as a scope update.
+                    throw JsErrorException.typeError("cannot set property on null 'super' base");
+                }
+                if (site.isIndex) setByIndex(site.target, site.key, value, context, trackingNode);
+                else setByName(site.target, (String) site.key, value, context, trackingNode);
+                yield value;
+            }
+            default -> throw JsErrorException.typeError("cannot set on: " + node);
+        };
     }
 
     /**
-     * Compound assignment with tracking node for events.
+     * Compound assignment (`op=`, e.g. +=, -=, *=) in spec §13.15 order:
+     * resolve the LHS Reference, GetValue it, and only then evaluate the RHS —
+     * a computed-key or getter side effect precedes any RHS side effect, and
+     * an abrupt completion at each step skips the rest. Returns the new value.
      */
-    static Object compound(Node node, CoreContext context, TokenType operator, Object operand, Node trackingNode) {
+    static Object compound(Node node, CoreContext context, TokenType operator, Node rhsNode, Node trackingNode) {
                 return switch (node.type) {
             case REF_EXPR -> {
                 String name = node.getText();
                 Object oldValue = context.get(name);
+                if (context.isStopped()) yield Terms.UNDEFINED;
+                Object operand = Interpreter.eval(rhsNode, context);
+                if (context.isStopped()) yield Terms.UNDEFINED;
                 Object newValue = applyOperator(oldValue, operator, operand, context);
                 context.update(name, newValue, trackingNode);
                 yield newValue;
             }
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
-                if (site == null) yield Terms.UNDEFINED;
-                yield site.isIndex
-                        ? compoundByIndex(site.target, site.key, operator, operand, context, trackingNode)
-                        : compoundByName(site.target, (String) site.key, operator, operand, context, trackingNode);
+                if (site == null || context.isStopped()) yield Terms.UNDEFINED;
+                Object oldValue = site.isIndex
+                        ? getByIndex(site.target, site.key, false, context, false)
+                        : getByName(site.target, (String) site.key, false, context, false);
+                if (context.isStopped()) yield Terms.UNDEFINED;
+                Object operand = Interpreter.eval(rhsNode, context);
+                if (context.isStopped()) yield Terms.UNDEFINED;
+                Object newValue = applyOperator(oldValue, operator, operand, context);
+                if (context.isStopped()) yield Terms.UNDEFINED;
+                if (site.isIndex) setByIndex(site.target, site.key, newValue, context, trackingNode);
+                else setByName(site.target, (String) site.key, newValue, context, trackingNode);
+                yield newValue;
             }
             default -> throw JsErrorException.typeError("cannot apply compound assignment to: " + node);
         };
@@ -800,30 +851,6 @@ class PropertyAccess {
         if (context.root.listener != null) {
             context.root.listener.onBind(BindEvent.propertySet(name, value, oldValue, target, context, node));
         }
-    }
-
-    //=== Compound operation workers ===
-
-    private static Object compoundByIndex(Object object, Object index, TokenType operator, Object operand, CoreContext context, Node trackingNode) {
-        if (index instanceof Number n) {
-            int i = n.intValue();
-            if (object instanceof List) {
-                List<Object> list = (List<Object>) object;
-                Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
-                Object newValue = applyOperator(oldValue, operator, operand, context);
-                list.set(i, newValue);
-                firePropertySet(context, String.valueOf(i), newValue, oldValue, object, trackingNode);
-                return newValue;
-            }
-        }
-        return compoundByName(object, Terms.toPropertyKey(index), operator, operand, context, trackingNode);
-    }
-
-    private static Object compoundByName(Object object, String name, TokenType operator, Object operand, CoreContext context, Node trackingNode) {
-        Object oldValue = getByName(object, name, false, context, false);
-        Object newValue = applyOperator(oldValue, operator, operand, context);
-        setByName(object, name, newValue, context, trackingNode);
-        return newValue;
     }
 
     private static Object postIncDecByIndex(Object object, Object index, boolean isIncrement, CoreContext context) {
