@@ -2470,6 +2470,13 @@ parsed value, in `TokenBuffer` — moved the array workload about 10%. The
 object workload is flat, which is expected: it spends its time in
 `Object.keys`/`values`/`entries`, not in loops over literals.
 
+Treat that 10% as **indicative, not established**: it is one pre/post pair, and
+it sits right at the edge of the ±5–10% band this same section warns about.
+Taking it as settled would be the exact error the note below describes. The
+change was measured properly elsewhere, on a harness that reports allocation
+per operation and confidence intervals; this table only has to agree with that
+conclusion, not carry it.
+
 Engine instantiation is essentially unchanged (~0.4–0.6 µs median).
 
 **This table is a baseline, not a changelog.** Earlier revisions accumulated a
