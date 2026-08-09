@@ -52,14 +52,26 @@ public class TokenBuffer {
     // Without this every getText() call allocates a fresh String (plus its byte[]) out of the
     // source, and the interpreter calls it on each evaluation of a literal, an identifier and an
     // object-literal key - so a token inside a loop body is re-extracted on every iteration.
-    private String[] texts;
+    //
+    // volatile per the rule Node's javadoc states for exactly this shape: an array published by a
+    // plain write can be seen non-null with its contents not yet visible. Final-field semantics
+    // cover the String elements, not the array reference holding them. Read once into a local.
+    private volatile String[] texts;
 
     // Parallel array for parsed literal values - lazily allocated, memoized on first use.
     // Caching the text alone still leaves Double.parseDouble running on every evaluation of a
-    // numeric literal; this holds the parsed value itself. Null means "not computed yet", which
-    // is safe because the only literal that evaluates to null is `null`, whose branch never
-    // parses anything.
-    private Object[] literals;
+    // numeric literal; this holds the parsed value itself.
+    //
+    // Null means "not computed yet". Safe because no branch of Terms.literalValue that does any
+    // work can return null - a NUMBER that will not parse yields Double.NaN, BIGINT throws, and a
+    // string literal yields at worst "". Only the default branch (the `null` keyword, and token
+    // types that are not literals at all) returns null, and it parses nothing, so recomputing it
+    // costs nothing.
+    //
+    // Values MUST stay immutable - Double, Long, Integer, BigInteger, String, Boolean - or the
+    // unsynchronized publication below stops being safe. JsRegex is deliberately NOT cached: it
+    // carries mutable lastIndex, and Interpreter builds it outside literalValue.
+    private volatile Object[] literals;
 
     public TokenBuffer(Resource resource) {
         this.resource = resource;
@@ -104,29 +116,50 @@ public class TokenBuffer {
     }
 
     void putLiteral(int index, Object value) {
-        if (index < 0 || index >= count) { // not registered in this buffer
+        if (index < 0) {
             return;
         }
         Object[] cache = literals;
         if (cache == null) {
-            cache = literals = new Object[capacity];
+            cache = literals = new Object[cacheSize()];
         }
-        cache[index] = value;
+        if (index < cache.length) { // bound against the ARRAY, never against count - see getText
+            cache[index] = value;
+        }
+    }
+
+    /**
+     * Caches are sized to the token count, not to {@code capacity}. Lexing runs to completion
+     * before anything evaluates, so by first touch {@code count} is final and {@code capacity} is
+     * merely whatever the doubling happened to land on - up to 4x the tokens actually present.
+     */
+    private int cacheSize() {
+        return Math.max(count, 1);
     }
 
     /**
      * Source text of a token, memoized. Unsynchronized on purpose: a cached AST (a
-     * {@code karate-config.js} for instance) can be evaluated from several threads at once, and
-     * the worst a race here can do is compute the same substring twice. {@link String} has final
-     * fields, so a reader that sees the reference sees a fully initialized object.
+     * {@code karate-config.js} for instance) is evaluated from several threads at once, and the
+     * worst a race here can do is compute the same substring twice and discard one copy.
+     * {@link String} has final fields, so a reader that sees an element sees a fully initialized
+     * object; the array reference itself is {@code volatile} for the same reason spelled out on
+     * the field.
+     * <p>
+     * Every bound here is against the ARRAY, never against {@code count}. Those are equal today
+     * because lexing completes before evaluation begins, but if that ever stops holding, a stale
+     * bound would index past a shorter array and throw. Checking the array degrades to "no cache"
+     * instead, which is the whole point of a cache being optional.
      */
     String getText(int index, int pos, int length) {
-        if (index < 0 || index >= count) { // not registered in this buffer
+        if (index < 0) {
             return resource.getText().substring(pos, pos + length);
         }
         String[] cache = texts;
         if (cache == null) {
-            cache = texts = new String[capacity];
+            cache = texts = new String[cacheSize()];
+        }
+        if (index >= cache.length) { // not registered here, or added after the cache was sized
+            return resource.getText().substring(pos, pos + length);
         }
         String text = cache[index];
         if (text == null) {
