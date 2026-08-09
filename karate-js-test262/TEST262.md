@@ -23,35 +23,28 @@ shaped, follow the JS_ENGINE.md anchors below.
 
 ---
 
-## Start here: completion-record semantics is the untouched seam
+## Completion-record semantics: language side closed; residual lives in built-ins
 
-**Read this before picking a slice.** Conformance work so far has gone into
-built-ins — Object, Array, String, Number, Date, RegExp — on the assumption
-that core syntax was sound. A 2026-08-06 session found it is not, and found it
-by accident rather than through this harness. The bugs were all one family and
-none of them was in the built-ins:
+The abrupt-completion / evaluation-order family — assignment LHS-Reference-
+before-RHS, nothing-evaluates-past-a-throw, user errors forwarded through
+iterator acquisition and destructuring instead of being overwritten by the
+machinery's own TypeErrors — is **closed for `test/language/**`**. The
+invariants are pinned by `SpecPinTest.assignment_* / compoundAssignment_* /
+iteration_* / iteratorClose_* / destructuring_* / superAssignment_*`,
+alongside
+[`TryFinallyCompletionTest`](../karate-js/src/test/java/io/karatelabs/js/TryFinallyCompletionTest.java),
+[`AbruptCompletionShortCircuitTest`](../karate-js/src/test/java/io/karatelabs/js/AbruptCompletionShortCircuitTest.java), and
+[`HostCallThrowTest`](../karate-js/src/test/java/io/karatelabs/js/HostCallThrowTest.java).
+Load-bearing seams for future work in this area: `PropertyAccess.assign` /
+`compound` (take the RHS *node*, evaluate it mid-sequence), `resolveWriteSite`
+(stops on abrupt completion), `IterUtils` (cooperative-error checks after every
+call into user code).
 
-| | |
-|---|---|
-| `return f()` where `f` threw | the throw was **erased** — `stopAndReturn` clears the error state, so the function completed normally and a surrounding `try/catch` never fired |
-| `throw makeError()` where building the error threw | the real cause was overwritten with the failed expression's value, surfacing as a bare `NullPointerException` |
-| multi-statement `finally` after a clean `return` | ran **only its first statement** — cleanup silently skipped |
-| an abrupt `return`/`throw`/`break` inside `finally` | did not override the pending completion, and a `throw` in there escaped as a Java `RuntimeException` no JS `catch` could see |
-| `f(mustThrow(), alsoRuns())` | evaluated the rest of the arguments **and invoked `f`** |
-| `[b(), ok()]`, `{a: b(), c: ok()}`, `x + y`, `new C(b())`, `f(...[b()])` | same — kept evaluating past the throw |
-
-**Why the harness never surfaced them.** Every one of these still delivers the
-*correct* exception in the end. Only the side effects along the way are wrong,
-so any test that asserts "did it throw the right thing" passes. Fixing the
-first one moved exactly two tests — `built-ins/RegExp/prototype/{exec,test}/
-S15.10.6.2_A1_T7` — and both caught it only because test262's idiom for probing
-evaluation order is a **poisoned object**: `{toString(){ throw new Test262Error() }}`.
-
-**So hunt the poisoned probes, not the constructs.** The filter that isolates
-this family is the failure message, not the path:
+**The hunting method stays valid — poisoned probes, not constructs.** test262
+probes evaluation order with poisoned objects (`{toString(){ throw new
+Test262Error() }}`), so the filter for this family is the failure message:
 
 ```sh
-# ~370 tests today: the engine threw ITS error before or instead of the test's
 python3 -c "
 import json,collections,re
 rows=[json.loads(l) for l in open('<run-dir>/results.jsonl') if l.strip()]
@@ -59,58 +52,23 @@ p=[r for r in rows if r['status']=='FAIL' and re.search(r'Expected a \w*Error bu
 print(len(p)); print(collections.Counter('/'.join(r['path'].split('/')[:3]) for r in p).most_common(8))"
 ```
 
-That message means the engine evaluated the wrong thing, or in the wrong order,
-or kept going after an abrupt completion. Ranked by signal per unit of work:
+**Where it stands.** `test/language/**` is down to **3** matches, each with a
+known out-of-family cause: `unsigned-right-shift/bigint-toprimitive.js`
+(`Symbol.toPrimitive` dispatch — parked with Symbol),
+`for/dstr/var-ary-init-iter-get-err-array-prototype.js` (the JsArray
+iteration fast path deliberately skips a deleted
+`Array.prototype[Symbol.iterator]` — hot-path tradeoff, principle #4), and
+`white-space/mongolian-vowel-separator-eval.js` (parser whitespace tail).
 
-1. **The poisoned-probe cluster above** (~370). Concentrated in
-   `built-ins/RegExp` (64), `language/expressions` (58), `built-ins/Array` (26),
-   `language/statements` (28).
-2. **The iteration protocol** — `statements/for-of` (129, of which ~44 are
-   parser gaps so ~85 are semantic) and `for-in` (59). Most abrupt-completion
-   machinery per line of spec: a throwing body must still call
-   `iterator.return()`, and a throwing `return()` has its own precedence.
-   `IterUtils` already has `iter.close(context, context.isError())` — audit
-   whether every exit path reaches it.
-3. **Destructuring and assignment** — `expressions/assignment` (174) and
-   `compound-assignment` (119). Evaluation order is the whole game, and
-   `ary-init-iter-get-err` is already failing with this exact signature.
-4. **`statements/try`** (53) — directly adjacent to what was just fixed.
-
-**What is not this work.** 962 failures are `X is not defined` — absent
-globals, a feature-coverage decision rather than a correctness one:
-`ArrayBuffer` 223, `Iterator` 193, `Promise` 158, `DataView` 84,
-`WeakMap`/`WeakSet` 49, `Proxy` 17. Note that `Promise` and `Iterator` being
-absent is itself suppressing a large slice of the completion-semantics tests,
-so the ranking above may understate them. And 1243 of the 2378
-`test/language` failures are the parser — 566 `MissingParseError` (the parser
-accepts programs it should reject) plus 677 `SyntaxError`. That is a real
-track, but it is about diagnostics quality and will not surface this family.
-
-**Known, exposed, and not yet fixed: assignment evaluates its operands
-right-to-left.** The spec evaluates the left-hand side reference — including a
-computed key — before the right-hand side. This engine does the reverse:
-
-```js
-var order = '';
-function prop() { order += 'P'; return 'k' }
-function expr() { order += 'E'; return 1 }
-var base = {};
-base[prop()] = expr();   // order === 'EP', should be 'PE'
-```
-
-It was invisible while the short-circuit bugs above existed, because a
-right-hand side that threw had its error overwritten by a subsequent left-hand
-side throw — two bugs cancelling, and
-`expressions/assignment/target-member-computed-reference{,-null}.js` and
-`target-super-computed-reference.js` passed on the strength of it. Fixing the
-short-circuits removed the cancellation, so those three now fail honestly.
-**They are the ground truth for whoever fixes the ordering** — do not "fix"
-them by reintroducing evaluation past a throw.
-
-Guards that already exist for this seam:
-[`TryFinallyCompletionTest`](../karate-js/src/test/java/io/karatelabs/js/TryFinallyCompletionTest.java),
-[`AbruptCompletionShortCircuitTest`](../karate-js/src/test/java/io/karatelabs/js/AbruptCompletionShortCircuitTest.java),
-[`HostCallThrowTest`](../karate-js/src/test/java/io/karatelabs/js/HostCallThrowTest.java).
+**The remaining concentration is `test/built-ins/**`** — the filter yields
+~278 there, but most is absent-global noise (`Iterator` 46, `WeakMap` 44,
+`WeakSet` 34, `Promise` 33 — feature coverage, not ordering). The real
+signal: **`RegExp` 64 and `Array` 25** — built-in *entry-point* coercion
+order (a poisoned argument's error vs. the built-in's own arg-validation
+TypeError), which is the
+[JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points)
+track, not interpreter machinery. Sample a few with `--single -v` before
+assuming they share one cause.
 
 ---
 
@@ -164,7 +122,7 @@ Operating-mode maxims for the test262 conformance loop. Treat as load-bearing.
 9. **Refactor — or rewrite — boldly; the regression net is the license.**
    This repo carries an unusually strong safety net: the test262 language
    slice with byte-for-byte FAIL-set diffing ([Diff two run-dirs](#diff-two-run-dirs)),
-   1086+ unit tests with `SpecPinTest` spec-invariant pins, 2224+ karate-core
+   1265+ unit tests with `SpecPinTest` spec-invariant pins, 2550+ karate-core
    consumer tests, and JIT-stable benchmarks. That net exists so you can do the
    *right* structural thing instead of accreting another local workaround. When a
    subsystem is fighting you — near-duplicate traversals, a check at the wrong
@@ -195,7 +153,7 @@ Each session that touches the engine should:
    `--only` invocation *is* the baseline; pin its run-dir in the commit
    so the next session has a diff target.
 2. **Unit tests:** `mvn -f pom.xml -pl karate-js -o test` →
-   `Tests run: 1086+, Failures: 0, Errors: 0, Skipped: 2` (count grows as
+   `Tests run: 1265+, Failures: 0, Errors: 0, Skipped: 2` (count grows as
    `SpecPinTest` accretes invariants).
 3. **test262 built-ins probe:** diff `results.jsonl` against the previous
    run. **Zero regressions (PASS → FAIL).** Document any flip in the commit
@@ -209,7 +167,7 @@ Each session that touches the engine should:
    mvn -f pom.xml -pl karate-js -o install -DskipTests
    mvn -f pom.xml -o test -pl karate-core
    ```
-   Expect `Tests run: 2224+, Failures: 0, Errors: 0, Skipped: 3`.
+   Expect `Tests run: 2550+, Failures: 0, Errors: 0, Skipped: 3`.
 6. **Update this file's TODOs in the same commit.** This is a roadmap,
    not a changelog. For each item the commit addressed (active priority
    bullet, background sweep, deferred TODO, or implicit assumption a bug
@@ -280,50 +238,32 @@ streams to be tailed.**
 
 ## Active priorities
 
-**Strict mode + `onlyStrict` — DONE and un-skipped.** The keystone landed: the
-parser tracks lexical strictness (`JsParser.checkStrictEarlyErrors`, a strict-gated
-post-parse walk: program prologue → function-body prologue → always-strict class
-bodies) and enforces the simple-binding early errors (legacy/non-octal-decimal
-literals `0755`/`08`, `eval`/`arguments` as assign/update target or function-name /
-param / var-binding name) plus the full **BoundNames walk over binding patterns**
-(`collectBoundNames` — duplicate names in arrow params / non-simple parameter lists /
-catch params, and `eval`/`arguments` bound inside any pattern). The runner prepends a
-`"use strict"` directive for `flags: [onlyStrict]` (`Test262Runner.evaluate`), and
-the `flag: onlyStrict` skip is removed. Measured `onlyStrict` un-skip
-(`test/language/**`): **282 PASS / 146 FAIL, 0 regressions** (lang pass 5433 → 5715).
-⚠️ This only worked once a latent tooling bug was fixed — `etc/run.sh` ran the
-runner via `exec:java`, which does **not** recompile, so edits to `Test262Runner`
-(the strict-prepend) silently never took effect; run.sh now `test-compile`s the
-module first. The prepend had measured as a no-op (71/357) for a full cycle because
-of this.
-
 **Next up — negative parse-phase early errors (the dominant `test/language`
-cluster).** A probe of `test/language/statements/**` buckets these under the new
-`MissingParseError` error type (negative `phase: parse` tests the engine parses
-instead of rejecting — see [Results schema](#results-schema)): **141** remain in
-the statements slice (was 183; −42 from the declaration-in-statement-position
-sweep below). Use it to scope: `jq -r 'select(.error_type=="MissingParseError").path'`.
-**Function- AND lexical/class-declaration-in-statement-position, AND per-scope
-lexical-redeclaration are DONE** (see Background sweeps — the latter cleared the
-whole `switch/syntax/redeclaration/**` cluster, 24→0). The residual is the long
-tail of other early errors: escaped-keyword / reserved-word misuse,
-`break`/`continue` to undefined labels, `new.target` / `super` outside a method,
-getter/setter arity, etc. Pick the next sub-cluster by count from the
-`MissingParseError` histogram. The remaining `for-(of|in)/dstr/**` cluster (~56) is
-a fragmented long tail of distinct destructuring-pattern rules — lower leverage per
-unit effort. One known un-enforced parser corner carried over: a `"use strict"`
-prologue inside a non-simple-parameter-list function is itself an early error.
-(Lexical duplicate-BoundNames for `let`/`const` *patterns* — `let {a,a}=…` — is now
-covered by the redeclaration walk's per-VAR_DECL BoundNames collection.)
+cluster).** These bucket under the `MissingParseError` error type (negative
+`phase: parse` tests the engine parses instead of rejecting — see
+[Results schema](#results-schema)); ~140 remain in the statements slice.
+Scope with: `jq -r 'select(.error_type=="MissingParseError").path'`. The
+residual is a long tail of distinct early errors: escaped-keyword /
+reserved-word misuse, `break`/`continue` to undefined labels, `new.target` /
+`super` outside a method, getter/setter arity, etc. Pick the next sub-cluster
+by count from the `MissingParseError` histogram. The `for-(of|in)/dstr/**`
+cluster (~56) is a fragmented tail of destructuring-pattern rules — lower
+leverage per unit effort. Known un-enforced parser corners: a `"use strict"`
+prologue inside a non-simple-parameter-list function is itself an early error;
+labelled function declarations (`label: function f(){}`) are not covered by
+the declaration-in-statement-position checks (the parser has no LABELLED node
+type). **Add each new early error as a per-node helper inside
+`JsParser.earlyErrors` — never another whole-tree walk** (that fusion is
+load-bearing for parse CPU; see
+[JS_ENGINE.md § Performance Benchmarks](../docs/JS_ENGINE.md#performance-benchmarks)).
 
-**Also residual from the `onlyStrict` un-skip:** (2) **~16 runtime `SyntaxError`**
-not thrown; (3) **~14 strict-assignment runtime `TypeError`** (arguments-object
-write guards et al.). `with`-statement early error stays deferred (`with` lexes as
-a call; `statements/with/**` path-skipped — negligible payoff). Details:
-[Deferred TODOs → Strict mode](#deferred-todos).
+**Strict-mode residual** (the machinery itself is done — see
+[JS_ENGINE.md § Strict Mode Policy](../docs/JS_ENGINE.md#strict-mode-policy)):
+~16 runtime `SyntaxError` not thrown; ~14 strict-assignment runtime
+`TypeError` (arguments-object write guards et al.). `with`-statement early
+error stays deferred (`with` lexes as a call; `statements/with/**`
+path-skipped — negligible payoff).
 
-Beyond that, remaining work is concentrated in `test/language/**`, dominated by
-destructuring-assignment pattern parsing (see Background sweeps).
 Symbol stays parked — real-world JS doesn't use `Symbol(...)`, and the
 well-known symbols (`@@iterator` / `@@toPrimitive` / `@@toStringTag`)
 already work as string stand-ins. For current pass/fail/skip counts,
@@ -370,14 +310,14 @@ early-error validation) is advanced-pattern territory.
 
 | Slice | What's blocking it |
 |---|---|
-| `test/language/statements/for-of` | IteratorClose **done** — on destructuring (normal/throwing/non-object `return()`, rest-skips-close) AND on abrupt loop exit (break/return/throw closes the outer iterator); body-skip-on-abrupt-binding; member-expression LHS (`for (x.attr of …)`) is now PutValue (invokes setters) not a var declaration — this also fixed the `body-put-error.js` infinite-loop hang. (`Interpreter.destructurePattern`/`evalForStmt` + `JsIterator.close`.) Remaining: assignment-pattern target-eval-order (`[ obj[sideEffect()] ] of …` must evaluate the target reference before stepping the iterator — the `*thrw-close*` family, a rare spec corner); fn-name inference for `[x = (function(){})] of …`; negative-parse tightenings; `array-elem-put-let.js`-style ReferenceError-on-bad-target (now fires under in-body `"use strict"`; `onlyStrict` variants stay SKIP). |
+| `test/language/statements/for-of` | IteratorClose machinery is in place (`Interpreter.destructurePattern`/`evalForStmt` + `JsIterator.close`). Remaining: assignment-pattern target-eval-order (`[ obj[sideEffect()] ] of …` must evaluate the target reference before stepping the iterator — the `*thrw-close*` family, a rare spec corner); fn-name inference for `[x = (function(){})] of …`; negative-parse tightenings. |
 | `test/language/expressions/object` | Escaped-keyword cover-name dominates; `__proto__`-duplicate edges; computed-key / spread / method-def tail. |
-| `test/language/expressions/assignment` | Iterator-return semantics on default-expr throw. |
+| `test/language/expressions/assignment` | Destructuring-pattern parse tail (see Active priorities); evaluation-order semantics done. |
 | `test/language/{statements,expressions}/function` + `arrow-function` | fn-name inference for `[x = (function(){})]`-style defaults; IteratorClose-on-throw; rest-element edges. |
 | `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS now fires under in-body `"use strict"` (the `onlyStrict`-flagged variants stay SKIP until the runner runs a strict pass); `valueOf` / ToNumeric ordering for `+=` / `*=`; `A5.*_T2/T3` family (non-identifier LHS — Annex-B carve-out). |
-| `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion handles headline cases. Empty `for`-header parts **done** — absent init / test / incr all route through the loop machinery, absent test = always-true (§14.7.4; pinned by `SpecPinTest.forHeader_*`). Residual in `for/`: loop completion-value `undefined`-vs-`null` (`head-init-*-check-empty-inc-empty-completion.js`) and `let` as a plain identifier in a for head (`head-lhs-let.js`, parser). |
+| `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion and empty-`for`-header semantics handle the headline cases. Residual in `for/`: loop completion-value `undefined`-vs-`null` (`head-init-*-check-empty-inc-empty-completion.js`) and `let` as a plain identifier in a for head (`head-lhs-let.js`, parser). |
 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` (Symbol-gated). |
-| `test/built-ins/RegExp/**` | Named-group capture access **done** (`result.groups` + `$<name>` + function-replacer `groups` arg; see Background sweeps). Residual: group-name early-error validation, `Symbol.{match,replace,search,split,matchAll}` protocol (Symbol-gated, conformance-only — everyday `str.replace(re,fn)` doesn't use it), lookbehind / unicode-property-escapes / `/v` flag (feature-gated), one functional-replace-global ordering case. Null-arg Java leaks + one catastrophic-backtracking timeout in `exec`/`test` (principle #2 — see Cleanup residuals). |
+| `test/built-ins/RegExp/**` | Group-name early-error validation, `Symbol.{match,replace,search,split,matchAll}` protocol (Symbol-gated, conformance-only — everyday `str.replace(re,fn)` doesn't use it), lookbehind / unicode-property-escapes / `/v` flag (feature-gated), one functional-replace-global ordering case. Null-arg Java leaks + one catastrophic-backtracking timeout in `exec`/`test` (principle #2 — see Cleanup residuals). |
 | `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` ToInteger corners; parser-blocked; Symbol-gated tail; `replaceAll`/`endsWith` `Range […) out of bounds` Java leaks (principle #2). See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
 | `test/built-ins/Object/**` | Descriptor edges; `seal` (TypedArray-gated); Annex-B `arguments` aliasing. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
 | `test/built-ins/JSON/**` | `JSON.stringify` reviver/replacer 2-arg semantics; `-0`/`__proto__` parser tail. Calibration: run JSONTestSuite — see [JS_ENGINE.md § Future TODO Items](../docs/JS_ENGINE.md#2-future-todo-items). |
@@ -389,152 +329,28 @@ early-error validation) is advanced-pattern territory.
 
 Picked off opportunistically when nearby — not session-sized on their own.
 
-- **Function-declaration-in-statement-position early error — DONE.**
-  `JsParser` now rejects a `FunctionDeclaration` used as the sole body of a
-  Statement clause (its body `STATEMENT` directly wraps an `FN_EXPR`; a braced
-  body is a `BLOCK` and stays legal). Loop bodies (`for` / `for-in` / `for-of` /
-  `while` / `do-while`) are an early error in BOTH modes — no Annex B carve-out —
-  so they live in `validateEarlyErrors` (`checkNoFunctionDeclarationBody`). The
-  `if`/`else` clause is sloppy-legal (Annex B.3.4) but a strict-mode early error,
-  so it rides the strict-gated `checkStrictEarlyErrors` walk. Labelled-function
-  declarations (`label: function f(){}`) are NOT covered — the parser has no
-  LABELLED node type. Slice delta (`test/language/statements/**`): **~13 PASS, 0
-  regressions** (`if` 8, plus one each in `for`/`while`/`do-while`/`for-in`/
-  `for-of`). Pinned by `SpecPinTest.functionDeclAsLoopBody_* /
-  functionDeclAsIfBody_*`. Invariant recorded in
-  [JS_ENGINE.md § Strict Mode Policy](../docs/JS_ENGINE.md#strict-mode-policy).
-
-- **Lexical/class-declaration-in-statement-position early error — DONE.**
-  `JsParser` now also rejects a LexicalDeclaration (`let`/`const`) or a
-  ClassDeclaration used as the sole body of an `if`/`else`/loop clause
-  (`checkNoLexicalOrClassDeclarationBody`, beside the function-decl helper, called
-  from the mode-independent `validateEarlyErrors`). Unlike FunctionDeclaration these
-  have **no Annex B carve-out**, so they are an early error in BOTH modes for every
-  clause including `if`/`else` (§13.6/§14.x). `var` hoists and stays legal; a braced
-  body is a `BLOCK`. The let-vs-var distinction lives on the `VAR_STMT` keyword
-  token, not `VAR_DECL` (`isLexicalVarStmt`). One sloppy-mode subtlety handled: `let`
-  is not reserved, so `if (x) let\n y` is `let`-the-identifier + ASI (the only
-  forbidden `let`-form at ExpressionStatement start is `let [`); a LineTerminator
-  after a `let` keyword (`lineTerminatorFollows`, scanning across WS/comments to the
-  next primary token) means it is NOT a lexical declaration here — `const` is
-  reserved and has no such escape. Slice delta (`test/language/statements/**`):
-  **+42 PASS, 0 regressions** (`MissingParseError` 183 → 141), dominated by the
-  `let/syntax` + `const/syntax` statement-position families. Pinned by
-  `SpecPinTest.lexicalOrClassDeclAsClauseBody_isAlwaysParseError /
-  letAsIdentifierWithLineTerminator_isNotALexicalDeclaration`.
-
-- **Per-scope lexical-redeclaration early error — DONE.** `JsParser` now enforces,
-  per lexical scope (Script, function body, plain Block, switch CaseBlock), that
-  LexicallyDeclaredNames has no duplicates and does not intersect VarDeclaredNames
-  (§14.2.1 / §14.12.1 / §16.1.1). It rides the strict-aware `checkStrictEarlyErrors`
-  walk (`checkScopeRedeclaration` + `checkSwitchCaseBlockRedeclaration` +
-  `collectVarNames` + `declarationName` + `directStatements`) because the **only**
-  Annex B.3.3 relaxation is strict-gated: a duplicate bound *solely* by
-  FunctionDeclarations is sloppy-legal but a strict early error (e.g. `{ function
-  f(){} function f(){} }`). The lexical∩var clash has no carve-out (always an error).
-  FunctionDeclarations are lexical in a Block/CaseBlock but var-scoped at Script /
-  function-body top level (the `topLevel` flag, derived for a BLOCK from whether its
-  parent is a function via `Node.getParent`). A hot-path guard returns immediately
-  when a scope has no lexical declarations (keeps the benchmark flat). Error message
-  aligned to the existing runtime wording (`identifier 'X' has already been
-  declared`, `CoreContext`) so it reads the same whichever layer catches it; the two
-  JUnit tests that asserted the old *runtime* message (`EvalTest.testConstRedeclare`,
-  `EngineTest.testConstRedeclareAcrossEvals`) — correct in spirit, these ARE
-  `phase: parse` early errors — still pass unchanged (REPL cross-eval redeclaration
-  stays legal since each eval parses independently). Also subsumes the
-  previously-deferred `let {a,a}=…` duplicate-pattern rule (per-VAR_DECL BoundNames).
-  Slice delta (`test/language/**`): **switch `redeclaration` cluster 24 → 0,
-  +134 PASS overall, 0 regressions**. Pinned by `SpecPinTest.duplicateLexicalNamesInScope_* /
-  lexicalNameClashingWithVar_* / duplicateFunctionDeclarations_areSloppyLegalStrictError`.
-  ⚠️ Three positive tests still FAIL with the *same* `has already been declared`
-  message but from the **runtime** `CoreContext` check, not the parser — pre-existing
-  env-scoping gaps unrelated to this change (see Deferred TODOs → spec alignment):
-  indirect `(0,eval)(...)` must get a distinct declarative environment, and a switch
-  CaseBlock must get its own block environment at runtime (`scope-lex-close-case.js`).
-
-- **C-style `for` per-iteration `let`/`const` environment — DONE.**
-  `Interpreter.evalForStmt` now models §14.7.4.3 ForBodyEvaluation properly: the
-  test + body run in one iteration scope (so a body closure captures that
-  iteration's distinct binding), then a *fresh* scope is seeded from the body's
-  end-of-iteration values and the increment runs in it. Fixes the infinite-loop
-  hang on an in-body update with no increment clause (`for (let x = 0; x < 10;)
-  { x++; }` — previously the per-iteration scope discarded `x++` and the snapshot
-  reset to 0). The old code wrote the body's values back to the LOOP_INIT slot via
-  `update()`, which corrupted closures created in the initializer (`for (let i =
-  0, f = () => i; …)` must keep returning 0); the rewrite threads values through an
-  explicit `carry` list, never resolving back to the captured LOOP_INIT slots. Also
-  fixed: `loopVarNames` collected initializer identifiers (`for (let i =
-  digits.length - 1; …)` wrongly captured `digits`) — now only binding targets.
-  Slice delta (`test/language/statements/**`): **+7 PASS, 0 regressions** (4
-  `continue/` timeout hangs + 3 `let`/`for` closure-scope tests). Pinned by
-  `SpecPinTest.forLet_*`.
-
-- **String iterator splits surrogate pairs — DONE.** `IterUtils.stringIterator`
-  now walks code-points (`codePointAt` / `Character.charCount`) per spec
-  §22.1.5.1, so `for-of` over a string with astral chars / emoji yields one
-  element per code point. test262 `for-of/string-astral.js` now passes.
-
-- **`Array.prototype.values()` returns raw `List` — DONE.** Now returns a
-  spec Array Iterator object via
-  `IterUtils.toIteratorObject(IterUtils.listIterator(...))`, so
-  `arr.values().next()` works. `listIterator` exposed package-private.
-  test262 `Array/prototype/values/{iteration,returns-iterator,returns-iterator-from-object}.js`
-  now pass; `JsArrayTest.testArrayApi` updated to spec iterator semantics.
-  Note: `keys()` / `entries()` still return raw `List` (same class of bug,
-  lower-value — `arr.keys().next()` is rare); apply the same fix when a
-  workload surfaces it.
-
-- **Object-literal spread of arbitrary expressions — DONE.** `{...fn()}` /
-  `{...obj.method()}` / `{...{x:1}}` now parse: `object_elem()` parses
-  `expr(-1, true)` after `...` (mirrors `array_elem`). `evalLitObject`
-  evaluates the operand and merges own-enumerable props via `spreadInto`
-  (Map / JsArray index keys / String code-unit keys / null+undefined no-op),
-  which also fixed the latent `{...array}` / `{...string}` cases.
-  `EvalTest.testObjectLiteralSpread` covers it.
+- **`Array.prototype.keys()` / `entries()` return raw `List`** — same class
+  of bug `values()` had (now fixed via
+  `IterUtils.toIteratorObject(listIterator(...))`); lower-value since
+  `arr.keys().next()` is rare. Apply the same fix when a workload surfaces it.
 
 - **`.length` / `.name` rollout to remaining prototypes** —
   `JsBuiltinMethod` infra in place; most residual `name.js` fails are
   Symbol-gated.
 
-- **RegExp named-group capture access (`result.groups`) — DONE.**
-  `JsRegex.exec` / `JsStringPrototype.match` / `matchAll` now attach a
-  spec-shaped `groups` object (null prototype; name→value, `undefined` for
-  non-participating groups, `undefined` when the pattern has no named
-  groups); function replacers receive the trailing `groups` arg per spec
-  §22.1.3.18. Names derived once at construction via `JsRegex.groupNames`
-  (scans the source for `(?<name>`, skipping `(?<=`/`(?<!` lookbehind and
-  escaped/char-class contexts). `feature: regexp-named-groups` skip
-  removed. Slice delta (`run-2026-05-30-003211` vs `…-001414`): **+12
-  PASS, 0 regressions**, covered in `JsRegexTest.testNamedGroups*`.
-  Residual `named-groups/**` tail (still failing, separate concerns):
-  group-name **early-error validation** (`(?<__proto__>…)` / `(?<_>…)`
-  should SyntaxError — engine accepts; part of the parser-tightening
-  sweep), the `Symbol.replace`/`match` protocol (Symbol-gated), and one
+- **RegExp named-groups residual** (capture access itself works): group-name
+  **early-error validation** (`(?<__proto__>…)` / `(?<_>…)` should
+  SyntaxError — engine accepts; part of the parser-tightening sweep), and one
   global functional-replace argument-ordering case
-  (`named-groups/functional-replace-global.js` — `«badc»` vs `«bacd»`;
-  worth a focused look, likely pre-dates this change).
+  (`named-groups/functional-replace-global.js` — `«badc»` vs `«bacd»`; worth
+  a focused look).
 
-- **Destructuring BoundNames early-error walk — DONE.** `JsParser` now has a
-  spec-shaped BoundNames walk over binding patterns (`collectBoundNames` +
-  `collectObjectElemBoundNames` + `collectBindingBoundNames`) that mirrors the
-  binding structure — `{a: x = y}` binds only `{x}`, so keys / defaults / renamed
-  targets do **not** false-positive (verified: 0 regressions across
-  `test/language/**`). Wired into `checkFormalParameters` (arrow params and
-  non-simple parameter lists: duplicate BoundNames always SyntaxError; plain
-  duplicate simple params in a sloppy non-arrow fn stay legal) and a new
-  `checkCatchParameter` (duplicate catch BoundNames always SyntaxError;
-  `eval`/`arguments` bound in any pattern under strict). `try/early-catch-duplicates.js`
-  un-skipped → PASS. Slice delta: **+17 PASS, 0 regressions** (13 arrow, 2
-  function, 1 object-method, 1 catch). Pinned by `SpecPinTest.dupParams_* /
-  boundNames_mirrorStructure_noFalsePositive / dupCatchParam_* /
-  evalArguments_boundInsidePattern_strictOnly`. Residual (deferred): lexical
-  duplicate-BoundNames for `let`/`const` *patterns* (`let {a,a}=…` — distinct
-  rule; VAR_DECL doesn't carry the let-vs-var distinction), and object-method
-  simple-param dup in sloppy code (rare).
+- **BoundNames walk residual**: object-method simple-param duplicate in
+  sloppy code (rare).
 
 - **Cleanup residuals** — occasional `"null"` NPE paths, `IllegalName`
-  JDK lambda leak, `Java heap space` OOM in array-slice paths. Built-in
-  probe (2026-05-30) added concrete principle-#2 leaks to chase:
+  JDK lambda leak, `Java heap space` OOM in array-slice paths. Concrete
+  principle-#2 leaks to chase:
   `String.prototype.replaceAll`/`endsWith` throwing Java `Range […) out of
   bounds` instead of behaving/throwing-as-JS; `RegExp` `exec`/`test`
   surfacing `Cannot invoke Object.toString() because args[N] is null` on
@@ -554,70 +370,33 @@ file pointer. For *how the subsystem is shaped*, read the file. For
 
 ### Engine — feature gaps
 
-- **Strict mode — runtime semantics + simple-binding parser early-errors DONE.**
-  `"use strict"` activates the spec runtime flips: `this`→undefined in
-  plain calls, `ReferenceError` on implicit-global assign, and `TypeError`
-  on write-to-frozen / read-only / getter-only / non-extensible and
-  `delete` of non-configurable. Strictness is lexical, cached on
-  `JsFunctionNode.strict`, threaded via `CoreContext.strict`. See
+- **Strict mode — machinery done; residual only.** Runtime flips and the
+  parse-phase early errors are in place; see
   [JS_ENGINE.md § Strict Mode Policy](../docs/JS_ENGINE.md#strict-mode-policy)
-  for the flip table; pinned by `SpecPinTest.strict_*`. The parser now also
-  tracks lexical strictness (`JsParser.checkStrictEarlyErrors`, a strict-gated
-  post-parse walk: program prologue → function-body prologue → always-strict
-  class bodies) and raises parse-phase `SyntaxError` for legacy/non-octal-decimal
-  literals (`0755`/`08`), `eval`/`arguments` as assign/update target or as a
-  function-name / param / var-binding name, and duplicate **simple** params.
-  Pinned by `SpecPinTest.strict_octalLiteral* / *EvalOrArguments* / *duplicateParameters*
-  / *classBodyIsAlwaysStrict* / *parenthesizedDirective*`. The runner prepends a
-  strict directive for `flags: [onlyStrict]` (`Test262Runner.evaluate`), the
-  **BoundNames walk over binding patterns** landed (`collectBoundNames`), and the
-  `flag: onlyStrict` **skip is removed** — measured 282 PASS / 146 FAIL, 0
-  regressions (lang pass 5433 → 5715). **Remaining (the 146 residual, now visible
-  in probes):** (1) ~99 negative parse-phase early errors — function-declaration in
-  statement position (`if (x) function f(){}`), block-scope function-decl rules; (2)
-  ~16 runtime `SyntaxError`; (3) ~14 strict-assignment runtime `TypeError`
-  (arguments-object write guards). `with`-statement early error deferred
-  (path-skipped, lexes as a call). Two known un-enforced parser corners: a
-  `"use strict"` prologue inside a non-simple-parameter-list function is itself an
-  early error; lexical duplicate-BoundNames for `let`/`const` patterns (`let {a,a}=…`).
+  for the flip table (pinned by `SpecPinTest.strict_*`). The runner prepends a
+  strict directive for `flags: [onlyStrict]` (`Test262Runner.evaluate`).
+  Remaining: ~16 runtime `SyntaxError` not thrown; ~14 strict-assignment
+  runtime `TypeError` (arguments-object write guards); `with`-statement early
+  error deferred (path-skipped, lexes as a call); the non-simple-param
+  `"use strict"` prologue corner (see [Active priorities](#active-priorities)).
 - **Promises / async / await / setTimeout.** Skipped (`feature: Promise`,
   `async-functions`, `Symbol.asyncIterator`). karate-js is synchronous.
   Viable path: sync subset first — `Promise` as eager thenable,
   `async function` runs sync, `await` sync-unwraps.
-- **Class syntax (ES6) — Phases 1+2+3 DONE; only the conformance tail remains.**
-  `class` declarations + expressions parse and evaluate: constructor, instance
-  methods, `static` methods, `get`/`set` accessors, computed method names,
-  default-constructor synthesis, always-strict bodies, constructor-without-`new`
-  TypeError, **`extends` + `super(...)` + `super.method()`**, and **public
-  instance + static fields** (`x = 1` / `static n = …`, computed names, ASI,
-  enumerable own props, derived-class fields init after `super()` —
-  `JsFunctionNode.instanceFields` + `Interpreter.runInstanceFieldInitializers`). Desugared at eval
-  time onto the existing constructor-function + prototype machinery
-  (`Interpreter.evalClassExpr` → constructor `JsFunctionNode` whose `.prototype`
-  holds the methods; statics on the constructor; methods/accessors non-
-  enumerable). **extends** links both chains: `Child.__proto__ = Parent` (static
-  inheritance + the `super(...)` target) and `Child.prototype.__proto__ =
-  Parent.prototype` (instance inheritance). **super** dispatch uses a
-  `JsFunctionNode.homeObject` ([[HomeObject]]) + a `CoreContext.activeFunction`
-  seam set per non-arrow call (arrows inherit their defining method's): a
-  `super.m()` reads off `homeObject.getPrototype()` with `this`=current
-  receiver; `super(...)` runs the parent constructor against the instance under
-  construction (`Interpreter.runSuperConstructor` — no `invokeCallable`
-  refactor needed, since the derived instance is created normally and super()
-  only initializes it). `extends Error`/built-ins works via a pragmatic
-  copy-own-props shim. Public fields ride `defineOwn`/`putMember` (enumerable,
-  unlike the non-enumerable methods); computed field names are resolved once at
-  class-definition time, the value per instance. New tokens
-  `CLASS`/`EXTENDS`/`SUPER` + NodeTypes
-  `CLASS_EXPR`/`CLASS_METHOD`/`CLASS_FIELD`/`SUPER_EXPR` (CLASS_METHOD also
-  carries fields — eval distinguishes by the trailing FN_EXPR). Covered by
-  `JsClassTest` (44 cases). **Remaining conformance tail (deferred):** private
-  `#x` fields/methods, generator/async methods, decorators, static-init blocks,
-  class early-errors, object-literal-method `super` (needs object
-  [[HomeObject]]), two super edge cases (`this`-TDZ before `super()`, `super()`
-  return-override), numeric/string-literal method-name canonicalization
-  (`get 0x10(){}` → key `"16"`; shared with object literals' NUMBER-key path),
-  escaped-keyword method names. Most have existing `feature:`-tag skips
+- **Class syntax (ES6) — core works; only the conformance tail remains.**
+  Declarations + expressions evaluate: constructor, instance/static methods,
+  accessors, computed names, `extends` + `super(...)` + `super.method()`,
+  public instance/static fields. Desugared at eval time onto the
+  constructor-function + prototype machinery (`Interpreter.evalClassExpr`;
+  super dispatch via `JsFunctionNode.homeObject` + `CoreContext.activeFunction`;
+  `extends Error`/built-ins via a copy-own-props shim). Covered by `JsClassTest`.
+  **Remaining tail (deferred):** private `#x` fields/methods, generator/async
+  methods, decorators, static-init blocks, class early-errors,
+  object-literal-method `super` (needs object [[HomeObject]]), two super edge
+  cases (`this`-TDZ before `super()`, `super()` return-override),
+  numeric/string-literal method-name canonicalization (`get 0x10(){}` → key
+  `"16"`; shared with object literals' NUMBER-key path), escaped-keyword
+  method names. Most have existing `feature:`-tag skips
   (`class-fields-private` / `class-methods-private` / `generators` /
   `async-functions` / `decorators`); see the [Skip list](#skip-list) note for
   the path-skip un-skip plan.
@@ -628,25 +407,10 @@ file pointer. For *how the subsystem is shaped*, read the file. For
 
 Benchmark-gated or coordinated with other work.
 
-- **Fuse the early-error parse walks — DONE (2026-05-30).** `JsParser.parse` ran
-  three full post-parse traversals (`validateEarlyErrors`,
-  `validateCoverInitializedNames`, `checkStrictEarlyErrors`); a JFR profile showed
-  the three walks at **~13% of CPU on both `EngineBenchmark` and
-  `RealisticBenchmark`** — as costly as the entire interpreter. They are now a
-  single descent: `earlyErrors(node, strict, inPattern)` threads the two pieces of
-  top-down state (`strict`, `inPattern`) and calls per-node helpers
-  (`earlyErrorNodeChecks` + the inlined CoverInitializedName/rest-element checks +
-  `strictNodeChecks`, which returns the propagated `childStrict`). Per-node check
-  order mirrors the former pass order so multi-error messages are unchanged.
-  Behavior-preserving: `test/language/**` FAIL set **byte-for-byte identical**
-  before/after (5849 PASS / 2397 FAIL, 0 regressions), all 1167 unit tests + 2235
-  karate-core tests green. Perf: EngineBenchmark array 1.41→1.33 ms / object
-  0.62→0.57 ms (+6.7% iters); RealisticBenchmark 68.6→62.3 µs/feature. **This is now
-  the single seam for new parse-phase early errors** — the dominant `MissingParseError`
-  backlog (escaped-keyword, undefined labels, `new.target`/`super` placement,
-  getter/setter arity, regex group-name, the non-simple-param `"use strict"` corner)
-  should each be added as another per-node helper in `earlyErrors`, never another
-  whole-tree walk. Reference table updated in
+- **Parse-phase early errors live in ONE fused walk — `JsParser.earlyErrors`.**
+  The three former post-parse traversals were fused after a JFR profile put
+  them at ~13% of parse CPU. **Add each new early error as a per-node helper
+  inside `earlyErrors`, never another whole-tree walk.** Reference numbers in
   [JS_ENGINE.md § Performance Benchmarks](../docs/JS_ENGINE.md#performance-benchmarks).
 - **`Prototype.toMap()` rebuilds per call** — memoize on slot-map mod
   stamp or expose a non-materializing iterator. Defer until benchmark
@@ -671,16 +435,15 @@ Benchmark-gated or coordinated with other work.
 
 Observably non-spec; pick up when the owning slice surfaces them.
 
-- **Runtime block/eval environments for lexical bindings.** Surfaced by the
-  per-scope redeclaration sweep: three positive tests FAIL because the *runtime*
-  `CoreContext` redeclaration check (`identifier 'X' has already been declared`,
-  not the parser) fires where the spec wants a fresh declarative environment.
-  (1) A `switch` CaseBlock needs its own block environment so `let x` inside a
-  `case` does not collide with an outer `let x` (`statements/switch/scope-lex-close-case.js`).
-  (2) Indirect `(0,eval)('const x…')` must evaluate in a NewDeclarativeEnvironment
-  off the global env, so the eval'd lexical binding does not collide with an outer
-  global `const x` (`eval-code/indirect/lex-env-distinct-{const,let}.js`). Both are
-  runtime scoping gaps, independent of the parse-phase early-error work.
+- **Runtime block/eval environments for lexical bindings.** Two positive
+  tests FAIL because the *runtime* `CoreContext` redeclaration check fires
+  where the spec wants a fresh declarative environment: (1) a `switch`
+  CaseBlock needs its own block environment so `let x` inside a `case` does
+  not collide with an outer `let x`
+  (`statements/switch/scope-lex-close-case.js`); (2) indirect
+  `(0,eval)('const x…')` must evaluate in a NewDeclarativeEnvironment off the
+  global env (`eval-code/indirect/lex-env-distinct-{const,let}.js`). Runtime
+  scoping gaps, independent of the parse-phase early-error work.
 - **`JsArray.handleLengthAssign` strict TypeError on non-writable length.**
   Strict-mode plumbing has landed (`CoreContext.strict`), but the `length`
   write still routes through `handleLengthAssign(value, ctx)` with no strict
@@ -713,13 +476,6 @@ Observably non-spec; pick up when the owning slice surfaces them.
 
 ### Harness quality
 
-- **FIXED — `etc/run.sh` now compiles the runner.** `exec:java` does not
-  trigger compilation, so for a full cycle the runner ran stale `target/classes`
-  and edits to `Test262Runner` (the `onlyStrict` strict-prepend) silently never
-  took effect — the prepend measured as a no-op (71/357) until a `test-compile`
-  step was added before `exec:java`. Lesson for harness edits: changes under
-  `karate-js-test262/src` need the module recompiled; only `karate-js` engine
-  changes are picked up by the `install` step alone.
 - Replace hand-rolled YAML parser with SnakeYAML (`Expectations.java` /
   `Test262Metadata.java` — breaks on `#` in quoted reasons, block scalars).
 - `--resume` echoes records for deleted / now-SKIP'd tests — gate or
@@ -799,6 +555,11 @@ read [`etc/run.sh`](etc/run.sh) — it documents the install step and the
 `-am` gotcha (`exec:java` is a direct goal; with `-am` the reactor
 includes `karate-parent`, which has no `mainClass`, and aborts before
 this module). Install karate-js separately, then run without `-am`.
+
+⚠️ `exec:java` does **not** recompile. Changes under `karate-js-test262/src`
+need a `test-compile` of this module first (run.sh does it); only `karate-js`
+engine changes are picked up by the `install` step alone. An edit that
+silently doesn't take effect measures as a confusing no-op.
 
 ### Flags
 
