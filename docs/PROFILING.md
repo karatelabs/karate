@@ -978,8 +978,10 @@ etc/ec2/ssh.sh injector 'rm -rf ~/karate/karate-profiling/target/profiling/suite
 ```
 
 **Last exercised in full 2026-08-08, all passing**; `collect.sh`'s histogram include was
-exercised for real by E1R. Skip them when `git log --oneline <last-run-sha>.. -- etc/ec2` is
-empty — make the check, do not assume it.
+exercised for real by E1R, and the js lane, `collect.sh` and `teardown.sh` were exercised
+again 2026-08-12 at `93fe950b0` (the slot-frames decision matrix, including a mid-session
+recovery). Skip them when `git log --oneline 93fe950b0.. -- etc/ec2` is empty — make the
+check, do not assume it, and move the sha forward when a session exercises the battery.
 
 ### Open experiments, in priority order
 
@@ -1015,19 +1017,50 @@ rows pay, and whether either cost can be removed without giving back the wins.
 
 **The session plan:**
 
-1. JFR-on diagnostic matrix, same protocol, three rows only — `js-arithmetic`, `js-large-1k`,
-   `js-functions` as the winning contrast. Allocation and CPU attribution; timing acceptance
-   stays JFR-off.
-2. Separate parse/analyze cost from execute cost for the 1 KB guard (prepared-AST diagnostic
-   or controlled reuse).
+1. JFR-on diagnostic matrix — hand-run, see the protocol notes below — three rows only:
+   `js-arithmetic`, `js-large-1k`, `js-functions` as the winning contrast. Allocation and CPU
+   attribution; timing acceptance stays JFR-off.
+2. Separate parse/analyze cost from execute cost for the 1 KB guard. No instrument exists for
+   this yet — a prepared-AST diagnostic or controlled-reuse workload is a small piece of
+   harness work, not a choice between available tools.
 3. Optimize only after attribution. Candidates, in rough order of expected value: a cheaper
    analysis (single pass, fewer collections); gating eagerness on something better than
    `hasLoop`; making non-frame name routing pay no extra branch on top-level shapes; `Node`
    footprint.
-4. Local on/off A/B first for any change — and raise `--iterations` (~2× for `js-large-1k`,
-   ~1.5× for `js-functions`): the defaults measured under compare's 20 s startup-shaped
-   check on the laptop. EC2 four-pair decision matrix only for the final call —
-   `functions`/`mixed` primary, `arithmetic`/`large-1k` as regression guards.
+4. Local on/off A/B first for any change — and raise `--iterations` (`js-large-1k` 200k →
+   ~400k, `js-functions` 300k → ~450k; the other defaults are 400k arithmetic / 800k strings
+   / 300k objects / 120k mixed, all from `etc/run.sh --list`): the defaults measured under
+   compare's 20 s startup-shaped check on the laptop. EC2 four-pair decision matrix only for
+   the final call — `functions`/`mixed` primary, `arithmetic`/`large-1k` as regression
+   guards.
+
+**Protocol notes, so a cold session need not reverse-engineer them:**
+
+- **Arms.** The structural row needs cross-build arms: base `93fe950b0^` (pre-port main),
+  candidate `HEAD` — the port is a single commit, so those two refs are the comparison. The
+  flag-gated row wants the same-jar pair instead: the candidate jar on both arms, flag off on
+  one. The settled matrices' own arm shas live in their `matrix-manifest.txt` under
+  `$KP_RESULTS` (private — ask the operator); nothing in J1 needs them.
+- **A JFR-on matrix is hand-run.** `js-matrix.sh` is EC2-bound and hardcodes `--no-jfr`, on
+  purpose — recording cost tracks allocation rate, so it stays out of *timing* cells. For
+  attribution, omit `--no-jfr`, keep the tag grammar, alternate the lead arm; two pairs is
+  enough when reading the *Allocation by site* / *Hot methods* panels rather than timing
+  deltas (single-threaded js rows run on a platform thread, so both panels are trustworthy):
+
+  ```bash
+  cd karate-profiling
+  jar_a=$(etc/js-arm.sh 93fe950b0^)
+  jar_b=$(etc/js-arm.sh HEAD)
+  etc/run.sh js-arithmetic --js-jar "$jar_a" --run-tag j1diag:p1:a
+  etc/run.sh js-arithmetic --js-jar "$jar_b" --run-tag j1diag:p1:b
+  etc/run.sh js-arithmetic --js-jar "$jar_b" --run-tag j1diag:p2:b
+  etc/run.sh js-arithmetic --js-jar "$jar_a" --run-tag j1diag:p2:a
+  ```
+
+- **The local on/off A/B** (step 4) is the same shape with one jar: `--js-jar "$jar_b"` on
+  both arms, `--no-jfr`, and `-Dkarate.js.slotFrames=false` appended to the A cells — a bare
+  `-D` argument passes through to the child JVM and lands in the digest as part of the arm's
+  identity, so `compare` will not mistake the pair for a null control.
 
 **Validation debt, from the 2026-08-12 external review:** `SlotFrameTest` does not pin —
 concurrent calls around the deferred second-call transition (the shape of the fixed race);
