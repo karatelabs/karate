@@ -144,9 +144,11 @@ if [[ $failures -gt 0 ]]; then
 fi
 
 log "parking this matrix's runs under $label/"
+# The label directory itself matches a js-* glob when the label starts with js-, so it is
+# excluded by name — without that, mv tries to park the label inside itself.
 kp_ssh "$injector_ip" "cd ~/karate/karate-profiling/target/profiling
     mkdir -p '$label'
-    find . -maxdepth 1 -name 'js-*' -newer '$marker' -exec mv {} '$label'/ \;
+    find . -maxdepth 1 -name 'js-*' ! -name '$label' -newer '$marker' -exec mv {} '$label'/ \;
     rm -f '$marker'
     echo \"  \$(ls -1d '$label'/js-* 2>/dev/null | wc -l) runs in $label/\""
 
