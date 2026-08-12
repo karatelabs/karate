@@ -33,30 +33,39 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.cors.CorsConfig;
 import io.netty.handler.codec.http.cors.CorsConfigBuilder;
 import io.netty.handler.codec.http.cors.CorsHandler;
+import io.karatelabs.common.KarateLifecycle;
+import io.karatelabs.common.Stoppable;
 import io.karatelabs.common.ThreadUtils;
 import io.netty.handler.ssl.SslContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
 import java.util.function.Function;
 
-public class HttpServer {
+public class HttpServer implements Stoppable {
 
     static final Logger logger = LoggerFactory.getLogger(HttpServer.class);
-    private static final Set<HttpServer> ACTIVE_SERVERS = ConcurrentHashMap.newKeySet();
+
+    /** Servers that started and have not stopped — the registry is the single source of truth,
+     *  see {@link KarateLifecycle} for the ecosystem-wide version of this. */
+    private static List<HttpServer> active() {
+        return KarateLifecycle.running().stream()
+                .filter(HttpServer.class::isInstance)
+                .map(HttpServer.class::cast)
+                .toList();
+    }
 
     public static void shutdownAll() {
-        if (ACTIVE_SERVERS.isEmpty()) {
+        List<HttpServer> servers = active();
+        if (servers.isEmpty()) {
             return;
         }
-        logger.info("shutting down {} active server(s)", ACTIVE_SERVERS.size());
-        for (HttpServer server : ACTIVE_SERVERS) {
+        logger.info("shutting down {} active server(s)", servers.size());
+        for (HttpServer server : servers) {
             server.stopAsync();
         }
-        ACTIVE_SERVERS.clear();
     }
 
     private final EventLoopGroup bossGroup;
@@ -127,6 +136,24 @@ public class HttpServer {
         }
     }
 
+    @Override
+    public String lifecycleName() {
+        return "http-server:" + port;
+    }
+
+    @Override
+    public String lifecycleKind() {
+        return "http-server";
+    }
+
+    /** Graceful, blocking, idempotent — {@link #stopAndWait()} by another name, for
+     *  {@link KarateLifecycle}. Servers that wrap one of these (mock server, OAuth2 callback
+     *  server) inherit registration from here and must not register themselves as well. */
+    @Override
+    public void stop() {
+        stopAndWait();
+    }
+
     public void stopAndWait() {
         stopAsync();
         try {
@@ -140,7 +167,7 @@ public class HttpServer {
     }
 
     public void stopAsync() {
-        ACTIVE_SERVERS.remove(this);
+        KarateLifecycle.unregister(this);
         logger.debug("stop: shutting down");
         bossGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
@@ -184,7 +211,7 @@ public class HttpServer {
             channel = bootstrap.bind(bindAddress).sync().channel();
             InetSocketAddress isa = (InetSocketAddress) channel.localAddress();
             port = isa.getPort();
-            ACTIVE_SERVERS.add(this);
+            KarateLifecycle.register(this);
             String protocol = sslContext != null ? "https" : "http";
             logger.debug("{} server started on {}:{}", protocol, isa.getHostString(), port);
         } catch (Exception e) {

@@ -34,6 +34,8 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.websocketx.*;
 import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketClientCompressionHandler;
+import io.karatelabs.common.KarateLifecycle;
+import io.karatelabs.common.Stoppable;
 import io.karatelabs.common.ThreadUtils;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
@@ -47,32 +49,46 @@ import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
 /**
  * Protocol-agnostic WebSocket client built on Netty.
  */
-public class WsClient {
+public class WsClient implements Stoppable {
 
     private static final Logger logger = LoggerFactory.getLogger(WsClient.class);
 
-    private static final Set<WsClient> ACTIVE_CLIENTS = ConcurrentHashMap.newKeySet();
     private static final ExecutorService CALLBACK_EXECUTOR =
             Executors.newCachedThreadPool(ThreadUtils.daemonFactory("ws-callback-"));
 
-    public static void closeAll() {
-        if (ACTIVE_CLIENTS.isEmpty()) {
-            return;
-        }
-        logger.info("closing {} active websocket client(s)", ACTIVE_CLIENTS.size());
-        for (WsClient client : ACTIVE_CLIENTS) {
-            client.closeNow();
-        }
-        ACTIVE_CLIENTS.clear();
+    /** Connected clients that have not cleaned up — the registry is the single source of truth,
+     *  see {@link KarateLifecycle} for the ecosystem-wide version of this. */
+    private static List<WsClient> active() {
+        return KarateLifecycle.running().stream()
+                .filter(WsClient.class::isInstance)
+                .map(WsClient.class::cast)
+                .toList();
     }
 
+    public static void closeAll() {
+        List<WsClient> clients = active();
+        if (clients.isEmpty()) {
+            return;
+        }
+        logger.info("closing {} active websocket client(s)", clients.size());
+        for (WsClient client : clients) {
+            client.closeNow();
+        }
+    }
+
+    /**
+     * Shut down the callback pool shared by every client that did not supply its own.
+     * Deliberately <b>not</b> a {@link KarateLifecycle} registrant: the pool is process-wide and
+     * outlives any one client, so draining it from a generic shutdown would silently drop the
+     * callbacks of clients connected afterwards. Its threads are daemons, so leaving it running
+     * never holds up JVM exit — call this only when no further websocket use is expected.
+     */
     public static void shutdownCallbackExecutor() {
         CALLBACK_EXECUTOR.shutdown();
     }
@@ -202,7 +218,7 @@ public class WsClient {
             }
 
             open = true;
-            ACTIVE_CLIENTS.add(this);
+            KarateLifecycle.register(this);
             logger.debug("websocket connected: {}", uri);
 
             // Start ping task if configured
@@ -306,6 +322,24 @@ public class WsClient {
 
     // Lifecycle
 
+    @Override
+    public String lifecycleName() {
+        return "ws-client:" + options.getUri();
+    }
+
+    @Override
+    public String lifecycleKind() {
+        return "ws-client";
+    }
+
+    /** The graceful stop is {@link #close()} — a close frame to the peer, then the event loop
+     *  wound down. Idempotent: a client already closed (or closed by the peer) does nothing. */
+    @Override
+    public void stop() {
+        close();
+    }
+
+    @Override
     public void close() {
         if (channel != null && channel.isOpen()) {
             channel.writeAndFlush(new CloseWebSocketFrame())
@@ -332,7 +366,7 @@ public class WsClient {
     }
 
     private void cleanup() {
-        ACTIVE_CLIENTS.remove(this);
+        KarateLifecycle.unregister(this);
         open = false;
         if (pingTask != null) {
             pingTask.cancel(false);
