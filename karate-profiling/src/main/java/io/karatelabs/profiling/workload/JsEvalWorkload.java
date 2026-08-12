@@ -274,7 +274,9 @@ public abstract class JsEvalWorkload implements io.karatelabs.profiling.Workload
 
         @Override
         protected long defaultIterations() {
-            return 250_000;
+            // 250k landed at 19.8 s on the bench — a hair under compare's 20 s
+            // startup-shaped check.
+            return 300_000;
         }
 
     }
