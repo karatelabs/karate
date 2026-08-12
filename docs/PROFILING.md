@@ -984,8 +984,58 @@ empty — make the check, do not assume it.
 ### Open experiments, in priority order
 
 **The Gatling arc is PAUSED as of 2026-08-07** (E2–E4 below, designs kept so nothing is
-re-derived), and **the suite-soak arc is closed** — E1 and E1R answered it. Nothing is queued;
-starting anything here is a deliberate decision.
+re-derived), and **the suite-soak arc is closed** — E1 and E1R answered it. **J1 is the queued
+next session**; everything else here is a deliberate decision to start.
+
+#### J1 — slot frames: attribute and recover the non-target regressions
+
+Slot frames landed on decision-grade evidence (the settled entry below; port commit
+`93fe950b0`, param-binding race fix `144e04293`). What remains is *why* the two non-target
+rows pay, and whether either cost can be removed without giving back the wins.
+
+**Already measured — do not re-run the timing matrices first:**
+
+- `js-arithmetic` **+3.92% ± 0.70** on the EC2 port matrix, but **−0.90% ± 1.80 flag-on vs
+  flag-off locally on the same jar** (4 pairs, 2026-08-12). The regression is therefore
+  **structural, not flag-gated** — the kill switch cannot recover it. The candidate
+  mechanisms, all present with the flag off: the `node.slot` branch added to every `REF_EXPR`
+  read/write/compound/inc-dec fast path, the name-keyed tails outlined into extra methods at
+  JIT inlining thresholds, the volatile `node.meta` read in `rearmScopedSlots` on every block
+  and for-statement entry (a load-acquire on the aarch64 machines everything here runs on),
+  and `Node` growing a volatile `meta` reference — paid in parse allocation by a
+  fresh-parse-per-iteration workload. An external (Codex) review independently produced the
+  same ranked list.
+- `js-large-1k` **+4.94% ± 1.21 EC2 / +5.55% ± 1.50 local on/off** — **flag-gated**: the
+  generated functions all carry small `for` loops, so `hasLoop` defeats the DEFERRED
+  heuristic and eager Walker+annotate analysis runs at function creation on every fresh
+  eval — once-called functions with a ~10-iteration payback window, plus each `filter`
+  callback analyzed at its second-of-ten calls. Removing eagerness is not free: `js-mixed`'s
+  −12% win depends on analysis paying back *inside one call* of a 100-iteration loop, and
+  loop size is not statically visible.
+
+**The session plan:**
+
+1. JFR-on diagnostic matrix, same protocol, three rows only — `js-arithmetic`, `js-large-1k`,
+   `js-functions` as the winning contrast. Allocation and CPU attribution; timing acceptance
+   stays JFR-off.
+2. Separate parse/analyze cost from execute cost for the 1 KB guard (prepared-AST diagnostic
+   or controlled reuse).
+3. Optimize only after attribution. Candidates, in rough order of expected value: a cheaper
+   analysis (single pass, fewer collections); gating eagerness on something better than
+   `hasLoop`; making non-frame name routing pay no extra branch on top-level shapes; `Node`
+   footprint.
+4. Local on/off A/B first for any change — and raise `--iterations` (~2× for `js-large-1k`,
+   ~1.5× for `js-functions`): the defaults measured under compare's 20 s startup-shaped
+   check on the laptop. EC2 four-pair decision matrix only for the final call —
+   `functions`/`mixed` primary, `arithmetic`/`large-1k` as regression guards.
+
+**Validation debt, from the 2026-08-12 external review:** `SlotFrameTest` does not pin —
+concurrent calls around the deferred second-call transition (the shape of the fixed race);
+TDZ-before-RHS evaluation order for compound assignment and inc/dec; C-style `for (let …)`
+with labeled continue and closures; default params referencing later params; strict-mode
+writes, implicit globals and `delete` against slotted names; `for-in`/`for-of` with
+destructuring targets; async functions touching slotted locals across `await`. Mine this
+list when next touching the analyzer or the fast paths.
 
 #### The suite soak — the question, and how to re-run it
 
@@ -1207,6 +1257,17 @@ without a reopening condition is spend without information.
   gap that made it undecidable is closed (`build:` in run-meta since `6e94645e3`, echoed into
   the digest) — but runs predating the stamp still have no build line, so comparisons
   reaching back past it stay undecidable and must say so.
+- **The slot-frames decision (2026-08-12, EC2 + local).** Port onto current main:
+  `js-functions` **−11.71% ± 2.03**, `js-mixed` **−11.89% ± 3.44**, five-row geomean
+  **−4.97%** (four balanced pairs, one thread, JFR off, oracle-checked). Corroborated by the
+  earlier main-vs-slot matrix (`functions` −14.24 ± 0.95, geomean −5.53%); causally pinned by
+  a flag-off control (candidate jar with `-Dkarate.js.slotFrames=false` vs base ≈ 0 on the
+  targeted rows); regressions split by a same-jar local on/off matrix — `arithmetic`
+  structural (−0.90 ± 1.80 on/off), `large-1k` flag-gated (+5.55 ± 1.50) — see J1. Digests in
+  `$KP_RESULTS/{ab-port,ab-main,ab-flagoff,verify-js}/`. 1,482 tests green flag on and off.
+  *Reopens if:* the analyzer or the interpreter fast paths change materially — then one
+  four-pair EC2 matrix, `functions`/`mixed` primary, `arithmetic`/`large-1k` guards; J1 owns
+  the regressions until then.
 - **Harness fail-closed items — done 2026-08-07.** `collect.sh` compares digest *sets* (a
   digest present remotely and absent locally is fatal; a run with no digest is fatal only
   when nothing is running — `selftest.sh` covers the six cases). `calibrate.sh` archives its
