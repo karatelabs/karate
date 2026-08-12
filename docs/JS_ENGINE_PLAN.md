@@ -1,6 +1,6 @@
-# JS_ENGINE_PLAN — async / await / Promise (revision 4)
+# JS_ENGINE_PLAN — async / await / Promise (revision 5)
 
-**Status: design under review (round 4) — not yet implemented.** This file is
+**Status: design under review (round 5) — not yet implemented.** This file is
 transient: once the implementation lands, the durable invariants move into
 [JS_ENGINE.md](./JS_ENGINE.md), the roadmap entries in
 [TEST262.md](../karate-js-test262/TEST262.md) get struck, and this file is
@@ -50,8 +50,11 @@ release on vthread-start failure, no unmatched `unlock()` on interrupted
 outcome-wait, repeated outcome publication as failed CAS), and
 activation-initiated cancellation being delegated to the pump owner rather
 than self-joining. It also ratified engine poisoning for the
-non-interruptible-host-code residual, with exact semantics. Rev 4 (this
-text) folds those in.
+non-interruptible-host-code residual, with exact semantics. Rev 4 folded
+those in. Round 4 confirmed all four closed plus the poisoning semantics,
+leaving a single liveness detail: an activation-initiated cancellation
+request must atomically wake a pump owner blocked on an empty queue. Rev 5
+(this text) routes the request through the scope facade as a control job.
 
 ---
 
@@ -271,10 +274,15 @@ activations and callbacks interleave with top-level code.
   from host code exits at that boundary.
 - **Activation-initiated cancellation.** An activation that hits a fatal
   internal error does not tear the scope down itself (it would join its
-  own thread): it marks the scope cancellation-requested and exits; the
-  teardown is performed by the pump owner (the outer eval thread), which
-  excludes already-exited activations from the join and counts the
-  initiator terminated when its wrapper exits.
+  own thread): it publishes the cancellation request **through the scope
+  facade as a control job** — the mark-requested transition and the
+  enqueue are one atomic operation, so a pump owner blocked in
+  `jobs.take()` is woken by the control job, and one that has not yet
+  begun waiting observes the request on its next facade interaction
+  (race-safe in both orders). The activation then exits; teardown is
+  performed by the pump owner (the outer eval thread), which excludes
+  already-exited activations from the join and counts the initiator
+  terminated when its wrapper exits.
 - **Engine poisoning (residual case).** If the teardown deadline expires
   with an activation still stuck in non-interruptible host code, the
   engine is **poisoned**: a permanent, atomic transition made *before* the
@@ -450,13 +458,11 @@ Bound in `ContextRoot` to the global object (small P1 item riding along).
 5. Fair-lock scheduling order among runnable activations is approximate,
    not spec's exact job ordering.
 
-## Questions for review round 4
+## Questions for review round 5
 
-1. Confirm the four round-3 holes are closed as specified (post-host-return
-   fence + scope-closure in the interpreter poll; lifecycle reentrancy
-   split by origin; startup unwind ownership rules a/b/c; pump-owner
-   delegation for activation-initiated cancellation), and that the engine
-   poisoning semantics match what round 3 required.
+1. Confirm the round-4 liveness finding is closed: the cancellation
+   request is atomic with a control-job enqueue through the scope facade,
+   race-safe for request-before-wait and wait-before-request.
 2. Anything else standing between this text and "implementable as
    specified".
 
