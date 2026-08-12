@@ -39,10 +39,9 @@ class JsFunctionNode extends JsFunction {
     static final Logger logger = LoggerFactory.getLogger(JsFunctionNode.class);
 
     final boolean arrow;
-    // True for an `async` function / method / arrow, taken from the defining node's
-    // parse-time marker. Carried but not yet acted on: an async function still runs
-    // synchronously and returns its body's value rather than a promise. The runtime
-    // phase is what gives this flag behavior.
+    // True for an `async` function / method / arrow, taken from the defining
+    // node's parse-time marker. An async invocation never runs its body on the
+    // calling thread: it spawns an activation and returns a promise.
     final boolean async;
     final Node node;
     final Node body; // STATEMENT or BLOCK (that may return expr)
@@ -180,6 +179,11 @@ class JsFunctionNode extends JsFunction {
      * next host call. A clean (non-error) completion returns the value unchanged.
      */
     private Object hostResult(CoreContext functionContext, CoreContext parentContext, Object result) {
+        if (async) {
+            // the result is the promise; the body runs on its own thread and its
+            // completion state belongs to that promise, never to this context
+            return result;
+        }
         if (functionContext.isError()) {
             EngineException ex = Interpreter.errorAsException(functionContext, node);
             if (parentContext != null) {
@@ -192,6 +196,17 @@ class JsFunctionNode extends JsFunction {
 
     // Called by Interpreter when context is pre-prepared with closure info
     Object bindArgsAndExecute(CoreContext functionContext, CoreContext parentContext, Object[] args) {
+        if (async) {
+            // Argument binding is part of the activation's startup, so it runs on
+            // the activation thread under the startup-outcome protocol — not here.
+            return AsyncSupport.callAsync(this, functionContext, args);
+        }
+        return executeBody(functionContext, parentContext, args);
+    }
+
+    /** The synchronous body run. For an async function this is what the
+     *  activation thread executes; the caller has already been handed a promise. */
+    Object executeBody(CoreContext functionContext, CoreContext parentContext, Object[] args) {
         for (int i = 0; i < argCount; i++) {
             Node argNode = argNodes.get(i);
             Node first = argNode.getFirst();
@@ -245,7 +260,9 @@ class JsFunctionNode extends JsFunction {
 
     @Override
     public boolean isConstructable() {
-        return !arrow;
+        // async functions are not constructors (spec §27.7.4) — `new f()` on one
+        // is a TypeError from the construct paths, same as for an arrow
+        return !arrow && !async;
     }
 
 }

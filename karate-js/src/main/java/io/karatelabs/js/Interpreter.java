@@ -126,9 +126,20 @@ class Interpreter {
      * before the throw so callers higher in the stack still observe interrupt
      * status (Java convention).
      */
-    private static void checkInterrupted() {
+    static void checkInterrupted() {
         if (Thread.currentThread().isInterrupted()) {
             throw new EngineInterruptedException();
+        }
+        // An async activation must also stop when its eval scope has closed:
+        // host code can swallow or clear the interrupt, so thread state alone is
+        // not enough to fence a stale activation out of a later eval. Gated on
+        // the JVM-wide monotonic flag so purely synchronous scripts never even
+        // read the thread-local.
+        if (AsyncActivation.anyAsync) {
+            AsyncActivation activation = AsyncActivation.current();
+            if (activation != null && !activation.scope.isOpen()) {
+                throw new EngineInterruptedException();
+            }
         }
     }
 
@@ -642,6 +653,11 @@ class Interpreter {
                 }
                 callContext.event(EventType.CONTEXT_ENTER, node);
                 result = callable.call(callContext, args);
+                // Post-host-return fence: host code may have swallowed the
+                // interrupt, so re-test scope closure before anything else runs.
+                if (AsyncActivation.anyAsync) {
+                    AsyncSupport.hostReturnFence();
+                }
                 // Propagate exit state from built-in calls
                 context.updateFrom(callContext);
             }
@@ -717,6 +733,9 @@ class Interpreter {
             callContext.thisObject = callable;
             callContext.event(EventType.CONTEXT_ENTER, node);
             result = callable.call(callContext, args);
+            if (AsyncActivation.anyAsync) {
+                AsyncSupport.hostReturnFence();
+            }
             context.updateFrom(callContext);
         }
         if (newInstance != null && !(result instanceof ObjectLike)) {
@@ -2333,6 +2352,24 @@ class Interpreter {
      * ({@link #evalTryStmt}) and the host boundary ({@link #evalStatement}) to
      * read the structured JS-error payload without re-parsing messages.
      */
+    /**
+     * {@code await expr}. A rejection comes back through the ordinary JS throw
+     * path (the same {@code stopAndThrow} an explicit {@code throw} uses), so a
+     * surrounding {@code try/catch} sees it exactly as it would a sync throw.
+     */
+    private static Object evalAwaitExpr(Node node, CoreContext context) {
+        Object value = eval(node.get(1), context);
+        if (context.isStopped()) {
+            return value;
+        }
+        try {
+            return AsyncSupport.await(value, context);
+        } catch (AsyncSupport.AwaitRejection e) {
+            context.stopAndThrow(e.reason);
+            return Terms.UNDEFINED;
+        }
+    }
+
     private static JsErrorException findJsErrorException(Throwable t) {
         Throwable cur = t;
         while (cur != null) {
@@ -2354,7 +2391,7 @@ class Interpreter {
      * the original Java throwable is preserved as the cause for IDE
      * stack-trace hyperlinks.
      */
-    private static JsError buildCaughtError(Throwable e) {
+    static JsError buildCaughtError(Throwable e) {
         JsErrorException jex = findJsErrorException(e);
         if (jex != null) return jex.payload;
         Throwable cause = e;
@@ -2629,7 +2666,7 @@ class Interpreter {
             // and passed through unchanged. There are no promises to unwrap yet, and an
             // async function runs synchronously, so awaiting an already-settled value is
             // the identity. The runtime phase replaces this with the real unwrap.
-            case AWAIT_EXPR -> eval(node.get(1), context);
+            case AWAIT_EXPR -> evalAwaitExpr(node, context);
             case VAR_STMT -> evalVarStmt(node, context);
             case WHILE_STMT -> evalWhileStmt(node, context);
             case DO_WHILE_STMT -> evalDoWhileStmt(node, context);

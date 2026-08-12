@@ -27,6 +27,7 @@ import io.karatelabs.common.KarateLifecycle.Outcome;
 import io.karatelabs.common.KarateLifecycle.Phase;
 import io.karatelabs.common.KarateLifecycle.StopResult;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -45,14 +46,24 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class KarateLifecycleTest {
 
+    @BeforeEach
+    void isolate() {
+        // the register is process-wide and real components join it as the suite
+        // runs (the shared JS timer scheduler, for one) — start from empty
+        KarateLifecycle.reset();
+    }
+
     @AfterEach
     void cleanup() {
         // the register is process-wide: hand the next test a RUNNING, empty one
         KarateLifecycle.reset();
     }
 
+    /** Only the fakes this test registered — the register is process-wide, and
+     *  real components (the shared JS timer scheduler, for one) can legitimately
+     *  join it while the suite runs. */
     static List<String> names(List<StopResult> results) {
-        return results.stream().map(StopResult::name).toList();
+        return results.stream().filter(r -> "fake".equals(r.kind())).map(StopResult::name).toList();
     }
 
     static Outcome outcomeOf(List<StopResult> results, String name) {

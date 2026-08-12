@@ -51,8 +51,17 @@ skip:
   flags:
     - flag: module
       reason: karate-js does not support ES modules
+    # async/await/Promise/setTimeout DO work in the engine now, but a
+    # `flags: [async]` test drives the host-supplied $DONE and the host must
+    # (a) inject harness/doneprintHandle.js and (b) watch the print stream for
+    # "Test262:AsyncTestComplete" / "Test262:AsyncTestFailure". The runner does
+    # neither: HarnessLoader only loads assert.js + sta.js + declared includes
+    # (doneprintHandle.js is never a declared include), and Test262Runner.evaluate
+    # sinks console.log and returns PASS on normal completion. Un-skipping today
+    # would false-FAIL on `$DONE is not defined` and false-PASS async assertion
+    # failures. Un-skip gate: implement the doneprintHandle protocol in the runner.
     - flag: async
-      reason: async/await not supported
+      reason: doneprintHandle protocol not implemented in harness
     # onlyStrict is NOT skipped: the runner prepends a "use strict" directive for
     # these tests (Test262Runner.evaluate) and the parser enforces the strict-mode
     # early errors (octal literals, eval/arguments binding+assignment, simple +
@@ -74,7 +83,7 @@ skip:
     - feature: Symbol.toStringTag
       reason: requires Symbol primitive (well-known @@toStringTag tested via Symbol[])
     - feature: Symbol.asyncIterator
-      reason: async iteration not supported
+      reason: async iteration (@@asyncIterator protocol) not supported
     # Symbol.iterator un-skipped: karate-js exposes @@iterator (string-keyed
     # stand-in) on JsArray / JsString and routes for-of / spread / destructuring /
     # Array.from through IterUtils.getIterator.
@@ -103,10 +112,12 @@ skip:
       reason: Proxy not implemented
     - feature: Reflect
       reason: Reflect not implemented
-    - feature: async-functions
-      reason: async/await not supported
+    # async-functions un-skipped: `async function` / `async` arrows / `await` run
+    # on the vthread-activation model (see JS_ENGINE.md § Async). Tests that also
+    # carry `flags: [async]` still skip on the flag rule above (harness gap, not
+    # an engine gap).
     - feature: async-iteration
-      reason: async/await not supported
+      reason: async generators / for-await-of / @@asyncIterator not supported
     - feature: Temporal
       reason: Temporal proposal not implemented
     - feature: TypedArray
@@ -133,12 +144,12 @@ skip:
       reason: WeakMap not implemented
     - feature: WeakSet
       reason: WeakSet not implemented
-    - feature: Promise
-      reason: Promises not supported
-    - feature: Promise.any
-      reason: Promises not supported
-    - feature: Promise.allSettled
-      reason: Promises not supported
+    # Promise / Promise.any / Promise.allSettled un-skipped: JsPromise +
+    # JsPromiseConstructor implement the constructor, all / allSettled / any /
+    # race / resolve / reject and then / catch / finally, driven by the async job
+    # queue. `flags: [async]` Promise tests still skip on the flag rule above.
+    # Not yet implemented and left to FAIL (few tests, no rule): Promise.try,
+    # Promise.withResolvers.
     - feature: regexp-lookbehind
       reason: regex lookbehind not yet implemented
     - feature: regexp-unicode-property-escapes
@@ -164,8 +175,7 @@ skip:
     - feature: new.target
       reason: new.target not supported
     # Array.prototype.includes un-skipped: implemented in JsArrayPrototype.
-    - feature: globalThis
-      reason: globalThis not exposed
+    # globalThis un-skipped: the global object is exposed as `globalThis`.
 
   # Tests whose YAML frontmatter `includes:` references any of these harness helpers
   # (the harness file itself may exist, but it depends on engine internals we do not expose).
@@ -174,11 +184,11 @@ skip:
   # enforced on putMember / removeMember / for-in / propertyIsEnumerable.
   # compareArray.js itself is now an empty stub (the helper moved into assert.js);
   # its users no longer need a special harness.
+  # promiseHelper.js un-skipped: it is plain JS (checkSequence /
+  # checkSettledPromises) over assert.js + Test262Error, no engine internals.
   includes:
     - include: nativeFunctionMatcher.js
       reason: depends on Function.prototype.toString internals
-    - include: promiseHelper.js
-      reason: Promises not supported
     - include: detachArrayBuffer.js
       reason: ArrayBuffer semantics not implemented
     - include: testTypedArray.js

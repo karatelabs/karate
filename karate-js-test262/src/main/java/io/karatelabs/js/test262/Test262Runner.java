@@ -464,6 +464,12 @@ public final class Test262Runner {
         // System.out.println, which would interleave lines from tests that happen to
         // print during suite runs and pollute our own progress/FAIL output.
         engine.setOnConsoleLog(line -> { /* sink: intentionally discard */ });
+        // The engine fails an eval on the first unhandled rejection; test262 has no
+        // such notion. Whole families (e.g. `Promise/*/invoke-resolve-error-close.js`)
+        // deliberately drop a rejected promise on the floor and then assert
+        // synchronously, so that policy would fail tests that behaved correctly.
+        // A test that cares about a rejection observes it itself, via $DONE.
+        engine.setAsyncRejectionWarnOnly(true);
 
         // INTERPRETING.md: raw tests must run in a pristine realm — no harness files,
         // no host-defined bindings. Non-raw tests get host bindings THEN harness helpers,

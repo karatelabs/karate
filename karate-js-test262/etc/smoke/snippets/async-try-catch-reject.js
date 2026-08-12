@@ -7,6 +7,5 @@ async function run() {
     return 'caught:' + e.message;
   }
 }
-let got = null;
-run().then(v => { got = v; });
+const got = await run();
 if (got !== 'caught:nope') throw new Error('got ' + got);

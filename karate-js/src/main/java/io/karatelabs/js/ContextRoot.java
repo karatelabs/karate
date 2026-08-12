@@ -147,9 +147,10 @@ class ContextRoot implements Context {
             case "console", "parseInt", "parseFloat", "encodeURIComponent", "decodeURIComponent",
                  "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Function",
                  "Infinity", "Java", "JSON", "Map", "Math", "NaN", "Number", "BigInt", "Boolean",
-                 "Object", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
+                 "Object", "Promise", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
                  "SyntaxError", "URIError", "EvalError", "AggregateError",
-                 "TextEncoder", "TextDecoder", "Uint8Array",
+                 "TextEncoder", "TextDecoder", "Uint8Array", "globalThis",
+                 "setTimeout", "clearTimeout",
                  "isNaN", "isFinite", "eval", "Symbol", "Reflect" -> true;
             default -> false;
         };
@@ -253,6 +254,7 @@ class ContextRoot implements Context {
                 case "Map" -> new JsMapConstructor();
                 case "Number" -> new JsNumberConstructor();
                 case "Object" -> new JsObjectConstructor();
+                case "Promise" -> new JsPromiseConstructor();
                 case "RegExp" -> new JsRegexConstructor();
                 case "Set" -> new JsSetConstructor();
                 case "String" -> new JsStringConstructor();
@@ -332,8 +334,12 @@ class ContextRoot implements Context {
                 }
             };
             case "Array", "Date", "Function", "Error", "Map", "Number", "BigInt", "Boolean",
-                 "Object", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
+                 "Object", "Promise", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
                  "SyntaxError", "URIError", "EvalError", "AggregateError" -> builtinConstructor(key);
+            // the top-level `this` object, under its spec name
+            case "globalThis" -> thisObject;
+            case "setTimeout" -> new JsBuiltinMethod("setTimeout", 2, AsyncSupport::setTimeout);
+            case "clearTimeout" -> new JsBuiltinMethod("clearTimeout", 1, AsyncSupport::clearTimeout);
             case "Infinity" -> Double.POSITIVE_INFINITY;
             case "Java" -> new JsJava(bridge);
             case "JSON" -> new JsJson();

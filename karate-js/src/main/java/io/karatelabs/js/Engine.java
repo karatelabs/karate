@@ -30,9 +30,12 @@ import io.karatelabs.parser.NodeType;
 import io.karatelabs.parser.ParserException;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 public class Engine {
@@ -124,6 +127,164 @@ public class Engine {
      *  "TypeError", …) — created lazily, stable identity per Engine. */
     JsFunction builtinConstructor(String name) {
         return root.builtinConstructor(name);
+    }
+
+    //=== async scope + engine lock ====================================================================================
+    //
+    // Iron rule 1: JS executes only under jsLock. Exactly one thread runs JS at
+    // any moment; every locked execution span establishes/restores
+    // Engine.current() around itself. Fair, so a resuming activation cannot be
+    // starved by an eval thread that keeps re-locking.
+
+    final ReentrantLock jsLock = new ReentrantLock(true);
+
+    /** Guards scope ownership — a different concern from jsLock, which is
+     *  released and reacquired many times inside a single open scope. */
+    private final Object scopeGate = new Object();
+    private Thread scopeOwner;
+    private int evalDepth;
+    private AsyncScope asyncScope;
+
+    /** Non-null once a teardown deadline expired with an activation still stuck
+     *  in non-interruptible host code. Permanent: the engine can never be
+     *  trusted again, and embedders must not return it to a reuse pool. */
+    private volatile String poisoned;
+
+    /** Drain cap — null (default) leaves cooperative interrupt as the only
+     *  outer bound. */
+    private Duration asyncDrainTimeout;
+
+    private boolean asyncRejectionWarnOnly;
+
+    /** How long a scope teardown waits for each live activation to terminate
+     *  before poisoning the engine. */
+    long asyncTeardownMillis = 5000;
+
+    ContextRoot root() {
+        return root;
+    }
+
+    AsyncScope currentScope() {
+        synchronized (scopeGate) {
+            return asyncScope;
+        }
+    }
+
+    Duration asyncDrainTimeout() {
+        return asyncDrainTimeout;
+    }
+
+    boolean asyncRejectionWarnOnly() {
+        return asyncRejectionWarnOnly;
+    }
+
+    /**
+     * How long {@code Engine.eval} may keep draining async work before it gives
+     * up, cancels the scope and throws {@link EngineTimeoutException}. Off by
+     * default — cooperative interrupt (and karate-ext's {@code Sandbox.TimeBox})
+     * remain the outer bound.
+     */
+    public void setAsyncDrainTimeout(Duration timeout) {
+        this.asyncDrainTimeout = timeout;
+    }
+
+    /**
+     * Downgrade unhandled promise rejections from "fail the eval" (the default)
+     * to a warning on the {@code console} consumer and SLF4J. Covers the eval's
+     * own result too: a script whose completion value is a rejected promise
+     * returns the rejection reason instead of throwing.
+     */
+    public void setAsyncRejectionWarnOnly(boolean warnOnly) {
+        this.asyncRejectionWarnOnly = warnOnly;
+    }
+
+    /** True once this engine has been poisoned — see {@link #poisoned}. */
+    public boolean isPoisoned() {
+        return poisoned != null;
+    }
+
+    void poison(String detail) {
+        if (poisoned == null) {
+            poisoned = detail;
+        }
+    }
+
+    /** Checked before waiting for scope ownership or touching jsLock, so a
+     *  poisoned engine fails fast rather than blocking on a lock its stuck
+     *  activation may still hold. */
+    void checkPoisoned() {
+        String detail = poisoned;
+        if (detail != null) {
+            throw new EngineException("engine is poisoned: " + detail, null);
+        }
+    }
+
+    /** Fully release jsLock regardless of re-entrant hold count, returning the
+     *  count so the caller can restore it exactly. */
+    int releaseJsLock() {
+        int holds = jsLock.getHoldCount();
+        for (int i = 0; i < holds; i++) {
+            jsLock.unlock();
+        }
+        return holds;
+    }
+
+    void reacquireJsLock(int holds) {
+        for (int i = 0; i < holds; i++) {
+            jsLock.lock();
+        }
+    }
+
+    /**
+     * Take (or share) the engine's async scope. Outer evals are serialized: a
+     * second host thread blocks until the current scope has fully closed,
+     * including its drain and teardown. A nested eval on the same thread does
+     * not open a new scope — it shares the outer one and its pump owner,
+     * tracked by the eval-depth counter.
+     *
+     * @return true when this call opened the scope (and therefore owns the
+     *         end-of-eval drain and the teardown)
+     */
+    boolean enterEvalScope() {
+        synchronized (scopeGate) {
+            if (scopeOwner == Thread.currentThread()) {
+                evalDepth++;
+                return false;
+            }
+            while (scopeOwner != null) {
+                try {
+                    scopeGate.wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new EngineInterruptedException();
+                }
+            }
+            scopeOwner = Thread.currentThread();
+            evalDepth = 1;
+            asyncScope = new AsyncScope(this);
+            return true;
+        }
+    }
+
+    void exitEvalScope(boolean outermost) {
+        synchronized (scopeGate) {
+            evalDepth--;
+            if (outermost) {
+                scopeOwner = null;
+                asyncScope = null;
+                scopeGate.notifyAll();
+            }
+        }
+    }
+
+    /** Teardown before ownership is handed on: no subsequent outer eval may
+     *  start until it completes, so a cancelled activation's preserved stack can
+     *  never mutate a later eval's state. */
+    void closeScope(AsyncScope scope, String reason) {
+        List<AsyncActivation> stuck = scope.close(reason, asyncTeardownMillis);
+        if (!stuck.isEmpty()) {
+            poison("activation did not terminate at teardown: " + stuck.get(0));
+        }
     }
 
     public Object eval(Node program) {
@@ -254,12 +415,40 @@ public class Engine {
     protected Object evalRaw(String text) {
         JsParser parser = new JsParser(Resource.text(text));
         Node program = parser.parse();
-        CoreContext context = new CoreContext(root, null, 0, program, ContextScope.GLOBAL, bindings);
-        Engine prev = enter(this);
+        checkPoisoned();
+        boolean outermost = enterEvalScope();
+        AsyncScope scope = currentScope();
         try {
-            return Interpreter.eval(program, context);
+            CoreContext context = new CoreContext(root, null, 0, program, ContextScope.GLOBAL, bindings);
+            Object result = runLocked(program, context);
+            return outermost ? AsyncSupport.finishScope(this, scope, result) : result;
         } finally {
-            exit(prev);
+            if (outermost) {
+                closeScope(scope, "eval complete");
+            }
+            exitEvalScope(outermost);
+        }
+    }
+
+    /** One locked execution span: acquire jsLock, establish {@code current()},
+     *  run, restore and release. */
+    private Object runLocked(Node program, CoreContext context) {
+        jsLock.lock();
+        Engine prevEngine = enter(this);
+        try {
+            context.event(EventType.CONTEXT_ENTER, program);
+            Object result = Interpreter.eval(program, context);
+            context.event(EventType.CONTEXT_EXIT, program);
+            return result;
+        } finally {
+            exit(prevEngine);
+            // An inner frame (an activation handshake whose outcome-wait was
+            // interrupted, a pump that gave up) may have released the lock and
+            // unwound without reacquiring — the caller's unwind must never
+            // execute an unmatched unlock().
+            if (jsLock.isHeldByCurrentThread()) {
+                jsLock.unlock();
+            }
         }
     }
 
@@ -269,7 +458,20 @@ public class Engine {
     }
 
     private Object evalInternal(Node program, Map<String, Object> localVars) {
-        Engine prevEngine = enter(this);
+        checkPoisoned();
+        boolean outermost = enterEvalScope();
+        AsyncScope scope = currentScope();
+        try {
+            return evalScoped(program, localVars, scope, outermost);
+        } finally {
+            if (outermost) {
+                closeScope(scope, "eval complete");
+            }
+            exitEvalScope(outermost);
+        }
+    }
+
+    private Object evalScoped(Node program, Map<String, Object> localVars, AsyncScope scope, boolean outermost) {
         try {
             root.evalId++;
             CoreContext context;
@@ -279,9 +481,11 @@ public class Engine {
                 CoreContext parent = new CoreContext(root, null, -1, new Node(NodeType.ROOT), ContextScope.GLOBAL, bindings);
                 context = new CoreContext(root, parent, 0, program, ContextScope.GLOBAL, new BindingsStore(localVars));
             }
-            context.event(EventType.CONTEXT_ENTER, program);
-            Object result = Interpreter.eval(program, context);
-            context.event(EventType.CONTEXT_EXIT, program);
+            Object result = runLocked(program, context);
+            // the end-of-eval drain runs outside jsLock — it re-acquires per job
+            if (outermost) {
+                result = AsyncSupport.finishScope(this, scope, result);
+            }
             return toJava(result);
         } catch (Throwable e) {
             if (e instanceof FlowControlSignal) {
@@ -313,8 +517,6 @@ public class Engine {
             String jsErrorName = e instanceof EngineException ee ? ee.getJsErrorName() : null;
             String jsMessage = e instanceof EngineException ee ? ee.getJsMessage() : null;
             throw new EngineException(message, e, jsErrorName, jsMessage);
-        } finally {
-            exit(prevEngine);
         }
     }
 

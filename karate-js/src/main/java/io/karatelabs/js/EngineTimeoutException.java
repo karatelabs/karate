@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2025 Karate Labs Inc.
+ * Copyright 2026 Karate Labs Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,27 +24,20 @@
 package io.karatelabs.js;
 
 /**
- * Thrown when the executing thread's interrupt flag is observed at a loop
- * back-edge. Lets hosts terminate long-running JS via
- * {@link Thread#interrupt()} or {@link java.util.concurrent.Future#cancel(boolean)}
- * with {@code mayInterruptIfRunning=true}. Extends {@link EngineException}
- * so existing {@code catch (EngineException)} sites continue to handle it.
+ * The async drain cap expired: the eval's scope was still not quiescent when
+ * {@code Engine.setAsyncDrainTimeout} ran out, so the scope was cancelled and
+ * the eval abandoned.
  * <p>
- * JS {@code try/catch} cannot swallow this — {@link Interpreter#evalTryStmt}
- * special-cases it and re-throws. We intentionally do <b>not</b> mark this
- * as {@link FlowControlSignal} because karate-core callers
- * ({@code Markup}, {@code ServerRequestCycle}) treat {@code FlowControlSignal}
- * as "intentional redirect/switch — response state already set, return
- * normally," which would mask a host-initiated cancel as a successful run.
+ * Distinct by type, but deliberately a subclass of
+ * {@link EngineInterruptedException} because it belongs to the same
+ * <i>routing</i> class: JS {@code try/catch} must not swallow it, and every
+ * host boundary that already passes cancellation through unwrapped must do the
+ * same here without a second special case.
  */
-public class EngineInterruptedException extends EngineException {
+public class EngineTimeoutException extends EngineInterruptedException {
 
-    public EngineInterruptedException() {
-        super("interrupted", null);
-    }
-
-    protected EngineInterruptedException(String message) {
-        super(message, null);
+    public EngineTimeoutException(String message) {
+        super(message);
     }
 
 }

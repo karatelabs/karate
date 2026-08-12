@@ -39,6 +39,12 @@
         <appender-ref ref="FILE"/>
     </logger>
 
+    <!-- The runner puts the engine in warn-only unhandled-rejection mode (test262
+         has no such notion, and whole families drop a rejected promise on purpose).
+         Those warnings would interleave with the FAIL lines the runner writes to
+         stdout; the per-test outcome lives in results.jsonl with full fidelity. -->
+    <logger name="io.karatelabs.js.AsyncSupport" level="ERROR"/>
+
     <!-- Everything else (libraries, karate-js itself) goes to console at WARN. -->
     <root level="WARN">
         <appender-ref ref="CONSOLE"/>
