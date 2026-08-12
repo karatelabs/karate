@@ -960,6 +960,10 @@ etc/ec2/bootstrap.sh --sync               # then sync. CHECK: the digest of the 
 etc/ec2/calibrate.sh --tier 10ms --ramp 1,4 --per-user 40 --settle 5s
                                           # CHECK: $KP_RESULTS/calibration-10ms-*.txt exists
 etc/ec2/matrix.sh --tier 10ms --pairs 2 --iterations 400 --users 4 --label verify
+# the js lane's ~90-second equivalent (only when the session will use it):
+jar=$(etc/js-arm.sh HEAD)
+etc/ec2/js-matrix.sh --quick --jar-a "$jar" --jar-b "$jar" --label verify-js
+                                          # CHECK: the derived table says "null control"
 etc/ec2/collect.sh                        # CHECK: "every run on the injector has its digest here"
 ```
 
