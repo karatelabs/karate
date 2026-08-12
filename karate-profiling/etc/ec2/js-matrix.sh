@@ -27,6 +27,9 @@ label=
 rows=(js-arithmetic js-strings js-objects js-functions js-mixed js-large-1k)
 sysprops_a=()
 sysprops_b=()
+iterations=
+warmup=
+quick=false
 
 while (($#)); do
     case "$1" in
@@ -37,6 +40,16 @@ while (($#)); do
         --label)  label="$2"; shift 2 ;;
         # Comma-separated subset of the six rows, for a rehearsal or a targeted probe.
         --rows)   IFS=',' read -r -a rows <<<"$2"; shift 2 ;;
+        # Override every run's shape. For rehearsals; a decision matrix runs the workload
+        # defaults, which are sized for a stable measured window.
+        --iterations) iterations="$2"; shift 2 ;;
+        --warmup)     warmup="$2"; shift 2 ;;
+        # The ~90-second plumbing check: one row, one pair, tiny window, short gaps. It
+        # proves the whole path — arm shipping, hash verification, tags, digests, parking —
+        # and its numbers are startup-shaped garbage, which `compare` also says. Iterate on
+        # the harness against THIS (or fully locally, see docs/PROFILING.md), never against
+        # a full matrix.
+        --quick)  quick=true; shift ;;
         # Per-arm -Dkey=value, repeatable. This is how a flag-equivalence cell runs: the
         # candidate jar with its feature flag off against the base jar, expecting ~0 —
         # without any feature-specific code in this harness.
@@ -45,6 +58,17 @@ while (($#)); do
         *) die "unknown flag: $1" ;;
     esac
 done
+
+if $quick; then
+    pairs=1
+    rows=(js-functions)
+    iterations="${iterations:-2000}"
+    warmup="${warmup:-2s}"
+    gap=3
+    log "QUICK mode: 1 pair, ${rows[*]}, $iterations iterations — plumbing check, not a measurement"
+fi
+[[ -z "$iterations" || "$iterations" != *[!0-9]* ]] || die "--iterations must be a number: $iterations"
+[[ -z "$warmup" || "$warmup" != *[!0-9smh]* ]] || die "--warmup must look like 2s/1m: $warmup"
 
 [[ -n "$jar_a" && -n "$jar_b" ]] || die "--jar-a and --jar-b are required (build with etc/js-arm.sh <ref>)"
 [[ -f "$jar_a" && -f "$jar_b" ]] || die "arm jar missing: $jar_a / $jar_b"
@@ -103,7 +127,8 @@ run_cell() {
     local row="$1" arm="$2" tag="$3" jar extra out
     if [[ "$arm" == a ]]; then jar="$remote_jar_a"; extra="${sysprops_a[*]:-}"; else jar="$remote_jar_b"; extra="${sysprops_b[*]:-}"; fi
     if ! out="$(kp_ssh "$injector_ip" "cd ~/karate/karate-profiling && PROFILING_SKIP_BUILD=1 \
-            etc/run.sh $row --no-jfr --js-jar $jar --run-tag $tag $extra 2>&1")"; then
+            etc/run.sh $row --no-jfr --js-jar $jar --run-tag $tag \
+            ${iterations:+--iterations $iterations} ${warmup:+--warmup $warmup} $extra 2>&1")"; then
         log "  !! $row [$arm] FAILED"
         echo "$out" | tail -5 | sed 's/^/     /'
         failures=$((failures + 1))
@@ -182,6 +207,7 @@ sysprops b: ${sysprops_b[*]:-(none)}
 rows:       ${rows[*]}
 pairs:      $pairs
 gap:        ${gap}s
+shape:      $($quick && printf 'QUICK — plumbing check, not a measurement; ')${iterations:+iterations=$iterations }${warmup:+warmup=$warmup }$([ -z "$iterations$warmup" ] && printf 'workload defaults')
 jfr:        off (timing matrix)
 instance:   ${KP_INSTANCE_TYPE:-?} in ${KP_AZ:-?}
 started:    $(date -u +%Y-%m-%dT%H:%M:%SZ)

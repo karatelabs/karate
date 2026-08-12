@@ -311,6 +311,14 @@ etc/ec2/collect.sh                          # derives the js table per label
 etc/ec2/teardown.sh
 ```
 
+**The dev ladder — spend bench time last.** Iterating on the harness or the workloads never
+needs EC2: the whole pipeline runs identically on a laptop (`etc/run.sh js-* --iterations
+2000 --warmup 2s --no-jfr --js-jar … --run-tag t:p1:a`, then `compare`) at ~15 s a run and
+zero cost. On the bench, `js-matrix.sh --quick` is the ~90-second plumbing check — one row,
+one pair, tiny window — that proves shipping, hashing, tagging and parking before a real
+matrix; its manifest and its table both say it is not a measurement. Only the final
+decision matrix runs the full shape, and even that is ~55 min on one host, ~$0.55.
+
 Notes specific to running it here:
 
 - **The arms are built on your machine and rsynced**, manifest and all; `js-matrix.sh`
