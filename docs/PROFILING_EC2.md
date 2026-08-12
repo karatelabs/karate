@@ -321,7 +321,9 @@ Notes specific to running it here:
   and a reused label is refused on the injector rather than warned about.
 - Runs are `--no-jfr` (timing) and tag-paired, so a failed run orphans one cell; the matrix
   reports the failure, still parks the completed cells, and the derived table names the
-  orphan. A partial matrix is usable evidence, not a discard.
+  orphan. A partial matrix is usable evidence, not a discard. (An *infrastructure* failure —
+  ssh dropping during the parking step itself — leaves the runs loose but still tag-paired;
+  the script says so loudly, and `collect.sh` derives them as unlabelled.)
 - The per-arm flag cell: `--sysprop-b some.engine.flag=false` runs the candidate jar
   flag-off against the base — the equivalence control that separates "the change" from "the
   changed build".

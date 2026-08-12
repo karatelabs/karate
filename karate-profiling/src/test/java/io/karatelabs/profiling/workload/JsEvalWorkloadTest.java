@@ -69,7 +69,12 @@ class JsEvalWorkloadTest {
         assertEquals(329, JsEvalWorkload.JS_OBJECTS.length());
         assertEquals(247, JsEvalWorkload.JS_FUNCTIONS.length());
         assertEquals(576, JsEvalWorkload.JS_MIXED.length());
-        assertEquals(1133, JsEvalWorkload.Large1k.generate(JsEvalWorkload.Large1k.TARGET_BYTES).length());
+        String large = JsEvalWorkload.Large1k.generate(JsEvalWorkload.Large1k.TARGET_BYTES);
+        assertEquals(1133, large.length());
+        // Content, not just length — a same-length edit to the generator would silently
+        // change what the guard row measures while keeping its name. String.hashCode is
+        // specified, so this constant is stable across JVMs.
+        assertEquals(1721604224, large.hashCode());
     }
 
     @Test

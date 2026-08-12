@@ -185,6 +185,25 @@ class JsCompareTest {
     }
 
     @Test
+    void pairsDriftingFromTheMatrixSignatureAreDroppedByName() throws IOException {
+        // p1 is the reference; p2's candidate arm carries an extra sysprop, and p3 runs a
+        // different iteration count. Neither may be averaged into the same table as p1.
+        List<Path> dirs = List.of(
+                digest("js-functions", "m1:p1:a", "1111111", 1000, 1000, 0, 30_000, null),
+                digest("js-functions", "m1:p1:b", "2222222", 1000, 1000, 0, 27_000, null),
+                digest("js-functions", "m1:p2:a", "1111111", 1000, 1000, 0, 30_000, null),
+                digest("js-functions", "m1:p2:b", "2222222", 1000, 1000, 0, 27_000,
+                        "-Dsome.engine.flag=false"),
+                digest("js-functions", "m1:p3:a", "1111111", 2000, 2000, 0, 60_000, null),
+                digest("js-functions", "m1:p3:b", "2222222", 2000, 2000, 0, 54_000, null));
+        Result result = compare(dirs);
+        assertEquals(0, result.exit());
+        assertTrue(result.out().contains("1 pair(s)"), result.out());
+        assertTrue(result.out().contains("arms or environment differ"), result.out());
+        assertTrue(result.out().contains("mixed denominators"), result.out());
+    }
+
+    @Test
     void mixedFamiliesAreRefusedAtTheDispatch() throws IOException {
         Path js = digest("js-functions", "m1:p1:a", "1111111", 1000, 1000, 0, 30_000, null);
         Path gatling = root.resolve("gatling-http-plain-2026-01-01-999999");

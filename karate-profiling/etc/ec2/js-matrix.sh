@@ -52,6 +52,17 @@ done
     || die "arm manifest missing — rebuild with etc/js-arm.sh so provenance is verifiable"
 [[ -n "$label" ]] || die "--label is required: it names the matrix, parks its runs, and is the run-tag prefix"
 [[ "$label" == *[!A-Za-z0-9._-]* ]] && die "--label must be [A-Za-z0-9._-] only (it travels inside run tags): $label"
+# Rows and sysprops are interpolated into a remote shell command, so their alphabet is a
+# correctness constraint, not pedantry — a value with whitespace or a metacharacter would
+# split into extra remote arguments or worse.
+for row in "${rows[@]}"; do
+    [[ "$row" == *[!a-z0-9-]* || "$row" != js-* ]] \
+        && die "--rows entries must be js-* workload names ([a-z0-9-]), got: $row"
+done
+for prop in "${sysprops_a[@]:-}" "${sysprops_b[@]:-}"; do
+    [[ -n "$prop" && "$prop" == *[!A-Za-z0-9._=-]* ]] \
+        && die "--sysprop values must be [A-Za-z0-9._=-] only (they cross a remote shell): $prop"
+done
 if ((pairs % 2 == 1)); then
     log "WARNING: $pairs pairs is odd — alternation cancels linear drift over an even count only"
 fi
@@ -145,16 +156,24 @@ fi
 
 log "parking this matrix's runs under $label/"
 # The label directory itself matches a js-* glob when the label starts with js-, so it is
-# excluded by name — without that, mv tries to park the label inside itself.
-kp_ssh "$injector_ip" "cd ~/karate/karate-profiling/target/profiling
+# excluded by name — without that, mv tries to park the label inside itself. And a parking
+# failure (an ssh blip, under lib.sh's set -e) must not abort the script silently: the runs
+# are tag-paired either way, so they stay derivable — what is lost is only the labelling,
+# and that is worth a loud note, not a dead script with no manifest.
+if ! kp_ssh "$injector_ip" "cd ~/karate/karate-profiling/target/profiling
     mkdir -p '$label'
     find . -maxdepth 1 -name 'js-*' ! -name '$label' -newer '$marker' -exec mv {} '$label'/ \;
     rm -f '$marker'
-    echo \"  \$(ls -1d '$label'/js-* 2>/dev/null | wc -l) runs in $label/\""
+    echo \"  \$(ls -1d '$label'/js-* 2>/dev/null | wc -l) runs in $label/\""; then
+    log "!! parking failed — the runs remain loose in target/profiling but are tag-paired;"
+    log "   collect.sh will still derive them (as unlabelled). Re-run the parking by hand."
+fi
 
 # The durable description of what this matrix WAS — arms, rows, shape, host — so the label
-# directory that comes home is self-describing even months later.
-kp_ssh "$injector_ip" "cat > ~/karate/karate-profiling/target/profiling/$label/matrix-manifest.txt" <<MANIFEST
+# directory that comes home is self-describing even months later. Failure tolerated for the
+# same reason as parking above.
+kp_ssh "$injector_ip" "cat > ~/karate/karate-profiling/target/profiling/$label/matrix-manifest.txt" <<MANIFEST \
+    || log "!! matrix-manifest write failed — record the arms by hand from the digests"
 label:      $label
 arm a:      $(basename "$jar_a")  $(grep '^commit:' "$jar_a.manifest")  $(grep '^sha256:' "$jar_a.manifest")
 arm b:      $(basename "$jar_b")  $(grep '^commit:' "$jar_b.manifest")  $(grep '^sha256:' "$jar_b.manifest")

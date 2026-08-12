@@ -105,14 +105,38 @@ final class JsCompare {
             if (!"completed".equals(outcome)) {
                 return "outcome is '" + outcome + "'";
             }
+            // The environment fields are what decide comparability, so a run missing one
+            // cannot be compared at all — two absent values would otherwise compare equal,
+            // which is a sentinel reaching a decision.
+            if (threads <= 0) {
+                return "no threads row";
+            }
+            if (xmx == null || collector == null || jdk == null) {
+                return "no " + (xmx == null ? "-Xmx" : collector == null ? "collector" : "jdk")
+                        + " row";
+            }
             return null;
         }
 
         /** What must match between two runs before their difference means anything. */
         String comparableShape() {
+            return environment() + " iterations=" + iterationsRequested;
+        }
+
+        /**
+         * The environment alone — everything that must be constant across a whole matrix.
+         * Iterations are excluded because different rows legitimately run different counts;
+         * per-arm sysprops are excluded because the two arms of a flag cell differ by design.
+         * Both are enforced separately: iterations per row, arm identity per side.
+         */
+        String environment() {
             return "threads=" + threads + " xmx=" + xmx + " collector=" + collector
-                    + " jdk=" + jdk + " jfr=" + (jfrOff ? "off" : "on")
-                    + " iterations=" + iterationsRequested;
+                    + " jdk=" + jdk + " jfr=" + (jfrOff ? "off" : "on");
+        }
+
+        /** One arm's full identity: which build, under which experimental configuration. */
+        String armIdentity() {
+            return jsSha + (sysprops == null ? "" : " with " + sysprops);
         }
 
     }
@@ -211,6 +235,38 @@ final class JsCompare {
 
     private static int appendMatrix(StringBuilder out, String matrix,
                                     Map<String, List<Pair>> byWorkload, List<String> warnings) {
+        // Matrix-wide consistency, enforced before anything is averaged: every pair must run
+        // the same two arm identities in the same environment, and every pair of one row must
+        // run the same iteration count. Pair-internal equality alone would let a matrix built
+        // from heterogeneous cells print one confidently-attributed aggregate under a heading
+        // that describes only its first pair.
+        List<Pair> reference = byWorkload.values().iterator().next();
+        String refSignature = signature(reference.get(0));
+        for (Map.Entry<String, List<Pair>> entry : byWorkload.entrySet()) {
+            List<Pair> pairs = entry.getValue();
+            long rowIterations = pairs.get(0).a().iterationsRequested();
+            pairs.removeIf(pair -> {
+                if (!signature(pair).equals(refSignature)) {
+                    warnings.add("dropped " + entry.getKey() + " p" + pair.a().pair() + " in "
+                            + matrix + " — its arms or environment differ from the matrix's"
+                            + " first pair (" + signature(pair) + " vs " + refSignature + ")");
+                    return true;
+                }
+                if (pair.a().iterationsRequested() != rowIterations) {
+                    warnings.add("dropped " + entry.getKey() + " p" + pair.a().pair() + " in "
+                            + matrix + " — " + pair.a().iterationsRequested() + " iterations"
+                            + " against the row's " + rowIterations
+                            + "; mixed denominators do not average");
+                    return true;
+                }
+                return false;
+            });
+        }
+        byWorkload.values().removeIf(List::isEmpty);
+        if (byWorkload.isEmpty()) {
+            warnings.add(matrix + " has no consistent pairs left — nothing derived");
+            return 0;
+        }
         List<Pair> all = byWorkload.values().stream().flatMap(List::stream).toList();
         Run anyA = all.get(0).a();
         Run anyB = all.get(0).b();
@@ -314,6 +370,12 @@ final class JsCompare {
 
     private static final String[] ACCEPTANCE_ROWS = {
             "js-arithmetic", "js-strings", "js-objects", "js-functions", "js-mixed"};
+
+    /** Both arm identities plus the environment — what a whole matrix must hold constant. */
+    private static String signature(Pair pair) {
+        return "a=" + pair.a().armIdentity() + " b=" + pair.b().armIdentity()
+                + " " + pair.a().environment();
+    }
 
     /** One line naming an arm: jar + sysprops. Flags disagreement across the matrix loudly. */
     private static String armDescription(List<Pair> all, java.util.function.Function<Pair, Run> side) {

@@ -42,15 +42,20 @@ sha256_of() {
     else shasum -a 256 "$1" | cut -d' ' -f1; fi
 }
 
-# Cache hit only when jar AND manifest exist and still agree — anything else rebuilds.
+# Cache hit only when jar AND manifest exist and still agree — on BOTH identities: the bytes
+# (sha256 vs the file) and the source (manifest commit vs the ref just resolved). A manifest
+# that names a different commit beside a correct hash is exactly the mislabelling this file
+# exists to make impossible. Anything else rebuilds.
 if [[ -f "$jar" && -f "$manifest" ]]; then
     declared="$(grep '^sha256:' "$manifest" | awk '{print $2}')"
-    if [[ -n "$declared" && "$declared" == "$(sha256_of "$jar")" ]]; then
+    declared_commit="$(grep '^commit:' "$manifest" | awk '{print $2}')"
+    if [[ -n "$declared" && "$declared" == "$(sha256_of "$jar")" \
+          && "$declared_commit" == "$full_sha" ]]; then
         echo "[js-arm] cached: $jar (commit $full_sha)" >&2
         echo "$jar"
         exit 0
     fi
-    echo "[js-arm] cache entry for $short_sha is stale or corrupt — rebuilding" >&2
+    echo "[js-arm] cache entry for $short_sha is stale, corrupt or misattributed — rebuilding" >&2
     rm -f "$jar" "$manifest"
 fi
 

@@ -197,7 +197,7 @@ rm -rf "${TMPDIR:-/tmp}"/karate-feature-spread-* "${TMPDIR:-/tmp}"/karate-report
 | `--body-size N` | none | The body-size tier (`gatling-body-*` family): both arms send and receive an N-byte JSON document. `compare` buckets on the recorded size, so two sizes cannot average together. |
 | `--soak` | off | **Required for any multi-hour run.** Records a much smaller event set so the recording spans the whole run instead of rolling, and starts the live-set/descriptor probe — see [soak mode](#soak-mode--what-a-multi-hour-recording-has-to-drop). Costs you *Allocation by site* and *Hot methods*, which a soak does not read. |
 | `--gc-roots` | off | Makes `jdk.OldObjectSample` report reference chains — the *holder* of retained objects, not just the allocating stack. Costs a full reference walk at every sample. |
-| `--js-jar PATH` | none | Swap the karate-js jar on the child classpath — the A/B mechanism of the [`js-*` family](#karate-js-family--ab-two-engine-builds-on-elapsed-time). Build arms with `etc/js-arm.sh <git-ref>`; the jar's sidecar manifest is verified against its bytes (a stale or half-copied jar fails the run instead of relabelling it) and its commit + sha256 land in `run-meta.txt` and the digest. Refused for any workload that forks a mock. |
+| `--js-jar PATH` | none | Swap the karate-js jar on the child classpath — the A/B mechanism of the [`js-*` family](#karate-js-family--ab-two-engine-builds-on-elapsed-time). Build arms with `etc/js-arm.sh <git-ref>`; when the jar carries a sidecar manifest it is verified against the bytes (a stale or half-copied jar fails the run instead of relabelling it) and its commit + sha256 land in `run-meta.txt` and the digest. A jar without a manifest is allowed — a hand-built jar is a legitimate experiment — but is recorded as commit-unknown, identified by hash alone. Refused for any workload that forks a mock. |
 | `--run-tag TEXT` | none | Free-text cell provenance (no whitespace), recorded in run-meta and the digest. The js comparator pairs runs by tag — `<matrix>:p<N>:<a\|b>` — never by timestamp adjacency, so a failed run orphans its own cell instead of shifting every later pairing. |
 | `--no-jfr` | off | Timing mode: no recording at all. For an elapsed-time A/B — recording cost tracks allocation rate, so two builds that allocate differently pay it differently and "JFR on both sides" does not cancel. The digest keeps `elapsed`/`cpu` from the child summary and says the recording is absent by design. Incompatible with `--soak`, `--gc-roots`, `--record mock`. |
 
@@ -446,8 +446,9 @@ drift loading one arm by half a run slot), discards one warmup run, re-hashes th
 on the injector before anything runs, runs everything `--no-jfr`, and writes a
 `matrix-manifest.txt` beside the runs. `--sysprop-a/-b` pass per-arm `-D` properties — that is
 how a flag-equivalence cell runs (candidate jar with its feature flag off vs the base jar,
-expected delta ≈ 0) with no feature-specific harness code; the digest records the properties
-and the comparator treats them as part of the cell's identity. Running the same jar on both
+expected delta ≈ 0) with no feature-specific harness code; the digest records the properties,
+they are part of each arm's identity, and a pair whose arms or environment drift from the
+matrix's first pair is dropped by name rather than averaged. Running the same jar on both
 arms is a **null control** and the table says so — its deltas are the machine's noise floor.
 
 `compare` on js runs derives, per matrix: a per-row pair table (A ms/iter, B ms/iter,
