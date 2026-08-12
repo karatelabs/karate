@@ -252,11 +252,16 @@ final class AsyncScope {
         private static final int CANCELLED = 2;
 
         private final AtomicInteger state = new AtomicInteger(LIVE);
+        /** The owning scope, so whoever retires the record — {@code clearTimeout},
+         *  scope teardown, or the scheduler's own lifecycle stop — can also drop
+         *  it from the scope's timer map. */
+        final AsyncScope scope;
         final AsyncToken token;
         final int id;
         volatile ScheduledFuture<?> future;
 
-        TimerRecord(int id, AsyncToken token) {
+        TimerRecord(AsyncScope scope, int id, AsyncToken token) {
+            this.scope = scope;
             this.id = id;
             this.token = token;
         }
@@ -267,6 +272,10 @@ final class AsyncScope {
 
         boolean cancel() {
             return state.compareAndSet(LIVE, CANCELLED);
+        }
+
+        boolean isLive() {
+            return state.get() == LIVE;
         }
     }
 
@@ -387,13 +396,7 @@ final class AsyncScope {
         }
         if (timerSnapshot != null) {
             for (TimerRecord record : timerSnapshot) {
-                if (record.cancel()) {
-                    ScheduledFuture<?> future = record.future;
-                    if (future != null) {
-                        future.cancel(false);
-                    }
-                    record.token.release();
-                }
+                AsyncSupport.retireTimer(record);
             }
         }
         if (pending != null) {
@@ -422,6 +425,10 @@ final class AsyncScope {
                 if (!activation.awaitTermination(Math.max(remaining, 1))) {
                     stuck.add(activation);
                 }
+                // an interrupt that arrives mid-join is recorded here and cleared
+                // again: one interrupt must not make every remaining wait fail
+                // instantly and misclassify cooperative activations as stuck
+                wasInterrupted |= Thread.interrupted();
             }
         } finally {
             if (wasInterrupted) {

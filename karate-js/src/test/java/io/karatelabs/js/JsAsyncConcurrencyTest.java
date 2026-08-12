@@ -1,8 +1,10 @@
 package io.karatelabs.js;
 
+import io.karatelabs.common.KarateLifecycle;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -394,6 +396,145 @@ class JsAsyncConcurrencyTest {
         Thread.sleep(300);
         assertEquals("unset", engine.getBindings().get("afterHost"),
                 "a stale activation must execute no JS after its host call returns");
+    }
+
+    // ===== lifecycle shutdown vs. live timers =====
+
+    @Test
+    void testLifecycleShutdownRetiresLiveTimerTokensInsteadOfHangingTheEval() throws Exception {
+        Engine engine = new Engine();
+        CountDownLatch armed = new CountDownLatch(1);
+        engine.put("armed", (JsCallable) (ctx, args) -> {
+            armed.countDown();
+            return Terms.UNDEFINED;
+        });
+        AtomicReference<Object> result = new AtomicReference<>();
+        AtomicReference<Throwable> thrown = new AtomicReference<>();
+        Thread worker = runAsync("timer-shutdown", () -> {
+            try {
+                result.set(engine.eval("""
+                        var fired = 'no'
+                        setTimeout(function () { fired = 'yes' }, 30000)
+                        armed()
+                        'done'"""));
+            } catch (Throwable t) {
+                thrown.set(t);
+            }
+        });
+        try {
+            assertTrue(armed.await(10, TimeUnit.SECONDS));
+            Thread.sleep(150);
+            assertTrue(worker.isAlive(), "the eval should still be draining its live timer");
+            // shutdownNow() cancels the scheduled runnable; without the registry
+            // retiring the record too, the timer token stays live forever and this
+            // eval never reaches quiescence
+            KarateLifecycle.shutdownAll(Duration.ofSeconds(5));
+            worker.join(10_000);
+            assertFalse(worker.isAlive(), "the eval hung on a timer token the shutdown orphaned");
+        } finally {
+            KarateLifecycle.reset();
+        }
+        assertNull(thrown.get());
+        assertEquals("done", result.get());
+        assertEquals("no", engine.getBindings().get("fired"), "a retired timer must not fire");
+        assertFalse(engine.isPoisoned());
+    }
+
+    @Test
+    void testSetTimeoutRacingLifecycleShutdownNeverStrandsAnEval() throws Exception {
+        // the schedule-rejection interleaving: arming timers while the shared
+        // scheduler is being stopped. Whichever side wins, the record and its
+        // token must be unwound and the eval must terminate.
+        for (int round = 0; round < 12; round++) {
+            Engine engine = new Engine();
+            AtomicReference<Throwable> thrown = new AtomicReference<>();
+            CountDownLatch done = new CountDownLatch(1);
+            runAsync("timer-race-" + round, () -> {
+                try {
+                    engine.eval("for (var i = 0; i < 50; i++) { setTimeout(function () {}, 30000) }\n1");
+                } catch (Throwable t) {
+                    thrown.set(t);
+                } finally {
+                    done.countDown();
+                }
+            });
+            try {
+                Thread.sleep(round % 4);
+                KarateLifecycle.shutdownAll(Duration.ofSeconds(5));
+                assertTrue(done.await(10, TimeUnit.SECONDS), "the eval never terminated, round " + round);
+            } finally {
+                KarateLifecycle.reset();
+            }
+            Throwable t = thrown.get();
+            if (t != null) {
+                assertInstanceOf(EngineInterruptedException.class, t, "round " + round + ": " + t);
+            }
+            assertFalse(engine.isPoisoned(), "round " + round);
+        }
+    }
+
+    @Test
+    void testSetTimeoutIsRefusedOnceTheLifecycleIsStopped() {
+        Engine engine = new Engine();
+        try {
+            KarateLifecycle.shutdownAll(Duration.ofSeconds(5));
+            EngineInterruptedException e = assertThrows(EngineInterruptedException.class,
+                    () -> engine.eval("setTimeout(function () {}, 30000)\n1"));
+            assertTrue(e.getMessage().contains("shutting down"), e.getMessage());
+            // refused before any token was acquired, and JS cannot swallow it
+            assertThrows(EngineInterruptedException.class,
+                    () -> engine.eval("try { setTimeout(function () {}, 30000) } catch (e) { 'caught' }\n1"));
+        } finally {
+            KarateLifecycle.reset();
+        }
+        assertNull(engine.currentScope());
+        assertFalse(engine.isPoisoned());
+        // and the next eval gets a freshly created scheduler
+        assertEquals(1, engine.eval("await new Promise(function (r) { setTimeout(function () { r(1) }, 5) })"));
+    }
+
+    // ===== teardown under an interrupt storm =====
+
+    @Test
+    void testInterruptStormDuringTeardownDoesNotFalselyPoison() throws Exception {
+        // The first activation is cooperative but not instantaneous — it is inside
+        // a host call that ignores its interrupt and returns a few hundred ms
+        // later, at which point the host-return fence stops it. An interrupt that
+        // lands while teardown is waiting for it must be absorbed, not allowed to
+        // abandon that wait and every wait behind it.
+        for (int round = 0; round < 3; round++) {
+            Engine engine = new Engine();
+            engine.put("slow", (JsCallable) (ctx, args) -> {
+                long end = System.currentTimeMillis() + 400;
+                while (System.currentTimeMillis() < end) {
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {
+                        // swallowed, exactly as badly-behaved host code does
+                    }
+                }
+                return 1;
+            });
+            AtomicReference<Throwable> thrown = new AtomicReference<>();
+            Thread worker = runAsync("teardown-storm-" + round, () -> runCatching(engine, """
+                    var afterHost = 'unset'
+                    async function busy() { await new Promise(function (r) { setTimeout(r, 250) }); slow(); afterHost = 'ran'; return 1 }
+                    async function idle(n) { await new Promise(function () {}); return n }
+                    busy()
+                    for (var i = 0; i < 6; i++) { idle(i) }
+                    await new Promise(function (r) { setTimeout(r, 30000) })""", thrown));
+            Thread.sleep(300);
+            for (int i = 0; i < 100; i++) {
+                worker.interrupt();
+                Thread.sleep(3);
+            }
+            worker.join(15_000);
+            assertFalse(worker.isAlive(), "the eval did not unwind, round " + round);
+            assertInstanceOf(EngineInterruptedException.class, thrown.get());
+            assertFalse(engine.isPoisoned(),
+                    "cooperative activations were misread as stuck, round " + round);
+            assertEquals("unset", engine.getBindings().get("afterHost"));
+        }
     }
 
     // ===== a smoke pass over the whole protocol =====

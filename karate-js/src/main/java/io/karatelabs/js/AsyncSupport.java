@@ -24,6 +24,7 @@
 package io.karatelabs.js;
 
 import io.karatelabs.common.KarateLifecycle;
+import io.karatelabs.common.Stoppable;
 import io.karatelabs.common.ThreadUtils;
 import io.karatelabs.parser.Node;
 import io.karatelabs.parser.NodeType;
@@ -34,10 +35,13 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -452,8 +456,17 @@ final class AsyncSupport {
         }
     }
 
-    /** Thenable adoption: first call wins, repeated calls are ignored, and a
-     *  {@code then} that throws after already resolving is swallowed per spec. */
+    /**
+     * Thenable adoption. {@code then} is read once by the caller, but calling it
+     * is a <b>job</b> (spec: NewPromiseResolveThenableJob) — never a synchronous
+     * call out of a resolve function, an async return or a {@code .then} result,
+     * where it would let user code observe an intermediate state. First call
+     * wins, repeated calls are ignored, and a {@code then} that throws after
+     * already resolving is swallowed per spec.
+     * <p>
+     * The predecessor token is retired through {@code publishSuccessor}, so the
+     * job exists before the token that permitted it goes away.
+     */
     private static void adoptThenable(JsPromise target, Object thenable, JsCallable then, AsyncToken retiring) {
         AtomicBoolean claimed = new AtomicBoolean();
         JsCallable resolveFn = (ctx, args) -> {
@@ -468,13 +481,15 @@ final class AsyncSupport {
             }
             return Terms.UNDEFINED;
         };
-        Completion outcome = invoke(target.engine, then, new Object[]{resolveFn, rejectFn}, thenable);
-        if (outcome.threw() && claimed.compareAndSet(false, true)) {
-            target.settle(true, outcome.reason(), null);
-        }
-        if (retiring != null) {
-            retiring.release();
-        }
+        AsyncJob job = new AsyncJob.Microtask("thenable", () -> {
+            Completion outcome = invoke(target.engine, then, new Object[]{resolveFn, rejectFn}, thenable);
+            if (outcome.threw() && claimed.compareAndSet(false, true)) {
+                target.settle(true, outcome.reason(), null);
+            }
+        });
+        // a closed scope rejects the publication and releases only the old token —
+        // the target stays pending, which is correct for a scope that is dying
+        target.scope.publishSuccessor(retiring, AsyncJob.one(job));
     }
 
     /**
@@ -569,11 +584,91 @@ final class AsyncSupport {
 
     private static ScheduledExecutorService scheduler;
 
+    /**
+     * Every {@code setTimeout} record that has been armed and not yet retired,
+     * across all engines and scopes — the scheduler is process-wide, so its
+     * lifecycle stop has to be able to find them. Without this,
+     * {@code shutdownNow()} silently cancels the scheduled runnables while their
+     * tokens stay live, and the owning eval's drain waits for a callback that
+     * can never arrive.
+     */
+    private static final Set<AsyncScope.TimerRecord> LIVE_TIMERS = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Retire one timer: drop it from the registry, win the {@code LIVE →
+     * CANCELLED} CAS, cancel the scheduled future, and release the scope token
+     * that was keeping the eval alive. Idempotent — the CAS decides.
+     */
+    static boolean retireTimer(AsyncScope.TimerRecord record) {
+        LIVE_TIMERS.remove(record);
+        if (!record.cancel()) {
+            return false;
+        }
+        ScheduledFuture<?> future = record.future;
+        if (future != null) {
+            future.cancel(false);
+        }
+        record.token.release();
+        return true;
+    }
+
+    /** A fired timer is no longer the registry's business — the job it published
+     *  now owns the successor token. */
+    private static void forgetTimer(AsyncScope.TimerRecord record) {
+        LIVE_TIMERS.remove(record);
+    }
+
+    /**
+     * The scheduler's lifecycle component. {@code stop()} retires every
+     * outstanding timer <i>before</i> the executor is shut down, so an eval
+     * blocked in its drain sees quiescence instead of waiting forever on a
+     * runnable that was cancelled out from under it.
+     */
+    private static final class TimerScheduler implements Stoppable {
+
+        private final ScheduledExecutorService executor;
+        private final Stoppable delegate;
+
+        TimerScheduler(ScheduledExecutorService executor) {
+            this.executor = executor;
+            this.delegate = KarateLifecycle.wrap("js-timer", "executor", executor);
+        }
+
+        @Override
+        public String lifecycleName() {
+            return "js-timer";
+        }
+
+        @Override
+        public String lifecycleKind() {
+            return "executor";
+        }
+
+        @Override
+        public ExecutorService lifecycleExecutor() {
+            return executor;
+        }
+
+        @Override
+        public void stop() {
+            for (AsyncScope.TimerRecord record : new ArrayList<>(LIVE_TIMERS)) {
+                record.scope.removeTimer(record.id);
+                retireTimer(record);
+            }
+            delegate.stop();
+        }
+
+        @Override
+        public String toString() {
+            return "js-timer";
+        }
+    }
+
     private static synchronized ScheduledExecutorService scheduler() {
         if (scheduler == null || scheduler.isShutdown()) {
             scheduler = Executors.newSingleThreadScheduledExecutor(
                     ThreadUtils.daemonFactory("js-timer-", false));
-            KarateLifecycle.register(KarateLifecycle.wrap("js-timer", "executor", scheduler));
+            KarateLifecycle.register(new TimerScheduler(scheduler));
         }
         return scheduler;
     }
@@ -601,22 +696,42 @@ final class AsyncSupport {
         }
         long delay = coerceDelay(arg(args, 1));
         Object[] extra = args.length > 2 ? Arrays.copyOfRange(args, 2, args.length) : EMPTY_ARGS;
+        if (KarateLifecycle.phase() != KarateLifecycle.Phase.RUNNING) {
+            // refuse before a token is acquired — scheduling is about to be
+            // rejected anyway, and an unbacked token would strand the drain
+            throw new EngineInterruptedException("setTimeout: karate is shutting down");
+        }
         AsyncToken token = scope.acquire("timer");
         if (token == null) {
             throw new EngineInterruptedException();
         }
         AsyncActivation.anyAsync = true;
         int id = scope.nextTimerId();
-        AsyncScope.TimerRecord record = new AsyncScope.TimerRecord(id, token);
+        AsyncScope.TimerRecord record = new AsyncScope.TimerRecord(scope, id, token);
         scope.addTimer(record);
-        ScheduledFuture<?> future = scheduler().schedule(() -> {
-            // foreign thread: may only win the CAS and publish, never run JS
-            if (record.fire()) {
-                scope.removeTimer(id);
-                scope.publishSuccessor(record.token, AsyncJob.one(new AsyncJob.Timer(id, target, extra)));
-            }
-        }, delay, TimeUnit.MILLISECONDS);
+        LIVE_TIMERS.add(record);
+        ScheduledFuture<?> future;
+        try {
+            future = scheduler().schedule(() -> {
+                // foreign thread: may only win the CAS and publish, never run JS
+                if (record.fire()) {
+                    forgetTimer(record);
+                    scope.removeTimer(id);
+                    scope.publishSuccessor(record.token, AsyncJob.one(new AsyncJob.Timer(id, target, extra)));
+                }
+            }, delay, TimeUnit.MILLISECONDS);
+        } catch (RuntimeException e) {
+            // the scheduler was stopped concurrently (RejectedExecutionException):
+            // unwind the record and its token, or nothing ever releases them
+            scope.removeTimer(id);
+            retireTimer(record);
+            throw new EngineInterruptedException("setTimeout: " + e);
+        }
         record.future = future;
+        if (!record.isLive()) {
+            // retired between the arm and the assignment — the future is ours to drop
+            future.cancel(false);
+        }
         return id;
     }
 
@@ -632,12 +747,8 @@ final class AsyncSupport {
             return Terms.UNDEFINED;
         }
         AsyncScope.TimerRecord record = scope.removeTimer(n.intValue());
-        if (record != null && record.cancel()) {
-            ScheduledFuture<?> future = record.future;
-            if (future != null) {
-                future.cancel(false);
-            }
-            record.token.release();
+        if (record != null) {
+            retireTimer(record);
         }
         return Terms.UNDEFINED;
     }

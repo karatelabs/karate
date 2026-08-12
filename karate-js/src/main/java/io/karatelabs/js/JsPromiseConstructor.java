@@ -227,8 +227,16 @@ class JsPromiseConstructor extends JsFunction {
      * user code — read it and call it here, so a throwing getter or a throwing
      * {@code then} aborts the combinator loop rather than being absorbed into
      * the element promise (which, with an endless iterator, never terminates).
+     * <p>
+     * {@code intrinsic} says the value came from the untampered
+     * {@code Promise.resolve}, which always hands back a native promise. When it
+     * did not, the spec's {@code Invoke} is the whole story: whatever a custom
+     * {@code C.resolve} returned must have a callable {@code then}, and a
+     * primitive — or an object without one — is a {@code TypeError} that rejects
+     * the combinator, not something to wrap and fulfil with.
      */
-    private static JsPromise asPromise(Context context, Engine engine, AsyncScope scope, Object value) {
+    private static JsPromise asPromise(Context context, Engine engine, AsyncScope scope,
+                                       Object value, boolean intrinsic) {
         Object thenFn = null;
         if (value instanceof ObjectLike obj) {
             thenFn = obj.getMember("then", obj, coreOf(context));
@@ -255,6 +263,9 @@ class JsPromiseConstructor extends JsFunction {
             callWithThis(context, thenCallable, value, new Object[]{resolveFn, rejectFn});
             checkAbrupt(context);
             return wrapper;
+        }
+        if (!intrinsic) {
+            throw JsErrorException.typeError("Promise resolve did not return a thenable");
         }
         if (value instanceof ObjectLike) {
             // `then` was already read above — don't let resolveValue read it a
@@ -313,7 +324,7 @@ class JsPromiseConstructor extends JsFunction {
                         ? resolveStatic(context, new Object[]{item})
                         : callWithThis(context, resolveCallable, receiver, new Object[]{item});
                 checkAbrupt(context);
-                promises.add(asPromise(context, engine, scope, next));
+                promises.add(asPromise(context, engine, scope, next, intrinsic));
             }
             // A throw from next() / done / value marks the iterator exhausted and
             // ends the loop quietly — the pending flag is the real completion.

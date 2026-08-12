@@ -176,6 +176,12 @@ final class AsyncActivation implements Runnable {
     }
 
     private void runBody() {
+        // gate check BEFORE acquiring jsLock as well as after: a stale activation
+        // must not even contend for the lock a dying scope's teardown depends on
+        if (!scope.isOpen()) {
+            publish(Outcome.FAILED);
+            return;
+        }
         try {
             engine.jsLock.lockInterruptibly();
         } catch (InterruptedException e) {
@@ -284,12 +290,33 @@ final class AsyncActivation implements Runnable {
         }
     }
 
+    /**
+     * Bounded but <b>uninterruptible</b> join. The teardown thread is usually the
+     * one that was interrupted in the first place, and a further interrupt may
+     * land at any point in the join sequence; abandoning the wait there would
+     * report a perfectly cooperative activation as stuck and poison the engine
+     * for it. Interruption is absorbed, the deadline still holds, and the
+     * interrupt status is re-asserted on the way out.
+     */
     boolean awaitTermination(long millis) {
+        long deadline = System.nanoTime() + millis * 1_000_000L;
+        boolean interrupted = false;
         try {
-            return finished.await(millis, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return finished.getCount() == 0;
+            while (true) {
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0) {
+                    return finished.getCount() == 0;
+                }
+                try {
+                    return finished.await(remaining, TimeUnit.NANOSECONDS);
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                }
+            }
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 

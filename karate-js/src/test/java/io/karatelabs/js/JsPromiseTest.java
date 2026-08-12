@@ -380,6 +380,30 @@ class JsPromiseTest extends EvalBase {
                 vs.join(',') + '|' + seen.join(',')"""));
     }
 
+    @Test
+    void testCombinatorsRejectWhenACustomResolveReturnsSomethingUnthenable() {
+        // spec: Invoke(nextPromise, "then", …) on whatever C.resolve handed back —
+        // a primitive has no callable `then`, so the combinator rejects
+        for (String name : new String[]{"all", "allSettled", "race", "any"}) {
+            assertEquals("TypeError", eval("""
+                    function C() {}
+                    C.resolve = function () { return 1 }
+                    try { await Promise.NAME.call(C, [42]) } catch (e) { e.name }""".replace("NAME", name)), name);
+            assertEquals("TypeError", eval("""
+                    function C() {}
+                    C.resolve = function () { return { then: 'not callable' } }
+                    try { await Promise.NAME.call(C, [42]) } catch (e) { e.name }""".replace("NAME", name)), name);
+        }
+        // and a custom resolve that does return a thenable is honored
+        assertEquals("2,4", eval("""
+                function C() {}
+                C.resolve = function (v) { return { then: function (r) { r(v * 2) } } }
+                var vs = await Promise.all.call(C, [1, 2])
+                vs.join(',')"""));
+        // the intrinsic fast path is untouched
+        assertEquals("1,2", eval("var vs = await Promise.all([1, Promise.resolve(2)])\nvs.join(',')"));
+    }
+
     // ===== thenables =====
 
     @Test
@@ -403,12 +427,76 @@ class JsPromiseTest extends EvalBase {
     }
 
     @Test
+    void testThenableIsInvokedFromAJobNotSynchronously() {
+        // spec: resolving with a thenable enqueues a job that calls `then` — it
+        // never runs reentrantly inside the resolve function itself
+        assertEquals(false, eval("""
+                var sync = true
+                var observed
+                Promise.resolve({ then: function (resolve) { observed = sync; resolve(1) } })
+                sync = false
+                await new Promise(function (r) { setTimeout(r, 10) })
+                observed"""));
+        // same for `await` on a bare thenable, and for a thenable returned from
+        // an async function
+        assertEquals("sync,then:7", eval("""
+                var log = []
+                var t = { then: function (resolve) { log.push('then'); resolve(7) } }
+                var p = Promise.resolve(t)
+                log.push('sync')
+                var v = await p
+                log.join(',') + ':' + v"""));
+        assertEquals(false, eval("""
+                var sync = true
+                var observed
+                async function f() { return { then: function (resolve) { observed = sync; resolve(1) } } }
+                f()
+                sync = false
+                await new Promise(function (r) { setTimeout(r, 10) })
+                observed"""));
+    }
+
+    @Test
     void testSelfResolutionIsATypeError() {
         assertEquals("TypeError", eval("""
                 var resolveFn
                 var p = new Promise(function (r) { resolveFn = r })
                 resolveFn(p)
                 try { await p } catch (e) { e.name }"""));
+    }
+
+    // ===== finally =====
+
+    @Test
+    void testFinallyAwaitsAPromiseReturnedByTheCallback() {
+        // spec: the callback's result goes through C.resolve(...).then(...), so a
+        // pending promise returned by onFinally gates the rest of the chain
+        assertEquals("gate-open,then:1", eval("""
+                var release
+                var gate = new Promise(function (r) { release = r })
+                var log = []
+                Promise.resolve(1).finally(function () { return gate }).then(function (v) { log.push('then:' + v) })
+                await new Promise(function (r) { setTimeout(r, 30) })
+                log.push('gate-open')
+                release(9)
+                await new Promise(function (r) { setTimeout(r, 30) })
+                log.join(',')"""));
+    }
+
+    @Test
+    void testFinallyPropagatesARejectionFromItsCallbackResult() {
+        assertEquals("boom", eval("""
+                await Promise.resolve(1)
+                  .finally(function () { return Promise.reject(new Error('boom')) })
+                  .catch(function (e) { return e.message })"""));
+        // a fulfilled result is discarded — the original settlement still wins
+        assertEquals(1, eval("await Promise.resolve(1).finally(function () { return Promise.resolve(99) })"));
+        assertEquals("x", eval("""
+                await Promise.reject(new Error('x'))
+                  .finally(function () { return Promise.resolve(99) })
+                  .catch(function (e) { return e.message })"""));
+        // a thenable works the same way
+        assertEquals(1, eval("await Promise.resolve(1).finally(function () { return { then: function (r) { r(2) } } })"));
     }
 
     // ===== timers =====

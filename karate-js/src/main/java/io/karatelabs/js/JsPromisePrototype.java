@@ -113,13 +113,24 @@ class JsPromisePrototype extends Prototype {
                     AsyncSupport.invoke(self.engine, onFinally, new Object[0], null);
             if (outcome.threw()) {
                 derived.settle(true, outcome.reason(), null);
-            } else if (rejected) {
-                // the rethrow path: `finally` re-raises the original rejection,
-                // which is why attaching one counts as handling this promise
-                derived.settle(true, value, null);
-            } else {
-                AsyncSupport.resolveValue(derived, value, null);
+                return;
             }
+            // spec: the callback's result goes through `C.resolve(result).then(…)`,
+            // so a promise (or thenable) returned by onFinally defers the original
+            // settlement until it fulfils — and replaces it outright if it rejects
+            JsPromise awaited = new JsPromise(self.engine, self.scope);
+            AsyncSupport.resolveValue(awaited, outcome.value(), null);
+            awaited.addReaction((finallyRejected, finallyValue) -> {
+                if (finallyRejected) {
+                    derived.settle(true, finallyValue, null);
+                } else if (rejected) {
+                    // the rethrow path: `finally` re-raises the original rejection,
+                    // which is why attaching one counts as handling this promise
+                    derived.settle(true, value, null);
+                } else {
+                    AsyncSupport.resolveValue(derived, value, null);
+                }
+            });
         });
         return derived;
     }
