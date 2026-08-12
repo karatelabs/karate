@@ -235,18 +235,22 @@ streams to be tailed.**
 
 ## Active priorities
 
-Reordered 2026-08-12 against the real-world bar, from two probes at HEAD:
-the `run-final4-lang` / `run-final4-builtins` run-dirs, and a 56-snippet
-idiomatic-JS smoke battery evaluated directly against the engine
-([Real-world smoke battery](#real-world-smoke-battery), 49/56 pass).
+Reordered 2026-08-12 against the real-world bar, from two probes at HEAD
+(latest pin: the `run-final-lang` / `run-final-builtins` run-dirs, and the
+56-snippet idiomatic-JS smoke battery at
+[Real-world smoke battery](#real-world-smoke-battery), 53/56 — the three
+holdouts are the two generator snippets and `typeof Symbol('a')`).
 The ES2015–ES2022 core an LLM leans on hardest — arrows, destructuring in
 every position, spread, optional chaining, `??`/`??=`, template + tagged
-literals, classes with getters/`extends`/`super`, custom `Error`
-subclasses, Map/Set, JSON round-trips, the modern String/Array/Object
-method sets, regex named groups + `matchAll` — is solid, and **async /
-await / Promise / setTimeout now work** (vthread-activation model; see
-[JS_ENGINE.md § Async](../docs/JS_ENGINE.md#async--await--promise)).
-What remains splits into three tiers.
+literals, classes with getters/`extends`/`super`/public+private fields and
+methods, arrow fields, custom `Error` subclasses, Map/Set + WeakMap/WeakSet,
+JSON round-trips, spec-shaped Number→string at all magnitudes, the modern
+String/Array/Object method sets, regex named groups + `matchAll` + `/g`
+function replacers, labeled statements, and **async / await / Promise /
+setTimeout** (vthread-activation model; see
+[JS_ENGINE.md § Async](../docs/JS_ENGINE.md#async--await--promise)) — is
+solid. The 2026-08-12 session closed the entire P0 tier and the two small
+P1s; what remains is below.
 
 ### P0 — silent wrong answers (valid code, wrong result, no error)
 
