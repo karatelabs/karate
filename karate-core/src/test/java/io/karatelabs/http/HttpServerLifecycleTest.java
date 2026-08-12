@@ -28,6 +28,7 @@ import io.karatelabs.common.KarateLifecycle.Outcome;
 import io.karatelabs.common.KarateLifecycle.StopResult;
 import io.karatelabs.common.Stoppable;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -43,6 +44,15 @@ import static org.junit.jupiter.api.Assertions.*;
  * to use, and disappears from it once stopped.
  */
 class HttpServerLifecycleTest {
+
+    @BeforeEach
+    void isolateRegistry() {
+        // the register is process-wide: components other test classes left behind would share
+        // the shutdownAll budget with (and slow-stop ahead of) the server under test here
+        for (Stoppable stray : KarateLifecycle.running()) {
+            KarateLifecycle.unregister(stray);
+        }
+    }
 
     @AfterEach
     void resetRegistry() {
@@ -77,8 +87,9 @@ class HttpServerLifecycleTest {
     void shutdownAllDrainsAStartedServer() {
         HttpServer server = HttpServer.start(0, req -> HttpResponse.text("ok"));
         assertTrue(isRegistered(server));
-        // the register is process-wide, so a server another test left running would show up here too
-        List<StopResult> results = KarateLifecycle.shutdownAll(Duration.ofSeconds(10));
+        // generous deadline: the assertion is about the outcome, not speed, and a cold Netty
+        // shutdown on a loaded CI runner can take several seconds
+        List<StopResult> results = KarateLifecycle.shutdownAll(Duration.ofSeconds(30));
         StopResult mine = results.stream()
                 .filter(r -> r.name().equals("http-server:" + server.getPort()))
                 .findFirst().orElseThrow(() -> new AssertionError("not in summary: " + results));

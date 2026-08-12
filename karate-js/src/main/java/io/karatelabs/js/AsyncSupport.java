@@ -582,8 +582,6 @@ final class AsyncSupport {
 
     //=== timers =======================================================================================================
 
-    private static ScheduledExecutorService scheduler;
-
     /**
      * Every {@code setTimeout} record that has been armed and not yet retired,
      * across all engines and scopes — the scheduler is process-wide, so its
@@ -619,19 +617,38 @@ final class AsyncSupport {
     }
 
     /**
-     * The scheduler's lifecycle component. {@code stop()} retires every
-     * outstanding timer <i>before</i> the executor is shut down, so an eval
-     * blocked in its drain sees quiescence instead of waiting forever on a
-     * runnable that was cancelled out from under it.
+     * The scheduler's lifecycle component. {@code shutdownNow()} cancels the
+     * scheduled runnables, so unless something else retires their records the
+     * tokens stay live and the owning eval's drain waits for a callback that can
+     * never arrive.
+     * <p>
+     * The handshake with {@link #setTimeout} is ordered so that no interleaving
+     * can orphan a token. {@code stop()} publishes {@code closed} <i>first</i>,
+     * then shuts the executor down, then sweeps the registry; {@code setTimeout}
+     * registers its record <i>before</i> it looks at {@code closed} and before it
+     * schedules. So an arming timer either sees {@code closed} and retires its own
+     * record, or its registration happened-before {@code closed} was published and
+     * therefore before the sweep, which retires it. Both may happen — the
+     * record's {@code LIVE → CANCELLED} CAS makes retirement exactly-once, and
+     * over-retirement is harmless while under-retirement is the hang.
      */
     private static final class TimerScheduler implements Stoppable {
 
         private final ScheduledExecutorService executor;
         private final Stoppable delegate;
+        private volatile boolean closed;
 
         TimerScheduler(ScheduledExecutorService executor) {
             this.executor = executor;
             this.delegate = KarateLifecycle.wrap("js-timer", "executor", executor);
+        }
+
+        boolean isClosed() {
+            return closed;
+        }
+
+        ScheduledFuture<?> schedule(Runnable command, long delayMillis) {
+            return executor.schedule(command, delayMillis, TimeUnit.MILLISECONDS);
         }
 
         @Override
@@ -651,11 +668,15 @@ final class AsyncSupport {
 
         @Override
         public void stop() {
+            closed = true;
+            delegate.stop();
+            // post-shutdown sweep: everything registered before `closed` became
+            // visible is here, including a racer whose schedule() slipped in ahead
+            // of shutdownNow() and had its task cancelled without ever firing
             for (AsyncScope.TimerRecord record : new ArrayList<>(LIVE_TIMERS)) {
                 record.scope.removeTimer(record.id);
                 retireTimer(record);
             }
-            delegate.stop();
         }
 
         @Override
@@ -664,11 +685,13 @@ final class AsyncSupport {
         }
     }
 
-    private static synchronized ScheduledExecutorService scheduler() {
-        if (scheduler == null || scheduler.isShutdown()) {
-            scheduler = Executors.newSingleThreadScheduledExecutor(
-                    ThreadUtils.daemonFactory("js-timer-", false));
-            KarateLifecycle.register(new TimerScheduler(scheduler));
+    private static TimerScheduler scheduler;
+
+    private static synchronized TimerScheduler scheduler() {
+        if (scheduler == null || scheduler.isClosed() || scheduler.executor.isShutdown()) {
+            scheduler = new TimerScheduler(Executors.newSingleThreadScheduledExecutor(
+                    ThreadUtils.daemonFactory("js-timer-", false)));
+            KarateLifecycle.register(scheduler);
         }
         return scheduler;
     }
@@ -709,17 +732,25 @@ final class AsyncSupport {
         int id = scope.nextTimerId();
         AsyncScope.TimerRecord record = new AsyncScope.TimerRecord(scope, id, token);
         scope.addTimer(record);
+        TimerScheduler timer = scheduler();
+        // register BEFORE the closed re-check and before scheduling: that ordering
+        // is what makes the stop() handshake airtight — see TimerScheduler
         LIVE_TIMERS.add(record);
+        if (timer.isClosed()) {
+            scope.removeTimer(id);
+            retireTimer(record);
+            throw new EngineInterruptedException("setTimeout: karate is shutting down");
+        }
         ScheduledFuture<?> future;
         try {
-            future = scheduler().schedule(() -> {
+            future = timer.schedule(() -> {
                 // foreign thread: may only win the CAS and publish, never run JS
                 if (record.fire()) {
                     forgetTimer(record);
                     scope.removeTimer(id);
                     scope.publishSuccessor(record.token, AsyncJob.one(new AsyncJob.Timer(id, target, extra)));
                 }
-            }, delay, TimeUnit.MILLISECONDS);
+            }, delay);
         } catch (RuntimeException e) {
             // the scheduler was stopped concurrently (RejectedExecutionException):
             // unwind the record and its token, or nothing ever releases them

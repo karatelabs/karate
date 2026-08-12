@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -442,34 +443,48 @@ class JsAsyncConcurrencyTest {
 
     @Test
     void testSetTimeoutRacingLifecycleShutdownNeverStrandsAnEval() throws Exception {
-        // the schedule-rejection interleaving: arming timers while the shared
-        // scheduler is being stopped. Whichever side wins, the record and its
-        // token must be unwound and the eval must terminate.
-        for (int round = 0; round < 12; round++) {
-            Engine engine = new Engine();
-            AtomicReference<Throwable> thrown = new AtomicReference<>();
-            CountDownLatch done = new CountDownLatch(1);
-            runAsync("timer-race-" + round, () -> {
-                try {
-                    engine.eval("for (var i = 0; i < 50; i++) { setTimeout(function () {}, 30000) }\n1");
-                } catch (Throwable t) {
-                    thrown.set(t);
-                } finally {
-                    done.countDown();
-                }
-            });
+        // Arming timers while the shared scheduler is being stopped, hammered from
+        // several threads so the arm lands on every side of the stop handshake:
+        // before the closed flag is published, between that and the executor
+        // shutdown, and after the registry sweep. Whichever side wins, the record
+        // and its token must be unwound and the eval must terminate.
+        int workers = 4;
+        for (int round = 0; round < 20; round++) {
+            List<Engine> engines = new ArrayList<>();
+            List<AtomicReference<Throwable>> failures = new ArrayList<>();
+            CountDownLatch done = new CountDownLatch(workers);
+            for (int w = 0; w < workers; w++) {
+                Engine engine = new Engine();
+                AtomicReference<Throwable> thrown = new AtomicReference<>();
+                engines.add(engine);
+                failures.add(thrown);
+                runAsync("timer-race-" + round + "-" + w, () -> {
+                    try {
+                        engine.eval("for (var i = 0; i < 200; i++) { setTimeout(function () {}, 30000) }\n1");
+                    } catch (Throwable t) {
+                        thrown.set(t);
+                    } finally {
+                        done.countDown();
+                    }
+                });
+            }
             try {
-                Thread.sleep(round % 4);
+                Thread.sleep(round % 3);
                 KarateLifecycle.shutdownAll(Duration.ofSeconds(5));
-                assertTrue(done.await(10, TimeUnit.SECONDS), "the eval never terminated, round " + round);
+                assertTrue(done.await(15, TimeUnit.SECONDS),
+                        "an eval was stranded by an orphaned timer token, round " + round);
             } finally {
                 KarateLifecycle.reset();
             }
-            Throwable t = thrown.get();
-            if (t != null) {
-                assertInstanceOf(EngineInterruptedException.class, t, "round " + round + ": " + t);
+            for (int w = 0; w < workers; w++) {
+                Throwable t = failures.get(w).get();
+                if (t != null) {
+                    assertInstanceOf(EngineInterruptedException.class, t, "round " + round + ": " + t);
+                }
+                assertFalse(engines.get(w).isPoisoned(), "round " + round);
+                // the scope is gone, so every token it handed out was accounted for
+                assertNull(engines.get(w).currentScope(), "round " + round);
             }
-            assertFalse(engine.isPoisoned(), "round " + round);
         }
     }
 
