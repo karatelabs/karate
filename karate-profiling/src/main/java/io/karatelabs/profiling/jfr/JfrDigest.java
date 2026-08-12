@@ -771,9 +771,14 @@ public final class JfrDigest {
         }
         // Only claim exclusion when the recording was actually delayed. A warmup under JFR's
         // one-second delay floor gets no delay, and a self-driving workload runs no warmup at
-        // all, yet this row asserted "excluded" for both.
+        // all, yet this row asserted "excluded" for both. On a timing run there is no recording
+        // to be excluded from — the measured window (the elapsed row) still starts after the
+        // warmup either way.
         boolean delayed = String.join(" ", info.command()).contains(",delay=");
-        row(md, "warmup", RunShape.format(shape.warmup()) + warmupExclusion(runDir, shape, delayed));
+        row(md, "warmup", RunShape.format(shape.warmup())
+                + (jfrMode != null && jfrMode.startsWith("off")
+                ? " (no recording to exclude it from; the measured window starts after it)"
+                : warmupExclusion(runDir, shape, delayed)));
         row(md, "-Xmx", info.jvm().xmx());
         row(md, "collector", info.jvm().gc().name().toLowerCase()
                 + " → `" + String.join(" ", info.jvm().flags(Runtime.version().feature())) + "`");
