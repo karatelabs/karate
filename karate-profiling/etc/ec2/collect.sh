@@ -21,7 +21,8 @@ mkdir -p "$KP_RESULTS"
 # to how much — so they come home with the digest rather than dying with the host, which is where
 # the hand-taken ones went.
 includes=(--include '*/' --include 'digest.md' --include 'run-meta.txt' --include 'mock.log'
-          --include 'calibration-*.txt' --include 'histogram-*.txt')
+          --include 'calibration-*.txt' --include 'histogram-*.txt'
+          --include 'matrix-manifest.txt')
 $want_all && includes+=(--include 'stdout.log' --include '*.hprof')
 
 log "pulling digests to $KP_RESULTS"
