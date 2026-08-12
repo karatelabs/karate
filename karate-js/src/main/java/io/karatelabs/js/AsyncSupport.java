@@ -622,21 +622,28 @@ final class AsyncSupport {
      * tokens stay live and the owning eval's drain waits for a callback that can
      * never arrive.
      * <p>
-     * The handshake with {@link #setTimeout} is ordered so that no interleaving
-     * can orphan a token. {@code stop()} publishes {@code closed} <i>first</i>,
-     * then shuts the executor down, then sweeps the registry; {@code setTimeout}
-     * registers its record <i>before</i> it looks at {@code closed} and before it
-     * schedules. So an arming timer either sees {@code closed} and retires its own
-     * record, or its registration happened-before {@code closed} was published and
-     * therefore before the sweep, which retires it. Both may happen — the
-     * record's {@code LIVE → CANCELLED} CAS makes retirement exactly-once, and
-     * over-retirement is harmless while under-retirement is the hang.
+     * The handshake with {@link #setTimeout} runs through {@code gate}, a plain
+     * monitor, because ordering alone is not enough: reading a volatile flag as
+     * false establishes nothing about a later write of true, and a weakly
+     * consistent set traversal need not observe a racing registration. Under the
+     * monitor, "is it closed / register the record" is <b>one atomic step</b>, and
+     * {@code stop()} takes the same monitor to publish {@code closed}. Every
+     * registration therefore either precedes that acquisition — so the release /
+     * acquire edge makes it visible to the sweep, which retires it — or follows
+     * the release, in which case it sees {@code closed} and never registers at
+     * all. Zero-retirement is unreachable; over-retirement is harmless, because
+     * the record's {@code LIVE → CANCELLED} CAS makes it exactly-once.
+     * <p>
+     * Scheduling stays outside the monitor: it can be rejected, and that path has
+     * its own unwind. The gate is uncontended in normal operation, and timers are
+     * nowhere near the synchronous hot path.
      */
     private static final class TimerScheduler implements Stoppable {
 
+        private final Object gate = new Object();
         private final ScheduledExecutorService executor;
         private final Stoppable delegate;
-        private volatile boolean closed;
+        private boolean closed;
 
         TimerScheduler(ScheduledExecutorService executor) {
             this.executor = executor;
@@ -644,7 +651,21 @@ final class AsyncSupport {
         }
 
         boolean isClosed() {
-            return closed;
+            synchronized (gate) {
+                return closed;
+            }
+        }
+
+        /** Atomically: refuse if stopping, else register. Returns false when the
+         *  scheduler is closed and the caller must not arm anything. */
+        boolean register(AsyncScope.TimerRecord record) {
+            synchronized (gate) {
+                if (closed) {
+                    return false;
+                }
+                LIVE_TIMERS.add(record);
+                return true;
+            }
         }
 
         ScheduledFuture<?> schedule(Runnable command, long delayMillis) {
@@ -668,11 +689,14 @@ final class AsyncSupport {
 
         @Override
         public void stop() {
-            closed = true;
+            synchronized (gate) {
+                closed = true;
+            }
             delegate.stop();
-            // post-shutdown sweep: everything registered before `closed` became
-            // visible is here, including a racer whose schedule() slipped in ahead
-            // of shutdownNow() and had its task cancelled without ever firing
+            // post-shutdown sweep: every record registered before the gate was
+            // taken is visible here through that monitor edge — including a racer
+            // whose schedule() slipped in ahead of shutdownNow() and then had its
+            // task cancelled without ever firing
             for (AsyncScope.TimerRecord record : new ArrayList<>(LIVE_TIMERS)) {
                 record.scope.removeTimer(record.id);
                 retireTimer(record);
@@ -733,10 +757,9 @@ final class AsyncSupport {
         AsyncScope.TimerRecord record = new AsyncScope.TimerRecord(scope, id, token);
         scope.addTimer(record);
         TimerScheduler timer = scheduler();
-        // register BEFORE the closed re-check and before scheduling: that ordering
-        // is what makes the stop() handshake airtight — see TimerScheduler
-        LIVE_TIMERS.add(record);
-        if (timer.isClosed()) {
+        // the closed-check and the registration are one atomic step under the
+        // scheduler's gate — see TimerScheduler for why ordering alone would not do
+        if (!timer.register(record)) {
             scope.removeTimer(id);
             retireTimer(record);
             throw new EngineInterruptedException("setTimeout: karate is shutting down");
