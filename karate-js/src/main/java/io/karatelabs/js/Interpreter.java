@@ -200,7 +200,7 @@ class Interpreter {
             PropertyAccess.set(bindings, context, value);
         } else if (bindings.isToken() && bindings.token.type == IDENT) {
             String name = bindings.getText();
-            context.declare(name, value, toScope(bindScope), initialized);
+            declareBinding(bindings, name, context, bindScope, value, initialized);
             if (context.root.listener != null) {
                 context.root.listener.onBind(BindEvent.declare(name, value, bindScope, context, bindings));
             }
@@ -447,7 +447,7 @@ class Interpreter {
     private static void bindLeaf(Node node, String name, CoreContext context,
                                   BindScope bindScope, Object value, boolean initialized) {
         if (bindScope != null) {
-            context.declare(name, value, toScope(bindScope), initialized);
+            declareBinding(node, name, context, bindScope, value, initialized);
             if (context.root.listener != null) {
                 context.root.listener.onBind(BindEvent.declare(name, value, bindScope, context, node));
             }
@@ -456,9 +456,28 @@ class Interpreter {
         }
     }
 
+    /** Declaration write, slot-aware: a binding IDENT annotated by SlotTable
+     *  (scope-confined let/const — vars and body-top lets route by name inside
+     *  CoreContext.declare instead) writes its frame slot directly, with the
+     *  same name inference declare() applies. Callers fire the declare
+     *  BindEvent themselves, identically for both storage paths. */
+    private static void declareBinding(Node node, String name, CoreContext context,
+                                       BindScope bindScope, Object value, boolean initialized) {
+        int slot = node.slot;
+        if (slot >= 0 && context.frame != null && bindScope != null) {
+            if (value instanceof JsFunction fn && (fn.name == null || fn.name.isEmpty())) {
+                fn.name = name;
+            }
+            context.frame[slot] = initialized ? value : SlotTable.TDZ;
+            return;
+        }
+        context.declare(name, value, toScope(bindScope), initialized);
+    }
+
     private static Object evalBlock(Node node, CoreContext context) {
         context.enterScope(ContextScope.BLOCK, node);
         context.event(EventType.CONTEXT_ENTER, node);
+        rearmScopedSlots(node, context);
         // Hoist function declarations before any statement runs so earlier
         // statements can still reference them. Re-running the FN_EXPR in normal
         // flow would replace the hoisted binding with a fresh JsFunctionNode and
@@ -892,6 +911,19 @@ class Interpreter {
     // before any statement runs. Re-evaluation when the declaration is reached in
     // normal flow re-binds to a fresh JsFunctionNode with the same captures —
     // functionally equivalent, just a small extra allocation per declaration.
+    /** Re-arm a scope's confined let/const slots to UNDECLARED on entry
+     *  (SlotTable stamps the list on the declaring BLOCK / FOR_STMT node) —
+     *  the frame analogue of popLevel: loop iterations and pre-declaration
+     *  reads then resolve exactly as the store did. */
+    private static void rearmScopedSlots(Node node, CoreContext context) {
+        Object m = node.meta;
+        if (m instanceof int[] slots && context.frame != null) {
+            for (int s : slots) {
+                context.frame[s] = SlotTable.UNDECLARED;
+            }
+        }
+    }
+
     static void hoistFunctionDeclarations(Node parent, CoreContext context) {
         for (int i = 0, n = parent.size(); i < n; i++) {
             Node child = parent.get(i);
@@ -1400,10 +1432,25 @@ class Interpreter {
         return cm.simpleKey;
     }
 
+    /** True when every declarator in a C-style for-init let/const binds a
+     *  simple IDENT that SlotTable annotated with a frame slot. */
+    private static boolean loopVarsAllSlotted(Node varStmt) {
+        boolean any = false;
+        for (Node declarator : varStmt.findImmediateChildren(NodeType.VAR_DECL)) {
+            Node binding = declarator.getFirst();
+            if (!binding.isToken() || binding.token.type != IDENT || binding.slot < 0) {
+                return false;
+            }
+            any = true;
+        }
+        return any;
+    }
+
     private static Object evalForStmt(Node node, CoreContext context) {
         // Enter loop init scope
         context.enterScope(ContextScope.LOOP_INIT, node);
         context.event(EventType.CONTEXT_ENTER, node);
+        rearmScopedSlots(node, context);
         Node forBody = node.getLast();
         Object forResult = null;
         boolean enteredBodyScope = false;
@@ -1420,6 +1467,15 @@ class Interpreter {
                 if (!noInit && node.get(2).type == NodeType.VAR_STMT) {
                     evalVarStmt(node.get(2), context);
                     isLetOrConst = node.get(2).getFirstToken().type != VAR;
+                    if (isLetOrConst && context.frame != null && loopVarsAllSlotted(node.get(2))) {
+                        // Every loop var is a scope-confined frame slot: the
+                        // analyzer proved no closure captures them, and the
+                        // per-iteration machinery below emits no BindEvents, so
+                        // the fresh-environment dance is unobservable — run the
+                        // shared-binding var path on the slots instead. The
+                        // init above already wrote them via their annotations.
+                        isLetOrConst = false;
+                    }
                     if (isLetOrConst) {
                         // Collect the bound names across declarators for per-iteration
                         // capture — from the binding target only (declarator.getFirst()),
@@ -2291,6 +2347,26 @@ class Interpreter {
         if (node.getFirst().type == NodeType.FN_ARROW_EXPR) { // arrow function
             return evalFnArrowExpr(node.getFirst(), context);
         }
+        int slot = node.slot;
+        if (slot >= 0) {
+            Object[] frame = context.frame;
+            if (frame != null) {
+                Object v = frame[slot];
+                if (v != SlotTable.UNDECLARED) {
+                    if (v == SlotTable.TDZ) {
+                        throw SlotTable.tdzError(node.getText());
+                    }
+                    return v;
+                }
+            }
+        }
+        return evalRefExprByName(node, context);
+    }
+
+    // The name-keyed tail of evalRefExpr, outlined so the slot fast path above
+    // stays small enough to inline reliably — an at-threshold hot method here
+    // flips whole benchmark rows run to run depending on JIT timing.
+    private static Object evalRefExprByName(Node node, CoreContext context) {
         String varName = node.getText();
         if ("this".equals(varName)) {
             return context.getThisObject();

@@ -122,7 +122,19 @@ class JsFunctionNode extends JsFunction {
         this.length = argCount;
         // Capture references to let/const Slots at creation time for closure semantics
         this.capturedBindings = captureBindings(declaredContext);
+        // Slot-frame analysis: once per function-definition node (cached there),
+        // null when the flag is off or the analyzer declines the shape. Eager
+        // only for loop-containing bodies; loop-free bodies are analyzed at
+        // this instance's second call (see bindArgsAndExecute) so functions
+        // called once never pay for analysis they cannot amortize.
+        this.slotTable = SlotTable.ENABLED ? SlotTable.forNodeEager(node, argNodes, body) : null;
     }
+
+    SlotTable slotTable;
+    // Calls on THIS function object; trips deferred analysis at the second
+    // call. Racy under sharing — a lost increment only delays analysis by a
+    // call, and slotTable is republished from the node cache either way.
+    private int callCount;
 
     private static BindingsStore captureBindings(CoreContext context) {
         if (context.bindings == null) {
@@ -222,6 +234,20 @@ class JsFunctionNode extends JsFunction {
     /** The synchronous body run. For an async function this is what the
      *  activation thread executes; the caller has already been handed a promise. */
     Object executeBody(CoreContext functionContext, CoreContext parentContext, Object[] args) {
+        // Attach the slot frame here — the single choke point every call path
+        // shares before params bind and defaults evaluate. For an async function
+        // this runs on the activation thread, so the frame exists before the
+        // body's first statement there too; the frame lives on the context and
+        // follows it across await suspensions.
+        SlotTable table = slotTable;
+        if (table == null && SlotTable.ENABLED && ++callCount == 2) {
+            table = SlotTable.forNodeForced(node, argNodes, body);
+            slotTable = table;
+        }
+        if (table != null) {
+            functionContext.frame = table.newFrame();
+            functionContext.frameTable = table;
+        }
         for (int i = 0; i < argCount; i++) {
             Node argNode = argNodes.get(i);
             Node first = argNode.getFirst();
@@ -252,7 +278,17 @@ class JsFunctionNode extends JsFunction {
                 Interpreter.evalAssign(first, functionContext, BindScope.VAR, argValue, true);
             } else {
                 String argName = first.getText();
-                functionContext.put(argName, argValue);
+                int slot = slotTable == null ? -1 : slotTable.paramSlots[i];
+                if (slot >= 0) {
+                    // Same name inference put→declare would apply, then a plain
+                    // slot write (params are function-level and unshadowed).
+                    if (argValue instanceof JsFunction fn && (fn.name == null || fn.name.isEmpty())) {
+                        fn.name = argName;
+                    }
+                    functionContext.frame[slot] = argValue;
+                } else {
+                    functionContext.put(argName, argValue);
+                }
             }
         }
         Object result = Interpreter.eval(body, functionContext);

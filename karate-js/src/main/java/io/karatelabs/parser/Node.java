@@ -76,6 +76,17 @@ public class Node {
     // Cached text for getText() - avoids repeated StringBuilder operations
     private String cachedText;
 
+    // Slot-frame annotations, assigned lazily by the JS engine's per-function
+    // symbol analysis (io.karatelabs.js.SlotTable) — the same benign-race
+    // contract as cachedText: every racing thread computes the same value.
+    // `slot` is a short so it packs into the alignment gap next to childCount
+    // — parse allocation is hot enough that an 8-byte-per-node growth showed
+    // up on the top-level benchmark rows. A stale -1 read only means the
+    // slower name-keyed path is taken. `meta` holds a mutable object, so per
+    // the class-doc rule it is volatile and must be read once into a local.
+    public short slot = -1;
+    public volatile Object meta;
+
     private Node parent;
 
     // Ensure capacity for adding children

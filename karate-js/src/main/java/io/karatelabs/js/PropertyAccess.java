@@ -225,7 +225,15 @@ class PropertyAccess {
      */
     static void set(Node node, CoreContext context, Object value, Node trackingNode) {
                 switch (node.type) {
-            case REF_EXPR -> context.update(node.getText(), value, trackingNode);
+            case REF_EXPR -> {
+                int slot = node.slot;
+                Object[] frame;
+                if (slot >= 0 && (frame = context.frame) != null && frame[slot] != SlotTable.UNDECLARED) {
+                    context.updateSlot(slot, value, trackingNode);
+                } else {
+                    context.update(node.getText(), value, trackingNode);
+                }
+            }
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
                 if (site == null || site == SHORT_CIRCUIT_SITE) return;
@@ -288,14 +296,22 @@ class PropertyAccess {
     static Object compound(Node node, CoreContext context, TokenType operator, Node rhsNode, Node trackingNode) {
                 return switch (node.type) {
             case REF_EXPR -> {
-                String name = node.getText();
-                Object oldValue = context.get(name);
-                if (context.isStopped()) yield Terms.UNDEFINED;
-                Object operand = Interpreter.eval(rhsNode, context);
-                if (context.isStopped()) yield Terms.UNDEFINED;
-                Object newValue = applyOperator(oldValue, operator, operand, context);
-                context.update(name, newValue, trackingNode);
-                yield newValue;
+                // Slot fast path, in the same spec order as the name tail below: read the
+                // LHS (a TDZ read throws before any RHS side effect), THEN evaluate the RHS.
+                int slot = node.slot;
+                Object[] frame;
+                if (slot >= 0 && (frame = context.frame) != null && frame[slot] != SlotTable.UNDECLARED) {
+                    Object oldValue = frame[slot];
+                    if (oldValue == SlotTable.TDZ) {
+                        throw SlotTable.tdzError(node.getText());
+                    }
+                    Object operand = Interpreter.eval(rhsNode, context);
+                    if (context.isStopped()) yield Terms.UNDEFINED;
+                    Object newValue = applyOperator(oldValue, operator, operand, context);
+                    context.updateSlot(slot, newValue, trackingNode);
+                    yield newValue;
+                }
+                yield compoundRefByName(node, context, operator, rhsNode, trackingNode);
             }
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
@@ -328,13 +344,20 @@ class PropertyAccess {
     static Object logicalCompound(Node node, CoreContext context, TokenType operator, Node rhsNode, Node trackingNode) {
                 return switch (node.type) {
             case REF_EXPR -> {
-                String name = node.getText();
-                Object oldValue = context.get(name);
-                if (!shouldLogicalAssign(operator, oldValue)) yield oldValue;
-                Object newValue = Interpreter.eval(rhsNode, context);
-                if (context.isStopped()) yield null;
-                context.update(name, newValue, trackingNode);
-                yield newValue;
+                int slot = node.slot;
+                Object[] frame;
+                if (slot >= 0 && (frame = context.frame) != null && frame[slot] != SlotTable.UNDECLARED) {
+                    Object oldValue = frame[slot];
+                    if (oldValue == SlotTable.TDZ) {
+                        throw SlotTable.tdzError(node.getText());
+                    }
+                    if (!shouldLogicalAssign(operator, oldValue)) yield oldValue;
+                    Object newValue = Interpreter.eval(rhsNode, context);
+                    if (context.isStopped()) yield null;
+                    context.updateSlot(slot, newValue, trackingNode);
+                    yield newValue;
+                }
+                yield logicalCompoundRefByName(node, context, operator, rhsNode, trackingNode);
             }
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
@@ -365,6 +388,39 @@ class PropertyAccess {
             }
             default -> throw JsErrorException.typeError("cannot apply logical-assignment to: " + node);
         };
+    }
+
+    // Name-keyed REF_EXPR tails, outlined from their switch cases to keep the
+    // slot fast paths small enough to inline reliably.
+
+    private static Object compoundRefByName(Node node, CoreContext context, TokenType operator, Node rhsNode, Node trackingNode) {
+        String name = node.getText();
+        Object oldValue = context.get(name);
+        if (context.isStopped()) return Terms.UNDEFINED;
+        Object operand = Interpreter.eval(rhsNode, context);
+        if (context.isStopped()) return Terms.UNDEFINED;
+        Object newValue = applyOperator(oldValue, operator, operand, context);
+        context.update(name, newValue, trackingNode);
+        return newValue;
+    }
+
+    private static Object logicalCompoundRefByName(Node node, CoreContext context, TokenType operator, Node rhsNode, Node trackingNode) {
+        String name = node.getText();
+        Object oldValue = context.get(name);
+        if (!shouldLogicalAssign(operator, oldValue)) return oldValue;
+        Object newValue = Interpreter.eval(rhsNode, context);
+        if (context.isStopped()) return null;
+        context.update(name, newValue, trackingNode);
+        return newValue;
+    }
+
+    private static Object incDecRefByName(Node node, CoreContext context, boolean isIncrement, boolean returnNew) {
+        String name = node.getText();
+        Object oldValue = context.get(name);
+        Object step = Terms.incDecStep(oldValue);
+        Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step, context);
+        context.update(name, newValue);
+        return returnNew ? newValue : oldValue;
     }
 
     private static boolean shouldLogicalAssign(TokenType operator, Object lhsValue) {
@@ -409,12 +465,19 @@ class PropertyAccess {
     static Object postIncDec(Node node, CoreContext context, boolean isIncrement) {
                 return switch (node.type) {
             case REF_EXPR -> {
-                String name = node.getText();
-                Object oldValue = context.get(name);
-                Object step = Terms.incDecStep(oldValue);
-                Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step, context);
-                context.update(name, newValue);
-                yield oldValue;
+                int slot = node.slot;
+                Object[] frame;
+                if (slot >= 0 && (frame = context.frame) != null && frame[slot] != SlotTable.UNDECLARED) {
+                    Object oldValue = frame[slot];
+                    if (oldValue == SlotTable.TDZ) {
+                        throw SlotTable.tdzError(node.getText());
+                    }
+                    Object step = Terms.incDecStep(oldValue);
+                    Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step, context);
+                    context.updateSlot(slot, newValue, null);
+                    yield oldValue;
+                }
+                yield incDecRefByName(node, context, isIncrement, false);
             }
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
@@ -439,12 +502,19 @@ class PropertyAccess {
     static Object preIncDec(Node node, CoreContext context, boolean isIncrement) {
                 return switch (node.type) {
             case REF_EXPR -> {
-                String name = node.getText();
-                Object oldValue = context.get(name);
-                Object step = Terms.incDecStep(oldValue);
-                Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step, context);
-                context.update(name, newValue);
-                yield newValue;
+                int slot = node.slot;
+                Object[] frame;
+                if (slot >= 0 && (frame = context.frame) != null && frame[slot] != SlotTable.UNDECLARED) {
+                    Object oldValue = frame[slot];
+                    if (oldValue == SlotTable.TDZ) {
+                        throw SlotTable.tdzError(node.getText());
+                    }
+                    Object step = Terms.incDecStep(oldValue);
+                    Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step, context);
+                    context.updateSlot(slot, newValue, null);
+                    yield newValue;
+                }
+                yield incDecRefByName(node, context, isIncrement, true);
             }
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
@@ -485,15 +555,41 @@ class PropertyAccess {
     //=== Private implementation methods ===
 
     private static Object getRefExpr(Node node, CoreContext context, boolean functionCall) {
+        int slot = node.slot;
+        if (slot >= 0) {
+            Object[] frame = context.frame;
+            if (frame != null) {
+                Object v = frame[slot];
+                if (v != SlotTable.UNDECLARED) {
+                    if (v == SlotTable.TDZ) {
+                        throw SlotTable.tdzError(node.getText());
+                    }
+                    if (functionCall && context.root.bridge != null && v instanceof ExternalAccess ea) {
+                        return externalConstructor(ea);
+                    }
+                    return v;
+                }
+            }
+        }
+        return getRefExprByName(node, context, functionCall);
+    }
+
+    // Name-keyed tail of getRefExpr, outlined to keep the slot fast path small
+    // enough to inline reliably.
+    private static Object getRefExprByName(Node node, CoreContext context, boolean functionCall) {
         String name = node.getText();
         if (context.hasKey(name)) {
             Object result = context.get(name);
             if (functionCall && context.root.bridge != null && result instanceof ExternalAccess ea) {
-                return (JsConstructor) (c, args) -> ea.construct(args);
+                return externalConstructor(ea);
             }
             return result;
         }
         throw JsErrorException.referenceError(name + " is not defined");
+    }
+
+    private static JsConstructor externalConstructor(ExternalAccess ea) {
+        return (c, args) -> ea.construct(args);
     }
 
     /**

@@ -90,6 +90,16 @@ class CoreContext implements Context {
     // updates through the existing-key fast path).
     final BindingsStore capturedBindings;
 
+    // Slot frame (function contexts only, flag-gated): dense storage for the
+    // locals SlotTable proved safe. Attached by JsFunctionNode.bindArgsAndExecute.
+    // Frame locals never enter `bindings`, and resolve() deliberately does not
+    // see them — anything a nested scope could reference was classified STORE
+    // by the analyzer. The routing in get/update/declare/hasKey makes the
+    // frame indistinguishable from store bindings for code running on THIS
+    // context (host introspection, destructuring, for-of bindings included).
+    Object[] frame;
+    SlotTable frameTable;
+
 
     CoreContext(ContextRoot root, CoreContext parent, int depth, Node node, ContextScope scope, BindingsStore bindings) {
         this.root = root;
@@ -302,6 +312,20 @@ class CoreContext implements Context {
         if (callArgs != null && "arguments".equals(key)) {
             return getArgumentsObject();
         }
+        if (frameTable != null) {
+            int idx = frameTable.indexOf(key);
+            if (idx >= 0) {
+                Object v = frame[idx];
+                if (v != SlotTable.UNDECLARED) {
+                    if (v == SlotTable.TDZ) {
+                        throw JsErrorException.referenceError("cannot access '" + key + "' before initialization");
+                    }
+                    return v;
+                }
+                // undeclared: fall through — pre-declaration the store lacks
+                // the name too, so the legacy chain is the same resolution
+            }
+        }
         BindingSlot s = resolve(key);
         if (s == null) {
             return Terms.UNDEFINED;
@@ -338,6 +362,12 @@ class CoreContext implements Context {
         if (callArgs != null && "arguments".equals(key)) {
             return true;
         }
+        if (frameTable != null) {
+            int idx = frameTable.indexOf(key);
+            if (idx >= 0 && frame[idx] != SlotTable.UNDECLARED) {
+                return true;
+            }
+        }
         return resolve(key) != null;
     }
 
@@ -351,6 +381,20 @@ class CoreContext implements Context {
             // anonymous. Named function declarations (and references to them bound to
             // other keys/parameters) must keep their original .name per spec.
             fn.name = key;
+        }
+        // Frame local: var-kind declares (params, var, fn hoisting, for-of
+        // bindings) and body-top-level let/const write the slot. Analyzer
+        // invariants make the level logic below degenerate to a plain write
+        // for these names: they are unshadowed (any second declaration of the
+        // name forces STORE), so the redeclaration error and loop-scope cases
+        // cannot arise, and function contexts have depth > 0 so the evalId
+        // stamping never applies.
+        if (frameTable != null) {
+            int idx = frameTable.indexOf(key);
+            if (idx >= 0) {
+                frame[idx] = scope == null || initialized ? value : SlotTable.TDZ;
+                return;
+            }
         }
         if (scope != null) { // let or const
             BindingSlot existing = bindings == null ? null : bindings.getSlot(key);
@@ -399,6 +443,15 @@ class CoreContext implements Context {
     }
 
     void update(String key, Object value, Node node) {
+        if (frameTable != null) {
+            int idx = frameTable.indexOf(key);
+            if (idx >= 0 && frame[idx] != SlotTable.UNDECLARED) {
+                updateSlot(idx, value, node);
+                return;
+            }
+            // undeclared: fall through — a pre-declaration write resolves an
+            // outer/global binding (or creates an implicit global), as today
+        }
         BindingSlot s = resolve(key);
         if (s == null) {
             if (strict) {
@@ -428,6 +481,27 @@ class CoreContext implements Context {
         s.value = value;
         if (root.listener != null) {
             root.listener.onBind(BindEvent.assign(key, value, oldValue, this, node));
+        }
+    }
+
+    /** Slot analogue of the post-resolve half of {@link #update} — same const
+     *  check, same name inference, same BindEvent. A TDZ slot behaves like the
+     *  store's uninitialized binding: the write initializes (const included),
+     *  and the event reports undefined as the old value, which is what the
+     *  store held. Callers must have checked the slot is not UNDECLARED. */
+    void updateSlot(int idx, Object value, Node node) {
+        Object oldValue = frame[idx];
+        if (oldValue == SlotTable.TDZ) {
+            oldValue = Terms.UNDEFINED;
+        } else if (frameTable.kinds[idx] == SlotTable.KIND_CONST) {
+            throw JsErrorException.typeError("assignment to constant: " + frameTable.names[idx]);
+        }
+        if (value instanceof JsFunction fn && (fn.name == null || fn.name.isEmpty())) {
+            fn.name = frameTable.names[idx];
+        }
+        frame[idx] = value;
+        if (root.listener != null) {
+            root.listener.onBind(BindEvent.assign(frameTable.names[idx], value, oldValue, this, node));
         }
     }
 
