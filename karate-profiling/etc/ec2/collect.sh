@@ -96,12 +96,16 @@ fi
 # comparator and the js A/B comparator are different experiments, and `compare` refuses a
 # mixed argument list rather than blending them.
 derive() {
-    local dir="$1" name="$2" family
+    local dir="$1" name="$2" family glob
     for family in gatling js; do
-        compgen -G "$dir/$family-*" >/dev/null || continue
+        # Anchored on the run stamp, so a label directory whose name happens to share the
+        # family prefix (a js-* label at the top level) is never mistaken for a run.
+        glob="$dir/$family-*-????-??-??-??????"
+        compgen -G "$glob" >/dev/null || continue
         echo
         log "=== $name ($family) ==="
-        "$(dirname "$0")/../run.sh" compare "$dir"/$family-* || \
+        # shellcheck disable=SC2086
+        "$(dirname "$0")/../run.sh" compare $glob || \
             log "   (no table — compare declined these runs; the digests are collected regardless)"
     done
 }
