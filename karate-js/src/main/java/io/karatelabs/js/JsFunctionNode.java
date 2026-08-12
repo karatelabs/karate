@@ -278,7 +278,10 @@ class JsFunctionNode extends JsFunction {
                 Interpreter.evalAssign(first, functionContext, BindScope.VAR, argValue, true);
             } else {
                 String argName = first.getText();
-                int slot = slotTable == null ? -1 : slotTable.paramSlots[i];
+                // `table`, never the slotTable field: a concurrent second call can
+                // publish the field mid-invocation, and a slot read from it would
+                // dereference a frame this invocation decided not to attach.
+                int slot = table == null ? -1 : table.paramSlots[i];
                 if (slot >= 0) {
                     // Same name inference put→declare would apply, then a plain
                     // slot write (params are function-level and unshadowed).
