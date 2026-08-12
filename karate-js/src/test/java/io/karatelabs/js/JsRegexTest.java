@@ -137,8 +137,19 @@ class JsRegexTest extends EvalBase {
         assertEquals(0, get("ind1"));
         assertTrue((Integer) get("ind2") > 0);
         // mutation of lastIndex
-        // todo prototype "property" set probably needs work for re-use to work
         assertEquals(0, get("ind3"));
+    }
+
+    @Test
+    void testLastIndexUserWriteReachesExec() {
+        // a JS assignment to lastIndex must steer the next global exec
+        assertEquals("2,3", eval("var re = /a/g; re.lastIndex = 2; var m = re.exec('aaaa'); m.index + ',' + re.lastIndex"));
+    }
+
+    @Test
+    void testGlobalFunctionReplaceResetsLastIndex() {
+        // @@replace with a global regex leaves lastIndex at 0 regardless of prior value
+        assertEquals("x,0", eval("var re = /a/g; re.lastIndex = 7; var r = 'a'.replace(re, function() { return 'x' }); r + ',' + re.lastIndex"));
     }
 
     @Test

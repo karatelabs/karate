@@ -139,9 +139,17 @@ public class Terms {
         if (str.charAt(index) == '-' || str.charAt(index) == '+') {
             index++;
         }
-        Number radix = fromRadixPrefix(str);
-        if (radix != null) {
-            return narrow(radix.doubleValue());
+        // §19.2.4: a signed "Infinity" prefix is a valid StrDecimalLiteral for
+        // parseFloat; radix prefixes (0x…) are NOT — parseFloat("0x10") reads
+        // the leading 0 and stops at 'x'.
+        if (!asInt && str.startsWith("Infinity", index)) {
+            return str.charAt(0) == '-' ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
+        }
+        if (asInt) {
+            Number radix = fromRadixPrefix(str);
+            if (radix != null) {
+                return narrow(radix.doubleValue());
+            }
         }
         boolean foundDigit = false;
         boolean seenDot = false;

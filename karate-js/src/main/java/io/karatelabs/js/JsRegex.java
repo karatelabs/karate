@@ -48,6 +48,13 @@ public class JsRegex extends JsObject {
 
     private int lastIndex = 0;
 
+    // Spec @@replace: a global replace sets lastIndex to 0 both before matching
+    // and after the final match — callers that run their own Matcher loop
+    // (JsStringPrototype.regexReplace) use this to honor that contract.
+    void resetLastIndex() {
+        lastIndex = 0;
+    }
+
     JsRegex() {
         this("(?:)");
     }
@@ -364,6 +371,18 @@ public class JsRegex extends JsObject {
     // continues to read the {@code lastIndex} field — so global-flag exec
     // ignores user-set positions. Route through {@link Terms#objectToNumber}
     // to coerce non-Number assignments per spec ToInteger semantics.
+    // JS assignment (`re.lastIndex = 12`) enters through the 4-arg overload
+    // (PropertyAccess.setByName); without this the write lands in props and
+    // shadows the field that exec consults.
+    @Override
+    public void putMember(String name, Object value, CoreContext ctx, boolean strict) {
+        if ("lastIndex".equals(name)) {
+            putMember(name, value);
+            return;
+        }
+        super.putMember(name, value, ctx, strict);
+    }
+
     @Override
     public void putMember(String name, Object value) {
         if ("lastIndex".equals(name)) {

@@ -50,8 +50,8 @@ public class JsJson extends JsObject {
     }
 
     @SuppressWarnings("unchecked")
-    private static JsInvokable stringify() {
-        return args -> {
+    private static JsCallable stringify() {
+        return (context, args) -> {
             Object value = args[0];
             Object replacer = args.length > 1 ? args[1] : null;
             Object space = args.length > 2 ? args[2] : null;
@@ -76,7 +76,8 @@ public class JsJson extends JsObject {
             }
             // Handle replacer function - transform the value tree
             else if (replacer instanceof JsCallable replacerFunc) {
-                value = applyReplacerFunction(replacerFunc, "", value);
+                value = applyReplacerFunction(replacerFunc, "", value, context,
+                        java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()));
             }
 
             // Handle space parameter for pretty printing
@@ -153,40 +154,48 @@ public class JsJson extends JsObject {
     }
 
     @SuppressWarnings("unchecked")
-    private static Object applyReplacerFunction(JsCallable replacerFunc, String key, Object value) {
-        // First, call the replacer function for this key-value pair
-        Object transformed;
-        try {
-            transformed = replacerFunc.call(null, new Object[]{key, value});
-        } catch (Exception e) {
-            throw new RuntimeException("Error in replacer function: " + e.getMessage(), e);
-        }
+    private static Object applyReplacerFunction(JsCallable replacerFunc, String key, Object value, Context context, java.util.Set<Object> seen) {
+        // A JS throw from the replacer propagates as-is (spec: SerializeJSONProperty
+        // forwards abrupt completions) — the live context keeps the thrown value's
+        // JS identity instead of the host-invocation EngineException wrap.
+        Object transformed = replacerFunc.call(context, new Object[]{key, value});
 
         // If replacer returns undefined, this key should be filtered out
         if (transformed == Terms.UNDEFINED) {
             return Terms.UNDEFINED;
         }
 
-        // Recursively apply replacer to nested objects and arrays
+        // Recursively apply replacer to nested objects and arrays. `seen` tracks
+        // the current path only (add / recurse / remove), so a cycle the replacer
+        // does not prune is a TypeError here instead of unbounded recursion, while
+        // legal diamond sharing (same object under two keys) stays serializable.
         if (transformed instanceof Map) {
+            if (!seen.add(transformed)) {
+                throw JsErrorException.typeError("Converting circular structure to JSON");
+            }
             Map<String, Object> map = (Map<String, Object>) transformed;
             Map<String, Object> result = new LinkedHashMap<>();
             for (Map.Entry<String, Object> entry : map.entrySet()) {
-                Object nestedValue = applyReplacerFunction(replacerFunc, entry.getKey(), entry.getValue());
+                Object nestedValue = applyReplacerFunction(replacerFunc, entry.getKey(), entry.getValue(), context, seen);
                 // Skip keys where replacer returned undefined
                 if (nestedValue != Terms.UNDEFINED) {
                     result.put(entry.getKey(), nestedValue);
                 }
             }
+            seen.remove(transformed);
             return result;
         } else if (transformed instanceof List) {
+            if (!seen.add(transformed)) {
+                throw JsErrorException.typeError("Converting circular structure to JSON");
+            }
             List<Object> list = (List<Object>) transformed;
             List<Object> result = new java.util.ArrayList<>();
             for (int i = 0; i < list.size(); i++) {
-                Object nestedValue = applyReplacerFunction(replacerFunc, String.valueOf(i), list.get(i));
+                Object nestedValue = applyReplacerFunction(replacerFunc, String.valueOf(i), list.get(i), context, seen);
                 // For arrays, undefined values become null in JSON
                 result.add(nestedValue == Terms.UNDEFINED ? null : nestedValue);
             }
+            seen.remove(transformed);
             return result;
         }
 

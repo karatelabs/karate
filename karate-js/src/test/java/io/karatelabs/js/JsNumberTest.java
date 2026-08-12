@@ -185,4 +185,14 @@ class JsNumberTest extends EvalBase {
         assertEquals(1e21, eval("parseFloat(1e21)"));
     }
 
+    @Test
+    void testParseFloatInfinityAndRadixPrefix() {
+        assertEquals(Double.POSITIVE_INFINITY, eval("parseFloat('Infinity')"));
+        assertEquals(Double.NEGATIVE_INFINITY, eval("parseFloat('-Infinity')"));
+        assertEquals(Double.POSITIVE_INFINITY, eval("parseFloat('Infinity123')"));
+        // radix prefixes are parseInt-only: parseFloat reads the 0, stops at 'x'
+        assertEquals(0, eval("parseFloat('0x10')"));
+        assertEquals(16, eval("parseInt('0x10')"));
+    }
+
 }

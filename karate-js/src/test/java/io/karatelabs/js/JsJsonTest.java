@@ -222,4 +222,26 @@ class JsJsonTest extends EvalBase {
         assertEquals("{\"1\":\"x\"}", eval("JSON.stringify({1:'x',b:'y'}, [1])"));
         assertEquals("{\"a\":\"b\"}", eval("JSON.stringify({a:'b',c:'d'}, ['a', null, true, 2])"));
     }
+
+    @Test
+    void testStringifyReplacerFunctionCycles() {
+        // a replacer that prunes the cyclic edge makes the value serializable
+        assertEquals("{}", eval(
+                "var a = {}; a.self = a;"
+                        + " JSON.stringify(a, function(k, v) { return k === 'self' ? undefined : v })"));
+        // a cycle the replacer does not prune is a TypeError, not unbounded recursion
+        assertEquals("TypeError", eval(
+                "var a = {}; a.self = a; var n;"
+                        + " try { JSON.stringify(a, function(k, v) { return v }) } catch (e) { n = e.name } n"));
+        // repeated (non-circular) references survive the replacer walk
+        assertEquals("{\"x\":{\"v\":1},\"y\":{\"v\":1}}", eval(
+                "var s = {v:1}; JSON.stringify({x:s, y:s}, function(k, v) { return v })"));
+    }
+
+    @Test
+    void testStringifyReplacerFunctionThrowPropagates() {
+        assertEquals("true|boom", eval(
+                "var r; try { JSON.stringify({a:1}, function() { throw new TypeError('boom') }) }"
+                        + " catch (e) { r = (e instanceof TypeError) + '|' + e.message } r"));
+    }
 }

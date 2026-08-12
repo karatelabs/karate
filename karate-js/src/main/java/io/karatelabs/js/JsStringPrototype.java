@@ -479,6 +479,10 @@ class JsStringPrototype extends Prototype {
     // stops after the first hit. Local to JsStringPrototype because JsRegex
     // shouldn't depend on JsCallable / Context.
     private static String regexReplace(String s, JsRegex regex, JsCallable fn, Context context, boolean global) {
+        if (global) {
+            // @@replace: global matching starts from 0 and leaves lastIndex at 0
+            regex.resetLastIndex();
+        }
         java.util.regex.Matcher m = regex.javaPattern.matcher(s);
         StringBuilder sb = new StringBuilder();
         int last = 0;

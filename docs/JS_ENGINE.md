@@ -2262,11 +2262,15 @@ fires it once. `replaceAll` passes `true` unconditionally.
 
 **Spec §22.2.7.1 makes `lastIndex` a writable own data property of the
 instance.** Reads route through `resolveOwnIntrinsic` to the `int`
-field; writes route through an overridden `JsRegex.putMember` that
-coerces via `Terms.objectToNumber` and updates the field. Without the
-override, `re.lastIndex = 12` would land in the side `props` map and
-the `int` field that `exec` consults would stay stale — global-flag
-exec ignores user-set positions.
+field; writes route through overridden `JsRegex.putMember` — **both
+overloads**: JS assignment enters through the 4-arg
+`putMember(name, value, ctx, strict)` (the `PropertyAccess.setByName`
+seam), host writes through the 2-arg form; both coerce via
+`Terms.objectToNumber` and update the field. Overriding only the 2-arg
+form is the historical bug shape: `re.lastIndex = 12` landed in the side
+`props` map, shadowed the field `exec` consults, and global-flag exec
+ignored user-set positions. A global function-replace
+(`JsStringPrototype.regexReplace`) resets `lastIndex` to 0 per @@replace.
 
 ### `String.prototype.{trim, trimStart, trimEnd}` whitespace
 

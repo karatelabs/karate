@@ -304,15 +304,15 @@ class ContextRoot implements Context {
                 return !Double.isNaN(d) && !Double.isInfinite(d);
             };
             case "encodeURIComponent" -> (JsInvokable) args -> {
-                String encoded = URLEncoder.encode(args[0] + "", StandardCharsets.UTF_8);
+                String encoded = URLEncoder.encode(Terms.toStringCoerce(args[0], null), StandardCharsets.UTF_8);
                 return encoded.replace("+", "%20")
                         .replace("%21", "!").replace("%27", "'").replace("%28", "(")
                         .replace("%29", ")").replace("%7E", "~").replace("%2A", "*");
             };
             case "decodeURIComponent" -> (JsInvokable) args ->
-                    URLDecoder.decode(args[0] + "", StandardCharsets.UTF_8);
+                    URLDecoder.decode(Terms.toStringCoerce(args[0], null), StandardCharsets.UTF_8);
             case "encodeURI" -> (JsInvokable) args -> {
-                String encoded = URLEncoder.encode(args[0] + "", StandardCharsets.UTF_8);
+                String encoded = URLEncoder.encode(Terms.toStringCoerce(args[0], null), StandardCharsets.UTF_8);
                 return encoded.replace("+", "%20")
                         .replace("%21", "!").replace("%23", "#").replace("%24", "$")
                         .replace("%26", "&").replace("%27", "'").replace("%28", "(")
@@ -322,7 +322,7 @@ class ContextRoot implements Context {
                         .replace("%40", "@").replace("%7E", "~");
             };
             case "decodeURI" -> (JsInvokable) args ->
-                    URLDecoder.decode(args[0] + "", StandardCharsets.UTF_8);
+                    URLDecoder.decode(Terms.toStringCoerce(args[0], null), StandardCharsets.UTF_8);
             case "undefined" -> Terms.UNDEFINED;
             case "eval" -> (JsInvokable) args -> {
                 if (args.length == 0) return Terms.UNDEFINED;
