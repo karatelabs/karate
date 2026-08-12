@@ -59,6 +59,19 @@ class Interpreter {
     }
 
     /**
+     * Spec §10.2.1.3: an arrow has no {@code this} of its own — it reads the
+     * one in scope where it was written. The call frame is seeded from the
+     * caller (dynamic chain), which only coincides with the definition site
+     * when the arrow is invoked inside the frame that created it, so rebind
+     * from the declaring context.
+     */
+    static void bindArrowThis(CoreContext callContext, JsFunctionNode arrowFn) {
+        if (arrowFn.declaredContext != null) {
+            callContext.thisObject = arrowFn.declaredContext.thisObject;
+        }
+    }
+
+    /**
      * True iff {@code body} (a {@code PROGRAM} or a function {@code BLOCK})
      * opens with a {@code "use strict"} Directive Prologue (ES 11.2.1). The
      * prologue is the leading run of ExpressionStatements consisting of a
@@ -637,6 +650,8 @@ class Interpreter {
                     // parent. Sloppy fns substitute null/undefined → globalThis; strict
                     // fns keep undefined (the helper decides on jsFunc.strict).
                     callContext.thisObject = bindThisForCall(receiver, context, jsFunc.strict);
+                } else {
+                    bindArrowThis(callContext, jsFunc);
                 }
                 callContext.event(EventType.CONTEXT_ENTER, node);
                 // bindArgsAndExecute handles error propagation internally
@@ -815,6 +830,8 @@ class Interpreter {
             callContext.strict = jsFunc.strict;
             if (!jsFunc.arrow) {
                 callContext.thisObject = bindThisForCall(receiver, context, jsFunc.strict);
+            } else {
+                bindArrowThis(callContext, jsFunc);
             }
             callContext.event(EventType.CONTEXT_ENTER, node);
             result = jsFunc.bindArgsAndExecute(callContext, context, args);
@@ -1126,13 +1143,18 @@ class Interpreter {
         if (initExpr == null) {
             return Terms.UNDEFINED; // `x;` — field declared with no initializer
         }
-        Object savedThis = context.thisObject;
-        context.thisObject = thisObj;
-        try {
-            return eval(initExpr, context);
-        } finally {
-            context.thisObject = savedThis;
+        // Own frame per initializer, not a save/restore of the shared context:
+        // an arrow in the initializer keeps this frame as its declaredContext and
+        // reads `this` off it when it is finally called, long after the
+        // initializer returned.
+        CoreContext fieldContext = new CoreContext(context, initExpr, null, context, null);
+        fieldContext.strict = context.strict;
+        fieldContext.thisObject = thisObj;
+        Object result = eval(initExpr, fieldContext);
+        if (fieldContext.isError()) {
+            context.updateFrom(fieldContext);
         }
+        return result;
     }
 
     // Runs a class's public instance-field initializers on a fresh instance, in

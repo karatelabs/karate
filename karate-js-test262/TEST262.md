@@ -252,20 +252,24 @@ What remains splits into three tiers.
 
 The most dangerous class: nothing throws, output is just wrong.
 
-*(P0.1 Number→string / parseFloat and P0.2 `/g` function replacer shipped
-2026-08-12 — `Terms.numberToString` is now the shared spec seam; see
-JS_ENGINE.md § Numeric / coercion. Original numbering kept for the rest.)*
+*(Shipped 2026-08-12: P0.1 Number→string / parseFloat — `Terms.numberToString`
+is the shared spec seam; P0.2 `/g` function replacer; P0.3 arrow `this` —
+which was two bugs: arrows never bound lexical `this` at call time at all,
+plus the field-initializer save/restore, see JS_ENGINE.md § the class
+section. P0.5 optional-chaining was re-verified and closed as a
+misdiagnosis: JS-observable behavior was already correct — the raw-null
+report came from probing at the `Engine.eval` host seam, which unwraps
+`undefined` to Java `null` by design; the write-site exits were hardened
+with a distinct `SHORT_CIRCUIT_SITE` anyway. Original numbering kept.)*
 
-3. **Arrow-function class fields lose `this`.**
-   `class C { f = () => this.x }` → `c.f()` sees the wrong `this`. Plain
-   field initializers (`b = this.a + 1`) work; specific to arrows.
 4. **Private fields half-parse.** `this.#count++` / `static #total` are
    parse errors (fine), but `class C { #n = 7; get v(){ return this.#n } }`
    parses and silently reads `undefined`. Either implement `#` fields or
    reject them at parse — never half-accept.
-5. **Optional chaining on an absent path returns `null`, not `undefined`**
-   (`o.x?.y`). Small fix, observable everywhere — root cause: several
-   `PropertyAccess` exits return Java `null` instead of the sentinel.
+6. **Base-class instance fields don't run for derived instances.**
+   `class A { x = 1 }; class B extends A {}` → `new B().x` is `undefined` —
+   `Interpreter.runSuperConstructor` never runs the parent's field
+   initializers. (Found 2026-08-12 while fixing P0.3.)
 
 ### P1 — missing surface LLMs write constantly
 
@@ -449,8 +453,8 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   super dispatch via `JsFunctionNode.homeObject` + `CoreContext.activeFunction`;
   `extends Error`/built-ins via a copy-own-props shim). Covered by `JsClassTest`.
   **Remaining tail:** private `#x` fields/methods (**half-parse silent-wrong
-  → P0.4**), arrow-function fields losing `this` (**P0.3**), generator
-  methods (**P1**), decorators, static-init blocks, class early-errors,
+  → P0.4**), base-class fields not running for derived instances (**P0.6**),
+  generator methods (**P1**), decorators, static-init blocks, class early-errors,
   object-literal-method `super` (needs object [[HomeObject]]), two super edge
   cases (`this`-TDZ before `super()`, `super()` return-override),
   numeric/string-literal method-name canonicalization (`get 0x10(){}` → key

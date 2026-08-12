@@ -1187,13 +1187,20 @@ runtime does something else, which is the worse failure mode (known deviation
 - `class C { #n = 7; get v(){ return this.#n } }` parses, but the read yields
   `undefined` — `#`-names are not modelled as private slots. `this.#x++` and
   `static #total` are outright parse errors.
-- An arrow-function field (`class C { f = () => this.x }`) loses `this`.
-  Cause: `Interpreter.evalFieldInitializer` sets `context.thisObject` on the
-  *shared* `CoreContext` and restores it in a `finally`, so an arrow that
-  captured that context as its `declaredContext` reads the restored value at
-  call time. Plain (non-arrow) field initializers are unaffected because they
-  are evaluated while the assignment is still in effect. The fix shape is a
-  fresh child context per initializer rather than save/restore mutation.
+- Base-class instance fields do not run for derived instances:
+  `class A { x = 1 }; class B extends A {}` → `new B().x` is `undefined` —
+  `runSuperConstructor` never runs the parent's field initializers (known
+  deviation — see TEST262.md Active priorities).
+
+**Arrow `this` is lexical (spec §10.2.1.3), enforced at call time.** Every
+call frame is seeded from the caller's dynamic chain, so the three
+arrow-call sites (`Interpreter.evalFnCall`'s two paths and
+`JsFunctionNode.call`) rebind via `Interpreter.bindArrowThis`, which reads
+`thisObject` off the arrow's `declaredContext`. Field initializers each run
+in their own child `CoreContext` carrying `thisObject` = the instance
+(`Interpreter.evalFieldInitializer`) — an arrow field keeps that frame as
+its `declaredContext`, so `class C { f = () => this.x }` works after
+construction; save/restore mutation of the shared context would not.
 
 `JsClassTest` (44 cases) is the canonical behavior record.
 
@@ -1378,13 +1385,16 @@ are validated post-parse in a single walk
 (`JsParser.validateOptionalChainEarlyErrors`), not interleaved into the hot
 eval loop.
 
-**The sentinel → `undefined` conversion is not yet complete.** Several
-`PropertyAccess` exits (the `SHORT_CIRCUITED || context.isStopped()` guards
-on the write / call-target paths) `return null` rather than routing through
-`Interpreter.chainStepResult`, so a short-circuited chain can surface Java
-`null` — `o.x?.y` on an absent path reads as `null`, not `undefined`. Every
-such exit should yield the sentinel and let the chain root convert (known
-deviation — see TEST262.md Active priorities).
+**Write-site short circuits are separable from abrupt completions.**
+`PropertyAccess.resolveWriteSite` returns a distinct `SHORT_CIRCUIT_SITE`
+when the target chain short-circuited and `null` on abrupt completion, so
+the two outcomes never fold together. Assignment / compound / inc-dec on an
+optional chain is a parse-time early error, so the short circuit reaches
+only `delete` (which yields `true` per spec — no reference, nothing to
+delete) and destructuring-pattern leaves. Read paths were always complete:
+`typeof (o.x?.y)` is `'undefined'` and the `obj?.a.b`-throws invariant
+holds; note the host seam (`Engine.eval`) still unwraps `UNDEFINED` to Java
+`null`, which is easy to misread as an engine bug when probing from Java.
 
 ### Object literals & destructuring
 

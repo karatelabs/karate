@@ -1024,6 +1024,46 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testOptionalChainYieldsUndefinedNotNull() {
+        // The engine unwraps undefined to Java null at the boundary, so the
+        // JS-level identity has to be asserted from inside the script.
+        assertEquals("undefined", eval("var o = {}; typeof (o.x?.y)"));
+        assertEquals(true, eval("var o = {}; (o.x?.y) === undefined"));
+        assertEquals(true, eval("var o = {}; (o.x?.y) !== null"));
+        assertEquals(true, eval("var o = {}; var k = 'z'; (o.x?.[k]) === undefined"));
+        assertEquals(true, eval("var o = {}; (o.f?.()) === undefined"));
+        assertEquals(true, eval("var o = {}; (o.x?.y.z.w) === undefined"));
+        assertEquals(true, eval("var o = {}; (o.x?.y()) === undefined"));
+        // ?. after a null step short-circuits the rest of the chain
+        assertEquals(true, eval("var o = { a: null }; (o.a?.b) === undefined"));
+        // a short-circuited chain carries undefined into every consumer
+        assertEquals("undefined", eval("var o = {}; var r = o.x?.y; typeof r"));
+        assertEquals(true, eval("var o = {}; [o.x?.y][0] === undefined"));
+        assertEquals(true, eval("var o = {}; ({ v: o.x?.y }).v === undefined"));
+        assertEquals(true, eval("var o = {}; (function(x){ return x })(o.x?.y) === undefined"));
+        assertEquals("{}", eval("var o = {}; JSON.stringify({ v: o.x?.y })"));
+    }
+
+    @Test
+    void testOptionalChainUndefinedIsNotAFreePass() {
+        // The undefined a chain short-circuits to is only produced at the chain
+        // root — a non-optional step on a nullish value still throws, and parens
+        // end the chain so the next access is on plain undefined.
+        try {
+            eval("var o = { a: null }; o?.a.b");
+            fail("error expected");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("cannot read properties of null (reading 'b')"));
+        }
+        try {
+            eval("var o = {}; (o.x?.y).z");
+            fail("error expected");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("cannot read properties of undefined (reading 'z')"));
+        }
+    }
+
+    @Test
     void testOptionalChainSideEffectShortCircuit() {
         // When the chain head is nullish, no further sub-expressions in the chain
         // are evaluated — so increments / function args inside the tail must not run.

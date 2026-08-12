@@ -102,16 +102,27 @@ class PropertyAccess {
     }
 
     /**
+     * Returned instead of a real site when an optional-chaining step in the
+     * target short-circuited. Kept distinct from the {@code null} (abrupt
+     * completion) return so the two outcomes stay separable: an abrupt
+     * completion leaves the pending throw to propagate, while a short circuit
+     * makes the whole reference {@code undefined} — there is no reference, so
+     * {@code delete} on it succeeds.
+     */
+    private static final AccessSite SHORT_CIRCUIT_SITE = new AccessSite(null, null, false);
+
+    /**
      * Resolves a REF_DOT_EXPR / REF_BRACKET_EXPR for write operations
      * (set / compound / inc-dec / delete). Used by everything except the read
      * paths — the read paths additionally handle bridge fallback on eval
      * exceptions and ?.-aware short-circuit, both of which are unique to read.
      * <p>
-     * Returns null when the chain short-circuited (target evaluated to
-     * {@link #SHORT_CIRCUITED}). Write-on-optional-chain is itself a parse-time
-     * early error (see {@code JsParser.validateOptionalChainEarlyErrors}), so
-     * a short-circuit here is unreachable in valid programs — the null return
-     * is a defensive no-op.
+     * Returns {@link #SHORT_CIRCUIT_SITE} when the chain short-circuited
+     * (target evaluated to {@link #SHORT_CIRCUITED}), null on an abrupt
+     * completion. Assignment / compound / inc-dec on an optional chain is a
+     * parse-time early error (see
+     * {@code JsParser.validateOptionalChainEarlyErrors}), so the short-circuit
+     * reaches only {@code delete} and the destructuring-pattern leaves.
      * <p>
      * Throws TypeError for the {@code ?.()} call-only AST shape, which cannot
      * be a write target.
@@ -126,12 +137,14 @@ class PropertyAccess {
             Node second = node.get(1);
             if (second.isToken()) {
                 Object target = Interpreter.eval(node.getFirst(), context);
-                if (target == SHORT_CIRCUITED || context.isStopped()) return null;
+                if (target == SHORT_CIRCUITED) return SHORT_CIRCUIT_SITE;
+                if (context.isStopped()) return null;
                 return new AccessSite(target, node.get(2).getText(), false);
             }
             if (second.type == NodeType.REF_BRACKET_EXPR) {
                 Object target = Interpreter.eval(node.getFirst(), context);
-                if (target == SHORT_CIRCUITED || context.isStopped()) return null;
+                if (target == SHORT_CIRCUITED) return SHORT_CIRCUIT_SITE;
+                if (context.isStopped()) return null;
                 Object index = Interpreter.eval(second.get(2), context);
                 if (context.isStopped()) return null;
                 return new AccessSite(target, index, true);
@@ -140,7 +153,8 @@ class PropertyAccess {
         }
         // REF_BRACKET_EXPR
         Object target = Interpreter.eval(node.getFirst(), context);
-        if (target == SHORT_CIRCUITED || context.isStopped()) return null;
+        if (target == SHORT_CIRCUITED) return SHORT_CIRCUIT_SITE;
+        if (context.isStopped()) return null;
         Object index = Interpreter.eval(node.get(2), context);
         if (context.isStopped()) return null;
         return new AccessSite(target, index, true);
@@ -201,7 +215,7 @@ class PropertyAccess {
             case REF_EXPR -> context.update(node.getText(), value, trackingNode);
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
-                if (site == null) return;
+                if (site == null || site == SHORT_CIRCUIT_SITE) return;
                 if (site.isIndex) setByIndex(site.target, site.key, value, context, trackingNode);
                 else setByName(site.target, (String) site.key, value, context, trackingNode);
             }
@@ -233,7 +247,7 @@ class PropertyAccess {
                 AccessSite site = resolveWriteSite(node, context);
                 if (context.isStopped()) yield Terms.UNDEFINED;
                 Object value = Interpreter.eval(rhsNode, context);
-                if (site == null || context.isStopped()) yield value;
+                if (site == null || site == SHORT_CIRCUIT_SITE || context.isStopped()) yield value;
                 if (site.target == null && node.getFirst().type == NodeType.SUPER_EXPR) {
                     // A super reference whose home object has a null [[Prototype]]
                     // resolves to a null base; PutValue on it is a TypeError —
@@ -270,7 +284,7 @@ class PropertyAccess {
             }
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
-                if (site == null || context.isStopped()) yield Terms.UNDEFINED;
+                if (site == null || site == SHORT_CIRCUIT_SITE || context.isStopped()) yield Terms.UNDEFINED;
                 Object oldValue = site.isIndex
                         ? getByIndex(site.target, site.key, false, context, false)
                         : getByName(site.target, (String) site.key, false, context, false);
@@ -306,7 +320,7 @@ class PropertyAccess {
             }
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
-                if (site == null) yield Terms.UNDEFINED;
+                if (site == null || site == SHORT_CIRCUIT_SITE) yield Terms.UNDEFINED;
                 // JS-level throw inside the target or index eval surfaces as
                 // context.isStopped() (eval returns null on abrupt completion).
                 // Bail before doing any further checks so the in-flight throw
@@ -378,7 +392,7 @@ class PropertyAccess {
             }
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
-                if (site == null) yield Terms.UNDEFINED;
+                if (site == null || site == SHORT_CIRCUIT_SITE) yield Terms.UNDEFINED;
                 yield site.isIndex
                         ? postIncDecByIndex(site.target, site.key, isIncrement, context)
                         : postIncDecByName(site.target, (String) site.key, isIncrement, context);
@@ -407,7 +421,7 @@ class PropertyAccess {
             }
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
-                if (site == null) yield Terms.UNDEFINED;
+                if (site == null || site == SHORT_CIRCUIT_SITE) yield Terms.UNDEFINED;
                 yield site.isIndex
                         ? preIncDecByIndex(site.target, site.key, isIncrement, context)
                         : preIncDecByName(site.target, (String) site.key, isIncrement, context);
@@ -430,6 +444,9 @@ class PropertyAccess {
                     // delete on `?.()` shape: legacy behavior was to return false silently
                     yield false;
                 }
+                // a short-circuited chain leaves no reference to delete, which
+                // per spec is a successful delete
+                if (site == SHORT_CIRCUIT_SITE) yield true;
                 if (site == null) yield false;
                 yield deleteByKey(site.target, Terms.toPropertyKey(site.key), context, node);
             }

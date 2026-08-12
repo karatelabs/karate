@@ -257,4 +257,86 @@ class JsClassTest extends EvalBase {
         assertEquals("5,9", eval("class A { constructor(x) { this.x = x } }\n"
                 + "class B extends A { y = 9 }\nvar o = new B(5);\no.x + ',' + o.y"));
     }
+
+    @Test
+    void testArrowFieldSeesInstance() {
+        assertEquals(5, eval("class C { x = 5; f = () => this.x }\nnew C().f()"));
+    }
+
+    @Test
+    void testArrowFieldThisIsTheInstance() {
+        assertEquals(true, eval("class C { f = () => this }\nvar c = new C();\nc.f() === c"));
+    }
+
+    @Test
+    void testArrowFieldKeepsThisWhenDetached() {
+        assertEquals(7, eval("class C { x = 7; f = () => this.x }\n"
+                + "var g = new C().f;\ng()"));
+    }
+
+    @Test
+    void testArrowFieldIgnoresExplicitReceiver() {
+        assertEquals(1, eval("class C { x = 1; f = () => this.x }\n"
+                + "new C().f.call({ x: 99 })"));
+    }
+
+    @Test
+    void testArrowFieldPerInstance() {
+        assertEquals("1,2", eval("class C { constructor(n) { this.n = n } f = () => this.n }\n"
+                + "var a = new C(1); var b = new C(2);\na.f() + ',' + b.f()"));
+    }
+
+    @Test
+    void testNestedArrowField() {
+        assertEquals(3, eval("class C { x = 3; f = () => () => this.x }\nnew C().f()()"));
+    }
+
+    @Test
+    void testArrowFieldInsideCallback() {
+        assertEquals("2,4", eval("class C { x = 2; f = () => [1, 2].map(n => n * this.x) }\n"
+                + "new C().f().join(',')"));
+    }
+
+    @Test
+    void testArrowFieldSeesConstructorState() {
+        assertEquals(4, eval("class C { f = () => this.v; constructor() { this.v = 4 } }\nnew C().f()"));
+    }
+
+    @Test
+    void testArrowFieldInDerivedClass() {
+        assertEquals(8, eval("class A { constructor() { this.v = 8 } }\n"
+                + "class B extends A { f = () => this.v }\nnew B().f()"));
+    }
+
+    @Test
+    void testArrowFieldInDerivedClassWithExplicitConstructor() {
+        assertEquals(6, eval("class A { constructor() { this.v = 5 } }\n"
+                + "class B extends A { f = () => this.v + 1; constructor() { super() } }\nnew B().f()"));
+    }
+
+    @Test
+    void testStaticArrowFieldSeesClass() {
+        assertEquals(true, eval("class C { static g = () => this }\nC.g() === C"));
+    }
+
+    @Test
+    void testStaticArrowFieldReadsStaticField() {
+        assertEquals(2, eval("class C { static n = 2; static g = () => this.n }\nC.g()"));
+    }
+
+    @Test
+    void testPlainFieldInitializerStillSeesThis() {
+        assertEquals(2, eval("class C { a = 1; b = this.a + 1 }\nnew C().b"));
+    }
+
+    @Test
+    void testFieldInitializerDoesNotLeakThis() {
+        assertEquals(true, eval("class C { x = 1 }\nnew C();\nthis === globalThis"));
+    }
+
+    @Test
+    void testArrowFieldThrowPropagates() {
+        assertEquals("boom", eval("class C { x = (() => { throw new Error('boom') })() }\n"
+                + "try { new C() } catch (e) { e.message }"));
+    }
 }

@@ -151,6 +151,9 @@ class JsFunctionNode extends JsFunction {
         functionContext.activeFunction = arrow
                 ? (declaredContext != null ? declaredContext.activeFunction : null)
                 : this;
+        if (arrow) {
+            Interpreter.bindArrowThis(functionContext, this);
+        }
         // Hosts may invoke a shared function directly (null / foreign caller
         // context, outside any Engine.eval). The body executes against the
         // declaring Engine's globals, so make that engine current for
