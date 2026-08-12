@@ -318,17 +318,29 @@ virtual threads are used liberally; new async work should assume them.
 (karate-ext `Sandbox.TimeBox`: single-thread daemon executor,
 `future.get(timeout)` → `cancel(true)`).
 
-**Known gap (deliberate, tracked).** Stop verbs are inconsistent across the
-ecosystem (`stop` / `stopAsync` / `stopAndWait` / `close` / `closeNow` /
-`shutdown`), most servers in karate-ext and veriquant register in no active
-set, no component exposes its pool for inspection, and there is no common
-`Stoppable` interface or cross-component registry — so "enumerate
-everything running and drain it" is only possible ad hoc. A unifying
-lifecycle seam (natural home: `io.karatelabs.common` in karate-js, next to
-`ThreadUtils`, visible to karate-core and external repos with no new
-dependency edges) is under design alongside async/Promise support, which
-will add the first executor whose pending work an embedder must be able to
-inspect and drain.
+**The unified seam — `Stoppable` + `KarateLifecycle`
+(`io.karatelabs.common`, karate-js).** One documented way to enumerate
+everything running and drain it. `Stoppable extends AutoCloseable` —
+`lifecycleName()` / `lifecycleKind()` / `stop()` (graceful, blocking,
+idempotent) / optional `lifecycleExecutor()` for pool inspection.
+`KarateLifecycle` — identity-based, insertion-ordered registry with phases
+`RUNNING → SHUTTING_DOWN → STOPPED` (+ `reset()`); `running()` snapshot;
+`shutdownAll(Duration)` treats the duration as an **enforceable total
+deadline** (each `stop()` runs on an interruptible worker bounded by the
+remaining budget — a hung component forfeits only its slice and is marked
+`TIMED_OUT`), stops in reverse registration order, and returns a
+per-component `StopResult` summary. External concurrent callers join the
+shared result; a call originating inside the shutdown worker returns a
+non-blocking in-progress summary (no self-join). `register()` during/after
+shutdown stops the arrival via the bounded path. `installShutdownHook()`
+is opt-in for CLI entry points; `wrap(name, kind, executor)` adapts
+pool-only owners. `HttpServer` / `WsClient` register themselves (their
+static `shutdownAll()`/`closeAll()` are now registry-backed views with
+their original async/immediate semantics); the async `js-timer` scheduler
+registers on first use. karate-ext and veriquant components can adopt the
+same interface at their own pace — until then their stop stories remain
+per-component (`stop`/`close`/`shutdown` naming varies). Pinned by
+`KarateLifecycleTest` and `HttpServerLifecycleTest`.
 
 ---
 

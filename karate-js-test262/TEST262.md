@@ -234,13 +234,15 @@ streams to be tailed.**
 Reordered 2026-08-12 against the real-world bar, from two probes at HEAD:
 the `run-final4-lang` / `run-final4-builtins` run-dirs, and a 56-snippet
 idiomatic-JS smoke battery evaluated directly against the engine
-([Real-world smoke battery](#real-world-smoke-battery), 44/56 pass).
-The synchronous ES2015–ES2022 core an LLM leans on hardest — arrows,
-destructuring in every position, spread, optional chaining, `??`/`??=`,
-template + tagged literals, classes with getters/`extends`/`super`, custom
-`Error` subclasses, Map/Set, JSON round-trips, the modern
-String/Array/Object method sets, regex named groups + `matchAll` — is
-solid. What remains splits into three tiers.
+([Real-world smoke battery](#real-world-smoke-battery), 49/56 pass).
+The ES2015–ES2022 core an LLM leans on hardest — arrows, destructuring in
+every position, spread, optional chaining, `??`/`??=`, template + tagged
+literals, classes with getters/`extends`/`super`, custom `Error`
+subclasses, Map/Set, JSON round-trips, the modern String/Array/Object
+method sets, regex named groups + `matchAll` — is solid, and **async /
+await / Promise / setTimeout now work** (vthread-activation model; see
+[JS_ENGINE.md § Async](../docs/JS_ENGINE.md#async--await--promise)).
+What remains splits into three tiers.
 
 ### P0 — silent wrong answers (valid code, wrong result, no error)
 
@@ -263,28 +265,23 @@ The most dangerous class: nothing throws, output is just wrong.
    parse errors (fine), but `class C { #n = 7; get v(){ return this.#n } }`
    parses and silently reads `undefined`. Either implement `#` fields or
    reject them at parse — never half-accept.
-5. **`class C { async m(){} }` parses silently as a sync method** while
-   top-level `async function` is a parse error. Same rule: reject until
-   implemented (moot once P1.1 lands).
-6. **Optional chaining on an absent path returns `null`, not `undefined`**
-   (`o.x?.y`). Small fix, observable everywhere.
+5. **Optional chaining on an absent path returns `null`, not `undefined`**
+   (`o.x?.y`). Small fix, observable everywhere — root cause: several
+   `PropertyAccess` exits return Java `null` instead of the sentinel.
 
 ### P1 — missing surface LLMs write constantly
 
-1. **async / await / Promise — the single largest gap** (~3.3k language
-   skips + all of `built-ins/Promise`; LLM-written JS is async-saturated).
-   Sketched path: sync subset — `Promise` as eager thenable,
-   `async function` runs sync, `await` sync-unwraps; `setTimeout` needs a
-   decision (see Deferred TODOs → feature gaps for constraints).
-2. **Generators** (`function*` / `yield` / `yield*`) — parse-level absence,
+*(async/await/Promise/setTimeout and `globalThis` shipped 2026-08-12 —
+struck from this list. Remaining async tail: `for await`, async
+generators/iterators, `setInterval`, `queueMicrotask` — deferred.)*
+
+1. **Generators** (`function*` / `yield` / `yield*`) — parse-level absence,
    ~1.4k skips.
-3. **Labeled statements** (`outer: for(…){ break outer; }`) — parse error
+2. **Labeled statements** (`outer: for(…){ break outer; }`) — parse error
    today; LLM-common for nested-loop breaks. The parser has no LABELLED
    node type (adding one also unblocks the label-related early-error
    checks in the backlog below).
-4. **`globalThis`** — absent; trivial to bind and widely probed by
-   feature-detection code.
-5. **WeakMap / WeakSet** — absent; common in cache-flavored code. Non-weak
+3. **WeakMap / WeakSet** — absent; common in cache-flavored code. Non-weak
    Map/Set-backed stand-ins are acceptable for this engine's short-lived
    scripts.
 
@@ -308,8 +305,11 @@ Touch only when a priority above drags it in:
   `jq -r 'select(.error_type=="MissingParseError").path'`). Roughly a third
   is regexp-literal validation, plus a fragmented destructuring-pattern
   tail, escaped-keyword misuse, `break`/`continue` to undefined labels,
-  getter/setter arity, the non-simple-param `"use strict"` prologue, and
-  labelled-function-declaration checks. Rejecting invalid code that no LLM
+  getter/setter arity, the non-simple-param `"use strict"` prologue,
+  labelled-function-declaration checks, and (new with async support, ~30
+  tests) the async-function early errors — `await` in formals, `super()`
+  in an async-method body, async redeclaration rules. Those 30 previously
+  "passed" vacuously because `async` itself failed to parse. Rejecting invalid code that no LLM
   writes is spec-lawyering by this file's own bar. When touched: **add each
   early error as a per-node helper inside `JsParser.earlyErrors` — never
   another whole-tree walk** (load-bearing for parse CPU; see
@@ -389,6 +389,7 @@ escapes / `/v` / early-error validation) is advanced-pattern territory.
 | `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` ToInteger corners; parser-blocked; Symbol-gated tail; `replaceAll`/`endsWith` `Range […) out of bounds` Java leaks (principle #2). See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
 | `test/built-ins/Object/**` | Descriptor edges; `seal` (TypedArray-gated); Annex-B `arguments` aliasing. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
 | `test/built-ins/JSON/**` | `JSON.stringify` reviver/replacer 2-arg semantics; `-0`/`__proto__` parser tail. Calibration: run JSONTestSuite — see [JS_ENGINE.md § Future TODO Items](../docs/JS_ENGINE.md#2-future-todo-items). |
+| `test/built-ins/Promise/**` | Residual after the async landing: resolve-element-function property shape (`name`/`length`/extensible), some combinator ordering corners, `Promise.try`/`withResolvers` (unimplemented, left to FAIL). `flags: [async]` tests stay SKIP until the harness implements doneprintHandle (see Harness quality). |
 | `test/built-ins/Number/**` | `[object Number]` (Symbol-gated) + a literal-form parser edge. |
 | `test/built-ins/Date/**` | ISO format edges + invalid-date propagation. See [JS_ENGINE.md § Date](../docs/JS_ENGINE.md#date). |
 | `test/built-ins/Symbol/**` (parked) | Symbol primitive. Deprioritized — no real-world code uses it. Pick up after the language work. |
@@ -440,14 +441,13 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   runtime `TypeError` (arguments-object write guards); `with`-statement early
   error deferred (path-skipped, lexes as a call); the non-simple-param
   `"use strict"` prologue corner (see [Active priorities](#active-priorities)).
-- **Promises / async / await / setTimeout — PROMOTED to
-  [Active P1.1](#p1--missing-surface-llms-write-constantly).** Currently
-  skipped (`feature: Promise`, `async-functions`, `Symbol.asyncIterator`);
-  karate-js is synchronous. Design constraints to settle before building:
-  eager-sync subset vs. a real job queue; whether `await` needs thread-based
-  suspension (the interpreter is a recursive tree-walk — it cannot suspend
-  mid-frame without threads or CPS); `setTimeout` semantics; Java interop
-  (`CompletableFuture` mapping) and executor lifecycle/shutdown.
+- **Promises / async / await / setTimeout — DONE** (vthread activations +
+  per-Engine lock; see
+  [JS_ENGINE.md § Async](../docs/JS_ENGINE.md#async--await--promise)).
+  Remaining async tail, deferred: `for await` / async iterators /
+  `Symbol.asyncIterator` (still feature-skipped), async generators,
+  `queueMicrotask`, `setInterval` (deliberately undefined — never
+  quiesces).
 - **Class syntax (ES6) — core works; only the conformance tail remains.**
   Declarations + expressions evaluate: constructor, instance/static methods,
   accessors, computed names, `extends` + `super(...)` + `super.method()`,
@@ -456,9 +456,8 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   super dispatch via `JsFunctionNode.homeObject` + `CoreContext.activeFunction`;
   `extends Error`/built-ins via a copy-own-props shim). Covered by `JsClassTest`.
   **Remaining tail:** private `#x` fields/methods (**half-parse silent-wrong
-  → P0.4**), arrow-function fields losing `this` (**P0.3**), async methods
-  silently sync (**P0.5**), generator methods (**P1.2**), decorators,
-  static-init blocks, class early-errors,
+  → P0.4**), arrow-function fields losing `this` (**P0.3**), generator
+  methods (**P1**), decorators, static-init blocks, class early-errors,
   object-literal-method `super` (needs object [[HomeObject]]), two super edge
   cases (`this`-TDZ before `super()`, `super()` return-override),
   numeric/string-literal method-name canonicalization (`get 0x10(){}` → key
@@ -541,6 +540,12 @@ Observably non-spec; pick up when the owning slice surfaces them.
 
 ### Harness quality
 
+- **Implement the doneprintHandle protocol for `flags: [async]` tests** —
+  now that async works in the engine, the ~thousand async-flagged tests
+  are skipped only because the harness doesn't inject
+  `doneprintHandle.js` semantics ($DONE via print, detect
+  `Test262:AsyncTestComplete`). `HarnessLoader.primeEngine` +
+  `Test262Runner.evaluate` are the seams. Highest-leverage harness item.
 - Replace hand-rolled YAML parser with SnakeYAML (`Expectations.java` /
   `Test262Metadata.java` — breaks on `#` in quoted reasons, block scalars).
 - `--resume` echoes records for deleted / now-SKIP'd tests — gate or
@@ -678,9 +683,12 @@ reason (the `flags` match fires before `features` is consulted). If you want
 `features: [Symbol]` to win, don't have a matching flag rule.
 
 Starter set covers Symbol, BigInt, generators, class syntax, Proxy, Reflect,
-Promises, async/await, Temporal, TypedArray beyond Uint8Array, WeakRef,
-ArrayBuffer, and the suite directories `test/intl402/`, `test/staging/`,
-`test/annexB/`. To add a skip: edit the YAML under the right section with a
+async iteration (`for await` / async generators / `Symbol.asyncIterator`),
+`flags: [async]` tests (harness doneprintHandle gap, not an engine gap),
+Temporal, TypedArray beyond Uint8Array, WeakRef, ArrayBuffer, and the suite
+directories `test/intl402/`, `test/staging/`, `test/annexB/`. The
+`async-functions` / `Promise` / `globalThis` feature skips were removed
+when that surface landed. To add a skip: edit the YAML under the right section with a
 `reason`. To remove a skip: delete the entry, re-run the relevant `--only`
 glob, debug failures with `--single -v`.
 

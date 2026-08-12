@@ -808,6 +808,216 @@ method covers `instanceof TypeError` / `instanceof Error` / etc. uniformly.
 
 ---
 
+## Async / await / Promise
+
+`async` / `await` / `Promise` run as **virtual-thread activations under a
+per-Engine lock** — the spec's synchronous-start semantics without CPS-rewriting
+the recursive tree-walk (a mutable per-frame completion record can't migrate
+between stacks, so a suspended body needs its own thread). `AsyncSupport` is the
+runtime, `AsyncScope` the linearizable facade, `AsyncActivation` one invocation.
+
+### Iron rules
+
+1. **JS executes only under `Engine.jsLock`** — a *fair* `ReentrantLock`, so a
+   resuming activation can't be starved by an eval thread that keeps re-locking.
+   Exactly one thread runs JS at any moment; there is no other synchronization
+   in the interpreter, and every locked span establishes and restores
+   `Engine.current()` around itself (`Engine.enter` / `exit`).
+2. **Foreign threads (timers, interop executors) never run JS and never touch
+   `JsObject` state.** They may only complete a `CompletableFuture`, enqueue a
+   job, and unpark a thread — see `AsyncSupport.settleFromCallback`, which routes
+   an off-engine `resolve(...)` back through the queue.
+3. **Quiescence accounting is linearizable.** Every unit of outstanding work
+   holds exactly one `AsyncToken` (live timer, live activation, queued job,
+   armed-but-unsettled `CompletionStage` subscription), and successor work is
+   always enqueued **before** the token that permitted it is released —
+   `AsyncScope.publishSuccessor(oldToken, work)` does both under one monitor. So
+   a foreign thread can never publish into a closed scope, the count can never go
+   negative, and quiescence (`liveTokens == 0` **and** empty queue, read as one
+   operation) can never be observed with work in flight. Tokens are idempotent
+   handles with their own `LIVE → RELEASED` CAS, never bulk decrements.
+
+`AsyncScope`'s monitor is **not** `jsLock`: holding it never confers the right to
+run JS and it is never held across JS execution. It doubles as the pump owner's
+wait set, so any enqueue wakes an owner blocked on an empty queue.
+
+### Activations
+
+`JsFunctionNode.bindArgsAndExecute` forks on the `async` flag: an async
+invocation never runs its body on the calling thread — `AsyncSupport.callAsync`
+→ `AsyncActivation.spawn` returns a promise, always. The caller (holding
+`jsLock`) creates the result `JsPromise`, spawns a `js-async-N` virtual thread,
+**releases `jsLock`**, and parks on a **startup-outcome cell**: a
+single-assignment `SUSPENDED | COMPLETED | FAILED` slot (one CAS — a second
+publication is a harmless failed CAS), not a bare latch, so the caller can tell
+"ran to completion" from "parked at its first unresolved `await`" from "never got
+off the ground". That handshake is the design: it makes `const p = f();
+release();` work instead of deadlocking, and lets `Promise.all([a(), b()])`
+overlap rather than serialize. Argument binding is part of startup and runs on
+the activation thread under the same protocol — hence
+`JsFunctionNode.executeBody` as the split-out synchronous body run.
+
+Unwind ownership is explicit: on vthread-start failure the **caller** releases
+the token and settles the promise rejected (ownership transfers only once the
+thread has started); an interrupted outcome-wait cancels the scope and propagates
+`EngineInterruptedException` **without touching `jsLock`** — ownership there
+belongs to the activation or to nobody, so every enclosing frame unlocks
+conditionally (`if (jsLock.isHeldByCurrentThread())`).
+
+`AsyncActivation.awaitOn` suspends at the first **unresolved** await: arm the
+resumption first (`cf.whenComplete(… unpark)` — an unpark permit survives an
+unpark-before-park race, a condition flag would not), publish `SUSPENDED`,
+release `jsLock` in a `finally`, then park. On wake it validates the scope gate,
+reacquires `jsLock`, and validates **again**. `AsyncActivation.anyAsync` is a
+JVM-wide monotonic flag (same shape as `Prototype.anyUserProps`): while false the
+interpreter's polls skip the thread-local lookup, so synchronous scripts pay
+nothing for any of this.
+
+**Top-level `await`** has no activation — the eval thread becomes the pump
+(`AsyncSupport.pumpUntilSettled`): release `jsLock`, `takeJob`, reacquire, run,
+re-check the target. That is what lets activations and callbacks interleave with
+top-level code; a quiescent scope with an unsettled target raises "await on a
+promise that can never settle" rather than hanging.
+
+### Eval scopes
+
+Each **outermost** `Engine.eval` opens one `AsyncScope`, and **scope object
+identity is the generation stamp** — deliberately not `ContextRoot.evalId`, a
+wrapping `short` that nested evals increment. `Engine.enterEvalScope` serializes
+outer evals: a second host thread blocks until the current scope has fully
+closed, drain and teardown included. A **nested** eval on the same thread (a job
+or host callback calling `Engine.eval`) opens no scope — it shares the outer one
+and its pump owner via an eval-depth counter, and only depth 0 runs the
+end-of-eval drain and teardown. `Engine.eval` keeps its synchronous
+`String → value` contract: `AsyncSupport.finishScope` drains to quiescence, then
+unwraps a promise result (a rejection is thrown, and marked *observed* so it is
+not double-reported as unhandled).
+
+### Cancellation and teardown
+
+`AsyncScope.close` is a **fenced, awaited** teardown, run by the pump owner
+holding no locks: (1) the facade goes `CLOSED` — every late `publishSuccessor` is
+rejected and the activation reacquisition gate is shut; (2) live timers are
+CAS-cancelled; (3) queued jobs are discarded and their tokens released; (4) every
+live activation is interrupted **and waited for**, bounded by
+`Engine.asyncTeardownMillis`. No subsequent outer eval may start until that
+returns, so a cancelled activation's preserved stack can never mutate a later
+eval's state.
+
+Thread interruption alone is not a sufficient fence, because host code may
+swallow or clear it. Two additions close that: `Interpreter.checkInterrupted` now
+tests **scope closure as well as thread interruption** (gated on `anyAsync`), and
+a **post-host-return fence** (`AsyncSupport.hostReturnFence`) runs at every
+host-call return in `Interpreter` before any further JS executes or anything is
+settled. If the teardown deadline still expires with an activation stuck in
+non-interruptible host code, the engine is **poisoned** — a permanent atomic
+transition made *before* the timed-out teardown returns. `Engine.checkPoisoned`
+runs before waiting for scope ownership or touching `jsLock`, so later evals fail
+fast instead of blocking on a lock the stuck activation may still hold;
+`Engine.isPoisoned()` is public, and embedders must not return a poisoned engine
+to a reuse pool.
+
+An activation that hits a fatal internal error must **not** tear its own scope
+down — it would join its own thread. It calls `AsyncScope.requestCancel`, which
+marks the request and enqueues an `AsyncJob.Control` as **one atomic operation**,
+race-safe whether the pump owner is already blocked on the empty queue or has not
+begun waiting; teardown is then the pump owner's work.
+
+Host cancellation never becomes a catchable rejection: at every async boundary
+`FlowControlSignal` and `EngineInterruptedException` are rethrown *before* any
+catch-and-reject conversion (`AsyncSupport.isHostCancellation`). The optional
+drain cap (`Engine.setAsyncDrainTimeout`, off by default — cooperative interrupt
+stays the outer bound) throws `EngineTimeoutException`, deliberately a **subclass
+of `EngineInterruptedException`** so it inherits the existing "JS can't catch it,
+hosts pass it through unwrapped" routing with no second special case.
+
+### Promise semantics
+
+`JsPromise extends JsObject` for the prototype surface, but **its settlement
+state lives exclusively in its `CompletableFuture`** — the one field foreign
+threads may touch; reactions and JS-visible effects are mutated only under
+`jsLock`, by queued jobs. It is deliberately **not** a `JsValue`, so
+`Engine.toJava` passes it through unchanged and a host calling an async JS
+function gets the promise, not an auto-awaited value (blocking unwrap is opt-in:
+`await()` / `join(Duration)`).
+
+- **One adoption operation**, `AsyncSupport.resolveValue`, shared by the
+  executor's `resolve`, `Promise.resolve`, async-function return, `.then` results
+  and `CompletionStage` wrapping. JS-level rules run before any CF composition:
+  self-resolution → `TypeError`; a `JsPromise` is adopted, never nested; `then`
+  is read **once**, through a property access that may itself throw; thenable
+  resolve/reject are first-call-wins, and a `then` that throws after resolving is
+  swallowed per spec. Callbacks always route through the queue, even for an
+  already-settled promise ("sync code first, callbacks after").
+- **Unhandled rejections are tracked at reaction level, not lineage-wide.**
+  Attaching any reaction marks the source handled — a fulfillment-only `.then(f)`
+  transfers rejection responsibility to the derived promise, tracked in its own
+  right, so `Promise.reject(x).then(v => v)` reports the *derived* promise,
+  exactly once. Decided only at scope quiescence (so a later-queued `.catch`
+  counts); the default is **fail the eval** with the first terminal rejection,
+  the rest logged. `Engine.setAsyncRejectionWarnOnly(true)` downgrades to WARN on
+  SLF4J and the `console` consumer (`ContextRoot.onConsoleLog`).
+- **`JsRejectionException`** carries a rejection across the Java boundary and is
+  the **only** exception the engine ever unwraps back into a JS reason. Java → JS
+  rules, in order (`AsyncSupport.reasonFromStage`): unwrap `CompletionException` /
+  `ExecutionException` **one layer**; our wrapper → its `getReason()`;
+  `EngineInterruptedException` → rethrown as host cancellation, never a reason;
+  `CancellationException` → a JS `Error`; anything else → the ordinary host-error
+  conversion. Arbitrary Java exceptions never masquerade as JS rejections.
+- **`toFuture()` returns the same instance every time** — stable,
+  scheduler-neutral (no thread, ordering or drain guarantee), and cancelling it
+  does **not** cancel the JS activation; it is a view. `JsPromise.PromiseView`
+  carries the reverse association, so a promise's own future handed back into JS
+  recovers the original `JsPromise`.
+- Java `CompletionStage` → JS is wrapped on first crossing with **scope-scoped**
+  identity (an `IdentityHashMap` dropped wholesale at close — weak keys were
+  rejected because the wrapper's CF graph strongly reaches the stage); identity
+  across scopes is explicitly not promised. An armed subscription holds a token,
+  so a Java future in flight keeps the eval from going quiescent.
+- `JsPromiseConstructor` statics: `resolve`, `reject`, `all`, `allSettled`,
+  `race`, `any`. `new` on an async function is a `TypeError` —
+  `JsFunctionNode.isConstructable` returns false for `async` as for arrows.
+
+### setTimeout / clearTimeout
+
+Registered in `ContextRoot.initGlobal` alongside `Promise` and `globalThis`. One
+shared lazy single-thread scheduler (`ThreadUtils.daemonFactory("js-timer-")`),
+registered with `KarateLifecycle` on first use — see
+[DESIGN.md § Threading & Lifecycle](./DESIGN.md#threading--lifecycle) for the
+`Stoppable` registry. Owner resolution is from the call's own
+`CoreContext.getEngine()`, validated against `Engine.current()`; scheduling
+without a definite engine is a `TypeError`, not a guess. Ids are engine-local
+(`AsyncScope.nextTimerId`), and each record is a `LIVE → FIRED | CANCELLED` CAS,
+so a callback can never run after `clearTimeout` returned and the timer thread
+may only win that CAS and `publishSuccessor` — never run JS. Delay coercion:
+`NaN` / negative / non-numeric → 0, fractional → floored, infinite →
+`Integer.MAX_VALUE`; a missing or non-callable callback is a `TypeError`; extra
+args pass through. **No `setInterval` by design** — it never quiesces.
+
+### Accepted deviations
+
+1. The **settled-`await` fast path does not yield** to the microtask queue.
+2. Job ordering only approximates microtask-vs-macrotask. `AsyncJob.Microtask`
+   and `AsyncJob.Timer` are kept structurally distinct, but the pump drains both
+   FIFO and **drain order is explicitly not a contract** — a two-queue pump has
+   to be landable without a data-model rewrite.
+3. `Engine.eval` blocks to quiescence by design; a far-future timer blocks it
+   (interrupt and the drain cap are the escape hatches), and fair-lock order
+   among runnable activations is approximate, not the spec's job ordering.
+4. No `queueMicrotask`, no `setInterval`, no async iterators — `for await` is
+   rejected at parse time.
+
+> **Spec invariant.** Pinned by `JsAsyncAwaitTest` (19 cases — parse and call
+> shape, contextual-keyword back-compat), `JsPromiseTest` (39 — promise surface,
+> adoption, unhandled-rejection policy, the Java bridge) and
+> `JsAsyncConcurrencyTest` (18 barrier cases — token idempotence,
+> close-vs-publish races, unpark-before-park, interrupt-before-start, stale
+> reacquisition, nested eval, cross-thread eval serialization, stage-cache
+> reclamation, the poison transition, the drain cap, engine reuse after a
+> cancelled eval).
+
+---
+
 ## Engine-compliance work
 
 The operating-mode maxims for the test262 conformance loop now live in
@@ -969,12 +1179,15 @@ copy-own-props shim rather than true exotic subclassing; decorators, class
 early-errors and the public-field conformance edge tail stay test262-skipped
 (see the un-skip gate in `karate-js-test262/etc/expectations.yaml`).
 
-Four of the deviations are **silent** — the parser accepts the syntax and the
+**`async` methods are honored** — instance, `static`, and computed-name alike.
+The parse-time flag reaches `JsFunctionNode.async`, so `new C().m()` returns a
+promise rather than the body's value (see
+[§ Async / await / Promise](#async--await--promise)).
+
+The remaining deviations are **silent** — the parser accepts the syntax and the
 runtime does something else, which is the worse failure mode (known deviation
 — see TEST262.md Active priorities):
 
-- `class C { async m(){} }` parses as an ordinary *sync* method; the `async`
-  modifier is dropped rather than rejected.
 - `class C { #n = 7; get v(){ return this.#n } }` parses, but the read yields
   `undefined` — `#`-names are not modelled as private slots. `this.#x++` and
   `static #total` are outright parse errors.
@@ -1021,9 +1234,10 @@ the prior split storage (values in `BindingsStore`, attrs in
 uses the inherited `JsObject.props` map at all — every observable property,
 attribute, and tombstone lives on the `BindingSlot`.
 
-**There is no `globalThis` *binding*.** `JsGlobalThis` backs top-level `this`
-only — `ContextRoot.initGlobal` registers no global named `globalThis`, so a
-script referencing it by name gets a ReferenceError. Also absent from the
+**`globalThis` names that same object.** `ContextRoot.initGlobal` registers
+`globalThis` as a lazy global resolving to the `JsGlobalThis` that backs
+top-level `this`, so `globalThis === this` at top level and the two see one
+store. Absent from the
 global surface: `WeakMap` / `WeakSet` / `Proxy` / `ArrayBuffer` / `DataView`
 (and the Iterator helpers); `Uint8Array` is the only binary type, per the
 §Type Mapping table (known deviations — see TEST262.md Active priorities).
@@ -2499,6 +2713,11 @@ call; path-skipped). Pinned by `SpecPinTest.functionDeclAs*` and the
 | JavaCallable | `karate-js/src/main/java/io/karatelabs/js/JavaCallable.java` |
 | JsError | `karate-js/src/main/java/io/karatelabs/js/JsError.java` |
 | FlowControlSignal | `karate-js/src/main/java/io/karatelabs/js/FlowControlSignal.java` |
+| Async runtime (await, pump, adoption, timers) | `karate-js/src/main/java/io/karatelabs/js/AsyncSupport.java` |
+| Async scope facade / tokens / jobs | `karate-js/src/main/java/io/karatelabs/js/AsyncScope.java`, `AsyncToken.java`, `AsyncJob.java` |
+| Async activation (one `async` call) | `karate-js/src/main/java/io/karatelabs/js/AsyncActivation.java` |
+| Promise | `karate-js/src/main/java/io/karatelabs/js/JsPromise.java`, `JsPromisePrototype.java`, `JsPromiseConstructor.java` |
+| Async host exceptions | `karate-js/src/main/java/io/karatelabs/js/JsRejectionException.java`, `EngineTimeoutException.java` |
 | Terms | `karate-js/src/main/java/io/karatelabs/js/Terms.java` |
 | JsDate | `karate-js/src/main/java/io/karatelabs/js/JsDate.java` |
 | CallInfo | `karate-js/src/main/java/io/karatelabs/js/CallInfo.java` |
