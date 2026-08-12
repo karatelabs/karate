@@ -52,11 +52,17 @@ class ContextRoot implements Context {
         if (args.length == 0) return Double.NaN;
         int radix = args.length > 1 && args[1] != Terms.UNDEFINED
                 ? Terms.objectToNumber(args[1]).intValue() : 0;
-        return Terms.parseInt(args[0] + "", radix);
+        return Terms.parseInt(argToString(args[0]), radix);
     });
 
     static final JsBuiltinMethod PARSE_FLOAT = new JsBuiltinMethod("parseFloat", 1, (ctx, args) ->
-            args.length == 0 ? Double.NaN : Terms.parseFloat(args[0] + "", false));
+            args.length == 0 ? Double.NaN : Terms.parseFloat(argToString(args[0]), false));
+
+    // A Number arg is ToString'd per spec before parsing, so it has to take the
+    // spec form -- Java's would feed "1.0E21" to a parser that only knows 'e'.
+    private static String argToString(Object arg) {
+        return arg instanceof Number n ? Terms.numberToString(n) : arg + "";
+    }
 
     private final Engine engine;
 

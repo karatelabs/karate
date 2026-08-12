@@ -136,20 +136,13 @@ public class Terms {
             return Double.NaN;
         }
         int index = 0;
-        boolean negative = false;
-        if (str.charAt(index) == '-') {
-            negative = true;
-            index++;
-        } else if (str.charAt(index) == '+') {
+        if (str.charAt(index) == '-' || str.charAt(index) == '+') {
             index++;
         }
         Number radix = fromRadixPrefix(str);
         if (radix != null) {
             return narrow(radix.doubleValue());
         }
-        long intPart = 0;
-        double fracPart = 0;
-        double divisor = 1.0;
         boolean foundDigit = false;
         boolean seenDot = false;
         while (index < str.length()) {
@@ -162,24 +155,32 @@ public class Terms {
             if (ch < '0' || ch > '9') {
                 break; // stop at first invalid char
             }
-            int digit = ch - '0';
-            if (!seenDot) {
-                intPart = intPart * 10 + digit;
-            } else {
-                divisor *= 10;
-                fracPart += digit / divisor;
-            }
             foundDigit = true;
             index++;
         }
         if (!foundDigit) {
             return Double.NaN;
         }
-        double value = intPart + fracPart;
-        if (negative) {
-            value = -value;
+        // ExponentPart is only consumed when it is well-formed: a lone trailing
+        // 'e' (or an 'e' with no digits after the sign) is not part of the
+        // literal, so `parseFloat('1e')` is 1 rather than NaN.
+        if (!asInt && index < str.length() && (str.charAt(index) == 'e' || str.charAt(index) == 'E')) {
+            int p = index + 1;
+            if (p < str.length() && (str.charAt(p) == '+' || str.charAt(p) == '-')) {
+                p++;
+            }
+            int digitsStart = p;
+            while (p < str.length() && str.charAt(p) >= '0' && str.charAt(p) <= '9') {
+                p++;
+            }
+            if (p > digitsStart) {
+                index = p;
+            }
         }
-        return narrow(value);
+        // Delegate the digits → double rounding to the JDK: the earlier
+        // hand-rolled accumulation lost precision on long fractions and
+        // overflowed the integer part past 2^63.
+        return narrow(Double.parseDouble(str.substring(0, index)));
     }
 
     static Number objectToNumber(Object o) {
@@ -691,7 +692,7 @@ public class Terms {
             if (context != null && context.isError()) return UNDEFINED;
         }
         if (lhs instanceof String || rhs instanceof String) {
-            return lhs + "" + rhs;
+            return concatOperand(lhs) + concatOperand(rhs);
         }
         // BigInt branch — pulled into a fast type test that fails on the common case
         if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
@@ -705,6 +706,12 @@ public class Terms {
         Number rhsNum = objectToNumber(rhs);
         double result = lhsNum.doubleValue() + rhsNum.doubleValue();
         return narrow(result);
+    }
+
+    private static String concatOperand(Object o) {
+        if (o instanceof String s) return s;
+        if (o instanceof Number n) return numberToString(n);
+        return String.valueOf(o);
     }
 
     // BigInt does NOT participate in `narrow` (which collapses to int/long/double).
@@ -1194,7 +1201,7 @@ public class Terms {
         if (o instanceof String s) return s;
         if (o == UNDEFINED) return "undefined";
         if (o instanceof JsString js) return js.toString();
-        if (o instanceof Number n) return numberToPropertyKey(n);
+        if (o instanceof Number n) return numberToString(n);
         if (o instanceof Boolean) return o.toString();
         if (ctx != null) {
             // Spec §7.1.18 ToPropertyKey: ToPrimitive(hint string) → ToString.
@@ -1209,7 +1216,21 @@ public class Terms {
         return o.toString();
     }
 
-    private static String numberToPropertyKey(Number n) {
+    /**
+     * Spec {@code Number::toString} (§6.1.6.1.13) — the single seam every
+     * user-visible number → string site routes through (ToPropertyKey,
+     * ToString coercion, {@code Number.prototype.toString}, JSON output).
+     * Java's {@code Double.toString} disagrees at both ends of the range
+     * ({@code 1.0E21} vs {@code 1e+21}, {@code -0.0} vs {@code 0},
+     * {@code 30.0} vs {@code 30}).
+     * <p>
+     * On the interpreter hot path (property keys, string concat), so the
+     * int / long cases short-circuit ahead of any double inspection —
+     * {@link #narrow} collapses most engine values to those types.
+     */
+    public static String numberToString(Number n) {
+        if (n instanceof Integer i) return Integer.toString(i);
+        if (n instanceof Long l) return Long.toString(l);
         if (n instanceof BigInteger bi) return bi.toString();
         double d = n.doubleValue();
         if (Double.isNaN(d)) return "NaN";
@@ -1260,6 +1281,12 @@ public class Terms {
     }
 
     public static String toStringCoerce(Object o, CoreContext context) {
+        if (o instanceof String s) {
+            return s;
+        }
+        if (o instanceof Number n) {
+            return numberToString(n);
+        }
         if (o == null) {
             return "null";
         }

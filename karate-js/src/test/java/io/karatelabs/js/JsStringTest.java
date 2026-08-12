@@ -315,4 +315,28 @@ class JsStringTest extends EvalBase {
         assertEquals(0, eval("'a'.localeCompare('A')"));
     }
 
+    @Test
+    void testReplaceFunctionHonorsGlobalFlag() {
+        assertEquals("a[1]b[2]", eval("'a1b2'.replace(/\\d/g, function(m){ return '[' + m + ']' })"));
+        assertEquals("a[1]b2", eval("'a1b2'.replace(/\\d/, function(m){ return '[' + m + ']' })"));
+        assertEquals(2, eval("var n = 0; 'a1b2'.replace(/\\d/g, function(){ n++; return '' }); n"));
+        assertEquals("a-1-b-2-", eval("'a1b2'.replace(/\\d/g, function(m, off, s){ return '-' + m + '-' })"));
+        // Symbol.replace resets lastIndex for a global regex and leaves it at 0
+        assertEquals(0, eval("var re = /\\d/g; 'a1b2'.replace(re, function(m){ return m }); re.lastIndex"));
+    }
+
+    @Test
+    void testReplaceAllEmptySearchWithFunction() {
+        assertEquals("-a-b-", eval("'ab'.replaceAll('', function(){ return '-' })"));
+        assertEquals("-", eval("''.replaceAll('', function(){ return '-' })"));
+    }
+
+    @Test
+    void testEndsWithOutOfRangePosition() {
+        assertEquals(false, eval("'abc'.endsWith('c', -1)"));
+        assertEquals(true, eval("'abc'.endsWith('', -1)"));
+        assertEquals(true, eval("'abc'.endsWith('a', 1)"));
+        assertEquals(true, eval("'abc'.endsWith('c', 10)"));
+    }
+
 }

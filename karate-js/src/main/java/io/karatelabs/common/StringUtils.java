@@ -499,6 +499,8 @@ public class StringUtils {
             Set<Object> visited = Collections.newSetFromMap(new IdentityHashMap<>());
             formatRecurse(o, pretty, lenient, sort, indent, sb, 0, visited);
             return sb.toString();
+        } else if (o instanceof Number n) {
+            return Terms.numberToString(n);
         } else {
             return o + "";
         }
@@ -609,7 +611,9 @@ public class StringUtils {
                     .withZone(java.time.ZoneOffset.UTC);
             String isoDate = formatter.format(instant);
             sb.append('"').append(isoDate).append('"');
-        } else if (o instanceof Number || o instanceof Boolean) {
+        } else if (o instanceof Number n) {
+            sb.append(Terms.numberToString(n));
+        } else if (o instanceof Boolean) {
             sb.append(o);
         } else {
             String value = o.toString();

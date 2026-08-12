@@ -59,12 +59,15 @@ public class JsJson extends JsObject {
             // Handle replacer array (array of keys to include) - check BEFORE JsCallable
             // because JsArray implements both List and JsCallable
             if (replacer instanceof List) {
-                List<String> list = (List<String>) replacer;
+                List<Object> list = (List<Object>) replacer;
                 if (value instanceof Map) {
                     Map<String, Object> map = (Map<String, Object>) value;
                     Map<String, Object> result = new LinkedHashMap<>();
-                    for (String k : list) {
-                        if (map.containsKey(k)) {
+                    for (Object entry : list) {
+                        String k = replacerKey(entry);
+                        // spec §25.5.2: only String / Number entries (and their
+                        // wrappers) name a key; anything else is ignored
+                        if (k != null && !result.containsKey(k) && map.containsKey(k)) {
                             result.put(k, map.get(k));
                         }
                     }
@@ -95,12 +98,7 @@ public class JsJson extends JsObject {
                 }
             }
 
-            // Spec: JSON.stringify on a value tree containing BigInt throws TypeError.
-            // Walk happens only on the rare path where a BigInt is actually present —
-            // common case eats one root-level instanceof check.
-            if (containsBigInt(value)) {
-                throw JsErrorException.typeError("Do not know how to serialize a BigInt");
-            }
+            checkSerializable(value);
 
             // Use centralized StringUtils.formatJson for both compact and pretty output
             // This ensures proper handling of JS types (undefined, JsValue wrappers)
@@ -109,22 +107,49 @@ public class JsJson extends JsObject {
         };
     }
 
-    private static boolean containsBigInt(Object value) {
-        if (value instanceof BigInteger) return true;
-        if (value instanceof JsBigInt) return true;
+    private static String replacerKey(Object entry) {
+        if (entry instanceof String s) return s;
+        if (entry instanceof Number n) return Terms.numberToString(n);
+        if (entry instanceof JsString || entry instanceof JsNumber) {
+            return replacerKey(((JsValue) entry).getJavaValue());
+        }
+        return null;
+    }
+
+    /**
+     * Spec §25.5.2 SerializeJSONProperty rejects both a BigInt anywhere in the
+     * tree and a cyclic structure with a TypeError. Both are found by the same
+     * walk, which only descends containers — a primitive root costs two
+     * instanceof checks and no allocation.
+     */
+    private static void checkSerializable(Object value) {
+        if (value instanceof BigInteger || value instanceof JsBigInt) {
+            throw JsErrorException.typeError("Do not know how to serialize a BigInt");
+        }
+        if (value instanceof Map || value instanceof List) {
+            checkSerializable(value, java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()));
+        }
+    }
+
+    private static void checkSerializable(Object value, java.util.Set<Object> seen) {
+        if (value instanceof BigInteger || value instanceof JsBigInt) {
+            throw JsErrorException.typeError("Do not know how to serialize a BigInt");
+        }
+        Iterable<?> children;
         if (value instanceof Map<?, ?> m) {
-            for (Object v : m.values()) {
-                if (containsBigInt(v)) return true;
-            }
-            return false;
+            children = m.values();
+        } else if (value instanceof List<?> list) {
+            children = list;
+        } else {
+            return;
         }
-        if (value instanceof List<?> list) {
-            for (Object v : list) {
-                if (containsBigInt(v)) return true;
-            }
-            return false;
+        if (!seen.add(value)) {
+            throw JsErrorException.typeError("Converting circular structure to JSON");
         }
-        return false;
+        for (Object v : children) {
+            checkSerializable(v, seen);
+        }
+        seen.remove(value);
     }
 
     @SuppressWarnings("unchecked")

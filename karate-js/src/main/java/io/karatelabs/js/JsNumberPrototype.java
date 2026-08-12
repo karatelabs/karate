@@ -69,7 +69,7 @@ class JsNumberPrototype extends Prototype {
                 return Double.toString(d);
             }
         }
-        return numberToString(n);
+        return Terms.numberToString(n);
     }
 
     /**
@@ -99,14 +99,6 @@ class JsNumberPrototype extends Prototype {
         return (int) d;
     }
 
-    private static String numberToString(Number n) {
-        double d = n.doubleValue();
-        if (Double.isNaN(d)) return "NaN";
-        if (d == Double.POSITIVE_INFINITY) return "Infinity";
-        if (d == Double.NEGATIVE_INFINITY) return "-Infinity";
-        return n.toString();
-    }
-
     // Instance methods
 
     private Object toFixed(Context context, Object[] args) {
@@ -128,7 +120,7 @@ class JsNumberPrototype extends Prototype {
         // produces a noisy decimal expansion (e.g. 1e21 -> "1000000000000000040000")
         // that doesn't match JS's "1e+21" canonical form.
         if (Math.abs(d) >= 1e21) {
-            return numberToString(d);
+            return Terms.numberToString(d);
         }
         BigDecimal bd = BigDecimal.valueOf(d);
         bd = bd.setScale(digits, RoundingMode.HALF_UP);
@@ -145,7 +137,7 @@ class JsNumberPrototype extends Prototype {
         double d = thisNumber(context).doubleValue();
         // Absent / undefined precision: spec returns ToString(x) — no range check.
         if (args.length == 0 || args[0] == Terms.UNDEFINED) {
-            return numberToString(d);
+            return Terms.numberToString(d);
         }
         if (args[0] instanceof java.math.BigInteger) {
             throw JsErrorException.typeError("Cannot convert a BigInt to a number");

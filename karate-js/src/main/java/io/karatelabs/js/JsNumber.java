@@ -41,7 +41,7 @@ non-sealed class JsNumber extends JsObject implements JsPrimitive, JsCallable {
 
     @Override
     public String toString() {
-        return value.toString();
+        return Terms.numberToString(value);
     }
 
     @Override

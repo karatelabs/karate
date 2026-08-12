@@ -195,4 +195,31 @@ class JsJsonTest extends EvalBase {
         String result = (String) eval("JSON.stringify({a: 1, b: undefined, c: 3})");
         assertEquals("{\"a\":1,\"c\":3}", result);
     }
+
+    @Test
+    void testStringifyNumberUsesSpecForm() {
+        assertEquals("{\"a\":1e+21}", eval("JSON.stringify({a:1e21})"));
+        assertEquals("{\"a\":1e-7}", eval("JSON.stringify({a:1e-7})"));
+        assertEquals("{\"a\":0}", eval("JSON.stringify({a:-0})"));
+        assertEquals("[1,1.5]", eval("JSON.stringify([1, 1.5])"));
+    }
+
+    @Test
+    void testStringifyCircularThrowsTypeError() {
+        assertEquals("TypeError", eval(
+                "var a = {}; a.self = a; var n;"
+                        + " try { JSON.stringify(a) } catch (e) { n = e.name } n"));
+        assertEquals("TypeError", eval(
+                "var a = []; a.push(a); var n;"
+                        + " try { JSON.stringify(a) } catch (e) { n = e.name } n"));
+        // repeated (non-circular) references are not cycles
+        assertEquals("{\"x\":{\"v\":1},\"y\":{\"v\":1}}", eval(
+                "var s = {v:1}; JSON.stringify({x:s, y:s})"));
+    }
+
+    @Test
+    void testStringifyReplacerArrayWithNonStringEntries() {
+        assertEquals("{\"1\":\"x\"}", eval("JSON.stringify({1:'x',b:'y'}, [1])"));
+        assertEquals("{\"a\":\"b\"}", eval("JSON.stringify({a:'b',c:'d'}, ['a', null, true, 2])"));
+    }
 }

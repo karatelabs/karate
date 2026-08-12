@@ -155,4 +155,34 @@ class JsNumberTest extends EvalBase {
         assertEquals("1,234,567.89", result);
     }
 
+    @Test
+    void testNumberToStringSpecForm() {
+        assertEquals("123", eval("String(123)"));
+        assertEquals("1.5", eval("String(1.5)"));
+        assertEquals("0", eval("String(-0)"));
+        assertEquals("0.30000000000000004", eval("(0.1 + 0.2) + ''"));
+        assertEquals("NaN", eval("String(NaN)"));
+        assertEquals("Infinity", eval("String(Infinity)"));
+        assertEquals("-Infinity", eval("String(-Infinity)"));
+        // spec Number::toString plain-decimal band is 1e-6 <= |d| < 1e21
+        assertEquals("0.000001", eval("String(1e-6)"));
+        assertEquals("1e-7", eval("(1e-7) + ''"));
+        assertEquals("1e+21", eval("String(1e21)"));
+        assertEquals("1e+21", eval("(1e21).toString()"));
+        assertEquals("1e+21", eval("`${1e21}`"));
+        assertEquals("-1e+21", eval("String(-1e21)"));
+        assertEquals("1e+21", eval("String(new Number(1e21))"));
+    }
+
+    @Test
+    void testParseFloatExponent() {
+        assertEquals(1e21, eval("parseFloat('1e21')"));
+        assertEquals(0.0015, eval("parseFloat('1.5e-3')"));
+        assertEquals(1500, eval("parseFloat('1.5E3')"));
+        assertEquals(2.5, eval("parseFloat('2.5abc')"));
+        assertEquals(1, eval("parseFloat('1e')"));
+        // a Number arg must round-trip through the spec string form
+        assertEquals(1e21, eval("parseFloat(1e21)"));
+    }
+
 }

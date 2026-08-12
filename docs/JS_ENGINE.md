@@ -682,20 +682,16 @@ try {
 raw-leak shapes today (all bugs by the tenet above, none of them papered
 over):
 
-- `JSON.stringify` on a circular value → `StackOverflowError`, from
-  `JsJson.containsBigInt`'s unguarded pre-walk, which recurses with no
-  visited set and so blows the stack *before* `StringUtils.formatRecurse`'s
-  own identity-based `[Circular]` guard is reached. Spec wants `TypeError`.
-- `JSON.stringify` with a replacer array holding non-string entries →
-  `ClassCastException`, from the unchecked `(List<String>) replacer` cast in
-  `JsJson.stringify` (`JsObject cannot be cast to java.lang.String`).
 - `RegExp` `exec` / `test` with a null argument → `NullPointerException`;
   catastrophic backtracking → the engine `Timeout`.
 - `Array` operations near a 2^32 length → `IndexOutOfBoundsException` /
   VM-limit / heap errors (the `Integer.MAX_VALUE` length clamp noted under
   §JsArray length semantics).
-- `String.prototype.{replaceAll, endsWith}` → `StringIndexOutOfBoundsException`
-  on out-of-range arguments.
+
+(Fixed and no longer on this list: `JSON.stringify` circular / BigInt
+pre-walk — one `JsJson.checkSerializable` identity-set walk throwing
+`TypeError`; the replacer-array `ClassCastException` — non-String/Number
+entries are ignored per §25.5.2; `replaceAll` / `endsWith` range clamps.)
 
 (known deviations — see TEST262.md Active priorities.)
 
@@ -1414,20 +1410,20 @@ between assignment and `var` / `let` / `const` paths.
 — the ToPrimitive → `toString` dispatch for `ObjectLike` receivers. Use
 `StringUtils.formatJson` directly for JSON display, not the legacy formatter.
 
-**Number → String is NOT unified, and the spec-shaped formatter is the
-private one.** `Terms.numberToPropertyKey` is the only implementation of
-spec Number::toString (§6.1.6.1.13 — plain-decimal band `1e-6 ≤ |d| < 1e21`,
-`e+`/`e-` form outside it). Everything else falls back to Java's
-`Double.toString` at extreme magnitudes: `Terms.toStringCoerce` returns
-`o.toString()` for primitives / `JsValue`, `JsNumberPrototype.numberToString`
-ends in `n.toString()`, and `StringUtils.formatRecurse` appends a `Number`
-directly — so `String(1e21)` yields `"1.0E21"`, `String(-0)` yields `"-0.0"`,
-and `JSON.stringify({a:1e21})` emits invalid JSON. `Terms.parseFloat` is a
-hand-rolled digit walker with no exponent branch, so `parseFloat('1e21')`
-is `1`, and `ContextRoot.PARSE_FLOAT` feeds it `args[0] + ""` (Java
-formatting again). The fix is to promote `numberToPropertyKey` to the shared
-seam and route all four sites through it (known deviation — see TEST262.md
-Active priorities).
+**Number → String is unified on `Terms.numberToString`** — the single
+implementation of spec Number::toString (§6.1.6.1.13 — plain-decimal band
+`1e-6 ≤ |d| < 1e21`, `e+`/`e-` form outside it, `-0` → `"0"`). Every
+user-visible number → string site routes through it: `Terms.toStringCoerce`,
+the `+` string-concat branch (`Terms.concatOperand`),
+`JsNumberPrototype.numberToString` (radix-10), `StringUtils.formatRecurse`
+(JSON output), and ToPropertyKey — so `String(1e21)` is `"1e+21"` and
+`JSON.stringify({a:1e21})` is valid JSON. It sits on the interpreter hot
+path (property keys, concat), so `Integer`/`Long` short-circuit by type
+test before any double inspection. `Terms.parseFloat` scans the numeric
+prefix (including a well-formed ExponentPart — a dangling `e` is not
+consumed, so `parseFloat('1e')` is `1`) and delegates digits → double
+rounding to the JDK; `ContextRoot.PARSE_FLOAT` / `PARSE_INT` spec-stringify
+a `Number` arg instead of Java-formatting it.
 
 **`Terms.toPrimitive` is the spec ToPrimitive boundary.** Object → primitive
 coercion (used by `BigInt()`, `Number()`, radix args of `toString`, `ToIndex`
@@ -1456,8 +1452,8 @@ falls back to Java `o.toString()` (legacy lenient path). The
 context-flowing call sites pass ctx — `defineProperty` is migrated;
 `hasOwn` / `getOwnPropertyDescriptor` are still on the no-ctx path
 (both wired as `JsInvokable`; switch the wiring when a real workload
-passes non-string keys). The numeric branch (`numberToPropertyKey`)
-is spec Number::toString-shaped: `0.000001` → `"0.000001"` (BigDecimal
+passes non-string keys). The numeric branch (`Terms.numberToString`)
+is spec Number::toString: `0.000001` → `"0.000001"` (BigDecimal
 plain-string with `stripTrailingZeros()` so `Double.toString`'s
 `"1.0E-6"` round-trip doesn't leak a trailing zero through scale).
 
@@ -2229,12 +2225,10 @@ doesn't need to depend on `JsCallable` / `Context`; the callback
 receives `(match, ...captures, offset, string)` per spec, plus a trailing
 `groups` object when the pattern has named captures.
 
-**Function replacers currently ignore the `g` flag.**
-`regexReplace(s, regex, fn, context, global)` loops correctly, but
-`JsStringPrototype.replace` hard-codes `global = false` instead of forwarding
-`regex.global`, so `'a1b2'.replace(/\d/g, fn)` invokes `fn` once and splices
-only the first match. `replaceAll` passes `true` and is unaffected (known
-deviation — see TEST262.md Active priorities).
+**Function replacers honor the `g` flag.** `JsStringPrototype.replace`
+forwards `regex.global` into `regexReplace(s, regex, fn, context, global)`,
+so `'a1b2'.replace(/\d/g, fn)` invokes `fn` per match; a non-global regex
+fires it once. `replaceAll` passes `true` unconditionally.
 
 ### `JsRegex.lastIndex` is a writable field
 

@@ -252,16 +252,10 @@ What remains splits into three tiers.
 
 The most dangerous class: nothing throws, output is just wrong.
 
-1. **Number→string is Java-formatted; `JSON.stringify` can emit invalid
-   JSON.** `String(1e21)` → `"1.0E21"` (spec: `"1e+21"`), `(1e-7)+''` →
-   `"1.0E-7"`, `String(-0)` → `"-0.0"`; `JSON.stringify({a:1e21})` →
-   `{"a":1.0E21}` — not JSON. Related: `parseFloat('1e21')` → `1`
-   (exponent dropped). One shared spec `Number::toString` seam fixes the
-   family.
-2. **Global regex function replacer fires once.**
-   `'a1b2'.replace(/\d/g, fn)` calls `fn` once, not per match. Everyday
-   pattern; string replacers with `/g` and single-match function replacers
-   are fine.
+*(P0.1 Number→string / parseFloat and P0.2 `/g` function replacer shipped
+2026-08-12 — `Terms.numberToString` is now the shared spec seam; see
+JS_ENGINE.md § Numeric / coercion. Original numbering kept for the rest.)*
+
 3. **Arrow-function class fields lose `this`.**
    `class C { f = () => this.x }` → `c.f()` sees the wrong `this`. Plain
    field initializers (`b = this.a + 1`) work; specific to arrows.
@@ -292,13 +286,12 @@ generators/iterators, `setInterval`, `queueMicrotask` — deferred.)*
 ### P2 — error-UX Java leaks (principle #2)
 
 All edge-input, but each is a Java stack trace where a JS error belongs:
-`JSON.stringify` on circular structures → `StackOverflowError` (spec:
-`TypeError`); `JSON` replacer-array with non-string entries →
-`ClassCastException`; `RegExp` `exec`/`test` null-arg
-`Cannot invoke Object.toString()`; one catastrophic-backtracking `Timeout`
-(`RegExp/.../S15.10.2.8_A3_T17.js`); `Array` at near-2³² lengths leaking
-`Index out of bounds` / VM-limit / heap (`unshift`/`splice`/`reverse`);
-`String.prototype.replaceAll`/`endsWith` `Range […) out of bounds`.
+`RegExp` `exec`/`test` null-arg `Cannot invoke Object.toString()`; one
+catastrophic-backtracking `Timeout` (`RegExp/.../S15.10.2.8_A3_T17.js`);
+`Array` at near-2³² lengths leaking `Index out of bounds` / VM-limit /
+heap (`unshift`/`splice`/`reverse`). *(Fixed 2026-08-12: JSON circular →
+`TypeError`, JSON replacer-array `ClassCastException`,
+`replaceAll`/`endsWith` range leaks.)*
 
 ### Deprioritized spec-conformance backlog
 
@@ -348,8 +341,7 @@ fresh numbers. The *shape* of what's solid vs. gapped is the durable part:
   `parseInt`/`toString(radix)`/`isNaN`/`isInteger`; Date parse/format/
   `getTime`/`getFullYear`/arithmetic; `keys`/`values`/`entries`/`assign`/
   `freeze`/`create`/`getPrototypeOf`/`hasOwn`/spread/`fromEntries` all
-  work. **Caveat: Number→string formatting is Java-shaped for extreme
-  magnitudes (and `parseFloat` drops large exponents) — P0.1 above.**
+  work, and Number→string formatting is spec-shaped at all magnitudes.
   Other residual fails are spec-corner arg-validation, descriptor-attribute
   edges, and Symbol gates — not core method behavior. Object had **zero**
   Java-leak rows.
@@ -357,17 +349,15 @@ fresh numbers. The *shape* of what's solid vs. gapped is the durable part:
   `substring`/`indexOf`/`includes`/`trim`/`pad`/case and `push`/`map`/
   `filter`/`reduce`/`slice`/`concat`/`find`/`sort`/`from`/spread all work.
   The low raw pass-% is dominated by strict coercion-error semantics and
-  Symbol/feature gates, *not* everyday breakage. Caveats: a few principle-#2
-  Java leaks — `String.prototype.replaceAll`/`endsWith` `Range […) out of
-  bounds`, `Array` at near-2³³ lengths (`Index out of bounds` / VM-size /
-  heap). Narrow but real; see Cleanup residuals.
-- **RegExp — solid for everyday patterns, with one P0 caveat.**
-  `test`/`exec`/`match`/`split`/`search`, string replacers (incl. `/g`),
-  single-match function replacers, `g`/`i`/`m` flags, and **named-group
-  capture** (`m.groups.name`, `$<name>` substitution, the function-replacer
-  `groups` arg) all work — Java `Pattern` is the backend. **Caveat: a
-  function replacer with `/g` fires once instead of per match — P0.2
-  above.** Remaining gaps: lookbehind, unicode property escapes, `/v` flag,
+  Symbol/feature gates, *not* everyday breakage. Caveat: `Array` at
+  near-2³² lengths still leaks Java errors (`Index out of bounds` /
+  VM-size / heap) — see P2.
+- **RegExp — solid for everyday patterns.**
+  `test`/`exec`/`match`/`split`/`search`, string and function replacers
+  (incl. `/g`, which fires the function per match), `g`/`i`/`m` flags, and
+  **named-group capture** (`m.groups.name`, `$<name>` substitution, the
+  function-replacer `groups` arg) all work — Java `Pattern` is the
+  backend. Remaining gaps: lookbehind, unicode property escapes, `/v` flag,
   group-name early-error validation; plus null-arg Java leaks in
   `exec`/`test` and one catastrophic-backtracking timeout (P2). The
   `Symbol.{replace,match,matchAll,split,search}` *protocol* fails are
@@ -375,10 +365,9 @@ fresh numbers. The *shape* of what's solid vs. gapped is the durable part:
   route through them.
 
 **Bottom line for the target workload:** String/Number/Date/Array/Object
-are dependable and RegExp covers the common path including named groups —
-*modulo the two P0 silent-wrong bugs above* (Number→string formatting,
-`/g` function replacer). The residual RegExp tail (lookbehind / unicode
-escapes / `/v` / early-error validation) is advanced-pattern territory.
+are dependable and RegExp covers the common path including named groups.
+The residual RegExp tail (lookbehind / unicode escapes / `/v` /
+early-error validation) is advanced-pattern territory.
 
 | Slice | What's blocking it |
 |---|---|
@@ -389,8 +378,8 @@ escapes / `/v` / early-error validation) is advanced-pattern territory.
 | `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS now fires under in-body `"use strict"` (the `onlyStrict`-flagged variants stay SKIP until the runner runs a strict pass); `A5.*_T2/T3` family (non-identifier LHS — Annex-B carve-out). |
 | `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion and empty-`for`-header semantics handle the headline cases. Residual in `for/`: loop completion-value `undefined`-vs-`null` (`head-init-*-check-empty-inc-empty-completion.js`) and `let` as a plain identifier in a for head (`head-lhs-let.js`, parser). |
 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` (Symbol-gated). |
-| `test/built-ins/RegExp/**` | **`/g` function replacer fires once — P0.2.** Group-name early-error validation, `Symbol.{match,replace,search,split,matchAll}` protocol (Symbol-gated, conformance-only — everyday `str.replace(re,fn)` doesn't use it), lookbehind / unicode-property-escapes / `/v` flag (feature-gated). Null-arg Java leaks + one catastrophic-backtracking timeout in `exec`/`test` (P2). |
-| `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` ToInteger corners; parser-blocked; Symbol-gated tail; `replaceAll`/`endsWith` `Range […) out of bounds` Java leaks (principle #2). See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
+| `test/built-ins/RegExp/**` | Group-name early-error validation, `Symbol.{match,replace,search,split,matchAll}` protocol (Symbol-gated, conformance-only — everyday `str.replace(re,fn)` doesn't use it), lookbehind / unicode-property-escapes / `/v` flag (feature-gated). Null-arg Java leaks + one catastrophic-backtracking timeout in `exec`/`test` (P2). |
+| `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` ToInteger corners; parser-blocked; Symbol-gated tail. See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
 | `test/built-ins/Object/**` | Descriptor edges; `seal` (TypedArray-gated); Annex-B `arguments` aliasing. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
 | `test/built-ins/JSON/**` | `JSON.stringify` reviver/replacer 2-arg semantics; `-0`/`__proto__` parser tail. Calibration: run JSONTestSuite — see [JS_ENGINE.md § Future TODO Items](../docs/JS_ENGINE.md#2-future-todo-items). |
 | `test/built-ins/Promise/**` | Residual after the async landing: resolve-element-function property shape (`name`/`length`/extensible), some combinator ordering corners, `Promise.try`/`withResolvers` (unimplemented, left to FAIL). `flags: [async]` tests stay SKIP until the harness implements doneprintHandle (see Harness quality). |

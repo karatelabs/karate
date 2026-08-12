@@ -227,8 +227,10 @@ class JsStringPrototype extends Prototype {
         String s = thisString(context, "endsWith");
         String search = argString(args, 0, context);
         if (args.length > 1 && args[1] != null && args[1] != Terms.UNDEFINED) {
-            int endPosition = argInt(args, 1, s.length());
-            return s.substring(0, Math.min(endPosition, s.length())).endsWith(search);
+            // spec clamps endPosition into [0, length] — a negative one is an
+            // empty prefix, not a Java substring error
+            int endPosition = Math.max(0, Math.min(argInt(args, 1, s.length()), s.length()));
+            return s.substring(0, endPosition).endsWith(search);
         }
         return s.endsWith(search);
     }
@@ -418,7 +420,7 @@ class JsStringPrototype extends Prototype {
         Object replacement = args.length > 1 ? args[1] : Terms.UNDEFINED;
         if (search instanceof JsRegex regex) {
             if (replacement instanceof JsCallable fn) {
-                return regexReplace(s, regex, fn, context, false);
+                return regexReplace(s, regex, fn, context, regex.global);
             }
             return regex.replace(s, argString(args, 1, context));
         }
@@ -464,7 +466,8 @@ class JsStringPrototype extends Prototype {
                     from = idx + searchStr.length();
                 }
             }
-            sb.append(s, from, s.length());
+            // an empty search advances `from` one past the end on the final pass
+            sb.append(s, Math.min(from, s.length()), s.length());
             return sb.toString();
         }
         return s.replace(searchStr, argString(args, 1, context));
