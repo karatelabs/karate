@@ -45,6 +45,7 @@ public enum NodeType {
     DEFAULT_BLOCK,
     BREAK_STMT,
     CONTINUE_STMT,
+    LABELLED_STMT,
     DELETE_STMT,
     BLOCK,
     EOS,
@@ -138,8 +139,9 @@ public enum NodeType {
                  PLACEHOLDER, FN_DECL_ARG, FN_CALL_ARG, ARRAY_ELEM,
                  FN_TAGGED_TEMPLATE_EXPR, STATEMENT, EXPR_LIST -> 2;
             // Three-child nodes: binary ops after Shift.LEFT (left, op, right);
-            // VAR_DECL measured ~always 3 (name = value).
-            case REF_DOT_EXPR, INSTANCEOF_EXPR, IN_EXPR, VAR_DECL -> 3;
+            // VAR_DECL measured ~always 3 (name = value). LABELLED_STMT is exactly
+            // ident + colon + statement.
+            case REF_DOT_EXPR, INSTANCEOF_EXPR, IN_EXPR, VAR_DECL, LABELLED_STMT -> 3;
             // Ternary (cond ? a : b = 5); call-arg lists measured p95~3 — padded so
             // typical multi-arg calls never grow.
             case LOGIC_TERN_EXPR, FN_CALL_ARGS -> 5;

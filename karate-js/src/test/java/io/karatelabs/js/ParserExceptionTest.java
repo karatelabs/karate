@@ -95,4 +95,48 @@ class ParserExceptionTest {
         assertThrows(ParserException.class, () -> engine.eval("var a = {fn(){}}; a?.fn`hello`;"));
         assertThrows(ParserException.class, () -> engine.eval("var a = {fn(){}}; a?.fn`x${1}y`;"));
     }
+
+    // §14.13.1 Static Semantics: Early Errors for labelled statements.
+
+    @Test
+    void testUndefinedLabelIsParseError() {
+        Engine engine = new Engine();
+        assertThrows(ParserException.class, () -> engine.eval("for (var i = 0; i < 1; i++) { break nope }"));
+        assertThrows(ParserException.class, () -> engine.eval("for (var i = 0; i < 1; i++) { continue nope }"));
+        assertThrows(ParserException.class, () -> engine.eval("a: for (var i = 0; i < 1; i++) { break b }"));
+        // labels do not cross a function boundary
+        assertThrows(ParserException.class,
+                () -> engine.eval("a: for (var i = 0; i < 1; i++) { function f() { break a } }"));
+        assertThrows(ParserException.class,
+                () -> engine.eval("a: for (var i = 0; i < 1; i++) { var f = () => { continue a } }"));
+    }
+
+    @Test
+    void testDuplicateLabelIsParseError() {
+        Engine engine = new Engine();
+        assertThrows(ParserException.class, () -> engine.eval("a: a: for (var i = 0; i < 1; i++) {}"));
+        assertThrows(ParserException.class, () -> engine.eval("a: { b: { a: ; } }"));
+    }
+
+    @Test
+    void testContinueToNonIterationLabelIsParseError() {
+        Engine engine = new Engine();
+        // the label names a block, not a loop
+        assertThrows(ParserException.class,
+                () -> engine.eval("a: { for (var i = 0; i < 1; i++) { continue a } }"));
+        assertThrows(ParserException.class, () -> engine.eval("a: { continue a }"));
+        // the label names a switch
+        assertThrows(ParserException.class,
+                () -> engine.eval("a: switch (1) { case 1: for (var i = 0; i < 1; i++) { continue a } }"));
+    }
+
+    @Test
+    void testLabelledDeclarationIsParseError() {
+        // LabelledItem is a Statement; a declaration is not one. karate-js rejects the
+        // Annex B.3.1 sloppy-mode function form too — see JsParser.earlyErrorNodeChecks.
+        Engine engine = new Engine();
+        assertThrows(ParserException.class, () -> engine.eval("a: function f() {}"));
+        assertThrows(ParserException.class, () -> engine.eval("a: let x = 1"));
+        assertThrows(ParserException.class, () -> engine.eval("a: class C {}"));
+    }
 }

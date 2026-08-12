@@ -448,9 +448,13 @@ class CoreContext implements Context {
     private ExitType exitType;
     private Object returnValue;
     private Object errorThrown;
+    // The label of a `break foo` / `continue foo`, null for the unlabelled forms. Only a
+    // BREAK or CONTINUE can carry one; every other completion clears it.
+    private String exitLabel;
 
-    Object stopAndBreak() {
+    Object stopAndBreak(String label) {
         exitType = ExitType.BREAK;
+        exitLabel = label;
         returnValue = null;
         errorThrown = null;
         return null;
@@ -458,6 +462,7 @@ class CoreContext implements Context {
 
     Object stopAndThrow(Object error) {
         exitType = ExitType.THROW;
+        exitLabel = null;
         returnValue = null;
         errorThrown = error;
         return error;
@@ -465,13 +470,15 @@ class CoreContext implements Context {
 
     Object stopAndReturn(Object value) {
         exitType = ExitType.RETURN;
+        exitLabel = null;
         returnValue = value;
         errorThrown = null;
         return value;
     }
 
-    Object stopAndContinue() {
+    Object stopAndContinue(String label) {
         exitType = ExitType.CONTINUE;
+        exitLabel = label;
         returnValue = null;
         errorThrown = null;
         return null;
@@ -491,6 +498,7 @@ class CoreContext implements Context {
 
     void reset() {
         exitType = null;
+        exitLabel = null;
         returnValue = null;
         errorThrown = null;
     }
@@ -502,8 +510,9 @@ class CoreContext implements Context {
      * same null return value and are different completions, and BREAK and CONTINUE carry no value
      * to derive anything from at all.
      */
-    void restoreCompletion(ExitType savedExit, Object savedReturn, Object savedError) {
+    void restoreCompletion(ExitType savedExit, String savedLabel, Object savedReturn, Object savedError) {
         exitType = savedExit;
+        exitLabel = savedLabel;
         returnValue = savedReturn;
         errorThrown = savedError;
     }
@@ -514,6 +523,10 @@ class CoreContext implements Context {
 
     public ExitType getExitType() {
         return exitType;
+    }
+
+    String getExitLabel() {
+        return exitLabel;
     }
 
     @Override
@@ -528,6 +541,7 @@ class CoreContext implements Context {
 
     void updateFrom(CoreContext childContext) {
         exitType = childContext.exitType;
+        exitLabel = childContext.exitLabel;
         errorThrown = childContext.errorThrown;
         returnValue = childContext.returnValue;
     }

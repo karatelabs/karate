@@ -119,6 +119,11 @@ public class JsParser extends BaseParser {
     // early-error checks so files without private class elements pay nothing.
     private boolean sawPrivateName;
 
+    // True if any label was consumed during parsing — either a `label:` prefix or the
+    // label of a `break`/`continue`. Gates the label early-error checks in the fused
+    // walk so label-free files pay only a boolean test per node.
+    private boolean sawLabel;
+
     public JsParser(Resource resource) {
         this(resource, false);
     }
@@ -158,22 +163,24 @@ public class JsParser extends BaseParser {
         // ran as three independent full-tree walks): assignment-target validity /
         // optional-chain / declaration-position (mode-independent), the
         // CoverInitializedName rule (gated on pattern context, threaded as
-        // `inPattern`), and the strict-mode family (gated on lexical strictness,
+        // `inPattern`), the label rules (gated on `sawLabel`, threaded as the chain of
+        // enclosing labels), and the strict-mode family (gated on lexical strictness,
         // computed top-down and threaded as `strict` — the program starts sloppy
         // unless it opens with a "use strict" directive prologue). Adding a new
         // early-error rule means adding a per-node helper to `earlyErrors`, never
         // another whole-tree walk.
         if (!errorRecoveryEnabled) {
-            earlyErrors(ast, false, false, null);
+            earlyErrors(ast, false, false, null, null);
         }
         return ast;
     }
 
     /**
      * Single post-parse descent that runs all spec early-error checks per node and
-     * recurses once. Threads the two pieces of top-down state the individual rule
-     * families need — {@code strict} (lexical strictness) and {@code inPattern}
-     * (destructuring-pattern context) — and recomputes each for the children. The
+     * recurses once. Threads the three pieces of top-down state the individual rule
+     * families need — {@code strict} (lexical strictness), {@code inPattern}
+     * (destructuring-pattern context) and {@code labels} (the enclosing label chain,
+     * always null unless the file used a label) — and recomputes each for the children. The
      * per-node check bodies live in dedicated helpers so this stays the one place
      * the tree is walked; a new early-error rule plugs in as another helper call,
      * not another traversal.
@@ -182,7 +189,7 @@ public class JsParser extends BaseParser {
      * (assignment-target/decl-position → CoverInitializedName → strict-mode) so a
      * node that could trip more than one rule reports the same message as before.
      */
-    private void earlyErrors(Node node, boolean strict, boolean inPattern, PrivateScope privates) {
+    private void earlyErrors(Node node, boolean strict, boolean inPattern, PrivateScope privates, Label labels) {
         if (node == null) {
             return;
         }
@@ -200,10 +207,12 @@ public class JsParser extends BaseParser {
         PrivateScope childPrivates = sawPrivateName ? privateNodeChecks(node, privates) : privates;
         // Strict-mode family; returns the strictness to propagate to children.
         boolean childStrict = strictNodeChecks(node, strict);
+        // Label family; returns the label chain to propagate to children.
+        Label childLabels = sawLabel ? labelNodeChecks(node, labels) : null;
         for (int i = 0, n = node.size(); i < n; i++) {
             Node child = node.get(i);
             if (!child.isToken()) {
-                earlyErrors(child, childStrict, childInPatternContext(node, i, inPattern), childPrivates);
+                earlyErrors(child, childStrict, childInPatternContext(node, i, inPattern), childPrivates, childLabels);
             }
         }
     }
@@ -341,6 +350,99 @@ public class JsParser extends BaseParser {
     }
 
     /**
+     * An enclosing label. {@code iteration} records whether the labelled statement is an
+     * iteration statement, which is what separates a legal {@code continue} target from a
+     * legal {@code break} target (§14.13.1). An immutable cons cell so {@link #earlyErrors}
+     * can thread the chain down without copying.
+     */
+    private record Label(String name, boolean iteration, Label next) {
+        static boolean contains(Label chain, String name, boolean iterationOnly) {
+            for (Label l = chain; l != null; l = l.next) {
+                if (l.name.equals(name) && (!iterationOnly || l.iteration)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    /**
+     * §14.13.1 label early errors at a single node (no recursion — {@link #earlyErrors}
+     * drives the traversal): a label may not be nested inside a statement already carrying
+     * it, {@code break} / {@code continue} may only name an enclosing label, and
+     * {@code continue} additionally needs that label to name an iteration statement.
+     * Returns the label chain visible to this node's children — nested function bodies see
+     * none of them, since labels do not cross a function boundary.
+     */
+    private Label labelNodeChecks(Node node, Label labels) {
+        switch (node.type) {
+            case LABELLED_STMT -> {
+                String name = node.getFirst().getText();
+                if (Label.contains(labels, name, false)) {
+                    throw new ParserException("label already in scope: " + name);
+                }
+                return new Label(name, labelsIterationStatement(node), labels);
+            }
+            case FN_EXPR, FN_ARROW_EXPR -> {
+                return null;
+            }
+            case BREAK_STMT -> {
+                String target = labelReference(node);
+                if (target != null && !Label.contains(labels, target, false)) {
+                    throw new ParserException("break references an undefined label: " + target);
+                }
+            }
+            case CONTINUE_STMT -> {
+                String target = labelReference(node);
+                if (target != null) {
+                    if (!Label.contains(labels, target, false)) {
+                        throw new ParserException("continue references an undefined label: " + target);
+                    }
+                    if (!Label.contains(labels, target, true)) {
+                        throw new ParserException("continue label does not name a loop: " + target);
+                    }
+                }
+            }
+            default -> {
+            }
+        }
+        return labels;
+    }
+
+    /** The label named by a {@code break} / {@code continue}, or null when it has none —
+     *  children are [keyword] or [keyword, label]. */
+    private static String labelReference(Node node) {
+        return node.size() > 1 ? node.get(1).getText() : null;
+    }
+
+    /** True if the labelled item — after peeling any stacked labels, since {@code a: b: for}
+     *  makes both names loop labels — is an iteration statement. */
+    private static boolean labelsIterationStatement(Node labelled) {
+        Node item = labelledItem(labelled);
+        while (item != null && item.type == NodeType.LABELLED_STMT) {
+            item = labelledItem(item);
+        }
+        return item != null && (item.type == NodeType.FOR_STMT
+                || item.type == NodeType.WHILE_STMT
+                || item.type == NodeType.DO_WHILE_STMT);
+    }
+
+    /** The statement a LABELLED_STMT labels, unwrapped from its STATEMENT container. */
+    private static Node labelledItem(Node labelled) {
+        if (labelled.size() < 3) {
+            return null;
+        }
+        Node statement = labelled.get(2);
+        for (int i = 0, n = statement.size(); i < n; i++) {
+            Node inner = statement.get(i);
+            if (!inner.isToken()) {
+                return inner;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Mode-independent spec early errors checked at a single node (no recursion —
      * {@link #earlyErrors} drives the traversal):
      * <ul>
@@ -419,6 +521,15 @@ public class JsParser extends BaseParser {
                 checkNoLexicalOrClassDeclarationBody(node, "a loop");
             }
             case IF_STMT -> checkNoLexicalOrClassDeclarationBody(node, "an `if`/`else` clause");
+            // LabelledItem is a Statement or a FunctionDeclaration; the latter is a strict-mode
+            // early error with only an Annex B.3.1 sloppy carve-out. karate-js rejects it in both
+            // modes: the hoisting a bare `function f(){}` gets does not reach through the
+            // LABELLED_STMT wrapper, so accepting it would bind `f` later than the reader expects.
+            // let/const/class have no carve-out at all.
+            case LABELLED_STMT -> {
+                checkNoFunctionDeclarationBody(node, "a labelled statement");
+                checkNoLexicalOrClassDeclarationBody(node, "a labelled statement");
+            }
             default -> {
             }
         }
@@ -1536,6 +1647,7 @@ public class JsParser extends BaseParser {
                 || (break_stmt() && eos())
                 || (continue_stmt() && eos())
                 || (delete_stmt() && eos())
+                || labelled_stmt()
                 || fn_expr() // function declarations don't need eos (ASI)
                 || class_expr() // class declarations don't need eos (ASI), like function decls
                 || block(false) // block before expr_list: per JS spec, { } at statement position is a block
@@ -1819,6 +1931,7 @@ public class JsParser extends BaseParser {
         if (!enter(NodeType.BREAK_STMT, BREAK)) {
             return false;
         }
+        label_ref();
         return exit();
     }
 
@@ -1826,6 +1939,31 @@ public class JsParser extends BaseParser {
         if (!enter(NodeType.CONTINUE_STMT, CONTINUE)) {
             return false;
         }
+        label_ref();
+        return exit();
+    }
+
+    /** The optional label of a {@code break} / {@code continue}. A restricted production:
+     *  a LineTerminator before the identifier ends the statement, so {@code break\nfoo} is
+     *  {@code break; foo;} and not a labelled break. */
+    private void label_ref() {
+        if (peekIf(IDENT) && noLineTerminatorBefore()) {
+            consumeNext();
+            sawLabel = true;
+        }
+    }
+
+    /** {@code LabelIdentifier : Statement} (§14.13). Recognised only at statement position and
+     *  only on the two-token {@code IDENT :} shape, so object literals, ternaries and
+     *  {@code case x:} are untouched. */
+    private boolean labelled_stmt() {
+        if (peek() != IDENT || peekAhead(1).type != COLON) {
+            return false;
+        }
+        enter(NodeType.LABELLED_STMT, IDENT);
+        sawLabel = true;
+        consumeSoft(COLON);
+        statement(true);
         return exit();
     }
 

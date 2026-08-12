@@ -490,4 +490,13 @@ class JsClassTest extends EvalBase {
                 + "class B extends A { #b = 2; getB() { return this.#b } }\n"
                 + "var o = new B();\no.getA() + ',' + o.getB()"));
     }
+
+    @Test
+    void testPrivateElementsAndLabelsCompose() {
+        // an outer label around a class; a private method with its own label works,
+        // and the method body cannot target the outer label (function boundary)
+        assertEquals(1, eval("var r; o: { class C { #n = 1; m() { x: for (var i = 0; i < 2; i++) { break x } return this.#n } }\n"
+                + "r = new C().m() } r"));
+        assertParseError("o: { class C { m() { break o } } }");
+    }
 }

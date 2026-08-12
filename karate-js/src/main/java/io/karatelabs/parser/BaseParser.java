@@ -407,11 +407,11 @@ public abstract class BaseParser {
      * LineTerminator is not whitespace, it ends the statement. Without the check, {@code return} followed by a
      * newline and a call swallows the call as its argument — which parses fine and means something else.</p>
      *
-     * <p><b>Which productions actually consult this today: {@code return} and {@code throw}.</b> The grammar
-     * also restricts {@code break}/{@code continue} before a label, {@code yield} before its operand, and a
-     * postfix {@code ++}/{@code --} after its operand; none of those is enforced here, because karate-js
-     * supports neither labels nor generators, and the postfix case is a separate, unfixed gap. Do not read
-     * this javadoc as a claim that they are covered.</p>
+     * <p><b>Which productions actually consult this today: {@code return}, {@code throw}, and
+     * {@code break}/{@code continue} before a label.</b> The grammar also restricts {@code yield} before
+     * its operand and a postfix {@code ++}/{@code --} after its operand; neither is enforced here — the
+     * postfix case is a separate, unfixed gap. Do not read this javadoc as a claim that they are
+     * covered.</p>
      *
      * <p><b>Reusing it needs one caution.</b> It measures the gap after the <i>last token of the current
      * node</i>, so a caller whose preceding element is an expression rather than a keyword — the postfix case

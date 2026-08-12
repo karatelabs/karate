@@ -1209,6 +1209,136 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testLabelledBreak() {
+        // the nested-loop break that unlabelled break cannot express — `trace` pins that the
+        // OUTER loop really stopped, which a snapshot of the break-time state cannot show
+        eval("""
+                var trace = ''
+                outer:
+                for (var a = 0; a < 3; a++) {
+                    for (var b = 0; b < 3; b++) {
+                        if (b === 1) break outer
+                        trace += a + '' + b
+                    }
+                }
+                """);
+        assertEquals("00", get("trace"));
+        // same, with per-iteration let bindings and with for-of
+        eval("var t = ''; o: for (let a = 0; a < 3; a++) { for (let b = 0; b < 3; b++) { if (b === 1) break o; t += a + '' + b } }");
+        assertEquals("00", get("t"));
+        eval("var t = ''; o: for (var a of [0,1,2]) { for (var b of [0,1,2]) { if (b === 1) break o; t += a + '' + b } }");
+        assertEquals("00", get("t"));
+        eval("var t = ''; o: for (var a in [0,1,2]) { for (var b in [0,1,2]) { if (b === '1') break o; t += a + '' + b } }");
+        assertEquals("00", get("t"));
+        eval("var t = ''; o: while (t.length < 6) { while (true) { t += 'x'; break o } }");
+        assertEquals("x", get("t"));
+        eval("var t = ''; o: do { do { t += 'x'; break o } while (true) } while (t.length < 6)");
+        assertEquals("x", get("t"));
+        // break naming the inner loop is the same as an unlabelled break
+        eval("""
+                var hits = 0
+                outer: for (var a = 0; a < 3; a++) {
+                    inner: for (var b = 0; b < 3; b++) {
+                        if (b === 1) break inner
+                        hits++
+                    }
+                }
+                """);
+        assertEquals(3, get("hits"));
+        // while, do-while and switch as the labelled statement
+        eval("var i = 0; w: while (true) { i++; if (i === 2) break w }");
+        assertEquals(2, get("i"));
+        eval("var i = 0; d: do { i++; if (i === 2) break d } while (i < 9)");
+        assertEquals(2, get("i"));
+        eval("var b; s: switch (1) { case 1: b = 1; break s; }");
+        assertEquals(1, get("b"));
+        // a labelled block is a legal break target even though it is not a loop
+        eval("var steps = ''; foo: { steps += 'a'; break foo; steps += 'b' } steps += 'c'");
+        assertEquals("ac", get("steps"));
+        // stacked labels both name the same loop
+        eval("var n = 0; a: b: for (var i = 0; i < 5; i++) { n++; if (i === 2) break a }");
+        assertEquals(3, get("n"));
+        eval("var n = 0; a: b: for (var i = 0; i < 5; i++) { n++; if (i === 2) break b }");
+        assertEquals(3, get("n"));
+    }
+
+    @Test
+    void testLabelledContinue() {
+        eval("""
+                var cnt = 0
+                loop2: for (var a = 0; a < 3; a++) {
+                    for (var b = 0; b < 3; b++) {
+                        if (b === 1) continue loop2
+                        cnt++
+                    }
+                }
+                """);
+        assertEquals(3, get("cnt"));
+        // continue naming the innermost loop behaves like an unlabelled continue
+        eval("var a = []; me: for (var i = 0; i < 3; i++) { if (i === 1) continue me; a.push(i) }");
+        match(get("a"), "[0, 2]");
+        // while / do-while / for-of / for-in
+        eval("var i = 0, n = 0; w: while (i < 4) { i++; if (i === 2) continue w; n++ }");
+        assertEquals(3, get("n"));
+        eval("var i = 0, n = 0; d: do { i++; if (i === 2) continue d; n++ } while (i < 4)");
+        assertEquals(3, get("n"));
+        eval("var a = []; o: for (var x of [1,2,3]) { if (x === 2) continue o; a.push(x) }");
+        match(get("a"), "[1, 3]");
+        eval("var a = []; p: for (var k in {x:1,y:2}) { if (k === 'x') continue p; a.push(k) }");
+        match(get("a"), "['y']");
+        // continue targeting an outer loop across a nested loop of each kind
+        eval("var t = ''; o: for (var a of [0,1,2]) { for (var b of [0,1,2]) { if (b === 1) continue o; t += a + '' + b } }");
+        assertEquals("001020", get("t"));
+        eval("var t = ''; var a = 0; o: while (a < 3) { a++; var b = 0; while (b < 3) { b++; if (b === 2) continue o; t += b } }");
+        assertEquals("111", get("t"));
+        eval("var t = ''; var a = 0; o: do { a++; var b = 0; do { b++; if (b === 2) continue o; t += b } while (b < 3) } while (a < 3)");
+        assertEquals("111", get("t"));
+        // continue targeting an outer loop from inside a switch and a labelled block
+        eval("var n = 0; up: for (var i = 0; i < 3; i++) { switch (i) { case 1: continue up } n++ }");
+        assertEquals(2, get("n"));
+        eval("var n = 0; up: for (var i = 0; i < 3; i++) { blk: { if (i === 1) continue up } n++ }");
+        assertEquals(2, get("n"));
+        // let-bound loop variable takes the per-iteration path — labels must work there too
+        eval("var n = 0; up: for (let i = 0; i < 4; i++) { if (i % 2 === 0) continue up; n += i }");
+        assertEquals(4, get("n"));
+    }
+
+    @Test
+    void testLabelledStatementForms() {
+        // a label on an expression statement
+        eval("x: y = 5");
+        assertEquals(5, get("y"));
+        // labels are statement-position only: object literals, ternaries and case
+        // clauses must be unaffected
+        matchEval("({a: 1})", "{ a: 1 }");
+        assertEquals(2, eval("var c = false; c ? 1 : 2"));
+        assertEquals("hit", eval("var r; switch (1) { case 1: r = 'hit' } r"));
+        // labelled break/continue survive a finally, which saves and restores the completion
+        eval("var log = ''; o: for (var i = 0; i < 3; i++) { try { if (i === 1) break o } finally { log += i } }");
+        assertEquals("01", get("log"));
+        eval("var log = ''; o: for (var i = 0; i < 3; i++) { try { if (i === 1) continue o } finally { log += i } }");
+        assertEquals("012", get("log"));
+        // a label may be reused once the statement carrying it has ended
+        eval("var n = 0; a: for (var i = 0; i < 2; i++) n++; a: for (var j = 0; j < 2; j++) n++");
+        assertEquals(4, get("n"));
+        // `break` on its own line is not a labelled break — ASI ends the statement, so the
+        // identifier below it is a plain expression statement and never has to be a label
+        eval("var foo = 9; var n = 0; bar: for (var i = 0; i < 3; i++) { break\nfoo\n} n = foo");
+        assertEquals(9, get("n"));
+        // no stale label: a consumed labelled break must not affect a later plain break/continue
+        eval("var log = ''; a: for (var i = 0; i < 2; i++) { break a } "
+                + "for (var k = 0; k < 2; k++) { log += k; if (k === 0) continue; log += 'x' }");
+        assertEquals("01x", get("log"));
+        // an abrupt finally replaces the saved labelled completion entirely
+        assertEquals("done", eval(
+                "o: for (var i = 0; i < 3; i++) { try { break o } finally { continue } } 'done'"));
+        // the finally's `break b` replaces `break a` on every outer iteration,
+        // so the outer loop runs to completion
+        assertEquals("012", eval("var log = ''; a: for (var i = 0; i < 3; i++) { "
+                + "b: for (var j = 0; j < 3; j++) { try { break a } finally { break b } } log += i } log"));
+    }
+
+    @Test
     void testLetAndConstBasic() {
         assertEquals(1, eval("let a = 1; a"));
         assertEquals(1, get("a"));

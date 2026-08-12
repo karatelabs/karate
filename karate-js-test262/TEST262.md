@@ -277,10 +277,11 @@ generators/iterators, `setInterval`, `queueMicrotask` — deferred.)*
 
 1. **Generators** (`function*` / `yield` / `yield*`) — parse-level absence,
    ~1.4k skips.
-2. **Labeled statements** (`outer: for(…){ break outer; }`) — parse error
-   today; LLM-common for nested-loop breaks. The parser has no LABELLED
-   node type (adding one also unblocks the label-related early-error
-   checks in the backlog below).
+*(P1.2 labeled statements shipped 2026-08-12 — LABELLED_STMT node,
+label-aware break/continue via CoreContext.exitLabel, and the full
+label early-error family in the fused walk: undefined/duplicate labels,
+continue-to-non-iteration, function boundaries. Labelled function
+declarations are a clean SyntaxError in both modes.)*
 *(P1.3 WeakMap / WeakSet shipped 2026-08-12 as Map/Set-backed non-weak
 stand-ins — full method surface, object-key TypeErrors, no size/iteration;
 feature skips removed.)*
@@ -303,12 +304,16 @@ Touch only when a priority above drags it in:
   `phase: parse` tests the engine parses instead of rejecting; scope with
   `jq -r 'select(.error_type=="MissingParseError").path'`). Roughly a third
   is regexp-literal validation, plus a fragmented destructuring-pattern
-  tail, escaped-keyword misuse, `break`/`continue` to undefined labels,
+  tail, escaped-keyword misuse,
   getter/setter arity, the non-simple-param `"use strict"` prologue,
-  labelled-function-declaration checks, and (new with async support, ~30
+  and (new with async support, ~30
   tests) the async-function early errors — `await` in formals, `super()`
   in an async-method body, async redeclaration rules. Those 30 previously
-  "passed" vacuously because `async` itself failed to parse. Rejecting invalid code that no LLM
+  "passed" vacuously because `async` itself failed to parse. Same shape,
+  new with labels (8 tests, 2026-08-12): `await`/`yield` as label
+  identifiers in async/strict contexts, `let [`-at-statement-start
+  disambiguation under a label, one `break`-scope corner
+  (`S12.8_A8_T2`) — vacuous pre-label flips, all MissingParseError. Rejecting invalid code that no LLM
   writes is spec-lawyering by this file's own bar. When touched: **add each
   early error as a per-node helper inside `JsParser.earlyErrors` — never
   another whole-tree walk** (load-bearing for parse CPU; see

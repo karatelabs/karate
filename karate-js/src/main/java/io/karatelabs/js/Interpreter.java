@@ -491,11 +491,50 @@ class Interpreter {
     }
 
     private static Object evalBreakStmt(Node node, CoreContext context) {
-        return context.stopAndBreak();
+        return context.stopAndBreak(node.size() > 1 ? node.get(1).getText() : null);
     }
 
     private static Object evalContinueStmt(Node node, CoreContext context) {
-        return context.stopAndContinue();
+        return context.stopAndContinue(node.size() > 1 ? node.get(1).getText() : null);
+    }
+
+    private static Object evalLabelledStmt(Node node, CoreContext context) {
+        Object result = eval(node.get(2), context);
+        // A labelled break aimed at a loop or switch was already consumed there; what reaches
+        // here is one aimed at a labelled statement of any other kind (`foo: { break foo }`).
+        if (context.isBreaking() && node.getFirst().getText().equals(context.getExitLabel())) {
+            context.reset();
+        }
+        return result;
+    }
+
+    /**
+     * Does a pending BREAK / CONTINUE belong to this loop (or switch)? Unlabelled always does —
+     * that is the innermost-enclosing rule, and the null check keeps the unlabelled path free of
+     * any tree walking. A labelled one does only when the label is one of the statement's own.
+     */
+    private static boolean targetsStatement(CoreContext context, Node node) {
+        String label = context.getExitLabel();
+        return label == null || hasLabel(node, label);
+    }
+
+    /**
+     * The labels a statement carries live on the LABELLED_STMT ancestors above it, one
+     * STATEMENT wrapper apart; labels stack, so {@code a: b: for (…)} answers to both.
+     */
+    private static boolean hasLabel(Node node, String label) {
+        Node parent = node.getParent();
+        while (parent != null && parent.type == NodeType.STATEMENT) {
+            parent = parent.getParent();
+            if (parent == null || parent.type != NodeType.LABELLED_STMT) {
+                return false;
+            }
+            if (label.equals(parent.getFirst().getText())) {
+                return true;
+            }
+            parent = parent.getParent();
+        }
+        return false;
     }
 
     private static Object evalDeleteStmt(Node node, CoreContext context) {
@@ -1454,7 +1493,7 @@ class Interpreter {
                         }
                         forResult = eval(forBody, context);
                         if (context.isStopped()) {
-                            if (context.isContinuing()) {
+                            if (context.isContinuing() && targetsStatement(context, node)) {
                                 context.reset(); // continue still copies forward + increments
                             } else { // break, return or throw
                                 break;
@@ -1506,7 +1545,7 @@ class Interpreter {
                         }
                         forResult = eval(forBody, context);
                         if (context.isStopped()) {
-                            if (context.isContinuing()) {
+                            if (context.isContinuing() && targetsStatement(context, node)) {
                                 context.reset();
                             } else { // break, return or throw
                                 break;
@@ -1593,7 +1632,7 @@ class Interpreter {
                             enteredBodyScope = false;
                         }
                         if (context.isStopped()) {
-                            if (context.isContinuing()) {
+                            if (context.isContinuing() && targetsStatement(context, node)) {
                                 context.reset();
                             } else {
                                 break;
@@ -1624,7 +1663,7 @@ class Interpreter {
                             enteredBodyScope = false;
                         }
                         if (context.isStopped()) {
-                            if (context.isContinuing()) {
+                            if (context.isContinuing() && targetsStatement(context, node)) {
                                 context.reset();
                             } else {
                                 // break / return / throw exits the loop with the iterator
@@ -1646,7 +1685,7 @@ class Interpreter {
             }
         }
         // break was consumed by this loop — don't propagate to parent block
-        if (context.isBreaking()) {
+        if (context.isBreaking() && targetsStatement(context, node)) {
             context.reset();
         }
         context.event(EventType.CONTEXT_EXIT, node);
@@ -2447,7 +2486,7 @@ class Interpreter {
             return result;
         } finally {
             // break was consumed by this switch — don't propagate to parent block
-            if (context.isBreaking()) {
+            if (context.isBreaking() && targetsStatement(context, node)) {
                 context.reset();
             }
         }
@@ -2581,6 +2620,7 @@ class Interpreter {
             // finally after `return` therefore ran only its first statement and silently skipped
             // the rest of the cleanup, which is the one thing a finally block exists to do.
             ExitType savedExit = context.getExitType();
+            String savedLabel = context.getExitLabel();
             Object savedReturn = context.getReturnValue();
             Object savedError = context.getErrorThrown();
             if (savedExit != null) {
@@ -2600,7 +2640,7 @@ class Interpreter {
             // in here the one that propagates. It used to be raised as a Java RuntimeException
             // instead, which no JS `catch` could ever see.
             if (context.getExitType() == null && savedExit != null) {
-                context.restoreCompletion(savedExit, savedReturn, savedError);
+                context.restoreCompletion(savedExit, savedLabel, savedReturn, savedError);
             }
         }
         return tryValue;
@@ -2674,7 +2714,7 @@ class Interpreter {
                 }
                 whileResult = eval(whileBody, context);
                 if (context.isStopped()) {
-                    if (context.isContinuing()) {
+                    if (context.isContinuing() && targetsStatement(context, node)) {
                         context.reset();
                     } else { // break, return or throw
                         break;
@@ -2683,7 +2723,7 @@ class Interpreter {
             }
         } finally {
             // break was consumed by this loop — don't propagate to parent block
-            if (context.isBreaking()) {
+            if (context.isBreaking() && targetsStatement(context, node)) {
                 context.reset();
             }
             context.event(EventType.CONTEXT_EXIT, node);
@@ -2703,7 +2743,7 @@ class Interpreter {
                 checkInterrupted();
                 doResult = eval(doBody, context);
                 if (context.isStopped()) {
-                    if (context.isContinuing()) {
+                    if (context.isContinuing() && targetsStatement(context, node)) {
                         context.reset();
                     } else { // break, return or throw
                         break;
@@ -2720,7 +2760,7 @@ class Interpreter {
             }
         } finally {
             // break was consumed by this loop — don't propagate to parent block
-            if (context.isBreaking()) {
+            if (context.isBreaking() && targetsStatement(context, node)) {
                 context.reset();
             }
             context.event(EventType.CONTEXT_EXIT, node);
@@ -2735,6 +2775,7 @@ class Interpreter {
             case BLOCK -> evalBlock(node, context);
             case BREAK_STMT -> evalBreakStmt(node, context);
             case CONTINUE_STMT -> evalContinueStmt(node, context);
+            case LABELLED_STMT -> evalLabelledStmt(node, context);
             case DELETE_STMT -> evalDeleteStmt(node, context);
             case EXPR -> evalExpr(node, context);
             case EXPR_LIST -> evalExprList(node, context);
