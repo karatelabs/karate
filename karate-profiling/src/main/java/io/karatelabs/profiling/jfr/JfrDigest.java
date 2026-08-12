@@ -108,7 +108,17 @@ public final class JfrDigest {
         appendCpu(md, runDir);
 
         Path jfr = runDir.resolve("run.jfr");
-        if (!usable(jfr)) {
+        // A run forked without a recording is a timing run, not a broken one — tell the reader
+        // calmly instead of prescribing chunk-repository rescue for a file that was never asked
+        // for. Decided from the recorded command, which is what actually ran.
+        boolean recordingRequested = info.command().stream()
+                .anyMatch(argument -> argument.startsWith("-XX:StartFlightRecording"));
+        if (!recordingRequested) {
+            md.append("## No recording — timing run\n\n")
+                    .append("This run was forked with `--no-jfr`, so there is no `run.jfr` and no ")
+                    .append("allocation, CPU or GC panel. The run summary's `elapsed` and `cpu` rows ")
+                    .append("are the measurement; use a JFR-enabled run of the same shape to diagnose.\n\n");
+        } else if (!usable(jfr)) {
             appendMissingRecording(md, runDir, jfr);
         } else {
             try {
@@ -681,6 +691,15 @@ public final class JfrDigest {
      * exactly one producer: whatever the run recorded is what the digest repeats.
      */
     private static String buildOf(Path runDir) {
+        return metaOf(runDir, "build:");
+    }
+
+    /**
+     * A labelled line from {@code run-meta.txt}, or null when absent, empty or {@code (none)} —
+     * run-meta prints {@code (none)} so its layout is stable, but a digest row that says
+     * "(none)" reads as information and is only noise.
+     */
+    private static String metaOf(Path runDir, String label) {
         Path meta = runDir.resolve("run-meta.txt");
         if (!Files.isReadable(meta)) {
             return null;
@@ -688,9 +707,9 @@ public final class JfrDigest {
         try (BufferedReader reader = Files.newBufferedReader(meta)) {
             String line;
             while ((line = reader.readLine()) != null) {
-                if (line.startsWith("build:")) {
-                    String value = line.substring("build:".length()).trim();
-                    return value.isEmpty() ? null : value;
+                if (line.startsWith(label)) {
+                    String value = line.substring(label.length()).trim();
+                    return value.isEmpty() || value.equals("(none)") ? null : value;
                 }
             }
         } catch (IOException e) {
@@ -729,6 +748,27 @@ public final class JfrDigest {
         // both at the same tier. Recorded so `compare` can refuse to average them together.
         row(md, "pooled", String.valueOf(
                 "true".equals(flagValue(info.command(), "-Dkarate.profiling.pooled="))));
+        // The js-* A/B provenance, echoed from run-meta like `build` is: which karate-js build
+        // ran, which cell of which matrix this run is, and which experimental -D properties
+        // shaped it. `compare` reads digests and nothing else, so anything that decides whether
+        // two runs may pair has to be here, not only in run-meta.
+        String jsJar = metaOf(runDir, "js jar:");
+        if (jsJar != null) {
+            row(md, "js jar", jsJar);
+        }
+        String runTag = metaOf(runDir, "run tag:");
+        if (runTag != null) {
+            row(md, "run tag", runTag);
+        }
+        String sysprops = metaOf(runDir, "sysprops:");
+        if (sysprops != null) {
+            row(md, "sysprops", "`" + sysprops + "` — experiment configuration; two runs that"
+                    + " differ here are different cells");
+        }
+        String jfrMode = metaOf(runDir, "jfr:");
+        if (jfrMode != null && jfrMode.startsWith("off")) {
+            row(md, "jfr", jfrMode);
+        }
         // Only claim exclusion when the recording was actually delayed. A warmup under JFR's
         // one-second delay floor gets no delay, and a self-driving workload runs no warmup at
         // all, yet this row asserted "excluded" for both.
@@ -752,6 +792,26 @@ public final class JfrDigest {
         if (!extra.isEmpty()) {
             row(md, "extra jvm flags", "`" + extra + "` — **a constrained run; do not diff this "
                     + "against an unconstrained one**");
+        }
+        // The measured window's own numbers, first-class rather than only inside the backticked
+        // child summary below — `compare`'s elapsed-time lane reads these rows, and a table
+        // derived from a log line is one format drift away from silently empty.
+        double completed = keyValueNumber(childSummary, "completed");
+        if (completed >= 0) {
+            row(md, "completed", (long) completed + (shape.isDurationBounded() ? " iterations"
+                    : " of " + shape.iterations() + " requested iterations"));
+        }
+        double elapsedMs = keyValueNumber(childSummary, "elapsedMs");
+        if (elapsedMs >= 0) {
+            row(md, "elapsed", (long) elapsedMs + " ms (measured window)");
+        }
+        double errors = keyValueNumber(childSummary, "errors");
+        if (errors >= 0) {
+            row(md, "errors", String.valueOf((long) errors));
+        }
+        double cpuSeconds = keyValueNanos(childSummary, io.karatelabs.profiling.SelfCpu.CPU_NANOS);
+        if (cpuSeconds >= 0) {
+            row(md, "cpu", fixed(cpuSeconds, 1) + " core-s over the measured window");
         }
         row(md, "heap dump", info.heapDump() ? "**yes — the run OOM'd**" : "no");
         md.append("\n");

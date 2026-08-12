@@ -156,6 +156,20 @@ public final class Compare {
     }
 
     static int main(List<String> argv) {
+        // The js-* family is a different experiment — two builds of one engine on elapsed
+        // time, paired by explicit run tags — so it has its own comparator. A mixed argument
+        // list is refused: interleaving the two lanes in one table has no meaning.
+        List<Path> dirs = argv.stream().map(Path::of).toList();
+        long jsRuns = dirs.stream().filter(JsCompare::isJsRun).count();
+        if (jsRuns > 0) {
+            if (jsRuns < dirs.size()) {
+                System.err.println("[compare] " + jsRuns + " of " + dirs.size() + " runs are"
+                        + " js A/B runs — derive the js and parity tables in separate"
+                        + " invocations");
+                return 2;
+            }
+            return JsCompare.main(dirs);
+        }
         List<Run> runs = new ArrayList<>();
         for (String arg : argv) {
             Path dir = Path.of(arg);
@@ -398,7 +412,7 @@ public final class Compare {
         return values;
     }
 
-    private static double mean(List<Double> values) {
+    static double mean(List<Double> values) {
         double sum = 0;
         for (double value : values) {
             sum += value;
@@ -415,7 +429,7 @@ public final class Compare {
      * mean unbiased and averaging does work. It works as {@code sd/sqrt(n)} though, which is the
      * real argument for a quiet machine — halving the noise is worth quadrupling the runs.
      */
-    private static long neededPairs(List<Double> values) {
+    static long neededPairs(List<Double> values) {
         double mean = Math.abs(mean(values));
         double sd = sd(values);
         if (mean <= 0 || sd <= 0) {
@@ -425,7 +439,7 @@ public final class Compare {
     }
 
     /** Sample standard deviation — n-1, because these are pairs drawn from a process, not a census. */
-    private static double sd(List<Double> values) {
+    static double sd(List<Double> values) {
         if (values.size() < 2) {
             return 0;
         }
@@ -437,11 +451,11 @@ public final class Compare {
         return Math.sqrt(sum / (values.size() - 1));
     }
 
-    private static String fixed(double value, int decimals) {
+    static String fixed(double value, int decimals) {
         return String.format(Locale.ROOT, "%." + decimals + "f", value);
     }
 
-    private static String signed(double value) {
+    static String signed(double value) {
         return String.format(Locale.ROOT, "%+.2f", value);
     }
 

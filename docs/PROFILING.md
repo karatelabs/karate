@@ -197,6 +197,9 @@ rm -rf "${TMPDIR:-/tmp}"/karate-feature-spread-* "${TMPDIR:-/tmp}"/karate-report
 | `--body-size N` | none | The body-size tier (`gatling-body-*` family): both arms send and receive an N-byte JSON document. `compare` buckets on the recorded size, so two sizes cannot average together. |
 | `--soak` | off | **Required for any multi-hour run.** Records a much smaller event set so the recording spans the whole run instead of rolling, and starts the live-set/descriptor probe — see [soak mode](#soak-mode--what-a-multi-hour-recording-has-to-drop). Costs you *Allocation by site* and *Hot methods*, which a soak does not read. |
 | `--gc-roots` | off | Makes `jdk.OldObjectSample` report reference chains — the *holder* of retained objects, not just the allocating stack. Costs a full reference walk at every sample. |
+| `--js-jar PATH` | none | Swap the karate-js jar on the child classpath — the A/B mechanism of the [`js-*` family](#karate-js-family--ab-two-engine-builds-on-elapsed-time). Build arms with `etc/js-arm.sh <git-ref>`; the jar's sidecar manifest is verified against its bytes (a stale or half-copied jar fails the run instead of relabelling it) and its commit + sha256 land in `run-meta.txt` and the digest. Refused for any workload that forks a mock. |
+| `--run-tag TEXT` | none | Free-text cell provenance (no whitespace), recorded in run-meta and the digest. The js comparator pairs runs by tag — `<matrix>:p<N>:<a\|b>` — never by timestamp adjacency, so a failed run orphans its own cell instead of shifting every later pairing. |
+| `--no-jfr` | off | Timing mode: no recording at all. For an elapsed-time A/B — recording cost tracks allocation rate, so two builds that allocate differently pay it differently and "JFR on both sides" does not cancel. The digest keeps `elapsed`/`cpu` from the child summary and says the recording is absent by design. Incompatible with `--soak`, `--gc-roots`, `--record mock`. |
 
 ### Reproducing a specific collector
 
@@ -404,6 +407,56 @@ CPU. The historical shape is worth one line: the same fixed per-iteration cost i
 throughput gap at 0 ms** — which is why nothing here is measured against a localhost-speed
 mock, and why a "Karate is half as fast as Gatling" claim from one is not wrong so much as
 about a system nobody load-tests.
+
+### karate-js family — A/B two engine builds on elapsed time
+
+Six fresh-eval workloads over `io.karatelabs.js.Engine`, built to answer one question shape:
+**did this karate-js change move elapsed time per evaluation, on the workloads the published
+benchmark publishes?** The rows — `js-arithmetic`, `js-strings`, `js-objects`, `js-functions`,
+`js-mixed`, plus the `js-large-1k` guard — are the karate-js-benchmark scripts **verbatim**
+(`JsEvalWorkloadTest` pins each script's length), so a delta here is a delta on the same work
+the public scoreboard measures. Cross-engine comparison deliberately does not live here — arms
+are always two karate-js builds.
+
+One iteration = one fresh `Engine`, one source string made unique by a trailing comment
+counter (so no source-keyed cache, present or future, can skip the work), one `eval` — and an
+**oracle check**: every result is compared against a Java-recomputed expected value, because
+cross-arm agreement cannot catch an engine that silently does less work, and the fastest
+engine is the one with the bug. Both languages compute these scripts in IEEE doubles, so the
+oracles are exact. Single-threaded by default; per-iteration cost is the quantity, and
+`elapsed`/`cpu` are first-class digest rows.
+
+The protocol, end to end:
+
+```bash
+jar_a=$(etc/js-arm.sh <base-ref>)         # A = base;  cached by sha, manifest-verified
+jar_b=$(etc/js-arm.sh <candidate-ref>)    # B = candidate
+
+# one cell by hand (always tag it — pairing is by tag, never adjacency)
+etc/run.sh js-functions --no-jfr --js-jar "$jar_a" --run-tag try1:p1:a
+etc/run.sh js-functions --no-jfr --js-jar "$jar_b" --run-tag try1:p1:b
+etc/run.sh compare target/profiling/js-*
+
+# the real thing, on the bench (single host, no mock)
+etc/ec2/js-matrix.sh --jar-a "$jar_a" --jar-b "$jar_b" --pairs 4 --label my-ab
+```
+
+`js-matrix.sh` alternates which arm leads (pairs default to 4 — an odd count leaves linear
+drift loading one arm by half a run slot), discards one warmup run, re-hashes the shipped jars
+on the injector before anything runs, runs everything `--no-jfr`, and writes a
+`matrix-manifest.txt` beside the runs. `--sysprop-a/-b` pass per-arm `-D` properties — that is
+how a flag-equivalence cell runs (candidate jar with its feature flag off vs the base jar,
+expected delta ≈ 0) with no feature-specific harness code; the digest records the properties
+and the comparator treats them as part of the cell's identity. Running the same jar on both
+arms is a **null control** and the table says so — its deltas are the machine's noise floor.
+
+`compare` on js runs derives, per matrix: a per-row pair table (A ms/iter, B ms/iter,
+B vs A, mean ± sd, a needed-pairs resolution line), then a cross-row summary with the
+**geomean of B/A over the five small rows** — the guard row reported beside it, never inside.
+As everywhere in this harness it reports and does not judge: ineligible runs (errors, short
+completion, missing rows, no tag) and broken cells are named, never averaged. Diagnosis —
+*why* did a row move — is a separate JFR-on matrix of the same shape, read through the
+ordinary allocation/CPU panels.
 
 ### `Probe` — what does a call actually return?
 
@@ -1330,7 +1383,7 @@ choice can be made on numbers.
 |---|---|
 | Pairing provenance in `run-meta.txt` | `compare` pairs runs by **timestamp adjacency**, with `--label` as the only thing keeping two matrices from interleaving into one plausible table. Stamping the matrix label, pair ordinal and arm order into run-meta (and echoing them into the digest) would make pairing explicit and the discipline unnecessary. Small, and the failure it prevents is silent — which is why it is written down rather than remembered. |
 | Copy-on-first-change in `processEmbeddedExpressions` | A real inefficiency independent of any leak: fresh containers rebuilt for every node walked, with no check whether `#(...)` appears at all. Three traps if revived: `processInlineEmbedded` must return the original string when nothing substituted (identity-based change detection); the XML branch mutates in place; `resolveConfigMap` has a javadoc promising a defensive copy. Pursue on allocation numbers, not a leak report. |
-| JS-engine workloads | `js-array`, `js-object`, `js-engine-init` from `EngineBenchmark`'s generators, so JS tuning gets forking, JFR and digests too. |
+| JS-engine workloads | ✅ **Built** — the [karate-js family](#karate-js-family--ab-two-engine-builds-on-elapsed-time): the benchmark's five acceptance rows + a guard as fresh-eval workloads, two-build arms via `--js-jar`, tag-paired `js-matrix.sh` protocol, oracle-checked, `--no-jfr` timing mode. Supersedes the earlier sketch of wrapping `EngineBenchmark`'s generators. |
 | Mock throughput tiers | Raw Java handler vs JS handler vs feature mock, as a floor-and-multiplier table. `LatencyMock` is the cheap tier; the *table* is unbuilt. |
 | Custom JFR events | `karate.Step` / `karate.Call` / `karate.HttpRequest`. A CPU-tuning need, not a memory one — build when the question becomes "where is CPU going during a parallel run", exactly where `ExecutionSample` goes blind. |
 | Per-iteration residue | `action elapsed − Σ PerfEvent` — would attribute Karate's own overhead exactly rather than by subtraction of throughputs. A *reporting* number, not a gate. The signals that can gate are designed in **[GATLING.md §14.12](./GATLING.md)** (injector health — designed, not built). |

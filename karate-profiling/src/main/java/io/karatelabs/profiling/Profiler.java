@@ -141,6 +141,19 @@ public final class Profiler {
                                          make the JVM believe it has one core. Recorded in
                                          run-meta.txt and the digest, because a constrained run is
                                          not comparable with an unconstrained one.
+                  --js-jar PATH          swap the karate-js jar on the child classpath — the A/B
+                                         mechanism of the js-* family. Build arms with
+                                         etc/js-arm.sh <git-ref>; the jar's manifest is verified
+                                         and its commit + sha256 land in run-meta and the digest.
+                  --run-tag TEXT         free-text cell provenance (no whitespace), recorded in
+                                         run-meta and the digest. etc/ec2/js-matrix.sh uses it to
+                                         name each run's matrix, pair and arm, and compare pairs
+                                         runs by it — never by timestamp adjacency.
+                  --no-jfr               timing mode: no recording at all. For an elapsed-time
+                                         A/B — a recording's cost tracks allocation rate, so two
+                                         builds that allocate differently pay it differently and
+                                         "JFR on both sides" does not cancel. Diagnose with a
+                                         separate JFR-on matrix instead.
                   -Dkey=value            passed through to the child JVM (repeatable)
                 """);
     }
@@ -201,6 +214,23 @@ public final class Profiler {
                     + " ignores the window. Use --iterations. (Duration-capable workloads: the"
                     + " gatling-* family.)");
         }
+        // The jar swap exists for the in-JVM js-* family. A workload that forks a mock would
+        // hand the swapped classpath to the mock JVM too, and a cell that changed two JVMs
+        // cannot attribute its delta to either — refused rather than half-applied.
+        if (flags.jsJar != null && workload.needsMock()) {
+            throw new IllegalArgumentException("--js-jar cannot be used with " + name
+                    + ": it forks a mock JVM, which would receive the swapped jar as well and"
+                    + " the run would measure two changed processes. The A/B lane is the js-*"
+                    + " family.");
+        }
+        // Timing mode is the absence of the recording, so every flag that only shapes the
+        // recording is a contradiction — refused so the operator learns at parse, not from a
+        // digest with a hole where the panel was expected.
+        if (flags.noJfr && ("mock".equals(flags.record) || flags.soak || flags.gcRoots)) {
+            throw new IllegalArgumentException("--no-jfr disables the recording, so it cannot"
+                    + " be combined with --record mock, --soak or --gc-roots — those flags only"
+                    + " configure what gets recorded.");
+        }
         JvmConfig jvm = workload.jvm().withXmx(flags.xmx).withGc(flags.gc);
         warnAboutLongRunShape(shape, flags);
         boolean recordMock = "mock".equals(flags.record);
@@ -213,6 +243,12 @@ public final class Profiler {
         System.out.println("[parent] run dir: " + runDir.toAbsolutePath());
 
         String classpath = resolveClasspath();
+        JsArm jsArm = null;
+        if (flags.jsJar != null) {
+            jsArm = JsArm.resolve(flags.jsJar);
+            classpath = jsArm.rewriteClasspath(classpath);
+            System.out.println("[parent] karate-js arm: " + jsArm.describe());
+        }
         Children children = new Children();
         Runtime.getRuntime().addShutdownHook(new Thread(children::killAll, "profiler-cleanup"));
 
@@ -235,10 +271,14 @@ public final class Profiler {
             return 2;
         }
 
+        List<String> childJfrFlags = flags.noJfr || recordMock
+                ? List.of()
+                : jfrFlags(runDir, shape, flags, warmupWillRun);
         List<String> command = childCommand(classpath, name, shape, jvm, mockUrl,
-                recordMock ? List.of() : jfrFlags(runDir, shape, flags, warmupWillRun), runDir, flags.systemProperties,
+                childJfrFlags, runDir, flags.systemProperties,
                 workload.jvmFlags(), flags.jvmFlags, flags.soak, flags.bodySize);
-        writeRunMeta(runDir, name, shape, jvm, command, mockUrl, mockTier(workload, flags), flags.jvmFlags);
+        writeRunMeta(runDir, name, shape, jvm, command, mockUrl, mockTier(workload, flags), flags,
+                jsArm);
 
         System.out.println("[parent] forking: " + String.join(" ", command));
         Process child = new ProcessBuilder(command).redirectErrorStream(true).start();
@@ -682,7 +722,7 @@ public final class Profiler {
 
     private static void writeRunMeta(Path runDir, String name, RunShape shape, JvmConfig jvm,
                                      List<String> command, String mockUrl, String mockTier,
-                                     List<String> extraJvmFlags) throws IOException {
+                                     Args flags, JsArm jsArm) throws IOException {
         String meta = """
                 workload:     %s
                 build:        %s
@@ -694,6 +734,10 @@ public final class Profiler {
                 gc:           %s
                 gc expansion: %s
                 extra jvm:    %s
+                sysprops:     %s
+                js jar:       %s
+                run tag:      %s
+                jfr:          %s
                 mock:         %s
                 mock url:     %s
 
@@ -718,7 +762,14 @@ public final class Profiler {
                 jvm.xmx(),
                 jvm.gc().name().toLowerCase(),
                 String.join(" ", jvm.flags(Runtime.version().feature())),
-                extraJvmFlags.isEmpty() ? "(none)" : String.join(" ", extraJvmFlags),
+                flags.jvmFlags.isEmpty() ? "(none)" : String.join(" ", flags.jvmFlags),
+                // Operator -D passthroughs are experiment configuration — a flag-on and a
+                // flag-off run of the same jar are different cells, and nothing else records
+                // the difference in a comparable place.
+                flags.systemProperties.isEmpty() ? "(none)" : String.join(" ", flags.systemProperties),
+                jsArm == null ? "(none)" : jsArm.describe(),
+                flags.runTag == null ? "(none)" : flags.runTag,
+                flags.noJfr ? "off (timing run — no recording, by design)" : "on",
                 mockTier,
                 mockUrl == null ? "(none)" : mockUrl,
                 Runtime.version(), System.getProperty("java.vendor"),
@@ -821,6 +872,12 @@ public final class Profiler {
         boolean gcRoots;
         boolean soak;
         int bodySize;
+        /** A karate-js build to swap onto the child classpath. See JsArm. */
+        String jsJar;
+        /** Free-text provenance stamped into run-meta and the digest; how an A/B names its cells. */
+        String runTag;
+        /** Timing mode: no recording at all. See the usage text for when that is the right call. */
+        boolean noJfr;
         final List<String> systemProperties = new ArrayList<>();
         /** Extra child JVM options, repeatable. See the usage text and childCommand. */
         final List<String> jvmFlags = new ArrayList<>();
@@ -832,6 +889,9 @@ public final class Profiler {
                 switch (flag) {
                     case "--gc-roots" -> args.gcRoots = true;
                     case "--soak" -> args.soak = true;
+                    case "--no-jfr" -> args.noJfr = true;
+                    case "--js-jar" -> args.jsJar = noWhitespace(next(argv, ++i, flag), flag);
+                    case "--run-tag" -> args.runTag = noWhitespace(next(argv, ++i, flag), flag);
                     case "--jvm-flag" -> args.jvmFlags.add(next(argv, ++i, flag));
                     case "--threads" -> args.threads = Integer.parseInt(next(argv, ++i, flag));
                     case "--iterations" -> args.iterations = Long.parseLong(next(argv, ++i, flag));
@@ -878,6 +938,22 @@ public final class Profiler {
                 throw new IllegalArgumentException(flag + " requires a value");
             }
             return argv.get(index);
+        }
+
+        /**
+         * etc/run.sh forwards arguments through {@code mvn exec:java -Dexec.args="$*"}, which
+         * joins them with spaces — so a value containing whitespace arrives here as two
+         * arguments and the flag silently takes half of it. Refused for the flags whose value
+         * this harness itself constructs, so the constraint is a build error rather than a
+         * mislabelled run.
+         */
+        private static String noWhitespace(String value, String flag) {
+            if (value.chars().anyMatch(Character::isWhitespace)) {
+                throw new IllegalArgumentException(flag + " value may not contain whitespace"
+                        + " (the run.sh -> exec:java transport joins arguments with spaces):"
+                        + " '" + value + "'");
+            }
+            return value;
         }
 
     }

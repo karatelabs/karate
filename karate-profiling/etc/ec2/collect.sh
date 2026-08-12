@@ -92,18 +92,22 @@ fi
 # script's, so a collection that copied everything correctly reported failure.
 # That is the wrong way round and trains you to ignore the exit code, which is
 # the one that matters the day rsync fails. The copy above decides the outcome.
+# One compare invocation per family per directory — never one across families: the parity
+# comparator and the js A/B comparator are different experiments, and `compare` refuses a
+# mixed argument list rather than blending them.
 derive() {
-    local dir="$1" name="$2"
-    compgen -G "$dir/gatling-*" >/dev/null || return 0
-    echo
-    log "=== $name ==="
-    "$(dirname "$0")/../run.sh" compare "$dir"/gatling-* || \
-        log "   (no table — compare declined these runs; the digests are collected regardless)"
+    local dir="$1" name="$2" family
+    for family in gatling js; do
+        compgen -G "$dir/$family-*" >/dev/null || continue
+        echo
+        log "=== $name ($family) ==="
+        "$(dirname "$0")/../run.sh" compare "$dir"/$family-* || \
+            log "   (no table — compare declined these runs; the digests are collected regardless)"
+    done
 }
 
 for labelled in "$KP_RESULTS"/*/; do
     [[ -d "$labelled" ]] || continue
-    compgen -G "$labelled/gatling-*" >/dev/null || continue
     derive "${labelled%/}" "$(basename "$labelled")"
 done
 derive "$KP_RESULTS" "unlabelled"

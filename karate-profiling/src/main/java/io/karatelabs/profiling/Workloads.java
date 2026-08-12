@@ -26,6 +26,7 @@ package io.karatelabs.profiling;
 import io.karatelabs.profiling.workload.CallAccumulationWorkload;
 import io.karatelabs.profiling.workload.FeatureSpreadWorkload;
 import io.karatelabs.profiling.workload.HarnessSmokeWorkload;
+import io.karatelabs.profiling.workload.JsEvalWorkload;
 import io.karatelabs.profiling.workload.ScopeCaptureWorkload;
 import io.karatelabs.profiling.workload.SuiteSoakWorkload;
 
@@ -60,6 +61,14 @@ public final class Workloads {
         // The Runner-lane soak: the only workload that puts reporting, TLS and a per-scenario
         // client lifecycle under sustained load at the same time.
         register(new SuiteSoakWorkload());
+        // The karate-js family: fresh-eval engine workloads, A/B'd across two karate-js
+        // builds with --js-jar. Five rows plus a guard; see JsEvalWorkload.
+        register(new JsEvalWorkload.Arithmetic());
+        register(new JsEvalWorkload.Strings());
+        register(new JsEvalWorkload.Objects());
+        register(new JsEvalWorkload.Functions());
+        register(new JsEvalWorkload.Mixed());
+        register(new JsEvalWorkload.Large1k());
         // Present only in a build that enabled -Pgatling — see registerOptional.
         registerOptional("io.karatelabs.profiling.gatling.GatlingWorkloads");
     }

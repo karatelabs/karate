@@ -293,7 +293,40 @@ prints a note when you are in that case.
 **Do not use `pgrep -f`/`pkill -f` to check on it over ssh** — the pattern matches the ssh command
 line carrying it, so "is the child alive" answers yes forever. Use `ps -eo etime,cmd | grep "[C]hild"`.
 
-### 4.6 collect
+### 4.6 the karate-js A/B matrix (one host, no mock)
+
+The js-* family compares **two builds of the karate-js jar** on elapsed time —
+[PROFILING.md](./PROFILING.md) has the family's design and the reading rules. On the bench it
+is a `--single` topology: no mock, no second host, roughly $0.58/hour.
+
+```bash
+etc/ec2/provision.sh --single
+etc/ec2/bootstrap.sh                        # or --sync for an unpushed harness tree
+
+jar_a=$(etc/js-arm.sh <base-ref>)           # built LOCALLY — the arms may be commits that
+jar_b=$(etc/js-arm.sh <candidate-ref>)      # exist on no pushed branch; jars are portable
+etc/ec2/js-matrix.sh --jar-a "$jar_a" --jar-b "$jar_b" --pairs 4 --label my-ab
+
+etc/ec2/collect.sh                          # derives the js table per label
+etc/ec2/teardown.sh
+```
+
+Notes specific to running it here:
+
+- **The arms are built on your machine and rsynced**, manifest and all; `js-matrix.sh`
+  re-hashes both jars on the injector against their manifests before the first run, so a bad
+  transfer fails before it can spend bench time. The measurement runs on the instance's JVM
+  either way — the jar is bytecode, and `run-meta.txt` records the child JDK that executed it.
+- **`--label` is mandatory and must be fresh** — it parks the matrix, prefixes every run tag,
+  and a reused label is refused on the injector rather than warned about.
+- Runs are `--no-jfr` (timing) and tag-paired, so a failed run orphans one cell; the matrix
+  reports the failure, still parks the completed cells, and the derived table names the
+  orphan. A partial matrix is usable evidence, not a discard.
+- The per-arm flag cell: `--sysprop-b some.engine.flag=false` runs the candidate jar
+  flag-off against the base — the equivalence control that separates "the change" from "the
+  changed build".
+
+### 4.7 collect
 
 Pulls `digest.md`, `run-meta.txt`, `mock.log` and any archived `calibration-*.txt` — not
 recordings. A `run.jfr` is up to 512 MB and the digest is kilobytes; pull a recording by hand
@@ -315,7 +348,7 @@ one missing new one. So collect compares *sets*:
 A non-zero exit here means **do not tear down**. It is the check `teardown.sh --force` cannot
 make for you.
 
-### 4.7 aborting a run that is going wrong
+### 4.8 aborting a run that is going wrong
 
 Watching the first suite boundary is only useful if deciding "this is mis-sized" has a clean
 exit, and the obvious moves are both wrong: killing the *parent* loses the digest, and walking
