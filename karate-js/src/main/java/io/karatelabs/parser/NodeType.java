@@ -92,6 +92,7 @@ public enum NodeType {
     CLASS_METHOD,
     CLASS_FIELD,
     SUPER_EXPR,
+    PRIVATE_NAME_EXPR,
     //====
     G_FEATURE,
     G_TAGS,
@@ -130,7 +131,7 @@ public enum NodeType {
             // thousands of samples and structurally incapable of more. EXPR is the
             // single most frequent node type, so this is the bulk of the win at zero
             // growth risk. (EXPR_LIST is excluded — the comma operator can hold N.)
-            case EXPR, REF_EXPR, LIT_EXPR, EOS -> 1;
+            case EXPR, REF_EXPR, LIT_EXPR, EOS, PRIVATE_NAME_EXPR -> 1;
             // Two-child nodes: operator + operand. STATEMENT measured p95/max=2.
             case UNARY_EXPR, AWAIT_EXPR, TYPEOF_EXPR, MATH_PRE_EXPR, MATH_POST_EXPR,
                  LIT_REGEX, BREAK_STMT, CONTINUE_STMT,

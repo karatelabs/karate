@@ -93,11 +93,19 @@ class PropertyAccess {
         final Object target;
         final Object key;
         final boolean isIndex;
+        /** Non-null for {@code obj.#x}: the write goes to the object's private
+         *  state, never to {@code props}, so {@code key} is unused. */
+        final PrivateName privateName;
 
         AccessSite(Object target, Object key, boolean isIndex) {
+            this(target, key, isIndex, null);
+        }
+
+        AccessSite(Object target, Object key, boolean isIndex, PrivateName privateName) {
             this.target = target;
             this.key = key;
             this.isIndex = isIndex;
+            this.privateName = privateName;
         }
     }
 
@@ -136,10 +144,15 @@ class PropertyAccess {
         if (node.type == NodeType.REF_DOT_EXPR) {
             Node second = node.get(1);
             if (second.isToken()) {
+                Node key = node.get(2);
                 Object target = Interpreter.eval(node.getFirst(), context);
                 if (target == SHORT_CIRCUITED) return SHORT_CIRCUIT_SITE;
                 if (context.isStopped()) return null;
-                return new AccessSite(target, node.get(2).getText(), false);
+                if (key.token.type == TokenType.PRIVATE_NAME) {
+                    return new AccessSite(target, null, false,
+                            PrivateAccess.resolve(key.getText(), context));
+                }
+                return new AccessSite(target, key.getText(), false);
             }
             if (second.type == NodeType.REF_BRACKET_EXPR) {
                 Object target = Interpreter.eval(node.getFirst(), context);
@@ -216,7 +229,8 @@ class PropertyAccess {
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
                 if (site == null || site == SHORT_CIRCUIT_SITE) return;
-                if (site.isIndex) setByIndex(site.target, site.key, value, context, trackingNode);
+                if (site.privateName != null) PrivateAccess.set(site.target, site.privateName, value, context);
+                else if (site.isIndex) setByIndex(site.target, site.key, value, context, trackingNode);
                 else setByName(site.target, (String) site.key, value, context, trackingNode);
             }
             default -> throw JsErrorException.typeError("cannot set on: " + node);
@@ -256,7 +270,8 @@ class PropertyAccess {
                     // fallback would treat the write as a scope update.
                     throw JsErrorException.typeError("cannot set property on null 'super' base");
                 }
-                if (site.isIndex) setByIndex(site.target, site.key, value, context, trackingNode);
+                if (site.privateName != null) PrivateAccess.set(site.target, site.privateName, value, context);
+                else if (site.isIndex) setByIndex(site.target, site.key, value, context, trackingNode);
                 else setByName(site.target, (String) site.key, value, context, trackingNode);
                 yield value;
             }
@@ -285,15 +300,18 @@ class PropertyAccess {
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
                 if (site == null || site == SHORT_CIRCUIT_SITE || context.isStopped()) yield Terms.UNDEFINED;
-                Object oldValue = site.isIndex
-                        ? getByIndex(site.target, site.key, false, context, false)
-                        : getByName(site.target, (String) site.key, false, context, false);
+                Object oldValue = site.privateName != null
+                        ? PrivateAccess.get(site.target, site.privateName, context)
+                        : site.isIndex
+                                ? getByIndex(site.target, site.key, false, context, false)
+                                : getByName(site.target, (String) site.key, false, context, false);
                 if (context.isStopped()) yield Terms.UNDEFINED;
                 Object operand = Interpreter.eval(rhsNode, context);
                 if (context.isStopped()) yield Terms.UNDEFINED;
                 Object newValue = applyOperator(oldValue, operator, operand, context);
                 if (context.isStopped()) yield Terms.UNDEFINED;
-                if (site.isIndex) setByIndex(site.target, site.key, newValue, context, trackingNode);
+                if (site.privateName != null) PrivateAccess.set(site.target, site.privateName, newValue, context);
+                else if (site.isIndex) setByIndex(site.target, site.key, newValue, context, trackingNode);
                 else setByName(site.target, (String) site.key, newValue, context, trackingNode);
                 yield newValue;
             }
@@ -332,6 +350,14 @@ class PropertyAccess {
                 if (site.target == null || site.target == Terms.UNDEFINED) {
                     throw JsErrorException.typeError("cannot read properties of "
                             + (site.target == null ? "null" : "undefined"));
+                }
+                if (site.privateName != null) {
+                    Object oldValue = PrivateAccess.get(site.target, site.privateName, context);
+                    if (!shouldLogicalAssign(operator, oldValue)) yield oldValue;
+                    Object newValue = Interpreter.eval(rhsNode, context);
+                    if (context.isStopped()) yield null;
+                    PrivateAccess.set(site.target, site.privateName, newValue, context);
+                    yield newValue;
                 }
                 yield site.isIndex
                         ? logicalCompoundByIndex(site.target, site.key, operator, rhsNode, context, trackingNode)
@@ -393,6 +419,7 @@ class PropertyAccess {
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
                 if (site == null || site == SHORT_CIRCUIT_SITE) yield Terms.UNDEFINED;
+                if (site.privateName != null) yield privateIncDec(site, isIncrement, false, context);
                 yield site.isIndex
                         ? postIncDecByIndex(site.target, site.key, isIncrement, context)
                         : postIncDecByName(site.target, (String) site.key, isIncrement, context);
@@ -422,6 +449,7 @@ class PropertyAccess {
             case REF_DOT_EXPR, REF_BRACKET_EXPR -> {
                 AccessSite site = resolveWriteSite(node, context);
                 if (site == null || site == SHORT_CIRCUIT_SITE) yield Terms.UNDEFINED;
+                if (site.privateName != null) yield privateIncDec(site, isIncrement, true, context);
                 yield site.isIndex
                         ? preIncDecByIndex(site.target, site.key, isIncrement, context)
                         : preIncDecByName(site.target, (String) site.key, isIncrement, context);
@@ -498,7 +526,18 @@ class PropertyAccess {
 
         if (node.get(1).type == NodeType.TOKEN) {
             optional = node.get(1).token.type == TokenType.QUES_DOT;
-            name = node.get(2).getText();
+            Node keyNode = node.get(2);
+            if (keyNode.token.type == TokenType.PRIVATE_NAME) {
+                // Private state is not a property: no bridge fallback, no prototype
+                // walk, and the brand check is what reports a foreign receiver.
+                PrivateName pn = PrivateAccess.resolve(keyNode.getText(), context);
+                Object receiver = Interpreter.eval(node.getFirst(), context);
+                if (receiver == SHORT_CIRCUITED) return SHORT_CIRCUITED;
+                if (optional && (receiver == null || receiver == Terms.UNDEFINED)) return SHORT_CIRCUITED;
+                if (outReceiver != null) outReceiver[1] = receiver;
+                return PrivateAccess.get(receiver, pn, context);
+            }
+            name = keyNode.getText();
             try {
                 object = Interpreter.eval(node.getFirst(), context);
             } catch (Exception e) {
@@ -884,6 +923,14 @@ class PropertyAccess {
             }
         }
         return postIncDecByName(object, Terms.toPropertyKey(index), isIncrement, context);
+    }
+
+    private static Object privateIncDec(AccessSite site, boolean isIncrement, boolean pre, CoreContext context) {
+        Object oldValue = PrivateAccess.get(site.target, site.privateName, context);
+        Object step = Terms.incDecStep(oldValue);
+        Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step, context);
+        PrivateAccess.set(site.target, site.privateName, newValue, context);
+        return pre ? newValue : oldValue;
     }
 
     private static Object postIncDecByName(Object object, String name, boolean isIncrement, CoreContext context) {

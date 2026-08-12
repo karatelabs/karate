@@ -27,8 +27,10 @@ import io.karatelabs.common.Resource;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static io.karatelabs.parser.TokenType.*;
@@ -97,7 +99,8 @@ public class JsParser extends BaseParser {
             IDENT, S_STRING, D_STRING, NUMBER, BIGINT, TRUE, FALSE, NULL,  // literals & ref
             L_CURLY, L_BRACKET, BACKTICK, REGEX,                           // compound literals
             FUNCTION, CLASS, SUPER, L_PAREN, NEW, TYPEOF, VOID,            // keywords & grouping
-            NOT, TILDE, PLUS_PLUS, MINUS_MINUS, MINUS, PLUS                // unary operators
+            NOT, TILDE, PLUS_PLUS, MINUS_MINUS, MINUS, PLUS,               // unary operators
+            PRIVATE_NAME                                                   // only as `#x in obj`
     );
     private static final EnumSet<TokenType> T_LIT_EXPR_START = EnumSet.of(
             S_STRING, D_STRING, NUMBER, BIGINT, TRUE, FALSE, NULL,         // simple literals
@@ -111,6 +114,10 @@ public class JsParser extends BaseParser {
     // pay no AST-traversal cost. Reset to false implicitly per JsParser
     // instance (one parse per instance).
     private boolean sawOptionalChain;
+
+    // True if any `#name` was consumed — gates the private-name family of
+    // early-error checks so files without private class elements pay nothing.
+    private boolean sawPrivateName;
 
     public JsParser(Resource resource) {
         this(resource, false);
@@ -157,7 +164,7 @@ public class JsParser extends BaseParser {
         // early-error rule means adding a per-node helper to `earlyErrors`, never
         // another whole-tree walk.
         if (!errorRecoveryEnabled) {
-            earlyErrors(ast, false, false);
+            earlyErrors(ast, false, false, null);
         }
         return ast;
     }
@@ -175,7 +182,7 @@ public class JsParser extends BaseParser {
      * (assignment-target/decl-position → CoverInitializedName → strict-mode) so a
      * node that could trip more than one rule reports the same message as before.
      */
-    private void earlyErrors(Node node, boolean strict, boolean inPattern) {
+    private void earlyErrors(Node node, boolean strict, boolean inPattern, PrivateScope privates) {
         if (node == null) {
             return;
         }
@@ -189,14 +196,148 @@ public class JsParser extends BaseParser {
         if (inPattern && node.type == NodeType.LIT_ARRAY) {
             validateRestElementRules(node);
         }
+        // Private-name family; returns the private scope to propagate to children.
+        PrivateScope childPrivates = sawPrivateName ? privateNodeChecks(node, privates) : privates;
         // Strict-mode family; returns the strictness to propagate to children.
         boolean childStrict = strictNodeChecks(node, strict);
         for (int i = 0, n = node.size(); i < n; i++) {
             Node child = node.get(i);
             if (!child.isToken()) {
-                earlyErrors(child, childStrict, childInPatternContext(node, i, inPattern));
+                earlyErrors(child, childStrict, childInPatternContext(node, i, inPattern), childPrivates);
             }
         }
+    }
+
+    /** The private names declared by one class body, chained to the enclosing
+     *  class's scope — the parse-time half of the spec's PrivateEnvironment. */
+    private record PrivateScope(PrivateScope parent, Set<String> names) {
+        boolean declares(String name) {
+            for (PrivateScope s = this; s != null; s = s.parent) {
+                if (s.names.contains(name)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Private-name spec early errors at a single node (no recursion —
+     * {@link #earlyErrors} drives the traversal), returning the private scope its
+     * children see. Only reached when the file actually contains a {@code #name}.
+     * <ul>
+     *   <li>A class body's declared names form a new scope nested in the enclosing
+     *       one; duplicates are an error except a same-placement get/set pair, and
+     *       {@code #constructor} is reserved (§15.7.1).</li>
+     *   <li>Every {@code obj.#x} / {@code #x in obj} reference must resolve to a
+     *       name declared by an enclosing class body (§13.2.5.1) — a reference with
+     *       no declaration is a SyntaxError, not a runtime miss.</li>
+     *   <li>{@code delete obj.#x} is an error (§13.5.1), and a bare {@code #x} is
+     *       legal only as the left operand of {@code in}.</li>
+     * </ul>
+     */
+    private PrivateScope privateNodeChecks(Node node, PrivateScope privates) {
+        switch (node.type) {
+            case CLASS_EXPR -> {
+                return classPrivateScope(node, privates);
+            }
+            case REF_DOT_EXPR -> {
+                Node key = node.size() > 2 ? node.get(2) : null;
+                if (key != null && key.isToken() && key.token.type == PRIVATE_NAME) {
+                    requirePrivateDeclared(key.getText(), privates);
+                }
+            }
+            case PRIVATE_NAME_EXPR -> {
+                Node parent = node.getParent();
+                if (parent == null || parent.type != NodeType.IN_EXPR || parent.getFirst() != node) {
+                    throw new ParserException("unexpected private name '" + node.getText()
+                            + "': only valid as the left operand of `in`");
+                }
+                requirePrivateDeclared(node.getText(), privates);
+            }
+            case DELETE_STMT -> {
+                Node target = node.size() > 1 ? node.get(1) : null;
+                while (target != null && !target.isToken()) {
+                    if (target.type == NodeType.REF_DOT_EXPR) {
+                        Node key = target.size() > 2 ? target.get(2) : null;
+                        if (key != null && key.isToken() && key.token.type == PRIVATE_NAME) {
+                            throw new ParserException("cannot delete private member " + key.getText());
+                        }
+                        break;
+                    }
+                    if (target.type == NodeType.PAREN_EXPR) {
+                        target = target.size() > 1 ? target.get(1) : null;
+                    } else if (target.type == NodeType.EXPR || target.type == NodeType.EXPR_LIST) {
+                        target = target.size() == 1 ? target.getFirst() : null;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            default -> {
+            }
+        }
+        return privates;
+    }
+
+    private static void requirePrivateDeclared(String name, PrivateScope privates) {
+        if (privates == null || !privates.declares(name)) {
+            throw new ParserException("private name " + name + " is not declared in an enclosing class");
+        }
+    }
+
+    /** Collects the {@code #name} keys declared directly by a class body. Each
+     *  CLASS_METHOD holds its key as a direct token child, so at most one
+     *  PRIVATE_NAME can appear per member (an initializer lives in a nested EXPR). */
+    private static PrivateScope classPrivateScope(Node classNode, PrivateScope parent) {
+        Set<String> names = null;
+        Map<String, Integer> kinds = null;
+        for (int i = 0, n = classNode.size(); i < n; i++) {
+            Node member = classNode.get(i);
+            if (member.type != NodeType.CLASS_METHOD) {
+                continue;
+            }
+            Node key = null;
+            int kind = 4; // 1 = get, 2 = set, 4 = anything else; 8 = static
+            for (int j = 0, m = member.size(); j < m; j++) {
+                Node c = member.get(j);
+                if (!c.isToken()) {
+                    continue;
+                }
+                if (c.token.type == PRIVATE_NAME) {
+                    key = c;
+                    break;
+                }
+                String t = c.getText();
+                if ("get".equals(t)) {
+                    kind = 1;
+                } else if ("set".equals(t)) {
+                    kind = 2;
+                } else if ("static".equals(t)) {
+                    kind |= 8;
+                }
+            }
+            if (key == null) {
+                continue;
+            }
+            String name = key.getText();
+            if ("#constructor".equals(name)) {
+                throw new ParserException("#constructor is a reserved private name");
+            }
+            if (names == null) {
+                names = new HashSet<>(4);
+                kinds = new HashMap<>(4);
+            }
+            Integer prior = kinds.put(name, kind);
+            // a get/set pair at the same placement is the sole legal duplicate
+            boolean accessorPair = prior != null && (prior & 8) == (kind & 8)
+                    && (prior & 4) == 0 && (kind & 4) == 0 && ((prior & 3) | (kind & 3)) == 3;
+            if (prior != null && !accessorPair) {
+                throw new ParserException("duplicate private name " + name + " in class body");
+            }
+            names.add(name);
+        }
+        return names == null ? parent : new PrivateScope(parent, names);
     }
 
     /**
@@ -1750,7 +1891,8 @@ public class JsParser extends BaseParser {
                 || unary_expr()
                 || math_pre_expr()
                 || new_expr()
-                || typeof_expr();
+                || typeof_expr()
+                || private_name_expr(); // last: nothing above can start with `#`
         if (result) {
             expr_rhs(priority);
         }
@@ -1837,6 +1979,9 @@ public class JsParser extends BaseParser {
                 // allow reserved words as property accessors
                 TokenType dotNext = peek();
                 if (dotNext == IDENT || dotNext.keyword) {
+                    consumeNext();
+                } else if (dotNext == PRIVATE_NAME) {
+                    sawPrivateName = true;
                     consumeNext();
                 } else if (dotType == QUES_DOT) {
                     // Parse only the immediate `?.[expr]` or `?.(args)` step. Subsequent
@@ -2186,7 +2331,7 @@ public class JsParser extends BaseParser {
     // `static`/`constructor` all lex as IDENT and are disambiguated in
     // class_element by whether another key token follows.
     private static final EnumSet<TokenType> T_CLASS_KEY_NAME =
-            EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER);
+            EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, PRIVATE_NAME);
 
     // ES6 class declaration / expression. Phase 1: constructor + methods +
     // static methods + get/set accessors + computed keys. No `extends` / `super`
@@ -2251,6 +2396,9 @@ public class JsParser extends BaseParser {
                 return exit(false, false);
             }
             consumeNext();
+            if (lastConsumed() == PRIVATE_NAME) {
+                sawPrivateName = true;
+            }
             if (peekIf(L_PAREN)) {
                 break; // the just-consumed token is the method name (the key)
             }
@@ -2298,6 +2446,16 @@ public class JsParser extends BaseParser {
             return false;
         }
         expr(13, true);
+        return exit();
+    }
+
+    // A bare `#x` is a primary only to serve the `#x in obj` brand check; every
+    // other position is rejected by the early-error walk.
+    private boolean private_name_expr() {
+        if (!enter(NodeType.PRIVATE_NAME_EXPR, PRIVATE_NAME)) {
+            return false;
+        }
+        sawPrivateName = true;
         return exit();
     }
 

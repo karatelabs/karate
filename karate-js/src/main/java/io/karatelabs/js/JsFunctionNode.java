@@ -48,6 +48,10 @@ class JsFunctionNode extends JsFunction {
     final List<Node> argNodes;
     final int argCount;
     final CoreContext declaredContext;
+    // The private environment in effect where this function was created, captured
+    // eagerly: declaredContext is a live context whose privateEnv is restored once
+    // the enclosing class body finishes, so reading it at call time would be too late.
+    final PrivateEnv privateEnv;
     final BindingsStore capturedBindings; // References to Slots at creation time, frozen-shape
     // Strict-mode is lexical: a function is strict if it carries its own
     // "use strict" prologue OR it was defined inside already-strict code
@@ -75,13 +79,19 @@ class JsFunctionNode extends JsFunction {
     // once at class-definition time, so the key is a plain String. null when the
     // class declares no instance fields.
     List<FieldInit> instanceFields;
+    // Private instance methods / accessors declared on the class. Their brand is
+    // stamped onto each new instance before the field initializers run, so a
+    // private method is callable from one.
+    List<PrivateName> privateBrands;
 
     static final class FieldInit {
-        final String key;
-        final Node initializer; // EXPR node, or null for an uninitialized field
+        final String key;         // null for a private field
+        final PrivateName privateName; // null for a public field
+        final Node initializer;   // EXPR node, or null for an uninitialized field
 
-        FieldInit(String key, Node initializer) {
+        FieldInit(String key, PrivateName privateName, Node initializer) {
             this.key = key;
+            this.privateName = privateName;
             this.initializer = initializer;
         }
     }
@@ -101,6 +111,7 @@ class JsFunctionNode extends JsFunction {
         this.argCount = argNodes.size();
         this.body = body;
         this.declaredContext = declaredContext;
+        this.privateEnv = declaredContext == null ? null : declaredContext.privateEnv;
         this.strict = forceStrict
                 || (declaredContext != null && declaredContext.strict)
                 || (body.type == NodeType.BLOCK && Interpreter.hasUseStrictDirective(body));
@@ -199,6 +210,7 @@ class JsFunctionNode extends JsFunction {
 
     // Called by Interpreter when context is pre-prepared with closure info
     Object bindArgsAndExecute(CoreContext functionContext, CoreContext parentContext, Object[] args) {
+        functionContext.privateEnv = privateEnv;
         if (async) {
             // Argument binding is part of the activation's startup, so it runs on
             // the activation thread under the startup-outcome protocol — not here.

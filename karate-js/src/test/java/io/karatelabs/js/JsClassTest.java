@@ -339,4 +339,155 @@ class JsClassTest extends EvalBase {
         assertEquals("boom", eval("class C { x = (() => { throw new Error('boom') })() }\n"
                 + "try { new C() } catch (e) { e.message }"));
     }
+
+    //==== ES2022 private class elements
+
+    private static void assertParseError(String src) {
+        assertThrows(io.karatelabs.parser.ParserException.class, () -> new Engine().eval(src));
+    }
+
+    @Test
+    void testPrivateFieldInitAndRead() {
+        assertEquals(7, eval("class C { #n = 7; get v() { return this.#n } }\nnew C().v"));
+    }
+
+    @Test
+    void testPrivateFieldDefaultsToUndefined() {
+        assertEquals(true, eval("class C { #n; has() { return this.#n === undefined } }\nnew C().has()"));
+    }
+
+    @Test
+    void testPrivateFieldWrite() {
+        assertEquals(9, eval("class C { #n = 1; set(v) { this.#n = v; return this.#n } }\nnew C().set(9)"));
+    }
+
+    @Test
+    void testPrivateFieldCompoundAssign() {
+        assertEquals(7, eval("class C { #n = 2; add(v) { this.#n += v; return this.#n } }\nnew C().add(5)"));
+    }
+
+    @Test
+    void testPrivateFieldIncrement() {
+        assertEquals("0,2,2", eval("class C { #n = 0; bump() { var a = this.#n++; var b = ++this.#n; return [a, b, this.#n].join(',') }\n"
+                + "}\nnew C().bump()"));
+    }
+
+    @Test
+    void testPrivateFieldPerInstance() {
+        assertEquals("2,3", eval("class C { #n = 0; inc() { return ++this.#n } }\n"
+                + "var a = new C(); var b = new C();\na.inc(); b.inc(); b.inc();\na.inc() + ',' + b.inc()"));
+    }
+
+    @Test
+    void testStaticPrivateField() {
+        assertEquals(2, eval("class C { static #t = 0; static bump() { return ++C.#t } }\nC.bump(); C.bump()"));
+    }
+
+    @Test
+    void testStaticPrivateFieldFromInstanceMethod() {
+        assertEquals(2, eval("class Counter { #count = 0; static #total = 0;\n"
+                + "  increment() { this.#count++; Counter.#total++; return this.#count }\n"
+                + "  static get total() { return Counter.#total } }\n"
+                + "var c = new Counter(); c.increment(); c.increment(); Counter.total"));
+    }
+
+    @Test
+    void testPrivateMethod() {
+        assertEquals(42, eval("class C { #secret() { return 42 } reveal() { return this.#secret() } }\nnew C().reveal()"));
+    }
+
+    @Test
+    void testStaticPrivateMethod() {
+        assertEquals(6, eval("class C { static #twice(n) { return n * 2 } static run() { return C.#twice(3) } }\nC.run()"));
+    }
+
+    @Test
+    void testPrivateAccessor() {
+        assertEquals(10, eval("class C { #v = 1; get #d() { return this.#v * 2 } set #d(x) { this.#v = x }\n"
+                + "  run() { this.#d = 5; return this.#d } }\nnew C().run()"));
+    }
+
+    @Test
+    void testPrivateFieldInArrowInsideMethod() {
+        assertEquals(3, eval("class C { #n = 3; get() { var f = () => this.#n; return f() } }\nnew C().get()"));
+    }
+
+    @Test
+    void testTwoClassesDoNotSharePrivateName() {
+        assertEquals("1,2", eval("class A { #x = 1; get() { return this.#x } }\n"
+                + "class B { #x = 2; get() { return this.#x } }\n"
+                + "new A().get() + ',' + new B().get()"));
+    }
+
+    @Test
+    void testPrivateReadFromForeignInstanceIsTypeError() {
+        assertEquals("TypeError", eval("class A { #x = 1; static read(o) { return o.#x } }\n"
+                + "class B { #x = 2 }\n"
+                + "try { A.read(new B()) } catch (e) { e.name }"));
+    }
+
+    @Test
+    void testPrivateReadFromPlainObjectIsTypeError() {
+        assertEquals("TypeError", eval("class A { #x = 1; static read(o) { return o.#x } }\n"
+                + "try { A.read({}) } catch (e) { e.name }"));
+    }
+
+    @Test
+    void testUndeclaredPrivateNameIsParseError() {
+        assertParseError("class C { m() { return this.#nope } }");
+    }
+
+    @Test
+    void testPrivateNameOutsideClassIsParseError() {
+        assertParseError("var o = {}; o.#x");
+        assertParseError("function f() { return this.#x }");
+    }
+
+    @Test
+    void testDeletePrivateIsParseError() {
+        assertParseError("class C { #x = 1; m() { delete this.#x } }");
+    }
+
+    @Test
+    void testDuplicatePrivateNameIsParseError() {
+        assertParseError("class C { #x = 1; #x = 2 }");
+        assertParseError("class C { #x = 1; #x() {} }");
+    }
+
+    @Test
+    void testLonePrivateNameIsParseError() {
+        assertParseError("var x = # 1");
+        assertParseError("class C { #x = 1; m() { return #x } }");
+    }
+
+    @Test
+    void testPrivateStateIsNotObservable() {
+        assertEquals("[]", eval("class C { #n = 1; m() {} }\nJSON.stringify(Object.keys(new C()))"));
+        assertEquals("[]", eval("class C { #n = 1 }\nJSON.stringify(Object.getOwnPropertyNames(new C()))"));
+        assertEquals("{}", eval("class C { #n = 1 }\nJSON.stringify(new C())"));
+        assertEquals("", eval("class C { #n = 1 }\nvar k = []; for (var p in new C()) { k.push(p) }\nk.join(',')"));
+        assertEquals("{}", eval("class C { #n = 1 }\nJSON.stringify({ ...new C() })"));
+    }
+
+    @Test
+    void testBracketAccessIsUnrelatedToPrivate() {
+        assertEquals("undefined", eval("class C { #n = 1 }\ntypeof new C()['#n']"));
+        assertEquals("1,5", eval("class C { #n = 1; get() { return this.#n } }\n"
+                + "var c = new C(); c['#n'] = 5;\nc.get() + ',' + c['#n']"));
+    }
+
+    @Test
+    void testPrivateBrandCheck() {
+        assertEquals("true,false", eval("class C { #n = 1; static has(o) { return #n in o } }\n"
+                + "C.has(new C()) + ',' + C.has({})"));
+        assertEquals(false, eval("class A { #x = 1; static has(o) { return #x in o } }\n"
+                + "class B { #x = 2 }\nA.has(new B())"));
+    }
+
+    @Test
+    void testPrivateFieldOnDerivedClass() {
+        assertEquals("1,2", eval("class A { #a = 1; getA() { return this.#a } }\n"
+                + "class B extends A { #b = 2; getB() { return this.#b } }\n"
+                + "var o = new B();\no.getA() + ',' + o.getB()"));
+    }
 }

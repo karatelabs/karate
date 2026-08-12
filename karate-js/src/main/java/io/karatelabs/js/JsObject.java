@@ -55,6 +55,15 @@ class JsObject implements ObjectLike, Map<String, Object> {
      * pay no map overhead.
      */
     private Map<String, PropertySlot> props;
+    /**
+     * ES2022 private state ([[PrivateElements]]), deliberately out-of-band from
+     * {@code props}: private names have no string identity, so nothing that walks
+     * property names — {@code Object.keys}, {@code for-in}, spread,
+     * {@code JSON.stringify}, {@code obj['#x']} — can reach or collide with them.
+     * Keyed by {@link PrivateName} identity, so two classes that both spell
+     * {@code #x} store into different entries. Lazily allocated.
+     */
+    private Map<PrivateName, Object> privates;
     private ObjectLike __proto__;
     /** Object-wide extensibility flags. Per-property attributes live on each
      *  Slot's {@code attrs} byte. The per-object flags double as fast-path
@@ -132,6 +141,23 @@ class JsObject implements ObjectLike, Map<String, Object> {
      */
     public boolean hasOwnIntrinsic(String name) {
         return resolveOwnIntrinsic(name) != null;
+    }
+
+    //==== ES2022 private state — see the `privates` field
+
+    boolean hasPrivate(PrivateName pn) {
+        return privates != null && privates.containsKey(pn);
+    }
+
+    Object getPrivate(PrivateName pn) {
+        return privates == null ? null : privates.get(pn);
+    }
+
+    void putPrivate(PrivateName pn, Object value) {
+        if (privates == null) {
+            privates = new HashMap<>(4);
+        }
+        privates.put(pn, value);
     }
 
     @Override

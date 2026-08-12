@@ -55,6 +55,11 @@ class CoreContext implements Context {
     // method still resolves to the enclosing method's home object.
     JsFunctionNode activeFunction;
 
+    // The class private names visible here (null in code that uses none). A block
+    // scope inherits it; a function call frame takes it from the CALLEE's captured
+    // environment, never from the dynamic caller — see JsFunctionNode.privateEnv.
+    PrivateEnv privateEnv;
+
     // Strict-mode flag (ES "use strict"). Set per function-call context from
     // the callee {@link JsFunctionNode#strict}, and per script context from a
     // top-level directive prologue (see {@link Interpreter#evalProgram}).
@@ -102,6 +107,7 @@ class CoreContext implements Context {
             thisObject = parent.thisObject;
             strict = parent.strict;
             activeFunction = parent.activeFunction;
+            privateEnv = parent.privateEnv;
         } else if (root != null) {
             thisObject = root.thisObject;
         }

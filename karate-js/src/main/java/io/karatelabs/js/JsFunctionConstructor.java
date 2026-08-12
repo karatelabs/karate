@@ -64,7 +64,13 @@ class JsFunctionConstructor extends JsFunction {
         if (engine == null) {
             throw JsErrorException.typeError("Function constructor unavailable: no engine");
         }
-        return engine.evalRaw(src.toString());
+        try {
+            return engine.evalRaw(src.toString());
+        } catch (io.karatelabs.parser.ParserException e) {
+            // CreateDynamicFunction (§20.2.1.1): an unparsable body is a JS
+            // SyntaxError, not a host parse exception
+            throw JsErrorException.syntaxError(e.getMessage());
+        }
     }
 
     private static String argToString(Object arg) {

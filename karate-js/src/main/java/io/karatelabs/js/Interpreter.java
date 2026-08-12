@@ -620,6 +620,9 @@ class Interpreter {
             if (callable instanceof JsFunctionNode jsFunc) {
                 callContext = new CoreContext(context, node, args, jsFunc.declaredContext, jsFunc.capturedBindings);
                 callContext.strict = jsFunc.strict;
+                // needed before bindArgsAndExecute would set it: the instance-field
+                // initializers below run first and may reference private names
+                callContext.privateEnv = jsFunc.privateEnv;
                 // Thread the active function for `super` resolution: a non-arrow
                 // call is its own active function; an arrow inherits the method
                 // it was defined in (from its declaring context).
@@ -972,85 +975,146 @@ class Interpreter {
                 members.add(cm);
             }
         }
-        JsFunctionNode ctor;
-        if (ctorFnExpr != null) {
-            ctor = new JsFunctionNode(false, ctorFnExpr, fnArgs(ctorFnExpr.getFirst()),
-                    ctorFnExpr.getLast(), context, true);
-        } else {
-            // synthesize the implicit constructor — empty body. For a derived
-            // class it acts as `constructor(...args) { super(...args); }`; the
-            // super-forward runs at construction time (isDefaultDerivedConstructor).
-            ctor = new JsFunctionNode(false, node, Collections.emptyList(),
-                    new Node(NodeType.BLOCK), context, true);
+        // ES2022 PrivateEnvironment — one fresh set of private-name identities per
+        // class EVALUATION, so `#x` in two classes (or in two evaluations of the same
+        // class expression) never resolve to the same slot. Installed on the shared
+        // context only for the span that builds the members: every JsFunctionNode
+        // created here captures it eagerly, so restoring it afterwards is safe.
+        PrivateEnv savedPrivateEnv = context.privateEnv;
+        PrivateEnv classPrivateEnv = declarePrivateNames(members, savedPrivateEnv);
+        if (classPrivateEnv != null) {
+            context.privateEnv = classPrivateEnv;
         }
-        ctor.name = className == null ? "" : className;
-        ctor.isClassConstructor = true;
-        if (hasExtends) {
-            ctor.isDerivedConstructor = true;
-            ctor.isDefaultDerivedConstructor = ctorFnExpr == null;
-        }
-        JsObject proto = ctor.getFunctionPrototype();
-        // getFunctionPrototype installs `constructor` as enumerable (the ES5
-        // function default); for a class it must be non-enumerable + writable +
-        // configurable (spec §15.7) so it doesn't leak into for-in over instances.
-        proto.defineOwn("constructor", ctor, (byte) (PropertySlot.WRITABLE | PropertySlot.CONFIGURABLE));
-        if (hasExtends) {
-            if (parentCtor != null) {
-                ctor.setPrototype(parentCtor); // static inheritance + super(...) target
-                Object parentProto = parentCtor.getMember("prototype");
-                proto.setPrototype(parentProto instanceof ObjectLike pp ? pp : null);
+        try {
+            JsFunctionNode ctor;
+            if (ctorFnExpr != null) {
+                ctor = new JsFunctionNode(false, ctorFnExpr, fnArgs(ctorFnExpr.getFirst()),
+                        ctorFnExpr.getLast(), context, true);
             } else {
-                proto.setPrototype(null); // `extends null` — null instance prototype chain
+                // synthesize the implicit constructor — empty body. For a derived
+                // class it acts as `constructor(...args) { super(...args); }`; the
+                // super-forward runs at construction time (isDefaultDerivedConstructor).
+                ctor = new JsFunctionNode(false, node, Collections.emptyList(),
+                        new Node(NodeType.BLOCK), context, true);
             }
-        }
-        ctor.homeObject = proto; // [[HomeObject]] for super.m() inside the constructor
-        for (ClassMember cm : members) {
-            String key = classMemberKey(cm, context);
-            if (context.isError()) {
-                return Terms.UNDEFINED;
+            ctor.name = className == null ? "" : className;
+            ctor.isClassConstructor = true;
+            if (hasExtends) {
+                ctor.isDerivedConstructor = true;
+                ctor.isDefaultDerivedConstructor = ctorFnExpr == null;
             }
-            if (cm.isField) {
-                // Public field. Computed name resolved once here; the value is
-                // run per-instance (instance fields) or now (static fields).
-                if (cm.isStatic) {
-                    Object value = evalFieldInitializer(cm.initExpr, ctor, context);
-                    if (context.isError()) {
-                        return Terms.UNDEFINED;
-                    }
-                    ctor.putMember(key, value); // static fields are enumerable own props
+            JsObject proto = ctor.getFunctionPrototype();
+            // getFunctionPrototype installs `constructor` as enumerable (the ES5
+            // function default); for a class it must be non-enumerable + writable +
+            // configurable (spec §15.7) so it doesn't leak into for-in over instances.
+            proto.defineOwn("constructor", ctor, (byte) (PropertySlot.WRITABLE | PropertySlot.CONFIGURABLE));
+            if (hasExtends) {
+                if (parentCtor != null) {
+                    ctor.setPrototype(parentCtor); // static inheritance + super(...) target
+                    Object parentProto = parentCtor.getMember("prototype");
+                    proto.setPrototype(parentProto instanceof ObjectLike pp ? pp : null);
                 } else {
-                    if (ctor.instanceFields == null) {
-                        ctor.instanceFields = new ArrayList<>();
-                    }
-                    ctor.instanceFields.add(new JsFunctionNode.FieldInit(key, cm.initExpr));
+                    proto.setPrototype(null); // `extends null` — null instance prototype chain
                 }
+            }
+            ctor.homeObject = proto; // [[HomeObject]] for super.m() inside the constructor
+            for (ClassMember cm : members) {
+                PrivateName pn = cm.privateName;
+                String key = pn == null ? classMemberKey(cm, context) : pn.name;
+                if (context.isError()) {
+                    return Terms.UNDEFINED;
+                }
+                if (cm.isField) {
+                    // Computed name resolved once here; the value is run per-instance
+                    // (instance fields) or now (static fields).
+                    if (cm.isStatic) {
+                        Object value = evalFieldInitializer(cm.initExpr, ctor, context);
+                        if (context.isError()) {
+                            return Terms.UNDEFINED;
+                        }
+                        if (pn == null) {
+                            ctor.putMember(key, value); // public static fields are enumerable own props
+                        } else {
+                            ctor.putPrivate(pn, value);
+                        }
+                    } else {
+                        if (ctor.instanceFields == null) {
+                            ctor.instanceFields = new ArrayList<>();
+                        }
+                        ctor.instanceFields.add(new JsFunctionNode.FieldInit(
+                                pn == null ? key : null, pn, cm.initExpr));
+                    }
+                    continue;
+                }
+                JsObject target = cm.isStatic ? ctor : proto;
+                JsFunctionNode fn = new JsFunctionNode(false, cm.fnExpr,
+                        fnArgs(cm.fnExpr.getFirst()), cm.fnExpr.getLast(), context, true);
+                fn.name = key;
+                fn.homeObject = target; // instance method → prototype; static method → constructor
+                if (pn != null) {
+                    // A private method / accessor is per-class, not a property: the
+                    // function hangs off the private name and the object carries only
+                    // the brand — installed on the constructor now for a static one,
+                    // on each instance at construction time otherwise.
+                    if (cm.isAccessor) {
+                        if ("get".equals(cm.kind)) {
+                            pn.getter = fn;
+                        } else {
+                            pn.setter = fn;
+                        }
+                    } else {
+                        pn.method = fn;
+                    }
+                    if (cm.isStatic) {
+                        ctor.putPrivate(pn, PrivateName.BRAND);
+                    } else {
+                        if (ctor.privateBrands == null) {
+                            ctor.privateBrands = new ArrayList<>();
+                        }
+                        if (!ctor.privateBrands.contains(pn)) {
+                            ctor.privateBrands.add(pn);
+                        }
+                    }
+                } else if (cm.isAccessor) {
+                    PropertySlot existing = target.getOwnSlot(key);
+                    JsCallable getter = existing instanceof AccessorSlot ea ? ea.getter : null;
+                    JsCallable setter = existing instanceof AccessorSlot ea ? ea.setter : null;
+                    if ("get".equals(cm.kind)) {
+                        getter = fn;
+                    } else {
+                        setter = fn;
+                    }
+                    // class accessors are non-enumerable + configurable (no value/writable)
+                    target.defineOwnAccessor(key, getter, setter, PropertySlot.CONFIGURABLE);
+                } else {
+                    // class methods are writable + configurable, non-enumerable (spec §15.7)
+                    target.defineOwn(key, fn, (byte) (PropertySlot.WRITABLE | PropertySlot.CONFIGURABLE));
+                }
+            }
+            if (className != null) {
+                context.put(className, ctor);
+            }
+            return ctor;
+        } finally {
+            context.privateEnv = savedPrivateEnv;
+        }
+    }
+
+    // Binds every `#name` the class body declares to a fresh identity. Returns null
+    // (and allocates nothing) for a class with no private elements.
+    private static PrivateEnv declarePrivateNames(List<ClassMember> members, PrivateEnv parent) {
+        PrivateEnv env = null;
+        for (ClassMember cm : members) {
+            if (!cm.isPrivate) {
                 continue;
             }
-            JsObject target = cm.isStatic ? ctor : proto;
-            JsFunctionNode fn = new JsFunctionNode(false, cm.fnExpr,
-                    fnArgs(cm.fnExpr.getFirst()), cm.fnExpr.getLast(), context, true);
-            fn.name = key;
-            fn.homeObject = target; // instance method → prototype; static method → constructor
-            if (cm.isAccessor) {
-                PropertySlot existing = target.getOwnSlot(key);
-                JsCallable getter = existing instanceof AccessorSlot ea ? ea.getter : null;
-                JsCallable setter = existing instanceof AccessorSlot ea ? ea.setter : null;
-                if ("get".equals(cm.kind)) {
-                    getter = fn;
-                } else {
-                    setter = fn;
-                }
-                // class accessors are non-enumerable + configurable (no value/writable)
-                target.defineOwnAccessor(key, getter, setter, PropertySlot.CONFIGURABLE);
-            } else {
-                // class methods are writable + configurable, non-enumerable (spec §15.7)
-                target.defineOwn(key, fn, (byte) (PropertySlot.WRITABLE | PropertySlot.CONFIGURABLE));
+            if (env == null) {
+                env = new PrivateEnv(parent);
             }
+            cm.privateName = env.declare(cm.simpleKey, cm.isField ? PrivateName.Kind.FIELD
+                    : cm.isAccessor ? PrivateName.Kind.ACCESSOR : PrivateName.Kind.METHOD);
         }
-        if (className != null) {
-            context.put(className, ctor);
-        }
-        return ctor;
+        return env;
     }
 
     // Collects call arguments (with spread) from an FN_CALL_ARGS node. Shared by
@@ -1114,10 +1178,18 @@ class Interpreter {
             sc.thisObject = thisObj;
             sc.activeFunction = parentFn;
             sc.callInfo = new CallInfo(true, parentFn);
+            sc.privateEnv = parentFn.privateEnv;
             // If the parent is itself a derived class with an implicit
             // constructor, forward up the chain before running its (empty) body.
+            // Either way the parent's own instance fields (and private brands) are
+            // its responsibility, on the same before-body / after-super schedule the
+            // top-level construction path uses; a parent with an explicit derived
+            // constructor runs them from its own super() call instead.
             if (parentFn.isDefaultDerivedConstructor) {
                 runSuperConstructor(parentFn, thisObj, args, sc);
+                runInstanceFieldInitializers(parentFn, thisObj, sc);
+            } else if (!parentFn.isDerivedConstructor) {
+                runInstanceFieldInitializers(parentFn, thisObj, sc);
             }
             parentFn.bindArgsAndExecute(sc, context, args);
         } else {
@@ -1161,7 +1233,17 @@ class Interpreter {
     // declaration order. Base class: before the constructor body. Derived class:
     // immediately after super() returns.
     static void runInstanceFieldInitializers(JsFunctionNode ctor, Object thisObj, CoreContext context) {
-        if (ctor.instanceFields == null || !(thisObj instanceof JsObject obj)) {
+        if (!(thisObj instanceof JsObject obj)) {
+            return;
+        }
+        if (ctor.privateBrands != null) {
+            // spec order: private methods/accessors are added before any field
+            // initializer runs, so an initializer may already call one
+            for (PrivateName pn : ctor.privateBrands) {
+                obj.putPrivate(pn, PrivateName.BRAND);
+            }
+        }
+        if (ctor.instanceFields == null) {
             return;
         }
         for (JsFunctionNode.FieldInit f : ctor.instanceFields) {
@@ -1169,7 +1251,11 @@ class Interpreter {
             if (context.isError()) {
                 return;
             }
-            obj.putMember(f.key, value); // public fields are enumerable own properties
+            if (f.privateName == null) {
+                obj.putMember(f.key, value); // public fields are enumerable own properties
+            } else {
+                obj.putPrivate(f.privateName, value);
+            }
         }
     }
 
@@ -1194,6 +1280,8 @@ class Interpreter {
         boolean isStatic;
         boolean isAccessor;
         boolean isField;
+        boolean isPrivate;  // key was a `#name` token
+        PrivateName privateName; // resolved identity, when private
         String kind;        // "get" / "set" / null
         boolean computed;
         Node keyExprNode;   // EXPR node, when computed
@@ -1227,7 +1315,9 @@ class Interpreter {
                 cm.initExpr = m.get(eqIdx + 1);
                 keyEnd = eqIdx - 1;
             } else {
-                keyEnd = n - 1;
+                // `x;` — the field tail's optional terminator is a child too, so the
+                // key is the token before it
+                keyEnd = lastChild.token != null && lastChild.token.type == SEMI ? n - 2 : n - 1;
             }
         }
         Node kc = m.get(keyEnd);
@@ -1238,6 +1328,7 @@ class Interpreter {
             keyStart = keyEnd - 2; // L_BRACKET index
         } else {
             cm.simpleKey = keyTokenString(kc.token);
+            cm.isPrivate = kc.token.type == PRIVATE_NAME;
             keyStart = keyEnd;
         }
         for (int i = 0; i < keyStart; i++) {
@@ -1601,6 +1692,12 @@ class Interpreter {
     }
 
     private static Object evalInExpr(Node node, CoreContext context) {
+        if (node.get(0).type == NodeType.PRIVATE_NAME_EXPR) {
+            // `#x in obj` — brand check; the only position a bare private name is
+            // legal in (enforced at parse). No ToPropertyKey, no prototype walk.
+            PrivateName pn = PrivateAccess.resolve(node.get(0).getText(), context);
+            return PrivateAccess.has(eval(node.get(2), context), pn);
+        }
         Object lhs = eval(node.get(0), context);
         if (context.isError()) {
             return Terms.UNDEFINED;
@@ -2650,6 +2747,9 @@ class Interpreter {
             case IF_STMT -> evalIfStmt(node, context);
             case INSTANCEOF_EXPR -> evalInstanceOfExpr(node, context);
             case IN_EXPR -> evalInExpr(node, context);
+            // only reachable in error-recovery mode, which skips the early-error walk
+            case PRIVATE_NAME_EXPR -> throw JsErrorException.syntaxError(
+                    "unexpected private name " + node.getText());
             case LOGIC_EXPR -> evalLogicExpr(node, context);
             case LOGIC_AND_EXPR -> evalLogicAndExpr(node, context);
             case LOGIC_NULLISH_EXPR -> evalLogicNullishExpr(node, context);

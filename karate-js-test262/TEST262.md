@@ -262,14 +262,12 @@ report came from probing at the `Engine.eval` host seam, which unwraps
 `undefined` to Java `null` by design; the write-site exits were hardened
 with a distinct `SHORT_CIRCUIT_SITE` anyway. Original numbering kept.)*
 
-4. **Private fields half-parse.** `this.#count++` / `static #total` are
-   parse errors (fine), but `class C { #n = 7; get v(){ return this.#n } }`
-   parses and silently reads `undefined`. Either implement `#` fields or
-   reject them at parse — never half-accept.
-6. **Base-class instance fields don't run for derived instances.**
-   `class A { x = 1 }; class B extends A {}` → `new B().x` is `undefined` —
-   `Interpreter.runSuperConstructor` never runs the parent's field
-   initializers. (Found 2026-08-12 while fixing P0.3.)
+*(P0.4 shipped 2026-08-12 as a full private-elements implementation —
+fields, methods, accessors, `#x in obj`; see JS_ENGINE.md § the class
+section. P0.6 — base-class instance fields not running for derived
+instances — shipped in the same change, along with a bare-field parse fix:
+`class C { x; }` used to define a field named `";"`. **This P0 tier is now
+empty.**)*
 
 ### P1 — missing surface LLMs write constantly
 
@@ -452,9 +450,10 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   constructor-function + prototype machinery (`Interpreter.evalClassExpr`;
   super dispatch via `JsFunctionNode.homeObject` + `CoreContext.activeFunction`;
   `extends Error`/built-ins via a copy-own-props shim). Covered by `JsClassTest`.
-  **Remaining tail:** private `#x` fields/methods (**half-parse silent-wrong
-  → P0.4**), base-class fields not running for derived instances (**P0.6**),
-  generator methods (**P1**), decorators, static-init blocks, class early-errors,
+  Private `#x` fields/methods/accessors and derived-class parent-field
+  initialization shipped 2026-08-12 (see JS_ENGINE.md § the class section).
+  **Remaining tail:** generator
+  methods (**P1**), decorators, static-init blocks, class early-errors,
   object-literal-method `super` (needs object [[HomeObject]]), two super edge
   cases (`this`-TDZ before `super()`, `super()` return-override),
   numeric/string-literal method-name canonicalization (`get 0x10(){}` → key

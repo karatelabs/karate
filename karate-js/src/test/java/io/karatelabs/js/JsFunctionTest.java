@@ -642,6 +642,14 @@ class JsFunctionTest extends EvalBase {
     }
 
     @Test
+    void testFunctionGlobalUnparsableBodyIsSyntaxError() {
+        // CreateDynamicFunction: a body that fails to parse surfaces as a
+        // catchable JS SyntaxError, never a host parse exception
+        assertEquals(true, eval("try { new Function('var #x = 1;'); false } catch (e) { e instanceof SyntaxError }"));
+        assertEquals(true, eval("try { Function('var 1x = 1;'); false } catch (e) { e instanceof SyntaxError }"));
+    }
+
+    @Test
     void testNewOnNonConstructorThrows() {
         // Built-in non-constructors (prototype methods, statics like Date.now) should TypeError on new.
         assertEquals("TypeError", eval("try { new Date.now() } catch (e) { e.name }"));

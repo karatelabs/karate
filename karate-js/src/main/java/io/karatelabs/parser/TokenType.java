@@ -131,6 +131,7 @@ public enum TokenType {
     NUMBER,
     BIGINT,
     IDENT,
+    PRIVATE_NAME, // ES2022 `#name` — text includes the leading '#'
     //====
     REGEX,
     DOLLAR_L_CURLY,
@@ -182,7 +183,8 @@ public enum TokenType {
                  QUES, QUES_QUES, TILDE, NOT, RETURN, TYPEOF, VOID, DELETE, INSTANCEOF, IN, DO, IF, ELSE, CASE, DEFAULT,
                  THROW, EQ_GT -> true;
             // after these tokens, a regex literal is not allowed
-            case R_PAREN, R_BRACKET, R_CURLY, IDENT, NUMBER, BIGINT, S_STRING, D_STRING, TRUE, FALSE, NULL -> false;
+            case R_PAREN, R_BRACKET, R_CURLY, IDENT, PRIVATE_NAME, NUMBER, BIGINT, S_STRING, D_STRING, TRUE, FALSE,
+                 NULL -> false;
             // for other tokens, keep the current value of regexAllowed
             default -> null;
         };

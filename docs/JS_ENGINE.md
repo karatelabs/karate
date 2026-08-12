@@ -1180,17 +1180,34 @@ The parse-time flag reaches `JsFunctionNode.async`, so `new C().m()` returns a
 promise rather than the body's value (see
 [§ Async / await / Promise](#async--await--promise)).
 
-The remaining deviations are **silent** — the parser accepts the syntax and the
-runtime does something else, which is the worse failure mode (known deviation
-— see TEST262.md Active priorities):
+**Private class elements (`#x`) are fully modelled** — instance/static
+private fields, private methods and static methods, private accessors,
+read/write/compound/logical-assign/inc-dec via `this.#x` / `obj.#x`,
+`obj?.#x`, and the `#x in obj` brand check. The lexer emits a
+`PRIVATE_NAME` token (`#` + IdentifierName; a stray `#` is a clean
+`ParserException`, not the lenient IDENT fallback). Each class evaluation
+allocates a `PrivateEnv` binding `#x` to a fresh `PrivateName` identity,
+chained to the enclosing class's env; functions capture it eagerly at
+construction (`JsFunctionNode.privateEnv`) and re-install it on their call
+frame — resolution is lexical, so callbacks never inherit it. Per-object
+state lives in `JsObject.privates`, a lazily-allocated identity-keyed side
+map, fully out-of-band from `props`: `Object.keys` /
+`getOwnPropertyNames` / `for...in` / spread / `JSON.stringify` /
+`obj['#n']` can neither observe nor collide with it. Private
+methods/accessors hang off the `PrivateName` itself; the instance map
+holds a brand sentinel backing `#x in obj` and the foreign-receiver
+TypeError. Parse-time SyntaxErrors (one helper in the fused
+`JsParser.earlyErrors` walk, gated on a `sawPrivateName` flag so `#`-free
+files pay nothing): undeclared `#x`, `#x` outside a class,
+`delete obj.#x`, bare `#x` outside `in`, duplicate private names,
+`#constructor`.
 
-- `class C { #n = 7; get v(){ return this.#n } }` parses, but the read yields
-  `undefined` — `#`-names are not modelled as private slots. `this.#x++` and
-  `static #total` are outright parse errors.
-- Base-class instance fields do not run for derived instances:
-  `class A { x = 1 }; class B extends A {}` → `new B().x` is `undefined` —
-  `runSuperConstructor` never runs the parent's field initializers (known
-  deviation — see TEST262.md Active priorities).
+**Field initializers run for every class on the prototype chain.**
+`runSuperConstructor` runs the parent's instance-field initializers when
+construction reaches it through `super()` — explicit or from a default
+derived constructor — so `class A { x = 1 }; class B extends A {}` gives
+`new B().x === 1`. (Private brands install during field initialization,
+which is what made this bug load-bearing.)
 
 **Arrow `this` is lexical (spec §10.2.1.3), enforced at call time.** Every
 call frame is seeded from the caller's dynamic chain, so the three
@@ -1202,7 +1219,8 @@ in their own child `CoreContext` carrying `thisObject` = the instance
 its `declaredContext`, so `class C { f = () => this.x }` works after
 construction; save/restore mutation of the shared context would not.
 
-`JsClassTest` (44 cases) is the canonical behavior record.
+`JsClassTest` is the canonical behavior record (100+ cases, including the
+ES2022 private-element and arrow-field families).
 
 ### Globals
 

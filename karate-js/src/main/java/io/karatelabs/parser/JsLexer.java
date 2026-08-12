@@ -140,6 +140,11 @@ public class JsLexer extends BaseLexer {
             return scanNumber();
         }
 
+        // ES2022 private name — `#` is only ever the start of one
+        if (c == '#') {
+            return scanPrivateName();
+        }
+
         // Unicode identifiers (rare)
         if (c > 127 && Character.isJavaIdentifierStart(c)) {
             return scanIdentifier();
@@ -641,6 +646,23 @@ public class JsLexer extends BaseLexer {
             }
         }
         return keywordOrIdent(tokenStart, pos - tokenStart);
+    }
+
+    // `#` + IdentifierName, one token including the hash. A bare `#` has no other
+    // role in the grammar, so anything else is a hard error rather than the lenient
+    // IDENT fallback — a half-lexed `#x` would parse into silently wrong garbage.
+    private TokenType scanPrivateName() {
+        advance();
+        if (pos < length) {
+            char c = source.charAt(pos);
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$'
+                    || (c > 127 && Character.isJavaIdentifierStart(c))) {
+                scanIdentifier();
+                return PRIVATE_NAME;
+            }
+        }
+        throw new ParserException(String.format(
+                "unexpected character '#' at %d:%d", tokenLine + 1, tokenCol + 1));
     }
 
     private TokenType keywordOrIdent(int start, int len) {
