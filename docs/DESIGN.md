@@ -279,6 +279,59 @@ See [MOCKS.md](./MOCKS.md) for mock server, [CLI.md](./CLI.md) for CLI architect
 
 ---
 
+## Threading & Lifecycle
+
+The conventions every thread-owning component follows today, and where the
+seams are. (Surveyed 2026-08-12 across karate, karate-ext, and veriquant.)
+
+**The daemon + named contract — `ThreadUtils` (in karate-js,
+`io.karatelabs.common`).** Every long-lived thread comes from
+`ThreadUtils.daemonFactory(prefix)` (numbered, for pools) or
+`daemonFactory(name, false)` (stable name, single-thread executors). The
+javadoc there is the contract: owners call `close()`/`shutdownNow()`
+explicitly, and if they don't, the daemon flag guarantees the JVM still
+terminates. Consequence: **a leaked executor never hangs an app at exit,
+but in-flight work is silently abandoned** — graceful drain is the owner's
+job, not the platform's.
+
+**Per-class active-set + `closeAll()` idiom.** Components that can
+accumulate live instances self-register in a private static set and expose
+a bulk stop: `HttpServer.ACTIVE_SERVERS` + `shutdownAll()` (Netty event
+loop groups, `stopAsync()` / `stopAndWait()`), `WsClient.ACTIVE_CLIENTS` +
+`closeAll()` (+ a shared `ws-callback-` pool, per-connection executor
+injectable via `WsClientOptions`), `CdpDriver`/`CdpLauncher.closeAll()`,
+`ProcessHandle.LIVE_HANDLES` (the one with its own JVM shutdown hook — see
+[ProcessHandle infrastructure guarantees](#processhandle-infrastructure-guarantees)).
+Nothing inside karate calls these bulk stops — **embedders aggregate them**
+(e.g. veriquant's `KarateAppService.shutdown()` runs
+`HttpServer.shutdownAll()` then drains its own executor).
+
+**Scenario parallelism is scoped, not global.** `Suite.runParallel()` opens
+a `Executors.newVirtualThreadPerTaskExecutor()` in try-with-resources,
+publishes it as `getScenarioExecutor()`, and `FeatureRuntime` gates it with
+a `Semaphore` + lane queue. Java 21 is the floor across all three repos and
+virtual threads are used liberally; new async work should assume them.
+
+**Cancellation of running JS is cooperative.** The engine polls
+`Thread.interrupt()` at loop tops (`Interpreter.checkInterrupted` →
+`EngineInterruptedException`); bounded evaluation is built on it
+(karate-ext `Sandbox.TimeBox`: single-thread daemon executor,
+`future.get(timeout)` → `cancel(true)`).
+
+**Known gap (deliberate, tracked).** Stop verbs are inconsistent across the
+ecosystem (`stop` / `stopAsync` / `stopAndWait` / `close` / `closeNow` /
+`shutdown`), most servers in karate-ext and veriquant register in no active
+set, no component exposes its pool for inspection, and there is no common
+`Stoppable` interface or cross-component registry — so "enumerate
+everything running and drain it" is only possible ad hoc. A unifying
+lifecycle seam (natural home: `io.karatelabs.common` in karate-js, next to
+`ThreadUtils`, visible to karate-core and external repos with no new
+dependency edges) is under design alongside async/Promise support, which
+will add the first executor whose pending work an embedder must be able to
+inspect and drain.
+
+---
+
 ## Event System
 
 Unified observation and control of test execution via `RunListener`.

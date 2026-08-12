@@ -1,0 +1,11 @@
+const o = JSON.parse('{"a":1,"b":{"c":[1,2,{"d":true}]},"e":null}');
+if (o.b.c[2].d !== true) throw new Error('nested parse');
+if (o.e !== null) throw new Error('null');
+const s = JSON.stringify({ a: 1, b: [1, 2] }, null, 2);
+if (s.indexOf('\n  "a": 1') === -1) throw new Error('indent: ' + JSON.stringify(s));
+const rep = JSON.stringify({ a: 1, b: 2, c: 3 }, ['a', 'c']);
+if (rep !== '{"a":1,"c":3}') throw new Error('replacer ' + rep);
+const orig = { x: [1, { y: 'z' }], n: 1.5 };
+if (JSON.stringify(JSON.parse(JSON.stringify(orig))) !== JSON.stringify(orig)) throw new Error('round trip');
+const fnRep = JSON.stringify({ a: 1, b: 2 }, (k, v) => typeof v === 'number' ? v * 2 : v);
+if (fnRep !== '{"a":2,"b":4}') throw new Error('fn replacer ' + fnRep);

@@ -676,6 +676,29 @@ try {
 
 **Implementation.** The conversion happens at a single boundary — `Interpreter.evalTryStmt()`. The try body is evaluated inside a Java `try { ... } catch (RuntimeException e)`; if an exception escapes, the engine calls `context.stopAndThrow(new JsError(e.getMessage(), e))` and lets the existing catch-block machinery bind the `JsError` to the error variable. Any reflection-layer `InvocationTargetException` is unwrapped inside `JavaUtils.invoke`/`invokeStatic` so the original cause reaches the boundary unchanged.
 
+**The boundary catches `RuntimeException`, not `Throwable`** — so an
+`Error`-class throwable escapes JS entirely: it is not convertible to a
+`JsError`, no `catch` block sees it, and it reaches the host raw. The known
+raw-leak shapes today (all bugs by the tenet above, none of them papered
+over):
+
+- `JSON.stringify` on a circular value → `StackOverflowError`, from
+  `JsJson.containsBigInt`'s unguarded pre-walk, which recurses with no
+  visited set and so blows the stack *before* `StringUtils.formatRecurse`'s
+  own identity-based `[Circular]` guard is reached. Spec wants `TypeError`.
+- `JSON.stringify` with a replacer array holding non-string entries →
+  `ClassCastException`, from the unchecked `(List<String>) replacer` cast in
+  `JsJson.stringify` (`JsObject cannot be cast to java.lang.String`).
+- `RegExp` `exec` / `test` with a null argument → `NullPointerException`;
+  catastrophic backtracking → the engine `Timeout`.
+- `Array` operations near a 2^32 length → `IndexOutOfBoundsException` /
+  VM-limit / heap errors (the `Integer.MAX_VALUE` length clamp noted under
+  §JsArray length semantics).
+- `String.prototype.{replaceAll, endsWith}` → `StringIndexOutOfBoundsException`
+  on out-of-range arguments.
+
+(known deviations — see TEST262.md Active priorities.)
+
 The call-site path (`Interpreter.evalFnCall`) is intentionally left as plain Java throw/propagate. This preserves the existing behavior for **uncaught** exceptions: they continue to bubble up through the expression chain, pick up the helpful `expression: <code> - <message>` framing at `PropertyAccess.getRefDotExpr`, and finally become the usual `js failed:` wrapper at the statement boundary. Only entering a `try` block changes the outcome.
 
 ### Host invocations surface uncaught throws
@@ -942,11 +965,28 @@ use `putMember` (enumerable).
 
 **Known deviations (deferred):** no `this`-TDZ before `super()`, no `super()`
 return-override, `extends` of a built-in exotic (Error/Array) uses a
-copy-own-props shim rather than true exotic subclassing; and `class/**` stays
-test262-skipped (private `#x`, generator/async methods, decorators, class
-early-errors, public-field conformance edge tail) — see the un-skip gate in
-`karate-js-test262/etc/expectations.yaml` and the roadmap entry in
-`TEST262.md`. `JsClassTest` (44 cases) is the canonical behavior record.
+copy-own-props shim rather than true exotic subclassing; decorators, class
+early-errors and the public-field conformance edge tail stay test262-skipped
+(see the un-skip gate in `karate-js-test262/etc/expectations.yaml`).
+
+Four of the deviations are **silent** — the parser accepts the syntax and the
+runtime does something else, which is the worse failure mode (known deviation
+— see TEST262.md Active priorities):
+
+- `class C { async m(){} }` parses as an ordinary *sync* method; the `async`
+  modifier is dropped rather than rejected.
+- `class C { #n = 7; get v(){ return this.#n } }` parses, but the read yields
+  `undefined` — `#`-names are not modelled as private slots. `this.#x++` and
+  `static #total` are outright parse errors.
+- An arrow-function field (`class C { f = () => this.x }`) loses `this`.
+  Cause: `Interpreter.evalFieldInitializer` sets `context.thisObject` on the
+  *shared* `CoreContext` and restores it in a `finally`, so an arrow that
+  captured that context as its `declaredContext` reads the restored value at
+  call time. Plain (non-arrow) field initializers are unaffected because they
+  are evaluated while the assignment is still in effect. The fix shape is a
+  fresh child context per initializer rather than save/restore mutation.
+
+`JsClassTest` (44 cases) is the canonical behavior record.
 
 ### Globals
 
@@ -981,6 +1021,13 @@ the prior split storage (values in `BindingsStore`, attrs in
 uses the inherited `JsObject.props` map at all — every observable property,
 attribute, and tombstone lives on the `BindingSlot`.
 
+**There is no `globalThis` *binding*.** `JsGlobalThis` backs top-level `this`
+only — `ContextRoot.initGlobal` registers no global named `globalThis`, so a
+script referencing it by name gets a ReferenceError. Also absent from the
+global surface: `WeakMap` / `WeakSet` / `Proxy` / `ArrayBuffer` / `DataView`
+(and the Iterator helpers); `Uint8Array` is the only binary type, per the
+§Type Mapping table (known deviations — see TEST262.md Active priorities).
+
 So `this.foo = 1; foo` and `foo = 1; this.foo` see the same value (no
 divergence — same store). Lazy built-ins land hidden via
 `bindings.putHidden`, so `Object.keys(globalThis)` only sees user-visible
@@ -1012,8 +1059,13 @@ null/undefined per spec). JS-side errors during user iteration propagate via
 
 **Minimal `Symbol` global.** `ContextRoot.initGlobal` exposes `Symbol.iterator`
 / `Symbol.asyncIterator` as their well-known string keys (`"@@iterator"` /
-`"@@asyncIterator"`). No `Symbol(...)` constructor, no unique-symbol identity
-— tests needing those still skip via `feature: Symbol`.
+`"@@asyncIterator"`). `Symbol(...)` *is* callable — `ContextRoot.SymbolStandIn`
+is a `JsObject implements JsCallable` that returns a fresh placeholder object
+so `Symbol()` used as a "non-callable value" probe doesn't throw. There is no
+symbol primitive type: `typeof Symbol('a')` reports `"object"`, and two calls
+have no unique-symbol identity beyond object identity (known deviation — see
+TEST262.md Active priorities). Tests needing real symbols still skip via
+`feature: Symbol`.
 
 **C-style `for` per-iteration `let`/`const` environment (§14.7.4.3).**
 `Interpreter.evalForStmt` keeps three environments distinct, and a refactor must
@@ -1116,6 +1168,14 @@ are validated post-parse in a single walk
 (`JsParser.validateOptionalChainEarlyErrors`), not interleaved into the hot
 eval loop.
 
+**The sentinel → `undefined` conversion is not yet complete.** Several
+`PropertyAccess` exits (the `SHORT_CIRCUITED || context.isStopped()` guards
+on the write / call-target paths) `return null` rather than routing through
+`Interpreter.chainStepResult`, so a short-circuited chain can surface Java
+`null` — `o.x?.y` on an absent path reads as `null`, not `undefined`. Every
+such exit should yield the sentinel and let the chain root convert (known
+deviation — see TEST262.md Active priorities).
+
 ### Object literals & destructuring
 
 **Reserved words as object-literal keys.** `T_OBJECT_ELEM` /
@@ -1136,10 +1196,24 @@ between assignment and `var` / `let` / `const` paths.
 
 ### Numeric / coercion
 
-**Spec ToString unified** via `Terms.toStringCoerce(Object, CoreContext)`;
-`JsObjectPrototype` / `JsArrayPrototype` / `JsBooleanPrototype` /
-`JsNumberPrototype` use the spec-correct `toString`. Use
+**Object ToString is unified** via `Terms.toStringCoerce(Object, CoreContext)`
+— the ToPrimitive → `toString` dispatch for `ObjectLike` receivers. Use
 `StringUtils.formatJson` directly for JSON display, not the legacy formatter.
+
+**Number → String is NOT unified, and the spec-shaped formatter is the
+private one.** `Terms.numberToPropertyKey` is the only implementation of
+spec Number::toString (§6.1.6.1.13 — plain-decimal band `1e-6 ≤ |d| < 1e21`,
+`e+`/`e-` form outside it). Everything else falls back to Java's
+`Double.toString` at extreme magnitudes: `Terms.toStringCoerce` returns
+`o.toString()` for primitives / `JsValue`, `JsNumberPrototype.numberToString`
+ends in `n.toString()`, and `StringUtils.formatRecurse` appends a `Number`
+directly — so `String(1e21)` yields `"1.0E21"`, `String(-0)` yields `"-0.0"`,
+and `JSON.stringify({a:1e21})` emits invalid JSON. `Terms.parseFloat` is a
+hand-rolled digit walker with no exponent branch, so `parseFloat('1e21')`
+is `1`, and `ContextRoot.PARSE_FLOAT` feeds it `args[0] + ""` (Java
+formatting again). The fix is to promote `numberToPropertyKey` to the shared
+seam and route all four sites through it (known deviation — see TEST262.md
+Active priorities).
 
 **`Terms.toPrimitive` is the spec ToPrimitive boundary.** Object → primitive
 coercion (used by `BigInt()`, `Number()`, radix args of `toString`, `ToIndex`
@@ -1938,7 +2012,15 @@ the literal two characters — the test262 conformance contract differs
 from Java's regex error mode. Callback replacements (when `args[1]` is a
 `JsCallable`) live in `JsStringPrototype.regexReplace` so `JsRegex`
 doesn't need to depend on `JsCallable` / `Context`; the callback
-receives `(match, ...captures, offset, string)` per spec.
+receives `(match, ...captures, offset, string)` per spec, plus a trailing
+`groups` object when the pattern has named captures.
+
+**Function replacers currently ignore the `g` flag.**
+`regexReplace(s, regex, fn, context, global)` loops correctly, but
+`JsStringPrototype.replace` hard-codes `global = false` instead of forwarding
+`regex.global`, so `'a1b2'.replace(/\d/g, fn)` invokes `fn` once and splices
+only the first match. `replaceAll` passes `true` and is unaffected (known
+deviation — see TEST262.md Active priorities).
 
 ### `JsRegex.lastIndex` is a writable field
 

@@ -1,0 +1,10 @@
+const o = { a: { b: 1 }, fn: () => 5 };
+const n = null;
+if (o?.a?.b !== 1) throw new Error('a.b');
+if (n?.a?.b !== undefined) throw new Error('null chain');
+const k = 'a';
+if (o?.[k]?.b !== 1) throw new Error('computed');
+if (n?.[k] !== undefined) throw new Error('null computed');
+if (o.fn?.() !== 5) throw new Error('fn call');
+if (o.missing?.() !== undefined) throw new Error('missing call');
+if (n?.foo().bar !== undefined) throw new Error('short circuit chain');

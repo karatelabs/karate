@@ -1,0 +1,15 @@
+if ('a-b-c'.replaceAll('-', '+') !== 'a+b+c') throw new Error('replaceAll');
+if ('5'.padStart(3, '0') !== '005') throw new Error('padStart');
+if ('5'.padEnd(3, '-') !== '5--') throw new Error('padEnd');
+if ('abc'.at(-1) !== 'c') throw new Error('at(-1)');
+if ('  x  '.trimStart() !== 'x  ') throw new Error('trimStart');
+if ('  x  '.trimEnd() !== '  x') throw new Error('trimEnd');
+if (!'hello'.includes('ell')) throw new Error('includes');
+if (!'hello'.startsWith('he')) throw new Error('startsWith');
+if (!'hello'.endsWith('lo')) throw new Error('endsWith');
+if ('a,b,c'.split(',', 2).join('|') !== 'a|b') throw new Error('split limit');
+if ('ab'.repeat(3) !== 'ababab') throw new Error('repeat');
+if ('abc'.charCodeAt(0) !== 97) throw new Error('charCodeAt');
+if (String.fromCharCode(65, 66) !== 'AB') throw new Error('fromCharCode');
+if ('abc'.codePointAt(0) !== 97) throw new Error('codePointAt');
+if ('a'.localeCompare('b') >= 0) throw new Error('localeCompare');

@@ -1,0 +1,10 @@
+const r = [1,2,3,4,5].map(x => x * 2).filter(x => x > 4).reduce((a, b) => a + b, 0);
+if (r !== 24) throw new Error('chain ' + r);
+const arr = [5, 3, 9, 1];
+if (arr.find(x => x > 4) !== 5) throw new Error('find');
+if (arr.findIndex(x => x === 9) !== 2) throw new Error('findIndex');
+if (!arr.some(x => x > 8)) throw new Error('some');
+if (arr.every(x => x > 0) !== true) throw new Error('every');
+if (arr.includes(3) !== true) throw new Error('includes');
+if (arr.indexOf(9) !== 2) throw new Error('indexOf');
+if (arr.at(-1) !== 1) throw new Error('at(-1)');

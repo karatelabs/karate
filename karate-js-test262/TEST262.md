@@ -52,24 +52,16 @@ p=[r for r in rows if r['status']=='FAIL' and re.search(r'Expected a \w*Error bu
 print(len(p)); print(collections.Counter('/'.join(r['path'].split('/')[:3]) for r in p).most_common(8))"
 ```
 
-**Where it stands.** `test/language/**` is at **zero** matches. The last
-three fell to: spec ToNumeric on every numeric operator (`Terms` binary ops
-take the live ctx; `@@toPrimitive`/`valueOf` fire and their abrupt
-completions propagate), an @@iterator tamper check ahead of the JsArray
-iteration fast path (one identity check per GetIterator call), and
-category-triaged lexing of non-ASCII chars (Cf/Cc/Zl/Zp are SyntaxError,
-all Zs are whitespace, unknown-to-the-JDK chars stay lenient identifiers —
-plus JS-level `eval` now surfaces parse failures as catchable SyntaxError).
-
-**The remaining concentration is `test/built-ins/**`** — the filter yields
-~278 there, but most is absent-global noise (`Iterator` 46, `WeakMap` 44,
-`WeakSet` 34, `Promise` 33 — feature coverage, not ordering). The real
-signal: **`RegExp` 64 and `Array` 25** — built-in *entry-point* coercion
-order (a poisoned argument's error vs. the built-in's own arg-validation
-TypeError), which is the
+**Where it stands.** `test/language/**` is at **zero** matches. The
+remaining concentration is `test/built-ins/**`: mostly absent-global noise
+(`Iterator`, `WeakMap`, `WeakSet`, `Promise` — feature coverage, not
+ordering), with the real signal in `RegExp` and `Array` — built-in
+*entry-point* coercion order (a poisoned argument's error vs. the built-in's
+own arg-validation TypeError). That is the
 [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points)
-track, not interpreter machinery. Sample a few with `--single -v` before
-assuming they share one cause.
+track, not interpreter machinery — **spec-only by the real-world bar,
+deprioritized**. Sample a few with `--single -v` before assuming they share
+one cause.
 
 ---
 
@@ -239,37 +231,107 @@ streams to be tailed.**
 
 ## Active priorities
 
-**Next up — negative parse-phase early errors (the dominant `test/language`
-cluster).** These bucket under the `MissingParseError` error type (negative
-`phase: parse` tests the engine parses instead of rejecting — see
-[Results schema](#results-schema)); ~140 remain in the statements slice.
-Scope with: `jq -r 'select(.error_type=="MissingParseError").path'`. The
-residual is a long tail of distinct early errors: escaped-keyword /
-reserved-word misuse, `break`/`continue` to undefined labels, `new.target` /
-`super` outside a method, getter/setter arity, etc. Pick the next sub-cluster
-by count from the `MissingParseError` histogram. The `for-(of|in)/dstr/**`
-cluster (~56) is a fragmented tail of destructuring-pattern rules — lower
-leverage per unit effort. Known un-enforced parser corners: a `"use strict"`
-prologue inside a non-simple-parameter-list function is itself an early error;
-labelled function declarations (`label: function f(){}`) are not covered by
-the declaration-in-statement-position checks (the parser has no LABELLED node
-type). **Add each new early error as a per-node helper inside
-`JsParser.earlyErrors` — never another whole-tree walk** (that fusion is
-load-bearing for parse CPU; see
-[JS_ENGINE.md § Performance Benchmarks](../docs/JS_ENGINE.md#performance-benchmarks)).
+Reordered 2026-08-12 against the real-world bar, from two probes at HEAD:
+the `run-final4-lang` / `run-final4-builtins` run-dirs, and a 56-snippet
+idiomatic-JS smoke battery evaluated directly against the engine
+([Real-world smoke battery](#real-world-smoke-battery), 44/56 pass).
+The synchronous ES2015–ES2022 core an LLM leans on hardest — arrows,
+destructuring in every position, spread, optional chaining, `??`/`??=`,
+template + tagged literals, classes with getters/`extends`/`super`, custom
+`Error` subclasses, Map/Set, JSON round-trips, the modern
+String/Array/Object method sets, regex named groups + `matchAll` — is
+solid. What remains splits into three tiers.
 
-**Strict-mode residual** (the machinery itself is done — see
-[JS_ENGINE.md § Strict Mode Policy](../docs/JS_ENGINE.md#strict-mode-policy)):
-~16 runtime `SyntaxError` not thrown; ~14 strict-assignment runtime
-`TypeError` (arguments-object write guards et al.). `with`-statement early
-error stays deferred (`with` lexes as a call; `statements/with/**`
-path-skipped — negligible payoff).
+### P0 — silent wrong answers (valid code, wrong result, no error)
 
-Symbol stays parked — real-world JS doesn't use `Symbol(...)`, and the
-well-known symbols (`@@iterator` / `@@toPrimitive` / `@@toStringTag`)
-already work as string stand-ins. For current pass/fail/skip counts,
-query the latest run-dir (Recipes → [Failure triage](#failure-triage)) —
-counts go stale fast and don't belong in this file.
+The most dangerous class: nothing throws, output is just wrong.
+
+1. **Number→string is Java-formatted; `JSON.stringify` can emit invalid
+   JSON.** `String(1e21)` → `"1.0E21"` (spec: `"1e+21"`), `(1e-7)+''` →
+   `"1.0E-7"`, `String(-0)` → `"-0.0"`; `JSON.stringify({a:1e21})` →
+   `{"a":1.0E21}` — not JSON. Related: `parseFloat('1e21')` → `1`
+   (exponent dropped). One shared spec `Number::toString` seam fixes the
+   family.
+2. **Global regex function replacer fires once.**
+   `'a1b2'.replace(/\d/g, fn)` calls `fn` once, not per match. Everyday
+   pattern; string replacers with `/g` and single-match function replacers
+   are fine.
+3. **Arrow-function class fields lose `this`.**
+   `class C { f = () => this.x }` → `c.f()` sees the wrong `this`. Plain
+   field initializers (`b = this.a + 1`) work; specific to arrows.
+4. **Private fields half-parse.** `this.#count++` / `static #total` are
+   parse errors (fine), but `class C { #n = 7; get v(){ return this.#n } }`
+   parses and silently reads `undefined`. Either implement `#` fields or
+   reject them at parse — never half-accept.
+5. **`class C { async m(){} }` parses silently as a sync method** while
+   top-level `async function` is a parse error. Same rule: reject until
+   implemented (moot once P1.1 lands).
+6. **Optional chaining on an absent path returns `null`, not `undefined`**
+   (`o.x?.y`). Small fix, observable everywhere.
+
+### P1 — missing surface LLMs write constantly
+
+1. **async / await / Promise — the single largest gap** (~3.3k language
+   skips + all of `built-ins/Promise`; LLM-written JS is async-saturated).
+   Sketched path: sync subset — `Promise` as eager thenable,
+   `async function` runs sync, `await` sync-unwraps; `setTimeout` needs a
+   decision (see Deferred TODOs → feature gaps for constraints).
+2. **Generators** (`function*` / `yield` / `yield*`) — parse-level absence,
+   ~1.4k skips.
+3. **Labeled statements** (`outer: for(…){ break outer; }`) — parse error
+   today; LLM-common for nested-loop breaks. The parser has no LABELLED
+   node type (adding one also unblocks the label-related early-error
+   checks in the backlog below).
+4. **`globalThis`** — absent; trivial to bind and widely probed by
+   feature-detection code.
+5. **WeakMap / WeakSet** — absent; common in cache-flavored code. Non-weak
+   Map/Set-backed stand-ins are acceptable for this engine's short-lived
+   scripts.
+
+### P2 — error-UX Java leaks (principle #2)
+
+All edge-input, but each is a Java stack trace where a JS error belongs:
+`JSON.stringify` on circular structures → `StackOverflowError` (spec:
+`TypeError`); `JSON` replacer-array with non-string entries →
+`ClassCastException`; `RegExp` `exec`/`test` null-arg
+`Cannot invoke Object.toString()`; one catastrophic-backtracking `Timeout`
+(`RegExp/.../S15.10.2.8_A3_T17.js`); `Array` at near-2³² lengths leaking
+`Index out of bounds` / VM-limit / heap (`unshift`/`splice`/`reverse`);
+`String.prototype.replaceAll`/`endsWith` `Range […) out of bounds`.
+
+### Deprioritized spec-conformance backlog
+
+Touch only when a priority above drags it in:
+
+- **Negative parse-phase early errors** (`MissingParseError` — negative
+  `phase: parse` tests the engine parses instead of rejecting; scope with
+  `jq -r 'select(.error_type=="MissingParseError").path'`). Roughly a third
+  is regexp-literal validation, plus a fragmented destructuring-pattern
+  tail, escaped-keyword misuse, `break`/`continue` to undefined labels,
+  getter/setter arity, the non-simple-param `"use strict"` prologue, and
+  labelled-function-declaration checks. Rejecting invalid code that no LLM
+  writes is spec-lawyering by this file's own bar. When touched: **add each
+  early error as a per-node helper inside `JsParser.earlyErrors` — never
+  another whole-tree walk** (load-bearing for parse CPU; see
+  [JS_ENGINE.md § Performance Benchmarks](../docs/JS_ENGINE.md#performance-benchmarks)).
+- **Strict-mode residual** — machinery done; see Deferred TODOs →
+  [Engine — feature gaps](#engine--feature-gaps) for the canonical list.
+- **Built-in entry-point coercion order** (poisoned-argument probes in
+  RegExp/Array) — the
+  [§ Spec preamble](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points)
+  track.
+- **Symbol primitive** — parked; well-known symbols work as string
+  stand-ins. (Battery edge: `typeof Symbol('a')` → `'object'`.)
+- **Skip-list hygiene:** built-ins FAIL counts are dominated by absent
+  feature families that should be `features:` skips, not FAILs —
+  `Iterator` helpers, `ArrayBuffer`/`DataView`,
+  `DisposableStack`/`AsyncDisposableStack`/`using` declarations
+  (explicit-resource-management), `ShadowRealm`. Adding those rules makes
+  every future FAIL count signal instead of noise.
+
+For current pass/fail/skip counts, query the latest run-dir
+(Recipes → [Failure triage](#failure-triage)) — counts go stale fast and
+don't belong in this file.
 
 ### Built-in health — the business-rules / logic-scripting surface
 
@@ -278,13 +340,15 @@ methods business-rules and logic scripts actually lean on). Counts rot,
 so they're omitted — re-probe with `--only 'test/built-ins/<X>/**'` for
 fresh numbers. The *shape* of what's solid vs. gapped is the durable part:
 
-- **Number, Date, Object — solid.** `toFixed`/`parseInt`/`parseFloat`/
-  `toString(radix)`/`isNaN`/`isInteger`; Date parse/format/`getTime`/
-  `getFullYear`/arithmetic; `keys`/`values`/`entries`/`assign`/`freeze`/
-  `create`/`getPrototypeOf`/`hasOwn`/spread/`fromEntries` all work.
-  Residual fails are spec-corner arg-validation (missing `TypeError` on
-  bad args), descriptor-attribute edges, and Symbol gates — not core
-  method behavior. Object had **zero** Java-leak rows.
+- **Number, Date, Object — solid, with one P0 caveat.** `toFixed`/
+  `parseInt`/`toString(radix)`/`isNaN`/`isInteger`; Date parse/format/
+  `getTime`/`getFullYear`/arithmetic; `keys`/`values`/`entries`/`assign`/
+  `freeze`/`create`/`getPrototypeOf`/`hasOwn`/spread/`fromEntries` all
+  work. **Caveat: Number→string formatting is Java-shaped for extreme
+  magnitudes (and `parseFloat` drops large exponents) — P0.1 above.**
+  Other residual fails are spec-corner arg-validation, descriptor-attribute
+  edges, and Symbol gates — not core method behavior. Object had **zero**
+  Java-leak rows.
 - **String, Array — solid on the common path.** `split`/`replace`/`slice`/
   `substring`/`indexOf`/`includes`/`trim`/`pad`/case and `push`/`map`/
   `filter`/`reduce`/`slice`/`concat`/`find`/`sort`/`from`/spread all work.
@@ -293,21 +357,24 @@ fresh numbers. The *shape* of what's solid vs. gapped is the durable part:
   Java leaks — `String.prototype.replaceAll`/`endsWith` `Range […) out of
   bounds`, `Array` at near-2³³ lengths (`Index out of bounds` / VM-size /
   heap). Narrow but real; see Cleanup residuals.
-- **RegExp — solid for everyday patterns; advanced-pattern tail remains.**
-  `test`/`exec`/`match`/`replace` (string + function replacer) / `split` /
-  `search`, `g`/`i`/`m` flags, and **named-group capture** (`m.groups.name`,
-  `$<name>` substitution, the function-replacer `groups` arg) all work —
-  Java `Pattern` is the backend. Remaining gaps: lookbehind, unicode
-  property escapes, `/v` flag, group-name early-error validation; plus
-  null-arg Java leaks in `exec`/`test` and one catastrophic-backtracking
-  timeout. The `Symbol.{replace,match,matchAll,split,search}` *protocol*
-  fails are conformance-only — the everyday `str.replace(re, fn)` path does
-  not route through them and works.
+- **RegExp — solid for everyday patterns, with one P0 caveat.**
+  `test`/`exec`/`match`/`split`/`search`, string replacers (incl. `/g`),
+  single-match function replacers, `g`/`i`/`m` flags, and **named-group
+  capture** (`m.groups.name`, `$<name>` substitution, the function-replacer
+  `groups` arg) all work — Java `Pattern` is the backend. **Caveat: a
+  function replacer with `/g` fires once instead of per match — P0.2
+  above.** Remaining gaps: lookbehind, unicode property escapes, `/v` flag,
+  group-name early-error validation; plus null-arg Java leaks in
+  `exec`/`test` and one catastrophic-backtracking timeout (P2). The
+  `Symbol.{replace,match,matchAll,split,search}` *protocol* fails are
+  conformance-only — the everyday `str.replace(re, fn)` path does not
+  route through them.
 
 **Bottom line for the target workload:** String/Number/Date/Array/Object
-are dependable, and RegExp now covers the common path including named
-groups; the residual RegExp tail (lookbehind / unicode escapes / `/v` /
-early-error validation) is advanced-pattern territory.
+are dependable and RegExp covers the common path including named groups —
+*modulo the two P0 silent-wrong bugs above* (Number→string formatting,
+`/g` function replacer). The residual RegExp tail (lookbehind / unicode
+escapes / `/v` / early-error validation) is advanced-pattern territory.
 
 | Slice | What's blocking it |
 |---|---|
@@ -318,7 +385,7 @@ early-error validation) is advanced-pattern territory.
 | `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS now fires under in-body `"use strict"` (the `onlyStrict`-flagged variants stay SKIP until the runner runs a strict pass); `A5.*_T2/T3` family (non-identifier LHS — Annex-B carve-out). |
 | `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion and empty-`for`-header semantics handle the headline cases. Residual in `for/`: loop completion-value `undefined`-vs-`null` (`head-init-*-check-empty-inc-empty-completion.js`) and `let` as a plain identifier in a for head (`head-lhs-let.js`, parser). |
 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` (Symbol-gated). |
-| `test/built-ins/RegExp/**` | Group-name early-error validation, `Symbol.{match,replace,search,split,matchAll}` protocol (Symbol-gated, conformance-only — everyday `str.replace(re,fn)` doesn't use it), lookbehind / unicode-property-escapes / `/v` flag (feature-gated), one functional-replace-global ordering case. Null-arg Java leaks + one catastrophic-backtracking timeout in `exec`/`test` (principle #2 — see Cleanup residuals). |
+| `test/built-ins/RegExp/**` | **`/g` function replacer fires once — P0.2.** Group-name early-error validation, `Symbol.{match,replace,search,split,matchAll}` protocol (Symbol-gated, conformance-only — everyday `str.replace(re,fn)` doesn't use it), lookbehind / unicode-property-escapes / `/v` flag (feature-gated). Null-arg Java leaks + one catastrophic-backtracking timeout in `exec`/`test` (P2). |
 | `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` ToInteger corners; parser-blocked; Symbol-gated tail; `replaceAll`/`endsWith` `Range […) out of bounds` Java leaks (principle #2). See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
 | `test/built-ins/Object/**` | Descriptor edges; `seal` (TypedArray-gated); Annex-B `arguments` aliasing. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
 | `test/built-ins/JSON/**` | `JSON.stringify` reviver/replacer 2-arg semantics; `-0`/`__proto__` parser tail. Calibration: run JSONTestSuite — see [JS_ENGINE.md § Future TODO Items](../docs/JS_ENGINE.md#2-future-todo-items). |
@@ -339,26 +406,19 @@ Picked off opportunistically when nearby — not session-sized on their own.
   `JsBuiltinMethod` infra in place; most residual `name.js` fails are
   Symbol-gated.
 
-- **RegExp named-groups residual** (capture access itself works): group-name
-  **early-error validation** (`(?<__proto__>…)` / `(?<_>…)` should
-  SyntaxError — engine accepts; part of the parser-tightening sweep), and one
-  global functional-replace argument-ordering case
-  (`named-groups/functional-replace-global.js` — `«badc»` vs `«bacd»`; worth
-  a focused look).
+- **RegExp group-name early-error validation** (capture access itself
+  works): `(?<__proto__>…)` / `(?<_>…)` should SyntaxError — engine
+  accepts; part of the parser-tightening sweep. (The functional-replace
+  misbehavior that used to sit here turned out to be the `/g`
+  fire-once bug — promoted to P0.2.)
 
 - **BoundNames walk residual**: object-method simple-param duplicate in
   sloppy code (rare).
 
-- **Cleanup residuals** — occasional `"null"` NPE paths, `IllegalName`
-  JDK lambda leak, `Java heap space` OOM in array-slice paths. Concrete
-  principle-#2 leaks to chase:
-  `String.prototype.replaceAll`/`endsWith` throwing Java `Range […) out of
-  bounds` instead of behaving/throwing-as-JS; `RegExp` `exec`/`test`
-  surfacing `Cannot invoke Object.toString() because args[N] is null` on
-  null args + one catastrophic-backtracking `Timeout`
-  (`RegExp/.../S15.10.2.8_A3_T17.js`); `Array` at near-2³³ lengths leaking
-  `Index out of bounds` / `Requested array size exceeds VM limit` / heap
-  (`unshift`/`splice`/`reverse`). All confined to edge/pathological inputs.
+- **Cleanup residuals** — the concrete principle-#2 Java-leak list now
+  lives in [Active priorities → P2](#p2--error-ux-java-leaks-principle-2).
+  Also seen occasionally: `"null"` NPE paths and an `IllegalName` JDK
+  lambda leak. All confined to edge/pathological inputs.
 
 ---
 
@@ -380,10 +440,14 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   runtime `TypeError` (arguments-object write guards); `with`-statement early
   error deferred (path-skipped, lexes as a call); the non-simple-param
   `"use strict"` prologue corner (see [Active priorities](#active-priorities)).
-- **Promises / async / await / setTimeout.** Skipped (`feature: Promise`,
-  `async-functions`, `Symbol.asyncIterator`). karate-js is synchronous.
-  Viable path: sync subset first — `Promise` as eager thenable,
-  `async function` runs sync, `await` sync-unwraps.
+- **Promises / async / await / setTimeout — PROMOTED to
+  [Active P1.1](#p1--missing-surface-llms-write-constantly).** Currently
+  skipped (`feature: Promise`, `async-functions`, `Symbol.asyncIterator`);
+  karate-js is synchronous. Design constraints to settle before building:
+  eager-sync subset vs. a real job queue; whether `await` needs thread-based
+  suspension (the interpreter is a recursive tree-walk — it cannot suspend
+  mid-frame without threads or CPS); `setTimeout` semantics; Java interop
+  (`CompletableFuture` mapping) and executor lifecycle/shutdown.
 - **Class syntax (ES6) — core works; only the conformance tail remains.**
   Declarations + expressions evaluate: constructor, instance/static methods,
   accessors, computed names, `extends` + `super(...)` + `super.method()`,
@@ -391,8 +455,10 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   constructor-function + prototype machinery (`Interpreter.evalClassExpr`;
   super dispatch via `JsFunctionNode.homeObject` + `CoreContext.activeFunction`;
   `extends Error`/built-ins via a copy-own-props shim). Covered by `JsClassTest`.
-  **Remaining tail (deferred):** private `#x` fields/methods, generator/async
-  methods, decorators, static-init blocks, class early-errors,
+  **Remaining tail:** private `#x` fields/methods (**half-parse silent-wrong
+  → P0.4**), arrow-function fields losing `this` (**P0.3**), async methods
+  silently sync (**P0.5**), generator methods (**P1.2**), decorators,
+  static-init blocks, class early-errors,
   object-literal-method `super` (needs object [[HomeObject]]), two super edge
   cases (`this`-TDZ before `super()`, `super()` return-override),
   numeric/string-literal method-name canonicalization (`get 0x10(){}` → key
@@ -805,6 +871,28 @@ Prompt template (copy, fill in `<glob>`, paste into `Agent`):
 Use it for: slice probes, cluster triage, "did my engine change regress
 anything" checks, post-edit slice re-runs. Skip for small targeted
 lookups (one test, one symbol) — run those inline.
+
+### Real-world smoke battery
+
+A ~56-snippet battery of idiomatic modern JS (the constructs LLMs actually
+emit: arrows, destructuring, spread, optional chaining, classes, async,
+generators, regex named groups, …), each snippet self-checking and throwing
+on a wrong result. Lives in [`etc/smoke/`](etc/smoke/) — `Smoke.java` evals
+every `etc/smoke/snippets/*.js` in a fresh `Engine` and prints one
+PASS/FAIL line per snippet plus a total.
+
+```sh
+mvn -f ../pom.xml -pl karate-js -o test-compile -q
+CP="../karate-js/target/classes:$(find ~/.m2/repository -name 'slf4j-api-*.jar' | head -1)"
+javac -cp "$CP" -d target/smoke etc/smoke/Smoke.java
+java -cp "$CP:target/smoke" Smoke etc/smoke/snippets
+```
+
+This is the fastest end-to-end answer to "does everyday JS still work" —
+run it after engine changes for a 2-second gut check (it complements, not
+replaces, the unit tests and slice diffs). Add a snippet when a real-world
+breakage is found; a failing snippet is a roadmap item by definition.
+TODO: promote into a proper JUnit test under `karate-js` so it runs in CI.
 
 ### Check performance after an engine change
 

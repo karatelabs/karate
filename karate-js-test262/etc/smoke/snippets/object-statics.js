@@ -1,0 +1,10 @@
+const o = { a: 1, b: 2 };
+if (Object.keys(o).join(',') !== 'a,b') throw new Error('keys');
+if (Object.values(o).join(',') !== '1,2') throw new Error('values');
+if (Object.entries(o).length !== 2) throw new Error('entries');
+const t = Object.assign({}, o, { c: 3 });
+if (t.c !== 3 || t.a !== 1) throw new Error('assign');
+const fe = Object.fromEntries([['x', 1], ['y', 2]]);
+if (fe.x !== 1 || fe.y !== 2) throw new Error('fromEntries');
+if (!Object.prototype.hasOwnProperty.call(o, 'a')) throw new Error('hasOwnProperty');
+if (!o.hasOwnProperty('a')) throw new Error('hasOwnProperty direct');

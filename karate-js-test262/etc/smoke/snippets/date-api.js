@@ -1,0 +1,11 @@
+const d = new Date(2024, 0, 15);
+if (d.getFullYear() !== 2024) throw new Error('getFullYear ' + d.getFullYear());
+if (d.getMonth() !== 0) throw new Error('getMonth');
+if (d.getDate() !== 15) throw new Error('getDate');
+const iso = new Date(Date.UTC(2024, 0, 15)).toISOString();
+if (iso !== '2024-01-15T00:00:00.000Z') throw new Error('toISOString ' + iso);
+if (typeof Date.now() !== 'number') throw new Error('Date.now');
+if (Date.now() < 1600000000000) throw new Error('Date.now range');
+const p = new Date('2024-01-15T00:00:00.000Z');
+if (p.getTime() !== 1705276800000) throw new Error('parse ' + p.getTime());
+if (typeof new Date().getTime() !== 'number') throw new Error('no-arg ctor');

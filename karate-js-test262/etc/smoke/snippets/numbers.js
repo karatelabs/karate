@@ -1,0 +1,16 @@
+if (2 ** 10 !== 1024) throw new Error('exponent');
+if ((-2) ** 2 !== 4) throw new Error('neg exponent');
+let n = 2; n **= 3;
+if (n !== 8) throw new Error('**=');
+if (Number.isInteger(5) !== true) throw new Error('isInteger');
+if (Number.isInteger(5.5) !== false) throw new Error('isInteger f');
+if (Number.isNaN(NaN) !== true) throw new Error('isNaN');
+if (Number.isFinite(Infinity) !== false) throw new Error('isFinite');
+if (parseFloat('3.14abc') !== 3.14) throw new Error('parseFloat');
+if (parseInt('42px', 10) !== 42) throw new Error('parseInt');
+if (parseInt('ff', 16) !== 255) throw new Error('parseInt hex');
+if ((1.005).toFixed(2).length !== 4) throw new Error('toFixed');
+if ((3.14159).toFixed(2) !== '3.14') throw new Error('toFixed val');
+if (Number('12') !== 12) throw new Error('Number()');
+if (Number.MAX_SAFE_INTEGER !== 9007199254740991) throw new Error('MAX_SAFE');
+if ((255).toString(16) !== 'ff') throw new Error('toString radix');

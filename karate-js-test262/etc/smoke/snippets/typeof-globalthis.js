@@ -1,0 +1,14 @@
+let u;
+if (typeof u !== 'undefined') throw new Error('undefined');
+if (typeof notDeclaredAnywhere !== 'undefined') throw new Error('undeclared');
+if (typeof (() => 1) !== 'function') throw new Error('function');
+if (typeof {} !== 'object') throw new Error('object');
+if (typeof null !== 'object') throw new Error('null');
+if (typeof [] !== 'object') throw new Error('array');
+if (typeof 1 !== 'number') throw new Error('number');
+if (typeof 'x' !== 'string') throw new Error('string');
+if (typeof true !== 'boolean') throw new Error('boolean');
+if (typeof Symbol() !== 'symbol') throw new Error('symbol');
+if (typeof globalThis === 'undefined') throw new Error('globalThis missing');
+globalThis.__myTestVar = 7;
+if (__myTestVar !== 7) throw new Error('globalThis assignment');

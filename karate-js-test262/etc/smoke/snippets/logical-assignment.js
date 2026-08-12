@@ -1,0 +1,12 @@
+let a = null; a ??= 5;
+if (a !== 5) throw new Error('??= ' + a);
+let b = 0; b ??= 9;
+if (b !== 0) throw new Error('??= keeps 0');
+let c = ''; c ||= 'x';
+if (c !== 'x') throw new Error('||=');
+let d = 1; d &&= 2;
+if (d !== 2) throw new Error('&&=');
+let e = 0; e &&= 2;
+if (e !== 0) throw new Error('&&= short');
+const o = { n: null }; o.n ??= 'v';
+if (o.n !== 'v') throw new Error('member ??=');

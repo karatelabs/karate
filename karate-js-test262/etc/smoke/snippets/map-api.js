@@ -1,0 +1,14 @@
+const m = new Map();
+m.set('a', 1).set('b', 2);
+if (m.get('a') !== 1) throw new Error('get');
+if (!m.has('b')) throw new Error('has');
+if (m.size !== 2) throw new Error('size ' + m.size);
+m.delete('a');
+if (m.size !== 1) throw new Error('delete');
+if (m.get('zzz') !== undefined) throw new Error('missing');
+const m2 = new Map([[1, 'x']]);
+if (m2.get(1) !== 'x') throw new Error('ctor iterable');
+if ([...m2.keys()].length !== 1) throw new Error('keys');
+let acc = '';
+m2.forEach((v, k) => { acc += k + v; });
+if (acc !== '1x') throw new Error('forEach ' + acc);

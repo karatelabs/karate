@@ -1,0 +1,10 @@
+const ms = [...'a1b2c3'.matchAll(/([a-z])(\d)/g)];
+if (ms.length !== 3) throw new Error('matchAll len ' + ms.length);
+if (ms[1][1] !== 'b' || ms[1][2] !== '2') throw new Error('groups');
+if (!/HELLO/i.test('hello')) throw new Error('i flag');
+if (!/\d+/g.test('abc 123')) throw new Error('g flag test');
+if ('a1b22c'.split(/\d+/).join('|') !== 'a|b|c') throw new Error('split regex');
+if ('a,b;c'.split(/[,;]/).length !== 3) throw new Error('split class');
+if ('abc'.match(/b/)[0] !== 'b') throw new Error('match');
+if ('a1a2'.match(/a\d/g).length !== 2) throw new Error('match g');
+if ('abc'.search(/c/) !== 2) throw new Error('search');
