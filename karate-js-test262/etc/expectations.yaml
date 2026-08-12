@@ -143,10 +143,10 @@ skip:
       reason: WeakRef not implemented
     - feature: FinalizationRegistry
       reason: FinalizationRegistry not implemented
-    - feature: WeakMap
-      reason: WeakMap not implemented
-    - feature: WeakSet
-      reason: WeakSet not implemented
+    # WeakMap / WeakSet un-skipped 2026-08-12: Map/Set-backed non-weak
+    # stand-ins (JsWeakMap* / JsWeakSet*) — full method surface, object-key
+    # TypeErrors, no size/iteration. GC-weakness itself is not modeled
+    # (short-lived scripts), which test262 cannot observe anyway.
     # Promise / Promise.any / Promise.allSettled un-skipped: JsPromise +
     # JsPromiseConstructor implement the constructor, all / allSettled / any /
     # race / resolve / reject and then / catch / finally, driven by the async job

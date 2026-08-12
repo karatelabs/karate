@@ -54,8 +54,8 @@ print(len(p)); print(collections.Counter('/'.join(r['path'].split('/')[:3]) for 
 
 **Where it stands.** `test/language/**` is at **zero** matches. The
 remaining concentration is `test/built-ins/**`: mostly absent-global noise
-(`Iterator`, `WeakMap`, `WeakSet`, `Promise` — feature coverage, not
-ordering), with the real signal in `RegExp` and `Array` — built-in
+(`Iterator`, `Promise` — feature coverage, not ordering), with the real
+signal in `RegExp` and `Array` — built-in
 *entry-point* coercion order (a poisoned argument's error vs. the built-in's
 own arg-validation TypeError). That is the
 [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points)
@@ -281,9 +281,9 @@ generators/iterators, `setInterval`, `queueMicrotask` — deferred.)*
    today; LLM-common for nested-loop breaks. The parser has no LABELLED
    node type (adding one also unblocks the label-related early-error
    checks in the backlog below).
-3. **WeakMap / WeakSet** — absent; common in cache-flavored code. Non-weak
-   Map/Set-backed stand-ins are acceptable for this engine's short-lived
-   scripts.
+*(P1.3 WeakMap / WeakSet shipped 2026-08-12 as Map/Set-backed non-weak
+stand-ins — full method surface, object-key TypeErrors, no size/iteration;
+feature skips removed.)*
 
 ### P2 — error-UX Java leaks (principle #2)
 

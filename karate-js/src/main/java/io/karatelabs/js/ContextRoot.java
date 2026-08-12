@@ -154,7 +154,7 @@ class ContextRoot implements Context {
                  "encodeURI", "decodeURI", "undefined", "Array", "Date", "Error", "Function",
                  "Infinity", "Java", "JSON", "Map", "Math", "NaN", "Number", "BigInt", "Boolean",
                  "Object", "Promise", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
-                 "SyntaxError", "URIError", "EvalError", "AggregateError",
+                 "SyntaxError", "URIError", "EvalError", "AggregateError", "WeakMap", "WeakSet",
                  "TextEncoder", "TextDecoder", "Uint8Array", "globalThis",
                  "setTimeout", "clearTimeout",
                  "isNaN", "isFinite", "eval", "Symbol", "Reflect" -> true;
@@ -264,6 +264,8 @@ class ContextRoot implements Context {
                 case "RegExp" -> new JsRegexConstructor();
                 case "Set" -> new JsSetConstructor();
                 case "String" -> new JsStringConstructor();
+                case "WeakMap" -> new JsWeakMapConstructor();
+                case "WeakSet" -> new JsWeakSetConstructor();
                 case "Error" -> new JsErrorConstructor(JsErrorPrototype.ERROR, 1);
                 case "TypeError" -> new JsErrorConstructor(JsErrorPrototype.TYPE_ERROR, 1);
                 case "RangeError" -> new JsErrorConstructor(JsErrorPrototype.RANGE_ERROR, 1);
@@ -341,7 +343,8 @@ class ContextRoot implements Context {
             };
             case "Array", "Date", "Function", "Error", "Map", "Number", "BigInt", "Boolean",
                  "Object", "Promise", "RegExp", "Set", "String", "TypeError", "ReferenceError", "RangeError",
-                 "SyntaxError", "URIError", "EvalError", "AggregateError" -> builtinConstructor(key);
+                 "SyntaxError", "URIError", "EvalError", "AggregateError",
+                 "WeakMap", "WeakSet" -> builtinConstructor(key);
             // the top-level `this` object, under its spec name
             case "globalThis" -> thisObject;
             case "setTimeout" -> new JsBuiltinMethod("setTimeout", 2, AsyncSupport::setTimeout);
