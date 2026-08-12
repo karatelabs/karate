@@ -1,6 +1,6 @@
-# JS_ENGINE_PLAN — async / await / Promise (revision 3)
+# JS_ENGINE_PLAN — async / await / Promise (revision 4)
 
-**Status: design under review (round 3) — not yet implemented.** This file is
+**Status: design under review (round 4) — not yet implemented.** This file is
 transient: once the implementation lands, the durable invariants move into
 [JS_ENGINE.md](./JS_ENGINE.md), the roadmap entries in
 [TEST262.md](../karate-js-test262/TEST262.md) get struck, and this file is
@@ -36,7 +36,22 @@ activation's preserved stack can never re-enter a later eval, idempotent
 token handles with an atomic `publishSuccessor`, serialized outer evals
 with a shared-scope nesting contract, reaction-level unhandled-rejection
 semantics, a leak-safe CompletionStage identity cache, and enforceable
-lifecycle deadlines. Rev 3 (this text) folds all ten in.
+lifecycle deadlines. Rev 3 folded all ten in.
+
+Round 3 confirmed the architecture sound and the deadlock gone, verified
+eight of the ten amendments as fully addressed, and narrowed the remaining
+work to four localized protocol holes: a post-host-return fence (host code
+can swallow interrupts, so a stuck activation needs a closed-scope check at
+every host-call return, and the interpreter poll must test scope closure as
+well as interruption), a lifecycle self-join cycle (a `stop()` calling
+`shutdownAll()` must get a non-blocking in-progress handle, not join a
+result that depends on itself), explicit startup unwind ownership (token
+release on vthread-start failure, no unmatched `unlock()` on interrupted
+outcome-wait, repeated outcome publication as failed CAS), and
+activation-initiated cancellation being delegated to the pump owner rather
+than self-joining. It also ratified engine poisoning for the
+non-interruptible-host-code residual, with exact semantics. Rev 4 (this
+text) folds those in.
 
 ---
 
@@ -132,10 +147,20 @@ Calling an async function:
    argument binding — runs inside a try whose `finally` **always** publishes
    an outcome: any pre-body failure publishes `FAILED` (after settling the
    result promise as rejected); vthread start failure is detected by the
-   caller and treated as `FAILED` too. If the caller's outcome-wait is
-   interrupted, it cancels the scope (below) and exits via
-   `EngineInterruptedException`. The result promise is always settled
-   *before* `COMPLETED`/`FAILED` is published.
+   caller and treated as `FAILED` too. The result promise is always settled
+   *before* `COMPLETED`/`FAILED` is published. **Explicit unwind ownership
+   rules:** (a) the outcome cell is a single CAS — a `finally` that finds an
+   outcome already published (e.g. `SUSPENDED` preceded a later failure
+   path) is a harmless failed CAS, never a second publication; (b) if
+   vthread creation/start fails, the *caller* releases the activation token
+   and settles the promise as rejected — token ownership transfers to the
+   activation only once it has actually started; (c) the caller releases
+   `jsLock` *before* parking on the outcome cell, and on an interrupted
+   outcome-wait it initiates scope cancellation and propagates
+   `EngineInterruptedException` **without touching `jsLock`** — lock
+   ownership at that point belongs to the activation (or nobody), and the
+   caller's unwind path must never execute an unmatched `unlock()`;
+   reacquisition happens only on the normal post-outcome path.
 3. The activation runs the body under `jsLock`. Completion without
    suspension: settle promise → publish `COMPLETED` → release lock (in
    `finally`) → exit.
@@ -154,8 +179,10 @@ Calling an async function:
    preserved stack. Settled-await fast path: an `await` whose target is
    already settled does not suspend (accepted deviation — no microtask
    yield).
-6. Each live activation holds one token; released (after settling the
-   promise and enqueuing its callback jobs) per iron rule 3.
+6. Each live activation holds one token. Settlement-with-callbacks goes
+   through the same atomic facade as everything else: the activation's
+   token is retired via `publishSuccessor` with one successor token per
+   enqueued callback job (never "settle, enqueue loosely, then release").
 
 Top-level `await` (the program body is the one non-activation async
 context; a plain non-async function never contains an AWAIT_EXPR — the
@@ -234,6 +261,29 @@ activations and callbacks interleave with top-level code.
   cancelled activation's preserved stack can never mutate a later eval's
   state. This closes both reused-engine leakage and the zombie-activation
   hazard.
+- **Post-host-return fence.** The gate checks above cover *parked*
+  activations; an activation already inside a host/interop call has passed
+  them, and host code may swallow or clear interrupt status. Therefore:
+  the interpreter's interruption poll (`checkInterrupted`) tests **both**
+  thread interruption **and** current-scope closure, and a closed-scope
+  check runs at every host-call return boundary before any further JS
+  executes or anything is settled/published. A stale activation returning
+  from host code exits at that boundary.
+- **Activation-initiated cancellation.** An activation that hits a fatal
+  internal error does not tear the scope down itself (it would join its
+  own thread): it marks the scope cancellation-requested and exits; the
+  teardown is performed by the pump owner (the outer eval thread), which
+  excludes already-exited activations from the join and counts the
+  initiator terminated when its wrapper exits.
+- **Engine poisoning (residual case).** If the teardown deadline expires
+  with an activation still stuck in non-interruptible host code, the
+  engine is **poisoned**: a permanent, atomic transition made *before* the
+  timed-out teardown returns. Subsequent evals check the poison flag
+  before waiting for scope ownership or touching `jsLock` and fail fast
+  with an error identifying the stuck activation/scope. The stuck
+  activation stays registered until it actually exits (the post-host-return
+  fence guarantees it executes no JS when it does). Embedders must not
+  return poisoned engines to any reuse pool.
 - **Drain cap:** `Engine` option (e.g. `setAsyncDrainTimeout(Duration)`),
   default off (cooperative interrupt / `Sandbox.TimeBox` remain the outer
   bound). On expiry: cancel the scope as above and throw a distinct
@@ -381,11 +431,13 @@ Bound in `ContextRoot` to the global object (small P1 item riding along).
   rest — it is interrupted, marked timed-out, and the sequence continues).
   Stops run in reverse registration order with per-component try/catch;
   the call returns a result summary (stopped / failed / timed-out per
-  component) as well as logging it. Concurrent or reentrant callers (a
-  `stop()` calling `shutdownAll()`) **join the in-progress shutdown's
-  result** rather than getting a silent no-op. `register()` after shutdown
-  has begun uses the immediate bounded-stop path with whatever deadline
-  remains.
+  component) as well as logging it. Reentrancy is split by origin —
+  **external** concurrent callers block and receive the final shared
+  result; a call **originating inside the active shutdown worker** (a
+  component's `stop()` calling `shutdownAll()` — a self-join cycle if it
+  blocked) returns immediately with a non-blocking in-progress handle.
+  `register()` after shutdown has begun uses the immediate bounded-stop
+  path with whatever deadline remains.
 
 ## Accepted deviations from spec (stage 1)
 
@@ -398,18 +450,15 @@ Bound in `ContextRoot` to the global object (small P1 item riding along).
 5. Fair-lock scheduling order among runnable activations is approximate,
    not spec's exact job ordering.
 
-## Questions for review round 3
+## Questions for review round 4
 
-1. Verify each round-2 amendment is now actually specified tightly enough
-   to implement without relying on unstated race behavior — in particular
-   the startup-outcome cell, the `publishSuccessor` facade, and the fenced
-   awaited teardown.
-2. The teardown wait is bounded by the teardown deadline; if an activation
-   is stuck in host code that never polls interruption, teardown times out.
-   Specify-check: is "engine poisoned — subsequent evals fail fast with a
-   descriptive error" the right terminal state for that residual case (vs.
-   waiting forever)? (Proposed: yes, poison the engine.)
-3. Any remaining hole or stage-2 lock-in.
+1. Confirm the four round-3 holes are closed as specified (post-host-return
+   fence + scope-closure in the interpreter poll; lifecycle reentrancy
+   split by origin; startup unwind ownership rules a/b/c; pump-owner
+   delegation for activation-initiated cancellation), and that the engine
+   poisoning semantics match what round 3 required.
+2. Anything else standing between this text and "implementable as
+   specified".
 
 ## Staging & verification
 
@@ -431,6 +480,9 @@ Bound in `ContextRoot` to the global object (small P1 item riding along).
   pass; 44 stay green), **concurrency barrier tests** for: start failure,
   interrupt-before-started, unpark-before-park, close-vs-publish races,
   cancellation of a running activation, stale reacquisition, nested eval,
-  scope-cache reclamation; un-skip `async-functions`/`Promise` in test262
+  scope-cache reclamation, the poison transition (stuck host call →
+  fail-fast next eval → clean exit at the host-return fence), and
+  lifecycle reentrancy (external join vs. in-shutdown non-blocking
+  handle); un-skip `async-functions`/`Promise` in test262
   expectations and record fresh counts, TEST262.md/JS_ENGINE.md updated,
   this file deleted.
