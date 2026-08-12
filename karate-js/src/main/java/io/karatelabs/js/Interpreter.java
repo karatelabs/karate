@@ -133,7 +133,9 @@ class Interpreter {
     }
 
     private static List<Node> fnArgs(Node fnArgs) {
-        List<Node> list = new ArrayList<>(fnArgs.size() - 2);
+        // less the two paren tokens — an async arrow's single parameter is wrapped in a
+        // synthesized FN_DECL_ARGS that has no parens, so the floor matters
+        List<Node> list = new ArrayList<>(Math.max(1, fnArgs.size() - 2));
         for (int i = 0, n = fnArgs.size(); i < n; i++) {
             Node fnArg = fnArgs.get(i);
             if (fnArg.type != NodeType.FN_DECL_ARG) {
@@ -838,8 +840,20 @@ class Interpreter {
         if (first.type != NodeType.FN_EXPR || first.size() < 2) {
             return false;
         }
-        Node second = first.get(1);
+        int nameIndex = fnKeywordIndex(first) + 1;
+        if (first.size() <= nameIndex) {
+            return false;
+        }
+        Node second = first.get(nameIndex);
         return second.token != null && second.token.type == IDENT;
+    }
+
+    /**
+     * Index of the {@code function} keyword within an {@code FN_EXPR} — 1 rather than 0
+     * for `async function`, where the contextual `async` identifier precedes it.
+     */
+    private static int fnKeywordIndex(Node fnExpr) {
+        return fnExpr.getFirst().token.type == FUNCTION ? 0 : 1;
     }
 
     private static Object evalFnExpr(Node node, CoreContext context) {
@@ -848,21 +862,25 @@ class Interpreter {
         if (node.getFirst().type == NodeType.FN_DECL_ARGS) {
             return new JsFunctionNode(false, node, fnArgs(node.getFirst()), node.getLast(), context);
         }
-        if (node.get(1).token.type == IDENT) {
-            JsFunctionNode fn = new JsFunctionNode(false, node, fnArgs(node.get(2)), node.getLast(), context);
-            context.put(node.get(1).getText(), fn);
+        int i = fnKeywordIndex(node);
+        if (node.get(i + 1).token.type == IDENT) {
+            JsFunctionNode fn = new JsFunctionNode(false, node, fnArgs(node.get(i + 2)), node.getLast(), context);
+            context.put(node.get(i + 1).getText(), fn);
             return fn;
         } else {
-            return new JsFunctionNode(false, node, fnArgs(node.get(1)), node.getLast(), context);
+            return new JsFunctionNode(false, node, fnArgs(node.get(i + 1)), node.getLast(), context);
         }
     }
 
     private static Object evalFnArrowExpr(Node node, CoreContext context) {
         List<Node> argNodes;
-        if (node.getFirst().token.type == IDENT) {
-            argNodes = Collections.singletonList(node);
+        // `x => ...` keeps its single parameter as the node's own first child; every
+        // other form — including every async arrow — carries an FN_DECL_ARGS.
+        Node first = node.async ? node.get(1) : node.getFirst();
+        if (first.type == NodeType.FN_DECL_ARGS) {
+            argNodes = fnArgs(first);
         } else {
-            argNodes = fnArgs(node.getFirst());
+            argNodes = Collections.singletonList(node);
         }
         return new JsFunctionNode(true, node, argNodes, node.getLast(), context);
     }
@@ -1602,13 +1620,25 @@ class Interpreter {
                 evalAccessorElem(elem, keyNode.getText(), context, result);
                 continue;
             }
+            // ES2017 async method: `{ async m() {} }` — the same leading-modifier shape as
+            // an accessor, so the key structure starts one child later. The method's
+            // async-ness is already recorded on the synthetic FN_EXPR by the parser.
+            // {async: 1} / {async} / {async() {}} have no FN_EXPR past position 1 and so
+            // keep `async` as their key.
+            int keyPos = 0;
+            if (token == IDENT && "async".equals(keyNode.getText())
+                    && elem.size() > 2 && accessorFnExprPosition(elem) > 1) {
+                keyPos = 1;
+                keyNode = elem.get(keyPos);
+                token = keyNode.token.type;
+            }
             // Computed keys: [expr] — OBJECT_ELEM starts with L_BRACKET, EXPR, R_BRACKET.
             // The value (or FN_EXPR for shorthand method) follows at position 3.
             boolean computed = token == L_BRACKET;
-            int afterKeyPos = computed ? 3 : 1;
+            int afterKeyPos = keyPos + (computed ? 3 : 1);
             String key;
             if (computed) {
-                Object keyValue = evalExpr(elem.get(1), context);
+                Object keyValue = evalExpr(elem.get(keyPos + 1), context);
                 key = Terms.toStringCoerce(keyValue, context);
             } else if (token == DOT_DOT_DOT) {
                 key = null; // spread has no key — handled below by spreadInto
@@ -2595,6 +2625,11 @@ class Interpreter {
             case TRY_STMT -> evalTryStmt(node, context);
             case TYPEOF_EXPR -> evalTypeofExpr(node, context);
             case UNARY_EXPR -> evalUnaryExpr(node, context);
+            // `await <expr>` — parse-level support only for now: the operand is evaluated
+            // and passed through unchanged. There are no promises to unwrap yet, and an
+            // async function runs synchronously, so awaiting an already-settled value is
+            // the identity. The runtime phase replaces this with the real unwrap.
+            case AWAIT_EXPR -> eval(node.get(1), context);
             case VAR_STMT -> evalVarStmt(node, context);
             case WHILE_STMT -> evalWhileStmt(node, context);
             case DO_WHILE_STMT -> evalDoWhileStmt(node, context);

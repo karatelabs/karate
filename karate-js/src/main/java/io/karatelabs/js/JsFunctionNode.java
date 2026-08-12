@@ -39,6 +39,11 @@ class JsFunctionNode extends JsFunction {
     static final Logger logger = LoggerFactory.getLogger(JsFunctionNode.class);
 
     final boolean arrow;
+    // True for an `async` function / method / arrow, taken from the defining node's
+    // parse-time marker. Carried but not yet acted on: an async function still runs
+    // synchronously and returns its body's value rather than a promise. The runtime
+    // phase is what gives this flag behavior.
+    final boolean async;
     final Node node;
     final Node body; // STATEMENT or BLOCK (that may return expr)
     final List<Node> argNodes;
@@ -91,6 +96,7 @@ class JsFunctionNode extends JsFunction {
     JsFunctionNode(boolean arrow, Node node, List<Node> argNodes, Node body, CoreContext declaredContext,
                    boolean forceStrict) {
         this.arrow = arrow;
+        this.async = node.async;
         this.node = node;
         this.argNodes = argNodes;
         this.argCount = argNodes.size();

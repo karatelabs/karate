@@ -58,6 +58,18 @@ public class Node {
 
     public final NodeType type;
     public final Token token;
+    /**
+     * The {@code async} modifier, for the node types that can carry one — {@code FN_EXPR}
+     * (a declaration / expression / object-literal method / class method) and
+     * {@code FN_ARROW_EXPR}. It is a field rather than a child token because {@code async}
+     * is a contextual keyword that the lexer emits as a plain {@code IDENT}: an extra
+     * leading child would shift every positional lookup the interpreter does on those two
+     * node types, and a synthesized method has no token of its own to carry the marker.
+     * Written by the parser during tree construction only — same read-only-once-parsed
+     * convention as the children, and a {@code boolean} written before publication is safe
+     * to share (see the class javadoc).
+     */
+    public boolean async;
     // Raw array storage - null for TOKEN nodes, allocated on first child
     private Node[] children;
     private short childCount;

@@ -42,6 +42,18 @@ public class JsParser extends BaseParser {
     // `for (var x = (a in b); cond; upd)` still works as a relational `in`.
     private boolean noIn;
 
+    // True where `await` is an operator rather than an identifier: inside an async
+    // function / method / arrow, and at the top level of a program (top-level await
+    // is supported by design — this engine embeds as a scripting engine). Every
+    // function body sets it to its own async-ness and restores it after, so an
+    // ordinary function nested inside an async one goes back to treating `await` as
+    // a plain identifier, as the spec requires.
+    private boolean inAsync = true;
+
+    // The source text, for the allocation-free identifier comparisons that decide
+    // the `async` / `await` contextual keywords (see isIdentText).
+    private final String source;
+
     // EnumSet token sets for O(1) lookup in hot paths
     private static final EnumSet<TokenType> T_VAR_STMT = EnumSet.of(VAR, CONST, LET);
     private static final EnumSet<TokenType> T_ASSIGN_EXPR = EnumSet.of(EQ, PLUS_EQ, MINUS_EQ, STAR_EQ, SLASH_EQ, PERCENT_EQ, STAR_STAR_EQ, GT_GT_EQ, LT_LT_EQ, GT_GT_GT_EQ, AMP_EQ, PIPE_EQ, CARET_EQ, PIPE_PIPE_EQ, AMP_AMP_EQ, QUES_QUES_EQ);
@@ -101,11 +113,12 @@ public class JsParser extends BaseParser {
     private boolean sawOptionalChain;
 
     public JsParser(Resource resource) {
-        super(resource, JsLexer.getTokens(resource), false);
+        this(resource, false);
     }
 
     public JsParser(Resource resource, boolean errorRecovery) {
         super(resource, JsLexer.getTokens(resource), errorRecovery);
+        source = resource.getText();
     }
 
     /**
@@ -524,7 +537,8 @@ public class JsParser extends BaseParser {
      *  is the single IDENT token between {@code function} and the parameter list;
      *  arrows and anonymous expressions reach FN_DECL_ARGS first and return. */
     private static void checkFunctionName(Node fn) {
-        for (int i = 0, n = fn.size(); i < n; i++) {
+        // an `async function` puts the contextual `async` IDENT before the keyword
+        for (int i = fn.async ? 1 : 0, n = fn.size(); i < n; i++) {
             Node child = fn.get(i);
             if (child.isToken()) {
                 if (child.token.type == IDENT) {
@@ -721,7 +735,8 @@ public class JsParser extends BaseParser {
      *  heritage / body. {@code null} for an anonymous form (no statement-position
      *  binding). */
     private static String declarationName(Node decl) {
-        for (int i = 0, n = decl.size(); i < n; i++) {
+        // an `async function` puts the contextual `async` IDENT before the keyword
+        for (int i = decl.async ? 1 : 0, n = decl.size(); i < n; i++) {
             Node ch = decl.get(i);
             if (ch.isToken()) {
                 TokenType tt = ch.token.type;
@@ -1524,6 +1539,13 @@ public class JsParser extends BaseParser {
         if (!enter(NodeType.FOR_STMT, FOR)) {
             return false;
         }
+        // `for await (x of asyncIterable)` needs async iteration, which the engine does
+        // not have — say so rather than failing on the unexpected identifier.
+        Token token = peekToken();
+        if (token.type == IDENT && token.length == 5 && isIdentText(token, "await")) {
+            error("`for await` (async iteration) is not supported yet");
+            consumeNext(); // error-recovery mode only — otherwise error() already threw
+        }
         consumeSoft(L_PAREN);
         boolean prevNoIn = noIn;
         noIn = true;
@@ -1717,7 +1739,8 @@ public class JsParser extends BaseParser {
             return false;
         }
         enter(NodeType.EXPR);
-        boolean result = ref_expr() // also handles single-arg arrow functions without parentheses
+        boolean result = contextual_expr() // `async` function / arrow, `await` — both lex as IDENT
+                || ref_expr() // also handles single-arg arrow functions without parentheses
                 || lit_expr()
                 || fn_expr()
                 || class_expr()
@@ -1864,10 +1887,136 @@ public class JsParser extends BaseParser {
         }
     }
 
+    /**
+     * The {@code async} / {@code await} contextual keywords. Both lex as plain
+     * {@code IDENT} (so {@code var async = 1}, <code>{async: 1}</code>, {@code a.async},
+     * {@code function f(async)} and {@code var await = 5} all keep working), which means
+     * their expression forms have to be recognized here — before {@link #ref_expr()}
+     * claims the identifier. Rejecting is a token-type test plus a length test for
+     * everything that is not a five-character identifier starting with {@code a}, so the
+     * check in front of every expression stays cheap.
+     */
+    private boolean contextual_expr() {
+        Token token = peekToken();
+        if (token.type != IDENT || token.length != 5 || source.charAt(token.pos) != 'a') {
+            return false;
+        }
+        if (inAsync && isIdentText(token, "await")) {
+            return await_expr();
+        }
+        // fn_expr() also carries the `async function` form, so that a declaration keeps
+        // reaching it from statement position (hoisting, no ASI requirement)
+        return isIdentText(token, "async") && (async_arrow_expr() || fn_expr());
+    }
+
+    /**
+     * {@code await UnaryExpression} — a prefix operator at the same precedence as the
+     * other unary operators, so {@code await a + b} is {@code (await a) + b}. Reached only
+     * where {@link #inAsync} holds. It stays an identifier when what follows cannot start
+     * an expression, which is what keeps {@code await = 1}, {@code await.x}, {@code f(await)}
+     * and {@code var await = 5; await;} parsing in sloppy top-level code.
+     */
+    private boolean await_expr() {
+        if (!T_EXPR_START.contains(peekAhead(1).type)) {
+            return false;
+        }
+        enter(NodeType.AWAIT_EXPR);
+        consumeNext(); // the `await` identifier token
+        expr(13, true);
+        return exit();
+    }
+
+    /**
+     * {@code async (a, b) => …} and {@code async x => …}. Per spec no LineTerminator may
+     * come between {@code async} and the parameters, so {@code async}<br>{@code x => x} is
+     * the identifier {@code async} instead. The single-parameter form gets a synthetic
+     * {@code FN_DECL_ARGS}/{@code FN_DECL_ARG} wrapper so every async arrow has the same
+     * parameter shape as a parenthesized one — the bare-IDENT parameter shape of
+     * {@code x => …} is only readable when that identifier is the node's first child.
+     */
+    private boolean async_arrow_expr() {
+        Token asyncToken = peekToken();
+        Token next = peekAhead(1);
+        boolean parens = next.type == L_PAREN && looksLikeArrowFunction(getPosition() + 1);
+        boolean single = next.type == IDENT && peekAhead(2).type == EQ_GT;
+        if ((!parens && !single) || lineTerminatorFollows(asyncToken)) {
+            return false;
+        }
+        enter(NodeType.FN_ARROW_EXPR);
+        markerNode().async = true;
+        consumeNext(); // `async`
+        if (parens) {
+            if (!fn_decl_args()) {
+                error(NodeType.FN_DECL_ARGS);
+                return exit(false, false);
+            }
+        } else {
+            enter(NodeType.FN_DECL_ARGS);
+            enter(NodeType.FN_DECL_ARG);
+            consumeNext(); // the single parameter
+            exit();
+            exit();
+        }
+        consumeSoft(EQ_GT);
+        if (!fn_body_or_expr(true)) {
+            error(NodeType.BLOCK, NodeType.EXPR);
+        }
+        return exit();
+    }
+
+    /** True if {@code token} is an {@code IDENT} spelling exactly {@code text}. Compares
+     *  against the source directly: this sits on the per-expression path for the contextual
+     *  keywords, and {@link Token#getText()} would allocate the memoized-text array for
+     *  identifiers nothing else asks about. Callers check the token type. */
+    private boolean isIdentText(Token token, String text) {
+        if (token.length != text.length()) {
+            return false;
+        }
+        for (int i = 0, n = text.length(); i < n; i++) {
+            if (source.charAt(token.pos + i) != text.charAt(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** The primary token {@code offset} positions ahead of the cursor; {@link Token#EMPTY}
+     *  (an EOF) past the end. */
+    private Token peekAhead(int offset) {
+        int index = getPosition() + offset;
+        return index < tokens.size() ? tokens.get(index) : Token.EMPTY;
+    }
+
+    /** A function / method body, parsed with {@code await} enabled or disabled to match the
+     *  function's own async-ness — an ordinary function nested inside an async one must go
+     *  back to treating {@code await} as an identifier. */
+    private boolean fn_body(boolean async) {
+        boolean prevAsync = inAsync;
+        inAsync = async;
+        try {
+            return block(true);
+        } finally {
+            inAsync = prevAsync;
+        }
+    }
+
+    /** An arrow-function body — a block or a concise expression — with the same
+     *  await-scoping rule as {@link #fn_body(boolean)}. Arrows do not inherit the enclosing
+     *  function's async-ness: only an async arrow may contain {@code await}. */
+    private boolean fn_body_or_expr(boolean async) {
+        boolean prevAsync = inAsync;
+        inAsync = async;
+        try {
+            return block(false) || expr(-1, false);
+        } finally {
+            inAsync = prevAsync;
+        }
+    }
+
     private boolean fn_arrow_expr() {
         // Fast lookahead: skip if this can't be an arrow function
         // Avoids creating nodes that will be discarded on backtrack
-        if (!looksLikeArrowFunction()) {
+        if (!looksLikeArrowFunction(getPosition())) {
             return false;
         }
         enter(NodeType.FN_ARROW_EXPR);
@@ -1876,7 +2025,7 @@ public class JsParser extends BaseParser {
         // and paren_expr() is next in line in expr() to handle
         if (fn_decl_args()) {
             if (consumeIf(EQ_GT)) {
-                if (block(false) || expr(-1, false)) {
+                if (fn_body_or_expr(false)) {
                     return exit();
                 }
                 error(NodeType.BLOCK, NodeType.EXPR);
@@ -1885,9 +2034,10 @@ public class JsParser extends BaseParser {
         return exit(false, false);
     }
 
-    // Lookahead to detect arrow function: (...) =>
-    private boolean looksLikeArrowFunction() {
-        if (peek() != L_PAREN) {
+    // Lookahead to detect arrow function: (...) => — from `start`, which is the cursor
+    // except for `async (…) =>`, where the parameter list begins one token later.
+    private boolean looksLikeArrowFunction(int start) {
+        if (start >= tokens.size() || tokens.get(start).type != L_PAREN) {
             return false;
         }
         // Track both () and {} depth so destructured object params (`({a}) =>`) and
@@ -1896,7 +2046,7 @@ public class JsParser extends BaseParser {
         int parenDepth = 0;
         int curlyDepth = 0;
         int size = tokens.size();
-        for (int i = getPosition(); i < size; i++) {
+        for (int i = start; i < size; i++) {
             TokenType t = tokens.get(i).type;
             if (t == L_PAREN) {
                 parenDepth++;
@@ -1918,12 +2068,30 @@ public class JsParser extends BaseParser {
     }
 
     private boolean fn_expr() {
-        if (!enter(NodeType.FN_EXPR, FUNCTION)) {
+        if (enter(NodeType.FN_EXPR, FUNCTION)) {
+            return fn_expr_tail(false);
+        }
+        // `async function …`, declaration or expression. `async` is a contextual keyword
+        // and only a modifier when `function` follows it on the same line — with a
+        // LineTerminator between them it is the identifier `async` (an expression
+        // statement) followed by a separate function declaration.
+        Token token = peekToken();
+        if (token.type != IDENT || token.length != 5 || peekAhead(1).type != FUNCTION
+                || !isIdentText(token, "async") || lineTerminatorFollows(token)) {
             return false;
         }
+        enter(NodeType.FN_EXPR);
+        markerNode().async = true;
+        consumeNext(); // `async`
+        consumeNext(); // `function`
+        return fn_expr_tail(true);
+    }
+
+    // Everything after the `function` keyword: optional name, parameters, body.
+    private boolean fn_expr_tail(boolean async) {
         consumeIf(IDENT);
         fn_decl_args();
-        block(true);
+        fn_body(async);
         return exit();
     }
 
@@ -2068,6 +2236,7 @@ public class JsParser extends BaseParser {
     // distinguishes the two by the presence of the trailing FN_EXPR.
     private boolean class_element() {
         enter(NodeType.CLASS_METHOD);
+        boolean async = false;
         while (true) {
             if (consumeIf(L_BRACKET)) { // computed key [expr] — always the final key
                 expr(-1, true);
@@ -2090,6 +2259,16 @@ public class JsParser extends BaseParser {
                     && (peekAnyOf(T_CLASS_KEY_NAME) || peekIf(L_BRACKET))) {
                 continue; // it was a modifier — loop to consume the real key
             }
+            // ES2017 `async name() {}` / `static async name() {}`. Modifier only when a
+            // key follows on the same line: `async` alone on its line stays a field name,
+            // per the spec's no-LineTerminator restriction. Until this existed the async
+            // was silently dropped — the member parsed as a field named `async` plus an
+            // ordinary (synchronous) method.
+            if ("async".equals(text) && (peekAnyOf(T_CLASS_KEY_NAME) || peekIf(L_BRACKET))
+                    && !lineTerminatorFollows(markerNode().getLast().token)) {
+                async = true;
+                continue;
+            }
             // Not followed by `(` and not a modifier — a class field (`x` / `x = expr`).
             return class_field_tail();
         }
@@ -2097,8 +2276,9 @@ public class JsParser extends BaseParser {
             return class_field_tail(); // computed-key field: `[k]` / `[k] = expr`
         }
         enter(NodeType.FN_EXPR);
+        markerNode().async = async;
         fn_decl_args();
-        block(true);
+        fn_body(async);
         exit();
         return exit();
     }
@@ -2126,7 +2306,7 @@ public class JsParser extends BaseParser {
             return false;
         }
         if (enter(NodeType.FN_ARROW_EXPR, EQ_GT)) {
-            if (block(false) || expr(-1, false)) {
+            if (fn_body_or_expr(false)) {
                 exit(Shift.LEFT); // change the node type
             } else {
                 error(NodeType.BLOCK, NodeType.EXPR);
@@ -2233,24 +2413,16 @@ public class JsParser extends BaseParser {
         if (lastConsumed() == IDENT
                 && ("get".equals(lastConsumedText()) || "set".equals(lastConsumedText()))
                 && peekAnyOf(T_ACCESSOR_KEY_START)) {
-            if (consumeIf(L_BRACKET)) {
-                expr(-1, true);
-                if (!consumeIf(R_BRACKET)) {
-                    error(R_BRACKET);
-                    return exit(false, false);
-                }
-            } else if (!anyOf(T_ACCESSOR_KEY_START)) {
-                error(IDENT, S_STRING);
-                return exit(false, false);
-            }
-            enter(NodeType.FN_EXPR);
-            fn_decl_args();
-            block(true);
-            exit();
-            if (!(consumeIf(COMMA) || peekIf(R_CURLY))) {
-                error(COMMA, R_CURLY);
-            }
-            return exit();
+            return object_method_elem(false);
+        }
+        // ES2017 async method: `async name(args) { ... }`. Same modifier rule as get/set —
+        // `async` counts as one only when a property name follows on the same line, so
+        // {async: 1}, {async} and {async() {}} (a method actually named `async`) are
+        // untouched. The async-ness is recorded on the synthetic FN_EXPR.
+        if (lastConsumed() == IDENT && "async".equals(lastConsumedText())
+                && peekAnyOf(T_ACCESSOR_KEY_START)
+                && !lineTerminatorFollows(markerNode().getLast().token)) {
+            return object_method_elem(true);
         }
         // ES6 computed key: `[expr]: value` or `[expr](args) { body }`.
         // The L_BRACKET was consumed by enter; parse the key expression and R_BRACKET here,
@@ -2271,7 +2443,7 @@ public class JsParser extends BaseParser {
         if (peekIf(L_PAREN)) {
             enter(NodeType.FN_EXPR);
             fn_decl_args();
-            block(true);
+            fn_body(false);
             exit();
             if (!(consumeIf(COMMA) || peekIf(R_CURLY))) {
                 error(COMMA, R_CURLY);
@@ -2293,6 +2465,33 @@ public class JsParser extends BaseParser {
         if (!spread) {
             expr(-1, true);
         }
+        if (!(consumeIf(COMMA) || peekIf(R_CURLY))) {
+            error(COMMA, R_CURLY);
+        }
+        return exit();
+    }
+
+    /** The tail of an object-literal member that carries a leading modifier token
+     *  ({@code get} / {@code set} / {@code async}): the property name — a single name token
+     *  or a computed {@code [expr]} — then the method body as a synthetic {@code FN_EXPR},
+     *  then the element separator. The OBJECT_ELEM node is on the stack with the modifier
+     *  token already consumed. */
+    private boolean object_method_elem(boolean async) {
+        if (consumeIf(L_BRACKET)) {
+            expr(-1, true);
+            if (!consumeIf(R_BRACKET)) {
+                error(R_BRACKET);
+                return exit(false, false);
+            }
+        } else if (!anyOf(T_ACCESSOR_KEY_START)) {
+            error(IDENT, S_STRING);
+            return exit(false, false);
+        }
+        enter(NodeType.FN_EXPR);
+        markerNode().async = async;
+        fn_decl_args();
+        fn_body(async);
+        exit();
         if (!(consumeIf(COMMA) || peekIf(R_CURLY))) {
             error(COMMA, R_CURLY);
         }

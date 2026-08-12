@@ -78,6 +78,7 @@ public enum NodeType {
     REF_DOT_EXPR,
     REF_BRACKET_EXPR,
     UNARY_EXPR,
+    AWAIT_EXPR,
     LIT_OBJECT,
     OBJECT_ELEM,
     LIT_ARRAY,
@@ -131,7 +132,7 @@ public enum NodeType {
             // growth risk. (EXPR_LIST is excluded — the comma operator can hold N.)
             case EXPR, REF_EXPR, LIT_EXPR, EOS -> 1;
             // Two-child nodes: operator + operand. STATEMENT measured p95/max=2.
-            case UNARY_EXPR, TYPEOF_EXPR, MATH_PRE_EXPR, MATH_POST_EXPR,
+            case UNARY_EXPR, AWAIT_EXPR, TYPEOF_EXPR, MATH_PRE_EXPR, MATH_POST_EXPR,
                  LIT_REGEX, BREAK_STMT, CONTINUE_STMT,
                  PLACEHOLDER, FN_DECL_ARG, FN_CALL_ARG, ARRAY_ELEM,
                  FN_TAGGED_TEMPLATE_EXPR, STATEMENT, EXPR_LIST -> 2;
