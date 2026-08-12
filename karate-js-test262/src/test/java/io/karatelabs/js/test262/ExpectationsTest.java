@@ -77,12 +77,12 @@ class ExpectationsTest {
 
         Test262Metadata m = new Test262Metadata(
                 java.util.List.of(), java.util.List.of(),
-                java.util.List.of("assert.js", "promiseHelper.js"),
+                java.util.List.of("assert.js", "detachArrayBuffer.js"),
                 null, false, null);
         Test262Case c = syntheticCase("test/built-ins/Object/proto.js", m);
         String reason = exp.matchSkip(c);
         assertNotNull(reason);
-        assertTrue(reason.toLowerCase().contains("promise"), reason);
+        assertTrue(reason.toLowerCase().contains("arraybuffer"), reason);
     }
 
     private static Test262Case syntheticCase(String relPath, Test262Metadata m) {

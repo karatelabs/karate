@@ -147,7 +147,11 @@ Each session that touches the engine should:
    so the next session has a diff target.
 2. **Unit tests:** `mvn -f pom.xml -pl karate-js -o test` →
    `Tests run: 1265+, Failures: 0, Errors: 0, Skipped: 2` (count grows as
-   `SpecPinTest` accretes invariants).
+   `SpecPinTest` accretes invariants). **If you edited
+   `etc/expectations.yaml` or anything under this module's `src/`, also
+   run `mvn -f ../pom.xml -pl karate-js-test262 -o test`** — the harness
+   has its own unit tests (`ExpectationsTest` et al.) that CI runs and the
+   karate-js/karate-core gates do not cover.
 3. **test262 built-ins probe:** diff `results.jsonl` against the previous
    run. **Zero regressions (PASS → FAIL).** Document any flip in the commit
    message.
