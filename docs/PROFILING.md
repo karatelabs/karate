@@ -982,10 +982,13 @@ etc/ec2/collect.sh; echo "exit=$?"    # MUST be 1, naming that directory
 etc/ec2/ssh.sh injector 'rm -rf ~/karate/karate-profiling/target/profiling/suite-soak-2026-01-01-000000'
 ```
 
-**Last exercised in full 2026-08-08, all passing**; `collect.sh`'s histogram include was
-exercised for real by E1R, and the js lane, `collect.sh` and `teardown.sh` were exercised
-again 2026-08-12 at `93fe950b0` (the slot-frames decision matrix, including a mid-session
-recovery). Skip them when `git log --oneline 93fe950b0.. -- ':/karate-profiling/etc/ec2'`
+**Last exercised in full 2026-08-08, all passing**; the js lane, `collect.sh` and
+`teardown.sh` were exercised again 2026-08-12 at `93fe950b0`, and again 2026-08-13 at
+`5f813f893` (the R1/J1 bench session: selftest, the collect plant-test fired, js-matrix
+`--quick` on both the jar and engine arm paths, two collect+teardown cycles;
+`calibrate.sh`/`matrix.sh` were not run — the Gatling lane was untouched and their last
+change predates `93fe950b0`). Skip them when
+`git log --oneline 5f813f893.. -- ':/karate-profiling/etc/ec2'`
 is empty (the `:/` pathspec anchors at the repo root — a relative pathspec run from the
 wrong directory matches nothing and prints a false "skip") — make the check, do not assume
 it, and move the sha forward when a session exercises the battery.
@@ -994,16 +997,18 @@ it, and move the sha forward when a session exercises the battery.
 
 **The Gatling arc is PAUSED as of 2026-08-07** (E2–E4 below, designs kept so nothing is
 re-derived), and **the suite-soak arc is closed** — the settled entry below carries E1/E1R's
-figures and reopening conditions. **R1's local harness is built and gated (2026-08-13); the
-queued next work is one bench session carrying R1's first cells and J1's remaining
-arithmetic variants together**; everything else here is a deliberate decision to start.
+figures and reopening conditions. **The R1-first-cells + J1-arithmetic-variants bench
+session ran 2026-08-13** — R1's Graviton baseline is below, and J1's arithmetic half
+carries a recommended close. **Nothing is queued**; everything here is a deliberate
+decision to start.
 
 #### J1 — slot frames: the arithmetic half
 
 Slot frames landed on decision-grade evidence (the settled entry below; port commit
-`93fe950b0`, param-binding race fix `144e04293`). Two guard rows paid; one is closed, one
-remains open, and the closed one's evidence is compressed here to what stops a re-run —
-full readouts are beside the digests in `$KP_RESULTS` (`j1diag-local/`, `j1knobs-local/`)
+`93fe950b0`, param-binding race fix `144e04293`). Two guard rows paid; one is closed, and
+the other's variant matrices have now run with a recommended close on the table (below).
+The closed halves' evidence is compressed here to what stops a re-run — full readouts are
+beside the digests in `$KP_RESULTS` (`j1diag-local/`, `j1knobs-local/`, `j1v-*`, `j1a-*`)
 and in git history.
 
 **The large-1k half is CLOSED — accepted 2026-08-13 (Peter).** `js-large-1k`
@@ -1054,12 +1059,34 @@ added to every `REF_EXPR` read/write/compound/inc-dec fast path, and `Node` grow
 `slot` + a volatile `meta` reference (the parse-allocation term). An external (Codex)
 review independently produced the same ranked list.
 
-**The experiment: mechanism-isolating build variants, one at a time, decided on the EC2
-bench** — un-outline the tails, devolatilize `node.meta`, drop the `node.slot` branch —
-four-pair matrices, `functions`/`mixed` primary with `arithmetic`/`large-1k` as guards.
-Local JFR pairs of the diagnostic shape cannot resolve it; more of them is spend without
-information. Scratch branches `j1/slot-stats`, `j1/force-call`, `j1/eager-gate`,
-`j1/cheap-analysis` are local-only raw material.
+**The variant matrices ran 2026-08-13** (single-host bench; branches `j1/v-unoutline`,
+`j1/v-meta-plain`, `j1/v-no-slot-branch` — the third removes the REF_EXPR slot branches
+and is A/B'd with `-Dkarate.js.slotFrames=false` on both arms; 2-pair 4-row screens in
+`$KP_RESULTS/j1v-*`, then 4-pair arithmetic-only extensions in `$KP_RESULTS/j1a-*`):
+**no candidate recovers the regression.** Arithmetic, variant vs base: un-outline
+**+1.08 ± 3.68**, devolatilize-meta **+2.04 ± 2.04**, drop-branches **+1.81 ± 3.59** —
+all centered positive, respectively ~1.4, ~3.0 and ~1.6 sd away from a true −4% recovery
+(disfavored, not excluded — the sds themselves are the next finding); the guards were
+flat at screen resolution. **And the instrument finding that bounds all of it: the
+same-session same-jar arithmetic null read −1.66 ± 4.13 over 4 pairs** — both hosts
+provisioned that day carried an arithmetic-row floor of several percent (single runs
+±5–8% apart on identical bytes), where the 2026-08-12 host resolved the same row at
+±0.70. **The row's resolution varied materially by host instance across these sessions**
+— two noisy hosts and one quiet one is an observation, not a law, but it is enough to
+make host qualification a precondition.
+
+**Where that leaves the arithmetic half:** structural (+3.92 ± 0.70 cross-build on a
+quiet host), not flag-gated, and not attributable to any *single* removable mechanism —
+all three candidates disfavored, consistent with the cost being distributed code layout
+plus the ~+1.5% `Node` parse-allocation term that remains the one stable cross-arm
+delta. **Recommended: accept and close as the large-1k half was** — the port's five-row
+geomean already nets −4.97% with this regression priced in; the acceptance is the
+operator's call, not this document's. *If reopened*: **qualify the host first** — run
+the same-jar arithmetic null (`--pairs 4 --rows js-arithmetic`, base jar both arms) and
+require sd ≲ 1% before spending variant matrices; an unqualified host cannot resolve the
+question, and two of the three hosts tried could not. Scratch branches `j1/slot-stats`,
+`j1/force-call`, `j1/eager-gate`, `j1/cheap-analysis`, `j1/v-unoutline`,
+`j1/v-meta-plain`, `j1/v-no-slot-branch` are local-only raw material.
 
 Protocol for any further change: local on/off A/B first — and raise `--iterations` (`js-large-1k` 200k →
    ~400k, `js-functions` 300k → ~450k; the other defaults are 400k arithmetic / 800k strings
@@ -1188,9 +1215,25 @@ that puts the gap near ~1.55× geomean, functions ~1.8×, mixed ~1.7× — the d
   orientation under both arm orders, mixed hardware classes dropped by name, an engine
   row without a sha ineligible, fresh-scope/sealed-root/unique-source lifecycle) — the
   §10 lesson that an instrument that cannot say the bad thing is not an instrument.
-  **Still ahead of the first bench cells**: `etc/ec2/js-matrix.sh` grows engine-arm
-  support (it currently speaks `--jar-a/--jar-b` only), and the warmup-sensitivity
-  rehearsal runs on the bench host itself.
+- **First bench cells — taken 2026-08-13** (single `c7g.4xlarge`, build `68ff73d`,
+  JDK 24, karate arm jar `5f813f89`, 4 pairs, JFR off, workload defaults; digests and
+  frozen tables in `$KP_RESULTS/r1-*`). **karate ÷ rhino-best on Graviton**: arithmetic
+  **1.588**, strings **1.686**, objects **1.250**, functions **1.352** (its own matrix at
+  450k iterations — at the 300k default the rhino arm's window is 18 s, under the
+  startup-shaped check), mixed **1.771**, large-1k guard **1.153**; five-row geomean
+  **1.52** — composed across the two same-session matrices, so quote per-row figures from
+  their own tables. Gates all passed: both null geomeans near zero (**+0.43%** karate, **−0.20%** rhino),
+  with arithmetic the conspicuously unstable row on the karate null (+3.58 ± 6.73 — its
+  host-dependent floor is a J1 finding, below) and every other row's mean within ±1.9%;
+  the warmup-sensitivity rehearsal at 2s/5s/15s held the functions ratio
+  within ±0.3% with no monotonic trend (arithmetic swung ±4% *non*-monotonically — the
+  row's noise, not warmup). This is the Graviton **new baseline** the decision anticipated,
+  never a re-measurement of the published x64 ratios; against the composed going-in
+  estimate it is consistent overall (~1.52 vs ~1.55) and notably better on functions
+  (1.35 directly co-measured vs ~1.8 composed — composition across separate tables
+  overstated exactly the row the slot-frames work moved). **Open next, as deliberate
+  decisions**: the mechanism-attribution cells (JFR-on, either arm), and any second
+  hardware class.
 
 ### Paused — the Gatling arc
 
@@ -1236,9 +1279,10 @@ about to be published; ~20 + ~30 min.
 ### Bench budget
 
 Two `c7g.4xlarge` are ~$1.16/hr; provision + bootstrap is ~6 min of every session. **The suite-soak
-arc is closed** — E1 and E1R together answer the leak question and measure the step-log release. The
-next bench session is the R1-first-cells + J1-arithmetic-variants pairing described above (single
-Graviton host, ~$0.60/hr); the table below prices the paused Gatling arc for whenever it resumes.
+arc is closed** — E1 and E1R together answer the leak question and measure the step-log release —
+and **the R1-first-cells + J1-variants session ran 2026-08-13** (single Graviton host, ~3.4 h
+across two provisionings, ~$2.00). The table below prices the paused Gatling arc for whenever it
+resumes.
 
 | | settles | bench time | ~cost |
 |---|---|---:|---:|
