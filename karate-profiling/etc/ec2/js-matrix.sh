@@ -1,10 +1,24 @@
 #!/usr/bin/env bash
-# Drive a karate-js A/B matrix on the injector: two builds of the karate-js jar, the js-*
-# workload rows, alternating pairs. Single host, no mock — the js family is in-JVM.
+# Drive a js A/B matrix on the injector: two arms over the js-* workload rows, alternating
+# pairs. Single host, no mock — the js family is in-JVM. An arm is either a karate-js jar
+# (--jar-X, built by etc/js-arm.sh — the karate arm's identity mechanism) or a named engine
+# (--engine-X, currently `rhino-best` only — the R1 head-to-head reference arm, whose
+# identity is engine + Rhino version + resolved-jar sha256, recorded by the harness in each
+# digest's run-meta).
 #
 #   jar_a=$(etc/js-arm.sh <base-ref>)          # A = base
 #   jar_b=$(etc/js-arm.sh <candidate-ref>)     # B = candidate
 #   etc/ec2/js-matrix.sh --jar-a "$jar_a" --jar-b "$jar_b" --pairs 4 --label my-ab
+#
+#   # the R1 lane: cross-engine head-to-head, and its two null controls
+#   etc/ec2/js-matrix.sh --jar-a "$jar" --engine-b rhino-best --pairs 4 --label r1-h2h
+#   etc/ec2/js-matrix.sh --jar-a "$jar" --jar-b "$jar"                 --label r1-null-karate
+#   etc/ec2/js-matrix.sh --engine-a rhino-best --engine-b rhino-best   --label r1-null-rhino
+#
+# Engine arms need the bench build rhino-ready: bootstrap.sh builds the profiling module
+# with -Prhino (adapter compiled, pinned Rhino jar in ~/.m2 and on target/cp.txt). The
+# parent refuses an engine run against a classpath built without it, so a stale host fails
+# loudly rather than measuring the wrong thing.
 #
 # Protocol notes, all deliberate:
 #   - every run is --no-jfr: recording cost tracks allocation rate, so two builds that
@@ -21,6 +35,8 @@ source "$(dirname "$0")/lib.sh"
 
 jar_a=
 jar_b=
+engine_a=
+engine_b=
 pairs=4
 gap=10
 label=
@@ -35,6 +51,10 @@ while (($#)); do
     case "$1" in
         --jar-a)  jar_a="$2"; shift 2 ;;
         --jar-b)  jar_b="$2"; shift 2 ;;
+        # An engine arm instead of a jar arm — see the header. Validated below to the one
+        # name the harness accepts, so nothing unvetted crosses the remote shell.
+        --engine-a) engine_a="$2"; shift 2 ;;
+        --engine-b) engine_b="$2"; shift 2 ;;
         --pairs)  pairs="$2"; shift 2 ;;
         --gap)    gap="$2"; shift 2 ;;
         --label)  label="$2"; shift 2 ;;
@@ -70,10 +90,25 @@ fi
 [[ -z "$iterations" || "$iterations" != *[!0-9]* ]] || die "--iterations must be a number: $iterations"
 [[ -z "$warmup" || "$warmup" != *[!0-9smh]* ]] || die "--warmup must look like 2s/1m: $warmup"
 
-[[ -n "$jar_a" && -n "$jar_b" ]] || die "--jar-a and --jar-b are required (build with etc/js-arm.sh <ref>)"
-[[ -f "$jar_a" && -f "$jar_b" ]] || die "arm jar missing: $jar_a / $jar_b"
-[[ -f "$jar_a.manifest" && -f "$jar_b.manifest" ]] \
-    || die "arm manifest missing — rebuild with etc/js-arm.sh so provenance is verifiable"
+# Each arm is exactly one identity: a jar or an engine, never both, never neither. The
+# Profiler refuses --engine with --js-jar too; the matrix refuses it first, before anything
+# ships. The only engine name accepted is the one the harness knows — it travels into a
+# remote shell command, so the closed set is a correctness constraint as well as a UX one.
+for arm in a b; do
+    jar_var="jar_$arm" eng_var="engine_$arm"
+    [[ -n "${!jar_var}" && -n "${!eng_var}" ]] \
+        && die "--jar-$arm and --engine-$arm are mutually exclusive — an arm is one identity"
+    [[ -z "${!jar_var}" && -z "${!eng_var}" ]] \
+        && die "arm $arm needs --jar-$arm (build with etc/js-arm.sh <ref>) or --engine-$arm rhino-best"
+    [[ -n "${!eng_var}" && "${!eng_var}" != rhino-best ]] \
+        && die "--engine-$arm must be rhino-best (a karate arm's identity is a jar, via --jar-$arm): ${!eng_var}"
+done
+for j in "$jar_a" "$jar_b"; do
+    [[ -z "$j" ]] && continue
+    [[ -f "$j" ]] || die "arm jar missing: $j"
+    [[ -f "$j.manifest" ]] \
+        || die "arm manifest missing for $j — rebuild with etc/js-arm.sh so provenance is verifiable"
+done
 [[ -n "$label" ]] || die "--label is required: it names the matrix, parks its runs, and is the run-tag prefix"
 [[ "$label" == *[!A-Za-z0-9._-]* ]] && die "--label must be [A-Za-z0-9._-] only (it travels inside run tags): $label"
 # Rows and sysprops are interpolated into a remote shell command, so their alphabet is a
@@ -99,11 +134,29 @@ injector_ip="$(kp_ip_of "$KP_INJECTOR_NAME")"
 kp_ssh "$injector_ip" "[[ ! -e ~/karate/karate-profiling/target/profiling/$label ]]" \
     || die "label '$label' already exists on the injector — pick a fresh one"
 
+# Engine cells fail-closed at the parent, but only per cell — a stale classpath (an
+# ordinary non-skip run.sh on the injector rebuilds cp.txt without -Prhino) would let every
+# karate cell run before the first engine cell died, wasting the matrix. Probe once, up
+# front: the pinned Rhino jar on the child classpath and the compiled adapter class, so a
+# stale host aborts before anything measured.
+if [[ -n "$engine_a$engine_b" ]]; then
+    kp_ssh "$injector_ip" "grep -q 'org/mozilla/rhino' ~/karate/karate-profiling/target/cp.txt \
+            && [[ -f ~/karate/karate-profiling/target/classes/io/karatelabs/profiling/rhino/RhinoBest.class ]]" \
+        || die "the injector is not rhino-ready (cp.txt without the Rhino jar, or the adapter is not compiled) — re-run etc/ec2/bootstrap.sh --rebuild"
+fi
+
 # --- ship the arms, verify the bytes ------------------------------------------------------
-log "shipping arm jars to the injector"
-rsync -az -e "ssh ${SSH_OPTS[*]}" "$jar_a" "$jar_a.manifest" "$jar_b" "$jar_b.manifest" \
-    "${KP_SSH_USER}@${injector_ip}:karate/karate-profiling/target/js-arms/" \
-    --rsync-path="mkdir -p karate/karate-profiling/target/js-arms && rsync"
+# Only jar arms ship anything; an engine arm's runtime is resolved on the injector from the
+# pom's pin, and the parent hashes it into the digest — an engine-only matrix rsyncs nothing.
+ship=()
+[[ -n "$jar_a" ]] && ship+=("$jar_a" "$jar_a.manifest")
+[[ -n "$jar_b" && "$jar_b" != "$jar_a" ]] && ship+=("$jar_b" "$jar_b.manifest")
+if ((${#ship[@]} > 0)); then
+    log "shipping arm jars to the injector"
+    rsync -az -e "ssh ${SSH_OPTS[*]}" "${ship[@]}" \
+        "${KP_SSH_USER}@${injector_ip}:karate/karate-profiling/target/js-arms/" \
+        --rsync-path="mkdir -p karate/karate-profiling/target/js-arms && rsync"
+fi
 
 verify_remote() {
     local jar_base declared remote
@@ -114,20 +167,32 @@ verify_remote() {
         || die "transfer verification failed for $jar_base: manifest $declared vs remote ${remote:-<none>}"
     log "  $jar_base verified on the injector ($declared)"
 }
-verify_remote "$jar_a"
-verify_remote "$jar_b"
+[[ -n "$jar_a" ]] && verify_remote "$jar_a"
+[[ -n "$jar_b" ]] && verify_remote "$jar_b"
 
-remote_jar_a="target/js-arms/$(basename "$jar_a")"
-remote_jar_b="target/js-arms/$(basename "$jar_b")"
+remote_jar_a=; [[ -n "$jar_a" ]] && remote_jar_a="target/js-arms/$(basename "$jar_a")"
+remote_jar_b=; [[ -n "$jar_b" ]] && remote_jar_b="target/js-arms/$(basename "$jar_b")"
+
+# What each arm IS, for logs and the manifest — a jar basename or an engine name.
+arm_desc_a="${engine_a:+engine=$engine_a}"; [[ -n "$jar_a" ]] && arm_desc_a="$(basename "$jar_a")"
+arm_desc_b="${engine_b:+engine=$engine_b}"; [[ -n "$jar_b" ]] && arm_desc_b="$(basename "$jar_b")"
 
 # --- run one cell --------------------------------------------------------------------------
 failures=0
 
 run_cell() {
-    local row="$1" arm="$2" tag="$3" jar extra out
-    if [[ "$arm" == a ]]; then jar="$remote_jar_a"; extra="${sysprops_a[*]:-}"; else jar="$remote_jar_b"; extra="${sysprops_b[*]:-}"; fi
+    local row="$1" arm="$2" tag="$3" armflag extra out
+    # A jar arm identifies itself with --js-jar, an engine arm with --engine — the two are
+    # mutually exclusive at the Profiler too, and validation above guarantees exactly one.
+    if [[ "$arm" == a ]]; then
+        if [[ -n "$engine_a" ]]; then armflag="--engine $engine_a"; else armflag="--js-jar $remote_jar_a"; fi
+        extra="${sysprops_a[*]:-}"
+    else
+        if [[ -n "$engine_b" ]]; then armflag="--engine $engine_b"; else armflag="--js-jar $remote_jar_b"; fi
+        extra="${sysprops_b[*]:-}"
+    fi
     if ! out="$(kp_ssh "$injector_ip" "cd ~/karate/karate-profiling && PROFILING_SKIP_BUILD=1 \
-            etc/run.sh $row --no-jfr --js-jar $jar --run-tag $tag \
+            etc/run.sh $row --no-jfr $armflag --run-tag $tag \
             ${iterations:+--iterations $iterations} ${warmup:+--warmup $warmup} $extra 2>&1")"; then
         log "  !! $row [$arm] FAILED"
         echo "$out" | tail -5 | sed 's/^/     /'
@@ -159,7 +224,7 @@ kp_ssh "$injector_ip" "cd ~/karate/karate-profiling/target/profiling && \
 sleep "$gap"
 
 total_runs=$((${#rows[@]} * pairs * 2))
-log "$pairs pairs x ${#rows[@]} rows = $total_runs runs, ${gap}s gaps — A=$(basename "$jar_a") B=$(basename "$jar_b")"
+log "$pairs pairs x ${#rows[@]} rows = $total_runs runs, ${gap}s gaps — A=$arm_desc_a B=$arm_desc_b"
 for row in "${rows[@]}"; do
     for ((pair = 1; pair <= pairs; pair++)); do
         # Alternate which arm leads, so drift over the matrix loads both arms equally.
@@ -200,8 +265,8 @@ fi
 kp_ssh "$injector_ip" "cat > ~/karate/karate-profiling/target/profiling/$label/matrix-manifest.txt" <<MANIFEST \
     || log "!! matrix-manifest write failed — record the arms by hand from the digests"
 label:      $label
-arm a:      $(basename "$jar_a")  $(grep '^commit:' "$jar_a.manifest")  $(grep '^sha256:' "$jar_a.manifest")
-arm b:      $(basename "$jar_b")  $(grep '^commit:' "$jar_b.manifest")  $(grep '^sha256:' "$jar_b.manifest")
+arm a:      $(if [[ -n "$jar_a" ]]; then echo "$(basename "$jar_a")  $(grep '^commit:' "$jar_a.manifest")  $(grep '^sha256:' "$jar_a.manifest")"; else echo "engine=$engine_a  (identity: engine + runtime version + resolved-jar sha256, in each digest's run-meta)"; fi)
+arm b:      $(if [[ -n "$jar_b" ]]; then echo "$(basename "$jar_b")  $(grep '^commit:' "$jar_b.manifest")  $(grep '^sha256:' "$jar_b.manifest")"; else echo "engine=$engine_b  (identity: engine + runtime version + resolved-jar sha256, in each digest's run-meta)"; fi)
 sysprops a: ${sysprops_a[*]:-(none)}
 sysprops b: ${sysprops_b[*]:-(none)}
 rows:       ${rows[*]}

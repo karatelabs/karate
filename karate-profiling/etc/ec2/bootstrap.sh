@@ -104,14 +104,18 @@ cd ~/karate
 # to be complete before the first run rather than during it.
 mvn -q -pl karate-gatling -am install -DskipTests
 cd karate-profiling
-mvn -q compile -Pgatling
-mvn -q dependency:build-classpath -Pgatling -Dmdep.outputFile=target/cp.txt
+# -Prhino rides along so the bench is engine-arm ready (the R1 lane): the adapter
+# compiles, and the pinned Rhino jar lands in ~/.m2 and on target/cp.txt — run.sh
+# drives maven OFFLINE, so a dependency missing here would fail the first engine
+# cell mid-matrix instead of failing this build.
+mvn -q compile -Pgatling,rhino
+mvn -q dependency:build-classpath -Pgatling,rhino -Dmdep.outputFile=target/cp.txt
 # Warm the exec plugin ONLINE too. run.sh hands off with 'mvn -o exec:java', and
 # compiling never resolves exec-maven-plugin's own transitive dependencies — so a
 # freshly built host fails at the first workload with a PluginResolutionException
 # that reads like a code problem. Found the hard way; --list is the cheapest call
 # that exercises the same path a real run takes.
-mvn -q exec:java -Pgatling -Dexec.args="--list" >/dev/null
+mvn -q exec:java -Pgatling,rhino -Dexec.args="--list" >/dev/null
 echo "built \$(git rev-parse --short HEAD 2>/dev/null || echo unknown)\$(git diff --quiet 2>/dev/null || echo ' +DIRTY') with \$(java -version 2>&1 | head -1)"
 BUILD_EOF
 
