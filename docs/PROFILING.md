@@ -415,8 +415,10 @@ Six fresh-eval workloads over `io.karatelabs.js.Engine`, built to answer one que
 benchmark publishes?** The rows — `js-arithmetic`, `js-strings`, `js-objects`, `js-functions`,
 `js-mixed`, plus the `js-large-1k` guard — are the karate-js-benchmark scripts **verbatim**
 (`JsEvalWorkloadTest` pins each script's length), so a delta here is a delta on the same work
-the public scoreboard measures. Cross-engine comparison deliberately does not live here — arms
-are always two karate-js builds.
+the public scoreboard measures. Arms are two karate-js builds; the R1 lane (§9) extends the
+family with a `rhino-best` reference arm — the head-to-head against the tuned-Rhino target,
+public by decision 2026-08-13 — while karate-js-benchmark remains the community-facing
+multi-engine scoreboard.
 
 One iteration = one fresh `Engine`, one source string made unique by a trailing comment
 counter (so no source-keyed cache, present or future, can skip the work), one `eval` — and an
@@ -999,8 +1001,10 @@ check, do not assume it, and move the sha forward when a session exercises the b
 ### Open experiments, in priority order
 
 **The Gatling arc is PAUSED as of 2026-08-07** (E2–E4 below, designs kept so nothing is
-re-derived), and **the suite-soak arc is closed** — E1 and E1R answered it. **J1 is the queued
-next session**; everything else here is a deliberate decision to start.
+re-derived), and **the suite-soak arc is closed** — E1 and E1R answered it. **The queued next
+work is R1's harness build (local), then one bench session carrying R1's first cells and
+J1's remaining arithmetic variants together**; everything else here is a deliberate decision
+to start.
 
 #### J1 — slot frames: attribute and recover the non-target regressions
 
@@ -1151,6 +1155,56 @@ with labeled continue and closures; default params referencing later params; str
 writes, implicit globals and `delete` against slotted names; `for-in`/`for-of` with
 destructuring targets; async functions touching slotted locals across `await`. Mine this
 list when next touching the analyzer or the fast paths.
+
+#### R1 — the rhino-best head-to-head lane
+
+**The decision (2026-08-13, Peter):** the karate-js-vs-Rhino gap is tracked *here*, in the
+open — including the mechanism analysis of why `rhino-best` is fast where it is.
+karate-js-benchmark stays in maintenance mode as the community-facing scoreboard: its
+default-vs-tuned columns are its educational value, and it keeps the GraalJS comparison.
+Its GitHub-runner numbers are not an instrument — on 2026-08-12 two back-to-back runs
+disagreed by 2.3× on a row neither build touched, and an effect the quiet bench measures at
+−11.7% read as +2.5% there. (A cheap improvement worth making there anyway: run each
+benchmark 3× and publish medians, and print the karate-js sha in the results block.)
+
+**The question:** where does karate-js stand against `rhino-best` — Rhino in interpreted
+mode with a shared sealed root scope prototyped per eval, the configuration Rhino's own
+docs recommend to embedders and the strongest published competitor row — on the six js
+rows, on quiet hardware; and which mechanism owns each remaining gap?
+
+**Where it stands going in** (local, 2 pairs/row, 2026-08-13, archived as
+`rc2-vs-main-local/`): current main vs the published RC2 tip `70c1aa7` is **−5.07% five-row
+geomean** — functions −14.52 ± 1.02 and mixed −14.62 ± 0.74 (slot frames), strings/objects
+flat, arithmetic +7.43 ± 2.50 and the 1 KB guard +7.89 ± 0.88 (the two accepted
+regressions plus a few points from the same window; the arithmetic figure is what J1's
+variant matrix confirms or splits). Composed onto the published run's stable Rhino columns
+that puts the gap near ~1.55× geomean, functions ~1.8×, mixed ~1.7× — the direction is
+*narrowing*, and the lane exists to measure it properly rather than compose it.
+
+**Design:**
+
+- **Same six rows verbatim, same oracles.** The rhino arm is an engine adapter running the
+  identical source strings under the same unique-source discipline and per-iteration oracle
+  checks, behind a Maven profile (`-Prhino`, like `-Pgatling`) so the dependency stays off
+  the default classpath. Rhino's version is pinned and is part of the arm's identity.
+- **Arm identity = engine + version** (+ jar sha for the karate arm), recorded in run-meta
+  and the digest; the tag-paired protocol is unchanged. A same-engine rhino-vs-rhino cell
+  is the null control and the derived table says so.
+- **Cross-engine cells are absolute comparisons**, not two builds of one engine: pair
+  alternation still cancels drift, but the quotable environment is the EC2 bench; laptop
+  cells are directional only.
+- **Hardware classes never mix.** The published scoreboard is x64 (GitHub's EPYC class);
+  the bench is Graviton. A Graviton head-to-head is a *new baseline*, not a re-measurement
+  of the published ratios — every quoted number says which class it came from. Add an x64
+  host only if continuity with the published table becomes worth paying for.
+- **Mechanism attribution is in scope and public**: JFR-on diagnostic cells on either arm
+  (the rows run single-threaded on platform threads, so both digest panels are
+  trustworthy — the §7 allocation-attribution caveat applies), and JMH where absolute
+  per-eval microbenchmarks need fork-level control that the child-JVM harness does not
+  provide. A/B acceptance stays JMH-free — the base arm is the drift control.
+- **First harness work, local, before any bench cell:** the adapter and profile, oracle
+  reuse, engine-labelled arms in run-meta/digest/compare, and the rhino null control run
+  green.
 
 #### The suite soak — the question, and how to re-run it
 
