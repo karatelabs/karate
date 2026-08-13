@@ -1192,7 +1192,9 @@ that puts the gap near ~1.55× geomean, functions ~1.8×, mixed ~1.7× — the d
 - **The timed lifecycle is part of the definition**, because "rhino-best" names a
   configuration, not a lifecycle, and a favorable adapter could silently amortize costs
   the karate arm pays inside `new Engine()`. Once per child JVM: build the shared root
-  scope (`initStandardObjects`) and seal it. Inside every timed iteration: enter a
+  scope (`initSafeStandardObjects` — the published benchmark's exact call, which omits
+  LiveConnect's Java-interop globals; matching the published definition is the point) and
+  seal it. Inside every timed iteration: enter a
   `Context` in interpreted mode, create a fresh child scope prototyped off the sealed
   root, parse-and-evaluate the unique source, exit, oracle-check. No adapter-level
   compiled-script or source cache, ever — a test proves each unique source is actually

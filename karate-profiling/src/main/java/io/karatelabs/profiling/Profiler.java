@@ -261,8 +261,11 @@ public final class Profiler {
         // The engine arm (R1): identity is engine + version + resolved competitor jar sha256,
         // recorded symmetrically with the karate arm's jar identity. The child re-verifies
         // behaviourally (the adapter refuses a runtime version that disagrees with its pin);
-        // this hash is the byte-level half of that check.
-        String engineDescription = "karate";
+        // this hash is the byte-level half of that check. Only the js family gets an engine
+        // row at all — it marks a run as comparable by JsCompare, and a gatling digest
+        // carrying `engine: karate` would dispatch to the wrong comparator.
+        String engineDescription = workload instanceof io.karatelabs.profiling.workload.JsEvalWorkload
+                ? "karate" : "(none)";
         List<String> childSystemProperties = flags.systemProperties;
         if (!"karate".equals(flags.engine)) {
             if (!"rhino-best".equals(flags.engine)) {

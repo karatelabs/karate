@@ -338,7 +338,10 @@ final class JsCompare {
             List<Double> ratios = new ArrayList<>();
             for (Pair pair : pairs) {
                 deltas.add(pair.deltaPercent());
-                ratios.add(pair.ratio());
+                // On a cross-engine matrix every pair is oriented BEFORE aggregation —
+                // inverting a mean of B/A ratios is not the mean of the oriented ratios
+                // (1/mean(r) ≠ mean(1/r)), and the difference grows with pair spread.
+                ratios.add(crossEngine && !karateIsB ? 1.0 / pair.ratio() : pair.ratio());
                 out.append("| p").append(pair.a().pair()).append(" | ").append(pair.order())
                         .append(" | ").append(Compare.fixed(pair.a().msPerIteration(), 4))
                         .append(" | ").append(Compare.fixed(pair.b().msPerIteration(), 4))
@@ -385,7 +388,7 @@ final class JsCompare {
         List<String> missing = new ArrayList<>(List.of(ACCEPTANCE_ROWS));
         for (Map.Entry<String, Double> entry : meanRatioByWorkload.entrySet()) {
             boolean acceptance = missing.remove(entry.getKey());
-            double ratio = crossEngine && !karateIsB ? 1.0 / entry.getValue() : entry.getValue();
+            double ratio = entry.getValue();
             out.append("| ").append(entry.getKey()).append(acceptance ? "" : " _(guard)_")
                     .append(" | ").append(Compare.fixed(ratio, 4)).append(" | ")
                     .append(Compare.signed((ratio - 1) * 100)).append("% |\n");

@@ -248,6 +248,23 @@ class JsCompareTest {
     }
 
     @Test
+    void reversedOrderMultiPairAggregationAveragesOrientedRatios() throws IOException {
+        // Karate as A, rhino as B, two pairs with unequal ratios: karate ÷ rhino is
+        // 30/20 = 1.5 and 40/20 = 2.0, so the mean must be 1.75. Inverting a mean of B/A
+        // ratios instead gives 1 / mean(2/3, 1/2) ≈ 1.71 — close enough to look right and
+        // wrong enough to misquote a headline.
+        Result result = compare(List.of(
+                digest("js-functions", "m1:p1:a", "1111111", 1000, 1000, 0, 30_000, null),
+                digest("js-functions", "m1:p1:b", "1111111", 1000, 1000, 0, 20_000, null,
+                        RHINO_ROW, "Test OS aarch64 / 8"),
+                digest("js-functions", "m1:p2:b", "1111111", 1000, 1000, 0, 20_000, null,
+                        RHINO_ROW, "Test OS aarch64 / 8"),
+                digest("js-functions", "m1:p2:a", "1111111", 1000, 1000, 0, 40_000, null)));
+        assertEquals(0, result.exit());
+        assertTrue(result.out().contains("1.7500"), result.out());
+    }
+
+    @Test
     void mixedHardwareClassesAreDroppedByName() throws IOException {
         Result result = compare(List.of(
                 digest("js-functions", "m1:p1:a", "1111111", 1000, 1000, 0, 30_000, null,
