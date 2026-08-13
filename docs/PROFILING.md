@@ -998,138 +998,9 @@ it, and move the sha forward when a session exercises the battery.
 **The Gatling arc is PAUSED as of 2026-08-07** (E2–E4 below, designs kept so nothing is
 re-derived), and **the suite-soak arc is closed** — the settled entry below carries E1/E1R's
 figures and reopening conditions. **The R1-first-cells + J1-arithmetic-variants bench
-session ran 2026-08-13** — R1's Graviton baseline is below, and J1's arithmetic half
-carries a recommended close. **Nothing is queued**; everything here is a deliberate
-decision to start.
-
-#### J1 — slot frames: the arithmetic half
-
-Slot frames landed on decision-grade evidence (the settled entry below; port commit
-`93fe950b0`, param-binding race fix `144e04293`). Two guard rows paid; one is closed, and
-the other's variant matrices have now run with a recommended close on the table (below).
-The closed halves' evidence is compressed here to what stops a re-run — full readouts are
-beside the digests in `$KP_RESULTS` (`j1diag-local/`, `j1knobs-local/`, `j1v-*`, `j1a-*`)
-and in git history.
-
-**The large-1k half is CLOSED — accepted 2026-08-13 (Peter).** `js-large-1k`
-(+4.94% ± 1.21 EC2, +5.55% ± 1.50 local on/off) is **flag-gated and fully attributed**:
-the generated functions all carry small `for` loops, so `hasLoop` defeats the DEFERRED
-heuristic and eager Walker+annotate analysis runs at function creation on every fresh
-eval — once-called functions with a ~10-iteration payback window. The JFR-on diagnostic
-matrix (2026-08-13, `j1diag-local/`) measured the cost directly — flag-on spends ~9–11% of
-CPU samples in `SlotTable.analyze/annotate/Walker.walk` against exactly zero flag-off —
-and exact counters (scratch branch `j1/slot-stats`) split the work: per iteration, 39.6
-function creations, 15.85 analyzed eagerly (the loop carriers), 15.85 more forced at the
-second call (the ~10-call `filter` callbacks). Every cheap remedy then measured out:
-
-- **Raising the deferred-analysis ordinal (call 2 → 16) is break-even** (`j1/force-call`):
-  large-1k −0.14% ± 0.90, functions +3.80% ± 0.36. Refuted; do not raise the threshold.
-- **The eager gate is load-bearing** (`j1/eager-gate`): deferring everything recovers
-  large-1k in full (−4.51% ± 1.27) and hands back mixed's win (+16.41% ± 0.88).
-- **No static gate can split those outcomes.** Mixed's must-stay-eager loop
-  (`i < items.length`, 100 at runtime) and large-1k's should-defer loop
-  (`j < filtered.length`, ≤10 at runtime) are the *same static shape*; loop size is
-  dynamic. The gating lane is closed, not merely unexplored.
-- **A cheaper-traversal trim is not decision-grade** (`j1/cheap-analysis`): sub-noise wins
-  plus a reproducible +2.57% ± 0.00 on functions from a change that only removes work —
-  JIT layout, the same lesson the arithmetic row teaches. Dropped; the branch is raw
-  material.
-
-The +5% guard row is the recorded price of the acceptance-row wins; the five-row geomean
-nets −4.97%. *Reopens only if* the guard's weight changes — a real workload shown to have
-the many-small-loop-functions shape at scale — and then the design on the table is the
-**mid-call switch** (defer everything; attach the frame at the K-th loop *iteration* of
-the first call — semantically plausible via UNDECLARED-slot fallback, but declared-name
-migration, TDZ states and re-arm lists make it a designed-and-reviewed item, not a session
-patch). Cheaper-analysis trims, if ever pursued, ride an EC2 matrix — local layout noise
-swamps ~1% effects.
-
-**What remains open is the arithmetic half.** `js-arithmetic` is **+3.92% ± 0.70** on the
-EC2 port matrix but **−0.90% ± 1.80 flag-on vs flag-off locally on the same jar** — the
-regression is **structural, not flag-gated**; the kill switch cannot recover it. The local
-JFR diagnostic could not reproduce or attribute it (cross-build timing −0.04% ± 0.77,
-hot-method profiles identical within noise — at ~1,300 samples a 4% cost diffused over the
-fast paths is invisible); its one consistent cross-arm delta is **total sampled allocation
-~+1.5% on the port build**, source-supported as the `Node` footprint growth paid at parse.
-The candidate mechanisms, all present with the flag off, in the order to isolate them: the
-name-keyed tails outlined into extra methods at JIT inlining thresholds, the volatile
-`node.meta` read in `rearmScopedSlots` on every block and for-statement entry (a
-load-acquire on the aarch64 machines everything here runs on), the `node.slot` branch
-added to every `REF_EXPR` read/write/compound/inc-dec fast path, and `Node` growing
-`slot` + a volatile `meta` reference (the parse-allocation term). An external (Codex)
-review independently produced the same ranked list.
-
-**The variant matrices ran 2026-08-13** (single-host bench; branches `j1/v-unoutline`,
-`j1/v-meta-plain`, `j1/v-no-slot-branch` — the third removes the REF_EXPR slot branches
-and is A/B'd with `-Dkarate.js.slotFrames=false` on both arms; 2-pair 4-row screens in
-`$KP_RESULTS/j1v-*`, then 4-pair arithmetic-only extensions in `$KP_RESULTS/j1a-*`):
-**no candidate recovers the regression.** Arithmetic, variant vs base: un-outline
-**+1.08 ± 3.68**, devolatilize-meta **+2.04 ± 2.04**, drop-branches **+1.81 ± 3.59** —
-all centered positive, respectively ~1.4, ~3.0 and ~1.6 sd away from a true −4% recovery
-(disfavored, not excluded — the sds themselves are the next finding); the guards were
-flat at screen resolution. **And the instrument finding that bounds all of it: the
-same-session same-jar arithmetic null read −1.66 ± 4.13 over 4 pairs** — both hosts
-provisioned that day carried an arithmetic-row floor of several percent (single runs
-±5–8% apart on identical bytes), where the 2026-08-12 host resolved the same row at
-±0.70. **The row's resolution varied materially by host instance across these sessions**
-— two noisy hosts and one quiet one is an observation, not a law, but it is enough to
-make host qualification a precondition.
-
-**Where that leaves the arithmetic half:** structural (+3.92 ± 0.70 cross-build on a
-quiet host), not flag-gated, and not attributable to any *single* removable mechanism —
-all three candidates disfavored, consistent with the cost being distributed code layout
-plus the ~+1.5% `Node` parse-allocation term that remains the one stable cross-arm
-delta. **Recommended: accept and close as the large-1k half was** — the port's five-row
-geomean already nets −4.97% with this regression priced in; the acceptance is the
-operator's call, not this document's. *If reopened*: **qualify the host first** — run
-the same-jar arithmetic null (`--pairs 4 --rows js-arithmetic`, base jar both arms) and
-require sd ≲ 1% before spending variant matrices; an unqualified host cannot resolve the
-question, and two of the three hosts tried could not. Scratch branches `j1/slot-stats`,
-`j1/force-call`, `j1/eager-gate`, `j1/cheap-analysis`, `j1/v-unoutline`,
-`j1/v-meta-plain`, `j1/v-no-slot-branch` are local-only raw material.
-
-Protocol for any further change: local on/off A/B first — and raise `--iterations` (`js-large-1k` 200k →
-   ~400k, `js-functions` 300k → ~450k; the other defaults are 400k arithmetic / 800k strings
-   / 300k objects / 120k mixed, all from `etc/run.sh --list`): the defaults measured under
-   compare's 20 s startup-shaped check on the laptop. EC2 four-pair decision matrix only for
-   the final call — `functions`/`mixed` primary, `arithmetic`/`large-1k` as regression
-   guards.
-
-**Protocol notes, so a cold session need not reverse-engineer them:**
-
-- **Arms.** The structural row needs cross-build arms: base `93fe950b0^` (pre-port main),
-  candidate `HEAD` — the port is a single commit, so those two refs are the comparison. The
-  flag-gated row wants the same-jar pair instead: the candidate jar on both arms, flag off on
-  one. The settled matrices' own arm shas live in their `matrix-manifest.txt` under
-  `$KP_RESULTS` (private — ask the operator); nothing in J1 needs them.
-- **A JFR-on matrix is hand-run.** `js-matrix.sh` is EC2-bound and hardcodes `--no-jfr`, on
-  purpose — recording cost tracks allocation rate, so it stays out of *timing* cells. For
-  attribution, omit `--no-jfr`, keep the tag grammar, alternate the lead arm; two pairs is
-  enough when reading the *Allocation by site* / *Hot methods* panels rather than timing
-  deltas (single-threaded js rows run on a platform thread, so both panels are trustworthy):
-
-  ```bash
-  cd karate-profiling
-  jar_a=$(etc/js-arm.sh 93fe950b0^)
-  jar_b=$(etc/js-arm.sh HEAD)
-  etc/run.sh js-arithmetic --js-jar "$jar_a" --run-tag j1diag:p1:a
-  etc/run.sh js-arithmetic --js-jar "$jar_b" --run-tag j1diag:p1:b
-  etc/run.sh js-arithmetic --js-jar "$jar_b" --run-tag j1diag:p2:b
-  etc/run.sh js-arithmetic --js-jar "$jar_a" --run-tag j1diag:p2:a
-  ```
-
-- **A local on/off A/B** is the same shape with one jar: `--js-jar "$jar_b"` on
-  both arms, `--no-jfr`, and `-Dkarate.js.slotFrames=false` appended to the A cells — a bare
-  `-D` argument passes through to the child JVM and lands in the digest as part of the arm's
-  identity, so `compare` will not mistake the pair for a null control.
-
-**Validation debt, from the 2026-08-12 external review:** `SlotFrameTest` does not pin —
-concurrent calls around the deferred second-call transition (the shape of the fixed race);
-TDZ-before-RHS evaluation order for compound assignment and inc/dec; C-style `for (let …)`
-with labeled continue and closures; default params referencing later params; strict-mode
-writes, implicit globals and `delete` against slotted names; `for-in`/`for-of` with
-destructuring targets; async functions touching slotted locals across `await`. Mine this
-list when next touching the analyzer or the fast paths.
+session ran 2026-08-13** — R1's Graviton baseline is below, and **J1 is closed**: both
+guard-row regressions accepted (its settled entry carries the evidence and reopening
+conditions). **Nothing is queued**; everything here is a deliberate decision to start.
 
 #### R1 — the rhino-best head-to-head lane
 
@@ -1224,7 +1095,8 @@ that puts the gap near ~1.55× geomean, functions ~1.8×, mixed ~1.7× — the d
   **1.52** — composed across the two same-session matrices, so quote per-row figures from
   their own tables. Gates all passed: both null geomeans near zero (**+0.43%** karate, **−0.20%** rhino),
   with arithmetic the conspicuously unstable row on the karate null (+3.58 ± 6.73 — its
-  host-dependent floor is a J1 finding, below) and every other row's mean within ±1.9%;
+  host-dependent floor is a J1 finding — settled entry below) and every other row's mean
+  within ±1.9%;
   the warmup-sensitivity rehearsal at 2s/5s/15s held the functions ratio
   within ±0.3% with no monotonic trend (arithmetic swung ±4% *non*-monotonically — the
   row's noise, not warmup). This is the Graviton **new baseline** the decision anticipated,
@@ -1330,14 +1202,142 @@ without a reopening condition is spend without information.
   structural (−0.90 ± 1.80 on/off), `large-1k` flag-gated (+5.55 ± 1.50) — see J1. Digests in
   `$KP_RESULTS/{ab-port,ab-main,ab-flagoff,verify-js}/`. 1,482 tests green flag on and off.
   *Reopens if:* the analyzer or the interpreter fast paths change materially — then one
-  four-pair EC2 matrix, `functions`/`mixed` primary, `arithmetic`/`large-1k` guards; J1 owns
-  the regressions until then.
+  four-pair EC2 matrix, `functions`/`mixed` primary, `arithmetic`/`large-1k` guards; the
+  J1 entry below records both guard regressions' attribution and accepted close.
 - **Harness fail-closed items — done 2026-08-07.** `collect.sh` compares digest *sets* (a
   digest present remotely and absent locally is fatal; a run with no digest is fatal only
   when nothing is running — `selftest.sh` covers the six cases). `calibrate.sh` archives its
   table to `$KP_RESULTS` — it was the one piece of evidence with no artifact. `bootstrap.sh
   --sync` no longer preserves laptop mtimes and discards compiled outputs, so Maven cannot
   skip a synced file against a stale class.
+
+#### J1 — the slot-frames guard rows — CLOSED, both halves accepted 2026-08-13 (Peter)
+
+Slot frames landed on decision-grade evidence (the slot-frames entry above; port commit
+`93fe950b0`, param-binding race fix `144e04293`). Two guard rows paid; both are now
+closed and accepted: the two regressions are the recorded price of wins that net the
+five-row geomean −4.97%. The evidence is compressed here to what stops a re-run — full
+readouts are
+beside the digests in `$KP_RESULTS` (`j1diag-local/`, `j1knobs-local/`, `j1v-*`, `j1a-*`)
+and in git history.
+
+**The large-1k half is CLOSED — accepted 2026-08-13 (Peter).** `js-large-1k`
+(+4.94% ± 1.21 EC2, +5.55% ± 1.50 local on/off) is **flag-gated and fully attributed**:
+the generated functions all carry small `for` loops, so `hasLoop` defeats the DEFERRED
+heuristic and eager Walker+annotate analysis runs at function creation on every fresh
+eval — once-called functions with a ~10-iteration payback window. The JFR-on diagnostic
+matrix (2026-08-13, `j1diag-local/`) measured the cost directly — flag-on spends ~9–11% of
+CPU samples in `SlotTable.analyze/annotate/Walker.walk` against exactly zero flag-off —
+and exact counters (scratch branch `j1/slot-stats`) split the work: per iteration, 39.6
+function creations, 15.85 analyzed eagerly (the loop carriers), 15.85 more forced at the
+second call (the ~10-call `filter` callbacks). Every cheap remedy then measured out:
+
+- **Raising the deferred-analysis ordinal (call 2 → 16) is break-even** (`j1/force-call`):
+  large-1k −0.14% ± 0.90, functions +3.80% ± 0.36. Refuted; do not raise the threshold.
+- **The eager gate is load-bearing** (`j1/eager-gate`): deferring everything recovers
+  large-1k in full (−4.51% ± 1.27) and hands back mixed's win (+16.41% ± 0.88).
+- **No static gate can split those outcomes.** Mixed's must-stay-eager loop
+  (`i < items.length`, 100 at runtime) and large-1k's should-defer loop
+  (`j < filtered.length`, ≤10 at runtime) are the *same static shape*; loop size is
+  dynamic. The gating lane is closed, not merely unexplored.
+- **A cheaper-traversal trim is not decision-grade** (`j1/cheap-analysis`): sub-noise wins
+  plus a reproducible +2.57% ± 0.00 on functions from a change that only removes work —
+  JIT layout, the same lesson the arithmetic row teaches. Dropped; the branch is raw
+  material.
+
+The +5% guard row is the recorded price of the acceptance-row wins; the five-row geomean
+nets −4.97%. *Reopens only if* the guard's weight changes — a real workload shown to have
+the many-small-loop-functions shape at scale — and then the design on the table is the
+**mid-call switch** (defer everything; attach the frame at the K-th loop *iteration* of
+the first call — semantically plausible via UNDECLARED-slot fallback, but declared-name
+migration, TDZ states and re-arm lists make it a designed-and-reviewed item, not a session
+patch). Cheaper-analysis trims, if ever pursued, ride an EC2 matrix — local layout noise
+swamps ~1% effects.
+
+**What remains open is the arithmetic half.** `js-arithmetic` is **+3.92% ± 0.70** on the
+EC2 port matrix but **−0.90% ± 1.80 flag-on vs flag-off locally on the same jar** — the
+regression is **structural, not flag-gated**; the kill switch cannot recover it. The local
+JFR diagnostic could not reproduce or attribute it (cross-build timing −0.04% ± 0.77,
+hot-method profiles identical within noise — at ~1,300 samples a 4% cost diffused over the
+fast paths is invisible); its one consistent cross-arm delta is **total sampled allocation
+~+1.5% on the port build**, source-supported as the `Node` footprint growth paid at parse.
+The candidate mechanisms, all present with the flag off, in the order to isolate them: the
+name-keyed tails outlined into extra methods at JIT inlining thresholds, the volatile
+`node.meta` read in `rearmScopedSlots` on every block and for-statement entry (a
+load-acquire on the aarch64 machines everything here runs on), the `node.slot` branch
+added to every `REF_EXPR` read/write/compound/inc-dec fast path, and `Node` growing
+`slot` + a volatile `meta` reference (the parse-allocation term). An external (Codex)
+review independently produced the same ranked list.
+
+**The variant matrices ran 2026-08-13** (single-host bench; branches `j1/v-unoutline`,
+`j1/v-meta-plain`, `j1/v-no-slot-branch` — the third removes the REF_EXPR slot branches
+and is A/B'd with `-Dkarate.js.slotFrames=false` on both arms; 2-pair 4-row screens in
+`$KP_RESULTS/j1v-*`, then 4-pair arithmetic-only extensions in `$KP_RESULTS/j1a-*`):
+**no candidate recovers the regression.** Arithmetic, variant vs base: un-outline
+**+1.08 ± 3.68**, devolatilize-meta **+2.04 ± 2.04**, drop-branches **+1.81 ± 3.59** —
+all centered positive, respectively ~1.4, ~3.0 and ~1.6 sd away from a true −4% recovery
+(disfavored, not excluded — the sds themselves are the next finding); the guards were
+flat at screen resolution. **And the instrument finding that bounds all of it: the
+same-session same-jar arithmetic null read −1.66 ± 4.13 over 4 pairs** — both hosts
+provisioned that day carried an arithmetic-row floor of several percent (single runs
+±5–8% apart on identical bytes), where the 2026-08-12 host resolved the same row at
+±0.70. **The row's resolution varied materially by host instance across these sessions**
+— two noisy hosts and one quiet one is an observation, not a law, but it is enough to
+make host qualification a precondition.
+
+**The arithmetic half is CLOSED — accepted 2026-08-13 (Peter):** structural
+(+3.92 ± 0.70 cross-build on a quiet host), not flag-gated, and not attributable to any
+*single* removable mechanism — all three candidates disfavored, consistent with the cost
+being distributed code layout plus the ~+1.5% `Node` parse-allocation term that remains
+the one stable cross-arm delta. *If reopened*: **qualify the host first** — run
+the same-jar arithmetic null (`--pairs 4 --rows js-arithmetic`, base jar both arms) and
+require sd ≲ 1% before spending variant matrices; an unqualified host cannot resolve the
+question, and two of the three hosts tried could not. Scratch branches `j1/slot-stats`,
+`j1/force-call`, `j1/eager-gate`, `j1/cheap-analysis`, `j1/v-unoutline`,
+`j1/v-meta-plain`, `j1/v-no-slot-branch` are local-only raw material.
+
+Protocol for any further change: local on/off A/B first — and raise `--iterations` (`js-large-1k` 200k →
+   ~400k, `js-functions` 300k → ~450k; the other defaults are 400k arithmetic / 800k strings
+   / 300k objects / 120k mixed, all from `etc/run.sh --list`): the defaults measured under
+   compare's 20 s startup-shaped check on the laptop. EC2 four-pair decision matrix only for
+   the final call — `functions`/`mixed` primary, `arithmetic`/`large-1k` as regression
+   guards.
+
+**Protocol notes, so a cold session need not reverse-engineer them:**
+
+- **Arms.** The structural row needs cross-build arms: base `93fe950b0^` (pre-port main),
+  candidate `HEAD` — the port is a single commit, so those two refs are the comparison. The
+  flag-gated row wants the same-jar pair instead: the candidate jar on both arms, flag off on
+  one. The settled matrices' own arm shas live in their `matrix-manifest.txt` under
+  `$KP_RESULTS` (private — ask the operator); nothing in J1 needs them.
+- **A JFR-on matrix is hand-run.** `js-matrix.sh` is EC2-bound and hardcodes `--no-jfr`, on
+  purpose — recording cost tracks allocation rate, so it stays out of *timing* cells. For
+  attribution, omit `--no-jfr`, keep the tag grammar, alternate the lead arm; two pairs is
+  enough when reading the *Allocation by site* / *Hot methods* panels rather than timing
+  deltas (single-threaded js rows run on a platform thread, so both panels are trustworthy):
+
+  ```bash
+  cd karate-profiling
+  jar_a=$(etc/js-arm.sh 93fe950b0^)
+  jar_b=$(etc/js-arm.sh HEAD)
+  etc/run.sh js-arithmetic --js-jar "$jar_a" --run-tag j1diag:p1:a
+  etc/run.sh js-arithmetic --js-jar "$jar_b" --run-tag j1diag:p1:b
+  etc/run.sh js-arithmetic --js-jar "$jar_b" --run-tag j1diag:p2:b
+  etc/run.sh js-arithmetic --js-jar "$jar_a" --run-tag j1diag:p2:a
+  ```
+
+- **A local on/off A/B** is the same shape with one jar: `--js-jar "$jar_b"` on
+  both arms, `--no-jfr`, and `-Dkarate.js.slotFrames=false` appended to the A cells — a bare
+  `-D` argument passes through to the child JVM and lands in the digest as part of the arm's
+  identity, so `compare` will not mistake the pair for a null control.
+
+**Validation debt, from the 2026-08-12 external review:** `SlotFrameTest` does not pin —
+concurrent calls around the deferred second-call transition (the shape of the fixed race);
+TDZ-before-RHS evaluation order for compound assignment and inc/dec; C-style `for (let …)`
+with labeled continue and closures; default params referencing later params; strict-mode
+writes, implicit globals and `delete` against slotted names; `for-in`/`for-of` with
+destructuring targets; async functions touching slotted locals across `await`. Mine this
+list when next touching the analyzer or the fast paths.
 
 #### The suite soak (E1/E1R) — settled 2026-08-08
 
