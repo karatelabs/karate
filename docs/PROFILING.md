@@ -1181,30 +1181,61 @@ variant matrix confirms or splits). Composed onto the published run's stable Rhi
 that puts the gap near ~1.55× geomean, functions ~1.8×, mixed ~1.7× — the direction is
 *narrowing*, and the lane exists to measure it properly rather than compose it.
 
-**Design:**
+**Design** (externally reviewed 2026-08-13, verdict with-amendments — folded in below):
 
 - **Same six rows verbatim, same oracles.** The rhino arm is an engine adapter running the
   identical source strings under the same unique-source discipline and per-iteration oracle
-  checks, behind a Maven profile (`-Prhino`, like `-Pgatling`) so the dependency stays off
-  the default classpath. Rhino's version is pinned and is part of the arm's identity.
-- **Arm identity = engine + version** (+ jar sha for the karate arm), recorded in run-meta
-  and the digest; the tag-paired protocol is unchanged. A same-engine rhino-vs-rhino cell
-  is the null control and the derived table says so.
-- **Cross-engine cells are absolute comparisons**, not two builds of one engine: pair
-  alternation still cancels drift, but the quotable environment is the EC2 bench; laptop
-  cells are directional only.
-- **Hardware classes never mix.** The published scoreboard is x64 (GitHub's EPYC class);
-  the bench is Graviton. A Graviton head-to-head is a *new baseline*, not a re-measurement
-  of the published ratios — every quoted number says which class it came from. Add an x64
-  host only if continuity with the published table becomes worth paying for.
-- **Mechanism attribution is in scope and public**: JFR-on diagnostic cells on either arm
-  (the rows run single-threaded on platform threads, so both digest panels are
-  trustworthy — the §7 allocation-attribution caveat applies), and JMH where absolute
-  per-eval microbenchmarks need fork-level control that the child-JVM harness does not
-  provide. A/B acceptance stays JMH-free — the base arm is the drift control.
-- **First harness work, local, before any bench cell:** the adapter and profile, oracle
-  reuse, engine-labelled arms in run-meta/digest/compare, and the rhino null control run
-  green.
+  checks (a trailing line comment is valid Rhino source; Rhino numerics are `Number`, so
+  the IEEE-double oracles hold), behind a Maven profile (`-Prhino`, like `-Pgatling`) so
+  the dependency stays off the default classpath.
+- **The timed lifecycle is part of the definition**, because "rhino-best" names a
+  configuration, not a lifecycle, and a favorable adapter could silently amortize costs
+  the karate arm pays inside `new Engine()`. Once per child JVM: build the shared root
+  scope (`initStandardObjects`) and seal it. Inside every timed iteration: enter a
+  `Context` in interpreted mode, create a fresh child scope prototyped off the sealed
+  root, parse-and-evaluate the unique source, exit, oracle-check. No adapter-level
+  compiled-script or source cache, ever — a test proves each unique source is actually
+  parsed and each iteration's scope is fresh. This is the benchmarked *embedding recipe*,
+  not a claim that the two engines' construction APIs cost the same.
+- **Arm identity = engine + version + resolved-artifact sha256**, recorded in run-meta and
+  the digest for both arms symmetrically — the Rhino jar is hashed like a karate arm jar,
+  the exact Maven coordinate and version are named in the profile, and the run fails at
+  startup if the runtime-reported Rhino version disagrees with the pin. The tag-paired
+  protocol is unchanged. **Nullness is equality of the complete normalized arm identity**,
+  engine-neutral — and *two* null controls gate the lane: karate-vs-karate and
+  rhino-vs-rhino, since one adapter's noise floor says nothing about the other's
+  allocation/JIT profile.
+- **Every cross-engine row reports both absolute ms/eval per arm and a fixed-orientation
+  ratio — `karate ÷ rhino-best`, above 1 means karate is slower** — and the five-small-row
+  geomean uses that same orientation with `js-large-1k` reported beside it, never inside.
+  "Absolute" means directly co-measured on the same host in the same session, not composed
+  from separate tables; pair alternation still cancels drift, the quotable environment is
+  the EC2 bench, laptop cells are directional only.
+- **Hardware class is a harness invariant, not an operator rule**: the class
+  (`graviton/aarch64` vs the named x64 class) joins the comparator's environment
+  signature, mixed-class cells are rejected rather than averaged, and every derived table
+  heading names its class. The published scoreboard is x64 (GitHub's EPYC class); a
+  Graviton head-to-head is a *new baseline*, never a re-measurement of the published
+  ratios. Add an x64 host only if continuity with the published table becomes worth
+  paying for.
+- **Warmup must be shown converged, not assumed**: before the first publishable cells, a
+  warmup-sensitivity rehearsal at two or three warmup durations must hold the reported
+  ratio stable within the null-control noise — equal warmup *time* is not equal JIT
+  maturity when the arms load different classes and run different evaluation counts.
+- **Mechanism attribution is in scope and public — and diagnostic only**: the paired
+  harness cells alone own the head-to-head result. JFR-on cells on either arm (the rows
+  run single-threaded on platform threads, so both digest panels are trustworthy — the §7
+  allocation-attribution caveat applies) and JMH where fork-level control is worth its
+  cost; JMH must drive the same adapters under the same unique-source, fresh-scope and
+  oracle rules, its numbers never merge into a compare table, and any lifecycle deviation
+  is named in its result. A/B acceptance stays JMH-free — the base arm is the drift
+  control.
+- **Local gates before the first bench cell**: adapter lifecycle documented and tested;
+  Rhino artifact identity verified into run-meta/digest; the comparator accepting
+  cross-engine arms while rejecting engine, environment or hardware-class drift; both
+  null controls green; all six rows oracle-green under both engines; and one deliberately
+  mislabelled cell proving the new guards actually fire — the §10 lesson that an
+  instrument that cannot say the bad thing is not an instrument.
 
 #### The suite soak — the question, and how to re-run it
 
