@@ -147,7 +147,7 @@ final class JsArm {
         return hex.length() <= 16 ? hex : hex.substring(0, 16);
     }
 
-    private static String sha256Of(Path file) {
+    static String sha256Of(Path file) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(Files.readAllBytes(file));

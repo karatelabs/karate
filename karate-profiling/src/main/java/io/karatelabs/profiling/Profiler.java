@@ -145,6 +145,15 @@ public final class Profiler {
                                          mechanism of the js-* family. Build arms with
                                          etc/js-arm.sh <git-ref>; the jar's manifest is verified
                                          and its commit + sha256 land in run-meta and the digest.
+                  --engine NAME          which JS engine the js-* family evaluates with:
+                                         karate (default) or rhino-best — the R1 head-to-head
+                                         reference arm (Rhino interpreted + sealed shared root;
+                                         needs the classpath built with -Prhino, which
+                                         etc/run.sh activates for this flag). The engine and
+                                         the resolved competitor jar's sha256 land in run-meta
+                                         and the digest as the arm's identity. Incompatible
+                                         with --js-jar, which is the karate arm's identity
+                                         mechanism.
                   --run-tag TEXT         free-text cell provenance (no whitespace), recorded in
                                          run-meta and the digest. etc/ec2/js-matrix.sh uses it to
                                          name each run's matrix, pair and arm, and compare pairs
@@ -249,6 +258,32 @@ public final class Profiler {
             classpath = jsArm.rewriteClasspath(classpath);
             System.out.println("[parent] karate-js arm: " + jsArm.describe());
         }
+        // The engine arm (R1): identity is engine + version + resolved competitor jar sha256,
+        // recorded symmetrically with the karate arm's jar identity. The child re-verifies
+        // behaviourally (the adapter refuses a runtime version that disagrees with its pin);
+        // this hash is the byte-level half of that check.
+        String engineDescription = "karate";
+        List<String> childSystemProperties = flags.systemProperties;
+        if (!"karate".equals(flags.engine)) {
+            if (!"rhino-best".equals(flags.engine)) {
+                throw new IllegalArgumentException("unknown --engine '" + flags.engine
+                        + "' — supported: karate, rhino-best");
+            }
+            if (!(workload instanceof io.karatelabs.profiling.workload.JsEvalWorkload)) {
+                throw new IllegalArgumentException("--engine only means something to the js-*"
+                        + " family — " + name + " does not evaluate through the engine seam.");
+            }
+            if (flags.jsJar != null) {
+                throw new IllegalArgumentException("--engine " + flags.engine + " cannot be"
+                        + " combined with --js-jar: the jar swap is the karate arm's identity"
+                        + " mechanism, and a cell that changed both the engine and the jar"
+                        + " cannot attribute its delta to either.");
+            }
+            engineDescription = rhinoArmDescription(classpath);
+            childSystemProperties = new ArrayList<>(flags.systemProperties);
+            childSystemProperties.add("-Dkarate.profiling.jsEngine=" + flags.engine);
+            System.out.println("[parent] engine arm: " + engineDescription);
+        }
         Children children = new Children();
         Runtime.getRuntime().addShutdownHook(new Thread(children::killAll, "profiler-cleanup"));
 
@@ -275,10 +310,10 @@ public final class Profiler {
                 ? List.of()
                 : jfrFlags(runDir, shape, flags, warmupWillRun);
         List<String> command = childCommand(classpath, name, shape, jvm, mockUrl,
-                childJfrFlags, runDir, flags.systemProperties,
+                childJfrFlags, runDir, childSystemProperties,
                 workload.jvmFlags(), flags.jvmFlags, flags.soak, flags.bodySize);
         writeRunMeta(runDir, name, shape, jvm, command, mockUrl, mockTier(workload, flags), flags,
-                jsArm);
+                jsArm, engineDescription);
 
         System.out.println("[parent] forking: " + String.join(" ", command));
         Process child = new ProcessBuilder(command).redirectErrorStream(true).start();
@@ -720,9 +755,38 @@ public final class Profiler {
         }
     }
 
+    /**
+     * Locate and hash the resolved Rhino jar on the child classpath — the byte-level half of
+     * the R1 version pin (the adapter checks the runtime implementation version, the other
+     * half). Exactly one match, for the same reason JsArm demands it of the karate jar: zero
+     * means the classpath was built without -Prhino, more than one means a blend, and a wrong
+     * number attributed to a named competitor version is the worst output available.
+     */
+    private static String rhinoArmDescription(String classpath) {
+        List<String> matches = new ArrayList<>();
+        for (String entry : classpath.split(java.io.File.pathSeparator)) {
+            String normalised = entry.replace('\\', '/');
+            String fileName = normalised.substring(normalised.lastIndexOf('/') + 1);
+            if (fileName.startsWith("rhino-") && fileName.endsWith(".jar")
+                    && normalised.contains("/org/mozilla/rhino/")) {
+                matches.add(entry);
+            }
+        }
+        if (matches.size() != 1) {
+            throw new IllegalStateException("expected exactly one org.mozilla:rhino jar on the"
+                    + " child classpath, found " + matches.size() + " — the classpath was built"
+                    + " without -Prhino (etc/run.sh activates it for --engine rhino-best), or"
+                    + " carries a blend of two Rhino versions.");
+        }
+        Path jar = Path.of(matches.get(0));
+        return "rhino-best " + jar.getFileName() + " sha256 "
+                + JsArm.sha256Of(jar).substring(0, 16);
+    }
+
     private static void writeRunMeta(Path runDir, String name, RunShape shape, JvmConfig jvm,
                                      List<String> command, String mockUrl, String mockTier,
-                                     Args flags, JsArm jsArm) throws IOException {
+                                     Args flags, JsArm jsArm, String engineDescription)
+            throws IOException {
         String meta = """
                 workload:     %s
                 build:        %s
@@ -736,6 +800,7 @@ public final class Profiler {
                 extra jvm:    %s
                 sysprops:     %s
                 js jar:       %s
+                engine:       %s
                 run tag:      %s
                 jfr:          %s
                 mock:         %s
@@ -768,6 +833,7 @@ public final class Profiler {
                 // the difference in a comparable place.
                 flags.systemProperties.isEmpty() ? "(none)" : String.join(" ", flags.systemProperties),
                 jsArm == null ? "(none)" : jsArm.describe(),
+                engineDescription,
                 flags.runTag == null ? "(none)" : flags.runTag,
                 flags.noJfr ? "off (timing run — no recording, by design)" : "on",
                 mockTier,
@@ -874,6 +940,8 @@ public final class Profiler {
         int bodySize;
         /** A karate-js build to swap onto the child classpath. See JsArm. */
         String jsJar;
+        /** Which JS engine the js-* family evaluates with. See the usage text and R1 in §9. */
+        String engine = "karate";
         /** Free-text provenance stamped into run-meta and the digest; how an A/B names its cells. */
         String runTag;
         /** Timing mode: no recording at all. See the usage text for when that is the right call. */
@@ -891,6 +959,7 @@ public final class Profiler {
                     case "--soak" -> args.soak = true;
                     case "--no-jfr" -> args.noJfr = true;
                     case "--js-jar" -> args.jsJar = noWhitespace(next(argv, ++i, flag), flag);
+                    case "--engine" -> args.engine = noWhitespace(next(argv, ++i, flag), flag);
                     case "--run-tag" -> args.runTag = noWhitespace(next(argv, ++i, flag), flag);
                     case "--jvm-flag" -> args.jvmFlags.add(next(argv, ++i, flag));
                     case "--threads" -> args.threads = Integer.parseInt(next(argv, ++i, flag));

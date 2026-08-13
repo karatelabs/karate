@@ -198,6 +198,7 @@ rm -rf "${TMPDIR:-/tmp}"/karate-feature-spread-* "${TMPDIR:-/tmp}"/karate-report
 | `--soak` | off | **Required for any multi-hour run.** Records a much smaller event set so the recording spans the whole run instead of rolling, and starts the live-set/descriptor probe — see [soak mode](#soak-mode--what-a-multi-hour-recording-has-to-drop). Costs you *Allocation by site* and *Hot methods*, which a soak does not read. |
 | `--gc-roots` | off | Makes `jdk.OldObjectSample` report reference chains — the *holder* of retained objects, not just the allocating stack. Costs a full reference walk at every sample. |
 | `--js-jar PATH` | none | Swap the karate-js jar on the child classpath — the A/B mechanism of the [`js-*` family](#karate-js-family--ab-two-engine-builds-on-elapsed-time). Build arms with `etc/js-arm.sh <git-ref>`; when the jar carries a sidecar manifest it is verified against the bytes (a stale or half-copied jar fails the run instead of relabelling it) and its commit + sha256 land in `run-meta.txt` and the digest. A jar without a manifest is allowed — a hand-built jar is a legitimate experiment — but is recorded as commit-unknown, identified by hash alone. Refused for any workload that forks a mock. |
+| `--engine NAME` | `karate` | Which JS engine the `js-*` family evaluates with: `karate`, or `rhino-best` — the R1 head-to-head reference arm (§9): Rhino interpreted + ES6 + a sealed shared root, per-eval child scope, no adapter cache. `etc/run.sh` activates `-Prhino` for it; the engine and the resolved Rhino jar's sha256 land in run-meta and the digest as the arm's identity, and the adapter refuses a runtime whose version disagrees with the pom's pin. Incompatible with `--js-jar` (the karate arm's identity mechanism). |
 | `--run-tag TEXT` | none | Free-text cell provenance (no whitespace), recorded in run-meta and the digest. The js comparator pairs runs by tag — `<matrix>:p<N>:<a\|b>` — never by timestamp adjacency, so a failed run orphans its own cell instead of shifting every later pairing. |
 | `--no-jfr` | off | Timing mode: no recording at all. For an elapsed-time A/B — recording cost tracks allocation rate, so two builds that allocate differently pay it differently and "JFR on both sides" does not cancel. The digest keeps `elapsed`/`cpu` from the child summary and says the recording is absent by design. Incompatible with `--soak`, `--gc-roots`, `--record mock`. |
 
@@ -1230,12 +1231,17 @@ that puts the gap near ~1.55× geomean, functions ~1.8×, mixed ~1.7× — the d
   oracle rules, its numbers never merge into a compare table, and any lifecycle deviation
   is named in its result. A/B acceptance stays JMH-free — the base arm is the drift
   control.
-- **Local gates before the first bench cell**: adapter lifecycle documented and tested;
-  Rhino artifact identity verified into run-meta/digest; the comparator accepting
-  cross-engine arms while rejecting engine, environment or hardware-class drift; both
-  null controls green; all six rows oracle-green under both engines; and one deliberately
-  mislabelled cell proving the new guards actually fire — the §10 lesson that an
-  instrument that cannot say the bad thing is not an instrument.
+- **Local gates before the first bench cell — ✅ built and green 2026-08-13**: the adapter
+  (`src/rhino/java`, `-Prhino`), the `--engine` flag through run.sh/Profiler, engine +
+  resolved-jar-sha identity in run-meta and the digest, the engine-aware comparator with
+  host in the environment signature, both null controls run live, all six rows
+  oracle-green under both engines, and the guards pinned by tests (cross-engine
+  orientation under both arm orders, mixed hardware classes dropped by name, an engine
+  row without a sha ineligible, fresh-scope/sealed-root/unique-source lifecycle) — the
+  §10 lesson that an instrument that cannot say the bad thing is not an instrument.
+  **Still ahead of the first bench cells**: `etc/ec2/js-matrix.sh` grows engine-arm
+  support (it currently speaks `--jar-a/--jar-b` only), and the warmup-sensitivity
+  rehearsal runs on the bench host itself.
 
 #### The suite soak — the question, and how to re-run it
 

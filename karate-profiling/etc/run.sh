@@ -53,6 +53,13 @@ for arg in "$@"; do
             MODULE="karate-gatling"   # -am pulls karate-core along
             break
             ;;
+        rhino-best)
+            # The value of --engine, and it never appears as anything else. -Prhino puts
+            # the pinned competitor jar on the classpath and compiles the adapter — the
+            # parent refuses the run if the classpath was built without it, so a missed
+            # match here fails loudly rather than measuring the wrong thing.
+            PROFILE="-Prhino"
+            ;;
     esac
 done
 

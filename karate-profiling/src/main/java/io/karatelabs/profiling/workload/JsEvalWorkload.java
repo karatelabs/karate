@@ -23,7 +23,6 @@
  */
 package io.karatelabs.profiling.workload;
 
-import io.karatelabs.js.Engine;
 import io.karatelabs.profiling.JvmConfig;
 import io.karatelabs.profiling.RunShape;
 import io.karatelabs.profiling.WorkloadContext;
@@ -101,12 +100,21 @@ public abstract class JsEvalWorkload implements io.karatelabs.profiling.Workload
     /** Sized so a run's measured window is roughly 30-45 s on the published CI hardware. */
     protected abstract long defaultIterations();
 
+    /**
+     * Resolved once per JVM in {@link #setup} — the engine seam. For the karate engine this
+     * changes nothing (a fresh {@code Engine} per eval, inside the evaluator); the rhino-best
+     * arm (R1) substitutes its own timed lifecycle behind the same call.
+     */
+    private JsEvaluator evaluator;
+
     @Override
     public void setup(WorkloadContext context) {
-        // One eval before anything is timed, so a jar whose engine cannot run this script —
-        // or computes the wrong thing — fails here with a clear message instead of half-way
-        // into a warmup.
-        check(new Engine().eval(script()), -1);
+        // Resolving here rather than at first iteration means an unknown engine name, a
+        // missing -Prhino build or a version-pin mismatch fails with a clear message before
+        // anything is timed — and the one untimed eval below catches an engine that cannot
+        // run this script, or computes the wrong thing, before the warmup starts.
+        evaluator = JsEvaluator.resolve();
+        check(evaluator.eval(script()), -1);
     }
 
     @Override
@@ -114,8 +122,14 @@ public abstract class JsEvalWorkload implements io.karatelabs.profiling.Workload
         if (oracleFailed) {
             throw ALREADY_FAILED;
         }
+        JsEvaluator evaluator = this.evaluator;
+        if (evaluator == null) {
+            // The real lifecycle resolves in setup(); a direct iterate() without it (tests)
+            // resolves here. One null check on the timed path, paid identically by both arms.
+            evaluator = this.evaluator = JsEvaluator.resolve();
+        }
         String source = script() + "\n//" + uniqueSuffix.getAndIncrement();
-        Object result = new Engine().eval(source);
+        Object result = evaluator.eval(source);
         check(result, iteration);
     }
 

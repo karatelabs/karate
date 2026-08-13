@@ -53,6 +53,14 @@ class JsCompareTest {
     /** A minimal js A/B digest with the rows JsCompare reads. */
     private Path digest(String workload, String tag, String sha, long iterations, long completed,
                         long errors, long elapsedMs, String sysprops) throws IOException {
+        return digest(workload, tag, sha, iterations, completed, errors, elapsedMs, sysprops,
+                null, "Test OS aarch64 / 8");
+    }
+
+    /** The full form: an explicit engine row (null → the karate default) and host row. */
+    private Path digest(String workload, String tag, String sha, long iterations, long completed,
+                        long errors, long elapsedMs, String sysprops, String engineRow,
+                        String host) throws IOException {
         stamp++;
         Path dir = root.resolve(workload + "-2026-01-01-" + String.format("%06d", stamp));
         Files.createDirectories(dir);
@@ -61,10 +69,14 @@ class JsCompareTest {
         md.append("| build | abc1234 |\n");
         md.append("| outcome | completed |\n");
         md.append("| threads | 1 |\n");
+        md.append("| os / cpus | ").append(host).append(" |\n");
         md.append("| bound | iterations=").append(iterations).append(" |\n");
         md.append("| js jar | karate-js-").append(sha, 0, 7).append(".jar commit ")
                 .append(sha.repeat(6), 0, 40).append(" sha256 ").append(sha.repeat(3), 0, 16)
                 .append(" |\n");
+        if (engineRow != null) {
+            md.append("| engine | ").append(engineRow).append(" |\n");
+        }
         md.append("| run tag | ").append(tag).append(" |\n");
         if (sysprops != null) {
             md.append("| sysprops | `").append(sysprops).append("` — experiment configuration |\n");
@@ -210,6 +222,70 @@ class JsCompareTest {
         Files.createDirectories(gatling);
         Files.writeString(gatling.resolve("digest.md"), "# Profiling digest — gatling-http-plain\n");
         assertEquals(2, Compare.main(List.of(js.toString(), gatling.toString())));
+    }
+
+    private static final String RHINO_ROW = "rhino-best rhino-1.9.1.jar sha256 ffffffffffffffff";
+
+    @Test
+    void crossEngineRatioIsOrientationFixedRegardlessOfArmOrder() throws IOException {
+        // rhino as A, karate as B: 20 → 30 ms/iter, so karate ÷ rhino-best = 1.5.
+        Result rhinoFirst = compare(List.of(
+                digest("js-functions", "m1:p1:a", "1111111", 1000, 1000, 0, 20_000, null,
+                        RHINO_ROW, "Test OS aarch64 / 8"),
+                digest("js-functions", "m1:p1:b", "1111111", 1000, 1000, 0, 30_000, null)));
+        assertEquals(0, rhinoFirst.exit());
+        assertTrue(rhinoFirst.out().contains("karate ÷ rhino-best"), rhinoFirst.out());
+        assertTrue(rhinoFirst.out().contains("1.5000"), rhinoFirst.out());
+        // The same cell with the roles swapped must print the same orientation and the same
+        // number — arm order must not flip the sign of a publishable ratio.
+        Result karateFirst = compare(List.of(
+                digest("js-functions", "m2:p1:a", "1111111", 1000, 1000, 0, 30_000, null),
+                digest("js-functions", "m2:p1:b", "1111111", 1000, 1000, 0, 20_000, null,
+                        RHINO_ROW, "Test OS aarch64 / 8")));
+        assertEquals(0, karateFirst.exit());
+        assertTrue(karateFirst.out().contains("karate ÷ rhino-best"), karateFirst.out());
+        assertTrue(karateFirst.out().contains("1.5000"), karateFirst.out());
+    }
+
+    @Test
+    void mixedHardwareClassesAreDroppedByName() throws IOException {
+        Result result = compare(List.of(
+                digest("js-functions", "m1:p1:a", "1111111", 1000, 1000, 0, 30_000, null,
+                        null, "Linux aarch64 / 16"),
+                digest("js-functions", "m1:p1:b", "2222222", 1000, 1000, 0, 27_000, null,
+                        null, "Linux aarch64 / 16"),
+                digest("js-functions", "m1:p2:a", "1111111", 1000, 1000, 0, 30_000, null,
+                        null, "Linux amd64 / 16"),
+                digest("js-functions", "m1:p2:b", "2222222", 1000, 1000, 0, 27_000, null,
+                        null, "Linux amd64 / 16")));
+        assertEquals(0, result.exit());
+        assertTrue(result.out().contains("dropped js-functions p2"), result.out());
+        // Only one pair survives into the table — the x64 cell never averages with the
+        // aarch64 one.
+        assertTrue(result.out().contains("1 pair(s)"), result.out());
+    }
+
+    @Test
+    void rhinoAgainstItselfIsANullControl() throws IOException {
+        Result result = compare(List.of(
+                digest("js-functions", "m1:p1:a", "1111111", 1000, 1000, 0, 30_000, null,
+                        RHINO_ROW, "Test OS aarch64 / 8"),
+                digest("js-functions", "m1:p1:b", "1111111", 1000, 1000, 0, 30_100, null,
+                        RHINO_ROW, "Test OS aarch64 / 8")));
+        assertEquals(0, result.exit());
+        assertTrue(result.out().contains("null control"), result.out());
+        assertFalse(result.out().contains("cross-engine"), result.out());
+    }
+
+    @Test
+    void anEngineRowWithoutAShaIsIneligible() throws IOException {
+        Result result = compare(List.of(
+                digest("js-functions", "m1:p1:a", "1111111", 1000, 1000, 0, 30_000, null,
+                        "rhino-best rhino-1.9.1.jar", "Test OS aarch64 / 8"),
+                digest("js-functions", "m1:p1:b", "1111111", 1000, 1000, 0, 30_000, null)));
+        // The lone cell orphans, so nothing derives — a nonzero exit is the correct verdict;
+        // the point pinned here is that the reason is named.
+        assertTrue(result.out().contains("no sha256 in the engine row"), result.out());
     }
 
 }

@@ -124,6 +124,58 @@
                 </plugins>
             </build>
         </profile>
+        <!--
+          The R1 rhino-best arm (PROFILING.md §9). Behind a profile for the same reason as
+          Gatling: the default build must not carry a competitor engine on every child
+          classpath, and code that imports org.mozilla cannot compile without it. The
+          version is THE pin — RhinoBest verifies the runtime implementation version
+          against it at startup and refuses to run on a mediated substitute.
+        -->
+        <profile>
+            <id>rhino</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.mozilla</groupId>
+                    <artifactId>rhino</artifactId>
+                    <version>1.9.1</version>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>3.6.1</version>
+                        <executions>
+                            <execution>
+                                <id>add-rhino-sources</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>add-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>src/rhino/java</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>add-rhino-test-sources</id>
+                                <phase>generate-test-sources</phase>
+                                <goals>
+                                    <goal>add-test-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>src/rhino/test/java</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 
 </project>

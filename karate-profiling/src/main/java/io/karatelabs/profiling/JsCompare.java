@@ -59,10 +59,14 @@ final class JsCompare {
     /** How a js A/B run is recognised: the digest row the {@code --js-jar} flag writes. */
     static boolean isJsRun(Path dir) {
         String digest = readString(dir.resolve("digest.md"));
-        return digest != null && digest.contains("\n| js jar | ");
+        // A karate arm carries the js jar row; an engine arm (R1) carries no --js-jar, so its
+        // marker is the engine row. Either identifies the family.
+        return digest != null
+                && (digest.contains("\n| js jar | ") || digest.contains("\n| engine | "));
     }
 
     record Run(Path dir, String stamp, String workload, String jsJar, String jsSha,
+               String engine, String engineRow, String host,
                String matrix, int pair, String armRole, String sysprops, String build,
                long iterationsRequested, long completed, long errors, long elapsedMs,
                int threads, String xmx, String collector, String jdk, boolean jfrOff,
@@ -73,6 +77,15 @@ final class JsCompare {
         }
 
         /**
+         * The content hash that identifies this arm's engine build: the karate jar's sha for
+         * the karate engine, the resolved competitor jar's sha for any other. Null when the
+         * identifying row is absent or carries no hash — which makes the run ineligible.
+         */
+        String armSha() {
+            return "karate".equals(engine) ? jsSha : shaOf(engineRow);
+        }
+
+        /**
          * The first reason this run cannot enter a table, or null. Nothing that fails here is
          * averaged, and nothing here is a sentinel that could reach arithmetic.
          */
@@ -80,8 +93,10 @@ final class JsCompare {
             if (workload == null) {
                 return "no workload row";
             }
-            if (jsSha == null) {
-                return "no sha256 in the js jar row";
+            if (armSha() == null) {
+                return "karate".equals(engine)
+                        ? "no sha256 in the js jar row"
+                        : "no sha256 in the engine row";
             }
             if (matrix == null) {
                 return "no run tag (expected --run-tag <matrix>:p<N>:<a|b>; pairing is by tag,"
@@ -115,6 +130,9 @@ final class JsCompare {
                 return "no " + (xmx == null ? "-Xmx" : collector == null ? "collector" : "jdk")
                         + " row";
             }
+            if (host == null) {
+                return "no os / cpus row";
+            }
             return null;
         }
 
@@ -127,16 +145,23 @@ final class JsCompare {
          * The environment alone — everything that must be constant across a whole matrix.
          * Iterations are excluded because different rows legitimately run different counts;
          * per-arm sysprops are excluded because the two arms of a flag cell differ by design.
-         * Both are enforced separately: iterations per row, arm identity per side.
+         * Both are enforced separately: iterations per row, arm identity per side. The host
+         * (OS, architecture, CPU count) is in: hardware class is a harness invariant, not an
+         * operator rule — a Graviton cell and an x64 cell must never average into one table.
          */
         String environment() {
             return "threads=" + threads + " xmx=" + xmx + " collector=" + collector
-                    + " jdk=" + jdk + " jfr=" + (jfrOff ? "off" : "on");
+                    + " jdk=" + jdk + " jfr=" + (jfrOff ? "off" : "on")
+                    + " host=" + host;
         }
 
-        /** One arm's full identity: which build, under which experimental configuration. */
+        /**
+         * One arm's full identity: which engine, which build of it, under which experimental
+         * configuration. Engine-neutral on purpose — nullness (arms identical → null control)
+         * is equality of this whole string, whichever engine it names.
+         */
         String armIdentity() {
-            return jsSha + (sysprops == null ? "" : " with " + sysprops);
+            return engine + " " + armSha() + (sysprops == null ? "" : " with " + sysprops);
         }
 
     }
@@ -276,11 +301,20 @@ final class JsCompare {
         out.append("- constants: threads=").append(anyA.threads()).append(", xmx=")
                 .append(anyA.xmx()).append(", jdk=").append(anyA.jdk()).append(", jfr=")
                 .append(anyA.jfrOff() ? "off" : "on").append(", build=")
-                .append(anyA.build() == null ? "(unstamped)" : anyA.build()).append("\n");
-        if (anyA.jsSha().equals(anyB.jsSha())
-                && java.util.Objects.equals(anyA.sysprops(), anyB.sysprops())) {
-            out.append("- **the arms are identical** (same jar, same sysprops) — this is a"
-                    + " null control; its deltas are the noise floor, not an effect\n");
+                .append(anyA.build() == null ? "(unstamped)" : anyA.build())
+                .append(", host=").append(anyA.host()).append("\n");
+        if (anyA.armIdentity().equals(anyB.armIdentity())) {
+            out.append("- **the arms are identical** (same engine, same build, same sysprops)"
+                    + " — this is a null control; its deltas are the noise floor, not an"
+                    + " effect\n");
+        }
+        boolean crossEngine = !anyA.engine().equals(anyB.engine());
+        boolean karateIsB = "karate".equals(anyB.engine());
+        if (crossEngine) {
+            out.append("- **cross-engine matrix** — the summary ratio is orientation-fixed:"
+                    + " **karate ÷ ").append((karateIsB ? anyA : anyB).engine())
+                    .append("**, above 1 means karate is slower. Directly co-measured on `")
+                    .append(anyA.host()).append("`; pair tables keep their A/B roles.\n");
         }
         if (!anyA.jfrOff()) {
             out.append("- note: JFR was ON — recording cost tracks allocation rate, so two"
@@ -339,17 +373,24 @@ final class JsCompare {
         // them, never inside. Missing rows are named — a geomean over four rows is not the
         // same number as one over five.
         out.append("#### Cross-row summary — ").append(matrix).append("\n\n");
-        out.append("| row | mean B/A | mean delta |\n|---|---:|---:|\n");
+        // On a cross-engine matrix the ratio column is orientation-fixed (karate ÷ other,
+        // above 1 = karate slower) regardless of which side ran as which arm — otherwise the
+        // arm order would flip the sign and the verbal framing of a publishable number.
+        String ratioLabel = crossEngine
+                ? "karate ÷ " + (karateIsB ? anyA : anyB).engine()
+                : "mean B/A";
+        out.append("| row | ").append(ratioLabel).append(" | mean delta |\n|---|---:|---:|\n");
         double logSum = 0;
         int counted = 0;
         List<String> missing = new ArrayList<>(List.of(ACCEPTANCE_ROWS));
         for (Map.Entry<String, Double> entry : meanRatioByWorkload.entrySet()) {
             boolean acceptance = missing.remove(entry.getKey());
+            double ratio = crossEngine && !karateIsB ? 1.0 / entry.getValue() : entry.getValue();
             out.append("| ").append(entry.getKey()).append(acceptance ? "" : " _(guard)_")
-                    .append(" | ").append(Compare.fixed(entry.getValue(), 4)).append(" | ")
-                    .append(Compare.signed((entry.getValue() - 1) * 100)).append("% |\n");
+                    .append(" | ").append(Compare.fixed(ratio, 4)).append(" | ")
+                    .append(Compare.signed((ratio - 1) * 100)).append("% |\n");
             if (acceptance) {
-                logSum += Math.log(entry.getValue());
+                logSum += Math.log(ratio);
                 counted++;
             }
         }
@@ -382,7 +423,8 @@ final class JsCompare {
         java.util.LinkedHashSet<String> seen = new java.util.LinkedHashSet<>();
         for (Pair pair : all) {
             Run run = side.apply(pair);
-            seen.add(run.jsJar() + (run.sysprops() == null ? "" : " with " + run.sysprops()));
+            seen.add(("karate".equals(run.engine()) ? run.jsJar() : run.engineRow())
+                    + (run.sysprops() == null ? "" : " with " + run.sysprops()));
         }
         return seen.size() == 1 ? seen.iterator().next()
                 : "**INCONSISTENT across the matrix:** " + String.join(" / ", seen);
@@ -435,10 +477,17 @@ final class JsCompare {
                 sysprops = sysprops.substring(open + 1, close);
             }
         }
+        // Older digests predate the engine row; their runs are karate-engine by construction,
+        // so the default keeps them pairable rather than retroactively ineligible.
+        String engineRow = rowValue(digest, "engine");
+        String engine = engineRow == null ? "karate" : engineRow.split("\\s+")[0];
         return new Run(dir, stamp,
                 rowValue(digest, "workload"),
                 jsJar,
                 shaOf(jsJar),
+                engine,
+                engineRow,
+                rowValue(digest, "os / cpus"),
                 matrix, pair, armRole,
                 sysprops,
                 rowValue(digest, "build"),

@@ -756,6 +756,10 @@ public final class JfrDigest {
         if (jsJar != null) {
             row(md, "js jar", jsJar);
         }
+        String engine = metaOf(runDir, "engine:");
+        if (engine != null) {
+            row(md, "engine", engine);
+        }
         String runTag = metaOf(runDir, "run tag:");
         if (runTag != null) {
             row(md, "run tag", runTag);
