@@ -1064,21 +1064,56 @@ rows pay, and whether either cost can be removed without giving back the wins.
     table flags every one). The settled JFR-off matrices remain the timing evidence; the
     hot-method split is a classification of sampled top frames, not an exclusive
     wall-clock phase decomposition.
+- **Exact counters (same day) split the analysis work precisely** (scratch branch
+  `j1/slot-stats`, `-Dkarate.js.slotStats=true`; readout beside the digests). Per
+  large-1k iteration: 39.6 function creations — 15.85 analyzed eagerly (the loop
+  carriers), 23.8 deferred, of which 15.85 reach a second call and analyze there (the
+  ~10-call `filter` callbacks). Mixed: 6.65 creations, all eager, and its scoped
+  annotation pass visits as many nodes again as the body pass. Functions: 14.0 creations,
+  all deferred, all forced at the second call.
+- **The forced half is break-even, measured** — raising the deferred-analysis ordinal
+  from call 2 to 16 (knob `karate.js.slotForceCall`, scratch branch `j1/force-call`, same-jar
+  A/B, 4 pairs): large-1k **−0.14% ± 0.90** (no gain — analysis at call 2 pays for itself
+  over a 10-call callback's remaining calls) and functions **+3.80% ± 0.36** (14 extra
+  name-keyed calls of ~177). Refuted; do not raise the threshold.
+- **The eager half is the entire large-1k cost, and the gate is load-bearing** — deferring
+  everything (`karate.js.slotEager=false`, scratch branch `j1/eager-gate`, 4+2 pairs):
+  large-1k **−4.51% ± 1.27** (the whole flag-gated regression recovered) against mixed
+  **+16.41% ± 0.88** (the win handed back).
+- **No static gate can split those two outcomes.** The anchor scripts prove it: mixed's
+  one function loops on `i < items.length` (100 at runtime — must stay eager) and
+  large-1k's loop on `j < filtered.length` (≤10 at runtime — should defer) are the *same
+  static shape*; mixed's literal-100 loop is top-level, which frames never touch. Loop
+  size is dynamic; the gating lane is closed, not merely unexplored.
+- **A cheaper-traversal trim is not decision-grade** — skipping token children in the four
+  analysis traversals (branch `j1/cheap-analysis`, suite green): large-1k −1.13% ± 1.49,
+  mixed −0.67% ± 0.40, but functions **+2.57% ± 0.00** — a reproducible regression on a
+  row where the change only removes work, i.e. a JIT-layout perturbation of the kind the
+  arithmetic row already taught. Dropped as-is; the branch is raw material.
 
-**The session plan** — steps 1 and 2 of the original four are done: the matrix above, and
-the category split it yielded for the 1 KB guard (parse ≥ ~31–34% of all hot-method
-samples, analysis ~9–11%, execute the rest). Build the prepared-AST diagnostic only if a
-finer split than that turns out to matter. What remains:
+**Where that leaves J1.** The large-1k regression is now fully attributed and its cheap
+remedies are measured out: the cost is eager analysis of small-loop once-called functions,
+the gate that causes it buys +16% on mixed, no static predicate can separate the two, and
+the first traversal trim moved guards through code layout rather than through its own cost.
+The remaining options, for a deliberate decision rather than a default:
 
-1. Optimize only after attribution — now licensed for `js-large-1k`: exact counters around
-   eager-vs-forced analysis first (the cheap discriminator), then a cheaper analysis
-   (fewer traversals, fewer collections) and gating eagerness on something better than
-   `hasLoop`, testing a narrowed predicate locally before any analyzer rewrite. For
-   `js-arithmetic` more local JFR pairs of this shape would not answer it; the next lever
-   is mechanism-isolating build variants (devolatilize `node.meta`, drop the `node.slot`
-   branch, un-outline the tails — one at a time) decided on the EC2 bench, and `Node`
-   footprint, whose ~+1.5% parse-allocation cost is source-supported above.
-2. Local on/off A/B first for any change — and raise `--iterations` (`js-large-1k` 200k →
+1. **Accept the guard regression as the price of the mixed win** — record it and close the
+   large-1k half of J1. The row is a guard; the five-row geomean already nets −4.97%.
+2. **The mid-call switch** — the only mechanism that can separate the anchors: defer
+   everything, then attach the frame at the K-th loop *iteration* of the first call.
+   UNDECLARED-slot fallback makes a mid-call frame semantically plausible (unmigrated
+   names keep resolving through the store), but declared-name migration, TDZ states and
+   re-arm lists make this a designed-and-reviewed item, not a session patch.
+3. **Cheaper analysis, decided on the bench** — local layout noise swamps ~1% effects;
+   if pursued, candidates ride the same EC2 matrix as the arithmetic variants.
+
+For `js-arithmetic` the plan is unchanged: mechanism-isolating build variants
+(devolatilize `node.meta`, drop the `node.slot` branch, un-outline the tails — one at a
+time) decided on the EC2 bench; `Node` footprint's ~+1.5% parse-allocation cost is
+source-supported above. Scratch branches `j1/slot-stats`, `j1/force-call`,
+`j1/eager-gate`, `j1/cheap-analysis` are local-only raw material.
+
+Protocol for any further change: local on/off A/B first — and raise `--iterations` (`js-large-1k` 200k →
    ~400k, `js-functions` 300k → ~450k; the other defaults are 400k arithmetic / 800k strings
    / 300k objects / 120k mixed, all from `etc/run.sh --list`): the defaults measured under
    compare's 20 s startup-shaped check on the laptop. EC2 four-pair decision matrix only for
