@@ -1091,23 +1091,19 @@ rows pay, and whether either cost can be removed without giving back the wins.
   row where the change only removes work, i.e. a JIT-layout perturbation of the kind the
   arithmetic row already taught. Dropped as-is; the branch is raw material.
 
-**Where that leaves J1.** The large-1k regression is now fully attributed and its cheap
-remedies are measured out: the cost is eager analysis of small-loop once-called functions,
-the gate that causes it buys +16% on mixed, no static predicate can separate the two, and
-the first traversal trim moved guards through code layout rather than through its own cost.
-The remaining options, for a deliberate decision rather than a default:
+**The large-1k half of J1 is CLOSED — accepted 2026-08-13 (Peter).** The regression is
+fully attributed (eager analysis of small-loop once-called functions), its gate buys +16%
+on mixed, no static predicate can separate the two, and the cheap remedies measured out at
+break-even or layout-noise. The +5% guard row is the recorded price of the acceptance-row
+wins; the five-row geomean nets −4.97%. *Reopens only if* the guard's weight changes — a
+real workload shown to have the many-small-loop-functions shape at scale — and then the
+design on the table is the **mid-call switch** (defer everything; attach the frame at the
+K-th loop *iteration* of the first call — semantically plausible via UNDECLARED-slot
+fallback, but declared-name migration, TDZ states and re-arm lists make it a
+designed-and-reviewed item, not a session patch). Cheaper-analysis trims, if ever pursued,
+ride an EC2 matrix — local layout noise swamps ~1% effects.
 
-1. **Accept the guard regression as the price of the mixed win** — record it and close the
-   large-1k half of J1. The row is a guard; the five-row geomean already nets −4.97%.
-2. **The mid-call switch** — the only mechanism that can separate the anchors: defer
-   everything, then attach the frame at the K-th loop *iteration* of the first call.
-   UNDECLARED-slot fallback makes a mid-call frame semantically plausible (unmigrated
-   names keep resolving through the store), but declared-name migration, TDZ states and
-   re-arm lists make this a designed-and-reviewed item, not a session patch.
-3. **Cheaper analysis, decided on the bench** — local layout noise swamps ~1% effects;
-   if pursued, candidates ride the same EC2 matrix as the arithmetic variants.
-
-For `js-arithmetic` the plan is unchanged: mechanism-isolating build variants
+**What remains of J1 is the arithmetic half**: mechanism-isolating build variants
 (devolatilize `node.meta`, drop the `node.slot` branch, un-outline the tails — one at a
 time) decided on the EC2 bench; `Node` footprint's ~+1.5% parse-allocation cost is
 source-supported above. Scratch branches `j1/slot-stats`, `j1/force-call`,
