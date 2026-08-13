@@ -996,16 +996,19 @@ etc/ec2/ssh.sh injector 'rm -rf ~/karate/karate-profiling/target/profiling/suite
 **Last exercised in full 2026-08-08, all passing**; `collect.sh`'s histogram include was
 exercised for real by E1R, and the js lane, `collect.sh` and `teardown.sh` were exercised
 again 2026-08-12 at `93fe950b0` (the slot-frames decision matrix, including a mid-session
-recovery). Skip them when `git log --oneline 93fe950b0.. -- etc/ec2` is empty — make the
-check, do not assume it, and move the sha forward when a session exercises the battery.
+recovery). Skip them when `git log --oneline 93fe950b0.. -- ':/karate-profiling/etc/ec2'`
+is empty (the `:/` pathspec anchors at the repo root — a relative pathspec run from the
+wrong directory matches nothing and prints a false "skip") — make the check, do not assume
+it, and move the sha forward when a session exercises the battery.
 
 ### Open experiments, in priority order
 
 **The Gatling arc is PAUSED as of 2026-08-07** (E2–E4 below, designs kept so nothing is
-re-derived), and **the suite-soak arc is closed** — E1 and E1R answered it. **The queued next
-work is R1's harness build (local), then one bench session carrying R1's first cells and
-J1's remaining arithmetic variants together**; everything else here is a deliberate decision
-to start.
+re-derived), and **the suite-soak arc is closed** — E1 and E1R answered it. **R1's local
+harness is built and gated (2026-08-13); the queued next work is an interim docs session
+(compact this document per the deferred item, and slim the bench handoff), then one bench
+session carrying R1's first cells and J1's remaining arithmetic variants together**;
+everything else here is a deliberate decision to start.
 
 #### J1 — slot frames: attribute and recover the non-target regressions
 
@@ -1425,8 +1428,9 @@ about to be published; ~20 + ~30 min.
 ### Bench budget
 
 Two `c7g.4xlarge` are ~$1.16/hr; provision + bootstrap is ~6 min of every session. **The suite-soak
-arc is closed** — E1 and E1R together answer the leak question and measure the step-log release, so
-the next session starts from the paused Gatling arc or from whatever the parked designs turn into.
+arc is closed** — E1 and E1R together answer the leak question and measure the step-log release. The
+next bench session is the R1-first-cells + J1-arithmetic-variants pairing described above (single
+Graviton host, ~$0.60/hr); the table below prices the paused Gatling arc for whenever it resumes.
 
 | | settles | bench time | ~cost |
 |---|---|---:|---:|
