@@ -64,7 +64,7 @@ Gatling arm, so it informs the leak claim, not the parity one.)
 - **Open-loop / overload behaviour.** Every cell is closed-loop, so throughput is capped by
   `users ÷ iteration time` and the knee is optimistic by construction (E4, paused).
 - **A large Runner suite with reports on, over hours** — *no longer open*: answered by E1 and
-  confirmed on the fixed panels by [E1R](#e1r--the-confirming-re-run-taken-2026-08-08).
+  confirmed on the fixed panels by [E1R](#the-suite-soak-e1e1r--settled-2026-08-08).
 - **The unpooled client path** — *no longer open*: E1R ran a client per scenario over TLS for
   ~700,000 lifecycles with descriptors flat and 0 closed by the probe's GC.
 - **The 8-vs-32-user trend.** Each cell's own figure stands; the trend between them is
@@ -279,8 +279,8 @@ prints whether a single writer thread could keep up with the suite — see §8.
 
 ### `suite-soak` — the enterprise suite shape, for hours
 
-The Runner-lane soak, and the workload [E1](#e1--the-result-taken-2026-08-08)
-is run with. Many small generated features; each scenario evaluates a config that computes,
+The Runner-lane soak, and the workload
+[E1/E1R](#the-suite-soak-e1e1r--settled-2026-08-08) were run with. Many small generated features; each scenario evaluates a config that computes,
 calls a shared auth-shaped feature over HTTP, invokes a JS helper, then does POST + GET at the
 `LatencyMock` **over TLS** with a closed match. Per-step capture stays on — it is the Runner
 default and part of what is under test. It owns its suite, so `--iterations` is *total
@@ -308,17 +308,14 @@ its own client, which is a second release path with its own way to abandon a soc
 hundreds of thousands of connections *must* recycle ports and *cannot* exceed the ephemeral
 range. Thousands means a client per scenario; a number near the thread count means something
 is pooling that should not be. Anything tighter is a check that fails on every healthy soak
-and trains the reflex of explaining it away. (The rehearsal measured 7,185 for 4,000
-scenarios against a naive expectation of 8,000 — recycling, over a run that outlived the 60 s
-TIME_WAIT window, and exactly why the equality version of this check was wrong.)
+and trains the reflex of explaining it away.
 
-**The digest now refuses to derive a connection *rate* from a saturated count.** Once
+**The digest refuses to derive a connection *rate* from a saturated count.** Once
 `distinctPeerPorts` passes a quarter of the host's ephemeral range the panel says so and stops
-printing a rate, because the count has become the size of the range rather than a measurement of
-connections. The soak proved the point: 32,256 ports over 7,070 s printed **"5 connections/s"**
-for a run opening ~99/s — a 20× under-report of the one number that exists to be checked against
-the exhaustion ceiling, arriving precisely when pressure was highest. Exhaustion is still visible
-where it actually shows: errors at the mock, and a stall that reads as client slowness.
+printing a rate — the count has become the size of the range rather than a measurement of
+connections, and a rate derived from it under-reports worst exactly when connection pressure
+is highest. Exhaustion is still visible where it actually shows: errors at the mock, and a
+stall that reads as client slowness.
 
 **A failed scenario does not throw**, so this workload counts failures itself, stops when they
 exceed the allowance, exits non-zero, and prints them into the *Suite outcome* panel — see §3 for
@@ -335,16 +332,14 @@ for:**
 | One feature holding thousands of scenarios, reports on | **Known-unbounded, accepted.** Not a leak: retention by design until suite end. See [per-scenario spill](#per-scenario-spill--designed-reviewed-deliberately-not-built) |
 | A slow leak over hours, **pooled Gatling HTTP** | **Answered 2026-08-07 — none detected** (C5 in §0) |
 | The **unpooled** client path | ✅ **Answered 2026-08-08 by E1R** — a client per scenario over TLS, ~700,000 lifecycles, descriptors flat, 0 closed by the probe's GC |
-| A large Runner suite with **reports on** | ✅ **Answered 2026-08-08 by E1, confirmed on the fixed panels by [E1R](#e1r--the-confirming-re-run-taken-2026-08-08)** — 350,000 scenarios over four suites, 0 failures, floor drift +28.6 KB (0%), 0 descriptors closed by the probe's GC |
+| A large Runner suite with **reports on** | ✅ **Answered 2026-08-08 by E1, confirmed on the fixed panels by [E1R](#the-suite-soak-e1e1r--settled-2026-08-08)** — 350,000 scenarios over four suites, 0 failures, floor drift +28.6 KB (0%), 0 descriptors closed by the probe's GC |
 
 #### The false positive every soak walks into by construction
 
-Both soaks run so far showed a **heap-after-GC floor rising monotonically** — 11.4 → 27.8 MB
-over an hour in one, +11.0 MB (116%) in the other — and **neither was a leak**. On a long run
-with the heap sized well above the working set, G1 never approaches its occupancy threshold,
-so every collection is a young evacuation pause (104,980 of 104,980 in the first; 10,140 of
-10,170 in the second) and promoted garbage accumulates in an old generation nothing revisits.
-The floor climbs identically with nothing leaked.
+A long soak's **heap-after-GC floor rises monotonically with nothing leaked**. On a run with
+the heap sized well above the working set, G1 never approaches its occupancy threshold, so
+every collection is a young evacuation pause and promoted garbage accumulates in an old
+generation nothing revisits — every hour-scale soak here has shown the shape.
 
 **Read the live set after a forced full GC, never the floor.** That is what `--soak`'s
 live-set probe samples, and `LiveSetPanelTest` pins that the panel can actually report a rise
@@ -793,55 +788,50 @@ and are not repeated here.
 
 #### `call-accumulation` scale sweep — machine A, 60 calls per scenario, 16 threads
 
-Peak heap, reports off. **Before** = 2026-08-04, karate 2.1.2.RC1 as released.
-**After** = the same build with completed call results released at scenario end.
+Peak heap, reports off, with completed call results released at scenario end (the pre-fix
+slope was ~143 KB per scenario held for the whole suite; git history has those tables):
 
-| scenarios | before (`-Xmx3g`) | after (`-Xmx3g`) |
-|---:|---:|---:|
-| 500 | 343 MB | 209 MB |
-| 2000 | 859 MB | 272 MB |
-| 5000 | exceeds 768m, saturates | **233 MB at `-Xmx768m`, 5.3s** |
+| scenarios | peak (`-Xmx3g`) |
+|---:|---:|
+| 500 | 209 MB |
+| 2000 | 272 MB |
+| 5000 | **233 MB at `-Xmx768m`, 5.3s** |
 
-Before, peak grew ~143 KB per scenario, held for the whole suite. After, a 4x increase in
-scenarios moves peak heap barely at all. **Flat is the property to check on any future run.**
+A 4x increase in scenarios moves peak heap barely at all. **Flat is the property to check on
+any future run.**
 
 #### Reports on — machine A, `-Xmx3g`, 16 threads, 60 calls per scenario
 
-Peak heap, before and after the report-writing changes in §8.
+Peak heap, with the report-writing changes in §8 in place.
 
 **`feature-spread` — 200 features x 10 scenarios (the ordinary suite shape):**
 
-| scenarios | off | **html before → after** | all before → after |
-|---:|---:|---|---|
-| 500 | 222 MB | 564 → **349 MB** | 210 → 372 MB |
-| 1000 | 331 MB | 1231 → **415 MB** | 297 → 242 MB |
-| 2000 | 482 MB | 2093–2489 → **618 MB** | 426–475 → 400 MB |
+| scenarios | off | html | all |
+|---:|---:|---:|---:|
+| 500 | 222 MB | 349 MB | 372 MB |
+| 1000 | 331 MB | 415 MB | 242 MB |
+| 2000 | 482 MB | 618 MB | 400 MB |
 
 **`call-accumulation` — 1 feature x N scenarios (the mega-outline shape):**
 
-| scenarios | off | **html before → after** | all before → after |
-|---:|---:|---|---|
-| 500 | 230 MB | 1330 → **502 MB** | 1755 → 1121 MB |
-| 1000 | 253 MB | 2852 → **1108 MB** | 2334 → 1984 MB |
-| 2000 | 355 MB | 2690 (saturating) → **2079 MB** | 2995 → 3017 MB |
+| scenarios | off | html | all |
+|---:|---:|---:|---:|
+| 500 | 230 MB | 502 MB | 1121 MB |
+| 1000 | 253 MB | 1108 MB | 1984 MB |
+| 2000 | 355 MB | 2079 MB | 3017 MB |
 
-Read together: **the ordinary shape is bounded** (reporting now costs ~1.3x running the tests,
-and wall-clock *fell* — the work removed was larger than the parallelism lost); **the single
-mega-outline shape is still linear** — a known, accepted limit (§9). Ignore the `all` column
-moving the wrong way in three cells: those before-numbers were artificially low because JSONL
-was accidentally throttling the producer (§8) — never a budget to regress against. The
-before-`html` range at 2000 was not reproducible run to run; that instability was itself the
-symptom.
+Read together: **the ordinary shape is bounded** (reporting costs ~1.3x running the tests, and
+the §8 fix also *lowered* wall-clock — the work removed was larger than the parallelism lost);
+**the single mega-outline shape is still linear** — a known, accepted limit (§9). Peak heap
+with reports on is race-shaped, not a precise quantity (§4's "unstable number" tell) — read
+the linear-vs-flat trend, not cell-to-cell deltas.
 
 #### Cross-check against the external reproducer — machine A, `-Xmx768m`, 5000 scenarios
 
-| variant | karate 2.0.10 | 2.1.2.RC1 as released | with the fix |
-|---|---|---|---|
-| J (13 bound captures) | heap pinned, killed at 10 min | passed, 1.96s | passed, 2.7s |
-| C (60 calls via `karate.repeat`) | OOM | saturates | **passed, 6.5s** |
-| E (60 calls, individual statements) | OOM | pinned at 99.8%, killed | **passed, 6.7s** |
-
-Two distinct mechanisms, and only measurement separated them: the scope-capture nesting J was
+All three variants of the external reproducer — 13 bound captures (2.7s); 60 calls via
+`karate.repeat` (6.5s); 60 calls as individual statements (6.7s) — **pass at `-Xmx768m`** on
+current main, the same shapes that OOM'd or pinned the heap on karate 2.0.10. Two distinct
+mechanisms, and only measurement separated them: the scope-capture nesting the reproducer was
 written to demonstrate was already gone before this work started; the call-result accumulation
 the reporter had *retracted* was the one still live.
 
@@ -927,10 +917,9 @@ linear trend and the ratios are what travel.*
 ## 8. What the parallel-execution memory investigation settled
 
 Kept because two of these findings reversed a confident, well-argued reading of the code.
-
-A user reported an OOM under parallel execution on 2.0.10, heap dump showing 89% of a 3.87 GB
-live heap in the stack locals of a 13-deep self-recursion. Three mechanisms were on the table;
-only measurement separated them:
+A reported OOM under parallel execution (2.0.10; heap dump: 89% of the live heap in the stack
+locals of a 13-deep self-recursion) put three mechanisms on the table; only measurement
+separated them:
 
 | Mechanism | Verdict |
 |---|---|
@@ -1004,118 +993,73 @@ it, and move the sha forward when a session exercises the battery.
 ### Open experiments, in priority order
 
 **The Gatling arc is PAUSED as of 2026-08-07** (E2–E4 below, designs kept so nothing is
-re-derived), and **the suite-soak arc is closed** — E1 and E1R answered it. **R1's local
-harness is built and gated (2026-08-13); the queued next work is an interim docs session
-(compact this document per the deferred item, and slim the bench handoff), then one bench
-session carrying R1's first cells and J1's remaining arithmetic variants together**;
-everything else here is a deliberate decision to start.
+re-derived), and **the suite-soak arc is closed** — the settled entry below carries E1/E1R's
+figures and reopening conditions. **R1's local harness is built and gated (2026-08-13); the
+queued next work is one bench session carrying R1's first cells and J1's remaining
+arithmetic variants together**; everything else here is a deliberate decision to start.
 
-#### J1 — slot frames: attribute and recover the non-target regressions
+#### J1 — slot frames: the arithmetic half
 
 Slot frames landed on decision-grade evidence (the settled entry below; port commit
-`93fe950b0`, param-binding race fix `144e04293`). What remains is *why* the two non-target
-rows pay, and whether either cost can be removed without giving back the wins.
+`93fe950b0`, param-binding race fix `144e04293`). Two guard rows paid; one is closed, one
+remains open, and the closed one's evidence is compressed here to what stops a re-run —
+full readouts are beside the digests in `$KP_RESULTS` (`j1diag-local/`, `j1knobs-local/`)
+and in git history.
 
-**Already measured — do not re-run the timing matrices first:**
+**The large-1k half is CLOSED — accepted 2026-08-13 (Peter).** `js-large-1k`
+(+4.94% ± 1.21 EC2, +5.55% ± 1.50 local on/off) is **flag-gated and fully attributed**:
+the generated functions all carry small `for` loops, so `hasLoop` defeats the DEFERRED
+heuristic and eager Walker+annotate analysis runs at function creation on every fresh
+eval — once-called functions with a ~10-iteration payback window. The JFR-on diagnostic
+matrix (2026-08-13, `j1diag-local/`) measured the cost directly — flag-on spends ~9–11% of
+CPU samples in `SlotTable.analyze/annotate/Walker.walk` against exactly zero flag-off —
+and exact counters (scratch branch `j1/slot-stats`) split the work: per iteration, 39.6
+function creations, 15.85 analyzed eagerly (the loop carriers), 15.85 more forced at the
+second call (the ~10-call `filter` callbacks). Every cheap remedy then measured out:
 
-- `js-arithmetic` **+3.92% ± 0.70** on the EC2 port matrix, but **−0.90% ± 1.80 flag-on vs
-  flag-off locally on the same jar** (4 pairs, 2026-08-12). The regression is therefore
-  **structural, not flag-gated** — the kill switch cannot recover it. The candidate
-  mechanisms, all present with the flag off: the `node.slot` branch added to every `REF_EXPR`
-  read/write/compound/inc-dec fast path, the name-keyed tails outlined into extra methods at
-  JIT inlining thresholds, the volatile `node.meta` read in `rearmScopedSlots` on every block
-  and for-statement entry (a load-acquire on the aarch64 machines everything here runs on),
-  and `Node` growing a volatile `meta` reference — paid in parse allocation by a
-  fresh-parse-per-iteration workload. An external (Codex) review independently produced the
-  same ranked list.
-- `js-large-1k` **+4.94% ± 1.21 EC2 / +5.55% ± 1.50 local on/off** — **flag-gated**: the
-  generated functions all carry small `for` loops, so `hasLoop` defeats the DEFERRED
-  heuristic and eager Walker+annotate analysis runs at function creation on every fresh
-  eval — once-called functions with a ~10-iteration payback window, plus each `filter`
-  callback analyzed at its second-of-ten calls. Removing eagerness is not free: `js-mixed`'s
-  −12% win depends on analysis paying back *inside one call* of a 100-iteration loop, and
-  loop size is not statically visible.
-- **The JFR-on diagnostic matrix ran 2026-08-13** (local, two pairs per row, JFR on
-  throughout; digests archived beside the bench evidence, `j1diag-local/`; readout
-  externally reviewed — sound-with-amendments, folded in) and settles what it could reach:
-  - **`js-large-1k` — the flag-gated cost is the eager analysis, now measured.** Flag-on
-    spends **~9–11% of all CPU samples** in `SlotTable.analyze` / `SlotTable.annotate` /
-    `SlotTable$Walker.walk` — three separately visible analysis buckets (`analyze`
-    orchestrates a `Walker.walk` collection plus one-or-more annotation traversals, so this
-    is repeated traversal work, not three peer passes) — against exactly zero flag-off,
-    netting +5.15% ± 0.74 once the frame-resolution savings are folded in. The callers,
-    from the raw recording: dominantly `JsFunctionNode.<init>` → `SlotTable.forNodeEager`
-    (creation-time, the `hasLoop` path), a minority `SlotTable.forNodeForced` under
-    `call`/`bindArgsAndExecute` (the deferred second-call transition). Parser/lexer frames
-    hold ~31–34% of all samples on *both* arms (43–49% of the listed top-25 — the panel's
-    cutoff hides a mixed remainder) — the row is parse-dominated regardless. The leading
-    candidates, hypotheses to measure rather than licensed conclusions: a cheaper analysis
-    (fewer traversals and collections), and a better eagerness gate — with exact counters
-    around eager-vs-forced analysis as the cheap discriminator before any rewrite.
-  - **`js-arithmetic` — the structural regression was not reproduced or attributable
-    locally.** Cross-build timing −0.04% ± 0.77, per-iteration CPU within ±0.7%,
-    hot-method profiles identical within sampling noise — two local pairs cannot say the
-    EC2 +3.92% ± 0.70 is absent, only that this configuration did not resolve it, and at
-    ~1,300 samples a 4% cost diffused over the existing fast paths is invisible anyway.
-    The one consistent cross-arm delta: **total sampled allocation ~+1.5% on the port
-    build** (26.87/26.80 → 27.24/27.24 GB across the two pairs) — source-supported as the
-    `Node` footprint growth paid at parse (`slot` + volatile `meta`), and consistent with
-    the total, though attribution panels cannot pin it. Attributing the EC2 figure any
-    finer needs mechanism-isolating build variants A/B'd on the bench (or hardware
-    counters), not more local JFR pairs of this shape.
-  - **`js-functions` corroborates as the contrast** even with JFR on: −14.22% ± 1.24, CPU
-    64.2 → 55.0 µs/iteration, sampled allocation −23%. The win reads directly off the
-    panels: name-keyed `BindingsStore` traffic (`getSlot` ~17% → ~3% of samples,
-    `popLevel`/`pushBinding` down with it) replaced by `SlotTable.indexOf` at ~6%.
-  - **Read the timing columns as diagnostic corroboration only** — JFR was on, and the
-    functions/large-1k windows sit under compare's 20 s startup-shaped check (the derived
-    table flags every one). The settled JFR-off matrices remain the timing evidence; the
-    hot-method split is a classification of sampled top frames, not an exclusive
-    wall-clock phase decomposition.
-- **Exact counters (same day) split the analysis work precisely** (scratch branch
-  `j1/slot-stats`, `-Dkarate.js.slotStats=true`; readout beside the digests). Per
-  large-1k iteration: 39.6 function creations — 15.85 analyzed eagerly (the loop
-  carriers), 23.8 deferred, of which 15.85 reach a second call and analyze there (the
-  ~10-call `filter` callbacks). Mixed: 6.65 creations, all eager, and its scoped
-  annotation pass visits as many nodes again as the body pass. Functions: 14.0 creations,
-  all deferred, all forced at the second call.
-- **The forced half is break-even, measured** — raising the deferred-analysis ordinal
-  from call 2 to 16 (knob `karate.js.slotForceCall`, scratch branch `j1/force-call`, same-jar
-  A/B, 4 pairs): large-1k **−0.14% ± 0.90** (no gain — analysis at call 2 pays for itself
-  over a 10-call callback's remaining calls) and functions **+3.80% ± 0.36** (14 extra
-  name-keyed calls of ~177). Refuted; do not raise the threshold.
-- **The eager half is the entire large-1k cost, and the gate is load-bearing** — deferring
-  everything (`karate.js.slotEager=false`, scratch branch `j1/eager-gate`, 4+2 pairs):
-  large-1k **−4.51% ± 1.27** (the whole flag-gated regression recovered) against mixed
-  **+16.41% ± 0.88** (the win handed back).
-- **No static gate can split those two outcomes.** The anchor scripts prove it: mixed's
-  one function loops on `i < items.length` (100 at runtime — must stay eager) and
-  large-1k's loop on `j < filtered.length` (≤10 at runtime — should defer) are the *same
-  static shape*; mixed's literal-100 loop is top-level, which frames never touch. Loop
-  size is dynamic; the gating lane is closed, not merely unexplored.
-- **A cheaper-traversal trim is not decision-grade** — skipping token children in the four
-  analysis traversals (branch `j1/cheap-analysis`, suite green): large-1k −1.13% ± 1.49,
-  mixed −0.67% ± 0.40, but functions **+2.57% ± 0.00** — a reproducible regression on a
-  row where the change only removes work, i.e. a JIT-layout perturbation of the kind the
-  arithmetic row already taught. Dropped as-is; the branch is raw material.
+- **Raising the deferred-analysis ordinal (call 2 → 16) is break-even** (`j1/force-call`):
+  large-1k −0.14% ± 0.90, functions +3.80% ± 0.36. Refuted; do not raise the threshold.
+- **The eager gate is load-bearing** (`j1/eager-gate`): deferring everything recovers
+  large-1k in full (−4.51% ± 1.27) and hands back mixed's win (+16.41% ± 0.88).
+- **No static gate can split those outcomes.** Mixed's must-stay-eager loop
+  (`i < items.length`, 100 at runtime) and large-1k's should-defer loop
+  (`j < filtered.length`, ≤10 at runtime) are the *same static shape*; loop size is
+  dynamic. The gating lane is closed, not merely unexplored.
+- **A cheaper-traversal trim is not decision-grade** (`j1/cheap-analysis`): sub-noise wins
+  plus a reproducible +2.57% ± 0.00 on functions from a change that only removes work —
+  JIT layout, the same lesson the arithmetic row teaches. Dropped; the branch is raw
+  material.
 
-**The large-1k half of J1 is CLOSED — accepted 2026-08-13 (Peter).** The regression is
-fully attributed (eager analysis of small-loop once-called functions), its gate buys +16%
-on mixed, no static predicate can separate the two, and the cheap remedies measured out at
-break-even or layout-noise. The +5% guard row is the recorded price of the acceptance-row
-wins; the five-row geomean nets −4.97%. *Reopens only if* the guard's weight changes — a
-real workload shown to have the many-small-loop-functions shape at scale — and then the
-design on the table is the **mid-call switch** (defer everything; attach the frame at the
-K-th loop *iteration* of the first call — semantically plausible via UNDECLARED-slot
-fallback, but declared-name migration, TDZ states and re-arm lists make it a
-designed-and-reviewed item, not a session patch). Cheaper-analysis trims, if ever pursued,
-ride an EC2 matrix — local layout noise swamps ~1% effects.
+The +5% guard row is the recorded price of the acceptance-row wins; the five-row geomean
+nets −4.97%. *Reopens only if* the guard's weight changes — a real workload shown to have
+the many-small-loop-functions shape at scale — and then the design on the table is the
+**mid-call switch** (defer everything; attach the frame at the K-th loop *iteration* of
+the first call — semantically plausible via UNDECLARED-slot fallback, but declared-name
+migration, TDZ states and re-arm lists make it a designed-and-reviewed item, not a session
+patch). Cheaper-analysis trims, if ever pursued, ride an EC2 matrix — local layout noise
+swamps ~1% effects.
 
-**What remains of J1 is the arithmetic half**: mechanism-isolating build variants
-(devolatilize `node.meta`, drop the `node.slot` branch, un-outline the tails — one at a
-time) decided on the EC2 bench; `Node` footprint's ~+1.5% parse-allocation cost is
-source-supported above. Scratch branches `j1/slot-stats`, `j1/force-call`,
-`j1/eager-gate`, `j1/cheap-analysis` are local-only raw material.
+**What remains open is the arithmetic half.** `js-arithmetic` is **+3.92% ± 0.70** on the
+EC2 port matrix but **−0.90% ± 1.80 flag-on vs flag-off locally on the same jar** — the
+regression is **structural, not flag-gated**; the kill switch cannot recover it. The local
+JFR diagnostic could not reproduce or attribute it (cross-build timing −0.04% ± 0.77,
+hot-method profiles identical within noise — at ~1,300 samples a 4% cost diffused over the
+fast paths is invisible); its one consistent cross-arm delta is **total sampled allocation
+~+1.5% on the port build**, source-supported as the `Node` footprint growth paid at parse.
+The candidate mechanisms, all present with the flag off, in the order to isolate them: the
+name-keyed tails outlined into extra methods at JIT inlining thresholds, the volatile
+`node.meta` read in `rearmScopedSlots` on every block and for-statement entry (a
+load-acquire on the aarch64 machines everything here runs on), the `node.slot` branch
+added to every `REF_EXPR` read/write/compound/inc-dec fast path, and `Node` growing
+`slot` + a volatile `meta` reference (the parse-allocation term). An external (Codex)
+review independently produced the same ranked list.
+
+**The experiment: mechanism-isolating build variants, one at a time, decided on the EC2
+bench** — un-outline the tails, devolatilize `node.meta`, drop the `node.slot` branch —
+four-pair matrices, `functions`/`mixed` primary with `arithmetic`/`large-1k` as guards.
+Local JFR pairs of the diagnostic shape cannot resolve it; more of them is spend without
+information. Scratch branches `j1/slot-stats`, `j1/force-call`, `j1/eager-gate`,
+`j1/cheap-analysis` are local-only raw material.
 
 Protocol for any further change: local on/off A/B first — and raise `--iterations` (`js-large-1k` 200k →
    ~400k, `js-functions` 300k → ~450k; the other defaults are 400k arithmetic / 800k strings
@@ -1147,7 +1091,7 @@ Protocol for any further change: local on/off A/B first — and raise `--iterati
   etc/run.sh js-arithmetic --js-jar "$jar_a" --run-tag j1diag:p2:a
   ```
 
-- **The local on/off A/B** (step 4) is the same shape with one jar: `--js-jar "$jar_b"` on
+- **A local on/off A/B** is the same shape with one jar: `--js-jar "$jar_b"` on
   both arms, `--no-jfr`, and `-Dkarate.js.slotFrames=false` appended to the A cells — a bare
   `-D` argument passes through to the child JVM and lands in the digest as part of the arm's
   identity, so `compare` will not mistake the pair for a null control.
@@ -1247,142 +1191,6 @@ that puts the gap near ~1.55× geomean, functions ~1.8×, mixed ~1.7× — the d
   **Still ahead of the first bench cells**: `etc/ec2/js-matrix.sh` grows engine-arm
   support (it currently speaks `--jar-a/--jar-b` only), and the warmup-sensitivity
   rehearsal runs on the bench host itself.
-
-#### The suite soak — the question, and how to re-run it
-
-**The question it answered.** Does a long-running Karate *Runner* suite — the shape an
-enterprise regression suite actually has — retain memory or descriptors beyond what reporting is
-*designed* to retain? One run covered three gaps at once: reports-on retention, the **unpooled**
-per-scenario client lifecycle over TLS (where a missed release *can* abandon a socket, unlike
-the pooled lane), and realism — config functions, a shared-feature `call`, a JS helper and TLS
-HTTP per scenario.
-
-**The shape, for anyone re-running it.** Two-host bench with the mock on the second host, which
-is load-bearing rather than a default: with per-step capture on, the step log holds the rendered
-request and response, so the retention worth watching only exists when there is real HTTP. Many
-small features, never one giant outline — that shape is known-unbounded by design and would
-swamp the signal. Sized from a rehearsal at 24.3 scenarios/s on 4 threads and 34 KB of reports
-per scenario, which is why the run provisions 150 GB: the reports are never collected, so their
-size is headroom, not storage, and ENOSPC mid-soak wastes the session.
-
-**Run it as four suites, not one long one** (`-Dprofiling.soak.suites=4`). Retention climbs by
-design and collapses at suite end, so four ramps each returning to the same floor make a leak
-visible with no interpretation needed; one monotonic ramp can only be read against a predicted
-slope. It also keeps peak retention per *suite* rather than per run. `--iterations` must divide
-exactly by `suites × scenarios-per-feature`; the workload refuses anything else rather than
-silently resizing the experiment the timeout was chosen for.
-
-**The command is in [PROFILING_EC2.md §4.5](./PROFILING_EC2.md) and only there.**
-
-### E1 — the result, taken 2026-08-08
-
-Build `ef989f6`, 1 h 58 m, ~$2.30. **350,000 scenarios run of 350,000 generated, 350,000
-passed, 0 failed**, 1,050,000 requests reconciling exactly against the mock, four suites of
-87,500 within 2.4 seconds of each other in duration.
-
-| | |
-|---|---|
-| floor after suites 1 / 2 / 3 | 551.6 / 538.6 / 541.3 MiB — flat, and the second is *lower* than the first |
-| live set after the load stopped | **12.2 MiB**, from a peak of ~791 |
-| descriptors | 154 → 157, `closed by the probe's GC` ≤ 2, across ~700,000 TLS client lifecycles |
-| injector CPU | 0.28 of 16 cores |
-
-**Four ramps, four returns to the same floor, no step up.** That answers all three questions
-the experiment was promoted for: reports-on retention is released at suite end, the unpooled
-per-scenario client lifecycle abandons no sockets over TLS, and nothing survives a suite in a
-long-lived JVM.
-
-**These figures are the pre-fix retention baseline and nothing else should be quoted from them.**
-The run exposed two panel defects, both since fixed (§3), and its peaks were sampled at differing
-offsets from each boundary. E1R below re-read it on the fixed panels and confirmed the
-conclusion.
-
-### E1R — the confirming re-run, taken 2026-08-08
-
-Build `83b0d25` (⊇ `3ef1236f`), 1 h 57 m, ~$2.61. One run answering two questions: it re-read E1
-on the fixed panels, and it measured the change E1's numbers argued for — karate-core releasing a
-step's captured log and embeds at feature end.
-
-**Gate passed**, so a verdict is licensed: 4/4 suites, **350,000 of 350,000 scenarios passed, 0
-failed**, and 1,050,000 requests reconciling exactly against the mock's `served` with 0 errors.
-
-| | E1 (pre-fix) | E1R |
-|---|---|---|
-| peak live set within a suite | 791.2 MB | **618.5 MB** — like-for-like on timed probes, −21.8% |
-| floor after each suite | 551.6 / 538.6 / 541.3 MB | **12.9 / 12.9 / 12.9 / 12.9 MB** |
-| floor drift | *(not computed correctly)* | **+28.6 KB (0%)**, tolerance 4.0 MB — nothing detectably survived a suite |
-| descriptors | 154 → 157, ≤2 closed by the probe's GC | 155 / 156 / 147 flat, **0** closed by the probe's GC |
-| top of `histogram-suite-N-peak.txt` | 290 MB `[B`, 102 MB `String` | 233 MB `[B`, 100.6 MB `String` |
-
-**The rule, as registered before the run** — first match wins, so no result can land outside it:
-**0 gate**, 4/4 suites and 0 failed, or no verdict at all; **1 regresses**, the panel's own floor
-verdict reads `rising, investigate` or descriptors are not flat; **2 refutes**, peak ≥ 700 MiB;
-**3 confirms**, peak ≤ 400 MiB *and* neither `[B` nor `String` in the top three of
-`histogram-suite-N-peak.txt`; **4 qualifies**, everything else.
-
-**The verdict is `qualifies`** — the fourth branch. It is not `confirms`, and it fails that
-branch on both of its conditions: the peak is above 400 MiB,
-and `[B`/`String` are still the top two histogram entries.
-
-**What moved is the peak; what did not is the composition — and the composition was the wrong
-test.** The residual text is ~48 strings per scenario averaging ~55 bytes, with the `[B` count
-tracking the `String` count almost exactly: that is the parsed gherkin model and result skeleton,
-held by the `final` chain `FeatureResult → Feature`, `ScenarioResult → Scenario`,
-`StepResult → Step`, not captured request/response bodies. The confirm condition treated
-"`[B`/`String` in the top three" as a proxy for captured text, but step *source* text is also
-`[B`/`String`, so the criterion cannot separate what the fix removes from what it deliberately
-keeps. See [immutable `Feature`](#immutable-feature-and-a-per-execution-overlay--not-built) and
-[JSONL as the source of truth](#jsonl-as-the-source-of-truth--on-the-table-not-decided) for the
-two designs that would move it.
-
-**The check that the fix did its job**, independent *of the histogram criterion* — not of E1,
-since `3ef1236f`'s prediction was itself derived from E1's numbers, so the two share that peak.
-It predicted ~3.2 KB/scenario retained of which ~70% was text, i.e. a **2.24 KB/scenario**
-saving. Measured like-for-like: 9.48 → 7.41 KB/scenario, a saving of **2.07 KB/scenario**
-dividing by the suite's full count, or **2.27** dividing by the ~79,700 scenarios actually
-complete when the 6903s probe fired. The prediction sits inside that bracket.
-
-> **`bytes()` prints "MB" for MiB** — it is 1024-based. Every figure in this section is what the
-> digest prints, so they are MiB; the KB/scenario figures above are derived in true bytes. Do not
-> re-derive them treating the printed MB as decimal, which understates by 4.7%.
-
-**Two things in the build window, and only one is the subject.** E1 ran `ef989f6`, E1R ran
-`83b0d25`, and *two* karate-core commits sit between: `3ef1236f` and `7e4dcd6ca` ("SUITE_EXIT
-shipped the whole run a second time"). The second cannot own the delta — `SUITE_EXIT` fires after
-every mid-suite peak probe, and its `releaseCallResults` recursion fix needs `retainCallResults`,
-which this workload never sets. Its signature is elsewhere and is large: `peakHeapBytes` fell
-5.29 GB → 1.31 GB, which is transient serialization, not retention.
-
-**Two numbers from this pair that must never be quoted.**
-
-- **The floors are not comparable, and the reason is not the step-log release.** E1's build had
-  **no labelled boundary probes at all** — they were added with the panel fix — so its "floors"
-  are timed probes landing 30–90 s *into the next suite*, by which time that suite's constructor
-  has eagerly parsed all 8,750 features. `Suite.features` is a `final List<Feature>` built in the
-  constructor, and E1R measures the cost directly: 12.9 MB at the labelled boundary, **561.9 MB
-  34 seconds later**. E1's own first probe — 300 s into suite 1, with no previous suite in
-  existence — reads 583.5 MB, which settles it. Had a whole `SuiteResult` been retained across the
-  boundary the floors would have read over 1.2 GB, not 551.
-- **The peak comparison is only valid on timed probes.** The rule registered E1's 791.2 MB (a
-  timed maximum) against E1R's labelled `suite-N-peak` probe, which is a different quantity — see
-  below. Using the labelled probe reads 517.4 MB and −34.6%, which flatters the result.
-
-**A third defect, found by this run.** `suite-N-peak` is probed *after* `runSuite()` returns, so
-it reads what the returned `SuiteResult` still holds, not the highest the run reached — a suite in
-flight also holds the machinery running it. E1R measured those as 517 MB and 618 MB. The panel
-consumed the labelled probe only to compute `released at each suite end` and never printed a
-within-suite peak at all, so the sole peak on offer was the *global* `min / max`. Fixed: the panel
-now prints `peak within each suite` from the segment maxima, marked as the sampled lower bound it
-is, and `LiveSetPanelTest` pins that it reports the mid-suite maximum rather than the boundary
-reading. Read against the corrected row, E1R's per-suite peaks are **612.4 / 610.6 / 617.8 /
-618.5 MB — flat**, which is the statement E1 could not make. (Those four are derived from the
-archived digest's probe table; the digest itself predates the row and will not show it.)
-
-**One thing this run cannot see.** Releasing logs is only safe because the report writers have
-already consumed them; the bench never checks that, since `collect.sh` pulls digests and the
-report trees die with the host. That guarantee lives in `StepLogReleaseTest` (5/5 green on
-`83b0d25`), not here — so a green digest is not evidence the reports are intact, and the two must
-not be conflated.
 
 ### Paused — the Gatling arc
 
@@ -1486,6 +1294,76 @@ without a reopening condition is spend without information.
   table to `$KP_RESULTS` — it was the one piece of evidence with no artifact. `bootstrap.sh
   --sync` no longer preserves laptop mtimes and discards compiled outputs, so Maven cannot
   skip a synced file against a stale class.
+
+#### The suite soak (E1/E1R) — settled 2026-08-08
+
+**The question.** Does a long-running Karate *Runner* suite — the shape an enterprise
+regression suite actually has — retain memory or descriptors beyond what reporting is
+*designed* to retain? One run covered three gaps at once: reports-on retention, the
+**unpooled** per-scenario client lifecycle over TLS (where a missed release *can* abandon a
+socket, unlike the pooled lane), and realism — config functions, a shared-feature `call`, a
+JS helper and TLS HTTP per scenario.
+
+**The answer: no.** Two runs on the two-host bench, ~2 h each: **E1** (build `ef989f6`, the
+pre-fix retention baseline) and **E1R** (build `83b0d25`, on the fixed panels, which also
+measured the step-log release its predecessor's numbers argued for — karate-core releasing a
+step's captured log and embeds at feature end, `3ef1236f`). Both passed the integrity
+conditions that license a verdict: 4/4 suites, **350,000 of 350,000 scenarios passed, 0
+failed**, 1,050,000 requests reconciling exactly against the mock, 0 errors. E1R
+additionally ran under a rule registered *before* the run, first match wins: **0 gate**
+(4/4 suites and 0 failed, or no verdict at all); **1 regresses** (the panel's own floor
+verdict reads `rising, investigate`, or descriptors are not flat); **2 refutes** (peak
+≥ 700 MiB); **3 confirms** (peak ≤ 400 MiB *and* neither `[B` nor `String` in the top three
+of `histogram-suite-N-peak.txt`); **4 qualifies** (everything else). E1R's figures (the
+digest's `bytes()` prints MiB as "MB"; the KB/scenario figures are derived in true bytes):
+
+| | E1R |
+|---|---|
+| peak within each suite (timed probes) | 612.4 / 610.6 / 617.8 / 618.5 MB — flat |
+| floor after each suite | 12.9 / 12.9 / 12.9 / 12.9 MB |
+| floor drift | **+28.6 KB (0%)**, tolerance 4.0 MB |
+| descriptors | 155 / 156 / 147 flat, **0** closed by the probe's GC, over ~700,000 TLS client lifecycles |
+| step-log release vs E1, like-for-like timed peaks | 791.2 → 618.5 MB, **−21.8%**; retained text 9.48 → 7.41 KB/scenario — a saving of 2.07 KB/scenario by the suite's full count, 2.27 by the ~79,700 scenarios complete when the probe fired, bracketing the fix's ~2.24 KB/scenario prediction |
+
+Four ramps, four returns to the same floor, no step up: reports-on retention is released at
+suite end, the unpooled client lifecycle abandons no sockets over TLS, and nothing survives
+a suite in a long-lived JVM. E1R's verdict under that rule was **`qualifies`**, not
+`confirms` —
+the residual is ~48 strings per scenario averaging ~55 bytes, the parsed gherkin model and
+result skeleton held by the `final` chain `FeatureResult → Feature`,
+`ScenarioResult → Scenario`, `StepResult → Step`, which the two designs under
+[Parked designs](#parked-designs) (immutable `Feature`; JSONL as the source of truth) exist
+to move; the confirm criterion ("`[B`/`String` in the top three") could not separate step
+*source* text from captured text, so the composition was the wrong test. (The other
+karate-core commit in the window, `7e4dcd6ca`, cannot own the delta: its path needs
+`retainCallResults`, which this workload never sets.)
+
+**Qualifiers that must travel with any quoted figure:**
+
+- **Never quote E1's floors** (551.6 / 538.6 / 541.3 MB). Its build had no labelled boundary
+  probes, so those are timed probes landing 30–90 s into the *next* suite's eager parse —
+  E1R priced that parse directly: 12.9 MB at the labelled boundary, 561.9 MB 34 seconds
+  later (`Suite.features` is a `final List<Feature>` built in the constructor).
+- **Peak comparisons are only valid on timed probes.** The labelled `suite-N-peak` probe is
+  a different quantity (§3, "Two peak rows" — E1R: 517 vs 618 MB); using it reads −34.6%
+  and flatters the result.
+- **A green digest is not evidence the reports are intact.** Releasing logs is only safe
+  because the writers have already consumed them; the bench never checks that — the report
+  trees die with the host. That guarantee lives in `StepLogReleaseTest` (5/5 green on
+  `83b0d25`), not here.
+
+**Re-running it** — *reopens if* the report writers, the step-log release, the client
+lifecycle or the suite lifecycle change materially. The load-bearing shape: two-host bench
+with the mock on the second host (with per-step capture on, the retention worth watching
+only exists when there is real HTTP); many small features, never one giant outline (that
+shape is known-unbounded by design and would swamp the signal); **four consecutive suites
+in one JVM** (`-Dprofiling.soak.suites=4`) so a leak reads as a floor that steps up, with no
+interpretation needed — `--iterations` must divide exactly by
+`suites × scenarios-per-feature`, and the workload refuses anything else. Size from a
+rehearsal (E1's: 24.3 scenarios/s on 4 threads, ~34 KB of reports per scenario) and
+provision 150 GB — the reports are never collected, so their size is headroom, not storage.
+The command is in [PROFILING_EC2.md §4.5](./PROFILING_EC2.md) and only there; digests and
+the per-boundary class histograms are archived in `$KP_RESULTS/suite-soak-2026-08-08-*`.
 
 **The general lesson, which cost a retraction:** a documented gap that has since been closed
 is a claim like any other, and goes stale silently. "run-meta.txt records no commit" outlived
@@ -1666,7 +1544,6 @@ choice can be made on numbers.
 | Custom JFR events | `karate.Step` / `karate.Call` / `karate.HttpRequest`. A CPU-tuning need, not a memory one — build when the question becomes "where is CPU going during a parallel run", exactly where `ExecutionSample` goes blind. |
 | Per-iteration residue | `action elapsed − Σ PerfEvent` — would attribute Karate's own overhead exactly rather than by subtraction of throughputs. A *reporting* number, not a gate. The signals that can gate are designed in **[GATLING.md §14.12](./GATLING.md)** (injector health — designed, not built). |
 | Machine-readable baselines + CI | Committed `baselines/*.json`, scheduled job, thresholds. Out of scope until the manual playbook has proven itself. |
-| Compact this document | It is accumulating narrative history (closed arcs told as stories, before/after tables for shipped fixes, origin anecdotes behind rules). The doc's own discipline — results stay, plan text and how-it-was-found go to git history — applied to §6 (drop pre-fix columns, keep the shapes to check), §8 (keep the lessons, drop the narrative), E1/E1R (fold into a settled entry: figures, verdict, reopening conditions), and rule-origin asides wherever the rule stands on its own. §0, §9's open/settled/parked structure and §10 stay. Docs-only session, external-review the diff for lost load-bearing qualifiers before committing. |
 | Heap-dump class histogram in `JfrDigest` | Deliberately not implemented: no JDK API or CLI reads an `.hprof`. The digest points at Eclipse MAT. |
 
 ---
