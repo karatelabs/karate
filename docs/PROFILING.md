@@ -900,6 +900,19 @@ linear trend and the ratios are what travel.*
   large enough chunks to be sampled. Fine for finding a 10× problem; not a microbenchmark.
 - **Sampling is sampling.** A site absent from the digest allocated too little to be sampled
   during the window — not nothing.
+- **Allocation *attribution* is unreadable on a single-threaded tight loop.** In the J1
+  diagnostic matrix the throttled allocation sampler produced wildly unstable weighted
+  attribution: one arbitrary site absorbs 40–55% of sampled weight — a *different* site,
+  and a different allocated *type*, in two runs of the same build (a trivial workload
+  helper "allocating" 24.7 GB). The cause was not isolated: HotSpot randomizes sampling
+  intervals precisely to defeat deterministic-sequence bias, so this is
+  throttling/weight variance interacting with a repetitive allocation stream, not a proven
+  phase-lock — and JIT frame-collapsing cannot explain it alone, since the *type* swings
+  too. On these rows read only the **total** sampled weight — stable within ~3% across
+  duplicate runs (≤0.3% on the small rows, 1.8–2.7% on `js-large-1k`) — and take
+  attribution from *Hot methods*, which is time-sampled, platform-thread, and was stable
+  across duplicates. The panels are fine for parallel Runner workloads, where many threads
+  decorrelate the sampler.
 - **Warmup matters.** A digest dominated by class loading and JIT means the warmup was too
   short for what you ran.
 - **These runs eat disk, and a full disk ruins a matrix.** See
@@ -1014,20 +1027,58 @@ rows pay, and whether either cost can be removed without giving back the wins.
   callback analyzed at its second-of-ten calls. Removing eagerness is not free: `js-mixed`'s
   −12% win depends on analysis paying back *inside one call* of a 100-iteration loop, and
   loop size is not statically visible.
+- **The JFR-on diagnostic matrix ran 2026-08-13** (local, two pairs per row, JFR on
+  throughout; digests archived beside the bench evidence, `j1diag-local/`; readout
+  externally reviewed — sound-with-amendments, folded in) and settles what it could reach:
+  - **`js-large-1k` — the flag-gated cost is the eager analysis, now measured.** Flag-on
+    spends **~9–11% of all CPU samples** in `SlotTable.analyze` / `SlotTable.annotate` /
+    `SlotTable$Walker.walk` — three separately visible analysis buckets (`analyze`
+    orchestrates a `Walker.walk` collection plus one-or-more annotation traversals, so this
+    is repeated traversal work, not three peer passes) — against exactly zero flag-off,
+    netting +5.15% ± 0.74 once the frame-resolution savings are folded in. The callers,
+    from the raw recording: dominantly `JsFunctionNode.<init>` → `SlotTable.forNodeEager`
+    (creation-time, the `hasLoop` path), a minority `SlotTable.forNodeForced` under
+    `call`/`bindArgsAndExecute` (the deferred second-call transition). Parser/lexer frames
+    hold ~31–34% of all samples on *both* arms (43–49% of the listed top-25 — the panel's
+    cutoff hides a mixed remainder) — the row is parse-dominated regardless. The leading
+    candidates, hypotheses to measure rather than licensed conclusions: a cheaper analysis
+    (fewer traversals and collections), and a better eagerness gate — with exact counters
+    around eager-vs-forced analysis as the cheap discriminator before any rewrite.
+  - **`js-arithmetic` — the structural regression was not reproduced or attributable
+    locally.** Cross-build timing −0.04% ± 0.77, per-iteration CPU within ±0.7%,
+    hot-method profiles identical within sampling noise — two local pairs cannot say the
+    EC2 +3.92% ± 0.70 is absent, only that this configuration did not resolve it, and at
+    ~1,300 samples a 4% cost diffused over the existing fast paths is invisible anyway.
+    The one consistent cross-arm delta: **total sampled allocation ~+1.5% on the port
+    build** (26.87/26.80 → 27.24/27.24 GB across the two pairs) — source-supported as the
+    `Node` footprint growth paid at parse (`slot` + volatile `meta`), and consistent with
+    the total, though attribution panels cannot pin it. Attributing the EC2 figure any
+    finer needs mechanism-isolating build variants A/B'd on the bench (or hardware
+    counters), not more local JFR pairs of this shape.
+  - **`js-functions` corroborates as the contrast** even with JFR on: −14.22% ± 1.24, CPU
+    64.2 → 55.0 µs/iteration, sampled allocation −23%. The win reads directly off the
+    panels: name-keyed `BindingsStore` traffic (`getSlot` ~17% → ~3% of samples,
+    `popLevel`/`pushBinding` down with it) replaced by `SlotTable.indexOf` at ~6%.
+  - **Read the timing columns as diagnostic corroboration only** — JFR was on, and the
+    functions/large-1k windows sit under compare's 20 s startup-shaped check (the derived
+    table flags every one). The settled JFR-off matrices remain the timing evidence; the
+    hot-method split is a classification of sampled top frames, not an exclusive
+    wall-clock phase decomposition.
 
-**The session plan:**
+**The session plan** — steps 1 and 2 of the original four are done: the matrix above, and
+the category split it yielded for the 1 KB guard (parse ≥ ~31–34% of all hot-method
+samples, analysis ~9–11%, execute the rest). Build the prepared-AST diagnostic only if a
+finer split than that turns out to matter. What remains:
 
-1. JFR-on diagnostic matrix — hand-run, see the protocol notes below — three rows only:
-   `js-arithmetic`, `js-large-1k`, `js-functions` as the winning contrast. Allocation and CPU
-   attribution; timing acceptance stays JFR-off.
-2. Separate parse/analyze cost from execute cost for the 1 KB guard. No instrument exists for
-   this yet — a prepared-AST diagnostic or controlled-reuse workload is a small piece of
-   harness work, not a choice between available tools.
-3. Optimize only after attribution. Candidates, in rough order of expected value: a cheaper
-   analysis (single pass, fewer collections); gating eagerness on something better than
-   `hasLoop`; making non-frame name routing pay no extra branch on top-level shapes; `Node`
-   footprint.
-4. Local on/off A/B first for any change — and raise `--iterations` (`js-large-1k` 200k →
+1. Optimize only after attribution — now licensed for `js-large-1k`: exact counters around
+   eager-vs-forced analysis first (the cheap discriminator), then a cheaper analysis
+   (fewer traversals, fewer collections) and gating eagerness on something better than
+   `hasLoop`, testing a narrowed predicate locally before any analyzer rewrite. For
+   `js-arithmetic` more local JFR pairs of this shape would not answer it; the next lever
+   is mechanism-isolating build variants (devolatilize `node.meta`, drop the `node.slot`
+   branch, un-outline the tails — one at a time) decided on the EC2 bench, and `Node`
+   footprint, whose ~+1.5% parse-allocation cost is source-supported above.
+2. Local on/off A/B first for any change — and raise `--iterations` (`js-large-1k` 200k →
    ~400k, `js-functions` 300k → ~450k; the other defaults are 400k arithmetic / 800k strings
    / 300k objects / 120k mixed, all from `etc/run.sh --list`): the defaults measured under
    compare's 20 s startup-shaped check on the laptop. EC2 four-pair decision matrix only for
@@ -1487,6 +1538,7 @@ choice can be made on numbers.
 | Custom JFR events | `karate.Step` / `karate.Call` / `karate.HttpRequest`. A CPU-tuning need, not a memory one — build when the question becomes "where is CPU going during a parallel run", exactly where `ExecutionSample` goes blind. |
 | Per-iteration residue | `action elapsed − Σ PerfEvent` — would attribute Karate's own overhead exactly rather than by subtraction of throughputs. A *reporting* number, not a gate. The signals that can gate are designed in **[GATLING.md §14.12](./GATLING.md)** (injector health — designed, not built). |
 | Machine-readable baselines + CI | Committed `baselines/*.json`, scheduled job, thresholds. Out of scope until the manual playbook has proven itself. |
+| Compact this document | It is accumulating narrative history (closed arcs told as stories, before/after tables for shipped fixes, origin anecdotes behind rules). The doc's own discipline — results stay, plan text and how-it-was-found go to git history — applied to §6 (drop pre-fix columns, keep the shapes to check), §8 (keep the lessons, drop the narrative), E1/E1R (fold into a settled entry: figures, verdict, reopening conditions), and rule-origin asides wherever the rule stands on its own. §0, §9's open/settled/parked structure and §10 stay. Docs-only session, external-review the diff for lost load-bearing qualifiers before committing. |
 | Heap-dump class histogram in `JfrDigest` | Deliberately not implemented: no JDK API or CLI reads an `.hprof`. The digest points at Eclipse MAT. |
 
 ---
