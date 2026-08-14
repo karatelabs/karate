@@ -49,7 +49,7 @@ import java.util.Map;
  *   <li>valuesFor('@tag').isAllOf(1, 2) - check if all values present</li>
  *   <li>valuesFor('@tag').isOnly(1, 2) - exact value match</li>
  *   <li>valuesFor('@tag').isEach(fn) - predicate on values</li>
- *   <li>Compound expressions: anyOf('@foo') && !anyOf('@ignore')</li>
+ *   <li>Compound expressions: anyOf('@foo') &amp;&amp; !anyOf('@ignore')</li>
  * </ul>
  */
 public class TagSelector {
@@ -144,7 +144,7 @@ public class TagSelector {
     /**
      * Evaluate a tag selector expression against this set of tags.
      *
-     * @param tagSelector the selector expression (e.g., "anyOf('@foo') && not('@ignore')")
+     * @param tagSelector the selector expression (e.g., "anyOf('@foo') &amp;&amp; not('@ignore')")
      * @param karateEnv   the current karate.env value (may be null)
      * @return true if the tags match the selector
      */
@@ -267,7 +267,7 @@ public class TagSelector {
      * <ul>
      *   <li>"@foo" → "anyOf('@foo')"</li>
      *   <li>"@foo, @bar" → "anyOf('@foo','@bar')"</li>
-     *   <li>"@foo", "@bar" (multiple args) → "anyOf('@foo') && anyOf('@bar')"</li>
+     *   <li>"@foo", "@bar" (multiple args) → "anyOf('@foo') &amp;&amp; anyOf('@bar')"</li>
      *   <li>"~@ignore" → "not('@ignore')"</li>
      *   <li>"anyOf('@foo')" (already JS-style) → "anyOf('@foo')"</li>
      * </ul>

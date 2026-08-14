@@ -2785,7 +2785,7 @@ public class CdpDriver implements Driver {
     }
 
     /**
-     * Bounded liveness probe for {@link PooledDriverProvider} reset.
+     * Bounded liveness probe for {@link io.karatelabs.driver.PooledDriverProvider} reset.
      * <p>
      * Evaluates {@code new Promise(r => setTimeout(() => r(true), 0))} with
      * {@code awaitPromise} and a 3-second CDP timeout (vs the default 30s). Returns

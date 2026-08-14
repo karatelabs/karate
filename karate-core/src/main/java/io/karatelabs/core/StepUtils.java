@@ -359,7 +359,7 @@ public class StepUtils {
     }
 
     /**
-     * Find the first '=' that's an assignment operator (not ==, !=, <=, >=).
+     * Find the first '=' that's an assignment operator (not {@code ==, !=, <=, >=}).
      *
      * @param text the text to search
      * @return index of '=' or -1 if not found

@@ -608,7 +608,8 @@ public final class Runner {
          * {@link Suite#registerGlobal(String, Object)} in {@code onBoot}. Lets an embedder
          * stand up a one-off {@code Runner.features(...)} run that binds a global without
          * authoring an ext or a {@code karate-boot.js} — e.g. a synthesizer whose single
-         * synthetic step replays recorded events through {@link LogContext#step}. Seeded before
+         * synthetic step replays recorded events through
+         * {@link io.karatelabs.output.LogContext#step(String, boolean)}. Seeded before
          * {@code karate-config.js}; a reserved-name collision fails the suite loud at construction.
          */
         public Builder global(String name, Object instance) {

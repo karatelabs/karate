@@ -37,7 +37,7 @@ package io.karatelabs.core;
  *             }
  *             case STEP_EXIT -> {
  *                 StepResult sr = event.getStepResult();
- *                 if (sr != null && sr.isFailed()) {
+ *                 if (sr != null &amp;&amp; sr.isFailed()) {
  *                     System.out.println("Step failed: " + event.getStep().getText());
  *                 }
  *             }

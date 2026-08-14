@@ -262,9 +262,9 @@ public class HttpUtils {
      * Returns a Pair where left is the path (without query string) and right is the params map.
      * <p>
      * Examples:
-     * - "/test?name=john" -> Pair.of("/test", {name: [john]})
-     * - "/test" -> Pair.of("/test", {})
-     * - "/api/users?id=1&id=2" -> Pair.of("/api/users", {id: [1, 2]})
+     * - {@code "/test?name=john" -> Pair.of("/test", {name: [john]})}
+     * - {@code "/test" -> Pair.of("/test", {})}
+     * - {@code "/api/users?id=1&id=2" -> Pair.of("/api/users", {id: [1, 2]})}
      */
     public static Pair<Object> parsePathAndParams(String uri) {
         QueryStringDecoder decoder = new QueryStringDecoder(uri);

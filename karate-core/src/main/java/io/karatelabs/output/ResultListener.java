@@ -32,8 +32,8 @@ import io.karatelabs.gherkin.Feature;
 /**
  * Interface for receiving test execution results as they stream in.
  * <p>
- * Unlike {@link RuntimeHook}, ResultListener is purely observational and cannot
- * abort execution. Use this for reporting and external integrations.
+ * Unlike {@link io.karatelabs.core.RunListener}, ResultListener is purely observational
+ * and cannot abort execution. Use this for reporting and external integrations.
  * <p>
  * The scenario is the smallest unit of granularity - step-level events are not
  * streamed as they add overhead without significant reporting value.
