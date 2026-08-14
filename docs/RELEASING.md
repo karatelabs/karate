@@ -117,7 +117,9 @@ on one, so the release does **not** block on CVEs. `cve.yml` is the gate: it fai
 
 - [ ] Upload release assets (attach to the GitHub release):
   - `karate-X.Y.Z.jar` (fat jar — unzipped from the step 3 `karate-release-X.Y.Z` artifact)
-  - `cve-sbom-report.html` (from step 2)
+  - `cve-sbom-report.html` (from step 2 — if the scan is still running on a cold NVD cache,
+    publish the release without it and attach it when the run completes; the CVE report does
+    not block the release)
 
 ## 5. Close Issues and Milestone
 
@@ -154,6 +156,12 @@ This is critical — the CLI installer pulls versions from this manifest.
 - [ ] Update `../karate-todo` to use version `X.Y.Z`
 - [ ] Verify both projects build and tests pass
 - [ ] Commit and push both repos
+- [ ] Update `../karate-docs`: bump the `KARATE_VERSION` constant in `docusaurus.config.ts` to
+      `X.Y.Z` — it is the single source for every `@karate.version@` token in the `.mdx` content
+      (a markdown preprocessor stamps it into prose and code blocks at build time). Run
+      `npm run build` to verify, then commit and push to `main` (Netlify auto-deploys). Note the
+      v1→v2 migration snippets (`migration-from-v1.mdx`, the Nashorn answer in `faq.mdx`) are
+      deliberately anchored at `2.0.0` / `1.5.2` — leave those alone.
 
 ## 8. Update karate-examples
 
