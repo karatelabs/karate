@@ -2070,6 +2070,41 @@ public class CdpDriver implements Driver {
     }
 
     /**
+     * Take a screenshot of the whole scrollable page. Uses {@code captureBeyondViewport}
+     * clipped to the document's content size ({@code Page.getLayoutMetrics}) — the clip is
+     * needed because the flag alone still yields a viewport-sized image on some builds.
+     */
+    @Override
+    public byte[] screenshotFullPage(boolean embed) {
+        CdpResponse metrics = cdp.method("Page.getLayoutMetrics").send();
+        Integer width = metrics.getResultAsInt("cssContentSize.width");
+        Integer height = metrics.getResultAsInt("cssContentSize.height");
+        if (width == null || height == null) {
+            width = metrics.getResultAsInt("contentSize.width");
+            height = metrics.getResultAsInt("contentSize.height");
+        }
+        if (width == null || height == null || width < 1 || height < 1) {
+            return screenshot(embed);
+        }
+        Map<String, Object> clip = new java.util.LinkedHashMap<>();
+        clip.put("x", 0);
+        clip.put("y", 0);
+        clip.put("width", width);
+        clip.put("height", height);
+        clip.put("scale", 1);
+        CdpResponse response = cdp.method("Page.captureScreenshot")
+                .param("format", "png")
+                .param("clip", clip)
+                .param("captureBeyondViewport", true)
+                .send();
+        byte[] bytes = Base64.getDecoder().decode(response.getResultAsString("data"));
+        if (embed) {
+            LogContext.get().embed(bytes, "image/png", "screenshot.png");
+        }
+        return bytes;
+    }
+
+    /**
      * Best-effort failure-path screenshot, bounded by {@link #FAILURE_SCREENSHOT_TIMEOUT}
      * so a stalled renderer can't turn a swallowed diagnostic into a full-timeout hang.
      */

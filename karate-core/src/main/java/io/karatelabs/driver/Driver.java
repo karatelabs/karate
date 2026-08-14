@@ -692,6 +692,15 @@ public interface Driver extends CoreDriver, SimpleObject {
     }
 
     /**
+     * Take a screenshot of the whole scrollable page, not just the viewport.
+     * Default impl falls back to the viewport screenshot — backends may override
+     * for native beyond-the-viewport capture.
+     */
+    default byte[] screenshotFullPage(boolean embed) {
+        return screenshot(embed);
+    }
+
+    /**
      * Best-effort screenshot for the failure path (screenshotOnFailure). MUST be
      * bounded by a SHORT timeout so a stalled renderer can't turn a swallowed
      * diagnostic capture into a long hang.
