@@ -114,4 +114,30 @@ class StepUtilsTest {
         assertNotSame(listBytesOriginal, listBytesCopied);
         assertArrayEquals(listBytesOriginal, listBytesCopied);
     }
+
+    @Test
+    void testDeepCopyStringArrayPreservesType() {
+        String[] original = new String[]{"alpha", "beta", "gamma"};
+        Object copyObj = StepUtils.deepCopy(original);
+
+        assertInstanceOf(String[].class, copyObj);
+        String[] copy = (String[]) copyObj;
+        assertNotSame(original, copy);
+        assertArrayEquals(original, copy);
+    }
+
+    @Test
+    void testDeepCopyMultidimensionalByteArray() {
+        byte[][] original = new byte[][]{{1, 2}, {3, 4, 5}};
+        Object copyObj = StepUtils.deepCopy(original);
+
+        assertInstanceOf(byte[][].class, copyObj);
+        byte[][] copy = (byte[][]) copyObj;
+        assertNotSame(original, copy);
+        assertEquals(2, copy.length);
+        assertNotSame(original[0], copy[0]);
+        assertArrayEquals(original[0], copy[0]);
+        assertNotSame(original[1], copy[1]);
+        assertArrayEquals(original[1], copy[1]);
+    }
 }

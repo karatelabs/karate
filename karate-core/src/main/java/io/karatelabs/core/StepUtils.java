@@ -28,6 +28,7 @@ import io.karatelabs.common.Xml;
 import io.karatelabs.js.JavaCallable;
 import org.w3c.dom.Node;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -234,32 +235,16 @@ public class StepUtils {
         if (value instanceof JavaCallable) {
             return value;
         }
-        if (value instanceof byte[] bytes) {
-            return bytes.clone();
-        }
-        if (value instanceof short[] shorts) {
-            return shorts.clone();
-        }
-        if (value instanceof int[] ints) {
-            return ints.clone();
-        }
-        if (value instanceof long[] longs) {
-            return longs.clone();
-        }
-        if (value instanceof float[] floats) {
-            return floats.clone();
-        }
-        if (value instanceof double[] doubles) {
-            return doubles.clone();
-        }
-        if (value instanceof char[] chars) {
-            return chars.clone();
-        }
-        if (value instanceof boolean[] booleans) {
-            return booleans.clone();
-        }
-        if (value instanceof Object[] arr) {
-            Object[] copy = new Object[arr.length];
+        if (value.getClass().isArray()) {
+            Class<?> componentType = value.getClass().getComponentType();
+            if (componentType.isPrimitive()) {
+                int length = Array.getLength(value);
+                Object copy = Array.newInstance(componentType, length);
+                System.arraycopy(value, 0, copy, 0, length);
+                return copy;
+            }
+            Object[] arr = (Object[]) value;
+            Object[] copy = (Object[]) Array.newInstance(componentType, arr.length);
             for (int i = 0; i < arr.length; i++) {
                 copy[i] = deepCopy(arr[i]);
             }
