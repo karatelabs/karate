@@ -223,7 +223,7 @@ public class StepUtils {
     }
 
     /**
-     * Deep copy a value (Map, List, or primitive).
+     * Deep copy a value (Map, List, array, or primitive).
      */
     @SuppressWarnings("unchecked")
     public static Object deepCopy(Object value) {
@@ -233,6 +233,37 @@ public class StepUtils {
         // JsCallable functions shouldn't be deep-copied - return them unchanged
         if (value instanceof JavaCallable) {
             return value;
+        }
+        if (value instanceof byte[] bytes) {
+            return bytes.clone();
+        }
+        if (value instanceof short[] shorts) {
+            return shorts.clone();
+        }
+        if (value instanceof int[] ints) {
+            return ints.clone();
+        }
+        if (value instanceof long[] longs) {
+            return longs.clone();
+        }
+        if (value instanceof float[] floats) {
+            return floats.clone();
+        }
+        if (value instanceof double[] doubles) {
+            return doubles.clone();
+        }
+        if (value instanceof char[] chars) {
+            return chars.clone();
+        }
+        if (value instanceof boolean[] booleans) {
+            return booleans.clone();
+        }
+        if (value instanceof Object[] arr) {
+            Object[] copy = new Object[arr.length];
+            for (int i = 0; i < arr.length; i++) {
+                copy[i] = deepCopy(arr[i]);
+            }
+            return copy;
         }
         if (value instanceof Map) {
             Map<String, Object> copy = new LinkedHashMap<>();

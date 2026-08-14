@@ -885,31 +885,8 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
     /**
      * Deep copy to prevent cross-thread mutation of cached data.
      */
-    @SuppressWarnings("unchecked")
     private Object deepCopy(Object value) {
-        if (value == null) {
-            return null;
-        }
-        // JsCallable functions shouldn't be deep-copied - they should be shared across threads
-        if (value instanceof JavaCallable) {
-            return value;
-        }
-        if (value instanceof Map) {
-            Map<String, Object> copy = new LinkedHashMap<>();
-            for (Map.Entry<String, Object> entry : ((Map<String, Object>) value).entrySet()) {
-                copy.put(entry.getKey(), deepCopy(entry.getValue()));
-            }
-            return copy;
-        }
-        if (value instanceof List) {
-            List<Object> copy = new ArrayList<>();
-            for (Object item : (List<Object>) value) {
-                copy.add(deepCopy(item));
-            }
-            return copy;
-        }
-        // Primitives, strings, etc. are immutable - return as-is
-        return value;
+        return StepUtils.deepCopy(value);
     }
 
     /**

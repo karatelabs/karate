@@ -2146,4 +2146,64 @@ class StepCallTest {
         assertTrue(result.isPassed(), "multi-line call should run both scenarios: " + getFailureMessage(result));
     }
 
+    @Test
+    void testNestedCallWithByteArrayInScenarioOutline() throws Exception {
+        Path child = tempDir.resolve("child.feature");
+        Files.writeString(child, """
+            Feature: child
+            @someScenario
+            Scenario: someScenario
+            * def calleeReceived = rowData
+            * def calleeVal = 42
+            """);
+
+        Path parent = tempDir.resolve("parent.feature");
+        Files.writeString(parent, """
+            Feature: parent
+            @setup
+            Scenario:
+            * def datasource = [{ id: '1', desc: 'first' }, { id: '2', desc: 'second' }]
+
+            Scenario Outline: <desc> <id>
+            * def rowData = Java.type('java.nio.charset.StandardCharsets').UTF_8.encode('raw_bytes_' + '<id>').array()
+            * def result = call read('child.feature@someScenario')
+            * match result.calleeVal == 42
+            * match result.calleeReceived == rowData
+
+            Examples:
+            | karate.setup().datasource |
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, parent.toString());
+        assertTrue(result.isPassed(), "scenario outline with byte[] and nested call should pass: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallSingleWithByteArrayResult() throws Exception {
+        Path setup = tempDir.resolve("setup.feature");
+        Files.writeString(setup, """
+            Feature: setup
+            Scenario:
+            * def binaryData = Java.type('java.nio.charset.StandardCharsets').UTF_8.encode('secret-bytes').array()
+            * def config = ({ data: binaryData })
+            """);
+
+        Path caller = tempDir.resolve("caller.feature");
+        Files.writeString(caller, """
+            Feature: caller
+            Scenario: first
+            * def expected = Java.type('java.nio.charset.StandardCharsets').UTF_8.encode('secret-bytes').array()
+            * def res1 = karate.callSingle('setup.feature')
+            * match res1.config.data == expected
+
+            Scenario: second
+            * def expected = Java.type('java.nio.charset.StandardCharsets').UTF_8.encode('secret-bytes').array()
+            * def res2 = karate.callSingle('setup.feature')
+            * match res2.config.data == expected
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, caller.toString());
+        assertTrue(result.isPassed(), "callSingle with byte[] result should pass: " + getFailureMessage(result));
+    }
+
 }

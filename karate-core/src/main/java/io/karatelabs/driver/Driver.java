@@ -77,8 +77,7 @@ public interface Driver extends CoreDriver, SimpleObject {
                     String[] arr = list.stream().map(String::valueOf).toArray(String[]::new);
                     return input(loc, arr, delay);
                 }
-                if (value != null && value.getClass().isArray()) {
-                    Object[] arr = (Object[]) value;
+                if (value instanceof Object[] arr) {
                     String[] strs = new String[arr.length];
                     for (int i = 0; i < arr.length; i++) {
                         strs[i] = String.valueOf(arr[i]);
@@ -290,8 +289,7 @@ public interface Driver extends CoreDriver, SimpleObject {
                     String[] arr = list.stream().map(String::valueOf).toArray(String[]::new);
                     return waitForAny(arr);
                 }
-                if (args.length == 1 && args[0] != null && args[0].getClass().isArray()) {
-                    Object[] arr = (Object[]) args[0];
+                if (args.length == 1 && args[0] instanceof Object[] arr) {
                     String[] strs = new String[arr.length];
                     for (int i = 0; i < arr.length; i++) strs[i] = String.valueOf(arr[i]);
                     return waitForAny(strs);
