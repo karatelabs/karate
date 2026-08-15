@@ -28,6 +28,7 @@ import io.karatelabs.common.Xml;
 import io.karatelabs.js.JavaCallable;
 import org.w3c.dom.Node;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -223,7 +224,7 @@ public class StepUtils {
     }
 
     /**
-     * Deep copy a value (Map, List, or primitive).
+     * Deep copy a value (Map, List, array, or primitive).
      */
     @SuppressWarnings("unchecked")
     public static Object deepCopy(Object value) {
@@ -233,6 +234,21 @@ public class StepUtils {
         // JsCallable functions shouldn't be deep-copied - return them unchanged
         if (value instanceof JavaCallable) {
             return value;
+        }
+        if (value.getClass().isArray()) {
+            Class<?> componentType = value.getClass().getComponentType();
+            if (componentType.isPrimitive()) {
+                int length = Array.getLength(value);
+                Object copy = Array.newInstance(componentType, length);
+                System.arraycopy(value, 0, copy, 0, length);
+                return copy;
+            }
+            Object[] arr = (Object[]) value;
+            Object[] copy = (Object[]) Array.newInstance(componentType, arr.length);
+            for (int i = 0; i < arr.length; i++) {
+                copy[i] = deepCopy(arr[i]);
+            }
+            return copy;
         }
         if (value instanceof Map) {
             Map<String, Object> copy = new LinkedHashMap<>();
