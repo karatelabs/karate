@@ -200,6 +200,29 @@ changes in separate commits (TEST262.md principle #9 discipline).
 
 ### Tier 1 — surgical wins, high confidence (each hours, not days)
 
+> **Status 2026-08-15 — items 1–6 SHIPPED** (commits `b0445d2f8`,
+> `b1581e948`, `34c83b6f8`, `7f0713194`), plus a seventh micro-item found by
+> the post-batch re-profile: `Terms.narrow` autobox/fmod removal
+> (`7d69db6aa`). Item 7 (builtin cache) is **deferred on evidence**: after
+> items 1–6, `Prototype.resolveBuiltin` no longer appears in the mixed row's
+> top CPU lines. Every commit passed the full net (1483 unit tests,
+> `test/language/**` byte-identical FAIL set, `built-ins/Array/**`
+> byte-identical for the push change, smoke 53/56, karate-core 2573 green,
+> EngineBenchmark within noise). Local 2-pair tag-paired screens, base
+> `555f5b5e4` vs `7f0713194` (M1 Pro, --no-jfr, lead alternated):
+> mixed **−17%**, objects **−13.6%**, arithmetic **−12.6%**, strings
+> **−10.6%**, functions **−4.5%**, large-1k guard **−5.2%** (improved) —
+> five-row geomean **≈ −12%**. EC2 confirmation pending (screening numbers
+> only). Post-batch profile state: arithmetic is now owned by the remaining
+> name-keyed scope machinery (`readSlot`/`getSlot`/`pushBinding`/
+> `enterScope` ≈ 46% CPU, 58% alloc — exactly Tier-2 #8's target); mixed's
+> top allocation line is now parse-side `TokenBuffer.getText` (41%) with
+> `JsObject.put` second (19%) — Tier-2 #11 rises in priority; a new
+> visible cost is `JsArray.parseIndex` via `getByName`'s un-fused JsArray
+> branch (`isOwnProperty` + `getMember` double work, ~5% CPU on mixed) —
+> fuse it the way the JsObject branch was fused, minding the literal-null
+> own-value preservation the branch comment documents.
+
 Ordered by expected value ÷ risk:
 
 1. **`popLevel` without the full-map walk.** Track a per-level chain
