@@ -3,6 +3,7 @@ package io.karatelabs.core;
 import io.karatelabs.common.Xml;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 import java.util.*;
@@ -139,6 +140,53 @@ class StepUtilsTest {
         Xml.setByPath(copy, "/root/a", "2");
         assertEquals("1", Xml.getTextValueByPath(original, "/root/a"));
         assertEquals("2", Xml.getTextValueByPath(copy, "/root/a"));
+    }
+
+    @Test
+    void testDeepCopyXmlElementDetachesFromOwnerDocument() {
+        Document doc = Xml.toXmlDoc("<root><a>1</a></root>");
+        Element element = doc.getDocumentElement();
+        Element copy = (Element) StepUtils.deepCopy(element);
+
+        // set-by-xpath resolves through getOwnerDocument(), so a copy still owned
+        // by the original document would route xpath writes to the original tree
+        assertNotSame(doc, copy.getOwnerDocument());
+        Xml.setByPath(copy.getOwnerDocument(), "/root/a", "2");
+        assertEquals("1", Xml.getTextValueByPath(doc, "/root/a"));
+        assertEquals("2", Xml.getTextValueByPath(copy, "/root/a"));
+    }
+
+    @Test
+    void testDeepCopyTypedArrayFallsBackWhenElementTypeChanges() {
+        TreeMap<String, Object> treeMap = new TreeMap<>();
+        treeMap.put("key", "value");
+        TreeMap<?, ?>[] original = new TreeMap<?, ?>[]{treeMap};
+
+        // the copied element becomes a LinkedHashMap, which a TreeMap[] would
+        // reject with ArrayStoreException — the copy must degrade to Object[]
+        Object[] copy = (Object[]) StepUtils.deepCopy(original);
+        assertEquals(1, copy.length);
+        assertInstanceOf(Map.class, copy[0]);
+        assertNotSame(treeMap, copy[0]);
+        assertEquals(treeMap, copy[0]);
+    }
+
+    @Test
+    void testDeepCopySet() {
+        Set<Object> original = new LinkedHashSet<>();
+        original.add("keep");
+        Map<String, Object> nested = new HashMap<>();
+        nested.put("k", "v");
+        original.add(nested);
+
+        @SuppressWarnings("unchecked")
+        Set<Object> copy = (Set<Object>) StepUtils.deepCopy(original);
+        assertNotSame(original, copy);
+        assertEquals(2, copy.size());
+        assertTrue(copy.contains("keep"));
+
+        copy.add("extra");
+        assertEquals(2, original.size());
     }
 
     @Test

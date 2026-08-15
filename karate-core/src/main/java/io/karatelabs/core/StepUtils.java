@@ -26,11 +26,14 @@ package io.karatelabs.core;
 import io.karatelabs.common.Json;
 import io.karatelabs.common.Xml;
 import io.karatelabs.js.JavaCallable;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -224,7 +227,7 @@ public class StepUtils {
     }
 
     /**
-     * Deep copy a value (Map, List, array, XML Node, or primitive).
+     * Deep copy a value (Map, List, Set, array, XML Node, or primitive).
      */
     @SuppressWarnings("unchecked")
     public static Object deepCopy(Object value) {
@@ -237,6 +240,15 @@ public class StepUtils {
         }
         // XML variables are mutable via `set <var> /xpath/...` — share the reference and a
         // callonce/callSingle cache (or a `copy` clone) is corrupted by the next mutation
+        if (value instanceof Document doc) {
+            return doc.cloneNode(true);
+        }
+        if (value instanceof Element element) {
+            // cloneNode alone is not enough for a non-Document node: the clone keeps the
+            // ORIGINAL ownerDocument, and set-by-xpath resolves through getOwnerDocument(),
+            // so an xpath write on the "copy" would still hit the original tree
+            return Xml.toNewDocument(element).getDocumentElement();
+        }
         if (value instanceof Node node) {
             return node.cloneNode(true);
         }
@@ -249,9 +261,20 @@ public class StepUtils {
                 return copy;
             }
             Object[] arr = (Object[]) value;
-            Object[] copy = (Object[]) Array.newInstance(componentType, arr.length);
+            Object[] copy = new Object[arr.length];
+            boolean typePreserved = true;
             for (int i = 0; i < arr.length; i++) {
                 copy[i] = deepCopy(arr[i]);
+                // a copied element may change concrete type (e.g. a Map subtype copies to
+                // LinkedHashMap) — a typed component array would reject it with ArrayStoreException
+                if (copy[i] != null && !componentType.isInstance(copy[i])) {
+                    typePreserved = false;
+                }
+            }
+            if (typePreserved && componentType != Object.class) {
+                Object[] typed = (Object[]) Array.newInstance(componentType, arr.length);
+                System.arraycopy(copy, 0, typed, 0, arr.length);
+                return typed;
             }
             return copy;
         }
@@ -265,6 +288,13 @@ public class StepUtils {
         if (value instanceof List) {
             List<Object> copy = new ArrayList<>();
             for (Object item : (List<Object>) value) {
+                copy.add(deepCopy(item));
+            }
+            return copy;
+        }
+        if (value instanceof Set) {
+            Set<Object> copy = new LinkedHashSet<>();
+            for (Object item : (Set<Object>) value) {
                 copy.add(deepCopy(item));
             }
             return copy;

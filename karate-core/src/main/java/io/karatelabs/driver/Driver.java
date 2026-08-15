@@ -77,10 +77,11 @@ public interface Driver extends CoreDriver, SimpleObject {
                     String[] arr = list.stream().map(String::valueOf).toArray(String[]::new);
                     return input(loc, arr, delay);
                 }
-                if (value instanceof Object[] arr) {
-                    String[] strs = new String[arr.length];
-                    for (int i = 0; i < arr.length; i++) {
-                        strs[i] = String.valueOf(arr[i]);
+                if (value != null && value.getClass().isArray()) {
+                    int length = java.lang.reflect.Array.getLength(value);
+                    String[] strs = new String[length];
+                    for (int i = 0; i < length; i++) {
+                        strs[i] = String.valueOf(java.lang.reflect.Array.get(value, i));
                     }
                     return input(loc, strs, delay);
                 }
@@ -289,9 +290,11 @@ public interface Driver extends CoreDriver, SimpleObject {
                     String[] arr = list.stream().map(String::valueOf).toArray(String[]::new);
                     return waitForAny(arr);
                 }
-                if (args.length == 1 && args[0] instanceof Object[] arr) {
-                    String[] strs = new String[arr.length];
-                    for (int i = 0; i < arr.length; i++) strs[i] = String.valueOf(arr[i]);
+                if (args.length == 1 && args[0] != null && args[0].getClass().isArray()) {
+                    Object array = args[0];
+                    int length = java.lang.reflect.Array.getLength(array);
+                    String[] strs = new String[length];
+                    for (int i = 0; i < length; i++) strs[i] = String.valueOf(java.lang.reflect.Array.get(array, i));
                     return waitForAny(strs);
                 }
                 String[] arr = new String[args.length];
