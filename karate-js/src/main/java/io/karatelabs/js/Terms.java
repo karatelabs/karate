@@ -737,21 +737,24 @@ public class Terms {
     }
 
     public static Number narrow(double d) {
-        if (NEGATIVE_ZERO.equals(d)) {
+        // One long-roundtrip compare replaces the old NEGATIVE_ZERO.equals
+        // (which autoboxed a Double per call — this method runs after every
+        // arithmetic op) and the `d % 1 != 0` fmod: (long) d != d rejects
+        // fractional values, NaN, ±Infinity, AND out-of-long-range magnitudes
+        // in one test. It is also exact at the ±2^63 boundary, where the old
+        // `d <= Long.MAX_VALUE` promoted the bound to 2^63 and (long)-cast
+        // 2^63 to Long.MAX_VALUE — a silent off-by-one.
+        long l = (long) d;
+        if (l != d) {
             return d;
         }
-        if (d % 1 != 0) {
-            return d;
+        if (l == 0 && Double.doubleToRawLongBits(d) != 0) {
+            return d; // -0.0 stays a double (observable via 1/x)
         }
-        // Both bounds matter: a negative value < Integer.MIN_VALUE was previously
-        // narrowed to int via `d <= MAX_VALUE`, which silently overflowed. Same for long.
-        if (d >= Integer.MIN_VALUE && d <= Integer.MAX_VALUE) {
-            return (int) d;
+        if (l >= Integer.MIN_VALUE && l <= Integer.MAX_VALUE) {
+            return (int) l;
         }
-        if (d >= Long.MIN_VALUE && d <= Long.MAX_VALUE) {
-            return (long) d;
-        }
-        return d;
+        return l;
     }
 
     static JsValue toJsValue(Object o) {
