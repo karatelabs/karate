@@ -24,7 +24,6 @@
 package io.karatelabs.js;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -48,6 +47,13 @@ class BindingsStore {
      *  {@code BindingSlot.value} is not gated). See
      *  {@link #captured(java.util.Map)}. */
     private final boolean immutable;
+    /** Head of the intrusive per-level slot chain, indexed by scope level.
+     *  {@link #pushBinding} links each level>0 slot here so {@link #popLevel}
+     *  walks only that level's slots — the whole-map iteration it replaces
+     *  was a top CPU + allocation line on loop-heavy profiles. Lazily
+     *  created; level 0 (function/global lifetime) is never popped and never
+     *  chained. */
+    private BindingSlot[] levelHeads;
 
     BindingsStore() {
         this.map = new HashMap<>();
@@ -73,7 +79,13 @@ class BindingsStore {
         this.map = new HashMap<>();
         this.immutable = false;
         for (Map.Entry<String, BindingSlot> e : other.map.entrySet()) {
-            map.put(e.getKey(), new BindingSlot(e.getValue()));
+            BindingSlot copy = new BindingSlot(e.getValue());
+            map.put(e.getKey(), copy);
+            // Rebuild the level chain for the copied top slot. Shadowed
+            // `previous` slots are shared by reference with the source store
+            // and must NOT be re-linked here — their nextInLevel belongs to
+            // the source's chains.
+            linkLevel(copy, copy.level);
         }
     }
 
@@ -245,6 +257,7 @@ class BindingsStore {
         BindingSlot existing = map.get(key);
         BindingSlot newSlot = new BindingSlot(key, value, scope, true, level, existing);
         map.put(key, newSlot);
+        linkLevel(newSlot, level);
     }
 
     /** Push a binding with explicit initialized state (TDZ-aware paths). */
@@ -253,22 +266,59 @@ class BindingsStore {
         BindingSlot existing = map.get(key);
         BindingSlot newSlot = new BindingSlot(key, value, scope, initialized, level, existing);
         map.put(key, newSlot);
+        linkLevel(newSlot, level);
     }
 
-    /** Drop every binding at {@code level}, restoring shadowed predecessors. */
+    /** Link a slot into its level's chain. Level 0 is function/global
+     *  lifetime — never popped, never chained. */
+    private void linkLevel(BindingSlot s, int level) {
+        if (level <= 0) {
+            return;
+        }
+        if (levelHeads == null) {
+            levelHeads = new BindingSlot[Math.max(8, level + 1)];
+        } else if (level >= levelHeads.length) {
+            levelHeads = java.util.Arrays.copyOf(levelHeads, Math.max(levelHeads.length * 2, level + 1));
+        }
+        s.nextInLevel = levelHeads[level];
+        levelHeads[level] = s;
+    }
+
+    /** Drop every binding at {@code level}, restoring shadowed predecessors.
+     *
+     * <p>Walks only the level's intrusive chain — allocation-free and
+     * O(bindings at this level), replacing the historical whole-map
+     * iteration. Semantics are preserved exactly, including the map-walk's
+     * one-visit-per-name behavior: a restored shadow whose own level equals
+     * the popped level (same-level re-push, the loop-iteration
+     * re-declaration path in {@code CoreContext.declare}) is deferred to the
+     * next pop of that level via {@link BindingSlot#deferredPop}, which is
+     * when the old code would have seen it as the map's entry. */
     void popLevel(int level) {
-        if (immutable) return;
-        Iterator<Map.Entry<String, BindingSlot>> it = map.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<String, BindingSlot> e = it.next();
-            BindingSlot s = e.getValue();
-            if (s.level == level) {
+        if (immutable || levelHeads == null || level >= levelHeads.length) {
+            return;
+        }
+        BindingSlot s = levelHeads[level];
+        levelHeads[level] = null;
+        while (s != null) {
+            BindingSlot next = s.nextInLevel;
+            s.nextInLevel = null;
+            if (s.deferredPop) {
+                s.deferredPop = false;
+                s.nextInLevel = levelHeads[level];
+                levelHeads[level] = s;
+            } else if (map.get(s.name) == s) {
                 if (s.previous != null) {
-                    e.setValue(s.previous);
+                    map.put(s.name, s.previous);
+                    if (s.previous.level == level) {
+                        s.previous.deferredPop = true;
+                    }
                 } else {
-                    it.remove();
+                    map.remove(s.name);
                 }
             }
+            // else: stale — removed or replaced since push; nothing to do
+            s = next;
         }
     }
 
@@ -286,6 +336,7 @@ class BindingsStore {
 
     void clear() {
         map.clear();
+        levelHeads = null;
     }
 
 }

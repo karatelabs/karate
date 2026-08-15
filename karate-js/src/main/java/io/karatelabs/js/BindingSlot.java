@@ -72,6 +72,16 @@ final class BindingSlot {
      *  in the store; structural removal via {@link BindingsStore#remove} is
      *  used for plain user bindings that have no underlying built-in. */
     boolean tombstoned;
+    /** Intrusive singly-linked chain of slots pushed at the same scope level,
+     *  headed in {@code BindingsStore.levelHeads} — lets
+     *  {@link BindingsStore#popLevel} touch only that level's slots instead of
+     *  walking the whole map. Owned entirely by BindingsStore. */
+    BindingSlot nextInLevel;
+    /** Set when this slot was restored into the map by a pop of its own level
+     *  (a same-level shadow). The next pop of that level clears the flag and
+     *  defers the slot one more window — matching the historical
+     *  whole-map-walk semantics, which visited each name once per pop. */
+    boolean deferredPop;
 
     BindingSlot(String name) {
         this.name = name;
