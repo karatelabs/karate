@@ -643,7 +643,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
         Object cached = cache.get(cacheKey);
         if (cached != null) {
             // Deep copy to prevent cross-scenario mutation
-            return deepCopy(cached);
+            return StepUtils.deepCopy(cached);
         }
 
         // Slow path - acquire lock for execution
@@ -652,14 +652,14 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             // Double-check after acquiring lock
             Object rechecked = cache.get(cacheKey);
             if (rechecked != null) {
-                return deepCopy(rechecked);
+                return StepUtils.deepCopy(rechecked);
             }
 
             // Not cached - execute the call
             Object result = executeJsCall(path, arg);
 
             // Cache a deep copy to prevent the caller from mutating the cache
-            cache.put(cacheKey, deepCopy(result));
+            cache.put(cacheKey, StepUtils.deepCopy(result));
 
             return result;
         } finally {
@@ -787,7 +787,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             cache.put(path, result);
             logger.debug("[callSingle] memory cached: {}", path);
 
-            return deepCopy(result);
+            return StepUtils.deepCopy(result);
         } finally {
             lock.unlock();
         }
@@ -879,14 +879,7 @@ public class ScenarioRuntime implements Callable<ScenarioResult>, KarateJsContex
             throw new RuntimeException(((CallSingleException) cached).cause.getMessage(),
                     ((CallSingleException) cached).cause);
         }
-        return deepCopy(cached);
-    }
-
-    /**
-     * Deep copy to prevent cross-thread mutation of cached data.
-     */
-    private Object deepCopy(Object value) {
-        return StepUtils.deepCopy(value);
+        return StepUtils.deepCopy(cached);
     }
 
     /**

@@ -2195,6 +2195,7 @@ class StepCallTest {
             * def expected = Java.type('java.nio.charset.StandardCharsets').UTF_8.encode('secret-bytes').array()
             * def res1 = karate.callSingle('setup.feature')
             * match res1.config.data == expected
+            * eval res1.config.data[0] = 88
 
             Scenario: second
             * def expected = Java.type('java.nio.charset.StandardCharsets').UTF_8.encode('secret-bytes').array()
@@ -2203,7 +2204,35 @@ class StepCallTest {
             """);
 
         SuiteResult result = runTestSuite(tempDir, caller.toString());
-        assertTrue(result.isPassed(), "callSingle with byte[] result should pass: " + getFailureMessage(result));
+        assertTrue(result.isPassed(), "mutating a callSingle byte[] result must not corrupt the cache: "
+                + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallOnceWithByteArrayResultIsolatedFromMutation() throws Exception {
+        Path setup = tempDir.resolve("setup.feature");
+        Files.writeString(setup, """
+            Feature: setup
+            Scenario:
+            * def binaryData = Java.type('java.nio.charset.StandardCharsets').UTF_8.encode('secret-bytes').array()
+            """);
+
+        Path caller = tempDir.resolve("caller.feature");
+        Files.writeString(caller, """
+            Feature: caller
+            Scenario: first
+            * def result = callonce read('setup.feature')
+            * eval result.binaryData[0] = 88
+
+            Scenario: second
+            * def expected = Java.type('java.nio.charset.StandardCharsets').UTF_8.encode('secret-bytes').array()
+            * def result = callonce read('setup.feature')
+            * match result.binaryData == expected
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, caller.toString());
+        assertTrue(result.isPassed(), "mutating a callonce byte[] result must not corrupt the cache: "
+                + getFailureMessage(result));
     }
 
 }
