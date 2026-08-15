@@ -987,8 +987,11 @@ etc/ec2/ssh.sh injector 'rm -rf ~/karate/karate-profiling/target/profiling/suite
 `5f813f893` (the R1/J1 bench session: selftest, the collect plant-test fired, js-matrix
 `--quick` on both the jar and engine arm paths, two collect+teardown cycles;
 `calibrate.sh`/`matrix.sh` were not run — the Gatling lane was untouched and their last
-change predates `93fe950b0`). Skip them when
-`git log --oneline 5f813f893.. -- ':/karate-profiling/etc/ec2'`
+change predates `93fe950b0`), and again 2026-08-16 at `dc22f5ecd` (the Tier-1/R2 session:
+provision `--single`, bootstrap, js-matrix `--quick` null, two full js matrices on both
+arm kinds, collect, teardown — Gatling-lane scripts again untouched and unexercised).
+Skip them when
+`git log --oneline dc22f5ecd.. -- ':/karate-profiling/etc/ec2'`
 is empty (the `:/` pathspec anchors at the repo root — a relative pathspec run from the
 wrong directory matches nothing and prints a false "skip") — make the check, do not assume
 it, and move the sha forward when a session exercises the battery.
@@ -1106,6 +1109,31 @@ that puts the gap near ~1.55× geomean, functions ~1.8×, mixed ~1.7× — the d
   overstated exactly the row the slot-frames work moved). **Open next, as deliberate
   decisions**: the mechanism-attribution cells (JFR-on, either arm), and any second
   hardware class.
+- **Mechanism attribution + Tier-1 fixes + R2 cells — 2026-08-15/16.** The
+  attribution cells ran **locally** (M1 Pro, JFR on both arms — the laptop
+  reproduced the R1 ratio ordering, so attribution needed no bench): the gap
+  decomposed into scope machinery (whole-map `popLevel`, name-keyed reads,
+  per-block `ScopeEntry`/`BindingSlot` churn), triple arg materialization,
+  index-stringifying array writes, O(n²) string concat, and per-op `narrow`
+  autoboxing — the [JS_PERF_PLAN.md](./JS_PERF_PLAN.md) Tier-1 items, all
+  shipped same-session (commits `b0445d2f8..7d69db6aa`, every gate green).
+  **The A/B decision matrix** (single `c7g.4xlarge`, 4 pairs, JFR off, base
+  `555f5b5e4` vs candidate `7d69db6aa`, tables in `$KP_RESULTS/tier1-ab/`):
+  mixed **−19.68 ± 1.56**, functions **−19.47 ± 4.63**, objects
+  **−12.97 ± 2.11**, arithmetic **−11.67**, strings **−9.60**, large-1k
+  guard **−5.35 ± 0.72** (improved); **five-row geomean −14.78%**. **The R2
+  head-to-head** (same session, same host, candidate jar vs `rhino-best`,
+  4 pairs; functions in its own 450k-iteration matrix per the R1 protocol;
+  tables in `$KP_RESULTS/r2-h2h*/`): **karate ÷ rhino-best on Graviton** —
+  arithmetic **1.389**, strings **1.531**, objects **1.087**, functions
+  **1.081**, mixed **1.457**, large-1k guard **1.095**; **five-row geomean
+  1.29** (from R1's 1.52; composed across the two same-session matrices —
+  quote per-row figures from their own tables; one mixed rhino-arm window
+  read 16.2 s, under the startup check, so treat that row's ratio as
+  slightly conservative on the rhino side). Whole session ~1.6 h single
+  host, ~$0.95. **Open next**: the remaining-gap attribution now points at
+  top-level slot frames and the parser diet (JS_PERF_PLAN Tier 2) — re-run
+  one 4-pair A/B + R-lane matrix after each Tier-2 landing.
 
 ### Paused — the Gatling arc
 

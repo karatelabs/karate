@@ -212,8 +212,13 @@ changes in separate commits (TEST262.md principle #9 discipline).
 > `555f5b5e4` vs `7f0713194` (M1 Pro, --no-jfr, lead alternated):
 > mixed **−17%**, objects **−13.6%**, arithmetic **−12.6%**, strings
 > **−10.6%**, functions **−4.5%**, large-1k guard **−5.2%** (improved) —
-> five-row geomean **≈ −12%**. EC2 confirmation pending (screening numbers
-> only). Post-batch profile state: arithmetic is now owned by the remaining
+> five-row geomean **≈ −12%**. **EC2-confirmed 2026-08-16** (single
+> `c7g.4xlarge`, 4 pairs, JFR off, `$KP_RESULTS/tier1-ab/`): mixed
+> **−19.7 ± 1.6**, functions **−19.5 ± 4.6**, objects **−13.0 ± 2.1**,
+> arithmetic **−11.7**, strings **−9.6**, guard **−5.4 ± 0.7** (improved) —
+> **five-row geomean −14.8%** (the M1 screens *underestimated* functions).
+> Same-session R2 head-to-head vs rhino-best: five-row geomean **1.52 →
+> 1.29** (per-row figures in PROFILING.md §9 R1). Post-batch profile state: arithmetic is now owned by the remaining
 > name-keyed scope machinery (`readSlot`/`getSlot`/`pushBinding`/
 > `enterScope` ≈ 46% CPU, 58% alloc — exactly Tier-2 #8's target); mixed's
 > top allocation line is now parse-side `TokenBuffer.getText` (41%) with
