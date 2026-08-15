@@ -619,6 +619,27 @@ class JsArrayPrototype extends Prototype {
         CoreContext cc = context instanceof CoreContext cx ? cx : null;
         ObjectLike target = toReceiver(context.getThisObject());
         if (target == null) return 0;
+        // Dense fast path — the specIterate clean invariant (exact JsArray
+        // class, no descriptors, standard prototype, no numeric proto
+        // pollution) plus the write-side conditions (writable length,
+        // extensible receiver). Under it the per-item Set reduces to a plain
+        // append: no String.valueOf(index), no proto-chain walk, and the
+        // trailing length-Set is the append itself. Everything else — own
+        // numeric accessors, custom __proto__, frozen/sealed, non-writable
+        // length, poisoned Array.prototype[i] — degrades to the spec path.
+        if (target.getClass() == JsArray.class) {
+            JsArray arr = (JsArray) target;
+            if (!arr.hasAnyDescriptor()
+                    && arr.getPrototype() == INSTANCE
+                    && !Prototype.isNumericPropPolluted()
+                    && arr.denseAppendable()) {
+                List<Object> list = arr.list;
+                for (Object arg : args) {
+                    list.add(arg);
+                }
+                return list.size();
+            }
+        }
         int len = lengthOf(target, cc);
         if (cc != null && cc.isError()) return Terms.UNDEFINED;
         for (int i = 0; i < args.length; i++) {

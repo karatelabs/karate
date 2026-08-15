@@ -722,6 +722,17 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
     }
 
     /**
+     * Write-side companion to {@link #hasAnyDescriptor} for dense fast
+     * paths: an append may bypass the spec Set pipeline only when length is
+     * writable (appending moves length) and the array is extensible (each
+     * append creates a new own property). Sealed / frozen arrays route
+     * through the generic path so its per-write integrity checks fire.
+     */
+    boolean denseAppendable() {
+        return lengthWritable && !nonExtensible && !sealed && !frozen;
+    }
+
+    /**
      * True iff {@code name} is an own property on this array — covers
      * {@code length} (always own), any user-set entry in {@link #namedProps}
      * (descriptors installed via {@code Object.defineProperty}, named

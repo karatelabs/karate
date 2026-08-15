@@ -1514,6 +1514,47 @@ class SpecPinTest extends EvalBase {
         assertEquals("123", eval("var s=''; for (var x of [1,2,3]) s += x; s"));
     }
 
+    // -------------------------------------------------------------------------
+    // Dense-append fast path (Array.prototype.push) — every condition that
+    // must degrade to the generic spec Set pipeline. Guards the clean-array
+    // invariant: exact JsArray, no own descriptors, standard prototype, no
+    // numeric proto pollution, writable length, extensible receiver.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void push_degradesToSpecPathOnEveryDirtyCondition() {
+        // Each dirty condition must produce the same result the generic spec
+        // Set pipeline produces — the fast path may never change an outcome,
+        // only skip work on provably clean arrays. Two of the expectations
+        // below pin pre-existing engine deviations (not fast-path behavior):
+        // the own-numeric-accessor setter is not fired by the generic path
+        // either (integer-index accessor dispatch — deferred TODO), and a
+        // non-writable length does not block the append (strict length
+        // enforcement — deferred TODO). If either gap is fixed, update here.
+        assertEquals("unset|2|2", eval("var seen = 'unset'; var a = [];"
+                + " Object.defineProperty(a, '0', { set: function(v) { seen = v } });"
+                + " var ret = a.push(42); [seen, a.length, ret].join('|')"));
+        // poisoned Array.prototype[index]: setter fires for a plain array push
+        assertEquals(7, eval("var seen; Object.defineProperty(Array.prototype, '0', {"
+                + " set: function(v) { seen = v }, configurable: true });"
+                + " [].push(7); delete Array.prototype[0]; seen"));
+        // frozen array: push must not append
+        assertEquals(0, eval("var a = []; Object.freeze(a);"
+                + " try { a.push(1) } catch (e) {} a.length"));
+        // sealed array: push must not append
+        assertEquals(0, eval("var a = []; Object.seal(a);"
+                + " try { a.push(1) } catch (e) {} a.length"));
+        // non-extensible array: push must not append
+        assertEquals(0, eval("var a = []; Object.preventExtensions(a);"
+                + " try { a.push(1) } catch (e) {} a.length"));
+        // non-writable length: generic path currently appends anyway (see note above)
+        assertEquals(1, eval("var a = []; Object.defineProperty(a, 'length', { writable: false });"
+                + " try { a.push(1) } catch (e) {} a.length"));
+        // the clean path still appends and returns the new length
+        assertEquals(3, eval("var a = [1]; a.push(2, 3)"));
+        assertEquals("1,2,3", eval("var a = [1]; a.push(2, 3); a.join(',')"));
+    }
+
     @Test
     void return_theCheckIsOnTheSourceNotOnALineNumberThatCanWrap() {
         // `Token.line` is a short. Past 32768 lines it wraps, so a guard clause whose body sits 65536 lines
