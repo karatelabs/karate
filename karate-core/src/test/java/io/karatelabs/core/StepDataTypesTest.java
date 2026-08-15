@@ -324,6 +324,60 @@ class StepDataTypesTest {
     }
 
     @Test
+    void testCopyByteArray() {
+        ScenarioRuntime sr = run("""
+            * def bytes = Java.type('java.nio.charset.StandardCharsets').UTF_8.encode('hi').array()
+            * copy cloned = bytes
+            * eval cloned[0] = 88
+            """);
+        assertPassed(sr);
+        byte[] original = (byte[]) get(sr, "bytes");
+        byte[] cloned = (byte[]) get(sr, "cloned");
+        assertNotSame(original, cloned);
+        assertEquals('h', original[0]);
+        assertEquals(88, cloned[0]);
+    }
+
+    @Test
+    void testCopyMapContainingByteArray() {
+        ScenarioRuntime sr = run("""
+            * def bytes = Java.type('java.nio.charset.StandardCharsets').UTF_8.encode('hi').array()
+            * def payload = ({ data: bytes, name: 'x' })
+            * copy cloned = payload
+            * eval cloned.data[0] = 88
+            """);
+        assertPassed(sr);
+        byte[] original = (byte[]) get(sr, "bytes");
+        assertEquals('h', original[0]);
+        byte[] clonedData = (byte[]) ((Map<?, ?>) get(sr, "cloned")).get("data");
+        assertNotSame(original, clonedData);
+        assertEquals(88, clonedData[0]);
+    }
+
+    @Test
+    void testCopyXml() {
+        ScenarioRuntime sr = run("""
+            * def xmlStr = '<root><a>1</a></root>'
+            * xml original = xmlStr
+            * copy cloned = original
+            * set cloned /root/a = '2'
+            * match original == <root><a>1</a></root>
+            * match cloned == <root><a>2</a></root>
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
+    void testCopyString() {
+        ScenarioRuntime sr = run("""
+            * def s = 'hello'
+            * copy s2 = s
+            * match s2 == 'hello'
+            """);
+        assertPassed(sr);
+    }
+
+    @Test
     void testText() {
         ScenarioRuntime sr = run("""
             * text myText =

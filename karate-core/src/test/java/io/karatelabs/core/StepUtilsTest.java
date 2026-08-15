@@ -1,6 +1,9 @@
 package io.karatelabs.core;
 
+import io.karatelabs.common.Xml;
 import org.junit.jupiter.api.Test;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
 
 import java.util.*;
 
@@ -124,6 +127,18 @@ class StepUtilsTest {
         String[] copy = (String[]) copyObj;
         assertNotSame(original, copy);
         assertArrayEquals(original, copy);
+    }
+
+    @Test
+    void testDeepCopyXmlNode() {
+        Document original = Xml.toXmlDoc("<root><a>1</a></root>");
+        Node copy = (Node) StepUtils.deepCopy(original);
+
+        assertNotSame(original, copy);
+        // XML nodes are mutable via set-by-xpath, so the copy must be a detached tree
+        Xml.setByPath(copy, "/root/a", "2");
+        assertEquals("1", Xml.getTextValueByPath(original, "/root/a"));
+        assertEquals("2", Xml.getTextValueByPath(copy, "/root/a"));
     }
 
     @Test

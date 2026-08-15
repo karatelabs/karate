@@ -55,6 +55,33 @@ public class Json {
                 JSONValue.writeJSONString(Xml.toString(node), out, style);
             }
         });
+        // json-smart has dedicated writers for most primitive arrays (int[], long[], double[], ...)
+        // but not byte[] or char[], which fall through to the generic ArrayWriter and its unchecked
+        // (Object[]) cast — a ClassCastException whenever either is nested in a Map or List being
+        // serialized (print, match failure messages, JSON request bodies). Render them the way their
+        // boxed-element List equivalents would serialize: numbers for byte[], strings for char[].
+        JSONValue.registerWriter(byte[].class, new JsonWriterI<Object>() {
+            @Override
+            public <E> void writeJSONString(E value, Appendable out, JSONStyle style) throws java.io.IOException {
+                byte[] bytes = (byte[]) value;
+                out.append('[');
+                for (int i = 0; i < bytes.length; i++) {
+                    if (i > 0) out.append(',');
+                    out.append(Integer.toString(bytes[i]));
+                }
+                out.append(']');
+            }
+        });
+        JSONValue.registerWriter(char[].class, new JsonWriterI<Object>() {
+            @Override
+            public <E> void writeJSONString(E value, Appendable out, JSONStyle style) throws java.io.IOException {
+                List<String> strings = new ArrayList<>();
+                for (char c : (char[]) value) {
+                    strings.add(String.valueOf(c));
+                }
+                JSONValue.writeJSONString(strings, out, style);
+            }
+        });
     }
 
     private final DocumentContext doc;
@@ -463,6 +490,21 @@ public class Json {
             } else {
                 return o;
             }
+        } else if (o instanceof Object[] arr) {
+            if (seen.add(o)) {
+                // deliberately untyped: a copied element may be a "#classname" cycle marker
+                // (or a LinkedHashMap standing in for another Map type), which a typed
+                // component array would reject with ArrayStoreException
+                Object[] arrCopy = new Object[arr.length];
+                for (int i = 0; i < arr.length; i++) {
+                    arrCopy[i] = copyDeep(arr[i], seen, dropCircularReferences);
+                }
+                return arrCopy;
+            } else if (dropCircularReferences) {
+                return "#" + o.getClass().getName();
+            } else {
+                return o;
+            }
         } else {
             return o;
         }
@@ -522,6 +564,14 @@ public class Json {
                 return true;
             }
             for (Object v : list) {
+                if (hasCycle(v, seen)) return true;
+            }
+            seen.remove(o);
+        } else if (o instanceof Object[] arr) {
+            if (!seen.add(o)) {
+                return true;
+            }
+            for (Object v : arr) {
                 if (hasCycle(v, seen)) return true;
             }
             seen.remove(o);

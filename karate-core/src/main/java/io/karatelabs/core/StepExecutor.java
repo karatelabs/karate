@@ -1177,8 +1177,9 @@ public class StepExecutor {
         String name = text.substring(0, eqIndex).trim();
         String expr = text.substring(eqIndex + 1).trim();
         Object value = runtime.eval(wrapJsonLikeExpression(expr));
-        // Deep copy using JSON round-trip
-        Object copy = Json.of(Json.stringifyStrict(value)).value();
+        // a JSON round-trip would mangle non-JSON values: byte[] (writer crash), XML Node
+        // (degrades to a toString garbage string), even a top-level string (not valid JSON)
+        Object copy = StepUtils.deepCopy(value);
         runtime.setVariable(name, copy);
     }
 

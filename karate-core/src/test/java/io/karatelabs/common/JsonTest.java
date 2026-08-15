@@ -203,6 +203,28 @@ class JsonTest {
     }
 
     @Test
+    void testStringifyStrictByteAndCharArrays() {
+        // json-smart lacks writers for byte[] and char[] - its generic ArrayWriter
+        // crashed on both with a ClassCastException to Object[]
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("bytes", "hi".getBytes());
+        map.put("chars", new char[]{'h', 'i'});
+        assertEquals("{\"bytes\":[104,105],\"chars\":[\"h\",\"i\"]}", Json.stringifyStrict(map));
+        assertEquals("[[104,105]]", Json.stringifyStrict(List.of("hi".getBytes())));
+    }
+
+    @Test
+    void testStringifyStrictBreaksCyclesThroughArrays() {
+        // a cycle whose back-edge sits inside an Object[] was invisible to the
+        // Map/List-only cycle walk, so json-smart recursed to StackOverflowError
+        Map<String, Object> obj = new LinkedHashMap<>();
+        obj.put("name", "test");
+        obj.put("arr", new Object[]{obj});
+        String s = Json.stringifyStrict(obj);
+        assertEquals("{\"name\":\"test\",\"arr\":[\"#java.util.LinkedHashMap\"]}", s);
+    }
+
+    @Test
     void testStringifyStrictBreaksCyclesAutomatically() {
         // regression: json-smart's writer has no cycle guard,
         // a self-referencing Map crashed stringifyStrict with StackOverflowError.

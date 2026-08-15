@@ -224,7 +224,7 @@ public class StepUtils {
     }
 
     /**
-     * Deep copy a value (Map, List, array, or primitive).
+     * Deep copy a value (Map, List, array, XML Node, or primitive).
      */
     @SuppressWarnings("unchecked")
     public static Object deepCopy(Object value) {
@@ -234,6 +234,11 @@ public class StepUtils {
         // JsCallable functions shouldn't be deep-copied - return them unchanged
         if (value instanceof JavaCallable) {
             return value;
+        }
+        // XML variables are mutable via `set <var> /xpath/...` — share the reference and a
+        // callonce/callSingle cache (or a `copy` clone) is corrupted by the next mutation
+        if (value instanceof Node node) {
+            return node.cloneNode(true);
         }
         if (value.getClass().isArray()) {
             Class<?> componentType = value.getClass().getComponentType();
