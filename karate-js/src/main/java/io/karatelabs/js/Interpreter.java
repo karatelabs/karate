@@ -621,9 +621,8 @@ class Interpreter {
         if (node.type == NodeType.SUPER_EXPR) {
             return evalSuperCall(fnArgsNode, context);
         }
-        Object[] callableAndReceiver = PropertyAccess.getCallable(node, context);
-        Object o = callableAndReceiver[0];
-        Object receiver = callableAndReceiver[1];
+        Object o = PropertyAccess.getCallable(node, context);
+        Object receiver = context.callReceiver; // consume immediately (see field contract)
         if (o == PropertyAccess.SHORT_CIRCUITED) return PropertyAccess.SHORT_CIRCUITED;
         return invokeCallable(o, receiver, fnArgsNode, newKeyword, node, context);
     }
@@ -633,9 +632,8 @@ class Interpreter {
     // short-circuit the entire call without evaluating the args. Goes through
     // getCallable so a method-reference base (`a.b?.()`) keeps `a` as receiver.
     private static Object evalOptionalCall(Node node, CoreContext context) {
-        Object[] callableAndReceiver = PropertyAccess.getCallable(node.getFirst(), context);
-        Object o = callableAndReceiver[0];
-        Object receiver = callableAndReceiver[1];
+        Object o = PropertyAccess.getCallable(node.getFirst(), context);
+        Object receiver = context.callReceiver; // consume immediately (see field contract)
         if (o == PropertyAccess.SHORT_CIRCUITED) return PropertyAccess.SHORT_CIRCUITED;
         if (o == null || o == Terms.UNDEFINED) return PropertyAccess.SHORT_CIRCUITED;
         Node callExpr = node.get(1); // FN_CALL_EXPR -> [?., (, FN_CALL_ARGS, )]
@@ -865,9 +863,8 @@ class Interpreter {
         raw.add(rawAccum.toString());
         cooked.putMember("raw", raw);
 
-        Object[] callableAndReceiver = PropertyAccess.getCallable(callableNode, context);
-        Object o = callableAndReceiver[0];
-        Object receiver = callableAndReceiver[1];
+        Object o = PropertyAccess.getCallable(callableNode, context);
+        Object receiver = context.callReceiver; // consume immediately (see field contract)
         if (o == Terms.UNDEFINED) { // optional chaining
             return o;
         }

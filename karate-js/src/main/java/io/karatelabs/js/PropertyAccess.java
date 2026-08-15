@@ -191,14 +191,19 @@ class PropertyAccess {
     }
 
     /**
-     * Get a callable and its receiver (this object) for method invocation.
-     * Returns a 2-element array: [callable, receiver].
-     * For method calls like obj.method(), receiver is obj.
-     * For direct calls like foo(), receiver is null.
+     * Get a callable for method invocation, publishing its receiver (this
+     * object) through {@link CoreContext#callReceiver} — read it immediately
+     * after this returns, before any further evaluation (see the field's
+     * contract note). For method calls like obj.method(), the receiver is
+     * obj; for direct calls like foo(), it is null.
      */
-    static Object[] getCallable(Node node, CoreContext context) {
-                return switch (node.type) {
-            case REF_EXPR -> new Object[]{getRefExpr(node, context, true), null};
+    static Object getCallable(Node node, CoreContext context) {
+        return switch (node.type) {
+            case REF_EXPR -> {
+                Object c = getRefExpr(node, context, true);
+                context.callReceiver = null;
+                yield c;
+            }
             case REF_DOT_EXPR -> getCallableRefDotExpr(node, context);
             case REF_BRACKET_EXPR -> getCallableRefBracketExpr(node, context);
             // Per spec the Reference Record from a PAREN_EXPR is the same as the inner
@@ -206,9 +211,11 @@ class PropertyAccess {
             // Recurse via getCallable on the inner property-access expression; for
             // anything else the parens just pass the value through with no receiver.
             case PAREN_EXPR -> getCallableParenInner(node, context);
-            case FN_CALL_EXPR -> new Object[]{Interpreter.eval(node, context), null};
-            case FN_TAGGED_TEMPLATE_EXPR -> new Object[]{Interpreter.eval(node, context), null};
-            case FN_EXPR, FN_ARROW_EXPR -> new Object[]{Interpreter.eval(node, context), null};
+            case FN_CALL_EXPR, FN_TAGGED_TEMPLATE_EXPR, FN_EXPR, FN_ARROW_EXPR -> {
+                Object c = Interpreter.eval(node, context);
+                context.callReceiver = null;
+                yield c;
+            }
             default -> throw JsErrorException.typeError("cannot call: " + node);
         };
     }
@@ -599,15 +606,17 @@ class PropertyAccess {
      * bracket, optional call), the external-bridge fallback on eval failure,
      * and the {@code ?.} short-circuit propagation in one place.
      * <p>
-     * When {@code outReceiver} is non-null, the resolved LHS object is
-     * written to {@code outReceiver[1]} on the property-projection paths
+     * When {@code wantReceiver} is true, the resolved LHS object is written
+     * to {@link CoreContext#callReceiver} on the property-projection paths
      * ({@code obj.x} → {@code object}, {@code obj?.[expr]} → {@code object});
-     * left as null on short-circuit, bridge-forType wraps, and bare-object
-     * passthrough. Caller pre-allocates the array (no per-call record
-     * allocation on the hot value-read path; one Object[2] for the callable
-     * path matches the pre-unify cost).
+     * set to null on bridge-forType wraps and bare-object passthrough, left
+     * untouched on {@code ?.} short-circuit (the caller ignores the receiver
+     * for a SHORT_CIRCUITED callable). Each projection site writes the field
+     * AFTER its projection call (getByName / getByIndex / PrivateAccess.get)
+     * returns, so a getter that runs a nested same-context call cannot leave
+     * a stale receiver behind — see the field's contract note.
      */
-    private static Object resolveRefDot(Node node, CoreContext context, boolean functionCall, Object[] outReceiver) {
+    private static Object resolveRefDot(Node node, CoreContext context, boolean functionCall, boolean wantReceiver) {
         String name;
         Object object;
         boolean optional;
@@ -616,8 +625,9 @@ class PropertyAccess {
         // method receiver (`this`) to the current instance, not the prototype.
         if (node.getFirst().type == NodeType.SUPER_EXPR && node.get(1).type == NodeType.TOKEN) {
             ObjectLike superProto = Interpreter.evalSuperBase(context);
-            if (outReceiver != null) outReceiver[1] = context.thisObject;
-            return getByName(superProto, node.get(2).getText(), false, context, functionCall);
+            Object v = getByName(superProto, node.get(2).getText(), false, context, functionCall);
+            if (wantReceiver) context.callReceiver = context.thisObject;
+            return v;
         }
 
         if (node.get(1).type == NodeType.TOKEN) {
@@ -630,8 +640,9 @@ class PropertyAccess {
                 Object receiver = Interpreter.eval(node.getFirst(), context);
                 if (receiver == SHORT_CIRCUITED) return SHORT_CIRCUITED;
                 if (optional && (receiver == null || receiver == Terms.UNDEFINED)) return SHORT_CIRCUITED;
-                if (outReceiver != null) outReceiver[1] = receiver;
-                return PrivateAccess.get(receiver, pn, context);
+                Object v = PrivateAccess.get(receiver, pn, context);
+                if (wantReceiver) context.callReceiver = receiver;
+                return v;
             }
             name = keyNode.getText();
             try {
@@ -642,6 +653,7 @@ class PropertyAccess {
                     String path = base + "." + name;
                     ExternalAccess ja = context.root.bridge.forType(path);
                     if (ja != null) {
+                        if (wantReceiver) context.callReceiver = null;
                         if (functionCall) {
                             return (JsConstructor) (c, args) -> ja.construct(args);
                         }
@@ -667,8 +679,9 @@ class PropertyAccess {
                 // ?.[expr] fires here — index is not evaluated when short-circuiting.
                 if (object == null || object == Terms.UNDEFINED) return SHORT_CIRCUITED;
                 Object index = Interpreter.eval(node.get(1).get(2), context);
-                if (outReceiver != null) outReceiver[1] = object;
-                return getByIndex(object, index, false, context, functionCall);
+                Object v = getByIndex(object, index, false, context, functionCall);
+                if (wantReceiver) context.callReceiver = object;
+                return v;
             } else {
                 object = Interpreter.eval(node.getFirst(), context);
                 if (object == SHORT_CIRCUITED) return SHORT_CIRCUITED;
@@ -686,24 +699,24 @@ class PropertyAccess {
         if (name == null) {
             // ?.() / bare-object passthrough — receiver stays null since the
             // dot didn't actually project a property.
+            if (wantReceiver) context.callReceiver = null;
             if (functionCall && context.root.bridge != null && object instanceof ExternalAccess ea) {
                 return (JsConstructor) (c, args) -> ea.construct(args);
             }
             return object;
         }
 
-        if (outReceiver != null) outReceiver[1] = object;
-        return getByName(object, name, optional, context, functionCall);
+        Object v2 = getByName(object, name, optional, context, functionCall);
+        if (wantReceiver) context.callReceiver = object;
+        return v2;
     }
 
     private static Object getRefDotExpr(Node node, CoreContext context, boolean functionCall) {
-        return resolveRefDot(node, context, functionCall, null);
+        return resolveRefDot(node, context, functionCall, false);
     }
 
-    private static Object[] getCallableRefDotExpr(Node node, CoreContext context) {
-        Object[] result = new Object[2];
-        result[0] = resolveRefDot(node, context, true, result);
-        return result;
+    private static Object getCallableRefDotExpr(Node node, CoreContext context) {
+        return resolveRefDot(node, context, true, true);
     }
 
     private static Object getRefBracketExpr(Node node, CoreContext context, boolean functionCall) {
@@ -726,7 +739,7 @@ class PropertyAccess {
     // Parens also terminate the optional chain — a short-circuit inside the
     // parens surfaces as undefined here, so the outer call gets a "not a function"
     // TypeError rather than silently returning undefined.
-    private static Object[] getCallableParenInner(Node node, CoreContext context) {
+    private static Object getCallableParenInner(Node node, CoreContext context) {
         Node body = node.size() > 1 ? node.get(1) : null;
         Node inner = null;
         if (body != null && body.type == NodeType.EXPR_LIST && body.size() == 1) {
@@ -738,20 +751,25 @@ class PropertyAccess {
         if (inner != null && (inner.type == NodeType.REF_DOT_EXPR
                 || inner.type == NodeType.REF_BRACKET_EXPR
                 || inner.type == NodeType.PAREN_EXPR)) {
-            Object[] result = getCallable(inner, context);
-            if (result[0] == SHORT_CIRCUITED) {
-                return new Object[]{Terms.UNDEFINED, null};
+            Object result = getCallable(inner, context);
+            if (result == SHORT_CIRCUITED) {
+                context.callReceiver = null;
+                return Terms.UNDEFINED;
             }
-            return result;
+            return result; // inner getCallable already set callReceiver
         }
-        return new Object[]{Interpreter.eval(node.get(1), context), null};
+        Object result = Interpreter.eval(node.get(1), context);
+        context.callReceiver = null;
+        return result;
     }
 
-    private static Object[] getCallableRefBracketExpr(Node node, CoreContext context) {
+    private static Object getCallableRefBracketExpr(Node node, CoreContext context) {
         Object object = Interpreter.eval(node.getFirst(), context);
-        if (object == SHORT_CIRCUITED) return new Object[]{SHORT_CIRCUITED, null};
+        if (object == SHORT_CIRCUITED) return SHORT_CIRCUITED;
         Object index = Interpreter.eval(node.get(2), context);
-        return new Object[]{getByIndex(object, index, false, context, true), object};
+        Object result = getByIndex(object, index, false, context, true);
+        context.callReceiver = object;
+        return result;
     }
 
     private static Object getByIndex(Object object, Object index, boolean optional,

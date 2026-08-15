@@ -84,6 +84,15 @@ class CoreContext implements Context {
     int currentLevel = 0;
     List<ScopeEntry> scopeStack; // Lazy - created on first enterScope
 
+    // Receiver (`this`) for the callable most recently resolved by
+    // PropertyAccess.getCallable — replaces a per-call Object[2] tuple.
+    // Contract: written by getCallable's projection sites AFTER their
+    // getByName/getByIndex/PrivateAccess.get returns (so a getter running a
+    // nested same-context call cannot leave a stale receiver behind), nulled
+    // explicitly on every no-receiver return, and consumed by the caller
+    // immediately after getCallable returns, before any further evaluation.
+    Object callReceiver;
+
     // Captured bindings for closures (references to Slots from function creation time).
     // Stored as an immutable BindingsStore so resolve() walks one chain shape; structural
     // mutation through the captured handle is a no-op (sibling closures still see value
