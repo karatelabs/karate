@@ -371,6 +371,43 @@ class CoreContext implements Context {
         return resolve(key) != null;
     }
 
+    /** Sentinel for {@link #getOrNotFound}: the name is not bound anywhere
+     *  in the lexical chain. Distinct from a binding whose value is
+     *  undefined/null. */
+    static final Object NOT_FOUND = new Object();
+
+    /** Single-pass fusion of {@link #hasKey} + {@link #get} for the
+     *  name-keyed identifier read path — one lexical-chain resolution
+     *  instead of two. Returns {@link #NOT_FOUND} when the name is unbound;
+     *  TDZ and {@link JsLazy} behave exactly as in {@link #get}. */
+    Object getOrNotFound(String key) {
+        if ("this".equals(key)) {
+            return thisObject;
+        }
+        if (callArgs != null && "arguments".equals(key)) {
+            return getArgumentsObject();
+        }
+        if (frameTable != null) {
+            int idx = frameTable.indexOf(key);
+            if (idx >= 0) {
+                Object v = frame[idx];
+                if (v != SlotTable.UNDECLARED) {
+                    if (v == SlotTable.TDZ) {
+                        throw JsErrorException.referenceError("cannot access '" + key + "' before initialization");
+                    }
+                    return v;
+                }
+                // undeclared: fall through — pre-declaration the store lacks
+                // the name too, so the legacy chain is the same resolution
+            }
+        }
+        BindingSlot s = resolve(key);
+        if (s == null) {
+            return NOT_FOUND;
+        }
+        return readSlot(s, key);
+    }
+
     void put(String key, Object value) {
         declare(key, value, null, true);
     }

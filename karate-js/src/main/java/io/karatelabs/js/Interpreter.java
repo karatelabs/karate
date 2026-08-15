@@ -653,7 +653,7 @@ class Interpreter {
                 String n = cf.name == null || cf.name.isEmpty() ? "" : cf.name + " ";
                 throw JsErrorException.typeError("Class constructor " + n + "cannot be invoked without 'new'");
             }
-            List<Object> argsList = new ArrayList<>(evalCallArgs(fnArgsNode, context));
+            Object[] args = evalCallArgs(fnArgsNode, context);
             // An argument that threw means there is no call to make. evalSuperCall already does
             // this; every other call site did not, so `f(mustSucceed())` invoked f anyway.
             if (context.isError()) {
@@ -663,14 +663,16 @@ class Interpreter {
             // - undefined → null
             // - JsValue (JsDate, etc.) → unwrapped via getJavaValue()
             if (callable.isExternal()) {
-                argsList.replaceAll(arg -> {
-                    if (arg == Terms.UNDEFINED) return null;
-                    // Unwrap JsValue (JsDate, JsUint8Array) but not JsPrimitive (Boolean/String/Number constructors)
-                    if (arg instanceof JsValue jv && !(arg instanceof JsPrimitive)) return jv.getJavaValue();
-                    return arg;
-                });
+                for (int i = 0; i < args.length; i++) {
+                    Object arg = args[i];
+                    if (arg == Terms.UNDEFINED) {
+                        args[i] = null;
+                    } else if (arg instanceof JsValue jv && !(arg instanceof JsPrimitive)) {
+                        // Unwrap JsValue (JsDate, JsUint8Array) but not JsPrimitive (Boolean/String/Number constructors)
+                        args[i] = jv.getJavaValue();
+                    }
+                }
             }
-            Object[] args = argsList.toArray();
             CoreContext callContext;
             JsObject newInstance = null;
             Object result;
@@ -943,7 +945,26 @@ class Interpreter {
      * before {@code function foo(){}}).
      */
     private static boolean isFunctionDeclarationStatement(Node stmt) {
-        if (stmt.type != NodeType.STATEMENT || stmt.size() == 0) {
+        if (stmt.type != NodeType.STATEMENT) {
+            return false;
+        }
+        // Memoized in Node.slot, which SlotTable assigns to identifier nodes
+        // only — a STATEMENT node never carries a frame slot, so the field is
+        // free here: -1 unknown, 1 yes, 0 no. Benign race per the Node class
+        // doc (every thread computes the same value). The probe used to run
+        // twice per statement per block ENTRY (hoisting pre-pass + main
+        // loop), which profiled at ~7% of CPU on call-heavy workloads.
+        short memo = stmt.slot;
+        if (memo >= 0) {
+            return memo == 1;
+        }
+        boolean result = computeFunctionDeclarationStatement(stmt);
+        stmt.slot = result ? (short) 1 : (short) 0;
+        return result;
+    }
+
+    private static boolean computeFunctionDeclarationStatement(Node stmt) {
+        if (stmt.size() == 0) {
             return false;
         }
         Node first = stmt.getFirst();
@@ -1189,21 +1210,39 @@ class Interpreter {
     }
 
     // Collects call arguments (with spread) from an FN_CALL_ARGS node. Shared by
-    // the ordinary call path (invokeCallable) and super(...) dispatch.
-    private static List<Object> evalCallArgs(Node fnArgsNode, CoreContext context) {
-        List<Object> argsList = new ArrayList<>();
+    // the ordinary call path (invokeCallable) and super(...) dispatch. Fills one
+    // exact-size array in the common no-spread case; a spread argument (which
+    // changes the count) switches to a spill list, materialized once at the end.
+    private static Object[] evalCallArgs(Node fnArgsNode, CoreContext context) {
         int argsCount = fnArgsNode == null ? 0 : fnArgsNode.size();
+        if (argsCount == 0) {
+            return EMPTY_ARGS;
+        }
+        Object[] args = new Object[argsCount];
+        List<Object> spill = null;
+        int n = 0;
         for (int i = 0; i < argsCount; i++) {
             Node fnArgNode = fnArgsNode.get(i);
             Node argNode = fnArgNode.get(0);
             if (argNode.isToken()) { // DOT_DOT_DOT spread
+                if (spill == null) {
+                    spill = new ArrayList<>(argsCount + 8);
+                    for (int k = 0; k < n; k++) {
+                        spill.add(args[k]);
+                    }
+                }
                 Object arg = eval(fnArgNode.get(1), context);
                 JsIterator iter = IterUtils.getIterator(arg, context);
                 while (iter.hasNext()) {
-                    argsList.add(iter.next());
+                    spill.add(iter.next());
                 }
             } else {
-                argsList.add(eval(argNode, context));
+                Object v = eval(argNode, context);
+                if (spill != null) {
+                    spill.add(v);
+                } else {
+                    args[n++] = v;
+                }
             }
             // One argument throwing ends the argument list. Without this the remaining arguments
             // were still evaluated — and, worse, every caller then went on to INVOKE the function
@@ -1214,7 +1253,10 @@ class Interpreter {
                 break;
             }
         }
-        return argsList;
+        if (spill != null) {
+            return spill.toArray();
+        }
+        return n == args.length ? args : java.util.Arrays.copyOf(args, n);
     }
 
     // `super(...)` in a derived constructor — runs the parent constructor against
@@ -1224,7 +1266,7 @@ class Interpreter {
         if (active == null) {
             throw JsErrorException.syntaxError("'super' keyword is only valid inside a class");
         }
-        Object[] args = evalCallArgs(fnArgsNode, context).toArray();
+        Object[] args = evalCallArgs(fnArgsNode, context);
         if (context.isError()) {
             return Terms.UNDEFINED;
         }

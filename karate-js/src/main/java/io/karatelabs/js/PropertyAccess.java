@@ -578,14 +578,14 @@ class PropertyAccess {
     // enough to inline reliably.
     private static Object getRefExprByName(Node node, CoreContext context, boolean functionCall) {
         String name = node.getText();
-        if (context.hasKey(name)) {
-            Object result = context.get(name);
-            if (functionCall && context.root.bridge != null && result instanceof ExternalAccess ea) {
-                return externalConstructor(ea);
-            }
-            return result;
+        Object result = context.getOrNotFound(name);
+        if (result == CoreContext.NOT_FOUND) {
+            throw JsErrorException.referenceError(name + " is not defined");
         }
-        throw JsErrorException.referenceError(name + " is not defined");
+        if (functionCall && context.root.bridge != null && result instanceof ExternalAccess ea) {
+            return externalConstructor(ea);
+        }
+        return result;
     }
 
     private static JsConstructor externalConstructor(ExternalAccess ea) {
@@ -807,8 +807,12 @@ class PropertyAccess {
         }
 
         if (object instanceof JsObject jsObj) {
-            if (jsObj.containsKey(name)) {
-                return jsObj.getMember(name, object, context);
+            // Single own-slot probe replaces the historical containsKey +
+            // getMember pair (containsKey was exactly getOwnSlot != null, and
+            // the own-hit branch of 3-arg getMember is exactly slot.read).
+            PropertySlot own = jsObj.getOwnSlot(name);
+            if (own != null) {
+                return own.read(object, context);
             }
             Object result = jsObj.getMember(name, object, context);
             if (isFound(result)) return result;
