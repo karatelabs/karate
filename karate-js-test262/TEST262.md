@@ -239,12 +239,13 @@ streams to be tailed.**
 
 ## Active priorities
 
-Reordered 2026-08-12 against the real-world bar, from two probes at HEAD
-(latest pin: the `run-final-lang` / `run-final-builtins` run-dirs, and the
-idiomatic-JS smoke battery at
-[Real-world smoke battery](#real-world-smoke-battery), 61/64 as of
-2026-08-16 — the three holdouts are the two generator snippets and
-`typeof Symbol('a')`).
+Reordered 2026-08-12 against the real-world bar; re-probed 2026-08-16
+(latest pins: `run-post-builtins-lang` — 6433 pass / 1814 fail / 15398
+skip — and `run-post-builtins-bi` — 9648 pass / 3020 fail / 10846 skip,
+the first full built-ins baseline at the new HEAD; plus the idiomatic-JS
+smoke battery at
+[Real-world smoke battery](#real-world-smoke-battery), 61/64 — the
+three holdouts are the two generator snippets and `typeof Symbol('a')`).
 The ES2015–ES2022 core an LLM leans on hardest — arrows, destructuring in
 every position, spread, optional chaining, `??`/`??=`, template + tagged
 literals, classes with getters/`extends`/`super`/public+private fields and
@@ -364,11 +365,10 @@ comments (`lineTerminatorBetween` in `BaseParser` is now the single
 line-terminator scan for `eos()` and all `lineTerminatorFollows` call
 sites — block comments containing a newline count for ASI); rest params
 with destructuring patterns (`f(...[a, b])`, parse + binding via the
-`evalAssign` seam). Known vacuous flip: `delete x ** 2` now parses, so
-`exp-operator-syntax-error-delete-*` joined the pre-existing 6-member
-`typeof`/`void`/`!`/`~`/`+`/`-` MissingParseError family — the
-unary-base-of-`**` early error is one fused-walk arm covering all
-seven. Still open from the batch: **class static initialization
+`evalAssign` seam). The unary-base-of-`**` early error (one fused-walk
+arm) shipped in the external-review round-1 commit — all 7
+`exp-operator-syntax-error-*` negatives PASS. Still open from the
+batch: **class static initialization
 blocks** `static { ... }` — parser rejects with "class member name"
 (also the #2 gap inside the class skip-shadow).)*
 *(P1.2 labeled statements shipped 2026-08-12 — LABELLED_STMT node,
