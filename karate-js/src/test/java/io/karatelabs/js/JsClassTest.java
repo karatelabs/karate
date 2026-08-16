@@ -232,6 +232,67 @@ class JsClassTest extends EvalBase {
                 + "var b = new B(); b.bump(); b._v"));
     }
 
+    // ===== extends built-ins with internal slots (Array / Map / Set / Date) =====
+
+    @Test
+    void testExtendsArrayIsArray() {
+        assertEquals(true, eval("class S extends Array {}\nvar s = new S();\n"
+                + "Array.isArray(s) && s instanceof S && s instanceof Array"));
+    }
+
+    @Test
+    void testExtendsArrayPushLengthAndIteration() {
+        assertEquals(true, eval("class S extends Array { sum() { let t = 0; for (const x of this) t += x; return t } }\n"
+                + "var s = new S(); s.push(1); s.push(2);\n"
+                + "s.length === 2 && s.sum() === 3"));
+    }
+
+    @Test
+    void testExtendsArraySuperForwardsElements() {
+        assertEquals("[1,2,3]", eval("class S extends Array {}\nJSON.stringify(new S(1, 2, 3))"));
+    }
+
+    @Test
+    void testExtendsArrayStringConversion() {
+        assertEquals("1,2,3", eval("class S extends Array {}\nString(new S(1, 2, 3))"));
+    }
+
+    @Test
+    void testExtendsArrayPublicField() {
+        assertEquals(true, eval("class S extends Array { tag = 'x' }\nvar s = new S();\n"
+                + "s.tag === 'x' && Array.isArray(s)"));
+    }
+
+    @Test
+    void testExtendsMapHasInternalSlots() {
+        assertEquals(true, eval("class M extends Map {}\nvar m = new M();\n"
+                + "m.set('a', 1);\nm.get('a') === 1 && m.size === 1 && m instanceof Map"));
+    }
+
+    @Test
+    void testExtendsMapSuperForwardsEntries() {
+        assertEquals(2, eval("class M extends Map {}\nnew M([['a', 1], ['b', 2]]).size"));
+    }
+
+    @Test
+    void testExtendsMapWithFieldAndMethod() {
+        assertEquals(true, eval("class M extends Map { count = 0; put(k, v) { this.set(k, v); this.count++ } }\n"
+                + "var m = new M(); m.put('a', 1); m.put('b', 2);\n"
+                + "m.count === 2 && m.get('b') === 2"));
+    }
+
+    @Test
+    void testExtendsSetHasInternalSlots() {
+        assertEquals(true, eval("class S extends Set {}\nvar s = new S();\n"
+                + "s.add(1); s.add(1); s.add(2);\ns.size === 2 && s.has(2) && s instanceof Set"));
+    }
+
+    @Test
+    void testExtendsDateHasTimeSlot() {
+        assertEquals(true, eval("class D extends Date { epoch() { return this.getTime() === 0 } }\n"
+                + "var d = new D(0);\nd.getTime() === 0 && d.epoch() && d instanceof Date"));
+    }
+
     @Test
     void testExtendsErrorMessage() {
         assertEquals("boom", eval("class E extends Error { constructor(m) { super(m) } }\nnew E('boom').message"));

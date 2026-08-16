@@ -75,6 +75,10 @@ class CoreContext implements Context {
     // Function context fields (non-null indicates this is a function context)
     final Object[] callArgs;
     final CoreContext outer;
+    // True for an arrow-function call frame (set by Interpreter.bindArrowThis):
+    // an arrow has no `arguments` of its own (§10.2.1.3), so the identifier
+    // resolves lexically through the declaring chain — see argumentsForRead().
+    boolean arrowFrame;
     // Lazily allocated `arguments` object — one per call frame so successive
     // references share identity (`arguments === arguments`) and writes
     // (`arguments.x = …`) survive within the call.
@@ -319,7 +323,11 @@ class CoreContext implements Context {
             return thisObject;
         }
         if (callArgs != null && "arguments".equals(key)) {
-            return getArgumentsObject();
+            JsArray a = argumentsForRead();
+            if (a != null) {
+                return a;
+            }
+            // arrow frame with no enclosing function — ordinary resolution
         }
         if (frameTable != null) {
             int idx = frameTable.indexOf(key);
@@ -340,6 +348,29 @@ class CoreContext implements Context {
             return Terms.UNDEFINED;
         }
         return readSlot(s, key);
+    }
+
+    /** The `arguments` visible at this frame: the frame's own for a normal
+     *  function call, the lexically enclosing function's for an arrow frame
+     *  (§10.2.1.3 — arrows have no own `arguments`; identity is shared with
+     *  the enclosing frame's object). Returns null for an arrow with no
+     *  enclosing function frame — the caller falls through to ordinary
+     *  identifier resolution (a user binding named `arguments`, else
+     *  undefined/ReferenceError). */
+    JsArray argumentsForRead() {
+        if (!arrowFrame) {
+            return getArgumentsObject();
+        }
+        // Lexical walk: a function frame's declaring context is `outer`;
+        // script-level contexts chain via `parent`.
+        CoreContext c = outer != null ? outer : parent;
+        while (c != null) {
+            if (c.callArgs != null && !c.arrowFrame) {
+                return c.getArgumentsObject();
+            }
+            c = c.outer != null ? c.outer : c.parent;
+        }
+        return null;
     }
 
     /** Returns the `arguments` object for this function call, lazily wrapping
@@ -368,7 +399,7 @@ class CoreContext implements Context {
         if ("this".equals(key)) {
             return true;
         }
-        if (callArgs != null && "arguments".equals(key)) {
+        if (callArgs != null && "arguments".equals(key) && argumentsForRead() != null) {
             return true;
         }
         if (frameTable != null) {
@@ -394,7 +425,11 @@ class CoreContext implements Context {
             return thisObject;
         }
         if (callArgs != null && "arguments".equals(key)) {
-            return getArgumentsObject();
+            JsArray a = argumentsForRead();
+            if (a != null) {
+                return a;
+            }
+            // arrow frame with no enclosing function — ordinary resolution
         }
         if (frameTable != null) {
             int idx = frameTable.indexOf(key);

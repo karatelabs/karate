@@ -332,11 +332,19 @@ by the interpreter and the §13.2.5.1 duplicate early error — the
 `__proto__`-duplicate edge in the expressions/object slice below is closed
 with it.)*
 7. **Wrong-answer tail** (each battery-verified, smaller blast radius):
-   arrows get their own `arguments` instead of the enclosing function's;
-   `class S extends Array` → `Array.isArray(s)` `false` and stringifies as
-   an object; `class M extends Map {}` instances lack internal slots
-   (`extends Array`/`Error` work — extend the copy-shim to
-   Map/Set/Date/RegExp).
+   *(The last three shipped 2026-08-16: arrows now resolve `arguments`
+   lexically — `CoreContext.arrowFrame` + `argumentsForRead()` walk the
+   declaring chain, identity shared with the enclosing frame (3 test262
+   flips). `class S extends Array` / `extends Map/Set/Date` allocate the
+   real exotic instance — `JsFunctionNode.baseBuiltinCtor` resolved at
+   class-eval, `Interpreter.allocateInstance` at `new`, and the super()
+   shim initializes the receiver's internal state in place — so
+   `Array.isArray`, stringification, `length`, and the Map/Set/Date
+   prototype methods work on subclass instances. Residuals: `extends
+   RegExp` stays on the copy-shim (immutable compiled state; exec/test
+   unsupported on subclasses), and private fields on `extends Array`
+   instances are skipped (private state is JsObject-only). Pinned by
+   `JsFunctionTest.testArrow*Arguments*` + `JsClassTest.testExtends*`.)*
    *(Five of the eight shipped 2026-08-16: `fn.length` now follows
    §15.1.5 ExpectedArgumentCount and `bind` subtracts its partials;
    `indexOf`/`lastIndexOf` use IsStrictlyEqual and `includes` real

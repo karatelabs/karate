@@ -68,6 +68,9 @@ class Interpreter {
      * from the declaring context.
      */
     static void bindArrowThis(CoreContext callContext, JsFunctionNode arrowFn) {
+        // Also marks the frame so `arguments` resolves lexically (an arrow has
+        // no own `arguments` either — see CoreContext.argumentsForRead).
+        callContext.arrowFrame = true;
         if (arrowFn.declaredContext != null) {
             callContext.thisObject = arrowFn.declaredContext.thisObject;
         }
@@ -670,7 +673,7 @@ class Interpreter {
                 }
             }
             CoreContext callContext;
-            JsObject newInstance = null;
+            ObjectLike newInstance = null;
             Object result;
             // For user-defined functions, create full function context with closure info
             if (callable instanceof JsFunctionNode jsFunc) {
@@ -687,10 +690,10 @@ class Interpreter {
                         : jsFunc;
                 if (newKeyword) {
                     callContext.callInfo = new CallInfo(true, callable);
-                    newInstance = new JsObject();
+                    newInstance = allocateInstance(jsFunc);
                     Object proto = jsFunc.getMember("prototype");
                     if (proto instanceof ObjectLike protoObj) {
-                        newInstance.setPrototype(protoObj);
+                        setInstancePrototype(newInstance, protoObj);
                     }
                     callContext.thisObject = newInstance;
                     // A `class X extends Y {}` with no explicit constructor runs
@@ -787,16 +790,16 @@ class Interpreter {
 
     private static Object invokeAsConstructor(JsCallable callable, Object[] args, Node node, CoreContext context) {
         CoreContext callContext;
-        JsObject newInstance = null;
+        ObjectLike newInstance = null;
         Object result;
         if (callable instanceof JsFunctionNode jsFunc) {
             callContext = new CoreContext(context, node, args, jsFunc.declaredContext, jsFunc.capturedBindings);
             callContext.strict = jsFunc.strict;
             callContext.callInfo = new CallInfo(true, callable);
-            newInstance = new JsObject();
+            newInstance = allocateInstance(jsFunc);
             Object proto = jsFunc.getMember("prototype");
             if (proto instanceof ObjectLike protoObj) {
-                newInstance.setPrototype(protoObj);
+                setInstancePrototype(newInstance, protoObj);
             }
             callContext.thisObject = newInstance;
             callContext.event(EventType.CONTEXT_ENTER, node);
@@ -1098,6 +1101,9 @@ class Interpreter {
             if (hasExtends) {
                 if (parentCtor != null) {
                     ctor.setPrototype(parentCtor); // static inheritance + super(...) target
+                    ctor.baseBuiltinCtor = parentCtor instanceof JsFunctionNode parentFn
+                            ? parentFn.baseBuiltinCtor
+                            : exoticBaseBuiltin(parentCtor);
                     Object parentProto = parentCtor.getMember("prototype");
                     proto.setPrototype(parentProto instanceof ObjectLike pp ? pp : null);
                 } else {
@@ -1271,6 +1277,80 @@ class Interpreter {
         return Terms.UNDEFINED; // the value of a super() call is unused as a statement
     }
 
+    // The built-in constructors whose instances carry internal slots a plain
+    // JsObject lacks, and whose state the super() shim can initialize in
+    // place. `extends` on one of these makes `new` allocate the matching
+    // exotic type (see allocateInstance). Error is deliberately absent — the
+    // enumerable-prop copy-shim (message + stack) already covers it on a
+    // plain JsObject. RegExp is absent because its compiled state is
+    // immutable — `class X extends RegExp` stays on the copy-shim (exec/test
+    // on such instances remain unsupported).
+    private static JsCallable exoticBaseBuiltin(Object parentCtor) {
+        return parentCtor instanceof JsArrayConstructor
+                || parentCtor instanceof JsMapConstructor
+                || parentCtor instanceof JsSetConstructor
+                || parentCtor instanceof JsDateConstructor
+                ? (JsCallable) parentCtor : null;
+    }
+
+    // Allocates the receiver for `new jsFunc(...)`: the exotic base type when
+    // the class extends Array/Map/Set/Date (so Array.isArray, JSON/string
+    // conversion, and the Map/Set/Date prototype methods find real internal
+    // slots on `this`), else a plain JsObject.
+    private static ObjectLike allocateInstance(JsFunctionNode ctor) {
+        JsCallable base = ctor.baseBuiltinCtor;
+        if (base == null) {
+            return new JsObject();
+        }
+        if (base instanceof JsArrayConstructor) {
+            return new JsArray();
+        }
+        if (base instanceof JsMapConstructor) {
+            return new JsMap();
+        }
+        if (base instanceof JsSetConstructor) {
+            return new JsSet();
+        }
+        if (base instanceof JsDateConstructor) {
+            return new JsDate(Double.NaN); // invalid until super(...) initializes it
+        }
+        return new JsObject();
+    }
+
+    // ObjectLike has no setPrototype; the two concrete instance shapes
+    // allocateInstance can return each carry their own.
+    private static void setInstancePrototype(ObjectLike instance, ObjectLike proto) {
+        if (instance instanceof JsObject jo) {
+            jo.setPrototype(proto);
+        } else if (instance instanceof JsArray ja) {
+            ja.setPrototype(proto);
+        }
+    }
+
+    // In-place initialization of an exotic receiver from the instance the
+    // built-in super constructor produced. Returns true when handled — the
+    // enumerable-prop copy-shim is then skipped (a fresh Array/Map/Set/Date
+    // has no enumerable own props worth copying).
+    private static boolean initializeExoticReceiver(Object thisObj, Object built) {
+        if (thisObj instanceof JsArray dst && built instanceof JsArray src) {
+            dst.list.addAll(src.list); // raw, so holes from `new Array(n)` survive
+            return true;
+        }
+        if (thisObj instanceof JsMap dst && built instanceof JsMap src) {
+            dst.entries.putAll(src.entries);
+            return true;
+        }
+        if (thisObj instanceof JsSet dst && built instanceof JsSet src) {
+            dst.elements.putAll(src.elements);
+            return true;
+        }
+        if (thisObj instanceof JsDate dst && built instanceof JsDate src) {
+            dst.setTimeValue(src.getTimeValue());
+            return true;
+        }
+        return false;
+    }
+
     // Runs the parent constructor of {@code derivedCtor} against an existing
     // instance ({@code thisObj}) — the derived `this`. The parent is the derived
     // constructor's [[Prototype]] (set to the superclass at class-eval time).
@@ -1309,6 +1389,9 @@ class Interpreter {
             // `class AppError extends Error { } ; new AppError('x').message`
             // work for the common data-carrying case).
             Object built = constructFromHost(parentCallable, args, context);
+            if (initializeExoticReceiver(thisObj, built)) {
+                return;
+            }
             if (built instanceof ObjectLike src && thisObj instanceof JsObject dst) {
                 for (Map.Entry<String, Object> e : src.toMap().entrySet()) {
                     dst.putMember(e.getKey(), e.getValue());
@@ -1348,6 +1431,20 @@ class Interpreter {
     // immediately after super() returns.
     static void runInstanceFieldInitializers(JsFunctionNode ctor, Object thisObj, CoreContext context) {
         if (!(thisObj instanceof JsObject obj)) {
+            // An `extends Array` instance is a JsArray (ObjectLike but not a
+            // JsObject): public fields still apply via putMember; private
+            // state lives on JsObject only, so privates are skipped there.
+            if (thisObj instanceof ObjectLike ol && ctor.instanceFields != null) {
+                for (JsFunctionNode.FieldInit f : ctor.instanceFields) {
+                    Object value = evalFieldInitializer(f.initializer, thisObj, context);
+                    if (context.isError()) {
+                        return;
+                    }
+                    if (f.privateName == null) {
+                        ol.putMember(f.key, value);
+                    }
+                }
+            }
             return;
         }
         if (ctor.privateBrands != null) {
@@ -2368,7 +2465,11 @@ class Interpreter {
             return context.getThisObject();
         }
         if (context.callArgs != null && "arguments".equals(varName)) {
-            return context.getArgumentsObject();
+            JsArray a = context.argumentsForRead();
+            if (a != null) {
+                return a;
+            }
+            // arrow frame with no enclosing function — ordinary resolution
         }
         BindingSlot s = context.resolve(varName);
         if (s == null) {

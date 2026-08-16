@@ -146,6 +146,29 @@ class JsFunctionTest extends EvalBase {
     }
 
     @Test
+    void testArrowReadsEnclosingFunctionArguments() {
+        // §10.2.1.3: an arrow has no `arguments` of its own — the identifier
+        // resolves lexically to the enclosing function's.
+        assertEquals(List.of(1, 2), eval("function f(){ var g = () => arguments; return g('x') }\nf(1, 2)"));
+    }
+
+    @Test
+    void testNestedArrowReadsEnclosingFunctionArguments() {
+        assertEquals(List.of(7), eval("function f(){ var g = () => () => arguments; return g('x')('y') }\nf(7)"));
+    }
+
+    @Test
+    void testArrowArgumentsSharesIdentityWithEnclosing() {
+        assertEquals(true, eval("function f(){ var g = () => arguments; return g() === arguments }\nf(1)"));
+    }
+
+    @Test
+    void testArrowArgumentsCalledAfterEnclosingReturns() {
+        // the arrow closes over the frame; arguments must survive the call
+        assertEquals(List.of(3, 4), eval("function f(){ return () => arguments }\nf(3, 4)()"));
+    }
+
+    @Test
     void testFunctionPrototypeToString() {
         // ES6: Function.prototype.toString returns actual source for user-defined functions
         assertEquals("function(){ }", eval("var a = function(){ }; a.toString()"));

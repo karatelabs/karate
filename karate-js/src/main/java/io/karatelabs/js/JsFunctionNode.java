@@ -83,6 +83,12 @@ class JsFunctionNode extends JsFunction {
     // instance method/constructor, or the constructor for a static method.
     // null for ordinary (non-class) functions.
     ObjectLike homeObject;
+    // The built-in constructor at the root of this class's extends chain
+    // (Array/Map/Set/Date), when there is one — `new` then allocates the
+    // matching exotic instance so prototype methods find their internal
+    // slots. Propagated through derived JsFunctionNode parents at class-eval
+    // time; null for plain classes and ordinary functions.
+    JsCallable baseBuiltinCtor;
     // Public instance fields declared on the class, in source order. Run on each
     // new instance at construction (base class: before the constructor body;
     // derived: right after super() returns). Computed field names are resolved
