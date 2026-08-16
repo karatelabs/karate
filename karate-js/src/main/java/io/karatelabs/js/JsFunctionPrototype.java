@@ -124,8 +124,8 @@ class JsFunctionPrototype extends Prototype {
     // Spec: Function.prototype.bind(thisArg, ...preBound) returns a new callable
     // that, when invoked, calls the target with `this` set to thisArg and
     // arguments = preBound concat actualArgs. Pre-bound args win in order.
-    // We don't model `length` / `name` of the bound function precisely — most
-    // call sites only care about the call semantics.
+    // Per §20.2.3.2 the bound function's `length` is
+    // max(0, target.length - preBound.length).
     private Object bindMethod(Context context, Object[] args) {
         Object thisObj = context.getThisObject();
         if (!(thisObj instanceof JsCallable target)) {
@@ -153,8 +153,9 @@ class JsFunctionPrototype extends Prototype {
             }
         };
         // Spec: bound function's name is "bound " + target.name
-        if (target instanceof JsFunction tf && tf.name != null) {
-            bound.name = "bound " + tf.name;
+        if (target instanceof JsFunction tf) {
+            bound.name = tf.name != null ? "bound " + tf.name : "bound";
+            bound.length = Math.max(0, tf.length - preBound.length);
         } else {
             bound.name = "bound";
         }

@@ -195,4 +195,23 @@ class JsNumberTest extends EvalBase {
         assertEquals(16, eval("parseInt('0x10')"));
     }
 
+
+    @Test
+    void testParseIntStripsHexPrefixForRadix16() {
+        // Spec §19.2.5 step 10: the 0x/0X prefix is stripped when the radix is
+        // 16, whether that 16 was implied or passed explicitly.
+        assertEquals(31, eval("parseInt('0x1f', 16)"));
+        assertEquals(31, eval("parseInt('0X1F', 16)"));
+        assertEquals(31, eval("parseInt('0x1f')"));
+        assertEquals(-31, eval("parseInt('-0x1f', 16)"));
+        assertEquals(31, eval("parseInt('  0x1f  ', 16)"));
+        assertEquals(31, eval("Number.parseInt('0x1f', 16)"));
+        // Any other radix leaves the prefix alone — parsing stops at the 'x'.
+        assertEquals(0, eval("parseInt('0x1f', 10)"));
+        assertEquals(0, eval("parseInt('0x1f', 8)"));
+        // A bare prefix has no digits to read.
+        assertEquals(Double.NaN, eval("parseInt('0x', 16)"));
+        assertEquals(Double.NaN, eval("parseInt('0x')"));
+    }
+
 }

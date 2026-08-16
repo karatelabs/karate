@@ -241,9 +241,10 @@ streams to be tailed.**
 
 Reordered 2026-08-12 against the real-world bar, from two probes at HEAD
 (latest pin: the `run-final-lang` / `run-final-builtins` run-dirs, and the
-56-snippet idiomatic-JS smoke battery at
-[Real-world smoke battery](#real-world-smoke-battery), 53/56 — the three
-holdouts are the two generator snippets and `typeof Symbol('a')`).
+idiomatic-JS smoke battery at
+[Real-world smoke battery](#real-world-smoke-battery), 61/64 as of
+2026-08-16 — the three holdouts are the two generator snippets and
+`typeof Symbol('a')`).
 The ES2015–ES2022 core an LLM leans on hardest — arrows, destructuring in
 every position, spread, optional chaining, `??`/`??=`, template + tagged
 literals, classes with getters/`extends`/`super`/public+private fields and
@@ -326,14 +327,19 @@ by the interpreter and the §13.2.5.1 duplicate early error — the
 with it.)*
 7. **Wrong-answer tail** (each battery-verified, smaller blast radius):
    arrows get their own `arguments` instead of the enclosing function's;
-   `fn.length` counts default/rest params (and `bind` doesn't subtract
-   partials); `[NaN].indexOf(NaN)` → `0` (must be `-1`, strict equality);
-   `'a1b2c'.split(/(\d)/)` drops capture groups; sticky `/y` never
-   advances `lastIndex` after a match; `parseInt('0x1f', 16)` → `0` (exp
-   `31`); `class S extends Array` → `Array.isArray(s)` `false` and
-   stringifies as an object; `class M extends Map {}` instances lack
-   internal slots (`extends Array`/`Error` work — extend the copy-shim to
+   `class S extends Array` → `Array.isArray(s)` `false` and stringifies as
+   an object; `class M extends Map {}` instances lack internal slots
+   (`extends Array`/`Error` work — extend the copy-shim to
    Map/Set/Date/RegExp).
+   *(Five of the eight shipped 2026-08-16: `fn.length` now follows
+   §15.1.5 ExpectedArgumentCount and `bind` subtracts its partials;
+   `indexOf`/`lastIndexOf` use IsStrictlyEqual and `includes` real
+   SameValueZero (it was loosely equal, so `[1].includes('1')` was true);
+   `String.prototype.split` on a regex is the spec's §22.2.6.14 anchored
+   walk in `JsStringPrototype.regexSplit`, so capture groups interleave
+   and the limit is a real ToUint32; `JsRegex.matchFrom` is one seam for
+   the `g`/`y` lastIndex protocol; `parseInt` strips `0x` for an explicit
+   radix 16. Each carries a permanent smoke snippet.)*
 
 ### P1 — missing surface LLMs write constantly
 
@@ -386,11 +392,25 @@ heap (`unshift`/`splice`/`reverse`). *(Fixed 2026-08-12: JSON circular →
 
 Added 2026-08-16:
 
-- **Deep recursion leaks `java.lang.StackOverflowError`** (uncatchable as
-  JS) — should surface as a JS `RangeError`. LLM-written recursion bugs
-  hit this constantly.
-- **`new Error('m').stack` is `undefined`** — LLM code logs `err.stack`
-  in every catch block; populate with a JS-shaped trace string.
+*(Both engine-side items shipped the same day. Deep recursion:
+`JsFunctionNode.bindArgsAndExecute` — the one seam every JS-to-JS call
+funnels through, `call` and the Interpreter's inlined call/construct/super
+paths alike — catches `StackOverflowError` and rethrows
+`RangeError: Maximum call stack size exceeded`. A depth counter was
+rejected: no fixed ceiling is portable (the surefire JVM blows at ~450
+nested JS frames, run to run, where a default main thread takes far more).
+The catch is free on the hot path and self-correcting on the cold one — a
+second overflow while building the error lands in the caller's identical
+catch, one JS frame further out. The one real hazard is a class
+initializer running on the exhausted stack, which fails permanently, so
+`JsFunctionNode`'s static block builds one throwaway RangeError to warm
+the path. `.stack`: `JsError.captureStack` records `at <source>:<line>:<col>`
+frames at construction and renders the `"<name>: <message>"` header on
+first read; a non-enumerable writable intrinsic, so it stays out of
+`toMap()` and `Object.keys`. Engine-raised errors are stamped where they
+become JS values in `evalTryStmt`; `class X extends Error` carries it via
+the copy-shim.)*
+
 - **Harness (principle #3):** thrown non-Error *primitives*
   (`throw "str"`) classify as `Unknown` in `ErrorUtils` — all 8 current
   Unknown rows are this, not Java leaks. Add a `ThrownValue` bucket so
@@ -988,7 +1008,7 @@ lookups (one test, one symbol) — run those inline.
 
 ### Real-world smoke battery
 
-A ~56-snippet battery of idiomatic modern JS (the constructs LLMs actually
+A ~64-snippet battery of idiomatic modern JS (the constructs LLMs actually
 emit: arrows, destructuring, spread, optional chaining, classes, async,
 generators, regex named groups, …), each snippet self-checking and throwing
 on a wrong result. Lives in [`etc/smoke/`](etc/smoke/) — `Smoke.java` evals

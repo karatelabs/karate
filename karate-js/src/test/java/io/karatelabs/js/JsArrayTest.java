@@ -395,4 +395,21 @@ class JsArrayTest extends EvalBase {
                         + " a[0]"));
     }
 
+
+    @Test
+    void testIndexOfIsStrictEquality() {
+        // Spec §23.1.3.16 / §23.1.3.18 compare with IsStrictlyEqual, so NaN
+        // never matches itself and no coercion happens.
+        assertEquals(-1, eval("[NaN].indexOf(NaN)"));
+        assertEquals(-1, eval("[NaN].lastIndexOf(NaN)"));
+        assertEquals(-1, eval("[1, 2].indexOf('1')"));
+        assertEquals(-1, eval("[1, 2].lastIndexOf('2')"));
+        assertEquals(1, eval("[NaN, 3].indexOf(3)"));
+        // includes() is SameValueZero instead — NaN DOES match, '1' does not.
+        assertEquals(true, eval("[NaN].includes(NaN)"));
+        assertEquals(false, eval("[1, 2].includes('1')"));
+        assertEquals(true, eval("[-0].includes(0)"));
+        assertEquals(0, eval("[-0].indexOf(0)"));
+    }
+
 }

@@ -255,4 +255,52 @@ class EngineExceptionTest {
         assertTrue(e.getMessage().contains("UnsupportedOperationException"),
                 () -> "should name the exception type, was: " + e.getMessage());
     }
+
+    @Test
+    void testErrorStackIsAPopulatedWritableString() {
+        // `.stack` is not in ECMA-262 but LLM code logs it in every catch
+        // block; an undefined here breaks real programs.
+        Engine engine = new Engine();
+        assertEquals("string", engine.eval("typeof new Error('m').stack"));
+        String stack = (String) engine.eval("new Error('m').stack");
+        assertTrue(stack.startsWith("Error: m"), stack);
+        assertTrue(stack.contains("\n    at "), stack);
+        // The header follows Error.prototype.toString, so subclasses name themselves.
+        assertTrue(((String) engine.eval("new TypeError('bad').stack")).startsWith("TypeError: bad"));
+        assertTrue(((String) engine.eval("new RangeError('r').stack")).startsWith("RangeError: r"));
+        // A user subclass of Error inherits the shape (and, like V8, the
+        // inherited Error.prototype.name in the header).
+        assertEquals("string", engine.eval("class X extends Error {}; typeof new X('m').stack"));
+        assertTrue(((String) engine.eval("class X extends Error {}; new X('m').stack")).contains("m"));
+        // Engine-raised errors get one too, so `e.stack.includes(...)` is safe.
+        assertEquals(true, engine.eval("try { null.x } catch (e) { e.stack.includes('TypeError') }"));
+        // Writable, and non-enumerable — an own property, but not a listed key.
+        assertEquals("mine", engine.eval("var e = new Error('m'); e.stack = 'mine'; e.stack"));
+        assertEquals(true, engine.eval("Object.hasOwn(new Error('m'), 'stack')"));
+        assertEquals(false, engine.eval("Object.keys(new Error('m')).includes('stack')"));
+    }
+
+    @Test
+    void testDeepRecursionIsACatchableRangeError() {
+        // A java.lang.StackOverflowError is uncatchable from JS; runaway
+        // recursion has to arrive as a RangeError instead.
+        Engine engine = new Engine();
+        assertEquals(true, engine.eval(
+                "function f(){ return f() }; try { f() } catch (e) { e instanceof RangeError }"));
+        assertEquals(true, engine.eval(
+                "function f(){ return f() }; try { f() } catch (e) { e.message.includes('call stack') }"));
+        // Mutual recursion and a method call reach the same boundary.
+        assertEquals("RangeError", engine.eval(
+                "function a(){ return b() }; function b(){ return a() };"
+                        + " try { a() } catch (e) { e.name }"));
+        assertEquals("RangeError", engine.eval(
+                "var o = { m: function(){ return o.m() } }; try { o.m() } catch (e) { e.name }"));
+        // The interpreter is left usable afterwards.
+        assertEquals(3, engine.eval(
+                "function f(){ return f() }; try { f() } catch (e) {}; [1,2,3].length"));
+        // Uncaught, it still surfaces as a JS RangeError to the host.
+        EngineException ex = assertThrowsEngineException("function f(){ return f() }; f()");
+        assertEquals("RangeError", ex.getJsErrorName());
+    }
+
 }

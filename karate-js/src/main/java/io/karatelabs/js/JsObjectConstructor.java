@@ -54,7 +54,7 @@ class JsObjectConstructor extends JsFunction {
         defineOwn("values", new JsBuiltinMethod("values", 1, (JsCallable) this::values), METHOD_ATTRS);
         defineOwn("entries", new JsBuiltinMethod("entries", 1, (JsCallable) this::entries), METHOD_ATTRS);
         defineOwn("assign", new JsBuiltinMethod("assign", 2, (JsCallable) this::assign), METHOD_ATTRS);
-        defineOwn("fromEntries", new JsBuiltinMethod("fromEntries", 1, (JsInvokable) this::fromEntries), METHOD_ATTRS);
+        defineOwn("fromEntries", new JsBuiltinMethod("fromEntries", 1, (JsCallable) this::fromEntries), METHOD_ATTRS);
         defineOwn("is", new JsBuiltinMethod("is", 2, (JsInvokable) this::is), METHOD_ATTRS);
         defineOwn("create", new JsBuiltinMethod("create", 2, (JsCallable) this::create), METHOD_ATTRS);
         defineOwn("getPrototypeOf", new JsBuiltinMethod("getPrototypeOf", 1, (JsInvokable) this::getPrototypeOf), METHOD_ATTRS);
@@ -233,26 +233,35 @@ class JsObjectConstructor extends JsFunction {
         return result;
     }
 
-    @SuppressWarnings("unchecked")
-    private Object fromEntries(Object[] args) {
-        if (args.length == 0 || args[0] == null || args[0] == Terms.UNDEFINED) {
+    /**
+     * Spec §20.1.2.7 — AddEntriesFromIterable over ANY iterable of two-element
+     * entries, not just an Array of Arrays: {@code new Map(...)}, a Set of
+     * pairs and a generator all round-trip. Routing through
+     * {@link IterUtils#getIterator} is what makes that work; the old
+     * Array-shaped walk silently produced {@code {}} for a Map.
+     */
+    private Object fromEntries(Context context, Object[] args) {
+        Object source = args.length > 0 ? args[0] : Terms.UNDEFINED;
+        if (source == null || source == Terms.UNDEFINED) {
             throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
+        CoreContext cc = context instanceof CoreContext c ? c : null;
         Map<String, Object> result = new LinkedHashMap<>();
-        for (KeyValue kv : Terms.toIterable(args[0])) {
-            if (kv.value() instanceof List) {
-                List<Object> list = (List<Object>) kv.value();
-                if (!list.isEmpty()) {
-                    Object key = list.getFirst();
-                    if (key != null) {
-                        Object value = null;
-                        if (list.size() > 1) {
-                            value = list.get(1);
-                        }
-                        result.put(key.toString(), value);
-                    }
-                }
+        JsIterator iter = IterUtils.getIterator(source, context);
+        while (iter.hasNext()) {
+            Object entry = iter.next();
+            Object key;
+            Object value;
+            if (entry instanceof List<?> pair) { // Array / Map-entry pair
+                key = pair.isEmpty() ? Terms.UNDEFINED : pair.get(0);
+                value = pair.size() > 1 ? pair.get(1) : Terms.UNDEFINED;
+            } else if (entry instanceof ObjectLike obj) { // any array-like entry
+                key = obj.getMember("0", obj, cc);
+                value = obj.getMember("1", obj, cc);
+            } else {
+                throw JsErrorException.typeError("Iterator value " + entry + " is not an entry object");
             }
+            result.put(Terms.toPropertyKey(key, cc), value);
         }
         return result;
     }

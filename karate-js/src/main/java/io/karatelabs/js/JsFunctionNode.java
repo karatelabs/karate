@@ -38,6 +38,16 @@ class JsFunctionNode extends JsFunction {
 
     static final Logger logger = LoggerFactory.getLogger(JsFunctionNode.class);
 
+    static {
+        // Build one throwaway RangeError now. The recursion guard in
+        // bindArgsAndExecute builds one on a thread whose stack is already
+        // exhausted, and a class initializer that fails there is fatal for the
+        // life of the JVM (every later touch is a NoClassDefFoundError). This
+        // class loads with the first function definition, long before any deep
+        // recursion, so the error path is warm by the time it is needed.
+        JsErrorException.rangeError("");
+    }
+
     final boolean arrow;
     // True for an `async` function / method / arrow, taken from the defining
     // node's parse-time marker. An async invocation never runs its body on the
@@ -115,11 +125,7 @@ class JsFunctionNode extends JsFunction {
         this.strict = forceStrict
                 || (declaredContext != null && declaredContext.strict)
                 || (body.type == NodeType.BLOCK && Interpreter.hasUseStrictDirective(body));
-        // Spec §15.2: f.length is the number of formal parameters before the
-        // first one with a default value or a rest element. Approximating with
-        // argCount is correct for the common case (no defaults, no rest) and
-        // off-by-N for the rest — refine if test262 surfaces it.
-        this.length = argCount;
+        this.length = expectedArgCount(argNodes);
         // Capture references to let/const Slots at creation time for closure semantics
         this.capturedBindings = captureBindings(declaredContext);
         // Slot-frame analysis: once per function-definition node (cached there),
@@ -128,6 +134,29 @@ class JsFunctionNode extends JsFunction {
         // this instance's second call (see bindArgsAndExecute) so functions
         // called once never pay for analysis they cannot amortize.
         this.slotTable = SlotTable.ENABLED ? SlotTable.forNodeEager(node, argNodes, body) : null;
+    }
+
+    /**
+     * Spec §15.1.5 ExpectedArgumentCount — {@code f.length} counts the formal
+     * parameters BEFORE the first one carrying an initializer or a rest
+     * element, so {@code function f(a, b = 1) {}} and
+     * {@code function g(a, ...r) {}} both report 1. The two shapes are the same
+     * ones {@link #executeBody} branches on: a leading {@code ...} token, and
+     * the {@code FN_DECL_ARG: [target, EQ, EXPR, COMMA?]} default form.
+     */
+    private static int expectedArgCount(List<Node> argNodes) {
+        int count = 0;
+        for (Node argNode : argNodes) {
+            if (argNode.getFirst().getFirstToken().type == TokenType.DOT_DOT_DOT) {
+                break;
+            }
+            if (argNode.type == NodeType.FN_DECL_ARG && argNode.size() >= 3
+                    && argNode.get(1).isToken() && argNode.get(1).token.type == TokenType.EQ) {
+                break;
+            }
+            count++;
+        }
+        return count;
     }
 
     SlotTable slotTable;
@@ -220,7 +249,27 @@ class JsFunctionNode extends JsFunction {
         return result;
     }
 
-    // Called by Interpreter when context is pre-prepared with closure info
+    /**
+     * Called by Interpreter when context is pre-prepared with closure info.
+     * Every JS-to-JS call funnels through here — {@link #call} and the
+     * Interpreter's inlined call/construct/super paths alike — which makes it
+     * the one place to turn runaway recursion into a JS-catchable error.
+     * <p>
+     * A {@link StackOverflowError} is uncatchable from JS and surfaces as a raw
+     * Java leak (principle #2); the spec answer is a {@code RangeError}. The
+     * unwound-and-discarded {@code functionContext} carries no state anyone can
+     * observe, so the resulting {@link JsErrorException} then propagates
+     * exactly like any other JS throw.
+     * <p>
+     * A depth counter was the alternative and is worse here: no fixed ceiling
+     * is portable — this repo's own surefire JVM blows the Java stack at ~450
+     * nested JS frames while a default main thread takes far more — so a limit
+     * safe there either fails to protect or rejects legitimate recursion.
+     * Catching costs nothing on the hot path (an exception-table entry, no
+     * instructions) and is self-correcting on the cold one: if building the
+     * error exhausts what little stack is left, that second overflow lands in
+     * the caller's identical catch one JS frame out, where there is more room.
+     */
     Object bindArgsAndExecute(CoreContext functionContext, CoreContext parentContext, Object[] args) {
         functionContext.privateEnv = privateEnv;
         if (async) {
@@ -228,7 +277,11 @@ class JsFunctionNode extends JsFunction {
             // the activation thread under the startup-outcome protocol — not here.
             return AsyncSupport.callAsync(this, functionContext, args);
         }
-        return executeBody(functionContext, parentContext, args);
+        try {
+            return executeBody(functionContext, parentContext, args);
+        } catch (StackOverflowError e) {
+            throw JsErrorException.rangeError("Maximum call stack size exceeded");
+        }
     }
 
     /** The synchronous body run. For an async function this is what the

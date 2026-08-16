@@ -26,6 +26,7 @@ package io.karatelabs.js;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -160,31 +161,85 @@ class JsStringPrototype extends Prototype {
             single.list.add(s);
             return single;
         }
-        int limit = -1; // JS default: keep all, including trailing empty strings
+        // lim is ToUint32(limit) — `'a,b'.split(',', -1)` keeps everything.
+        long limit = -1; // -1 = unlimited
         if (args.length > 1 && args[1] != null && args[1] != Terms.UNDEFINED) {
-            limit = argInt(args, 1, 0);
-            if (limit <= 0) return new JsArray(new ArrayList<>());
+            limit = Terms.toUint32(args[1]);
+            if (limit == 0) return new JsArray(new ArrayList<>());
         }
-        String[] parts;
         if (args[0] instanceof JsRegex regex) {
-            parts = regex.javaPattern.split(s, -1);
-        } else {
-            String sep = argString(args, 0, context);
-            if (sep.isEmpty()) {
-                int capped = limit < 0 ? s.length() : Math.min(limit, s.length());
-                List<Object> result = new ArrayList<>(capped);
-                for (int i = 0; i < capped; i++) {
-                    result.add(String.valueOf(s.charAt(i)));
-                }
-                return new JsArray(result);
-            }
-            // -1 to keep trailing empty segments (JS-compatible, Java default drops them)
-            parts = s.split(Pattern.quote(sep), -1);
+            return regexSplit(s, regex, limit);
         }
-        int take = (limit >= 0 && parts.length > limit) ? limit : parts.length;
+        String sep = argString(args, 0, context);
+        if (sep.isEmpty()) {
+            int capped = limit < 0 ? s.length() : (int) Math.min(limit, s.length());
+            List<Object> result = new ArrayList<>(capped);
+            for (int i = 0; i < capped; i++) {
+                result.add(String.valueOf(s.charAt(i)));
+            }
+            return new JsArray(result);
+        }
+        // -1 to keep trailing empty segments (JS-compatible, Java default drops them)
+        String[] parts = s.split(Pattern.quote(sep), -1);
+        int take = (limit >= 0 && parts.length > limit) ? (int) limit : parts.length;
         List<Object> result = new ArrayList<>(take);
         for (int i = 0; i < take; i++) result.add(parts[i]);
         return new JsArray(result);
+    }
+
+    /**
+     * Spec §22.2.6.14 {@code RegExp.prototype[@@split]}. Java's
+     * {@code Pattern.split} is not usable here: it drops the capture groups,
+     * which the spec interleaves into the result
+     * ({@code 'a1b2c'.split(/(\d)/)} → {@code ['a','1','b','2','c']}).
+     * <p>
+     * The walk is the spec's own: advance {@code q} one position at a time,
+     * attempting an ANCHORED match there (the spec clones the regex with the
+     * {@code y} flag; here that is a region + {@code lookingAt}, with
+     * transparent non-anchoring bounds so {@code ^} / {@code $} / lookbehind
+     * still see the whole input). The receiver's {@code lastIndex} is never
+     * read or written — a {@code /g} separator splits identically.
+     */
+    private static Object regexSplit(String s, JsRegex regex, long limit) {
+        List<Object> result = new ArrayList<>();
+        Matcher matcher = regex.javaPattern.matcher(s);
+        matcher.useTransparentBounds(true);
+        matcher.useAnchoringBounds(false);
+        int size = s.length();
+        if (size == 0) {
+            // An empty input yields [] when the separator matches it, [''] otherwise.
+            if (!matchAt(matcher, s, 0)) result.add(s);
+            return new JsArray(result);
+        }
+        int p = 0;
+        int q = 0;
+        while (q < size) {
+            if (!matchAt(matcher, s, q)) {
+                q++;
+                continue;
+            }
+            int e = Math.min(matcher.end(), size);
+            if (e == p) {
+                q++;
+                continue;
+            }
+            result.add(s.substring(p, q));
+            if (result.size() == limit) return new JsArray(result);
+            p = e;
+            for (int i = 1; i <= matcher.groupCount(); i++) {
+                String group = matcher.group(i);
+                result.add(group != null ? group : Terms.UNDEFINED);
+                if (result.size() == limit) return new JsArray(result);
+            }
+            q = p;
+        }
+        result.add(s.substring(p, size));
+        return new JsArray(result);
+    }
+
+    private static boolean matchAt(Matcher matcher, String s, int q) {
+        matcher.region(q, s.length());
+        return matcher.lookingAt();
     }
 
     private Object charAt(Context context, Object[] args) {

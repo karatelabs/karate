@@ -66,6 +66,7 @@ class JsErrorConstructor extends JsFunction {
         if (message != null) {
             instance.defineOwn("message", message, MESSAGE_ATTRS);
         }
+        instance.captureStack(cc);
         installCauseFromOptions(instance, args, 1, cc);
         return instance;
     }
@@ -110,6 +111,7 @@ class JsErrorConstructor extends JsFunction {
         if (message != null) {
             instance.defineOwn("message", message, MESSAGE_ATTRS);
         }
+        instance.captureStack(cc);
         installCauseFromOptions(instance, args, 2, cc);
         instance.defineOwn("errors", new JsArray(collected), MESSAGE_ATTRS);
         return instance;

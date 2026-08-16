@@ -840,4 +840,19 @@ class JsObjectTest extends EvalBase {
                         + " Object.getOwnPropertyDescriptor(o, 'a').writable"));
     }
 
+
+    @Test
+    void testFromEntriesTakesAnyIterable() {
+        // Spec §20.1.2.7 AddEntriesFromIterable — not just an Array of Arrays.
+        assertEquals(1, eval("Object.fromEntries(new Map([['k', 1]])).k"));
+        assertEquals(2, eval("Object.fromEntries(new Map([['a', 1], ['b', 2]])).b"));
+        assertEquals(1, eval("Object.fromEntries(new Set([['k', 1]])).k"));
+        assertEquals(1, eval("Object.fromEntries([['k', 1]]).k"));
+        // Round-trips Object.entries, and keys go through ToPropertyKey.
+        assertEquals(2, eval("Object.fromEntries(Object.entries({x: 2})).x"));
+        assertEquals("v", eval("Object.fromEntries(new Map([[1, 'v']]))['1']"));
+        // A non-iterable argument is a TypeError, not a silently empty object.
+        assertEquals("TypeError", eval("try { Object.fromEntries(1) } catch (e) { e.name }"));
+    }
+
 }

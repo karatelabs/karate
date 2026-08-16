@@ -682,4 +682,28 @@ class JsFunctionTest extends EvalBase {
         assertEquals(6, eval("Reflect.apply(function(a,b){ return this.x + a + b }, { x: 1 }, [2, 3])"));
     }
 
+
+    @Test
+    void testFunctionLengthStopsAtDefaultOrRest() {
+        // Spec §15.1.5 ExpectedArgumentCount — params before the first
+        // initializer or rest element.
+        assertEquals(2, eval("function f(a, b){}; f.length"));
+        assertEquals(1, eval("function f(a, b = 1){}; f.length"));
+        assertEquals(1, eval("function f(a, ...r){}; f.length"));
+        assertEquals(0, eval("function f(a = 1, b){}; f.length"));
+        assertEquals(0, eval("function f(...r){}; f.length"));
+        assertEquals(2, eval("((a, [b], c = 1) => 0).length"));
+        assertEquals(1, eval("var o = { m(a, b = 2){} }; o.m.length"));
+    }
+
+    @Test
+    void testBoundFunctionLength() {
+        // Spec §20.2.3.2: max(0, target.length - preBound.length).
+        assertEquals(3, eval("function h(a, b, c){}; h.bind(null).length"));
+        assertEquals(2, eval("function h(a, b, c){}; h.bind(null, 1).length"));
+        assertEquals(0, eval("function h(a, b, c){}; h.bind(null, 1, 2, 3, 4).length"));
+        assertEquals(1, eval("function h(a, b = 1){}; h.bind(null).length"));
+        assertEquals("bound h", eval("function h(a){}; h.bind(null).name"));
+    }
+
 }

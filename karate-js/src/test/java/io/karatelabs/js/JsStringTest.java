@@ -339,4 +339,27 @@ class JsStringTest extends EvalBase {
         assertEquals(true, eval("'abc'.endsWith('c', 10)"));
     }
 
+
+    @Test
+    void testSplitInterleavesCaptureGroups() {
+        // Spec §22.2.6.14: capture groups land in the result between segments.
+        assertEquals(List.of("a", "1", "b", "2", "c"), eval("'a1b2c'.split(/(\\d)/)"));
+        // The /g flag makes no difference — @@split ignores it (and lastIndex).
+        assertEquals(List.of("a", "1", "b", "2", "c"), eval("'a1b2c'.split(/(\\d)/g)"));
+        assertEquals(0, eval("var re = /(\\d)/g; 'a1b'.split(re); re.lastIndex"));
+        // A non-participating group contributes undefined, not an empty string.
+        assertEquals(true, eval("'a1b'.split(/(x)|(\\d)/)[1] === undefined"));
+        assertEquals(List.of("a", "b"), eval("'a1b'.split(/\\d/)"));
+        // limit truncates, counting captures too; ToUint32 makes -1 unlimited.
+        assertEquals(List.of("a", "1"), eval("'a1b2c'.split(/(\\d)/, 2)"));
+        assertEquals(List.of("a", "b"), eval("'a,b'.split(',', -1)"));
+        assertEquals(List.of(), eval("'a,b'.split(',', 0)"));
+        // Empty-match and empty-input corners.
+        assertEquals(List.of("a", "b"), eval("'ab'.split(/(?:)/)"));
+        assertEquals(List.of(), eval("''.split(/(?:)/)"));
+        assertEquals(List.of(""), eval("''.split(/x/)"));
+        // ^ is not re-anchored at each attempt position.
+        assertEquals(List.of("", "bab"), eval("'abab'.split(/^a/)"));
+    }
+
 }

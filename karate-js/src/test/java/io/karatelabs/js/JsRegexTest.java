@@ -2,6 +2,8 @@ package io.karatelabs.js;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class JsRegexTest extends EvalBase {
@@ -297,6 +299,31 @@ class JsRegexTest extends EvalBase {
         // out-of-range handling, just checks the pipeline.
         eval("var cols = '|a|b|c|'.split('|').map(function(c){return c.trim();}).filter(function(c){return c!=='';}); var first = cols[0]");
         assertEquals("a", get("first"));
+    }
+
+
+    @Test
+    void testStickyFlagAdvancesLastIndex() {
+        // Spec §22.2.7.2: `y` consults and advances lastIndex just like `g`.
+        assertEquals(1, eval("var y = /a/y; y.exec('aab'); y.lastIndex"));
+        assertEquals(2, eval("var y = /a/y; y.exec('aab'); y.exec('aab'); y.lastIndex"));
+        assertEquals(true, eval("var y = /a/y; y.test('aab')"));
+        assertEquals(1, eval("var y = /a/y; y.test('aab'); y.lastIndex"));
+        // ...but unlike `g`, a match must START at lastIndex; a miss there
+        // returns null and resets lastIndex to 0.
+        assertNull(eval("var y = /b/y; y.exec('aab')"));
+        assertEquals(0, eval("var y = /b/y; y.exec('aab'); y.lastIndex"));
+        assertEquals(false, eval("var y = /b/y; y.test('aab')"));
+        // /g still scans forward from lastIndex — the contrast that makes /y /y.
+        assertEquals(3, eval("var g = /b/g; g.exec('aab'); g.lastIndex"));
+        // A user-set lastIndex is honored, and one past the end is a clean miss.
+        assertEquals("b", eval("var y = /b/y; y.lastIndex = 2; y.exec('aab')[0]"));
+        assertNull(eval("var y = /a/y; y.lastIndex = 99; y.exec('aab')"));
+        // exec-loop idiom: /y tokenizes contiguously, then stops at the gap.
+        assertEquals(List.of("ab", "ab"), eval(
+                "var y = /ab/y; var out = []; var m;"
+                        + " while ((m = y.exec('ababXab')) !== null) out.push(m[0]);"
+                        + " out"));
     }
 
 }

@@ -1312,6 +1312,12 @@ class Interpreter {
                 for (Map.Entry<String, Object> e : src.toMap().entrySet()) {
                     dst.putMember(e.getKey(), e.getValue());
                 }
+                if (built instanceof JsError err) {
+                    // `stack` is a non-enumerable intrinsic, so it is absent from the
+                    // toMap() view the copy above walks — carry it over by hand.
+                    dst.defineOwn("stack", err.getMember("stack"),
+                            (byte) (JsObject.WRITABLE | JsObject.CONFIGURABLE));
+                }
             }
         }
     }
@@ -2724,6 +2730,11 @@ class Interpreter {
                 throw e;
             }
             JsError errObj = buildCaughtError(e);
+            // Engine-raised errors (JsErrorException.typeError and friends) are
+            // built deep inside built-ins with no context to hand; this is the
+            // first place one becomes a JS value, so stamp `.stack` here. A
+            // no-op for errors the JS `new Error(...)` path already captured.
+            errObj.captureStack(context);
             context.stopAndThrow(errObj);
             tryValue = null;
         }

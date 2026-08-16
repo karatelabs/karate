@@ -84,18 +84,18 @@ public class Terms {
         } else if (str.charAt(0) == '+') {
             index++;
         }
-        // auto-detect radix from prefix if not specified
-        if (radix == 0) {
-            if (index + 1 < str.length() && str.charAt(index) == '0'
-                    && (str.charAt(index + 1) == 'x' || str.charAt(index + 1) == 'X')) {
-                radix = 16;
-                index += 2;
-            } else {
-                radix = 10;
-            }
-        }
-        if (radix < 2 || radix > 36) {
+        if (radix != 0 && (radix < 2 || radix > 36)) {
             return Double.NaN;
+        }
+        // Spec §19.2.5 step 10: the `0x`/`0X` prefix is stripped both when the
+        // radix is unspecified (it then implies 16) and when 16 was passed
+        // explicitly — `parseInt('0x1f', 16)` is 31, not 0. Any other radix
+        // leaves the prefix alone, so `parseInt('0x1f', 10)` stops at the `x`.
+        if ((radix == 0 || radix == 16) && radixPrefix(str, index) == 16) {
+            radix = 16;
+            index += 2;
+        } else if (radix == 0) {
+            radix = 10;
         }
         long result = 0;
         boolean foundDigit = false;
@@ -322,15 +322,36 @@ public class Terms {
         return radix == 0 ? new BigInteger(s) : new BigInteger(s.substring(2), radix);
     }
 
-    // Radix implied by an `0x`/`0b`/`0o` prefix, 0 when there is none.
-    private static int radixPrefix(String s) {
-        if (s.length() > 2 && s.charAt(0) == '0') {
-            char p = s.charAt(1);
+    // Radix implied by an `0x`/`0b`/`0o` prefix at {@code from}, 0 when there is
+    // none. A bare prefix with no digits after it still counts — the callers
+    // then fail to parse the empty remainder, which is the spec answer
+    // (`parseInt('0x', 16)` and `Number('0x')` are both NaN).
+    static int radixPrefix(String s, int from) {
+        if (s.length() > from + 1 && s.charAt(from) == '0') {
+            char p = s.charAt(from + 1);
             if (p == 'x' || p == 'X') return 16;
             if (p == 'b' || p == 'B') return 2;
             if (p == 'o' || p == 'O') return 8;
         }
         return 0;
+    }
+
+    private static int radixPrefix(String s) {
+        return radixPrefix(s, 0);
+    }
+
+    /**
+     * Spec {@code ToUint32} (§7.1.7) — for the spec arguments typed as a 32-bit
+     * unsigned count, where a negative input wraps to a huge positive one
+     * ({@code 'a,b'.split(',', -1)} keeps every segment).
+     */
+    static long toUint32(Object value) {
+        double d = objectToNumber(value).doubleValue();
+        if (Double.isNaN(d) || Double.isInfinite(d)) {
+            return 0;
+        }
+        double truncated = d < 0 ? Math.ceil(d) : Math.floor(d);
+        return (long) (truncated % 4294967296.0) & 0xFFFFFFFFL;
     }
 
     static Number fromRadixPrefix(String text) {

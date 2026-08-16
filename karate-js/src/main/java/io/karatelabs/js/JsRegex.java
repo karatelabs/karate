@@ -40,6 +40,9 @@ public class JsRegex extends JsObject {
     public final String flags;
     public final Pattern javaPattern;
     public final boolean global;
+    // Spec §22.2.7.2: `y` consults and advances lastIndex exactly like `g`,
+    // and additionally requires the match to start AT lastIndex.
+    public final boolean sticky;
     // Named-group names in source order, derived by scanning the pattern.
     // Java's pre-JDK-20 Matcher/Pattern doesn't expose the name list, so
     // we extract it ourselves at construction. Empty when the pattern has
@@ -77,6 +80,7 @@ public class JsRegex extends JsObject {
             this.flags = "";
         }
         this.global = this.flags.contains("g");
+        this.sticky = this.flags.contains("y");
         this.groupNames = extractGroupNames(this.pattern);
         int javaFlags = translateJsFlags(this.flags);
         try {
@@ -93,6 +97,7 @@ public class JsRegex extends JsObject {
         this.pattern = pattern;
         this.flags = flags != null ? flags : "";
         this.global = this.flags.contains("g");
+        this.sticky = this.flags.contains("y");
         this.groupNames = extractGroupNames(this.pattern);
         int javaFlags = translateJsFlags(this.flags);
         try {
@@ -179,21 +184,30 @@ public class JsRegex extends JsObject {
         return javaFlags;
     }
 
-    public boolean test(String str) {
-        if (global) {
-            // for global, start at lastIndex
-            Matcher matcher = javaPattern.matcher(str);
-            boolean found = matcher.find(lastIndex);
-            if (found) {
-                lastIndex = matcher.end();
-            } else {
-                lastIndex = 0;
-            }
-            return found;
-        } else {
-            // non-global regex does not update lastIndex
-            return javaPattern.matcher(str).find();
+    /**
+     * Spec §22.2.7.2 RegExpBuiltinExec, matching half: {@code g} and {@code y}
+     * both start at {@code lastIndex} and advance it past the match; {@code y}
+     * additionally fails unless the match starts exactly at {@code lastIndex}.
+     * A miss (or an out-of-range {@code lastIndex}) resets it to 0 and returns
+     * null. Without either flag {@code lastIndex} is neither read nor written.
+     */
+    private Matcher matchFrom(String str) {
+        Matcher matcher = javaPattern.matcher(str);
+        if (!global && !sticky) {
+            return matcher.find() ? matcher : null;
         }
+        int start = lastIndex;
+        if (start < 0 || start > str.length() || !matcher.find(start)
+                || (sticky && matcher.start() != start)) {
+            lastIndex = 0;
+            return null;
+        }
+        lastIndex = matcher.end();
+        return matcher;
+    }
+
+    public boolean test(String str) {
+        return matchFrom(str) != null;
     }
 
     public String replace(String str, String replacement) {
@@ -293,11 +307,23 @@ public class JsRegex extends JsObject {
     //  - non-global: same shape as exec — array of [match, ...captures] with
     //    {@code index} and {@code input} attached as named properties.
     public Object match(String str) {
-        Matcher matcher = javaPattern.matcher(str);
         if (global) {
+            // Spec §22.2.6.8: lastIndex is zeroed, then RegExpExec is repeated
+            // until it returns null — which routes `gy` through the anchored
+            // path too. A zero-length match needs the explicit
+            // AdvanceStringIndex bump or the loop never terminates.
+            resetLastIndex();
             List<Object> matches = new ArrayList<>();
-            while (matcher.find()) {
+            Matcher matcher;
+            while ((matcher = matchFrom(str)) != null) {
                 matches.add(matcher.group(0));
+                if (matcher.end() == matcher.start()) {
+                    lastIndex = matcher.end() + 1;
+                    if (lastIndex > str.length()) {
+                        resetLastIndex();
+                        break;
+                    }
+                }
             }
             if (matches.isEmpty()) return null;
             return new JsArray(matches);
@@ -314,22 +340,8 @@ public class JsRegex extends JsObject {
     }
 
     JsArray exec(String str) {
-        Matcher matcher = javaPattern.matcher(str);
-        boolean found;
-        if (global) {
-            // for global, start at lastIndex
-            found = matcher.find(lastIndex);
-            if (found) {
-                lastIndex = matcher.end();
-            } else {
-                lastIndex = 0;
-                return null;
-            }
-        } else {
-            // non-global regex always starts from beginning
-            found = matcher.find();
-        }
-        if (!found) {
+        Matcher matcher = matchFrom(str);
+        if (matcher == null) {
             return null;
         }
         // create result array with match and capture groups

@@ -700,11 +700,12 @@ class JsArrayPrototype extends Prototype {
     private Object includes(Context context, Object[] args) {
         // Spec §23.1.3.13: visits every index 0..len-1 (NO HasProperty filter)
         // — `[1,2,,4].includes(undefined) === true` because the hole reads as
-        // undefined via Get's proto walk. SameValueZero comparison.
+        // undefined via Get's proto walk. SameValueZero comparison —
+        // `[NaN].includes(NaN)` is true, `[1].includes('1')` is false.
         Object searchElement = args.length > 0 ? args[0] : Terms.UNDEFINED;
         boolean[] found = {false};
         specIterate(context, true, false, (k, v) -> {
-            if (Terms.eq(v, searchElement, false)) {
+            if (Terms.eq(v, searchElement, true)) {
                 found[0] = true;
                 return false;
             }
@@ -717,7 +718,8 @@ class JsArrayPrototype extends Prototype {
         // Spec §23.1.3.16: HasProperty-skipping (holes contribute nothing —
         // never compared, never returned). The sparse-skip is observable:
         // `[,1].indexOf(undefined) === -1`, but
-        // `[undefined,1].indexOf(undefined) === 0`.
+        // `[undefined,1].indexOf(undefined) === 0`. Comparison is
+        // IsStrictlyEqual (NOT SameValueZero) — `[NaN].indexOf(NaN) === -1`.
         if (args.length == 0) return -1;
         Object searchElement = args[0];
         Object thisObj = context.getThisObject();
@@ -735,7 +737,7 @@ class JsArrayPrototype extends Prototype {
         int from = fromIndex;
         specIterate(context, true, true, (k, v) -> {
             if (k < from) return true;
-            if (Terms.eq(v, searchElement, false)) {
+            if (Terms.strictEq(v, searchElement)) {
                 result[0] = k;
                 return false;
             }
@@ -1286,7 +1288,7 @@ class JsArrayPrototype extends Prototype {
     }
 
     private Object lastIndexOf(Context context, Object[] args) {
-        // Spec §23.1.3.18: HasProperty-skipping reverse search.
+        // Spec §23.1.3.18: HasProperty-skipping reverse search, IsStrictlyEqual.
         if (args.length == 0) return -1;
         Object searchElement = args[0];
         Object thisObj = context.getThisObject();
@@ -1308,7 +1310,7 @@ class JsArrayPrototype extends Prototype {
         int from = fromIndex;
         specIterate(context, false, true, (k, v) -> {
             if (k > from) return true;
-            if (Terms.eq(v, searchElement, false)) {
+            if (Terms.strictEq(v, searchElement)) {
                 result[0] = k;
                 return false;
             }
