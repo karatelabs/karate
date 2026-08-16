@@ -771,6 +771,20 @@ class SpecPinTest extends EvalBase {
     }
 
     @Test
+    void switch_caseBlockIsOneSharedLexicalEnvironment() {
+        // §14.12.11: the whole CaseBlock gets ONE fresh declarative environment.
+        // A clause-level `let` must not collide with an outer binding of the same
+        // name, must be shared across fallthrough clauses, and must not leak out.
+        assertEquals("outer", eval(
+                "let x = 'outer'; switch (0) { case 0: let x = 'inner'; } x"));
+        assertEquals(9, eval(
+                "var got; switch (2) { case 2: const c = 9; case 3: got = c; break; } got"));
+        assertEquals("no-leak", eval(
+                "switch (0) { default: let y = 1; }"
+                        + " var msg; try { y; msg = 'leaked'; } catch (e) { msg = 'no-leak'; } msg"));
+    }
+
+    @Test
     void ternaryTestThrow_propagates() {
         // §13.14 abrupt completion in the ?: test must skip both branches.
         assertEquals("caught:boom", eval(

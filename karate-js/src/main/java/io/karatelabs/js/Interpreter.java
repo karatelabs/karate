@@ -2594,8 +2594,17 @@ class Interpreter {
                 clauses.add(child);
             }
         }
+        // §14.12.11: the entire CaseBlock runs in ONE new declarative environment —
+        // case expressions included. Lexical declarations in any clause are shared
+        // across clauses and invisible outside the switch.
+        context.enterScope(ContextScope.BLOCK, node);
+        context.event(EventType.CONTEXT_ENTER, node);
+        rearmScopedSlots(node, context);
         Object result = null;
         try {
+            for (Node clause : clauses) {
+                hoistFunctionDeclarations(clause, context);
+            }
             int enterAt = -1;
             for (int i = 0; i < clauses.size(); i++) {
                 if (i == defaultAt) {
@@ -2632,6 +2641,8 @@ class Interpreter {
             }
             return result;
         } finally {
+            context.event(EventType.CONTEXT_EXIT, node);
+            context.exitScope();
             // break was consumed by this switch — don't propagate to parent block
             if (context.isBreaking() && targetsStatement(context, node)) {
                 context.reset();
