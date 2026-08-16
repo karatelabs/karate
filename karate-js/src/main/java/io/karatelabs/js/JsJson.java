@@ -244,9 +244,13 @@ public class JsJson extends JsObject {
         boolean changed = false;
         for (int i = 0; i < size; i++) {
             Object raw = array == null ? list.get(i) : array.list.get(i);
-            // a sparse hole serializes as null — comparing against the raw slot is
-            // what makes it a change, so the sentinel never reaches the formatter
-            Object serialized = serializeProperty(context, list, String.valueOf(i), JsArray.unwrapHole(raw),
+            // a dense element is its own value; a hole reads through Get so an
+            // own accessor or inherited indexed getter fires (§25.5.2) — absent
+            // everywhere it stays undefined and serializes as null
+            Object child = array != null && raw == JsArray.HOLE
+                    ? array.getMember(String.valueOf(i), array, cc(context))
+                    : JsArray.unwrapHole(raw);
+            Object serialized = serializeProperty(context, list, String.valueOf(i), child,
                     replacerFn, propertyList, seen);
             changed |= serialized != raw;
             result.add(serialized);

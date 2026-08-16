@@ -58,6 +58,12 @@ public class JsRegex extends JsObject {
         lastIndex = 0;
     }
 
+    // @@matchAll clones matching state — the iterator starts from the
+    // receiver's current position without ever writing it back.
+    int currentLastIndex() {
+        return lastIndex;
+    }
+
     JsRegex() {
         this("(?:)");
     }

@@ -226,11 +226,32 @@ class JsObjectConstructor extends JsFunction {
             throw JsErrorException.typeError("Cannot convert undefined or null to object");
         }
         CoreContext cc = context instanceof CoreContext c ? c : null;
-        Map<String, Object> result = new LinkedHashMap<>();
-        for (Object arg : args) {
-            Terms.copyDataProperties(result, arg, null, cc);
+        // §20.1.2.1: the target itself is mutated and returned — identity is
+        // observable (`Object.assign(t, src) === t`), and step 4c is
+        // Set(to, key, value, true), so target setters fire and a rejected
+        // write throws. Spread/rest keep CreateDataProperty semantics via
+        // Terms.copyDataProperties; the two operations are not the same seam.
+        // ToObject approximation for a primitive target: no mutable wrapper
+        // exists, so copy into a fresh map that stands in for the wrapper —
+        // identity/setter semantics only apply to real object targets
+        Object target = args[0] instanceof ObjectLike || args[0] instanceof Map<?, ?>
+                ? args[0] : new LinkedHashMap<String, Object>();
+        for (int i = 1; i < args.length; i++) {
+            if (cc != null && cc.isError()) {
+                break; // a source getter threw — nothing copies past it
+            }
+            for (KeyValue kv : Terms.toIterable(args[i], cc)) {
+                if (cc != null && cc.isError()) {
+                    break;
+                }
+                if (target instanceof ObjectLike ol) {
+                    ol.putMember(kv.key(), kv.value(), cc, true);
+                } else if (target instanceof Map<?, ?> map) {
+                    ((Map<String, Object>) map).put(kv.key(), kv.value());
+                }
+            }
         }
-        return result;
+        return target;
     }
 
     /**

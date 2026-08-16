@@ -606,9 +606,12 @@ public class JsParser extends BaseParser {
         if (type == IDENT) {
             return PROTO_KEY.equals(text);
         }
-        return (type == S_STRING || type == D_STRING)
-                && text.length() == PROTO_KEY.length() + 2
-                && PROTO_KEY.equals(text.substring(1, text.length() - 1));
+        if ((type != S_STRING && type != D_STRING) || text.length() < 2) {
+            return false;
+        }
+        // B.3.1 compares the StringValue, so escaped spellings
+        // ("__proto__") count — decode before comparing
+        return PROTO_KEY.equals(JsLexer.unescapeStringLiteral(text.substring(1, text.length() - 1)));
     }
 
     /** §13.2.5.1: at most one {@code __proto__: value} proto-setter per ObjectLiteral.

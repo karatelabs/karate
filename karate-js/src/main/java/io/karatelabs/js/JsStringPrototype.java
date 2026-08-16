@@ -211,16 +211,17 @@ class JsStringPrototype extends Prototype {
             if (!matchAt(matcher, s, 0)) result.add(s);
             return new JsArray(result);
         }
+        boolean unicode = regex.flags.indexOf('u') >= 0;
         int p = 0;
         int q = 0;
         while (q < size) {
             if (!matchAt(matcher, s, q)) {
-                q++;
+                q = advanceStringIndex(s, q, unicode);
                 continue;
             }
             int e = Math.min(matcher.end(), size);
             if (e == p) {
-                q++;
+                q = advanceStringIndex(s, q, unicode);
                 continue;
             }
             result.add(s.substring(p, q));
@@ -595,13 +596,22 @@ class JsStringPrototype extends Prototype {
             boolean fetched;
             boolean done;
             JsArray pending;
+            // §22.2.6.9 @@matchAll clones the receiver's matching state: start
+            // from its current lastIndex, keep position iterator-local (the
+            // original regex is never mutated), honor sticky anchoring.
+            final boolean unicode = regex.flags.indexOf('u') >= 0;
+            int nextIndex = regex.currentLastIndex();
 
             private void fetch() {
                 if (fetched || done) return;
-                if (!matcher.find()) {
+                if (nextIndex < 0 || nextIndex > s.length() || !matcher.find(nextIndex)
+                        || (regex.sticky && matcher.start() != nextIndex)) {
                     done = true;
                     return;
                 }
+                nextIndex = matcher.end() == matcher.start()
+                        ? advanceStringIndex(s, matcher.end(), unicode)
+                        : matcher.end();
                 List<Object> groups = new ArrayList<>();
                 groups.add(matcher.group(0));
                 for (int i = 1; i <= matcher.groupCount(); i++) {
@@ -635,6 +645,17 @@ class JsStringPrototype extends Prototype {
             }
         };
         return IterUtils.toIteratorObject(iter);
+    }
+
+    /** §6.1.4 AdvanceStringIndex: with the `u` flag a position advances over a
+     *  whole surrogate pair, never through the middle of one. */
+    private static int advanceStringIndex(String s, int index, boolean unicode) {
+        if (unicode && index + 1 < s.length()
+                && Character.isHighSurrogate(s.charAt(index))
+                && Character.isLowSurrogate(s.charAt(index + 1))) {
+            return index + 2;
+        }
+        return index + 1;
     }
 
     private Object search(Context context, Object[] args) {

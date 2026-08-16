@@ -23,6 +23,7 @@
  */
 package io.karatelabs.js;
 
+import io.karatelabs.parser.JsLexer;
 import io.karatelabs.parser.JsParser;
 import io.karatelabs.parser.Node;
 import io.karatelabs.parser.NodeType;
@@ -2066,60 +2067,9 @@ class Interpreter {
      * Handles: backslash-n, backslash-r, backslash-t, backslash-backslash, backslash-quote, etc.
      */
     private static String unescapeString(String s) {
-        if (s.indexOf('\\') == -1) {
-            return s; // no escapes, fast path
-        }
-        StringBuilder sb = new StringBuilder(s.length());
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c == '\\' && i + 1 < s.length()) {
-                char next = s.charAt(i + 1);
-                switch (next) {
-                    case 'n' -> { sb.append('\n'); i++; }
-                    case 'r' -> { sb.append('\r'); i++; }
-                    case 't' -> { sb.append('\t'); i++; }
-                    case 'b' -> { sb.append('\b'); i++; }
-                    case 'f' -> { sb.append('\f'); i++; }
-                    case 'v' -> { sb.append((char) 0x0B); i++; }
-                    case '0' -> { sb.append('\0'); i++; }
-                    case '\\' -> { sb.append('\\'); i++; }
-                    case '\'' -> { sb.append('\''); i++; }
-                    case '"' -> { sb.append('"'); i++; }
-                    case 'x' -> {
-                        // Hex escape: backslash-x followed by exactly 2 hex digits
-                        if (i + 3 < s.length()) {
-                            try {
-                                int code = Integer.parseInt(s.substring(i + 2, i + 4), 16);
-                                sb.append((char) code);
-                                i += 3;
-                            } catch (NumberFormatException e) {
-                                sb.append(c); // invalid escape, keep backslash
-                            }
-                        } else {
-                            sb.append(c);
-                        }
-                    }
-                    case 'u' -> {
-                        // Unicode escape sequence (4 hex digits)
-                        if (i + 5 < s.length()) {
-                            try {
-                                int code = Integer.parseInt(s.substring(i + 2, i + 6), 16);
-                                sb.append((char) code);
-                                i += 5;
-                            } catch (NumberFormatException e) {
-                                sb.append(c); // invalid escape, keep as-is
-                            }
-                        } else {
-                            sb.append(c);
-                        }
-                    }
-                    default -> sb.append(c); // unknown escape, keep backslash
-                }
-            } else {
-                sb.append(c);
-            }
-        }
-        return sb.toString();
+        // body lives in the parser layer so JsParser.isProtoKeyText can compare
+        // a string key's StringValue (escaped __proto__ spellings count, B.3.1)
+        return JsLexer.unescapeStringLiteral(s);
     }
 
     private static Object evalLitExpr(Node node, CoreContext context) {

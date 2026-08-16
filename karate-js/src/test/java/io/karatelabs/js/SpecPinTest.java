@@ -771,6 +771,47 @@ class SpecPinTest extends EvalBase {
     }
 
     @Test
+    void objectAssign_mutatesAndReturnsTheTargetAndFiresItsSetters() {
+        // §20.1.2.1: identity is observable, and step 4c is Set(to, key, value, true)
+        assertEquals(true, eval("var t = {}; Object.assign(t, {a: 1}) === t"));
+        assertEquals(1, eval("var t = {}; Object.assign(t, {a: 1}); t.a"));
+        assertEquals(3, eval("var seen; var t = { set x(v){ seen = v } }; Object.assign(t, {x: 3}); seen"));
+    }
+
+    @Test
+    void protoSetter_escapedStringSpellingCounts() {
+        // B.3.1 compares the StringValue — an escaped "__proto__" key is
+        // still the proto-setter form
+        assertEquals(true, eval("Object.getPrototypeOf({\"__prot\\u006f__\": null}) === null"));
+    }
+
+    @Test
+    void matchAll_honorsStickyAndClonesLastIndex() {
+        // §22.2.6.9: sticky anchoring applies, and the iterator's position is
+        // cloned from the receiver — the original regex is never mutated
+        assertEquals(0, eval("[...'ba'.matchAll(/a/gy)].length"));
+        assertEquals(2, eval("[...'aab'.matchAll(/a/gy)].length"));
+        assertEquals(0, eval("var y = /a/gy; [...'aab'.matchAll(y)]; y.lastIndex"));
+        // empty matches advance and terminate
+        assertEquals(3, eval("[...'ba'.matchAll(/(?:)/gu)].length"));
+    }
+
+    @Test
+    void split_unicodeFlagAdvancesOverSurrogatePairs() {
+        // §6.1.4 AdvanceStringIndex under /u — never through a surrogate pair
+        assertEquals(3, eval("'a😀b'.split(/(?:)/u).length"));
+        assertEquals("😀", eval("'a😀b'.split(/(?:)/u)[1]"));
+    }
+
+    @Test
+    void jsonStringify_arrayHoleReadsThroughGet() {
+        // §25.5.2: Get(array, i) — an own accessor at a hole index fires
+        assertEquals("[7]", eval(
+                "var a = new Array(1); Object.defineProperty(a, '0', { get: function(){ return 7 }, enumerable: true });"
+                        + " JSON.stringify(a)"));
+    }
+
+    @Test
     void switch_caseMatchingIsStrictEquality() {
         // §14.12.9 CaseClauseIsSelected uses IsStrictlyEqual — NaN selects default
         assertEquals(2, eval("var r; switch (NaN) { case NaN: r = 1; break; default: r = 2; } r"));
