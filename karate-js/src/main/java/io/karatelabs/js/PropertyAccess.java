@@ -1110,6 +1110,12 @@ class PropertyAccess {
     private static boolean deleteByKey(Object object, String key, CoreContext context, Node node) {
         Object oldValue = null;
         if (object instanceof ObjectLike ol) {
+            // §13.5.1.2: sloppy delete of a non-configurable own property is
+            // false (the strict-mode TypeError fires inside removeMember)
+            if (!context.strict && ol instanceof JsObject jo && jo.isOwnProperty(key)
+                    && (jo.getOwnAttrs(key) & JsObject.CONFIGURABLE) == 0) {
+                return false;
+            }
             oldValue = ol.getMember(key);
             ol.removeMember(key, context, context.strict);
             firePropertyDelete(context, key, oldValue, object, node);
@@ -1120,7 +1126,16 @@ class PropertyAccess {
             firePropertyDelete(context, key, oldValue, object, node);
             return true;
         }
-        return false;
+        // §13.5.1.2: a primitive base is ToObject'd into a temp wrapper, so the
+        // delete succeeds — except a string's own non-configurable index/length
+        if (object instanceof String s) {
+            if ("length".equals(key)) {
+                return false;
+            }
+            int idx = JsArray.parseIndex(key);
+            return idx < 0 || idx >= s.length();
+        }
+        return object instanceof Number || object instanceof Boolean;
     }
 
     private static void firePropertyDelete(CoreContext context, String name, Object oldValue, Object target, Node node) {

@@ -95,6 +95,11 @@ public class JsJson extends JsObject {
             // A String value is the exception: formatJson passes a bare String through as
             // already-formatted text, but here it is a JSON string and has to be quoted —
             // the shape a root-level toJSON (Date) or replacer return lands in.
+            // §25.5.2: an unrepresentable root (undefined, a function) is JS
+            // undefined, not the text "undefined" the generic formatter emits
+            if (value instanceof JsUndefined || value instanceof JsFunction) {
+                return Terms.UNDEFINED;
+            }
             return value instanceof String s
                     ? StringUtils.formatJsonString(s)
                     : StringUtils.formatJson(value, pretty, false, false, indentStr);
@@ -180,12 +185,39 @@ public class JsJson extends JsObject {
 
     private static Object serializeObject(Context context, Object value, JsCallable replacerFn,
                                           List<String> propertyList, Set<Object> seen) {
-        // toMap is the raw view the formatter itself reads, so UNDEFINED survives
-        // as a distinct value rather than collapsing to null via Java unwrapping
-        Map<?, ?> src = value instanceof ObjectLike ol ? ol.toMap() : (Map<?, ?>) value;
-        Map<Object, Object> result = new LinkedHashMap<>(src.size());
+        Map<Object, Object> result;
         // a PropertyList always reshapes the object — it selects and reorders keys
         boolean changed = propertyList != null;
+        if (value instanceof JsObject jo) {
+            // §25.5.2 SerializeJSONProperty does Get(holder, key): accessor
+            // getters run, and a PropertyList key resolves through the
+            // prototype chain — the raw toMap view has neither
+            CoreContext ctx = cc(context);
+            if (propertyList != null) {
+                result = new LinkedHashMap<>(propertyList.size());
+                for (String key : propertyList) {
+                    if (!Terms.in(key, value)) {
+                        continue; // absent everywhere on the chain — skipped, not null
+                    }
+                    Object child = jo.getMember(key, value, ctx);
+                    result.put(key, serializeProperty(context, value, key, child, replacerFn, propertyList, seen));
+                }
+            } else {
+                result = new LinkedHashMap<>();
+                for (KeyValue kv : jo.jsEntries(ctx)) {
+                    result.put(kv.key(), serializeProperty(context, value, kv.key(), kv.value(),
+                            replacerFn, propertyList, seen));
+                }
+            }
+            // always the materialized map: the formatter reads raw toMap storage,
+            // which diverges from the Get view whenever accessors are present
+            return result;
+        }
+        // plain Java Map (host interop) or non-JsObject ObjectLike — raw entries,
+        // so UNDEFINED survives as a distinct value rather than collapsing to
+        // null via Java unwrapping
+        Map<?, ?> src = value instanceof ObjectLike ol ? ol.toMap() : (Map<?, ?>) value;
+        result = new LinkedHashMap<>(src.size());
         if (propertyList != null) {
             for (String key : propertyList) {
                 if (src.containsKey(key)) {

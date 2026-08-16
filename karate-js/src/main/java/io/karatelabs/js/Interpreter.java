@@ -2616,7 +2616,8 @@ class Interpreter {
                 if (context.isStopped()) {
                     return null;
                 }
-                boolean matched = Terms.eq(switchValue, caseValue, true);
+                // §14.12.9 CaseClauseIsSelected uses IsStrictlyEqual — NaN matches nothing
+                boolean matched = Terms.strictEq(switchValue, caseValue);
                 context.event(EventType.BRANCH, caseNode, matched);
                 if (matched) {
                     enterAt = i;

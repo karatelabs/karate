@@ -563,6 +563,9 @@ public class JsLexer extends BaseLexer {
                     throw new ParserException("invalid numeric separator");
                 }
                 scanDigitsWithSeparators();
+            } else if (pos == expDigitsStart) {
+                // `1e`, `1.e+` — the exponent marker requires at least one digit
+                throw new ParserException("missing exponent digits");
             }
         }
 

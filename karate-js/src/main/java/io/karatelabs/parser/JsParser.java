@@ -475,6 +475,23 @@ public class JsParser extends BaseParser {
                     checkSimpleAssignmentTarget(lhs, "assignment target", noCallCarveOut);
                 }
             }
+            case MATH_EXP_EXPR -> {
+                // §13.6: the base of `**` must be an UpdateExpression — an
+                // unparenthesized unary (-x, !x, ~x, +x, void x, typeof x,
+                // delete x.y, await x) is a SyntaxError; ++x / --x are legal.
+                Node base = stripExprWrappers(node.size() > 0 ? node.getFirst() : null);
+                if (base != null) {
+                    boolean unaryBase = switch (base.type) {
+                        case DELETE_EXPR, TYPEOF_EXPR, UNARY_EXPR, AWAIT_EXPR -> true;
+                        case MATH_PRE_EXPR -> base.size() > 0 && base.getFirst().isToken()
+                                && (base.getFirst().token.type == PLUS || base.getFirst().token.type == MINUS);
+                        default -> false;
+                    };
+                    if (unaryBase) {
+                        throw new ParserException("unary expression cannot be the base of '**'; wrap it in parentheses");
+                    }
+                }
+            }
             case MATH_POST_EXPR -> {
                 // children: [operand, ++/--]
                 if (node.size() > 0) {

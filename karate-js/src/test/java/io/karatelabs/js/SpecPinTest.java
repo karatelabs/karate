@@ -771,6 +771,63 @@ class SpecPinTest extends EvalBase {
     }
 
     @Test
+    void switch_caseMatchingIsStrictEquality() {
+        // §14.12.9 CaseClauseIsSelected uses IsStrictlyEqual — NaN selects default
+        assertEquals(2, eval("var r; switch (NaN) { case NaN: r = 1; break; default: r = 2; } r"));
+    }
+
+    @Test
+    void switch_clauseLexicalBindingsAreInTdzFromCaseBlockEntry() {
+        // §14.12.11: the CaseBlock environment exists (bindings uninitialized)
+        // while case expressions evaluate. Store-path fallbacks (shadowed or
+        // captured names) keep the block-level limitation; the slotted path pins.
+        assertEquals("ReferenceError", eval(
+                "var msg; try { switch (0) { case 0: u; msg = 'no-tdz'; break; } }"
+                        + " catch (e) { msg = e.name; } switch (0) { case 1: let u = 1; } msg"));
+    }
+
+    @Test
+    void delete_returnsSpecBooleans() {
+        // §13.5.1.2: primitive bases ToObject into a temp wrapper (delete
+        // succeeds); sloppy delete of a non-configurable own property is false
+        assertEquals(true, eval("delete (1).x"));
+        assertEquals(true, eval("delete 'ab'.x"));
+        assertEquals(false, eval("delete 'ab'.length"));
+        assertEquals(false, eval("delete 'ab'[0]"));
+        assertEquals(false, eval(
+                "var o = {}; Object.defineProperty(o, 'x', { value: 1, configurable: false }); delete o.x"));
+        assertEquals(true, eval("var o = { x: 1 }; delete o.x"));
+    }
+
+    @Test
+    void exponentiation_unaryBaseIsParseError() {
+        // §13.6: the base of ** must be an UpdateExpression
+        for (String src : new String[]{"delete ({a:1}).a ** 2", "typeof 1 ** 2", "-1 ** 2", "!1 ** 2", "void 0 ** 2"}) {
+            assertThrows(Exception.class, () -> eval(src), src);
+        }
+        assertEquals(0.5, eval("2 ** -1"));   // unary on the RHS is legal
+        assertEquals(1, eval("(-1) ** 2"));   // parenthesized base is legal
+    }
+
+    @Test
+    void numericLiteral_exponentRequiresDigits() {
+        assertThrows(Exception.class, () -> eval("1.e"));
+        assertThrows(Exception.class, () -> eval("1e+"));
+        assertEquals(100, eval("1.e2"));
+    }
+
+    @Test
+    void jsonStringify_readsThroughGetAndReturnsUndefinedForUnrepresentableRoot() {
+        // §25.5.2 SerializeJSONProperty does Get(holder, key): accessors run
+        assertEquals("{\"x\":1}", eval("JSON.stringify({get x(){ return 1 }})"));
+        // PropertyList keys resolve through the prototype chain
+        assertEquals("{\"x\":7}", eval(
+                "var p = { get x(){ return 7 } }; JSON.stringify(Object.create(p), ['x'])"));
+        assertEquals("undefined", eval("typeof JSON.stringify(undefined)"));
+        assertEquals("undefined", eval("typeof JSON.stringify(function(){})"));
+    }
+
+    @Test
     void switch_caseBlockIsOneSharedLexicalEnvironment() {
         // §14.12.11: the whole CaseBlock gets ONE fresh declarative environment.
         // A clause-level `let` must not collide with an outer binding of the same

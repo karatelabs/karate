@@ -390,7 +390,18 @@ final class SlotTable {
         for (String name : scopedNames) {
             LetDecl let = w.letConsts.get(name);
             Integer slot = allSlots.get(name);
-            annotate(let.scopeNode, Map.of(name, slot));
+            if (let.scopeNode.type == NodeType.SWITCH_STMT) {
+                // the switch discriminant is OUTSIDE the CaseBlock environment —
+                // annotate only the clauses so it keeps resolving outward
+                for (int i = 0, n = let.scopeNode.size(); i < n; i++) {
+                    Node child = let.scopeNode.get(i);
+                    if (child.type == NodeType.CASE_BLOCK || child.type == NodeType.DEFAULT_BLOCK) {
+                        annotate(child, Map.of(name, slot));
+                    }
+                }
+            } else {
+                annotate(let.scopeNode, Map.of(name, slot));
+            }
         }
         // binding-node annotation for every slotted let/const, so the
         // declaration statement (bindLeaf / evalAssign) writes the slot
@@ -509,6 +520,24 @@ final class SlotTable {
                         // walk the initializer (and any nested expressions)
                         for (int j = 1, m = child.size(); j < m; j++) {
                             walk(child.get(j), null);
+                        }
+                    }
+                }
+                case SWITCH_STMT -> {
+                    // §14.12.11: clause-level let/const scope to the whole
+                    // CaseBlock — the SWITCH_STMT carries their re-arm list
+                    // (evalSwitchStmt enters one BLOCK scope and re-arms, so
+                    // the bindings get TDZ from CaseBlock entry). The
+                    // discriminant evaluates in the outer environment; the
+                    // annotate pass skips it (see the scopedNames loop).
+                    for (int i = 0, n = node.size(); i < n; i++) {
+                        Node child = node.get(i);
+                        if (child.type == NodeType.CASE_BLOCK || child.type == NodeType.DEFAULT_BLOCK) {
+                            for (int j = 0, m = child.size(); j < m; j++) {
+                                walk(child.get(j), node);
+                            }
+                        } else {
+                            walk(child, null);
                         }
                     }
                 }
