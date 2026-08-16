@@ -28,7 +28,11 @@ shaped, follow the JS_ENGINE.md anchors below.
 The abrupt-completion / evaluation-order family — assignment LHS-Reference-
 before-RHS, nothing-evaluates-past-a-throw, user errors forwarded through
 iterator acquisition and destructuring instead of being overwritten by the
-machinery's own TypeErrors — is **closed for `test/language/**`**. The
+machinery's own TypeErrors — is **closed for `test/language/**`** — with one known counterexample
+found 2026-08-16: argument expressions are *skipped* when the callee is
+not callable (`o.bar(foo())` throws TypeError without evaluating
+`foo()`; 5 FAILs). The poisoned-probe filter below misses it because
+those tests probe with a side-effect flag, not a thrown error. The
 invariants are pinned by `SpecPinTest.assignment_* / compoundAssignment_* /
 iteration_* / iteratorClose_* / destructuring_* / superAssignment_*`,
 alongside
@@ -250,7 +254,10 @@ function replacers, labeled statements, and **async / await / Promise /
 setTimeout** (vthread-activation model; see
 [JS_ENGINE.md § Async](../docs/JS_ENGINE.md#async--await--promise)) — is
 solid. The 2026-08-12 session closed the entire P0 tier and the two small
-P1s; what remains is below.
+P1s. **2026-08-16: a four-track gap hunt** (SyntaxError-FAIL triage,
+Test262Error triage, class skip-shadow re-measure, 65-snippet LLM-idiom
+battery cross-checked against Node) **refilled the tiers below** — every
+repro was independently verified against HEAD before being listed.
 
 ### P0 — silent wrong answers (valid code, wrong result, no error)
 
@@ -270,8 +277,51 @@ with a distinct `SHORT_CIRCUIT_SITE` anyway. Original numbering kept.)*
 fields, methods, accessors, `#x in obj`; see JS_ENGINE.md § the class
 section. P0.6 — base-class instance fields not running for derived
 instances — shipped in the same change, along with a bare-field parse fix:
-`class C { x; }` used to define a field named `";"`. **This P0 tier is now
-empty.**)*
+`class C { x; }` used to define a field named `";"`. That tier is closed.)*
+
+Refilled 2026-08-16 (fresh numbering; ranked by real-world weight):
+
+1. **Loose equality / relational operators never apply ToPrimitive to
+   objects.** `[1] == 1` → `false`; `({valueOf:()=>3}) > 1` → `false`;
+   `'' == false` → `false`. `Interpreter.evalLogicExpr` dispatches to
+   `Terms.eq/lt/gt/ltEq/gtEq`, none of which take a `CoreContext`, so user
+   `valueOf`/`toString` can't run (objects coerce to NaN; a guard returns
+   `false`). `+`/`-`/`*` already route through `Terms.toPrimitive` — mirror
+   that. ~60 lang FAILs (`equals`/`does-not-equals`/`less-than*`/
+   `greater-than*`) + the `11.8.2/11.8.3-*` rows.
+2. **Object spread/rest is a slot copy, not CopyDataProperties.** `{...o}`
+   never invokes getters (the copied value lands `null`!) and copies
+   non-enumerable own props. Repro: `var o={a:1,get b(){return this.a+1}};
+   ({...o}).b` → `null` (exp `2`). `Object.assign` is correct — spread
+   diverged onto its own path (principle-#5 smell; collapse to one seam).
+   ~40–60 FAILs (`obj-ptrn-rest-getter`, `-skip-non-enumerable`,
+   `spread-obj-getter-descriptor`).
+3. **`JSON.parse` reviver ignored entirely; `JSON.stringify` ignores
+   `toJSON()`** (Date is special-cased separately).
+   `JSON.parse('{"n":1}',(k,v)=>typeof v==='number'?v*10:v).n` → `1`
+   (exp `10`); `JSON.stringify({toJSON(){return 'X'}})` → `{}` (exp `"X"`).
+4. **Macrotasks run before queued microtasks.** `setTimeout(fn,0)` fires
+   before an already-resolved `Promise.resolve().then(...)` callback
+   (promise *chains* interleave correctly among themselves). Ordering-
+   sensitive async code silently reorders.
+5. **`super.<accessor>` loses the receiver.** A derived getter reading
+   `super.area` evaluates the base getter with the wrong `this` (→ `NaN`);
+   super setter writes go nowhere. The class path-skip hides the test262
+   evidence; battery-verified.
+6. **`__proto__:` in an object literal creates an ordinary own property**
+   instead of setting [[Prototype]] — breaks the `{__proto__: null}` /
+   `{__proto__: parent}` dictionary idiom. (`o.__proto__ = p` and
+   `Object.setPrototypeOf` both work.) 4 tests.
+7. **Wrong-answer tail** (each battery-verified, smaller blast radius):
+   arrows get their own `arguments` instead of the enclosing function's;
+   `fn.length` counts default/rest params (and `bind` doesn't subtract
+   partials); `[NaN].indexOf(NaN)` → `0` (must be `-1`, strict equality);
+   `'a1b2c'.split(/(\d)/)` drops capture groups; sticky `/y` never
+   advances `lastIndex` after a match; `parseInt('0x1f', 16)` → `0` (exp
+   `31`); `class S extends Array` → `Array.isArray(s)` `false` and
+   stringifies as an object; `class M extends Map {}` instances lack
+   internal slots (`extends Array`/`Error` work — extend the copy-shim to
+   Map/Set/Date/RegExp).
 
 ### P1 — missing surface LLMs write constantly
 
@@ -281,6 +331,33 @@ generators/iterators, `setInterval`, `queueMicrotask` — deferred.)*
 
 1. **Generators** (`function*` / `yield` / `yield*`) — parse-level absence,
    ~1.4k skips.
+2. **Parse gaps on valid everyday code** (added 2026-08-16; each rejects
+   code an LLM plausibly writes, killing the whole script):
+   - **`delete` parses only as a statement.** `var d = delete o.a`,
+     `if (delete o.a)`, `return delete m[k]` → ParserException. `DELETE`
+     is missing from `T_EXPR_START`/`T_UNARY_EXPR` (unlike `TYPEOF`/
+     `VOID`); `JsParser.delete_stmt` is reached only from `statement()`.
+     ~64 FAILs (misfiled under both SyntaxError and delete slices).
+   - **ASI blocked by an intervening comment.** `var a = 1` ⏎
+     `/* c */ var b = 2` fails: `JsParser.eos()` inspects only
+     `next.getPrev()`, so a `B_COMMENT` token hides the `WS_LF`, and
+     `scanBlockComment` never flags an embedded LineTerminator.
+     `lineTerminatorFollows()` already does the correct backward scan —
+     DRY seam. Bites any semicolon-less style.
+   - **Hashbang.** `#!/usr/bin/env node` at 1:1 is a lex error — every
+     Node CLI script starts with one.
+   - **Optional catch binding breaks with `finally`.**
+     `try {} catch {} finally {}` → "cannot parse statement" (the
+     binding-less `catch` parses only when no `finally` follows).
+   - **`switch` requires `default:` to be the last clause.**
+     `switch (x) { default: ...; case 1: ... }` → parse error; LLMs do
+     emit default-first.
+   - **Class static initialization blocks** `static { ... }` → "class
+     member name" (also the #2 gap inside the class skip-shadow).
+   - **Trailing-dot numeric literal.** `var a = 1.;` → parse error (~16
+     FAILs — these masqueraded as the "destructuring parse tail").
+   - **Rest param with a destructuring pattern.**
+     `function f(...[a, b]) {}` — rest expects a bare `IDENT`.
 *(P1.2 labeled statements shipped 2026-08-12 — LABELLED_STMT node,
 label-aware break/continue via CoreContext.exitLabel, and the full
 label early-error family in the fused walk: undefined/duplicate labels,
@@ -299,6 +376,18 @@ catastrophic-backtracking `Timeout` (`RegExp/.../S15.10.2.8_A3_T17.js`);
 heap (`unshift`/`splice`/`reverse`). *(Fixed 2026-08-12: JSON circular →
 `TypeError`, JSON replacer-array `ClassCastException`,
 `replaceAll`/`endsWith` range leaks.)*
+
+Added 2026-08-16:
+
+- **Deep recursion leaks `java.lang.StackOverflowError`** (uncatchable as
+  JS) — should surface as a JS `RangeError`. LLM-written recursion bugs
+  hit this constantly.
+- **`new Error('m').stack` is `undefined`** — LLM code logs `err.stack`
+  in every catch block; populate with a JS-shaped trace string.
+- **Harness (principle #3):** thrown non-Error *primitives*
+  (`throw "str"`) classify as `Unknown` in `ErrorUtils` — all 8 current
+  Unknown rows are this, not Java leaks. Add a `ThrownValue` bucket so
+  `Unknown` stays reserved for genuine engine crashes.
 
 ### Deprioritized spec-conformance backlog
 
@@ -332,10 +421,10 @@ Touch only when a priority above drags it in:
   stand-ins. (Battery edge: `typeof Symbol('a')` → `'object'`.)
 - **Skip-list hygiene:** built-ins FAIL counts are dominated by absent
   feature families that should be `features:` skips, not FAILs —
-  `Iterator` helpers, `ArrayBuffer`/`DataView`,
-  `DisposableStack`/`AsyncDisposableStack`/`using` declarations
-  (explicit-resource-management), `ShadowRealm`. Adding those rules makes
-  every future FAIL count signal instead of noise.
+  `Iterator` helpers, `ArrayBuffer`/`DataView`, `ShadowRealm`. Adding
+  those rules makes every future FAIL count signal instead of noise.
+  *(`explicit-resource-management` rule added 2026-08-16 — it was also
+  polluting the language slice with 45 `using`/`await-using` FAILs.)*
 
 For current pass/fail/skip counts, query the latest run-dir
 (Recipes → [Failure triage](#failure-triage)) — counts go stale fast and
@@ -384,9 +473,9 @@ early-error validation) is advanced-pattern territory.
 |---|---|
 | `test/language/statements/for-of` | IteratorClose machinery is in place (`Interpreter.destructurePattern`/`evalForStmt` + `JsIterator.close`). Remaining: assignment-pattern target-eval-order (`[ obj[sideEffect()] ] of …` must evaluate the target reference before stepping the iterator — the `*thrw-close*` family, a rare spec corner); fn-name inference for `[x = (function(){})] of …`; negative-parse tightenings. |
 | `test/language/expressions/object` | Escaped-keyword cover-name dominates; `__proto__`-duplicate edges; computed-key / spread / method-def tail. |
-| `test/language/expressions/assignment` | Destructuring-pattern parse tail (see Active priorities); evaluation-order semantics done. |
+| `test/language/expressions/assignment` | Corrected 2026-08-16: the "destructuring parse tail" attribution was wrong — `({[a]:b, ...rest} = vals)` parses fine. Actual causes: escaped-keyword cover-names (~87) + the trailing-dot numeric literal `1.` (all 7 `dstr/obj-rest-non-string-computed-property-*`). |
 | `test/language/{statements,expressions}/function` + `arrow-function` | fn-name inference for `[x = (function(){})]`-style defaults; IteratorClose-on-throw; rest-element edges. |
-| `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS now fires under in-body `"use strict"` (the `onlyStrict`-flagged variants stay SKIP until the runner runs a strict pass); `A5.*_T2/T3` family (non-identifier LHS — Annex-B carve-out). |
+| `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS now fires under in-body `"use strict"` (the `onlyStrict`-flagged variants stay SKIP until the runner runs a strict pass). Corrected 2026-08-16: the `A5.*_T2/T3` family is **not** an Annex-B non-identifier-LHS issue — all 44 FAILs here (and ~90 suite-wide, incl. prefix/postfix inc/dec and `identifier-resolution`) are the **`with` statement**: `with` isn't a token, lexes as an identifier, `with (x)` parses as a call, and the following block derails. Real-world value low (illegal in strict mode); the path-skip only covers `statements/with/`. |
 | `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion and empty-`for`-header semantics handle the headline cases. Residual in `for/`: loop completion-value `undefined`-vs-`null` (`head-init-*-check-empty-inc-empty-completion.js`) and `let` as a plain identifier in a for head (`head-lhs-let.js`, parser). |
 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` (Symbol-gated). |
 | `test/built-ins/RegExp/**` | Group-name early-error validation, `Symbol.{match,replace,search,split,matchAll}` protocol (Symbol-gated, conformance-only — everyday `str.replace(re,fn)` doesn't use it), lookbehind / unicode-property-escapes / `/v` flag (feature-gated). Null-arg Java leaks + one catastrophic-backtracking timeout in `exec`/`test` (P2). |
@@ -470,7 +559,10 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   method names. Most have existing `feature:`-tag skips
   (`class-fields-private` / `class-methods-private` / `generators` /
   `async-functions` / `decorators`); see the [Skip list](#skip-list) note for
-  the path-skip un-skip plan.
+  the path-skip un-skip plan. Fresh un-skip re-measure (2026-08-16) with
+  bucket counts lives in the `expectations.yaml` comment on the class
+  path rule; dominant blocker is the member-name identifier lexer, not
+  the public-field tail.
 - **Symbol primitive.** Gates a long tail across String / Array / RegExp /
   Object. Deprioritized — real-world code doesn't use it.
 
@@ -906,6 +998,9 @@ run it after engine changes for a 2-second gut check (it complements, not
 replaces, the unit tests and slice diffs). Add a snippet when a real-world
 breakage is found; a failing snippet is a roadmap item by definition.
 TODO: promote into a proper JUnit test under `karate-js` so it runs in CI.
+A 65-snippet extension battery (2026-08-16, each snippet Node-verified
+first) scored 44/65 and refilled the P0/P1 tiers above; as each gap is
+fixed, add its minimal repro here as a permanent snippet.
 
 ### Check performance after an engine change
 
