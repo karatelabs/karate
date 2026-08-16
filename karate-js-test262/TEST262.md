@@ -303,10 +303,18 @@ on nested objects, quoted root strings, and the sparse-array
 `"<<hole>>"` leak, all in one rewrite. Date still special-cased in the
 shared `StringUtils.formatRecurse` for karate-core / raw-Java-`Date`
 bindings; JS `Date` now routes through `Date.prototype.toJSON`.)*
-4. **Macrotasks run before queued microtasks.** `setTimeout(fn,0)` fires
-   before an already-resolved `Promise.resolve().then(...)` callback
-   (promise *chains* interleave correctly among themselves). Ordering-
-   sensitive async code silently reorders.
+*(P0.4 shipped 2026-08-16: `AsyncScope` now keeps a microtask queue and a
+macrotask queue, `AsyncJob.macrotask()` is the one place the split is
+decided, and `takeJob` gives microtasks strict priority — the HTML
+microtask checkpoint, since the pump takes one job at a time. Pinned by
+`JsPromiseTest.testMicrotasksDrainBeforeAnyTimer` /
+`testEachTimerIsFollowedByAFullMicrotaskDrain` /
+`testPromiseResolvedInsideATimerReactsBeforeTheNextTimer` /
+`testTimersOrderByDelayThenRegistration` /
+`testAwaitContinuationsInterleaveWithTimers`. Residual: a **suspended
+activation's resumption is an unpark, not a queued job**, so it still
+loses to an already-pending timer — see
+[JS_ENGINE.md § Accepted deviations](../docs/JS_ENGINE.md#accepted-deviations) 2.)*
 5. **`super.<accessor>` loses the receiver.** A derived getter reading
    `super.area` evaluates the base getter with the wrong `this` (→ `NaN`);
    super setter writes go nowhere. The class path-skip hides the test262
@@ -536,10 +544,11 @@ file pointer. For *how the subsystem is shaped*, read the file. For
 - **Promises / async / await / setTimeout — DONE** (vthread activations +
   per-Engine lock; see
   [JS_ENGINE.md § Async](../docs/JS_ENGINE.md#async--await--promise)).
-  Remaining async tail, deferred: `for await` / async iterators /
-  `Symbol.asyncIterator` (still feature-skipped), async generators,
-  `queueMicrotask`, `setInterval` (deliberately undefined — never
-  quiesces).
+  Job ordering is the HTML microtask checkpoint (two queues, microtasks
+  first) as of 2026-08-16. Remaining async tail, deferred: `for await` /
+  async iterators / `Symbol.asyncIterator` (still feature-skipped), async
+  generators, `queueMicrotask`, `setInterval` (deliberately undefined —
+  never quiesces).
 - **Class syntax (ES6) — core works; only the conformance tail remains.**
   Declarations + expressions evaluate: constructor, instance/static methods,
   accessors, computed names, `extends` + `super(...)` + `super.method()`,

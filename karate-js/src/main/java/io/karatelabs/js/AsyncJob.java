@@ -31,13 +31,13 @@ import java.util.List;
  * released in a {@code finally} after the job runs (a throwing job must never
  * strand the pump).
  * <p>
- * The two JS-relevant classes are kept <b>structurally distinct</b> — microtask
- * (promise reactions, resolutions, activation resumptions) and timer — even
- * though the stage-1 pump drains both FIFO. Drain order is deliberately not a
- * documented contract, so a stage-2 two-queue pump can land without a
- * data-model rewrite. {@link Control} is engine plumbing, not JS work: it is
- * the atomic wake for a pump owner blocked on an empty queue when an
- * activation requests cancellation.
+ * The two JS-relevant classes are microtask (promise reactions, resolutions,
+ * thenable adoptions) and timer, and the split is what the pump schedules on:
+ * {@link AsyncScope} keeps one FIFO queue per class and always empties the
+ * microtask queue before it takes a timer, which is the HTML microtask
+ * checkpoint. {@link Control} is engine plumbing, not JS work: it is the atomic
+ * wake for a pump owner blocked on an empty queue when an activation requests
+ * cancellation.
  */
 abstract class AsyncJob {
 
@@ -46,6 +46,13 @@ abstract class AsyncJob {
 
     /** Runs on the pump owner's thread, holding {@code jsLock}. */
     abstract void run(Engine engine);
+
+    /** Which of the scope's two queues this job belongs in. Only a fired timer
+     *  is a macrotask; a control job rides the microtask queue so a teardown
+     *  request is not held up behind pending timer callbacks. */
+    boolean macrotask() {
+        return false;
+    }
 
     /** Promise reactions, resolutions and thenable adoptions. */
     static final class Microtask extends AsyncJob {
@@ -85,6 +92,11 @@ abstract class AsyncJob {
         @Override
         void run(Engine engine) {
             AsyncSupport.invokeQueuedCallback(engine, callback, args);
+        }
+
+        @Override
+        boolean macrotask() {
+            return true;
         }
 
         @Override

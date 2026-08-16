@@ -829,8 +829,8 @@ runtime, `AsyncScope` the linearizable facade, `AsyncActivation` one invocation.
    always enqueued **before** the token that permitted it is released —
    `AsyncScope.publishSuccessor(oldToken, work)` does both under one monitor. So
    a foreign thread can never publish into a closed scope, the count can never go
-   negative, and quiescence (`liveTokens == 0` **and** empty queue, read as one
-   operation) can never be observed with work in flight. Tokens are idempotent
+   negative, and quiescence (`liveTokens == 0` **and** both queues empty, read as
+   one operation) can never be observed with work in flight. Tokens are idempotent
    handles with their own `LIVE → RELEASED` CAS, never bulk decrements.
 
 `AsyncScope`'s monitor is **not** `jsLock`: holding it never confers the right to
@@ -990,13 +990,31 @@ may only win that CAS and `publishSuccessor` — never run JS. Delay coercion:
 `Integer.MAX_VALUE`; a missing or non-callable callback is a `TypeError`; extra
 args pass through. **No `setInterval` by design** — it never quiesces.
 
+### Job ordering — the microtask checkpoint
+
+`AsyncScope` keeps **two FIFO queues**, and `AsyncJob.macrotask()` is the single
+place the split is decided: a fired `AsyncJob.Timer` is the only macrotask;
+reactions, resolutions, thenable adoptions and the cancellation control job all
+go to the microtask queue. `takeJob` gives the microtask queue **strict
+priority**, and because the pump asks for one job at a time that single rule is
+the HTML checkpoint — microtasks drain to exhaustion (including microtasks
+enqueued by microtasks) after the synchronous script and again after every timer
+callback returns, before the next timer runs. Timers reach the macrotask queue in
+the order the shared scheduler fires them, so they order by delay with ties FIFO.
+
+Quiescence is unaffected: both queues are counted, every queued job still holds
+its own token, and a microtask loop that never ends starves timers exactly as a
+browser would.
+
 ### Accepted deviations
 
 1. The **settled-`await` fast path does not yield** to the microtask queue.
-2. Job ordering only approximates microtask-vs-macrotask. `AsyncJob.Microtask`
-   and `AsyncJob.Timer` are kept structurally distinct, but the pump drains both
-   FIFO and **drain order is explicitly not a contract** — a two-queue pump has
-   to be landable without a data-model rewrite.
+2. **A suspended activation's resumption is not a queued job.** Its ordering
+   against an already-pending timer is decided by the fair lock, not by the job
+   queues (deviation 3), so `setTimeout(() => resolve(), 0)` with a second timer
+   already pending runs that second timer before the resumed `await` body —
+   HTML would run the continuation first. Ordering *through* a promise reaction
+   (`.then`, an async function's own result promise being consumed) is exact.
 3. `Engine.eval` blocks to quiescence by design; a far-future timer blocks it
    (interrupt and the drain cap are the escape hatches), and fair-lock order
    among runnable activations is approximate, not the spec's job ordering.
@@ -1004,8 +1022,8 @@ args pass through. **No `setInterval` by design** — it never quiesces.
    rejected at parse time.
 
 > **Spec invariant.** Pinned by `JsAsyncAwaitTest` (19 cases — parse and call
-> shape, contextual-keyword back-compat), `JsPromiseTest` (39 — promise surface,
-> adoption, unhandled-rejection policy, the Java bridge) and
+> shape, contextual-keyword back-compat), `JsPromiseTest` (60 — promise surface,
+> adoption, job ordering, unhandled-rejection policy, the Java bridge) and
 > `JsAsyncConcurrencyTest` (18 barrier cases — token idempotence,
 > close-vs-publish races, unpark-before-park, interrupt-before-start, stale
 > reacquisition, nested eval, cross-thread eval serialization, stage-cache

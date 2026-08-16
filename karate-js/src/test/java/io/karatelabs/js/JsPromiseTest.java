@@ -543,6 +543,98 @@ class JsPromiseTest extends EvalBase {
         assertEquals("TypeError", eval("try { setTimeout(1, 0) } catch (e) { e.name }"));
     }
 
+    // ===== job ordering: the microtask checkpoint =====
+
+    /**
+     * Evaluate an ordering pin and read back {@code order} as a list. A
+     * zero-delay timer is published by the timer thread, so without the trailing
+     * {@code pause()} the pump could start draining before the timer job has
+     * landed — then the interleaving under test is a race with the scheduler
+     * rather than a decision the scheduler made.
+     */
+    private List<?> evalOrdering(String source) {
+        engine = new Engine();
+        engine.put("pause", (JsCallable) (ctx, args) -> {
+            try {
+                Thread.sleep(60);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return Terms.UNDEFINED;
+        });
+        engine.eval(source + "\npause()");
+        // copied out of the JsArray so a failure prints the actual ordering
+        return new ArrayList<>((List<?>) get("order"));
+    }
+
+    @Test
+    void testMicrotasksDrainBeforeAnyTimer() {
+        assertEquals(List.of("micro", "macro"), evalOrdering("""
+                var order = []
+                Promise.resolve().then(function () { order.push('micro') })
+                setTimeout(function () { order.push('macro') }, 0)"""));
+        // the whole chain is one checkpoint — a microtask queued by a microtask
+        // is drained in the same checkpoint, ahead of a timer already pending
+        assertEquals(List.of("m1", "m2", "m3", "macro"), evalOrdering("""
+                var order = []
+                Promise.resolve()
+                    .then(function () { order.push('m1') })
+                    .then(function () { order.push('m2') })
+                    .then(function () { order.push('m3') })
+                setTimeout(function () { order.push('macro') }, 0)"""));
+    }
+
+    @Test
+    void testEachTimerIsFollowedByAFullMicrotaskDrain() {
+        assertEquals(List.of("t1", "t1-micro", "t2"), evalOrdering("""
+                var order = []
+                setTimeout(function () {
+                    order.push('t1')
+                    Promise.resolve().then(function () { order.push('t1-micro') })
+                }, 0)
+                setTimeout(function () { order.push('t2') }, 0)"""));
+    }
+
+    @Test
+    void testPromiseResolvedInsideATimerReactsBeforeTheNextTimer() {
+        assertEquals(List.of("t1", "gate-then", "t2"), evalOrdering("""
+                var order = []
+                var go
+                var gate = new Promise(function (r) { go = r })
+                gate.then(function () { order.push('gate-then') })
+                setTimeout(function () { order.push('t1'); go() }, 0)
+                setTimeout(function () { order.push('t2') }, 0)"""));
+    }
+
+    @Test
+    void testTimersOrderByDelayThenRegistration() {
+        assertEquals(List.of("a1", "a2", "b"), evalOrdering("""
+                var order = []
+                setTimeout(function () { order.push('b') }, 5)
+                setTimeout(function () { order.push('a1') }, 0)
+                setTimeout(function () { order.push('a2') }, 0)"""));
+    }
+
+    @Test
+    void testAwaitContinuationsInterleaveWithTimers() {
+        assertEquals(List.of("continuation", "macro"), evalOrdering("""
+                var order = []
+                async function f() { await Promise.resolve(); order.push('continuation') }
+                f()
+                setTimeout(function () { order.push('macro') }, 0)"""));
+        // suspended on a timer-backed promise: the pending microtask still wins
+        // the first checkpoint, and the resumed body runs when the timer fires
+        assertEquals(List.of("start", "micro", "resumed"), evalOrdering("""
+                var order = []
+                async function f() {
+                    order.push('start')
+                    await new Promise(function (r) { setTimeout(r, 30) })
+                    order.push('resumed')
+                }
+                f()
+                Promise.resolve().then(function () { order.push('micro') })"""));
+    }
+
     // ===== Java interop =====
 
     @Test

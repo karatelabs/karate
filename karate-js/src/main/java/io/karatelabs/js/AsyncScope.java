@@ -63,7 +63,8 @@ final class AsyncScope {
 
     // all lazily allocated: a scope that never sees an async construct stays
     // one small object, which is what keeps the synchronous hot path free
-    private ArrayDeque<AsyncJob> queue;
+    private ArrayDeque<AsyncJob> microtasks;
+    private ArrayDeque<AsyncJob> macrotasks;
     private List<AsyncActivation> activations;
     private Map<Integer, TimerRecord> timers;
     private Map<CompletionStage<?>, JsPromise> stageCache;
@@ -97,12 +98,31 @@ final class AsyncScope {
         }
     }
 
-    /** Quiescence — no live tokens AND an empty queue, read as one operation
+    /** Quiescence — no live tokens AND both queues empty, read as one operation
      *  rather than as a separate queue read and counter read. */
     boolean isQuiescent() {
         synchronized (lock) {
-            return liveTokens == 0 && (queue == null || queue.isEmpty());
+            return liveTokens == 0 && queuesEmpty();
         }
+    }
+
+    private boolean queuesEmpty() {
+        return (microtasks == null || microtasks.isEmpty()) && (macrotasks == null || macrotasks.isEmpty());
+    }
+
+    /** The queue a job belongs in — the one place the microtask/macrotask split
+     *  is decided. Caller holds {@code lock}. */
+    private ArrayDeque<AsyncJob> queueFor(AsyncJob job) {
+        if (job.macrotask()) {
+            if (macrotasks == null) {
+                macrotasks = new ArrayDeque<>();
+            }
+            return macrotasks;
+        }
+        if (microtasks == null) {
+            microtasks = new ArrayDeque<>();
+        }
+        return microtasks;
     }
 
     int liveTokenCount() {
@@ -143,13 +163,10 @@ final class AsyncScope {
         synchronized (lock) {
             boolean published = false;
             if (!closed && work != null && !work.isEmpty()) {
-                if (queue == null) {
-                    queue = new ArrayDeque<>();
-                }
                 for (AsyncJob job : work) {
                     liveTokens++;
                     job.token = new AsyncToken(this, "job");
-                    queue.add(job);
+                    queueFor(job).add(job);
                 }
                 published = true;
                 lock.notifyAll();
@@ -170,14 +187,23 @@ final class AsyncScope {
      * Returns null when the scope closed, went quiescent, or the wait expired —
      * the pump owner re-evaluates its own exit condition in all three cases.
      * <p>
+     * <b>The microtask queue has strict priority.</b> Since the pump asks for
+     * one job at a time, that single rule is the HTML microtask checkpoint: the
+     * microtask queue is drained to exhaustion — including microtasks enqueued
+     * by microtasks — before the synchronous script's first timer runs, and
+     * again after every timer callback returns.
+     * <p>
      * The caller must NOT hold {@code jsLock} here.
      */
     AsyncJob takeJob(long timeoutMillis) {
         synchronized (lock) {
             long deadline = System.nanoTime() + timeoutMillis * 1_000_000L;
             while (true) {
-                if (queue != null && !queue.isEmpty()) {
-                    return queue.poll();
+                if (microtasks != null && !microtasks.isEmpty()) {
+                    return microtasks.poll();
+                }
+                if (macrotasks != null && !macrotasks.isEmpty()) {
+                    return macrotasks.poll();
                 }
                 if (closed || liveTokens == 0) {
                     return null;
@@ -229,13 +255,10 @@ final class AsyncScope {
             }
             cancelRequested = true;
             cancelReason = reason;
-            if (queue == null) {
-                queue = new ArrayDeque<>();
-            }
             AsyncJob control = new AsyncJob.Control(reason);
             liveTokens++;
             control.token = new AsyncToken(this, "control");
-            queue.add(control);
+            queueFor(control).add(control);
             lock.notifyAll();
         }
     }
@@ -383,9 +406,16 @@ final class AsyncScope {
                 cancelReason = reason;
             }
             live = activations == null ? List.of() : new ArrayList<>(activations);
-            if (queue != null && !queue.isEmpty()) {
-                pending = new ArrayList<>(queue);
-                queue.clear();
+            if (!queuesEmpty()) {
+                pending = new ArrayList<>();
+                if (microtasks != null) {
+                    pending.addAll(microtasks);
+                    microtasks.clear();
+                }
+                if (macrotasks != null) {
+                    pending.addAll(macrotasks);
+                    macrotasks.clear();
+                }
             }
             if (timers != null && !timers.isEmpty()) {
                 timerSnapshot = new ArrayList<>(timers.values());
