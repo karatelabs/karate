@@ -49,6 +49,13 @@ public final class ErrorUtils {
     }
 
     /** Scans {@code text} for a recognizable {@code "<Name>: "} prefix. */
+    /** Classify a bare message line (e.g. a doneprintHandle failure payload
+     *  like {@code "TypeError: x is not a function"}) into an error-type
+     *  bucket, or null when unrecognizable. */
+    public static String classifyMessage(String text) {
+        return classifyByMessagePrefix(text);
+    }
+
     private static String classifyByMessagePrefix(String text) {
         if (text == null) return null;
         // After unwrapping any engine "js failed: ... Error: <body>" framing, look at the body.

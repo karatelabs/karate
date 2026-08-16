@@ -59,17 +59,12 @@ skip:
   flags:
     - flag: module
       reason: karate-js does not support ES modules
-    # async/await/Promise/setTimeout DO work in the engine now, but a
-    # `flags: [async]` test drives the host-supplied $DONE and the host must
-    # (a) inject harness/doneprintHandle.js and (b) watch the print stream for
-    # "Test262:AsyncTestComplete" / "Test262:AsyncTestFailure". The runner does
-    # neither: HarnessLoader only loads assert.js + sta.js + declared includes
-    # (doneprintHandle.js is never a declared include), and Test262Runner.evaluate
-    # sinks console.log and returns PASS on normal completion. Un-skipping today
-    # would false-FAIL on `$DONE is not defined` and false-PASS async assertion
-    # failures. Un-skip gate: implement the doneprintHandle protocol in the runner.
-    - flag: async
-      reason: doneprintHandle protocol not implemented in harness
+    # `flags: [async]` tests run for real as of 2026-08-16: the runner loads
+    # harness/doneprintHandle.js for them, captures the engine's console sink,
+    # and reads the Test262:AsyncTestComplete / Test262:AsyncTestFailure
+    # protocol after Engine.eval drains the async scope to quiescence
+    # (Test262Runner.evaluate). A test completing without calling $DONE FAILs
+    # as Harness.
     # onlyStrict is NOT skipped: the runner prepends a "use strict" directive for
     # these tests (Test262Runner.evaluate) and the parser enforces the strict-mode
     # early errors (octal literals, eval/arguments binding+assignment, simple +

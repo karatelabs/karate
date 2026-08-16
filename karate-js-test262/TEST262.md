@@ -239,14 +239,15 @@ streams to be tailed.**
 
 ## Active priorities
 
-Reordered 2026-08-12 against the real-world bar; re-probed 2026-08-16
-(latest pins: `run-post-builtins-lang` — 6433 pass / 1814 fail / 15398
-skip — and `run-final2-bi` — 9654 pass / 3014 fail / 10846 skip, the
-first full built-ins baseline at the new HEAD, taken after the two-round
-external-review loop converged ship-worthy; plus the idiomatic-JS
-smoke battery at
-[Real-world smoke battery](#real-world-smoke-battery), 61/64 — the
-three holdouts are the two generator snippets and `typeof Symbol('a')`).
+Reordered 2026-08-12 against the real-world bar; re-probed at the end of
+the 2026-08-16 generators/doneprintHandle session (latest pins:
+`run-doneprint-lang` — 7597 pass / 2163 fail / 13885 skip, up from 6433
+pass at the session's `run-baseline-lang`, 0 PASS→FAIL regressions at
+every step — and `run-doneprint-bi` — 10050 pass / 3140 fail / 10324
+skip, the first built-ins baseline with generators and `flags: [async]`
+live; plus the idiomatic-JS smoke battery at
+[Real-world smoke battery](#real-world-smoke-battery), **63/64** — the
+only holdout is `typeof Symbol('a')`, parked by decision).
 The ES2015–ES2022 core an LLM leans on hardest — arrows, destructuring in
 every position, spread, optional chaining, `??`/`??=`, template + tagged
 literals, classes with getters/`extends`/`super`/public+private fields and
@@ -532,7 +533,7 @@ early-error validation) is advanced-pattern territory.
 | `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` ToInteger corners; parser-blocked; Symbol-gated tail. See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
 | `test/built-ins/Object/**` | Descriptor edges; `seal` (TypedArray-gated); Annex-B `arguments` aliasing. See [JS_ENGINE.md § Property attributes](../docs/JS_ENGINE.md#property-attributes). |
 | `test/built-ins/JSON/**` | *(Shipped: `parse` reviver, `stringify` `toJSON`, replacer-function holder-`this`, PropertyList at nested levels — `JsJson.serializeProperty` is now the single SerializeJSONProperty walk.)* Residual: non-finite numbers emit `NaN`/`Infinity` instead of `null`; a root that serializes to nothing (`undefined`, a function) returns the text `"undefined"`/`"null"` instead of the value `undefined`; accessor properties serialize as `null` instead of invoking the getter (`toMap` is a raw-value view); `-0`/`__proto__` parser tail. Calibration: run JSONTestSuite — see [JS_ENGINE.md § Future TODO Items](../docs/JS_ENGINE.md#2-future-todo-items). |
-| `test/built-ins/Promise/**` | Residual after the async landing: resolve-element-function property shape (`name`/`length`/extensible), some combinator ordering corners, `Promise.try`/`withResolvers` (unimplemented, left to FAIL). `flags: [async]` tests stay SKIP until the harness implements doneprintHandle (see Harness quality). |
+| `test/built-ins/Promise/**` | Residual after the async landing: resolve-element-function property shape (`name`/`length`/extensible), some combinator ordering corners, `Promise.try`/`withResolvers` (unimplemented, left to FAIL). *(`flags: [async]` tests now run — doneprintHandle shipped 2026-08-16.)* |
 | `test/built-ins/Number/**` | `[object Number]` (Symbol-gated) + a literal-form parser edge. |
 | `test/built-ins/Date/**` | ISO format edges + invalid-date propagation. See [JS_ENGINE.md § Date](../docs/JS_ENGINE.md#date). |
 | `test/built-ins/Symbol/**` (parked) | Symbol primitive. Deprioritized — no real-world code uses it. Pick up after the language work. |
@@ -698,12 +699,12 @@ Observably non-spec; pick up when the owning slice surfaces them.
 
 ### Harness quality
 
-- **Implement the doneprintHandle protocol for `flags: [async]` tests** —
-  now that async works in the engine, the ~thousand async-flagged tests
-  are skipped only because the harness doesn't inject
-  `doneprintHandle.js` semantics ($DONE via print, detect
-  `Test262:AsyncTestComplete`). `HarnessLoader.primeEngine` +
-  `Test262Runner.evaluate` are the seams. Highest-leverage harness item.
+*(doneprintHandle shipped 2026-08-16: `Test262Runner.evaluate` loads
+`harness/doneprintHandle.js` for `flags: [async]` tests, captures the
+engine console sink, and reads the `Test262:AsyncTestComplete` /
+`Test262:AsyncTestFailure:` protocol after `Engine.eval` drains to
+quiescence; a test completing without calling `$DONE` FAILs as `Harness`.
+The `flags: [async]` skip rule is removed.)*
 - Replace hand-rolled YAML parser with SnakeYAML (`Expectations.java` /
   `Test262Metadata.java` — breaks on `#` in quoted reasons, block scalars).
 - `--resume` echoes records for deleted / now-SKIP'd tests — gate or

@@ -463,7 +463,16 @@ public final class Test262Runner {
         // Route this engine's console.log into a per-test sink. The default is
         // System.out.println, which would interleave lines from tests that happen to
         // print during suite runs and pollute our own progress/FAIL output.
-        engine.setOnConsoleLog(line -> { /* sink: intentionally discard */ });
+        // For a `flags: [async]` test the sink is captured instead: the
+        // doneprintHandle protocol reports completion through print(), and
+        // print() routes through console.log.
+        boolean isAsync = !isRaw && tc.metadata().flags().contains("async");
+        List<String> consoleLines = isAsync ? new ArrayList<>() : null;
+        if (isAsync) {
+            engine.setOnConsoleLog(consoleLines::add);
+        } else {
+            engine.setOnConsoleLog(line -> { /* sink: intentionally discard */ });
+        }
         // The engine fails an eval on the first unhandled rejection; test262 has no
         // such notion. Whole families (e.g. `Promise/*/invoke-resolve-error-close.js`)
         // deliberately drop a rejected promise on the floor and then assert
@@ -483,6 +492,11 @@ public final class Test262Runner {
             }
             try {
                 harness.primeEngine(engine, tc.metadata().includes());
+                if (isAsync) {
+                    // INTERPRETING.md: async tests implicitly include the
+                    // $DONE definition from doneprintHandle.js
+                    harness.loadHelper(engine, "doneprintHandle.js");
+                }
             } catch (RuntimeException e) {
                 return ResultRecord.fail(path, "Harness",
                         "harness load failed: " + ErrorUtils.firstLine(e.getMessage(), 200));
@@ -541,6 +555,23 @@ public final class Test262Runner {
             }
             return ResultRecord.fail(path, "ExpectedThrow",
                     "expected negative " + neg + " but test completed normally");
+        }
+        if (isAsync) {
+            // Engine.eval drained the async scope to quiescence, so $DONE has
+            // either reported by now or will never report.
+            for (String line : consoleLines) {
+                if ("Test262:AsyncTestComplete".equals(line)) {
+                    return ResultRecord.pass(path);
+                }
+                if (line != null && line.startsWith("Test262:AsyncTestFailure:")) {
+                    String m = line.substring("Test262:AsyncTestFailure:".length());
+                    String type = ErrorUtils.classifyMessage(m);
+                    return ResultRecord.fail(path, type == null ? "Test262Error" : type,
+                            ErrorUtils.firstLine(m, 200));
+                }
+            }
+            return ResultRecord.fail(path, "Harness",
+                    "async test completed without calling $DONE");
         }
         return ResultRecord.pass(path);
     }

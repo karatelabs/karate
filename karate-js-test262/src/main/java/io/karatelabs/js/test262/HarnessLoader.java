@@ -40,6 +40,12 @@ public final class HarnessLoader {
         }
     }
 
+    /** Loads one named helper (e.g. {@code doneprintHandle.js} for
+     *  {@code flags: [async]} tests) — same cache as primeEngine. */
+    public void loadHelper(Engine engine, String name) {
+        evalHelper(engine, name);
+    }
+
     private void evalHelper(Engine engine, String name) {
         String src = cache.computeIfAbsent(name, this::readHelper);
         engine.eval(src);
