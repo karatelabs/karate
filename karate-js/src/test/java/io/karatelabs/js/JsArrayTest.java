@@ -412,4 +412,75 @@ class JsArrayTest extends EvalBase {
         assertEquals(0, eval("[-0].indexOf(0)"));
     }
 
+    // ===== near-2^32 / pathological-index hardening: every failure here must
+    // be a JS error (or correct behavior), never a raw Java exception =====
+
+    @Test
+    void testHugeIndexWriteBecomesNamedPropertyNotCrash() {
+        // 4294967294 overflows int; it used to wrap negative and crash with a
+        // raw IndexOutOfBounds. Now it's an ordinary own property.
+        assertEquals(true, eval("var a = [];\na[4294967294] = 'x';\n"
+                + "a[4294967294] === 'x' && a.length === 0 && a.indexOf('x') === -1"));
+    }
+
+    @Test
+    void testHugeIndexViaStringKeySafe() {
+        assertEquals("y", eval("var a = [];\na['4294967294'] = 'y';\na['4294967294']"));
+    }
+
+    @Test
+    void testIndexOfWithInfinityFromIndexOnSparseHugeArray() {
+        assertEquals(-1, eval("var a = [];\na[4294967294] = true;\na.indexOf(true, Infinity)"));
+    }
+
+    @Test
+    void testNegativeIndexIsNamedProperty() {
+        assertEquals(true, eval("var a = [1, 2];\na[-1] = 'neg';\n"
+                + "a[-1] === 'neg' && a.length === 2"));
+    }
+
+    @Test
+    void testFractionalIndexIsNamedProperty() {
+        assertEquals(true, eval("var a = [1, 2];\na[1.5] = 'f';\n"
+                + "a[1.5] === 'f' && a.length === 2 && a[1] === 2"));
+    }
+
+    @Test
+    void testSparsePadBeyondLimitIsRangeError() {
+        // a write that would append >10M holes is refused with a catchable
+        // RangeError instead of dying in a Java OutOfMemoryError
+        assertEquals("RangeError", eval("var a = [];\n"
+                + "try { a[1073741824] = 1 } catch (e) { e.name }"));
+    }
+
+    @Test
+    void testModestSparsePadStillWorks() {
+        assertEquals(true, eval("var a = [];\na[100] = 1;\n"
+                + "a.length === 101 && a[100] === 1 && !(50 in a)"));
+    }
+
+    @Test
+    void testMapOnHugeLengthArrayLikeIsRangeError() {
+        assertEquals("RangeError", eval("var o = { length: 4294967296 };\n"
+                + "try { Array.prototype.map.call(o, function(x) { return x }) } catch (e) { e.name }"));
+    }
+
+    @Test
+    void testToSplicedOnHugeLengthIsRangeError() {
+        assertEquals("RangeError", eval("var o = { length: 4294967295 };\n"
+                + "try { Array.prototype.toSpliced.call(o, 0, 0) } catch (e) { e.name }"));
+    }
+
+    @Test
+    void testUnshiftBeyondMaxSafeIntegerIsTypeError() {
+        assertEquals("TypeError", eval("var o = { length: Math.pow(2, 53) };\n"
+                + "try { Array.prototype.unshift.call(o, null) } catch (e) { e.name }"));
+    }
+
+    @Test
+    void testSpliceBeyondMaxSafeIntegerIsTypeError() {
+        assertEquals("TypeError", eval("var o = { length: Math.pow(2, 53) + 2 };\n"
+                + "try { Array.prototype.splice.call(o, 0, 0, null) } catch (e) { e.name }"));
+    }
+
 }

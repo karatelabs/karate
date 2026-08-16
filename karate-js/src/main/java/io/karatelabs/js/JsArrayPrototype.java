@@ -411,6 +411,36 @@ class JsArrayPrototype extends Prototype {
         return (int) d;
     }
 
+    /** {@link #lengthOf} clamps a huge claimed length to Integer.MAX_VALUE;
+     *  a result of that magnitude cannot be dense-allocated. The spec answer
+     *  is RangeError (ArrayCreate §10.4.2.2 throws above 2^32-1; the store
+     *  bound here is lower and documented in TEST262.md) — throwing it here
+     *  keeps a lying {@code {length: 2**32}} array-like from OOMing the JVM
+     *  through map / splice / toReversed / toSorted / toSpliced. */
+    private static int checkResultLength(int len) {
+        if (len == Integer.MAX_VALUE) {
+            throw JsErrorException.rangeError("Invalid array length");
+        }
+        return len;
+    }
+
+    /** Spec §23.1.3.34 step 4 (unshift) / §23.1.3.31 (splice): a receiver
+     *  whose length plus the inserted count would exceed 2^53-1 throws
+     *  TypeError before any element is moved. Reads the raw double length —
+     *  {@link #lengthOf}'s int clamp cannot see these magnitudes. */
+    private static void checkLengthLimit(ObjectLike target, CoreContext ctx, int addCount) {
+        Object lenObj = target.getMember("length", target, ctx);
+        if (lenObj == null || lenObj == Terms.UNDEFINED) return;
+        Number n = lenObj instanceof ObjectLike
+                ? Terms.toNumberCoerce(lenObj, ctx)
+                : Terms.objectToNumber(lenObj);
+        if (ctx != null && ctx.isError()) return;
+        double d = n == null ? Double.NaN : n.doubleValue();
+        if (d + addCount > 9007199254740991.0) { // 2^53 - 1
+            throw JsErrorException.typeError("Invalid array length");
+        }
+    }
+
     /** Spec-shape {@code O = ? ToObject(this value)}. Returns the receiver
      *  unchanged when it's already an {@link ObjectLike}; wraps raw Java
      *  Lists / arrays via {@link Terms#toObjectLike} (so a Java
@@ -513,7 +543,7 @@ class JsArrayPrototype extends Prototype {
         Object thisObj = context.getThisObject();
         CoreContext cc = context instanceof CoreContext cx ? cx : null;
         ObjectLike target = thisObj instanceof ObjectLike o ? o : Terms.toObjectLike(thisObj);
-        int len = target == null ? 0 : lengthOf(target, cc);
+        int len = target == null ? 0 : checkResultLength(lengthOf(target, cc));
         List<Object> results = new ArrayList<>(len);
         for (int i = 0; i < len; i++) results.add(JsArray.HOLE);
         JsCallable callable = bindThis(requireCallable(args, "Array.prototype.map"),
@@ -1056,7 +1086,12 @@ class JsArrayPrototype extends Prototype {
             actualDeleteCount = Math.min(Math.max(dc, 0), len - actualStart);
             itemCount = Math.max(args.length - 2, 0);
         }
-        List<Object> removed = new ArrayList<>(actualDeleteCount);
+        if (len == Integer.MAX_VALUE) {
+            // possibly-huge receiver (lengthOf clamp marker): only then is the
+            // extra observable length read for the 2^53 check justified
+            checkLengthLimit(target, cc, itemCount - actualDeleteCount);
+        }
+        List<Object> removed = new ArrayList<>(checkResultLength(actualDeleteCount));
         for (int k = 0; k < actualDeleteCount; k++) {
             String from = String.valueOf(actualStart + k);
             removed.add(hasPropertyChain(target, from)
@@ -1105,7 +1140,7 @@ class JsArrayPrototype extends Prototype {
         if (target == null) return Terms.UNDEFINED;
         int len = lengthOf(target, cc);
         if (cc != null && cc.isError()) return Terms.UNDEFINED;
-        List<Object> result = new ArrayList<>(len);
+        List<Object> result = new ArrayList<>(checkResultLength(len));
         for (int k = 0; k < len; k++) {
             result.add(specGet(target, String.valueOf(len - k - 1), cc));
         }
@@ -1127,7 +1162,7 @@ class JsArrayPrototype extends Prototype {
         if (target == null) return Terms.UNDEFINED;
         int len = lengthOf(target, cc);
         if (cc != null && cc.isError()) return Terms.UNDEFINED;
-        List<Object> items = new ArrayList<>(len);
+        List<Object> items = new ArrayList<>(checkResultLength(len));
         for (int k = 0; k < len; k++) {
             items.add(specGet(target, String.valueOf(k), cc));
         }
@@ -1187,7 +1222,7 @@ class JsArrayPrototype extends Prototype {
             actualSkipCount = Math.min(Math.max(sc, 0), len - actualStart);
             itemCount = Math.max(args.length - 2, 0);
         }
-        int newLen = len - actualSkipCount + itemCount;
+        int newLen = checkResultLength(len - actualSkipCount + itemCount);
         List<Object> result = new ArrayList<>(newLen);
         for (int i = 0; i < actualStart; i++) {
             result.add(specGet(target, String.valueOf(i), cc));
@@ -1269,6 +1304,9 @@ class JsArrayPrototype extends Prototype {
         if (cc != null && cc.isError()) return Terms.UNDEFINED;
         int argCount = args.length;
         if (argCount > 0) {
+            if (len == Integer.MAX_VALUE) {
+                checkLengthLimit(target, cc, argCount);
+            }
             for (int k = len - 1; k >= 0; k--) {
                 String fromKey = String.valueOf(k);
                 String toKey = String.valueOf(k + argCount);

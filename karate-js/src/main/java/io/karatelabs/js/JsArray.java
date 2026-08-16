@@ -204,14 +204,33 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
      *  Returns the integer value if {@code s} is a canonical integer-index
      *  string ("0", "1", "42"), or {@code -1} otherwise. Package-private so
      *  {@link JsObject#orderedOwnKeys} can apply §9.1.11.1 ordering. */
+    /** Largest hole-pad a single write may create. A sparse write like
+     *  {@code arr[2**30] = x} used to append a billion HOLEs and die with a
+     *  raw OutOfMemoryError; past this bound the write is refused with a JS
+     *  RangeError instead — loud, catchable, and it cannot take the JVM
+     *  down. True sparse storage is the deferred HOLE-elimination rework. */
+    static final int DENSE_PAD_LIMIT = 10_000_000;
+
+    void checkDensePad(long index) {
+        if (index - list.size() > DENSE_PAD_LIMIT) {
+            throw JsErrorException.rangeError(
+                    "array index too large for dense storage: " + index);
+        }
+    }
+
     static int parseIndex(String s) {
         // Strict canonical-integer parse: rejects "01", "+1", "-1", "1.0".
         // Spec: an array index is a String whose value is a CanonicalNumericIndexString
-        // less than 2^32 - 1. We don't model the upper bound (in-range check by list.size).
+        // less than 2^32 - 1. The dense store is bounded by int, so indices
+        // beyond Integer.MAX_VALUE are treated as ordinary named properties —
+        // the long accumulator keeps a 10-digit index like "4294967294" from
+        // silently overflowing int into a negative value that a raw
+        // list.get() then crashes on (it used to surface as
+        // "Index -2 out of bounds", a Java leak).
         int n = s.length();
         if (n == 0) return -1;
-        if (n > 10) return -1; // any 11+ digit index overflows int and isn't a usable element index
-        int v = 0;
+        if (n > 10) return -1; // any 11+ digit index exceeds 2^32-1 and isn't an array index
+        long v = 0;
         for (int i = 0; i < n; i++) {
             char c = s.charAt(i);
             if (c < '0' || c > '9') return -1;
@@ -219,7 +238,8 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         }
         // Reject leading-zero forms like "01", but allow "0".
         if (n > 1 && s.charAt(0) == '0') return -1;
-        return v;
+        if (v > Integer.MAX_VALUE) return -1; // beyond the dense bound — named property
+        return (int) v;
     }
 
     @Override
@@ -280,6 +300,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
                 if (strict) JsObject.failNotExtensible(name);
                 return;
             }
+            checkDensePad(i);
             while (list.size() < i) list.add(HOLE);
             if (i < list.size()) list.set(i, value);
             else list.add(value);
@@ -339,6 +360,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
             if (namedProps != null) {
                 namedProps.remove(name);
             }
+            checkDensePad(i);
             while (list.size() < i) list.add(HOLE);
             if (i < list.size()) list.set(i, value);
             else list.add(value);
@@ -387,6 +409,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
         // {@code Array.prototype[1]} — runs before the index-1 read).
         int i = parseIndex(name);
         if (i >= 0) {
+            checkDensePad(i);
             while (list.size() <= i) list.add(HOLE);
         }
         if (namedProps == null) {
@@ -1112,6 +1135,7 @@ class JsArray implements ObjectLike, JsCallable, List<Object> {
                 if (newLen > oldLen && arr.nonExtensible) {
                     return false;
                 }
+                arr.checkDensePad(newLen);
                 while (arr.list.size() < newLen) arr.list.add(HOLE);
                 return true;
             }

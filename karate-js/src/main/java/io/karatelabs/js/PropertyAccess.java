@@ -487,13 +487,16 @@ class PropertyAccess {
 
     private static Object logicalCompoundByIndex(Object object, Object index, TokenType operator, Node rhsNode, CoreContext context, Node trackingNode) {
         if (index instanceof Number n) {
-            int i = n.intValue();
-            if (object instanceof List) {
+            int i = denseIndex(n);
+            if (object instanceof List && i >= 0) {
                 List<Object> list = (List<Object>) object;
                 Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
                 if (!shouldLogicalAssign(operator, oldValue)) return oldValue;
                 Object newValue = Interpreter.eval(rhsNode, context);
                 if (context.isStopped()) return null;
+                if (object instanceof JsArray ja) {
+                    ja.checkDensePad(i);
+                }
                 while (list.size() <= i) list.add(Terms.UNDEFINED);
                 list.set(i, newValue);
                 firePropertySet(context, String.valueOf(i), newValue, oldValue, object, trackingNode);
@@ -841,7 +844,10 @@ class PropertyAccess {
     private static Object getByIndex(Object object, Object index, boolean optional,
                                       CoreContext context, boolean functionCall) {
         if (!functionCall && index instanceof Number n) {
-            int i = n.intValue();
+            int i = denseIndex(n);
+            if (i < 0) {
+                return getByName(object, Terms.toPropertyKey(index), optional, context, functionCall);
+            }
             if (object == null || object == Terms.UNDEFINED) {
                 if (optional) return Terms.UNDEFINED;
                 throw JsErrorException.typeError("cannot read properties of " + object + " (reading '[" + i + "]')");
@@ -1003,9 +1009,24 @@ class PropertyAccess {
         return accessViaBridge(bridgeTarget, name, context, functionCall);
     }
 
+    /** A Number index usable on the dense fast paths: an exact non-negative
+     *  int. Negative, fractional, and beyond-int values return -1 and route
+     *  through the name path (Terms.toPropertyKey), where they behave as
+     *  ordinary property keys — the truncating {@code intValue()} used to
+     *  wrap {@code arr[2**32-2]} to a negative raw list index and crash with
+     *  a Java IndexOutOfBounds leak. */
+    private static int denseIndex(Number n) {
+        int i = n.intValue();
+        return i >= 0 && n.doubleValue() == (double) i ? i : -1;
+    }
+
     private static void setByIndex(Object object, Object index, Object value, CoreContext context, Node trackingNode) {
         if (index instanceof Number n) {
-            int i = n.intValue();
+            int i = denseIndex(n);
+            if (i < 0) {
+                setByName(object, Terms.toPropertyKey(index), value, context, trackingNode);
+                return;
+            }
             // JsArray with a descriptor at this index (accessor or attributed
             // data property installed via Object.defineProperty) takes the slow
             // path through setByName, which honors AccessorSlot setters and
@@ -1037,6 +1058,9 @@ class PropertyAccess {
                     // (Java ArrayList passed in by the user) don't model
                     // holes; UNDEFINED is the closest representable value.
                     Object pad = object instanceof JsArray ? JsArray.HOLE : Terms.UNDEFINED;
+                    if (object instanceof JsArray ja) {
+                        ja.checkDensePad(i);
+                    }
                     while (list.size() < i) {
                         list.add(pad);
                     }
@@ -1160,8 +1184,8 @@ class PropertyAccess {
 
     private static Object postIncDecByIndex(Object object, Object index, boolean isIncrement, CoreContext context) {
         if (index instanceof Number n) {
-            int i = n.intValue();
-            if (object instanceof List) {
+            int i = denseIndex(n);
+            if (object instanceof List && i >= 0) {
                 List<Object> list = (List<Object>) object;
                 Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
                 Object step = Terms.incDecStep(oldValue);
@@ -1200,8 +1224,8 @@ class PropertyAccess {
 
     private static Object preIncDecByIndex(Object object, Object index, boolean isIncrement, CoreContext context) {
         if (index instanceof Number n) {
-            int i = n.intValue();
-            if (object instanceof List) {
+            int i = denseIndex(n);
+            if (object instanceof List && i >= 0) {
                 List<Object> list = (List<Object>) object;
                 Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
                 Object step = Terms.incDecStep(oldValue);

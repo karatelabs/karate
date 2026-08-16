@@ -409,10 +409,30 @@ feature skips removed.)*
 All edge-input, but each is a Java stack trace where a JS error belongs:
 `RegExp` `exec`/`test` null-arg `Cannot invoke Object.toString()`; one
 catastrophic-backtracking `Timeout` (`RegExp/.../S15.10.2.8_A3_T17.js`);
-`Array` at near-2³² lengths leaking `Index out of bounds` / VM-limit /
-heap (`unshift`/`splice`/`reverse`). *(Fixed 2026-08-12: JSON circular →
-`TypeError`, JSON replacer-array `ClassCastException`,
+a `JSON.parse` reviver ClassCastException (`parse/text-object.js`); three
+`replaceAll` poisoned-probe coercion-order rows. *(Fixed 2026-08-12: JSON
+circular → `TypeError`, JSON replacer-array `ClassCastException`,
 `replaceAll`/`endsWith` range leaks.)*
+*(The near-2³² `Array` family shipped 2026-08-16 — the Unknown-row
+population dropped 29 → 6, all remaining rows being the RegExp/JSON/
+replaceAll items above. The seams: `JsArray.parseIndex` no longer
+overflows int (10-digit indices become named properties);
+`PropertyAccess.denseIndex` routes negative/fractional/beyond-int Number
+indices through the name path instead of wrapping into crashing raw list
+accesses; `JsArray.DENSE_PAD_LIMIT` (10M) refuses catastrophic hole-pads
+with a catchable RangeError instead of a JVM OutOfMemoryError;
+`checkResultLength` makes map/splice/toReversed/toSorted/toSpliced on a
+lying `{length: 2**32}` array-like throw the spec's RangeError before
+allocating; and unshift/splice get the §23.1.3 2⁵³−1 TypeError checks,
+gated on the length-clamp marker so ordinary receivers pay no extra
+observable length read. The `length-near-integer-limit` timeout rows
+(genuine 4-billion-step walks) stay accepted until the sparse-storage
+rework. Pinned by 11 `JsArrayTest` hardening tests.)*
+Known-flaky under an accepted deviation (surfaced by the async-flag
+unskip, timing-dependent PASS/FAIL): `await-non-promise-thenable.js` —
+the settled-await fast path skips a microtask tick, so its interleaving
+race with a thenable job is nondeterministic. See
+[JS_ENGINE.md § Accepted deviations](../docs/JS_ENGINE.md#accepted-deviations).
 
 Added 2026-08-16:
 
