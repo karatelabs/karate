@@ -49,8 +49,6 @@ public class Terms {
 
     static final Number NEGATIVE_ZERO = -0.0;
 
-    static final Object NAN = Double.NaN;
-
     private Terms() {
         // static holder - the binary operators take (lhs, rhs) directly
     }
@@ -320,30 +318,31 @@ public class Terms {
         if (s.indexOf('_') >= 0) {
             s = s.replace("_", "");
         }
+        int radix = radixPrefix(s);
+        return radix == 0 ? new BigInteger(s) : new BigInteger(s.substring(2), radix);
+    }
+
+    // Radix implied by an `0x`/`0b`/`0o` prefix, 0 when there is none.
+    private static int radixPrefix(String s) {
         if (s.length() > 2 && s.charAt(0) == '0') {
             char p = s.charAt(1);
-            if (p == 'x' || p == 'X') return new BigInteger(s.substring(2), 16);
-            if (p == 'b' || p == 'B') return new BigInteger(s.substring(2), 2);
-            if (p == 'o' || p == 'O') return new BigInteger(s.substring(2), 8);
+            if (p == 'x' || p == 'X') return 16;
+            if (p == 'b' || p == 'B') return 2;
+            if (p == 'o' || p == 'O') return 8;
         }
-        return new BigInteger(s);
+        return 0;
     }
 
     static Number fromRadixPrefix(String text) {
-        if (text.length() > 2 && text.charAt(0) == '0') {
-            char p = text.charAt(1);
-            int radix = (p == 'x' || p == 'X') ? 16
-                    : (p == 'b' || p == 'B') ? 2
-                    : (p == 'o' || p == 'O') ? 8 : 0;
-            if (radix != 0) {
-                try {
-                    return narrow(Long.parseLong(text.substring(2), radix));
-                } catch (NumberFormatException nfe) {
-                    return Double.NaN;
-                }
-            }
+        int radix = radixPrefix(text);
+        if (radix == 0) {
+            return null;
         }
-        return null;
+        try {
+            return narrow(Long.parseLong(text.substring(2), radix));
+        } catch (NumberFormatException nfe) {
+            return Double.NaN;
+        }
     }
 
     /**
@@ -415,7 +414,9 @@ public class Terms {
             return bigIntLooseEq(lhs, rhs);
         }
         if (lhs instanceof Number || rhs instanceof Number) { // coerce to number
-            return objectToNumber(lhs).equals(objectToNumber(rhs));
+            // doubleValue, not equals: the boxes can be different Number types
+            // (Integer 0 vs Double -0.0) for the same mathematical value
+            return objectToNumber(lhs).doubleValue() == objectToNumber(rhs).doubleValue();
         }
         return false;
     }
@@ -425,13 +426,9 @@ public class Terms {
         Object other;
         if (lhs instanceof BigInteger b) { bi = b; other = rhs; }
         else { bi = (BigInteger) rhs; other = lhs; }
-        // BigInt vs String: try parse string as BigInt
         if (other instanceof String s) {
-            try {
-                return bi.equals(new BigInteger(s.trim()));
-            } catch (NumberFormatException e) {
-                return false;
-            }
+            BigInteger parsed = stringToBigInt(s);
+            return parsed != null && bi.equals(parsed);
         }
         if (other instanceof Number n) {
             double d = n.doubleValue();
@@ -446,32 +443,137 @@ public class Terms {
         return false;
     }
 
-    static boolean lt(Object lhs, Object rhs) {
-        if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
-            return bigIntCompare(lhs, rhs) < 0;
+    // Spec StringToBigInt (§7.1.14): a whitespace-only string is 0n, anything
+    // that is not a well-formed integer literal is undefined — null here, which
+    // the BigInt-vs-String legs surface as "not equal" / "not comparable".
+    private static BigInteger stringToBigInt(String s) {
+        String trimmed = stripJsWhiteSpace(s);
+        if (trimmed.isEmpty()) {
+            return BigInteger.ZERO;
         }
-        return objectToNumber(lhs).doubleValue() < objectToNumber(rhs).doubleValue();
+        int radix = radixPrefix(trimmed);
+        try {
+            return radix == 0 ? new BigInteger(trimmed) : new BigInteger(trimmed.substring(2), radix);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
-    static boolean gt(Object lhs, Object rhs) {
-        if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
-            return bigIntCompare(lhs, rhs) > 0;
-        }
-        return objectToNumber(lhs).doubleValue() > objectToNumber(rhs).doubleValue();
+    private static boolean isNotANumber(Object o) {
+        return o instanceof Double d && d.isNaN();
     }
 
-    static boolean ltEq(Object lhs, Object rhs) {
-        if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
-            return bigIntCompare(lhs, rhs) <= 0;
+    /**
+     * Spec {@code IsStrictlyEqual} (§7.2.15) for the {@code ===} / {@code !==}
+     * operators. {@link #eq}{@code (lhs, rhs, true)} is SameValueZero — Java's
+     * {@code Double.equals} holds {@code NaN} equal to itself, which Map / Set
+     * key lookup wants and the operator does not.
+     */
+    static boolean strictEq(Object lhs, Object rhs) {
+        if (isNotANumber(lhs) || isNotANumber(rhs)) {
+            return false;
         }
-        return objectToNumber(lhs).doubleValue() <= objectToNumber(rhs).doubleValue();
+        return eq(lhs, rhs, true);
     }
 
-    static boolean gtEq(Object lhs, Object rhs) {
-        if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
-            return bigIntCompare(lhs, rhs) >= 0;
+    /**
+     * Spec {@code IsLooselyEqual} (§7.2.14) for {@code ==} / {@code !=}. An
+     * ObjectLike operand facing a primitive one is ToPrimitive'd with the
+     * default hint and the ladder re-entered on the result; two objects compare
+     * by reference. Errors raised by the user's {@code @@toPrimitive} /
+     * {@code valueOf} / {@code toString} flow through {@code context.isError()},
+     * so the returned value is meaningless once that is set.
+     */
+    static boolean looseEq(Object lhs, Object rhs, CoreContext context) {
+        if (lhs instanceof ObjectLike) {
+            if (rhs instanceof ObjectLike) {
+                return lhs == rhs;
+            }
+            if (rhs == null || rhs == UNDEFINED) {
+                return false;
+            }
+            lhs = toPrimitive(lhs, "default", context);
+            if (context != null && context.isError()) {
+                return false;
+            }
+        } else if (rhs instanceof ObjectLike) {
+            if (lhs == null || lhs == UNDEFINED) {
+                return false;
+            }
+            rhs = toPrimitive(rhs, "default", context);
+            if (context != null && context.isError()) {
+                return false;
+            }
         }
-        return objectToNumber(lhs).doubleValue() >= objectToNumber(rhs).doubleValue();
+        if (isNotANumber(lhs) || isNotANumber(rhs)) {
+            return false;
+        }
+        // §7.2.14 steps 8-9: a Boolean operand becomes a Number before the ladder
+        // is re-entered, which is what puts `'' == false` on the String~Number leg
+        if (lhs instanceof Boolean b) {
+            lhs = b ? 1 : 0;
+        }
+        if (rhs instanceof Boolean b) {
+            rhs = b ? 1 : 0;
+        }
+        return eq(lhs, rhs, false);
+    }
+
+    // Spec IsLessThan yields undefined when either operand is NaN; every
+    // relational operator maps that to false, so it needs a third state.
+    static final int LESS_UNDEFINED = -1;
+
+    /**
+     * Spec {@code IsLessThan} (§7.2.13), returning {@code 1} / {@code 0} /
+     * {@link #LESS_UNDEFINED}. {@code leftFirst} is the spec's LeftFirst flag:
+     * {@code x > y} is defined as {@code IsLessThan(y, x, false)}, and clearing
+     * the flag is what keeps the two ToPrimitive calls in source order.
+     * Two string primitives compare as strings; everything else numerically.
+     */
+    static int isLessThan(Object lhs, Object rhs, boolean leftFirst, CoreContext context) {
+        if (lhs instanceof Number ln && rhs instanceof Number rn && !isBigIntOp(ln, rn)) {
+            double a = ln.doubleValue();
+            double b = rn.doubleValue();
+            if (Double.isNaN(a) || Double.isNaN(b)) {
+                return LESS_UNDEFINED;
+            }
+            return a < b ? 1 : 0;
+        }
+        if (lhs instanceof ObjectLike || rhs instanceof ObjectLike) {
+            if (leftFirst) {
+                lhs = toPrimitive(lhs, "number", context);
+                if (context != null && context.isError()) {
+                    return LESS_UNDEFINED;
+                }
+                rhs = toPrimitive(rhs, "number", context);
+            } else {
+                rhs = toPrimitive(rhs, "number", context);
+                if (context != null && context.isError()) {
+                    return LESS_UNDEFINED;
+                }
+                lhs = toPrimitive(lhs, "number", context);
+            }
+            if (context != null && context.isError()) {
+                return LESS_UNDEFINED;
+            }
+        }
+        if (lhs instanceof String ls && rhs instanceof String rs) {
+            return ls.compareTo(rs) < 0 ? 1 : 0;
+        }
+        if (lhs instanceof BigInteger || rhs instanceof BigInteger) {
+            // a non-BigInt, non-String operand is ToNumeric'd first so the
+            // mixed-type compare below sees a magnitude it can order
+            int c = bigIntCompare(
+                    lhs instanceof BigInteger || lhs instanceof String ? lhs : objectToNumber(lhs),
+                    rhs instanceof BigInteger || rhs instanceof String ? rhs : objectToNumber(rhs));
+            return c == Integer.MIN_VALUE ? LESS_UNDEFINED : (c < 0 ? 1 : 0);
+        }
+        double a = objectToNumber(lhs).doubleValue();
+        double b = objectToNumber(rhs).doubleValue();
+        if (Double.isNaN(a) || Double.isNaN(b)) {
+            return LESS_UNDEFINED;
+        }
+        return a < b ? 1 : 0;
     }
 
     // Returns Integer.MIN_VALUE for "incomparable" (NaN-like — surfaces via the
@@ -485,14 +587,13 @@ public class Terms {
         boolean swapped;
         if (lhs instanceof BigInteger b) { bi = b; other = rhs; swapped = false; }
         else { bi = (BigInteger) rhs; other = lhs; swapped = true; }
-        // BigInt vs String: parse, fall back to NaN-like incomparable
         if (other instanceof String s) {
-            try {
-                int c = bi.compareTo(new BigInteger(s.trim()));
-                return swapped ? -c : c;
-            } catch (NumberFormatException e) {
+            BigInteger parsed = stringToBigInt(s);
+            if (parsed == null) {
                 return Integer.MIN_VALUE;
             }
+            int c = bi.compareTo(parsed);
+            return swapped ? -c : c;
         }
         if (other instanceof Number n) {
             double d = n.doubleValue();

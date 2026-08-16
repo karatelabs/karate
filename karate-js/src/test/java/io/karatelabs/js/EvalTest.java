@@ -473,7 +473,7 @@ class EvalTest extends EvalBase {
     void testLogicSpecial() {
         assertEquals(false, eval("a = undefined; b = 0; a < b"));
         assertEquals(true, eval("a = ''; b = ''; a == b"));
-        assertEquals(false, eval("a = 0; b = -0; a == b"));
+        assertEquals(true, eval("a = 0; b = -0; a == b"));
         assertEquals(true, eval("a = 0; b = -0; a === b"));
         assertEquals(false, eval("a = 0; b = -0; 1 / a === 1 / b"));
         assertEquals(true, eval("a = Infinity; 1 / a === 0"));

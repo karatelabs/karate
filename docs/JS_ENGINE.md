@@ -1465,6 +1465,22 @@ same propagation pattern as `toStringCoerce`. Boxed primitives
 equivalent. Both methods returning objects → TypeError. `Symbol.toPrimitive`
 is *not* dispatched (matches our minimal Symbol surface).
 
+**Comparison operators are three seams, all ToPrimitive-aware.**
+`Interpreter.evalLogicExpr` dispatches `==`/`!=` to `Terms.looseEq(lhs, rhs,
+ctx)` (spec IsLooselyEqual §7.2.14), `===`/`!==` to `Terms.strictEq`
+(IsStrictlyEqual §7.2.15), and all four relational operators to
+`Terms.isLessThan(lhs, rhs, leftFirst, ctx)` (IsLessThan §7.2.13, returning
+`1` / `0` / `LESS_UNDEFINED`). `x > y` is `isLessThan(y, x, false)` and
+`x <= y` is its negation — the operand swap pairs with clearing LeftFirst,
+which is what keeps the two ToPrimitive calls in source order. An ObjectLike
+operand routes through `Terms.toPrimitive` with the live ctx exactly as `+`
+does, so a user `valueOf`/`toString` runs and its abrupt completion
+propagates via `context.isError()`. Two string primitives compare as strings
+(`String.compareTo` is the spec's UTF-16 code-unit order); everything else
+numerically. `Terms.eq(lhs, rhs, true)` stays SameValueZero for Map / Set key
+lookup — `strictEq` is the operator wrapper that adds the NaN exclusion Java's
+`Double.equals` does not have.
+
 **`Terms.narrow()` checks both ends.** Pre-existing bug: `if (d <=
 Integer.MAX_VALUE) return (int) d` cast any negative value past
 `Integer.MIN_VALUE` to an overflowed int. Fix: both bounds (`d >=

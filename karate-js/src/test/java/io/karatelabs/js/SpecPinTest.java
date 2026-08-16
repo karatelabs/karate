@@ -1494,6 +1494,110 @@ class SpecPinTest extends EvalBase {
     }
 
     // -------------------------------------------------------------------------
+    // IsLooselyEqual (§7.2.14) and IsLessThan (§7.2.13): an ObjectLike operand
+    // of == / != / < / > / <= / >= runs the same ToPrimitive protocol the
+    // arithmetic operators use, and two string primitives compare as strings.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void looseEquality_coercesObjectsToPrimitives() {
+        assertEquals(true, eval("[1] == 1"));
+        assertEquals(true, eval("[] == false"));
+        assertEquals(true, eval("[] == ''"));
+        assertEquals(true, eval("'' == false"));
+        assertEquals(true, eval("[1,2] == '1,2'"));
+        assertEquals(true, eval("({}) == '[object Object]'"));
+        assertEquals(true, eval("({toString:function(){return 'b'}}) == 'b'"));
+        assertEquals(true, eval("({valueOf:function(){return 3}}) == 3"));
+        assertEquals(true, eval("[1] != 2"));
+        // both operands objects: reference identity, no coercion
+        assertEquals(false, eval("({}) == ({})"));
+        assertEquals(false, eval("new Number(1) == new Number(1)"));
+        assertEquals(true, eval("var o = {}; o == o"));
+        // null / undefined are loosely equal only to each other
+        assertEquals(false, eval("[] == null"));
+        assertEquals(false, eval("({}) == undefined"));
+        assertEquals(true, eval("null == undefined"));
+        assertEquals(false, eval("null == 0"));
+        assertEquals(true, eval("+0 == -0"));
+        // StringToBigInt: whitespace-only is 0n, malformed is undefined
+        assertEquals(true, eval("0n == ''"));
+        assertEquals(true, eval("16n == '0x10'"));
+        assertEquals(false, eval("0n == 'x'"));
+    }
+
+    @Test
+    void relational_coercesObjectsToPrimitives() {
+        assertEquals(true, eval("({valueOf:function(){return 3}}) > 1"));
+        assertEquals(false, eval("({valueOf:function(){return 3}}) < 1"));
+        assertEquals(true, eval("[2] > 1"));
+        assertEquals(true, eval("[2] >= 2"));
+        assertEquals(true, eval("1 < [2]"));
+        assertEquals(true, eval("1 <= [1]"));
+        assertEquals(true, eval("new Date(1) < new Date(2)"));
+        assertEquals(false, eval("new Date(2) < new Date(1)"));
+        assertEquals(true, eval("new Number(3) > 2"));
+        assertEquals(true, eval("new String('a') < 'b'"));
+        assertEquals(true, eval("'' < 1n"));
+        assertEquals(true, eval("2n > true"));
+        assertEquals(false, eval("1n < 'x'"));
+    }
+
+    @Test
+    void relational_twoStringPrimitivesCompareAsStrings() {
+        assertEquals(true, eval("'a' < 'b'"));
+        assertEquals(false, eval("'b' < 'a'"));
+        assertEquals(true, eval("'abc' < 'abd'"));
+        assertEquals(true, eval("'a' <= 'a'"));
+        assertEquals(true, eval("'Z' < 'a'")); // UTF-16 code-unit order
+        assertEquals(true, eval("'10' < '9'"));
+        assertEquals(false, eval("'10' < 9")); // one number operand → numeric
+        assertEquals(true, eval("['a'] < 'b'"));
+    }
+
+    @Test
+    void relational_coercesInSourceOrderAndForwardsAbrupt() {
+        String probes = "var log = [];"
+                + " var a = {valueOf:function(){log.push('a'); return 1}},"
+                + " b = {valueOf:function(){log.push('b'); return 2}};";
+        // the LeftFirst flag keeps the coercion order left-to-right for every
+        // operator, including the ones the spec defines by swapping operands
+        assertEquals("a,b", eval(probes + " a < b; log.join(',')"));
+        assertEquals("a,b", eval(probes + " a > b; log.join(',')"));
+        assertEquals("a,b", eval(probes + " a <= b; log.join(',')"));
+        assertEquals("a,b", eval(probes + " a >= b; log.join(',')"));
+        // a poisoned valueOf wins over the operator's own result, and the
+        // other operand is not coerced afterwards
+        assertEquals("MyError", eval("function MyError(){}; var r;"
+                + " try { ({valueOf:function(){throw new MyError()}}) > 1 }"
+                + " catch(e) { r = (e instanceof MyError) ? 'MyError' : ('wrong: '+e) } r"));
+        assertEquals("MyError", eval("function MyError(){}; var r;"
+                + " try { ({valueOf:function(){throw new MyError()}}) == 1 }"
+                + " catch(e) { r = (e instanceof MyError) ? 'MyError' : ('wrong: '+e) } r"));
+        assertEquals("", eval("var log = [];"
+                + " var a = {valueOf:function(){throw new Error('poison')}},"
+                + " b = {valueOf:function(){log.push('b'); return 1}};"
+                + " try { a > b } catch(e) {} log.join(',')"));
+        // neither branch runs on the abrupt completion
+        assertEquals("none", eval("var r = 'none';"
+                + " try { if (({valueOf:function(){throw new Error('poison')}}) < 1)"
+                + " { r = 'then' } else { r = 'else' } } catch(e) {} r"));
+    }
+
+    @Test
+    void comparison_nanIsNeverEqualAndNeverOrdered() {
+        assertEquals(false, eval("NaN == NaN"));
+        assertEquals(false, eval("NaN === NaN"));
+        assertEquals(true, eval("NaN != NaN"));
+        assertEquals(true, eval("NaN !== NaN"));
+        assertEquals(false, eval("NaN < 1"));
+        assertEquals(false, eval("NaN >= 1"));
+        assertEquals(false, eval("NaN <= NaN"));
+        assertEquals(false, eval("({valueOf:function(){return NaN}}) < 1"));
+        assertEquals(false, eval("'x' < 1"));
+    }
+
+    // -------------------------------------------------------------------------
     // The JsArray iteration fast path defers to a tampered @@iterator: deleting
     // Array.prototype[Symbol.iterator] makes arrays non-iterable (TypeError),
     // and a replacement — on the prototype or as an own property — is invoked.

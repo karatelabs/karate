@@ -2170,21 +2170,18 @@ class Interpreter {
         if (context.root.listener != null) {
             context.event(EventType.COMPARE, node, new Object[]{lhs, node.get(1).getText(), rhs});
         }
-        if (Terms.NAN.equals(lhs) || Terms.NAN.equals(rhs)) {
-            if (logicOp == NOT_EQ || logicOp == NOT_EQ_EQ) {
-                return true;  // NaN is not equal to anything, including itself
-            }
-            return false;  // NaN compared to anything with ==, ===, <, >, <=, >= is false
-        }
+        // §13.10: `x > y` is IsLessThan(y, x, false) and `x <= y` is its negation,
+        // so the operand swap pairs with clearing LeftFirst. An IsLessThan of
+        // undefined (NaN operand) is false for all four relational operators.
         return switch (logicOp) {
-            case EQ_EQ -> Terms.eq(lhs, rhs, false);
-            case EQ_EQ_EQ -> Terms.eq(lhs, rhs, true);
-            case NOT_EQ -> !Terms.eq(lhs, rhs, false);
-            case NOT_EQ_EQ -> !Terms.eq(lhs, rhs, true);
-            case LT -> Terms.lt(lhs, rhs);
-            case GT -> Terms.gt(lhs, rhs);
-            case LT_EQ -> Terms.ltEq(lhs, rhs);
-            case GT_EQ -> Terms.gtEq(lhs, rhs);
+            case EQ_EQ -> Terms.looseEq(lhs, rhs, context);
+            case EQ_EQ_EQ -> Terms.strictEq(lhs, rhs);
+            case NOT_EQ -> !Terms.looseEq(lhs, rhs, context);
+            case NOT_EQ_EQ -> !Terms.strictEq(lhs, rhs);
+            case LT -> Terms.isLessThan(lhs, rhs, true, context) == 1;
+            case GT -> Terms.isLessThan(rhs, lhs, false, context) == 1;
+            case LT_EQ -> Terms.isLessThan(rhs, lhs, false, context) == 0;
+            case GT_EQ -> Terms.isLessThan(lhs, rhs, true, context) == 0;
             default -> throw new RuntimeException("unexpected operator: " + node.get(1));
         };
     }

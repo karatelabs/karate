@@ -281,14 +281,16 @@ instances — shipped in the same change, along with a bare-field parse fix:
 
 Refilled 2026-08-16 (fresh numbering; ranked by real-world weight):
 
-1. **Loose equality / relational operators never apply ToPrimitive to
-   objects.** `[1] == 1` → `false`; `({valueOf:()=>3}) > 1` → `false`;
-   `'' == false` → `false`. `Interpreter.evalLogicExpr` dispatches to
-   `Terms.eq/lt/gt/ltEq/gtEq`, none of which take a `CoreContext`, so user
-   `valueOf`/`toString` can't run (objects coerce to NaN; a guard returns
-   `false`). `+`/`-`/`*` already route through `Terms.toPrimitive` — mirror
-   that. ~60 lang FAILs (`equals`/`does-not-equals`/`less-than*`/
-   `greater-than*`) + the `11.8.2/11.8.3-*` rows.
+*(P0.1 loose-equality / relational ToPrimitive shipped 2026-08-16:
+`Terms.looseEq` / `Terms.strictEq` / `Terms.isLessThan(lhs, rhs, leftFirst,
+ctx)` replaced `Terms.eq/lt/gt/ltEq/gtEq` at the `Interpreter.evalLogicExpr`
+seam. Also closed by the same rewrite: `<` never compared two strings as
+strings, `'' == false` missed the Boolean→Number leg, `+0 == -0` was
+`false`, and StringToBigInt rejected the empty string and `0x`-prefixed
+input. 70 language FAILs flipped to PASS, 0 regressions. Residual in those
+slices: 4 rows needing `\u{...}` string escapes (lexer gap) and one
+`Symbol.toPrimitive` getter probe. Original numbering kept.)*
+
 2. **Object spread/rest is a slot copy, not CopyDataProperties.** `{...o}`
    never invokes getters (the copied value lands `null`!) and copies
    non-enumerable own props. Repro: `var o={a:1,get b(){return this.a+1}};
