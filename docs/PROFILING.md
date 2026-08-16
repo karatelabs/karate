@@ -1023,8 +1023,11 @@ karate-js-benchmark stays in maintenance mode as the community-facing scoreboard
 default-vs-tuned columns are its educational value, and it keeps the GraalJS comparison.
 Its GitHub-runner numbers are not an instrument — on 2026-08-12 two back-to-back runs
 disagreed by 2.3× on a row neither build touched, and an effect the quiet bench measures at
-−11.7% read as +2.5% there. (A cheap improvement worth making there anyway: run each
-benchmark 3× and publish medians, and print the karate-js sha in the results block.)
+−11.7% read as +2.5% there. *(Resolved 2026-08-16: the repo's canonical run moved to a
+pinned dedicated EC2 host with median-of-3 publishing and the sha in the block — and the
+instability got a mechanism: on 4 vCPU hosts, GitHub runners included, JIT compiler threads
+race the measured thread, and single karate rows swung 2–4× between same-host runs; 8 vCPU
+collapses the spread. Measurement recorded in that repo's `etc/ec2-benchmark.sh` header.)*
 
 **The question:** where does karate-js stand against `rhino-best` — Rhino in interpreted
 mode with a shared sealed root scope prototyped per eval, the configuration Rhino's own

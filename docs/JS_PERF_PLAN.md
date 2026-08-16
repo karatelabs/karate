@@ -403,8 +403,15 @@ five-row geomean by a double-digit percentage. Measure, don't trust.
 - **Parsed-AST reuse in karate-core** (the real-world fresh-eval eliminator):
   parked design in PROFILING.md with the `Step`-model reasons; the engine-side
   seam (`Engine.parse`/`eval(Node)`) already exists. Revisit after Tier 1.
-- **karate-js-benchmark hygiene** (medians of 3, print the sha) — cheap,
-  separate repo.
+- **karate-js-benchmark hygiene** — ✅ done 2026-08-16, and further: the
+  repo's canonical run moved off GitHub CI onto a pinned dedicated EC2 host
+  (`etc/ec2-benchmark.sh` there — median of 3, sha printed, local checkout
+  shipped). Its 2.1.3.RC1 publish reads **parity with rhino-best** (x64
+  fresh-row geomean ~1.0; Mixed 1.33 the one row behind — consistent with
+  the R3 Graviton picture). Bonus finding recorded in that script's header:
+  on 4 vCPU hosts JIT compiler threads race the measured thread and made
+  single karate rows swing 2–4x between runs; 8 vCPU collapses the spread —
+  GitHub runners are 4 vCPU, which retro-explains much of the CI-era noise.
 
 ---
 
