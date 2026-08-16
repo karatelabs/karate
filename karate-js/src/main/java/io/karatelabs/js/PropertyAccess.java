@@ -1104,14 +1104,26 @@ class PropertyAccess {
                 accSlot.write(receiver, value, context, context.strict);
                 return;
             }
-            if (receiver != object && receiver instanceof ObjectLike receiverObj) {
-                // super data write: no accessor anywhere on the base's chain,
-                // so the property is created/updated on the instance.
-                // putMember on the receiver still honors an own accessor and
-                // writable=false there (the spec's receiver-side checks).
-                Object oldValue = receiverObj.getMember(name);
-                receiverObj.putMember(name, value, context, context.strict);
-                firePropertySet(context, name, value, oldValue, receiver, trackingNode);
+            if (receiver != object) {
+                if (receiver instanceof ObjectLike receiverObj) {
+                    // super data write: no accessor anywhere on the base's
+                    // chain, so the property is created/updated on the
+                    // instance. putMember on the receiver still honors an own
+                    // accessor and writable=false there (the spec's
+                    // receiver-side checks).
+                    Object oldValue = receiverObj.getMember(name);
+                    receiverObj.putMember(name, value, context, context.strict);
+                    firePropertySet(context, name, value, oldValue, receiver, trackingNode);
+                    return;
+                }
+                // Non-object receiver (a super write with a primitive `this`,
+                // e.g. B.prototype.m.call(3)): the write can neither create a
+                // property on the primitive nor be allowed to land on the
+                // shared prototype. Strict: TypeError; sloppy: silent no-op.
+                if (context.strict) {
+                    throw JsErrorException.typeError(
+                            "cannot create property '" + name + "' on " + Terms.typeOf(receiver));
+                }
                 return;
             }
             Object oldValue = objectLike.getMember(name);

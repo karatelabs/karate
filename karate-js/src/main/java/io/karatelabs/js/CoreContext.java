@@ -361,16 +361,39 @@ class CoreContext implements Context {
         if (!arrowFrame) {
             return getArgumentsObject();
         }
+        // An explicit binding literally named `arguments` (an arrow parameter
+        // or a var) anywhere on the lexical path shadows the implicit object —
+        // returning null defers to ordinary identifier resolution, which will
+        // find that binding.
+        if (hasOwnArgumentsBinding()) {
+            return null;
+        }
         // Lexical walk: a function frame's declaring context is `outer`;
         // script-level contexts chain via `parent`.
         CoreContext c = outer != null ? outer : parent;
         while (c != null) {
+            if (c.hasOwnArgumentsBinding()) {
+                return null;
+            }
             if (c.callArgs != null && !c.arrowFrame) {
                 return c.getArgumentsObject();
             }
             c = c.outer != null ? c.outer : c.parent;
         }
         return null;
+    }
+
+    /** True when this context declares its own binding named `arguments`
+     *  (frame slot or store) — which must shadow any implicit arguments
+     *  object further up the lexical chain. */
+    private boolean hasOwnArgumentsBinding() {
+        if (frameTable != null) {
+            int idx = frameTable.indexOf("arguments");
+            if (idx >= 0 && frame != null && frame[idx] != SlotTable.UNDECLARED) {
+                return true;
+            }
+        }
+        return bindings != null && bindings.hasMember("arguments");
     }
 
     /** Returns the `arguments` object for this function call, lazily wrapping

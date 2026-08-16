@@ -796,12 +796,24 @@ class Interpreter {
             callContext = new CoreContext(context, node, args, jsFunc.declaredContext, jsFunc.capturedBindings);
             callContext.strict = jsFunc.strict;
             callContext.callInfo = new CallInfo(true, callable);
+            callContext.privateEnv = jsFunc.privateEnv;
+            callContext.activeFunction = jsFunc;
             newInstance = allocateInstance(jsFunc);
             Object proto = jsFunc.getMember("prototype");
             if (proto instanceof ObjectLike protoObj) {
                 setInstancePrototype(newInstance, protoObj);
             }
             callContext.thisObject = newInstance;
+            // Same construction sequence as the syntactic `new` path in
+            // invokeCallable — without this, Reflect.construct on a derived
+            // class skipped the super() chain and field initializers, so an
+            // exotic subclass came back allocated but empty.
+            if (jsFunc.isDefaultDerivedConstructor) {
+                runSuperConstructor(jsFunc, newInstance, args, callContext);
+                runInstanceFieldInitializers(jsFunc, newInstance, callContext);
+            } else if (!jsFunc.isDerivedConstructor) {
+                runInstanceFieldInitializers(jsFunc, newInstance, callContext);
+            }
             callContext.event(EventType.CONTEXT_ENTER, node);
             result = jsFunc.bindArgsAndExecute(callContext, context, args);
         } else {

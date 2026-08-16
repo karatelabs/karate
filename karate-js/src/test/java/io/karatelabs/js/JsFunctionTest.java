@@ -163,6 +163,13 @@ class JsFunctionTest extends EvalBase {
     }
 
     @Test
+    void testArrowParameterNamedArgumentsShadowsImplicitObject() {
+        // an explicit binding named `arguments` on the lexical path wins over
+        // the enclosing function's implicit arguments object
+        assertEquals(42, eval("function f(x){ return ((arguments) => () => arguments)(42) }\nf(1)()"));
+    }
+
+    @Test
     void testArrowArgumentsCalledAfterEnclosingReturns() {
         // the arrow closes over the frame; arguments must survive the call
         assertEquals(List.of(3, 4), eval("function f(){ return () => arguments }\nf(3, 4)()"));

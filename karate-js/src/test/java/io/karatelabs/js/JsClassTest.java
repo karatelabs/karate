@@ -288,6 +288,23 @@ class JsClassTest extends EvalBase {
     }
 
     @Test
+    void testReflectConstructRunsSuperChainAndFields() {
+        assertEquals("[1,2,3]", eval("class S extends Array {}\nJSON.stringify(Reflect.construct(S, [1, 2, 3]))"));
+        assertEquals(5, eval("class C { a = 5 }\nReflect.construct(C, []).a"));
+        assertEquals(7, eval("class A { constructor(x) { this.x = x } }\nclass B extends A {}\n"
+                + "Reflect.construct(B, [7]).x"));
+    }
+
+    @Test
+    void testSuperDataWriteWithPrimitiveReceiverNeverHitsPrototype() {
+        // a super write against a primitive `this` must not mutate the shared
+        // parent prototype (TypeError in strict mode, no-op in sloppy)
+        assertEquals(1, eval("class A {}\nA.prototype.x = 1;\n"
+                + "class B extends A { m() { super.x = 2 } }\n"
+                + "try { B.prototype.m.call(3) } catch (e) {}\nA.prototype.x"));
+    }
+
+    @Test
     void testExtendsDateHasTimeSlot() {
         assertEquals(true, eval("class D extends Date { epoch() { return this.getTime() === 0 } }\n"
                 + "var d = new D(0);\nd.getTime() === 0 && d.epoch() && d instanceof Date"));
