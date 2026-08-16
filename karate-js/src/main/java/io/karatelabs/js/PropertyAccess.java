@@ -845,18 +845,42 @@ class PropertyAccess {
                 return Terms.UNDEFINED;
             }
         } else if (object instanceof JsArray jsArr) {
-            // Own properties pass through raw — preserves a literal {@code null}
-            // value at an index/named key (test262
+            // Single fused pass replaces the historical isOwnProperty +
+            // getMember pair, which probed namedProps twice and ran
+            // parseIndex on every name twice. Own properties pass through
+            // raw — preserves a literal {@code null} value at an
+            // index/named key (test262
             // {@code defineProperty/15.2.3.6-4-{207,208,216,312}} install a
             // value of {@code null} via {@code defineProperty(arr, "0",
             // {value: null})} and then read {@code arr[0]}; without the
-            // own-check the {@link #isFound} fallback wrongly converts
+            // raw return the {@link #isFound} fallback wrongly converts
             // {@code null} → {@code undefined}).
-            if (jsArr.isOwnProperty(name)) {
-                return jsArr.getMember(name, object, context);
+            PropertySlot ownSlot = jsArr.getOwnSlot(name);
+            if (ownSlot != null) {
+                return ownSlot.read(object, context);
             }
-            Object result = jsArr.getMember(name, object, context);
+            if ("__proto__".equals(name)) {
+                ObjectLike p = jsArr.getPrototype();
+                return p != null ? p : Terms.UNDEFINED;
+            }
+            // length, or a present dense element — virtual, so buffer-backed
+            // subclass storage is honored. A stored literal null reads as
+            // absent here and is recovered by the own-slot tail below.
+            Object intrinsic = jsArr.resolveOwnIntrinsic(name);
+            if (intrinsic != null) return intrinsic;
+            ObjectLike proto = jsArr.getPrototype();
+            Object result = proto == null ? null : proto.getMember(name, object, context);
             if (isFound(result)) return result;
+            // Rare tail: an own dense element holding literal null is
+            // indistinguishable from a hole in resolveOwnIntrinsic, but it
+            // IS an own property — return the chain result raw, matching
+            // the historical getMember raw return for an own key.
+            if (!name.isEmpty()) {
+                char c0 = name.charAt(0);
+                if (c0 >= '0' && c0 <= '9' && jsArr.hasOwnIndexedSlot(JsArray.parseIndex(name))) {
+                    return result;
+                }
+            }
             return Terms.UNDEFINED;
         } else if (object instanceof ObjectLike ol) {
             Object result = ol.getMember(name, object, context);
