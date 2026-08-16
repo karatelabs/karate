@@ -23,6 +23,7 @@
  */
 package io.karatelabs.js;
 
+import io.karatelabs.parser.JsParser;
 import io.karatelabs.parser.Node;
 import io.karatelabs.parser.NodeType;
 import io.karatelabs.parser.Token;
@@ -335,15 +336,12 @@ class Interpreter {
                 Node keyNode = elem.getFirst();
                 TokenType keyType = keyNode.token.type;
                 if (keyType == DOT_DOT_DOT) {
-                    Map<String, Object> rest = new LinkedHashMap<>();
-                    if (map != null) {
-                        for (Map.Entry<String, Object> e : map.entrySet()) {
-                            if (!consumed.contains(e.getKey())) {
-                                rest.put(e.getKey(), e.getValue());
-                            }
-                        }
+                    JsObject rest = new JsObject();
+                    Terms.copyDataProperties(rest, source, consumed, context);
+                    if (context.isError()) { // cooperative throw in a getter
+                        return;
                     }
-                    bindTarget(elem.get(1), context, bindScope, new JsObject(rest), initialized);
+                    bindTarget(elem.get(1), context, bindScope, rest, initialized);
                     break;
                 }
                 boolean computed = keyType == L_BRACKET;
@@ -1919,15 +1917,17 @@ class Interpreter {
                 key = keyNode.getText();
             }
             if (token == DOT_DOT_DOT) {
-                // {...AssignmentExpression} — copy the operand's own enumerable
-                // properties into result. The operand is any expression, not just a bare ident.
-                spreadInto(result, evalExpr(elem.get(1), context));
+                // {...AssignmentExpression} — CopyDataProperties of the operand's own
+                // enumerable properties. The operand is any expression, not just a bare ident.
+                Terms.copyDataProperties(result, evalExpr(elem.get(1), context), null, context);
             } else if (elem.size() > afterKeyPos && elem.get(afterKeyPos).type == NodeType.FN_EXPR) {
                 // Shorthand method: {foo() {...}} or {[k]() {...}} — the synthetic
                 // FN_EXPR is the next child after the key structure.
                 result.put(key, evalFnExpr(elem.get(afterKeyPos), context));
             } else if (!computed && elem.size() < 3) { // shorthand {foo}
                 result.put(key, context.get(key));
+            } else if (JsParser.isProtoSetter(elem)) {
+                setLiteralPrototype(result, evalExpr(elem.get(afterKeyPos + 1), context), context);
             } else {
                 result.put(key, evalExpr(elem.get(afterKeyPos + 1), context));
             }
@@ -1941,27 +1941,19 @@ class Interpreter {
     }
 
     /**
-     * Object spread {@code {...value}} — copies the value's own enumerable string-keyed
-     * properties into {@code result} (spec CopyDataProperties). null/undefined are a no-op;
-     * arrays and strings expose integer-index keys (strings by code unit); other primitives
-     * (number/boolean) have no own enumerable properties and contribute nothing.
+     * Spec B.3.1 __proto__ Property Names in Object Initializers — the plain
+     * {@code __proto__: value} form sets [[Prototype]] instead of creating an own
+     * property. Only an object or null takes effect; any other value is silently
+     * ignored, and either way no own property is created.
      */
-    private static void spreadInto(JsObject result, Object value) {
-        if (value == null || value == Terms.UNDEFINED) {
+    private static void setLiteralPrototype(JsObject result, Object value, CoreContext context) {
+        if (context.isError()) {
             return;
         }
-        if (value instanceof JsArray arr) {
-            for (int j = 0; j < arr.size(); j++) {
-                result.put(String.valueOf(j), arr.get(j));
-            }
-        } else if (value instanceof Map<?, ?> temp) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> map = (Map<String, Object>) temp;
-            result.putAll(map);
-        } else if (value instanceof String s) {
-            for (int j = 0; j < s.length(); j++) {
-                result.put(String.valueOf(j), String.valueOf(s.charAt(j)));
-            }
+        if (value == null) {
+            result.setPrototype(null);
+        } else if (value instanceof ObjectLike proto) {
+            result.setPrototype(proto);
         }
     }
 

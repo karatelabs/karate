@@ -1730,6 +1730,90 @@ class SpecPinTest extends EvalBase {
         assertEquals("1,2,3", eval("var a = [1]; a.push(2, 3); a.join(',')"));
     }
 
+    // -------------------------------------------------------------------------
+    // CopyDataProperties (§7.3.26) — one seam behind Object.assign, object
+    // spread and destructuring rest. Getters fire at copy time and the result
+    // lands as a data property; non-enumerable own properties never copy.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void copyDataProperties_getterInvokedAtCopyTime() {
+        assertEquals(2, eval("var o = {a: 1, get b() { return this.a + 1 }}; ({...o}).b"));
+        assertEquals(2, eval("var o = {a: 1, get b() { return this.a + 1 }}; var {a, ...r} = o; r.b"));
+        assertEquals(2, eval("var o = {a: 1, get b() { return this.a + 1 }}; Object.assign({}, o).b"));
+        // the copy is a data property, not a shared accessor
+        assertEquals(2, eval("var o = {a: 1, get b() { return this.a + 1 }};"
+                + " var c = {...o}; o.a = 100; c.b"));
+        // a throwing getter ends the copy — later properties are not copied
+        assertEquals("boom", eval("var o = {get a() { throw new Error('boom') }, b: 2};"
+                + " try { ({...o}) } catch (e) { e.message }"));
+    }
+
+    @Test
+    void copyDataProperties_skipsNonEnumerable() {
+        assertEquals(false, eval("var o = {a: 1};"
+                + " Object.defineProperty(o, 'h', {value: 4, enumerable: false}); 'h' in {...o}"));
+        assertEquals("b", eval("var o = {a: 1, b: 2};"
+                + " Object.defineProperty(o, 'h', {value: 4, enumerable: false});"
+                + " var {a, ...r} = o; Object.keys(r).join(',')"));
+    }
+
+    @Test
+    void copyDataProperties_restExcludesBoundKeys() {
+        assertEquals("c", eval("var {a, b, ...r} = {a: 1, b: 2, c: 3}; Object.keys(r).join(',')"));
+        assertEquals("0,1", eval("var {length, ...r} = 'ab'; Object.keys(r).join(',')"));
+    }
+
+    @Test
+    void objectSpread_sourceShapes() {
+        assertEquals("{}", eval("JSON.stringify({...null})"));
+        assertEquals("{}", eval("JSON.stringify({...undefined})"));
+        assertEquals("{}", eval("JSON.stringify({...5})"));
+        assertEquals("{\"0\":\"a\",\"1\":\"b\"}", eval("JSON.stringify({...'ab'})"));
+        assertEquals("{\"0\":1,\"2\":3}", eval("JSON.stringify({...[1,,3]})")); // holes are not own keys
+        // sources evaluate left to right, later wins
+        assertEquals("{\"a\":1,\"b\":2,\"c\":2}", eval("JSON.stringify({...{a:1,b:1}, ...{b:2,c:2}})"));
+        assertEquals("{\"a\":9}", eval("JSON.stringify({get a() { return 1 }, ...{a: 9}})"));
+    }
+
+    // -------------------------------------------------------------------------
+    // B.3.1 __proto__ Property Names in Object Initializers — the plain
+    // `__proto__: value` form sets [[Prototype]]; every other spelling stays
+    // an ordinary own property.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void protoLiteral_setsPrototype() {
+        assertNull(eval("Object.getPrototypeOf({__proto__: null})"));
+        assertEquals("undefined", eval("typeof ({__proto__: null}).hasOwnProperty"));
+        assertEquals("hi", eval("var p = {greet() { return 'hi' }}; ({__proto__: p}).greet()"));
+        assertEquals("hi", eval("var p = {greet() { return 'hi' }}; ({\"__proto__\": p}).greet()"));
+        assertEquals("[]", eval("var p = {x: 1}; JSON.stringify(Object.keys({__proto__: p}))"));
+        assertEquals(1, eval("var p = {x: 1}; ({__proto__: p, a: 1}).x"));
+    }
+
+    @Test
+    void protoLiteral_nonObjectValueIgnoredButStillEvaluated() {
+        // no own property is created either way, and the prototype is unchanged
+        assertEquals("[]", eval("JSON.stringify(Object.keys({__proto__: 5}))"));
+        assertEquals(true, eval("Object.getPrototypeOf({__proto__: 5}) === Object.prototype"));
+        assertEquals(true, eval("Object.getPrototypeOf({__proto__: undefined}) === Object.prototype"));
+        assertEquals(1, eval("var n = 0; ({__proto__: (n++, 5)}); n"));
+    }
+
+    @Test
+    void protoLiteral_onlyThePlainColonFormTriggers() {
+        assertEquals("[\"__proto__\"]", eval("var __proto__ = 1;"
+                + " JSON.stringify(Object.keys({__proto__}))"));
+        assertEquals("[\"__proto__\"]", eval("var p = {x: 1};"
+                + " JSON.stringify(Object.keys({['__proto__']: p}))"));
+        assertEquals("[\"__proto__\"]", eval("JSON.stringify(Object.keys({__proto__() {}}))"));
+        // spread of a literal that already consumed its __proto__ carries nothing over
+        assertEquals("[]", eval("var p = {x: 1}; JSON.stringify(Object.keys({...{__proto__: p}}))"));
+        // JSON.parse has no B.3.1 rule
+        assertEquals("{\"__proto__\":1}", eval("JSON.stringify(JSON.parse('{\"__proto__\":1}'))"));
+    }
+
     @Test
     void return_theCheckIsOnTheSourceNotOnALineNumberThatCanWrap() {
         // `Token.line` is a short. Past 32768 lines it wraps, so a guard clause whose body sits 65536 lines

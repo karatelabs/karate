@@ -291,13 +291,11 @@ input. 70 language FAILs flipped to PASS, 0 regressions. Residual in those
 slices: 4 rows needing `\u{...}` string escapes (lexer gap) and one
 `Symbol.toPrimitive` getter probe. Original numbering kept.)*
 
-2. **Object spread/rest is a slot copy, not CopyDataProperties.** `{...o}`
-   never invokes getters (the copied value lands `null`!) and copies
-   non-enumerable own props. Repro: `var o={a:1,get b(){return this.a+1}};
-   ({...o}).b` → `null` (exp `2`). `Object.assign` is correct — spread
-   diverged onto its own path (principle-#5 smell; collapse to one seam).
-   ~40–60 FAILs (`obj-ptrn-rest-getter`, `-skip-non-enumerable`,
-   `spread-obj-getter-descriptor`).
+*(P0.2 shipped 2026-08-16: `Terms.copyDataProperties(target, source,
+excluded, ctx)` is the single §7.3.26 seam — `Object.assign`, object spread
+and destructuring rest all route through it, so getters fire at copy time,
+non-enumerable own properties are skipped, and a throwing getter stops the
+copy. See [JS_ENGINE.md § Own-key ordering](../docs/JS_ENGINE.md#own-key-ordering).)*
 *(P0.3 shipped 2026-08-16: `JsJson.serializeProperty` /
 `JsJson.internalize` are the spec-shaped §25.5.2 / §25.5.1 seams —
 reviver, `toJSON`, holder-`this` for replacer functions, replacer arrays
@@ -313,10 +311,11 @@ bindings; JS `Date` now routes through `Date.prototype.toJSON`.)*
    `super.area` evaluates the base getter with the wrong `this` (→ `NaN`);
    super setter writes go nowhere. The class path-skip hides the test262
    evidence; battery-verified.
-6. **`__proto__:` in an object literal creates an ordinary own property**
-   instead of setting [[Prototype]] — breaks the `{__proto__: null}` /
-   `{__proto__: parent}` dictionary idiom. (`o.__proto__ = p` and
-   `Object.setPrototypeOf` both work.) 4 tests.
+*(P0.6 shipped 2026-08-16: B.3.1 `__proto__:` in an object literal now sets
+[[Prototype]], with `JsParser.isProtoSetter` the one shape predicate shared
+by the interpreter and the §13.2.5.1 duplicate early error — the
+`__proto__`-duplicate edge in the expressions/object slice below is closed
+with it.)*
 7. **Wrong-answer tail** (each battery-verified, smaller blast radius):
    arrows get their own `arguments` instead of the enclosing function's;
    `fn.length` counts default/rest params (and `bind` doesn't subtract
@@ -472,7 +471,7 @@ early-error validation) is advanced-pattern territory.
 | Slice | What's blocking it |
 |---|---|
 | `test/language/statements/for-of` | IteratorClose machinery is in place (`Interpreter.destructurePattern`/`evalForStmt` + `JsIterator.close`). Remaining: assignment-pattern target-eval-order (`[ obj[sideEffect()] ] of …` must evaluate the target reference before stepping the iterator — the `*thrw-close*` family, a rare spec corner); fn-name inference for `[x = (function(){})] of …`; negative-parse tightenings. |
-| `test/language/expressions/object` | Escaped-keyword cover-name dominates; `__proto__`-duplicate edges; computed-key / spread / method-def tail. |
+| `test/language/expressions/object` | Escaped-keyword cover-name dominates; computed-key / method-def tail. *(`__proto__` set/duplicate and the spread CopyDataProperties family shipped 2026-08-16.)* |
 | `test/language/expressions/assignment` | Corrected 2026-08-16: the "destructuring parse tail" attribution was wrong — `({[a]:b, ...rest} = vals)` parses fine. Actual causes: escaped-keyword cover-names (~87) + the trailing-dot numeric literal `1.` (all 7 `dstr/obj-rest-non-string-computed-property-*`). |
 | `test/language/{statements,expressions}/function` + `arrow-function` | fn-name inference for `[x = (function(){})]`-style defaults; IteratorClose-on-throw; rest-element edges. |
 | `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS now fires under in-body `"use strict"` (the `onlyStrict`-flagged variants stay SKIP until the runner runs a strict pass). Corrected 2026-08-16: the `A5.*_T2/T3` family is **not** an Annex-B non-identifier-LHS issue — all 44 FAILs here (and ~90 suite-wide, incl. prefix/postfix inc/dec and `identifier-resolution`) are the **`with` statement**: `with` isn't a token, lexes as an identifier, `with (x)` parses as a call, and the following block derails. Real-world value low (illegal in strict mode); the path-skip only covers `statements/with/`. |

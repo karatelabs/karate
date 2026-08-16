@@ -1359,6 +1359,36 @@ them in `namedProps` and merges into Phase 1 ordering — see the
 go through `jsEntries(ctx)` or `JsObject.orderedOwnKeys(...)` — never
 read `props.keySet()` / `toMap().keySet()` raw.
 
+**CopyDataProperties (§7.3.26) has one seam:
+`Terms.copyDataProperties(target, source, excluded, ctx)`.** Three
+call sites share it — `Object.assign`, object spread `{...src}`
+(`Interpreter.evalLitObject`) and destructuring rest `{a, ...rest}`
+(`Interpreter.bindPattern`). Spread and rest previously each carried
+their own slot-copy loop, which read raw `DataSlot` values (an
+accessor copied as `null`) and did not consult the enumerable bit. The
+seam iterates `toIterable(source, ctx)`, so the getter fires at copy
+time and its result lands as a *data* property; non-enumerable own
+properties never copy; a null/undefined source is a no-op; primitives
+contribute whatever their ToObject wrapper exposes. `excluded` is the
+rest pattern's already-bound key set. A getter that throws stops the
+copy (`ctx.isError()` checked per entry). Pinned in
+`SpecPinTest.copyDataProperties_*` / `objectSpread_sourceShapes`.
+
+**B.3.1 `__proto__:` in an object literal has one shape predicate:
+`JsParser.isProtoSetter(objectElem)`.** The proto-setter form is a
+plain `__proto__` key — identifier or quoted string — followed by
+`:`. Nothing else qualifies: shorthand `{__proto__}`, computed
+`{['__proto__']: v}`, methods, accessors and spread all create
+ordinary own properties. `Interpreter.evalLitObject` calls it to route
+the value into `setPrototype` (object or null only; any other value is
+silently ignored and still creates no own property), and the fused
+early-error walk calls it to enforce §13.2.5.1's at-most-one rule —
+gated on `!inPattern`, since the cover grammar drops the rule for
+destructuring. Both must keep using the one predicate or the early
+error and the evaluation will disagree. Pinned in
+`SpecPinTest.protoLiteral_*` /
+`JsParserTest.testDuplicateProtoSetter`.
+
 **`for-in` walks the prototype chain.** `Terms.forInIterable(o, ctx)`
 is the back-end (distinct from `toIterable`, which yields own
 properties only — used by `Object.keys / values / entries / assign`).

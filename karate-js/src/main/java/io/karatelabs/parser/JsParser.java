@@ -124,6 +124,11 @@ public class JsParser extends BaseParser {
     // walk so label-free files pay only a boolean test per node.
     private boolean sawLabel;
 
+    // True if any object-literal element spelled `__proto__` as a plain (non-computed)
+    // key — gates the duplicate-proto-setter early error so ordinary literals pay only
+    // a boolean test per node.
+    private boolean sawProtoKey;
+
     public JsParser(Resource resource) {
         this(resource, false);
     }
@@ -202,6 +207,10 @@ public class JsParser extends BaseParser {
         }
         if (inPattern && node.type == NodeType.LIT_ARRAY) {
             validateRestElementRules(node);
+        }
+        // At most one B.3.1 proto-setter per ObjectLiteral; not a rule for patterns.
+        if (sawProtoKey && !inPattern && node.type == NodeType.LIT_OBJECT) {
+            checkNoDuplicateProtoSetter(node);
         }
         // Private-name family; returns the private scope to propagate to children.
         PrivateScope childPrivates = sawPrivateName ? privateNodeChecks(node, privates) : privates;
@@ -563,6 +572,59 @@ public class JsParser extends BaseParser {
             }
             default -> {
             }
+        }
+    }
+
+    private static final String PROTO_KEY = "__proto__";
+
+    /**
+     * True if an {@code OBJECT_ELEM} is the B.3.1 proto-setter form — a plain
+     * {@code __proto__} key (identifier or string literal) followed by {@code :}.
+     * Shorthand {@code {__proto__}}, computed {@code {['__proto__']: v}}, methods,
+     * accessors and spread all fail the shape and stay ordinary own properties.
+     * Shared with {@code Interpreter.evalLitObject} so the early error below and the
+     * evaluation agree on exactly one definition of the form.
+     */
+    public static boolean isProtoSetter(Node elem) {
+        if (elem.size() < 3 || !elem.get(1).isToken() || elem.get(1).token.type != COLON) {
+            return false;
+        }
+        Node key = elem.getFirst();
+        if (!key.isToken()) {
+            return false;
+        }
+        return isProtoKeyText(key.token.type, key.getText());
+    }
+
+    /** {@code __proto__} spelled as an identifier or a quoted string key — the two
+     *  spellings B.3.1 treats alike. Quotes are stripped the same way
+     *  {@code Terms.literalValue} strips them. */
+    private static boolean isProtoKeyText(TokenType type, String text) {
+        if (text == null) {
+            return false;
+        }
+        if (type == IDENT) {
+            return PROTO_KEY.equals(text);
+        }
+        return (type == S_STRING || type == D_STRING)
+                && text.length() == PROTO_KEY.length() + 2
+                && PROTO_KEY.equals(text.substring(1, text.length() - 1));
+    }
+
+    /** §13.2.5.1: at most one {@code __proto__: value} proto-setter per ObjectLiteral.
+     *  Duplicates are legal in a destructuring pattern (the cover grammar drops the
+     *  rule), so the caller gates on {@code !inPattern}. */
+    private static void checkNoDuplicateProtoSetter(Node litObject) {
+        boolean seen = false;
+        for (int i = 0, n = litObject.size(); i < n; i++) {
+            Node child = litObject.get(i);
+            if (child.isToken() || child.type != NodeType.OBJECT_ELEM || !isProtoSetter(child)) {
+                continue;
+            }
+            if (seen) {
+                throw new ParserException("duplicate __proto__ in an object literal");
+            }
+            seen = true;
         }
     }
 
@@ -2729,6 +2791,9 @@ public class JsParser extends BaseParser {
     private boolean object_elem() {
         if (!enter(NodeType.OBJECT_ELEM, T_OBJECT_ELEM)) {
             return false;
+        }
+        if (!sawProtoKey && isProtoKeyText(lastConsumed(), lastConsumedText())) {
+            sawProtoKey = true; // coarse gate; isProtoSetter decides the exact form later
         }
         // ES6 getter/setter: `get name() { ... }` or `set name(v) { ... }`.
         // `get`/`set` was consumed by enter as an IDENT. It is an accessor keyword

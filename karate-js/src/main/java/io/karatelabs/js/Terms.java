@@ -963,6 +963,30 @@ public class Terms {
     }
 
     /**
+     * Spec §7.3.26 CopyDataProperties — the single seam behind
+     * {@code Object.assign}, object spread {@code {...src}} and destructuring
+     * rest {@code {a, ...rest}}. Own enumerable string keys only, in
+     * OrdinaryOwnPropertyKeys order; an accessor's getter is invoked at copy
+     * time and its result stored as a *data* property. A null/undefined source
+     * is a no-op; primitives contribute whatever their ToObject wrapper
+     * exposes (a string's characters by index, nothing for number/boolean).
+     * {@code excluded} is the rest pattern's already-bound key set, or null.
+     */
+    static void copyDataProperties(Map<String, Object> target, Object source, Set<String> excluded, CoreContext ctx) {
+        if (source == null || source == UNDEFINED || (ctx != null && ctx.isError())) {
+            return;
+        }
+        for (KeyValue kv : toIterable(source, ctx)) {
+            if (ctx != null && ctx.isError()) { // a getter threw — nothing copies past it
+                return;
+            }
+            if (excluded == null || !excluded.contains(kv.key())) {
+                target.put(kv.key(), kv.value());
+            }
+        }
+    }
+
+    /**
      * Spec §14.7.5.6 EnumerateObjectProperties — back-end of {@code for...in}.
      * Walks the {@code [[GetPrototypeOf]]} chain rooted at {@code o},
      * yielding each enumerable own string key once, dedup'd by name (closer

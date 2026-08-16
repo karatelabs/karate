@@ -227,13 +227,8 @@ class JsObjectConstructor extends JsFunction {
         }
         CoreContext cc = context instanceof CoreContext c ? c : null;
         Map<String, Object> result = new LinkedHashMap<>();
-        for (KeyValue kv : Terms.toIterable(args[0], cc)) {
-            result.put(kv.key(), kv.value());
-        }
-        for (int i = 1; i < args.length; i++) {
-            for (KeyValue kv : Terms.toIterable(args[i], cc)) {
-                result.put(kv.key(), kv.value());
-            }
+        for (Object arg : args) {
+            Terms.copyDataProperties(result, arg, null, cc);
         }
         return result;
     }

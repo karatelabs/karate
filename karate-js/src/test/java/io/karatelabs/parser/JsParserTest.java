@@ -364,6 +364,25 @@ class JsParserTest {
     }
 
     @Test
+    void testDuplicateProtoSetter() {
+        // B.3.1: at most one `__proto__: value` proto-setter per object literal,
+        // in either spelling
+        error("({__proto__: a, __proto__: b})", ParserException.class);
+        error("({__proto__: a, '__proto__': b})", ParserException.class);
+        // every other spelling is an ordinary property and may repeat freely
+        parses("({__proto__: a, ['__proto__']: b})");
+        parses("({__proto__: a, __proto__() {}})");
+        parses("({__proto__, __proto__: b})");
+        parses("({__proto__: a, get __proto__() {}})");
+        // the cover grammar drops the rule for destructuring patterns
+        parses("({__proto__: a, __proto__: b} = {})");
+    }
+
+    private static void parses(String text) {
+        assertDoesNotThrow(() -> new JsParser(Resource.text(text)).parse());
+    }
+
+    @Test
     void testHashbang() {
         program("#!/usr/bin/env node\n1", "{PROGRAM:[1,EOF]}");
         // only at the very first character — everywhere else `#` starts a private name
