@@ -241,8 +241,9 @@ streams to be tailed.**
 
 Reordered 2026-08-12 against the real-world bar; re-probed 2026-08-16
 (latest pins: `run-post-builtins-lang` — 6433 pass / 1814 fail / 15398
-skip — and `run-post-builtins-bi` — 9648 pass / 3020 fail / 10846 skip,
-the first full built-ins baseline at the new HEAD; plus the idiomatic-JS
+skip — and `run-final2-bi` — 9654 pass / 3014 fail / 10846 skip, the
+first full built-ins baseline at the new HEAD, taken after the two-round
+external-review loop converged ship-worthy; plus the idiomatic-JS
 smoke battery at
 [Real-world smoke battery](#real-world-smoke-battery), 61/64 — the
 three holdouts are the two generator snippets and `typeof Symbol('a')`).
