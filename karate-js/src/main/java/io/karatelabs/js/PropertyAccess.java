@@ -96,16 +96,26 @@ class PropertyAccess {
         /** Non-null for {@code obj.#x}: the write goes to the object's private
          *  state, never to {@code props}, so {@code key} is unused. */
         final PrivateName privateName;
+        /** Non-null only for a {@code super.x} / {@code super[x]} reference:
+         *  the lookup walks {@code target} (the parent prototype) but every
+         *  accessor invocation and data write uses this value — the method's
+         *  {@code this} — as receiver (§13.3.7.3 MakeSuperPropertyReference). */
+        final Object receiver;
 
         AccessSite(Object target, Object key, boolean isIndex) {
-            this(target, key, isIndex, null);
+            this(target, key, isIndex, null, null);
         }
 
         AccessSite(Object target, Object key, boolean isIndex, PrivateName privateName) {
+            this(target, key, isIndex, privateName, null);
+        }
+
+        AccessSite(Object target, Object key, boolean isIndex, PrivateName privateName, Object receiver) {
             this.target = target;
             this.key = key;
             this.isIndex = isIndex;
             this.privateName = privateName;
+            this.receiver = receiver;
         }
     }
 
@@ -141,6 +151,11 @@ class PropertyAccess {
         // reaching the by-index / by-name workers, whose own TypeErrors would
         // otherwise overwrite the pending error. A null site is a no-op at
         // every caller, so the abrupt completion propagates unmodified.
+        // A super base's writes keep the method's `this` as receiver — the
+        // eval of SUPER_EXPR below yields the parent prototype, so without
+        // this the accessor/data write would land on the shared prototype.
+        Object superReceiver = node.getFirst().type == NodeType.SUPER_EXPR
+                ? context.thisObject : null;
         if (node.type == NodeType.REF_DOT_EXPR) {
             Node second = node.get(1);
             if (second.isToken()) {
@@ -152,7 +167,7 @@ class PropertyAccess {
                     return new AccessSite(target, null, false,
                             PrivateAccess.resolve(key.getText(), context));
                 }
-                return new AccessSite(target, key.getText(), false);
+                return new AccessSite(target, key.getText(), false, null, superReceiver);
             }
             if (second.type == NodeType.REF_BRACKET_EXPR) {
                 Object target = Interpreter.eval(node.getFirst(), context);
@@ -160,7 +175,7 @@ class PropertyAccess {
                 if (context.isStopped()) return null;
                 Object index = Interpreter.eval(second.get(2), context);
                 if (context.isStopped()) return null;
-                return new AccessSite(target, index, true);
+                return new AccessSite(target, index, true, null, superReceiver);
             }
             throw JsErrorException.typeError("cannot write to optional call expression");
         }
@@ -170,7 +185,32 @@ class PropertyAccess {
         if (context.isStopped()) return null;
         Object index = Interpreter.eval(node.get(2), context);
         if (context.isStopped()) return null;
-        return new AccessSite(target, index, true);
+        return new AccessSite(target, index, true, null, superReceiver);
+    }
+
+    /** Site read honoring a super receiver; the non-super shape delegates to
+     *  the ordinary index/name workers unchanged. */
+    private static Object siteRead(AccessSite site, CoreContext context) {
+        if (site.receiver == null) {
+            return site.isIndex
+                    ? getByIndex(site.target, site.key, false, context, false)
+                    : getByName(site.target, (String) site.key, false, context, false);
+        }
+        return getByName(site.target,
+                site.isIndex ? Terms.toPropertyKey(site.key) : (String) site.key,
+                false, context, false, site.receiver);
+    }
+
+    /** Site write honoring a super receiver (see {@link AccessSite#receiver}). */
+    private static void siteWrite(AccessSite site, Object value, CoreContext context, Node trackingNode) {
+        if (site.receiver == null) {
+            if (site.isIndex) setByIndex(site.target, site.key, value, context, trackingNode);
+            else setByName(site.target, (String) site.key, value, context, trackingNode);
+            return;
+        }
+        setByName(site.target,
+                site.isIndex ? Terms.toPropertyKey(site.key) : (String) site.key,
+                value, context, trackingNode, site.receiver);
     }
 
     //=== Simple get/set operations ===
@@ -245,8 +285,7 @@ class PropertyAccess {
                 AccessSite site = resolveWriteSite(node, context);
                 if (site == null || site == SHORT_CIRCUIT_SITE) return;
                 if (site.privateName != null) PrivateAccess.set(site.target, site.privateName, value, context);
-                else if (site.isIndex) setByIndex(site.target, site.key, value, context, trackingNode);
-                else setByName(site.target, (String) site.key, value, context, trackingNode);
+                else siteWrite(site, value, context, trackingNode);
             }
             default -> throw JsErrorException.typeError("cannot set on: " + node);
         }
@@ -286,8 +325,7 @@ class PropertyAccess {
                     throw JsErrorException.typeError("cannot set property on null 'super' base");
                 }
                 if (site.privateName != null) PrivateAccess.set(site.target, site.privateName, value, context);
-                else if (site.isIndex) setByIndex(site.target, site.key, value, context, trackingNode);
-                else setByName(site.target, (String) site.key, value, context, trackingNode);
+                else siteWrite(site, value, context, trackingNode);
                 yield value;
             }
             default -> throw JsErrorException.typeError("cannot set on: " + node);
@@ -325,17 +363,14 @@ class PropertyAccess {
                 if (site == null || site == SHORT_CIRCUIT_SITE || context.isStopped()) yield Terms.UNDEFINED;
                 Object oldValue = site.privateName != null
                         ? PrivateAccess.get(site.target, site.privateName, context)
-                        : site.isIndex
-                                ? getByIndex(site.target, site.key, false, context, false)
-                                : getByName(site.target, (String) site.key, false, context, false);
+                        : siteRead(site, context);
                 if (context.isStopped()) yield Terms.UNDEFINED;
                 Object operand = Interpreter.eval(rhsNode, context);
                 if (context.isStopped()) yield Terms.UNDEFINED;
                 Object newValue = applyOperator(oldValue, operator, operand, context);
                 if (context.isStopped()) yield Terms.UNDEFINED;
                 if (site.privateName != null) PrivateAccess.set(site.target, site.privateName, newValue, context);
-                else if (site.isIndex) setByIndex(site.target, site.key, newValue, context, trackingNode);
-                else setByName(site.target, (String) site.key, newValue, context, trackingNode);
+                else siteWrite(site, newValue, context, trackingNode);
                 yield newValue;
             }
             default -> throw JsErrorException.typeError("cannot apply compound assignment to: " + node);
@@ -387,6 +422,17 @@ class PropertyAccess {
                     Object newValue = Interpreter.eval(rhsNode, context);
                     if (context.isStopped()) yield null;
                     PrivateAccess.set(site.target, site.privateName, newValue, context);
+                    yield newValue;
+                }
+                if (site.receiver != null) {
+                    // super reference — the fused by-index/by-name workers
+                    // below have no receiver seam; run the generic sequence.
+                    Object oldValue = siteRead(site, context);
+                    if (context.isStopped()) yield null;
+                    if (!shouldLogicalAssign(operator, oldValue)) yield oldValue;
+                    Object newValue = Interpreter.eval(rhsNode, context);
+                    if (context.isStopped()) yield null;
+                    siteWrite(site, newValue, context, trackingNode);
                     yield newValue;
                 }
                 yield site.isIndex
@@ -490,6 +536,7 @@ class PropertyAccess {
                 AccessSite site = resolveWriteSite(node, context);
                 if (site == null || site == SHORT_CIRCUIT_SITE) yield Terms.UNDEFINED;
                 if (site.privateName != null) yield privateIncDec(site, isIncrement, false, context);
+                if (site.receiver != null) yield superIncDec(site, isIncrement, false, context);
                 yield site.isIndex
                         ? postIncDecByIndex(site.target, site.key, isIncrement, context)
                         : postIncDecByName(site.target, (String) site.key, isIncrement, context);
@@ -527,6 +574,7 @@ class PropertyAccess {
                 AccessSite site = resolveWriteSite(node, context);
                 if (site == null || site == SHORT_CIRCUIT_SITE) yield Terms.UNDEFINED;
                 if (site.privateName != null) yield privateIncDec(site, isIncrement, true, context);
+                if (site.receiver != null) yield superIncDec(site, isIncrement, true, context);
                 yield site.isIndex
                         ? preIncDecByIndex(site.target, site.key, isIncrement, context)
                         : preIncDecByName(site.target, (String) site.key, isIncrement, context);
@@ -625,7 +673,8 @@ class PropertyAccess {
         // method receiver (`this`) to the current instance, not the prototype.
         if (node.getFirst().type == NodeType.SUPER_EXPR && node.get(1).type == NodeType.TOKEN) {
             ObjectLike superProto = Interpreter.evalSuperBase(context);
-            Object v = getByName(superProto, node.get(2).getText(), false, context, functionCall);
+            Object v = getByName(superProto, node.get(2).getText(), false, context, functionCall,
+                    context.thisObject); // a getter on the parent runs with the instance as `this`
             if (wantReceiver) context.callReceiver = context.thisObject;
             return v;
         }
@@ -720,6 +769,13 @@ class PropertyAccess {
     }
 
     private static Object getRefBracketExpr(Node node, CoreContext context, boolean functionCall) {
+        // `super[x]` — same receiver rule as the dot form in resolveRefDot.
+        if (node.getFirst().type == NodeType.SUPER_EXPR) {
+            ObjectLike superProto = Interpreter.evalSuperBase(context);
+            Object index = Interpreter.eval(node.get(2), context);
+            return getByName(superProto, Terms.toPropertyKey(index), false, context, functionCall,
+                    context.thisObject);
+        }
         Object object = Interpreter.eval(node.getFirst(), context);
         if (object == SHORT_CIRCUITED) return SHORT_CIRCUITED;
         Object index = Interpreter.eval(node.get(2), context);
@@ -764,6 +820,16 @@ class PropertyAccess {
     }
 
     private static Object getCallableRefBracketExpr(Node node, CoreContext context) {
+        // `super[x]()` — the method is found on the parent prototype but must
+        // be invoked with the current instance as `this`, matching the dot form.
+        if (node.getFirst().type == NodeType.SUPER_EXPR) {
+            ObjectLike superProto = Interpreter.evalSuperBase(context);
+            Object index = Interpreter.eval(node.get(2), context);
+            Object result = getByName(superProto, Terms.toPropertyKey(index), false, context, true,
+                    context.thisObject);
+            context.callReceiver = context.thisObject;
+            return result;
+        }
         Object object = Interpreter.eval(node.getFirst(), context);
         if (object == SHORT_CIRCUITED) return SHORT_CIRCUITED;
         Object index = Interpreter.eval(node.get(2), context);
@@ -813,6 +879,15 @@ class PropertyAccess {
 
     private static Object getByName(Object object, String name, boolean optional,
                                      CoreContext context, boolean functionCall) {
+        return getByName(object, name, optional, context, functionCall, object);
+    }
+
+    /** Receiver-aware variant for super references (§13.3.7.3): the lookup
+     *  walks {@code object}'s chain, but any getter runs with {@code receiver}
+     *  as its {@code this}. All non-super callers pass {@code object} itself
+     *  via the delegating overload above. */
+    private static Object getByName(Object object, String name, boolean optional,
+                                     CoreContext context, boolean functionCall, Object receiver) {
         if (object == null || object == Terms.UNDEFINED) {
             // Reading a property of null/undefined is a TypeError (or undefined under ?.).
             // Do NOT fall back to a same-named scope variable: `a.b.c` where `a.b` is null
@@ -830,9 +905,9 @@ class PropertyAccess {
             // the own-hit branch of 3-arg getMember is exactly slot.read).
             PropertySlot own = jsObj.getOwnSlot(name);
             if (own != null) {
-                return own.read(object, context);
+                return own.read(receiver, context);
             }
-            Object result = jsObj.getMember(name, object, context);
+            Object result = jsObj.getMember(name, receiver, context);
             if (isFound(result)) return result;
             // JsValue wrappers may carry an original Java value (e.g. JsDate
             // from a ZonedDateTime); route the missed lookup through it via
@@ -857,7 +932,7 @@ class PropertyAccess {
             // {@code null} → {@code undefined}).
             PropertySlot ownSlot = jsArr.getOwnSlot(name);
             if (ownSlot != null) {
-                return ownSlot.read(object, context);
+                return ownSlot.read(receiver, context);
             }
             if ("__proto__".equals(name)) {
                 ObjectLike p = jsArr.getPrototype();
@@ -869,7 +944,7 @@ class PropertyAccess {
             Object intrinsic = jsArr.resolveOwnIntrinsic(name);
             if (intrinsic != null) return intrinsic;
             ObjectLike proto = jsArr.getPrototype();
-            Object result = proto == null ? null : proto.getMember(name, object, context);
+            Object result = proto == null ? null : proto.getMember(name, receiver, context);
             if (isFound(result)) return result;
             // Rare tail: an own dense element holding literal null is
             // indistinguishable from a hole in resolveOwnIntrinsic, but it
@@ -883,7 +958,7 @@ class PropertyAccess {
             }
             return Terms.UNDEFINED;
         } else if (object instanceof ObjectLike ol) {
-            Object result = ol.getMember(name, object, context);
+            Object result = ol.getMember(name, receiver, context);
             if (isFound(result)) return result;
         } else if (object instanceof Map) {
             Map<String, Object> map = (Map<String, Object>) object;
@@ -894,18 +969,18 @@ class PropertyAccess {
             // O(size) allocation on every missed key read, and `response.absentField` on a large
             // JSON body is exactly that. An empty probe reaches the same prototype chain, and the
             // receiver passed along is still the real map.
-            Object result = PROTOTYPE_PROBE.getMember(name, object, context);
+            Object result = PROTOTYPE_PROBE.getMember(name, receiver, context);
             if (result != null) return result;
         } else if (object instanceof List) {
             ObjectLike ol = Terms.toObjectLike(object);
             if (ol != null) {
-                Object result = ol.getMember(name, object, context);
+                Object result = ol.getMember(name, receiver, context);
                 if (isFound(result)) return result;
             }
         } else {
             ObjectLike ol = Terms.toObjectLike(object);
             if (ol != null) {
-                Object result = ol.getMember(name, object, context);
+                Object result = ol.getMember(name, receiver, context);
                 if (isFound(result)) return result;
             }
         }
@@ -991,6 +1066,16 @@ class PropertyAccess {
      * unshift}} can do per-item Set in the spec sequence.
      */
     static void setByName(Object object, String name, Object value, CoreContext context, Node trackingNode) {
+        setByName(object, name, value, context, trackingNode, object);
+    }
+
+    /** Receiver-aware variant for super references (§10.1.9 OrdinarySet with a
+     *  distinct receiver): the accessor lookup walks {@code object}'s chain —
+     *  the super base — but a setter runs with {@code receiver} as its
+     *  {@code this}, and a data write creates/updates the property on
+     *  {@code receiver}, never on the shared prototype. All non-super callers
+     *  pass {@code object} itself via the delegating overload above. */
+    static void setByName(Object object, String name, Object value, CoreContext context, Node trackingNode, Object receiver) {
         if (name == null) {
             throw JsErrorException.typeError("unexpected set [null]:" + value + " on: " + object);
         }
@@ -1016,7 +1101,17 @@ class PropertyAccess {
             // silently drops the write.
             AccessorSlot accSlot = findAccessorInChain(objectLike, name);
             if (accSlot != null) {
-                accSlot.write(object, value, context, context.strict);
+                accSlot.write(receiver, value, context, context.strict);
+                return;
+            }
+            if (receiver != object && receiver instanceof ObjectLike receiverObj) {
+                // super data write: no accessor anywhere on the base's chain,
+                // so the property is created/updated on the instance.
+                // putMember on the receiver still honors an own accessor and
+                // writable=false there (the spec's receiver-side checks).
+                Object oldValue = receiverObj.getMember(name);
+                receiverObj.putMember(name, value, context, context.strict);
+                firePropertySet(context, name, value, oldValue, receiver, trackingNode);
                 return;
             }
             Object oldValue = objectLike.getMember(name);
@@ -1065,6 +1160,14 @@ class PropertyAccess {
             }
         }
         return postIncDecByName(object, Terms.toPropertyKey(index), isIncrement, context);
+    }
+
+    private static Object superIncDec(AccessSite site, boolean isIncrement, boolean pre, CoreContext context) {
+        Object oldValue = siteRead(site, context);
+        Object step = Terms.incDecStep(oldValue);
+        Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step, context);
+        siteWrite(site, newValue, context, null);
+        return pre ? newValue : oldValue;
     }
 
     private static Object privateIncDec(AccessSite site, boolean isIncrement, boolean pre, CoreContext context) {

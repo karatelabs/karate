@@ -176,6 +176,63 @@ class JsClassTest extends EvalBase {
     }
 
     @Test
+    void testSuperGetterRunsWithDerivedThis() {
+        assertEquals(20, eval("class A { get area() { return this.w * this.h } }\n"
+                + "class B extends A { constructor() { super(); this.w = 4; this.h = 5 } get area() { return super.area } }\n"
+                + "new B().area"));
+    }
+
+    @Test
+    void testSuperSetterRunsWithDerivedThis() {
+        assertEquals(7, eval("class A { set val(v) { this._v = v } }\n"
+                + "class B extends A { set val(v) { super.val = v } get val() { return this._v } }\n"
+                + "var b = new B(); b.val = 7; b.val"));
+    }
+
+    @Test
+    void testSuperDataWriteCreatesOwnPropertyOnInstance() {
+        assertEquals(true, eval("class A {}\n"
+                + "class B extends A { m() { super.x = 42 } }\n"
+                + "var b = new B(); b.m();\n"
+                + "b.hasOwnProperty('x') && b.x === 42 && !A.prototype.hasOwnProperty('x') && !B.prototype.hasOwnProperty('x')"));
+    }
+
+    @Test
+    void testSuperBracketGetterRunsWithDerivedThis() {
+        assertEquals(3, eval("class A { get z() { return this.n } }\n"
+                + "class B extends A { constructor() { super(); this.n = 3 } read() { return super['z'] } }\n"
+                + "new B().read()"));
+    }
+
+    @Test
+    void testSuperBracketMethodCallBindsDerivedThis() {
+        assertEquals(6, eval("class A { m() { return this.n * 2 } }\n"
+                + "class B extends A { constructor() { super(); this.n = 3 } call() { return super['m']() } }\n"
+                + "new B().call()"));
+    }
+
+    @Test
+    void testStaticSuperGetterRunsWithDerivedThis() {
+        assertEquals("B", eval("class A { static get tag() { return this.id } }\n"
+                + "class B extends A { static get tag() { return super.tag } }\n"
+                + "B.id = 'B'; B.tag"));
+    }
+
+    @Test
+    void testSuperCompoundAssignmentThroughAccessorPair() {
+        assertEquals(6, eval("class A { get v() { return this._v } set v(x) { this._v = x } }\n"
+                + "class B extends A { constructor() { super(); this._v = 5 } bump() { super.v += 1 } }\n"
+                + "var b = new B(); b.bump(); b._v"));
+    }
+
+    @Test
+    void testSuperIncrementThroughAccessorPair() {
+        assertEquals(6, eval("class A { get v() { return this._v } set v(x) { this._v = x } }\n"
+                + "class B extends A { constructor() { super(); this._v = 5 } bump() { super.v++ } }\n"
+                + "var b = new B(); b.bump(); b._v"));
+    }
+
+    @Test
     void testExtendsErrorMessage() {
         assertEquals("boom", eval("class E extends Error { constructor(m) { super(m) } }\nnew E('boom').message"));
     }

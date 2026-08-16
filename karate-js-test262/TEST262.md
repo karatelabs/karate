@@ -318,10 +318,14 @@ microtask checkpoint, since the pump takes one job at a time. Pinned by
 activation's resumption is an unpark, not a queued job**, so it still
 loses to an already-pending timer — see
 [JS_ENGINE.md § Accepted deviations](../docs/JS_ENGINE.md#accepted-deviations) 2.)*
-5. **`super.<accessor>` loses the receiver.** A derived getter reading
-   `super.area` evaluates the base getter with the wrong `this` (→ `NaN`);
-   super setter writes go nowhere. The class path-skip hides the test262
-   evidence; battery-verified.
+*(P0.5 shipped 2026-08-16: super references now carry the method's `this` as
+receiver end to end — `AccessSite.receiver` + the receiver-aware
+`PropertyAccess.getByName`/`setByName` overloads are the §13.3.7.3 /
+§10.1.9 seams. Covers dot + bracket reads, method calls (`super['m']()`
+previously bound `this` to the parent prototype), setter writes, data
+writes (previously mutated the shared prototype; now create an own
+property on the instance), compound/logical assignment, and inc/dec.
+Pinned by `JsClassTest.testSuper*` — 8 new pins.)*
 *(P0.6 shipped 2026-08-16: B.3.1 `__proto__:` in an object literal now sets
 [[Prototype]], with `JsParser.isProtoSetter` the one shape predicate shared
 by the interpreter and the §13.2.5.1 duplicate early error — the
