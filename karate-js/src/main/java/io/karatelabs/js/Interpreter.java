@@ -2857,9 +2857,12 @@ class Interpreter {
                 }
                 case THROW -> {
                     Object throwFn = iterObj.getMember("throw", iterObj, context);
-                    if (!(throwFn instanceof JsCallable)) {
-                        // no throw: close the delegate (validating return()'s
-                        // result when present), then TypeError
+                    if (context.isStopped()) {
+                        return Terms.UNDEFINED; // a throwing `throw` getter wins outright
+                    }
+                    if (throwFn == null || throwFn == Terms.UNDEFINED) {
+                        // ABSENT throw: close the delegate (validating
+                        // return()'s result when present), then TypeError
                         Object closed = invokeIteratorMethod(iterObj, "return", null, context, false);
                         if (context.isStopped()) {
                             return Terms.UNDEFINED;
@@ -2870,9 +2873,17 @@ class Interpreter {
                         throw JsErrorException.typeError(
                                 "The iterator does not provide a 'throw' method");
                     }
-                    step = invokeIteratorMethod(iterObj, "throw", sent, context, true);
+                    if (!(throwFn instanceof JsCallable throwCallable)) {
+                        // GetMethod: a PRESENT non-callable throws immediately,
+                        // with no iterator close
+                        throw JsErrorException.typeError("iterator.throw is not a function");
+                    }
+                    step = invokeIteratorCallable(iterObj, throwCallable, sent, context);
                     if (context.isStopped()) {
                         return Terms.UNDEFINED;
+                    }
+                    if (!(step instanceof ObjectLike)) {
+                        throw JsErrorException.typeError("iterator result is not an object");
                     }
                 }
                 case RETURN -> {
@@ -2920,30 +2931,39 @@ class Interpreter {
     }
 
     /** Invoke {@code iterObj[name](arg)} with {@code iterObj} as `this`.
-     *  {@code required}: absent/non-callable is a TypeError when true, a null
-     *  return when false (caller decides). A null {@code arg} means call with
-     *  no arguments. Cooperative errors surface via context.isStopped(). */
+     *  Spec GetMethod semantics: a nullish member is absent (TypeError when
+     *  {@code required}, null return otherwise — caller decides); a PRESENT
+     *  non-callable member is always a TypeError. A null {@code arg} means
+     *  call with no arguments. Cooperative errors surface via
+     *  context.isStopped(). */
     private static Object invokeIteratorMethod(ObjectLike iterObj, String name, Object arg,
                                                CoreContext context, boolean required) {
         Object fn = iterObj.getMember(name, iterObj, context);
         if (context.isStopped()) {
             return Terms.UNDEFINED;
         }
-        if (!(fn instanceof JsCallable callable)) {
+        if (fn == null || fn == Terms.UNDEFINED) {
             if (required) {
                 throw JsErrorException.typeError("iterator." + name + " is not a function");
             }
             return null;
         }
+        if (!(fn instanceof JsCallable callable)) {
+            throw JsErrorException.typeError("iterator." + name + " is not a function");
+        }
+        Object result = invokeIteratorCallable(iterObj, callable, arg, context);
+        if (!context.isStopped() && required && !(result instanceof ObjectLike)) {
+            throw JsErrorException.typeError("iterator result is not an object");
+        }
+        return result;
+    }
+
+    private static Object invokeIteratorCallable(ObjectLike iterObj, JsCallable callable,
+                                                 Object arg, CoreContext context) {
         Object savedThis = context.thisObject;
         context.thisObject = iterObj;
         try {
-            Object result = callable.call(context,
-                    arg == null ? new Object[0] : new Object[]{arg});
-            if (!context.isStopped() && required && !(result instanceof ObjectLike)) {
-                throw JsErrorException.typeError("iterator result is not an object");
-            }
-            return result;
+            return callable.call(context, arg == null ? new Object[0] : new Object[]{arg});
         } finally {
             context.thisObject = savedThis;
         }

@@ -1190,7 +1190,13 @@ class PropertyAccess {
                 Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
                 Object step = Terms.incDecStep(oldValue);
                 Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step, context);
-                list.set(i, newValue);
+                if (i < list.size()) {
+                    list.set(i, newValue);
+                } else {
+                    // out-of-range: the guarded write path pads (with the
+                    // DENSE_PAD_LIMIT cap) instead of a raw crashing set
+                    setByIndex(object, i, newValue, context, null);
+                }
                 firePropertySet(context, String.valueOf(i), newValue, oldValue, object, null);
                 return oldValue;
             }
@@ -1230,7 +1236,13 @@ class PropertyAccess {
                 Object oldValue = i < list.size() ? list.get(i) : Terms.UNDEFINED;
                 Object step = Terms.incDecStep(oldValue);
                 Object newValue = isIncrement ? Terms.add(oldValue, step, context) : Terms.min(oldValue, step, context);
-                list.set(i, newValue);
+                if (i < list.size()) {
+                    list.set(i, newValue);
+                } else {
+                    // out-of-range: the guarded write path pads (with the
+                    // DENSE_PAD_LIMIT cap) instead of a raw crashing set
+                    setByIndex(object, i, newValue, context, null);
+                }
                 firePropertySet(context, String.valueOf(i), newValue, oldValue, object, null);
                 return newValue;
             }

@@ -472,6 +472,21 @@ class JsArrayTest extends EvalBase {
     }
 
     @Test
+    void testIncDecAtAbsentIndexExtendsInsteadOfCrashing() {
+        // a[1]++ on [] used to raw-crash with IndexOutOfBounds; the write now
+        // routes through the guarded path (external-review round 4)
+        assertEquals(true, eval("var a = [];\na[1]++;\n"
+                + "a.length === 2 && isNaN(a[1]) && !(0 in a)"));
+        assertEquals(4, eval("var b = [];\n++b[3];\nb.length"));
+    }
+
+    @Test
+    void testIncDecAtHugeIndexIsRangeErrorNotCrash() {
+        assertEquals("RangeError", eval("var a = [];\n"
+                + "try { a[2147483646]++ } catch (e) { e.name }"));
+    }
+
+    @Test
     void testUnshiftBeyondMaxSafeIntegerIsTypeError() {
         assertEquals("TypeError", eval("var o = { length: Math.pow(2, 53) };\n"
                 + "try { Array.prototype.unshift.call(o, null) } catch (e) { e.name }"));

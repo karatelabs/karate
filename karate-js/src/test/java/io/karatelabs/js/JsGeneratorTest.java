@@ -302,6 +302,31 @@ class JsGeneratorTest extends EvalBase {
     }
 
     @Test
+    void testYieldStarNonCallableReturnIsTypeError() {
+        // GetMethod: a PRESENT non-callable `return` throws — it is not
+        // treated as absent (external-review round 4)
+        assertEquals("TypeError", eval("var delegate = { next() { return { value: 1, done: false } },\n"
+                + "  'return': 42, '@@iterator'() { return this } };\n"
+                + "function* g() { yield* delegate }\n"
+                + "var it = g();\nit.next();\ntry { it.return(9); 'no throw' } catch (e) { e.name }"));
+    }
+
+    @Test
+    void testYieldStarThrowGetterErrorWinsWithoutClosing() {
+        // a throwing `throw` accessor propagates immediately — return() is
+        // never consulted (external-review round 4)
+        assertEquals(true, eval("var touched = 0;\n"
+                + "var delegate = { next() { return { value: 1, done: false } },\n"
+                + "  get 'throw'() { throw 'original' },\n"
+                + "  get 'return'() { touched++; return function() {} },\n"
+                + "  '@@iterator'() { return this } };\n"
+                + "function* g() { yield* delegate }\n"
+                + "var it = g();\nit.next();\nvar caught;\n"
+                + "try { it.throw('sent') } catch (e) { caught = e }\n"
+                + "caught === 'original' && touched === 0"));
+    }
+
+    @Test
     void testParamBindingWithDefaults() {
         assertEquals(List.of(5, 6), eval("function* g(a, b = a + 1) { yield a; yield b }\n[...g(5)]"));
     }
