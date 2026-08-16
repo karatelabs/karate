@@ -73,7 +73,10 @@ public abstract class BaseLexer {
      */
     public static List<Token> tokenize(BaseLexer lexer) {
         List<Token> list = new ArrayList<>();
-        List<Token> comments = new ArrayList<>();
+        // Lazily allocated: most sources between comment groups (and many
+        // sources outright) have none pending, so the group list only exists
+        // while a group is actually being collected.
+        List<Token> comments = null;
         Token token;
 
         do {
@@ -82,11 +85,14 @@ public abstract class BaseLexer {
 
             if (token.type.primary) {
                 list.add(token);
-                if (!comments.isEmpty()) {
+                if (comments != null) {
                     lexer.buffer.setComments(token.index, comments);
-                    comments = new ArrayList<>();
+                    comments = null;
                 }
             } else if (token.type == L_COMMENT || token.type == G_COMMENT || token.type == B_COMMENT) {
+                if (comments == null) {
+                    comments = new ArrayList<>();
+                }
                 comments.add(token);
             }
         } while (token.type != EOF);
