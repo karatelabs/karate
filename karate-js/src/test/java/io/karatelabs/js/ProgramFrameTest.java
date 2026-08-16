@@ -217,6 +217,124 @@ class ProgramFrameTest {
         }
     }
 
+    //=== external-review round-1 omissions — conservative-classification and lifetime pins ============================
+
+    @Test
+    void switchCaseLetsStayConservative() {
+        assertEquals(7, evalBoth("var out = 0; for (var i = 0; i < 2; i++) { switch (i) { case 0: let x = 3; out += x; break; default: let y = 4; out += y; } } out;"));
+    }
+
+    @Test
+    void tryCatchFinallyBlockBoundaries() {
+        assertEquals("0!1!", evalBoth("var out = ''; for (var i = 0; i < 2; i++) { try { let x = i; out += x; } catch (e) { let y = e; out += y; } finally { let z = '!'; out += z; } } out;"));
+        assertEquals("c0!c1!", evalBoth("var out = ''; for (var i = 0; i < 2; i++) { try { throw i; } catch (e) { let y = e; out += 'c' + y; } finally { let z = '!'; out += z; } } out;"));
+    }
+
+    @Test
+    void forOfBindingsStayStoreBacked() {
+        assertEquals("127", evalBoth("var out = ''; for (let x of [1, 2]) { out += x; } for (let [a, b] of [[3, 4]]) { out += a + b; } out;"));
+    }
+
+    @Test
+    void nestedBlockShadowInsideLoop() {
+        assertEquals("g0g1", evalBoth("var x = 'g'; var out = ''; for (var i = 0; i < 2; i++) { { out += x; let x = i; out += x; } } out;"));
+    }
+
+    @Test
+    void indirectEvalConfinedNameVisibility() {
+        // eval() in this engine is always indirect (global scope). Historically
+        // a top-level block let was STILL visible to it mid-block, because the
+        // script context and the root share one store — while the identical
+        // shape inside a function read undefined (function stores are
+        // separate). Real JS reads undefined in both. Framing the confined
+        // name takes it out of the shared store, so the loopy-top-level corner
+        // joins the spec-correct (and function-lane) behavior. This is the one
+        // place the program-frame flag deliberately changes an observable:
+        // pinned on BOTH flags so the divergence stays documented.
+        String loopy = "var out = ''; for (var i = 0; i < 2; i++) { let x = i; out += eval('typeof x'); } out;";
+        assertEquals("undefinedundefined", evalFlag(loopy, true), "framed: spec-correct global-only eval scope");
+        assertEquals("numbernumber", evalFlag(loopy, false), "legacy shared-store leak-through, kill-switch behavior");
+        // loop-free top level has no frame (hasLoop gate): legacy behavior on both flags
+        assertEquals("number", evalBoth("var out = ''; { let x = 1; out += eval('typeof x'); } out;"));
+        // the function lane always read undefined — separate store
+        assertEquals("undefined", evalBoth("function f() { let out = ''; { let x = 1; out += eval('typeof x'); } return out; } f();"));
+    }
+
+    @Test
+    void implicitGlobalFromFramedLoopBody() {
+        assertEquals(1, evalBoth("var out; for (let i = 0; i < 1; i++) { let local = i; implicitProgramFrameGlobal = local + 1; } out = implicitProgramFrameGlobal; out;"));
+        assertEquals("caught", evalBoth("'use strict'; var r = 'no'; try { for (let i = 0; i < 1; i++) { let local = i; strictImplicitGlobal = local; } } catch (e) { r = 'caught'; } r;"));
+    }
+
+    @Test
+    void computedAccessorSubtreeStaysConservative() {
+        assertEquals(3, evalBoth("var out = 0; for (var i = 0; i < 1; i++) { let key = 'x'; let obj = { get [key]() { return 3; } }; out = obj.x; } out;"));
+    }
+
+    @Test
+    void asyncCallbackCapturesForceStoreAndSurviveTheLoop() {
+        boolean prev = SlotTable.ENABLED;
+        try {
+            String script = "var seen = []; for (var i = 0; i < 2; i++) { let x = i; setTimeout(function () { seen.push(x); }, 0); }";
+            SlotTable.ENABLED = true;
+            Engine on = new Engine();
+            on.eval(script); // end-of-eval drain runs the timers
+            Object onSeen = on.eval("seen[0] + ':' + seen[1]");
+            SlotTable.ENABLED = false;
+            Engine off = new Engine();
+            off.eval(script);
+            Object offSeen = off.eval("seen[0] + ':' + seen[1]");
+            assertEquals(offSeen, onSeen);
+            assertEquals("0:1", onSeen, "each callback captures its own iteration's binding");
+        } finally {
+            SlotTable.ENABLED = prev;
+        }
+    }
+
+    @Test
+    void repeatedEvalOfOneAstInOneEngine() {
+        boolean prev = SlotTable.ENABLED;
+        SlotTable.ENABLED = true;
+        try {
+            Engine engine = new Engine();
+            Node program = Engine.parse("var n = 0; for (let i = 0; i < 4; i++) { let d = i; n += d; } n;");
+            assertEquals(6, engine.eval(program));
+            assertEquals(6, engine.eval(program), "re-armed confined slots, same engine");
+            // top-level let keeps its cross-eval (REPL) redeclaration semantics
+            Node decl = Engine.parse("let top = 1; for (let i = 0; i < 2; i++) { top += i; } top;");
+            assertEquals(2, engine.eval(decl));
+            assertEquals(2, engine.eval(decl), "cross-eval top-level let redeclaration stays legal");
+        } finally {
+            SlotTable.ENABLED = prev;
+        }
+    }
+
+    @Test
+    void sharedAstConcurrentFirstAnalysis() throws Exception {
+        boolean prev = SlotTable.ENABLED;
+        SlotTable.ENABLED = true;
+        try {
+            for (int round = 0; round < 20; round++) {
+                Node program = Engine.parse("let sum = 0; for (let i = 0; i < 100; i++) { let x = i; sum += x; } sum; // r" + round);
+                int threads = 4;
+                java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(threads);
+                try {
+                    List<java.util.concurrent.Future<Object>> results = new ArrayList<>();
+                    for (int t = 0; t < threads; t++) {
+                        results.add(pool.submit(() -> new Engine().eval(program)));
+                    }
+                    for (java.util.concurrent.Future<Object> f : results) {
+                        assertEquals(4950, f.get(30, java.util.concurrent.TimeUnit.SECONDS));
+                    }
+                } finally {
+                    pool.shutdownNow();
+                }
+            }
+        } finally {
+            SlotTable.ENABLED = prev;
+        }
+    }
+
     //=== BindEvent conformance ========================================================================================
 
     static List<String> bindEvents(String src, boolean enabled) {
