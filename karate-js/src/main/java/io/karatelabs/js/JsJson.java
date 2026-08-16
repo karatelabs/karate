@@ -26,9 +26,13 @@ package io.karatelabs.js;
 import io.karatelabs.common.StringUtils;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The {@code JSON} global — allocated per-Engine via
@@ -49,36 +53,22 @@ public class JsJson extends JsObject {
         defineOwn("parse", new JsBuiltinMethod("parse", 2, parse()), METHOD_ATTRS);
     }
 
-    @SuppressWarnings("unchecked")
     private static JsCallable stringify() {
         return (context, args) -> {
             Object value = args[0];
             Object replacer = args.length > 1 ? args[1] : null;
             Object space = args.length > 2 ? args[2] : null;
 
-            // Handle replacer array (array of keys to include) - check BEFORE JsCallable
-            // because JsArray implements both List and JsCallable
-            if (replacer instanceof List) {
-                List<Object> list = (List<Object>) replacer;
-                if (value instanceof Map) {
-                    Map<String, Object> map = (Map<String, Object>) value;
-                    Map<String, Object> result = new LinkedHashMap<>();
-                    for (Object entry : list) {
-                        String k = replacerKey(entry);
-                        // spec §25.5.2: only String / Number entries (and their
-                        // wrappers) name a key; anything else is ignored
-                        if (k != null && !result.containsKey(k) && map.containsKey(k)) {
-                            result.put(k, map.get(k));
-                        }
-                    }
-                    value = result;
-                }
-            }
-            // Handle replacer function - transform the value tree
-            else if (replacer instanceof JsCallable replacerFunc) {
-                value = applyReplacerFunction(replacerFunc, "", value, context,
-                        java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()));
-            }
+            // the array form (spec PropertyList) has to be tested BEFORE the
+            // function form because JsArray implements both List and JsCallable
+            List<String> propertyList = replacer instanceof List<?> l ? replacerKeys(l) : null;
+            JsCallable replacerFn = propertyList == null && replacer instanceof JsCallable fn ? fn : null;
+
+            // spec §25.5.2 step 12: the root is serialized as the "" property of a
+            // synthetic wrapper — the holder a replacer function sees as its `this`.
+            Object holder = replacerFn == null ? null : rootHolder(value);
+            value = serializeProperty(context, holder, "", value, replacerFn, propertyList,
+                    Collections.newSetFromMap(new IdentityHashMap<>()));
 
             // Handle space parameter for pretty printing
             boolean pretty = false;
@@ -99,13 +89,29 @@ public class JsJson extends JsObject {
                 }
             }
 
-            checkSerializable(value);
-
             // Use centralized StringUtils.formatJson for both compact and pretty output
             // This ensures proper handling of JS types (undefined, JsValue wrappers)
-            // lenient=false for strict JSON (double quotes), sort=false to preserve order
-            return StringUtils.formatJson(value, pretty, false, false, indentStr);
+            // lenient=false for strict JSON (double quotes), sort=false to preserve order.
+            // A String value is the exception: formatJson passes a bare String through as
+            // already-formatted text, but here it is a JSON string and has to be quoted —
+            // the shape a root-level toJSON (Date) or replacer return lands in.
+            return value instanceof String s
+                    ? StringUtils.formatJsonString(s)
+                    : StringUtils.formatJson(value, pretty, false, false, indentStr);
         };
+    }
+
+    /** Spec §25.5.2: only String / Number entries (and their wrappers) name a
+     *  key; anything else is ignored, and duplicates collapse. */
+    private static List<String> replacerKeys(List<?> replacer) {
+        List<String> keys = new ArrayList<>(replacer.size());
+        for (Object entry : replacer) {
+            String k = replacerKey(entry);
+            if (k != null && !keys.contains(k)) {
+                keys.add(k);
+            }
+        }
+        return keys;
     }
 
     private static String replacerKey(Object entry) {
@@ -117,93 +123,162 @@ public class JsJson extends JsObject {
         return null;
     }
 
-    /**
-     * Spec §25.5.2 SerializeJSONProperty rejects both a BigInt anywhere in the
-     * tree and a cyclic structure with a TypeError. Both are found by the same
-     * walk, which only descends containers — a primitive root costs two
-     * instanceof checks and no allocation.
-     */
-    private static void checkSerializable(Object value) {
-        if (value instanceof BigInteger || value instanceof JsBigInt) {
-            throw JsErrorException.typeError("Do not know how to serialize a BigInt");
-        }
-        if (value instanceof Map || value instanceof List) {
-            checkSerializable(value, java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()));
-        }
+    private static JsObject rootHolder(Object value) {
+        JsObject holder = new JsObject(new LinkedHashMap<>(1));
+        holder.put("", value);
+        return holder;
     }
 
-    private static void checkSerializable(Object value, java.util.Set<Object> seen) {
+    /**
+     * Spec §25.5.2 SerializeJSONProperty, as a single walk over the value tree:
+     * {@code toJSON} then the replacer function, wrapper unwrap, the BigInt and
+     * cycle TypeErrors, then the container recursion. The emitted text is still
+     * {@link StringUtils#formatJson} — this pass only resolves what the spec says
+     * the *value* is, and returns the input object unchanged when nothing along a
+     * branch transformed it, so the no-replacer / no-{@code toJSON} case hands
+     * the formatter exactly the tree it was handed before.
+     * <p>
+     * {@code seen} tracks the current path only (add / recurse / remove), so a
+     * cycle is a TypeError here instead of unbounded recursion, while legal
+     * diamond sharing (same object under two keys) stays serializable.
+     */
+    private static Object serializeProperty(Context context, Object holder, String key, Object value,
+                                            JsCallable replacerFn, List<String> propertyList, Set<Object> seen) {
+        if (value instanceof ObjectLike ol
+                && ol.getMember("toJSON", value, cc(context)) instanceof JsCallable toJson) {
+            value = callWithThis(context, toJson, value, new Object[]{key});
+        }
+        if (replacerFn != null) {
+            // A JS throw from user code propagates as-is (spec: SerializeJSONProperty
+            // forwards abrupt completions) — the live context keeps the thrown value's
+            // JS identity instead of the host-invocation EngineException wrap.
+            value = callWithThis(context, replacerFn, holder, new Object[]{key, value});
+        }
+        if (value instanceof JsFunction) {
+            return value; // JSON has no functions; the formatter drops / nulls them
+        }
+        if (value instanceof JsValue jv && !(value instanceof JsUndefined)) {
+            value = jv.getJavaValue(); // Number / String / Boolean / Date wrappers
+        }
         if (value instanceof BigInteger || value instanceof JsBigInt) {
             throw JsErrorException.typeError("Do not know how to serialize a BigInt");
         }
-        Iterable<?> children;
-        if (value instanceof Map<?, ?> m) {
-            children = m.values();
-        } else if (value instanceof List<?> list) {
-            children = list;
-        } else {
-            return;
+        if (!(value instanceof Map<?, ?>) && !(value instanceof List<?>)) {
+            return value;
         }
         if (!seen.add(value)) {
             throw JsErrorException.typeError("Converting circular structure to JSON");
         }
-        for (Object v : children) {
-            checkSerializable(v, seen);
+        try {
+            return value instanceof List<?> list
+                    ? serializeArray(context, list, replacerFn, propertyList, seen)
+                    : serializeObject(context, value, replacerFn, propertyList, seen);
+        } finally {
+            seen.remove(value);
         }
-        seen.remove(value);
     }
 
-    @SuppressWarnings("unchecked")
-    private static Object applyReplacerFunction(JsCallable replacerFunc, String key, Object value, Context context, java.util.Set<Object> seen) {
-        // A JS throw from the replacer propagates as-is (spec: SerializeJSONProperty
-        // forwards abrupt completions) — the live context keeps the thrown value's
-        // JS identity instead of the host-invocation EngineException wrap.
-        Object transformed = replacerFunc.call(context, new Object[]{key, value});
-
-        // If replacer returns undefined, this key should be filtered out
-        if (transformed == Terms.UNDEFINED) {
-            return Terms.UNDEFINED;
-        }
-
-        // Recursively apply replacer to nested objects and arrays. `seen` tracks
-        // the current path only (add / recurse / remove), so a cycle the replacer
-        // does not prune is a TypeError here instead of unbounded recursion, while
-        // legal diamond sharing (same object under two keys) stays serializable.
-        if (transformed instanceof Map) {
-            if (!seen.add(transformed)) {
-                throw JsErrorException.typeError("Converting circular structure to JSON");
-            }
-            Map<String, Object> map = (Map<String, Object>) transformed;
-            Map<String, Object> result = new LinkedHashMap<>();
-            for (Map.Entry<String, Object> entry : map.entrySet()) {
-                Object nestedValue = applyReplacerFunction(replacerFunc, entry.getKey(), entry.getValue(), context, seen);
-                // Skip keys where replacer returned undefined
-                if (nestedValue != Terms.UNDEFINED) {
-                    result.put(entry.getKey(), nestedValue);
+    private static Object serializeObject(Context context, Object value, JsCallable replacerFn,
+                                          List<String> propertyList, Set<Object> seen) {
+        // toMap is the raw view the formatter itself reads, so UNDEFINED survives
+        // as a distinct value rather than collapsing to null via Java unwrapping
+        Map<?, ?> src = value instanceof ObjectLike ol ? ol.toMap() : (Map<?, ?>) value;
+        Map<Object, Object> result = new LinkedHashMap<>(src.size());
+        // a PropertyList always reshapes the object — it selects and reorders keys
+        boolean changed = propertyList != null;
+        if (propertyList != null) {
+            for (String key : propertyList) {
+                if (src.containsKey(key)) {
+                    result.put(key, serializeProperty(context, value, key, src.get(key), replacerFn, propertyList, seen));
                 }
             }
-            seen.remove(transformed);
-            return result;
-        } else if (transformed instanceof List) {
-            if (!seen.add(transformed)) {
-                throw JsErrorException.typeError("Converting circular structure to JSON");
+        } else {
+            for (Map.Entry<?, ?> entry : src.entrySet()) {
+                Object child = entry.getValue();
+                Object serialized = serializeProperty(context, value, String.valueOf(entry.getKey()), child,
+                        replacerFn, propertyList, seen);
+                changed |= serialized != child;
+                result.put(entry.getKey(), serialized);
             }
-            List<Object> list = (List<Object>) transformed;
-            List<Object> result = new java.util.ArrayList<>();
-            for (int i = 0; i < list.size(); i++) {
-                Object nestedValue = applyReplacerFunction(replacerFunc, String.valueOf(i), list.get(i), context, seen);
-                // For arrays, undefined values become null in JSON
-                result.add(nestedValue == Terms.UNDEFINED ? null : nestedValue);
-            }
-            seen.remove(transformed);
-            return result;
         }
-
-        return transformed;
+        return changed ? result : value;
     }
 
-    private static JsInvokable parse() {
-        return args -> JsonParser.parse((String) args[0]);
+    private static Object serializeArray(Context context, List<?> list, JsCallable replacerFn,
+                                         List<String> propertyList, Set<Object> seen) {
+        JsArray array = list instanceof JsArray a ? a : null; // raw element reads, no Java unwrap
+        int size = list.size();
+        List<Object> result = new ArrayList<>(size);
+        boolean changed = false;
+        for (int i = 0; i < size; i++) {
+            Object raw = array == null ? list.get(i) : array.list.get(i);
+            // a sparse hole serializes as null — comparing against the raw slot is
+            // what makes it a change, so the sentinel never reaches the formatter
+            Object serialized = serializeProperty(context, list, String.valueOf(i), JsArray.unwrapHole(raw),
+                    replacerFn, propertyList, seen);
+            changed |= serialized != raw;
+            result.add(serialized);
+        }
+        return changed ? result : list;
+    }
+
+    private static JsCallable parse() {
+        return (context, args) -> {
+            Object result = JsonParser.parse((String) args[0]);
+            if (args.length > 1 && args[1] instanceof JsCallable reviver) {
+                // spec §25.5.1 step 7: the parsed root is revived as the "" property
+                // of a synthetic wrapper — the holder the reviver sees as its `this`
+                return internalize(context, rootHolder(result), "", result, reviver);
+            }
+            return result;
+        };
+    }
+
+    /**
+     * Spec §25.5.1 InternalizeJSONProperty. Bottom-up: every child is revived —
+     * and dropped when the reviver returns undefined — before the reviver runs
+     * for the holder's own key. {@code JsonParser} hands back mutable
+     * {@code LinkedHashMap} / {@code ArrayList} nodes, so the walk edits the tree
+     * in place the way the spec edits the holder.
+     */
+    @SuppressWarnings("unchecked")
+    private static Object internalize(Context context, Object holder, String key, Object value, JsCallable reviver) {
+        if (value instanceof List<?>) {
+            List<Object> list = (List<Object>) value;
+            for (int i = 0; i < list.size(); i++) {
+                // a deleted element leaves a hole, which reads back as undefined
+                list.set(i, internalize(context, list, String.valueOf(i), list.get(i), reviver));
+            }
+        } else if (value instanceof Map<?, ?>) {
+            Map<String, Object> map = (Map<String, Object>) value;
+            for (String k : new ArrayList<>(map.keySet())) {
+                Object revived = internalize(context, map, k, map.get(k), reviver);
+                if (revived == Terms.UNDEFINED) {
+                    map.remove(k);
+                } else {
+                    map.put(k, revived);
+                }
+            }
+        }
+        return callWithThis(context, reviver, holder, new Object[]{key, value});
+    }
+
+    private static CoreContext cc(Context context) {
+        return context instanceof CoreContext core ? core : null;
+    }
+
+    private static Object callWithThis(Context context, JsCallable fn, Object thisObject, Object[] args) {
+        CoreContext core = cc(context);
+        if (core == null) {
+            return fn.call(context, args);
+        }
+        Object saved = core.thisObject;
+        core.thisObject = thisObject;
+        try {
+            return fn.call(core, args);
+        } finally {
+            core.thisObject = saved;
+        }
     }
 
 }

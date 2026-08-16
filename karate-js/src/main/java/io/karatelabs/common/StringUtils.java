@@ -676,6 +676,16 @@ public class StringUtils {
         return JS_IDENTIFIER_PATTERN.matcher(key).matches();
     }
 
+    /**
+     * Quote and escape a String as a strict-JSON string literal. The
+     * {@link #formatJson} entry points treat a bare String argument as text
+     * that is already formatted, so a caller that needs {@code JSON.stringify}
+     * semantics for a String value comes here instead.
+     */
+    public static String formatJsonString(String raw) {
+        return '"' + escapeJsonValue(raw) + '"';
+    }
+
     // Strict JSON string escape, matching the surface json-smart's
     // JSONStyle.LT_COMPRESS produced for karate-js:
     //   " and \ → escaped; 0x08/09/0A/0C/0D → named escapes b/t/n/f/r;

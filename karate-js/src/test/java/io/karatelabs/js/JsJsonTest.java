@@ -244,4 +244,141 @@ class JsJsonTest extends EvalBase {
                 "var r; try { JSON.stringify({a:1}, function() { throw new TypeError('boom') }) }"
                         + " catch (e) { r = (e instanceof TypeError) + '|' + e.message } r"));
     }
+
+    @Test
+    void testStringifyReplacerFunctionSeesHolderAsThis() {
+        // spec §25.5.2: the replacer's `this` is the holder — the synthetic
+        // { "": value } wrapper at the root, then each containing object
+        assertEquals(":{\"\":{\"a\":{\"b\":1}}} | a:{\"a\":{\"b\":1}} | b:{\"b\":1}", eval("""
+            var seen = [];
+            JSON.stringify({a: {b: 1}}, function(k, v) {
+                seen.push(k + ':' + JSON.stringify(this));
+                return v;
+            });
+            seen.join(' | ')
+        """));
+    }
+
+    @Test
+    void testStringifyReplacerArrayFiltersNestedObjects() {
+        // spec §25.5.2: PropertyList applies at every object level, not just the root
+        assertEquals("{\"a\":{\"a\":1}}", eval("JSON.stringify({a:{a:1,b:2},b:9}, ['a'])"));
+        // ... but never to arrays, whose elements are always all serialized
+        assertEquals("{\"a\":[{\"a\":1},{\"a\":2}]}", eval(
+                "JSON.stringify({a:[{a:1,b:2},{a:2,b:3}]}, ['a'])"));
+    }
+
+    @Test
+    void testStringifyCallsToJSON() {
+        assertEquals("\"X\"", eval("JSON.stringify({toJSON: function() { return 'X' }})"));
+        assertEquals("{\"a\":\"X\"}", eval("JSON.stringify({a: {toJSON: function() { return 'X' }}})"));
+        // a toJSON returning an object is serialized in place of the original
+        assertEquals("{\"a\":{\"z\":1}}", eval("JSON.stringify({a: {toJSON: function() { return {z:1} }}})"));
+        assertEquals("[7]", eval("JSON.stringify([{toJSON: function() { return 7 }}])"));
+    }
+
+    @Test
+    void testStringifyToJSONReceivesKeyAndThis() {
+        assertEquals("{\"p\":\"p=1\"}", eval(
+                "var o = {v: 1, toJSON: function(k) { return k + '=' + this.v }};"
+                        + " JSON.stringify({p: o})"));
+        // the root's toJSON is called with the empty-string key
+        assertEquals("\"[]\"", eval(
+                "JSON.stringify({toJSON: function(k) { return '[' + k + ']' }})"));
+    }
+
+    @Test
+    void testStringifyToJSONFromPrototype() {
+        assertEquals("\"proto\"", eval("class C { toJSON() { return 'proto' } } JSON.stringify(new C())"));
+    }
+
+    @Test
+    void testStringifyToJSONRunsBeforeReplacer() {
+        // spec §25.5.2: toJSON first, then the replacer sees its result
+        assertEquals("{\"a\":\"X!\"}", eval(
+                "JSON.stringify({a: {toJSON: function() { return 'X' }}},"
+                        + " function(k, v) { return k === 'a' ? v + '!' : v })"));
+    }
+
+    @Test
+    void testStringifyDateRoutesThroughToJSON() {
+        // Date has no special case in the serializer — it is reached via the
+        // generic toJSON step, and the output has to be unchanged by that
+        assertEquals("\"1970-01-01T00:00:00.000Z\"", eval("JSON.stringify(new Date(0))"));
+        assertEquals("{\"d\":\"1970-01-01T00:00:00.000Z\"}", eval("JSON.stringify({d: new Date(0)})"));
+        assertEquals("[\"1970-01-01T00:00:00.000Z\"]", eval("JSON.stringify([new Date(0)])"));
+        // an invalid Date serializes as null (Date.prototype.toJSON returns null)
+        assertEquals("null", eval("JSON.stringify(new Date(NaN))"));
+        assertEquals("{\"d\":null}", eval("JSON.stringify({d: new Date(NaN)})"));
+    }
+
+    @Test
+    void testStringifyStringValueIsQuoted() {
+        assertEquals("\"abc\"", eval("JSON.stringify('abc')"));
+        assertEquals("\"a\\\"b\"", eval("JSON.stringify('a\"b')"));
+        // a string that looks like JSON is still a JSON string, not a nested document
+        assertEquals("\"{\\\"a\\\":1}\"", eval("JSON.stringify('{\"a\":1}')"));
+    }
+
+    @Test
+    void testStringifySparseArrayHole() {
+        assertEquals("[1,null,3]", eval("JSON.stringify([1,,3])"));
+    }
+
+    @Test
+    void testParseWithReviverTransformsValues() {
+        assertEquals(10, eval("JSON.parse('{\"n\":1}', function(k, v) {"
+                + " return typeof v === 'number' ? v * 10 : v }).n"));
+        assertEquals("[2,4,6]", eval("JSON.stringify(JSON.parse('[1,2,3]', function(k, v) {"
+                + " return typeof v === 'number' ? v * 2 : v }))"));
+    }
+
+    @Test
+    void testParseWithReviverDropsUndefined() {
+        assertEquals("{\"a\":1}", eval("JSON.stringify(JSON.parse('{\"a\":1,\"b\":2}',"
+                + " function(k, v) { return k === 'b' ? undefined : v }))"));
+        // a dropped array element leaves a hole, which serializes as null
+        assertEquals("[null,2]", eval("JSON.stringify(JSON.parse('[1,2]',"
+                + " function(k, v) { return k === '0' ? undefined : v }))"));
+    }
+
+    @Test
+    void testParseWithReviverIsBottomUp() {
+        assertEquals("b,a,", eval("""
+            var seen = [];
+            JSON.parse('{"a":{"b":1}}', function(k, v) { seen.push(k); return v });
+            seen.join(',')
+        """));
+        assertEquals("0,1,a,", eval("""
+            var seen = [];
+            JSON.parse('{"a":[1,2]}', function(k, v) { seen.push(k); return v });
+            seen.join(',')
+        """));
+    }
+
+    @Test
+    void testParseWithReviverSeesHolderAsThis() {
+        // spec §25.5.1: the reviver's `this` is the holder — the containing
+        // object / array, and the synthetic { "": value } wrapper at the root
+        assertEquals("b@{\"b\":1} | a@{\"a\":{\"b\":1}} | @{\"\":{\"a\":{\"b\":1}}}", eval("""
+            var seen = [];
+            JSON.parse('{"a":{"b":1}}', function(k, v) {
+                seen.push(k + '@' + JSON.stringify(this));
+                return v;
+            });
+            seen.join(' | ')
+        """));
+    }
+
+    @Test
+    void testParseWithReviverOnRootValue() {
+        assertEquals(2, eval("JSON.parse('1', function(k, v) { return v + 1 })"));
+        assertEquals("", eval("var r = JSON.parse('1', function(k) { return k }); r"));
+    }
+
+    @Test
+    void testParseWithoutReviverUnaffected() {
+        assertEquals(Map.of("a", "b"), eval("JSON.parse('{\"a\":\"b\"}', null)"));
+        assertEquals(Map.of("a", "b"), eval("JSON.parse('{\"a\":\"b\"}', 'not a function')"));
+    }
 }
