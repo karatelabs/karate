@@ -298,10 +298,13 @@ slices: 4 rows needing `\u{...}` string escapes (lexer gap) and one
    diverged onto its own path (principle-#5 smell; collapse to one seam).
    ~40–60 FAILs (`obj-ptrn-rest-getter`, `-skip-non-enumerable`,
    `spread-obj-getter-descriptor`).
-3. **`JSON.parse` reviver ignored entirely; `JSON.stringify` ignores
-   `toJSON()`** (Date is special-cased separately).
-   `JSON.parse('{"n":1}',(k,v)=>typeof v==='number'?v*10:v).n` → `1`
-   (exp `10`); `JSON.stringify({toJSON(){return 'X'}})` → `{}` (exp `"X"`).
+*(P0.3 shipped 2026-08-16: `JsJson.serializeProperty` /
+`JsJson.internalize` are the spec-shaped §25.5.2 / §25.5.1 seams —
+reviver, `toJSON`, holder-`this` for replacer functions, replacer arrays
+on nested objects, quoted root strings, and the sparse-array
+`"<<hole>>"` leak, all in one rewrite. Date still special-cased in the
+shared `StringUtils.formatRecurse` for karate-core / raw-Java-`Date`
+bindings; JS `Date` now routes through `Date.prototype.toJSON`.)*
 4. **Macrotasks run before queued microtasks.** `setTimeout(fn,0)` fires
    before an already-resolved `Promise.resolve().then(...)` callback
    (promise *chains* interleave correctly among themselves). Ordering-
@@ -333,33 +336,28 @@ generators/iterators, `setInterval`, `queueMicrotask` — deferred.)*
 
 1. **Generators** (`function*` / `yield` / `yield*`) — parse-level absence,
    ~1.4k skips.
-2. **Parse gaps on valid everyday code** (added 2026-08-16; each rejects
-   code an LLM plausibly writes, killing the whole script):
-   - **`delete` parses only as a statement.** `var d = delete o.a`,
-     `if (delete o.a)`, `return delete m[k]` → ParserException. `DELETE`
-     is missing from `T_EXPR_START`/`T_UNARY_EXPR` (unlike `TYPEOF`/
-     `VOID`); `JsParser.delete_stmt` is reached only from `statement()`.
-     ~64 FAILs (misfiled under both SyntaxError and delete slices).
-   - **ASI blocked by an intervening comment.** `var a = 1` ⏎
-     `/* c */ var b = 2` fails: `JsParser.eos()` inspects only
-     `next.getPrev()`, so a `B_COMMENT` token hides the `WS_LF`, and
-     `scanBlockComment` never flags an embedded LineTerminator.
-     `lineTerminatorFollows()` already does the correct backward scan —
-     DRY seam. Bites any semicolon-less style.
-   - **Hashbang.** `#!/usr/bin/env node` at 1:1 is a lex error — every
-     Node CLI script starts with one.
-   - **Optional catch binding breaks with `finally`.**
-     `try {} catch {} finally {}` → "cannot parse statement" (the
-     binding-less `catch` parses only when no `finally` follows).
-   - **`switch` requires `default:` to be the last clause.**
-     `switch (x) { default: ...; case 1: ... }` → parse error; LLMs do
-     emit default-first.
-   - **Class static initialization blocks** `static { ... }` → "class
-     member name" (also the #2 gap inside the class skip-shadow).
-   - **Trailing-dot numeric literal.** `var a = 1.;` → parse error (~16
-     FAILs — these masqueraded as the "destructuring parse tail").
-   - **Rest param with a destructuring pattern.**
-     `function f(...[a, b]) {}` — rest expects a bare `IDENT`.
+*(P1.2-2026-08-16, the eight-item parse-gap batch, shipped same day —
+seven of eight in one sweep: `delete` as a unary expression
+(`DELETE_EXPR`, statement dispatch removed, `evalDeleteExpr` returns the
+real boolean); `try {} catch {} finally {}` (the try grammar was
+linearized — the old eval hard-coded the finally offset and silently
+dropped the finally block for the shorter node shape); hashbang at 1:1;
+`default:` in any clause position (parse + a §14.12.9 `evalSwitchStmt`
+rewrite + at-most-one-default early error in the fused walk + the
+follow-up shared-CaseBlock-environment fix, see the spec-alignment
+list); trailing-dot numeric literals (`1.` / `1.e3`, with `1..toString()`
+pinned; `1.toString()` is now a spec-correct SyntaxError); ASI across
+comments (`lineTerminatorBetween` in `BaseParser` is now the single
+line-terminator scan for `eos()` and all `lineTerminatorFollows` call
+sites — block comments containing a newline count for ASI); rest params
+with destructuring patterns (`f(...[a, b])`, parse + binding via the
+`evalAssign` seam). Known vacuous flip: `delete x ** 2` now parses, so
+`exp-operator-syntax-error-delete-*` joined the pre-existing 6-member
+`typeof`/`void`/`!`/`~`/`+`/`-` MissingParseError family — the
+unary-base-of-`**` early error is one fused-walk arm covering all
+seven. Still open from the batch: **class static initialization
+blocks** `static { ... }` — parser rejects with "class member name"
+(also the #2 gap inside the class skip-shadow).)*
 *(P1.2 labeled statements shipped 2026-08-12 — LABELLED_STMT node,
 label-aware break/continue via CoreContext.exitLabel, and the full
 label early-error family in the fused walk: undefined/duplicate labels,
@@ -478,7 +476,7 @@ early-error validation) is advanced-pattern territory.
 | `test/language/expressions/assignment` | Corrected 2026-08-16: the "destructuring parse tail" attribution was wrong — `({[a]:b, ...rest} = vals)` parses fine. Actual causes: escaped-keyword cover-names (~87) + the trailing-dot numeric literal `1.` (all 7 `dstr/obj-rest-non-string-computed-property-*`). |
 | `test/language/{statements,expressions}/function` + `arrow-function` | fn-name inference for `[x = (function(){})]`-style defaults; IteratorClose-on-throw; rest-element edges. |
 | `test/language/expressions/compound-assignment` | Strict-mode ReferenceError on undeclared LHS now fires under in-body `"use strict"` (the `onlyStrict`-flagged variants stay SKIP until the runner runs a strict pass). Corrected 2026-08-16: the `A5.*_T2/T3` family is **not** an Annex-B non-identifier-LHS issue — all 44 FAILs here (and ~90 suite-wide, incl. prefix/postfix inc/dec and `identifier-resolution`) are the **`with` statement**: `with` isn't a token, lexes as an identifier, `with (x)` parses as a call, and the following block derails. Real-world value low (illegal in strict mode); the path-skip only covers `statements/with/`. |
-| `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion and empty-`for`-header semantics handle the headline cases. Residual in `for/`: loop completion-value `undefined`-vs-`null` (`head-init-*-check-empty-inc-empty-completion.js`) and `let` as a plain identifier in a for head (`head-lhs-let.js`, parser). |
+| `test/language/statements/{try,for,switch}` | Control-flow tail; abrupt-completion and empty-`for`-header semantics handle the headline cases. 2026-08-16 closed: optional-catch-binding+`finally`, `default`-in-any-position, shared CaseBlock environment. Residual in `for/`: loop completion-value `undefined`-vs-`null` (`head-init-*-check-empty-inc-empty-completion.js`) and `let` as a plain identifier in a for head (`head-lhs-let.js`, parser); in `switch/`: `scope-lex-open-*` TDZ corners + feature-gated variants. |
 | `test/built-ins/Array/**` | `splice` / `concat` `Symbol.species` (Symbol-gated). |
 | `test/built-ins/RegExp/**` | Group-name early-error validation, `Symbol.{match,replace,search,split,matchAll}` protocol (Symbol-gated, conformance-only — everyday `str.replace(re,fn)` doesn't use it), lookbehind / unicode-property-escapes / `/v` flag (feature-gated). Null-arg Java leaks + one catastrophic-backtracking timeout in `exec`/`test` (P2). |
 | `test/built-ins/String/**` | `substring` / `lastIndexOf` / `charAt` ToInteger corners; parser-blocked; Symbol-gated tail. See [JS_ENGINE.md § Spec preamble at built-in entry points](../docs/JS_ENGINE.md#spec-preamble-at-built-in-entry-points). |
@@ -600,15 +598,16 @@ Benchmark-gated or coordinated with other work.
 
 Observably non-spec; pick up when the owning slice surfaces them.
 
-- **Runtime block/eval environments for lexical bindings.** Two positive
-  tests FAIL because the *runtime* `CoreContext` redeclaration check fires
-  where the spec wants a fresh declarative environment: (1) a `switch`
-  CaseBlock needs its own block environment so `let x` inside a `case` does
-  not collide with an outer `let x`
-  (`statements/switch/scope-lex-close-case.js`); (2) indirect
-  `(0,eval)('const x…')` must evaluate in a NewDeclarativeEnvironment off the
-  global env (`eval-code/indirect/lex-env-distinct-{const,let}.js`). Runtime
-  scoping gaps, independent of the parse-phase early-error work.
+- **Runtime block/eval environments for lexical bindings.** *(Switch half
+  shipped 2026-08-16: `evalSwitchStmt` gives the whole CaseBlock one shared
+  declarative environment per §14.12.11 — pinned by
+  `SpecPinTest.switch_caseBlockIsOneSharedLexicalEnvironment`;
+  `scope-lex-close-{case,dflt}` now PASS. Residual `scope-lex-open-*` rows
+  are TDZ-visibility corners, not environment placement.)* Remaining:
+  indirect `(0,eval)('const x…')` must evaluate in a
+  NewDeclarativeEnvironment off the global env
+  (`eval-code/indirect/lex-env-distinct-{const,let}.js`). Runtime scoping
+  gap, independent of the parse-phase early-error work.
 - **`JsArray.handleLengthAssign` strict TypeError on non-writable length.**
   Strict-mode plumbing has landed (`CoreContext.strict`), but the `length`
   write still routes through `handleLengthAssign(value, ctx)` with no strict
