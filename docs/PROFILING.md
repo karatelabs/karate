@@ -989,9 +989,13 @@ etc/ec2/ssh.sh injector 'rm -rf ~/karate/karate-profiling/target/profiling/suite
 `calibrate.sh`/`matrix.sh` were not run — the Gatling lane was untouched and their last
 change predates `93fe950b0`), and again 2026-08-16 at `dc22f5ecd` (the Tier-1/R2 session:
 provision `--single`, bootstrap, js-matrix `--quick` null, two full js matrices on both
-arm kinds, collect, teardown — Gatling-lane scripts again untouched and unexercised).
+arm kinds, collect, teardown — Gatling-lane scripts again untouched and unexercised),
+and again later on 2026-08-16 at `677ef15fe` (the Tier-2/R3 session: provision
+`--single`, bootstrap, js-matrix `--quick` null, a 4-pair qualification null, three
+full js matrices on both arm kinds, collect ×3, teardown with the independent
+tag-filtered verify — Gatling-lane scripts again untouched and unexercised).
 Skip them when
-`git log --oneline dc22f5ecd.. -- ':/karate-profiling/etc/ec2'`
+`git log --oneline 677ef15fe.. -- ':/karate-profiling/etc/ec2'`
 is empty (the `:/` pathspec anchors at the repo root — a relative pathspec run from the
 wrong directory matches nothing and prints a false "skip") — make the check, do not assume
 it, and move the sha forward when a session exercises the battery.
@@ -1001,9 +1005,10 @@ it, and move the sha forward when a session exercises the battery.
 **The Gatling arc is PAUSED as of 2026-08-07** (E2–E4 below, designs kept so nothing is
 re-derived), and **the suite-soak arc is closed** — the settled entry below carries E1/E1R's
 figures and reopening conditions. **The R1-first-cells + J1-arithmetic-variants bench
-session ran 2026-08-13**, and **the Tier-1/R2 session ran 2026-08-15/16** — the R-lane's
-current figure is **karate ÷ rhino-best 1.29 five-row geomean** (the R2 entry below;
-R1's 1.52 is the superseded baseline). **The active workstream is engine-side, not
+session ran 2026-08-13**, **the Tier-1/R2 session ran 2026-08-15/16**, and **the
+Tier-2/R3 session ran 2026-08-16** — the R-lane's current figure is
+**karate ÷ rhino-best 1.10 five-row geomean** (the R3 entry below; R2's 1.29 and
+R1's 1.52 are the superseded baselines). **The active workstream is engine-side, not
 bench-side**: [JS_PERF_PLAN.md](./JS_PERF_PLAN.md) carries the profiling-derived plan, what
 has shipped, and the ranked Tier-2 items; a cold session resuming perf work should start
 there, then come back here only for the one-A/B-plus-R-lane bench rerun each Tier-2
@@ -1139,6 +1144,33 @@ that puts the gap near ~1.55× geomean, functions ~1.8×, mixed ~1.7× — the d
   host, ~$0.95. **Open next**: the remaining-gap attribution now points at
   top-level slot frames and the parser diet (JS_PERF_PLAN Tier 2) — re-run
   one 4-pair A/B + R-lane matrix after each Tier-2 landing.
+- **Tier-2 #8 + R3 cells — 2026-08-16.** The engine work (commits
+  `0fa5fb85d`, `e2d349c69`, `590539fd8`, test pins `677ef15fe` — top-level
+  slot frames for confined let/const, the JsArray getByName fuse, the lazy
+  comment-group list; externally reviewed ship-worthy with zero findings;
+  details and the one documented eval-visibility deviation in
+  [JS_PERF_PLAN.md](./JS_PERF_PLAN.md) §4). **The A/B decision matrix**
+  (single `c7g.4xlarge`, 4 pairs, JFR off, base `2a35d314c` vs candidate
+  `590539fd8`, tables in `$KP_RESULTS/t2-ab/`): arithmetic **−31.5 ± 2.3**,
+  strings **−25.9 ± 1.3**, objects **−13.2 ± 2.1**, functions
+  **−3.0 ± 2.8**, mixed **+0.5 ± 2.0**, large-1k guard **−0.4 ± 0.7**;
+  **five-row geomean −15.6%**. Host qualification per J1 read
+  **+2.7 ± 4.1** on the arithmetic same-jar null (`t2-qual/` — a noisy
+  instance); the session proceeded deliberately because the expected
+  effects are ~8σ above that floor — quote the null beside the arithmetic
+  figure and treat its exact digit as approximate. **The R3 head-to-head**
+  (same session, candidate vs `rhino-best`, 4 pairs; functions *and* mixed
+  in their own 450k-iteration matrix, so no window caveats this round;
+  tables in `$KP_RESULTS/t2-h2h*/`): **karate ÷ rhino-best on Graviton** —
+  arithmetic **0.983**, strings **1.108**, objects **0.944**, functions
+  **1.074**, mixed **1.459**, large-1k guard **1.099**; **five-row geomean
+  1.29 → 1.10** (composed across the two same-session matrices — quote
+  per-row figures from their own tables). karate-js is now *faster* than
+  rhino-best on arithmetic and objects. Whole session ~1.9 h single host,
+  ~$1.10. **Open next**: nothing queued — the geomean is inside Tier 3's
+  do-not-start band, so the next engine item (JS_PERF_PLAN: re-profile
+  the mixed row first) is a deliberate decision, and each landing earns
+  the usual one-A/B-plus-R-lane rerun.
 
 ### Paused — the Gatling arc
 

@@ -1,6 +1,9 @@
 # karate-js Performance Plan — mechanism attribution and the road to closing the Rhino gap
 
-> Status: **reviewed draft** — planning/research output of the 2026-08-15 session.
+> Status: **Tier 1 shipped and EC2-confirmed; Tier-2 #8 shipped and EC2-confirmed
+> 2026-08-16** (status blocks inside §4). Current karate ÷ rhino-best five-row
+> geomean: **1.10** — inside Tier 3's do-not-start band.
+> Originally the planning/research output of the 2026-08-15 session.
 > Evidence: local JFR-on profiling of the `js-*` rows (both engine arms), the R1
 > Graviton baseline, a Rhino-interpreted-mode source deep-dive, and a quickjs-ng
 > source deep-dive. See [PROFILING.md](./PROFILING.md) §9 R1 for the bench
@@ -227,6 +230,8 @@ changes in separate commits (TEST262.md principle #9 discipline).
 > branch (`isOwnProperty` + `getMember` double work, ~5% CPU on mixed) —
 > fuse it the way the JsObject branch was fused, minding the literal-null
 > own-value preservation the branch comment documents.
+> *That fuse shipped 2026-08-16 (`0fa5fb85d`), semantics pinned against the
+> Array and defineProperty test262 slices.*
 
 Ordered by expected value ÷ risk:
 
@@ -295,6 +300,53 @@ five-row geomean by a double-digit percentage. Measure, don't trust.
 
 ### Tier 2 — structural, designed-and-reviewed items (days each)
 
+> **Status 2026-08-16 — item 8 SHIPPED** (commit `590539fd8`), scoped per the
+> round-1 amendment: frames only for let/const confined to top-level blocks
+> and C-style for-inits — the program body's own declarations (var, function,
+> top-level let/const) stay in the store, which is the `Engine.bindings` host
+> contract, and the table's `byName` stays empty so no name-keyed path routes
+> to the frame. Analysis is gated on a top-level loop and cached on the
+> PROGRAM node (BAIL permanent — a program has no second-call hook), so
+> loop-free programs (karate-core per-step expressions, the large-1k IIFE)
+> pay one shallow walk per parsed AST; the frame is per-eval. External
+> (Codex) review of the commit: **ship-worthy, zero findings survived
+> verification**; its omission list is pinned in `ProgramFrameTest`
+> (24 tests, `677ef15fe`), including the one deliberate observable change —
+> indirect `eval()` no longer sees a loopy top-level block let mid-block (the
+> legacy shared-store leak-through; the same shape in a function already read
+> undefined, which is also what the spec says — the kill switch restores the
+> legacy read, and the test asserts both modes).
+>
+> **EC2 acceptance** (single `c7g.4xlarge`, 4 pairs, JFR off, base
+> `2a35d314c` vs `590539fd8`, tables in `$KP_RESULTS/t2-ab/`): arithmetic
+> **−31.5 ± 2.3**, strings **−25.9 ± 1.3**, objects **−13.2 ± 2.1**,
+> functions **−3.0 ± 2.8**, mixed **+0.5 ± 2.0** (flat), large-1k guard
+> **−0.4 ± 0.7** (flat); **five-row geomean −15.6%**. Host note per the J1
+> qualification rule: this instance's same-jar arithmetic null read
+> **+2.7 ± 4.1** (`t2-qual/` — a noisy-host floor), so the arithmetic row's
+> exact magnitude is approximate; the effect is ~8σ above the floor and the
+> decision does not depend on the digit. Same-session R-lane rerun
+> (`t2-h2h*/`, functions and mixed in their own 450k-iteration matrix, no
+> window caveats): **karate ÷ rhino-best on Graviton** — arithmetic
+> **0.983**, strings **1.108**, objects **0.944**, functions **1.074**,
+> mixed **1.459**, large-1k guard **1.099**; **five-row geomean 1.29 →
+> 1.10**. karate-js is now *faster* than rhino-best on two of the five rows.
+>
+> **Item 11 is measured and mostly refuted.** The comment-group list is now
+> lazy (`e2d349c69`), but commit-before-allocate in `BaseParser.enter` is
+> **not built**: a counter run over the five rows showed `exit(false)` fires
+> once per parse and always on an empty node — the gated `enterIf` variants
+> already fail before allocating, so the "rewound speculative Nodes" premise
+> does not hold. The parser's real allocation mass is token-wrapper Nodes
+> (`consumeNext`'s `new Node(token)` — ~46% of all Nodes on the mixed row);
+> storing tokens directly as children would be the lever, and that is
+> interpreter-wide surgery, not a diet pass.
+>
+> **The remaining gap now concentrates in mixed (1.46)** — the other four
+> rows sit between −6% and +11% of rhino-best. Items 9 and 10 as ranked
+> below buy less than the pre-#8 profile suggested (strings 1.11, functions
+> 1.07); re-profile the mixed row before choosing the next item.
+
 8. **Slot frames for top-level/program scope.** Extend the SlotTable frame
    from function bodies to the Program node (and block scopes within it),
    with the same DEFERRED heuristics and rearm machinery. This is the single
@@ -340,6 +392,11 @@ five-row geomean by a double-digit percentage. Measure, don't trust.
     (the parts only linearization fixes), design it then — with the test262
     net as the migration harness, and Rhino's `InterpreterV2` (optLevel −2)
     plus quickjs's three-phase compiler as the references.
+    **Measured 2026-08-16: the band is reached.** Tiers 1–2 closed the
+    five-row geomean to **1.10×**, and the residual is not the
+    dispatch+boxing shape — it concentrates in js-mixed (1.46), which the
+    post-Tier-1 profile attributes to parse-side allocation and object/array
+    write paths. Tier 3 is **not justified on current evidence**.
 
 ### Out of scope here, tracked elsewhere
 
@@ -365,10 +422,13 @@ five-row geomean by a double-digit percentage. Measure, don't trust.
 3. Full net: karate-js unit tests, `test/language/**` slice diff (zero
    regressions), `EngineBenchmark profile` vs JS_ENGINE.md reference,
    karate-core consumer check, smoke battery.
-4. Batch acceptance on EC2: one 4-pair matrix per *batch* of Tier-1 items
+4. Batch acceptance on EC2: one 4-pair matrix per *batch* of landed items
    (not per item — bench spend discipline). **Qualify the host first** per
    J1: same-jar arithmetic null must resolve sd ≲ 1% before the decision
-   matrix; an unqualified host cannot resolve the question.
+   matrix; an unqualified host cannot resolve the question. Exception,
+   exercised 2026-08-16: when the expected effect is many multiples of the
+   measured null floor, proceeding on a noisy host is sound — quote the
+   null beside the result and treat that row's exact digit as approximate.
 5. Update the R1 baseline in PROFILING.md §9 and the JS_ENGINE.md reference
    table in the same commit when numbers move.
 
