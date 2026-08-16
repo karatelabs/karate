@@ -140,8 +140,12 @@ public class JsLexer extends BaseLexer {
             return scanNumber();
         }
 
-        // ES2022 private name — `#` is only ever the start of one
+        // ES2023 HashbangComment — legal only as the very first two characters of
+        // the source; anywhere else `#` can only start a private name.
         if (c == '#') {
+            if (pos == 0 && peek(1) == '!') {
+                return scanLineComment();
+            }
             return scanPrivateName();
         }
 
@@ -523,8 +527,10 @@ public class JsLexer extends BaseLexer {
             if (!isAtEnd() && peek() == '_') {
                 scanDigitsWithSeparators();
             }
-            // Decimal part
-            if (peek() == '.' && isDigit(peek(1))) {
+            // Decimal part. The dot is taken even with no digit after it (`1.`, `1.e3`
+            // are DecimalLiterals) — but only ever ONE, so `1..toString()` still lexes
+            // as the literal `1.` followed by member access.
+            if (peek() == '.') {
                 isInteger = false;
                 advance(); // .
             }

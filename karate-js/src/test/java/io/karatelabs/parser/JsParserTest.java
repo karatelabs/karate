@@ -335,11 +335,72 @@ class JsParserTest {
         expr("try {} finally {}", "['try',['{','}'],'finally',['{','}']]");
         expr("try {} catch (e) {} finally {}", "['try',['{','}'],'catch','(',$e,')',['{','}'],'finally',['{','}']]");
         expr("try {} catch {}", "['try',['{','}'],'catch',['{','}']]");
+        expr("try {} catch {} finally {}", "['try',['{','}'],'catch',['{','}'],'finally',['{','}']]");
     }
 
     @Test
     void testTypeOf() {
         expr("typeof 'foo' === 'string'", "[['typeof','foo'],'===','string']");
+    }
+
+    @Test
+    void testDelete() {
+        // UnaryExpression, same precedence tier as typeof / void — legal anywhere an
+        // expression is, not only at statement position
+        expr("delete o.a", "['delete',[$o,'.',$a]]");
+        expr("var d = delete o.a", "[var,[$d,'=',['delete',[$o,'.',$a]]]]");
+        expr("if (delete o.a) {}", "[if,'(',['delete',[$o,'.',$a]],')',['{','}']]");
+        expr("(delete o.a) === true", "[['delete',[$o,'.',$a]],'===',true]");
+        expr("[delete o.a]", "['[',['delete',[$o,'.',$a]],']']");
+        expr("() => delete o.a", "[['(',')'],'=>',['delete',[$o,'.',$a]]]");
+        expr("delete o.a === true", "[['delete',[$o,'.',$a]],'===',true]");
+    }
+
+    @Test
+    void testSwitchDefaultNotLast() {
+        expr("switch (x) { default: a; case 1: b }",
+                "[switch,'(',$x,')','{',[default,':',[$a,';']],[case,1,':',$b],'}']");
+        error("switch (x) { default: a; default: b }", ParserException.class);
+    }
+
+    @Test
+    void testHashbang() {
+        program("#!/usr/bin/env node\n1", "{PROGRAM:[1,EOF]}");
+        // only at the very first character — everywhere else `#` starts a private name
+        error("\n#!/usr/bin/env node", ParserException.class);
+        error("1 #! 2", ParserException.class);
+        error("var a = 1; #!x", ParserException.class);
+    }
+
+    @Test
+    void testTrailingDotNumber() {
+        expr("1.", "1.0");
+        expr("1.e3", "1000.0");
+        // only ONE dot belongs to the literal — the second is member access
+        expr("1..toString()", "[[1.0,'.',$toString],'(',[],')']");
+        expr("1.5.toString()", "[[1.5,'.',$toString],'(',[],')']");
+        // `1.toString()` has no dot left for the member access — a SyntaxError, as per spec
+        error("1.toString()", ParserException.class);
+    }
+
+    @Test
+    void testAsiAcrossComments() {
+        // a comment between the newline and the next token must not hide the line break
+        program("var a = 1\n/* c */ var b = 2", "{PROGRAM:[[var,[$a,'=',1]],[var,[$b,'=',2]],EOF]}");
+        program("var a = 1\n// c\nvar b = 2", "{PROGRAM:[[var,[$a,'=',1]],[var,[$b,'=',2]],EOF]}");
+        // a LineTerminator INSIDE a block comment counts as a line break for ASI
+        program("var a = 1 /* multi\n*/ var b = 2", "{PROGRAM:[[var,[$a,'=',1]],[var,[$b,'=',2]],EOF]}");
+        // no line break anywhere — still an error
+        error("var a = 1 /* c */ var b = 2", ParserException.class);
+    }
+
+    @Test
+    void testRestParamPattern() {
+        expr("function f(...[a, b]) {}",
+                "[function,$f,['(',['...',['[',$a,$b,']']],')'],['{','}']]");
+        expr("function f(...{length}) {}",
+                "[function,$f,['(',['...',['{',$length,'}']],')'],['{','}']]");
+        error("function f(...[a], b) {}", ParserException.class);
     }
 
     @Test

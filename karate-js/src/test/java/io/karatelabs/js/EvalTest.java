@@ -1184,6 +1184,75 @@ class EvalTest extends EvalBase {
     }
 
     @Test
+    void testSwitchDefaultNotLast() {
+        // §14.12.9: cases are matched in source order wherever `default` sits, and
+        // `default` runs only when nothing matched — then falls through what follows it
+        assertEquals("c", eval("var r = ''; switch (1) { default: r += 'd'; break; case 1: r += 'c' } r"));
+        assertEquals("d2", eval("var r = ''; switch (9) { case 1: r += '1'; default: r += 'd'; case 2: r += '2' } r"));
+        assertEquals("2", eval("var r = ''; switch (2) { case 1: r += '1'; default: r += 'd'; case 2: r += '2' } r"));
+        assertEquals("1d2", eval("var r = ''; switch (1) { case 1: r += '1'; default: r += 'd'; case 2: r += '2' } r"));
+        assertEquals("d", eval("var r = ''; switch (9) { default: r += 'd'; break; case 1: r += '1' } r"));
+    }
+
+    @Test
+    void testTryCatchNoBindingWithFinally() {
+        eval("var a, b; try { throw 'foo' } catch { a = 'bar' } finally { b = 2 }");
+        assertEquals("bar", get("a"));
+        assertEquals(2, get("b"));
+        eval("var a, b; try { a = 1 } catch { a = 'bar' } finally { b = 2 }");
+        assertEquals(1, get("a"));
+        assertEquals(2, get("b"));
+    }
+
+    @Test
+    void testDeleteExpression() {
+        // `delete` is a UnaryExpression: usable anywhere, and it evaluates to a boolean
+        assertEquals(true, eval("var o = { a: 1 }; var d = delete o.a; d"));
+        assertEquals(false, eval("var o = { a: 1 }; delete o"));
+        assertEquals("yes", eval("var o = { a: 1 }; if (delete o.a) { 'yes' } else { 'no' }"));
+        assertEquals(true, eval("var o = { a: 1 }; (() => delete o.a)()"));
+        eval("var o = { a: 1, b: 2 }; var d = [delete o.a, delete o.b]");
+        NodeUtils.match(get("o"), "{}");
+        NodeUtils.match(get("d"), "[true, true]");
+        // statement position still works
+        eval("var o = { a: 1 }; delete o.a");
+        NodeUtils.match(get("o"), "{}");
+    }
+
+    @Test
+    void testTrailingDotNumbers() {
+        assertEquals(1, eval("var a = 1.; a"));
+        assertEquals(1000, eval("1.e3"));
+        // the first dot closes the literal, the second is member access
+        assertEquals("1", eval("1..toString()"));
+        assertEquals("1.5", eval("1.5.toString()"));
+    }
+
+    @Test
+    void testAsiAcrossComments() {
+        assertEquals(3, eval("var a = 1\n/* c */ var b = 2; a + b"));
+        assertEquals(3, eval("var a = 1 /* multi\n*/ var b = 2; a + b"));
+        // a LineTerminator inside a block comment ends a restricted production too
+        assertNull(eval("(function() { return /* multi\n*/ 1 })()"));
+    }
+
+    @Test
+    void testHashbang() {
+        assertEquals(2, eval("#!/usr/bin/env node\nvar a = 2; a"));
+    }
+
+    @Test
+    void testRestParamDestructuring() {
+        assertEquals(3, eval("function f(...[a, b]) { return a + b } f(1, 2)"));
+        assertEquals(2, eval("function f(...{length}) { return length } f(1, 2)"));
+        assertEquals(6, eval("function f(x, ...[a, b]) { return x + a + b } f(1, 2, 3)"));
+        assertEquals(3, eval("var f = (...[a, b]) => a + b; f(1, 2)"));
+        assertEquals("2-3", eval("function f(...[a, ...r]) { return r.join('-') } f(1, 2, 3)"));
+        assertEquals(9, eval("function f(...[a = 9]) { return a } f()"));
+        assertNull(eval("function f(...[a, b]) { return b } f(1)"));
+    }
+
+    @Test
     void testSwitchBreakScoping() {
         // break inside switch must not escape the enclosing if block
         eval("var after = false; if (true) { switch ('a') { case 'a': break; case 'b': break } after = true }");

@@ -407,42 +407,58 @@ public abstract class BaseParser {
      * LineTerminator is not whitespace, it ends the statement. Without the check, {@code return} followed by a
      * newline and a call swallows the call as its argument — which parses fine and means something else.</p>
      *
-     * <p><b>Which productions actually consult this today: {@code return}, {@code throw}, and
-     * {@code break}/{@code continue} before a label.</b> The grammar also restricts {@code yield} before
-     * its operand and a postfix {@code ++}/{@code --} after its operand; neither is enforced here — the
-     * postfix case is a separate, unfixed gap. Do not read this javadoc as a claim that they are
-     * covered.</p>
+     * <p><b>Which productions actually consult this today: {@code return}, {@code throw},
+     * {@code break}/{@code continue} before a label, and automatic semicolon insertion.</b> The grammar
+     * also restricts {@code yield} before its operand and a postfix {@code ++}/{@code --} after its
+     * operand; neither is enforced here — the postfix case is a separate, unfixed gap. Do not read this
+     * javadoc as a claim that they are covered.</p>
      *
      * <p><b>Reusing it needs one caution.</b> It measures the gap after the <i>last token of the current
      * node</i>, so a caller whose preceding element is an expression rather than a keyword — the postfix case
-     * — gets the right token only because {@link Node#getLastToken()} recurses to it. And the scan start is
-     * clamped: {@code Token.length} is a {@code short}, so a token longer than 32767 characters reports a
-     * negative length (a limitation this engine already has in {@code Token.getText()}). The clamp makes that
-     * fail toward <i>terminating</i> the statement, which is the safe direction — the unsafe one is silently
-     * swallowing the next expression.</p>
+     * — gets the right token only because {@link Node#getLastToken()} recurses to it.</p>
      */
     protected boolean noLineTerminatorBefore() {
-        Token last = nodeStack[stackPointer - 1].getLastToken();
         Token next = peekToken();
-        if (next == Token.EMPTY) {
-            return true;
-        }
-        // the SOURCE between the two tokens, not their line numbers. Three reasons, and each one is a case
-        // where comparing lines silently gives the wrong answer: `Token.line` is a `short`, so past 32768
-        // lines it wraps and two genuinely-distant tokens compare equal — reinstating the exact swallowed-
-        // expression bug this check exists to prevent; a lone CR and U+2028/U+2029 are LineTerminators the
-        // lexer's line counter does not all track; and a terminator inside a block comment
-        // (`return /*\n*/ x`) terminates the statement per spec but moves no token onto a new line the
-        // counter agrees about. The gap is normally one character, so scanning it costs nothing.
+        return next == Token.EMPTY
+                || !lineTerminatorBetween(nodeStack[stackPointer - 1].getLastToken(), next);
+    }
+
+    /**
+     * True if a LineTerminator appears in the source between the end of {@code tok} and the start
+     * of the next primary token — the forward-looking form of {@link #noLineTerminatorBefore()},
+     * for callers holding a token rather than a parse position.
+     */
+    protected static boolean lineTerminatorFollows(Token tok) {
+        Token next = tok.getNextPrimary();
+        return next != null && lineTerminatorBetween(tok, next);
+    }
+
+    /**
+     * The single LineTerminator scanner. Reads the SOURCE between the two tokens, not their line
+     * numbers. Four reasons, and each one is a case where comparing lines — or looking only at the
+     * intervening token types — silently gives the wrong answer: {@code Token.line} is a
+     * {@code short}, so past 32768 lines it wraps and two genuinely-distant tokens compare equal;
+     * a lone CR and U+2028/U+2029 are LineTerminators the lexer's line counter does not all track;
+     * a newline inside a block comment terminates the statement per spec but moves no token onto a
+     * new line the counter agrees about; and a comment between the newline and the next token hides
+     * the WS_LF from a single-token-back lookup. The gap is normally one character, so scanning it
+     * costs nothing.
+     * <p>
+     * The scan start is clamped: {@code Token.length} is a {@code short}, so a token longer than
+     * 32767 characters reports a negative length (a limitation this engine already has in
+     * {@code Token.getText()}). The clamp makes that fail toward <i>terminating</i> the statement,
+     * which is the safe direction — the unsafe one is silently swallowing the next expression.
+     */
+    private static boolean lineTerminatorBetween(Token last, Token next) {
         String text = last.getResource().getText();
         int from = Math.max(last.pos, Math.min(last.pos + last.length, text.length()));
         int to = Math.min(next.pos, text.length());
         for (int i = from; i < to; i++) {
             if (isLineTerminator(text.charAt(i))) {
-                return false;
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     /** ECMAScript 11.3 — LF, CR, LINE SEPARATOR, PARAGRAPH SEPARATOR. Vertical tab is <b>not</b> one. */

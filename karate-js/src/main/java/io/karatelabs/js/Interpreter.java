@@ -556,9 +556,8 @@ class Interpreter {
         return false;
     }
 
-    private static Object evalDeleteStmt(Node node, CoreContext context) {
-        PropertyAccess.delete(node.get(1).getFirst(), context);
-        return true;
+    private static Object evalDeleteExpr(Node node, CoreContext context) {
+        return PropertyAccess.delete(node.get(1).getFirst(), context);
     }
 
     private static Object evalExpr(Node node, CoreContext context) {
@@ -2578,35 +2577,58 @@ class Interpreter {
         if (context.isStopped()) {
             return null;
         }
-        List<Node> caseNodes = node.findImmediateChildren(NodeType.CASE_BLOCK);
-        boolean found = false;
+        // Clauses in source order — `default` may sit anywhere among the cases.
+        // §14.12.9: every CaseClause is tested in order; the DefaultClause is entered
+        // only if none matched, and execution then falls through the clauses after it.
+        List<Node> clauses = new ArrayList<>();
+        int defaultAt = -1;
+        for (int i = 0, n = node.size(); i < n; i++) {
+            Node child = node.get(i);
+            if (child.isToken()) {
+                continue;
+            }
+            if (child.type == NodeType.DEFAULT_BLOCK) {
+                defaultAt = clauses.size();
+                clauses.add(child);
+            } else if (child.type == NodeType.CASE_BLOCK) {
+                clauses.add(child);
+            }
+        }
         Object result = null;
         try {
-            for (Node caseNode : caseNodes) {
-                if (!found) {
-                    Object caseValue = eval(caseNode.get(1), context);
-                    // Abrupt completion in a CaseClause expression propagates.
-                    if (context.isStopped()) {
-                        return null;
-                    }
-                    boolean matched = Terms.eq(switchValue, caseValue, true);
-                    context.event(EventType.BRANCH, caseNode, matched);
-                    if (matched) {
-                        found = true;
-                    }
+            int enterAt = -1;
+            for (int i = 0; i < clauses.size(); i++) {
+                if (i == defaultAt) {
+                    continue;
                 }
-                if (found) {
-                    for (int i = 3; i < caseNode.size(); i++) {
-                        result = eval(caseNode.get(i), context);
-                        if (context.isStopped()) {
-                            return result;
-                        }
-                    }
+                Node caseNode = clauses.get(i);
+                Object caseValue = eval(caseNode.get(1), context);
+                // Abrupt completion in a CaseClause expression propagates.
+                if (context.isStopped()) {
+                    return null;
+                }
+                boolean matched = Terms.eq(switchValue, caseValue, true);
+                context.event(EventType.BRANCH, caseNode, matched);
+                if (matched) {
+                    enterAt = i;
+                    break;
                 }
             }
-            List<Node> defaultNodes = node.findImmediateChildren(NodeType.DEFAULT_BLOCK);
-            if (!defaultNodes.isEmpty()) {
-                result = evalBlock(defaultNodes.getFirst(), context);
+            if (enterAt < 0) {
+                enterAt = defaultAt;
+            }
+            if (enterAt < 0) {
+                return null;
+            }
+            for (int i = enterAt; i < clauses.size(); i++) {
+                Node clause = clauses.get(i);
+                // CASE_BLOCK: [CASE, expr, COLON, stmt...]; DEFAULT_BLOCK: [DEFAULT, COLON, stmt...]
+                for (int j = clause.type == NodeType.CASE_BLOCK ? 3 : 2, m = clause.size(); j < m; j++) {
+                    result = eval(clause.get(j), context);
+                    if (context.isStopped()) {
+                        return result;
+                    }
+                }
             }
             return result;
         } finally {
@@ -2703,8 +2725,12 @@ class Interpreter {
         }
         Node finallyBlock = null;
         if (node.get(2).token.type == CATCH) {
-            if (node.size() > 7) {
-                finallyBlock = node.get(8);
+            // The CatchParameter is optional, so the catch block — and therefore the
+            // `finally` keyword after it — sits at one of two offsets.
+            boolean hasParam = node.get(3).token.type == L_PAREN;
+            int catchBlockAt = hasParam ? 6 : 3;
+            if (node.size() > catchBlockAt + 1) {
+                finallyBlock = node.get(catchBlockAt + 2);
             }
             if (context.isError()) {
                 Object errorThrown = context.getErrorThrown();
@@ -2712,7 +2738,7 @@ class Interpreter {
                 context.enterScope(ContextScope.CATCH, node);
                 context.event(EventType.CONTEXT_ENTER, node);
                 try {
-                    if (node.get(3).token.type == L_PAREN) {
+                    if (hasParam) {
                         Node param = node.get(4);
                         if (param.type == NodeType.LIT_ARRAY || param.type == NodeType.LIT_OBJECT) {
                             // Destructuring CatchParameter (`catch ([a,b])` / `catch ({e})`).
@@ -2722,10 +2748,8 @@ class Interpreter {
                         } else {
                             context.put(param.getText(), errorThrown);
                         }
-                        tryValue = eval(node.get(6), context);
-                    } else { // catch without variable name, 3 is block
-                        tryValue = eval(node.get(3), context);
                     }
+                    tryValue = eval(node.get(catchBlockAt), context);
                     if (context.isError()) { // catch threw error
                         tryValue = null;
                     }
@@ -2901,7 +2925,7 @@ class Interpreter {
             case BREAK_STMT -> evalBreakStmt(node, context);
             case CONTINUE_STMT -> evalContinueStmt(node, context);
             case LABELLED_STMT -> evalLabelledStmt(node, context);
-            case DELETE_STMT -> evalDeleteStmt(node, context);
+            case DELETE_EXPR -> evalDeleteExpr(node, context);
             case EXPR -> evalExpr(node, context);
             case EXPR_LIST -> evalExprList(node, context);
             case LIT_EXPR -> evalLitExpr(node, context);

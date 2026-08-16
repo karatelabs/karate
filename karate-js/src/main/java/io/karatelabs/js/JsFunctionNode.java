@@ -256,8 +256,15 @@ class JsFunctionNode extends JsFunction {
                 for (int j = i; j < args.length; j++) {
                     remainingArgs.add(args[j]);
                 }
-                String argName = argNode.getLast().getText();
-                functionContext.put(argName, remainingArgs);
+                Node restTarget = argNode.get(1);
+                if (restTarget.type == NodeType.LIT_ARRAY || restTarget.type == NodeType.LIT_OBJECT) {
+                    // `...[a, b]` / `...{length}` — the collected rest is destructured, so it
+                    // has to be a real array (the pattern reads `length`, the iterator, …).
+                    Interpreter.evalAssign(restTarget, functionContext, BindScope.VAR,
+                            new JsArray(remainingArgs), true);
+                } else {
+                    functionContext.put(restTarget.getText(), remainingArgs);
+                }
                 continue;
             }
             // Resolve the passed value or fall back to UNDEFINED — the param-level

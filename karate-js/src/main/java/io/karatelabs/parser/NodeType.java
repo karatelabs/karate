@@ -46,7 +46,7 @@ public enum NodeType {
     BREAK_STMT,
     CONTINUE_STMT,
     LABELLED_STMT,
-    DELETE_STMT,
+    DELETE_EXPR,
     BLOCK,
     EOS,
     EXPR,

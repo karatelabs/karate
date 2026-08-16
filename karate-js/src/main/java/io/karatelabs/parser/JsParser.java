@@ -98,7 +98,7 @@ public class JsParser extends BaseParser {
     private static final EnumSet<TokenType> T_EXPR_START = EnumSet.of(
             IDENT, S_STRING, D_STRING, NUMBER, BIGINT, TRUE, FALSE, NULL,  // literals & ref
             L_CURLY, L_BRACKET, BACKTICK, REGEX,                           // compound literals
-            FUNCTION, CLASS, SUPER, L_PAREN, NEW, TYPEOF, VOID,            // keywords & grouping
+            FUNCTION, CLASS, SUPER, L_PAREN, NEW, TYPEOF, VOID, DELETE,    // keywords & grouping
             NOT, TILDE, PLUS_PLUS, MINUS_MINUS, MINUS, PLUS,               // unary operators
             PRIVATE_NAME                                                   // only as `#x in obj`
     );
@@ -264,7 +264,7 @@ public class JsParser extends BaseParser {
                 }
                 requirePrivateDeclared(node.getText(), privates);
             }
-            case DELETE_STMT -> {
+            case DELETE_EXPR -> {
                 Node target = node.size() > 1 ? node.get(1) : null;
                 while (target != null && !target.isToken()) {
                     if (target.type == NodeType.REF_DOT_EXPR) {
@@ -521,6 +521,20 @@ public class JsParser extends BaseParser {
                 checkNoLexicalOrClassDeclarationBody(node, "a loop");
             }
             case IF_STMT -> checkNoLexicalOrClassDeclarationBody(node, "an `if`/`else` clause");
+            // CaseBlock has at most one DefaultClause (§14.12.1). The grammar accepts
+            // `default` anywhere among the cases, so the count is checked here.
+            case SWITCH_STMT -> {
+                boolean seen = false;
+                for (int i = 0, n = node.size(); i < n; i++) {
+                    Node child = node.get(i);
+                    if (!child.isToken() && child.type == NodeType.DEFAULT_BLOCK) {
+                        if (seen) {
+                            throw new ParserException("more than one `default` clause in a switch");
+                        }
+                        seen = true;
+                    }
+                }
+            }
             // LabelledItem is a Statement or a FunctionDeclaration; the latter is a strict-mode
             // early error with only an Annex B.3.1 sloppy carve-out. karate-js rejects it in both
             // modes: the hoisting a bare `function f(){}` gets does not reach through the
@@ -606,17 +620,6 @@ public class JsParser extends BaseParser {
                     return true;
                 }
                 return tt == LET && !lineTerminatorFollows(child.token);
-            }
-        }
-        return false;
-    }
-
-    /** True if a LineTerminator ({@code WS_LF}) appears between {@code tok} and the next
-     *  primary token, scanning across intervening whitespace / comments. */
-    private static boolean lineTerminatorFollows(Token tok) {
-        for (Token t = tok.getNext(); t != null && !t.type.primary; t = t.getNext()) {
-            if (t.type == WS_LF) {
-                return true;
             }
         }
         return false;
@@ -1390,9 +1393,14 @@ public class JsParser extends BaseParser {
      */
     private static boolean childInPatternContext(Node parent, int i, boolean inPattern) {
         switch (parent.type) {
-            case ASSIGN_EXPR, VAR_DECL, FN_DECL_ARG -> {
+            case ASSIGN_EXPR, VAR_DECL -> {
                 // LHS / binding position is at index 0.
                 return i == 0;
+            }
+            case FN_DECL_ARG -> {
+                // Index 0, or index 1 for a rest parameter (`...[a, b]`).
+                Node first = parent.getFirst();
+                return i == (first.isToken() && first.token.type == DOT_DOT_DOT ? 1 : 0);
             }
             case FOR_STMT -> {
                 // for-of / for-in LHS — the non-token child immediately preceding
@@ -1646,7 +1654,6 @@ public class JsParser extends BaseParser {
                 || switch_stmt()
                 || (break_stmt() && eos())
                 || (continue_stmt() && eos())
-                || (delete_stmt() && eos())
                 || labelled_stmt()
                 || fn_expr() // function declarations don't need eos (ASI)
                 || class_expr() // class declarations don't need eos (ASI), like function decls
@@ -1664,12 +1671,9 @@ public class JsParser extends BaseParser {
         if (enter(NodeType.EOS, SEMI)) {
             return exit();
         }
-        Token next = peekToken();
-        if (next.type == R_CURLY || next.type == EOF) {
-            return true;
-        }
-        Token prev = next.getPrev();
-        return prev != null && prev.type == WS_LF;
+        TokenType next = peek();
+        // ASI also fires at `}` and end of input, with no LineTerminator needed.
+        return next == R_CURLY || next == EOF || !noLineTerminatorBefore();
     }
 
     private boolean expr_list(boolean mandatory) {
@@ -1769,20 +1773,23 @@ public class JsParser extends BaseParser {
             return false;
         }
         block(true);
-        if (consumeIf(CATCH)) {
-            // CatchParameter → BindingIdentifier | BindingPattern. Reuse the same
-            // binding-target trio as var_decl so `catch ([a,b])` / `catch ({e})`
-            // parse through the destructuring cover-grammar, not just bare idents.
-            if (consumeIf(L_PAREN) && (lit_array() || lit_object() || consumeIf(IDENT)) && consumeIf(R_PAREN) && block(true)) {
-                if (consumeIf(FINALLY)) {
-                    block(true);
+        boolean hasCatch = consumeIf(CATCH);
+        if (hasCatch) {
+            // CatchParameter is optional (ES2019); when present it is a
+            // BindingIdentifier or BindingPattern — reuse the same binding-target trio
+            // as var_decl so `catch ([a,b])` / `catch ({e})` parse through the
+            // destructuring cover-grammar, not just bare idents.
+            if (consumeIf(L_PAREN)) {
+                if (!(lit_array() || lit_object() || consumeIf(IDENT))) {
+                    error(IDENT, L_BRACKET, L_CURLY);
                 }
-            } else if (!block(false)) { // catch without exception variable
-                error(CATCH);
+                consumeSoft(R_PAREN);
             }
-        } else if (consumeIf(FINALLY)) {
             block(true);
-        } else {
+        }
+        if (consumeIf(FINALLY)) {
+            block(true);
+        } else if (!hasCatch) {
             error("expected " + CATCH + " or " + FINALLY);
         }
         return exit();
@@ -1866,11 +1873,13 @@ public class JsParser extends BaseParser {
         expr_list(true);
         consumeSoft(R_PAREN);
         consumeSoft(L_CURLY);
+        // CaseClauses and the DefaultClause interleave freely — `default` need not be
+        // last. At-most-one `default` is an early error, not a grammar restriction.
         while (true) {
-            if (peekIf(R_CURLY) || peekIf(DEFAULT) || peekIf(EOF)) {
+            if (peekIf(R_CURLY) || peekIf(EOF)) {
                 break;
             }
-            if (!case_block()) {
+            if (!case_block() && !default_block()) {
                 if (errorRecoveryEnabled) {
                     error("invalid case block");
                     recoverTo(R_CURLY, CASE, DEFAULT, EOF);
@@ -1879,7 +1888,6 @@ public class JsParser extends BaseParser {
                 break;
             }
         }
-        default_block();
         consumeSoft(R_CURLY);
         return exit();
     }
@@ -1906,25 +1914,25 @@ public class JsParser extends BaseParser {
         return exit();
     }
 
-    private void default_block() {
+    private boolean default_block() {
         if (!enter(NodeType.DEFAULT_BLOCK, DEFAULT)) {
-            return;
+            return false;
         }
         consumeSoft(COLON);
         while (true) {
-            if (peekIf(R_CURLY) || peekIf(EOF)) {
+            if (peekIf(CASE) || peekIf(DEFAULT) || peekIf(R_CURLY) || peekIf(EOF)) {
                 break;
             }
             if (!statement(false)) {
                 if (errorRecoveryEnabled) {
                     error("cannot parse statement in default block");
-                    recoverTo(R_CURLY, SEMI, EOF);
+                    recoverTo(CASE, DEFAULT, R_CURLY, SEMI, EOF);
                     continue;
                 }
                 break;
             }
         }
-        exit();
+        return exit();
     }
 
     private boolean break_stmt() {
@@ -1967,9 +1975,8 @@ public class JsParser extends BaseParser {
         return exit();
     }
 
-    // as per spec this is an expression
-    private boolean delete_stmt() {
-        if (!enter(NodeType.DELETE_STMT, DELETE)) {
+    private boolean delete_expr() {
+        if (!enter(NodeType.DELETE_EXPR, DELETE)) {
             return false;
         }
         expr(13, true);
@@ -2030,6 +2037,7 @@ public class JsParser extends BaseParser {
                 || math_pre_expr()
                 || new_expr()
                 || typeof_expr()
+                || delete_expr()
                 || private_name_expr(); // last: nothing above can start with `#`
         if (result) {
             expr_rhs(priority);
@@ -2405,7 +2413,10 @@ public class JsParser extends BaseParser {
     private boolean fn_decl_arg() {
         enter(NodeType.FN_DECL_ARG);
         if (consumeIf(DOT_DOT_DOT)) {
-            consume(IDENT);
+            // BindingRestElement → BindingIdentifier | BindingPattern (`...[a, b]`)
+            if (!(consumeIf(IDENT) || lit_array() || lit_object())) {
+                error(IDENT, L_BRACKET, L_CURLY);
+            }
             if (!peekIf(R_PAREN)) {
                 error(R_PAREN);
             }
