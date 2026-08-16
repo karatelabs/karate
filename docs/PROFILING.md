@@ -1001,9 +1001,14 @@ it, and move the sha forward when a session exercises the battery.
 **The Gatling arc is PAUSED as of 2026-08-07** (E2–E4 below, designs kept so nothing is
 re-derived), and **the suite-soak arc is closed** — the settled entry below carries E1/E1R's
 figures and reopening conditions. **The R1-first-cells + J1-arithmetic-variants bench
-session ran 2026-08-13** — R1's Graviton baseline is below, and **J1 is closed**: both
-guard-row regressions accepted (its settled entry carries the evidence and reopening
-conditions). **Nothing is queued**; everything here is a deliberate decision to start.
+session ran 2026-08-13**, and **the Tier-1/R2 session ran 2026-08-15/16** — the R-lane's
+current figure is **karate ÷ rhino-best 1.29 five-row geomean** (the R2 entry below;
+R1's 1.52 is the superseded baseline). **The active workstream is engine-side, not
+bench-side**: [JS_PERF_PLAN.md](./JS_PERF_PLAN.md) carries the profiling-derived plan, what
+has shipped, and the ranked Tier-2 items; a cold session resuming perf work should start
+there, then come back here only for the one-A/B-plus-R-lane bench rerun each Tier-2
+landing earns. **Nothing else is queued**; everything here is a deliberate decision to
+start.
 
 #### R1 — the rhino-best head-to-head lane
 

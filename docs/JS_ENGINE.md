@@ -2763,6 +2763,13 @@ call; path-skipped). Pinned by `SpecPinTest.functionDeclAs*` and the
 > each measured at its defaults and tuned — see
 > [ptrthomas/karate-js-benchmark](https://github.com/ptrthomas/karate-js-benchmark).
 > The section below is version-over-version tracking of this engine only.
+>
+> **The active performance workstream lives in
+> [JS_PERF_PLAN.md](./JS_PERF_PLAN.md)** — profiling-derived mechanism
+> attribution, what has shipped with measured deltas, the ranked remaining
+> items, and the per-change measurement protocol. The quantitative
+> karate-vs-rhino-best tracking (the R lane) is in
+> [PROFILING.md §9](./PROFILING.md#9-the-steering-surface).
 
 Results from `karate-js/src/test/java/io/karatelabs/parser/EngineBenchmark.java`. The benchmark runs two 20 KB scripts: an array-method-heavy workload (`filter`/`map`/`reduce`/`find`/`some`/`every`/`slice`/`concat`/`indexOf`) and an object-method-heavy workload (`Object.keys`/`values`/`entries`/`assign`/`hasOwnProperty`/`toString`). Each script allocates a fresh `Engine` per iteration.
 

@@ -913,6 +913,9 @@ The conformance suite allocates a fresh `Engine` per test (~50k tests); small
 regressions compound into minutes of wall time. **Prefer profile mode** — the
 30 s warm loop is JIT-stable and directly comparable to the
 [reference table in JS_ENGINE.md](../docs/JS_ENGINE.md#performance-benchmarks).
+For deliberate performance *work* (as opposed to this regression gut-check),
+the plan, protocol and shipped-state live in
+[docs/JS_PERF_PLAN.md](../docs/JS_PERF_PLAN.md).
 
 ```sh
 mvn -pl karate-js -q test-compile
