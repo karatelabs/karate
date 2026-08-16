@@ -102,8 +102,6 @@ skip:
     # BigInt un-skipped: lexer recognizes the `n` literal suffix, runtime is backed
     # by java.math.BigInteger, arithmetic dispatches through Terms with TypeError on
     # mixing with Number, JSON.stringify throws TypeError per spec.
-    - feature: generators
-      reason: generator functions not supported
     - feature: class
       reason: class syntax not supported (use prototypes)
     - feature: class-fields-public

@@ -981,7 +981,7 @@ class Interpreter {
         if (first.type != NodeType.FN_EXPR || first.size() < 2) {
             return false;
         }
-        int nameIndex = fnKeywordIndex(first) + 1;
+        int nameIndex = fnNameOrArgsIndex(first);
         if (first.size() <= nameIndex) {
             return false;
         }
@@ -997,19 +997,31 @@ class Interpreter {
         return fnExpr.getFirst().token.type == FUNCTION ? 0 : 1;
     }
 
+    /** Index of the optional name (or, for an anonymous form, the parameter
+     *  list) within an {@code FN_EXPR}: past the {@code function} keyword and
+     *  past the {@code *} of a generator. */
+    private static int fnNameOrArgsIndex(Node fnExpr) {
+        int i = fnKeywordIndex(fnExpr) + 1;
+        Node child = fnExpr.get(i);
+        if (child.token != null && child.token.type == TokenType.STAR) {
+            return i + 1;
+        }
+        return i;
+    }
+
     private static Object evalFnExpr(Node node, CoreContext context) {
         // Shorthand method syntax ({foo() {...}}) produces an FN_EXPR whose
         // first child is FN_DECL_ARGS (no leading `function` keyword / name).
         if (node.getFirst().type == NodeType.FN_DECL_ARGS) {
             return new JsFunctionNode(false, node, fnArgs(node.getFirst()), node.getLast(), context);
         }
-        int i = fnKeywordIndex(node);
-        if (node.get(i + 1).token.type == IDENT) {
-            JsFunctionNode fn = new JsFunctionNode(false, node, fnArgs(node.get(i + 2)), node.getLast(), context);
-            context.put(node.get(i + 1).getText(), fn);
+        int i = fnNameOrArgsIndex(node);
+        if (node.get(i).token.type == IDENT) {
+            JsFunctionNode fn = new JsFunctionNode(false, node, fnArgs(node.get(i + 1)), node.getLast(), context);
+            context.put(node.get(i).getText(), fn);
             return fn;
         } else {
-            return new JsFunctionNode(false, node, fnArgs(node.get(i + 1)), node.getLast(), context);
+            return new JsFunctionNode(false, node, fnArgs(node.get(i)), node.getLast(), context);
         }
     }
 
@@ -2016,6 +2028,13 @@ class Interpreter {
                 keyPos = 1;
                 keyNode = elem.get(keyPos);
                 token = keyNode.token.type;
+            } else if (token == STAR) {
+                // ES6 generator shorthand method `{ *g() {...} }` — the same
+                // leading-modifier shape; the generator-ness is already on the
+                // synthetic FN_EXPR.
+                keyPos = 1;
+                keyNode = elem.get(keyPos);
+                token = keyNode.token.type;
             }
             // Computed keys: [expr] — OBJECT_ELEM starts with L_BRACKET, EXPR, R_BRACKET.
             // The value (or FN_EXPR for shorthand method) follows at position 3.
@@ -2748,6 +2767,198 @@ class Interpreter {
         }
     }
 
+    /**
+     * {@code yield x} / {@code yield* iterable}. Node shape:
+     * [yield-token, STAR?, EXPR?]. Runs only on a generator's vthread —
+     * {@link GeneratorActivation#current()} is the brand.
+     */
+    private static Object evalYieldExpr(Node node, CoreContext context) {
+        GeneratorActivation act = GeneratorActivation.current();
+        if (act == null) {
+            throw JsErrorException.syntaxError("yield is only valid inside a generator function");
+        }
+        boolean star = node.size() > 1 && node.get(1).isToken()
+                && node.get(1).token.type == TokenType.STAR;
+        Node operandNode = null;
+        if (star) {
+            operandNode = node.get(2);
+        } else if (node.size() > 1) {
+            operandNode = node.get(1);
+        }
+        Object operand = operandNode == null ? Terms.UNDEFINED : eval(operandNode, context);
+        if (context.isStopped()) {
+            return operand;
+        }
+        if (star) {
+            return evalYieldStar(operand, context, act);
+        }
+        return applyResume(act.yieldAndReceive(operand), context);
+    }
+
+    // Maps a driver resume input onto the interpreter's completion machinery
+    // at the yield site: NEXT is the yield's value; THROW is a cooperative
+    // throw (catchable, finally runs); RETURN is a return completion (finally
+    // runs via evalTryStmt's save/clear/restore — and a yield inside that
+    // finally suspends normally, the pending completion parked on this
+    // vthread's own stack).
+    private static Object applyResume(GeneratorActivation.ResumeSignal sig, CoreContext context) {
+        return switch (sig.kind) {
+            case NEXT -> sig.value;
+            case THROW -> {
+                context.stopAndThrow(sig.value);
+                yield Terms.UNDEFINED;
+            }
+            case RETURN -> {
+                context.stopAndReturn(sig.value);
+                yield Terms.UNDEFINED;
+            }
+        };
+    }
+
+    /**
+     * {@code yield*} delegation, spec §27.5.3.7 — an explicit state machine
+     * over the raw iterator record (iterator object + its methods invoked
+     * with arguments), NOT the value-only JsIterator walk: sent values,
+     * throw/return forwarding, and the delegate's final completion value all
+     * survive. Each re-yield goes through the same activation handoff, so
+     * the next resume kind comes from whatever the driver sends.
+     */
+    private static Object evalYieldStar(Object operand, CoreContext context, GeneratorActivation act) {
+        // GetIterator: call operand[@@iterator]() with operand as `this`
+        JsIterator probe = null; // only to reuse getIterator's TypeError wording on non-iterables
+        Object iteratorFn = operand instanceof ObjectLike ol
+                ? ol.getMember(IterUtils.SYMBOL_ITERATOR, ol, context) : null;
+        ObjectLike iterObj;
+        if (iteratorFn instanceof JsCallable callable && operand instanceof ObjectLike receiver) {
+            Object iter = callWith(callable, receiver, context);
+            if (context.isStopped()) {
+                return Terms.UNDEFINED;
+            }
+            if (!(iter instanceof ObjectLike io)) {
+                throw JsErrorException.typeError("Result of the Symbol.iterator method is not an object");
+            }
+            iterObj = io;
+        } else {
+            // strings / raw lists / Java iterables — wrap the engine iterator
+            // in the standard iterator-object shape so one loop serves all
+            probe = IterUtils.getIterator(operand, context);
+            iterObj = IterUtils.toIteratorObject(probe);
+        }
+        GeneratorActivation.ResumeKind kind = GeneratorActivation.ResumeKind.NEXT;
+        Object sent = Terms.UNDEFINED;
+        while (true) {
+            Object step;
+            switch (kind) {
+                case NEXT -> {
+                    step = invokeIteratorMethod(iterObj, "next", sent, context, true);
+                    if (context.isStopped()) {
+                        return Terms.UNDEFINED;
+                    }
+                }
+                case THROW -> {
+                    Object throwFn = iterObj.getMember("throw", iterObj, context);
+                    if (!(throwFn instanceof JsCallable)) {
+                        // no throw: close the delegate (validating return()'s
+                        // result when present), then TypeError
+                        Object closed = invokeIteratorMethod(iterObj, "return", null, context, false);
+                        if (context.isStopped()) {
+                            return Terms.UNDEFINED;
+                        }
+                        if (closed != null && !(closed instanceof ObjectLike)) {
+                            throw JsErrorException.typeError("iterator result is not an object");
+                        }
+                        throw JsErrorException.typeError(
+                                "The iterator does not provide a 'throw' method");
+                    }
+                    step = invokeIteratorMethod(iterObj, "throw", sent, context, true);
+                    if (context.isStopped()) {
+                        return Terms.UNDEFINED;
+                    }
+                }
+                case RETURN -> {
+                    Object returned = invokeIteratorMethod(iterObj, "return", sent, context, false);
+                    if (context.isStopped()) {
+                        return Terms.UNDEFINED;
+                    }
+                    if (returned == null) {
+                        // no return method: propagate the return completion
+                        context.stopAndReturn(sent);
+                        return Terms.UNDEFINED;
+                    }
+                    if (!(returned instanceof ObjectLike)) {
+                        throw JsErrorException.typeError("iterator result is not an object");
+                    }
+                    step = returned;
+                }
+                default -> throw new IllegalStateException();
+            }
+            ObjectLike stepObj = (ObjectLike) step;
+            boolean done = Terms.isTruthy(stepObj.getMember("done", stepObj, context));
+            if (context.isStopped()) {
+                return Terms.UNDEFINED;
+            }
+            Object value = stepObj.getMember("value", stepObj, context);
+            if (context.isStopped()) {
+                return Terms.UNDEFINED;
+            }
+            if (value == null) {
+                value = Terms.UNDEFINED;
+            }
+            if (done) {
+                if (kind == GeneratorActivation.ResumeKind.RETURN) {
+                    // the original return completion continues outward with
+                    // the delegate's final value (outer finally still runs)
+                    context.stopAndReturn(value);
+                    return Terms.UNDEFINED;
+                }
+                return value; // NEXT / THROW: yield* evaluates to the final value
+            }
+            GeneratorActivation.ResumeSignal sig = act.yieldAndReceive(value);
+            kind = sig.kind;
+            sent = sig.value;
+        }
+    }
+
+    /** Invoke {@code iterObj[name](arg)} with {@code iterObj} as `this`.
+     *  {@code required}: absent/non-callable is a TypeError when true, a null
+     *  return when false (caller decides). A null {@code arg} means call with
+     *  no arguments. Cooperative errors surface via context.isStopped(). */
+    private static Object invokeIteratorMethod(ObjectLike iterObj, String name, Object arg,
+                                               CoreContext context, boolean required) {
+        Object fn = iterObj.getMember(name, iterObj, context);
+        if (context.isStopped()) {
+            return Terms.UNDEFINED;
+        }
+        if (!(fn instanceof JsCallable callable)) {
+            if (required) {
+                throw JsErrorException.typeError("iterator." + name + " is not a function");
+            }
+            return null;
+        }
+        Object savedThis = context.thisObject;
+        context.thisObject = iterObj;
+        try {
+            Object result = callable.call(context,
+                    arg == null ? new Object[0] : new Object[]{arg});
+            if (!context.isStopped() && required && !(result instanceof ObjectLike)) {
+                throw JsErrorException.typeError("iterator result is not an object");
+            }
+            return result;
+        } finally {
+            context.thisObject = savedThis;
+        }
+    }
+
+    private static Object callWith(JsCallable callable, ObjectLike receiver, CoreContext context) {
+        Object savedThis = context.thisObject;
+        context.thisObject = receiver;
+        try {
+            return callable.call(context, new Object[0]);
+        } finally {
+            context.thisObject = savedThis;
+        }
+    }
+
     private static JsErrorException findJsErrorException(Throwable t) {
         Throwable cur = t;
         while (cur != null) {
@@ -3057,6 +3268,7 @@ class Interpreter {
             // async function runs synchronously, so awaiting an already-settled value is
             // the identity. The runtime phase replaces this with the real unwrap.
             case AWAIT_EXPR -> evalAwaitExpr(node, context);
+            case YIELD_EXPR -> evalYieldExpr(node, context);
             case VAR_STMT -> evalVarStmt(node, context);
             case WHILE_STMT -> evalWhileStmt(node, context);
             case DO_WHILE_STMT -> evalDoWhileStmt(node, context);

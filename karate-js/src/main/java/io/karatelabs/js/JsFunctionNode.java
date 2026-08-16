@@ -53,6 +53,10 @@ class JsFunctionNode extends JsFunction {
     // node's parse-time marker. An async invocation never runs its body on the
     // calling thread: it spawns an activation and returns a promise.
     final boolean async;
+    // True for a `function*` — calling one allocates a JsGenerator without
+    // running the body; the body runs on the generator's own vthread, one
+    // driver step at a time (see GeneratorActivation).
+    final boolean generator;
     final Node node;
     final Node body; // STATEMENT or BLOCK (that may return expr)
     final List<Node> argNodes;
@@ -122,6 +126,7 @@ class JsFunctionNode extends JsFunction {
                    boolean forceStrict) {
         this.arrow = arrow;
         this.async = node.async;
+        this.generator = node.generator;
         this.node = node;
         this.argNodes = argNodes;
         this.argCount = argNodes.size();
@@ -278,6 +283,14 @@ class JsFunctionNode extends JsFunction {
      */
     Object bindArgsAndExecute(CoreContext functionContext, CoreContext parentContext, Object[] args) {
         functionContext.privateEnv = privateEnv;
+        if (generator) {
+            // A generator call runs no body code — it returns the generator
+            // object; the body executes on the generator's vthread one driver
+            // step at a time. Parameter binding is deferred to the first
+            // next(), the same documented deviation async has.
+            Engine engine = functionContext.getEngine();
+            return new JsGenerator(engine, this, functionContext, args);
+        }
         if (async) {
             // Argument binding is part of the activation's startup, so it runs on
             // the activation thread under the startup-outcome protocol — not here.
@@ -380,9 +393,10 @@ class JsFunctionNode extends JsFunction {
 
     @Override
     public boolean isConstructable() {
-        // async functions are not constructors (spec §27.7.4) — `new f()` on one
-        // is a TypeError from the construct paths, same as for an arrow
-        return !arrow && !async;
+        // async functions and generator functions are not constructors
+        // (spec §27.7.4 / §27.3.3) — `new f()` on either is a TypeError from
+        // the construct paths, same as for an arrow
+        return !arrow && !async && !generator;
     }
 
 }

@@ -51,6 +51,13 @@ public class JsParser extends BaseParser {
     // ordinary function nested inside an async one goes back to treating `await` as
     // a plain identifier, as the spec requires.
     private boolean inAsync = true;
+    // True where `yield` is an operator rather than an identifier: inside a
+    // generator function body. Unlike inAsync it defaults to FALSE at program
+    // level (there is no top-level yield). Save/restored together with inAsync
+    // around every function body — an ordinary function nested inside a
+    // generator goes back to treating `yield` as an identifier, and arrows are
+    // never generators.
+    private boolean inGenerator = false;
 
     // The source text, for the allocation-free identifier comparisons that decide
     // the `async` / `await` contextual keywords (see isIdentText).
@@ -77,7 +84,8 @@ public class JsParser extends BaseParser {
     private static final EnumSet<TokenType> T_ACCESSOR_KEY_START = buildAccessorKeySet();
 
     private static EnumSet<TokenType> buildObjectElemSet() {
-        EnumSet<TokenType> s = EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, BIGINT, DOT_DOT_DOT, L_BRACKET);
+        // STAR admits the ES6 generator shorthand method `*name() { ... }`.
+        EnumSet<TokenType> s = EnumSet.of(IDENT, S_STRING, D_STRING, NUMBER, BIGINT, DOT_DOT_DOT, L_BRACKET, STAR);
         for (TokenType t : TokenType.values()) {
             if (t.keyword) s.add(t);
         }
@@ -2271,7 +2279,16 @@ public class JsParser extends BaseParser {
      */
     private boolean contextual_expr() {
         Token token = peekToken();
-        if (token.type != IDENT || token.length != 5 || source.charAt(token.pos) != 'a') {
+        if (token.type != IDENT || token.length != 5) {
+            return false;
+        }
+        char c0 = source.charAt(token.pos);
+        if (c0 == 'y') {
+            // `yield` is unconditionally an operator inside a generator body —
+            // it is a reserved word there, so no expression-start lookahead.
+            return inGenerator && isIdentText(token, "yield") && yield_expr();
+        }
+        if (c0 != 'a') {
             return false;
         }
         if (inAsync && isIdentText(token, "await")) {
@@ -2280,6 +2297,28 @@ public class JsParser extends BaseParser {
         // fn_expr() also carries the `async function` form, so that a declaration keeps
         // reaching it from statement position (hoisting, no ASI requirement)
         return isIdentText(token, "async") && (async_arrow_expr() || fn_expr());
+    }
+
+    /**
+     * {@code yield AssignmentExpression?} / {@code yield* AssignmentExpression} — reached
+     * only where {@link #inGenerator} holds. ASI: a LineTerminator after {@code yield}
+     * ends the expression (operand-less yield), and per spec no LineTerminator may come
+     * between {@code yield} and {@code *} — the line check therefore precedes the STAR
+     * consumption. The operand parses at assignment-expression level, so
+     * {@code yield a, b} is {@code (yield a), b}.
+     */
+    private boolean yield_expr() {
+        enter(NodeType.YIELD_EXPR);
+        Token yieldToken = peekToken();
+        consumeNext(); // the `yield` identifier token
+        if (!lineTerminatorFollows(yieldToken)) {
+            if (consumeIf(STAR)) {
+                expr(-1, true); // yield* requires an operand
+            } else if (peekAnyOf(T_EXPR_START)) {
+                expr(-1, true);
+            }
+        }
+        return exit();
     }
 
     /**
@@ -2364,12 +2403,19 @@ public class JsParser extends BaseParser {
      *  function's own async-ness — an ordinary function nested inside an async one must go
      *  back to treating {@code await} as an identifier. */
     private boolean fn_body(boolean async) {
+        return fn_body(async, false);
+    }
+
+    private boolean fn_body(boolean async, boolean generator) {
         boolean prevAsync = inAsync;
+        boolean prevGenerator = inGenerator;
         inAsync = async;
+        inGenerator = generator;
         try {
             return block(true);
         } finally {
             inAsync = prevAsync;
+            inGenerator = prevGenerator;
         }
     }
 
@@ -2378,11 +2424,14 @@ public class JsParser extends BaseParser {
      *  function's async-ness: only an async arrow may contain {@code await}. */
     private boolean fn_body_or_expr(boolean async) {
         boolean prevAsync = inAsync;
+        boolean prevGenerator = inGenerator;
         inAsync = async;
+        inGenerator = false; // arrows are never generators — `yield` reverts to identifier
         try {
             return block(false) || expr(-1, false);
         } finally {
             inAsync = prevAsync;
+            inGenerator = prevGenerator;
         }
     }
 
@@ -2462,9 +2511,16 @@ public class JsParser extends BaseParser {
 
     // Everything after the `function` keyword: optional name, parameters, body.
     private boolean fn_expr_tail(boolean async) {
+        boolean generator = consumeIf(STAR);
+        if (generator) {
+            if (async) {
+                error("async generators are not supported");
+            }
+            markerNode().generator = true;
+        }
         consumeIf(IDENT);
         fn_decl_args();
-        fn_body(async);
+        fn_body(async, generator);
         return exit();
     }
 
@@ -2613,7 +2669,14 @@ public class JsParser extends BaseParser {
     private boolean class_element() {
         enter(NodeType.CLASS_METHOD);
         boolean async = false;
+        boolean generator = false;
         while (true) {
+            // `*name() {}` / `static *name() {}` — the star is a modifier, the
+            // real key follows. `async *name()` is rejected below at the FN_EXPR.
+            if (!generator && consumeIf(STAR)) {
+                generator = true;
+                continue;
+            }
             if (consumeIf(L_BRACKET)) { // computed key [expr] — always the final key
                 expr(-1, true);
                 if (!consumeIf(R_BRACKET)) {
@@ -2635,7 +2698,7 @@ public class JsParser extends BaseParser {
             }
             String text = lastConsumedText();
             if (("static".equals(text) || "get".equals(text) || "set".equals(text))
-                    && (peekAnyOf(T_CLASS_KEY_NAME) || peekIf(L_BRACKET))) {
+                    && (peekAnyOf(T_CLASS_KEY_NAME) || peekIf(L_BRACKET) || peekIf(STAR))) {
                 continue; // it was a modifier — loop to consume the real key
             }
             // ES2017 `async name() {}` / `static async name() {}`. Modifier only when a
@@ -2643,7 +2706,7 @@ public class JsParser extends BaseParser {
             // per the spec's no-LineTerminator restriction. Until this existed the async
             // was silently dropped — the member parsed as a field named `async` plus an
             // ordinary (synchronous) method.
-            if ("async".equals(text) && (peekAnyOf(T_CLASS_KEY_NAME) || peekIf(L_BRACKET))
+            if ("async".equals(text) && (peekAnyOf(T_CLASS_KEY_NAME) || peekIf(L_BRACKET) || peekIf(STAR))
                     && !lineTerminatorFollows(markerNode().getLast().token)) {
                 async = true;
                 continue;
@@ -2656,8 +2719,14 @@ public class JsParser extends BaseParser {
         }
         enter(NodeType.FN_EXPR);
         markerNode().async = async;
+        if (generator) {
+            if (async) {
+                error("async generators are not supported");
+            }
+            markerNode().generator = true;
+        }
         fn_decl_args();
-        fn_body(async);
+        fn_body(async, generator);
         exit();
         return exit();
     }
@@ -2798,6 +2867,11 @@ public class JsParser extends BaseParser {
         if (!sawProtoKey && isProtoKeyText(lastConsumed(), lastConsumedText())) {
             sawProtoKey = true; // coarse gate; isProtoSetter decides the exact form later
         }
+        // ES6 generator shorthand method: `*name(args) { ... }`. The STAR was
+        // consumed by enter; the property name follows.
+        if (lastConsumed() == STAR) {
+            return object_method_elem(false, true);
+        }
         // ES6 getter/setter: `get name() { ... }` or `set name(v) { ... }`.
         // `get`/`set` was consumed by enter as an IDENT. It is an accessor keyword
         // only when followed by a property-name token; otherwise fall through so
@@ -2869,6 +2943,10 @@ public class JsParser extends BaseParser {
      *  then the element separator. The OBJECT_ELEM node is on the stack with the modifier
      *  token already consumed. */
     private boolean object_method_elem(boolean async) {
+        return object_method_elem(async, false);
+    }
+
+    private boolean object_method_elem(boolean async, boolean generator) {
         if (consumeIf(L_BRACKET)) {
             expr(-1, true);
             if (!consumeIf(R_BRACKET)) {
@@ -2881,8 +2959,9 @@ public class JsParser extends BaseParser {
         }
         enter(NodeType.FN_EXPR);
         markerNode().async = async;
+        markerNode().generator = generator;
         fn_decl_args();
-        fn_body(async);
+        fn_body(async, generator);
         exit();
         if (!(consumeIf(COMMA) || peekIf(R_CURLY))) {
             error(COMMA, R_CURLY);

@@ -361,8 +361,18 @@ with it.)*
 struck from this list. Remaining async tail: `for await`, async
 generators/iterators, `setInterval`, `queueMicrotask` — deferred.)*
 
-1. **Generators** (`function*` / `yield` / `yield*`) — parse-level absence,
-   ~1.4k skips.
+*(P1.1 Generators shipped 2026-08-16 — `function*` / `yield` / `yield*` as
+vthread coroutines on the async foundation, including class/object-literal
+generator methods, yield-inside-finally, and full §27.5.3.7 `yield*`
+delegation; design externally reviewed over 3 rounds. See
+[JS_ENGINE.md § Generators](../docs/JS_ENGINE.md#generators-function--yield--yield)
+for the invariants. The `generators` feature skip is removed: language slice
+went 6433 → 7470 pass with 0 regressions; the ~330 newly-attempted FAILs are
+conformance tail (escaped keywords, early errors, GeneratorFunction
+intrinsic, poisoned-probe ordering). The same landing fixed a pre-existing
+deadlock: `eval()` called on any activation thread — async function bodies
+included — hung the engine; `Engine.enterEvalScope` is now scope-aware.
+Pinned by `JsGeneratorTest` (44 tests).)*
 *(P1.2-2026-08-16, the eight-item parse-gap batch, shipped same day —
 seven of eight in one sweep: `delete` as a unary expression
 (`DELETE_EXPR`, statement dispatch removed, `evalDeleteExpr` returns the
@@ -581,7 +591,17 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   first) as of 2026-08-16. Remaining async tail, deferred: `for await` /
   async iterators / `Symbol.asyncIterator` (still feature-skipped), async
   generators, `queueMicrotask`, `setInterval` (deliberately undefined —
-  never quiesces).
+  never quiesces). Sync generators shipped 2026-08-16 (see Active
+  priorities P1.1 note); async generators would extend the same
+  GeneratorActivation coroutine with promise-shaped step results.
+- **ES modules (`import` / `export`) — deliberately unplanned.** The karate
+  embedding evaluates script blocks, not modules; the require-role is
+  filled by `karate.call()` / `read()`, and full module support is mostly
+  host work (specifier resolution, module records, cyclic linking) plus
+  `phase: resolution` harness plumbing. Revisit only if the embedding
+  grows a module host. Cheap error-UX middle step if demand appears: parse
+  `import`/`export` far enough to throw a clear SyntaxError pointing at
+  `karate.call()`.
 - **Class syntax (ES6) — core works; only the conformance tail remains.**
   Declarations + expressions evaluate: constructor, instance/static methods,
   accessors, computed names, `extends` + `super(...)` + `super.method()`,
@@ -591,8 +611,7 @@ file pointer. For *how the subsystem is shaped*, read the file. For
   `extends Error`/built-ins via a copy-own-props shim). Covered by `JsClassTest`.
   Private `#x` fields/methods/accessors and derived-class parent-field
   initialization shipped 2026-08-12 (see JS_ENGINE.md § the class section).
-  **Remaining tail:** generator
-  methods (**P1**), decorators, static-init blocks, class early-errors,
+  **Remaining tail:** decorators, static-init blocks, class early-errors,
   object-literal-method `super` (needs object [[HomeObject]]), two super edge
   cases (`this`-TDZ before `super()`, `super()` return-override),
   numeric/string-literal method-name canonicalization (`get 0x10(){}` → key

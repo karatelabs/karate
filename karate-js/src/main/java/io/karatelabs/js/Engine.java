@@ -251,6 +251,16 @@ public class Engine {
                 evalDepth++;
                 return false;
             }
+            // An async-activation or generator vthread executing inside the
+            // currently open scope is logically part of that eval, even though
+            // it is a different Thread — its nested eval() must share the
+            // scope, not wait for it to close (which deadlocked: the scope
+            // owner is parked waiting for this very thread).
+            AsyncScope current = asyncScope;
+            if (current != null && runningInsideScope(current)) {
+                evalDepth++;
+                return false;
+            }
             while (scopeOwner != null) {
                 try {
                     scopeGate.wait();
@@ -264,6 +274,17 @@ public class Engine {
             asyncScope = new AsyncScope(this);
             return true;
         }
+    }
+
+    /** True when the current thread is an activation (async or generator)
+     *  whose work belongs to {@code scope}. */
+    private static boolean runningInsideScope(AsyncScope scope) {
+        AsyncActivation act = AsyncActivation.current();
+        if (act != null && act.scope == scope) {
+            return true;
+        }
+        GeneratorActivation gen = GeneratorActivation.current();
+        return gen != null && gen.currentStepScope() == scope;
     }
 
     void exitEvalScope(boolean outermost) {
@@ -281,7 +302,7 @@ public class Engine {
      *  start until it completes, so a cancelled activation's preserved stack can
      *  never mutate a later eval's state. */
     void closeScope(AsyncScope scope, String reason) {
-        List<AsyncActivation> stuck = scope.close(reason, asyncTeardownMillis);
+        List<Object> stuck = scope.close(reason, asyncTeardownMillis);
         if (!stuck.isEmpty()) {
             poison("activation did not terminate at teardown: " + stuck.get(0));
         }

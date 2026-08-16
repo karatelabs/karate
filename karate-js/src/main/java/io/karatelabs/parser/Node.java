@@ -70,6 +70,14 @@ public class Node {
      * to share (see the class javadoc).
      */
     public boolean async;
+    /**
+     * The {@code function*} generator marker, {@code FN_EXPR} only (declaration /
+     * expression / object-literal method / class method — arrows can never be
+     * generators). Same field-not-child rationale and publication-safety story
+     * as {@link #async}: the {@code *} token is consumed by the parser and the
+     * flag written before the tree is shared.
+     */
+    public boolean generator;
     // Raw array storage - null for TOKEN nodes, allocated on first child
     private Node[] children;
     private short childCount;

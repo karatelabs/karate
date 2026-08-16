@@ -66,6 +66,10 @@ final class AsyncScope {
     private ArrayDeque<AsyncJob> microtasks;
     private ArrayDeque<AsyncJob> macrotasks;
     private List<AsyncActivation> activations;
+    // RUNNING generator steps registered by their drivers (see
+    // GeneratorActivation): scope-owned, cancellable work. A SUSPENDED
+    // generator is deliberately absent — it is inert and survives scope close.
+    private List<GeneratorActivation> generators;
     private Map<Integer, TimerRecord> timers;
     private Map<CompletionStage<?>, JsPromise> stageCache;
     private List<JsPromise> trackedRejections;
@@ -233,6 +237,29 @@ final class AsyncScope {
         }
     }
 
+    /** Atomic register-only-if-open: a closed scope must never accept a
+     *  running generator step. Returns false when closed. */
+    boolean addGenerator(GeneratorActivation activation) {
+        synchronized (lock) {
+            if (closed) {
+                return false;
+            }
+            if (generators == null) {
+                generators = new ArrayList<>(2);
+            }
+            generators.add(activation);
+            return true;
+        }
+    }
+
+    void removeGenerator(GeneratorActivation activation) {
+        synchronized (lock) {
+            if (generators != null) {
+                generators.remove(activation);
+            }
+        }
+    }
+
     void removeActivation(AsyncActivation activation) {
         synchronized (lock) {
             if (activations != null) {
@@ -393,8 +420,9 @@ final class AsyncScope {
      * still alive at the deadline; a non-empty list poisons the engine, because
      * a preserved stack that outlives its scope must never touch a later eval.
      */
-    List<AsyncActivation> close(String reason, long teardownMillis) {
+    List<Object> close(String reason, long teardownMillis) {
         List<AsyncActivation> live;
+        List<GeneratorActivation> liveGenerators;
         List<AsyncJob> pending = null;
         List<TimerRecord> timerSnapshot = null;
         synchronized (lock) {
@@ -406,6 +434,7 @@ final class AsyncScope {
                 cancelReason = reason;
             }
             live = activations == null ? List.of() : new ArrayList<>(activations);
+            liveGenerators = generators == null ? List.of() : new ArrayList<>(generators);
             if (!queuesEmpty()) {
                 pending = new ArrayList<>();
                 if (microtasks != null) {
@@ -436,14 +465,17 @@ final class AsyncScope {
                 }
             }
         }
-        if (live.isEmpty()) {
+        if (live.isEmpty() && liveGenerators.isEmpty()) {
             return List.of();
         }
         long deadline = System.nanoTime() + teardownMillis * 1_000_000L;
         for (AsyncActivation activation : live) {
             activation.cancel();
         }
-        List<AsyncActivation> stuck = new ArrayList<>(0);
+        for (GeneratorActivation g : liveGenerators) {
+            g.cancel();
+        }
+        List<Object> stuck = new ArrayList<>(0);
         // Teardown is usually driven by the very interrupt it is responding to,
         // so clear this thread's interrupt for the bounded join — otherwise every
         // wait fails instantly and a perfectly cooperative activation is misread
@@ -458,6 +490,13 @@ final class AsyncScope {
                 // an interrupt that arrives mid-join is recorded here and cleared
                 // again: one interrupt must not make every remaining wait fail
                 // instantly and misclassify cooperative activations as stuck
+                wasInterrupted |= Thread.interrupted();
+            }
+            for (GeneratorActivation g : liveGenerators) {
+                long remaining = (deadline - System.nanoTime()) / 1_000_000L;
+                if (!g.awaitTermination(Math.max(remaining, 1))) {
+                    stuck.add(g);
+                }
                 wasInterrupted |= Thread.interrupted();
             }
         } finally {

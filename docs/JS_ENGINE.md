@@ -1032,6 +1032,73 @@ browser would.
 
 ---
 
+## Generators (`function*` / `yield` / `yield*`)
+
+Generators reuse the async foundation — a suspended body needs its own stack,
+so each *started* generator owns one virtual thread, strictly alternating
+with its **driver** (the JS thread calling `next`/`return`/`throw`) under the
+engine's fair `jsLock`. `GeneratorActivation` is the coroutine engine;
+`JsGenerator extends JsObject` is the object, with `next`/`return`/`throw` +
+`@@iterator → this` on the shared `JsGeneratorPrototype` (brand-checked — a
+borrowed `next.call(notAGenerator)` is a TypeError). Because well-known
+symbols are string stand-ins, a generator plugs into for-of / spread /
+destructuring / `Array.from` through the existing `@@iterator` protocol with
+zero consumer changes. The design went through a 3-round external review;
+the invariants that came out of it:
+
+1. **A RUNNING step is scope-owned; a SUSPENDED generator is not.** The
+   driver registers the step with its current `AsyncScope` exactly once
+   (`addGenerator` is atomic register-only-if-open); the gen side only ever
+   *de*registers — at yield publication and in its outer finally. Scope
+   teardown cancels and joins registered generators with the same bounded
+   deadline + engine-poisoning story as async activations. A suspended
+   generator holds no `AsyncToken`, survives eval-scope close, and is
+   resumable from a later eval on the same engine (`jsLock` is per-Engine,
+   not per-scope). Quiescence needs no generator token: the driver is parked
+   inside its own eval until the step completes, and async work created
+   mid-step holds its own tokens.
+2. **`gen.return(v)` is a return completion injected at the yield site**
+   (`context.stopAndReturn`) — never a `FlowControlSignal`, which
+   `evalTryStmt` rethrows *before* running `finally`. Riding the completion
+   machinery is what makes `finally` run, lets a `yield` inside `finally`
+   suspend normally (the pending RETURN completion is parked in
+   `evalTryStmt`'s saved locals on the generator's own vthread stack), and
+   gives finally-overrides-return the same answers regular code gets.
+   `gen.throw(e)` likewise injects through the cooperative
+   `context.stopAndThrow` seam — catchable by the body, never a Java throw
+   of the raw value.
+3. **`yield*` is an explicit iterator-record state machine** (spec
+   §27.5.3.7) over the delegate's `next`/`throw`/`return` invoked *with
+   arguments* and validated per result — not the value-only `JsIterator`
+   walk, which cannot carry sent values, throw forwarding, or the
+   delegate's final completion value. A delegate `return()` answering
+   `done:false` keeps delegation alive.
+4. **Handoff ownership**: the state CAS (`NOT_STARTED|SUSPENDED → RUNNING`)
+   owns the step; resume input is written under `jsLock` before the unpark
+   and read after reacquisition; each step has a fresh single-assignment
+   outcome cell with a last-resort HOST_CANCELLED publication in the gen
+   thread's outer finally (a driver can never park forever); vthread start
+   failure retires the generator while the driver still holds the lock; a
+   driver interrupted mid-step cancels the gen thread and rethrows
+   `EngineInterruptedException` without reacquiring `jsLock`.
+5. **A nested `eval()` on an activation thread shares the open scope.**
+   `Engine.enterEvalScope`'s nested-eval detection is scope-aware, not
+   thread-identity-only: an async-activation or generator vthread whose work
+   belongs to the currently open `AsyncScope` increments `evalDepth` instead
+   of waiting for the scope to close — the wait deadlocked (the scope owner
+   is parked waiting for that very thread). This fixed generators and a
+   pre-existing `eval()`-inside-`async`-function deadlock in one seam.
+
+Accepted deviations (shared with async where noted): parameter binding runs
+on the gen thread at first `next()`, not at generator-function call (same as
+async activations); async generators / `for await` are unimplemented
+(`async-iteration` stays feature-skipped); the `GeneratorFunction` intrinsic
+realm surface is absent; GC reclaim of a parked vthread whose abandoned
+generator became unreachable is a best-effort backstop, not a contract — the
+explicit cleanup path is `return()` / for-of close.
+
+---
+
 ## Engine-compliance work
 
 The operating-mode maxims for the test262 conformance loop now live in

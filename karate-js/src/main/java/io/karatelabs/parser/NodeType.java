@@ -80,6 +80,7 @@ public enum NodeType {
     REF_BRACKET_EXPR,
     UNARY_EXPR,
     AWAIT_EXPR,
+    YIELD_EXPR,
     LIT_OBJECT,
     OBJECT_ELEM,
     LIT_ARRAY,
@@ -141,7 +142,8 @@ public enum NodeType {
             // Three-child nodes: binary ops after Shift.LEFT (left, op, right);
             // VAR_DECL measured ~always 3 (name = value). LABELLED_STMT is exactly
             // ident + colon + statement.
-            case REF_DOT_EXPR, INSTANCEOF_EXPR, IN_EXPR, VAR_DECL, LABELLED_STMT -> 3;
+            case REF_DOT_EXPR, INSTANCEOF_EXPR, IN_EXPR, VAR_DECL, LABELLED_STMT,
+                 YIELD_EXPR -> 3;
             // Ternary (cond ? a : b = 5); call-arg lists measured p95~3 — padded so
             // typical multi-arg calls never grow.
             case LOGIC_TERN_EXPR, FN_CALL_ARGS -> 5;
