@@ -188,6 +188,37 @@ final class SlotTable {
         return table;
     }
 
+    /** Program-scope entry point — cached on the PROGRAM node. Only the
+     *  scope-confined class exists at program scope: every declaration in the
+     *  program body itself (var, function, top-level let/const) stays in the
+     *  name-keyed store, because that store IS the {@code Engine.bindings}
+     *  cross-eval host contract (getBindings visibility, REPL re-declaration
+     *  via evalId, implicit-global interop). A let/const lexically confined to
+     *  a nested block or C-style for-init is invisible to that contract — it
+     *  never survives its block, and a nested-function reference forces it to
+     *  STORE exactly as inside a function — so it gets a frame slot and the
+     *  same re-arm machinery. {@code byName} stays empty, so every name-keyed
+     *  path (host get/put, hoisting, indirect eval — always global-scoped
+     *  here) routes to the store untouched.
+     *  <p>
+     *  Gated on a top-level loop for the same reason function analysis defers
+     *  loop-free bodies: a loop-free program cannot amortize the walk within
+     *  its one eval. There is no second-call hook for a program, so the gate
+     *  is permanent per node (BAIL, not DEFERRED). */
+    static SlotTable forProgram(Node program) {
+        Object cached = program.meta;
+        if (cached != null) {
+            return cached == BAIL ? null : (SlotTable) cached;
+        }
+        if (!hasLoop(program)) {
+            program.meta = BAIL;
+            return null;
+        }
+        SlotTable table = analyze(List.of(), program, true);
+        program.meta = table == null ? BAIL : table;
+        return table;
+    }
+
     /** True when the body contains a loop outside nested function/class
      *  subtrees — those belong to their own function's decision. */
     private static boolean hasLoop(Node node) {
@@ -227,6 +258,13 @@ final class SlotTable {
     }
 
     private static SlotTable analyze(List<Node> argNodes, Node body) {
+        return analyze(argNodes, body, false);
+    }
+
+    /** {@code programScope}: the body is a PROGRAM node — the function-scoped
+     *  class is forced empty (those names belong to the store per the host
+     *  contract) and only scope-confined lets are framed. */
+    private static SlotTable analyze(List<Node> argNodes, Node body, boolean programScope) {
         int paramCount = argNodes.size();
         String[] paramNames = new String[paramCount];
         for (int i = 0; i < paramCount; i++) {
@@ -271,14 +309,17 @@ final class SlotTable {
         }
         w.letConsts.keySet().removeIf(w.storeForced::contains);
         // Function-scoped frame names: params + vars + fn-decls, minus anything
-        // captured by a nested function or rebound dynamically.
+        // captured by a nested function or rebound dynamically. At program
+        // scope this class stays empty — those names are the store's.
         Set<String> functionScoped = new LinkedHashSet<>();
-        for (String p : paramNames) {
-            functionScoped.add(p);
+        if (!programScope) {
+            for (String p : paramNames) {
+                functionScoped.add(p);
+            }
+            functionScoped.addAll(w.vars);
+            functionScoped.addAll(w.fnDecls);
+            functionScoped.removeAll(w.storeForced);
         }
-        functionScoped.addAll(w.vars);
-        functionScoped.addAll(w.fnDecls);
-        functionScoped.removeAll(w.storeForced);
         // body-top-level let/const behave like function-scoped names (their
         // scope is the whole body, which ends when the frame does)
         List<String> scopedNames = new ArrayList<>();
@@ -286,7 +327,7 @@ final class SlotTable {
             if (w.storeForced.contains(e.getKey()) || w.captured.contains(e.getKey())) {
                 continue;
             }
-            if (e.getValue().scopeNode == body) {
+            if (!programScope && e.getValue().scopeNode == body) {
                 functionScoped.add(e.getKey());
             } else {
                 scopedNames.add(e.getKey());
@@ -337,11 +378,13 @@ final class SlotTable {
         SlotTable table = new SlotTable(names, kinds, paramSlots, byName);
         // annotate: function-scoped names everywhere in the body (minus nested
         // functions); scope-confined names within their declaring subtree only
-        annotate(body, byName);
-        for (Node argNode : argNodes) {
-            Node defaultExpr = defaultExpr(argNode);
-            if (defaultExpr != null) {
-                annotate(defaultExpr, byName);
+        if (!byName.isEmpty()) { // empty at program scope — skip the whole-body walk
+            annotate(body, byName);
+            for (Node argNode : argNodes) {
+                Node defaultExpr = defaultExpr(argNode);
+                if (defaultExpr != null) {
+                    annotate(defaultExpr, byName);
+                }
             }
         }
         for (String name : scopedNames) {

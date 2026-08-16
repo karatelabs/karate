@@ -2302,6 +2302,19 @@ class Interpreter {
         if (!context.strict && hasUseStrictDirective(node)) {
             context.strict = true;
         }
+        // Program-scope slot frame: dense storage for let/const confined to
+        // nested blocks / for-inits at top level (SlotTable.forProgram — the
+        // store keeps everything the Engine.bindings contract can see). The
+        // frame is per-eval; the analysis is cached on the node. The guard
+        // keeps a PROGRAM evaluated on a context that already carries a
+        // function frame (no such path today) from clobbering it.
+        if (SlotTable.ENABLED && context.frame == null) {
+            SlotTable table = SlotTable.forProgram(node);
+            if (table != null) {
+                context.frameTable = table;
+                context.frame = table.newFrame();
+            }
+        }
         // Hoist top-level function declarations so they're visible before their lexical
         // position. Per ES5/ES6, `function foo() {}` at script-level is registered before
         // any other statement runs — code earlier in the source can still reference foo.
