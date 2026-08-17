@@ -277,6 +277,7 @@ public final class Runner {
         private io.karatelabs.http.HttpClientFactory httpClientFactory;
         private boolean skipTagFiltering;
         private int poolSize = -1; // -1 means auto-detect from parallel count
+        private java.util.function.Consumer<Suite> suiteConsumer;
         private io.karatelabs.js.RunInterceptor<?> debugInterceptor;
         private io.karatelabs.js.DebugPointFactory<?> debugPointFactory;
 
@@ -628,6 +629,16 @@ public final class Runner {
         }
 
         /**
+         * Receive the constructed {@link Suite} just before the run starts — the handle a caller
+         * needs for cooperative mid-run control: {@link Suite#abort()} lets the executing scenario
+         * finish and skips everything after it (the same flag abortSuiteOnFailure sets).
+         */
+        public Builder onSuite(java.util.function.Consumer<Suite> consumer) {
+            this.suiteConsumer = consumer;
+            return this;
+        }
+
+        /**
          * Add multiple run event listeners.
          */
         public Builder listeners(Collection<RunListener> values) {
@@ -971,6 +982,9 @@ public final class Runner {
             }
 
             Suite suite = new Suite(this, Math.max(1, effectiveThreads));
+            if (suiteConsumer != null) {
+                suiteConsumer.accept(suite);
+            }
             SuiteResult result = suite.run();
 
             // Print summary if enabled
