@@ -111,9 +111,15 @@ public class ServerRequestCycle {
             String path = request.getPath();
             if (config.isApiPath(path)) {
                 return handleApi();
-            } else {
-                return handleTemplate();
             }
+            // Registered JS routes (config.jsRoute) — JS handlers outside the
+            // apiPrefix, e.g. a download endpoint inside a gated page prefix.
+            // The apiPrefix keeps priority; templates are the fallback.
+            String routedJs = resolveJsRoute(path);
+            if (routedJs != null) {
+                return handleJs(routedJs, path);
+            }
+            return handleTemplate();
         } catch (Exception e) {
             return handleError(e);
         } finally {
@@ -150,15 +156,27 @@ public class ServerRequestCycle {
         // Set request path with prefix stripped so JS can use pathMatches
         request.setPath("/" + afterPrefix);
 
+        return handleJs(jsPath, path);
+    }
+
+    /**
+     * Resolve and execute a JS handler file. Shared by the apiPrefix path
+     * (which rewrites the request path first) and registered jsRoute patterns
+     * (which preserve the original path so pathMatches() can extract params).
+     */
+    private HttpResponse handleJs(String jsPath, String originalPath) {
+        if (!PathSecurity.isSafe(originalPath)) {
+            return forbidden("Invalid path");
+        }
         try {
             Resource resource;
             try {
                 resource = resolver.resolve(jsPath, null);
             } catch (RuntimeException e) {
-                return notFound(path);
+                return notFound(originalPath);
             }
             if (resource == null) {
-                return notFound(path);
+                return notFound(originalPath);
             }
 
             String jsCode = resource.getText();
@@ -183,6 +201,24 @@ public class ServerRequestCycle {
             }
             return handleError(e);
         }
+    }
+
+    /**
+     * Match the request path against registered jsRoute patterns (insertion
+     * order — register more specific patterns first). Mirrors
+     * {@link #resolveTemplateRoute(String)}.
+     */
+    private String resolveJsRoute(String path) {
+        java.util.LinkedHashMap<String, String> routes = config.getJsRoutes();
+        if (routes == null) {
+            return null;
+        }
+        for (var entry : routes.entrySet()) {
+            if (request.pathMatches(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     private HttpResponse handleTemplate() {

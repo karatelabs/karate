@@ -68,6 +68,7 @@ public class ServerConfig {
     private String errorTemplate404;
     private String errorTemplate500;
     private java.util.LinkedHashMap<String, String> templateRoutes;
+    private java.util.LinkedHashMap<String, String> jsRoutes;
 
     // Layout shell (applied to full-page navigations — skipped for HX-Request and rawPaths)
     private String shellTemplate;
@@ -192,6 +193,10 @@ public class ServerConfig {
 
     public java.util.LinkedHashMap<String, String> getTemplateRoutes() {
         return templateRoutes;
+    }
+
+    public java.util.LinkedHashMap<String, String> getJsRoutes() {
+        return jsRoutes;
     }
 
     public String getShellTemplate() {
@@ -412,6 +417,34 @@ public class ServerConfig {
             templateRoutes = new java.util.LinkedHashMap<>();
         }
         templateRoutes.put(pathPattern, templateName);
+        return this;
+    }
+
+    /**
+     * Add a path pattern → JS handler mapping, so a JS endpoint can live at any
+     * path — not only under the single {@link #apiPrefix(String)}. Checked after
+     * the apiPrefix (which keeps its existing behavior) and before template
+     * resolution. The original request path is preserved so the handler can use
+     * request.pathMatches() to extract parameters.
+     * <p>
+     * The motivating case: an app whose auth filter gates a page prefix (e.g.
+     * everything under {@code /team/*}) wants a JS download endpoint inside that
+     * same prefix — {@code jsRoute("/team/export", "team/export.js")} — instead
+     * of parking it under {@code /api/} and duplicating the gate rule there.
+     * <p>
+     * Example:
+     * <pre>
+     * config.jsRoute("/team/export", "team/export.js")
+     *       .jsRoute("/reports/{id}/data", "reports/data.js")
+     * </pre>
+     * <p>
+     * Register more specific patterns first.
+     */
+    public ServerConfig jsRoute(String pathPattern, String jsFile) {
+        if (jsRoutes == null) {
+            jsRoutes = new java.util.LinkedHashMap<>();
+        }
+        jsRoutes.put(pathPattern, jsFile);
         return this;
     }
 
