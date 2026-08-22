@@ -124,6 +124,7 @@ public class Step {
             step.setComments((List<String>) map.get("comments"));
         }
         step.setPrefix((String) map.get("prefix"));
+        step.setKeyword((String) map.get("keyword"));
         step.setText((String) map.get("text"));
         step.setDocString((String) map.get("docString"));
         if (map.get("table") instanceof List) {
@@ -149,6 +150,12 @@ public class Step {
             map.put("comments", comments);
         }
         map.put("prefix", prefix);
+        if (keyword != null) {
+            // the step KIND (match/status/def/assert/...) — without it a persisted step is
+            // ambiguous to any offline reader (text alone cannot tell `match x == 1` from
+            // `assert x == 1` once the keyword is stripped)
+            map.put("keyword", keyword);
+        }
         map.put("text", text);
         if (docString != null) {
             map.put("docString", docString);
