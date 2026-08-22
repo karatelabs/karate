@@ -174,4 +174,45 @@ class ApacheHttpClientTest {
                             + "so only readTimeout may bound it");
         }
     }
+
+    /**
+     * After the client decompresses a response body, the wire's {@code Content-Encoding} and
+     * {@code Content-Length} headers describe bytes that no longer exist. Anything that re-serves
+     * the {@link HttpResponse} verbatim — a {@code karate.proceed()} relay copies the header map —
+     * would advertise gzip over plain bytes, and the downstream client fails before seeing the body.
+     */
+    @Test
+    void testDecompressedResponseDropsStaleEncodingHeaders() throws Exception {
+        byte[] plain = "{\"hello\":\"world\"}".getBytes();
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        try (java.util.zip.GZIPOutputStream gzip = new java.util.zip.GZIPOutputStream(baos)) {
+            gzip.write(plain);
+        }
+        byte[] compressed = baos.toByteArray();
+        org.apache.hc.core5.http.message.BasicClassicHttpResponse wire
+                = new org.apache.hc.core5.http.message.BasicClassicHttpResponse(200);
+        wire.addHeader("Content-Type", "application/json");
+        wire.addHeader("Content-Encoding", "gzip");
+        wire.addHeader("Content-Length", String.valueOf(compressed.length));
+        wire.setEntity(new org.apache.hc.core5.http.io.entity.ByteArrayEntity(
+                compressed, org.apache.hc.core5.http.ContentType.APPLICATION_JSON));
+        HttpResponse response = ApacheHttpClient.buildResponse(wire, System.currentTimeMillis());
+        assertArrayEquals(plain, response.getBodyBytes());
+        assertNull(response.getHeader("Content-Encoding"));
+        assertEquals(String.valueOf(plain.length), response.getHeader("Content-Length"));
+    }
+
+    @Test
+    void testUnencodedResponseKeepsHeadersUntouched() throws Exception {
+        byte[] plain = "hello".getBytes();
+        org.apache.hc.core5.http.message.BasicClassicHttpResponse wire
+                = new org.apache.hc.core5.http.message.BasicClassicHttpResponse(200);
+        wire.addHeader("Content-Type", "text/plain");
+        wire.addHeader("Content-Length", String.valueOf(plain.length));
+        wire.setEntity(new org.apache.hc.core5.http.io.entity.ByteArrayEntity(
+                plain, org.apache.hc.core5.http.ContentType.TEXT_PLAIN));
+        HttpResponse response = ApacheHttpClient.buildResponse(wire, System.currentTimeMillis());
+        assertArrayEquals(plain, response.getBodyBytes());
+        assertEquals(String.valueOf(plain.length), response.getHeader("Content-Length"));
+    }
 }

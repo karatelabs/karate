@@ -620,6 +620,19 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
                     }
                     response.setBody(bytes, null);
                     response.setContentLength(bytes.length);
+                    boolean decoded = "br".equalsIgnoreCase(encoding)
+                            || "gzip".equalsIgnoreCase(encoding)
+                            || "deflate".equalsIgnoreCase(encoding);
+                    if (decoded) {
+                        // the body bytes above are decompressed, so the wire's encoding / length
+                        // headers no longer describe them — anything re-serving this response
+                        // (e.g. a karate.proceed() relay) would advertise gzip over plain bytes
+                        response.removeHeader("Content-Encoding");
+                        if (response.getHeader(HttpUtils.Header.CONTENT_LENGTH.key) != null) {
+                            response.removeHeader(HttpUtils.Header.CONTENT_LENGTH.key);
+                            response.setHeader(HttpUtils.Header.CONTENT_LENGTH.key, String.valueOf(bytes.length));
+                        }
+                    }
                 } catch (Exception e) {
                     LOGGER.warn("error extracting response body: {}", e.getMessage());
                 }
