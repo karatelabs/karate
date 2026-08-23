@@ -280,6 +280,14 @@ public class HttpUtils {
             return raw;
         }
         if (resourceType.isJson()) {
+            // same structural precondition as the lenient lane: only object/array documents
+            // parse. A scalar JSON document ("123", "true") stays a raw string there, and
+            // responseType classification has no scalar bucket — parsing it here would make
+            // the strict lane change MORE than which type drives the conversion.
+            char first = raw.trim().charAt(0);
+            if (first != '{' && first != '[') {
+                return raw;
+            }
             try {
                 Object parsed = new JSONParser(LENIENT_WHOLE_DOCUMENT)
                         .parse(raw, JSONValue.defaultReader.DEFAULT_ORDERED);

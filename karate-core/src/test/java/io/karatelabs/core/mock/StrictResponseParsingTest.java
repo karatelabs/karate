@@ -23,11 +23,14 @@
  */
 package io.karatelabs.core.mock;
 
+import io.karatelabs.common.ResourceType;
+import io.karatelabs.core.InMemoryHttpClient;
 import io.karatelabs.core.MockServer;
 import io.karatelabs.core.Runner;
 import io.karatelabs.core.ScenarioRuntime;
 import io.karatelabs.core.SuiteResult;
 import io.karatelabs.http.ApacheHttpClient;
+import io.karatelabs.http.HttpResponse;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -110,6 +113,25 @@ class StrictResponseParsingTest {
             * match responseType == 'json'
             * match response.total == 81.99
             """.formatted(port));
+        assertPassed(sr);
+    }
+
+    @Test
+    void strictCoversTheKarateHttpJsLaneForAnyClient() {
+        // a CUSTOM HttpClient (here the in-memory test double) is not obliged to stamp the flag,
+        // and karate.http() never passes through the step executor — the shared builder's
+        // config-supplier stamp is what keeps this lane consistent with the method-step lane
+        InMemoryHttpClient client = new InMemoryHttpClient(req -> {
+            HttpResponse response = new HttpResponse();
+            response.setStatus(200);
+            response.setBody("{\"total\":81.99}", ResourceType.TEXT);
+            return response;
+        });
+        ScenarioRuntime sr = run(client, """
+            * configure strictResponseParsing = true
+            * def res = karate.http('http://in-memory').get()
+            * match res.body == '{"total":81.99}'
+            """);
         assertPassed(sr);
     }
 

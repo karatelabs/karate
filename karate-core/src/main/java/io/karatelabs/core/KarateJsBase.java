@@ -99,7 +99,7 @@ abstract class KarateJsBase implements SimpleObject {
     KarateJsBase(Resource root, HttpClient client) {
         this.root = root;
         this.client = client;
-        http = new HttpRequestBuilder(client);
+        http = new HttpRequestBuilder(client).configSupplier(this::getConfig);
         this.engine = new Engine();
         engine.setOnConsoleLog(s -> SCENARIO_LOG.info(s));
         engine.setExternalBridge(DEFAULT_BRIDGE);

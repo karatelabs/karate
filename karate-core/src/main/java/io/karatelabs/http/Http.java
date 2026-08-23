@@ -57,7 +57,7 @@ public class Http {
     private Http(String urlBase) {
         this.urlBase = urlBase;
         this.client = new DefaultHttpClientFactory().create();
-        this.builder = new HttpRequestBuilder(client);
+        this.builder = new HttpRequestBuilder(client).configSupplier(() -> config);
         builder.url(urlBase);
     }
 

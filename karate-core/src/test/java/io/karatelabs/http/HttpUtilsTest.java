@@ -186,6 +186,10 @@ class HttpUtilsTest {
         // the NDJSON shape (#2990): even DECLARED as json it does not parse whole -> raw string
         String ndJson = "{\"a\":1}\n{\"a\":2}";
         assertEquals(ndJson, HttpUtils.fromBytesDeclared(bytes(ndJson), ResourceType.JSON));
+        // scalar JSON documents keep the lenient lane's raw-string treatment — the strict lane
+        // changes WHICH type drives conversion, never what shapes parse
+        assertEquals("123", HttpUtils.fromBytesDeclared(bytes("123"), ResourceType.JSON));
+        assertEquals("true", HttpUtils.fromBytesDeclared(bytes("true"), ResourceType.JSON));
     }
 
     @Test

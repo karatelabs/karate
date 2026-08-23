@@ -73,8 +73,23 @@ public class HttpRequestBuilder implements SimpleObject {
         retryUntil = null;
     }
 
+    /**
+     * Lazily supplies the owning context's {@link io.karatelabs.core.KarateConfig} so every
+     * response this builder produces is stamped with conversion-side settings
+     * (strictResponseParsing) — including the {@code karate.http()} JS lane, which reaches
+     * {@link #invoke()} without passing through the step executor. Null = no stamping (server
+     * side / bare builders), which leaves the lenient default.
+     */
+    private java.util.function.Supplier<io.karatelabs.core.KarateConfig> configSupplier;
+
+    public HttpRequestBuilder configSupplier(java.util.function.Supplier<io.karatelabs.core.KarateConfig> supplier) {
+        this.configSupplier = supplier;
+        return this;
+    }
+
     public HttpRequestBuilder copy() {
         HttpRequestBuilder hrb = new HttpRequestBuilder(client);
+        hrb.configSupplier = configSupplier;
         hrb.url = url;
         hrb.method = method;
         hrb.paths = paths;
@@ -130,6 +145,14 @@ public class HttpRequestBuilder implements SimpleObject {
         reset();
         HttpResponse response = client.invoke(request);
         response.setRequest(request);
+        // conversion-side stamp for ANY client, on every lane that reaches this builder —
+        // the step executor re-stamps the gherkin lanes, but karate.http() has only this
+        if (configSupplier != null) {
+            io.karatelabs.core.KarateConfig config = configSupplier.get();
+            if (config != null) {
+                response.setStrictParsing(config.isStrictResponseParsing());
+            }
+        }
         return response;
     }
 
