@@ -53,6 +53,12 @@ public class HttpResponse implements ObjectLike {
     private int contentLength;
     private HttpRequest request;
     private int delay;
+    // when true, the server drops the connection (TCP RST via SO_LINGER=0) INSTEAD of writing this
+    // response — the transport-fault seam a handler function cannot otherwise express (a chaos /
+    // resilience mock simulating a dependency that dies mid-request). Server-side only: honored by
+    // HttpServerHandler, meaningless on a client-received response. Composes with `delay` (reset
+    // after the delay elapses).
+    private boolean resetConnection;
     // when true, getBodyConverted() honors the DECLARED Content-Type only (no body sniffing).
     // Stamped by the HTTP client from `configure strictResponseParsing`, so every consumer of
     // this response — the `response` variable, JS member access, evidence toMap() — converts
@@ -265,6 +271,14 @@ public class HttpResponse implements ObjectLike {
 
     public void setDelay(int delay) {
         this.delay = delay;
+    }
+
+    public boolean isResetConnection() {
+        return resetConnection;
+    }
+
+    public void setResetConnection(boolean resetConnection) {
+        this.resetConnection = resetConnection;
     }
 
     /**

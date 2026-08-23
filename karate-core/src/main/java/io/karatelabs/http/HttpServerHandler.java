@@ -91,8 +91,24 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<FullHttpReque
         }
         try {
             HttpResponse response = server.handler.apply(request);
-            FullHttpResponse res = toResponse(response);
             int delay = response.getDelay();
+            if (response.isResetConnection()) {
+                // the transport-fault seam (HttpResponse#setResetConnection): drop the connection with a
+                // TCP RST instead of answering — SO_LINGER=0 makes close() send RST rather than FIN, so
+                // the client sees "connection reset", exactly what a dying dependency looks like on the
+                // wire. Composes with delay (reset only after the delay elapses).
+                Runnable reset = () -> {
+                    ctx.channel().config().setOption(io.netty.channel.ChannelOption.SO_LINGER, 0);
+                    ctx.close();
+                };
+                if (delay > 0) {
+                    ctx.executor().schedule(reset, delay, TimeUnit.MILLISECONDS);
+                } else {
+                    reset.run();
+                }
+                return;
+            }
+            FullHttpResponse res = toResponse(response);
             if (delay > 0) {
                 // Use Netty's non-blocking scheduler for delay
                 ctx.executor().schedule(() -> ctx.writeAndFlush(res), delay, TimeUnit.MILLISECONDS);
