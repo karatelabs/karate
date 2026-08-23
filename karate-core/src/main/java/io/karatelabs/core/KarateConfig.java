@@ -67,6 +67,7 @@ public class KarateConfig implements SimpleObject {
     private static final List<String> KEYS = List.of(
             // HTTP client settings
             "url", "readTimeout", "connectTimeout", "followRedirects", "localAddress", "charset",
+            "strictResponseParsing",
             // Grouped settings (Maps)
             "ssl", "proxy", "auth", "retry", "report", "logging", "callSingleCache",
             // Headers/Cookies
@@ -88,6 +89,9 @@ public class KarateConfig implements SimpleObject {
     private boolean followRedirects = true;
     private String localAddress;
     private Charset charset = StandardCharsets.UTF_8;
+    // response body conversion honors the DECLARED Content-Type only (no first-char sniffing);
+    // default false = the V1-compatible lenient sniff. See HttpResponse#getBodyConverted.
+    private boolean strictResponseParsing;
 
     // ===== Grouped Settings (Maps) =====
 
@@ -195,6 +199,7 @@ public class KarateConfig implements SimpleObject {
         this.followRedirects = other.followRedirects;
         this.localAddress = other.localAddress;
         this.charset = other.charset;
+        this.strictResponseParsing = other.strictResponseParsing;
         // Grouped settings (deep copy Maps)
         this.ssl = new HashMap<>(other.ssl);
         this.proxy = new HashMap<>(other.proxy);
@@ -266,6 +271,7 @@ public class KarateConfig implements SimpleObject {
         if (before.followRedirects != after.followRedirects) this.followRedirects = after.followRedirects;
         if (!Objects.equals(before.localAddress, after.localAddress)) this.localAddress = after.localAddress;
         if (!Objects.equals(before.charset, after.charset)) this.charset = after.charset;
+        if (before.strictResponseParsing != after.strictResponseParsing) this.strictResponseParsing = after.strictResponseParsing;
         // Grouped settings (deep copy Maps)
         if (!before.ssl.equals(after.ssl)) this.ssl = new HashMap<>(after.ssl);
         if (!before.proxy.equals(after.proxy)) {
@@ -338,6 +344,9 @@ public class KarateConfig implements SimpleObject {
             }
             case "followRedirects" -> {
                 this.followRedirects = toBoolean(value);
+            }
+            case "strictResponseParsing" -> {
+                this.strictResponseParsing = toBoolean(value);
             }
             case "localAddress" -> {
                 this.localAddress = toString(value);
@@ -714,6 +723,7 @@ public class KarateConfig implements SimpleObject {
             case "followRedirects" -> followRedirects;
             case "localAddress" -> localAddress;
             case "charset" -> charset != null ? charset.name() : null;
+            case "strictResponseParsing" -> strictResponseParsing;
             // Grouped settings
             case "ssl" -> ssl;
             case "proxy" -> proxy;
@@ -791,6 +801,10 @@ public class KarateConfig implements SimpleObject {
 
     public boolean isFollowRedirects() {
         return followRedirects;
+    }
+
+    public boolean isStrictResponseParsing() {
+        return strictResponseParsing;
     }
 
     public String getLocalAddress() {

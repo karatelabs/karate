@@ -419,7 +419,7 @@ The pipeline fires only at the **innermost** failure: a `call` step whose callee
 
 ## Configuration
 
-`KarateConfig` is the single source of truth for every `configure ...` key — `proxy`, `ssl`, `readTimeout`, `connectTimeout`, `followRedirects`, `auth`, `retry`, `httpRetryEnabled`, `localAddress`, `charset`, `headers`, `cookies`, `logging`, `report`, `callSingleCache`, `driver`, `continueOnStepFailure`, lifecycle hooks (`beforeScenario`, `afterScenario`, `afterScenarioOutline`, `afterFeature`, `onStepFailure`), channel options (kafka/grpc/websocket), and execution flags. `KarateConfig.configure(key, value)` is the *only* place that parses key names; the HTTP client and `LogContext` are projections that read typed getters.
+`KarateConfig` is the single source of truth for every `configure ...` key — `proxy`, `ssl`, `readTimeout`, `connectTimeout`, `followRedirects`, `strictResponseParsing` (the response body converts per its DECLARED Content-Type only — no first-character sniffing; default false keeps the V1-compatible sniff), `auth`, `retry`, `httpRetryEnabled`, `localAddress`, `charset`, `headers`, `cookies`, `logging`, `report`, `callSingleCache`, `driver`, `continueOnStepFailure`, lifecycle hooks (`beforeScenario`, `afterScenario`, `afterScenarioOutline`, `afterFeature`, `onStepFailure`), channel options (kafka/grpc/websocket), and execution flags. `KarateConfig.configure(key, value)` is the *only* place that parses key names; the HTTP client and `LogContext` are projections that read typed getters.
 
 ### Projection points
 

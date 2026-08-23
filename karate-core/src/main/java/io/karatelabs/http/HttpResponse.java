@@ -53,6 +53,11 @@ public class HttpResponse implements ObjectLike {
     private int contentLength;
     private HttpRequest request;
     private int delay;
+    // when true, getBodyConverted() honors the DECLARED Content-Type only (no body sniffing).
+    // Stamped by the HTTP client from `configure strictResponseParsing`, so every consumer of
+    // this response — the `response` variable, JS member access, evidence toMap() — converts
+    // identically. Default false = the V1-compatible lenient sniff.
+    private boolean strictParsing;
 
     public ResourceType getResourceType() {
         if (resourceType == null) {
@@ -228,7 +233,18 @@ public class HttpResponse implements ObjectLike {
         if (rt != null && rt.isBinary()) {
             return body;
         }
+        if (strictParsing) {
+            return HttpUtils.fromBytesDeclared(body, rt);
+        }
         return HttpUtils.fromBytes(body, false, rt);
+    }
+
+    public boolean isStrictParsing() {
+        return strictParsing;
+    }
+
+    public void setStrictParsing(boolean strictParsing) {
+        this.strictParsing = strictParsing;
     }
 
     public long getResponseTime() {

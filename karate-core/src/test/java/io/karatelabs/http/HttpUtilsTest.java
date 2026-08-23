@@ -158,4 +158,49 @@ class HttpUtilsTest {
         assertEquals(Map.of("success", true), HttpUtils.fromString(json, false, null));
     }
 
+    // ===== the declared-type lane (configure strictResponseParsing = true) =====
+
+    private static byte[] bytes(String s) {
+        return s.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    @Test
+    void testDeclaredLaneNeverSniffs() {
+        // the exact case the lenient lane parses anyway (wholly-JSON text/plain, above):
+        // under the declared lane the Content-Type is authoritative and the String survives
+        String json = "\n{ \"success\": true }";
+        assertEquals(json, HttpUtils.fromBytesDeclared(bytes(json), ResourceType.TEXT));
+        assertEquals(json, HttpUtils.fromBytesDeclared(bytes(json), ResourceType.HTML));
+        // declared JSON still parses, with the lenient lane's grammar tolerance
+        assertEquals(Map.of("success", true), HttpUtils.fromBytesDeclared(bytes(json), ResourceType.JSON));
+        assertEquals(Map.of("a", 1), HttpUtils.fromBytesDeclared(bytes("{a:1,}"), ResourceType.JSON));
+    }
+
+    @Test
+    void testDeclaredLaneKeepsTheIssueShapesRaw() {
+        // the TOML shape (#2977): text-family declared type -> raw, no brace guessing at all
+        String toml = "[agent]\nname = \"jarvis\"";
+        assertEquals(toml, HttpUtils.fromBytesDeclared(bytes(toml), ResourceType.TEXT));
+        assertEquals(toml, HttpUtils.fromBytesDeclared(bytes(toml),
+                ResourceType.fromContentType("application/toml")));
+        // the NDJSON shape (#2990): even DECLARED as json it does not parse whole -> raw string
+        String ndJson = "{\"a\":1}\n{\"a\":2}";
+        assertEquals(ndJson, HttpUtils.fromBytesDeclared(bytes(ndJson), ResourceType.JSON));
+    }
+
+    @Test
+    void testDeclaredLaneFallbacks() {
+        // no declared type -> nothing to be strict about: same sniff as the lenient lane
+        assertEquals(Map.of("a", 1), HttpUtils.fromBytesDeclared(bytes("{\"a\":1}"), null));
+        // declared XML parses; malformed declared XML keeps the raw string
+        assertInstanceOf(org.w3c.dom.Node.class,
+                HttpUtils.fromBytesDeclared(bytes("<a><b/></a>"), ResourceType.XML));
+        assertEquals("<a><b>", HttpUtils.fromBytesDeclared(bytes("<a><b>"), ResourceType.XML));
+        // binary passes through untouched; null and empty stay themselves
+        byte[] raw = {1, 2, 3};
+        assertSame(raw, HttpUtils.fromBytesDeclared(raw, ResourceType.BINARY));
+        assertNull(HttpUtils.fromBytesDeclared(null, ResourceType.JSON));
+        assertEquals("", HttpUtils.fromBytesDeclared(bytes(""), ResourceType.JSON));
+    }
+
 }

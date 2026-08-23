@@ -255,6 +255,52 @@ public class HttpUtils {
         }
     }
 
+    /**
+     * Convert per the <b>declared</b> resource type only — the
+     * {@code configure strictResponseParsing = true} lane (see
+     * {@link HttpResponse#getBodyConverted()}). No first-character sniffing: a JSON-shaped body
+     * declared {@code text/plain} stays a String. Grammar tolerance is unchanged from the lenient
+     * lane — only <i>which type drives the conversion</i> differs — so a declared-JSON body that
+     * fails to parse falls back to the raw string exactly as before. A {@code null} resource type
+     * (no Content-Type declared) falls back to the sniffing conversion: nothing is declared, so
+     * there is nothing to be strict about.
+     */
+    public static Object fromBytesDeclared(byte[] bytes, ResourceType resourceType) {
+        if (bytes == null) {
+            return null;
+        }
+        if (resourceType == null) {
+            return fromBytes(bytes, false, null);
+        }
+        if (resourceType.isBinary()) {
+            return bytes;
+        }
+        String raw = FileUtils.toString(bytes);
+        if (raw.trim().isEmpty()) {
+            return raw;
+        }
+        if (resourceType.isJson()) {
+            try {
+                Object parsed = new JSONParser(LENIENT_WHOLE_DOCUMENT)
+                        .parse(raw, JSONValue.defaultReader.DEFAULT_ORDERED);
+                // the parser returns null for invalid JSON instead of throwing
+                return parsed != null ? parsed : raw;
+            } catch (Exception e) {
+                logger.trace("declared json failed to parse, keeping raw string: {}", e.getMessage());
+                return raw;
+            }
+        }
+        if (resourceType.isXml()) {
+            try {
+                return Xml.toXmlDoc(raw);
+            } catch (Exception e) {
+                logger.trace("declared xml failed to parse, keeping raw string: {}", e.getMessage());
+                return raw;
+            }
+        }
+        return raw;
+    }
+
     // ========== Query String Utilities ==========
 
     /**

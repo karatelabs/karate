@@ -2240,6 +2240,11 @@ public class StepExecutor {
 
             if (shouldProceed) {
                 response = http().invoke(method);
+                // client-independent guarantee: a custom HttpClient (a pooled perf client, a
+                // test double) is not obliged to stamp this, so the feature lane stamps it
+                // BEFORE HTTP_EXIT fires — listeners capturing evidence and the response
+                // variable must convert the body identically
+                response.setStrictParsing(runtime.getConfig().isStrictResponseParsing());
             } else {
                 // Request skipped by listener
                 response = HttpResponse.skipped(request);
@@ -2344,6 +2349,8 @@ public class StepExecutor {
             HttpResponse response;
             if (shouldProceed) {
                 response = http().invoke(method);
+                // same client-independent stamp as the non-retry lane, per attempt
+                response.setStrictParsing(config.isStrictResponseParsing());
             } else {
                 // Request skipped by listener
                 response = HttpResponse.skipped(request);

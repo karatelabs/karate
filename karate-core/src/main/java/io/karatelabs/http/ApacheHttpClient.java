@@ -95,6 +95,8 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     private int connectTimeout = 30000;
 
     private boolean followRedirects = true;
+    // conversion-side (stamped onto each response, never part of ClientKey) — see apply()
+    private boolean strictResponseParsing;
 
     private String proxyUri;
     private String proxyUsername;
@@ -200,6 +202,10 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
     @Override
     public void apply(KarateConfig config) {
         if (config == null) return;
+        // Conversion-side setting, deliberately NOT part of ClientKey: it changes how a response
+        // body is parsed (stamped per response below), never what reaches the wire, so flipping
+        // it must not tear down a live client. Captured before the unchanged-guard early return.
+        this.strictResponseParsing = config.isStrictResponseParsing();
         // Nothing that reaches the wire changed, so the built client is still the right one.
         //
         // This guard is the ONLY thing deciding whether a rebuild is needed. Callers used to make
@@ -556,6 +562,7 @@ public class ApacheHttpClient implements HttpClient, HttpRequestInterceptor {
             // Merge cookies from the store (captured during redirects) with response headers
             mergeCookiesFromStore(finalResponse);
             finalResponse.setRequest(request);
+            finalResponse.setStrictParsing(strictResponseParsing);
             logger.logResponse(finalResponse);
             return finalResponse;
         } catch (Exception e) {
