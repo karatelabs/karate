@@ -67,7 +67,7 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout -B -ntp)
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout -B -ntp) || { echo "$VERSION"; exit 1; }
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Build and install
