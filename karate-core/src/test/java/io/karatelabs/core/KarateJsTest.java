@@ -5,8 +5,11 @@ import io.karatelabs.common.Resource;
 import io.karatelabs.http.ErrorHttpClient;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -85,6 +88,20 @@ class KarateJsTest {
         Object p = context.engine.get("p");
         assertTrue(p instanceof String && !"fallback".equals(p),
                 "real env var should win over default");
+    }
+
+    @Test
+    void testReadOfficeBinaryExtensions() throws Exception {
+        KarateJs context = new KarateJs(Resource.path("src/test/resources"));
+        Path xlsx = Path.of("src/test/resources/io/karatelabs/core/upload/test.xlsx");
+        byte[] expected = Files.readAllBytes(xlsx);
+
+        context.engine.eval("""
+                var bytes = read('io/karatelabs/core/upload/test.xlsx');
+                var type = karate.typeOf(bytes);
+                """);
+        assertEquals("bytes", context.engine.get("type"));
+        assertArrayEquals(expected, (byte[]) context.engine.get("bytes"));
     }
 
     @Test

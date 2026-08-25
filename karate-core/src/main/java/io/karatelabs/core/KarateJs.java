@@ -244,7 +244,8 @@ public class KarateJs extends KarateJsBase implements PerfContext {
                 case "csv" -> DataUtils.fromCsv(resource.getText());
                 case "yml", "yaml" -> DataUtils.fromYaml(resource.getText());
                 // Binary file types - return raw bytes (V1 compatibility)
-                case "pdf", "png", "jpg", "jpeg", "gif", "ico", "mp4", "bin", "zip", "gz", "tar" -> FileUtils.toBytes(resource.getStream());
+                case "pdf", "png", "jpg", "jpeg", "gif", "ico", "mp4", "bin", "zip", "gz", "tar",
+                     "xlsx", "xls", "docx", "doc", "pptx", "ppt" -> FileUtils.toBytes(resource.getStream());
                 default -> resource.getText();
             };
         };
