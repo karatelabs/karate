@@ -13,6 +13,22 @@ import static org.junit.jupiter.api.Assertions.*;
 class StepUtilsTest {
 
     @Test
+    void testIsSingleQuotedLiteral() {
+        assertTrue(StepUtils.isSingleQuotedLiteral("'file.feature'"));
+        assertTrue(StepUtils.isSingleQuotedLiteral("\"file.feature\""));
+        assertTrue(StepUtils.isSingleQuotedLiteral("'c:\\dir\\file.feature'"));
+        assertTrue(StepUtils.isSingleQuotedLiteral("'has \"other\" quotes'"));
+        // concatenations start and end with a quote but are not literals
+        assertFalse(StepUtils.isSingleQuotedLiteral("'a-' + ext + '.feature'"));
+        assertFalse(StepUtils.isSingleQuotedLiteral("\"a-\" + ext + \".feature\""));
+        assertFalse(StepUtils.isSingleQuotedLiteral("'a' + b"));
+        assertFalse(StepUtils.isSingleQuotedLiteral("a + '.feature'"));
+        assertFalse(StepUtils.isSingleQuotedLiteral("pathVar"));
+        assertFalse(StepUtils.isSingleQuotedLiteral("'"));
+        assertFalse(StepUtils.isSingleQuotedLiteral(""));
+    }
+
+    @Test
     void testDeepCopyNull() {
         assertNull(StepUtils.deepCopy(null));
     }

@@ -407,6 +407,7 @@ public class StepExecutor {
                 evaluated = runtime.eval(firstToken);
             } catch (Exception e) {
                 // Not a valid JS expression, fall through to feature call
+                logger.debug("call target probe failed, treating as feature path: {}", e.getMessage());
             }
             if (evaluated instanceof JavaCallable fn) {
                 // It's a JS function - invoke it and store result.
@@ -2669,6 +2670,7 @@ public class StepExecutor {
                 evaluated = runtime.eval(firstToken);
             } catch (Exception e) {
                 // Not a valid JS expression, fall through to feature call
+                logger.debug("call target probe failed, treating as feature path: {}", e.getMessage());
             }
             if (evaluated instanceof JavaCallable fn) {
                 // It's a JS function - invoke it. Route the arg through the same
@@ -2893,13 +2895,13 @@ public class StepExecutor {
             if (closeParen > 0) {
                 // Extract path from read('path')
                 String readArg = text.substring(5, closeParen).trim();
-                // Remove quotes
                 String rawPath;
-                if ((readArg.startsWith("'") && readArg.endsWith("'")) ||
-                        (readArg.startsWith("\"") && readArg.endsWith("\""))) {
+                if (StepUtils.isSingleQuotedLiteral(readArg)) {
+                    // one quoted literal: strip the quotes verbatim, so backslashes
+                    // (e.g. Windows paths) survive without JS escape processing
                     rawPath = readArg.substring(1, readArg.length() - 1);
                 } else {
-                    // It's a variable reference
+                    // a variable reference or expression, e.g. 'a-' + ext + '.feature'
                     Object pathObj = runtime.eval(readArg);
                     rawPath = pathObj != null ? pathObj.toString() : readArg;
                 }

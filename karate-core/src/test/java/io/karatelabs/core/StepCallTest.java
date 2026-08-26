@@ -2235,4 +2235,108 @@ class StepCallTest {
                 + getFailureMessage(result));
     }
 
+    @Test
+    void testCallReadWithConcatenatedPathExpression() throws Exception {
+        Path calledFeature = tempDir.resolve("called-xlsx.feature");
+        Files.writeString(calledFeature, """
+            Feature: Called with Args
+            Scenario: Use arguments
+            * def doubled = inputValue * 2
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller with dynamic read path
+            Scenario: Path built by string concatenation
+            * def ext = 'xlsx'
+            * def response = call read('called-' + ext + '.feature') { inputValue: 21 }
+            * match response.doubled == 42
+            * call read('called-' + ext + '.feature') { inputValue: 5 }
+            * match doubled == 10
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(), "Suite should pass: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallReadFallbackKeepsConcatenatedPathIntact() throws Exception {
+        // when the call-target probe fails (here: the file does not exist), the
+        // fallback parser must still evaluate a concatenated path expression -
+        // the failure must name the resolved path, never the raw JS fragment
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: dynamic path to a missing file
+            Scenario:
+            * def ext = 'pdf'
+            * call read('missing-' + ext + '.feature')
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertFalse(result.isPassed(), "call of a missing feature must fail");
+        String message = getFailureMessage(result);
+        assertTrue(message.contains("missing-pdf.feature"),
+                "failure should name the evaluated path: " + message);
+        assertFalse(message.contains("' + ext + '"),
+                "failure must not leak the unevaluated expression: " + message);
+    }
+
+    @Test
+    void testCallReadWithConcatenatedPathInsideCalledFeature() throws Exception {
+        Path fileDir = Files.createDirectories(tempDir.resolve("file"));
+        Files.writeString(fileDir.resolve("upload-xlsx-file.reusable.feature"), """
+            Feature: innermost
+            Scenario:
+            * def doubled = inputValue * 2
+            """);
+
+        Path statementDir = Files.createDirectories(tempDir.resolve("statement"));
+        Files.writeString(statementDir.resolve("create-statement.reusable.feature"), """
+            Feature: middle - builds the read path dynamically
+            Scenario:
+            * def ext = testData.file.name.substring(testData.file.name.lastIndexOf('.') + 1)
+            * call read('this:../file/upload-' + ext + '-file.reusable.feature') { inputValue: #(testData.value) }
+            """);
+
+        Path callerFeature = tempDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: outermost
+            Scenario:
+            * def testData = { file: { name: 'data.xlsx' }, value: 21 }
+            * call read('statement/create-statement.reusable.feature') { testData: '#(testData)' }
+            * match doubled == 42
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(), "Suite should pass: " + getFailureMessage(result));
+    }
+
+    @Test
+    void testCallReadWithConcatenatedThisPrefixedPath() throws Exception {
+        Path subDir = Files.createDirectories(tempDir.resolve("file"));
+        Path calledFeature = subDir.resolve("upload-xlsx-file.feature");
+        Files.writeString(calledFeature, """
+            Feature: Called with Args
+            Scenario: Use arguments
+            * def doubled = inputValue * 2
+            """);
+
+        Path callerDir = Files.createDirectories(tempDir.resolve("statement"));
+        Path callerFeature = callerDir.resolve("caller.feature");
+        Files.writeString(callerFeature, """
+            Feature: Caller with dynamic relative read path
+            Scenario: Path built by string concatenation
+            * def ext = 'xlsx'
+            * call read('this:../file/upload-' + ext + '-file.feature') { inputValue: 21 }
+            * match doubled == 42
+            """);
+
+        SuiteResult result = runTestSuite(tempDir, callerFeature.toString());
+
+        assertTrue(result.isPassed(), "Suite should pass: " + getFailureMessage(result));
+    }
+
 }

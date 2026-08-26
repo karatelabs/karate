@@ -174,6 +174,24 @@ public class StepUtils {
     }
 
     /**
+     * True when {@code text} is exactly one quoted string literal — an opening quote
+     * whose first matching close quote is the final character. A concatenation like
+     * {@code 'a-' + ext + '.feature'} also starts <em>and</em> ends with a quote, so
+     * boundary checks alone cannot distinguish it from a literal; anything that fails
+     * this test must be evaluated as a JS expression, not quote-stripped.
+     */
+    public static boolean isSingleQuotedLiteral(String text) {
+        if (text.length() < 2) {
+            return false;
+        }
+        char quote = text.charAt(0);
+        if (quote != '\'' && quote != '"') {
+            return false;
+        }
+        return text.indexOf(quote, 1) == text.length() - 1;
+    }
+
+    /**
      * Check if text is a literal feature file read like read('file.feature').
      */
     public static boolean isLiteralFeatureRead(String text) {
